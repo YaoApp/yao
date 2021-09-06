@@ -1,5 +1,8 @@
 # 象传应用引擎
 
+[![Build Status](https://app.travis-ci.com/YaoApp/xiang.svg?token=Jqysc4yfkBQZkf1VWXhK&branch=main)](https://travis-ci.com/github/YaoApp/xiang)
+[![codecov](https://codecov.io/gh/YaoApp/xiang/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/xiang)
+
 ![象传引擎](docs/assets/engine.png)
 
 象传应用引擎，是一款低代码应用运行引擎，采用 Golang 语言开发。
