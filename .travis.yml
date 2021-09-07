@@ -43,7 +43,7 @@ env:
     # COV
     - CODECOV_TOKEN='4b4d73e7-65b3-4d04-9353-11d71f38d904'
 before_install:
-  - echo -e "machine github.com\n  login $CI_USER_TOKEN" > ~/.netrc
+  - git config --global url."https://trheyi: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@github.com".insteadOf "https://github.com"
 jobs:
   fast_finish: true
   include:
