@@ -7,7 +7,7 @@ services:
 env:
   global:
     # 私有包
-    - GOPRIVATE=https://github.com/YaoApp/gou
+    - GOPRIVATE=github.com/yaoapp/gou
 
     # 象传服务配置
     - XIANG_MODE=debug
@@ -16,7 +16,7 @@ env:
 
     # 服务配置
     - XIANG_SERVICE_DEBUG=true
-    - XIANG_SERVICE_ALLOW=xiang.yao.run:3000|xiang.yao.run:3001
+    - XIANG_SERVICE_ALLOW="xiang.yao.run:3000|xiang.yao.run:3001"
     - XIANG_SERVICE_HOST=0.0.0.0
     - XIANG_SERVICE_PORT=5099
 
