@@ -6,7 +6,8 @@ services:
   - docker
 env:
   global:
-    # TOKEN
+    # GITHUB TOKEN
+    # https://github.com/settings/tokens
     - CI_USER_TOKEN="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 --private -r yaoapp/gou"
 
     # 象传服务配置
