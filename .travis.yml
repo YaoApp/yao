@@ -6,6 +6,9 @@ services:
   - docker
 env:
   global:
+    # 私有包
+    - GOPRIVATE=https://github.com/YaoApp/gou
+
     # 象传服务配置
     - XIANG_MODE=debug
     - XIANG_SOURCE=$TRAVIS_BUILD_DIR
@@ -45,19 +48,21 @@ jobs:
   include:
     - name: MySQL8.0-1.17.x
       go: 1.17.x
-      # env:
-      #   - GOU_TEST_API_ROOT="$TRAVIS_BUILD_DIR/app/apis" GOU_TEST_FLW_ROOT="$TRAVIS_BUILD_DIR/app/flows" GOU_TEST_MOD_ROOT="$TRAVIS_BUILD_DIR/app/models" GOU_TEST_PLG_ROOT="$HOME/data/gou-unit/plugins" GOU_TEST_PLG_LOG="$HOME/data/gou-unit/logs" GOU_TEST_DSN="root:123456@tcp(127.0.0.1:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local" GOT_TEST_AES_KEY="^*aNBue!loLTTiP*4i&BSK7s#QRbe0^g" CODECOV_TOKEN='4b4d73e7-65b3-4d04-9353-11d71f38d904'
+      env:
+        - GOU_TEST_DSN="root:123456@tcp(127.0.0.1:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"'
       before_install:
         - unit/service.sh mysql8.0 # Start MySQL 8.0 service
     - name: MySQL5.7-1.17.x
       go: 1.17.x
-      # env:
+      env:
+        - GOU_TEST_DSN="root:123456@tcp(127.0.0.1:3306)/xun?charset=utf8mb4&parseTime=True&loc=Local"'
       #   - GOU_TEST_API_ROOT="$TRAVIS_BUILD_DIR/app/apis" GOU_TEST_FLW_ROOT="$TRAVIS_BUILD_DIR/app/flows" GOU_TEST_MOD_ROOT="$TRAVIS_BUILD_DIR/app/models" GOU_TEST_PLG_ROOT="$HOME/data/gou-unit/plugins" GOU_TEST_PLG_LOG="$HOME/data/gou-unit/logs" GOU_TEST_DSN="root:123456@tcp(127.0.0.1:3306)/xun?charset=utf8mb4&parseTime=True&loc=Local" GOT_TEST_AES_KEY="^*aNBue!loLTTiP*4i&BSK7s#QRbe0^g" CODECOV_TOKEN='4b4d73e7-65b3-4d04-9353-11d71f38d904'
       before_install:
         - unit/service.sh mysql5.7 # Start MySQL 5.7 service
     - name: MySQL5.6-1.17.x
       go: 1.17.x
-      # env:
+      env:
+        - GOU_TEST_DSN="root:123456@tcp(127.0.0.1:3307)/xun?charset=utf8mb4&parseTime=True&loc=Local"'
       #   - GOU_TEST_API_ROOT="$TRAVIS_BUILD_DIR/app/apis" GOU_TEST_FLW_ROOT="$TRAVIS_BUILD_DIR/app/flows" GOU_TEST_MOD_ROOT="$TRAVIS_BUILD_DIR/app/models" GOU_TEST_PLG_ROOT="$HOME/data/gou-unit/plugins" GOU_TEST_PLG_LOG="$HOME/data/gou-unit/logs" GOU_TEST_DSN="root:123456@tcp(127.0.0.1:3307)/xun?charset=utf8mb4&parseTime=True&loc=Local" GOT_TEST_AES_KEY="^*aNBue!loLTTiP*4i&BSK7s#QRbe0^g" CODECOV_TOKEN='4b4d73e7-65b3-4d04-9353-11d71f38d904'
       before_install:
         - unit/service.sh mysql5.6 # Start MySQL 5.6 service
