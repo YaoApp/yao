@@ -44,3 +44,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal(t, cfg.Log.Plugin, os.Getenv("XIANG_LOG_PLUGIN"))
 
 }
+
+func TestNewConfigFrom(t *testing.T) {
+	assert.True(t, true)
+}
