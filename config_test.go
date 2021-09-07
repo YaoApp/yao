@@ -47,4 +47,5 @@ func TestNewConfig(t *testing.T) {
 
 func TestNewConfigFrom(t *testing.T) {
 	assert.True(t, true)
+	assert.True(t, true)
 }
