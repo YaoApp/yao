@@ -6,6 +6,9 @@ services:
   - docker
 env:
   global:
+    # TOKEN
+    - CI_USER_TOKEN="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 --private -r yaoapp/gou"
+
     # 象传服务配置
     - XIANG_MODE=debug
     - XIANG_SOURCE=$TRAVIS_BUILD_DIR
@@ -39,7 +42,8 @@ env:
 
     # COV
     - CODECOV_TOKEN='4b4d73e7-65b3-4d04-9353-11d71f38d904'
-
+before_install:
+  - echo -e "machine github.com\n  login $CI_USER_TOKEN" > ~/.netrc
 jobs:
   fast_finish: true
   include:
