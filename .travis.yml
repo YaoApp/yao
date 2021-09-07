@@ -6,9 +6,6 @@ services:
   - docker
 env:
   global:
-    # 私有包
-    - GOPRIVATE=github.com/yaoapp/gou
-
     # 象传服务配置
     - XIANG_MODE=debug
     - XIANG_SOURCE=$TRAVIS_BUILD_DIR

@@ -47,6 +47,7 @@ fmt-check:
 	fi;
 
 vet:
+	$(GO) env -w GOPRIVATE=github.com/yaoapp/gou
 	$(GO) vet $(VETPACKAGES)
 
 .PHONY: lint
