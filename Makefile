@@ -8,6 +8,7 @@ GOFILES := $(shell find . -name "*.go")
 TESTFOLDER := $(shell $(GO) list ./... | grep -E './xiang$$' | grep -v examples)
 TESTTAGS ?= ""
 
+# 运行单元测试
 .PHONY: test
 test:
 	echo "mode: count" > coverage.out
@@ -77,6 +78,7 @@ tools:
 	go install golang.org/x/lint/golint; \
 	go install github.com/client9/misspell/cmd/misspell;
 
+# 编译测试用插件
 .PHONY: plugin
 plugin: 
 	rm -rf $(HOME)/data/gou-unit/plugins
@@ -92,6 +94,59 @@ plugin-mac:
 	rm -rf ./app/plugins/user/dist
 	go build -o ./app/plugins/dist/user ./app/plugins/user
 	chmod +x ./app/plugins/dist/user
+
+# 编译静态文件
+.PHONY: static
+static:
+	git clone https://github.com/YaoApp/xiang-saas-ui-kxy .tmp/ui
+	cd .tmp/ui && yarn install && yarn build
+	rm -rf ui
+	mv .tmp/ui/dist ui
+	rm -rf .tmp/ui
+
+# 将静态文件打包到命令工具
+.PHONY: bindata
+bindata:
+	rm -f data.go
+	mkdir -p .tmp/data
+	cp -r ui .tmp/data/
+	cp -r xiang .tmp/data/
+	go-bindata -o data.go .tmp/data/...
+	rm -rf .tmp/data
+
+# 编译可执行文件
+.PHONY: xiang
+xiang: bindata
+
+	if [ -f bindata.go ]; then \
+		mv bindata.go bindata.go.bak; \
+	fi;
+	
+	if [ ! -z "${XIANG_DOMAIN}" ]; then \
+		mv vars.go vars.go.bak;	\
+		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" vars.go.bak > vars.go; \
+	fi;
+
+	GOOS=linux GOARCH=amd64 go build -v -o .tmp/xiang-linux-amd64
+	GOOS=linux GOARCH=arm GOARM=7 go build -v -o .tmp/xiang-linux-arm
+	GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o .tmp/xiang-linux-arm64
+	GOOS=darwin GOARCH=amd64 go build -v -o .tmp/xiang-darwin-amd64
+	mkdir -p dist/bin
+	mv .tmp/xiang-*-* dist/bin/
+	chmod +x dist/bin/xiang-*-*
+	rm -f data.go
+	mv bindata.go.bak bindata.go
+
+	if [ ! -z "${XIANG_DOMAIN}" ]; then \
+		rm vars.go; \
+		mv vars.go.bak vars.go; \
+	fi;
+
+.PHONY: clean
+clean: 
+	rm -rf ./tmp
+	rm -rf dist
+
 
 # .PHONY: migrate
 # migrate:
