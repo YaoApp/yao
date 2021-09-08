@@ -149,6 +149,6 @@ clean:
 	rm -rf dist
 
 
-# .PHONY: migrate
-# migrate:
-# 	$(GO) test -tags $(TESTTAGS) -run TestModelMigrate$
+.PHONY: migrate
+migrate:
+	$(GO) test -tags $(TESTTAGS) -run TestCommandMigrate$

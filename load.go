@@ -20,10 +20,9 @@ type Script struct {
 }
 
 // Load 根据配置加载 API, FLow, Model, Plugin
-func Load(cfg Config) error {
+func Load(cfg Config) {
 	LoadEngine(cfg.Path)
 	LoadApp(cfg.RootAPI, cfg.RootFLow, cfg.RootModel, cfg.RootPlugin)
-	return nil
 }
 
 // LoadEngine 加载引擎的 API, Flow, Model 配置

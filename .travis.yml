@@ -27,8 +27,8 @@ env:
 
     # 数据库配置
     - XIANG_DB_DEBUG=true
-    - XIANG_DB_PRIMARY="root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
-    - XIANG_DB_SECONDARY="root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
+    - XIANG_DB_PRIMARY="root:123456@tcp(db-server:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"
+    - XIANG_DB_SECONDARY="root:123456@tcp(db-server:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"
     - XIANG_DB_AESKEY="ZLX=T&f6refeCh-ro*r@"
 
     # JWT配置
@@ -88,7 +88,7 @@ script:
   - make fmt-check
   - make misspell-check
   - make plugin
-  # - make migrate
+  - make migrate
   - make test
 
 after_success:
