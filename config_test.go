@@ -19,8 +19,8 @@ func TestNewConfig(t *testing.T) {
 	}
 
 	assert.Equal(t, cfg.Mode, os.Getenv("XIANG_MODE"))
-	assert.Equal(t, cfg.Source, os.Getenv("XIANG_SOURCE"))
 	assert.Equal(t, cfg.Root, os.Getenv("XIANG_ROOT"))
+	assert.Equal(t, cfg.Path, os.Getenv("XIANG_PATH"))
 
 	assert.Equal(t, cfg.Service.Debug, vBool(os.Getenv("XIANG_SERVICE_DEBUG")))
 	assert.Equal(t, strings.Join(cfg.Service.Allow, "|"), os.Getenv("XIANG_SERVICE_ALLOW"))

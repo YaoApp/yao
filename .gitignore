@@ -17,4 +17,3 @@
 .env*
 .tmp
 dist
-ui

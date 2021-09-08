@@ -111,7 +111,7 @@ bindata:
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
 	cp -r xiang .tmp/data/
-	go-bindata -o data.go .tmp/data/...
+	go-bindata -fs -o data.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 
 # 编译可执行文件

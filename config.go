@@ -23,13 +23,14 @@ type Config struct {
 
 // XiangConfig 象传应用引擎配置
 type XiangConfig struct {
-	Mode       string `json:"mode,omitempty" env:"XIANG_MODE" envDefault:"release"`    // 象传引擎模式 debug/release/test
-	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."` // 源码路径(用于调试时载入数据)
-	Root       string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"."`          // 应用文件目录
-	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                 // 应用API文件目录
-	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`             // 应用模型文件目录
-	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`               // 应用工作流文件目录
-	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_FLOW"`             // 应用插件文件目录
+	Mode       string `json:"mode,omitempty" env:"XIANG_MODE" envDefault:"release"`     // 象传引擎模式 debug/release/test
+	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于调试时载入数据)
+	Path       string `json:"path,omitempty" env:"XIANG_PATH" envDefault:"bin://xiang"` // 引擎文件目录
+	Root       string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"fs://."`      // 应用文件目录
+	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
+	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
+	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用工作流文件目录
+	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_FLOW"`              // 应用插件文件目录
 }
 
 // ServiceConfig 服务配置

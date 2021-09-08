@@ -1,0 +1,23 @@
+{
+  "label": "最新信息",
+  "version": "1.0.0",
+  "description": "最新信息",
+  "nodes": [
+    {
+      "name": "user",
+      "process": "models.user.get",
+      "args": [
+        {
+          "select": ["id", "name", "mobile"],
+          "limit": 20,
+          "orders": [{ "column": "created_at", "option": "desc" }],
+          "wheres": [
+            { "column": "status", "value": "enabled" },
+            { "column": "name", "value": "{{$in.0}}", "op": "like" }
+          ]
+        }
+      ],
+      "outs": ["{{$out}}"]
+    }
+  ]
+}
