@@ -89,6 +89,7 @@ func NewConfig() Config {
 		exception.New("解析配置文件出错 %s", 500, err.Error()).Throw()
 	}
 
+	cfg.SetDefaults()
 	return cfg
 }
 
@@ -99,5 +100,22 @@ func NewConfigFrom(input io.Reader) Config {
 	if err != nil {
 		exception.New("解析配置文件出错 %s", 500, err.Error()).Throw()
 	}
+	cfg.SetDefaults()
 	return cfg
+}
+
+// SetDefaults 设定默认值
+func (cfg *Config) SetDefaults() {
+	if cfg.RootAPI == "" {
+		cfg.RootAPI = cfg.Root + "/apis"
+	}
+	if cfg.RootFLow == "" {
+		cfg.RootFLow = cfg.Root + "/flows"
+	}
+	if cfg.RootModel == "" {
+		cfg.RootModel = cfg.Root + "/models"
+	}
+	if cfg.RootPlugin == "" {
+		cfg.RootPlugin = cfg.Root + "/plugins"
+	}
 }

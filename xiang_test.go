@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMainCMD(t *testing.T) {
+func TestCommand(t *testing.T) {
 	assert.NotPanics(t, func() {
 		main()
 	})

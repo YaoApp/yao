@@ -8,8 +8,9 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	err := Load()
-	assert.Nil(t, err)
+	assert.NotPanics(t, func() {
+		Load(cfg)
+	})
 }
 
 // 从文件系统载入引擎文件
@@ -26,5 +27,12 @@ func TestLoadEngineBin(t *testing.T) {
 	root := "bin://xiang"
 	assert.NotPanics(t, func() {
 		LoadEngine(root)
+	})
+}
+
+// 从文件系统载入应用脚本
+func TestLoadAppFS(t *testing.T) {
+	assert.NotPanics(t, func() {
+		LoadApp(cfg.RootAPI, cfg.RootFLow, cfg.RootModel, cfg.RootPlugin)
 	})
 }

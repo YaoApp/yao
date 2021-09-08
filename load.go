@@ -16,14 +16,17 @@ type Script struct {
 	Name    string
 	Type    string
 	Content []byte
+	File    string
 }
 
 // Load 根据配置加载 API, FLow, Model, Plugin
-func Load() error {
+func Load(cfg Config) error {
+	LoadEngine(cfg.Path)
+	LoadApp(cfg.RootAPI, cfg.RootFLow, cfg.RootModel, cfg.RootPlugin)
 	return nil
 }
 
-// LoadEngine 载入引擎 API, Flow, Model 配置
+// LoadEngine 加载引擎的 API, Flow, Model 配置
 func LoadEngine(from string) {
 
 	var scripts []Script
@@ -57,7 +60,108 @@ func LoadEngine(from string) {
 			break
 		}
 	}
+}
 
+// LoadApp 加载应用的 API, Flow, Model 和 Plugin
+func LoadApp(api string, flow string, model string, plugin string) {
+
+	// 加载API
+	if strings.HasPrefix(api, "fs://") || !strings.Contains(api, "://") {
+		root := strings.TrimPrefix(api, "fs://")
+		scripts := getAppFilesFS(root, ".json")
+		for _, script := range scripts {
+			gou.LoadAPI(string(script.Content), script.Name)
+		}
+	}
+
+	// 加载Flow
+	if strings.HasPrefix(flow, "fs://") || !strings.Contains(flow, "://") {
+		root := strings.TrimPrefix(flow, "fs://")
+		scripts := getAppFilesFS(root, ".json")
+		for _, script := range scripts {
+			gou.LoadFlow(string(script.Content), script.Name)
+		}
+	}
+
+	// 加载Model
+	if strings.HasPrefix(model, "fs://") || !strings.Contains(model, "://") {
+		root := strings.TrimPrefix(model, "fs://")
+		scripts := getAppFilesFS(root, ".json")
+		for _, script := range scripts {
+			gou.LoadModel(string(script.Content), script.Name)
+		}
+	}
+
+	// 加载Plugin
+	if strings.HasPrefix(plugin, "fs://") || !strings.Contains(plugin, "://") {
+		root := strings.TrimPrefix(plugin, "fs://")
+		scripts := getAppPlugins(root, ".so")
+		for _, script := range scripts {
+			gou.LoadPlugin(script.File, script.Name)
+		}
+	}
+}
+
+// / getAppPluins 遍历应用目录，读取文件列表
+func getAppPlugins(root string, typ string) []Script {
+	files := []Script{}
+	root = path.Join(root, "/")
+	filepath.Walk(root, func(filepath string, info os.FileInfo, err error) error {
+		if err != nil {
+			exception.Err(err, 500).Throw()
+			return err
+		}
+		if strings.HasSuffix(filepath, typ) {
+			filename := strings.TrimPrefix(filepath, root+"/")
+			namer := strings.Split(filename, ".")
+			nametypes := strings.Split(namer[0], "/")
+			name := strings.Join(nametypes, ".")
+			files = append(files, Script{
+				Name: name,
+				Type: "plugin",
+				File: filepath,
+			})
+		}
+		return nil
+	})
+	return files
+}
+
+// getAppFilesFS 遍历应用目录，读取文件列表
+func getAppFilesFS(root string, typ string) []Script {
+	files := []Script{}
+	root = path.Join(root, "/")
+	filepath.Walk(root, func(filepath string, info os.FileInfo, err error) error {
+		if err != nil {
+			exception.Err(err, 500).Throw()
+			return err
+		}
+		if strings.HasSuffix(filepath, typ) {
+			filename := strings.TrimPrefix(filepath, root+"/")
+
+			namer := strings.Split(filename, ".")
+			nametypes := strings.Split(namer[0], "/")
+			name := strings.Join(nametypes, ".")
+
+			file, err := os.Open(filepath)
+			if err != nil {
+				exception.Err(err, 500).Throw()
+			}
+
+			defer file.Close()
+			content, err := ioutil.ReadAll(file)
+			if err != nil {
+				exception.Err(err, 500).Throw()
+			}
+			files = append(files, Script{
+				Name:    name,
+				Type:    "app",
+				Content: content,
+			})
+		}
+		return nil
+	})
+	return files
 }
 
 // getFilesFS 遍历目录，读取文件列表
