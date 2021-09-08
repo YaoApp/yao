@@ -18,9 +18,14 @@ func TestNewConfig(t *testing.T) {
 		return false
 	}
 
+	xiangPath := os.Getenv("XIANG_PATH")
+	if xiangPath == "" {
+		xiangPath = "bin://xiang"
+	}
+
 	assert.Equal(t, cfg.Mode, os.Getenv("XIANG_MODE"))
 	assert.Equal(t, cfg.Root, os.Getenv("XIANG_ROOT"))
-	assert.Equal(t, cfg.Path, os.Getenv("XIANG_PATH"))
+	assert.Equal(t, cfg.Path, xiangPath)
 
 	assert.Equal(t, cfg.Service.Debug, vBool(os.Getenv("XIANG_SERVICE_DEBUG")))
 	assert.Equal(t, strings.Join(cfg.Service.Allow, "|"), os.Getenv("XIANG_SERVICE_ALLOW"))
