@@ -12,7 +12,7 @@ env:
 
     # CODECOV TOKEN
     # https://app.codecov.io/gh/YaoApp/xiang/settings
-    - CODECOV_TOKEN='4b4d73e7-65b3-4d04-9353-11d71f38d904'
+    - CODECOV_TOKEN="0e0438c9-b1fc-4bc7-816f-8cf761a3337f"
 
     # 象传服务配置
     - XIANG_MODE=debug

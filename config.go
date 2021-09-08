@@ -81,7 +81,7 @@ func NewConfig() Config {
 
 	err := godotenv.Load(filename)
 	if err != nil {
-		log.Fatalf("读取环境配置文件%s出错 %s\n", filename, err.Error())
+		log.Printf("读取环境配置文件%s出错 %s\n", filename, err.Error())
 	}
 
 	cfg := Config{}
