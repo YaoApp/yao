@@ -47,13 +47,13 @@ func LoadEngine(from string) {
 	for _, script := range scripts {
 		switch script.Type {
 		case "models":
-			gou.LoadModel(string(script.Content), script.Name)
+			gou.LoadModel(string(script.Content), "xiang."+script.Name)
 			break
 		case "flows":
-			gou.LoadFlow(string(script.Content), script.Name)
+			gou.LoadFlow(string(script.Content), "xiang."+script.Name)
 			break
 		case "api":
-			gou.LoadAPI(string(script.Content), script.Name)
+			gou.LoadAPI(string(script.Content), "xiang."+script.Name)
 			break
 		}
 	}
