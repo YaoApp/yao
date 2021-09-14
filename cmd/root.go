@@ -12,6 +12,9 @@ var rootCmd = &cobra.Command{
 	Short: "象传应用引擎命令行工具",
 	Long:  `象传应用引擎命令行工具`,
 	Args:  cobra.MinimumNArgs(1),
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(os.Stderr, "参数错误", args)
 		os.Exit(1)
@@ -27,6 +30,9 @@ func init() {
 		infoCmd,
 		startCmd,
 	)
+
+	rootCmd.SetHelpCommand(helpCmd)
+
 }
 
 // Execute 运行Root

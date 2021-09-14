@@ -1,4 +1,4 @@
-package main
+package global
 
 import (
 	"os"
@@ -7,11 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/xiang/global"
 )
 
 func TestNewConfig(t *testing.T) {
-	cfg := global.NewConfig()
+	cfg := NewConfig()
 	var vBool = func(name string) bool {
 		if name == "true" || name == "1" {
 			return true
