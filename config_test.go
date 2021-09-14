@@ -7,10 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/xiang/global"
 )
 
 func TestNewConfig(t *testing.T) {
-	cfg := NewConfig()
+	cfg := global.NewConfig()
 	var vBool = func(name string) bool {
 		if name == "true" || name == "1" {
 			return true

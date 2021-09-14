@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -11,19 +12,42 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/xiang/global"
 )
 
-func TestCommand(t *testing.T) {
+func TestCommandVersion(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
 
-	go main()
+	os.Args = append(os.Args, "version")
+	assert.NotPanics(t, func() {
+		main()
+	})
+}
+
+func TestCommandMigrate(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+
+	os.Args = append(os.Args, "migrate")
+	assert.NotPanics(t, func() {
+		main()
+	})
+}
+
+func TestCommandStart(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+	go func() {
+		os.Args = append(os.Args, "start")
+		main()
+	}()
 
 	// 发送请求
 	request := func() (maps.MapStr, error) {
 		time.Sleep(time.Microsecond * 1000)
-		url := fmt.Sprintf("http://%s:%d/api/user/info/1?select=id,name", "127.0.0.1", cfg.Service.Port)
-		utils.Dump(url)
-
+		url := fmt.Sprintf("http://%s:%d/api/user/info/1?select=id,name", "127.0.0.1", global.Conf.Service.Port)
+		// utils.Dump(url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err
@@ -52,10 +76,4 @@ func TestCommand(t *testing.T) {
 	}
 
 	assert.True(t, false)
-}
-
-func TestCommandMigrate(t *testing.T) {
-	assert.NotPanics(t, func() {
-		Migrate()
-	})
 }

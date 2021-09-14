@@ -1,4 +1,4 @@
-// Code generated for package main by go-bindata DO NOT EDIT. (@generated)
+// Package global Code generated for package main by go-bindata DO NOT EDIT. (@generated)
 // sources:
 // .tmp/data/ui/index.html
 // .tmp/data/xiang/apis/README.md
@@ -7,7 +7,7 @@
 // .tmp/data/xiang/flows/table/get.flow.json
 // .tmp/data/xiang/models/README.md
 // .tmp/data/xiang/models/user.json
-package main
+package global
 
 import (
 	"bytes"

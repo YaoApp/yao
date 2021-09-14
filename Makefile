@@ -112,20 +112,20 @@ bindata:
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
 	cp -r xiang .tmp/data/
-	go-bindata -fs -o data.go -prefix ".tmp/data/" .tmp/data/...
+	go-bindata -fs -pkg global -o global/data.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 
 # 编译可执行文件
 .PHONY: xiang
 xiang: bindata
 
-	if [ -f bindata.go ]; then \
-		mv bindata.go bindata.go.bak; \
+	if [ -f global/bindata.go ]; then \
+		mv global/bindata.go global/bindata.go.bak; \
 	fi;
 	
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		mv vars.go vars.go.bak;	\
-		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" vars.go.bak > vars.go; \
+		mv global/vars.go global/vars.go.bak;	\
+		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" global/vars.go.bak > global/vars.go; \
 	fi;
 
 	GOOS=linux GOARCH=amd64 go build -v -o .tmp/xiang-linux-amd64
@@ -135,12 +135,14 @@ xiang: bindata
 	mkdir -p dist/bin
 	mv .tmp/xiang-*-* dist/bin/
 	chmod +x dist/bin/xiang-*-*
-	rm -f data.go
-	mv bindata.go.bak bindata.go
-
+	rm -f global/data.go
+	if [ -f global/bindata.go.bak ]; then \
+		mv global/bindata.go.bak global/bindata.go; \
+	fi;
+	
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		rm vars.go; \
-		mv vars.go.bak vars.go; \
+		rm global/vars.go; \
+		mv global/vars.go.bak global/vars.go; \
 	fi;
 
 .PHONY: clean

@@ -5,19 +5,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/xiang/global"
 )
 
 func TestLoad(t *testing.T) {
 	assert.NotPanics(t, func() {
-		Load(cfg)
+		global.Load(global.Conf)
 	})
 }
 
 // 从文件系统载入引擎文件
 func TestLoadEngineFS(t *testing.T) {
-	root := "fs://" + path.Join(cfg.Source, "/xiang")
+	root := "fs://" + path.Join(global.Conf.Source, "/xiang")
 	assert.NotPanics(t, func() {
-		LoadEngine(root)
+		global.LoadEngine(root)
 	})
 
 }
@@ -26,13 +27,13 @@ func TestLoadEngineFS(t *testing.T) {
 func TestLoadEngineBin(t *testing.T) {
 	root := "bin://xiang"
 	assert.NotPanics(t, func() {
-		LoadEngine(root)
+		global.LoadEngine(root)
 	})
 }
 
 // 从文件系统载入应用脚本
 func TestLoadAppFS(t *testing.T) {
 	assert.NotPanics(t, func() {
-		LoadApp(cfg.RootAPI, cfg.RootFLow, cfg.RootModel, cfg.RootPlugin)
+		global.LoadApp(global.Conf.RootAPI, global.Conf.RootFLow, global.Conf.RootModel, global.Conf.RootPlugin)
 	})
 }
