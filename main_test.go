@@ -46,7 +46,7 @@ func TestCommandStart(t *testing.T) {
 	// 发送请求
 	request := func() (maps.MapStr, error) {
 		time.Sleep(time.Microsecond * 1000)
-		url := fmt.Sprintf("http://%s:%d/api/user/info/1?select=id,name", "local.iqka.com", global.Conf.Service.Port)
+		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "local.iqka.com", global.Conf.Service.Port)
 		// utils.Dump(url)
 		resp, err := http.Get(url)
 		if err != nil {

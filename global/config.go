@@ -24,7 +24,7 @@ type Config struct {
 // XiangConfig 象传应用引擎配置
 type XiangConfig struct {
 	Mode       string `json:"mode,omitempty" env:"XIANG_MODE" envDefault:"release"`     // 象传引擎模式 debug/release/test
-	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于调试时载入数据)
+	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于单元测试载入数据)
 	Path       string `json:"path,omitempty" env:"XIANG_PATH" envDefault:"bin://xiang"` // 引擎文件目录
 	Root       string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"fs://."`      // 应用文件目录
 	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
