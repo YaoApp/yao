@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/xiang/global"
 	"github.com/yaoapp/xiang/server"
 )
 
@@ -19,12 +18,6 @@ var startCmd = &cobra.Command{
 				utils.Dump(api.Name + ":" + p.Path)
 			}
 		}
-
-		gou.ServeHTTP(gou.Server{
-			Host:   global.Conf.Service.Host,
-			Port:   global.Conf.Service.Port,
-			Allows: global.Conf.Service.Allow,
-			Root:   "/api",
-		}, server.Middlewares...)
+		server.Start()
 	},
 }
