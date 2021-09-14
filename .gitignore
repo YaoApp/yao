@@ -17,3 +17,5 @@
 .env*
 .tmp
 dist
+ui
+^ui/index.html

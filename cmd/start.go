@@ -5,6 +5,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/server"
 )
 
 var startCmd = &cobra.Command{
@@ -24,6 +25,6 @@ var startCmd = &cobra.Command{
 			Port:   global.Conf.Service.Port,
 			Allows: global.Conf.Service.Allow,
 			Root:   "/api",
-		})
+		}, server.Middlewares...)
 	},
 }
