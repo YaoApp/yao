@@ -1,6 +1,7 @@
 package global
 
 import (
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -67,18 +68,18 @@ func Watch(root string, cb func(op string, file string)) {
 	log.Println("开始监听目录:", root)
 
 	// 监听子目录
-	filepath.Walk(root, func(subfolder string, info os.FileInfo, err error) error {
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			exception.Err(err, 500).Throw()
 			return err
 		}
 
-		if subfolder == root {
+		if path == root {
 			return nil
 		}
 
-		if info.IsDir() {
-			go Watch(subfolder, cb)
+		if d.IsDir() {
+			go Watch(path, cb)
 		}
 		return nil
 	})

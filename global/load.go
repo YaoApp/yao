@@ -2,6 +2,7 @@ package global
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -71,6 +72,22 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		for _, script := range scripts {
 			gou.LoadAPI(string(script.Content), script.Name)
 		}
+
+		// 监听API修改
+		if Conf.Mode == "debug" {
+			go Watch(root, func(op string, file string) {
+				if op == "write" || op == "create" || op == "rename" {
+					script := getAppFile(root, file, ".json")
+					gou.LoadAPI(string(script.Content), script.Name) // Reload
+					log.Printf("API %s 已重新加载完毕", script.Name)
+				} else if op == "remove" {
+					name := getAppFileName(root, file)
+					if _, has := gou.APIs[name]; has {
+						delete(gou.APIs, name)
+					}
+				}
+			})
+		}
 	}
 
 	// 加载Flow
@@ -136,31 +153,41 @@ func getAppFilesFS(root string, typ string) []Script {
 			return err
 		}
 		if strings.HasSuffix(filepath, typ) {
-			filename := strings.TrimPrefix(filepath, root+"/")
-
-			namer := strings.Split(filename, ".")
-			nametypes := strings.Split(namer[0], "/")
-			name := strings.Join(nametypes, ".")
-
-			file, err := os.Open(filepath)
-			if err != nil {
-				exception.Err(err, 500).Throw()
-			}
-
-			defer file.Close()
-			content, err := ioutil.ReadAll(file)
-			if err != nil {
-				exception.Err(err, 500).Throw()
-			}
-			files = append(files, Script{
-				Name:    name,
-				Type:    "app",
-				Content: content,
-			})
+			files = append(files, getAppFile(root, filepath, typ))
 		}
+
 		return nil
 	})
 	return files
+}
+
+// getAppFile 读取文件
+func getAppFile(root string, filepath string, typ string) Script {
+	name := getAppFileName(root, filepath)
+	file, err := os.Open(filepath)
+	if err != nil {
+		exception.Err(err, 500).Throw()
+	}
+
+	defer file.Close()
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		exception.Err(err, 500).Throw()
+	}
+	return Script{
+		Name:    name,
+		Type:    "app",
+		Content: content,
+	}
+}
+
+// getAppFile 读取文件
+func getAppFileName(root string, filepath string) string {
+	filename := strings.TrimPrefix(filepath, root+"/")
+	namer := strings.Split(filename, ".")
+	nametypes := strings.Split(namer[0], "/")
+	name := strings.Join(nametypes, ".")
+	return name
 }
 
 // getFilesFS 遍历目录，读取文件列表

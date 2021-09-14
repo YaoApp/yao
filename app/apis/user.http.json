@@ -17,6 +17,17 @@
       }
     },
     {
+      "path": "/ping",
+      "method": "GET",
+      "guard": "-",
+      "process": "plugins.user.Login",
+      "in": ["$payload.mobile", "$payload.password", "$payload.captcha"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/find/:id",
       "method": "GET",
       "guard": "-",

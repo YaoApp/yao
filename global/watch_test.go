@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWatchAddNew(t *testing.T) {
-	root := path.Join(Conf.Source, "/app")
+func TestWatch(t *testing.T) {
+	root := path.Join(Conf.Source, "/app/flows")
 	assert.NotPanics(t, func() {
 		go Watch(root, func(op string, file string) {
 			log.Println(op, file)
