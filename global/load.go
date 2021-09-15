@@ -82,30 +82,26 @@ func LoadApp(api string, flow string, model string, plugin string) {
 					return
 				}
 
-				if op == "write" || op == "create" || op == "rename" {
-					script := getAppFile(root, file, ".json")
+				if op == "write" || op == "create" {
+					script := getAppFile(root, file)
 					gou.LoadAPI(string(script.Content), script.Name) // Reload
 					log.Printf("API %s 已重新加载完毕", script.Name)
 
-					// 重启服务器
+				} else if op == "remove" || op == "rename" {
+					name := getAppFileName(root, file)
+					if _, has := gou.APIs[name]; has {
+						delete(gou.APIs, name)
+						log.Printf("API %s 已经移除", name)
+					}
+				}
+
+				// 重启服务器
+				if op == "write" || op == "create" || op == "remove" || op == "rename" {
 					ServiceStop(func() {
 						log.Printf("服务器重启完毕")
 						go ServiceStart()
 					})
-
-				} else if op == "remove" {
-					name := getAppFileName(root, file)
-					if _, has := gou.APIs[name]; has {
-						delete(gou.APIs, name)
-
-						// 重启服务器
-						ServiceStop(func() {
-							log.Printf("服务器重启完毕")
-							go ServiceStart()
-						})
-					}
 				}
-
 			})
 		}
 	}
@@ -117,6 +113,34 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		for _, script := range scripts {
 			gou.LoadFlow(string(script.Content), script.Name)
 		}
+
+		// 监听Flow修改
+		if Conf.Mode == "debug" {
+			go Watch(root, func(op string, file string) {
+
+				if !strings.HasSuffix(file, ".json") && !strings.HasSuffix(file, ".js") {
+					return
+				}
+
+				if strings.HasSuffix(file, ".js") {
+					basName := getAppFileBaseName(root, file)
+					file = basName + ".flow.json"
+				}
+
+				if op == "write" || op == "create" {
+					script := getAppFile(root, file)
+					gou.LoadFlow(string(script.Content), script.Name) // Reload
+					log.Printf("Flow %s 已重新加载完毕", script.Name)
+				} else if op == "remove" || op == "rename" {
+					name := getAppFileName(root, file)
+					if _, has := gou.Flows[name]; has {
+						delete(gou.Flows, name)
+						log.Printf("Flow %s 已经移除", name)
+					}
+				}
+
+			})
+		}
 	}
 
 	// 加载Model
@@ -125,6 +149,29 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		scripts := getAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			gou.LoadModel(string(script.Content), script.Name)
+		}
+
+		// 监听Model修改
+		if Conf.Mode == "debug" {
+			go Watch(root, func(op string, file string) {
+
+				if !strings.HasSuffix(file, ".json") {
+					return
+				}
+
+				if op == "write" || op == "create" {
+					script := getAppFile(root, file)
+					gou.LoadModel(string(script.Content), script.Name) // Reload
+					log.Printf("Model %s 已重新加载完毕", script.Name)
+				} else if op == "remove" || op == "rename" {
+					name := getAppFileName(root, file)
+					if _, has := gou.Models[name]; has {
+						delete(gou.Models, name)
+						log.Printf("Model %s 已经移除", name)
+					}
+				}
+
+			})
 		}
 	}
 
@@ -135,6 +182,29 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		for _, script := range scripts {
 			gou.LoadPlugin(script.File, script.Name)
 		}
+
+		// 监听Plugin修改
+		if Conf.Mode == "debug" {
+			go Watch(root, func(op string, file string) {
+
+				if !strings.HasSuffix(file, ".so") {
+					return
+				}
+
+				if op == "write" || op == "create" {
+					script := getAppPluginFile(root, file)
+					gou.LoadPlugin(script.File, script.Name) // Reload
+					log.Printf("Plugin %s 已重新加载完毕", script.Name)
+				} else if op == "remove" || op == "rename" {
+					name := getAppPluginFileName(root, file)
+					if _, has := gou.Plugins[name]; has {
+						delete(gou.Plugins, name)
+						log.Printf("Plugin %s 已经移除", name)
+					}
+				}
+
+			})
+		}
 	}
 }
 
@@ -142,25 +212,36 @@ func LoadApp(api string, flow string, model string, plugin string) {
 func getAppPlugins(root string, typ string) []Script {
 	files := []Script{}
 	root = path.Join(root, "/")
-	filepath.Walk(root, func(filepath string, info os.FileInfo, err error) error {
+	filepath.Walk(root, func(file string, info os.FileInfo, err error) error {
 		if err != nil {
 			exception.Err(err, 500).Throw()
 			return err
 		}
-		if strings.HasSuffix(filepath, typ) {
-			filename := strings.TrimPrefix(filepath, root+"/")
-			namer := strings.Split(filename, ".")
-			nametypes := strings.Split(namer[0], "/")
-			name := strings.Join(nametypes, ".")
-			files = append(files, Script{
-				Name: name,
-				Type: "plugin",
-				File: filepath,
-			})
+		if strings.HasSuffix(file, typ) {
+			files = append(files, getAppPluginFile(root, file))
 		}
 		return nil
 	})
 	return files
+}
+
+// getAppPluginFile 读取文件
+func getAppPluginFile(root string, file string) Script {
+	name := getAppPluginFileName(root, file)
+	return Script{
+		Name: name,
+		Type: "plugin",
+		File: file,
+	}
+}
+
+// getAppFile 读取文件
+func getAppPluginFileName(root string, file string) string {
+	filename := strings.TrimPrefix(file, root+"/")
+	namer := strings.Split(filename, ".")
+	nametypes := strings.Split(namer[0], "/")
+	name := strings.Join(nametypes, ".")
+	return name
 }
 
 // getAppFilesFS 遍历应用目录，读取文件列表
@@ -173,7 +254,7 @@ func getAppFilesFS(root string, typ string) []Script {
 			return err
 		}
 		if strings.HasSuffix(filepath, typ) {
-			files = append(files, getAppFile(root, filepath, typ))
+			files = append(files, getAppFile(root, filepath))
 		}
 
 		return nil
@@ -182,7 +263,7 @@ func getAppFilesFS(root string, typ string) []Script {
 }
 
 // getAppFile 读取文件
-func getAppFile(root string, filepath string, typ string) Script {
+func getAppFile(root string, filepath string) Script {
 	name := getAppFileName(root, filepath)
 	file, err := os.Open(filepath)
 	if err != nil {
@@ -202,12 +283,19 @@ func getAppFile(root string, filepath string, typ string) Script {
 }
 
 // getAppFile 读取文件
-func getAppFileName(root string, filepath string) string {
-	filename := strings.TrimPrefix(filepath, root+"/")
+func getAppFileName(root string, file string) string {
+	filename := strings.TrimPrefix(file, root+"/")
 	namer := strings.Split(filename, ".")
 	nametypes := strings.Split(namer[0], "/")
 	name := strings.Join(nametypes, ".")
 	return name
+}
+
+// getAppFileBaseName 读取文件base
+func getAppFileBaseName(root string, file string) string {
+	filename := strings.TrimPrefix(file, root+"/")
+	namer := strings.Split(filename, ".")
+	return filepath.Join(root, namer[0])
 }
 
 // getFilesFS 遍历目录，读取文件列表
