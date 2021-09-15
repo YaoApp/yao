@@ -1,11 +1,10 @@
-package server
+package global
 
 import (
 	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/xiang/global"
 )
 
 // Middlewares 服务中间件
@@ -17,7 +16,7 @@ var Middlewares = []gin.HandlerFunc{
 // BindDomain 绑定许可域名
 func BindDomain(c *gin.Context) {
 
-	for _, allow := range global.AllowHosts {
+	for _, allow := range AllowHosts {
 		if strings.Contains(c.Request.Host, allow) {
 			c.Next()
 			return
@@ -39,6 +38,6 @@ func BinStatic(c *gin.Context) {
 	}
 
 	// 静态文件请求
-	global.FileServer.ServeHTTP(c.Writer, c.Request)
+	FileServer.ServeHTTP(c.Writer, c.Request)
 	c.Abort()
 }

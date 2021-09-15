@@ -70,22 +70,42 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		root := strings.TrimPrefix(api, "fs://")
 		scripts := getAppFilesFS(root, ".json")
 		for _, script := range scripts {
+			// 验证API 加载逻辑
 			gou.LoadAPI(string(script.Content), script.Name)
 		}
 
 		// 监听API修改
 		if Conf.Mode == "debug" {
 			go Watch(root, func(op string, file string) {
+
+				if !strings.HasSuffix(file, ".json") {
+					return
+				}
+
 				if op == "write" || op == "create" || op == "rename" {
 					script := getAppFile(root, file, ".json")
 					gou.LoadAPI(string(script.Content), script.Name) // Reload
 					log.Printf("API %s 已重新加载完毕", script.Name)
+
+					// 重启服务器
+					ServiceStop(func() {
+						log.Printf("服务器重启完毕")
+						go ServiceStart()
+					})
+
 				} else if op == "remove" {
 					name := getAppFileName(root, file)
 					if _, has := gou.APIs[name]; has {
 						delete(gou.APIs, name)
+
+						// 重启服务器
+						ServiceStop(func() {
+							log.Printf("服务器重启完毕")
+							go ServiceStart()
+						})
 					}
 				}
+
 			})
 		}
 	}

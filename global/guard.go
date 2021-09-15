@@ -1,4 +1,4 @@
-package server
+package global
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/xiang/global"
 )
 
 // Guards 服务中间件
@@ -33,7 +32,7 @@ func bearerJWT(c *gin.Context) {
 
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	token, err := jwt.ParseWithClaims(tokenString, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return global.Conf.JWT.Secret, nil
+		return Conf.JWT.Secret, nil
 	})
 
 	if err != nil {
