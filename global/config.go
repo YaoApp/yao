@@ -30,7 +30,7 @@ type XiangConfig struct {
 	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
 	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
 	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用工作流文件目录
-	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_FLOW"`              // 应用插件文件目录
+	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用插件文件目录
 }
 
 // ServiceConfig 服务配置
