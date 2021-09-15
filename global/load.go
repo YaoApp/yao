@@ -33,6 +33,78 @@ func LoadEngine(from string) {
 	if strings.HasPrefix(from, "fs://") || !strings.Contains(from, "://") {
 		root := strings.TrimPrefix(from, "fs://")
 		scripts = getFilesFS(root, ".json")
+
+		// 监听 flows (这里应该重构)
+		go Watch(filepath.Join(root, "flows"), func(op string, file string) {
+
+			if !strings.HasSuffix(file, ".json") {
+				return
+			}
+
+			if strings.HasSuffix(file, ".js") {
+				basName := getFileBaseName(root, file)
+				file = basName + ".flow.json"
+			}
+
+			if op == "write" || op == "create" {
+				script := getFile(root, file)
+				gou.LoadFlow(string(script.Content), "xiang."+script.Name) // Reload
+				log.Printf("Flow %s 已重新加载完毕", "xiang."+script.Name)
+			} else if op == "remove" || op == "rename" {
+				name := "xiang." + getFileName(root, file)
+				if _, has := gou.Flows[name]; has {
+					delete(gou.Flows, name)
+					log.Printf("Flow %s 已经移除", name)
+				}
+			}
+		})
+
+		// 监听 models
+		go Watch(filepath.Join(root, "models"), func(op string, file string) {
+
+			if !strings.HasSuffix(file, ".json") {
+				return
+			}
+			if op == "write" || op == "create" {
+				script := getFile(root, file)
+				gou.LoadModel(string(script.Content), "xiang."+script.Name) // Reload
+				log.Printf("Model %s 已重新加载完毕", "xiang."+script.Name)
+			} else if op == "remove" || op == "rename" {
+				name := "xiang." + getFileName(root, file)
+				if _, has := gou.Models[name]; has {
+					delete(gou.Models, name)
+					log.Printf("Model %s 已经移除", name)
+				}
+			}
+		})
+
+		// 监听 apis
+		go Watch(filepath.Join(root, "apis"), func(op string, file string) {
+
+			if !strings.HasSuffix(file, ".json") {
+				return
+			}
+			if op == "write" || op == "create" {
+				script := getFile(root, file)
+				gou.LoadAPI(string(script.Content), "xiang."+script.Name) // Reload
+				log.Printf("API %s 已重新加载完毕", "xiang."+script.Name)
+			} else if op == "remove" || op == "rename" {
+				name := "xiang." + getFileName(root, file)
+				if _, has := gou.APIs[name]; has {
+					delete(gou.APIs, name)
+					log.Printf("API %s 已经移除", name)
+				}
+			}
+
+			// 重启服务器
+			if op == "write" || op == "create" || op == "remove" || op == "rename" {
+				ServiceStop(func() {
+					log.Printf("服务器重启完毕")
+					go ServiceStart()
+				})
+			}
+		})
+
 	} else if strings.HasPrefix(from, "bin://") {
 		root := strings.TrimPrefix(from, "bin://")
 		scripts = getFilesBin(root, ".json")
@@ -55,7 +127,7 @@ func LoadEngine(from string) {
 		case "flows":
 			gou.LoadFlow(string(script.Content), "xiang."+script.Name)
 			break
-		case "api":
+		case "apis":
 			gou.LoadAPI(string(script.Content), "xiang."+script.Name)
 			break
 		}
@@ -308,28 +380,46 @@ func getFilesFS(root string, typ string) []Script {
 			return err
 		}
 		if strings.HasSuffix(path, typ) {
-			filename := strings.TrimPrefix(path, root+"/")
-			name, typ := getTypeName(filename)
-
-			file, err := os.Open(path)
-			if err != nil {
-				exception.Err(err, 500).Throw()
-			}
-
-			defer file.Close()
-			content, err := ioutil.ReadAll(file)
-			if err != nil {
-				exception.Err(err, 500).Throw()
-			}
-			files = append(files, Script{
-				Name:    name,
-				Type:    typ,
-				Content: content,
-			})
+			files = append(files, getFile(root, path))
 		}
 		return nil
 	})
 	return files
+}
+
+// getFile 读取文件
+func getFile(root string, path string) Script {
+	filename := strings.TrimPrefix(path, root+"/")
+	name, typ := getTypeName(filename)
+	file, err := os.Open(path)
+	if err != nil {
+		exception.Err(err, 500).Throw()
+	}
+
+	defer file.Close()
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		exception.Err(err, 500).Throw()
+	}
+	return Script{
+		Name:    name,
+		Type:    typ,
+		Content: content,
+	}
+}
+
+// getFileName 读取文件
+func getFileName(root string, file string) string {
+	filename := strings.TrimPrefix(file, root+"/")
+	name, _ := getTypeName(filename)
+	return name
+}
+
+// getFileBaseName 读取文件base
+func getFileBaseName(root string, file string) string {
+	filename := strings.TrimPrefix(file, root+"/")
+	namer := strings.Split(filename, ".")
+	return filepath.Join(root, namer[0])
 }
 
 // getFilesBin 从 bindata 中读取文件列表
@@ -359,6 +449,5 @@ func getTypeName(path string) (name string, typ string) {
 	nametypes := strings.Split(namer[0], "/")
 	name = strings.Join(nametypes[1:], ".")
 	typ = nametypes[0]
-
 	return name, typ
 }

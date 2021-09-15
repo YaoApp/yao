@@ -38,7 +38,10 @@ func TestCommandMigrate(t *testing.T) {
 
 func TestCommandStart(t *testing.T) {
 	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
+	defer func() {
+		os.Args = oldArgs
+		global.ServiceStop(func() {})
+	}()
 	go func() {
 		os.Args = append(os.Args, "start")
 		main()
@@ -81,7 +84,9 @@ func TestCommandStart(t *testing.T) {
 
 func TestCommandStop(t *testing.T) {
 	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
+	defer func() {
+		os.Args = oldArgs
+	}()
 	go func() {
 		os.Args = append(os.Args, "start")
 		main()

@@ -6,7 +6,7 @@
   "guard": "bearer-jwt",
   "paths": [
     {
-      "path": "/info/:id",
+      "path": "/info",
       "method": "GET",
       "guard": "-",
       "process": "models.user.Find",
