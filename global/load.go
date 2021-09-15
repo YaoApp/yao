@@ -26,6 +26,15 @@ func Load(cfg Config) {
 	LoadApp(cfg.RootAPI, cfg.RootFLow, cfg.RootModel, cfg.RootPlugin)
 }
 
+// Reload 根据配置重新加载 API, FLow, Model, Plugin
+func Reload(cfg Config) {
+	gou.APIs = map[string]*gou.API{}
+	gou.Models = map[string]*gou.Model{}
+	gou.Flows = map[string]*gou.Flow{}
+	gou.Plugins = map[string]*gou.Plugin{}
+	Load(cfg)
+}
+
 // LoadEngine 加载引擎的 API, Flow, Model 配置
 func LoadEngine(from string) {
 
@@ -33,78 +42,6 @@ func LoadEngine(from string) {
 	if strings.HasPrefix(from, "fs://") || !strings.Contains(from, "://") {
 		root := strings.TrimPrefix(from, "fs://")
 		scripts = getFilesFS(root, ".json")
-
-		// 监听 flows (这里应该重构)
-		go Watch(filepath.Join(root, "flows"), func(op string, file string) {
-
-			if !strings.HasSuffix(file, ".json") {
-				return
-			}
-
-			if strings.HasSuffix(file, ".js") {
-				basName := getFileBaseName(root, file)
-				file = basName + ".flow.json"
-			}
-
-			if op == "write" || op == "create" {
-				script := getFile(root, file)
-				gou.LoadFlow(string(script.Content), "xiang."+script.Name) // Reload
-				log.Printf("Flow %s 已重新加载完毕", "xiang."+script.Name)
-			} else if op == "remove" || op == "rename" {
-				name := "xiang." + getFileName(root, file)
-				if _, has := gou.Flows[name]; has {
-					delete(gou.Flows, name)
-					log.Printf("Flow %s 已经移除", name)
-				}
-			}
-		})
-
-		// 监听 models
-		go Watch(filepath.Join(root, "models"), func(op string, file string) {
-
-			if !strings.HasSuffix(file, ".json") {
-				return
-			}
-			if op == "write" || op == "create" {
-				script := getFile(root, file)
-				gou.LoadModel(string(script.Content), "xiang."+script.Name) // Reload
-				log.Printf("Model %s 已重新加载完毕", "xiang."+script.Name)
-			} else if op == "remove" || op == "rename" {
-				name := "xiang." + getFileName(root, file)
-				if _, has := gou.Models[name]; has {
-					delete(gou.Models, name)
-					log.Printf("Model %s 已经移除", name)
-				}
-			}
-		})
-
-		// 监听 apis
-		go Watch(filepath.Join(root, "apis"), func(op string, file string) {
-
-			if !strings.HasSuffix(file, ".json") {
-				return
-			}
-			if op == "write" || op == "create" {
-				script := getFile(root, file)
-				gou.LoadAPI(string(script.Content), "xiang."+script.Name) // Reload
-				log.Printf("API %s 已重新加载完毕", "xiang."+script.Name)
-			} else if op == "remove" || op == "rename" {
-				name := "xiang." + getFileName(root, file)
-				if _, has := gou.APIs[name]; has {
-					delete(gou.APIs, name)
-					log.Printf("API %s 已经移除", name)
-				}
-			}
-
-			// 重启服务器
-			if op == "write" || op == "create" || op == "remove" || op == "rename" {
-				ServiceStop(func() {
-					log.Printf("服务器重启完毕")
-					go ServiceStart()
-				})
-			}
-		})
-
 	} else if strings.HasPrefix(from, "bin://") {
 		root := strings.TrimPrefix(from, "bin://")
 		scripts = getFilesBin(root, ".json")
@@ -137,6 +74,25 @@ func LoadEngine(from string) {
 // LoadApp 加载应用的 API, Flow, Model 和 Plugin
 func LoadApp(api string, flow string, model string, plugin string) {
 
+	// 创建应用目录
+	paths := []string{api, flow, model, plugin}
+	for _, p := range paths {
+		if !strings.HasPrefix(p, "fs://") && strings.Contains(p, "://") {
+			continue
+		}
+		root, err := filepath.Abs(strings.TrimPrefix(p, "fs://"))
+		if err != nil {
+			log.Panicf("创建目录失败(%s) %s", root, err)
+		}
+
+		if _, err := os.Stat(root); os.IsNotExist(err) {
+			err := os.MkdirAll(root, os.ModePerm)
+			if err != nil {
+				log.Panicf("创建目录失败(%s) %s", root, err)
+			}
+		}
+	}
+
 	// 加载API
 	if strings.HasPrefix(api, "fs://") || !strings.Contains(api, "://") {
 		root := strings.TrimPrefix(api, "fs://")
@@ -144,37 +100,6 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		for _, script := range scripts {
 			// 验证API 加载逻辑
 			gou.LoadAPI(string(script.Content), script.Name)
-		}
-
-		// 监听API修改
-		if Conf.Mode == "debug" {
-			go Watch(root, func(op string, file string) {
-
-				if !strings.HasSuffix(file, ".json") {
-					return
-				}
-
-				if op == "write" || op == "create" {
-					script := getAppFile(root, file)
-					gou.LoadAPI(string(script.Content), script.Name) // Reload
-					log.Printf("API %s 已重新加载完毕", script.Name)
-
-				} else if op == "remove" || op == "rename" {
-					name := getAppFileName(root, file)
-					if _, has := gou.APIs[name]; has {
-						delete(gou.APIs, name)
-						log.Printf("API %s 已经移除", name)
-					}
-				}
-
-				// 重启服务器
-				if op == "write" || op == "create" || op == "remove" || op == "rename" {
-					ServiceStop(func() {
-						log.Printf("服务器重启完毕")
-						go ServiceStart()
-					})
-				}
-			})
 		}
 	}
 
@@ -185,34 +110,6 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		for _, script := range scripts {
 			gou.LoadFlow(string(script.Content), script.Name)
 		}
-
-		// 监听Flow修改
-		if Conf.Mode == "debug" {
-			go Watch(root, func(op string, file string) {
-
-				if !strings.HasSuffix(file, ".json") && !strings.HasSuffix(file, ".js") {
-					return
-				}
-
-				if strings.HasSuffix(file, ".js") {
-					basName := getAppFileBaseName(root, file)
-					file = basName + ".flow.json"
-				}
-
-				if op == "write" || op == "create" {
-					script := getAppFile(root, file)
-					gou.LoadFlow(string(script.Content), script.Name) // Reload
-					log.Printf("Flow %s 已重新加载完毕", script.Name)
-				} else if op == "remove" || op == "rename" {
-					name := getAppFileName(root, file)
-					if _, has := gou.Flows[name]; has {
-						delete(gou.Flows, name)
-						log.Printf("Flow %s 已经移除", name)
-					}
-				}
-
-			})
-		}
 	}
 
 	// 加载Model
@@ -222,29 +119,6 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		for _, script := range scripts {
 			gou.LoadModel(string(script.Content), script.Name)
 		}
-
-		// 监听Model修改
-		if Conf.Mode == "debug" {
-			go Watch(root, func(op string, file string) {
-
-				if !strings.HasSuffix(file, ".json") {
-					return
-				}
-
-				if op == "write" || op == "create" {
-					script := getAppFile(root, file)
-					gou.LoadModel(string(script.Content), script.Name) // Reload
-					log.Printf("Model %s 已重新加载完毕", script.Name)
-				} else if op == "remove" || op == "rename" {
-					name := getAppFileName(root, file)
-					if _, has := gou.Models[name]; has {
-						delete(gou.Models, name)
-						log.Printf("Model %s 已经移除", name)
-					}
-				}
-
-			})
-		}
 	}
 
 	// 加载Plugin
@@ -253,29 +127,6 @@ func LoadApp(api string, flow string, model string, plugin string) {
 		scripts := getAppPlugins(root, ".so")
 		for _, script := range scripts {
 			gou.LoadPlugin(script.File, script.Name)
-		}
-
-		// 监听Plugin修改
-		if Conf.Mode == "debug" {
-			go Watch(root, func(op string, file string) {
-
-				if !strings.HasSuffix(file, ".so") {
-					return
-				}
-
-				if op == "write" || op == "create" {
-					script := getAppPluginFile(root, file)
-					gou.LoadPlugin(script.File, script.Name) // Reload
-					log.Printf("Plugin %s 已重新加载完毕", script.Name)
-				} else if op == "remove" || op == "rename" {
-					name := getAppPluginFileName(root, file)
-					if _, has := gou.Plugins[name]; has {
-						delete(gou.Plugins, name)
-						log.Printf("Plugin %s 已经移除", name)
-					}
-				}
-
-			})
 		}
 	}
 }
