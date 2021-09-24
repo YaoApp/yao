@@ -39,6 +39,17 @@
       }
     },
     {
+      "path": "/search",
+      "method": "GET",
+      "guard": "-",
+      "process": "models.user.Paginate",
+      "in": [":params", "$query.page", "$query.pagesize"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/info/:id",
       "method": "GET",
       "process": "models.user.Find",
