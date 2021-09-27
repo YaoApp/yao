@@ -1,86 +1,64 @@
 {
   "name": "云服务库",
+  "version": "1.0.0",
   "decription": "可信云云服务库",
-  "apis": {
-    "bind": {
-      "model": "service",
-      "withs": {
-        "manu": {
-          "query": {
-            "select": ["id", "name", "short_name", "status"]
-          }
-        },
-        "kind": {
-          "query": {
-            "select": ["id", "name"]
-          }
+  "bind": {
+    "model": "service",
+    "withs": {
+      "manu": {
+        "query": {
+          "select": ["id", "name", "short_name", "status"]
+        }
+      },
+      "kind": {
+        "query": {
+          "select": ["id", "name"]
         }
       }
-    },
+    }
+  },
+  "apis": {
     "search": {
       "process": "models.service.Paginate",
-      "in": [":query-param", "$query.page", "$query.pagesize"],
-      "default": {
-        "withs": {
-          "manu": {
-            "query": {
-              "select": ["id", "name", "short_name", "status"]
+      "default": [
+        {
+          "withs": {
+            "manu": {
+              "query": {
+                "select": ["id", "name", "short_name", "status"]
+              }
+            },
+            "kind": {
+              "query": {
+                "select": ["id", "name"]
+              }
             }
           },
-          "kind": {
-            "query": {
-              "select": ["id", "name"]
-            }
-          }
+          "wheres": [{ "column": "status", "value": "enabled" }]
         },
-        "wheres": [{ "column": "status", "value": "enabled" }],
-        "pagesize": 15
-      }
+        null,
+        15
+      ]
     },
     "find": {
       "process": "models.service.Find",
-      "in": ["$param.id"],
-      "default": {
-        "withs": {
-          "manu": {
-            "query": {
-              "select": ["id", "name", "short_name", "status"]
-            }
-          },
-          "kind": {
-            "query": {
-              "select": ["id", "name"]
+      "default": [
+        null,
+        {
+          "withs": {
+            "manu": {
+              "query": {
+                "select": ["id", "name", "short_name", "status"]
+              }
+            },
+            "kind": {
+              "query": {
+                "select": ["id", "name"]
+              }
             }
           }
         }
-      }
-    },
-    "save": {
-      "process": "models.service.Find",
-      "in": [":payload"],
-      "default": {
-        "fields": ["视频会议"]
-      }
-    },
-    "delete": {
-      "process": "models.service.Delete",
-      "in": ["$param.id"]
-    },
-    "insert": {
-      "process": "models.service.Insert",
-      "in": ["$payload.columns", "$payload.data"]
-    },
-    "deletewhere": {
-      "process": "models.service.DeleteWhere",
-      "in": [":query-param"]
-    },
-    "updatewhere": {
-      "process": "models.service.UpdateWhere",
-      "in": [":query-param", ":payload"]
-    },
-    "import": {
-      "process": "models.service.Import",
-      "in": ["$file.file", "$param.kind", ":headers"]
+      ]
     }
   },
   "columns": {
@@ -295,24 +273,28 @@
     "关键词": {
       "label": "关键词",
       "bind": "where.name.like",
-      "type": "input",
-      "props": {
-        "placeholder": "请输入关键词"
+      "input": {
+        "type": "input",
+        "props": {
+          "placeholder": "请输入关键词"
+        }
       }
     },
     "所属厂商": {
       "label": "厂商",
       "bind": "where.manu_id.in",
-      "type": "select",
-      "props": {
-        "searchable": true,
-        "multiple": true,
-        "placeholder": "请选择所属厂商",
-        "remote": {
-          "api": "/api/manu/get",
-          "query": {
-            "select": ["id", "name"],
-            "keyword": "where_name_like"
+      "input": {
+        "type": "select",
+        "props": {
+          "searchable": true,
+          "multiple": true,
+          "placeholder": "请选择所属厂商",
+          "remote": {
+            "api": "/api/manu/get",
+            "query": {
+              "select": ["id", "name"],
+              "keyword": "where_name_like"
+            }
           }
         }
       }
@@ -320,17 +302,19 @@
     "服务类型": {
       "label": "类型",
       "bind": "where.kind_id.in",
-      "type": "select",
-      "props": {
-        "tree": true,
-        "searchable": true,
-        "multiple": true,
-        "placeholder": "请选择所属类型",
-        "remote": {
-          "api": "/api/kind/tree",
-          "query": {
-            "select": ["id", "name"],
-            "keyword": "where_name_like"
+      "input": {
+        "type": "select",
+        "props": {
+          "tree": true,
+          "searchable": true,
+          "multiple": true,
+          "placeholder": "请选择所属类型",
+          "remote": {
+            "api": "/api/kind/tree",
+            "query": {
+              "select": ["id", "name"],
+              "keyword": "where_name_like"
+            }
           }
         }
       }
@@ -373,7 +357,7 @@
       "deleteWhere": {},
       "updateSelect": {},
       "deleteSelect": {},
-      "pagination": ["pages", "prev", "next"],
+      "pagination": {},
       "setting": {}
     }
   },

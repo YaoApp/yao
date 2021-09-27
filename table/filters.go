@@ -1,0 +1,77 @@
+package table
+
+import (
+	"fmt"
+
+	"github.com/yaoapp/gou"
+)
+
+// loadFilters 加载查询过滤器
+func (table *Table) loadFilters() {
+	if table.Bind.Model == "" {
+		return
+	}
+	defaults := getDefaultFilters(table.Bind.Model)
+	for name, filter := range table.Filters {
+		defaults[name] = filter
+	}
+	table.Filters = defaults
+}
+
+// getDefaultFilters 读取数据模型索引字段的过滤器
+func getDefaultFilters(name string) map[string]Filter {
+
+	mod := gou.Select(name)
+	cmap := mod.Columns
+	filters := map[string]Filter{}
+	for _, index := range mod.MetaData.Indexes {
+		for _, col := range index.Columns {
+			if _, has := cmap[col]; !has {
+				continue
+			}
+			// primary,unique,index,match
+			switch index.Type {
+			case "index", "match":
+				cmap[col].Index = true
+				break
+			case "unique":
+				cmap[col].Unique = true
+				break
+			case "primary":
+				cmap[col].Primary = true
+				break
+			}
+		}
+	}
+
+	for name, col := range cmap {
+
+		if col.Type != "ID" && !col.Index && !col.Unique && !col.Primary {
+			continue
+		}
+
+		vcol, has := elms[col.Type]
+		if !has {
+			continue
+		}
+
+		label := col.Label
+		if label == "" {
+			label = col.Comment
+		}
+		if label == "" {
+			label = name
+		}
+
+		filter := Filter{
+			Label: label,
+			Bind:  fmt.Sprintf("where.%s.eq", name),
+			Input: vcol.Edit,
+		}
+		filters[name] = filter
+		filters[label] = filter
+	}
+
+	return filters
+
+}

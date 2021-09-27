@@ -46,7 +46,9 @@ func init() {
 	Conf = NewConfig()
 
 	// 数据库连接
-	capsule.AddConn("primary", "mysql", Conf.Database.Primary[0]).SetAsGlobal()
+	if len(Conf.Database.Primary) > 0 {
+		capsule.AddConn("primary", "mysql", Conf.Database.Primary[0]).SetAsGlobal()
+	}
 
 	// 加密密钥
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, Conf.Database.AESKey), "AES")
