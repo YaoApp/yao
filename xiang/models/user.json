@@ -1,7 +1,7 @@
 {
   "name": "用户",
   "table": {
-    "name": "user",
+    "name": "xiang_user",
     "comment": "用户表",
     "engine": "InnoDB"
   },

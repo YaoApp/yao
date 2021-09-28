@@ -35,7 +35,9 @@ func getDefaultFilters(name string) map[string]Filter {
 				cmap[col].Index = true
 				break
 			case "unique":
-				cmap[col].Unique = true
+				if len(index.Columns) == 1 {
+					cmap[col].Unique = true
+				}
 				break
 			case "primary":
 				cmap[col].Primary = true

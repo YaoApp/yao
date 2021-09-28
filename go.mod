@@ -34,4 +34,4 @@ require (
 
 // go env -w GOPRIVATE=github.com/yaoapp/*
 
-replace github.com/yaoapp/gou => ../gou // gou local
+// replace github.com/yaoapp/gou => ../gou // gou local
