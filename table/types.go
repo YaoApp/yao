@@ -9,7 +9,7 @@ type Table struct {
 	Name    string            `json:"name"`
 	Version string            `json:"version"`
 	Bind    Bind              `json:"bind,omitempty"`
-	APIs    APIs              `json:"apis,omitempty"`
+	APIs    map[string]API    `json:"apis,omitempty"`
 	Columns map[string]Column `json:"columns,omitempty"`
 	Filters map[string]Filter `json:"filters,omitempty"`
 	List    Page              `json:"list,omitempty"`
@@ -24,28 +24,10 @@ type Bind struct {
 	Withs map[string]gou.With `json:"withs,omitempty"`
 }
 
-// APIs API 配置数据结构
-type APIs struct {
-	Search             API `json:"search,omitempty"`
-	Find               API `json:"find,omitempty"`
-	Save               API `json:"save,omitempty"`
-	Delete             API `json:"delete,omitempty"`
-	Insert             API `json:"insert,omitempty"`
-	DeleteWhere        API `json:"delete-where,omitempty"`
-	DeleteIn           API `json:"delete-in,omitempty"`
-	UpdateWhere        API `json:"update-where,omitempty"`
-	UpdateIn           API `json:"update-in,omitempty"`
-	ImportUpload       API `json:"import-upload,omitempty"`
-	ImportPreview      API `json:"import-preview,omitempty"`
-	ImportSync         API `json:"import-sync,omitempty"`
-	ImportAsync        API `json:"import-async,omitempty"`
-	ImportAsyncTasks   API `json:"import-async-tasks,omitempty"`
-	ImportAsyncTasksID API `json:"import-async-tasks-id,omitempty"`
-	Setting            API `json:"setting,omitempty"`
-}
-
 // API API 配置数据结构
 type API struct {
+	Name    string        `json:"-"`
+	Source  string        `json:"-"`
 	Process string        `json:"process,omitempty"`
 	Guard   string        `json:"guard,omitempty"`
 	Default []interface{} `json:"default,omitempty"`
