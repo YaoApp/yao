@@ -9,7 +9,7 @@
       "path": "/ping",
       "method": "GET",
       "guard": "-",
-      "process": "xiang.ping",
+      "process": "xiang.global.ping",
       "in": [],
       "out": {
         "status": 200,
