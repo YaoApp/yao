@@ -4,8 +4,8 @@ import (
 	"github.com/yaoapp/gou"
 )
 
-// 注册处理器
 func init() {
+	// 注册处理器
 	gou.RegisterProcessHandler("xiang.global.ping", processPing)
 }
 

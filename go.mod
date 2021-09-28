@@ -6,6 +6,7 @@ require (
 	github.com/caarlos0/env/v6 v6.7.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.1 // indirect
+	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-gonic/gin v1.7.4 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
@@ -15,16 +16,20 @@ require (
 	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lib/pq v1.10.3 // indirect
+	github.com/mattn/go-colorable v0.1.10 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.8 // indirect
+	github.com/robertkrimen/otto v0.0.0-20210927222213-f9375a256948 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/yaoapp/gou v0.0.0-20210915011439-017e751ca527 // indirect
+	github.com/yaoapp/gou v0.0.0-20210928034814-0953968e92c2 // indirect
 	github.com/yaoapp/kun v0.6.1
 	github.com/yaoapp/xun v0.5.2 // indirect
-	golang.org/x/net v0.0.0-20210913180222-943fd674d43e // indirect
-	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
-	google.golang.org/genproto v0.0.0-20210909211513-a8c4777a87af // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
+	golang.org/x/net v0.0.0-20210927181540-4e4d966f7476 // indirect
+	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
+	google.golang.org/genproto v0.0.0-20210927142257-433400c27d05 // indirect
+	google.golang.org/grpc v1.41.0 // indirect
 )
 
 // go env -w GOPRIVATE=github.com/yaoapp/*
