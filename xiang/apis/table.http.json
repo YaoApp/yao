@@ -1,0 +1,109 @@
+{
+  "name": "数据表格接口",
+  "version": "1.0.0",
+  "description": "数据表格接口API",
+  "group": "xiang/table",
+  "guard": "bearer-jwt",
+  "paths": [
+    {
+      "path": "/:name/search",
+      "method": "GET",
+      "process": "xiang.table.Search",
+      "in": ["$param.name", ":query-param", "$query.page", "$query.pagesize"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/find/:id",
+      "method": "GET",
+      "process": "xiang.table.Find",
+      "in": ["$param.name", "$param.id"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/save/:id",
+      "method": "POST",
+      "process": "xiang.table.Save",
+      "in": ["$param.name", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/delete/:id",
+      "method": "POST",
+      "process": "xiang.table.Delete",
+      "in": ["$param.name", "$param.id"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/insert",
+      "method": "POST",
+      "process": "xiang.table.Insert",
+      "in": ["$param.name", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/delete/where",
+      "method": "POST",
+      "process": "xiang.table.DeleteWhere",
+      "in": ["$param.name", ":query-param", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/delete/in",
+      "method": "POST",
+      "process": "xiang.table.DeleteIn",
+      "in": ["$param.name", "$query.ids", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/update/where",
+      "method": "POST",
+      "process": "xiang.table.UpdateWhere",
+      "in": ["$param.name", ":query-param", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/update/in",
+      "method": "POST",
+      "process": "xiang.table.UpdateIn",
+      "in": ["$param.name", "$query.ids", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/:name/setting",
+      "method": "GET",
+      "process": "xiang.table.Setting",
+      "in": ["$param.name"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    }
+  ]
+}

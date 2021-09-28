@@ -105,6 +105,14 @@ func watchEngine(from string) {
 			script := getFile(root, file)
 			gou.LoadAPI(string(script.Content), "xiang."+script.Name) // Reload
 			log.Printf("API %s 已重新加载完毕", "xiang."+script.Name)
+
+			// 打印最新API信息
+			api := gou.APIs["xiang."+script.Name]
+			log.Printf("%s(%d)", api.Name, len(api.HTTP.Paths))
+			for _, p := range api.HTTP.Paths {
+				log.Println(p.Method, filepath.Join("/api", api.HTTP.Group, p.Path), "\tprocess:", p.Process)
+			}
+
 		} else if op == "remove" || op == "rename" {
 			name := "xiang." + getFileName(root, file)
 			if _, has := gou.APIs[name]; has {

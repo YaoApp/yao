@@ -120,7 +120,7 @@ func apiDefaultWhere(model *gou.Model, withs map[string]gou.With, name string, p
 	}
 }
 
-// apiDefaultSetting 接口默认值
+// apiDefaultSetting 数据表格配置默认值
 func apiDefaultSetting(table *Table) API {
 	return API{
 		Name:    "setting",

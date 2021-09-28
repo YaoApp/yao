@@ -1,0 +1,20 @@
+{
+  "name": "系统接口",
+  "version": "1.0.0",
+  "description": "系统接口API",
+  "group": "xiang",
+  "guard": "bearer-jwt",
+  "paths": [
+    {
+      "path": "/ping",
+      "method": "GET",
+      "guard": "-",
+      "process": "xiang.ping",
+      "in": [],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    }
+  ]
+}
