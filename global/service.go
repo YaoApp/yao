@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/table"
 )
 
 var shutdown = make(chan bool)
@@ -37,7 +38,15 @@ func ServiceStop(onComplete func()) {
 // WatchChanges 监听配置文件变更
 func WatchChanges() {
 	watchEngine(Conf.Path)
-	watchApp(Conf.RootAPI, Conf.RootFLow, Conf.RootModel, Conf.RootPlugin)
+	watchApp(AppRoot{
+		APIs:    Conf.RootAPI,
+		Flows:   Conf.RootFLow,
+		Models:  Conf.RootModel,
+		Plugins: Conf.RootPlugin,
+		Tables:  Conf.RootTable,
+		Charts:  Conf.RootChart,
+		Screens: Conf.RootScreen,
+	})
 }
 
 // watchEngine 监听引擎目录文件变更
@@ -129,14 +138,92 @@ func watchEngine(from string) {
 			})
 		}
 	})
+
+	// 监听 tables
+	go Watch(filepath.Join(rootAbs, "tables"), func(op string, file string) {
+
+		if !strings.HasSuffix(file, ".json") {
+			return
+		}
+		if op == "write" || op == "create" {
+			script := getFile(root, file)
+			table.Load(string(script.Content), "xiang."+script.Name) // Reload
+			api, has := gou.APIs["xiang.table"]
+			if has {
+				api.Reload()
+			}
+
+			log.Printf("数据表格 %s 已重新加载完毕", "xiang."+script.Name)
+
+		} else if op == "remove" || op == "rename" {
+			name := "xiang." + getFileName(root, file)
+			if _, has := table.Tables[name]; has {
+				delete(table.Tables, name)
+				log.Printf("数据表格 %s 已经移除", name)
+			}
+		}
+
+		// 重启服务器
+		if op == "write" || op == "create" || op == "remove" || op == "rename" {
+			ServiceStop(func() {
+				log.Printf("服务器重启完毕")
+				go ServiceStart()
+			})
+		}
+	})
 }
 
 // watchApp 监听应用目录文件变更
-func watchApp(api string, flow string, model string, plugin string) {
-	watchAppAPI(api)
-	watchAppFlow(flow)
-	watchAppModel(model)
-	watchAppPlugin(plugin)
+func watchApp(app AppRoot) {
+	watchAppAPI(app.APIs)
+	watchAppFlow(app.Flows)
+	watchAppModel(app.Models)
+	watchAppPlugin(app.Plugins)
+	watchAppTable(app.Tables)
+}
+
+// watchAppTable 监听数据表格变更
+func watchAppTable(rootTable string) {
+	if !strings.HasPrefix(rootTable, "fs://") && strings.Contains(rootTable, "://") {
+		return
+	}
+	root := strings.TrimPrefix(rootTable, "fs://")
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		log.Panicf("路径错误 %s %s", root, err)
+	}
+
+	go Watch(rootAbs, func(op string, file string) {
+		if !strings.HasSuffix(file, ".json") {
+			return
+		}
+
+		if op == "write" || op == "create" {
+			script := getAppFile(root, file)
+			table.Load(string(script.Content), script.Name) // Reload
+			api, has := gou.APIs["xiang.table"]
+			if has {
+				api.Reload()
+			}
+
+			log.Printf("数据表格 %s 已重新加载完毕", script.Name)
+
+		} else if op == "remove" || op == "rename" {
+			name := getAppFileName(root, file)
+			if _, has := gou.APIs[name]; has {
+				delete(table.Tables, name)
+				log.Printf("数据表格 %s 已经移除", name)
+			}
+		}
+
+		// 重启服务器
+		if op == "write" || op == "create" || op == "remove" || op == "rename" {
+			ServiceStop(func() {
+				log.Printf("服务器重启完毕")
+				go ServiceStart()
+			})
+		}
+	})
 }
 
 // watchAppAPI 监听API变更

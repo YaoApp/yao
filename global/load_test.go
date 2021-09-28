@@ -33,6 +33,14 @@ func TestLoadEngineBin(t *testing.T) {
 // 从文件系统载入应用脚本
 func TestLoadAppFS(t *testing.T) {
 	assert.NotPanics(t, func() {
-		LoadApp(Conf.RootAPI, Conf.RootFLow, Conf.RootModel, Conf.RootPlugin)
+		LoadApp(AppRoot{
+			APIs:    Conf.RootAPI,
+			Flows:   Conf.RootFLow,
+			Models:  Conf.RootModel,
+			Plugins: Conf.RootPlugin,
+			Tables:  Conf.RootTable,
+			Charts:  Conf.RootChart,
+			Screens: Conf.RootScreen,
+		})
 	})
 }

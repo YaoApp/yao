@@ -21,10 +21,29 @@ type Script struct {
 	File    string
 }
 
+// AppRoot 应用目录
+type AppRoot struct {
+	APIs    string
+	Flows   string
+	Models  string
+	Plugins string
+	Tables  string
+	Charts  string
+	Screens string
+}
+
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg Config) {
 	LoadEngine(cfg.Path)
-	LoadApp(cfg.RootAPI, cfg.RootFLow, cfg.RootModel, cfg.RootPlugin)
+	LoadApp(AppRoot{
+		APIs:    cfg.RootAPI,
+		Flows:   cfg.RootFLow,
+		Models:  cfg.RootModel,
+		Plugins: cfg.RootPlugin,
+		Tables:  cfg.RootTable,
+		Charts:  cfg.RootChart,
+		Screens: cfg.RootScreen,
+	})
 }
 
 // Reload 根据配置重新加载 API, FLow, Model, Plugin
@@ -56,7 +75,7 @@ func LoadEngine(from string) {
 		exception.New("读取文件失败, 未找到任何可执行脚本", 500, from).Throw()
 	}
 
-	// 加载 API, Flow, Models, Table
+	// 加载 API, Flow, Models, Table, Chart, Screens
 	for _, script := range scripts {
 		switch script.Type {
 		case "models":
@@ -76,10 +95,11 @@ func LoadEngine(from string) {
 }
 
 // LoadApp 加载应用的 API, Flow, Model 和 Plugin
-func LoadApp(api string, flow string, model string, plugin string) {
+func LoadApp(app AppRoot) {
 
+	// api string, flow string, model string, plugin string
 	// 创建应用目录
-	paths := []string{api, flow, model, plugin}
+	paths := []string{app.APIs, app.Flows, app.Models, app.Plugins, app.Charts, app.Screens}
 	for _, p := range paths {
 		if !strings.HasPrefix(p, "fs://") && strings.Contains(p, "://") {
 			continue
@@ -98,8 +118,8 @@ func LoadApp(api string, flow string, model string, plugin string) {
 	}
 
 	// 加载API
-	if strings.HasPrefix(api, "fs://") || !strings.Contains(api, "://") {
-		root := strings.TrimPrefix(api, "fs://")
+	if strings.HasPrefix(app.APIs, "fs://") || !strings.Contains(app.APIs, "://") {
+		root := strings.TrimPrefix(app.APIs, "fs://")
 		scripts := getAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			// 验证API 加载逻辑
@@ -108,8 +128,8 @@ func LoadApp(api string, flow string, model string, plugin string) {
 	}
 
 	// 加载Flow
-	if strings.HasPrefix(flow, "fs://") || !strings.Contains(flow, "://") {
-		root := strings.TrimPrefix(flow, "fs://")
+	if strings.HasPrefix(app.Flows, "fs://") || !strings.Contains(app.Flows, "://") {
+		root := strings.TrimPrefix(app.Flows, "fs://")
 		scripts := getAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			gou.LoadFlow(string(script.Content), script.Name)
@@ -117,8 +137,8 @@ func LoadApp(api string, flow string, model string, plugin string) {
 	}
 
 	// 加载Model
-	if strings.HasPrefix(model, "fs://") || !strings.Contains(model, "://") {
-		root := strings.TrimPrefix(model, "fs://")
+	if strings.HasPrefix(app.Models, "fs://") || !strings.Contains(app.Models, "://") {
+		root := strings.TrimPrefix(app.Models, "fs://")
 		scripts := getAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			gou.LoadModel(string(script.Content), script.Name)
@@ -126,13 +146,24 @@ func LoadApp(api string, flow string, model string, plugin string) {
 	}
 
 	// 加载Plugin
-	if strings.HasPrefix(plugin, "fs://") || !strings.Contains(plugin, "://") {
-		root := strings.TrimPrefix(plugin, "fs://")
+	if strings.HasPrefix(app.Plugins, "fs://") || !strings.Contains(app.Plugins, "://") {
+		root := strings.TrimPrefix(app.Plugins, "fs://")
 		scripts := getAppPlugins(root, ".so")
 		for _, script := range scripts {
 			gou.LoadPlugin(script.File, script.Name)
 		}
 	}
+
+	// 加载Table
+	if strings.HasPrefix(app.Tables, "fs://") || !strings.Contains(app.Tables, "://") {
+		root := strings.TrimPrefix(app.Tables, "fs://")
+		scripts := getAppFilesFS(root, ".json")
+		for _, script := range scripts {
+			// 验证API 加载逻辑
+			table.Load(string(script.Content), script.Name)
+		}
+	}
+
 }
 
 // / getAppPluins 遍历应用目录，读取文件列表

@@ -122,4 +122,13 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootPlugin == "" {
 		cfg.RootPlugin = cfg.Root + "/plugins"
 	}
+	if cfg.RootTable == "" {
+		cfg.RootTable = cfg.Root + "/tables"
+	}
+	if cfg.RootChart == "" {
+		cfg.RootChart = cfg.Root + "/charts"
+	}
+	if cfg.RootScreen == "" {
+		cfg.RootScreen = cfg.Root + "/screens"
+	}
 }

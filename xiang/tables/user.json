@@ -3,19 +3,7 @@
   "version": "1.0.0",
   "decription": "象传用户",
   "bind": {
-    "model": "xiang.user",
-    "withs": {
-      "manu": {
-        "query": {
-          "select": ["id", "name", "short_name", "status"]
-        }
-      },
-      "kind": {
-        "query": {
-          "select": ["id", "name"]
-        }
-      }
-    }
+    "model": "xiang.user"
   },
   "apis": {},
   "columns": {},
