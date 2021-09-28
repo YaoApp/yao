@@ -23,7 +23,7 @@ func ProcessSearch(process *gou.Process) interface{} {
 	name := any.Of(process.Args[0]).String()
 	table := Select(name)
 	api := table.APIs["search"]
-	if api.IsGuard(process.Args[4]) {
+	if api.IsAllow(process.Args[4]) {
 		return nil
 	}
 

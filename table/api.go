@@ -131,8 +131,8 @@ func apiDefaultSetting(table *Table) API {
 	}
 }
 
-// IsGuard 鉴权处理程序
-func (api API) IsGuard(v interface{}) bool {
+// IsAllow 鉴权处理程序
+func (api API) IsAllow(v interface{}) bool {
 	c, ok := v.(*gin.Context)
 	if !ok {
 		return false
