@@ -1,3 +1,4 @@
+# 10月28日前迁出
 os: linux
 dist: xenial
 language: go
