@@ -6,19 +6,21 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/str"
 )
 
 func init() {
 	// 注册处理器
-	gou.RegisterProcessHandler("xiang.table.Search", processSearch)
+	gou.RegisterProcessHandler("xiang.table.Search", ProcessSearch)
 }
 
-// processSearch 用户检索
-func processSearch(process *gou.Process) interface{} {
+// ProcessSearch xiang.table.Search
+// 按条件查询数据记录, 请求成功返回符合查询条件带有分页信息的数据对象
+func ProcessSearch(process *gou.Process) interface{} {
+
+	// 参数处理
 	process.ValidateArgNums(4)
 	name := any.Of(process.Args[0]).String()
-	page := any.Of(process.Args[2]).CInt()
-	pagesize := any.Of(process.Args[3]).CInt()
 
 	param := gou.QueryParam{}
 	ok := false
@@ -29,17 +31,34 @@ func processSearch(process *gou.Process) interface{} {
 		}
 	}
 
+	// 执行查询器
 	table := Select(name)
 	api := table.APIs["search"]
-	param = mergeQueryParam(param, api, 0)
 
+	// 查询校验
 	if strings.ToLower(api.Process) == "xiang.table.search" {
 		exception.New("循环引用 xiang.table.search", 400).Throw()
+	}
+	param = mergeQueryParam(param, api, 0)
+	page := 1
+	if str.Of(api.Default[1]) != "" {
+		page = any.Of(api.Default[1]).CInt()
+	}
+	if str.Of(process.Args[2]) != "" {
+		page = any.Of(process.Args[2]).CInt()
+	}
+	pagesize := 15
+	if str.Of(api.Default[2]) != "" {
+		pagesize = any.Of(api.Default[2]).CInt()
+	}
+	if str.Of(process.Args[3]) != "" {
+		pagesize = any.Of(process.Args[3]).CInt()
 	}
 
 	return gou.NewProcess(api.Process, param, page, pagesize).Run()
 }
 
+// 合并默认查询参数
 func mergeQueryParam(param gou.QueryParam, api API, i int) gou.QueryParam {
 	if len(api.Default) > i && api.Default[i] != nil {
 		defaults, ok := api.Default[i].(gou.QueryParam)

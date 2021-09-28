@@ -10,6 +10,7 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/xiang/table"
 )
 
 // Script 脚本文件类型
@@ -55,7 +56,7 @@ func LoadEngine(from string) {
 		exception.New("读取文件失败, 未找到任何可执行脚本", 500, from).Throw()
 	}
 
-	// 加载 API, Flow, Models
+	// 加载 API, Flow, Models, Table
 	for _, script := range scripts {
 		switch script.Type {
 		case "models":
@@ -66,6 +67,9 @@ func LoadEngine(from string) {
 			break
 		case "apis":
 			gou.LoadAPI(string(script.Content), "xiang."+script.Name)
+			break
+		case "tables":
+			table.Load(string(script.Content), "xiang."+script.Name)
 			break
 		}
 	}

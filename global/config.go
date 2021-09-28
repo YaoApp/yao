@@ -31,6 +31,10 @@ type XiangConfig struct {
 	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
 	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用工作流文件目录
 	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用插件文件目录
+	RootTable  string `json:"root_table,omitempty" env:"XIANG_ROOT_TABLE"`              // 应用表格文件目录
+	RootChart  string `json:"root_chart,omitempty" env:"XIANG_ROOT_CHART"`              // 应用图表文件目录
+	RootKanban string `json:"root_kanban,omitempty" env:"XIANG_ROOT_KANBAN"`            // 应用看板文件目录
+	RootScreen string `json:"root_screen,omitempty" env:"XIANG_ROOT_SCREEN"`            // 应用大屏文件目录
 }
 
 // ServiceConfig 服务配置

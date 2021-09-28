@@ -1,0 +1,83 @@
+{
+  "name": "用户",
+  "version": "1.0.0",
+  "decription": "象传用户",
+  "bind": {
+    "model": "xiang.user",
+    "withs": {
+      "manu": {
+        "query": {
+          "select": ["id", "name", "short_name", "status"]
+        }
+      },
+      "kind": {
+        "query": {
+          "select": ["id", "name"]
+        }
+      }
+    }
+  },
+  "apis": {},
+  "columns": {},
+  "filters": {},
+  "list": {
+    "primary": "id",
+    "layout": {
+      "columns": [
+        { "name": "姓名", "width": 6 },
+        { "name": "类型", "width": 6 },
+        { "name": "手机号", "width": 4 }
+      ],
+      "filters": [{ "name": "手机号", "width": 6 }]
+    },
+    "actions": {
+      "create": {
+        "type": "button",
+        "props": {
+          "label": "新建用户",
+          "icon": "fas fa-plus"
+        }
+      },
+      "view": {},
+      "edit": {},
+      "import": {},
+      "update": {},
+      "delete": {},
+      "insert": {},
+      "updateWhere": {},
+      "deleteWhere": {},
+      "updateSelect": {},
+      "deleteSelect": {},
+      "pagination": {},
+      "setting": {}
+    }
+  },
+  "edit": {
+    "primary": "id",
+    "layout": {
+      "fieldset": [
+        {
+          "title": "基础信息",
+          "description": "",
+          "columns": [
+            { "name": "姓名", "width": 6 },
+            { "name": "类型", "width": 6 },
+            { "name": "手机号", "width": 6 }
+          ]
+        }
+      ]
+    },
+    "actions": {
+      "cancel": {},
+      "save": {
+        "type": "button",
+        "props": {
+          "label": "保存"
+        }
+      },
+      "delete": {}
+    }
+  },
+  "insert": {},
+  "view": {}
+}

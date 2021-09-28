@@ -6,6 +6,7 @@
   "guard": "bearer-jwt",
   "paths": [
     {
+      "guard": "-",
       "path": "/:name/search",
       "method": "GET",
       "process": "xiang.table.Search",
