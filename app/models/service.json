@@ -22,15 +22,15 @@
       "index": true
     },
     {
-      "name": "kind",
-      "type": "string",
+      "name": "kind_id",
+      "type": "bigInteger",
       "length": 200,
       "comment": "服务类型",
       "index": true
     },
     {
-      "name": "manu",
-      "type": "string",
+      "name": "manu_id",
+      "type": "bigInteger",
       "length": 200,
       "comment": "所属厂商",
       "index": true
@@ -75,10 +75,10 @@
     },
     {
       "name": "price_options",
-      "type": "string",
+      "type": "json",
       "length": 500,
-      "default": "[\"按月订阅\"]",
-      "comment": "JSON|订阅方式(多选)",
+      "nullable": true,
+      "comment": "订阅方式(多选)",
       "index": true
     },
     {
@@ -107,16 +107,48 @@
   "relations": {
     "manu": {
       "type": "hasOne",
-      "key": "manu",
-      "model": "Manu",
-      "foreign": "id"
+      "model": "manu",
+      "key": "id",
+      "foreign": "manu_id",
+      "query": { "select": ["id", "name", "short_name", "status"] }
     },
     "kind": {
       "type": "hasOne",
-      "key": "kind",
-      "model": "Kind",
-      "foreign": "id"
+      "model": "kind",
+      "key": "id",
+      "foreign": "kind_id",
+      "query": { "select": ["id", "name"] }
     }
   },
-  "option": { "timestamps": true, "soft_deletes": true }
+  "option": { "timestamps": true, "soft_deletes": true },
+  "values": [
+    {
+      "name": "腾讯云主机CVM",
+      "short_name": "云主机",
+      "kind_id": 3,
+      "manu_id": 1,
+      "price_options": ["按月订阅"]
+    },
+    {
+      "name": "腾讯云磁盘",
+      "short_name": "云磁盘",
+      "kind_id": 6,
+      "manu_id": 1,
+      "price_options": ["按月订阅"]
+    },
+    {
+      "name": "阿里主机",
+      "short_name": "云主机",
+      "kind_id": 3,
+      "manu_id": 2,
+      "price_options": ["按月订阅"]
+    },
+    {
+      "name": "UCloud云主机",
+      "short_name": "云主机",
+      "kind_id": 3,
+      "manu_id": 3,
+      "price_options": ["按月订阅"]
+    }
+  ]
 }

@@ -1,21 +1,15 @@
 package table
 
 import (
-	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/xiang/global"
 )
 
 func TestLoad(t *testing.T) {
-	global.Load(global.Conf)
-	root := "fs://" + path.Join(global.Conf.Source, "/app/tables/service.json")
-	Load(root, "service").Reload()
 
 	table, has := Tables["service"]
 	assert.Equal(t, table.Table, "service")
-	assert.Equal(t, table.Source, root)
 	assert.True(t, has)
 
 	_, has = table.Columns["id"]

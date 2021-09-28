@@ -101,13 +101,25 @@
   "relations": {},
   "option": { "timestamps": true, "soft_deletes": true },
   "values": [
-    { "name": "北京云道天成科技有限公司", "short_name": "云道天成" },
-    { "name": "象传高新（北京）数字科技有限公司", "short_name": "象传高新" },
-    { "name": "象传智数（北京）软件科技有限公司", "short_name": "象传智数" },
-    { "name": "象传智慧（北京）软件科技有限公司", "short_name": "象传智慧" },
-    { "name": "象传数据服务引擎", "short_name": "服务引擎" },
-    { "name": "象传数据应用开发平台", "short_name": "应用开发平台" },
-    { "name": "象传数据解决方案", "short_name": "解决方案" },
-    { "name": "象传数据企业服务", "short_name": "企业服务" }
+    { "id": 1, "name": "北京云道天成科技有限公司", "short_name": "云道天成" },
+    {
+      "id": 2,
+      "name": "象传高新（北京）数字科技有限公司",
+      "short_name": "象传高新"
+    },
+    {
+      "id": 3,
+      "name": "象传智数（北京）软件科技有限公司",
+      "short_name": "象传智数"
+    },
+    {
+      "id": 4,
+      "name": "象传智慧（北京）软件科技有限公司",
+      "short_name": "象传智慧"
+    },
+    { "id": 5, "name": "象传数据服务引擎", "short_name": "服务引擎" },
+    { "id": 6, "name": "象传数据应用开发平台", "short_name": "应用开发平台" },
+    { "id": 7, "name": "象传数据解决方案", "short_name": "解决方案" },
+    { "id": 8, "name": "象传数据企业服务", "short_name": "企业服务" }
   ]
 }
