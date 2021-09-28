@@ -62,9 +62,9 @@ func ProcessSearch(process *gou.Process) interface{} {
 // 合并默认查询参数
 func mergeQueryParam(param gou.QueryParam, api API, i int) gou.QueryParam {
 	if len(api.Default) > i && api.Default[i] != nil {
-		defaults, ok := api.Default[i].(gou.QueryParam)
+		defaults, ok := gou.AnyToQueryParam(api.Default[i])
 		if !ok {
-			exception.New("参数默认值数据结构错误", 400).Throw()
+			exception.New("参数默认值数据结构错误", 400).Ctx(api.Default[i]).Throw()
 		}
 		if defaults.Withs != nil {
 			param.Withs = defaults.Withs

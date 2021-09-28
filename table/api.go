@@ -24,15 +24,15 @@ func (table *Table) loadAPIs() {
 
 		api := defaults[name]
 		api.Name = name
-		if table.APIs[name].Process == "" {
+		if table.APIs[name].Process != "" {
 			api.Process = table.APIs[name].Process
 		}
 
-		if table.APIs[name].Guard == "" {
+		if table.APIs[name].Guard != "" {
 			api.Guard = table.APIs[name].Guard
 		}
 
-		if table.APIs[name].Default == nil {
+		if table.APIs[name].Default != nil {
 			api.Default = table.APIs[name].Default
 		}
 		defaults[name] = api
@@ -137,12 +137,14 @@ func (api API) IsGuard(v interface{}) bool {
 	if !ok {
 		return false
 	}
+
 	guards := strings.Split(api.Guard, ",")
 	for _, guard := range guards {
 		guard = strings.TrimSpace(guard)
 		handler, has := gou.HTTPGuards[guard]
 		if has {
 			handler(c)
+			fmt.Println(api.Guard, c.IsAborted())
 			return c.IsAborted()
 		}
 	}
