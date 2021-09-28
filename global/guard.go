@@ -10,7 +10,7 @@ import (
 
 // Guards 服务中间件
 var Guards = map[string]gin.HandlerFunc{
-	"bearer-jwt": bearerJWT, // JWT 权限校验
+	"bearer-jwt": bearerJWT, // JWT 鉴权
 }
 
 // JwtClaims JWT claims
@@ -22,6 +22,7 @@ type JwtClaims struct {
 	jwt.StandardClaims
 }
 
+// JWT 鉴权
 func bearerJWT(c *gin.Context) {
 	tokenString := c.Request.Header.Get("Authorization")
 	if tokenString == "" {
@@ -53,4 +54,5 @@ func bearerJWT(c *gin.Context) {
 	// fmt.Println("bearer-JWT", token.Claims.Valid())
 	c.JSON(403, gin.H{"code": 403, "message": "无权访问该页面"})
 	c.Abort()
+	return
 }

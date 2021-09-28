@@ -3,6 +3,7 @@ package global
 import (
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
@@ -26,6 +27,7 @@ func TestProcessSearch(t *testing.T) {
 		},
 		1,
 		2,
+		&gin.Context{},
 	}
 	process := gou.NewProcess("xiang.table.Search", args...)
 	response := table.ProcessSearch(process)

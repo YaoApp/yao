@@ -19,8 +19,13 @@ func init() {
 func ProcessSearch(process *gou.Process) interface{} {
 
 	// 参数处理
-	process.ValidateArgNums(4)
+	process.ValidateArgNums(5)
 	name := any.Of(process.Args[0]).String()
+	table := Select(name)
+	api := table.APIs["search"]
+	if api.IsGuard(process.Args[4]) {
+		return nil
+	}
 
 	param := gou.QueryParam{}
 	ok := false
@@ -30,10 +35,6 @@ func ProcessSearch(process *gou.Process) interface{} {
 			exception.New("参数不是QueryParam", 400).Throw()
 		}
 	}
-
-	// 执行查询器
-	table := Select(name)
-	api := table.APIs["search"]
 
 	// 查询校验
 	if strings.ToLower(api.Process) == "xiang.table.search" {

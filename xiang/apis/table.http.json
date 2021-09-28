@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "description": "数据表格接口API",
   "group": "xiang/table",
-  "guard": "bearer-jwt",
+  "guard": "in-process",
   "paths": [
     {
-      "guard": "-",
       "path": "/:name/search",
       "method": "GET",
       "process": "xiang.table.Search",

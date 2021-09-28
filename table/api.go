@@ -2,7 +2,9 @@ package table
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou"
 )
 
@@ -127,4 +129,22 @@ func apiDefaultSetting(table *Table) API {
 		Guard:   "bearer-jwt",
 		Process: fmt.Sprintf("tables.%s.Setting", table.Table),
 	}
+}
+
+// IsGuard 鉴权处理程序
+func (api API) IsGuard(v interface{}) bool {
+	c, ok := v.(*gin.Context)
+	if !ok {
+		return false
+	}
+	guards := strings.Split(api.Guard, ",")
+	for _, guard := range guards {
+		guard = strings.TrimSpace(guard)
+		handler, has := gou.HTTPGuards[guard]
+		if has {
+			handler(c)
+			return c.IsAborted()
+		}
+	}
+	return false
 }
