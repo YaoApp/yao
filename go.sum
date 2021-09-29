@@ -371,6 +371,8 @@ github.com/yaoapp/gou v0.0.0-20210929100518-8de252e7bab8 h1:MPVIqqqF5PV3SEy9a4XN
 github.com/yaoapp/gou v0.0.0-20210929100518-8de252e7bab8/go.mod h1:mJj2wa3oXVlk/WOHazW8eEZTyva98zDVjIur9lj8aiA=
 github.com/yaoapp/gou v0.0.0-20210929112923-09baf3629b95 h1:KOMi0RR1ynNgLyaN7YIXVcS0Aj5YUhkad1IQ7Px8SL4=
 github.com/yaoapp/gou v0.0.0-20210929112923-09baf3629b95/go.mod h1:EKDxzk74c04dULx5+lJfTpMkR+z4QswAl0NC7DXDiWU=
+github.com/yaoapp/gou v0.0.0-20210929115559-b1b0614e8d88 h1:rAjfDVt6CBjcQGE6ie4U7tqmvmU355lIf+Ww0cL1WjQ=
+github.com/yaoapp/gou v0.0.0-20210929115559-b1b0614e8d88/go.mod h1:vcNZXFRgGuZWzjtYH65ck1o6nzWYDpToQ09zHC9xNDE=
 github.com/yaoapp/kun v0.6.1 h1:gbjP5wmAuJLe1RGZ2evH4rPCVWykf0iqbksaHikF/GI=
 github.com/yaoapp/kun v0.6.1/go.mod h1:igsTcWDnzpp0HtRN7sBP+XOEN2tzoC5hk2MyoPFs3xA=
 github.com/yaoapp/kun v0.6.2 h1:QbtdZpVIklRDGEvL5YYRf/eR05YFZVFk/8rX2vy2K0Q=
@@ -379,6 +381,8 @@ github.com/yaoapp/kun v0.6.3 h1:0wD0lo0Cl78O+CoKi+DRVp6AeQFSrFInF+ghu+mww8M=
 github.com/yaoapp/kun v0.6.3/go.mod h1:igsTcWDnzpp0HtRN7sBP+XOEN2tzoC5hk2MyoPFs3xA=
 github.com/yaoapp/kun v0.6.4 h1:5iEoZwaE0GZCLzB5uGmEr8X547CGvy0L61Ochmp47nY=
 github.com/yaoapp/kun v0.6.4/go.mod h1:igsTcWDnzpp0HtRN7sBP+XOEN2tzoC5hk2MyoPFs3xA=
+github.com/yaoapp/kun v0.6.5 h1:RNEQp8EIiyGKyX64QfyoP8OreQBg0cCtF15xwUEUCNI=
+github.com/yaoapp/kun v0.6.5/go.mod h1:igsTcWDnzpp0HtRN7sBP+XOEN2tzoC5hk2MyoPFs3xA=
 github.com/yaoapp/xun v0.5.2 h1:DedZ26FpcXfkLnPKXzJsrbVmpWDRx9adUo8AvOcNT+g=
 github.com/yaoapp/xun v0.5.2/go.mod h1:y107NMHO635nhqJxMt582i1iqLjnNxAoeYr5/500UBw=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

@@ -6,6 +6,8 @@ import (
 
 	"github.com/mojocn/base64Captcha"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/xlog"
 )
 
 var captchaStore = base64Captcha.DefaultMemStore
@@ -76,6 +78,12 @@ func MakeCaptcha(option CaptchaOption) (string, string) {
 	if err != nil {
 		exception.New("生成验证码出错 %s", 500, err).Throw()
 	}
+
+	// 打印日志
+	if config.Conf.Mode == "debug" {
+		xlog.Println("图形/音频验证码:", captchaStore.Get(id, false))
+	}
+
 	return id, content
 }
 
