@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/table"
 )
 
-var cfg Config
+var cfg config.Config
 
 func TestMain(m *testing.M) {
 

@@ -21,7 +21,7 @@
       "method": "POST",
       "guard": "-",
       "process": "xiang.user.Login",
-      "in": ["$payload.email", "$payload.password", "$payload.captcha"],
+      "in": [":payload"],
       "out": {
         "status": 200,
         "type": "application/json"

@@ -8,6 +8,7 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xun/capsule"
 )
 
@@ -21,7 +22,7 @@ const DOMAIN = "*.iqka.com"
 var AllowHosts = []string{}
 
 // Conf 配置文件
-var Conf Config
+var Conf config.Config
 
 // FileServer 静态服务
 var FileServer http.Handler = http.FileServer(assetFS())
@@ -43,7 +44,7 @@ func init() {
 		AllowHosts = append(AllowHosts, domain)
 	}
 
-	Conf = NewConfig()
+	Conf = config.Conf
 
 	// 数据库连接
 	if len(Conf.Database.Primary) > 0 {

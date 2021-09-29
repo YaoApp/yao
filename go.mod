@@ -10,6 +10,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-gonic/gin v1.7.4 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/hashicorp/go-plugin v1.4.3 // indirect
 	github.com/hashicorp/yamux v0.0.0-20210826001029-26ff87cf9493 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
@@ -23,8 +24,8 @@ require (
 	github.com/robertkrimen/otto v0.0.0-20210927222213-f9375a256948 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/yaoapp/gou v0.0.0-20210929100518-8de252e7bab8 // indirect
-	github.com/yaoapp/kun v0.6.3
+	github.com/yaoapp/gou v0.0.0-20210929112923-09baf3629b95 // indirect
+	github.com/yaoapp/kun v0.6.4
 	github.com/yaoapp/xun v0.5.2 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect

@@ -10,6 +10,7 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/table"
 )
 
@@ -33,7 +34,7 @@ type AppRoot struct {
 }
 
 // Load 根据配置加载 API, FLow, Model, Plugin
-func Load(cfg Config) {
+func Load(cfg config.Config) {
 	LoadEngine(cfg.Path)
 	LoadApp(AppRoot{
 		APIs:    cfg.RootAPI,
@@ -47,7 +48,7 @@ func Load(cfg Config) {
 }
 
 // Reload 根据配置重新加载 API, FLow, Model, Plugin
-func Reload(cfg Config) {
+func Reload(cfg config.Config) {
 	gou.APIs = map[string]*gou.API{}
 	gou.Models = map[string]*gou.Model{}
 	gou.Flows = map[string]*gou.Flow{}

@@ -1,4 +1,4 @@
-package global
+package config
 
 import (
 	"io"
@@ -10,6 +10,9 @@ import (
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
 )
+
+// Conf 配置参数
+var Conf Config
 
 // Config 系统配置
 type Config struct {
@@ -131,4 +134,8 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootScreen == "" {
 		cfg.RootScreen = cfg.Root + "/screens"
 	}
+}
+
+func init() {
+	Conf = NewConfig()
 }

@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/config"
 )
 
-var cfg global.Config
+var cfg config.Config
 
 func TestMain(m *testing.M) {
 

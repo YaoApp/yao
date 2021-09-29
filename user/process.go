@@ -3,16 +3,32 @@ package user
 import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/utils"
 )
 
 func init() {
-	// 注册处理器
 	gou.RegisterProcessHandler("xiang.user.Captcha", ProcessCaptcha)
+	gou.RegisterProcessHandler("xiang.user.Login", ProcessLogin)
 }
 
 // ProcessLogin xiang.user.Login 用户登录
 func ProcessLogin(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	payload := process.ArgsMap(0)
+	utils.Dump(payload)
+	email := any.Of(payload.Get("email")).CString()
+	mobile := any.Of(payload.Get("mobile")).CString()
+	password := any.Of(payload.Get("password")).CString()
+	if email != "" {
+		return Auth("email", email, password)
+	} else if mobile != "" {
+		utils.Dump(mobile, password)
+		return Auth("mobile", mobile, password)
+	}
+
+	exception.New("参数错误", 400).Ctx(payload).Throw()
 	return nil
 }
 
