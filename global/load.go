@@ -87,6 +87,12 @@ func LoadEngine(from string) {
 		case "apis":
 			gou.LoadAPI(string(script.Content), "xiang."+script.Name)
 			break
+		}
+	}
+
+	// 加载数据应用
+	for _, script := range scripts {
+		switch script.Type {
 		case "tables":
 			table.Load(string(script.Content), "xiang."+script.Name)
 			break
