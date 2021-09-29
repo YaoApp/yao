@@ -22,8 +22,8 @@ require (
 	github.com/robertkrimen/otto v0.0.0-20210927222213-f9375a256948 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/yaoapp/gou v0.0.0-20210928160401-c3e8f1c2162c // indirect
-	github.com/yaoapp/kun v0.6.1
+	github.com/yaoapp/gou v0.0.0-20210929002807-fbe45c391f18 // indirect
+	github.com/yaoapp/kun v0.6.2
 	github.com/yaoapp/xun v0.5.2 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210928044308-7d9f5e0b762b // indirect
@@ -34,4 +34,5 @@ require (
 
 // go env -w GOPRIVATE=github.com/yaoapp/*
 
+// replace github.com/yaoapp/kun => ../kun // kun local
 // replace github.com/yaoapp/gou => ../gou // gou local
