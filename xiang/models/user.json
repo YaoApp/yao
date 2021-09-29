@@ -8,33 +8,12 @@
   "columns": [
     { "label": "ID", "name": "id", "type": "ID" },
     {
-      "label": "厂商",
-      "name": "manu_id",
-      "type": "bigInteger",
-      "length": 50,
-      "comment": "所属厂商",
-      "nullable": true,
-      "index": true,
-      "validations": [
-        {
-          "method": "typeof",
-          "args": ["integer"],
-          "message": "{{input}}类型错误, {{label}}应为数字"
-        },
-        {
-          "method": "min",
-          "args": [0],
-          "message": "{{label}}应大于0"
-        }
-      ]
-    },
-    {
       "label": "类型",
       "name": "type",
       "type": "enum",
-      "option": ["admin", "staff", "user"],
-      "comment": "账号类型 admin 管理员, staff 员工, user 用户",
-      "default": "staff",
+      "option": ["admin", "staff", "user", "robot"],
+      "comment": "账号类型 admin 管理员, staff 员工, user 用户, robot 机器人",
+      "default": "user",
       "index": true,
       "validations": [
         {
@@ -44,8 +23,29 @@
         },
         {
           "method": "enum",
-          "args": ["admin", "staff", "user"],
-          "message": "{{input}}不在许可范围, {{label}}应该为 admin/staff/user"
+          "args": ["admin", "staff", "user", "robot"],
+          "message": "{{input}}不在许可范围, {{label}}应该为 admin/staff/user/robot"
+        }
+      ]
+    },
+    {
+      "label": "邮箱",
+      "name": "email",
+      "type": "string",
+      "length": 50,
+      "comment": "邮箱",
+      "index": true,
+      "nullable": true,
+      "validations": [
+        {
+          "method": "typeof",
+          "args": ["string"],
+          "message": "{{input}}类型错误, {{label}}应该为字符串"
+        },
+        {
+          "method": "email",
+          "args": [],
+          "message": "{{input}}不是邮箱地址"
         }
       ]
     },
@@ -56,16 +56,12 @@
       "length": 50,
       "comment": "手机号",
       "index": true,
+      "nullable": true,
       "crypt": "AES",
       "validations": [
         {
-          "method": "typeof",
-          "args": ["string"],
-          "message": "{{input}}类型错误, {{label}}应该为字符串"
-        },
-        {
-          "method": "pattern",
-          "args": ["^1[3-9]\\d{9}$"],
+          "method": "mobile",
+          "args": [],
           "message": "{{input}}格式错误"
         }
       ]
@@ -78,6 +74,7 @@
       "comment": "登录密码",
       "crypt": "PASSWORD",
       "index": true,
+      "nullable": true,
       "validations": [
         {
           "method": "typeof",
@@ -111,7 +108,54 @@
         },
         {
           "method": "pattern",
-          "args": ["[@#$&*]+"],
+          "args": ["[@#$&*\\+]+"],
+          "message": "{{label}}应该至少包含一个符号"
+        }
+      ]
+    },
+    {
+      "label": "操作密码",
+      "name": "password2nd",
+      "type": "string",
+      "length": 256,
+      "comment": "操作密码",
+      "crypt": "PASSWORD",
+      "index": true,
+      "nullable": true,
+      "validations": [
+        {
+          "method": "typeof",
+          "args": ["string"],
+          "message": "{{input}}类型错误, {{label}}应该为字符串"
+        },
+        {
+          "method": "minLength",
+          "args": [6],
+          "message": "{{label}}应该由6-18位，大小写字母、数字和符号构成"
+        },
+        {
+          "method": "maxLength",
+          "args": [18],
+          "message": "{{label}}应该由6-18位，大小写字母、数字和符号构成"
+        },
+        {
+          "method": "pattern",
+          "args": ["[0-9]+"],
+          "message": "{{label}}应该至少包含一个数字"
+        },
+        {
+          "method": "pattern",
+          "args": ["[A-Z]+"],
+          "message": "{{label}}应该至少包含一个大写字母"
+        },
+        {
+          "method": "pattern",
+          "args": ["[a-z]+"],
+          "message": "{{label}}应该至少包含一个小写字母"
+        },
+        {
+          "method": "pattern",
+          "args": ["[@#$&*\\+]+"],
           "message": "{{label}}应该至少包含一个符号"
         }
       ]
@@ -123,6 +167,7 @@
       "length": 80,
       "comment": "姓名",
       "index": true,
+      "nullable": true,
       "validations": [
         {
           "method": "typeof",
@@ -164,27 +209,6 @@
       ]
     },
     {
-      "label": "账户余额",
-      "name": "balance",
-      "type": "integer",
-      "length": 20,
-      "comment": "账户余额(冗余)",
-      "default": 0,
-      "index": true,
-      "validations": [
-        {
-          "method": "typeof",
-          "args": ["integer"],
-          "message": "{{input}}类型错误, {{label}}应为数字"
-        },
-        {
-          "method": "min",
-          "args": [0],
-          "message": "{{label}}应大于0"
-        }
-      ]
-    },
-    {
       "label": "API Key",
       "name": "key",
       "type": "string",
@@ -195,13 +219,13 @@
       "validations": [
         {
           "method": "typeof",
-          "args": ["string"],
-          "message": "{{input}}类型错误, {{label}}应该为字符串"
+          "args": ["integer"],
+          "message": "{{input}}类型错误, {{label}}应该为数字"
         },
         {
           "method": "pattern",
-          "args": ["^[0-9A-Za-z@#$&*]{8}$"],
-          "message": " {{label}}应该由8位，大小写字母、数字和符号构成"
+          "args": ["^[0-9]{10}$"],
+          "message": " {{label}}应该由10位数字构成"
         }
       ]
     },
@@ -226,13 +250,6 @@
           "message": "{{label}}应该由32位，大小写字母、数字和符号构成"
         }
       ]
-    },
-    {
-      "label": "简历",
-      "name": "resume",
-      "type": "text",
-      "comment": "简历",
-      "nullable": true
     },
     {
       "label": "扩展信息",
@@ -267,36 +284,44 @@
   "values": [
     {
       "name": "管理员",
-      "manu_id": 1,
       "type": "admin",
-      "idcard": "230624198301170015",
-      "mobile": "13900001111",
-      "password": "cvSK@RY6",
-      "key": "FB3fxCeQ",
+      "email": "xiang@iqka.com",
+      "mobile": null,
+      "password": "A123456p+",
+      "key": "8304925176",
       "secret": "XMTdNRVigbgUiAPdiJCfaWgWcz2PaQXw",
       "status": "enabled",
       "extra": { "sex": "男" }
     },
     {
       "name": "员工",
-      "manu_id": 1,
       "type": "staff",
-      "idcard": "23082619820207024X",
-      "mobile": "13900002222",
-      "password": "qV@uT1DI",
-      "key": "JDh2ZiUt",
-      "secret": "wBeYjL7FjbcvpAdBrxtDFfjydsoPKhRN",
+      "email": "staff@iqka.com",
+      "mobile": null,
+      "password": "S123456p+",
+      "key": null,
+      "secret": null,
       "status": "enabled",
       "extra": { "sex": "女" }
     },
     {
       "name": "用户",
-      "manu_id": 2,
       "type": "user",
-      "idcard": "23082619820207004X",
-      "mobile": "13900003333",
-      "password": "qV@uT1DI",
-      "key": "XZ12MiPz",
+      "email": null,
+      "mobile": "13900001111",
+      "password": "U123456p+",
+      "key": null,
+      "secret": null,
+      "status": "enabled",
+      "extra": { "sex": "女" }
+    },
+    {
+      "name": "机器人",
+      "type": "robot",
+      "email": null,
+      "mobile": null,
+      "password": null,
+      "key": "3845196072",
       "secret": "wBeYjL7FjbcvpAdBrxtDFfjydsoPKhRN",
       "status": "enabled",
       "extra": { "sex": "女" }
@@ -304,16 +329,16 @@
   ],
   "indexes": [
     {
-      "comment": "厂商用户",
-      "name": "manu_id_mobile_unique",
-      "columns": ["manu_id", "mobile"],
+      "comment": "类型邮箱唯一",
+      "name": "type_email_unique",
+      "columns": ["type", "email"],
       "type": "unique"
     },
     {
-      "comment": "简历全文检索",
-      "name": "resume_fulltext",
-      "columns": ["resume"],
-      "type": "fulltext"
+      "comment": "类型手机号唯一",
+      "name": "type_mobile_unique",
+      "columns": ["type", "mobile"],
+      "type": "unique"
     }
   ],
   "option": { "timestamps": true, "soft_deletes": true }
