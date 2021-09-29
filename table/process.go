@@ -8,6 +8,7 @@ func init() {
 	// 注册处理器
 	gou.RegisterProcessHandler("xiang.table.Search", ProcessSearch)
 	gou.RegisterProcessHandler("xiang.table.Find", ProcessFind)
+	gou.RegisterProcessHandler("xiang.table.Save", ProcessSave)
 }
 
 // ProcessSearch xiang.table.Search
@@ -45,4 +46,17 @@ func ProcessFind(process *gou.Process) interface{} {
 	id := process.Args[1]
 	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1)
 	return gou.NewProcess(api.Process, id, param).Run()
+}
+
+// ProcessSave xiang.table.Save
+// 保存单条记录。如数据记录中包含主键字段则更新，不包含主键字段则创建记录；返回创建或更新的记录主键值
+func ProcessSave(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["save"].ValidateLoop("xiang.table.save")
+	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
+		return nil
+	}
+	return gou.NewProcess(api.Process, process.Args[1]).Run()
 }

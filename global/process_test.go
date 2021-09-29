@@ -56,3 +56,20 @@ func TestProcessFind(t *testing.T) {
 	res := any.Of(response).Map()
 	assert.Equal(t, any.Of(res.Get("id")).CInt(), 1)
 }
+
+func TestProcessSave(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := table.ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+}
