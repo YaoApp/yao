@@ -9,7 +9,18 @@
       "path": "/ping",
       "method": "GET",
       "guard": "-",
-      "process": "xiang.global.ping",
+      "process": "xiang.global.Ping",
+      "in": [],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/info",
+      "method": "GET",
+      "guard": "-",
+      "process": "xiang.global.Info",
       "in": [],
       "out": {
         "status": 200,
