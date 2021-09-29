@@ -80,8 +80,8 @@ func MakeCaptcha(option CaptchaOption) (string, string) {
 	}
 
 	// 打印日志
-	if config.Conf.Mode == "debug" {
-		xlog.Println("图形/音频验证码:", captchaStore.Get(id, false))
+	if config.IsDebug() {
+		xlog.Println("图形/音频 ID:", id, "验证码:", captchaStore.Get(id, false))
 	}
 
 	return id, content

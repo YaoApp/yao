@@ -136,6 +136,11 @@ func (cfg *Config) SetDefaults() {
 	}
 }
 
+// IsDebug 是否为调试模式
+func IsDebug() bool {
+	return Conf.Mode == "debug"
+}
+
 func init() {
 	Conf = NewConfig()
 }

@@ -6,6 +6,8 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/xlog"
 )
 
 func init() {
@@ -16,8 +18,27 @@ func init() {
 // ProcessLogin xiang.user.Login 用户登录
 func ProcessLogin(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
-	payload := process.ArgsMap(0)
-	utils.Dump(payload)
+	payload := process.ArgsMap(0).Dot()
+	if config.IsDebug() {
+		xlog.Println(payload)
+	}
+
+	id := any.Of(payload.Get("captcha.id")).CString()
+	value := any.Of(payload.Get("captcha.code")).CString()
+	if id == "" {
+		exception.New("请输入验证码ID", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
+	}
+	if value == "" {
+		exception.New("请输入验证码", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
+	}
+	if !ValidateCaptcha(id, value) {
+		if config.IsDebug() {
+			xlog.Println("ID:", id, " Code:", value)
+		}
+		exception.New("验证码不正确", 403).Ctx(maps.Map{"id": id, "code": value}).Throw()
+		return nil
+	}
+
 	email := any.Of(payload.Get("email")).CString()
 	mobile := any.Of(payload.Get("mobile")).CString()
 	password := any.Of(payload.Get("password")).CString()
