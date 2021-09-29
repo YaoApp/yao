@@ -129,7 +129,7 @@ func apiDefaultSetting(table *Table) API {
 	return API{
 		Name:    "setting",
 		Guard:   "bearer-jwt",
-		Process: fmt.Sprintf("tables.%s.Setting", table.Table),
+		Process: fmt.Sprintf("xiang.table.setting"),
 	}
 }
 
@@ -159,6 +159,11 @@ func (api API) ValidateLoop(name string) API {
 		exception.New("循环引用 %s", 400, name).Throw()
 	}
 	return api
+}
+
+// ProcessIs 检查处理器名称
+func (api API) ProcessIs(name string) bool {
+	return strings.ToLower(api.Process) == strings.ToLower(name)
 }
 
 // DefaultQueryParams 读取参数 QueryParam

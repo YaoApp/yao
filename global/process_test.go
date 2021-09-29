@@ -108,3 +108,20 @@ func TestProcessDelete(t *testing.T) {
 	// 清空数据
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
+
+func TestProcessSetting(t *testing.T) {
+	args := []interface{}{"service"}
+	process := gou.NewProcess("xiang.table.Setting", args...)
+	response := table.ProcessSetting(process)
+	assert.NotNil(t, response)
+	res := any.Of(response).Map()
+	assert.Equal(t, res.Get("name"), "云服务库")
+	assert.True(t, res.Has("title"))
+	assert.True(t, res.Has("decription"))
+	assert.True(t, res.Has("columns"))
+	assert.True(t, res.Has("filters"))
+	assert.True(t, res.Has("list"))
+	assert.True(t, res.Has("edit"))
+	assert.True(t, res.Has("view"))
+	assert.True(t, res.Has("insert"))
+}

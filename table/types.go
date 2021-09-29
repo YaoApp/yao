@@ -4,18 +4,20 @@ import "github.com/yaoapp/gou"
 
 // Table 数据表格配置结构
 type Table struct {
-	Table   string            `json:"-"`
-	Source  string            `json:"-"`
-	Name    string            `json:"name"`
-	Version string            `json:"version"`
-	Bind    Bind              `json:"bind,omitempty"`
-	APIs    map[string]API    `json:"apis,omitempty"`
-	Columns map[string]Column `json:"columns,omitempty"`
-	Filters map[string]Filter `json:"filters,omitempty"`
-	List    Page              `json:"list,omitempty"`
-	Edit    Page              `json:"edit,omitempty"`
-	View    Page              `json:"view,omitempty"`
-	Insert  Page              `json:"insert,omitempty"`
+	Table      string            `json:"-"`
+	Source     string            `json:"-"`
+	Name       string            `json:"name"`
+	Version    string            `json:"version"`
+	Title      string            `json:"title,omitempty"`
+	Decription string            `json:"decription,omitempty"`
+	Bind       Bind              `json:"bind,omitempty"`
+	APIs       map[string]API    `json:"apis,omitempty"`
+	Columns    map[string]Column `json:"columns,omitempty"`
+	Filters    map[string]Filter `json:"filters,omitempty"`
+	List       Page              `json:"list,omitempty"`
+	Edit       Page              `json:"edit,omitempty"`
+	View       Page              `json:"view,omitempty"`
+	Insert     Page              `json:"insert,omitempty"`
 }
 
 // Bind 绑定数据模型
