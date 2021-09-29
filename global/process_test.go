@@ -43,3 +43,16 @@ func TestProcessSearch(t *testing.T) {
 	assert.Equal(t, 1, res.Get("page"))
 	assert.Equal(t, 2, res.Get("pagesize"))
 }
+
+func TestProcessFind(t *testing.T) {
+	args := []interface{}{
+		"service",
+		1,
+		&gin.Context{},
+	}
+	process := gou.NewProcess("xiang.table.Find", args...)
+	response := table.ProcessFind(process)
+	assert.NotNil(t, response)
+	res := any.Of(response).Map()
+	assert.Equal(t, any.Of(res.Get("id")).CInt(), 1)
+}
