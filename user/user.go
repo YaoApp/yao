@@ -61,10 +61,14 @@ func Auth(field string, value string, password string) maps.Map {
 	expiresAt := time.Now().Unix() + 3600
 	token := MakeToken(row, expiresAt)
 	row.Del("password")
+
+	// 读取菜单
+	menus := gou.NewProcess("flows.xiang.menu").Run()
 	return maps.Map{
 		"expires_at": expiresAt,
 		"token":      token,
 		"user":       row,
+		"menus":      menus,
 	}
 }
 

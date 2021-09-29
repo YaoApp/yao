@@ -1,0 +1,293 @@
+{
+  "name": "菜单",
+  "table": {
+    "name": "xiang_menu",
+    "comment": "菜单表",
+    "engine": "InnoDB"
+  },
+  "columns": [
+    { "name": "id", "type": "ID", "comment": "ID" },
+    {
+      "name": "parent",
+      "type": "bigInteger",
+      "comment": "父节点",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "length": 200,
+      "comment": "名称",
+      "index": true
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "length": 200,
+      "comment": "图标",
+      "nullable": true
+    },
+    {
+      "name": "blocks",
+      "type": "boolean",
+      "comment": "block布局",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "visible_menu",
+      "type": "boolean",
+      "comment": "显示",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "length": 200,
+      "comment": "路由",
+      "index": true
+    },
+    {
+      "name": "rank",
+      "type": "integer",
+      "default": 9999,
+      "comment": "排列",
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "default": "enabled",
+      "option": ["enabled", "disabled"],
+      "comment": "菜单状态 enabled 开启, disabled 关闭",
+      "index": true
+    }
+  ],
+  "relations": {
+    "children": {
+      "type": "hasMany",
+      "model": "xiang.menu",
+      "key": "parent",
+      "foreign": "id",
+      "query": {
+        "select": ["name", "icon", "blocks", "path", "rank", "status"]
+      }
+    }
+  },
+  "values": [
+    {
+      "id": 1,
+      "name": "数据看板",
+      "icon": "icon-activity",
+      "path": "/kanban",
+      "parent": null,
+      "visible_menu": false,
+      "blocks": false,
+      "rank": 1
+    },
+    {
+      "id": 2,
+      "name": "数据分析",
+      "icon": "icon-pie-chart",
+      "path": "/chart",
+      "visible_menu": false,
+      "parent": null,
+      "blocks": false,
+      "rank": 2
+    },
+    {
+      "id": 3,
+      "name": "数据表格",
+      "icon": "icon-grid",
+      "path": "/table",
+      "visible_menu": false,
+      "parent": null,
+      "blocks": false,
+      "rank": 3
+    },
+    {
+      "id": 4,
+      "name": "应用市场",
+      "icon": "icon-grid",
+      "path": "/table",
+      "visible_menu": false,
+      "parent": null,
+      "blocks": true,
+      "rank": 4
+    },
+    {
+      "id": 5,
+      "name": "软件服务服务质量分析",
+      "path": "/chart/sla",
+      "icon": null,
+      "visible_menu": false,
+      "parent": 2,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 6,
+      "name": "软件服务地域分析",
+      "path": "/chart/area",
+      "icon": null,
+      "visible_menu": false,
+      "parent": 2,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 7,
+      "name": "软件服务垂直领域分析",
+      "path": "/chart/fields",
+      "icon": null,
+      "visible_menu": false,
+      "parent": 2,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 8,
+      "name": "软件服务行业分析",
+      "path": "/chart/industry",
+      "icon": null,
+      "visible_menu": false,
+      "parent": 2,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 9,
+      "name": "软件服务供需分析",
+      "path": "/chart/needs",
+      "icon": null,
+      "visible_menu": false,
+      "parent": 2,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 11,
+      "name": "服务质量",
+      "path": "/service/sla",
+      "icon": "icon-compass",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 12,
+      "name": "地域分析",
+      "path": "/service/area",
+      "icon": "icon-crosshair",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 13,
+      "name": "垂直领域",
+      "path": "/service/fields",
+      "icon": "icon-shopping-bag",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 14,
+      "name": "行业分析",
+      "path": "/service/industry",
+      "icon": "icon-wind",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 15,
+      "name": "供需分析",
+      "path": "/service/needs",
+      "icon": "icon-anchor",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 16,
+      "name": "服务质量",
+      "path": "/service/sla",
+      "icon": "icon-compass",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 17,
+      "name": "地域分析",
+      "path": "/service/area",
+      "icon": "icon-crosshair",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 18,
+      "name": "垂直领域",
+      "path": "/service/fields",
+      "icon": "icon-shopping-bag",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 19,
+      "name": "行业分析",
+      "path": "/service/industry",
+      "icon": "icon-wind",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 20,
+      "name": "供需分析",
+      "path": "/service/needs",
+      "icon": "icon-anchor",
+      "visible_menu": false,
+      "parent": 4,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 21,
+      "name": "报告列表",
+      "path": "/bug/list",
+      "icon": "icon-list",
+      "visible_menu": true,
+      "parent": 3,
+      "blocks": false,
+      "rank": 9999
+    },
+    {
+      "id": 22,
+      "name": "创建报告",
+      "path": "/bug/create",
+      "icon": "icon-plus",
+      "visible_menu": false,
+      "parent": 3,
+      "blocks": false,
+      "rank": 9999
+    }
+  ],
+  "indexes": [],
+  "option": { "timestamps": true, "soft_deletes": true }
+}
