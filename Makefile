@@ -5,7 +5,7 @@ VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$' | grep -v examples)
+TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$|user$$' | grep -v examples)
 TESTTAGS ?= ""
 
 # 运行单元测试

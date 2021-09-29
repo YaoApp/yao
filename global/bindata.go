@@ -567,31 +567,31 @@ type bintree struct {
 
 var _bintree = &bintree{nil, map[string]*bintree{
 	"ui": {nil, map[string]*bintree{
-		"index.html": &bintree{uiIndexHtml, map[string]*bintree{}},
+		"index.html": {uiIndexHtml, map[string]*bintree{}},
 	}},
-	"xiang": &bintree{nil, map[string]*bintree{
-		".DS_Store": &bintree{xiangDs_store, map[string]*bintree{}},
-		"apis": &bintree{nil, map[string]*bintree{
-			"README.md":       &bintree{xiangApisReadmeMd, map[string]*bintree{}},
-			"table.http.json": &bintree{xiangApisTableHttpJson, map[string]*bintree{}},
-			"user.http.json":  &bintree{xiangApisUserHttpJson, map[string]*bintree{}},
-			"xiang.http.json": &bintree{xiangApisXiangHttpJson, map[string]*bintree{}},
+	"xiang": {nil, map[string]*bintree{
+		".DS_Store": {xiangDs_store, map[string]*bintree{}},
+		"apis": {nil, map[string]*bintree{
+			"README.md":       {xiangApisReadmeMd, map[string]*bintree{}},
+			"table.http.json": {xiangApisTableHttpJson, map[string]*bintree{}},
+			"user.http.json":  {xiangApisUserHttpJson, map[string]*bintree{}},
+			"xiang.http.json": {xiangApisXiangHttpJson, map[string]*bintree{}},
 		}},
-		"flows": &bintree{nil, map[string]*bintree{
-			"README.md":      &bintree{xiangFlowsReadmeMd, map[string]*bintree{}},
-			"menu.flow.json": &bintree{xiangFlowsMenuFlowJson, map[string]*bintree{}},
-			"table": &bintree{nil, map[string]*bintree{
-				"get.flow.json": &bintree{xiangFlowsTableGetFlowJson, map[string]*bintree{}},
+		"flows": {nil, map[string]*bintree{
+			"README.md":      {xiangFlowsReadmeMd, map[string]*bintree{}},
+			"menu.flow.json": {xiangFlowsMenuFlowJson, map[string]*bintree{}},
+			"table": {nil, map[string]*bintree{
+				"get.flow.json": {xiangFlowsTableGetFlowJson, map[string]*bintree{}},
 			}},
 		}},
-		"models": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{xiangModelsReadmeMd, map[string]*bintree{}},
-			"menu.json": &bintree{xiangModelsMenuJson, map[string]*bintree{}},
-			"user.json": &bintree{xiangModelsUserJson, map[string]*bintree{}},
+		"models": {nil, map[string]*bintree{
+			"README.md": {xiangModelsReadmeMd, map[string]*bintree{}},
+			"menu.json": {xiangModelsMenuJson, map[string]*bintree{}},
+			"user.json": {xiangModelsUserJson, map[string]*bintree{}},
 		}},
-		"tables": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{xiangTablesReadmeMd, map[string]*bintree{}},
-			"user.json": &bintree{xiangTablesUserJson, map[string]*bintree{}},
+		"tables": {nil, map[string]*bintree{
+			"README.md": {xiangTablesReadmeMd, map[string]*bintree{}},
+			"user.json": {xiangTablesUserJson, map[string]*bintree{}},
 		}},
 	}},
 }}
