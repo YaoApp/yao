@@ -9,6 +9,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.table.Search", ProcessSearch)
 	gou.RegisterProcessHandler("xiang.table.Find", ProcessFind)
 	gou.RegisterProcessHandler("xiang.table.Save", ProcessSave)
+	gou.RegisterProcessHandler("xiang.table.Delete", ProcessDelete)
 }
 
 // ProcessSearch xiang.table.Search
@@ -59,4 +60,19 @@ func ProcessSave(process *gou.Process) interface{} {
 		return nil
 	}
 	return gou.NewProcess(api.Process, process.Args[1]).Run()
+}
+
+// ProcessDelete xiang.table.Delete
+// 删除指定主键值的数据记录, 请求成功返回null
+func ProcessDelete(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["delete"].ValidateLoop("xiang.table.delete")
+	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
+		return nil
+	}
+
+	id := process.Args[1]
+	return gou.NewProcess(api.Process, id).Run()
 }

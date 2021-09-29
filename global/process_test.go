@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/xiang/table"
+	"github.com/yaoapp/xun/capsule"
 )
 
 func TestProcessPing(t *testing.T) {
@@ -72,4 +73,38 @@ func TestProcessSave(t *testing.T) {
 	response := table.ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
+}
+
+func TestProcessDelete(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := table.ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+	args = []interface{}{
+		"service",
+		id,
+	}
+	process = gou.NewProcess("xiang.table.Delete", args...)
+	response = table.ProcessDelete(process)
+	assert.Nil(t, response)
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
 }
