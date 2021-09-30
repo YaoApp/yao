@@ -6,20 +6,12 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/xiang/user"
 )
 
 // Guards 服务中间件
 var Guards = map[string]gin.HandlerFunc{
 	"bearer-jwt": bearerJWT, // JWT 鉴权
-}
-
-// JwtClaims JWT claims
-type JwtClaims struct {
-	ID     int
-	Type   string
-	Mobile string
-	Name   string
-	jwt.StandardClaims
 }
 
 // JWT 鉴权
@@ -32,7 +24,7 @@ func bearerJWT(c *gin.Context) {
 	}
 
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
-	token, err := jwt.ParseWithClaims(tokenString, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &user.JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return Conf.JWT.Secret, nil
 	})
 
@@ -42,11 +34,10 @@ func bearerJWT(c *gin.Context) {
 		return
 	}
 
-	if claims, ok := token.Claims.(*JwtClaims); ok && token.Valid {
+	if claims, ok := token.Claims.(*user.JwtClaims); ok && token.Valid {
 		c.Set("id", claims.Subject)
 		c.Set("type", claims.Type)
 		c.Set("name", claims.Name)
-		c.Set("mobile", claims.Mobile)
 		c.Next()
 		return
 	}
