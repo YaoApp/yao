@@ -17,10 +17,10 @@
       }
     },
     {
-      "path": "/info",
+      "path": "/inspect",
       "method": "GET",
       "guard": "-",
-      "process": "xiang.global.Info",
+      "process": "xiang.global.inspect",
       "in": [],
       "out": {
         "status": 200,

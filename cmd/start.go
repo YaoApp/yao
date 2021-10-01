@@ -16,7 +16,7 @@ var startCmd = &cobra.Command{
 	Long:  `启动象传应用引擎`,
 	Run: func(cmd *cobra.Command, args []string) {
 		defer global.ServiceStop(func() { log.Println("服务已关闭") })
-		log.Printf("启动象传应用引擎 mode=%s", global.Conf.Mode)
+		log.Printf("启动象传应用引擎 v%s mode=%s", global.VERSION, global.Conf.Mode)
 
 		// 应用目录
 		if startAppPath != "" {

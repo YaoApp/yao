@@ -30,6 +30,7 @@ type XiangConfig struct {
 	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于单元测试载入数据)
 	Path       string `json:"path,omitempty" env:"XIANG_PATH" envDefault:"bin://xiang"` // 引擎文件目录
 	Root       string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"fs://."`      // 应用文件目录
+	RootData   string `json:"root_data,omitempty" env:"XIANG_ROOT_DATA"`                // 应用数据文件目录
 	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
 	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
 	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用工作流文件目录
@@ -134,6 +135,10 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootScreen == "" {
 		cfg.RootScreen = cfg.Root + "/screens"
 	}
+	if cfg.RootData == "" {
+		cfg.RootData = cfg.Root + "/data"
+	}
+
 }
 
 // IsDebug 是否为调试模式

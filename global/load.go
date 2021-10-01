@@ -8,11 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/table"
+	"github.com/yaoapp/xiang/xfs"
 )
 
 // Script 脚本文件类型
@@ -32,10 +34,24 @@ type AppRoot struct {
 	Tables  string
 	Charts  string
 	Screens string
+	Data    string
 }
+
+// AppInfo 应用信息
+type AppInfo struct {
+	Name        string            `json:"name,omitempty"`
+	Short       string            `json:"short,omitempty"`
+	Version     string            `json:"version,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Icons       map[string]string `json:"icons,omitempty"`
+}
+
+// App 应用信息
+var App AppInfo
 
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
+	LoadAppInfo(cfg.Root)
 	LoadEngine(cfg.Path)
 	LoadApp(AppRoot{
 		APIs:    cfg.RootAPI,
@@ -45,6 +61,7 @@ func Load(cfg config.Config) {
 		Tables:  cfg.RootTable,
 		Charts:  cfg.RootChart,
 		Screens: cfg.RootScreen,
+		Data:    cfg.RootData,
 	})
 }
 
@@ -55,6 +72,47 @@ func Reload(cfg config.Config) {
 	gou.Flows = map[string]*gou.Flow{}
 	gou.Plugins = map[string]*gou.Plugin{}
 	Load(cfg)
+}
+
+// LoadAppInfo 读取应用信息
+func LoadAppInfo(root string) {
+	info := defaultAppInfo()
+	fs := xfs.New(root)
+	if fs.MustExists("/app.json") {
+		err := jsoniter.Unmarshal(fs.MustReadFile("/app.json"), &info)
+		if err != nil {
+			exception.New("解析应用失败 %s", 500, err).Throw()
+		}
+	}
+
+	if fs.MustExists("/xiang/icons/icon.icns") {
+		info.Icons["icns"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.icns"))
+	}
+
+	if fs.MustExists("/xiang/icons/icon.ico") {
+		info.Icons["ico"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.ico"))
+	}
+
+	if fs.MustExists("/xiang/icons/icon.png") {
+		info.Icons["png"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.png"))
+	}
+	App = info
+}
+
+// defaultAppInfo 读取默认应用信息
+func defaultAppInfo() AppInfo {
+	info := AppInfo{}
+	err := jsoniter.Unmarshal(data.MustAsset("xiang/data/app.json"), &info)
+	if err != nil {
+		exception.New("解析默认应用失败 %s", 500, err).Throw()
+	}
+
+	info.Version = VERSION
+	info.Icons["icns"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.icns"))
+	info.Icons["ico"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.ico"))
+	info.Icons["png"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.png"))
+
+	return info
 }
 
 // LoadEngine 加载引擎的 API, Flow, Model 配置
@@ -107,7 +165,7 @@ func LoadApp(app AppRoot) {
 
 	// api string, flow string, model string, plugin string
 	// 创建应用目录
-	paths := []string{app.APIs, app.Flows, app.Models, app.Plugins, app.Charts, app.Screens}
+	paths := []string{app.APIs, app.Flows, app.Models, app.Plugins, app.Charts, app.Screens, app.Data}
 	for _, p := range paths {
 		if !strings.HasPrefix(p, "fs://") && strings.Contains(p, "://") {
 			continue

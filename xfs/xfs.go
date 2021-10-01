@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/fs"
@@ -15,7 +16,11 @@ import (
 	"github.com/spf13/afero/tarfs"
 	"github.com/spf13/afero/zipfs"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/xiang/config"
 )
+
+// Stor 文件系统实例
+var Stor Xfs
 
 // Xfs 文件系统
 type Xfs struct {
@@ -31,6 +36,10 @@ type Fs interface {
 // File file fs
 type File interface {
 	afero.File
+}
+
+func init() {
+	Stor = New(config.Conf.Storage.Path)
 }
 
 // New 创建文件系统
@@ -91,6 +100,11 @@ func NewTar(tarfile string) Xfs {
 	}
 }
 
+// Encode Base64编码
+func Encode(content []byte) string {
+	return base64.StdEncoding.EncodeToString(content)
+}
+
 // MustOpen 打开文件
 func (xfs *Xfs) MustOpen(filename string) File {
 	file, err := xfs.Open(filename)
@@ -104,7 +118,7 @@ func (xfs *Xfs) MustOpen(filename string) File {
 func (xfs *Xfs) MustReadFile(filename string) []byte {
 	bytes, err := xfs.ReadFile(filename)
 	if err != nil {
-		exception.New("阅读文件内容失败 %s 失败 ", 500, filename).Throw()
+		exception.New("阅读文件内容失败 %s 失败 %s ", 500, filename, err).Throw()
 	}
 	return bytes
 }
