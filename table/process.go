@@ -1,6 +1,8 @@
 package table
 
 import (
+	"strings"
+
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/maps"
 )
@@ -82,15 +84,19 @@ func ProcessDelete(process *gou.Process) interface{} {
 // ProcessSetting xiang.table.Setting
 // 删除指定主键值的数据记录, 请求成功返回null
 func ProcessSetting(process *gou.Process) interface{} {
-	process.ValidateArgNums(1)
+	process.ValidateArgNums(2)
 	name := process.ArgsString(0)
+	field := process.ArgsString(1)
 	table := Select(name)
 	api := table.APIs["setting"]
 	if process.NumOfArgsIs(2) && api.IsAllow(process.Args[1]) {
 		return nil
 	}
+
+	fields := strings.Split(field, ",")
 	if api.ProcessIs("xiang.table.Setting") {
-		return maps.Map{
+
+		setting := maps.Map{
 			"name":       table.Name,
 			"title":      table.Title,
 			"decription": table.Decription,
@@ -101,7 +107,24 @@ func ProcessSetting(process *gou.Process) interface{} {
 			"view":       table.View,
 			"insert":     table.Insert,
 		}
+
+		if len(fields) == 1 && setting.Has(fields[0]) {
+			field := strings.TrimSpace(fields[0])
+			return setting.Get(field)
+		}
+
+		if len(fields) > 1 {
+			res := maps.Map{}
+			for _, field := range fields {
+				field = strings.TrimSpace(field)
+				if setting.Has(field) {
+					res.Set(field, setting.Get(field))
+				}
+			}
+			return res
+		}
+		return setting
 	}
 
-	return gou.NewProcess(api.Process).Run()
+	return gou.NewProcess(api.Process, fields).Run()
 }

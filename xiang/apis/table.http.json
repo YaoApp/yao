@@ -99,7 +99,7 @@
       "path": "/:name/setting",
       "method": "GET",
       "process": "xiang.table.Setting",
-      "in": ["$param.name"],
+      "in": ["$param.name", "$query.select"],
       "out": {
         "status": 200,
         "type": "application/json"

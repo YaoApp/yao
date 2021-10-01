@@ -110,7 +110,7 @@ func TestProcessDelete(t *testing.T) {
 }
 
 func TestProcessSetting(t *testing.T) {
-	args := []interface{}{"service"}
+	args := []interface{}{"service", ""}
 	process := gou.NewProcess("xiang.table.Setting", args...)
 	response := table.ProcessSetting(process)
 	assert.NotNil(t, response)
@@ -124,4 +124,28 @@ func TestProcessSetting(t *testing.T) {
 	assert.True(t, res.Has("edit"))
 	assert.True(t, res.Has("view"))
 	assert.True(t, res.Has("insert"))
+}
+func TestProcessSettingList(t *testing.T) {
+	args := []interface{}{"service", "list"}
+	process := gou.NewProcess("xiang.table.Setting", args...)
+	response := table.ProcessSetting(process)
+	assert.NotNil(t, response)
+	res := any.Of(response).Map()
+	assert.True(t, res.Has("actions"))
+	assert.True(t, res.Has("layout"))
+	assert.True(t, res.Has("primary"))
+}
+
+func TestProcessSettingListEdit(t *testing.T) {
+	args := []interface{}{"service", "list, edit"}
+	process := gou.NewProcess("xiang.table.Setting", args...)
+	response := table.ProcessSetting(process)
+	assert.NotNil(t, response)
+	res := any.Of(response).MapStr().Dot()
+	assert.True(t, res.Has("list.actions"))
+	assert.True(t, res.Has("list.layout"))
+	assert.True(t, res.Has("list.primary"))
+	assert.True(t, res.Has("edit.actions"))
+	assert.True(t, res.Has("edit.layout"))
+	assert.True(t, res.Has("edit.primary"))
 }
