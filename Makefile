@@ -5,7 +5,7 @@ VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$|user$$' | grep -v examples)
+TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$|user$$|xfs$$' | grep -v examples)
 TESTTAGS ?= ""
 
 # 运行单元测试
@@ -104,25 +104,24 @@ static:
 	rm -rf ui
 	mv .tmp/ui/dist ui
 	rm -rf .tmp/ui
-
 # 将静态文件打包到命令工具
 .PHONY: bindata
-bindata:
+bindata: gen-bindata fmt
+
+# 将静态文件打包到命令工具
+.PHONY: gen-bindata
+gen-bindata:
 	rm -f data.go
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
 	cp -r xiang .tmp/data/
-	go-bindata -fs -pkg global -o global/data.go -prefix ".tmp/data/" .tmp/data/...
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 
 # 编译可执行文件
 .PHONY: xiang
 xiang: bindata
 
-	if [ -f global/bindata.go ]; then \
-		mv global/bindata.go global/bindata.go.bak; \
-	fi;
-	
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
 		mv global/vars.go global/vars.go.bak;	\
 		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" global/vars.go.bak > global/vars.go; \
@@ -135,10 +134,6 @@ xiang: bindata
 	mkdir -p dist/bin
 	mv .tmp/xiang-*-* dist/bin/
 	chmod +x dist/bin/xiang-*-*
-	rm -f global/data.go
-	if [ -f global/bindata.go.bak ]; then \
-		mv global/bindata.go.bak global/bindata.go; \
-	fi;
 	
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
 		rm global/vars.go; \

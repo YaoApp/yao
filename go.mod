@@ -22,6 +22,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.8 // indirect
 	github.com/mojocn/base64Captcha v1.3.5 // indirect
 	github.com/robertkrimen/otto v0.0.0-20210927222213-f9375a256948 // indirect
+	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/yaoapp/gou v0.0.0-20210929143406-112eed6cdfd9 // indirect

@@ -3,12 +3,11 @@ package global
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
-	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xun/capsule"
 )
 
@@ -25,7 +24,7 @@ var AllowHosts = []string{}
 var Conf config.Config
 
 // FileServer 静态服务
-var FileServer http.Handler = http.FileServer(assetFS())
+var FileServer http.Handler = http.FileServer(data.AssetFS())
 
 // 初始化配置
 func init() {
@@ -57,15 +56,4 @@ func init() {
 
 	// 加载数据
 	Load(Conf)
-}
-
-func assetFS() *assetfs.AssetFS {
-	assetInfo := func(path string) (os.FileInfo, error) {
-		return os.Stat(path)
-	}
-	for k := range _bintree.Children {
-		k = "ui"
-		return &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: assetInfo, Prefix: k, Fallback: "index.html"}
-	}
-	panic("unreachable")
 }

@@ -20,3 +20,8 @@ func processPing(process *gou.Process) interface{} {
 	}
 	return res
 }
+
+// processFile 返回文件内容
+func processFile(process *gou.Process) interface{} {
+	return nil
+}

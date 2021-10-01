@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/table"
 )
 
@@ -318,12 +319,12 @@ func getFileBaseName(root string, file string) string {
 // getFilesBin 从 bindata 中读取文件列表
 func getFilesBin(root string, typ string) []Script {
 	files := []Script{}
-	binfiles := AssetNames()
+	binfiles := data.AssetNames()
 	for _, path := range binfiles {
 		if strings.HasSuffix(path, typ) {
 			file := strings.TrimPrefix(path, root+"/")
 			name, typ := getTypeName(file)
-			content, err := Asset(path)
+			content, err := data.Asset(path)
 			if err != nil {
 				exception.Err(err, 500).Throw()
 			}
