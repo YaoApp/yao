@@ -25,6 +25,10 @@ var startCmd = &cobra.Command{
 			global.Conf.RootFLow = filepath.Join(startAppPath, "/flows")
 			global.Conf.RootModel = filepath.Join(startAppPath, "/models")
 			global.Conf.RootPlugin = filepath.Join(startAppPath, "/plugins")
+			global.Conf.RootTable = filepath.Join(startAppPath, "/tables")
+			global.Conf.RootChart = filepath.Join(startAppPath, "/charts")
+			global.Conf.RootScreen = filepath.Join(startAppPath, "/screens")
+			global.Conf.RootData = filepath.Join(startAppPath, "/data")
 
 			// 重新加载应用
 			global.Reload(global.Conf)
