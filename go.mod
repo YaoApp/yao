@@ -25,13 +25,13 @@ require (
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/yaoapp/gou v0.0.0-20211001062655-04dd63da82aa // indirect
+	github.com/yaoapp/gou v0.0.0-20211001101736-7de3f97a840a // indirect
 	github.com/yaoapp/kun v0.6.7
 	github.com/yaoapp/xun v0.5.2 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect
 	golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6 // indirect
-	golang.org/x/sys v0.0.0-20210930212924-f542c8878de8 // indirect
+	golang.org/x/sys v0.0.0-20211001092434-39dca1131b70 // indirect
 	google.golang.org/genproto v0.0.0-20210930144712-2e2e1008e8a3 // indirect
 	google.golang.org/grpc v1.41.0 // indirect
 )

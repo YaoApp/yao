@@ -109,6 +109,98 @@ func TestProcessDelete(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
+func TestProcessInsert(t *testing.T) {
+	args := []interface{}{
+		"service",
+		[]string{"name", "short_name", "kind_id", "manu_id", "price_options"},
+		[][]interface{}{
+			{"I腾讯云主机I1", "高性能云主机", 3, 1, []string{"按月订阅"}},
+			{"I腾讯云主机I2", "高性能云主机", 3, 1, []string{"按月订阅"}},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Insert", args...)
+	response := table.ProcessInsert(process)
+	assert.Nil(t, response)
+
+	// 清空数据
+	capsule.Query().Table("service").Where("name", "like", "I腾讯云主机I%").Delete()
+}
+
+func TestProcessDeleteWhere(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := table.ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+	args = []interface{}{
+		"service",
+		gou.QueryParam{
+			Wheres: []gou.QueryWhere{
+				{Column: "id", Value: id},
+			},
+		},
+	}
+	process = gou.NewProcess("xiang.table.DeleteWhere", args...)
+	response = table.ProcessDeleteWhere(process)
+
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+	assert.Equal(t, any.Of(response).CInt(), 1)
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
+}
+
+func TestProcessUpdateWhere(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := table.ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+	args = []interface{}{
+		"service",
+		gou.QueryParam{
+			Wheres: []gou.QueryWhere{
+				{Column: "id", Value: id},
+			},
+		},
+		map[string]interface{}{
+			"name": "腾讯黑岩云主机UP",
+		},
+	}
+	process = gou.NewProcess("xiang.table.UpdateWhere", args...)
+	response = table.ProcessUpdateWhere(process)
+
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+	assert.Equal(t, any.Of(response).CInt(), 1)
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
+}
+
 func TestProcessSetting(t *testing.T) {
 	args := []interface{}{"service", ""}
 	process := gou.NewProcess("xiang.table.Setting", args...)

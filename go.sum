@@ -382,6 +382,10 @@ github.com/yaoapp/gou v0.0.0-20210929143406-112eed6cdfd9 h1:rsZXATrMRQzlEraTB7Jo
 github.com/yaoapp/gou v0.0.0-20210929143406-112eed6cdfd9/go.mod h1:vcNZXFRgGuZWzjtYH65ck1o6nzWYDpToQ09zHC9xNDE=
 github.com/yaoapp/gou v0.0.0-20211001062655-04dd63da82aa h1:+FCfvC/JPDSpxLQ5rcNi5fClITeYO2p736rSLxKKhqQ=
 github.com/yaoapp/gou v0.0.0-20211001062655-04dd63da82aa/go.mod h1:vcNZXFRgGuZWzjtYH65ck1o6nzWYDpToQ09zHC9xNDE=
+github.com/yaoapp/gou v0.0.0-20211001095211-689d77d061f1 h1:/6UAXt82jTKlYq89mUj6izLI3HUYyALZmDKxk78NIds=
+github.com/yaoapp/gou v0.0.0-20211001095211-689d77d061f1/go.mod h1:vcNZXFRgGuZWzjtYH65ck1o6nzWYDpToQ09zHC9xNDE=
+github.com/yaoapp/gou v0.0.0-20211001101736-7de3f97a840a h1:E4eybsoNhNrfKzmnjH5z4s3KqK/e2GnROlvlC2l0h2A=
+github.com/yaoapp/gou v0.0.0-20211001101736-7de3f97a840a/go.mod h1:vcNZXFRgGuZWzjtYH65ck1o6nzWYDpToQ09zHC9xNDE=
 github.com/yaoapp/kun v0.6.1 h1:gbjP5wmAuJLe1RGZ2evH4rPCVWykf0iqbksaHikF/GI=
 github.com/yaoapp/kun v0.6.1/go.mod h1:igsTcWDnzpp0HtRN7sBP+XOEN2tzoC5hk2MyoPFs3xA=
 github.com/yaoapp/kun v0.6.2 h1:QbtdZpVIklRDGEvL5YYRf/eR05YFZVFk/8rX2vy2K0Q=
@@ -598,6 +602,8 @@ golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 h1:foEbQz/B0Oz6YIqu/69kfXPYe
 golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210930212924-f542c8878de8 h1:g54bVHzt/eKaj59LDwiDyLRXbOdJSfwRxA1WYEJx/Yo=
 golang.org/x/sys v0.0.0-20210930212924-f542c8878de8/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20211001092434-39dca1131b70 h1:pGleJoyD1yA5HfvuaksHxD0404gsEkNDerKsQ0N0y1s=
+golang.org/x/sys v0.0.0-20211001092434-39dca1131b70/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=

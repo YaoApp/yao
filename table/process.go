@@ -13,6 +13,9 @@ func init() {
 	gou.RegisterProcessHandler("xiang.table.Find", ProcessFind)
 	gou.RegisterProcessHandler("xiang.table.Save", ProcessSave)
 	gou.RegisterProcessHandler("xiang.table.Delete", ProcessDelete)
+	gou.RegisterProcessHandler("xiang.table.Insert", ProcessInsert)
+	gou.RegisterProcessHandler("xiang.table.UpdateWhere", ProcessUpdateWhere)
+	gou.RegisterProcessHandler("xiang.table.DeleteWhere", ProcessDeleteWhere)
 	gou.RegisterProcessHandler("xiang.table.Setting", ProcessSetting)
 }
 
@@ -81,8 +84,62 @@ func ProcessDelete(process *gou.Process) interface{} {
 	return gou.NewProcess(api.Process, id).Run()
 }
 
+// ProcessDeleteWhere xiang.table.DeleteWhere
+// 按条件批量删除数据, 请求成功返回删除行数
+func ProcessDeleteWhere(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["delete-where"].ValidateLoop("xiang.table.DeleteWhere")
+	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
+		return nil
+	}
+
+	// 批量删除
+	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0)
+	if param.Limit == 0 { // 限定删除行
+		param.Limit = 10
+	}
+
+	return gou.NewProcess(api.Process, param).Run()
+}
+
+// ProcessUpdateWhere xiang.table.UpdateWhere
+// 按条件批量更新数据, 请求成功返回更新行数
+func ProcessUpdateWhere(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(3)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["update-where"].ValidateLoop("xiang.table.UpdateWhere")
+	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
+		return nil
+	}
+
+	// 批量更新
+	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0)
+	if param.Limit == 0 { // 限定删除行
+		param.Limit = 10
+	}
+	return gou.NewProcess(api.Process, param, process.Args[2]).Run()
+}
+
+// ProcessInsert xiang.table.Insert
+// 插入多条数据记录，请求成功返回插入行数
+func ProcessInsert(process *gou.Process) interface{} {
+	process.ValidateArgNums(3)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["insert"].ValidateLoop("xiang.table.Insert")
+	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
+		return nil
+	}
+	return gou.NewProcess(api.Process, process.Args[1:]...).Run()
+}
+
 // ProcessSetting xiang.table.Setting
-// 删除指定主键值的数据记录, 请求成功返回null
+// 读取数据表格配置信息, 请求成功返回配置信息对象
 func ProcessSetting(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
 	name := process.ArgsString(0)

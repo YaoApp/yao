@@ -49,7 +49,7 @@
       "path": "/:name/insert",
       "method": "POST",
       "process": "xiang.table.Insert",
-      "in": ["$param.name", ":payload"],
+      "in": ["$param.name", "$payload.columns", "$payload.values"],
       "out": {
         "status": 200,
         "type": "application/json"
@@ -59,7 +59,7 @@
       "path": "/:name/delete/where",
       "method": "POST",
       "process": "xiang.table.DeleteWhere",
-      "in": ["$param.name", ":query-param", ":payload"],
+      "in": ["$param.name", ":query-param"],
       "out": {
         "status": 200,
         "type": "application/json"
