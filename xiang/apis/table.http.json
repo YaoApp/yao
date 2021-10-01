@@ -69,7 +69,7 @@
       "path": "/:name/delete/in",
       "method": "POST",
       "process": "xiang.table.DeleteIn",
-      "in": ["$param.name", "$query.ids", ":payload"],
+      "in": ["$param.name", "$query.ids", "$query.primary"],
       "out": {
         "status": 200,
         "type": "application/json"
@@ -89,7 +89,7 @@
       "path": "/:name/update/in",
       "method": "POST",
       "process": "xiang.table.UpdateIn",
-      "in": ["$param.name", "$query.ids", ":payload"],
+      "in": ["$param.name", "$query.ids", "$query.primary", ":payload"],
       "out": {
         "status": 200,
         "type": "application/json"

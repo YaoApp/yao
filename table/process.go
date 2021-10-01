@@ -16,6 +16,8 @@ func init() {
 	gou.RegisterProcessHandler("xiang.table.Insert", ProcessInsert)
 	gou.RegisterProcessHandler("xiang.table.UpdateWhere", ProcessUpdateWhere)
 	gou.RegisterProcessHandler("xiang.table.DeleteWhere", ProcessDeleteWhere)
+	gou.RegisterProcessHandler("xiang.table.UpdateIn", ProcessUpdateIn)
+	gou.RegisterProcessHandler("xiang.table.DeleteIn", ProcessDeleteIn)
 	gou.RegisterProcessHandler("xiang.table.Setting", ProcessSetting)
 }
 
@@ -105,6 +107,30 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 	return gou.NewProcess(api.Process, param).Run()
 }
 
+// ProcessDeleteIn xiang.table.DeleteIn
+// 按条件批量删除数据, 请求成功返回删除行数
+func ProcessDeleteIn(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(3)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["delete-in"].ValidateLoop("xiang.table.DeleteIn")
+	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
+		return nil
+	}
+
+	// 批量删除
+	ids := strings.Split(process.ArgsString(1), ",")
+	primary := process.ArgsString(2, "id")
+	param := gou.QueryParam{
+		Wheres: []gou.QueryWhere{
+			{Column: primary, OP: "in", Value: ids},
+		},
+	}
+
+	return gou.NewProcess(api.Process, param).Run()
+}
+
 // ProcessUpdateWhere xiang.table.UpdateWhere
 // 按条件批量更新数据, 请求成功返回更新行数
 func ProcessUpdateWhere(process *gou.Process) interface{} {
@@ -123,6 +149,29 @@ func ProcessUpdateWhere(process *gou.Process) interface{} {
 		param.Limit = 10
 	}
 	return gou.NewProcess(api.Process, param, process.Args[2]).Run()
+}
+
+// ProcessUpdateIn xiang.table.UpdateWhere
+// 按条件批量更新数据, 请求成功返回更新行数
+func ProcessUpdateIn(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(4)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["update-in"].ValidateLoop("xiang.table.UpdateIn")
+	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
+		return nil
+	}
+
+	// 批量删除
+	ids := strings.Split(process.ArgsString(1), ",")
+	primary := process.ArgsString(2, "id")
+	param := gou.QueryParam{
+		Wheres: []gou.QueryWhere{
+			{Column: primary, OP: "in", Value: ids},
+		},
+	}
+	return gou.NewProcess(api.Process, param, process.Args[3]).Run()
 }
 
 // ProcessInsert xiang.table.Insert

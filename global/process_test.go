@@ -162,6 +162,39 @@ func TestProcessDeleteWhere(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
+func TestProcessDeleteIn(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := table.ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+	args = []interface{}{
+		"service",
+		any.Of(response).Int(),
+		"id",
+	}
+	process = gou.NewProcess("xiang.table.DeleteIn", args...)
+	response = table.ProcessDeleteIn(process)
+
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+	assert.Equal(t, any.Of(response).CInt(), 1)
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
+}
+
 func TestProcessUpdateWhere(t *testing.T) {
 	args := []interface{}{
 		"service",
@@ -192,6 +225,42 @@ func TestProcessUpdateWhere(t *testing.T) {
 	}
 	process = gou.NewProcess("xiang.table.UpdateWhere", args...)
 	response = table.ProcessUpdateWhere(process)
+
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+	assert.Equal(t, any.Of(response).CInt(), 1)
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
+}
+
+func TestProcessUpdateIn(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := table.ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+	args = []interface{}{
+		"service",
+		id,
+		"id",
+		map[string]interface{}{
+			"name": "腾讯黑岩云主机UP",
+		},
+	}
+	process = gou.NewProcess("xiang.table.UpdateIn", args...)
+	response = table.ProcessUpdateIn(process)
 
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
