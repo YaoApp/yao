@@ -12,6 +12,7 @@
       "type": "string",
       "length": 200,
       "comment": "简称",
+      "nullable": true,
       "index": true
     },
     {
@@ -67,8 +68,7 @@
     },
     {
       "name": "fields",
-      "type": "string",
-      "length": 500,
+      "type": "json",
       "comment": "JSON|服务领域(多选)",
       "nullable": true,
       "index": true
@@ -83,8 +83,7 @@
     },
     {
       "name": "industries",
-      "type": "string",
-      "length": 500,
+      "type": "json",
       "comment": "JSON|行业覆盖(多选)",
       "nullable": true,
       "index": true
