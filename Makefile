@@ -3,6 +3,7 @@ GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell $(GO) list ./...)
 VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
+VERSION := $(shell grep 'const VERSION =' global/vars.go |awk '{print $$4}' |sed 's/\"//g')
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$|user$$|xfs$$' | grep -v examples)
@@ -111,7 +112,6 @@ bindata: gen-bindata fmt
 # 将静态文件打包到命令工具
 .PHONY: gen-bindata
 gen-bindata:
-	rm -f data.go
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
 	cp -r xiang .tmp/data/
@@ -139,6 +139,46 @@ xiang: bindata
 		rm global/vars.go; \
 		mv global/vars.go.bak global/vars.go; \
 	fi;
+
+.PHONY: release
+release: clean
+	mkdir -p dist/release
+	git clone https://github.com/YaoApp/xiang dist/release
+
+#	UI制品
+	git clone https://github.com/YaoApp/xiang-ui .tmp/ui
+	cd .tmp/ui && yarn install && yarn build
+	rm -rf dist/release/ui
+	mv .tmp/ui/dist dist/release/ui
+
+#	静态文件打包
+	mkdir -p .tmp/data
+	cp -r dist/release/ui .tmp/data/
+	cp -r dist/release/xiang .tmp/data/
+	go-bindata -fs -pkg data -o dist/release/data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#   制品
+	if [ ! -z "${XIANG_DOMAIN}" ]; then \
+		mv dist/release/global/vars.go dist/release/global/vars.go.bak;	\
+		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" dist/release/global/vars.go.bak > dist/release/global/vars.go; \
+	fi;
+
+	cd dist/release && GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
+	cd dist/release && GOOS=linux GOARCH=arm GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm
+	cd dist/release && GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm64
+	cd dist/release && GOOS=darwin GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-darwin-amd64
+	
+	rm -rf dist/release
+	mkdir -p dist/release
+	mv .tmp/xiang-*-* dist/release/
+	chmod +x dist/release/xiang-*-*
+
+.PHONY: hi
+hi: 
+	echo ${VERSION}
+
 
 .PHONY: clean
 clean: 
