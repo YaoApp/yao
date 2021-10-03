@@ -18,6 +18,9 @@
     }
   },
   "apis": {
+    "save": {
+      "guard": "-"
+    },
     "search": {
       "process": "models.service.Paginate",
       "guard": "-",
