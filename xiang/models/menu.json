@@ -57,6 +57,7 @@
       "index": true
     },
     {
+      "label": "状态",
       "name": "status",
       "type": "enum",
       "default": "enabled",

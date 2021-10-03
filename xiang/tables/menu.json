@@ -1,0 +1,98 @@
+{
+  "name": "菜单",
+  "version": "1.0.0",
+  "decription": "象传菜单",
+  "bind": {
+    "model": "xiang.menu"
+  },
+  "apis": {
+    "search": {
+      "process": "models.xiang.menu.Paginate",
+      "guard": "-",
+      "default": [
+        {
+          "withs": {
+            "children": {
+              "query": {
+                "select": ["name", "id"]
+              }
+            }
+          },
+          "wheres": [{ "column": "parent", "op": "null" }]
+        },
+        null,
+        15
+      ]
+    }
+  },
+  "columns": {},
+  "filters": {},
+  "list": {
+    "primary": "id",
+    "layout": {
+      "columns": [
+        { "name": "名称", "width": 6 },
+        { "name": "父节点", "width": 6 },
+        { "name": "图标", "width": 6 },
+        { "name": "状态", "width": 6 },
+        { "name": "路由", "width": 6 },
+        { "name": "排列", "width": 4 },
+        { "name": "block布局", "width": 4 },
+        { "name": "显示", "width": 4 }
+      ],
+      "filters": [{ "name": "名称", "width": 6 }]
+    },
+    "actions": {
+      "create": {
+        "type": "button",
+        "props": {
+          "label": "新建菜单",
+          "icon": "fas fa-plus"
+        }
+      },
+      "view": {},
+      "edit": {},
+      "import": {},
+      "update": {},
+      "delete": {},
+      "insert": {},
+      "updateWhere": {},
+      "deleteWhere": {},
+      "updateSelect": {},
+      "deleteSelect": {},
+      "pagination": {},
+      "setting": {}
+    }
+  },
+  "edit": {
+    "primary": "id",
+    "layout": {
+      "fieldset": [
+        {
+          "title": "基础信息",
+          "description": "",
+          "columns": [
+            { "name": "名称", "width": 6 },
+            { "name": "图标", "width": 6 },
+            { "name": "路由", "width": 6 },
+            { "name": "排列", "width": 6 },
+            { "name": "block布局", "width": 6 },
+            { "name": "显示", "width": 6 }
+          ]
+        }
+      ]
+    },
+    "actions": {
+      "cancel": {},
+      "save": {
+        "type": "button",
+        "props": {
+          "label": "保存"
+        }
+      },
+      "delete": {}
+    }
+  },
+  "insert": {},
+  "view": {}
+}

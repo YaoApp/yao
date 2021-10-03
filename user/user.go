@@ -79,6 +79,7 @@ func MakeToken(row maps.Map, ExpiresAt int64) string {
 		Type: row.Get("type").(string),
 		Name: row.Get("name").(string),
 		StandardClaims: jwt.StandardClaims{
+			Id:        fmt.Sprintf("%s_%d", row.Get("type"), row.Get("id")),
 			Subject:   fmt.Sprintf("%d", row.Get("id")),
 			ExpiresAt: ExpiresAt,
 			Issuer:    fmt.Sprintf("%d", row.Get("id")),
