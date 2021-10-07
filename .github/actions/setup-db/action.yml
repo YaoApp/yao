@@ -1,0 +1,19 @@
+inputs:
+  kind:
+    description: "Chose the kind of database (MySQL8.0, MySQL5.7, Postgres9.6, Postgres14.0, SQLite3)"
+    required: true
+  db:
+    description: "The name of database"
+    required: false
+    default: "github"
+  user:
+    description: "The user of database"
+    required: false
+    default: "github"
+  password:
+    description: "The passowrd of database"
+    required: false
+    default: "123456"
+runs:
+  using: "docker"
+  image: "Dockerfile"
