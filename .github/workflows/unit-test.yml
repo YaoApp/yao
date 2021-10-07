@@ -65,7 +65,8 @@ jobs:
 
       - name: Checkout Xiang
         uses: actions/checkout@v2
-        path: xiang
+        with:
+          path: xiang
 
       - name: Setup ${{ matrix.db }}
         uses: ./.github/actions/setup-db
