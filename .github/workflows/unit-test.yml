@@ -8,8 +8,8 @@ on:
 env:
   # 象传服务配置
   XIANG_MODE: debug
-  XIANG_SOURCE: ${{ github.WORKSPACE }}
-  XIANG_ROOT: fs://${{ github.WORKSPACE }}/app
+  XIANG_SOURCE: ${{ github.WORKSPACE }}/xiang
+  XIANG_ROOT: fs://${{ github.WORKSPACE }}/xiang/app
 
   # 服务配置
   XIANG_SERVICE_DEBUG: true
@@ -28,13 +28,13 @@ env:
 
   # 存储配置
   XIANG_STOR_DEBUG: true
-  XIANG_STOR_PATH: "fs://${{ github.WORKSPACE }}/upload"
+  XIANG_STOR_PATH: "fs://${{ github.WORKSPACE }}/xiang/upload"
 
   # 日志配置
-  XIANG_LOG_ACCESS: "fs://${{ github.WORKSPACE }}/logs/access.log"
-  XIANG_LOG_ERROR: "fs://${{ github.WORKSPACE }}/logs/error.log"
-  XIANG_LOG_DB: "fs://${{ github.WORKSPACE }}/logs/db.log"
-  XIANG_LOG_PLUGIN: "fs://${{ github.WORKSPACE }}/logs/plugin.log"
+  XIANG_LOG_ACCESS: "fs://${{ github.WORKSPACE }}/xiang/logs/access.log"
+  XIANG_LOG_ERROR: "fs://${{ github.WORKSPACE }}/xiang/logs/error.log"
+  XIANG_LOG_DB: "fs://${{ github.WORKSPACE }}/xiang/logs/db.log"
+  XIANG_LOG_PLUGIN: "fs://${{ github.WORKSPACE }}/xiang/logs/plugin.log"
 
 jobs:
   unit-test:
@@ -48,23 +48,24 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: yaoapp/kun
-          path: ${{ github.WORKSPACE }}/../kun
+          path: kun
 
       - name: Checkout Xun
         uses: actions/checkout@v2
         with:
           repository: yaoapp/xun
-          path: ${{ github.WORKSPACE }}/../xun
+          path: xun
 
       - name: Checkout Gou
         uses: actions/checkout@v2
         with:
           repository: yaoapp/gou
-          path: ${{ github.WORKSPACE }}/../gou
+          path: gou
           token: ${{ secrets.TOKEN }}
 
       - name: Checkout Xiang
         uses: actions/checkout@v2
+        path: xiang
 
       - name: Setup ${{ matrix.db }}
         uses: ./.github/actions/setup-db
