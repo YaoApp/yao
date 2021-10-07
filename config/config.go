@@ -158,16 +158,17 @@ func (cfg *Config) SetDefaults() {
 
 	if cfg.RootDB == "" {
 		cfg.RootDB = cfg.Root + "/db"
-		cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "fs://")
-		cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "file://")
 	}
+
 	if cfg.RootUI == "" {
 		cfg.RootUI = cfg.Root + "/ui"
-		cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "fs://")
-		cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "file://")
-
 	}
 
+	// 过滤数据
+	cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "fs://")
+	cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "file://")
+	cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "fs://")
+	cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "file://")
 }
 
 // SetEnvFile 指定ENV文件
