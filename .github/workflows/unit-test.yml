@@ -123,7 +123,7 @@ jobs:
           make misspell-check
           make plugin
           make migrate
-          # make test
+          make test
 
       - name: Codecov Report
         uses: codecov/codecov-action@v2
