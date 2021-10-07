@@ -50,7 +50,7 @@ startPostgres() {
 
 startSQLite3() {
     echo "Start SQLite3"
-    echo "DB_HOST=file:$INPUT_DB.db?cache=shared&mode=memory" >> $GITHUB_ENV
+    echo "DB_HOST=file:$INPUT_DB.db?cache=shared" >> $GITHUB_ENV
     echo "DB_DRIVER=sqlite3" >> $GITHUB_ENV
     echo "DB_NAME=sqlite3" >> $GITHUB_ENV
     echo "$DB_HOST"
