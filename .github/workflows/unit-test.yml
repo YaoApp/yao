@@ -64,7 +64,7 @@ jobs:
           path: gou
           token: ${{ secrets.TOKEN }}
 
-      - name: Move lib
+      - name: Move Kun, Xun, Gou
         run: |
           mv kun ../
           mv xun ../
@@ -74,11 +74,6 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v2
-
-      - name: List dir
-        run: |
-          ls -l .
-          ls -l ../
 
       - name: Setup ${{ matrix.db }}
         uses: ./.github/actions/setup-db
@@ -102,10 +97,13 @@ jobs:
       - name: Setup ENV & Host
         run: |
           sudo echo "127.0.0.1 local.iqka.com" | sudo tee -a /etc/hosts 
+          sudo echo "127.0.0.1 t2.iqka.com" | sudo tee -a /etc/hosts 
           echo "XIANG_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
-          ls -l .
-          ls -l $GITHUB_WORKSPACE
-          ls -l ..
+          echo "GITHUB_WORKSPACE:\n" && ls -l $GITHUB_WORKSPACE
+          echo ".:\n" && ls -l .
+          echo "..:\n" && ls -l ..
+          ping local.iqka.com -t 1
+          ping t2.iqka.com -t 1
 
       - name: Run Test
         env:
@@ -119,12 +117,12 @@ jobs:
             XIANG_DB_PRIMARY="$DB_HOST" make test
           fi
 
-          make vet
-          make fmt-check
-          make misspell-check
-          make plugin
-          make migrate
-          make test
+          # make vet
+          # make fmt-check
+          # make misspell-check
+          # make plugin
+          # make migrate
+          # make test
 
       - name: Codecov Report
         uses: codecov/codecov-action@v2
