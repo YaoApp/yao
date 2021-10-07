@@ -1,15 +1,12 @@
 package global
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/table"
 	"github.com/yaoapp/xun/capsule"
 )
@@ -22,13 +19,6 @@ func TestProcessPing(t *testing.T) {
 }
 
 func TestProcessSearch(t *testing.T) {
-
-	// Debug
-	utils.Dump(config.Conf)
-	fmt.Println("Models Count:", len(gou.Models))
-	fmt.Println("Tables Count:", len(table.Tables))
-	sch := capsule.Schema()
-	utils.Dump(sch.MustGetTables())
 
 	args := []interface{}{
 		"service",
