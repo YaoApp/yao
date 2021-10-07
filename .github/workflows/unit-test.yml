@@ -48,19 +48,19 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: yaoapp/kun
-          path: kun
+          path: ../kun
 
       - name: Checkout Xun
         uses: actions/checkout@v2
         with:
           repository: yaoapp/xun
-          path: xun
+          path: ../xun
 
       - name: Checkout Gou
         uses: actions/checkout@v2
         with:
           repository: yaoapp/gou
-          path: gou
+          path: ../gou
           token: ${{ secrets.TOKEN }}
 
       - name: Checkout Xiang
