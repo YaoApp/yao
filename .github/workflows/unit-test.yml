@@ -44,6 +44,9 @@ jobs:
         go: [1.17]
         db: [SQLite3]
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
       - name: Checkout Kun
         uses: actions/checkout@v2
         with:
