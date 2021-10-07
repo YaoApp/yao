@@ -5,38 +5,6 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-env:
-  # 象传服务配置
-  XIANG_MODE: debug
-  XIANG_SOURCE: ${{ GITHUB_WORKSPACE }}
-  XIANG_ROOT: fs:///${{ GITHUB_WORKSPACE }}/app
-
-  # 服务配置
-  XIANG_SERVICE_DEBUG: true
-  XIANG_SERVICE_ALLOW: "xiang.yao.run:3000|xiang.yao.run:3001"
-  XIANG_SERVICE_HOST: 0.0.0.0
-  XIANG_SERVICE_PORT: 5099
-
-  # 数据库配置
-  XIANG_DB_DEBUG: true
-  XIANG_DB_DRIVER: "mysql"
-  XIANG_DB_PRIMARY: "root:123456@tcp(db-server:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"
-  XIANG_DB_SECONDARY: "root:123456@tcp(db-server:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"
-  XIANG_DB_AESKEY: "ZLX:XzT&f6refeCh-ro*r@"
-
-  # JWT配置
-  XIANG_JWT_DEBUG: true
-  XIANG_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
-
-  # 存储配置
-  XIANG_STOR_DEBUG: true
-  XIANG_STOR_PATH: "fs:///${{ GITHUB_WORKSPACE }}/upload"
-
-  # 日志配置
-  XIANG_LOG_ACCESS: "fs:///${{ GITHUB_WORKSPACE }}/logs/access.log"
-  XIANG_LOG_ERROR: "fs:///${{ GITHUB_WORKSPACE }}/logs/error.log"
-  XIANG_LOG_DB: "fs:///${{ GITHUB_WORKSPACE }}/logs/db.log"
-  XIANG_LOG_PLUGIN: "fs:///${{ GITHUB_WORKSPACE }}/logs/plugin.log"
 
 jobs:
   unit-test:
@@ -45,6 +13,39 @@ jobs:
       matrix:
         go: [1.17]
         db: [SQLite3]
+    env:
+      # 象传服务配置
+      XIANG_MODE: debug
+      XIANG_SOURCE: ${{ env.GITHUB_WORKSPACE }}
+      XIANG_ROOT: fs:///${{ env.GITHUB_WORKSPACE }}/app
+
+      # 服务配置
+      XIANG_SERVICE_DEBUG: true
+      XIANG_SERVICE_ALLOW: "xiang.yao.run:3000|xiang.yao.run:3001"
+      XIANG_SERVICE_HOST: 0.0.0.0
+      XIANG_SERVICE_PORT: 5099
+
+      # 数据库配置
+      XIANG_DB_DEBUG: true
+      XIANG_DB_DRIVER: "mysql"
+      XIANG_DB_PRIMARY: "root:123456@tcp(db-server:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"
+      XIANG_DB_SECONDARY: "root:123456@tcp(db-server:3308)/xun?charset=utf8mb4&parseTime=True&loc=Local"
+      XIANG_DB_AESKEY: "ZLX:XzT&f6refeCh-ro*r@"
+
+      # JWT配置
+      XIANG_JWT_DEBUG: true
+      XIANG_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
+
+      # 存储配置
+      XIANG_STOR_DEBUG: true
+      XIANG_STOR_PATH: "fs:///${{ env.GITHUB_WORKSPACE }}/upload"
+
+      # 日志配置
+      XIANG_LOG_ACCESS: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/access.log"
+      XIANG_LOG_ERROR: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/error.log"
+      XIANG_LOG_DB: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/db.log"
+      XIANG_LOG_PLUGIN: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/plugin.log"
+
     steps:
       - name: Checkout Kun
         uses: actions/checkout@v2
