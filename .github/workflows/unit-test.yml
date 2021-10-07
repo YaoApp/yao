@@ -43,7 +43,7 @@ jobs:
     strategy:
       matrix:
         go: [1.17]
-        db: [MySQL8.0, SQLite3]
+        db: [MySQL8.0, MySQL5.7, SQLite3]
     steps:
       - name: Setup Cache
         uses: actions/cache@v2
