@@ -102,8 +102,8 @@ jobs:
           echo "GITHUB_WORKSPACE:\n" && ls -l $GITHUB_WORKSPACE
           echo ".:\n" && ls -l .
           echo "..:\n" && ls -l ..
-          ping local.iqka.com -t 1
-          ping t2.iqka.com -t 1
+          ping -c 1 -t 1 local.iqka.com
+          ping -c 1 -t 1 t2.iqka.com
 
       - name: Run Test
         env:
