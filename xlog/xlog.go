@@ -27,3 +27,8 @@ func Printf(format string, v ...interface{}) {
 func Println(v ...interface{}) {
 	log.Output(2, fmt.Sprintln(v...))
 }
+
+// Fatalf is equivalent to Printf() followed by a call to os.Exit(1).
+func Fatalf(format string, v ...interface{}) {
+	log.Fatalf(format, v...)
+}

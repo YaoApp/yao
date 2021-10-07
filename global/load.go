@@ -1,6 +1,7 @@
 package global
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/table"
 	"github.com/yaoapp/xiang/xfs"
+	"github.com/yaoapp/xun/capsule"
 )
 
 // Script 脚本文件类型
@@ -51,6 +53,9 @@ var App AppInfo
 
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
+
+	AppInit(cfg)
+	DBConnect(cfg.Database)
 	LoadAppInfo(cfg.Root)
 	LoadEngine(cfg.Path)
 	LoadApp(AppRoot{
@@ -63,6 +68,13 @@ func Load(cfg config.Config) {
 		Screens: cfg.RootScreen,
 		Data:    cfg.RootData,
 	})
+
+	// 加密密钥函数
+	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")
+	gou.LoadCrypt(`{}`, "PASSWORD")
+
+	// 设定已加载配置
+	Conf = cfg
 }
 
 // Reload 根据配置重新加载 API, FLow, Model, Plugin
@@ -72,6 +84,41 @@ func Reload(cfg config.Config) {
 	gou.Flows = map[string]*gou.Flow{}
 	gou.Plugins = map[string]*gou.Plugin{}
 	Load(cfg)
+}
+
+// DBConnect 建立数据库连接
+func DBConnect(dbconfig config.DatabaseConfig) {
+
+	// 连接主库
+	for i, dsn := range dbconfig.Primary {
+		db := capsule.AddConn("primary", dbconfig.Driver, dsn)
+		if i == 0 {
+			db.SetAsGlobal()
+		}
+	}
+
+	// 连接从库
+	for _, dsn := range dbconfig.Secondary {
+		capsule.AddReadConn("secondary", dbconfig.Driver, dsn)
+	}
+}
+
+// AppInit 应用初始化
+func AppInit(cfg config.Config) {
+
+	if _, err := os.Stat(cfg.RootUI); os.IsNotExist(err) {
+		err := os.MkdirAll(cfg.RootUI, os.ModePerm)
+		if err != nil {
+			log.Panicf("创建目录失败(%s) %s", cfg.RootUI, err)
+		}
+	}
+
+	if _, err := os.Stat(cfg.RootDB); os.IsNotExist(err) {
+		err := os.MkdirAll(cfg.RootDB, os.ModePerm)
+		if err != nil {
+			log.Panicf("创建目录失败(%s) %s", cfg.RootDB, err)
+		}
+	}
 }
 
 // LoadAppInfo 读取应用信息

@@ -15,7 +15,7 @@ var cfg config.Config
 func TestMain(m *testing.M) {
 
 	// 加载模型等
-	Load(Conf)
+	Load(config.Conf)
 
 	// 加载表格(临时)
 	root := "fs://" + path.Join(Conf.Source, "/app/tables/service.json")

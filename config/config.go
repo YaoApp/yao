@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
@@ -30,6 +32,8 @@ type XiangConfig struct {
 	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于单元测试载入数据)
 	Path       string `json:"path,omitempty" env:"XIANG_PATH" envDefault:"bin://xiang"` // 引擎文件目录
 	Root       string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"fs://."`      // 应用文件目录
+	RootUI     string `json:"root_ui,omitempty" env:"XIANG_ROOT_UI"`                    // 应用界面静态文件目录
+	RootDB     string `json:"root_db,omitempty" env:"XIANG_ROOT_DB"`                    // 应用SQLite数据库目录
 	RootData   string `json:"root_data,omitempty" env:"XIANG_ROOT_DATA"`                // 应用数据文件目录
 	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
 	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
@@ -54,10 +58,11 @@ type ServiceConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Debug     bool     `json:"debug,omitempty" env:"XIANG_DB_DEBUG" envDefault:"false"`       // DEBUG 开关
-	Primary   []string `json:"primary,omitempty" env:"XIANG_DB_PRIMARY" envSeparator:"|"`     // 主库连接DSN
-	Secondary []string `json:"secondary,omitempty" env:"XIANG_DB_SECONDARY" envSeparator:"|"` // 从库连接DSN
-	AESKey    string   `json:"aeskey,omitempty" env:"XIANG_DB_AESKEY"`                        // 加密存储KEY
+	Debug     bool     `json:"debug,omitempty" env:"XIANG_DB_DEBUG" envDefault:"false"`                                                       // DEBUG 开关
+	Driver    string   `json:"driver,omitempty" env:"XIANG_DB_DRIVER" envDefault:"sqlite3"`                                                   // 数据库驱动 ( sqlite3, mysql, postgres)
+	Primary   []string `json:"primary,omitempty" env:"XIANG_DB_PRIMARY" envSeparator:"|" envDefault:"file:xiang.db?cache=shared&mode=memory"` // 主库连接DSN
+	Secondary []string `json:"secondary,omitempty" env:"XIANG_DB_SECONDARY" envSeparator:"|"`                                                 // 从库连接DSN
+	AESKey    string   `json:"aeskey,omitempty" env:"XIANG_DB_AESKEY"`                                                                        // 加密存储KEY
 }
 
 // StorageConfig 存储配置
@@ -81,15 +86,25 @@ type LogConfig struct {
 }
 
 // NewConfig 创建配置文件
-func NewConfig() Config {
+func NewConfig(envfile ...string) Config {
+
 	filename := os.Getenv("XIANG_ENV_FILE")
 	if filename == "" {
 		filename = ".env"
 	}
 
-	err := godotenv.Load(filename)
+	if len(envfile) > 0 {
+		file, err := filepath.Abs(envfile[0])
+		if err != nil {
+			log.Printf("加载环境配置文件%s出错 %s\n", envfile[0], err.Error())
+		} else {
+			filename = file
+		}
+	}
+
+	err := godotenv.Overload(filename)
 	if err != nil {
-		log.Printf("读取环境配置文件%s出错 %s\n", filename, err.Error())
+		log.Printf("加载环境配置文件%s出错 %s\n", filename, err.Error())
 	}
 
 	cfg := Config{}
@@ -126,6 +141,7 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootPlugin == "" {
 		cfg.RootPlugin = cfg.Root + "/plugins"
 	}
+
 	if cfg.RootTable == "" {
 		cfg.RootTable = cfg.Root + "/tables"
 	}
@@ -135,10 +151,72 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootScreen == "" {
 		cfg.RootScreen = cfg.Root + "/screens"
 	}
+
 	if cfg.RootData == "" {
 		cfg.RootData = cfg.Root + "/data"
 	}
 
+	if cfg.RootDB == "" {
+		cfg.RootDB = cfg.Root + "/db"
+		cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "fs://")
+		cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "file://")
+	}
+	if cfg.RootUI == "" {
+		cfg.RootUI = cfg.Root + "/ui"
+		cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "fs://")
+		cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "file://")
+
+	}
+
+}
+
+// SetEnvFile 指定ENV文件
+func SetEnvFile(filename string) {
+	Conf = NewConfig(filename)
+}
+
+// SetAppPath 设定应用目录
+func SetAppPath(root string, envfile ...string) {
+
+	fullpath, err := filepath.Abs(root)
+	if err != nil {
+		log.Panicf("设定应用目录%s出错 %s\n", root, err.Error())
+	}
+
+	// 创建应用目录
+	pathinfo, err := os.Stat(fullpath)
+	if os.IsNotExist(err) {
+		err := os.MkdirAll(fullpath, os.ModePerm)
+		if err != nil {
+			log.Panicf("创建目录失败(%s) %s", root, err)
+		}
+	}
+	pathinfo, err = os.Stat(fullpath)
+	if !pathinfo.IsDir() {
+		log.Panicf("检查应用目录失败(%s) ", err)
+	}
+
+	if !pathinfo.IsDir() {
+		log.Panicf("应用目录不是文件夹(%s) ", root)
+	}
+
+	// Set ENV
+	if len(envfile) > 0 {
+		Conf = NewConfig(envfile[0])
+	}
+
+	// 从加载配置文件
+	Conf.Root = fullpath
+	Conf.RootAPI = filepath.Join(fullpath, "/apis")
+	Conf.RootFLow = filepath.Join(fullpath, "/flows")
+	Conf.RootModel = filepath.Join(fullpath, "/models")
+	Conf.RootPlugin = filepath.Join(fullpath, "/plugins")
+	Conf.RootTable = filepath.Join(fullpath, "/tables")
+	Conf.RootChart = filepath.Join(fullpath, "/charts")
+	Conf.RootScreen = filepath.Join(root, "/screens")
+	Conf.RootData = filepath.Join(fullpath, "/data")
+	Conf.RootUI = filepath.Join(fullpath, "/ui")
+	Conf.RootDB = filepath.Join(fullpath, "/db")
 }
 
 // IsDebug 是否为调试模式

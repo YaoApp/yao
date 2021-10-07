@@ -1,14 +1,11 @@
 package global
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/data"
-	"github.com/yaoapp/xun/capsule"
 )
 
 // VERSION 版本号
@@ -42,18 +39,4 @@ func init() {
 		}
 		AllowHosts = append(AllowHosts, domain)
 	}
-
-	Conf = config.Conf
-
-	// 数据库连接
-	if len(Conf.Database.Primary) > 0 {
-		capsule.AddConn("primary", "mysql", Conf.Database.Primary[0]).SetAsGlobal()
-	}
-
-	// 加密密钥
-	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, Conf.Database.AESKey), "AES")
-	gou.LoadCrypt(`{}`, "PASSWORD")
-
-	// 加载数据
-	Load(Conf)
 }

@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.7.4 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
+	github.com/hashicorp/go-hclog v1.0.0 // indirect
 	github.com/hashicorp/go-plugin v1.4.3 // indirect
 	github.com/hashicorp/yamux v0.0.0-20210826001029-26ff87cf9493 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
@@ -21,18 +22,18 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.8 // indirect
 	github.com/mojocn/base64Captcha v1.3.5 // indirect
-	github.com/robertkrimen/otto v0.0.0-20210927222213-f9375a256948 // indirect
+	github.com/robertkrimen/otto v0.0.0-20211004134430-12a632260352 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cobra v1.2.1 // indirect
 	github.com/stretchr/testify v1.7.0
-	github.com/yaoapp/gou v0.0.0-20211003110813-8a100940e019 // indirect
+	github.com/yaoapp/gou v0.0.0-20211007044811-e0834e575aa0 // indirect
 	github.com/yaoapp/kun v0.6.7
-	github.com/yaoapp/xun v0.5.2 // indirect
+	github.com/yaoapp/xun v0.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect
-	golang.org/x/net v0.0.0-20210929193557-e81a3d93ecf6 // indirect
-	golang.org/x/sys v0.0.0-20211002104244-808efd93c36d // indirect
-	google.golang.org/genproto v0.0.0-20211001223012-bfb93cce50d9 // indirect
+	golang.org/x/net v0.0.0-20211006190231-62292e806868 // indirect
+	golang.org/x/sys v0.0.0-20211006225509-1a26e0398eed // indirect
+	google.golang.org/genproto v0.0.0-20211005153810-c76a74d43a8e // indirect
 	google.golang.org/grpc v1.41.0 // indirect
 )
 
