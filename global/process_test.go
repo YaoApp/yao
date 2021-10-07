@@ -1,6 +1,7 @@
 package global
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,8 @@ func TestProcessSearch(t *testing.T) {
 
 	// Debug
 	utils.Dump(config.Conf)
+	fmt.Println("Models Count:", len(gou.Models))
+	fmt.Println("Tables Count:", len(table.Tables))
 	sch := capsule.Schema()
 	utils.Dump(sch.MustGetTables())
 
