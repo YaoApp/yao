@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
 env:
   # 象传服务配置
   XIANG_MODE: debug
@@ -44,14 +45,6 @@ jobs:
         go: [1.17]
         db: [SQLite3]
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      - name: Keep .github only
-        run: |
-          rm -rf *
-          ls -l
-
       - name: Checkout Kun
         uses: actions/checkout@v2
         with:
@@ -64,12 +57,6 @@ jobs:
           repository: yaoapp/xun
           path: xun
 
-      - name: Test mv
-        run: |
-          mv xun ../
-          ls -l .
-          ls -l ../
-
       - name: Checkout Gou
         uses: actions/checkout@v2
         with:
@@ -77,15 +64,21 @@ jobs:
           path: gou
           token: ${{ secrets.TOKEN }}
 
-      - name: Checkout Xiang
-        uses: actions/checkout@v2
-        with:
-          path: xiang
+      - name: Move lib
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          ls -l .
+          ls -l ../
 
-      - name: Show Dir
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: List dir
         run: |
           ls -l .
-          ls -l ./xiang/
+          ls -l ../
 
       - name: Setup ${{ matrix.db }}
         uses: ./.github/actions/setup-db
@@ -102,9 +95,9 @@ jobs:
 
       - name: Setup Go Tools
         run: |
-          if [[ "${GO111MODULE}" = "on" ]]; then cd xiang && go mod download; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then go mod download; fi
           if [[ "${GO111MODULE}" = "on" ]]; then export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"; fi
-          if [[ "${GO111MODULE}" = "on" ]]; then cd xiang && make tools; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
 
       - name: Setup ENV & Host
         run: |
@@ -126,12 +119,12 @@ jobs:
             XIANG_DB_PRIMARY="$DB_HOST" make test
           fi
 
-          cd xiang && make vet
-          cd xiang && make fmt-check
-          cd xiang && make misspell-check
-          cd xiang && make plugin
-          cd xiang && make migrate
-          cd xiang && make test
+          make vet
+          make fmt-check
+          make misspell-check
+          make plugin
+          make migrate
+          make test
 
       - name: Codecov Report
         uses: codecov/codecov-action@v2
