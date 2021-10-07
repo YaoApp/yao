@@ -86,9 +86,9 @@ jobs:
 
       - name: Setup Go Tools
         run: |
-          if [[ "${GO111MODULE}" = "on" ]]; then go mod download; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then cd xiang && go mod download; fi
           if [[ "${GO111MODULE}" = "on" ]]; then export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"; fi
-          if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then cd xiang && make tools; fi
 
       - name: Setup ENV & Host
         run: |
