@@ -144,6 +144,9 @@ xiang: bindata
 release: clean
 	mkdir -p dist/release
 	git clone https://github.com/YaoApp/xiang dist/release
+	git clone https://github.com/YaoApp/kun dist/kun
+	git clone https://github.com/YaoApp/xun dist/xun
+	git clone https://github.com/YaoApp/gou dist/gou
 
 #	UI制品
 	git clone https://github.com/YaoApp/xiang-ui .tmp/ui
@@ -183,6 +186,7 @@ hi:
 .PHONY: clean
 clean: 
 	rm -rf ./tmp
+	rm -rf .tmp
 	rm -rf dist
 
 
