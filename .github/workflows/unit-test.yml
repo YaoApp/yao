@@ -43,7 +43,7 @@ jobs:
     strategy:
       matrix:
         go: [1.17]
-        db: [SQLite3]
+        db: [MySQL8.0, SQLite3]
     steps:
       - name: Checkout Kun
         uses: actions/checkout@v2
