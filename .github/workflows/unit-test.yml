@@ -16,8 +16,8 @@ jobs:
     env:
       # 象传服务配置
       XIANG_MODE: debug
-      XIANG_SOURCE: ${{ env.GITHUB_WORKSPACE }}
-      XIANG_ROOT: fs:///${{ env.GITHUB_WORKSPACE }}/app
+      XIANG_SOURCE: ${{ github.WORKSPACE }}
+      XIANG_ROOT: fs:///${{ github.WORKSPACE }}/app
 
       # 服务配置
       XIANG_SERVICE_DEBUG: true
@@ -38,13 +38,13 @@ jobs:
 
       # 存储配置
       XIANG_STOR_DEBUG: true
-      XIANG_STOR_PATH: "fs:///${{ env.GITHUB_WORKSPACE }}/upload"
+      XIANG_STOR_PATH: "fs:///${{ github.WORKSPACE }}/upload"
 
       # 日志配置
-      XIANG_LOG_ACCESS: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/access.log"
-      XIANG_LOG_ERROR: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/error.log"
-      XIANG_LOG_DB: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/db.log"
-      XIANG_LOG_PLUGIN: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/plugin.log"
+      XIANG_LOG_ACCESS: "fs:///${{ github.WORKSPACE }}/logs/access.log"
+      XIANG_LOG_ERROR: "fs:///${{ github.WORKSPACE }}/logs/error.log"
+      XIANG_LOG_DB: "fs:///${{ github.WORKSPACE }}/logs/db.log"
+      XIANG_LOG_PLUGIN: "fs:///${{ github.WORKSPACE }}/logs/plugin.log"
 
     steps:
       - name: Checkout Kun
