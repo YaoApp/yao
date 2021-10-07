@@ -9,8 +9,8 @@ on:
 env:
   # 象传服务配置
   XIANG_MODE: debug
-  XIANG_SOURCE: ${{ github.WORKSPACE }}/xiang
-  XIANG_ROOT: fs://${{ github.WORKSPACE }}/xiang/app
+  XIANG_SOURCE: ${{ github.WORKSPACE }}
+  XIANG_ROOT: fs://${{ github.WORKSPACE }}/app
 
   # 服务配置
   XIANG_SERVICE_DEBUG: true
@@ -29,13 +29,13 @@ env:
 
   # 存储配置
   XIANG_STOR_DEBUG: true
-  XIANG_STOR_PATH: "fs://${{ github.WORKSPACE }}/xiang/upload"
+  XIANG_STOR_PATH: "fs://${{ github.WORKSPACE }}/upload"
 
   # 日志配置
-  XIANG_LOG_ACCESS: "fs://${{ github.WORKSPACE }}/xiang/logs/access.log"
-  XIANG_LOG_ERROR: "fs://${{ github.WORKSPACE }}/xiang/logs/error.log"
-  XIANG_LOG_DB: "fs://${{ github.WORKSPACE }}/xiang/logs/db.log"
-  XIANG_LOG_PLUGIN: "fs://${{ github.WORKSPACE }}/xiang/logs/plugin.log"
+  XIANG_LOG_ACCESS: "fs://${{ github.WORKSPACE }}/logs/access.log"
+  XIANG_LOG_ERROR: "fs://${{ github.WORKSPACE }}/logs/error.log"
+  XIANG_LOG_DB: "fs://${{ github.WORKSPACE }}/logs/db.log"
+  XIANG_LOG_PLUGIN: "fs://${{ github.WORKSPACE }}/logs/plugin.log"
 
 jobs:
   unit-test:
