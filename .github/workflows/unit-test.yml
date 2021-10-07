@@ -8,8 +8,8 @@ on:
 env:
   # 象传服务配置
   XIANG_MODE: debug
-  XIANG_SOURCE: ${{ env.GITHUB_WORKSPACE }}
-  XIANG_ROOT: fs:///${{ env.GITHUB_WORKSPACE }}/app
+  XIANG_SOURCE: ${{ GITHUB_WORKSPACE }}
+  XIANG_ROOT: fs:///${{ GITHUB_WORKSPACE }}/app
 
   # 服务配置
   XIANG_SERVICE_DEBUG: true
@@ -30,13 +30,13 @@ env:
 
   # 存储配置
   XIANG_STOR_DEBUG: true
-  XIANG_STOR_PATH: "fs:///${{ env.GITHUB_WORKSPACE }}/upload"
+  XIANG_STOR_PATH: "fs:///${{ GITHUB_WORKSPACE }}/upload"
 
   # 日志配置
-  XIANG_LOG_ACCESS: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/access.log"
-  XIANG_LOG_ERROR: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/error.log"
-  XIANG_LOG_DB: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/db.log"
-  XIANG_LOG_PLUGIN: "fs:///${{ env.GITHUB_WORKSPACE }}/logs/plugin.log"
+  XIANG_LOG_ACCESS: "fs:///${{ GITHUB_WORKSPACE }}/logs/access.log"
+  XIANG_LOG_ERROR: "fs:///${{ GITHUB_WORKSPACE }}/logs/error.log"
+  XIANG_LOG_DB: "fs:///${{ GITHUB_WORKSPACE }}/logs/db.log"
+  XIANG_LOG_PLUGIN: "fs:///${{ GITHUB_WORKSPACE }}/logs/plugin.log"
 
 jobs:
   unit-test:
