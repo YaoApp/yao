@@ -102,13 +102,6 @@ jobs:
         env:
           PASSWORD: ${{ secrets.UNIT_PASS }}
         run: |
-          make vet
-          make fmt-check
-          make misspell-check
-          make plugin
-          make migrate
-          make test
-
           if [ "$DB_DRIVER" = "mysql" ]; then
             XIANG_DB_PRIMARY="$DB_USER:$PASSWORD@$DB_HOST" make test
           elif [ "$DB_DRIVER" = "postgres" ]; then
@@ -116,6 +109,13 @@ jobs:
           else
             XIANG_DB_PRIMARY="$DB_HOST" make test
           fi
+
+          cd xiang && make vet
+          cd xiang && make fmt-check
+          cd xiang && make misspell-check
+          cd xiang && make plugin
+          cd xiang && make migrate
+          cd xiang && make test
 
       - name: Codecov Report
         uses: codecov/codecov-action@v2
