@@ -64,6 +64,12 @@ jobs:
           repository: yaoapp/xun
           path: xun
 
+      - name: Test mv
+        run: |
+          mv xun ../
+          ls -l .
+          ls -l ../
+
       - name: Checkout Gou
         uses: actions/checkout@v2
         with:
@@ -76,9 +82,10 @@ jobs:
         with:
           path: xiang
 
-      - name: Keep .github only
+      - name: Show Dir
         run: |
           ls -l .
+          ls -l ./xiang/
 
       - name: Setup ${{ matrix.db }}
         uses: ./.github/actions/setup-db
