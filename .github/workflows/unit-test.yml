@@ -10,7 +10,7 @@ env:
   # 象传服务配置
   XIANG_MODE: debug
   XIANG_SOURCE: ${{ github.WORKSPACE }}
-  XIANG_ROOT: fs://${{ github.WORKSPACE }}/app
+  XIANG_ROOT: ${{ github.WORKSPACE }}/app
 
   # 服务配置
   XIANG_SERVICE_DEBUG: true
