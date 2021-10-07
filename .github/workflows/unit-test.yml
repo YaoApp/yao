@@ -45,7 +45,7 @@ jobs:
         go: [1.17]
         db: [MySQL8.0, SQLite3]
     steps:
-      - name: CacheGolangFile
+      - name: Setup Cache
         uses: actions/cache@v2
         with:
           path: |
