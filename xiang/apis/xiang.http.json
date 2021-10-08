@@ -26,6 +26,17 @@
         "status": 200,
         "type": "application/json"
       }
+    },
+    {
+      "path": "/favicon.ico",
+      "method": "GET",
+      "guard": "-",
+      "process": "xiang.global.Favicon",
+      "in": [],
+      "out": {
+        "status": 200,
+        "type": "image/x-icon"
+      }
     }
   ]
 }

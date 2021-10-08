@@ -66,10 +66,10 @@ func New(path string) Xfs {
 		exception.New("尚未支持 %s 文件系统", 500, fs).Throw()
 	}
 
-	exists := xfs.MustDirExists("/")
-	if !exists {
-		xfs.MustMkdirAll("/", os.ModePerm)
-	}
+	// exists := xfs.MustDirExists("/")
+	// if !exists && root != "/" {
+	// 	xfs.MustMkdirAll("/", os.ModePerm)
+	// }
 
 	return xfs
 }
@@ -103,6 +103,25 @@ func NewTar(tarfile string) Xfs {
 // Encode Base64编码
 func Encode(content []byte) string {
 	return base64.StdEncoding.EncodeToString(content)
+}
+
+// Decode Base64编码
+func Decode(content []byte) []byte {
+	var data []byte
+	_, err := base64.StdEncoding.Decode(data, content)
+	if err != nil {
+		exception.New("文件解码失败 %s ", 500, err).Throw()
+	}
+	return data
+}
+
+// DecodeString Base64编码
+func DecodeString(content string) string {
+	dst, err := base64.StdEncoding.DecodeString(content)
+	if err != nil {
+		exception.New("文件解码失败 %s ", 500, err).Throw()
+	}
+	return string(dst)
 }
 
 // MustOpen 打开文件

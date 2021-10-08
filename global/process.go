@@ -11,6 +11,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.global.FileContent", processFileContent)
 	gou.RegisterProcessHandler("xiang.global.AppFileContent", processAppFileContent)
 	gou.RegisterProcessHandler("xiang.global.Inspect", processInspect)
+	gou.RegisterProcessHandler("xiang.global.Favicon", processFavicon)
 }
 
 // processCreate 运行模型 MustCreate
@@ -25,9 +26,15 @@ func processPing(process *gou.Process) interface{} {
 	return res
 }
 
-// processCreate 运行模型 MustCreate
+// processInspect 返回系统信息
 func processInspect(process *gou.Process) interface{} {
+	App.Icons["favicon"] = "/api/xiang/favicon.ico"
 	return App
+}
+
+// processFavicon 运行模型 MustCreate
+func processFavicon(process *gou.Process) interface{} {
+	return xfs.DecodeString(App.Icons["png"])
 }
 
 // processFileContent 返回文件内容
