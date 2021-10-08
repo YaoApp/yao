@@ -119,6 +119,13 @@ func AppInit(cfg config.Config) {
 			log.Panicf("创建目录失败(%s) %s", cfg.RootDB, err)
 		}
 	}
+
+	if _, err := os.Stat(cfg.RootTable); os.IsNotExist(err) {
+		err := os.MkdirAll(cfg.RootTable, os.ModePerm)
+		if err != nil {
+			log.Panicf("创建目录失败(%s) %s", cfg.RootTable, err)
+		}
+	}
 }
 
 // LoadAppInfo 读取应用信息

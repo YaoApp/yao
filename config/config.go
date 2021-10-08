@@ -58,11 +58,11 @@ type ServiceConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Debug     bool     `json:"debug,omitempty" env:"XIANG_DB_DEBUG" envDefault:"false"`                                                       // DEBUG 开关
-	Driver    string   `json:"driver,omitempty" env:"XIANG_DB_DRIVER" envDefault:"sqlite3"`                                                   // 数据库驱动 ( sqlite3, mysql, postgres)
-	Primary   []string `json:"primary,omitempty" env:"XIANG_DB_PRIMARY" envSeparator:"|" envDefault:"file:xiang.db?cache=shared&mode=memory"` // 主库连接DSN
-	Secondary []string `json:"secondary,omitempty" env:"XIANG_DB_SECONDARY" envSeparator:"|"`                                                 // 从库连接DSN
-	AESKey    string   `json:"aeskey,omitempty" env:"XIANG_DB_AESKEY"`                                                                        // 加密存储KEY
+	Debug     bool     `json:"debug,omitempty" env:"XIANG_DB_DEBUG" envDefault:"false"`                                   // DEBUG 开关
+	Driver    string   `json:"driver,omitempty" env:"XIANG_DB_DRIVER" envDefault:"sqlite3"`                               // 数据库驱动 ( sqlite3, mysql, postgres)
+	Primary   []string `json:"primary,omitempty" env:"XIANG_DB_PRIMARY" envSeparator:"|" envDefault:"file:./db/xiang.db"` // 主库连接DSN
+	Secondary []string `json:"secondary,omitempty" env:"XIANG_DB_SECONDARY" envSeparator:"|"`                             // 从库连接DSN
+	AESKey    string   `json:"aeskey,omitempty" env:"XIANG_DB_AESKEY"`                                                    // 加密存储KEY
 }
 
 // StorageConfig 存储配置
@@ -129,6 +129,16 @@ func NewConfigFrom(input io.Reader) Config {
 
 // SetDefaults 设定默认值
 func (cfg *Config) SetDefaults() {
+
+	pwd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if cfg.Root == "fs://." || cfg.Root == "." {
+		cfg.Root = pwd
+	}
+
 	if cfg.RootAPI == "" {
 		cfg.RootAPI = cfg.Root + "/apis"
 	}
@@ -162,6 +172,14 @@ func (cfg *Config) SetDefaults() {
 
 	if cfg.RootUI == "" {
 		cfg.RootUI = cfg.Root + "/ui"
+	}
+
+	if len(cfg.Database.Primary) > 0 {
+		if strings.HasPrefix(cfg.Database.Primary[0], "file:.") {
+			cfg.Database.Primary[0] = strings.ReplaceAll(cfg.Database.Primary[0], "file:.", pwd)
+		} else if strings.HasPrefix(cfg.Database.Primary[0], "file:/") {
+			cfg.Database.Primary[0] = strings.ReplaceAll(cfg.Database.Primary[0], "file:.", cfg.RootDB)
+		}
 	}
 
 	// 过滤数据
