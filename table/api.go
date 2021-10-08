@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/utils"
 )
 
 // loadAPIs 加载数据管理 API
@@ -234,6 +235,12 @@ func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int) gou.QueryPara
 		if defaults.Withs != nil {
 			param.Withs = defaults.Withs
 		}
+
+		if defaults.Select != nil {
+			param.Select = defaults.Select
+			utils.Dump(param.Select)
+		}
+
 		if defaults.Wheres != nil {
 			if param.Wheres == nil {
 				param.Wheres = []gou.QueryWhere{}
