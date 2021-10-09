@@ -9,6 +9,7 @@ require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/gin-gonic/gin v1.7.4 // indirect
+	github.com/go-errors/errors v1.4.1 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/hashicorp/go-hclog v1.0.0 // indirect
@@ -40,5 +41,7 @@ require (
 // go env -w GOPRIVATE=github.com/yaoapp/*
 
 replace github.com/yaoapp/kun => ../kun // kun local
+
 replace github.com/yaoapp/xun => ../xun // gou local
+
 replace github.com/yaoapp/gou => ../gou // gou local

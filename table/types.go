@@ -55,6 +55,7 @@ type Page struct {
 	Primary string                 `json:"primary"`
 	Layout  map[string]interface{} `json:"layout"`
 	Actions map[string]Render      `json:"actions,omitempty"`
+	Option  map[string]interface{} `json:"option,omitempty"`
 }
 
 // Render 组件渲染方式
