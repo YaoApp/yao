@@ -41,11 +41,12 @@ type AppRoot struct {
 
 // AppInfo 应用信息
 type AppInfo struct {
-	Name        string            `json:"name,omitempty"`
-	Short       string            `json:"short,omitempty"`
-	Version     string            `json:"version,omitempty"`
-	Description string            `json:"description,omitempty"`
-	Icons       map[string]string `json:"icons,omitempty"`
+	Name        string                 `json:"name,omitempty"`
+	Short       string                 `json:"short,omitempty"`
+	Version     string                 `json:"version,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Icons       map[string]string      `json:"icons,omitempty"`
+	Option      map[string]interface{} `json:"option,omitempty"`
 }
 
 // App 应用信息
