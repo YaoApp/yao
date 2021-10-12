@@ -208,7 +208,7 @@ func LoadApp(app AppRoot) {
 
 	// api string, flow string, model string, plugin string
 	// 创建应用目录
-	paths := []string{app.APIs, app.Flows, app.Models, app.Plugins, app.Charts, app.Screens, app.Data}
+	paths := []string{app.APIs, app.Flows, app.Models, app.Plugins, app.Charts, app.Tables, app.Screens, app.Data}
 	for _, p := range paths {
 		if !strings.HasPrefix(p, "fs://") && strings.Contains(p, "://") {
 			continue
