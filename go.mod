@@ -3,6 +3,8 @@ module github.com/yaoapp/xiang
 go 1.16
 
 require (
+	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1286 // indirect
+	github.com/aliyun/aliyun-oss-go-sdk v2.1.10+incompatible // indirect
 	github.com/caarlos0/env/v6 v6.7.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/elazarl/go-bindata-assetfs v1.0.1 // indirect
@@ -34,6 +36,7 @@ require (
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect
 	golang.org/x/net v0.0.0-20211006190231-62292e806868 // indirect
 	golang.org/x/sys v0.0.0-20211006225509-1a26e0398eed // indirect
+	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/genproto v0.0.0-20211005153810-c76a74d43a8e // indirect
 	google.golang.org/grpc v1.41.0 // indirect
 )

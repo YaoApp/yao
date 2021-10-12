@@ -2,6 +2,7 @@ package global
 
 import (
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/xfs"
 )
 
@@ -28,13 +29,13 @@ func processPing(process *gou.Process) interface{} {
 
 // processInspect 返回系统信息
 func processInspect(process *gou.Process) interface{} {
-	App.Icons["favicon"] = "/api/xiang/favicon.ico"
-	return App.Public()
+	share.App.Icons["favicon"] = "/api/xiang/favicon.ico"
+	return share.App.Public()
 }
 
 // processFavicon 运行模型 MustCreate
 func processFavicon(process *gou.Process) interface{} {
-	return xfs.DecodeString(App.Icons["png"])
+	return xfs.DecodeString(share.App.Icons["png"])
 }
 
 // processFileContent 返回文件内容

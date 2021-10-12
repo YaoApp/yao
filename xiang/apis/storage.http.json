@@ -31,7 +31,7 @@
       "path": "/token",
       "method": "GET",
       "guard": "-",
-      "process": "xiang.fs.processGetToken",
+      "process": "xiang.fs.GetToken",
       "in": ["$query.name", "$query.bucket"],
       "out": {
         "status": 200,

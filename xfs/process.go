@@ -9,9 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xun"
 )
 
@@ -76,7 +79,42 @@ func processReadFile(process *gou.Process) interface{} {
 
 // processGetToken 上传文件到腾讯云对象存储 COS
 func processGetToken(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0, "oss")
+	// bucket := process.ArgsString(1)
+	if name != "oss" {
+		exception.New("暂时支持 oss 存储", 400).Throw()
+	}
+
+	if share.App.Storage.OSS == nil {
+		exception.New("未配置 OSS 存储", 400).Throw()
+	}
+
+	app := share.App.Storage.OSS
+	id := strings.Split(app.Endpoint, ".")[0]
+	client, err := sts.NewClientWithAccessKey(id, app.ID, app.Secret)
+	if err != nil {
+		exception.New("配置错误 %s", 400, err.Error()).Throw()
+	}
+
+	//构建请求对象。
+	request := sts.CreateAssumeRoleRequest()
+	request.Scheme = "https"
+	request.Domain = "sts.aliyuncs.com"
+
+	//设置参数。关于参数含义和设置方法，请参见API参考。
+	request.RoleArn = app.RoleArn
+	request.RoleSessionName = app.SessionName
+
+	//发起请求，并得到响应。
+	response, err := client.AssumeRole(request)
+	if err != nil {
+		exception.New("配置错误 %s", 400, err.Error()).Throw()
+	}
+
+	res := any.Of(response.Credentials).Map()
+	res.Set("Endpoint", app.Endpoint)
+	return res
 }
 
 // processGetURL 返回文件CDN地址

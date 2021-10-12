@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/share"
 )
 
 var startCmd = &cobra.Command{
@@ -34,10 +35,10 @@ var startCmd = &cobra.Command{
 
 		// 打印应用目录信息
 		fmt.Printf(color.WhiteString("\n---------------------------------"))
-		fmt.Printf(color.GreenString("\n应用名称: %s v%s", global.App.Name, global.App.Version))
+		fmt.Printf(color.GreenString("\n应用名称: %s v%s", share.App.Name, share.App.Version))
 		fmt.Printf(color.GreenString("\n应用根目录: %s", config.Conf.Root))
 		fmt.Printf(color.GreenString("\n数据存储目录: %s", config.Conf.RootData))
-		fmt.Printf(color.GreenString("\n数据存储引擎: %s", global.App.Storage.Default))
+		fmt.Printf(color.GreenString("\n数据存储引擎: %s", share.App.Storage.Default))
 		fmt.Printf(color.WhiteString("\n---------------------------------\n\n"))
 
 		fmt.Printf(color.GreenString("\n已注册API"))

@@ -7,9 +7,9 @@
     "oss": {
       "comment": "https://www.alibabacloud.com/help/zh/doc-detail/100624.htm",
       "endpoint": "oss-cn-hangzhou.aliyuncs.com",
-      "id": "LTAI5tLC5cnKqF2eB4L7De3S",
-      "secret": "OkD17XjvjNQoiLgRyyjIsTnviULr0w",
-      "roleArn": "RamOssTest",
+      "id": "LTAI5tHXfWAMpcsobfqfeXsm",
+      "secret": "4NeGNw97nFrfmgBWZTlFE0XtYQdMQO",
+      "roleArn": "acs:ram::31524094:role/ramosstest",
       "sessionName": "SessionTest"
     },
     "cos": {},
