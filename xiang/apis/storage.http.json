@@ -32,7 +32,7 @@
       "method": "GET",
       "guard": "-",
       "process": "xiang.fs.GetToken",
-      "in": ["$query.name", "$query.bucket"],
+      "in": ["$query.name"],
       "out": {
         "status": 200,
         "type": "application/json"

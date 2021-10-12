@@ -39,6 +39,16 @@
       }
     },
     {
+      "path": "/menu",
+      "method": "GET",
+      "process": "flows.xiang.menu",
+      "in": [],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/info",
       "method": "GET",
       "process": "xiang.user.Info",

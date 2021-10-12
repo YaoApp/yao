@@ -29,10 +29,7 @@ func init() {
 }
 func TestProcessGetToken(t *testing.T) {
 
-	args := []interface{}{
-		"oss",
-		"hh",
-	}
+	args := []interface{}{"oss"}
 	process := gou.NewProcess("xiang.fs.GetToken", args...)
 	response := processGetToken(process)
 	assert.NotNil(t, response)
@@ -57,6 +54,6 @@ func TestProcessGetToken(t *testing.T) {
 
 	// 上传字符串。
 	now := fmt.Sprintf("%d", time.Now().UnixNano())
-	err = bucket.PutObject("image-appcook/xiang/unit-test.txt", strings.NewReader(now))
+	err = bucket.PutObject("xiang/unit-test.txt", strings.NewReader(now))
 	assert.Nil(t, err)
 }

@@ -79,7 +79,7 @@ func processReadFile(process *gou.Process) interface{} {
 
 // processGetToken 上传文件到腾讯云对象存储 COS
 func processGetToken(process *gou.Process) interface{} {
-	process.ValidateArgNums(2)
+	process.ValidateArgNums(1)
 	name := process.ArgsString(0, "oss")
 	// bucket := process.ArgsString(1)
 	if name != "oss" {
