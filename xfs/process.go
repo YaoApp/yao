@@ -114,7 +114,7 @@ func processGetToken(process *gou.Process) interface{} {
 
 	res := any.Of(response.Credentials).Map()
 	res.Set("Endpoint", app.Endpoint)
-	return res
+	return res.MapStrAny
 }
 
 // processGetURL 返回文件CDN地址
