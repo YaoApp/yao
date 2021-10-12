@@ -1,0 +1,42 @@
+{
+  "name": "存储接口",
+  "version": "1.0.0",
+  "description": "存储接口API",
+  "group": "xiang/storage",
+  "guard": "bearer-jwt",
+  "paths": [
+    {
+      "path": "/upload",
+      "method": "POST",
+      "guard": "-",
+      "process": "xiang.fs.Upload",
+      "in": ["$file.file"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/readfile",
+      "method": "GET",
+      "guard": "-",
+      "process": "xiang.fs.ReadFile",
+      "in": ["$query.name", "$query.encode"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/token",
+      "method": "GET",
+      "guard": "-",
+      "process": "xiang.fs.processGetToken",
+      "in": ["$query.name", "$query.bucket"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    }
+  ]
+}

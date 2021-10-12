@@ -9,13 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/table"
-	"github.com/yaoapp/xiang/xfs"
 	"github.com/yaoapp/xun/capsule"
 )
 
@@ -38,19 +36,6 @@ type AppRoot struct {
 	Screens string
 	Data    string
 }
-
-// AppInfo 应用信息
-type AppInfo struct {
-	Name        string                 `json:"name,omitempty"`
-	Short       string                 `json:"short,omitempty"`
-	Version     string                 `json:"version,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Icons       map[string]string      `json:"icons,omitempty"`
-	Option      map[string]interface{} `json:"option,omitempty"`
-}
-
-// App 应用信息
-var App AppInfo
 
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
@@ -121,53 +106,12 @@ func AppInit(cfg config.Config) {
 		}
 	}
 
-	if _, err := os.Stat(cfg.RootTable); os.IsNotExist(err) {
-		err := os.MkdirAll(cfg.RootTable, os.ModePerm)
+	if _, err := os.Stat(cfg.RootData); os.IsNotExist(err) {
+		err := os.MkdirAll(cfg.RootData, os.ModePerm)
 		if err != nil {
-			log.Panicf("创建目录失败(%s) %s", cfg.RootTable, err)
+			log.Panicf("创建目录失败(%s) %s", cfg.RootData, err)
 		}
 	}
-}
-
-// LoadAppInfo 读取应用信息
-func LoadAppInfo(root string) {
-	info := defaultAppInfo()
-	fs := xfs.New(root)
-	if fs.MustExists("/app.json") {
-		err := jsoniter.Unmarshal(fs.MustReadFile("/app.json"), &info)
-		if err != nil {
-			exception.New("解析应用失败 %s", 500, err).Throw()
-		}
-	}
-
-	if fs.MustExists("/xiang/icons/icon.icns") {
-		info.Icons["icns"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.icns"))
-	}
-
-	if fs.MustExists("/xiang/icons/icon.ico") {
-		info.Icons["ico"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.ico"))
-	}
-
-	if fs.MustExists("/xiang/icons/icon.png") {
-		info.Icons["png"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.png"))
-	}
-	App = info
-}
-
-// defaultAppInfo 读取默认应用信息
-func defaultAppInfo() AppInfo {
-	info := AppInfo{}
-	err := jsoniter.Unmarshal(data.MustAsset("xiang/data/app.json"), &info)
-	if err != nil {
-		exception.New("解析默认应用失败 %s", 500, err).Throw()
-	}
-
-	info.Version = VERSION
-	info.Icons["icns"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.icns"))
-	info.Icons["ico"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.ico"))
-	info.Icons["png"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.png"))
-
-	return info
 }
 
 // LoadEngine 加载引擎的 API, Flow, Model 配置

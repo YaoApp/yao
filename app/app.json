@@ -2,5 +2,18 @@
   "name": "象传应用",
   "short": "象传",
   "description": "象传应用后台",
+  "storage": {
+    "default": "oss",
+    "oss": {
+      "comment": "https://www.alibabacloud.com/help/zh/doc-detail/100624.htm",
+      "endpoint": "oss-cn-hangzhou.aliyuncs.com",
+      "id": "LTAI5tLC5cnKqF2eB4L7De3S",
+      "secret": "OkD17XjvjNQoiLgRyyjIsTnviULr0w",
+      "roleArn": "RamOssTest",
+      "sessionName": "SessionTest"
+    },
+    "cos": {},
+    "s3": {}
+  },
   "option": {}
 }

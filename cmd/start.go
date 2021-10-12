@@ -33,11 +33,23 @@ var startCmd = &cobra.Command{
 		global.Load(config.Conf)
 
 		// 打印应用目录信息
-		fmt.Printf(color.GreenString("\n应用根目录: %s\n", config.Conf.Root))
+		fmt.Printf(color.WhiteString("\n---------------------------------"))
+		fmt.Printf(color.GreenString("\n应用名称: %s v%s", global.App.Name, global.App.Version))
+		fmt.Printf(color.GreenString("\n应用根目录: %s", config.Conf.Root))
+		fmt.Printf(color.GreenString("\n数据存储目录: %s", config.Conf.RootData))
+		fmt.Printf(color.GreenString("\n数据存储引擎: %s", global.App.Storage.Default))
+		fmt.Printf(color.WhiteString("\n---------------------------------\n\n"))
+
+		fmt.Printf(color.GreenString("\n已注册API"))
+		fmt.Printf(color.WhiteString("\n---------------------------------"))
+
 		for _, api := range gou.APIs { // API信息
+			if len(api.HTTP.Paths) <= 0 {
+				continue
+			}
+
 			fmt.Printf(color.CyanString("\n%s(%d)\n", api.Name, len(api.HTTP.Paths)))
 			for _, p := range api.HTTP.Paths {
-
 				fmt.Println(
 					colorMehtod(p.Method),
 					color.WhiteString(filepath.Join("/api", api.HTTP.Group, p.Path)),
@@ -56,6 +68,8 @@ var startCmd = &cobra.Command{
 			port = ""
 		}
 
+		fmt.Printf(color.GreenString("\n\n访问入口"))
+		fmt.Printf(color.WhiteString("\n---------------------------------"))
 		fmt.Printf(color.GreenString("\n前台界面: http://%s%s/\n", domain, port))
 		fmt.Printf(color.GreenString("管理后台: http://%s%s/xiang/login\n", domain, port))
 		fmt.Printf(color.GreenString("API 接口: http://%s%s/api\n", domain, port))

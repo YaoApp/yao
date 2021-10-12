@@ -40,9 +40,6 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal(t, cfg.JWT.Debug, vBool(os.Getenv("XIANG_JWT_DEBUG")))
 	assert.Equal(t, cfg.JWT.Secret, os.Getenv("XIANG_JWT_SECRET"))
 
-	assert.Equal(t, cfg.Storage.Debug, vBool(os.Getenv("XIANG_STOR_DEBUG")))
-	assert.Equal(t, cfg.Storage.Path, os.Getenv("XIANG_STOR_PATH"))
-
 	assert.Equal(t, cfg.Log.Access, os.Getenv("XIANG_LOG_ACCESS"))
 	assert.Equal(t, cfg.Log.Error, os.Getenv("XIANG_LOG_ERROR"))
 	assert.Equal(t, cfg.Log.DB, os.Getenv("XIANG_LOG_DB"))

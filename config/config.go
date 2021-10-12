@@ -21,7 +21,6 @@ type Config struct {
 	XiangConfig
 	Service  ServiceConfig  `json:"service,omitempty"`
 	Database DatabaseConfig `json:"database,omitempty"`
-	Storage  StorageConfig  `json:"storage,omitempty"`
 	JWT      JWTConfig      `json:"jwt,omitempty"`
 	Log      LogConfig      `json:"log,omitempty"`
 }
@@ -63,12 +62,6 @@ type DatabaseConfig struct {
 	Primary   []string `json:"primary,omitempty" env:"XIANG_DB_PRIMARY" envSeparator:"|" envDefault:"file:./db/xiang.db"` // 主库连接DSN
 	Secondary []string `json:"secondary,omitempty" env:"XIANG_DB_SECONDARY" envSeparator:"|"`                             // 从库连接DSN
 	AESKey    string   `json:"aeskey,omitempty" env:"XIANG_DB_AESKEY"`                                                    // 加密存储KEY
-}
-
-// StorageConfig 存储配置
-type StorageConfig struct {
-	Debug bool   `json:"debug,omitempty" env:"XIANG_STOR_DEBUG" envDefault:"false"`          // DEBUG 开关
-	Path  string `json:"path,omitempty" env:"XIANG_STOR_PATH" envDefault:"fs:///data/xiang"` // 数据存储目录
 }
 
 // JWTConfig JWT配置
@@ -185,8 +178,11 @@ func (cfg *Config) SetDefaults() {
 	// 过滤数据
 	cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "fs://")
 	cfg.RootDB = strings.TrimPrefix(cfg.RootDB, "file://")
+	cfg.RootData = strings.TrimPrefix(cfg.RootData, "fs://")
+	cfg.RootData = strings.TrimPrefix(cfg.RootData, "file://")
 	cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "fs://")
 	cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "file://")
+
 }
 
 // SetEnvFile 指定ENV文件

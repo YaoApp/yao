@@ -29,7 +29,7 @@ func processPing(process *gou.Process) interface{} {
 // processInspect 返回系统信息
 func processInspect(process *gou.Process) interface{} {
 	App.Icons["favicon"] = "/api/xiang/favicon.ico"
-	return App
+	return App.Public()
 }
 
 // processFavicon 运行模型 MustCreate

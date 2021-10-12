@@ -4,5 +4,11 @@
   "version": "0.6.5",
   "description": "象传应用引擎管理后台",
   "icons": {},
+  "storage": {
+    "default": "oss",
+    "oss": {},
+    "cos": {},
+    "s3": {}
+  },
   "option": {}
 }
