@@ -12,6 +12,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/share"
@@ -78,15 +79,15 @@ func LoadAppInfo(root string) {
 	}
 
 	if fs.MustExists("/xiang/icons/icon.icns") {
-		info.Icons["icns"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.icns"))
+		info.Icons.Set("icns", xfs.Encode(fs.MustReadFile("/xiang/icons/icon.icns")))
 	}
 
 	if fs.MustExists("/xiang/icons/icon.ico") {
-		info.Icons["ico"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.ico"))
+		info.Icons.Set("ico", xfs.Encode(fs.MustReadFile("/xiang/icons/icon.ico")))
 	}
 
 	if fs.MustExists("/xiang/icons/icon.png") {
-		info.Icons["png"] = xfs.Encode(fs.MustReadFile("/xiang/icons/icon.png"))
+		info.Icons.Set("png", xfs.Encode(fs.MustReadFile("/xiang/icons/icon.png")))
 	}
 
 	share.App = info
@@ -94,15 +95,17 @@ func LoadAppInfo(root string) {
 
 // defaultAppInfo 读取默认应用信息
 func defaultAppInfo() share.AppInfo {
-	info := share.AppInfo{}
+	info := share.AppInfo{
+		Icons: maps.MakeSync(),
+	}
 	err := jsoniter.Unmarshal(data.MustAsset("xiang/data/app.json"), &info)
 	if err != nil {
 		exception.New("解析默认应用失败 %s", 500, err).Throw()
 	}
 
-	info.Icons["icns"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.icns"))
-	info.Icons["ico"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.ico"))
-	info.Icons["png"] = xfs.Encode(data.MustAsset("xiang/data/icons/icon.png"))
+	info.Icons.Set("icns", xfs.Encode(data.MustAsset("xiang/data/icons/icon.icns")))
+	info.Icons.Set("ico", xfs.Encode(data.MustAsset("xiang/data/icons/icon.ico")))
+	info.Icons.Set("png", xfs.Encode(data.MustAsset("xiang/data/icons/icon.png")))
 
 	return info
 }

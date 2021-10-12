@@ -1,5 +1,7 @@
 package share
 
+import "github.com/yaoapp/kun/maps"
+
 // App 应用信息
 var App AppInfo
 
@@ -9,7 +11,7 @@ type AppInfo struct {
 	Short       string                 `json:"short,omitempty"`
 	Version     string                 `json:"version,omitempty"`
 	Description string                 `json:"description,omitempty"`
-	Icons       map[string]string      `json:"icons,omitempty"`
+	Icons       maps.MapStrSync        `json:"icons,omitempty"`
 	Storage     AppStorage             `json:"storage,omitempty"`
 	Option      map[string]interface{} `json:"option,omitempty"`
 }

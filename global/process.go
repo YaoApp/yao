@@ -29,13 +29,13 @@ func processPing(process *gou.Process) interface{} {
 
 // processInspect 返回系统信息
 func processInspect(process *gou.Process) interface{} {
-	share.App.Icons["favicon"] = "/api/xiang/favicon.ico"
+	share.App.Icons.Set("favicon", "/api/xiang/favicon.ico")
 	return share.App.Public()
 }
 
 // processFavicon 运行模型 MustCreate
 func processFavicon(process *gou.Process) interface{} {
-	return xfs.DecodeString(share.App.Icons["png"])
+	return xfs.DecodeString(share.App.Icons.Get("png").(string))
 }
 
 // processFileContent 返回文件内容
