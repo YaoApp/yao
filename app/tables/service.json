@@ -166,12 +166,20 @@
         }
       }
     },
+    "计费方式C": {
+      "label": "计费方式",
+      "view": {
+        "name": "xxxxx",
+        "components": ["计费方式", "行业覆盖"]
+      }
+    },
     "计费方式": {
       "label": "计费方式",
       "view": {
         "name": "tags",
         "props": {
-          "value": ":fields"
+          "value": ":fields",
+          "format": [".jpg", "..."]
         }
       },
       "edit": {

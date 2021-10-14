@@ -60,6 +60,7 @@ type Page struct {
 
 // Render 组件渲染方式
 type Render struct {
-	Type  string                 `json:"type,omitempty"`
-	Props map[string]interface{} `json:"props,omitempty"`
+	Type       string                 `json:"type,omitempty"`
+	Props      map[string]interface{} `json:"props,omitempty"`
+	Components []interface{}          `json:"components,omitempty"`
 }
