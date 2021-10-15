@@ -28,6 +28,17 @@
       }
     },
     {
+      "path": "/url",
+      "method": "GET",
+      "guard": "-",
+      "process": "xiang.fs.GetURL",
+      "in": ["$query.name", "$query.type"],
+      "out": {
+        "status": 200,
+        "type": "image/png"
+      }
+    },
+    {
       "path": "/token",
       "method": "GET",
       "guard": "-",

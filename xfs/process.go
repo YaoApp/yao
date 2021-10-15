@@ -119,5 +119,13 @@ func processGetToken(process *gou.Process) interface{} {
 
 // processGetURL 返回文件CDN地址
 func processGetURL(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(1)
+	filename := process.ArgsString(0)
+	// typ := process.ArgsString(1)
+	// stats, err := Stor.Stat(filename)
+	// if err != nil {
+	// 	exception.New("读取文件信息失败 %s", 500, err.Error()).Throw()
+	// }
+	body := Stor.MustReadFile(filename)
+	return string(body)
 }
