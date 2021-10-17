@@ -3,7 +3,7 @@ GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell $(GO) list ./...)
 VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
-VERSION := $(shell grep 'const VERSION =' global/vars.go |awk '{print $$4}' |sed 's/\"//g')
+VERSION := $(shell grep 'const VERSION =' share/vars.go |awk '{print $$4}' |sed 's/\"//g')
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$|user$$|xfs$$' | grep -v examples)
@@ -123,8 +123,8 @@ gen-bindata:
 xiang: bindata
 
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		mv global/vars.go global/vars.go.bak;	\
-		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" global/vars.go.bak > global/vars.go; \
+		mv share/vars.go share/vars.go.bak;	\
+		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" share/vars.go.bak > share/vars.go; \
 	fi;
 
 	GOOS=linux GOARCH=amd64 go build -v -o .tmp/xiang-linux-amd64
@@ -136,8 +136,8 @@ xiang: bindata
 	chmod +x dist/bin/xiang-*-*
 	
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		rm global/vars.go; \
-		mv global/vars.go.bak global/vars.go; \
+		rm share/vars.go; \
+		mv share/vars.go.bak share/vars.go; \
 	fi;
 
 .PHONY: release
@@ -164,8 +164,8 @@ release: clean
 
 #   制品
 	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		mv dist/release/global/vars.go dist/release/global/vars.go.bak;	\
-		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" dist/release/global/vars.go.bak > dist/release/global/vars.go; \
+		mv dist/release/share/vars.go dist/release/share/vars.go.bak;	\
+		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" dist/release/share/vars.go.bak > dist/release/share/vars.go; \
 	fi;
 
 	cd dist/release && GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
