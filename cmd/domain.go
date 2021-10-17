@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/share"
 )
 
 var domainCmd = &cobra.Command{
@@ -13,6 +13,6 @@ var domainCmd = &cobra.Command{
 	Long:  `显示绑定域名`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Do Stuff Here
-		fmt.Println(global.DOMAIN)
+		fmt.Println(share.DOMAIN)
 	},
 }

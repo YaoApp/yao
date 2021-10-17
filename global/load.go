@@ -21,6 +21,9 @@ import (
 	"github.com/yaoapp/xun/capsule"
 )
 
+// Conf 配置文件
+var Conf config.Config
+
 // Script 脚本文件类型
 type Script struct {
 	Name    string

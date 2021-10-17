@@ -5,7 +5,7 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/share"
 )
 
 var inspectCmd = &cobra.Command{
@@ -15,8 +15,8 @@ var inspectCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		Boot()
 		res := maps.Map{
-			"version": global.VERSION,
-			"domain":  global.DOMAIN,
+			"version": share.VERSION,
+			"domain":  share.DOMAIN,
 			"config":  config.Conf,
 		}
 		utils.Dump(res)

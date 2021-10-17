@@ -20,8 +20,8 @@ func processPing(process *gou.Process) interface{} {
 	res := map[string]interface{}{
 		"code":    200,
 		"server":  "象传应用引擎",
-		"version": VERSION,
-		"domain":  DOMAIN,
+		"version": share.VERSION,
+		"domain":  share.DOMAIN,
 		"allows":  Conf.Service.Allow,
 	}
 	return res

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/share"
 )
 
 var versionCmd = &cobra.Command{
@@ -13,6 +13,6 @@ var versionCmd = &cobra.Command{
 	Long:  `显示当前版本号`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Do Stuff Here
-		fmt.Println(global.VERSION)
+		fmt.Println(share.VERSION)
 	},
 }

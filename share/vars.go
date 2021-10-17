@@ -1,27 +1,17 @@
-package global
+package share
 
 import (
-	"net/http"
 	"strings"
-
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/data"
 )
 
 // VERSION 版本号
-const VERSION = "0.8.5"
+const VERSION = "0.8.6"
 
 // DOMAIN 许可域
 const DOMAIN = "*.iqka.com"
 
 // AllowHosts 解析后的许可域
 var AllowHosts = []string{}
-
-// Conf 配置文件
-var Conf config.Config
-
-// FileServer 静态服务
-var FileServer http.Handler = http.FileServer(data.AssetFS())
 
 // 初始化配置
 func init() {

@@ -28,7 +28,7 @@ var startCmd = &cobra.Command{
 			mode = ""
 		}
 
-		fmt.Printf(color.GreenString("\n象传应用引擎 v%s %s", global.VERSION, mode))
+		fmt.Printf(color.GreenString("\n象传应用引擎 v%s %s", share.VERSION, mode))
 
 		// 加载数据模型 API 等
 		global.Load(config.Conf)
@@ -59,7 +59,7 @@ var startCmd = &cobra.Command{
 
 		}
 
-		domain := global.DOMAIN
+		domain := share.DOMAIN
 		if domain == "*.iqka.com" {
 			domain = "local.iqka.com"
 		}

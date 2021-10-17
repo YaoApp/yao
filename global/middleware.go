@@ -2,10 +2,16 @@ package global
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/xiang/data"
+	"github.com/yaoapp/xiang/share"
 )
+
+// FileServer 静态服务
+var FileServer http.Handler = http.FileServer(data.AssetFS())
 
 // Middlewares 服务中间件
 var Middlewares = []gin.HandlerFunc{
@@ -16,7 +22,7 @@ var Middlewares = []gin.HandlerFunc{
 // BindDomain 绑定许可域名
 func BindDomain(c *gin.Context) {
 
-	for _, allow := range AllowHosts {
+	for _, allow := range share.AllowHosts {
 		if strings.Contains(c.Request.Host, allow) {
 			c.Next()
 			return
