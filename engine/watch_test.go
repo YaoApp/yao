@@ -12,7 +12,7 @@ import (
 )
 
 func TestWatch(t *testing.T) {
-	root := path.Join(config.Conf.Source, "/app/flows")
+	root := path.Join(config.Conf.Source, "/tests/flows")
 	assert.NotPanics(t, func() {
 		go share.Watch(root, func(op string, file string) {
 			log.Println(op, file)
