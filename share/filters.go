@@ -1,4 +1,4 @@
-package table
+package share
 
 import (
 	"fmt"
@@ -6,20 +6,8 @@ import (
 	"github.com/yaoapp/gou"
 )
 
-// loadFilters 加载查询过滤器
-func (table *Table) loadFilters() {
-	if table.Bind.Model == "" {
-		return
-	}
-	defaults := getDefaultFilters(table.Bind.Model)
-	for name, filter := range table.Filters {
-		defaults[name] = filter
-	}
-	table.Filters = defaults
-}
-
-// getDefaultFilters 读取数据模型索引字段的过滤器
-func getDefaultFilters(name string) map[string]Filter {
+// GetDefaultFilters 读取数据模型索引字段的过滤器
+func GetDefaultFilters(name string) map[string]Filter {
 
 	mod := gou.Select(name)
 	cmap := mod.Columns

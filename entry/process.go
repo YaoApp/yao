@@ -1,18 +1,19 @@
-package global
+package entry
 
 import (
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/xfs"
 )
 
 func init() {
 	// 注册处理器
-	gou.RegisterProcessHandler("xiang.global.Ping", processPing)
-	gou.RegisterProcessHandler("xiang.global.FileContent", processFileContent)
-	gou.RegisterProcessHandler("xiang.global.AppFileContent", processAppFileContent)
-	gou.RegisterProcessHandler("xiang.global.Inspect", processInspect)
-	gou.RegisterProcessHandler("xiang.global.Favicon", processFavicon)
+	gou.RegisterProcessHandler("xiang.main.Ping", processPing)
+	gou.RegisterProcessHandler("xiang.main.FileContent", processFileContent)
+	gou.RegisterProcessHandler("xiang.main.AppFileContent", processAppFileContent)
+	gou.RegisterProcessHandler("xiang.main.Inspect", processInspect)
+	gou.RegisterProcessHandler("xiang.main.Favicon", processFavicon)
 }
 
 // processCreate 运行模型 MustCreate
@@ -22,7 +23,7 @@ func processPing(process *gou.Process) interface{} {
 		"server":  "象传应用引擎",
 		"version": share.VERSION,
 		"domain":  share.DOMAIN,
-		"allows":  Conf.Service.Allow,
+		"allows":  config.Conf.Service.Allow,
 	}
 	return res
 }
@@ -53,7 +54,7 @@ func processFileContent(process *gou.Process) interface{} {
 // processAppFileContent 返回应用文件内容
 func processAppFileContent(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
-	fs := xfs.New(Conf.RootData)
+	fs := xfs.New(config.Conf.RootData)
 	filename := process.ArgsString(0)
 	encode := process.ArgsBool(1, true)
 	content := fs.MustReadFile(filename)

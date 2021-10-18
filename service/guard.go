@@ -1,4 +1,4 @@
-package global
+package service
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/user"
 	"github.com/yaoapp/xiang/xlog"
 )
@@ -25,11 +26,11 @@ func bearerJWT(c *gin.Context) {
 	}
 
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
-	if Conf.Mode == "debug" {
-		xlog.Printf("JWT: %s Secret: %s", tokenString, Conf.JWT.Secret)
+	if config.Conf.Mode == "debug" {
+		xlog.Printf("JWT: %s Secret: %s", tokenString, config.Conf.JWT.Secret)
 	}
 	token, err := jwt.ParseWithClaims(tokenString, &user.JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(Conf.JWT.Secret), nil
+		return []byte(config.Conf.JWT.Secret), nil
 	})
 
 	if err != nil {

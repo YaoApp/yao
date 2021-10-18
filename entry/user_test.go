@@ -1,4 +1,4 @@
-package global
+package entry
 
 import (
 	"testing"

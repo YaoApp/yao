@@ -1,4 +1,4 @@
-package global
+package entry
 
 import (
 	"testing"
@@ -7,19 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 	"github.com/yaoapp/xun/capsule"
 )
 
-func TestProcessPing(t *testing.T) {
-	process := gou.NewProcess("xiang.global.ping")
-	res, ok := processPing(process).(map[string]interface{})
-	assert.True(t, ok)
-	assert.Equal(t, res["version"], share.VERSION)
-}
-
-func TestProcessSearch(t *testing.T) {
+func TestTableProcessSearch(t *testing.T) {
 
 	args := []interface{}{
 		"service",
@@ -47,7 +39,7 @@ func TestProcessSearch(t *testing.T) {
 	assert.Equal(t, 2, res.Get("pagesize"))
 }
 
-func TestProcessFind(t *testing.T) {
+func TestTableProcessFind(t *testing.T) {
 	args := []interface{}{
 		"service",
 		1,
@@ -60,7 +52,7 @@ func TestProcessFind(t *testing.T) {
 	assert.Equal(t, any.Of(res.Get("id")).CInt(), 1)
 }
 
-func TestProcessSave(t *testing.T) {
+func TestTableProcessSave(t *testing.T) {
 	args := []interface{}{
 		"service",
 		map[string]interface{}{
@@ -82,7 +74,7 @@ func TestProcessSave(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
-func TestProcessDelete(t *testing.T) {
+func TestTableProcessDelete(t *testing.T) {
 	args := []interface{}{
 		"service",
 		map[string]interface{}{
@@ -111,7 +103,7 @@ func TestProcessDelete(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
-func TestProcessInsert(t *testing.T) {
+func TestTableProcessInsert(t *testing.T) {
 	args := []interface{}{
 		"service",
 		[]string{"name", "short_name", "kind_id", "manu_id", "price_options"},
@@ -128,7 +120,7 @@ func TestProcessInsert(t *testing.T) {
 	capsule.Query().Table("service").Where("name", "like", "I腾讯云主机I%").Delete()
 }
 
-func TestProcessDeleteWhere(t *testing.T) {
+func TestTableProcessDeleteWhere(t *testing.T) {
 	args := []interface{}{
 		"service",
 		map[string]interface{}{
@@ -164,7 +156,7 @@ func TestProcessDeleteWhere(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
-func TestProcessDeleteIn(t *testing.T) {
+func TestTableProcessDeleteIn(t *testing.T) {
 	args := []interface{}{
 		"service",
 		map[string]interface{}{
@@ -197,7 +189,7 @@ func TestProcessDeleteIn(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
-func TestProcessUpdateWhere(t *testing.T) {
+func TestTableProcessUpdateWhere(t *testing.T) {
 	args := []interface{}{
 		"service",
 		map[string]interface{}{
@@ -236,7 +228,7 @@ func TestProcessUpdateWhere(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
-func TestProcessUpdateIn(t *testing.T) {
+func TestTableProcessUpdateIn(t *testing.T) {
 	args := []interface{}{
 		"service",
 		map[string]interface{}{
@@ -272,7 +264,7 @@ func TestProcessUpdateIn(t *testing.T) {
 	capsule.Query().Table("service").Where("id", id).Delete()
 }
 
-func TestProcessSetting(t *testing.T) {
+func TestTableProcessSetting(t *testing.T) {
 	args := []interface{}{"service", ""}
 	process := gou.NewProcess("xiang.table.Setting", args...)
 	response := table.ProcessSetting(process)
@@ -288,7 +280,7 @@ func TestProcessSetting(t *testing.T) {
 	assert.True(t, res.Has("view"))
 	assert.True(t, res.Has("insert"))
 }
-func TestProcessSettingList(t *testing.T) {
+func TestTableProcessSettingList(t *testing.T) {
 	args := []interface{}{"service", "list"}
 	process := gou.NewProcess("xiang.table.Setting", args...)
 	response := table.ProcessSetting(process)
@@ -299,7 +291,7 @@ func TestProcessSettingList(t *testing.T) {
 	assert.True(t, res.Has("primary"))
 }
 
-func TestProcessSettingListEdit(t *testing.T) {
+func TestTableProcessSettingListEdit(t *testing.T) {
 	args := []interface{}{"service", "list, edit"}
 	process := gou.NewProcess("xiang.table.Setting", args...)
 	response := table.ProcessSetting(process)

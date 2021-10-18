@@ -1,4 +1,4 @@
-package table
+package share
 
 import (
 	"fmt"
@@ -52,20 +52,8 @@ var elms = map[string]Column{
 	"year":                 {View: Render{Type: "label"}, Edit: Render{Type: "datetime"}},
 }
 
-// loadColumns 加载字段呈现方式
-func (table *Table) loadColumns() {
-	if table.Bind.Model == "" {
-		return
-	}
-	defaults := getDefaultColumns(table.Bind.Model)
-	for name, column := range table.Columns {
-		defaults[name] = column
-	}
-	table.Columns = defaults
-}
-
-// getDefaultColumns 读取数据模型字段的呈现方式
-func getDefaultColumns(name string) map[string]Column {
+// GetDefaultColumns 读取数据模型字段的呈现方式
+func GetDefaultColumns(name string) map[string]Column {
 	mod := gou.Select(name)
 	cmap := mod.Columns
 	columns := map[string]Column{}

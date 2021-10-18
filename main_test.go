@@ -15,7 +15,7 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/service"
 )
 
 func TestCommandVersion(t *testing.T) {
@@ -42,7 +42,7 @@ func TestCommandStart(t *testing.T) {
 	oldArgs := os.Args
 	defer func() {
 		os.Args = oldArgs
-		global.ServiceStop(func() {})
+		service.Stop(func() {})
 		log.Println("服务已关闭")
 	}()
 	go func() {
@@ -126,7 +126,7 @@ func TestCommandStop(t *testing.T) {
 		assert.Equal(t, "管理员", res.Get("name"))
 
 		// 测试关闭
-		global.ServiceStop(func() { log.Println("服务已关闭") })
+		service.Stop(func() { log.Println("服务已关闭") })
 		time.Sleep(time.Second * 2)
 		_, err = request()
 		assert.NotNil(t, err)

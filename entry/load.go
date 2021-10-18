@@ -1,11 +1,9 @@
-package global
+package entry
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -21,29 +19,6 @@ import (
 	"github.com/yaoapp/xun/capsule"
 )
 
-// Conf 配置文件
-var Conf config.Config
-
-// Script 脚本文件类型
-type Script struct {
-	Name    string
-	Type    string
-	Content []byte
-	File    string
-}
-
-// AppRoot 应用目录
-type AppRoot struct {
-	APIs    string
-	Flows   string
-	Models  string
-	Plugins string
-	Tables  string
-	Charts  string
-	Screens string
-	Data    string
-}
-
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
 
@@ -51,7 +26,7 @@ func Load(cfg config.Config) {
 	DBConnect(cfg.Database)
 	LoadAppInfo(cfg.Root)
 	LoadEngine(cfg.Path)
-	LoadApp(AppRoot{
+	LoadApp(share.AppRoot{
 		APIs:    cfg.RootAPI,
 		Flows:   cfg.RootFLow,
 		Models:  cfg.RootModel,
@@ -65,9 +40,6 @@ func Load(cfg config.Config) {
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")
 	gou.LoadCrypt(`{}`, "PASSWORD")
-
-	// 设定已加载配置
-	Conf = cfg
 }
 
 // LoadAppInfo 读取应用信息
@@ -167,13 +139,13 @@ func AppInit(cfg config.Config) {
 // LoadEngine 加载引擎的 API, Flow, Model 配置
 func LoadEngine(from string) {
 
-	var scripts []Script
+	var scripts []share.Script
 	if strings.HasPrefix(from, "fs://") || !strings.Contains(from, "://") {
 		root := strings.TrimPrefix(from, "fs://")
-		scripts = getFilesFS(root, ".json")
+		scripts = share.GetFilesFS(root, ".json")
 	} else if strings.HasPrefix(from, "bin://") {
 		root := strings.TrimPrefix(from, "bin://")
-		scripts = getFilesBin(root, ".json")
+		scripts = share.GetFilesBin(root, ".json")
 	}
 
 	if scripts == nil {
@@ -210,7 +182,7 @@ func LoadEngine(from string) {
 }
 
 // LoadApp 加载应用的 API, Flow, Model 和 Plugin
-func LoadApp(app AppRoot) {
+func LoadApp(app share.AppRoot) {
 
 	// api string, flow string, model string, plugin string
 	// 创建应用目录
@@ -235,7 +207,7 @@ func LoadApp(app AppRoot) {
 	// 加载API
 	if strings.HasPrefix(app.APIs, "fs://") || !strings.Contains(app.APIs, "://") {
 		root := strings.TrimPrefix(app.APIs, "fs://")
-		scripts := getAppFilesFS(root, ".json")
+		scripts := share.GetAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			// 验证API 加载逻辑
 			gou.LoadAPI(string(script.Content), script.Name)
@@ -245,7 +217,7 @@ func LoadApp(app AppRoot) {
 	// 加载Flow
 	if strings.HasPrefix(app.Flows, "fs://") || !strings.Contains(app.Flows, "://") {
 		root := strings.TrimPrefix(app.Flows, "fs://")
-		scripts := getAppFilesFS(root, ".json")
+		scripts := share.GetAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			gou.LoadFlow(string(script.Content), script.Name)
 		}
@@ -254,7 +226,7 @@ func LoadApp(app AppRoot) {
 	// 加载Model
 	if strings.HasPrefix(app.Models, "fs://") || !strings.Contains(app.Models, "://") {
 		root := strings.TrimPrefix(app.Models, "fs://")
-		scripts := getAppFilesFS(root, ".json")
+		scripts := share.GetAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			gou.LoadModel(string(script.Content), script.Name)
 		}
@@ -263,7 +235,7 @@ func LoadApp(app AppRoot) {
 	// 加载Plugin
 	if strings.HasPrefix(app.Plugins, "fs://") || !strings.Contains(app.Plugins, "://") {
 		root := strings.TrimPrefix(app.Plugins, "fs://")
-		scripts := getAppPlugins(root, ".so")
+		scripts := share.GetAppPlugins(root, ".so")
 		for _, script := range scripts {
 			gou.LoadPlugin(script.File, script.Name)
 		}
@@ -272,183 +244,11 @@ func LoadApp(app AppRoot) {
 	// 加载Table
 	if strings.HasPrefix(app.Tables, "fs://") || !strings.Contains(app.Tables, "://") {
 		root := strings.TrimPrefix(app.Tables, "fs://")
-		scripts := getAppFilesFS(root, ".json")
+		scripts := share.GetAppFilesFS(root, ".json")
 		for _, script := range scripts {
 			// 验证API 加载逻辑
 			table.Load(string(script.Content), script.Name)
 		}
 	}
 
-}
-
-// / getAppPluins 遍历应用目录，读取文件列表
-func getAppPlugins(root string, typ string) []Script {
-	files := []Script{}
-	root = path.Join(root, "/")
-	filepath.Walk(root, func(file string, info os.FileInfo, err error) error {
-		if err != nil {
-			exception.Err(err, 500).Throw()
-			return err
-		}
-		if strings.HasSuffix(file, typ) {
-			files = append(files, getAppPluginFile(root, file))
-		}
-		return nil
-	})
-	return files
-}
-
-// getAppPluginFile 读取文件
-func getAppPluginFile(root string, file string) Script {
-	name := getAppPluginFileName(root, file)
-	return Script{
-		Name: name,
-		Type: "plugin",
-		File: file,
-	}
-}
-
-// getAppFile 读取文件
-func getAppPluginFileName(root string, file string) string {
-	filename := strings.TrimPrefix(file, root+"/")
-	namer := strings.Split(filename, ".")
-	nametypes := strings.Split(namer[0], "/")
-	name := strings.Join(nametypes, ".")
-	return name
-}
-
-// getAppFilesFS 遍历应用目录，读取文件列表
-func getAppFilesFS(root string, typ string) []Script {
-	files := []Script{}
-	root = path.Join(root, "/")
-	filepath.Walk(root, func(filepath string, info os.FileInfo, err error) error {
-		if err != nil {
-			exception.Err(err, 500).Throw()
-			return err
-		}
-		if strings.HasSuffix(filepath, typ) {
-			files = append(files, getAppFile(root, filepath))
-		}
-
-		return nil
-	})
-	return files
-}
-
-// getAppFile 读取文件
-func getAppFile(root string, filepath string) Script {
-	name := getAppFileName(root, filepath)
-	file, err := os.Open(filepath)
-	if err != nil {
-		exception.Err(err, 500).Throw()
-	}
-
-	defer file.Close()
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		exception.Err(err, 500).Throw()
-	}
-	return Script{
-		Name:    name,
-		Type:    "app",
-		Content: content,
-	}
-}
-
-// getAppFile 读取文件
-func getAppFileName(root string, file string) string {
-	filename := strings.TrimPrefix(file, root+"/")
-	namer := strings.Split(filename, ".")
-	nametypes := strings.Split(namer[0], "/")
-	name := strings.Join(nametypes, ".")
-	return name
-}
-
-// getAppFileBaseName 读取文件base
-func getAppFileBaseName(root string, file string) string {
-	filename := strings.TrimPrefix(file, root+"/")
-	namer := strings.Split(filename, ".")
-	return filepath.Join(root, namer[0])
-}
-
-// getFilesFS 遍历目录，读取文件列表
-func getFilesFS(root string, typ string) []Script {
-	files := []Script{}
-	root = path.Join(root, "/")
-	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			exception.Err(err, 500).Throw()
-			return err
-		}
-		if strings.HasSuffix(path, typ) {
-			files = append(files, getFile(root, path))
-		}
-		return nil
-	})
-	return files
-}
-
-// getFile 读取文件
-func getFile(root string, path string) Script {
-	filename := strings.TrimPrefix(path, root+"/")
-	name, typ := getTypeName(filename)
-	file, err := os.Open(path)
-	if err != nil {
-		exception.Err(err, 500).Throw()
-	}
-
-	defer file.Close()
-	content, err := ioutil.ReadAll(file)
-	if err != nil {
-		exception.Err(err, 500).Throw()
-	}
-	return Script{
-		Name:    name,
-		Type:    typ,
-		Content: content,
-	}
-}
-
-// getFileName 读取文件
-func getFileName(root string, file string) string {
-	filename := strings.TrimPrefix(file, root+"/")
-	name, _ := getTypeName(filename)
-	return name
-}
-
-// getFileBaseName 读取文件base
-func getFileBaseName(root string, file string) string {
-	filename := strings.TrimPrefix(file, root+"/")
-	namer := strings.Split(filename, ".")
-	return filepath.Join(root, namer[0])
-}
-
-// getFilesBin 从 bindata 中读取文件列表
-func getFilesBin(root string, typ string) []Script {
-	files := []Script{}
-	binfiles := data.AssetNames()
-	for _, path := range binfiles {
-		if strings.HasSuffix(path, typ) {
-			file := strings.TrimPrefix(path, root+"/")
-			name, typ := getTypeName(file)
-			content, err := data.Asset(path)
-			if err != nil {
-				exception.Err(err, 500).Throw()
-			}
-			files = append(files, Script{
-				Name:    name,
-				Type:    typ,
-				Content: content,
-			})
-		}
-	}
-	return files
-}
-
-func getTypeName(path string) (name string, typ string) {
-	namer := strings.Split(path, ".")
-	nametypes := strings.Split(namer[0], "/")
-	name = strings.Join(nametypes[1:], ".")
-	typ = nametypes[0]
-	return name, typ
 }

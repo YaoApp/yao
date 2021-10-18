@@ -6,7 +6,7 @@ GOFILES := $(shell find . -name "*.go")
 VERSION := $(shell grep 'const VERSION =' share/vars.go |awk '{print $$4}' |sed 's/\"//g')
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|global$$|table$$|user$$|xfs$$' | grep -v examples)
+TESTFOLDER := $(shell $(GO) list ./... | grep -E 'xiang$$|entry$$|table$$|user$$|xfs$$' | grep -v examples)
 TESTTAGS ?= ""
 
 # 运行单元测试

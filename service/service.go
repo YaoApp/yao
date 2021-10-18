@@ -1,4 +1,4 @@
-package global
+package service
 
 import (
 	"log"
@@ -6,20 +6,22 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 )
 
 var shutdown = make(chan bool)
 var shutdownComplete = make(chan bool)
 
-// ServiceStart 启动服务
-func ServiceStart() {
+// Start 启动服务
+func Start() {
 	gou.SetHTTPGuards(Guards)
 	gou.ServeHTTP(
 		gou.Server{
-			Host:   Conf.Service.Host,
-			Port:   Conf.Service.Port,
-			Allows: Conf.Service.Allow,
+			Host:   config.Conf.Service.Host,
+			Port:   config.Conf.Service.Port,
+			Allows: config.Conf.Service.Allow,
 			Root:   "/api",
 		},
 		&shutdown, func(s gou.Server) {
@@ -28,8 +30,8 @@ func ServiceStart() {
 		Middlewares...)
 }
 
-// ServiceStop 关闭服务
-func ServiceStop(onComplete func()) {
+// Stop 关闭服务
+func Stop(onComplete func()) {
 	shutdown <- true
 	<-shutdownComplete
 	onComplete()
@@ -37,15 +39,15 @@ func ServiceStop(onComplete func()) {
 
 // WatchChanges 监听配置文件变更
 func WatchChanges() {
-	watchEngine(Conf.Path)
-	watchApp(AppRoot{
-		APIs:    Conf.RootAPI,
-		Flows:   Conf.RootFLow,
-		Models:  Conf.RootModel,
-		Plugins: Conf.RootPlugin,
-		Tables:  Conf.RootTable,
-		Charts:  Conf.RootChart,
-		Screens: Conf.RootScreen,
+	watchEngine(config.Conf.Path)
+	watchApp(share.AppRoot{
+		APIs:    config.Conf.RootAPI,
+		Flows:   config.Conf.RootFLow,
+		Models:  config.Conf.RootModel,
+		Plugins: config.Conf.RootPlugin,
+		Tables:  config.Conf.RootTable,
+		Charts:  config.Conf.RootChart,
+		Screens: config.Conf.RootScreen,
 	})
 }
 
@@ -61,23 +63,23 @@ func watchEngine(from string) {
 	}
 
 	// 监听 flows (这里应该重构)
-	go Watch(filepath.Join(rootAbs, "flows"), func(op string, file string) {
+	go share.Watch(filepath.Join(rootAbs, "flows"), func(op string, file string) {
 
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 
 		if strings.HasSuffix(file, ".js") {
-			basName := getFileBaseName(root, file)
+			basName := share.GetFileBaseName(root, file)
 			file = basName + ".flow.json"
 		}
 
 		if op == "write" || op == "create" {
-			script := getFile(root, file)
+			script := share.GetFile(root, file)
 			gou.LoadFlow(string(script.Content), "xiang."+script.Name) // Reload
 			log.Printf("Flow %s 已重新加载完毕", "xiang."+script.Name)
 		} else if op == "remove" || op == "rename" {
-			name := "xiang." + getFileName(root, file)
+			name := "xiang." + share.GetFileName(root, file)
 			if _, has := gou.Flows[name]; has {
 				delete(gou.Flows, name)
 				log.Printf("Flow %s 已经移除", name)
@@ -86,17 +88,17 @@ func watchEngine(from string) {
 	})
 
 	// 监听 models
-	go Watch(filepath.Join(rootAbs, "models"), func(op string, file string) {
+	go share.Watch(filepath.Join(rootAbs, "models"), func(op string, file string) {
 
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 		if op == "write" || op == "create" {
-			script := getFile(root, file)
+			script := share.GetFile(root, file)
 			gou.LoadModel(string(script.Content), "xiang."+script.Name) // Reload
 			log.Printf("Model %s 已重新加载完毕", "xiang."+script.Name)
 		} else if op == "remove" || op == "rename" {
-			name := "xiang." + getFileName(root, file)
+			name := "xiang." + share.GetFileName(root, file)
 			if _, has := gou.Models[name]; has {
 				delete(gou.Models, name)
 				log.Printf("Model %s 已经移除", name)
@@ -105,13 +107,13 @@ func watchEngine(from string) {
 	})
 
 	// 监听 apis
-	go Watch(filepath.Join(rootAbs, "apis"), func(op string, file string) {
+	go share.Watch(filepath.Join(rootAbs, "apis"), func(op string, file string) {
 
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 		if op == "write" || op == "create" {
-			script := getFile(root, file)
+			script := share.GetFile(root, file)
 			gou.LoadAPI(string(script.Content), "xiang."+script.Name) // Reload
 			log.Printf("API %s 已重新加载完毕", "xiang."+script.Name)
 
@@ -123,7 +125,7 @@ func watchEngine(from string) {
 			}
 
 		} else if op == "remove" || op == "rename" {
-			name := "xiang." + getFileName(root, file)
+			name := "xiang." + share.GetFileName(root, file)
 			if _, has := gou.APIs[name]; has {
 				delete(gou.APIs, name)
 				log.Printf("API %s 已经移除", name)
@@ -132,21 +134,21 @@ func watchEngine(from string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			ServiceStop(func() {
+			Stop(func() {
 				log.Printf("服务器重启完毕")
-				go ServiceStart()
+				go Start()
 			})
 		}
 	})
 
 	// 监听 tables
-	go Watch(filepath.Join(rootAbs, "tables"), func(op string, file string) {
+	go share.Watch(filepath.Join(rootAbs, "tables"), func(op string, file string) {
 
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 		if op == "write" || op == "create" {
-			script := getFile(root, file)
+			script := share.GetFile(root, file)
 			table.Load(string(script.Content), "xiang."+script.Name) // Reload
 			api, has := gou.APIs["xiang.table"]
 			if has {
@@ -156,7 +158,7 @@ func watchEngine(from string) {
 			log.Printf("数据表格 %s 已重新加载完毕", "xiang."+script.Name)
 
 		} else if op == "remove" || op == "rename" {
-			name := "xiang." + getFileName(root, file)
+			name := "xiang." + share.GetFileName(root, file)
 			if _, has := table.Tables[name]; has {
 				delete(table.Tables, name)
 				log.Printf("数据表格 %s 已经移除", name)
@@ -165,16 +167,16 @@ func watchEngine(from string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			ServiceStop(func() {
+			Stop(func() {
 				log.Printf("服务器重启完毕")
-				go ServiceStart()
+				go Start()
 			})
 		}
 	})
 }
 
 // watchApp 监听应用目录文件变更
-func watchApp(app AppRoot) {
+func watchApp(app share.AppRoot) {
 	watchAppAPI(app.APIs)
 	watchAppFlow(app.Flows)
 	watchAppModel(app.Models)
@@ -193,13 +195,13 @@ func watchAppTable(rootTable string) {
 		log.Panicf("路径错误 %s %s", root, err)
 	}
 
-	go Watch(rootAbs, func(op string, file string) {
+	go share.Watch(rootAbs, func(op string, file string) {
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 
 		if op == "write" || op == "create" {
-			script := getAppFile(root, file)
+			script := share.GetAppFile(root, file)
 			table.Load(string(script.Content), script.Name) // Reload
 			api, has := gou.APIs["xiang.table"]
 			if has {
@@ -209,7 +211,7 @@ func watchAppTable(rootTable string) {
 			log.Printf("数据表格 %s 已重新加载完毕", script.Name)
 
 		} else if op == "remove" || op == "rename" {
-			name := getAppFileName(root, file)
+			name := share.GetAppFileName(root, file)
 			if _, has := gou.APIs[name]; has {
 				delete(table.Tables, name)
 				log.Printf("数据表格 %s 已经移除", name)
@@ -218,9 +220,9 @@ func watchAppTable(rootTable string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			ServiceStop(func() {
+			Stop(func() {
 				log.Printf("服务器重启完毕")
-				go ServiceStart()
+				go Start()
 			})
 		}
 	})
@@ -237,18 +239,18 @@ func watchAppAPI(api string) {
 		log.Panicf("路径错误 %s %s", root, err)
 	}
 
-	go Watch(rootAbs, func(op string, file string) {
+	go share.Watch(rootAbs, func(op string, file string) {
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 
 		if op == "write" || op == "create" {
-			script := getAppFile(root, file)
+			script := share.GetAppFile(root, file)
 			gou.LoadAPI(string(script.Content), script.Name) // Reload
 			log.Printf("API %s 已重新加载完毕", script.Name)
 
 		} else if op == "remove" || op == "rename" {
-			name := getAppFileName(root, file)
+			name := share.GetAppFileName(root, file)
 			if _, has := gou.APIs[name]; has {
 				delete(gou.APIs, name)
 				log.Printf("API %s 已经移除", name)
@@ -257,9 +259,9 @@ func watchAppAPI(api string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			ServiceStop(func() {
+			Stop(func() {
 				log.Printf("服务器重启完毕")
-				go ServiceStart()
+				go Start()
 			})
 		}
 	})
@@ -275,20 +277,20 @@ func watchAppFlow(flow string) {
 	if err != nil {
 		log.Panicf("路径错误 %s %s", root, err)
 	}
-	go Watch(rootAbs, func(op string, file string) {
+	go share.Watch(rootAbs, func(op string, file string) {
 		if !strings.HasSuffix(file, ".json") && !strings.HasSuffix(file, ".js") {
 			return
 		}
 		if strings.HasSuffix(file, ".js") {
-			basName := getAppFileBaseName(root, file)
+			basName := share.GetAppFileBaseName(root, file)
 			file = basName + ".flow.json"
 		}
 		if op == "write" || op == "create" {
-			script := getAppFile(root, file)
+			script := share.GetAppFile(root, file)
 			gou.LoadFlow(string(script.Content), script.Name) // Reload
 			log.Printf("Flow %s 已重新加载完毕", script.Name)
 		} else if op == "remove" || op == "rename" {
-			name := getAppFileName(root, file)
+			name := share.GetAppFileName(root, file)
 			if _, has := gou.Flows[name]; has {
 				delete(gou.Flows, name)
 				log.Printf("Flow %s 已经移除", name)
@@ -308,16 +310,16 @@ func watchAppModel(model string) {
 	if err != nil {
 		log.Panicf("路径错误 %s %s", root, err)
 	}
-	go Watch(rootAbs, func(op string, file string) {
+	go share.Watch(rootAbs, func(op string, file string) {
 		if !strings.HasSuffix(file, ".json") {
 			return
 		}
 		if op == "write" || op == "create" {
-			script := getAppFile(root, file)
+			script := share.GetAppFile(root, file)
 			gou.LoadModel(string(script.Content), script.Name) // Reload
 			log.Printf("Model %s 已重新加载完毕", script.Name)
 		} else if op == "remove" || op == "rename" {
-			name := getAppFileName(root, file)
+			name := share.GetAppFileName(root, file)
 			if _, has := gou.Models[name]; has {
 				delete(gou.Models, name)
 				log.Printf("Model %s 已经移除", name)
@@ -336,17 +338,17 @@ func watchAppPlugin(plugin string) {
 	if err != nil {
 		log.Panicf("路径错误 %s %s", root, err)
 	}
-	go Watch(rootAbs, func(op string, file string) {
+	go share.Watch(rootAbs, func(op string, file string) {
 		if !strings.HasSuffix(file, ".so") {
 			return
 		}
 
 		if op == "write" || op == "create" {
-			script := getAppPluginFile(root, file)
+			script := share.GetAppPluginFile(root, file)
 			gou.LoadPlugin(script.File, script.Name) // Reload
 			log.Printf("Plugin %s 已重新加载完毕", script.Name)
 		} else if op == "remove" || op == "rename" {
-			name := getAppPluginFileName(root, file)
+			name := share.GetAppPluginFileName(root, file)
 			if _, has := gou.Plugins[name]; has {
 				delete(gou.Plugins, name)
 				log.Printf("Plugin %s 已经移除", name)

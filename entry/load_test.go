@@ -1,4 +1,4 @@
-package global
+package entry
 
 import (
 	"path"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 )
 
@@ -39,7 +40,7 @@ func TestLoadEngineBin(t *testing.T) {
 func TestLoadAppFS(t *testing.T) {
 	defer Load(config.Conf)
 	assert.NotPanics(t, func() {
-		LoadApp(AppRoot{
+		LoadApp(share.AppRoot{
 			APIs:    config.Conf.RootAPI,
 			Flows:   config.Conf.RootFLow,
 			Models:  config.Conf.RootModel,

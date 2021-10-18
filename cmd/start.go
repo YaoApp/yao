@@ -9,7 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/global"
+	"github.com/yaoapp/xiang/entry"
+	"github.com/yaoapp/xiang/service"
 	"github.com/yaoapp/xiang/share"
 )
 
@@ -18,7 +19,7 @@ var startCmd = &cobra.Command{
 	Short: "启动象传应用引擎",
 	Long:  `启动象传应用引擎`,
 	Run: func(cmd *cobra.Command, args []string) {
-		defer global.ServiceStop(func() { fmt.Println("服务已关闭") })
+		defer service.Stop(func() { fmt.Println("服务已关闭") })
 
 		Boot()
 		mode := config.Conf.Mode
@@ -31,7 +32,7 @@ var startCmd = &cobra.Command{
 		fmt.Printf(color.GreenString("\n象传应用引擎 v%s %s", share.VERSION, mode))
 
 		// 加载数据模型 API 等
-		global.Load(config.Conf)
+		entry.Load(config.Conf)
 
 		// 打印应用目录信息
 		fmt.Printf(color.WhiteString("\n---------------------------------"))
@@ -78,10 +79,10 @@ var startCmd = &cobra.Command{
 
 		// 调试模式
 		if config.Conf.Mode == "debug" {
-			global.WatchChanges()
+			service.WatchChanges()
 		}
 
-		global.ServiceStart()
+		service.Start()
 	},
 }
 
