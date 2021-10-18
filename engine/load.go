@@ -13,18 +13,22 @@ import (
 	"github.com/yaoapp/xiang/app"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/flow"
+	"github.com/yaoapp/xiang/model"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
-	"github.com/yaoapp/xun/capsule"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
+
+	share.DBConnect(cfg.Database) // 创建数据库连接
+
 	app.Load(cfg) // 加载应用信息
-	DBConnect(cfg.Database)
+
 	LoadEngine(cfg.Path)
-	api.Load(cfg)  // 加载API
-	flow.Load(cfg) // 加载Flow
+	model.Load(cfg) // 加载数据模型
+	api.Load(cfg)   // 加载API
+	flow.Load(cfg)  // 加载Flow
 	LoadApp(share.AppRoot{
 		APIs:    cfg.RootAPI,
 		Flows:   cfg.RootFLow,
@@ -50,22 +54,22 @@ func Reload(cfg config.Config) {
 	Load(cfg)
 }
 
-// DBConnect 建立数据库连接
-func DBConnect(dbconfig config.DatabaseConfig) {
+// // DBConnect 建立数据库连接
+// func DBConnect(dbconfig config.DatabaseConfig) {
 
-	// 连接主库
-	for i, dsn := range dbconfig.Primary {
-		db := capsule.AddConn("primary", dbconfig.Driver, dsn)
-		if i == 0 {
-			db.SetAsGlobal()
-		}
-	}
+// 	// 连接主库
+// 	for i, dsn := range dbconfig.Primary {
+// 		db := capsule.AddConn("primary", dbconfig.Driver, dsn)
+// 		if i == 0 {
+// 			db.SetAsGlobal()
+// 		}
+// 	}
 
-	// 连接从库
-	for _, dsn := range dbconfig.Secondary {
-		capsule.AddReadConn("secondary", dbconfig.Driver, dsn)
-	}
-}
+// 	// 连接从库
+// 	for _, dsn := range dbconfig.Secondary {
+// 		capsule.AddReadConn("secondary", dbconfig.Driver, dsn)
+// 	}
+// }
 
 // LoadEngine 加载引擎的 API, Flow, Model 配置
 func LoadEngine(from string) {
@@ -155,14 +159,14 @@ func LoadApp(app share.AppRoot) {
 	// 	}
 	// }
 
-	// 加载Model
-	if strings.HasPrefix(app.Models, "fs://") || !strings.Contains(app.Models, "://") {
-		root := strings.TrimPrefix(app.Models, "fs://")
-		scripts := share.GetAppFilesFS(root, ".json")
-		for _, script := range scripts {
-			gou.LoadModel(string(script.Content), script.Name)
-		}
-	}
+	// // 加载Model
+	// if strings.HasPrefix(app.Models, "fs://") || !strings.Contains(app.Models, "://") {
+	// 	root := strings.TrimPrefix(app.Models, "fs://")
+	// 	scripts := share.GetAppFilesFS(root, ".json")
+	// 	for _, script := range scripts {
+	// 		gou.LoadModel(string(script.Content), script.Name)
+	// 	}
+	// }
 
 	// 加载Plugin
 	if strings.HasPrefix(app.Plugins, "fs://") || !strings.Contains(app.Plugins, "://") {

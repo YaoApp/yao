@@ -1,16 +1,13 @@
 package flow
 
 import (
-	"fmt"
-
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
 )
 
-// Load 加载API
+// Load 加载业务逻辑编排
 func Load(cfg config.Config) {
-	fmt.Println(cfg.RootFLow)
 	LoadFrom(cfg.RootFLow, "")
 }
 
