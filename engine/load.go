@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/flow"
 	"github.com/yaoapp/xiang/model"
+	"github.com/yaoapp/xiang/plugin"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 )
@@ -26,9 +27,11 @@ func Load(cfg config.Config) {
 	app.Load(cfg) // 加载应用信息
 
 	LoadEngine(cfg.Path)
-	model.Load(cfg) // 加载数据模型
-	api.Load(cfg)   // 加载API
-	flow.Load(cfg)  // 加载Flow
+	model.Load(cfg)  // 加载数据模型 model
+	api.Load(cfg)    // 加载业务接口 API
+	flow.Load(cfg)   // 加载业务逻辑 Flow
+	plugin.Load(cfg) // 加载业务插件 plugin
+
 	LoadApp(share.AppRoot{
 		APIs:    cfg.RootAPI,
 		Flows:   cfg.RootFLow,
@@ -169,13 +172,13 @@ func LoadApp(app share.AppRoot) {
 	// }
 
 	// 加载Plugin
-	if strings.HasPrefix(app.Plugins, "fs://") || !strings.Contains(app.Plugins, "://") {
-		root := strings.TrimPrefix(app.Plugins, "fs://")
-		scripts := share.GetAppPlugins(root, ".so")
-		for _, script := range scripts {
-			gou.LoadPlugin(script.File, script.Name)
-		}
-	}
+	// if strings.HasPrefix(app.Plugins, "fs://") || !strings.Contains(app.Plugins, "://") {
+	// 	root := strings.TrimPrefix(app.Plugins, "fs://")
+	// 	scripts := share.GetAppPlugins(root, ".so")
+	// 	for _, script := range scripts {
+	// 		gou.LoadPlugin(script.File, script.Name)
+	// 	}
+	// }
 
 	// 加载Table
 	if strings.HasPrefix(app.Tables, "fs://") || !strings.Contains(app.Tables, "://") {

@@ -1,4 +1,25 @@
 package plugin
 
-// Load 加载应用插件
-func Load(filepath string) {}
+import (
+	"github.com/yaoapp/gou"
+	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/share"
+)
+
+// Load 加载数据模型
+func Load(cfg config.Config) {
+	LoadFrom(cfg.RootPlugin, "")
+}
+
+// LoadFrom 从特定目录加载
+func LoadFrom(dir string, prefix string) {
+
+	if share.DirNotExists(dir) {
+		return
+	}
+
+	share.Walk(dir, ".so", func(root, filename string) {
+		name := share.SpecName(root, filename)
+		gou.LoadPlugin(filename, name)
+	})
+}
