@@ -9,14 +9,34 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
 )
 
 // Tables 已载入模型
 var Tables = map[string]*Table{}
 
-// Load 载入数据表格
-func Load(source string, name string) *Table {
+// Load 加载数据表格
+func Load(cfg config.Config) {
+	LoadFrom(cfg.RootTable, "")
+}
+
+// LoadFrom 从特定目录加载
+func LoadFrom(dir string, prefix string) {
+
+	if share.DirNotExists(dir) {
+		return
+	}
+
+	share.Walk(dir, ".json", func(root, filename string) {
+		name := share.SpecName(root, filename)
+		content := share.ReadFile(filename)
+		LoadTable(string(content), name)
+	})
+}
+
+// LoadTable 载入数据表格
+func LoadTable(source string, name string) *Table {
 	var input io.Reader = nil
 	if strings.HasPrefix(source, "file://") || strings.HasPrefix(source, "fs://") {
 		filename := strings.TrimPrefix(source, "file://")
@@ -61,7 +81,7 @@ func Select(name string) *Table {
 
 // Reload 更新数据表格配置
 func (table *Table) Reload() *Table {
-	*table = *Load(table.Source, table.Name)
+	*table = *LoadTable(table.Source, table.Name)
 	return table
 }
 

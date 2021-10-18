@@ -2,9 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/yaoapp/gou"
@@ -25,23 +22,24 @@ func Load(cfg config.Config) {
 	share.DBConnect(cfg.Database) // 创建数据库连接
 
 	app.Load(cfg) // 加载应用信息
-
 	LoadEngine(cfg.Path)
+
 	model.Load(cfg)  // 加载数据模型 model
 	api.Load(cfg)    // 加载业务接口 API
 	flow.Load(cfg)   // 加载业务逻辑 Flow
 	plugin.Load(cfg) // 加载业务插件 plugin
+	table.Load(cfg)  // 加载数据表格 table
 
-	LoadApp(share.AppRoot{
-		APIs:    cfg.RootAPI,
-		Flows:   cfg.RootFLow,
-		Models:  cfg.RootModel,
-		Plugins: cfg.RootPlugin,
-		Tables:  cfg.RootTable,
-		Charts:  cfg.RootChart,
-		Screens: cfg.RootScreen,
-		Data:    cfg.RootData,
-	})
+	// LoadApp(share.AppRoot{
+	// 	APIs:    cfg.RootAPI,
+	// 	Flows:   cfg.RootFLow,
+	// 	Models:  cfg.RootModel,
+	// 	Plugins: cfg.RootPlugin,
+	// 	Tables:  cfg.RootTable,
+	// 	Charts:  cfg.RootChart,
+	// 	Screens: cfg.RootScreen,
+	// 	Data:    cfg.RootData,
+	// })
 
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")
@@ -113,7 +111,7 @@ func LoadEngine(from string) {
 	for _, script := range scripts {
 		switch script.Type {
 		case "tables":
-			table.Load(string(script.Content), "xiang."+script.Name)
+			table.LoadTable(string(script.Content), "xiang."+script.Name)
 			break
 		}
 	}
@@ -125,23 +123,23 @@ func LoadApp(app share.AppRoot) {
 	// api string, flow string, model string, plugin string
 	// 创建应用目录
 	// paths := []string{app.APIs, app.Flows, app.Models, app.Plugins, app.Charts, app.Tables, app.Screens, app.Data}
-	paths := []string{app.Flows, app.Models, app.Plugins, app.Charts, app.Tables, app.Screens, app.Data}
-	for _, p := range paths {
-		if !strings.HasPrefix(p, "fs://") && strings.Contains(p, "://") {
-			continue
-		}
-		root, err := filepath.Abs(strings.TrimPrefix(p, "fs://"))
-		if err != nil {
-			log.Panicf("创建目录失败(%s) %s", root, err)
-		}
+	// paths := []string{app.Flows, app.Models, app.Plugins, app.Charts, app.Tables, app.Screens, app.Data}
+	// for _, p := range paths {
+	// 	if !strings.HasPrefix(p, "fs://") && strings.Contains(p, "://") {
+	// 		continue
+	// 	}
+	// 	root, err := filepath.Abs(strings.TrimPrefix(p, "fs://"))
+	// 	if err != nil {
+	// 		log.Panicf("创建目录失败(%s) %s", root, err)
+	// 	}
 
-		if _, err := os.Stat(root); os.IsNotExist(err) {
-			err := os.MkdirAll(root, os.ModePerm)
-			if err != nil {
-				log.Panicf("创建目录失败(%s) %s", root, err)
-			}
-		}
-	}
+	// 	if _, err := os.Stat(root); os.IsNotExist(err) {
+	// 		err := os.MkdirAll(root, os.ModePerm)
+	// 		if err != nil {
+	// 			log.Panicf("创建目录失败(%s) %s", root, err)
+	// 		}
+	// 	}
+	// }
 
 	// // 加载API
 	// if strings.HasPrefix(app.APIs, "fs://") || !strings.Contains(app.APIs, "://") {
@@ -181,13 +179,13 @@ func LoadApp(app share.AppRoot) {
 	// }
 
 	// 加载Table
-	if strings.HasPrefix(app.Tables, "fs://") || !strings.Contains(app.Tables, "://") {
-		root := strings.TrimPrefix(app.Tables, "fs://")
-		scripts := share.GetAppFilesFS(root, ".json")
-		for _, script := range scripts {
-			// 验证API 加载逻辑
-			table.Load(string(script.Content), script.Name)
-		}
-	}
+	// if strings.HasPrefix(app.Tables, "fs://") || !strings.Contains(app.Tables, "://") {
+	// 	root := strings.TrimPrefix(app.Tables, "fs://")
+	// 	scripts := share.GetAppFilesFS(root, ".json")
+	// 	for _, script := range scripts {
+	// 		// 验证API 加载逻辑
+	// 		table.Load(string(script.Content), script.Name)
+	// 	}
+	// }
 
 }

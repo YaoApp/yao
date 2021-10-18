@@ -149,7 +149,7 @@ func watchEngine(from string) {
 		}
 		if op == "write" || op == "create" {
 			script := share.GetFile(root, file)
-			table.Load(string(script.Content), "xiang."+script.Name) // Reload
+			table.LoadTable(string(script.Content), "xiang."+script.Name) // Reload
 			api, has := gou.APIs["xiang.table"]
 			if has {
 				api.Reload()
@@ -202,7 +202,7 @@ func watchAppTable(rootTable string) {
 
 		if op == "write" || op == "create" {
 			script := share.GetAppFile(root, file)
-			table.Load(string(script.Content), script.Name) // Reload
+			table.LoadTable(string(script.Content), script.Name) // Reload
 			api, has := gou.APIs["xiang.table"]
 			if has {
 				api.Reload()

@@ -6,7 +6,7 @@ import (
 	"github.com/yaoapp/xiang/share"
 )
 
-// Load 加载数据模型
+// Load 加载业务插件
 func Load(cfg config.Config) {
 	LoadFrom(cfg.RootPlugin, "")
 }

@@ -1,4 +1,4 @@
-package engine
+package table
 
 import (
 	"testing"
@@ -7,10 +7,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/xiang/table"
+	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/model"
+	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xun/capsule"
 )
 
+func init() {
+	share.DBConnect(config.Conf.Database)
+	model.Load(config.Conf)
+	Load(config.Conf)
+}
 func TestTableProcessSearch(t *testing.T) {
 
 	args := []interface{}{
@@ -25,7 +32,7 @@ func TestTableProcessSearch(t *testing.T) {
 		&gin.Context{},
 	}
 	process := gou.NewProcess("xiang.table.Search", args...)
-	response := table.ProcessSearch(process)
+	response := ProcessSearch(process)
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
 	assert.True(t, res.Has("data"))
@@ -46,7 +53,7 @@ func TestTableProcessFind(t *testing.T) {
 		&gin.Context{},
 	}
 	process := gou.NewProcess("xiang.table.Find", args...)
-	response := table.ProcessFind(process)
+	response := ProcessFind(process)
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
 	assert.Equal(t, any.Of(res.Get("id")).CInt(), 1)
@@ -64,7 +71,7 @@ func TestTableProcessSave(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Save", args...)
-	response := table.ProcessSave(process)
+	response := ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
@@ -86,7 +93,7 @@ func TestTableProcessDelete(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Save", args...)
-	response := table.ProcessSave(process)
+	response := ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
@@ -96,7 +103,7 @@ func TestTableProcessDelete(t *testing.T) {
 		id,
 	}
 	process = gou.NewProcess("xiang.table.Delete", args...)
-	response = table.ProcessDelete(process)
+	response = ProcessDelete(process)
 	assert.Nil(t, response)
 
 	// 清空数据
@@ -113,7 +120,7 @@ func TestTableProcessInsert(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Insert", args...)
-	response := table.ProcessInsert(process)
+	response := ProcessInsert(process)
 	assert.Nil(t, response)
 
 	// 清空数据
@@ -132,7 +139,7 @@ func TestTableProcessDeleteWhere(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Save", args...)
-	response := table.ProcessSave(process)
+	response := ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
@@ -146,7 +153,7 @@ func TestTableProcessDeleteWhere(t *testing.T) {
 		},
 	}
 	process = gou.NewProcess("xiang.table.DeleteWhere", args...)
-	response = table.ProcessDeleteWhere(process)
+	response = ProcessDeleteWhere(process)
 
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
@@ -168,7 +175,7 @@ func TestTableProcessDeleteIn(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Save", args...)
-	response := table.ProcessSave(process)
+	response := ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
@@ -179,7 +186,7 @@ func TestTableProcessDeleteIn(t *testing.T) {
 		"id",
 	}
 	process = gou.NewProcess("xiang.table.DeleteIn", args...)
-	response = table.ProcessDeleteIn(process)
+	response = ProcessDeleteIn(process)
 
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
@@ -201,7 +208,7 @@ func TestTableProcessUpdateWhere(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Save", args...)
-	response := table.ProcessSave(process)
+	response := ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
@@ -218,7 +225,7 @@ func TestTableProcessUpdateWhere(t *testing.T) {
 		},
 	}
 	process = gou.NewProcess("xiang.table.UpdateWhere", args...)
-	response = table.ProcessUpdateWhere(process)
+	response = ProcessUpdateWhere(process)
 
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
@@ -240,7 +247,7 @@ func TestTableProcessUpdateIn(t *testing.T) {
 		},
 	}
 	process := gou.NewProcess("xiang.table.Save", args...)
-	response := table.ProcessSave(process)
+	response := ProcessSave(process)
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
@@ -254,7 +261,7 @@ func TestTableProcessUpdateIn(t *testing.T) {
 		},
 	}
 	process = gou.NewProcess("xiang.table.UpdateIn", args...)
-	response = table.ProcessUpdateIn(process)
+	response = ProcessUpdateIn(process)
 
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
@@ -267,7 +274,7 @@ func TestTableProcessUpdateIn(t *testing.T) {
 func TestTableProcessSetting(t *testing.T) {
 	args := []interface{}{"service", ""}
 	process := gou.NewProcess("xiang.table.Setting", args...)
-	response := table.ProcessSetting(process)
+	response := ProcessSetting(process)
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
 	assert.Equal(t, res.Get("name"), "云服务库")
@@ -283,7 +290,7 @@ func TestTableProcessSetting(t *testing.T) {
 func TestTableProcessSettingList(t *testing.T) {
 	args := []interface{}{"service", "list"}
 	process := gou.NewProcess("xiang.table.Setting", args...)
-	response := table.ProcessSetting(process)
+	response := ProcessSetting(process)
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
 	assert.True(t, res.Has("actions"))
@@ -294,7 +301,7 @@ func TestTableProcessSettingList(t *testing.T) {
 func TestTableProcessSettingListEdit(t *testing.T) {
 	args := []interface{}{"service", "list, edit"}
 	process := gou.NewProcess("xiang.table.Setting", args...)
-	response := table.ProcessSetting(process)
+	response := ProcessSetting(process)
 	assert.NotNil(t, response)
 	res := any.Of(response).MapStr().Dot()
 	assert.True(t, res.Has("list.actions"))
