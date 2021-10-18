@@ -11,7 +11,7 @@ env:
   XIANG_MODE: debug
   XIANG_SOURCE: ${{ github.WORKSPACE }}
   XIANG_ROOT: ${{ github.WORKSPACE }}/tests
-  XIANG_ROOT_PLUGIN: ${{ github.GITHUB_WORKSPACE }}/../../../data/gou-unit/plugins
+  XIANG_ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
 
   # 服务配置
   XIANG_SERVICE_DEBUG: true
