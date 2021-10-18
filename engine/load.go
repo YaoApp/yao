@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/xiang/api"
 	"github.com/yaoapp/xiang/app"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/flow"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 	"github.com/yaoapp/xun/capsule"
@@ -22,7 +23,8 @@ func Load(cfg config.Config) {
 	app.Load(cfg) // 加载应用信息
 	DBConnect(cfg.Database)
 	LoadEngine(cfg.Path)
-	api.Load(cfg) // 加载API
+	api.Load(cfg)  // 加载API
+	flow.Load(cfg) // 加载Flow
 	LoadApp(share.AppRoot{
 		APIs:    cfg.RootAPI,
 		Flows:   cfg.RootFLow,
@@ -144,14 +146,14 @@ func LoadApp(app share.AppRoot) {
 	// 	}
 	// }
 
-	// 加载Flow
-	if strings.HasPrefix(app.Flows, "fs://") || !strings.Contains(app.Flows, "://") {
-		root := strings.TrimPrefix(app.Flows, "fs://")
-		scripts := share.GetAppFilesFS(root, ".json")
-		for _, script := range scripts {
-			gou.LoadFlow(string(script.Content), script.Name)
-		}
-	}
+	// // 加载Flow
+	// if strings.HasPrefix(app.Flows, "fs://") || !strings.Contains(app.Flows, "://") {
+	// 	root := strings.TrimPrefix(app.Flows, "fs://")
+	// 	scripts := share.GetAppFilesFS(root, ".json")
+	// 	for _, script := range scripts {
+	// 		gou.LoadFlow(string(script.Content), script.Name)
+	// 	}
+	// }
 
 	// 加载Model
 	if strings.HasPrefix(app.Models, "fs://") || !strings.Contains(app.Models, "://") {
