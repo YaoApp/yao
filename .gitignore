@@ -19,4 +19,4 @@
 dist
 ui
 ^ui/index.html
-app/data/*/*
+tests/data/*/*

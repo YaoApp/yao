@@ -86,16 +86,16 @@ plugin:
 	rm -rf $(HOME)/data/gou-unit/logs
 	mkdir -p $(HOME)/data/gou-unit/plugins
 	mkdir -p $(HOME)/data/gou-unit/logs
-	GOOS=linux GOARCH=amd64 go build -o $(HOME)/data/gou-unit/plugins/user.so ./app/plugins/user
+	GOOS=linux GOARCH=amd64 go build -o $(HOME)/data/gou-unit/plugins/user.so ./tests/plugins/user
 	chmod +x $(HOME)/data/gou-unit/plugins/user.so
 	ls -l $(HOME)/data/gou-unit/plugins
 	ls -l $(HOME)/data/gou-unit/logs
 	$(HOME)/data/gou-unit/plugins/user.so 2>&1 || true
 plugin-mac: 
-	rm -rf ./app/plugins/user/dist
-	rm -rf ./app/plugins/user.so
-	go build -o ./app/plugins/user.so ./app/plugins/user
-	chmod +x ./app/plugins/user.so
+	rm -rf ./tests/plugins/user/dist
+	rm -rf ./tests/plugins/user.so
+	go build -o ./tests/plugins/user.so ./tests/plugins/user
+	chmod +x ./tests/plugins/user.so
 
 # 编译静态文件
 .PHONY: static
