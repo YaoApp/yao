@@ -62,5 +62,5 @@ type Page struct {
 type Render struct {
 	Type       string                 `json:"type,omitempty"`
 	Props      map[string]interface{} `json:"props,omitempty"`
-	Components []interface{}          `json:"components,omitempty"`
+	Components map[string]interface{} `json:"components,omitempty"`
 }
