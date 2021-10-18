@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/entry"
+	"github.com/yaoapp/xiang/engine"
 )
 
 var name string
@@ -18,7 +18,7 @@ var migrateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		Boot()
 		// 加载数据模型
-		entry.Load(config.Conf)
+		engine.Load(config.Conf)
 
 		if name != "" {
 			mod, has := gou.Models[name]

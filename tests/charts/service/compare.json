@@ -1,0 +1,63 @@
+{
+  "engine": "gou",
+  "name": "指标对比",
+  "version": "1.0.0",
+  "decription": "指标对比",
+  "nodes": [
+    {
+      "name": "行业分布",
+      "process": "models.service.get",
+      "query": {
+        "select": ["city", ":COUNT(id) as cnt", "@industries.$ as industry"],
+        "wheres": [
+          { "column": "created_at", "value": "{{$query.from}}", "op": "ge" },
+          { "column": "created_at", "value": "{{$query.to}}", "op": "le" }
+        ],
+        "order": ["cnt.desc"],
+        "limit": 100,
+        "group": ["@industries.$", "city"]
+      }
+    },
+    {
+      "name": "计费方式",
+      "process": "models.service.get",
+      "query": {
+        "select": ["city", ":COUNT(id) as cnt", "@price_options.$ as option"],
+        "wheres": [
+          { "column": "created_at", "value": "{{$query.from}}", "op": "ge" },
+          { "column": "created_at", "value": "{{$query.to}}", "op": "le" }
+        ],
+        "order": ["cnt.desc"],
+        "limit": 100,
+        "group": ["@price_options.$", "city"]
+      }
+    },
+    {
+      "name": "合并结果",
+      "process": "xiang.chart.MergeData",
+      "args": [
+        ["城市", "行业", "计费"],
+        {
+          "行业": { "key": "city", "values": "{{$res.行业分布[*].industry}}" },
+          "计费": { "key": "city", "values": "{{$res.计费方式[*].option}}" }
+        }
+      ]
+    }
+  ],
+  "data": "{{$res.合并结果}}",
+  "filters": {},
+  "page": {
+    "primary": "城市",
+    "layout": {
+      "filters": [
+        { "name": "开始时间", "width": 6 },
+        { "name": "结束时间", "width": 6 }
+      ],
+      "charts": [
+        { "type": "line", "props": {} },
+        { "type": "bar", "props": {} }
+      ]
+    },
+    "actions": {}
+  }
+}

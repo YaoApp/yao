@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/entry"
+	"github.com/yaoapp/xiang/engine"
 	"github.com/yaoapp/xiang/service"
 	"github.com/yaoapp/xiang/share"
 )
@@ -32,7 +32,7 @@ var startCmd = &cobra.Command{
 		fmt.Printf(color.GreenString("\n象传应用引擎 v%s %s", share.VERSION, mode))
 
 		// 加载数据模型 API 等
-		entry.Load(config.Conf)
+		engine.Load(config.Conf)
 
 		// 打印应用目录信息
 		fmt.Printf(color.WhiteString("\n---------------------------------"))

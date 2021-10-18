@@ -1,8 +1,0 @@
-{
-  "name": "厂商接口",
-  "version": "1.0.0",
-  "description": "厂商API",
-  "group": "manu",
-  "guard": "bearer-jwt",
-  "paths": []
-}
