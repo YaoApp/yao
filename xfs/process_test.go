@@ -54,6 +54,6 @@ func TestProcessGetToken(t *testing.T) {
 
 	// 上传字符串。
 	now := fmt.Sprintf("%d", time.Now().UnixNano())
-	err = bucket.PutObject("xiang/unit-test.txt", strings.NewReader(now))
+	err = bucket.PutObject("xiang/unit-test."+now+".txt", strings.NewReader(now))
 	assert.Nil(t, err)
 }
