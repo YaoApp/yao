@@ -170,7 +170,7 @@
       "label": "计费方式",
       "view": {
         "name": "xxxxx",
-        "components": ["计费方式", "行业覆盖"]
+        "components": { "label": {}, "image": {} }
       }
     },
     "计费方式": {
