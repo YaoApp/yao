@@ -1,35 +1,37 @@
 {
   "engine": "gou",
-  "name": "指标对比",
+  "label": "指标对比",
   "version": "1.0.0",
   "decription": "指标对比",
   "nodes": [
     {
       "name": "行业分布",
-      "process": "models.service.get",
+      "engine": "xiang",
       "query": {
-        "select": ["city", ":COUNT(id) as cnt", "@industries.$ as industry"],
+        "select": ["city", ":COUNT(id) as cnt", "industries[*] as industry"],
+        "from": "$service",
         "wheres": [
-          { "column": "created_at", "value": "{{$query.from}}", "op": "ge" },
-          { "column": "created_at", "value": "{{$query.to}}", "op": "le" }
+          { "field": "created_at", ">": "?:$in.from" },
+          { "field": "created_at", "<": "?:$in.to" }
         ],
-        "order": ["cnt.desc"],
+        "order": "cnt desc",
         "limit": 100,
-        "group": ["@industries.$", "city"]
+        "group": ["industries[*]", "city"]
       }
     },
     {
       "name": "计费方式",
-      "process": "models.service.get",
+      "engine": "xiang",
       "query": {
-        "select": ["city", ":COUNT(id) as cnt", "@price_options.$ as option"],
+        "select": ["city", ":COUNT(id) as cnt", "price_options[*] as option"],
+        "from": "$service",
         "wheres": [
-          { "column": "created_at", "value": "{{$query.from}}", "op": "ge" },
-          { "column": "created_at", "value": "{{$query.to}}", "op": "le" }
+          { "field": "created_at", ">": "?:$in.from" },
+          { "field": "created_at", "<": "?:$in.to" }
         ],
-        "order": ["cnt.desc"],
+        "order": "cnt desc",
         "limit": 100,
-        "group": ["@price_options.$", "city"]
+        "group": ["price_options[*]", "city"]
       }
     },
     {
@@ -44,7 +46,7 @@
       ]
     }
   ],
-  "data": "{{$res.合并结果}}",
+  "output": "{{$res.合并结果}}",
   "filters": {},
   "page": {
     "primary": "城市",
