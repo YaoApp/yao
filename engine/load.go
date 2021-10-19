@@ -8,10 +8,12 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/api"
 	"github.com/yaoapp/xiang/app"
+	"github.com/yaoapp/xiang/chart"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/flow"
 	"github.com/yaoapp/xiang/model"
 	"github.com/yaoapp/xiang/plugin"
+	"github.com/yaoapp/xiang/query"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 )
@@ -23,12 +25,14 @@ func Load(cfg config.Config) {
 
 	app.Load(cfg) // 加载应用信息
 	LoadEngine(cfg.Path)
+	query.Load(cfg) // 加载数据分析引擎
 
 	model.Load(cfg)  // 加载数据模型 model
 	api.Load(cfg)    // 加载业务接口 API
 	flow.Load(cfg)   // 加载业务逻辑 Flow
 	plugin.Load(cfg) // 加载业务插件 plugin
 	table.Load(cfg)  // 加载数据表格 table
+	chart.Load(cfg)  // 加载分析图表 chart
 
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")

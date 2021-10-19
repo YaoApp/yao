@@ -9,7 +9,7 @@
       "path": "/:name/data",
       "method": "GET",
       "process": "xiang.chart.Data",
-      "in": ["$param.name", ":query-param"],
+      "in": ["$param.name", ":query"],
       "out": {
         "status": 200,
         "type": "application/json"
