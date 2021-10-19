@@ -1,5 +1,7 @@
 package share
 
+import "github.com/yaoapp/kun/maps"
+
 // API API 配置数据结构
 type API struct {
 	Name    string        `json:"-"`
@@ -37,4 +39,53 @@ type Render struct {
 	Type       string                 `json:"type,omitempty"`
 	Props      map[string]interface{} `json:"props,omitempty"`
 	Components map[string]interface{} `json:"components,omitempty"`
+}
+
+// AppInfo 应用信息
+type AppInfo struct {
+	Name        string                 `json:"name,omitempty"`
+	Short       string                 `json:"short,omitempty"`
+	Version     string                 `json:"version,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Icons       maps.MapStrSync        `json:"icons,omitempty"`
+	Storage     AppStorage             `json:"storage,omitempty"`
+	Option      map[string]interface{} `json:"option,omitempty"`
+}
+
+// AppStorage 应用存储
+type AppStorage struct {
+	Default string                 `json:"default"`
+	Buckets map[string]string      `json:"buckets,omitempty"`
+	S3      map[string]interface{} `json:"s3,omitempty"`
+	OSS     *AppStorageOSS         `json:"oss,omitempty"`
+	COS     map[string]interface{} `json:"cos,omitempty"`
+}
+
+// AppStorageOSS 阿里云存储
+type AppStorageOSS struct {
+	Endpoint    string `json:"endpoint,omitempty"`
+	ID          string `json:"id,omitempty"`
+	Secret      string `json:"secret,omitempty"`
+	RoleArn     string `json:"roleArn,omitempty"`
+	SessionName string `json:"sessionName,omitempty"`
+}
+
+// Script 脚本文件类型
+type Script struct {
+	Name    string
+	Type    string
+	Content []byte
+	File    string
+}
+
+// AppRoot 应用目录
+type AppRoot struct {
+	APIs    string
+	Flows   string
+	Models  string
+	Plugins string
+	Tables  string
+	Charts  string
+	Screens string
+	Data    string
 }
