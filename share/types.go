@@ -6,6 +6,7 @@ import "github.com/yaoapp/kun/maps"
 type API struct {
 	Name    string        `json:"-"`
 	Source  string        `json:"-"`
+	Disable bool          `json:"disable,omitempty"`
 	Process string        `json:"process,omitempty"`
 	Guard   string        `json:"guard,omitempty"`
 	Default []interface{} `json:"default,omitempty"`

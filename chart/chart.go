@@ -1,7 +1,10 @@
 package chart
 
 import (
+	"fmt"
+
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
@@ -36,7 +39,11 @@ func LoadFrom(dir string, prefix string) {
 
 // LoadChart 载入数据表格
 func LoadChart(source []byte, name string) (*Chart, error) {
-	chart := Chart{}
+	chart := Chart{
+		Flow: gou.Flow{
+			Name: name,
+		},
+	}
 	err := jsoniter.Unmarshal(source, &chart)
 	if err != nil {
 		xlog.Println(name)
@@ -45,5 +52,24 @@ func LoadChart(source []byte, name string) (*Chart, error) {
 		return nil, err
 	}
 	chart.Prepare()
+	chart.SetupAPIs()
+
 	return &chart, nil
+}
+
+// Select 读取已加载图表
+func Select(name string) *Chart {
+	chart, has := Charts[name]
+	if !has {
+		exception.New(
+			fmt.Sprintf("Chart:%s; 尚未加载", name),
+			400,
+		).Throw()
+	}
+	return chart
+}
+
+// GetData 运行 flow 返回数值
+func (chart Chart) GetData(params map[string]interface{}) interface{} {
+	return chart.Flow.Exec(params)
 }
