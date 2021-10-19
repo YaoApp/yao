@@ -7,7 +7,7 @@ startMySQL() {
     echo "Start MySQL $VERSION"
     docker_run="$docker_run -e MYSQL_RANDOM_ROOT_PASSWORD=true -e MYSQL_USER=$INPUT_USER -e MYSQL_PASSWORD=$INPUT_PASSWORD"
     docker_run="$docker_run -e MYSQL_DATABASE=$INPUT_DB"
-    docker_run="$docker_run -d -p 3306:3306 mysql:$VERSION --port=3306"
+    docker_run="$docker_run -d -p 3306:3306 mysql:$VERSION --port=3306 --sql-mode=''"
     
     if [ "$VERSION" = "5.6" ]; then 
         docker_run="$docker_run --character-set-server=utf8 --collation-server=utf8_general_ci"
