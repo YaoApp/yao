@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xun"
 )
@@ -117,15 +118,35 @@ func processGetToken(process *gou.Process) interface{} {
 	return res.MapStrAny
 }
 
+// 临时
+const svg404 = `
+	<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+	<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+	<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="200" height="200" viewBox="0 0 200 200" xml:space="preserve">
+	<desc>Created with Fabric.js 4.2.0</desc>
+	<defs>
+	</defs>
+	<g transform="matrix(1 0 0 1 100 100)" id="5119fde9-97f8-4fee-9a96-c400a7cca9df"  >
+	<rect style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  x="-100" y="-100" rx="0" ry="0" width="200" height="200" />
+	</g>
+	<g transform="matrix(Infinity NaN NaN Infinity 0 0)" id="cea4fb49-00ad-46dc-9ce3-9126a7052542"  >
+	</g>
+	<g transform="matrix(0.67 0 0 0.67 100 100)" style="" id="076b642e-21e1-4732-b23b-3ee381fc6ace"  >
+			<text xml:space="preserve" font-family="Raleway" font-size="105" font-style="normal" font-weight="900" style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(0,0,0); fill-rule: nonzero; opacity: 1; white-space: pre;" ><tspan x="-93.77" y="32.98" >404</tspan></text>
+	</g>
+	</svg>
+`
+
 // processGetURL 返回文件CDN地址
 func processGetURL(process *gou.Process) interface{} {
-	process.ValidateArgNums(1)
+	if len(process.Args) < 1 {
+		return string(data.MustAsset("xiang/data/icons/404.png"))
+	}
+
 	filename := process.ArgsString(0)
-	// typ := process.ArgsString(1)
-	// stats, err := Stor.Stat(filename)
-	// if err != nil {
-	// 	exception.New("读取文件信息失败 %s", 500, err.Error()).Throw()
-	// }
-	body := Stor.MustReadFile(filename)
+	body, err := Stor.ReadFile(filename)
+	if err != nil {
+		return string(data.MustAsset("xiang/data/icons/404.png"))
+	}
 	return string(body)
 }
