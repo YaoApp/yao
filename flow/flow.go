@@ -19,8 +19,19 @@ func LoadFrom(dir string, prefix string) {
 	}
 
 	share.Walk(dir, ".json", func(root, filename string) {
-		name := share.SpecName(root, filename)
+		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		gou.LoadFlow(string(content), prefix+name)
+		gou.LoadFlow(string(content), name)
+	})
+
+	// Load Script
+	share.Walk(dir, ".js", func(root, filename string) {
+		name := prefix + share.SpecName(root, filename)
+		flow := gou.SelectFlow(name)
+		if flow != nil {
+			script := share.ScriptName(filename)
+			content := share.ReadFile(filename)
+			flow.LoadScript(string(content), script)
+		}
 	})
 }

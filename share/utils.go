@@ -38,6 +38,16 @@ func SpecName(root string, file string) string {
 	return name
 }
 
+// ScriptName 解析数据处理脚本名称
+func ScriptName(filename string) string {
+	filename = strings.TrimSuffix(filename, ".js")
+	namer := strings.Split(filename, ".") // ["foo/bar", "http", "json"]
+	if len(namer) < 2 {
+		return namer[0]
+	}
+	return namer[len(namer)-1]
+}
+
 // ReadFile 读取文件
 func ReadFile(filename string) []byte {
 	file, err := os.Open(filename)

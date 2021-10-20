@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/flow"
 	"github.com/yaoapp/xiang/model"
+	"github.com/yaoapp/xiang/page"
 	"github.com/yaoapp/xiang/plugin"
 	"github.com/yaoapp/xiang/query"
 	"github.com/yaoapp/xiang/share"
@@ -33,6 +34,7 @@ func Load(cfg config.Config) {
 	plugin.Load(cfg) // 加载业务插件 plugin
 	table.Load(cfg)  // 加载数据表格 table
 	chart.Load(cfg)  // 加载分析图表 chart
+	page.Load(cfg)   // 加载页面 page
 
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")

@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/chart"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/page"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 )
@@ -22,6 +23,7 @@ func Watch(cfg config.Config) {
 	WatchPlugin(cfg.RootPlugin)
 	WatchTable(cfg.RootTable, "")
 	WatchChart(cfg.RootChart, "")
+	WatchPage(cfg.RootPage, "")
 }
 
 // WatchEngine 监听监听引擎内建数据变更
@@ -114,13 +116,23 @@ func WatchFlow(root string, prefix string) {
 
 		if strings.HasSuffix(filename, ".js") {
 			name := prefix + share.SpecName(root, filename)
-			filename = name + ".flow.json"
+			name = strings.ReplaceAll(name, ".", "/")
+			filename = filepath.Join(root, name+".flow.json")
 		}
 
 		if op == "write" || op == "create" {
 			name := prefix + share.SpecName(root, filename)
 			content := share.ReadFile(filename)
-			gou.LoadFlow(string(content), name) // Reload
+			flow := gou.LoadFlow(string(content), name) // Reload
+			if flow != nil {                            // Reload Script
+				dir := filepath.Dir(filename)
+				share.Walk(dir, ".js", func(root, filename string) {
+					script := share.ScriptName(filename)
+					content := share.ReadFile(filename)
+					flow.LoadScript(string(content), script)
+				})
+			}
+
 			log.Printf("Flow %s 已重新加载完毕", name)
 
 		} else if op == "remove" || op == "rename" {
@@ -214,13 +226,22 @@ func WatchChart(root string, prefix string) {
 
 		if strings.HasSuffix(filename, ".js") {
 			name := prefix + share.SpecName(root, filename)
-			filename = name + ".chart.json"
+			name = strings.ReplaceAll(name, ".", "/")
+			filename = filepath.Join(root, name+".chart.json")
 		}
 
 		if op == "write" || op == "create" {
 			name := prefix + share.SpecName(root, filename)
 			content := share.ReadFile(filename)
-			chart.LoadChart(content, name) // Relaod
+			chart, _ := chart.LoadChart(content, name) // Relaod
+			if chart != nil {                          // Reload Script
+				dir := filepath.Dir(filename)
+				share.Walk(dir, ".js", func(root, filename string) {
+					script := share.ScriptName(filename)
+					content := share.ReadFile(filename)
+					chart.LoadScript(string(content), script)
+				})
+			}
 
 			api, has := gou.APIs["xiang.chart"]
 			if has {
@@ -234,6 +255,60 @@ func WatchChart(root string, prefix string) {
 			if _, has := chart.Charts[name]; has {
 				delete(chart.Charts, name)
 				log.Printf("Chart %s 已经移除", name)
+			}
+		}
+
+		// 重启服务器
+		if op == "write" || op == "create" || op == "remove" || op == "rename" {
+			Stop(func() {
+				log.Printf("服务器重启完毕")
+				go Start()
+			})
+		}
+	})
+}
+
+// WatchPage 监听页面更新
+func WatchPage(root string, prefix string) {
+	if share.DirNotExists(root) {
+		return
+	}
+	root = share.DirAbs(root)
+	go share.Watch(root, func(op string, filename string) {
+		if !strings.HasSuffix(filename, ".json") && !strings.HasSuffix(filename, ".js") {
+			return
+		}
+
+		if strings.HasSuffix(filename, ".js") {
+			name := prefix + share.SpecName(root, filename)
+			name = strings.ReplaceAll(name, ".", "/")
+			filename = filepath.Join(root, name+".page.json")
+		}
+
+		if op == "write" || op == "create" {
+			name := prefix + share.SpecName(root, filename)
+			content := share.ReadFile(filename)
+			page, _ := page.LoadPage(content, name) // Relaod
+			if page != nil {                        // Reload Script
+				dir := filepath.Dir(filename)
+				share.Walk(dir, ".js", func(root, filename string) {
+					script := share.ScriptName(filename)
+					content := share.ReadFile(filename)
+					page.LoadScript(string(content), script)
+				})
+			}
+
+			api, has := gou.APIs["xiang.page"]
+			if has {
+				api.Reload() // 重载API
+			}
+			log.Printf("Page %s 已重新加载完毕", name)
+
+		} else if op == "remove" || op == "rename" {
+			name := prefix + share.SpecName(root, filename)
+			if _, has := page.Pages[name]; has {
+				delete(page.Pages, name)
+				log.Printf("Page %s 已经移除", name)
 			}
 		}
 
