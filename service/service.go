@@ -2,6 +2,7 @@ package service
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou"
@@ -53,11 +54,8 @@ func router() *gin.Engine {
 	})
 
 	// 数据管理后台
-	router.Any("/xiang", func(c *gin.Context) {
-		html := data.MustAsset("ui/index.html")
-		c.String(200, string(html))
-	})
-	router.Any("/xiang/*action", func(c *gin.Context) {
+	router.Any("/xiang/*path", func(c *gin.Context) {
+		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/xiang")
 		AdminFileServer.ServeHTTP(c.Writer, c.Request)
 	})
 
