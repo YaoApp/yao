@@ -54,6 +54,10 @@ func router() *gin.Engine {
 
 	// 数据管理后台
 	router.Any("/xiang", func(c *gin.Context) {
+		html := data.MustAsset("ui/index.html")
+		c.String(200, string(html))
+	})
+	router.Any("/xiang/*action", func(c *gin.Context) {
 		AdminFileServer.ServeHTTP(c.Writer, c.Request)
 	})
 
