@@ -150,6 +150,7 @@ release: clean
 
 #	UI制品
 	git clone https://github.com/YaoApp/xiang-ui .tmp/ui
+	sed "s/defineConfig({/defineConfig({base:'\/xiang\/',/g" .tmp/ui/.umirc.ts
 	cd .tmp/ui && yarn install && yarn build
 	rm -rf dist/release/ui
 	mv .tmp/ui/dist dist/release/ui
