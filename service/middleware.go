@@ -6,12 +6,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/share"
 )
 
-// FileServer 静态服务
-var FileServer http.Handler = http.FileServer(data.AssetFS())
+// AdminFileServer 数据管理平台
+var AdminFileServer http.Handler = http.FileServer(data.AssetFS())
+
+// AppFileServer 应用管理平台
+var AppFileServer http.Handler = http.FileServer(http.Dir(config.Conf.RootUI))
 
 // Middlewares 服务中间件
 var Middlewares = []gin.HandlerFunc{
@@ -38,12 +42,18 @@ func BindDomain(c *gin.Context) {
 
 // BinStatic 静态文件服务
 func BinStatic(c *gin.Context) {
-	if len(c.Request.URL.Path) >= 5 && c.Request.URL.Path[0:5] == "/api/" {
+
+	if len(c.Request.URL.Path) >= 5 && c.Request.URL.Path[0:5] == "/api/" { // API接口
 		c.Next()
+		return
+
+	} else if len(c.Request.URL.Path) >= 7 && c.Request.URL.Path[0:7] == "/xiang/" { // 数据管理后台
+		AdminFileServer.ServeHTTP(c.Writer, c.Request)
+		c.Abort()
 		return
 	}
 
-	// 静态文件请求
-	FileServer.ServeHTTP(c.Writer, c.Request)
+	// 应用静态文件请求
+	AppFileServer.ServeHTTP(c.Writer, c.Request)
 	c.Abort()
 }

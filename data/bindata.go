@@ -14,6 +14,7 @@
 // .tmp/data/xiang/data/icons/icon.icns
 // .tmp/data/xiang/data/icons/icon.ico
 // .tmp/data/xiang/data/icons/icon.png
+// .tmp/data/xiang/data/index.html
 // .tmp/data/xiang/flows/README.md
 // .tmp/data/xiang/flows/menu.flow.json
 // .tmp/data/xiang/flows/table/get.flow.json
@@ -201,7 +202,7 @@ func uiIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "ui/index.html", size: 14, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "ui/index.html", size: 14, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -221,7 +222,7 @@ func xiangDs_store() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/.DS_Store", size: 6148, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/.DS_Store", size: 6148, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -241,7 +242,7 @@ func xiangApisReadmeMd() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/apis/README.md", size: 13, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/apis/README.md", size: 13, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -261,7 +262,7 @@ func xiangApisChartHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/apis/chart.http.json", size: 624, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/apis/chart.http.json", size: 624, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -281,7 +282,7 @@ func xiangApisStorageHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/apis/storage.http.json", size: 1092, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/apis/storage.http.json", size: 1092, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -301,7 +302,7 @@ func xiangApisTableHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/apis/table.http.json", size: 2632, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/apis/table.http.json", size: 2632, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -321,7 +322,7 @@ func xiangApisUserHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/apis/user.http.json", size: 1453, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/apis/user.http.json", size: 1453, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -341,7 +342,7 @@ func xiangApisXiangHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/apis/xiang.http.json", size: 797, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/apis/xiang.http.json", size: 797, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -361,7 +362,7 @@ func xiangDataAppJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/data/app.json", size: 245, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/data/app.json", size: 245, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -381,7 +382,7 @@ func xiangDataIconsDs_store() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/data/icons/.DS_Store", size: 6148, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/data/icons/.DS_Store", size: 6148, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -401,7 +402,7 @@ func xiangDataIcons404Png() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/data/icons/404.png", size: 9342, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/data/icons/404.png", size: 9342, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -421,7 +422,7 @@ func xiangDataIconsIconIcns() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/data/icons/icon.icns", size: 75636, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/data/icons/icon.icns", size: 75636, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -441,7 +442,7 @@ func xiangDataIconsIconIco() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/data/icons/icon.ico", size: 31310, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/data/icons/icon.ico", size: 31310, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -461,7 +462,27 @@ func xiangDataIconsIconPng() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/data/icons/icon.png", size: 22420, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/data/icons/icon.png", size: 22420, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _xiangDataIndexHtml = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x4c\x90\xb1\x4a\x04\x31\x10\x86\xfb\x7b\x8a\x31\xb5\xbb\xd1\x4e\x24\xd9\x52\xb0\xd7\x07\x88\xd9\x91\x84\xcb\x26\x67\x32\x6c\x10\x6c\x6d\x05\xf1\x04\xed\xb4\xd2\x4a\xb0\x3d\xce\xb7\x71\xf7\x7c\x0c\x59\xc3\xe1\x75\x33\xfc\xf0\x7d\x3f\xbf\x30\xd4\xb9\x66\x06\x20\x0c\xaa\x76\x3a\x00\x44\x87\xa4\x40\x1b\x15\x13\x92\x64\xe7\x67\x27\xd5\x11\x03\xbe\x1b\x7a\xd5\xa1\x64\xbd\xc5\xbc\x08\x91\x18\xe8\xe0\x09\x3d\x49\x96\x6d\x4b\x46\xb6\xd8\x5b\x8d\xd5\xdf\xb3\x0f\xd6\x5b\xb2\xca\x55\x49\x2b\x87\xf2\xb0\x3e\xf8\x87\x91\x25\x87\xcd\xcf\xe7\xeb\xf7\xfa\x65\x7c\x5e\x8d\xb7\x6f\x70\x03\xf6\x6a\xae\x6a\x1d\x3a\xc1\x4b\x3c\xb5\xe3\xdb\x7a\xe2\x22\xb4\xd7\xa0\x9d\x4a\x49\xb2\xd0\x63\x4c\x3a\x06\xe7\x2a\x1f\x3c\xb2\x42\x3d\x25\xc8\x21\xce\xd3\x1e\x08\x05\x26\xe2\xa5\x64\x86\x68\x91\x8e\x39\xcf\x39\xd7\x5b\x3c\x6b\xa0\x88\x87\xd5\x72\xb3\x7c\x1f\xd6\x8f\xe3\xc3\xdd\xf0\xf1\xb4\xf9\xba\x07\xc1\x55\xd1\x4e\xb6\x66\x26\x78\x99\xe9\x37\x00\x00\xff\xff\xb0\xc1\x3c\x83\x2e\x01\x00\x00")
+
+func xiangDataIndexHtmlBytes() ([]byte, error) {
+	return bindataRead(
+		_xiangDataIndexHtml,
+		"xiang/data/index.html",
+	)
+}
+
+func xiangDataIndexHtml() (*asset, error) {
+	bytes, err := xiangDataIndexHtmlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "xiang/data/index.html", size: 302, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -481,7 +502,7 @@ func xiangFlowsReadmeMd() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/flows/README.md", size: 12, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/flows/README.md", size: 12, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -501,7 +522,7 @@ func xiangFlowsMenuFlowJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/flows/menu.flow.json", size: 1045, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/flows/menu.flow.json", size: 1045, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -521,7 +542,7 @@ func xiangFlowsTableGetFlowJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/flows/table/get.flow.json", size: 541, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/flows/table/get.flow.json", size: 541, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -541,7 +562,7 @@ func xiangModelsReadmeMd() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/models/README.md", size: 15, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/models/README.md", size: 15, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -561,7 +582,7 @@ func xiangModelsMenuJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/models/menu.json", size: 2378, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/models/menu.json", size: 2378, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -581,7 +602,7 @@ func xiangModelsUserJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/models/user.json", size: 8826, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/models/user.json", size: 8826, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -601,7 +622,7 @@ func xiangTablesReadmeMd() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/tables/README.md", size: 15, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/tables/README.md", size: 15, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -621,7 +642,7 @@ func xiangTablesMenuJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/tables/menu.json", size: 10382, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/tables/menu.json", size: 10382, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -641,7 +662,7 @@ func xiangTablesUserJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xiang/tables/user.json", size: 1422, mode: os.FileMode(420), modTime: time.Unix(1634716134, 0)}
+	info := bindataFileInfo{name: "xiang/tables/user.json", size: 1422, mode: os.FileMode(420), modTime: time.Unix(1634722693, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -712,6 +733,7 @@ var _bindata = map[string]func() (*asset, error){
 	"xiang/data/icons/icon.icns":      xiangDataIconsIconIcns,
 	"xiang/data/icons/icon.ico":       xiangDataIconsIconIco,
 	"xiang/data/icons/icon.png":       xiangDataIconsIconPng,
+	"xiang/data/index.html":           xiangDataIndexHtml,
 	"xiang/flows/README.md":           xiangFlowsReadmeMd,
 	"xiang/flows/menu.flow.json":      xiangFlowsMenuFlowJson,
 	"xiang/flows/table/get.flow.json": xiangFlowsTableGetFlowJson,
@@ -786,6 +808,7 @@ var _bintree = &bintree{nil, map[string]*bintree{
 				"icon.ico":  {xiangDataIconsIconIco, map[string]*bintree{}},
 				"icon.png":  {xiangDataIconsIconPng, map[string]*bintree{}},
 			}},
+			"index.html": {xiangDataIndexHtml, map[string]*bintree{}},
 		}},
 		"flows": {nil, map[string]*bintree{
 			"README.md":      {xiangFlowsReadmeMd, map[string]*bintree{}},

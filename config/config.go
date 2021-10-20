@@ -36,11 +36,11 @@ type XiangConfig struct {
 	RootData   string `json:"root_data,omitempty" env:"XIANG_ROOT_DATA"`                // 应用数据文件目录
 	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
 	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
-	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用工作流文件目录
-	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用插件文件目录
-	RootTable  string `json:"root_table,omitempty" env:"XIANG_ROOT_TABLE"`              // 应用表格文件目录
-	RootChart  string `json:"root_chart,omitempty" env:"XIANG_ROOT_CHART"`              // 应用图表文件目录
-	RootKanban string `json:"root_kanban,omitempty" env:"XIANG_ROOT_KANBAN"`            // 应用看板文件目录
+	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用业务逻辑文件目录
+	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用业务插件文件目录
+	RootTable  string `json:"root_table,omitempty" env:"XIANG_ROOT_TABLE"`              // 应用数据表格文件目录
+	RootChart  string `json:"root_chart,omitempty" env:"XIANG_ROOT_CHART"`              // 应用分析图表文件目录
+	RootPage   string `json:"root_page,omitempty" env:"XIANG_ROOT_PAGE"`                // 应用通用页面文件目录
 	RootScreen string `json:"root_screen,omitempty" env:"XIANG_ROOT_SCREEN"`            // 应用大屏文件目录
 }
 
@@ -151,8 +151,9 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootChart == "" {
 		cfg.RootChart = cfg.Root + "/charts"
 	}
-	if cfg.RootScreen == "" {
-		cfg.RootScreen = cfg.Root + "/screens"
+
+	if cfg.RootPage == "" {
+		cfg.RootPage = cfg.Root + "/pages"
 	}
 
 	if cfg.RootData == "" {
@@ -228,7 +229,7 @@ func SetAppPath(root string, envfile ...string) {
 	Conf.RootPlugin = filepath.Join(fullpath, "/plugins")
 	Conf.RootTable = filepath.Join(fullpath, "/tables")
 	Conf.RootChart = filepath.Join(fullpath, "/charts")
-	Conf.RootScreen = filepath.Join(root, "/screens")
+	Conf.RootPage = filepath.Join(fullpath, "/pages")
 	Conf.RootData = filepath.Join(fullpath, "/data")
 	Conf.RootUI = filepath.Join(fullpath, "/ui")
 	Conf.RootDB = filepath.Join(fullpath, "/db")

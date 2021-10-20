@@ -1,8 +1,9 @@
 package app
 
 import (
-	"log"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/exception"
@@ -11,6 +12,7 @@ import (
 	"github.com/yaoapp/xiang/data"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/xfs"
+	"github.com/yaoapp/xiang/xlog"
 )
 
 // Load 加载应用信息
@@ -21,24 +23,43 @@ func Load(cfg config.Config) {
 
 // Init 应用初始化
 func Init(cfg config.Config) {
+
+	// UI文件目录
 	if _, err := os.Stat(cfg.RootUI); os.IsNotExist(err) {
 		err := os.MkdirAll(cfg.RootUI, os.ModePerm)
 		if err != nil {
-			log.Panicf("创建目录失败(%s) %s", cfg.RootUI, err)
+			xlog.Printf("创建目录失败(%s) %s", cfg.RootUI, err)
+			os.Exit(1)
+		}
+
+		content, err := data.Asset("xiang/data/index.html")
+		if err != nil {
+			xlog.Printf("读取文件失败(%s) %s", cfg.RootUI, err)
+			os.Exit(1)
+		}
+
+		err = ioutil.WriteFile(filepath.Join(cfg.RootUI, "/index.html"), content, os.ModePerm)
+		if err != nil {
+			xlog.Printf("复制默认文件失败(%s) %s", cfg.RootUI, err)
+			os.Exit(1)
 		}
 	}
 
+	// 数据库目录
 	if _, err := os.Stat(cfg.RootDB); os.IsNotExist(err) {
 		err := os.MkdirAll(cfg.RootDB, os.ModePerm)
 		if err != nil {
-			log.Panicf("创建目录失败(%s) %s", cfg.RootDB, err)
+			xlog.Printf("创建目录失败(%s) %s", cfg.RootDB, err)
+			os.Exit(1)
 		}
 	}
 
+	// 文件数据目录
 	if _, err := os.Stat(cfg.RootData); os.IsNotExist(err) {
 		err := os.MkdirAll(cfg.RootData, os.ModePerm)
 		if err != nil {
-			log.Panicf("创建目录失败(%s) %s", cfg.RootData, err)
+			xlog.Printf("创建目录失败(%s) %s", cfg.RootData, err)
+			os.Exit(1)
 		}
 	}
 }
