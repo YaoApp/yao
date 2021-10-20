@@ -79,7 +79,7 @@ var startCmd = &cobra.Command{
 
 		// 调试模式
 		if config.Conf.Mode == "debug" {
-			service.WatchChanges()
+			service.Watch(config.Conf)
 		}
 
 		service.Start()

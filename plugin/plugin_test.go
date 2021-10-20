@@ -12,7 +12,7 @@ import (
 func TestLoad(t *testing.T) {
 	gou.Plugins = make(map[string]*gou.Plugin)
 	Load(config.Conf)
-	LoadFrom("not a path", "404.")
+	LoadFrom("404")
 	check(t)
 }
 

@@ -2,6 +2,7 @@ package share
 
 import (
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -59,6 +60,17 @@ func DirNotExists(dir string) bool {
 		return true
 	}
 	return false
+}
+
+// DirAbs 文件绝对路径
+func DirAbs(dir string) string {
+	dir = strings.TrimPrefix(dir, "fs://")
+	dir = strings.TrimPrefix(dir, "file://")
+	dirAbs, err := filepath.Abs(dir)
+	if err != nil {
+		log.Panicf("获取绝对路径错误 %s %s", dir, err)
+	}
+	return dirAbs
 }
 
 // ************************************************

@@ -29,22 +29,21 @@ func LoadFrom(dir string, prefix string) {
 	share.Walk(dir, ".json", func(root, filename string) {
 		name := share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		chart, err := LoadChart(content, name)
+		_, err := LoadChart(content, name)
 		if err != nil {
 			exception.New("%s 图表格式错误", 400, name).Ctx(filename).Throw()
 		}
-		Charts[name] = chart
 	})
 }
 
 // LoadChart 载入数据表格
 func LoadChart(source []byte, name string) (*Chart, error) {
-	chart := Chart{
+	chart := &Chart{
 		Flow: gou.Flow{
 			Name: name,
 		},
 	}
-	err := jsoniter.Unmarshal(source, &chart)
+	err := jsoniter.Unmarshal(source, chart)
 	if err != nil {
 		xlog.Println(name)
 		xlog.Println(err.Error())
@@ -53,8 +52,8 @@ func LoadChart(source []byte, name string) (*Chart, error) {
 	}
 	chart.Prepare()
 	chart.SetupAPIs()
-
-	return &chart, nil
+	Charts[name] = chart
+	return chart, nil
 }
 
 // Select 读取已加载图表

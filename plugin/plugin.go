@@ -8,11 +8,11 @@ import (
 
 // Load 加载业务插件
 func Load(cfg config.Config) {
-	LoadFrom(cfg.RootPlugin, "")
+	LoadFrom(cfg.RootPlugin)
 }
 
 // LoadFrom 从特定目录加载
-func LoadFrom(dir string, prefix string) {
+func LoadFrom(dir string) {
 
 	if share.DirNotExists(dir) {
 		return

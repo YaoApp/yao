@@ -1,4 +1,4 @@
-package engine
+package share
 
 import (
 	"log"
@@ -8,16 +8,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
 )
 
 func TestWatch(t *testing.T) {
 	root := path.Join(config.Conf.Source, "/tests/flows")
 	assert.NotPanics(t, func() {
-		go share.Watch(root, func(op string, file string) {
+		go Watch(root, func(op string, file string) {
 			log.Println(op, file)
 		})
 		time.Sleep(time.Second * 2)
-		defer share.StopWatch()
+		defer StopWatch()
 	})
 }
