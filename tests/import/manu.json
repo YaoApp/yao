@@ -1,0 +1,10 @@
+{
+  "mapping": {
+    "name": "name",
+    "short_name": "smalltitle",
+    "rank": "priority"
+  },
+  "option": {
+    "strict": true
+  }
+}

@@ -5,7 +5,7 @@ import (
 )
 
 // VERSION 版本号
-const VERSION = "0.8.14"
+const VERSION = "0.8.15"
 
 // DOMAIN 许可域
 const DOMAIN = "*.iqka.com"

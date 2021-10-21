@@ -34,6 +34,7 @@ func init() {
 		migrateCmd,
 		inspectCmd,
 		startCmd,
+		importCmd,
 	)
 	rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", "指定应用目录")
