@@ -28,5 +28,6 @@ func Start() {
 func Stop(onComplete func()) {
 	shutdown <- true
 	<-shutdownComplete
+	gou.KillPlugins()
 	onComplete()
 }

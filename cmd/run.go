@@ -16,6 +16,7 @@ var runCmd = &cobra.Command{
 	Short: "运行处理器",
 	Long:  `运行处理器`,
 	Run: func(cmd *cobra.Command, args []string) {
+		defer gou.KillPlugins()
 		Boot()
 		engine.Load(config.Conf)
 		if len(args) < 1 {
