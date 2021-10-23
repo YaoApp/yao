@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"reflect"
+
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 )
@@ -50,13 +52,14 @@ func ProcessArraySplit(process *gou.Process) interface{} {
 				records = append(records, value)
 				continue
 			}
-			exception.New("参数错误: 第1个参数不是字符串数组", 400).Ctx(process.Args[0]).Throw()
+			exception.New("参数错误: 第1个参数不是数组", 400).Ctx(reflect.TypeOf(process.Args[0]).Name()).Throw()
 		}
+		break
 	case []map[string]interface{}:
 		records = args.([]map[string]interface{})
-
+		break
 	default:
-		exception.New("参数错误: 第1个参数不是字符串数组", 400).Ctx(process.Args[0]).Throw()
+		exception.New("参数错误: 第1个参数不是数组", 400).Ctx(reflect.TypeOf(process.Args[0]).Name()).Throw()
 		break
 	}
 	columns, values := ArraySplit(records)
