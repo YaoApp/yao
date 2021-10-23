@@ -14,6 +14,27 @@ type ArrayPluckValue struct {
 	Items []map[string]interface{} `json:"items"`
 }
 
+// ArraySplit 将多条数记录集合，分解为一个 columns:[]string 和 values: [][]interface{}
+func ArraySplit(records []map[string]interface{}) ([]string, [][]interface{}) {
+	columns := []string{}
+	values := [][]interface{}{}
+	if len(records) == 0 {
+		return columns, values
+	}
+	for column := range records[0] {
+		columns = append(columns, column)
+	}
+
+	for _, record := range records {
+		value := []interface{}{}
+		for _, key := range columns {
+			value = append(value, record[key])
+		}
+		values = append(values, value)
+	}
+	return columns, values
+}
+
 // ArrayPluck 将多个数据记录集合，合并为一个数据记录集合
 // 	columns: ["城市", "行业", "计费"]
 // 	pluck: {

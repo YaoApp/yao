@@ -8,6 +8,7 @@ import (
 func init() {
 	// 注册处理器
 	gou.RegisterProcessHandler("xiang.helper.ArrayPluck", ProcessArrayPluck)
+	gou.RegisterProcessHandler("xiang.helper.ArraySplit", ProcessArraySplit)
 
 }
 
@@ -33,4 +34,34 @@ func ProcessArrayPluck(process *gou.Process) interface{} {
 	}
 	pluck := process.ArgsMap(1)
 	return ArrayPluck(columns, pluck)
+}
+
+// ProcessArraySplit  xiang.helper.ArraySplit 将多条数记录集合，分解为一个 columns:[]string 和 values: [][]interface{}
+func ProcessArraySplit(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	args := process.Args[0]
+	records := []map[string]interface{}{}
+
+	switch args.(type) {
+	case []interface{}:
+		for _, v := range args.([]interface{}) {
+			value, ok := v.(map[string]interface{})
+			if ok {
+				records = append(records, value)
+				continue
+			}
+			exception.New("参数错误: 第1个参数不是字符串数组", 400).Ctx(process.Args[0]).Throw()
+		}
+	case []map[string]interface{}:
+		records = args.([]map[string]interface{})
+
+	default:
+		exception.New("参数错误: 第1个参数不是字符串数组", 400).Ctx(process.Args[0]).Throw()
+		break
+	}
+	columns, values := ArraySplit(records)
+	return map[string]interface{}{
+		"columns": columns,
+		"values":  values,
+	}
 }

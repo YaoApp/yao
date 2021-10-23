@@ -21,3 +21,16 @@ func TestArrayPluck(t *testing.T) {
 		maps.Of(item).Has("计费")
 	}
 }
+
+func TestArraySplit(t *testing.T) {
+	records := []map[string]interface{}{
+		{"name": "阿里云计算有限公司", "short_name": "阿里云"},
+		{"name": "世纪互联蓝云", "short_name": "上海蓝云"},
+	}
+	columns, values := ArraySplit(records)
+	assert.Equal(t, 2, len(columns))
+	assert.Equal(t, 2, len(values))
+	for _, value := range values {
+		assert.Equal(t, 2, len(value))
+	}
+}

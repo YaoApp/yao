@@ -29,3 +29,28 @@ func TestProcessArrayPluck(t *testing.T) {
 		maps.Of(item).Has("计费")
 	}
 }
+
+func TestProcessArraySplit(t *testing.T) {
+	args := []interface{}{
+		[]map[string]interface{}{
+			{"name": "阿里云计算有限公司", "short_name": "阿里云"},
+			{"name": "世纪互联蓝云", "short_name": "上海蓝云"},
+		},
+	}
+	process := gou.NewProcess("xiang.helper.ArraySplit", args...)
+	response := process.Run()
+	assert.NotNil(t, response)
+	res, ok := response.(map[string]interface{})
+	assert.True(t, ok)
+
+	columns, ok := res["columns"].([]string)
+	assert.True(t, ok)
+
+	values, ok := res["values"].([][]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(columns))
+	assert.Equal(t, 2, len(values))
+	for _, value := range values {
+		assert.Equal(t, 2, len(value))
+	}
+}
