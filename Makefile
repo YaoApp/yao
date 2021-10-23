@@ -127,9 +127,9 @@ xiang: bindata
 		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" share/const.go.bak > share/const.go; \
 	fi;
 
-	GOOS=linux GOARCH=amd64 go build -v -o .tmp/xiang-linux-amd64
-	GOOS=linux GOARCH=arm GOARM=7 go build -v -o .tmp/xiang-linux-arm
-	GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o .tmp/xiang-linux-arm64
+#	GOOS=linux GOARCH=amd64 go build -v -o .tmp/xiang-linux-amd64
+#	GOOS=linux GOARCH=arm GOARM=7 go build -v -o .tmp/xiang-linux-arm
+#	GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o .tmp/xiang-linux-arm64
 	GOOS=darwin GOARCH=amd64 go build -v -o .tmp/xiang-darwin-amd64
 	mkdir -p dist/bin
 	mv .tmp/xiang-*-* dist/bin/
@@ -170,8 +170,8 @@ release: clean
 	fi;
 
 	cd dist/release && GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
-	cd dist/release && GOOS=linux GOARCH=arm GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm
-	cd dist/release && GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm64
+#	cd dist/release && GOOS=linux GOARCH=arm GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm
+#	cd dist/release && GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm64
 	cd dist/release && GOOS=darwin GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-darwin-amd64
 	
 	rm -rf dist/release

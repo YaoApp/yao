@@ -1,9 +1,11 @@
 package helper
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/query/share"
 	"github.com/yaoapp/kun/exception"
 )
 
@@ -52,14 +54,20 @@ func ProcessArraySplit(process *gou.Process) interface{} {
 				records = append(records, value)
 				continue
 			}
-			exception.New("参数错误: 第1个参数不是数组", 400).Ctx(reflect.TypeOf(process.Args[0]).Name()).Throw()
+			exception.New("参数错误: 第1个参数不是数组", 400).Ctx(fmt.Sprintf("%#v", process.Args[0])).Throw()
+		}
+		break
+	case []share.Record:
+		for _, v := range args.([]share.Record) {
+			records = append(records, v)
 		}
 		break
 	case []map[string]interface{}:
 		records = args.([]map[string]interface{})
 		break
 	default:
-		exception.New("参数错误: 第1个参数不是数组", 400).Ctx(reflect.TypeOf(process.Args[0]).Name()).Throw()
+		fmt.Printf("%#v %s\n", args, reflect.TypeOf(args).Kind())
+		exception.New("参数错误: 第1个参数不是数组", 400).Ctx(fmt.Sprintf("%#v", process.Args[0])).Throw()
 		break
 	}
 	columns, values := ArraySplit(records)
