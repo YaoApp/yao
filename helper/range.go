@@ -62,32 +62,31 @@ func Range(v interface{}, process Process) {
 // For 过程控制
 func For(from int, to int, p Process) {
 	for i := from; i < to; i++ {
-		args := p.Args
 		bindings := map[string]interface{}{
 			"key":   i,
 			"value": i,
 		}
-		args = bindArgs(args, bindings)
+		args := bindArgs(p.Args, bindings)
 		gou.NewProcess(p.Process, args...).Run()
 	}
 }
 
 func bindArgs(args []interface{}, bindings map[string]interface{}) []interface{} {
+	new := []interface{}{}
 	for i := range args {
-		args[i] = share.Bind(args[i], bindings, reVar)
+		new = append(new, share.Bind(args[i], bindings, reVar))
 	}
-	return args
+	return new
 }
 
 func rangeString(v string, p Process) {
 	var bytes = []byte(v)
 	for key, value := range bytes {
-		args := p.Args
 		bindings := map[string]interface{}{
 			"::key":   key,
 			"::value": value,
 		}
-		args = bindArgs(args, bindings)
+		args := bindArgs(p.Args, bindings)
 		gou.NewProcess(p.Process, args...).Run()
 	}
 
@@ -95,24 +94,22 @@ func rangeString(v string, p Process) {
 
 func rangeMap(v map[string]interface{}, p Process) {
 	for key, value := range v {
-		args := p.Args
 		bindings := map[string]interface{}{
 			"::key":   key,
 			"::value": value,
 		}
-		args = bindArgs(args, bindings)
+		args := bindArgs(p.Args, bindings)
 		gou.NewProcess(p.Process, args...).Run()
 	}
 }
 
 func rangeArray(v []interface{}, p Process) {
 	for key, value := range v {
-		args := p.Args
 		bindings := map[string]interface{}{
 			"::key":   key,
 			"::value": value,
 		}
-		args = bindArgs(args, bindings)
+		args := bindArgs(p.Args, bindings)
 		gou.NewProcess(p.Process, args...).Run()
 	}
 }
