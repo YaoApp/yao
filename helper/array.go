@@ -14,6 +14,28 @@ type ArrayPluckValue struct {
 	Items []map[string]interface{} `json:"items"`
 }
 
+// ArrayColumn 返回多条数据记录，指定字段数值。
+func ArrayColumn(records []map[string]interface{}, name string) []interface{} {
+	values := []interface{}{}
+	for _, record := range records {
+		values = append(values, record[name])
+	}
+	return values
+}
+
+// ArrayKeep 仅保留指定键名的数据
+func ArrayKeep(records []map[string]interface{}, keeps []string) []map[string]interface{} {
+	values := []map[string]interface{}{}
+	for _, record := range records {
+		value := map[string]interface{}{}
+		for _, keep := range keeps {
+			value[keep] = record[keep]
+		}
+		values = append(values, value)
+	}
+	return values
+}
+
 // ArraySplit 将多条数记录集合，分解为一个 columns:[]string 和 values: [][]interface{}
 func ArraySplit(records []map[string]interface{}) ([]string, [][]interface{}) {
 	columns := []string{}
