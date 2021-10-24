@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/query/share"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/utils"
 )
 
 func init() {
@@ -17,6 +18,9 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.ArrayKeep", ProcessArrayKeep)
 	gou.RegisterProcessHandler("xiang.helper.MapKeys", ProcessMapKeys)
 	gou.RegisterProcessHandler("xiang.helper.MapValues", ProcessMapValues)
+	gou.RegisterProcessHandler("xiang.helper.For", ProcessFor)
+	gou.RegisterProcessHandler("xiang.helper.Each", ProcessEach)
+	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 }
 
 // ProcessArrayPluck  xiang.helper.ArrayPluck 将多个数据记录集合，合并为一个数据记录集合
@@ -179,4 +183,30 @@ func ProcessMapKeys(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 	record := process.ArgsMap(0)
 	return MapKeys(record)
+}
+
+// ProcessEach  xiang.helper.Each 循环过程控制
+func ProcessEach(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	v := process.Args[0]
+	p := ProcessOf(process.ArgsMap(1))
+	Range(v, p)
+	return nil
+}
+
+// ProcessFor xiang.helper.For 循环过程控制
+func ProcessFor(process *gou.Process) interface{} {
+	process.ValidateArgNums(3)
+	from := process.ArgsInt(0)
+	to := process.ArgsInt(1)
+	p := ProcessOf(process.ArgsMap(2))
+	For(from, to, p)
+	return nil
+}
+
+// ProcessPrint xiang.helper.Print 打印语句
+func ProcessPrint(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	utils.Dump(process.Args...)
+	return nil
 }
