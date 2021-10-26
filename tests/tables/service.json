@@ -24,25 +24,7 @@
     "search": {
       "process": "models.service.Paginate",
       "guard": "-",
-      "default": [
-        {
-          "withs": {
-            "manu": {
-              "query": {
-                "select": ["id", "name", "short_name", "status"]
-              }
-            },
-            "kind": {
-              "query": {
-                "select": ["id", "name"]
-              }
-            }
-          },
-          "wheres": [{ "column": "status", "value": "enabled" }]
-        },
-        null,
-        15
-      ]
+      "default": [null, null, 15]
     },
     "find": {
       "process": "models.service.Find",

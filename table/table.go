@@ -108,10 +108,18 @@ func (table *Table) loadAPIs() {
 		if table.APIs[name].Guard != "" {
 			api.Guard = table.APIs[name].Guard
 		}
-
 		if table.APIs[name].Default != nil {
-			api.Default = table.APIs[name].Default
+			// fmt.Printf("\n%s.APIs[%s].Default: entry\n", table.Table, name)
+			if len(table.APIs[name].Default) == len(api.Default) {
+				for i := range table.APIs[name].Default {
+					// fmt.Printf("%s.APIs[%s].Default[%d]:%v\n", table.Table, name, i, table.APIs[name].Default[i])
+					if table.APIs[name].Default[i] != nil {
+						api.Default[i] = table.APIs[name].Default[i]
+					}
+				}
+			}
 		}
+
 		defaults[name] = api
 	}
 
