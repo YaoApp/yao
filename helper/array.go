@@ -189,10 +189,14 @@ func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]i
 	for i := range records {
 		if key, has := records[i][opt.Key]; has {
 			record := mapping[fmt.Sprintf("%v", key)]
-			parent := fmt.Sprintf("%v", record[opt.Parent])
-			empty := fmt.Sprintf("%v", opt.Empty)
-			if parent == empty { // 只保留第一级
-				res = append(res, record)
+			if pValue, has := record[opt.Parent]; has {
+				parent := fmt.Sprintf("%v", pValue)
+				empty := fmt.Sprintf("%v", opt.Empty)
+				if parent == empty { // 父类为空
+					res = append(res, record)
+				} else if _, has := mapping[parent]; !has { // 或者父类为定义的
+					res = append(res, record)
+				}
 			}
 		}
 	}
