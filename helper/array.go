@@ -157,8 +157,12 @@ func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]i
 	mapping := map[string]map[string]interface{}{}
 	for i := range records {
 		if key, has := records[i][opt.Key]; has {
-			records[i][opt.Children] = []map[string]interface{}{}
-			mapping[fmt.Sprintf("%v", key)] = records[i]
+			primary := fmt.Sprintf("%v", key)
+			mapping[primary] = map[string]interface{}{}
+			mapping[primary][opt.Children] = []map[string]interface{}{}
+			for k, v := range records[i] {
+				mapping[primary][k] = v
+			}
 		}
 	}
 
