@@ -168,8 +168,9 @@ func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]i
 
 	// 向上归集
 	for key, record := range mapping {
-		parent := record[opt.Parent]
-		if parent == opt.Empty { // 第一级
+		parent := fmt.Sprintf("%v", record[opt.Parent])
+		empty := fmt.Sprintf("%v", opt.Empty)
+		if parent == empty { // 第一级
 			continue
 		}
 		pKey := fmt.Sprintf("%v", parent)
@@ -188,12 +189,12 @@ func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]i
 	for i := range records {
 		if key, has := records[i][opt.Key]; has {
 			record := mapping[fmt.Sprintf("%v", key)]
-			parent := record[opt.Parent]
-			if parent == opt.Empty { // 只保留第一级
+			parent := fmt.Sprintf("%v", record[opt.Parent])
+			empty := fmt.Sprintf("%v", opt.Empty)
+			if parent == empty { // 只保留第一级
 				res = append(res, record)
 			}
 		}
 	}
-
 	return res
 }
