@@ -14,6 +14,14 @@ type ArrayPluckValue struct {
 	Items []map[string]interface{} `json:"items"`
 }
 
+// ArrayTreeOption Array转树形结构参数表
+type ArrayTreeOption struct {
+	Key      string      `json:"id"`       // 主键名称, 默认为 id
+	Empty    interface{} `json:"empty"`    // Top节点 parent 数值, 默认为 0
+	Parent   string      `json:"parent"`   // 父节点字段名称, 默认为 parent
+	Children string      `json:"children"` // 子节点字段名称, 默认为 children
+}
+
 // ArrayColumn 返回多条数据记录，指定字段数值。
 func ArrayColumn(records []map[string]interface{}, name string) []interface{} {
 	values := []interface{}{}
@@ -118,4 +126,70 @@ func OfArrayPluckValue(any interface{}) ArrayPluckValue {
 		exception.New("ArrayPluck 参数错误", 400).Ctx(err.Error()).Throw()
 	}
 	return value
+}
+
+// NewArrayTreeOption 创建配置
+func NewArrayTreeOption(option map[string]interface{}) ArrayTreeOption {
+	new := ArrayTreeOption{
+		Empty:    0,
+		Key:      "id",
+		Parent:   "parent",
+		Children: "children",
+	}
+	if v, ok := option["parent"].(string); ok {
+		new.Parent = v
+	}
+	if v, ok := option["children"].(string); ok {
+		new.Children = v
+	}
+	return new
+}
+
+// ArrayTree []map[string]interface{} 转树形结构
+func ArrayTree(records []map[string]interface{}, setting map[string]interface{}) []map[string]interface{} {
+	opt := NewArrayTreeOption(setting)
+	return opt.Tree(records)
+}
+
+// Tree Array 转换为 Tree
+func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]interface{} {
+
+	mapping := map[string]map[string]interface{}{}
+	for i := range records {
+		if key, has := records[i][opt.Key]; has {
+			records[i][opt.Children] = []map[string]interface{}{}
+			mapping[fmt.Sprintf("%v", key)] = records[i]
+		}
+	}
+
+	// 向上归集
+	for key, record := range mapping {
+		parent := record[opt.Parent]
+		if parent == opt.Empty { // 第一级
+			continue
+		}
+		pKey := fmt.Sprintf("%v", parent)
+		if _, has := mapping[pKey]; !has {
+			continue
+		}
+		children, ok := mapping[pKey][opt.Children].([]map[string]interface{})
+		if !ok {
+			children = []map[string]interface{}{}
+		}
+		children = append(children, mapping[key])
+		mapping[pKey][opt.Children] = children
+	}
+
+	res := []map[string]interface{}{}
+	for i := range records {
+		if key, has := records[i][opt.Key]; has {
+			record := mapping[fmt.Sprintf("%v", key)]
+			parent := record[opt.Parent]
+			if parent == opt.Empty { // 只保留第一级
+				res = append(res, record)
+			}
+		}
+	}
+
+	return res
 }
