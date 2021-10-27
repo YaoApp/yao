@@ -24,6 +24,10 @@ func Watch(cfg config.Config) {
 	WatchTable(cfg.RootTable, "")
 	WatchChart(cfg.RootChart, "")
 	WatchPage(cfg.RootPage, "")
+
+	// 看板大屏
+	WatchPage(filepath.Join(cfg.Root, "/kanban"), "")
+	WatchPage(filepath.Join(cfg.Root, "/screen"), "")
 }
 
 // WatchEngine 监听监听引擎内建数据变更
