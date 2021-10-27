@@ -2,6 +2,7 @@ package page
 
 import (
 	"fmt"
+	"path"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
@@ -16,6 +17,8 @@ var Pages = map[string]*Page{}
 
 // Load 加载页面
 func Load(cfg config.Config) {
+	LoadFrom(path.Join(cfg.Root, "/kanban"), "")
+	LoadFrom(path.Join(cfg.Root, "/screen"), "")
 	LoadFrom(cfg.RootPage, "")
 }
 
