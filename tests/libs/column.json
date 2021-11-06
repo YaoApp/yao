@@ -28,5 +28,16 @@
         "maxCount": 1
       }
     }
+  },
+  "创建时间": {
+    "__comment": "column.创建时间",
+    "label": "创建时间",
+    "view": {
+      "name": "label",
+      "props": {
+        "value": ":created_at",
+        "format": "YYYY年MM月DD日 @hh:mm:ss"
+      }
+    }
   }
 }

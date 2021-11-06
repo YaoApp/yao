@@ -26,6 +26,14 @@ func TestColumn(t *testing.T) {
 	assert.Equal(t, ":logo", column.View.Props["value"])
 }
 
+func TestColumnInIsNil(t *testing.T) {
+	content := `{ "@": "column.创建时间" }`
+	column := Column{}
+	jsoniter.Unmarshal([]byte(content), &column)
+	assert.Equal(t, ":created_at", column.View.Props["value"])
+	assert.Equal(t, "创建时间", column.Label)
+}
+
 func TestFilter(t *testing.T) {
 	content := `{ "@": "filter.关键词", "in": ["where.name.match"] }`
 	filter := Filter{}
