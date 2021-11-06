@@ -2,6 +2,15 @@ package share
 
 import "github.com/yaoapp/kun/maps"
 
+// Importable 可导入JSON
+type Importable struct {
+	Import string        `json:"@,omitempty"`  // 从 Global 或 Vendor 载入
+	In     []interface{} `json:"in,omitempty"` // 从 Global 或 Vendor 载入, 解析参数
+}
+
+// APIImp 导入配置数据结构
+type APIImp API
+
 // API API 配置数据结构
 type API struct {
 	Name    string        `json:"-"`
@@ -10,7 +19,11 @@ type API struct {
 	Process string        `json:"process,omitempty"`
 	Guard   string        `json:"guard,omitempty"`
 	Default []interface{} `json:"default,omitempty"`
+	Importable
 }
+
+// ColumnImp 导入模式查询过滤器
+type ColumnImp Column
 
 // Column 字段呈现方式
 type Column struct {
@@ -18,14 +31,33 @@ type Column struct {
 	View  Render `json:"view,omitempty"`
 	Edit  Render `json:"edit,omitempty"`
 	Form  Render `json:"form,omitempty"`
+	Importable
 }
+
+// FilterImp 导入模式查询过滤器
+type FilterImp Filter
 
 // Filter 查询过滤器
 type Filter struct {
 	Label string `json:"label"`
 	Bind  string `json:"bind,omitempty"`
 	Input Render `json:"input,omitempty"`
+	Importable
 }
+
+// RenderImp 导入模式组件渲染方式
+type RenderImp Render
+
+// Render 组件渲染方式
+type Render struct {
+	Type       string                 `json:"type,omitempty"`
+	Props      map[string]interface{} `json:"props,omitempty"`
+	Components map[string]interface{} `json:"components,omitempty"`
+	Importable
+}
+
+// PageImp 导入模式页面
+type PageImp Page
 
 // Page 页面
 type Page struct {
@@ -33,13 +65,7 @@ type Page struct {
 	Layout  map[string]interface{} `json:"layout"`
 	Actions map[string]Render      `json:"actions,omitempty"`
 	Option  map[string]interface{} `json:"option,omitempty"`
-}
-
-// Render 组件渲染方式
-type Render struct {
-	Type       string                 `json:"type,omitempty"`
-	Props      map[string]interface{} `json:"props,omitempty"`
-	Components map[string]interface{} `json:"components,omitempty"`
+	Importable
 }
 
 // AppInfo 应用信息

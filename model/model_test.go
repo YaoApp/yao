@@ -23,5 +23,5 @@ func check(t *testing.T) {
 	for key := range gou.Models {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 9, len(keys))
+	assert.Equal(t, 10, len(keys))
 }

@@ -27,6 +27,7 @@
       "type": "string",
       "length": 50,
       "comment": "城市",
+      "nullable": true,
       "index": true
     },
     {

@@ -38,6 +38,7 @@ type XiangConfig struct {
 	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
 	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用业务逻辑文件目录
 	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用业务插件文件目录
+	RootLib    string `json:"root_lib,omitempty" env:"XIANG_ROOT_LIB"`                  // 应用资料库文件目录
 	RootTable  string `json:"root_table,omitempty" env:"XIANG_ROOT_TABLE"`              // 应用数据表格文件目录
 	RootChart  string `json:"root_chart,omitempty" env:"XIANG_ROOT_CHART"`              // 应用分析图表文件目录
 	RootPage   string `json:"root_page,omitempty" env:"XIANG_ROOT_PAGE"`                // 应用通用页面文件目录
@@ -148,6 +149,11 @@ func (cfg *Config) SetDefaults() {
 	if cfg.RootTable == "" {
 		cfg.RootTable = cfg.Root + "/tables"
 	}
+
+	if cfg.RootLib == "" {
+		cfg.RootLib = cfg.Root + "/libs"
+	}
+
 	if cfg.RootChart == "" {
 		cfg.RootChart = cfg.Root + "/charts"
 	}

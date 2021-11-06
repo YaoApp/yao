@@ -12,6 +12,7 @@ import (
 
 func TestLoad(t *testing.T) {
 	share.DBConnect(config.Conf.Database)
+	share.Load(config.Conf)
 	model.Load(config.Conf)
 
 	Tables = make(map[string]*Table)
@@ -47,5 +48,5 @@ func check(t *testing.T) {
 	for key := range Tables {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 2, len(keys))
+	assert.Equal(t, 3, len(keys))
 }

@@ -28,6 +28,7 @@ func Load(cfg config.Config) {
 	LoadEngine(cfg.Path)
 	query.Load(cfg) // 加载数据分析引擎
 
+	share.Load(cfg)  // 加载共享库 lib
 	model.Load(cfg)  // 加载数据模型 model
 	api.Load(cfg)    // 加载业务接口 API
 	flow.Load(cfg)   // 加载业务逻辑 Flow

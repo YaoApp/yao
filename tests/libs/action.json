@@ -1,0 +1,14 @@
+{
+  "保存": {
+    "type": "button",
+    "props": {
+      "label": "保存"
+    }
+  },
+  "删除": {
+    "type": "button",
+    "props": {
+      "label": "保存"
+    }
+  }
+}

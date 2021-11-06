@@ -16,6 +16,7 @@ import (
 func init() {
 	share.DBConnect(config.Conf.Database)
 	model.Load(config.Conf)
+	share.Load(config.Conf)
 	Load(config.Conf)
 }
 func TestTableProcessSearch(t *testing.T) {

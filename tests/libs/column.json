@@ -1,0 +1,32 @@
+{
+  "Label": {
+    "__comment": "column.Lable('ID',':id')",
+    "label": "{{$in.0}}",
+    "view": {
+      "props": {
+        "value": "{{$in.1}}"
+      }
+    }
+  },
+  "Image": {
+    "__comment": "column.Image('图标',':icon', 40)",
+    "label": "{{$in.0}}",
+    "view": {
+      "type": "image",
+      "props": {
+        "value": "{{$in.1}}",
+        "width": "{{$in.2}}",
+        "height": "{{$in.2}}"
+      }
+    },
+    "edit": {
+      "type": "upload",
+      "props": {
+        "value": "{{$in.1}}",
+        "filetype": "image",
+        "multiple": false,
+        "maxCount": 1
+      }
+    }
+  }
+}
