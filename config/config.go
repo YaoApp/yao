@@ -241,6 +241,7 @@ func SetAppPath(root string, envfile ...string) {
 	Conf.RootData = filepath.Join(fullpath, "/data")
 	Conf.RootUI = filepath.Join(fullpath, "/ui")
 	Conf.RootDB = filepath.Join(fullpath, "/db")
+	Conf.RootLib = filepath.Join(fullpath, "/libs")
 }
 
 // IsDebug 是否为调试模式
