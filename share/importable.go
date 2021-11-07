@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/query/share"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/xlog"
 )
 
 // Libs 共享库
@@ -24,6 +26,8 @@ func LoadFrom(dir string) {
 	if DirNotExists(dir) {
 		return
 	}
+
+	// 加载共享数据
 	Walk(dir, ".json", func(root, filename string) {
 		name := SpecName(root, filename)
 		content := ReadFile(filename)
@@ -39,6 +43,15 @@ func LoadFrom(dir string) {
 			if _, has := lib["__comment"]; has {
 				delete(lib, "__comment")
 			}
+		}
+	})
+
+	// 加载共享脚本
+	Walk(dir, ".js", func(root, filename string) {
+		name := SpecName(root, filename)
+		err := gou.JavaScriptVM.Load(filename, name)
+		if err != nil {
+			xlog.Printf("加载脚本失败 %s", err.Error())
 		}
 	})
 }

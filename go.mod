@@ -14,8 +14,6 @@ require (
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/hashicorp/go-hclog v1.0.0 // indirect
-	github.com/hashicorp/go-plugin v1.4.3 // indirect
 	github.com/hashicorp/yamux v0.0.0-20210826001029-26ff87cf9493 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/joho/godotenv v1.3.0
@@ -23,7 +21,6 @@ require (
 	github.com/lib/pq v1.10.3 // indirect
 	github.com/mattn/go-sqlite3 v1.14.8 // indirect
 	github.com/mojocn/base64Captcha v1.3.5
-	github.com/robertkrimen/otto v0.0.0-20211004134430-12a632260352 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/spf13/afero v1.6.0
 	github.com/spf13/cobra v1.2.1
