@@ -189,6 +189,8 @@ func (cfg *Config) SetDefaults() {
 	cfg.RootData = strings.TrimPrefix(cfg.RootData, "file://")
 	cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "fs://")
 	cfg.RootUI = strings.TrimPrefix(cfg.RootUI, "file://")
+	cfg.RootLib = strings.TrimPrefix(cfg.RootLib, "fs://")
+	cfg.RootLib = strings.TrimPrefix(cfg.RootLib, "file://")
 
 }
 
