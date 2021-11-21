@@ -7,7 +7,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/user"
+	"github.com/yaoapp/xiang/helper"
 	"github.com/yaoapp/xiang/xlog"
 )
 
@@ -29,7 +29,7 @@ func bearerJWT(c *gin.Context) {
 	if config.Conf.Mode == "debug" {
 		xlog.Printf("JWT: %s Secret: %s", tokenString, config.Conf.JWT.Secret)
 	}
-	token, err := jwt.ParseWithClaims(tokenString, &user.JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &helper.JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(config.Conf.JWT.Secret), nil
 	})
 
@@ -40,10 +40,8 @@ func bearerJWT(c *gin.Context) {
 		return
 	}
 
-	if claims, ok := token.Claims.(*user.JwtClaims); ok && token.Valid {
-		c.Set("id", claims.Subject)
-		c.Set("type", claims.Type)
-		c.Set("name", claims.Name)
+	if claims, ok := token.Claims.(*helper.JwtClaims); ok && token.Valid {
+		c.Set("__sid", claims.SID)
 		c.Next()
 		return
 	}

@@ -6,19 +6,28 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
 )
 
 // JwtClaims 用户Token
 type JwtClaims struct {
-	ID   int
-	Data map[string]interface{}
+	ID   int                    `json:"id"`
+	SID  string                 `json:"sid"`
+	Data map[string]interface{} `json:"data"`
 	jwt.StandardClaims
 }
 
+// JwtToken JWT令牌
+type JwtToken struct {
+	Token     string `json:"token"`
+	ExpiresAt int64  `json:"expires_at"`
+}
+
 // JwtValidate JWT 校验
-func JwtValidate(tokenString string) map[string]interface{} {
+func JwtValidate(tokenString string) *JwtClaims {
 	token, err := jwt.ParseWithClaims(tokenString, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(config.Conf.JWT.Secret), nil
 	})
@@ -29,7 +38,7 @@ func JwtValidate(tokenString string) map[string]interface{} {
 	}
 
 	if claims, ok := token.Claims.(*JwtClaims); ok && token.Valid {
-		return claims.Data
+		return claims
 	}
 
 	exception.New("令牌无效", 403).Ctx(token.Claims).Throw()
@@ -37,26 +46,42 @@ func JwtValidate(tokenString string) map[string]interface{} {
 }
 
 // JwtMake  生成 JWT
-// subject options[0], audience options[1], issuer options[1]
-func JwtMake(id int, data map[string]interface{}, timeout int64, options ...string) map[string]interface{} {
+// option: {"subject":"<主题>", "audience": "<接收人>", "issuer":"<签发人>", "timeout": "<有效期,单位秒>", "sid":"<会话ID>"}
+func JwtMake(id int, data map[string]interface{}, option map[string]interface{}) JwtToken {
 	now := time.Now().Unix()
-	expiresAt := now + timeout
+	sid := ""
+	timeout := int64(3600)
 	uid := fmt.Sprintf("%d", id)
 	subject := "User Token"
 	audience := "Xiang Metadata Admin Panel"
 	issuer := fmt.Sprintf("xiang:%d", id)
-	length := len(options)
-	if length > 0 {
-		subject = options[0]
+	if v, has := option["subject"]; has {
+		subject = fmt.Sprintf("%v", v)
 	}
-	if length > 1 {
-		audience = options[1]
+	if v, has := option["audience"]; has {
+		audience = fmt.Sprintf("%v", v)
 	}
-	if length > 2 {
-		issuer = options[2]
+	if v, has := option["issuer"]; has {
+		issuer = fmt.Sprintf("%v", v)
 	}
+	if v, has := option["sid"]; has {
+		sid = fmt.Sprintf("%v", v)
+	}
+	if v, has := option["timeout"]; has {
+		timeout = int64(any.Of(v).CInt())
+	}
+
+	expiresAt := now + timeout
+	if sid == "" {
+		sid = session.ID()
+	}
+
+	// 设定会话过期时间 (并写需要加锁，这个逻辑需要优化)
+	// session.Global().Expire(time.Duration(timeout) * time.Second)
+
 	claims := &JwtClaims{
 		ID:   id,
+		SID:  sid, // 会话ID
 		Data: data,
 		StandardClaims: jwt.StandardClaims{
 			Id:        uid,       // 唯一ID
@@ -73,23 +98,22 @@ func JwtMake(id int, data map[string]interface{}, timeout int64, options ...stri
 	if err != nil {
 		exception.New("生成令牌失败", 500).Ctx(err).Throw()
 	}
-	return map[string]interface{}{
-		"token":      tokenString,
-		"expires_at": expiresAt,
+	return JwtToken{
+		Token:     tokenString,
+		ExpiresAt: expiresAt,
 	}
 }
 
 // ProcessJwtMake xiang.helper.JwtMake 生成JWT
 func ProcessJwtMake(process *gou.Process) interface{} {
-	process.ValidateArgNums(3)
+	process.ValidateArgNums(2)
 	id := process.ArgsInt(0)
 	data := process.ArgsMap(1)
-	timeout := int64(process.ArgsInt(2))
-	args := []string{}
-	for i := 3; i < len(process.Args); i++ {
-		args = append(args, fmt.Sprintf("%v", process.Args[i]))
+	option := map[string]interface{}{}
+	if process.NumOfArgsIs(3) {
+		option = process.ArgsMap(2)
 	}
-	return JwtMake(id, data, timeout, args...)
+	return JwtMake(id, data, option)
 }
 
 // ProcessJwtValidate xiang.helper.JwtValidate 校验JWT
