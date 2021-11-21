@@ -9,7 +9,9 @@ import (
 
 func TestPassword(t *testing.T) {
 	assert.True(t, PasswordValidate("U123456p+", "$2a$04$TS/rWBs66jADjQl8fa.w..ivkNAjH8d4sI1OPGvEB9Leed6EpzIF2"))
-	assert.False(t, PasswordValidate("U123456p+", "123456"))
+	assert.Panics(t, func() {
+		PasswordValidate("U123456p+", "123456")
+	})
 }
 
 func TestProcessPassword(t *testing.T) {
@@ -22,6 +24,7 @@ func TestProcessPassword(t *testing.T) {
 
 	args = []interface{}{pwd, "123456"}
 	process = gou.NewProcess("xiang.helper.PasswordValidate", args...)
-	res = process.Run()
-	assert.False(t, res.(bool))
+	assert.Panics(t, func() {
+		process.Run()
+	})
 }

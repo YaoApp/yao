@@ -144,7 +144,13 @@ func captchaParseHexColorFast(s string) (c color.RGBA, err error) {
 // ProcessCaptchaValidate xiang.helper.CaptchaValidate 校验图形/音频验证码
 func ProcessCaptchaValidate(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
-	if !CaptchaValidate(process.ArgsString(0), process.ArgsString(1)) {
+	id := process.ArgsString(0)
+	code := process.ArgsString(1)
+	if code == "" {
+		exception.New("请输入验证码", 400).Throw()
+		return false
+	}
+	if !CaptchaValidate(id, code) {
 		exception.New("验证码不正确", 400).Throw()
 		return false
 	}

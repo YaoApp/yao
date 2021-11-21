@@ -2,6 +2,7 @@ package helper
 
 import (
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -9,6 +10,7 @@ import (
 func PasswordValidate(password string, passwordHash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
+		exception.New("密码不正确", 400).Throw()
 		return false
 	}
 	return true

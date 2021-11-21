@@ -62,4 +62,8 @@ func TestProcessCaptcha(t *testing.T) {
 	assert.Panics(t, func() {
 		gou.NewProcess("xiang.helper.CaptchaValidate", res.Get("id"), "xxx").Run()
 	})
+
+	assert.Panics(t, func() {
+		gou.NewProcess("xiang.helper.CaptchaValidate", res.Get("id"), "").Run()
+	})
 }

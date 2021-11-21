@@ -28,6 +28,16 @@
       }
     },
     {
+      "path": "/menu",
+      "method": "GET",
+      "process": "flows.xiang.menu",
+      "in": ["$session.id"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/favicon.ico",
       "method": "GET",
       "guard": "-",
