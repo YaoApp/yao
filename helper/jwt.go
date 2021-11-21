@@ -38,7 +38,7 @@ func JwtValidate(tokenString string) map[string]interface{} {
 
 // JwtMake  生成 JWT
 // subject options[0], audience options[1], issuer options[1]
-func JwtMake(id int, data map[string]interface{}, timeout int64, options ...string) string {
+func JwtMake(id int, data map[string]interface{}, timeout int64, options ...string) map[string]interface{} {
 	now := time.Now().Unix()
 	expiresAt := now + timeout
 	uid := fmt.Sprintf("%d", id)
@@ -73,7 +73,10 @@ func JwtMake(id int, data map[string]interface{}, timeout int64, options ...stri
 	if err != nil {
 		exception.New("生成令牌失败", 500).Ctx(err).Throw()
 	}
-	return tokenString
+	return map[string]interface{}{
+		"token":      tokenString,
+		"expires_at": expiresAt,
+	}
 }
 
 // ProcessJwtMake xiang.helper.JwtMake 生成JWT
