@@ -139,3 +139,22 @@ func ProcessOf(v map[string]interface{}) Process {
 		Args:    []interface{}{},
 	}
 }
+
+// ProcessEach  xiang.helper.Each 循环过程控制
+func ProcessEach(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	v := process.Args[0]
+	p := ProcessOf(process.ArgsMap(1))
+	Range(v, p)
+	return nil
+}
+
+// ProcessFor xiang.helper.For 循环过程控制
+func ProcessFor(process *gou.Process) interface{} {
+	process.ValidateArgNums(3)
+	from := process.ArgsInt(0)
+	to := process.ArgsInt(1)
+	p := ProcessOf(process.ArgsMap(2))
+	For(from, to, p)
+	return nil
+}

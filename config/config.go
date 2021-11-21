@@ -89,17 +89,17 @@ func NewConfig(envfile ...string) Config {
 
 	if len(envfile) > 0 {
 		file, err := filepath.Abs(envfile[0])
-		if err != nil {
-			log.Printf("加载环境配置文件%s出错 %s\n", envfile[0], err.Error())
-		} else {
+		if err == nil {
+			// 	log.Printf("加载环境配置文件%s出错 %s\n", envfile[0], err.Error())
+			// } else {
 			filename = file
 		}
 	}
 
-	err := godotenv.Overload(filename)
-	if err != nil {
-		log.Printf("加载环境配置文件%s出错 %s\n", filename, err.Error())
-	}
+	godotenv.Overload(filename)
+	// if err != nil {
+	// 	log.Printf("加载环境配置文件%s出错 %s\n", filename, err.Error())
+	// }
 
 	cfg := Config{}
 	if err := env.Parse(&cfg); err != nil {
