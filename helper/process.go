@@ -21,6 +21,8 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.JwtValidate", ProcessJwtValidate)
 	gou.RegisterProcessHandler("xiang.helper.For", ProcessFor)
 	gou.RegisterProcessHandler("xiang.helper.Each", ProcessEach)
+	gou.RegisterProcessHandler("xiang.helper.Case", ProcessCase)
+	gou.RegisterProcessHandler("xiang.helper.IF", ProcessIF)
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 }
 
