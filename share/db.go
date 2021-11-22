@@ -1,6 +1,8 @@
 package share
 
 import (
+	"time"
+
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xun/capsule"
 )
@@ -10,7 +12,7 @@ func DBConnect(dbconfig config.DatabaseConfig) {
 
 	// 连接主库
 	for i, dsn := range dbconfig.Primary {
-		db := capsule.AddConn("primary", dbconfig.Driver, dsn)
+		db := capsule.AddConn("primary", dbconfig.Driver, dsn, 5*time.Second)
 		if i == 0 {
 			db.SetAsGlobal()
 		}
@@ -18,6 +20,6 @@ func DBConnect(dbconfig config.DatabaseConfig) {
 
 	// 连接从库
 	for _, dsn := range dbconfig.Secondary {
-		capsule.AddReadConn("secondary", dbconfig.Driver, dsn)
+		capsule.AddReadConn("secondary", dbconfig.Driver, dsn, 5*time.Second)
 	}
 }

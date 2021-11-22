@@ -20,19 +20,17 @@ var startCmd = &cobra.Command{
 	Long:  `启动象传应用引擎`,
 	Run: func(cmd *cobra.Command, args []string) {
 		defer service.Stop(func() { fmt.Println("服务已关闭") })
-
 		Boot()
 		mode := config.Conf.Mode
 		if mode == "debug" {
-			mode = color.RedString("调试模式")
+			mode = color.RedString("调试模式\n")
 		} else {
-			mode = ""
+			mode = "\n"
 		}
 
-		fmt.Printf(color.GreenString("\n象传应用引擎 v%s %s", share.VERSION, mode))
+		fmt.Printf(color.GreenString("象传应用引擎 v%s %s", share.VERSION, mode))
 
-		// 加载数据模型 API 等
-		engine.Load(config.Conf)
+		engine.Load(config.Conf) // 加载数据模型 API 等
 
 		// 打印应用目录信息
 		fmt.Printf(color.WhiteString("\n---------------------------------"))
