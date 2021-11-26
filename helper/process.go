@@ -12,17 +12,24 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.ArrayColumn", ProcessArrayColumn)
 	gou.RegisterProcessHandler("xiang.helper.ArrayKeep", ProcessArrayKeep)
 	gou.RegisterProcessHandler("xiang.helper.ArrayTree", ProcessArrayTree)
+
 	gou.RegisterProcessHandler("xiang.helper.MapKeys", ProcessMapKeys)
 	gou.RegisterProcessHandler("xiang.helper.MapValues", ProcessMapValues)
+	gou.RegisterProcessHandler("xiang.helper.MapGet", ProcessMapGet)
+
 	gou.RegisterProcessHandler("xiang.helper.Captcha", ProcessCaptcha)
 	gou.RegisterProcessHandler("xiang.helper.CaptchaValidate", ProcessCaptchaValidate)
+
 	gou.RegisterProcessHandler("xiang.helper.PasswordValidate", ProcessPasswordValidate)
+
 	gou.RegisterProcessHandler("xiang.helper.JwtMake", ProcessJwtMake)
 	gou.RegisterProcessHandler("xiang.helper.JwtValidate", ProcessJwtValidate)
+
 	gou.RegisterProcessHandler("xiang.helper.For", ProcessFor)
 	gou.RegisterProcessHandler("xiang.helper.Each", ProcessEach)
 	gou.RegisterProcessHandler("xiang.helper.Case", ProcessCase)
 	gou.RegisterProcessHandler("xiang.helper.IF", ProcessIF)
+
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 }
 

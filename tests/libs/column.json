@@ -39,5 +39,29 @@
         "format": "YYYY年MM月DD日 @hh:mm:ss"
       }
     }
+  },
+  "商务负责人": {
+    "label": "商务负责人",
+    "view": {
+      "name": "label",
+      "props": {
+        "value": ":kind.name"
+      }
+    },
+    "edit": {
+      "type": "select",
+      "props": {
+        "value": ":kind.id",
+        "tree": true,
+        "searchable": true,
+        "remote": {
+          "api": "/api/kind/tree",
+          "query": {
+            "select": ["id", "name"],
+            "keyword": "where_name_like"
+          }
+        }
+      }
+    }
   }
 }

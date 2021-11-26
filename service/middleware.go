@@ -19,7 +19,7 @@ var AppFileServer http.Handler = http.FileServer(http.Dir(config.Conf.RootUI))
 
 // Middlewares 服务中间件
 var Middlewares = []gin.HandlerFunc{
-	BindDomain,
+	// BindDomain,
 	BinStatic,
 }
 

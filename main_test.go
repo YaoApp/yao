@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/service"
 )
@@ -53,7 +52,7 @@ func TestCommandStart(t *testing.T) {
 	// 发送请求
 	request := func() (maps.MapStr, error) {
 		time.Sleep(time.Microsecond * 2000)
-		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "local.iqka.com", config.Conf.Service.Port)
+		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "127.0.0.1", config.Conf.Service.Port)
 		// utils.Dump(url)
 		resp, err := http.Get(url)
 		if err != nil {
@@ -70,11 +69,14 @@ func TestCommandStart(t *testing.T) {
 	}
 
 	// 等待服务启动
+	time.Sleep(time.Second * 2)
 	times := 0
 	for times < 20 { // 2秒超时
 		times++
+		fmt.Printf("Trying(%d)...", times)
 		res, err := request()
 		if err != nil {
+			fmt.Printf(" %s\n", err.Error())
 			continue
 		}
 		assert.Equal(t, 1, any.Of(res.Get("id")).CInt())
@@ -98,8 +100,7 @@ func TestCommandStop(t *testing.T) {
 	// 发送请求
 	request := func() (maps.MapStr, error) {
 		time.Sleep(time.Microsecond * 2000)
-		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "local.iqka.com", config.Conf.Service.Port)
-		utils.Dump(url)
+		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "127.0.0.1", config.Conf.Service.Port)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err
@@ -115,6 +116,7 @@ func TestCommandStop(t *testing.T) {
 	}
 
 	// 等待服务启动
+	time.Sleep(time.Second * 2)
 	times := 0
 	for times < 20 { // 2秒超时
 		times++
@@ -127,7 +129,7 @@ func TestCommandStop(t *testing.T) {
 
 		// 测试关闭
 		service.Stop(func() { log.Println("服务已关闭") })
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 5)
 		_, err = request()
 		assert.NotNil(t, err)
 		return

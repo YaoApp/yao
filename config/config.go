@@ -27,22 +27,24 @@ type Config struct {
 
 // XiangConfig 象传应用引擎配置
 type XiangConfig struct {
-	Mode       string `json:"mode,omitempty" env:"XIANG_MODE" envDefault:"release"`     // 象传引擎模式 debug/release/test
-	Source     string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于单元测试载入数据)
-	Path       string `json:"path,omitempty" env:"XIANG_PATH" envDefault:"bin://xiang"` // 引擎文件目录
-	Root       string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"fs://."`      // 应用文件目录
-	RootUI     string `json:"root_ui,omitempty" env:"XIANG_ROOT_UI"`                    // 应用界面静态文件目录
-	RootDB     string `json:"root_db,omitempty" env:"XIANG_ROOT_DB"`                    // 应用SQLite数据库目录
-	RootData   string `json:"root_data,omitempty" env:"XIANG_ROOT_DATA"`                // 应用数据文件目录
-	RootAPI    string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
-	RootModel  string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
-	RootFLow   string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用业务逻辑文件目录
-	RootPlugin string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用业务插件文件目录
-	RootLib    string `json:"root_lib,omitempty" env:"XIANG_ROOT_LIB"`                  // 应用资料库文件目录
-	RootTable  string `json:"root_table,omitempty" env:"XIANG_ROOT_TABLE"`              // 应用数据表格文件目录
-	RootChart  string `json:"root_chart,omitempty" env:"XIANG_ROOT_CHART"`              // 应用分析图表文件目录
-	RootPage   string `json:"root_page,omitempty" env:"XIANG_ROOT_PAGE"`                // 应用通用页面文件目录
-	RootScreen string `json:"root_screen,omitempty" env:"XIANG_ROOT_SCREEN"`            // 应用大屏文件目录
+	Mode         string `json:"mode,omitempty" env:"XIANG_MODE" envDefault:"release"`     // 象传引擎模式 debug/release/test
+	Source       string `json:"source,omitempty" env:"XIANG_SOURCE" envDefault:"fs://."`  // 源码路径(用于单元测试载入数据)
+	Path         string `json:"path,omitempty" env:"XIANG_PATH" envDefault:"bin://xiang"` // 引擎文件目录
+	Root         string `json:"root,omitempty" env:"XIANG_ROOT" envDefault:"fs://."`      // 应用文件目录
+	RootUI       string `json:"root_ui,omitempty" env:"XIANG_ROOT_UI"`                    // 应用界面静态文件目录
+	RootDB       string `json:"root_db,omitempty" env:"XIANG_ROOT_DB"`                    // 应用SQLite数据库目录
+	RootData     string `json:"root_data,omitempty" env:"XIANG_ROOT_DATA"`                // 应用数据文件目录
+	RootAPI      string `json:"root_api,omitempty" env:"XIANG_ROOT_API"`                  // 应用API文件目录
+	RootModel    string `json:"root_model,omitempty" env:"XIANG_ROOT_MODEL"`              // 应用模型文件目录
+	RootFLow     string `json:"root_flow,omitempty" env:"XIANG_ROOT_FLOW"`                // 应用业务逻辑文件目录
+	RootPlugin   string `json:"root_plugin,omitempty" env:"XIANG_ROOT_PLUGIN"`            // 应用业务插件文件目录
+	RootLib      string `json:"root_lib,omitempty" env:"XIANG_ROOT_LIB"`                  // 应用资料库文件目录
+	RootTable    string `json:"root_table,omitempty" env:"XIANG_ROOT_TABLE"`              // 应用数据表格文件目录
+	RootChart    string `json:"root_chart,omitempty" env:"XIANG_ROOT_CHART"`              // 应用分析图表文件目录
+	RootPage     string `json:"root_page,omitempty" env:"XIANG_ROOT_PAGE"`                // 应用通用页面文件目录
+	RootScreen   string `json:"root_screen,omitempty" env:"XIANG_ROOT_SCREEN"`            // 应用大屏文件目录
+	RootForm     string `json:"root_form,omitempty" env:"XIANG_ROOT_FORM"`                // 表单文件目录
+	RootWorkFlow string `json:"root_workflow,omitempty" env:"XIANG_ROOT_WORKFLOW"`        // 工作流文件目录
 }
 
 // ServiceConfig 服务配置
