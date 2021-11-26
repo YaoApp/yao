@@ -113,6 +113,7 @@ func (workflow *WorkFlow) Get(uid int, name string, id interface{}) map[string]i
 		"user_id":     uid,
 		"status":      "进行中",
 		"node_status": "进行中",
+		"input":       map[string]interface{}{},
 	}
 }
 
@@ -120,7 +121,7 @@ func (workflow *WorkFlow) Get(uid int, name string, id interface{}) map[string]i
 func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input) map[string]interface{} {
 	wflow := gou.Select("xiang.workflow")
 	params := gou.QueryParam{
-		Select: []interface{}{"id"},
+		Select: []interface{}{"id", "input"},
 		Wheres: []gou.QueryWhere{
 			{Column: "name", Value: workflow.Name},
 			{Column: "data_id", Value: id},
@@ -128,19 +129,29 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 			{Column: "status", Value: "进行中"},
 		},
 	}
+
 	rows := wflow.MustGet(params)
 	data := map[string]interface{}{
 		"name":      workflow.Name,
 		"data_id":   id,
 		"node_name": name,
 		"user_id":   uid,
-		"input":     input,
 	}
 	if len(rows) > 0 {
+		nodeInput := map[string]interface{}{}
+		if history, ok := rows[0].Get("input").(map[string]interface{}); ok {
+			nodeInput = history
+		}
+		nodeInput[name] = input
 		data["id"] = rows[0].Get("id")
+		data["input"] = nodeInput
 	} else {
+
+		nodeInput := map[string]interface{}{}
+		nodeInput[name] = input
 		data["status"] = "进行中"
 		data["node_status"] = "进行中"
+		data["input"] = nodeInput
 	}
 
 	id = wflow.MustSave(data)

@@ -44,10 +44,10 @@ func TestSave(t *testing.T) {
 	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
 	assert.Equal(t, "进行中", data.Get("node_status"))
 	assert.Equal(t, "进行中", data.Get("status"))
-	assert.Equal(t, float64(1), data.Get("input.data.id"))
-	assert.Equal(t, "云主机", data.Get("input.data.name"))
-	assert.Equal(t, float64(1), data.Get("input.form.biz_id"))
-	assert.Equal(t, "张良明", data.Get("input.form.name"))
+	assert.Equal(t, float64(1), data.Get("input.选择商务负责人.data.id"))
+	assert.Equal(t, "云主机", data.Get("input.选择商务负责人.data.name"))
+	assert.Equal(t, float64(1), data.Get("input.选择商务负责人.form.biz_id"))
+	assert.Equal(t, "张良明", data.Get("input.选择商务负责人.form.name"))
 	// 清理数据
 	capsule.Query().From("xiang_workflow").Truncate()
 }
@@ -69,10 +69,10 @@ func TestSaveUpdate(t *testing.T) {
 	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
 	assert.Equal(t, "进行中", data.Get("node_status"))
 	assert.Equal(t, "进行中", data.Get("status"))
-	assert.Equal(t, float64(1), data.Get("input.data.id"))
-	assert.Equal(t, "云存储", data.Get("input.data.name"))
-	assert.Equal(t, float64(1), data.Get("input.form.biz_id"))
-	assert.Equal(t, "李明博", data.Get("input.form.name"))
+	assert.Equal(t, float64(1), data.Get("input.选择商务负责人.data.id"))
+	assert.Equal(t, "云存储", data.Get("input.选择商务负责人.data.name"))
+	assert.Equal(t, float64(1), data.Get("input.选择商务负责人.form.biz_id"))
+	assert.Equal(t, "李明博", data.Get("input.选择商务负责人.form.name"))
 
 	// 清理数据
 	capsule.Query().From("xiang_workflow").Truncate()
