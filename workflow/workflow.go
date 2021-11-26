@@ -1,6 +1,15 @@
 package workflow
 
-import "github.com/yaoapp/xiang/config"
+import (
+	"fmt"
+
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/xiang/xlog"
+)
 
 // WorkFlows 工作流列表
 var WorkFlows = map[string]*WorkFlow{}
@@ -11,11 +20,57 @@ func Load(cfg config.Config) {
 }
 
 // LoadFrom 从特定目录加载
-func LoadFrom(dir string, prefix string) {}
+func LoadFrom(dir string, prefix string) {
+	if share.DirNotExists(dir) {
+		return
+	}
+	share.Walk(dir, ".json", func(root, filename string) {
+		name := prefix + share.SpecName(root, filename)
+		content := share.ReadFile(filename)
+		_, err := LoadWorkFlow(content, name)
+		if err != nil {
+			exception.New("%s 工作流格式错误", 400, name).Ctx(filename).Throw()
+		}
+	})
+}
+
+// LoadWorkFlow 载入工作流
+func LoadWorkFlow(source []byte, name string) (*WorkFlow, error) {
+	workflow := WorkFlow{Name: name, Source: source}
+	err := jsoniter.Unmarshal(source, &workflow)
+	if err != nil {
+		xlog.Println(name)
+		xlog.Println(err.Error())
+		xlog.Println(string(source))
+		return nil, err
+	}
+	WorkFlows[workflow.Name] = &workflow
+	return WorkFlows[workflow.Name], nil
+}
 
 // Select 读取已加载图表
 func Select(name string) *WorkFlow {
-	return WorkFlows[name]
+	workflow, has := WorkFlows[name]
+	if !has {
+		exception.New(
+			fmt.Sprintf("工作流:%s; 尚未加载", name),
+			400,
+		).Throw()
+	}
+	return workflow
+}
+
+// Reload 重新载入工作流
+func (workflow *WorkFlow) Reload() *WorkFlow {
+	new, err := LoadWorkFlow(workflow.Source, workflow.Name)
+	if err != nil {
+		exception.New(
+			fmt.Sprintf("工作流:%s; 加载失败", workflow.Name),
+			400,
+		).Throw()
+	}
+	WorkFlows[workflow.Name] = new
+	return new
 }
 
 // Process
@@ -36,10 +91,60 @@ func (workflow *WorkFlow) Setting(id int) {}
 func (workflow *WorkFlow) SetupAPIs(id int) {}
 
 // Get 读取当前工作流(未完成的)
-func (workflow *WorkFlow) Get(uid int, name string, dataID interface{}) {}
+func (workflow *WorkFlow) Get(uid int, name string, id interface{}) map[string]interface{} {
+	wflow := gou.Select("xiang.workflow")
+	params := gou.QueryParam{
+		Select: []interface{}{"*"},
+		Wheres: []gou.QueryWhere{
+			{Column: "name", Value: workflow.Name},
+			{Column: "data_id", Value: id},
+			{Column: "user_id", Value: uid},
+			{Column: "status", Value: "进行中"},
+		},
+	}
+	rows := wflow.MustGet(params)
+	if len(rows) > 0 {
+		return rows[0]
+	}
+	return map[string]interface{}{
+		"name":        workflow.Name,
+		"data_id":     id,
+		"node_name":   name,
+		"user_id":     uid,
+		"status":      "进行中",
+		"node_status": "进行中",
+	}
+}
 
 // Save 保存工作流节点数据
-func (workflow *WorkFlow) Save(uid int, name string, node string, dataID interface{}, input map[string]interface{}) {
+func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input) map[string]interface{} {
+	wflow := gou.Select("xiang.workflow")
+	params := gou.QueryParam{
+		Select: []interface{}{"id"},
+		Wheres: []gou.QueryWhere{
+			{Column: "name", Value: workflow.Name},
+			{Column: "data_id", Value: id},
+			{Column: "user_id", Value: uid},
+			{Column: "status", Value: "进行中"},
+		},
+	}
+	rows := wflow.MustGet(params)
+	data := map[string]interface{}{
+		"name":      workflow.Name,
+		"data_id":   id,
+		"node_name": name,
+		"user_id":   uid,
+		"input":     input,
+	}
+	if len(rows) > 0 {
+		data["id"] = rows[0].Get("id")
+	} else {
+		data["status"] = "进行中"
+		data["node_status"] = "进行中"
+	}
+
+	id = wflow.MustSave(data)
+	return wflow.MustFind(id, gou.QueryParam{})
 }
 
 // Next 下一个工作流

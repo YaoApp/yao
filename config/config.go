@@ -164,6 +164,10 @@ func (cfg *Config) SetDefaults() {
 		cfg.RootPage = cfg.Root + "/pages"
 	}
 
+	if cfg.RootWorkFlow == "" {
+		cfg.RootWorkFlow = cfg.Root + "/workflows"
+	}
+
 	if cfg.RootData == "" {
 		cfg.RootData = cfg.Root + "/data"
 	}
@@ -240,6 +244,7 @@ func SetAppPath(root string, envfile ...string) {
 	Conf.RootTable = filepath.Join(fullpath, "/tables")
 	Conf.RootChart = filepath.Join(fullpath, "/charts")
 	Conf.RootPage = filepath.Join(fullpath, "/pages")
+	Conf.RootWorkFlow = filepath.Join(fullpath, "/workflows")
 	Conf.RootData = filepath.Join(fullpath, "/data")
 	Conf.RootUI = filepath.Join(fullpath, "/ui")
 	Conf.RootDB = filepath.Join(fullpath, "/db")
