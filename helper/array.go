@@ -128,6 +128,19 @@ func ArrayUnique(columns []interface{}) []interface{} {
 	return res
 }
 
+// ArrayStringUnique 数组排重
+func ArrayStringUnique(columns []string) []string {
+	res := []string{}
+	m := make(map[string]bool)
+	for _, key := range columns {
+		if _, ok := m[key]; !ok {
+			m[key] = true
+			res = append(res, key)
+		}
+	}
+	return res
+}
+
 // OfArrayPluckValue Any 转 ArrayPluckValue
 func OfArrayPluckValue(any interface{}) ArrayPluckValue {
 	content, err := jsoniter.Marshal(any)

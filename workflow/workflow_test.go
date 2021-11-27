@@ -101,7 +101,7 @@ func TestOpen(t *testing.T) {
 	assert.Equal(t, "进行中", data.Get("node_status"))
 	assert.Equal(t, "进行中", data.Get("status"))
 	assert.Equal(t, int64(1), data.Get("user_id"))
-	assert.Equal(t, []interface{}{float64(1)}, data.Get("users"))
+	assert.Equal(t, float64(1), data.Get("users.选择商务负责人"))
 
 	// 清理数据
 	capsule.Query().From("xiang_workflow").Truncate()
@@ -117,7 +117,7 @@ func TestOpenEmpty(t *testing.T) {
 	assert.Equal(t, "进行中", data.Get("node_status"))
 	assert.Equal(t, "进行中", data.Get("status"))
 	assert.Equal(t, 1, data.Get("user_id"))
-	assert.Equal(t, []interface{}{1}, data.Get("users"))
+	assert.Equal(t, 1, data.Get("users.选择商务负责人"))
 }
 
 func TestNext(t *testing.T) {
@@ -170,6 +170,33 @@ func TestNextWhen(t *testing.T) {
 	assert.Equal(t, "测试项目", data.Get("output.项目名称"))
 	assert.Equal(t, "林明波", data.Get("output.商务负责人名称"))
 	assert.Equal(t, "通过", data.Get("output.审批结果"))
+
+	// 清理数据
+	capsule.Query().From("xiang_workflow").Truncate()
+}
+
+func TestGoto(t *testing.T) {
+	assignFlow := Select("assign")
+	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
+		Data: map[string]interface{}{"id": 1, "name": "云主机"},
+		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
+	})
+	id := any.Of(wflow["id"]).CInt()
+	assignFlow.Next(1, id, map[string]interface{}{
+		"项目名称":    "测试项目",
+		"商务负责人名称": "林明波",
+	})
+
+	wflow = assignFlow.Goto(2, id, "选择商务负责人", map[string]interface{}{"审批结果": "驳回"})
+	data := maps.Of(wflow).Dot()
+	assert.Equal(t, true, data.Has("id"))
+	assert.Equal(t, "assign", data.Get("name"))
+	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
+	assert.Equal(t, "进行中", data.Get("node_status"))
+	assert.Equal(t, "进行中", data.Get("status"))
+	assert.Equal(t, int64(1), data.Get("user_id"))
+	assert.Equal(t, float64(1), data.Get("users.选择商务负责人"))
+	assert.Equal(t, float64(2), data.Get("users.项目负责人审批"))
 
 	// 清理数据
 	capsule.Query().From("xiang_workflow").Truncate()
