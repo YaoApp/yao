@@ -16,6 +16,23 @@ import (
 	"github.com/yaoapp/xiang/xlog"
 )
 
+// Process
+// 读取工作流 xiang.workflow.Open(uid, data_id)
+// 读取工作流 xiang.workflow.Find(workflow_id)
+// 保存工作流 xiang.workflow.Save(uid, node_name, data_id, input, ...output)
+// 进入下一个节点 xiang.workflow.Next(uid, workflow_id, output)
+// 跳转到指定节点 xiang.workflow.Goto(uid, workflow_id, node_name, output)
+// 更新流程状态 xiang.workflow.Status(uid, workflow_id, status_name, output)
+// 结束流程 xiang.workflow.Done(uid, workflow_id, output)
+// 关闭流程 xiang.workflow.Close(uid, workflow_id, output)
+// 重置流程 xiang.workflow.Reset(uid, workflow_id, output)
+
+// API:
+// 读取工作流 GET /api/xiang/workflow/<工作流名称>/open
+// 读取工作流 GET /api/xiang/workflow/<工作流名称>/find/:id
+// 读取工作流配置 GET /api/xiang/workflow/<工作流名称>/setting
+// 调用自定义API POST /api/xiang/workflow/<工作流名称>/<自定义API路由>
+
 // WorkFlows 工作流列表
 var WorkFlows = map[string]*WorkFlow{}
 
@@ -77,19 +94,6 @@ func (workflow *WorkFlow) Reload() *WorkFlow {
 	WorkFlows[workflow.Name] = new
 	return new
 }
-
-// Process
-// 读取工作流 xiang.workflow.Open(uid, name, data_id)
-// 读取工作流 xiang.workflow.Find(id)
-// 保存工作流 xiang.workflow.Save(uid, name, node, input)
-// 进入下一个节点 xiang.workflow.Next(uid, id, input)
-// 跳转到指定节点 xiang.workflow.Goto(uid, id, node, input)
-
-// API:
-// 读取工作流 GET /api/xiang/workflow/<工作流名称>/open
-// 读取工作流 GET /api/xiang/workflow/<工作流名称>/find/:id
-// 读取工作流配置 GET /api/xiang/workflow/<工作流名称>/setting
-// 调用自定义API POST /api/xiang/workflow/<工作流名称>/<自定义API路由>
 
 // Setting 返回配置信息
 func (workflow *WorkFlow) Setting(id int) {}
@@ -203,9 +207,36 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 	return wflow.MustFind(id, gou.QueryParam{})
 }
 
-// Status 标记工作流状态
+// Done 标记完成
 // uid 当前处理人ID, id 工作流ID
-func (workflow *WorkFlow) Status(uid int, id int, output map[string]interface{}) {
+func (workflow *WorkFlow) Done(uid int, id int, output map[string]interface{}) map[string]interface{} {
+	return workflow.Status(uid, id, "已完成", output)
+}
+
+// Close 标记关闭
+// uid 当前处理人ID, id 工作流ID
+func (workflow *WorkFlow) Close(uid int, id int, output map[string]interface{}) map[string]interface{} {
+	return workflow.Status(uid, id, "已关闭", output)
+}
+
+// Status 设定状态
+// uid 当前处理人ID, id 工作流ID
+func (workflow *WorkFlow) Status(uid int, id int, status string, output map[string]interface{}) map[string]interface{} {
+	wflow := workflow.Find(id)
+	mod := gou.Select("xiang.workflow")
+	output = workflow.MergeData(wflow["output"], output)
+	mod.Save(map[string]interface{}{
+		"id":     wflow["id"],
+		"output": output,
+		"status": status,
+	})
+	return workflow.Find(id)
+}
+
+// Reset 重新开始
+// uid 当前处理人ID, id 工作流ID
+func (workflow *WorkFlow) Reset(uid int, id int, output map[string]interface{}) map[string]interface{} {
+	return workflow.Goto(uid, id, workflow.Nodes[0].Name, output)
 }
 
 // Goto 工作流跳转

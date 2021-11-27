@@ -202,6 +202,73 @@ func TestGoto(t *testing.T) {
 	capsule.Query().From("xiang_workflow").Truncate()
 }
 
+func TestReset(t *testing.T) {
+	assignFlow := Select("assign")
+	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
+		Data: map[string]interface{}{"id": 1, "name": "云主机"},
+		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
+	})
+	id := any.Of(wflow["id"]).CInt()
+	assignFlow.Next(1, id, map[string]interface{}{
+		"项目名称":    "测试项目",
+		"商务负责人名称": "林明波",
+	})
+
+	wflow = assignFlow.Reset(2, id, map[string]interface{}{"审批结果": "驳回"})
+	data := maps.Of(wflow).Dot()
+	assert.Equal(t, true, data.Has("id"))
+	assert.Equal(t, "assign", data.Get("name"))
+	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
+	assert.Equal(t, "进行中", data.Get("node_status"))
+	assert.Equal(t, "进行中", data.Get("status"))
+	assert.Equal(t, int64(1), data.Get("user_id"))
+	assert.Equal(t, float64(1), data.Get("users.选择商务负责人"))
+	assert.Equal(t, float64(2), data.Get("users.项目负责人审批"))
+
+	// 清理数据
+	capsule.Query().From("xiang_workflow").Truncate()
+}
+
+func TestDone(t *testing.T) {
+	assignFlow := Select("assign")
+	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
+		Data: map[string]interface{}{"id": 1, "name": "云主机"},
+		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
+	})
+	id := any.Of(wflow["id"]).CInt()
+	assignFlow.Next(1, id, map[string]interface{}{
+		"项目名称":    "测试项目",
+		"商务负责人名称": "林明波",
+	})
+
+	wflow = assignFlow.Done(2, id, map[string]interface{}{"关闭原因": "测试完成"})
+	data := maps.Of(wflow).Dot()
+	assert.Equal(t, "已完成", data.Get("status"))
+	assert.Equal(t, "测试完成", data.Get("output.关闭原因"))
+	// 清理数据
+	capsule.Query().From("xiang_workflow").Truncate()
+}
+
+func TestClose(t *testing.T) {
+	assignFlow := Select("assign")
+	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
+		Data: map[string]interface{}{"id": 1, "name": "云主机"},
+		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
+	})
+	id := any.Of(wflow["id"]).CInt()
+	assignFlow.Next(1, id, map[string]interface{}{
+		"项目名称":    "测试项目",
+		"商务负责人名称": "林明波",
+	})
+
+	wflow = assignFlow.Close(2, id, map[string]interface{}{"关闭原因": "测试关闭"})
+	data := maps.Of(wflow).Dot()
+	assert.Equal(t, "已关闭", data.Get("status"))
+	assert.Equal(t, "测试关闭", data.Get("output.关闭原因"))
+	// 清理数据
+	capsule.Query().From("xiang_workflow").Truncate()
+}
+
 func check(t *testing.T) {
 	keys := []string{}
 	for key, workflow := range WorkFlows {
