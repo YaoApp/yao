@@ -42,6 +42,7 @@ func TestSave(t *testing.T) {
 
 	data := maps.Of(wflow).Dot()
 	assert.Equal(t, int64(1), data.Get("id"))
+	assert.Equal(t, "assign", data.Get("name"))
 	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
 	assert.Equal(t, "进行中", data.Get("node_status"))
 	assert.Equal(t, "进行中", data.Get("status"))
@@ -67,6 +68,7 @@ func TestSaveUpdate(t *testing.T) {
 
 	data := maps.Of(wflow).Dot()
 	assert.Equal(t, int64(1), data.Get("id"))
+	assert.Equal(t, "assign", data.Get("name"))
 	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
 	assert.Equal(t, "进行中", data.Get("node_status"))
 	assert.Equal(t, "进行中", data.Get("status"))
@@ -77,6 +79,39 @@ func TestSaveUpdate(t *testing.T) {
 
 	// 清理数据
 	capsule.Query().From("xiang_workflow").Truncate()
+}
+
+func TestGet(t *testing.T) {
+	assignFlow := Select("assign")
+	assignFlow.Save(1, "选择商务负责人", 1, Input{
+		Data: map[string]interface{}{"id": 1, "name": "云主机"},
+		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
+	})
+	wflow := assignFlow.Get(1, 1)
+	data := maps.Of(wflow).Dot()
+	assert.Equal(t, int64(1), data.Get("id"))
+	assert.Equal(t, "assign", data.Get("name"))
+	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
+	assert.Equal(t, "进行中", data.Get("node_status"))
+	assert.Equal(t, "进行中", data.Get("status"))
+	assert.Equal(t, int64(1), data.Get("user_id"))
+	assert.Equal(t, []interface{}{float64(1)}, data.Get("users"))
+
+	// 清理数据
+	capsule.Query().From("xiang_workflow").Truncate()
+}
+
+func TestGetEmpty(t *testing.T) {
+	assignFlow := Select("assign")
+	wflow := assignFlow.Get(1, 1)
+	data := maps.Of(wflow).Dot()
+	assert.Equal(t, false, data.Has("id"))
+	assert.Equal(t, "assign", data.Get("name"))
+	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
+	assert.Equal(t, "进行中", data.Get("node_status"))
+	assert.Equal(t, "进行中", data.Get("status"))
+	assert.Equal(t, 1, data.Get("user_id"))
+	assert.Equal(t, []interface{}{1}, data.Get("users"))
 }
 
 func check(t *testing.T) {

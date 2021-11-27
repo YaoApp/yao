@@ -93,14 +93,21 @@ func (workflow *WorkFlow) Setting(id int) {}
 func (workflow *WorkFlow) SetupAPIs(id int) {}
 
 // Get 读取当前工作流(未完成的)
-func (workflow *WorkFlow) Get(uid int, name string, id interface{}) map[string]interface{} {
+func (workflow *WorkFlow) Get(uid int, id interface{}) map[string]interface{} {
 	wflow := gou.Select("xiang.workflow")
+	hasUser := dbal.Raw(fmt.Sprintf("JSON_CONTAINS(users, '%d', '$')", uid))
 	params := gou.QueryParam{
-		Select: []interface{}{"*"},
+		Select: []interface{}{
+			"data_id", "id", "input", "name",
+			"user_id", "users",
+			"node_name", "node_status",
+			"status",
+			"updated_at", "created_at",
+		},
 		Wheres: []gou.QueryWhere{
 			{Column: "name", Value: workflow.Name},
 			{Column: "data_id", Value: id},
-			{Column: "user_id", Value: uid},
+			{Column: hasUser, Value: 1},
 			{Column: "status", Value: "进行中"},
 		},
 	}
@@ -111,8 +118,9 @@ func (workflow *WorkFlow) Get(uid int, name string, id interface{}) map[string]i
 	return map[string]interface{}{
 		"name":        workflow.Name,
 		"data_id":     id,
-		"node_name":   name,
+		"node_name":   workflow.Nodes[0].Name,
 		"user_id":     uid,
+		"users":       []interface{}{uid},
 		"status":      "进行中",
 		"node_status": "进行中",
 		"input":       map[string]interface{}{},
@@ -128,7 +136,7 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 		Wheres: []gou.QueryWhere{
 			{Column: "name", Value: workflow.Name},
 			{Column: "data_id", Value: id},
-			{Column: hasUser},
+			{Column: hasUser, Value: 1},
 			{Column: "status", Value: "进行中"},
 		},
 		Limit: 1,
