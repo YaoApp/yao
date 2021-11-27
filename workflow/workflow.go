@@ -17,19 +17,19 @@ import (
 )
 
 // Process
-// 读取工作流 xiang.workflow.Open(uid, data_id)
 // 读取工作流 xiang.workflow.Find(workflow_id)
+// 读取工作流 xiang.workflow.Open(uid, data_id)
 // 保存工作流 xiang.workflow.Save(uid, node_name, data_id, input, ...output)
 // 进入下一个节点 xiang.workflow.Next(uid, workflow_id, output)
 // 跳转到指定节点 xiang.workflow.Goto(uid, workflow_id, node_name, output)
-// 更新流程状态 xiang.workflow.Status(uid, workflow_id, status_name, output)
-// 结束流程 xiang.workflow.Done(uid, workflow_id, output)
-// 关闭流程 xiang.workflow.Close(uid, workflow_id, output)
-// 重置流程 xiang.workflow.Reset(uid, workflow_id, output)
+// 更新工作流状态 xiang.workflow.Status(uid, workflow_id, status_name, output)
+// 标记结束流程 xiang.workflow.Done(uid, workflow_id, output)
+// 标记关闭流程 xiang.workflow.Close(uid, workflow_id, output)
+// 标记重置流程 xiang.workflow.Reset(uid, workflow_id, output)
 
 // API:
-// 读取工作流 GET /api/xiang/workflow/<工作流名称>/open
 // 读取工作流 GET /api/xiang/workflow/<工作流名称>/find/:id
+// 读取工作流 GET /api/xiang/workflow/<工作流名称>/open
 // 读取工作流配置 GET /api/xiang/workflow/<工作流名称>/setting
 // 调用自定义API POST /api/xiang/workflow/<工作流名称>/<自定义API路由>
 
@@ -434,4 +434,16 @@ func (workflow *WorkFlow) IsLastNode(name string) bool {
 // Len 节点数量
 func (workflow *WorkFlow) Len() int {
 	return len(workflow.Nodes)
+}
+
+// InputOf 映射表转换为Input
+func InputOf(in map[string]interface{}) Input {
+	input := Input{Data: map[string]interface{}{}, Form: map[string]interface{}{}}
+	if data, ok := in["data"].(map[string]interface{}); ok {
+		input.Data = data
+	}
+	if form, ok := in["form"].(map[string]interface{}); ok {
+		input.Form = form
+	}
+	return input
 }
