@@ -171,6 +171,8 @@ func (workflow *WorkFlow) Setting(uid int, id interface{}) map[string]interface{
 	nodes := workflow.FlowNodes(data.Dot())
 	return map[string]interface{}{
 		"nodes":      nodes,
+		"read":       true,
+		"write":      any.Of(wflow["user_id"]).CInt() == uid,
 		"actions":    workflow.Actions,
 		"name":       workflow.Name,
 		"version":    workflow.Version,

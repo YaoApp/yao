@@ -275,14 +275,22 @@ func TestSetting(t *testing.T) {
 		Data: map[string]interface{}{"id": 1, "name": "云主机"},
 		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
 	})
+
+	setting := assignFlow.Setting(1, 1)
+	data := maps.Of(setting).Dot()
+	assert.Equal(t, true, data.Get("read"))
+	assert.Equal(t, true, data.Get("write"))
+
 	id := any.Of(wflow["id"]).CInt()
 	assignFlow.Next(1, id, map[string]interface{}{
 		"项目名称":    "测试项目",
 		"商务负责人名称": "林明波",
 	})
 
-	setting := assignFlow.Setting(1, 1)
-	data := maps.Of(setting).Dot()
+	setting = assignFlow.Setting(1, 1)
+	data = maps.Of(setting).Dot()
+	assert.Equal(t, true, data.Get("read"))
+	assert.Equal(t, false, data.Get("write"))
 	assert.Equal(t, 2, data.Get("nodes.2.source"))
 	assert.Equal(t, 2, data.Get("nodes.3.source"))
 	assert.Equal(t, "assign", data.Get("name"))
