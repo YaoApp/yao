@@ -7,8 +7,10 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/helper"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/xlog"
+	"github.com/yaoapp/xun/dbal"
 )
 
 // WorkFlows 工作流列表
@@ -120,14 +122,16 @@ func (workflow *WorkFlow) Get(uid int, name string, id interface{}) map[string]i
 // Save 保存工作流节点数据
 func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input) map[string]interface{} {
 	wflow := gou.Select("xiang.workflow")
+	hasUser := dbal.Raw(fmt.Sprintf("JSON_CONTAINS(users, '%d', '$')", uid))
 	params := gou.QueryParam{
-		Select: []interface{}{"id", "input"},
+		Select: []interface{}{"id", "input", "users"},
 		Wheres: []gou.QueryWhere{
 			{Column: "name", Value: workflow.Name},
 			{Column: "data_id", Value: id},
-			{Column: "user_id", Value: uid},
+			{Column: hasUser},
 			{Column: "status", Value: "进行中"},
 		},
+		Limit: 1,
 	}
 
 	rows := wflow.MustGet(params)
@@ -139,19 +143,27 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 	}
 	if len(rows) > 0 {
 		nodeInput := map[string]interface{}{}
+		users := []interface{}{uid}
 		if history, ok := rows[0].Get("input").(map[string]interface{}); ok {
 			nodeInput = history
+		}
+		if last, ok := rows[0].Get("users").([]interface{}); ok {
+			users = last
+			users = append(users, uid)
+			users = helper.ArrayUnique(users)
 		}
 		nodeInput[name] = input
 		data["id"] = rows[0].Get("id")
 		data["input"] = nodeInput
+		data["users"] = users
 	} else {
-
 		nodeInput := map[string]interface{}{}
+		users := []interface{}{uid}
 		nodeInput[name] = input
 		data["status"] = "进行中"
 		data["node_status"] = "进行中"
 		data["input"] = nodeInput
+		data["users"] = users
 	}
 
 	id = wflow.MustSave(data)

@@ -114,6 +114,20 @@ func ArrayPluck(columns []string, pluck map[string]interface{}) []map[string]int
 	return res
 }
 
+// ArrayUnique 数组排重
+func ArrayUnique(columns []interface{}) []interface{} {
+	res := []interface{}{}
+	m := make(map[string]bool)
+	for _, val := range columns {
+		key := fmt.Sprintf("%v", val)
+		if _, ok := m[key]; !ok {
+			m[key] = true
+			res = append(res, val)
+		}
+	}
+	return res
+}
+
 // OfArrayPluckValue Any 转 ArrayPluckValue
 func OfArrayPluckValue(any interface{}) ArrayPluckValue {
 	content, err := jsoniter.Marshal(any)

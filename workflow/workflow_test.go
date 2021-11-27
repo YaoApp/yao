@@ -39,6 +39,7 @@ func TestSave(t *testing.T) {
 		Data: map[string]interface{}{"id": 1, "name": "云主机"},
 		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
 	})
+
 	data := maps.Of(wflow).Dot()
 	assert.Equal(t, int64(1), data.Get("id"))
 	assert.Equal(t, "选择商务负责人", data.Get("node_name"))
@@ -54,12 +55,12 @@ func TestSave(t *testing.T) {
 
 func TestSaveUpdate(t *testing.T) {
 	assignFlow := Select("assign")
-	assignFlow.Save(1, "选择商务负责人", 1, Input{
+	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
 		Data: map[string]interface{}{"id": 1, "name": "云主机"},
 		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
 	})
 
-	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
+	wflow = assignFlow.Save(1, "选择商务负责人", 1, Input{
 		Data: map[string]interface{}{"id": 1, "name": "云存储"},
 		Form: map[string]interface{}{"biz_id": 1, "name": "李明博"},
 	})

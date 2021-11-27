@@ -70,8 +70,8 @@
     },
     {
       "label": "处理人",
-      "comment": "处理人选取条件",
-      "name": "user",
+      "comment": "关联处理人",
+      "name": "users",
       "type": "json",
       "nullable": true
     },

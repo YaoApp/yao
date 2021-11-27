@@ -154,3 +154,15 @@ func TestProcessArraySplit(t *testing.T) {
 		assert.Equal(t, 2, len(value))
 	}
 }
+
+func TestProcessArrayUnique(t *testing.T) {
+	args := []interface{}{
+		[]interface{}{1, 2, 3, 3},
+	}
+	process := gou.NewProcess("xiang.helper.ArrayUnique", args...)
+	response := process.Run()
+	assert.NotNil(t, response)
+	res, ok := response.([]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, []interface{}{1, 2, 3}, res)
+}

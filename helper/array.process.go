@@ -45,3 +45,12 @@ func ProcessArrayTree(process *gou.Process) interface{} {
 	setting := process.ArgsMap(1)
 	return ArrayTree(records, setting)
 }
+
+// ProcessArrayUnique  xiang.helper.ArrayUnique 数组排重
+func ProcessArrayUnique(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	if arr, ok := process.Args[0].([]interface{}); ok {
+		return ArrayUnique(arr)
+	}
+	return process.Args[0]
+}

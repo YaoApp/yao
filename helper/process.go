@@ -12,6 +12,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.ArrayColumn", ProcessArrayColumn)
 	gou.RegisterProcessHandler("xiang.helper.ArrayKeep", ProcessArrayKeep)
 	gou.RegisterProcessHandler("xiang.helper.ArrayTree", ProcessArrayTree)
+	gou.RegisterProcessHandler("xiang.helper.ArrayUnique", ProcessArrayUnique)
 
 	gou.RegisterProcessHandler("xiang.helper.MapKeys", ProcessMapKeys)
 	gou.RegisterProcessHandler("xiang.helper.MapValues", ProcessMapValues)
