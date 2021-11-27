@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/xiang/query"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
+	"github.com/yaoapp/xiang/workflow"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
@@ -28,14 +29,15 @@ func Load(cfg config.Config) {
 	LoadEngine(cfg.Path)
 	query.Load(cfg) // 加载数据分析引擎
 
-	share.Load(cfg)  // 加载共享库 lib
-	model.Load(cfg)  // 加载数据模型 model
-	api.Load(cfg)    // 加载业务接口 API
-	flow.Load(cfg)   // 加载业务逻辑 Flow
-	plugin.Load(cfg) // 加载业务插件 plugin
-	table.Load(cfg)  // 加载数据表格 table
-	chart.Load(cfg)  // 加载分析图表 chart
-	page.Load(cfg)   // 加载页面 page
+	share.Load(cfg)    // 加载共享库 lib
+	model.Load(cfg)    // 加载数据模型 model
+	flow.Load(cfg)     // 加载业务逻辑 Flow
+	plugin.Load(cfg)   // 加载业务插件 plugin
+	table.Load(cfg)    // 加载数据表格 table
+	chart.Load(cfg)    // 加载分析图表 chart
+	page.Load(cfg)     // 加载页面 page
+	workflow.Load(cfg) // 加载工作流  workflow
+	api.Load(cfg)      // 加载业务接口 API
 
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")

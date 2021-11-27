@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/xiang/page"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
+	"github.com/yaoapp/xiang/workflow"
 )
 
 // Watch 监听应用目录文件变更
@@ -24,6 +25,7 @@ func Watch(cfg config.Config) {
 	WatchTable(cfg.RootTable, "")
 	WatchChart(cfg.RootChart, "")
 	WatchPage(cfg.RootPage, "")
+	WatchWorkFlow(cfg.RootWorkFlow, "")
 
 	// 看板大屏
 	WatchPage(filepath.Join(cfg.Root, "/kanban"), "")
@@ -313,6 +315,49 @@ func WatchPage(root string, prefix string) {
 			if _, has := page.Pages[name]; has {
 				delete(page.Pages, name)
 				log.Printf("Page %s 已经移除", name)
+			}
+		}
+
+		// 重启服务器
+		if op == "write" || op == "create" || op == "remove" || op == "rename" {
+			Stop(func() {
+				log.Printf("服务器重启完毕")
+				go Start()
+			})
+		}
+	})
+}
+
+// WatchWorkFlow 监听工作流更新
+func WatchWorkFlow(root string, prefix string) {
+	if share.DirNotExists(root) {
+		return
+	}
+	root = share.DirAbs(root)
+	go share.Watch(root, func(op string, filename string) {
+		if !strings.HasSuffix(filename, ".json") {
+			return
+		}
+
+		if op == "write" || op == "create" {
+			name := prefix + share.SpecName(root, filename)
+			content := share.ReadFile(filename)
+			_, err := workflow.LoadWorkFlow(content, name) // Relaod
+			if err != nil {
+				return
+			}
+
+			api, has := gou.APIs["xiang.workflow."+name]
+			if has {
+				api.Reload() // 重载API
+			}
+			log.Printf("WorkFlow %s 已重新加载完毕", name)
+
+		} else if op == "remove" || op == "rename" {
+			name := prefix + share.SpecName(root, filename)
+			if _, has := workflow.WorkFlows[name]; has {
+				delete(workflow.WorkFlows, name)
+				log.Printf("WorkFlow %s 已经移除", name)
 			}
 		}
 

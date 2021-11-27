@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "指派商务负责人",
   "apis": {
+    "/confirm": {
+      "label": "确认",
+      "process": "xiang.assign.confirm"
+    },
     "/save": {
       "label": "保存",
       "process": "xiang.assign.save"
