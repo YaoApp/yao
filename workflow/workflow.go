@@ -97,9 +97,6 @@ func (workflow *WorkFlow) Reload() *WorkFlow {
 	return new
 }
 
-// Setting 返回配置信息
-func (workflow *WorkFlow) Setting(id int) {}
-
 // Find 读取给定ID的工作流
 // uid 当前处理人ID, id 数据ID
 func (workflow *WorkFlow) Find(id int) map[string]interface{} {
@@ -156,6 +153,29 @@ func (workflow *WorkFlow) Open(uid int, id interface{}) map[string]interface{} {
 		"node_status": "进行中",
 		"input":       map[string]interface{}{},
 		"output":      map[string]interface{}{},
+	}
+}
+
+// Setting 返回配置信息
+// uid 当前处理人ID, id 数据ID
+func (workflow *WorkFlow) Setting(uid int, id interface{}) map[string]interface{} {
+	wflow := workflow.Open(1, 1)
+	data := maps.MapStr{
+		"$in":     wflow["input"],
+		"$input":  wflow["input"],
+		"$out":    wflow["output"],
+		"$outupt": wflow["output"],
+		"$data":   wflow["output"],
+	}
+
+	nodes := workflow.FlowNodes(data.Dot())
+	return map[string]interface{}{
+		"nodes":      nodes,
+		"actions":    workflow.Actions,
+		"name":       workflow.Name,
+		"version":    workflow.Version,
+		"label":      workflow.Label,
+		"decription": workflow.Decription,
 	}
 }
 
@@ -428,6 +448,45 @@ func (workflow *WorkFlow) MergeData(data interface{}, new interface{}) map[strin
 func (workflow *WorkFlow) IsLastNode(name string) bool {
 	length := workflow.Len()
 	return workflow.Nodes[length-1].Name == name
+}
+
+// FlowNodes 转换为 flow
+func (workflow *WorkFlow) FlowNodes(data map[string]interface{}) []map[string]interface{} {
+	res := []map[string]interface{}{}
+	nodes, err := jsoniter.Marshal(workflow.Nodes)
+	if err != nil {
+		exception.New("JSON解析错误 %s", 500, nodes).Throw()
+	}
+
+	err = jsoniter.Unmarshal(nodes, &res)
+	if err != nil {
+		exception.New("JSON解析错误 %s", 500, nodes).Throw()
+	}
+
+	nameMaps := map[string]int{}
+	for i, node := range workflow.Nodes {
+		nameMaps[node.Name] = i
+	}
+
+	for i, node := range res {
+		v := gshare.Bind(node, data)
+		if v, ok := v.(map[string]interface{}); ok {
+			res[i] = v
+		}
+		res[i]["id"] = i + 1
+		res[i]["label"] = res[i]["name"]
+		delete(res[i], "user")
+		delete(res[i], "next")
+		if workflow.Nodes[i].Next != nil {
+			for _, next := range workflow.Nodes[i].Next {
+				name := next.Goto
+				if id, has := nameMaps[name]; has {
+					res[id]["source"] = i + 1
+				}
+			}
+		}
+	}
+	return res
 }
 
 // Len 节点数量

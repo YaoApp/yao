@@ -16,6 +16,7 @@ import "github.com/yaoapp/gou"
 func init() {
 	// 注册处理器
 	gou.RegisterProcessHandler("xiang.workflow.Find", ProcessFind)
+	gou.RegisterProcessHandler("xiang.workflow.Setting", ProcessSetting)
 	gou.RegisterProcessHandler("xiang.workflow.Open", ProcessOpen)
 	gou.RegisterProcessHandler("xiang.workflow.Save", ProcessSave)
 	gou.RegisterProcessHandler("xiang.workflow.Next", ProcessNext)
@@ -42,6 +43,15 @@ func ProcessOpen(process *gou.Process) interface{} {
 	process.ValidateArgNums(3)
 	wflow := Select(process.ArgsString(0))
 	return wflow.Open(process.ArgsInt(1), process.Args[2])
+}
+
+// ProcessSetting xiang.workflow.Setting 读取工作流配置
+//   args: [工作流名称*, 当前用户ID*, 关联数据ID*]
+// return: map[string]interface{} 工作流配置
+func ProcessSetting(process *gou.Process) interface{} {
+	process.ValidateArgNums(3)
+	wflow := Select(process.ArgsString(0))
+	return wflow.Setting(process.ArgsInt(1), process.Args[2])
 }
 
 // ProcessSave xiang.workflow.Save 保存工作流节点信息

@@ -35,7 +35,7 @@ func (workflow *WorkFlow) SetupAPIs() error {
 			Path:        filepath.Join("/", workflow.Name, name),
 			Method:      "POST",
 			Process:     custAPI.Process,
-			In:          []string{workflow.Name, "$query.data_id", ":payload"},
+			In:          []string{workflow.Name, "$session.user_id", "$query.data_id", ":payload"},
 			Out: gou.Out{
 				Status: 200,
 				Type:   "application/json",

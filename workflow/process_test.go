@@ -43,6 +43,30 @@ func TestProcessFind(t *testing.T) {
 	capsule.Query().From("xiang_workflow").Truncate()
 }
 
+func TestProcessSetting(t *testing.T) {
+	assignFlow := Select("assign")
+	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
+		Data: map[string]interface{}{"id": 1, "name": "云主机"},
+		Form: map[string]interface{}{"biz_id": 1, "name": "张良明"},
+	})
+	id := any.Of(wflow["id"]).CInt()
+	assignFlow.Next(1, id, map[string]interface{}{
+		"项目名称":    "测试项目",
+		"商务负责人名称": "林明波",
+	})
+
+	args := []interface{}{"assign", 1, 1}
+	res := gou.NewProcess("xiang.workflow.Setting", args...).Run()
+	data := any.Of(res).Map().MapStrAny.Dot()
+	assert.Equal(t, 2, data.Get("nodes.2.source"))
+	assert.Equal(t, 2, data.Get("nodes.3.source"))
+	assert.Equal(t, "assign", data.Get("name"))
+	assert.Equal(t, "指派商务负责人", data.Get("label"))
+
+	// 清理数据
+	capsule.Query().From("xiang_workflow").Truncate()
+}
+
 func TestProcessOpen(t *testing.T) {
 	assignFlow := Select("assign")
 	wflow := assignFlow.Save(1, "选择商务负责人", 1, Input{
