@@ -13,5 +13,5 @@ func TestSetupAPIs(t *testing.T) {
 
 	api := gou.SelectAPI("xiang.workflow.assign")
 	assert.Equal(t, "xiang.workflow.assign", api.Name)
-	assert.Equal(t, 9, len(api.HTTP.Paths))
+	assert.Equal(t, 10, len(api.HTTP.Paths))
 }
