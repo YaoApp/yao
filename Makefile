@@ -151,7 +151,7 @@ release: clean
 #	UI制品
 	git clone https://github.com/YaoApp/xiang-ui .tmp/ui
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && yarn install && yarn build
+	cd .tmp/ui && npm install && npm build
 	rm -rf dist/release/ui
 	mv .tmp/ui/dist dist/release/ui
 
