@@ -40,9 +40,10 @@ type User struct {
 
 // API 工作相关API
 type API struct {
-	Name    string        `json:"name"`
-	Process string        `json:"process"`
-	Args    []interface{} `json:"args"`
+	Label       string        `json:"label,omitempty"`
+	Description string        `json:"description,omitempty"`
+	Process     string        `json:"process"`
+	Args        []interface{} `json:"args"`
 }
 
 // Input 用户输入数据

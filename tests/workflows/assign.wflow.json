@@ -4,27 +4,27 @@
   "description": "指派商务负责人",
   "apis": {
     "/save": {
-      "name": "保存",
+      "label": "保存",
       "process": "xiang.assign.save"
     },
     "/terminal": {
-      "name": "关闭",
+      "label": "关闭",
       "process": "xiang.assign.terminal"
     },
     "/submit": {
-      "name": "提交审批",
+      "label": "提交审批",
       "process": "flows.assign.submit"
     },
     "/reject/reset": {
-      "name": "审批驳回并重填",
+      "label": "审批驳回并重填",
       "process": "flows.assign.reject.rest"
     },
     "/reject/terminal": {
-      "name": "审批驳回并关闭",
+      "label": "审批驳回并关闭",
       "process": "flows.assign.reject.terminal"
     },
     "/resolve": {
-      "name": "审批同意",
+      "label": "审批同意",
       "process": "flows.assign.resolve"
     }
   },

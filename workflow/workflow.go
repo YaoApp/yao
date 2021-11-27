@@ -17,15 +17,15 @@ import (
 )
 
 // Process
-// 读取工作流 xiang.workflow.Find(workflow_id)
-// 读取工作流 xiang.workflow.Open(uid, data_id)
-// 保存工作流 xiang.workflow.Save(uid, node_name, data_id, input, ...output)
-// 进入下一个节点 xiang.workflow.Next(uid, workflow_id, output)
-// 跳转到指定节点 xiang.workflow.Goto(uid, workflow_id, node_name, output)
-// 更新工作流状态 xiang.workflow.Status(uid, workflow_id, status_name, output)
-// 标记结束流程 xiang.workflow.Done(uid, workflow_id, output)
-// 标记关闭流程 xiang.workflow.Close(uid, workflow_id, output)
-// 标记重置流程 xiang.workflow.Reset(uid, workflow_id, output)
+// 读取工作流 xiang.workflow.Find(name, workflow_id)
+// 读取工作流 xiang.workflow.Open(name, uid, data_id)
+// 保存工作流 xiang.workflow.Save(name, uid, node_name, data_id, input, ...output)
+// 进入下一个节点 xiang.workflow.Next(name, uid, workflow_id, output)
+// 跳转到指定节点 xiang.workflow.Goto(name, uid, workflow_id, node_name, output)
+// 更新工作流状态 xiang.workflow.Status(name, uid, workflow_id, status_name, output)
+// 标记结束流程 xiang.workflow.Done(name, uid, workflow_id, output)
+// 标记关闭流程 xiang.workflow.Close(name, uid, workflow_id, output)
+// 标记重置流程 xiang.workflow.Reset(name, uid, workflow_id, output)
 
 // API:
 // 读取工作流 GET /api/xiang/workflow/<工作流名称>/find/:id
@@ -66,6 +66,8 @@ func LoadWorkFlow(source []byte, name string) (*WorkFlow, error) {
 		xlog.Println(string(source))
 		return nil, err
 	}
+
+	workflow.SetupAPIs()
 	WorkFlows[workflow.Name] = &workflow
 	return WorkFlows[workflow.Name], nil
 }
@@ -97,9 +99,6 @@ func (workflow *WorkFlow) Reload() *WorkFlow {
 
 // Setting 返回配置信息
 func (workflow *WorkFlow) Setting(id int) {}
-
-// SetupAPIs 注册API
-func (workflow *WorkFlow) SetupAPIs(id int) {}
 
 // Find 读取给定ID的工作流
 // uid 当前处理人ID, id 数据ID
