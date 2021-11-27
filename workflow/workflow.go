@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/str"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/helper"
 	"github.com/yaoapp/xiang/share"
@@ -169,8 +170,11 @@ func (workflow *WorkFlow) Setting(uid int, id interface{}) map[string]interface{
 	}
 
 	nodes := workflow.FlowNodes(data.Dot())
+	_, idx := workflow.pickNode(string(str.Of(wflow["node_name"])))
 	return map[string]interface{}{
 		"nodes":      nodes,
+		"node":       nodes[idx],
+		"node_index": idx,
 		"read":       true,
 		"write":      any.Of(wflow["user_id"]).CInt() == uid,
 		"actions":    workflow.Actions,

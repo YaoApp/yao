@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/flow"
 	"github.com/yaoapp/xiang/model"
@@ -69,8 +68,6 @@ func TestSaveUpdate(t *testing.T) {
 		Data: map[string]interface{}{"id": 1, "name": "云存储"},
 		Form: map[string]interface{}{"biz_id": 1, "name": "李明博"},
 	})
-
-	utils.Dump(wflow)
 
 	data := maps.Of(wflow).Dot()
 	assert.Equal(t, int64(1), data.Get("id"))
@@ -279,6 +276,7 @@ func TestSetting(t *testing.T) {
 	setting := assignFlow.Setting(1, 1)
 	data := maps.Of(setting).Dot()
 	assert.Equal(t, true, data.Get("read"))
+	assert.Equal(t, "选择商务负责人", data.Get("node.label"))
 	assert.Equal(t, true, data.Get("write"))
 
 	id := any.Of(wflow["id"]).CInt()
@@ -291,6 +289,7 @@ func TestSetting(t *testing.T) {
 	data = maps.Of(setting).Dot()
 	assert.Equal(t, true, data.Get("read"))
 	assert.Equal(t, false, data.Get("write"))
+	assert.Equal(t, "项目负责人审批", data.Get("node.label"))
 	assert.Equal(t, 2, data.Get("nodes.2.source"))
 	assert.Equal(t, 2, data.Get("nodes.3.source"))
 	assert.Equal(t, "assign", data.Get("name"))
