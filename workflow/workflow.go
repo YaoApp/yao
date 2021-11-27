@@ -240,6 +240,7 @@ func (workflow *WorkFlow) Next(uid int, id int, output map[string]interface{}) m
 		"$input":  wflow["input"],
 		"$out":    output,
 		"$outupt": output,
+		"$data":   output,
 	}
 	nextNode := workflow.nextNode(currNode, data)
 	nextUID := nextNode.GetUID()
@@ -278,25 +279,34 @@ func (node *Node) GetUID() int {
 
 // nextNode 查找下一个节点
 func (workflow *WorkFlow) nextNode(currentNode string, data map[string]interface{}) *Node {
-	next := -1
+	var curr *Node
+	nextIndex := -1
 	for i, node := range workflow.Nodes {
 		if node.Name == currentNode {
-			next = i + 1
+			nextIndex = i + 1
+			curr = &node
 			break
 		}
 	}
-	if next < 0 {
+	if nextIndex < 0 {
 		exception.New("流程数据异常: 未找到工作流节点", 500).Ctx(currentNode).Throw()
 	}
+
+	if nextIndex == workflow.Len() {
+		exception.New("流程数据异常: 当前节点为最后一个节点", 500).Ctx(currentNode).Throw()
+	}
+
+	// 未声明 Next 节点, 转到下一个节点
+	if curr.Next == nil {
+		return &workflow.Nodes[nextIndex]
+	}
+
+	// 声明 Next 节点, 按条件到指定节点
 	data = maps.Of(data).Dot()
-	for i := next; i < workflow.Len(); i++ {
-		node := workflow.Nodes[i]
-		if node.Conditions == nil || len(node.Conditions) == 0 {
-			return &node
-		}
-		// 替换数据中的变量
+	nextNode := ""
+	for _, next := range curr.Next {
 		conditions := []helper.Condition{}
-		for _, cond := range node.Conditions {
+		for _, cond := range next.Conditions {
 			if left, ok := cond.Left.(string); ok {
 				cond.Left = gshare.Bind(left, data)
 			}
@@ -306,11 +316,16 @@ func (workflow *WorkFlow) nextNode(currentNode string, data map[string]interface
 			conditions = append(conditions, cond)
 		}
 		if helper.When(conditions) {
-			return &node
+			nextNode = next.Goto
+			for i := nextIndex; i < workflow.Len(); i++ {
+				node := workflow.Nodes[i]
+				if node.Name == nextNode {
+					return &node
+				}
+			}
 		}
 	}
-
-	exception.New("流程数据异常: 未找到符合条件的工作流节点", 500).Ctx(currentNode).Throw()
+	exception.New("流程数据异常: 未找到符合条件的工作流节点", 500).Ctx(map[string]interface{}{"current": currentNode, "next": nextNode, "data": data}).Throw()
 	return nil
 }
 

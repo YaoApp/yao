@@ -19,11 +19,17 @@ type WorkFlow struct {
 
 // Node 工作流节点
 type Node struct {
-	Name       string             `json:"name"`
-	Body       share.Render       `json:"body,omitempty"`
+	Name    string       `json:"name"`
+	Body    share.Render `json:"body,omitempty"`
+	Actions []string     `json:"actions,omitempty"`
+	User    User         `json:"user,omitempty"`
+	Next    []Next       `json:"next,omitempty"`
+}
+
+// Next 下一个节点描述
+type Next struct {
 	Conditions []helper.Condition `json:"when,omitempty"`
-	Actions    []string           `json:"actions,omitempty"`
-	User       User               `json:"user,omitempty"`
+	Goto       string             `json:"goto,omitempty"`
 }
 
 // User 工作流相关用户读取条件

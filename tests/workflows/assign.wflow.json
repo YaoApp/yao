@@ -53,15 +53,24 @@
         "props": { "src": "/workflows/assign/approve.html" }
       },
       "actions": ["驳回并重填", "驳回并关闭", "同意"],
-      "user": { "process": "flows.select.manager", "args": [2] }
+      "user": { "process": "flows.select.manager", "args": [2] },
+      "next": [
+        {
+          "when": [{ "审批通过": "{{$data.审批结果}}", "=": "通过" }],
+          "goto": "审批通过"
+        },
+        {
+          "when": [{ "审批通过": "{{$data.审批结果}}", "=": "驳回" }],
+          "goto": "审批驳回"
+        }
+      ]
     },
     {
       "name": "审批通过",
-      "when": [{ "审批通过": "{{$out.审批结果}}", "=": "通过" }],
       "body": {
         "type": "markdown",
         "props": {
-          "content": "审批通过, {{$out.项目名称}}商务负责人为: **{{$out.商务负责人名称}}**"
+          "content": "审批通过, {{$data.项目名称}}商务负责人为: **{{$data.商务负责人名称}}**"
         }
       },
       "actions": ["关闭"],
@@ -69,11 +78,10 @@
     },
     {
       "name": "审批驳回",
-      "when": [{ "审批通过": "{{$out.审批结果}}", "=": "驳回" }],
       "body": {
         "type": "markdown",
         "props": {
-          "content": "您的请求被驳回, 驳回原因: **{{$out.驳回原因}}**"
+          "content": "您的请求被驳回, 驳回原因: **{{$data.驳回原因}}**"
         }
       },
       "actions": ["关闭"],
