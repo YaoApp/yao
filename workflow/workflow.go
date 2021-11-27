@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
@@ -10,7 +11,6 @@ import (
 	"github.com/yaoapp/xiang/helper"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/xlog"
-	"github.com/yaoapp/xun/dbal"
 )
 
 // WorkFlows 工作流列表
@@ -95,7 +95,6 @@ func (workflow *WorkFlow) SetupAPIs(id int) {}
 // Get 读取当前工作流(未完成的)
 func (workflow *WorkFlow) Get(uid int, id interface{}) map[string]interface{} {
 	wflow := gou.Select("xiang.workflow")
-	hasUser := dbal.Raw(fmt.Sprintf("JSON_CONTAINS(users, '%d', '$')", uid))
 	params := gou.QueryParam{
 		Select: []interface{}{
 			"data_id", "id", "input", "name",
@@ -107,7 +106,7 @@ func (workflow *WorkFlow) Get(uid int, id interface{}) map[string]interface{} {
 		Wheres: []gou.QueryWhere{
 			{Column: "name", Value: workflow.Name},
 			{Column: "data_id", Value: id},
-			{Column: hasUser, Value: 1},
+			{Column: "user_ids", OP: "like", Value: fmt.Sprintf("%%|%d|%%", uid)},
 			{Column: "status", Value: "进行中"},
 		},
 	}
@@ -127,16 +126,15 @@ func (workflow *WorkFlow) Get(uid int, id interface{}) map[string]interface{} {
 	}
 }
 
-// Save 保存工作流节点数据
+// Save 保存工作流节点数据 此版本使用Like实现
 func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input) map[string]interface{} {
 	wflow := gou.Select("xiang.workflow")
-	hasUser := dbal.Raw(fmt.Sprintf("JSON_CONTAINS(users, '%d', '$')", uid))
 	params := gou.QueryParam{
 		Select: []interface{}{"id", "input", "users"},
 		Wheres: []gou.QueryWhere{
 			{Column: "name", Value: workflow.Name},
 			{Column: "data_id", Value: id},
-			{Column: hasUser, Value: 1},
+			{Column: "user_ids", OP: "like", Value: fmt.Sprintf("%%|%d|%%", uid)},
 			{Column: "status", Value: "进行中"},
 		},
 		Limit: 1,
@@ -149,9 +147,9 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 		"node_name": name,
 		"user_id":   uid,
 	}
+	users := []interface{}{uid}
 	if len(rows) > 0 {
 		nodeInput := map[string]interface{}{}
-		users := []interface{}{uid}
 		if history, ok := rows[0].Get("input").(map[string]interface{}); ok {
 			nodeInput = history
 		}
@@ -166,7 +164,6 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 		data["users"] = users
 	} else {
 		nodeInput := map[string]interface{}{}
-		users := []interface{}{uid}
 		nodeInput[name] = input
 		data["status"] = "进行中"
 		data["node_status"] = "进行中"
@@ -174,6 +171,11 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 		data["users"] = users
 	}
 
+	userIDs := []string{}
+	for _, u := range users {
+		userIDs = append(userIDs, fmt.Sprintf("|%d|", u))
+	}
+	data["user_ids"] = strings.Join(userIDs, ",")
 	id = wflow.MustSave(data)
 	return wflow.MustFind(id, gou.QueryParam{})
 }

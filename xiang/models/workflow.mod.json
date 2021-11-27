@@ -69,8 +69,17 @@
       "nullable": true
     },
     {
+      "label": "处理人IDs",
+      "comment": "相关处理人ID列表(用于检索)",
+      "name": "user_ids",
+      "type": "string",
+      "length": 255,
+      "index": true,
+      "nullable": true
+    },
+    {
       "label": "处理人",
-      "comment": "关联处理人",
+      "comment": "相关处理人",
       "name": "users",
       "type": "json",
       "nullable": true
