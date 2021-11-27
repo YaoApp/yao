@@ -179,33 +179,16 @@ func (workflow *WorkFlow) Save(uid int, name string, id interface{}, input Input
 		output = outputs[0]
 	}
 	if len(rows) > 0 {
-		if history, ok := rows[0].Get("input").(map[string]interface{}); ok {
-			history[name] = input
-			nodeInput = history
-		}
-		if last, ok := rows[0].Get("users").([]interface{}); ok {
-			users = last
-			users = append(users, uid)
-			users = helper.ArrayUnique(users)
-		}
-		if out, ok := rows[0].Get("output").(map[string]interface{}); ok {
-			for k, v := range output {
-				out[k] = v
-			}
-			output = out
-		}
 		data["id"] = rows[0].Get("id")
+		nodeInput = workflow.MergeData(rows[0].Get("input"), nodeInput)
+		users = workflow.MergeUsers(rows[0].Get("users"), users)
+		output = workflow.MergeData(rows[0].Get("output"), output)
 	} else {
 		data["status"] = "进行中"
 		data["node_status"] = "进行中"
 	}
-
-	userIDs := []string{}
-	for _, u := range users {
-		userIDs = append(userIDs, fmt.Sprintf("|%d|", u))
-	}
 	data["users"] = users
-	data["user_ids"] = strings.Join(userIDs, ",")
+	data["user_ids"] = workflow.UserIDs(users)
 	data["input"] = nodeInput
 	data["output"] = output
 	id = wflow.MustSave(data)
@@ -226,14 +209,8 @@ func (workflow *WorkFlow) Next(uid int, id int, output map[string]interface{}) m
 		exception.New("流程数据异常: 当前节点信息错误", 500).Ctx(currNode).Throw()
 	}
 
-	// 合并数据输出
-	if out, ok := wflow["output"].(map[string]interface{}); ok {
-		for key, value := range output {
-			out[key] = value
-		}
-		output = out
-	}
-
+	output = workflow.MergeData(wflow["output"], output)
+	users := workflow.MergeUsers(wflow["users"], []interface{}{uid})
 	// 读取下一个节点
 	data := map[string]interface{}{
 		"$in":     wflow["input"],
@@ -245,18 +222,6 @@ func (workflow *WorkFlow) Next(uid int, id int, output map[string]interface{}) m
 	nextNode := workflow.nextNode(currNode, data)
 	nextUID := nextNode.GetUID()
 
-	// 读取关联用户数据
-	users := []interface{}{uid}
-	userIDs := []string{}
-	if last, ok := wflow["users"].([]interface{}); ok {
-		users = last
-		users = append(users, nextUID, uid)
-		users = helper.ArrayUnique(users)
-	}
-	for _, u := range users {
-		userIDs = append(userIDs, fmt.Sprintf("|%d|", u))
-	}
-
 	// 更新数据
 	mod := gou.Select("xiang.workflow")
 	mod.Save(map[string]interface{}{
@@ -266,7 +231,7 @@ func (workflow *WorkFlow) Next(uid int, id int, output map[string]interface{}) m
 		"node_status": "进行中",
 		"user_id":     nextUID,
 		"users":       users,
-		"user_ids":    strings.Join(userIDs, ","),
+		"user_ids":    workflow.UserIDs(users),
 	})
 	return workflow.Find(id)
 }
@@ -303,33 +268,92 @@ func (workflow *WorkFlow) nextNode(currentNode string, data map[string]interface
 
 	// 声明 Next 节点, 按条件到指定节点
 	data = maps.Of(data).Dot()
-	nextNode := ""
 	for _, next := range curr.Next {
-		conditions := []helper.Condition{}
-		for _, cond := range next.Conditions {
-			if left, ok := cond.Left.(string); ok {
-				cond.Left = gshare.Bind(left, data)
-			}
-			if right, ok := cond.Right.(string); ok {
-				cond.Right = gshare.Bind(right, data)
-			}
-			conditions = append(conditions, cond)
-		}
-		if helper.When(conditions) {
-			nextNode = next.Goto
-			for i := nextIndex; i < workflow.Len(); i++ {
-				node := workflow.Nodes[i]
-				if node.Name == nextNode {
-					return &node
-				}
-			}
+		node := workflow.GetNodeWhen(next, data)
+		if node != nil {
+			return node
 		}
 	}
-	exception.New("流程数据异常: 未找到符合条件的工作流节点", 500).Ctx(map[string]interface{}{"current": currentNode, "next": nextNode, "data": data}).Throw()
+
+	exception.New("流程数据异常: 未找到符合条件的工作流节点", 500).Ctx(map[string]interface{}{"current": currentNode, "data": data}).Throw()
 	return nil
 }
 
-func (workflow *WorkFlow) isLastNode() {}
+// GetNodeWhen 读取节点
+func (workflow *WorkFlow) GetNodeWhen(next Next, data map[string]interface{}) *Node {
+	nextNode := ""
+	conditions := workflow.Conditions(next.Conditions, data)
+	if helper.When(conditions) {
+		nextNode = next.Goto
+		for i := 0; i < workflow.Len(); i++ {
+			node := workflow.Nodes[i]
+			if node.Name == nextNode {
+				return &node
+			}
+		}
+	}
+	return nil
+}
+
+// Conditions 处理绑定参数
+func (workflow *WorkFlow) Conditions(conds []helper.Condition, data map[string]interface{}) []helper.Condition {
+	conditions := []helper.Condition{}
+	for _, cond := range conds {
+		if left, ok := cond.Left.(string); ok {
+			cond.Left = gshare.Bind(left, data)
+		}
+		if right, ok := cond.Right.(string); ok {
+			cond.Right = gshare.Bind(right, data)
+		}
+		conditions = append(conditions, cond)
+	}
+	return conditions
+}
+
+// UserIDs 读取用户ID
+func (workflow *WorkFlow) UserIDs(users []interface{}) string {
+	userIDs := []string{}
+	for _, u := range users {
+		userIDs = append(userIDs, fmt.Sprintf("|%d|", u))
+	}
+	return strings.Join(userIDs, ",")
+}
+
+// MergeUsers 合并数据
+func (workflow *WorkFlow) MergeUsers(data interface{}, new interface{}) []interface{} {
+	res, ok := data.([]interface{})
+	if !ok {
+		return []interface{}{}
+	}
+	if new, ok := new.([]interface{}); ok {
+		for _, value := range new {
+			data = append(res, value)
+		}
+	}
+	return helper.ArrayUnique(res)
+}
+
+// MergeData 合并数据
+func (workflow *WorkFlow) MergeData(data interface{}, new interface{}) map[string]interface{} {
+	res, ok := data.(map[string]interface{})
+	if !ok {
+		return map[string]interface{}{}
+	}
+
+	if new, ok := new.(map[string]interface{}); ok {
+		for key, value := range new {
+			res[key] = value
+		}
+		res = new
+	}
+	return res
+}
+
+// IsLastNode 检查是否为最后一个节点
+func (workflow *WorkFlow) IsLastNode(name string) bool {
+	length := workflow.Len()
+	return workflow.Nodes[length-1].Name == name
+}
 
 // Goto 工作流跳转
 func (workflow *WorkFlow) Goto(uid int, id int, node string, output map[string]interface{}) {}

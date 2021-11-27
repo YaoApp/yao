@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/flow"
 	"github.com/yaoapp/xiang/model"
@@ -68,6 +69,8 @@ func TestSaveUpdate(t *testing.T) {
 		Data: map[string]interface{}{"id": 1, "name": "云存储"},
 		Form: map[string]interface{}{"biz_id": 1, "name": "李明博"},
 	})
+
+	utils.Dump(wflow)
 
 	data := maps.Of(wflow).Dot()
 	assert.Equal(t, int64(1), data.Get("id"))
