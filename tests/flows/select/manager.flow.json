@@ -15,5 +15,5 @@
       "orders": [":RAND()"]
     }
   ],
-  "output": "{{$res.负责人.id}}"
+  "output": "{{$in.0}}"
 }

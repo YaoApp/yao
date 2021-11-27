@@ -1,6 +1,9 @@
 package workflow
 
-import "github.com/yaoapp/xiang/share"
+import (
+	"github.com/yaoapp/xiang/helper"
+	"github.com/yaoapp/xiang/share"
+)
 
 // WorkFlow 工作流配置结构
 type WorkFlow struct {
@@ -16,10 +19,11 @@ type WorkFlow struct {
 
 // Node 工作流节点
 type Node struct {
-	Name    string       `json:"name"`
-	Body    share.Render `json:"body,omitempty"`
-	Actions []string     `json:"actions,omitempty"`
-	User    User         `json:"user,omitempty"`
+	Name       string             `json:"name"`
+	Body       share.Render       `json:"body,omitempty"`
+	Conditions []helper.Condition `json:"when,omitempty"`
+	Actions    []string           `json:"actions,omitempty"`
+	User       User               `json:"user,omitempty"`
 }
 
 // User 工作流相关用户读取条件
