@@ -1,32 +1,10 @@
 package share
 
-import (
-	"strings"
-)
-
 // VERSION 版本号
-const VERSION = "0.9.6"
+const VERSION = "0.9.7"
 
-// DOMAIN 许可域
+// DOMAIN 许可域(废弃)
 const DOMAIN = "*.iqka.com"
 
-// AllowHosts 解析后的许可域
+// AllowHosts 解析后的许可域(废弃)
 var AllowHosts = []string{}
-
-// 初始化配置
-func init() {
-
-	// 解析许可Host
-	domains := strings.Split(DOMAIN, "|")
-	for _, domain := range domains {
-
-		if !strings.Contains(domain, ".") {
-			continue
-		}
-
-		if strings.HasPrefix(domain, "*.") {
-			domain = strings.TrimPrefix(domain, "*.")
-		}
-		AllowHosts = append(AllowHosts, domain)
-	}
-}
