@@ -183,6 +183,37 @@ release: clean
 hi: 
 	echo ${VERSION}
 
+.PHONY: arm
+arm:
+	mkdir -p dist/release
+	git clone https://github.com/YaoApp/xiang dist/release
+	git clone https://github.com/YaoApp/kun dist/kun
+	git clone https://github.com/YaoApp/xun dist/xun
+	git clone https://github.com/YaoApp/gou dist/gou
+
+#	UI制品
+	git clone https://github.com/YaoApp/xiang-ui .tmp/ui
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
+	cd .tmp/ui && cnpm install && npm run build
+	rm -rf dist/release/ui
+	mv .tmp/ui/dist dist/release/ui
+
+#	静态文件打包
+	mkdir -p .tmp/data
+	cp -r dist/release/ui .tmp/data/
+	cp -r dist/release/xiang .tmp/data/
+	go-bindata -fs -pkg data -o dist/release/data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#   制品
+	mkdir -p dist
+	CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go build  -v -o ../../.tmp/xiang-${VERSION}-linux-arm
+
+	rm -rf dist/release
+	mkdir -p dist/release
+	mv .tmp/xiang-*-* dist/release/
+	chmod +x dist/release/xiang-*-*
 
 .PHONY: clean
 clean: 
