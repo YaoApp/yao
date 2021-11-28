@@ -20,6 +20,7 @@ var Conf Config
 type Config struct {
 	XiangConfig
 	Service  ServiceConfig  `json:"service,omitempty"`
+	Session  SessionConfig  `json:"session,omitempty"`
 	Database DatabaseConfig `json:"database,omitempty"`
 	JWT      JWTConfig      `json:"jwt,omitempty"`
 	Log      LogConfig      `json:"log,omitempty"`
@@ -56,6 +57,14 @@ type ServiceConfig struct {
 	Allow []string `json:"allow,omitempty" env:"XIANG_SERVICE_ALLOW" envSeparator:"|"`     // 跨域访问域名列表
 	Host  string   `json:"host,omitempty" env:"XIANG_SERVICE_HOST" envDefault:"127.0.0.1"` // 服务监听IP
 	Port  int      `json:"port,omitempty" env:"XIANG_SERVICE_PORT" envDefault:"5099"`      // 服务监听端口
+}
+
+// SessionConfig 会话服务器
+type SessionConfig struct {
+	Debug   bool   `json:"debug,omitempty" env:"XIANG_SESSION_DEBUG" envDefault:"false"`    // DEBUG 开关
+	Hosting bool   `json:"hosting,omitempty" env:"XIANG_SESSION_HOSTING" envDefault:"true"` // 会话服务器
+	Host    string `json:"host,omitempty" env:"XIANG_SESSION_HOST" envDefault:"127.0.0.1"`  // 会话服务器IP
+	Port    int    `json:"port,omitempty" env:"XIANG_SESSION_PORT" envDefault:"3322"`       // 会话服务器端口
 }
 
 // DatabaseConfig 数据库配置

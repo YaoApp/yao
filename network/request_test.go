@@ -1,4 +1,4 @@
-package helper
+package network
 
 import (
 	"testing"
@@ -26,9 +26,14 @@ func TestRequestPost(t *testing.T) {
 	assert.Equal(t, 404, resp.Status)
 }
 
+func TestRequestPostJSON(t *testing.T) {
+	resp := RequestPostJSON("https://api.github.com/zen", map[string]interface{}{"foo": "bar"}, nil)
+	assert.Equal(t, 404, resp.Status)
+}
+
 func TestRequestProcessGet(t *testing.T) {
 	args := []interface{}{"https://api.github.com/zen"}
-	res := gou.NewProcess("xiang.helper.Get", args...).Run()
+	res := gou.NewProcess("xiang.network.Get", args...).Run()
 	resp, ok := res.(Response)
 	assert.True(t, ok)
 	assert.Equal(t, 200, resp.Status)
@@ -37,7 +42,15 @@ func TestRequestProcessGet(t *testing.T) {
 
 func TestRequestProcessPost(t *testing.T) {
 	args := []interface{}{"https://api.github.com/zen", map[string]interface{}{"foo": "bar"}, nil}
-	res := gou.NewProcess("xiang.helper.Post", args...).Run()
+	res := gou.NewProcess("xiang.network.Post", args...).Run()
+	resp, ok := res.(Response)
+	assert.True(t, ok)
+	assert.Equal(t, 404, resp.Status)
+}
+
+func TestRequestProcessPostJSON(t *testing.T) {
+	args := []interface{}{"https://api.github.com/zen", map[string]interface{}{"foo": "bar"}, nil}
+	res := gou.NewProcess("xiang.network.PostJSON", args...).Run()
 	resp, ok := res.(Response)
 	assert.True(t, ok)
 	assert.Equal(t, 404, resp.Status)
@@ -45,7 +58,7 @@ func TestRequestProcessPost(t *testing.T) {
 
 func TestRequestProcessSend(t *testing.T) {
 	args := []interface{}{"GET", "https://api.github.com/zen"}
-	res := gou.NewProcess("xiang.helper.Send", args...).Run()
+	res := gou.NewProcess("xiang.network.Send", args...).Run()
 	resp, ok := res.(Response)
 	assert.True(t, ok)
 	assert.Equal(t, 200, resp.Status)

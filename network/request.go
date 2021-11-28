@@ -1,7 +1,8 @@
-package helper
+package network
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -27,22 +28,35 @@ func RequestPost(url string, data interface{}, headers map[string]string) Respon
 	return RequestSend("POST", url, map[string]interface{}{}, data, headers)
 }
 
+// RequestPostJSON 发送POST请求
+func RequestPostJSON(url string, data interface{}, headers map[string]string) Response {
+	if headers == nil {
+		headers = map[string]string{}
+	}
+	headers["content-type"] = "application/json;charset=utf8"
+	return RequestSend("POST", url, map[string]interface{}{}, data, headers)
+}
+
 // RequestSend 发送Request请求
 func RequestSend(method string, url string, params map[string]interface{}, data interface{}, headers map[string]string) Response {
 
 	var body []byte
 	var err error
 	if data != nil {
-		body, err = jsoniter.Marshal(data)
-		if err != nil {
-			return Response{
-				Status: 500,
-				Body:   err.Error(),
-				Data:   map[string]interface{}{"code": 500, "message": err.Error()},
-				Headers: map[string]interface{}{
-					"Content-Type": "application/json;charset=utf8",
-				},
+		if strings.HasPrefix(strings.ToLower(headers["content-type"]), "application/json") {
+			body, err = jsoniter.Marshal(data)
+			if err != nil {
+				return Response{
+					Status: 500,
+					Body:   err.Error(),
+					Data:   map[string]interface{}{"code": 500, "message": err.Error()},
+					Headers: map[string]interface{}{
+						"Content-Type": "application/json;charset=utf8",
+					},
+				}
 			}
+		} else {
+			body = []byte(fmt.Sprintf("%v", data))
 		}
 	}
 
@@ -59,8 +73,10 @@ func RequestSend(method string, url string, params map[string]interface{}, data 
 	}
 
 	// Request Header
-	for name, header := range headers {
-		req.Header.Set(name, header)
+	if headers != nil {
+		for name, header := range headers {
+			req.Header.Set(name, header)
+		}
 	}
 
 	resp, err := (&http.Client{}).Do(req)

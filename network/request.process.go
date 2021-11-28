@@ -1,4 +1,4 @@
-package helper
+package network
 
 import (
 	"fmt"
@@ -23,6 +23,24 @@ func ProcessPost(process *gou.Process) interface{} {
 		}
 	}
 	return RequestPost(url, data, headers)
+}
+
+// ProcessPostJSON  xiang.helper.PostJSON HTTP Post
+func ProcessPostJSON(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	var data interface{}
+	headers := map[string]string{}
+	url := process.ArgsString(0)
+	if process.NumOfArgs() > 1 {
+		data = process.Args[1]
+	}
+	if process.NumOfArgs() > 2 {
+		inputHeaders := process.ArgsMap(2)
+		for name, value := range inputHeaders {
+			headers[name] = fmt.Sprintf("%v", value)
+		}
+	}
+	return RequestPostJSON(url, data, headers)
 }
 
 // ProcessSend  xiang.helper.Send HTTP Send
