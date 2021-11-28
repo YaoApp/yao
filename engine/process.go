@@ -24,6 +24,7 @@ func processPing(process *gou.Process) interface{} {
 		"version": share.VERSION,
 		"domain":  share.DOMAIN,
 		"allows":  config.Conf.Service.Allow,
+		"args":    process.Args[0],
 	}
 	return res
 }

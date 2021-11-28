@@ -32,6 +32,11 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.IF", ProcessIF)
 
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
+
+	gou.RegisterProcessHandler("xiang.helper.Get", ProcessGet)
+	gou.RegisterProcessHandler("xiang.helper.Post", ProcessPost)
+	gou.RegisterProcessHandler("xiang.helper.Send", ProcessSend)
+
 }
 
 // ProcessPrint xiang.helper.Print 打印语句

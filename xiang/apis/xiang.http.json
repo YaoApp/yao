@@ -10,7 +10,18 @@
       "method": "GET",
       "guard": "-",
       "process": "xiang.main.Ping",
-      "in": [],
+      "in": [":query"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
+      "path": "/ping/post",
+      "method": "POST",
+      "guard": "-",
+      "process": "xiang.main.Ping",
+      "in": [":payload"],
       "out": {
         "status": 200,
         "type": "application/json"
