@@ -16,5 +16,4 @@ export GOPROXY="https://goproxy.cn"
 export http_proxy="socks5://192.168.199.178:1080"
 export https_proxy="socks5://192.168.199.178:1080"
 export NODE_OPTIONS="--max-old-space-size=5120"
-
 export PATH=~/go/bin:$PATH

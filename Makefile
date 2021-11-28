@@ -184,7 +184,7 @@ hi:
 	echo ${VERSION}
 
 .PHONY: arm
-arm:
+arm: clean
 	mkdir -p dist/release
 	git clone https://github.com/YaoApp/xiang dist/release
 	git clone https://github.com/YaoApp/kun dist/kun
@@ -208,7 +208,7 @@ arm:
 
 #   制品
 	mkdir -p dist
-	CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go build  -v -o ../../.tmp/xiang-${VERSION}-linux-arm
+	cd dist/release && CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go build  -v -o ../../.tmp/xiang-${VERSION}-linux-arm
 
 	rm -rf dist/release
 	mkdir -p dist/release
