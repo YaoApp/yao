@@ -18,13 +18,18 @@ func init() {
 
 // processCreate 运行模型 MustCreate
 func processPing(process *gou.Process) interface{} {
+	var input interface{}
+	if process.NumOfArgs() > 0 {
+		input = process.Args[0]
+	}
+
 	res := map[string]interface{}{
 		"code":    200,
 		"server":  "象传应用引擎",
 		"version": share.VERSION,
 		"domain":  share.DOMAIN,
 		"allows":  config.Conf.Service.Allow,
-		"args":    process.Args[0],
+		"args":    input,
 	}
 	return res
 }
