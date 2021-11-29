@@ -63,6 +63,7 @@ type ServiceConfig struct {
 type SessionConfig struct {
 	Debug   bool   `json:"debug,omitempty" env:"XIANG_SESSION_DEBUG" envDefault:"false"`    // DEBUG 开关
 	Hosting bool   `json:"hosting,omitempty" env:"XIANG_SESSION_HOSTING" envDefault:"true"` // 会话服务器
+	IsCLI   bool   `json:"iscli,omitempty" env:"XIANG_SESSION_ISCLI" envDefault:"false"`    // 是否为客户端启动
 	Host    string `json:"host,omitempty" env:"XIANG_SESSION_HOST" envDefault:"127.0.0.1"`  // 会话服务器IP
 	Port    int    `json:"port,omitempty" env:"XIANG_SESSION_PORT" envDefault:"3322"`       // 会话服务器端口
 }

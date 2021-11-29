@@ -18,7 +18,9 @@ var runCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		defer gou.KillPlugins()
 		Boot()
-		engine.Load(config.Conf)
+		cfg := config.Conf
+		cfg.Session.IsCLI = true
+		engine.Load(cfg)
 		if len(args) < 1 {
 			fmt.Println(color.RedString("参数错误: 未指定处理名称"))
 			fmt.Println(color.WhiteString("xiang run <处理器名称> [参数表...]"))

@@ -23,7 +23,8 @@ import (
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
 
-	share.DBConnect(cfg.Database) // 创建数据库连接
+	share.DBConnect(cfg.Database)     // 创建数据库连接
+	share.SessionConnect(cfg.Session) // 创建会话服务器链接
 
 	app.Load(cfg) // 加载应用信息
 	LoadEngine(cfg.Path)

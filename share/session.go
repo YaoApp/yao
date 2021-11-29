@@ -15,15 +15,13 @@ import (
 	"github.com/yaoapp/xiang/config"
 )
 
+var sessServer *olric.Olric
+
 // SessionConnect 加载会话信息
-func SessionConnect() {
-	if config.Conf.Session.Hosting {
-		SessionServer()
-		return
-	}
+func SessionConnect(conf config.SessionConfig) {
 
 	var clientConfig = &client.Config{
-		Servers:    []string{fmt.Sprintf("%s:%d", config.Conf.Session.Host, config.Conf.Session.Port)},
+		Servers:    []string{fmt.Sprintf("%s:%d", conf.Host, conf.Port)},
 		Serializer: serializer.NewMsgpackSerializer(),
 		Client:     config_olric.NewClient(),
 	}
@@ -37,8 +35,15 @@ func SessionConnect() {
 	session.MemoryUse(session.ClientDMap{DMap: dm})
 }
 
-// SessionServer 启动会话服务器
-func SessionServer() {
+// SessionServerStop 关闭会话服务器
+func SessionServerStop() {
+	if sessServer != nil {
+		sessServer.Shutdown(context.Background())
+	}
+}
+
+// SessionServerStart 启动会话服务器
+func SessionServerStart() {
 
 	c := config_olric.New("local")
 	c.BindAddr = config.Conf.Session.Host
@@ -51,20 +56,21 @@ func SessionServer() {
 		// log.Println("[INFO] Olric is ready to accept connections")
 	}
 
-	db, err := olric.New(c)
+	var err error
+	sessServer, err = olric.New(c)
 	if err != nil {
 		log.Fatalf("Failed to create Olric instance: %v", err)
 	}
 
 	go func() {
-		err = db.Start() // Call Start at background. It's a blocker call.
+		err = sessServer.Start() // Call Start at background. It's a blocker call.
 		if err != nil {
 			log.Fatalf("olric.Start returned an error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
-	dm, err := db.NewDMap("local-session")
+	dm, err := sessServer.NewDMap("local-session")
 	if err != nil {
 		log.Fatalf("olric.NewDMap returned an error: %v", err)
 	}
