@@ -44,10 +44,21 @@ func SessionServerStop() {
 
 // SessionServerStart 启动会话服务器
 func SessionServerStart() {
-
-	c := config_olric.New("local")
-	c.BindAddr = config.Conf.Session.Host
-	c.BindPort = config.Conf.Session.Port
+	c := &config_olric.Config{
+		BindAddr:          config.Conf.Session.Host,
+		BindPort:          config.Conf.Session.Port,
+		ReadRepair:        false,
+		ReplicaCount:      1,
+		WriteQuorum:       1,
+		ReadQuorum:        1,
+		MemberCountQuorum: 1,
+		Peers:             []string{},
+		DMaps:             &config_olric.DMaps{},
+		StorageEngines:    config_olric.NewStorageEngine(),
+	}
+	// c := config_olric.New("local")
+	// c.BindAddr = config.Conf.Session.Host
+	// c.BindPort = config.Conf.Session.Port
 
 	c.Logger.SetOutput(ioutil.Discard) // 暂时关闭日志
 	ctx, cancel := context.WithCancel(context.Background())
@@ -58,6 +69,7 @@ func SessionServerStart() {
 
 	var err error
 	sessServer, err = olric.New(c)
+
 	if err != nil {
 		log.Fatalf("Failed to create Olric instance: %v", err)
 	}
