@@ -3,7 +3,6 @@ package share
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
 
 	"github.com/buraksezer/olric"
@@ -56,18 +55,30 @@ func SessionServerStart() {
 		DMaps:             &config_olric.DMaps{},
 		StorageEngines:    config_olric.NewStorageEngine(),
 	}
+
+	m, err := config_olric.NewMemberlistConfig("local")
+	if err != nil {
+		panic(fmt.Sprintf("unable to create a new memberlist config: %v", err))
+	}
+	// m.BindAddr = config.Conf.Session.Host
+	m.BindPort = config.Conf.Session.Port
+	m.AdvertisePort = config.Conf.Session.Port
+	c.MemberlistConfig = m
+
+	// c.MemberlistConfig.BindAddr = config.Conf.Session.Host
+	// c.MemberlistConfig.BindPort = 3308
+
 	// c := config_olric.New("local")
 	// c.BindAddr = config.Conf.Session.Host
 	// c.BindPort = config.Conf.Session.Port
 
-	c.Logger.SetOutput(ioutil.Discard) // 暂时关闭日志
+	// c.Logger.SetOutput(ioutil.Discard) // 暂时关闭日志
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Started = func() {
 		defer cancel()
-		// log.Println("[INFO] Olric is ready to accept connections")
+		log.Println("[INFO] Olric is ready to accept connections")
 	}
 
-	var err error
 	sessServer, err = olric.New(c)
 
 	if err != nil {
