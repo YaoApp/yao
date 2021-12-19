@@ -173,6 +173,7 @@ release: clean
 #	cd dist/release && GOOS=linux GOARCH=arm GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm
 #	cd dist/release && GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm64
 	cd dist/release && GOOS=darwin GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-darwin-amd64
+	cd dist/release && GOOS=windows GOARCH=386 go build -v -o ../../.tmp/xiang-${VERSION}-windows-386
 	
 	rm -rf dist/release
 	mkdir -p dist/release
@@ -214,6 +215,14 @@ arm: clean
 	mkdir -p dist/release
 	mv .tmp/xiang-*-* dist/release/
 	chmod +x dist/release/xiang-*-*
+
+.PHONY: win32
+win32: bindata
+	GOOS=windows GOARCH=386 go build -v -o .tmp/xiang-windows-386
+	mkdir -p dist/bin
+	mv .tmp/xiang-*-* dist/bin/
+	chmod +x dist/bin/xiang-*-*
+
 
 .PHONY: clean
 clean: 
