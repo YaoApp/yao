@@ -169,7 +169,7 @@ release: clean
 		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" dist/release/share/const.go.bak > dist/release/share/const.go; \
 	fi;
 
-	cd dist/release && GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
+	cd dist/release && CGO_ENABLED=1 CC=x86_64-linux-musl-gcc CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
 #	cd dist/release && GOOS=linux GOARCH=arm GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm
 #	cd dist/release && GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm64
 	cd dist/release && GOOS=darwin GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-darwin-amd64
