@@ -12,7 +12,7 @@ scp ../xiang-spec/xiang/xiang-$VERSION-linux-amd64 max@demo-crm.iqka.com:/data/d
 scp ../xiang-spec/xiang/xiang-$VERSION-darwin-amd64 max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/yao-$VERSION-darwin-amd64
 scp ../xiang-spec/xiang/xiang-$VERSION-windows-386 max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/yao-$VERSION-windows-386
 
-repace "s/\[[0-9]+\.[0-9]+\.[0-9]+\]/[$VERSION]/g"
+repace "s/[0-9]+\.[0-9]+\.[0-9]+/$VERSION/g"
 scp ~/Code/yao/xiang/shell/install.sh.new max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/install.sh
 rm ~/Code/yao/xiang/shell/install.sh.new
 
