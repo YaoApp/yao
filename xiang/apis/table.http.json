@@ -36,6 +36,16 @@
       }
     },
     {
+      "path": "/:name/quicksave",
+      "method": "POST",
+      "process": "xiang.table.QuickSave",
+      "in": ["$param.name", ":payload"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/:name/delete/:id",
       "method": "POST",
       "process": "xiang.table.Delete",

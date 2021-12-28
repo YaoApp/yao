@@ -16,6 +16,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.table.Insert", ProcessInsert)
 	gou.RegisterProcessHandler("xiang.table.UpdateWhere", ProcessUpdateWhere)
 	gou.RegisterProcessHandler("xiang.table.DeleteWhere", ProcessDeleteWhere)
+	gou.RegisterProcessHandler("xiang.table.QuickSave", ProcessQuickSave)
 	gou.RegisterProcessHandler("xiang.table.UpdateIn", ProcessUpdateIn)
 	gou.RegisterProcessHandler("xiang.table.DeleteIn", ProcessDeleteIn)
 	gou.RegisterProcessHandler("xiang.table.Setting", ProcessSetting)
@@ -233,4 +234,32 @@ func ProcessSetting(process *gou.Process) interface{} {
 	}
 
 	return gou.NewProcess(api.Process, fields).Run()
+}
+
+// ProcessQuickSave xiang.table.QuickSave
+// 保存多条记录。如数据记录中包含主键字段则更新，不包含主键字段则创建记录；返回创建或更新的记录主键值
+func ProcessQuickSave(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["quicksave"].ValidateLoop("xiang.table.quicksave")
+	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
+		return nil
+	}
+
+	args := []interface{}{}
+	payload := process.ArgsMap(1)
+	ids := []int{}
+	if payload.Has("delete") {
+		if v, ok := payload["delete"].([]int); ok {
+			ids = v
+		}
+	}
+	args = append(args, ids)
+	args = append(args, payload.Get("data"))
+	if payload.Has("query") {
+		args = append(args, payload.Get("query"))
+	}
+
+	return gou.NewProcess(api.Process, args...).Run()
 }

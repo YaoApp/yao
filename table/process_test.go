@@ -312,3 +312,49 @@ func TestTableProcessSettingListEdit(t *testing.T) {
 	assert.True(t, res.Has("edit.layout"))
 	assert.True(t, res.Has("edit.primary"))
 }
+
+func TestTableProcessQuickSave(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+	args = []interface{}{
+		"service",
+		id,
+	}
+
+	process = gou.NewProcess("xiang.table.QuickSave",
+		"service",
+		map[string]interface{}{
+			"delete": []int{id},
+			"data": []map[string]interface{}{
+				{
+					"name":          "腾讯黑岩云主机2",
+					"short_name":    "高性能云主机2",
+					"kind_id":       3,
+					"manu_id":       1,
+					"price_options": []string{"按月订阅"},
+				},
+			},
+			"query": map[string]interface{}{"manu_id": 1},
+		})
+	res := process.Run()
+	newID, ok := res.([]int)
+	assert.True(t, ok)
+	assert.NotEqual(t, id, newID[0])
+
+	// 清空数据
+	capsule.Query().Table("service").WhereIn("id", []int{id, newID[0]}).Delete()
+}
