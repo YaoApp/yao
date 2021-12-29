@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 )
 
@@ -253,6 +254,10 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 	if payload.Has("delete") {
 		if v, ok := payload["delete"].([]int); ok {
 			ids = v
+		} else if vany, ok := payload["delete"].([]interface{}); ok {
+			for _, v := range vany {
+				ids = append(ids, any.Of(v).CInt())
+			}
 		}
 	}
 	args = append(args, ids)

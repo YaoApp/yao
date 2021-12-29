@@ -1,7 +1,7 @@
 package share
 
 // VERSION 版本号
-const VERSION = "0.9.12"
+const VERSION = "0.9.13"
 
 // DOMAIN 许可域(废弃)
 const DOMAIN = "*.iqka.com"
