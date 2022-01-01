@@ -140,7 +140,8 @@ func getDefaultAPIs(bind Bind) map[string]share.API {
 		"delete-where": apiDefaultWhere(model, bind.Withs, "delete-where", "DeleteWhere"),
 		"update-in":    apiDefault(model, "update-in", "UpdateWhere"),
 		"update-where": apiDefaultWhere(model, bind.Withs, "update-where", "UpdateWhere"),
-		"quicksave":    apiDefault(model, "quicksave", "EachSaveAfterDelete"),
+		"quicksave":    apiDefault(model, "quicksave", "EachSaveAfterDelete"), // 批量保存
+		"select":       apiDefault(model, "select", "SelectOption"),           // 选择
 	}
 
 	return apis

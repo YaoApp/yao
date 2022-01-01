@@ -26,6 +26,22 @@
       }
     },
     {
+      "path": "/:name/select",
+      "method": "GET",
+      "process": "xiang.table.Select",
+      "in": [
+        "$param.name",
+        "$query.keyword",
+        "$query.name",
+        "$query.value",
+        "$query.limit"
+      ],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/:name/save",
       "method": "POST",
       "process": "xiang.table.Save",

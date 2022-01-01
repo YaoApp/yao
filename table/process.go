@@ -12,6 +12,7 @@ func init() {
 	// 注册处理器
 	gou.RegisterProcessHandler("xiang.table.Search", ProcessSearch)
 	gou.RegisterProcessHandler("xiang.table.Find", ProcessFind)
+	gou.RegisterProcessHandler("xiang.table.Select", ProcessSelect)
 	gou.RegisterProcessHandler("xiang.table.Save", ProcessSave)
 	gou.RegisterProcessHandler("xiang.table.Delete", ProcessDelete)
 	gou.RegisterProcessHandler("xiang.table.Insert", ProcessInsert)
@@ -267,4 +268,17 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 	}
 
 	return gou.NewProcess(api.Process, args...).Run()
+}
+
+// ProcessSelect xiang.table.Select
+// 单表数据查询，一般用于下拉菜单检索
+func ProcessSelect(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["select"].ValidateLoop("xiang.table.select")
+	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
+		return nil
+	}
+	return gou.NewProcess(api.Process, process.Args[1:]...).Run()
 }

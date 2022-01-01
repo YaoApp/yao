@@ -44,7 +44,7 @@ func apiFindDefault(model *gou.Model, withs map[string]gou.With) share.API {
 	}
 }
 
-// apiFindDefault 接口默认值
+// apiDefault 接口默认值
 func apiDefault(model *gou.Model, name string, process string) share.API {
 	return share.API{
 		Name:    name,

@@ -18,9 +18,8 @@
     }
   },
   "apis": {
-    "save": {
-      "guard": "-"
-    },
+    "save": { "guard": "-" },
+    "select": { "guard": "-" },
     "search": {
       "process": "models.service.Paginate",
       "guard": "-",
