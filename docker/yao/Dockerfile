@@ -1,6 +1,6 @@
 # ===========================================
 #  Yao 0.9.18+ MySQL 8.0.27
-#  docker build -t yaoapp/yao:0.9.18.
+#  docker build -t yaoapp/yao:0.9.18 .
 # ===========================================
 FROM debian:buster-slim
 RUN groupadd -r yao && useradd -r -g yao yao
