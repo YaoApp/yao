@@ -1,6 +1,6 @@
 # ===========================================
-#  Yao 0.9.19+ MySQL 8.0.27
-#  docker build -t yaoapp/yao:0.9.19 .
+#  Yao 0.9.20+ MySQL 8.0.27
+#  docker build -t yaoapp/yao:0.9.20 .
 # ===========================================
 FROM debian:buster-slim
 RUN groupadd -r yao && useradd -r -g yao yao
@@ -11,7 +11,7 @@ RUN sed -i 's#http://deb.debian.org#http://mirrors.163.com#g' /etc/apt/sources.l
     mkdir -p /data/app/db && \
     chown -R yao:yao /data && \
     echo user=root >> /etc/supervisor/supervisord.conf && \
-    curl -fsSL https://demo-crm.iqka.com/releases/0.9.19/install.sh | bash
+    curl -fsSL https://demo-crm.iqka.com/releases/0.9.20/install.sh | bash
 
 COPY conf/yao.conf /etc/supervisor/conf.d/yao.conf
 COPY conf/yao.env /data/app/.env
