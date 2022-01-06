@@ -84,14 +84,27 @@ func ProcessFind(process *gou.Process) interface{} {
 // ProcessSave xiang.table.Save
 // 保存单条记录。如数据记录中包含主键字段则更新，不包含主键字段则创建记录；返回创建或更新的记录主键值
 func ProcessSave(process *gou.Process) interface{} {
-	process.ValidateArgNums(2)
+
+	// 读取表格名称
+	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["save"].ValidateLoop("xiang.table.save")
 	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
 		return nil
 	}
-	return gou.NewProcess(api.Process, process.Args[1]).Run()
+
+	// Before Hook
+	process.Args = table.Before(table.Hooks.BeforeSave, process.Args)
+
+	// 参数处理
+	process.ValidateArgNums(2)
+
+	// 查询数据
+	response := gou.NewProcess(api.Process, process.Args[1]).Run()
+
+	// After Hook
+	return table.After(table.Hooks.AfterSave, response)
 }
 
 // ProcessDelete xiang.table.Delete

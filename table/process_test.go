@@ -106,12 +106,25 @@ func TestTableProcessSave(t *testing.T) {
 			"price_options": []string{"按月订阅"},
 		},
 	}
-	process := gou.NewProcess("xiang.table.Save", args...)
-	response := ProcessSave(process)
+	response := gou.NewProcess("xiang.table.Save", args...).Run()
 	assert.NotNil(t, response)
 	assert.True(t, any.Of(response).IsInt())
 
 	id := any.Of(response).CInt()
+
+	// 清空数据
+	capsule.Query().Table("service").Where("id", id).Delete()
+}
+
+func TestTableProcessSaveWithHook(t *testing.T) {
+	args := []interface{}{"hooks.save"}
+	response := gou.NewProcess("xiang.table.Save", args...).Run()
+	assert.NotNil(t, response)
+	res := any.Of(response).Map()
+	assert.True(t, any.Of(res.Get("id")).IsInt())
+	assert.Equal(t, float64(100), res.Get("after"))
+
+	id := any.Of(res.Get("id")).CInt()
 
 	// 清空数据
 	capsule.Query().Table("service").Where("id", id).Delete()
