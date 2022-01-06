@@ -57,7 +57,8 @@ func ProcessSearch(process *gou.Process) interface{} {
 // ProcessFind xiang.table.Find
 // 按主键值查询单条数据, 请求成功返回对应主键的数据记录
 func ProcessFind(process *gou.Process) interface{} {
-	process.ValidateArgNums(2)
+
+	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["find"].ValidateLoop("xiang.table.find")
@@ -65,10 +66,19 @@ func ProcessFind(process *gou.Process) interface{} {
 		return nil
 	}
 
+	// Before Hook
+	process.Args = table.Before(table.Hooks.BeforeFind, process.Args)
+
 	// 参数表
+	process.ValidateArgNums(2)
 	id := process.Args[1]
 	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1)
-	return gou.NewProcess(api.Process, id, param).Run()
+
+	// 查询数据
+	response := gou.NewProcess(api.Process, id, param).Run()
+
+	// After Hook
+	return table.After(table.Hooks.AfterFind, response)
 }
 
 // ProcessSave xiang.table.Save

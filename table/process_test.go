@@ -1,7 +1,6 @@
 package table
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -27,11 +26,6 @@ func init() {
 	query.Load(config.Conf)
 	flow.LoadFrom(filepath.Join(config.Conf.Root, "flows", "hooks"), "hooks.")
 	Load(config.Conf)
-
-	for name := range gou.Flows {
-		fmt.Println(name)
-	}
-	fmt.Println(filepath.Join(config.Conf.Root, "tables", "hooks"))
 }
 func TestTableProcessSearch(t *testing.T) {
 
@@ -86,11 +80,19 @@ func TestTableProcessFind(t *testing.T) {
 		1,
 		&gin.Context{},
 	}
-	process := gou.NewProcess("xiang.table.Find", args...)
-	response := ProcessFind(process)
+	response := gou.NewProcess("xiang.table.Find", args...).Run()
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
-	assert.Equal(t, any.Of(res.Get("id")).CInt(), 1)
+	assert.Equal(t, 1, any.Of(res.Get("id")).CInt())
+}
+
+func TestTableProcessFindWithHook(t *testing.T) {
+	args := []interface{}{"hooks.find"}
+	response := gou.NewProcess("xiang.table.Find", args...).Run()
+	assert.NotNil(t, response)
+	res := any.Of(response).Map()
+	assert.Equal(t, 1, any.Of(res.Get("id")).CInt())
+	assert.Equal(t, float64(100), res.Get("after"))
 }
 
 func TestTableProcessSave(t *testing.T) {
