@@ -17,6 +17,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.MapKeys", ProcessMapKeys)
 	gou.RegisterProcessHandler("xiang.helper.MapValues", ProcessMapValues)
 	gou.RegisterProcessHandler("xiang.helper.MapGet", ProcessMapGet)
+	gou.RegisterProcessHandler("xiang.helper.MapSet", ProcessMapSet)
 
 	gou.RegisterProcessHandler("xiang.helper.Captcha", ProcessCaptcha)
 	gou.RegisterProcessHandler("xiang.helper.CaptchaValidate", ProcessCaptchaValidate)

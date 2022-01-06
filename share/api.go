@@ -71,7 +71,7 @@ func (api API) DefaultInt(i int, defaults ...int) int {
 		value = defaults[0]
 	}
 
-	if api.Default[i] == nil || len(api.Default) <= i {
+	if len(api.Default) <= i || api.Default[i] == nil {
 		return value
 	}
 

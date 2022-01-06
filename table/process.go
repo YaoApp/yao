@@ -28,20 +28,30 @@ func init() {
 // 按条件查询数据记录, 请求成功返回符合查询条件带有分页信息的数据对象
 func ProcessSearch(process *gou.Process) interface{} {
 
-	process.ValidateArgNums(4)
+	// 读取表格名称
+	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
 	table := Select(name)
+
 	api := table.APIs["search"].ValidateLoop("xiang.table.search")
 	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
 		return nil
 	}
 
+	// Before Hook
+	process.Args = table.Before(table.Hooks.BeforeSearch, process.Args)
+
 	// 参数表
+	process.ValidateArgNums(4)
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0)
 	page := process.ArgsInt(2, api.DefaultInt(1))
 	pagesize := process.ArgsInt(3, api.DefaultInt(2))
 
-	return gou.NewProcess(api.Process, param, page, pagesize).Run()
+	// 查询数据
+	response := gou.NewProcess(api.Process, param, page, pagesize).Run()
+
+	// After Hook
+	return table.After(table.Hooks.AfterSearch, response)
 }
 
 // ProcessFind xiang.table.Find

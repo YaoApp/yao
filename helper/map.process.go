@@ -16,10 +16,19 @@ func ProcessMapKeys(process *gou.Process) interface{} {
 	return MapKeys(record)
 }
 
-// ProcessMapGet  xiang.helper.MapKey 返回映射表给定键的值
+// ProcessMapGet  xiang.helper.MapGet 返回映射表给定键的值
 func ProcessMapGet(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
 	record := process.ArgsMap(0)
 	key := process.ArgsString(1)
 	return MapGet(record, key)
+}
+
+// ProcessMapSet  xiang.helper.MapSet 返回映射表给定键的值
+func ProcessMapSet(process *gou.Process) interface{} {
+	process.ValidateArgNums(3)
+	record := process.ArgsMap(0)
+	key := process.ArgsString(1)
+	value := process.Args[2]
+	return MapSet(record, key, value)
 }

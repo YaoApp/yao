@@ -25,3 +25,9 @@ func MapGet(record map[string]interface{}, key string) interface{} {
 	data := maps.MapOf(record).Dot()
 	return data.Get(key)
 }
+
+// MapSet xiang.helper.MapSet 设定数值并返回新映射表
+func MapSet(record map[string]interface{}, key string, value interface{}) map[string]interface{} {
+	record[key] = value
+	return record
+}

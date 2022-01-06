@@ -1,6 +1,8 @@
 package table
 
 import (
+	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -8,8 +10,12 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/flow"
+	_ "github.com/yaoapp/xiang/helper"
 	"github.com/yaoapp/xiang/model"
+	"github.com/yaoapp/xiang/query"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xun/capsule"
 )
@@ -18,7 +24,14 @@ func init() {
 	share.DBConnect(config.Conf.Database)
 	model.Load(config.Conf)
 	share.Load(config.Conf)
+	query.Load(config.Conf)
+	flow.LoadFrom(filepath.Join(config.Conf.Root, "flows", "hooks"), "hooks.")
 	Load(config.Conf)
+
+	for name := range gou.Flows {
+		fmt.Println(name)
+	}
+	fmt.Println(filepath.Join(config.Conf.Root, "tables", "hooks"))
 }
 func TestTableProcessSearch(t *testing.T) {
 
@@ -33,8 +46,7 @@ func TestTableProcessSearch(t *testing.T) {
 		2,
 		&gin.Context{},
 	}
-	process := gou.NewProcess("xiang.table.Search", args...)
-	response := ProcessSearch(process)
+	response := gou.NewProcess("xiang.table.Search", args...).Run()
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
 	assert.True(t, res.Has("data"))
@@ -46,6 +58,26 @@ func TestTableProcessSearch(t *testing.T) {
 	assert.True(t, res.Has("total"))
 	assert.Equal(t, 1, res.Get("page"))
 	assert.Equal(t, 2, res.Get("pagesize"))
+}
+
+func TestTableProcessSearchWithHook(t *testing.T) {
+
+	args := []interface{}{"hooks.search"}
+	response := gou.NewProcess("xiang.table.Search", args...).Run()
+	utils.Dump(response)
+
+	assert.NotNil(t, response)
+	res := any.Of(response).Map()
+	assert.True(t, res.Has("data"))
+	assert.True(t, res.Has("next"))
+	assert.True(t, res.Has("page"))
+	assert.True(t, res.Has("pagecnt"))
+	assert.True(t, res.Has("pagesize"))
+	assert.True(t, res.Has("prev"))
+	assert.True(t, res.Has("total"))
+	assert.Equal(t, 1, res.Get("page"))
+	assert.Equal(t, 2, res.Get("pagesize"))
+	assert.Equal(t, float64(100), res.Get("after"))
 }
 
 func TestTableProcessFind(t *testing.T) {

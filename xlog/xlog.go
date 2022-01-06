@@ -3,6 +3,8 @@ package xlog
 import (
 	"fmt"
 	"log"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 // XLog 日志接口
@@ -25,7 +27,11 @@ func Printf(format string, v ...interface{}) {
 // Println calls Output to print to the standard logger.
 // Arguments are handled in the manner of fmt.Println.
 func Println(v ...interface{}) {
-	log.Output(2, fmt.Sprintln(v...))
+	content, err := jsoniter.Marshal(v)
+	if err != nil {
+		log.Output(2, fmt.Sprintln(v...))
+	}
+	log.Output(2, string(content))
 }
 
 // Fatalf is equivalent to Printf() followed by a call to os.Exit(1).

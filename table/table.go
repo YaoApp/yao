@@ -9,8 +9,10 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/xiang/xlog"
 )
 
 // Tables 已载入模型
@@ -145,6 +147,38 @@ func getDefaultAPIs(bind Bind) map[string]share.API {
 	}
 
 	return apis
+}
+
+// Before 运行 Before hook
+func (table *Table) Before(process string, processArgs []interface{}) []interface{} {
+	if process == "" {
+		return processArgs
+	}
+	args := []interface{}{}
+	res := []interface{}{}
+	if len(processArgs) > 0 {
+		args = processArgs[1:]
+		res = append(res, processArgs[0])
+	}
+
+	response := gou.NewProcess(process, args...).Run()
+	if fixedArgs, ok := response.([]interface{}); ok {
+		res = append(res, fixedArgs...)
+		return res
+	}
+
+	xlog.Println("无效的处理器", maps.StrAny{"process": process, "response": response})
+	return processArgs
+}
+
+// After 运行 After hook
+func (table *Table) After(process string, data interface{}) interface{} {
+	if process == "" {
+		return data
+	}
+
+	fmt.Println("After", process)
+	return gou.NewProcess(process, data).Run()
 }
 
 // loadFilters 加载查询过滤器
