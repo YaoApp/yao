@@ -176,8 +176,6 @@ func (table *Table) After(process string, data interface{}) interface{} {
 	if process == "" {
 		return data
 	}
-
-	fmt.Println("After", process)
 	return gou.NewProcess(process, data).Run()
 }
 

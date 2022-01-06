@@ -20,5 +20,5 @@ func check(t *testing.T) {
 	for key := range gou.Flows {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 16, len(keys))
+	assert.Equal(t, 18, len(keys))
 }

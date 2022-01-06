@@ -5,6 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/maps"
 )
 
 // ArrayPluckValue ArrayPluck 参数
@@ -226,6 +227,28 @@ func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]i
 				}
 			}
 		}
+	}
+	return res
+}
+
+// ArrayMapSet []map[string]interface{} 设定数值
+func ArrayMapSet(records []map[string]interface{}, key string, value interface{}) []map[string]interface{} {
+	res := []map[string]interface{}{}
+	for i := range records {
+		record := records[i]
+		record[key] = value
+		res = append(res, record)
+	}
+	return res
+}
+
+// ArrayMapSetMapStr []map[string]interface{} 设定数值
+func ArrayMapSetMapStr(records []maps.MapStr, key string, value interface{}) []maps.MapStr {
+	res := []maps.MapStr{}
+	for i := range records {
+		record := records[i]
+		record[key] = value
+		res = append(res, record)
 	}
 	return res
 }

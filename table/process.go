@@ -313,5 +313,12 @@ func ProcessSelect(process *gou.Process) interface{} {
 	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
 		return nil
 	}
-	return gou.NewProcess(api.Process, process.Args[1:]...).Run()
+
+	// Before Hook
+	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args)
+
+	response := gou.NewProcess(api.Process, process.Args[1:]...).Run()
+
+	// After Hook
+	return table.After(table.Hooks.AfterSelect, response)
 }

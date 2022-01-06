@@ -436,3 +436,34 @@ func TestTableProcessSelect(t *testing.T) {
 	// 清空数据
 	capsule.Query().Table("service").WhereIn("id", []int{id}).Delete()
 }
+
+func TestTableProcessSelectWithHook(t *testing.T) {
+	args := []interface{}{
+		"service",
+		map[string]interface{}{
+			"name":          "腾讯黑岩云主机",
+			"short_name":    "高性能云主机",
+			"kind_id":       3,
+			"manu_id":       1,
+			"price_options": []string{"按月订阅"},
+		},
+	}
+	process := gou.NewProcess("xiang.table.Save", args...)
+	response := ProcessSave(process)
+	assert.NotNil(t, response)
+	assert.True(t, any.Of(response).IsInt())
+
+	id := any.Of(response).CInt()
+
+	args = []interface{}{"hooks.select"}
+
+	data := gou.NewProcess("xiang.table.select", args...).Run().([]maps.MapStrAny)
+	assert.Greater(t, len(data), 1)
+	for _, row := range data {
+		assert.Contains(t, row.Get("name"), "腾讯")
+		assert.Equal(t, float64(100), row.Get("after"))
+	}
+
+	// 清空数据
+	capsule.Query().Table("service").WhereIn("id", []int{id}).Delete()
+}

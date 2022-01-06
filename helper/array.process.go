@@ -1,6 +1,9 @@
 package helper
 
-import "github.com/yaoapp/gou"
+import (
+	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/maps"
+)
 
 // ProcessArrayPluck  xiang.helper.ArrayPluck 将多个数据记录集合，合并为一个数据记录集合
 func ProcessArrayPluck(process *gou.Process) interface{} {
@@ -51,6 +54,18 @@ func ProcessArrayUnique(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 	if arr, ok := process.Args[0].([]interface{}); ok {
 		return ArrayUnique(arr)
+	}
+	return process.Args[0]
+}
+
+// ProcessArrayMapSet  xiang.helper.ArrayMapSet 数组映射设定数值
+func ProcessArrayMapSet(process *gou.Process) interface{} {
+	process.ValidateArgNums(3)
+	arr, ok := process.Args[0].([]map[string]interface{})
+	if ok {
+		return ArrayMapSet(arr, process.ArgsString(1), process.Args[2])
+	} else if arr2, ok := process.Args[0].([]maps.MapStr); ok {
+		return ArrayMapSetMapStr(arr2, process.ArgsString(1), process.Args[2])
 	}
 	return process.Args[0]
 }

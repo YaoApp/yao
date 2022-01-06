@@ -48,5 +48,5 @@ func check(t *testing.T) {
 	for key := range Tables {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 7, len(keys))
+	assert.Equal(t, 8, len(keys))
 }
