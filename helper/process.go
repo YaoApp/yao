@@ -33,6 +33,9 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.Case", ProcessCase)
 	gou.RegisterProcessHandler("xiang.helper.IF", ProcessIF)
 
+	gou.RegisterProcessHandler("xiang.helper.EnvSet", ProcessEnvSet)
+	gou.RegisterProcessHandler("xiang.helper.EnvGet", ProcessEnvGet)
+
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 
 }
