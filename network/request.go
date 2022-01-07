@@ -37,6 +37,20 @@ func RequestPostJSON(url string, data interface{}, headers map[string]string) Re
 	return RequestSend("POST", url, map[string]interface{}{}, data, headers)
 }
 
+// RequestPut 发送PUT请求
+func RequestPut(url string, data interface{}, headers map[string]string) Response {
+	return RequestSend("PUT", url, map[string]interface{}{}, data, headers)
+}
+
+// RequestPutJSON 发送PUT请求
+func RequestPutJSON(url string, data interface{}, headers map[string]string) Response {
+	if headers == nil {
+		headers = map[string]string{}
+	}
+	headers["content-type"] = "application/json;charset=utf8"
+	return RequestSend("POST", url, map[string]interface{}{}, data, headers)
+}
+
 // RequestSend 发送Request请求
 func RequestSend(method string, url string, params map[string]interface{}, data interface{}, headers map[string]string) Response {
 

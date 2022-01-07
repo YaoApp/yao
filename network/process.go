@@ -8,5 +8,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.network.Get", ProcessGet)
 	gou.RegisterProcessHandler("xiang.network.Post", ProcessPost)
 	gou.RegisterProcessHandler("xiang.network.PostJSON", ProcessPostJSON)
+	gou.RegisterProcessHandler("xiang.network.Put", ProcessPut)
+	gou.RegisterProcessHandler("xiang.network.PutJSON", ProcessPutJSON)
 	gou.RegisterProcessHandler("xiang.network.Send", ProcessSend)
 }
