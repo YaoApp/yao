@@ -20,6 +20,8 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.MapGet", ProcessMapGet)
 	gou.RegisterProcessHandler("xiang.helper.MapSet", ProcessMapSet)
 
+	gou.RegisterProcessHandler("xiang.helper.StrConcat", ProcessStrConcat)
+
 	gou.RegisterProcessHandler("xiang.helper.Captcha", ProcessCaptcha)
 	gou.RegisterProcessHandler("xiang.helper.CaptchaValidate", ProcessCaptchaValidate)
 
@@ -35,6 +37,8 @@ func init() {
 
 	gou.RegisterProcessHandler("xiang.helper.EnvSet", ProcessEnvSet)
 	gou.RegisterProcessHandler("xiang.helper.EnvGet", ProcessEnvGet)
+	gou.RegisterProcessHandler("xiang.helper.EnvMultiSet", ProcessEnvMultiSet)
+	gou.RegisterProcessHandler("xiang.helper.EnvMultiGet", ProcessEnvMultiGet)
 
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 

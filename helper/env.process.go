@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/yaoapp/gou"
@@ -19,4 +21,32 @@ func ProcessEnvSet(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	value := process.ArgsString(1)
 	return os.Setenv(name, value)
+}
+
+// ProcessEnvMultiGet  xiang.helper.MultiGet 读取ENV
+func ProcessEnvMultiGet(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	res := map[string]string{}
+	for i := range process.Args {
+		name := fmt.Sprintf("%v", process.Args[i])
+		res[name] = os.Getenv(name)
+	}
+	return res
+}
+
+// ProcessEnvMultiSet xiang.helper.MultiSet 设置ENV
+func ProcessEnvMultiSet(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	envs := process.ArgsMap(0)
+	message := ""
+	for name, value := range envs {
+		err := os.Setenv(name, fmt.Sprintf("%v", value))
+		if err != nil {
+			message = message + ";" + err.Error()
+		}
+	}
+	if message != "" {
+		return errors.New(message)
+	}
+	return nil
 }
