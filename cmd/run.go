@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/utils"
@@ -34,8 +36,27 @@ var runCmd = &cobra.Command{
 			if i == 0 {
 				continue
 			}
-			pargs = append(pargs, arg)
-			fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+
+			// 解析参数
+			if strings.HasPrefix(arg, "::") {
+				arg := strings.TrimPrefix(arg, "::")
+				var v interface{}
+				err := jsoniter.Unmarshal([]byte(arg), &v)
+				if err != nil {
+					fmt.Println(color.RedString("参数错误: %s", err.Error()))
+					return
+				}
+				pargs = append(pargs, v)
+				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+			} else if strings.HasPrefix(arg, "\\::") {
+				arg := "::" + strings.TrimPrefix(arg, "\\::")
+				pargs = append(pargs, arg)
+				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+			} else {
+				pargs = append(pargs, arg)
+				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+			}
+
 		}
 
 		process := gou.NewProcess(name, pargs...)
