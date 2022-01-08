@@ -32,3 +32,11 @@ func ProcessMapSet(process *gou.Process) interface{} {
 	value := process.Args[2]
 	return MapSet(record, key, value)
 }
+
+// ProcessMapDel  xiang.helper.MapDel 返回映射表给定键的值
+func ProcessMapDel(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	record := process.ArgsMap(0)
+	key := process.ArgsString(1)
+	return MapDel(record, key)
+}

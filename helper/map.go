@@ -31,3 +31,9 @@ func MapSet(record map[string]interface{}, key string, value interface{}) map[st
 	record[key] = value
 	return record
 }
+
+// MapDel xiang.helper.MapDel 删除数值并返回新映射表
+func MapDel(record map[string]interface{}, key string) map[string]interface{} {
+	delete(record, key)
+	return record
+}
