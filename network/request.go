@@ -48,7 +48,7 @@ func RequestPutJSON(url string, data interface{}, headers map[string]string) Res
 		headers = map[string]string{}
 	}
 	headers["content-type"] = "application/json;charset=utf8"
-	return RequestSend("POST", url, map[string]interface{}{}, data, headers)
+	return RequestSend("PUT", url, map[string]interface{}{}, data, headers)
 }
 
 // RequestSend 发送Request请求
