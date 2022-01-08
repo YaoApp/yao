@@ -49,3 +49,14 @@ func TestProcessMapValues(t *testing.T) {
 	assert.Contains(t, values, "Value1")
 	assert.Contains(t, values, "Value2")
 }
+
+func TestProcessMapMultiDel(t *testing.T) {
+	args := []interface{}{
+		map[string]interface{}{"foo": "Value1", "bar": "Value2"},
+		"foo",
+		"bar",
+	}
+	new := gou.NewProcess("xiang.helper.MapMultiDel", args...).Run().(map[string]interface{})
+	assert.Nil(t, new["foo"])
+	assert.Nil(t, new["bar"])
+}

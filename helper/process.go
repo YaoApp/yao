@@ -20,6 +20,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.MapGet", ProcessMapGet)
 	gou.RegisterProcessHandler("xiang.helper.MapSet", ProcessMapSet)
 	gou.RegisterProcessHandler("xiang.helper.MapDel", ProcessMapDel)
+	gou.RegisterProcessHandler("xiang.helper.MapMultiDel", ProcessMapMultiDel)
 
 	gou.RegisterProcessHandler("xiang.helper.StrConcat", ProcessStrConcat)
 

@@ -37,3 +37,11 @@ func MapDel(record map[string]interface{}, key string) map[string]interface{} {
 	delete(record, key)
 	return record
 }
+
+// MapMultiDel xiang.helper.MapMultiDel 删除数值并返回新映射表
+func MapMultiDel(record map[string]interface{}, keys ...string) map[string]interface{} {
+	for _, key := range keys {
+		delete(record, key)
+	}
+	return record
+}
