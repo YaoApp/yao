@@ -7,6 +7,8 @@ import (
 
 func init() {
 	// 注册处理器
+	gou.RegisterProcessHandler("xiang.helper.ArrayGet", ProcessArrayGet)
+	gou.RegisterProcessHandler("xiang.helper.ArrayIndexes", ProcessArrayIndexes)
 	gou.RegisterProcessHandler("xiang.helper.ArrayPluck", ProcessArrayPluck)
 	gou.RegisterProcessHandler("xiang.helper.ArraySplit", ProcessArraySplit)
 	gou.RegisterProcessHandler("xiang.helper.ArrayColumn", ProcessArrayColumn)

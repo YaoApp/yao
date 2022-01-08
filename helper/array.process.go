@@ -69,3 +69,25 @@ func ProcessArrayMapSet(process *gou.Process) interface{} {
 	}
 	return process.Args[0]
 }
+
+// ProcessArrayIndexes xiang.helper.ArrayIndexes 返回数组索引。
+func ProcessArrayIndexes(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	records := process.ArgsArray(0)
+	res := []int{}
+	for index := range records {
+		res = append(res, index)
+	}
+	return res
+}
+
+// ProcessArrayGet xiang.helper.ArrayGet 返回指定索引数据
+func ProcessArrayGet(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	records := process.ArgsArray(0)
+	index := process.ArgsInt(1)
+	if index >= len(records) {
+		return nil
+	}
+	return records[index]
+}

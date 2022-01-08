@@ -166,3 +166,24 @@ func TestProcessArrayUnique(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, []interface{}{1, 2, 3}, res)
 }
+
+func TestProcessArrayIndexes(t *testing.T) {
+	args := []interface{}{
+		[]interface{}{1, 2, 3, 3},
+	}
+	response := gou.NewProcess("xiang.helper.ArrayIndexes", args...).Run()
+	assert.NotNil(t, response)
+	res, ok := response.([]int)
+	assert.True(t, ok)
+	assert.Equal(t, []int{0, 1, 2, 3}, res)
+}
+
+func TestProcessArrayGet(t *testing.T) {
+
+	response := gou.NewProcess("xiang.helper.ArrayGet", []interface{}{1, 2, 3, 3}, 2).Run()
+	assert.Equal(t, 3, response)
+
+	response = gou.NewProcess("xiang.helper.ArrayGet", []interface{}{1, 2, 3, 3}, 4).Run()
+	assert.Nil(t, response)
+
+}
