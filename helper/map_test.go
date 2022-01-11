@@ -60,3 +60,16 @@ func TestProcessMapMultiDel(t *testing.T) {
 	assert.Nil(t, new["foo"])
 	assert.Nil(t, new["bar"])
 }
+
+func TestProcessMapToArray(t *testing.T) {
+
+	arr := gou.NewProcess("xiang.helper.MapToArray", map[string]interface{}{
+		"foo": "Value1",
+		"bar": "Value2",
+	}).Run().([]map[string]interface{})
+
+	assert.Equal(t, arr[0]["key"], "foo")
+	assert.Equal(t, arr[0]["value"], "Value1")
+	assert.Equal(t, arr[1]["key"], "bar")
+	assert.Equal(t, arr[1]["value"], "Value2")
+}

@@ -55,3 +55,17 @@ func ProcessMapMultiDel(process *gou.Process) interface{} {
 	}
 	return MapMultiDel(record, keys...)
 }
+
+// ProcessMapToArray  xiang.helper.MapToArray  映射转换为 KeyValue 数组
+func ProcessMapToArray(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	m := process.ArgsMap(0)
+	res := []map[string]interface{}{}
+	for key, value := range m {
+		res = append(res, map[string]interface{}{
+			"key":   key,
+			"value": value,
+		})
+	}
+	return res
+}
