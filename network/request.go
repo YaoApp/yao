@@ -2,6 +2,7 @@ package network
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -93,7 +94,18 @@ func RequestSend(method string, url string, params map[string]interface{}, data 
 		}
 	}
 
-	resp, err := (&http.Client{}).Do(req)
+	// Https
+	var client *http.Client = &http.Client{}
+
+	// SkipVerify false
+	if strings.HasPrefix(url, "https://") {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr}
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return Response{
 			Status: 0,
