@@ -1,4 +1,4 @@
-package imports
+package importer
 
 // PreviewAuto 一直显示
 const PreviewAuto = "auto"
@@ -9,8 +9,8 @@ const PreviewAlways = "always"
 // PreviewNever 从不显示
 const PreviewNever = "never"
 
-// Imports 数据导入
-type Imports struct {
+// Importer 数据导入器
+type Importer struct {
 	Title   string   `json:"title,omitempty"`  // 导入名称
 	Process string   `json:"process"`          // 处理器名称
 	Columns []Column `json:"columns"`          // 字段列表
