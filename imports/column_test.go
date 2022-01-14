@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var data = map[string][]byte{
+var testDataColumns = map[string][]byte{
 	"normal": []byte(`{
 		"label": "订单号",
 		"name": "order_sn",
@@ -41,9 +41,9 @@ var data = map[string][]byte{
 	}`),
 }
 
-func TestUnmarshalJSON(t *testing.T) {
+func TestColumnUnmarshalJSON(t *testing.T) {
 	var normal Column
-	err := jsoniter.Unmarshal(data["normal"], &normal)
+	err := jsoniter.Unmarshal(testDataColumns["normal"], &normal)
 	assert.Nil(t, err)
 	assert.Equal(t, "订单号", normal.Label)
 	assert.Equal(t, "order_sn", normal.Name)
@@ -56,7 +56,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, false, normal.IsObject)
 
 	var object Column
-	err = jsoniter.Unmarshal(data["object"], &object)
+	err = jsoniter.Unmarshal(testDataColumns["object"], &object)
 	assert.Nil(t, err)
 	assert.Equal(t, "性别", object.Label)
 	assert.Equal(t, "user", object.Name)
@@ -69,7 +69,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, false, object.Primary)
 
 	var array Column
-	err = jsoniter.Unmarshal(data["array"], &array)
+	err = jsoniter.Unmarshal(testDataColumns["array"], &array)
 	assert.Nil(t, err)
 	assert.Equal(t, "库存", array.Label)
 	assert.Equal(t, "stock", array.Name)
@@ -82,7 +82,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, false, array.Primary)
 
 	var arrayObject Column
-	err = jsoniter.Unmarshal(data["arrayObject"], &arrayObject)
+	err = jsoniter.Unmarshal(testDataColumns["arrayObject"], &arrayObject)
 	assert.Nil(t, err)
 	assert.Nil(t, err)
 	assert.Equal(t, "商品", arrayObject.Label)
@@ -96,7 +96,7 @@ func TestUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, false, arrayObject.Primary)
 
 	var failure Column
-	err = jsoniter.Unmarshal(data["failure"], &failure)
+	err = jsoniter.Unmarshal(testDataColumns["failure"], &failure)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), `"label" format is incorrect`)
 }

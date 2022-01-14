@@ -68,8 +68,8 @@ func TestProcessMapToArray(t *testing.T) {
 		"bar": "Value2",
 	}).Run().([]map[string]interface{})
 
-	assert.Equal(t, arr[0]["key"], "foo")
-	assert.Equal(t, arr[0]["value"], "Value1")
-	assert.Equal(t, arr[1]["key"], "bar")
-	assert.Equal(t, arr[1]["value"], "Value2")
+	assert.Len(t, arr, 2)
+
+	assert.True(t, arr[0]["key"] == "foo" || arr[0]["key"] == "bar")
+	assert.True(t, arr[0]["value"] == "Value1" || arr[0]["value"] == "Value2")
 }
