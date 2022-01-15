@@ -36,6 +36,7 @@ require (
 	github.com/spf13/afero v1.6.0
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
+	github.com/xuri/excelize/v2 v2.5.0 // indirect
 	github.com/yaoapp/gou v0.0.0-20211120135538-e5387704eb03
 	github.com/yaoapp/kun v0.6.7
 	github.com/yaoapp/xun v0.6.0

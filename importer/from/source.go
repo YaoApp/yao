@@ -5,6 +5,7 @@ type Source interface {
 	Data(page int, size int) []map[string]interface{}
 	Columns() []Column
 	Bind(mapping Mapping)
+	Close() error
 }
 
 // Column 源数据列
