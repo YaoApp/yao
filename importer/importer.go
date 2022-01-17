@@ -9,7 +9,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/importer/from"
 	"github.com/yaoapp/xiang/share"
@@ -54,11 +53,12 @@ func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 	sourceColumns := getSourceColumns(src)
 	sourceInspect := src.Inspect()
 	mapping := &Mapping{
-		Columns:      []*Binding{},
-		AutoMatching: true,
-		Sheet:        sourceInspect.SheetName,
-		ColStart:     sourceInspect.ColStart,
-		RowStart:     sourceInspect.RowStart,
+		Columns:          []*Binding{},
+		AutoMatching:     true,
+		TemplateMatching: false,
+		Sheet:            sourceInspect.SheetName,
+		ColStart:         sourceInspect.ColStart,
+		RowStart:         sourceInspect.RowStart,
 	}
 
 	for i := range imp.Columns {
@@ -83,8 +83,7 @@ func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 		mapping.Columns = append(mapping.Columns, &binding)
 	}
 
-	utils.Dump(mapping)
-	return nil
+	return mapping
 }
 
 // MappingPreview 预览字段映射关系

@@ -41,11 +41,12 @@ type Option struct {
 
 // Mapping 字段映射表
 type Mapping struct {
-	Sheet        string     `json:"sheet"`        // 数据表
-	ColStart     int        `json:"colStart"`     // 第一列的位置
-	RowStart     int        `json:"rowStart"`     // 第一行的位置
-	Columns      []*Binding `json:"data"`         // 字段数据列表
-	AutoMatching bool       `json:"autoMatching"` // 是否自动匹配
+	Sheet            string     `json:"sheet"`            // 数据表
+	ColStart         int        `json:"colStart"`         // 第一列的位置
+	RowStart         int        `json:"rowStart"`         // 第一行的位置
+	Columns          []*Binding `json:"data"`             // 字段数据列表
+	AutoMatching     bool       `json:"autoMatching"`     // 是否自动匹配
+	TemplateMatching bool       `json:"templateMatching"` // 是否通过已传模板匹配
 }
 
 // Binding 数据绑定

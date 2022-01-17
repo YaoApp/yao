@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/importer/xlsx"
 )
@@ -30,5 +29,17 @@ func TestAutoMappingSimple(t *testing.T) {
 
 	imp := Select("order")
 	mapping := imp.AutoMapping(file)
-	utils.Dump(mapping)
+	assert.Equal(t, true, mapping.AutoMatching)
+	assert.Equal(t, false, mapping.TemplateMatching)
+	assert.Equal(t, 1, mapping.ColStart)
+	assert.Equal(t, 1, mapping.RowStart)
+	assert.Equal(t, 10, len(mapping.Columns))
+	assert.Equal(t, len(imp.Columns), len(mapping.Columns))
+	for i, col := range mapping.Columns {
+		dst := imp.Columns[i].ToMap()
+		assert.Equal(t, dst["name"], col.Field)
+		assert.Equal(t, dst["label"], col.Label)
+		assert.Equal(t, dst["rules"], col.Rules)
+		assert.NotEmpty(t, col.Axis)
+	}
 }
