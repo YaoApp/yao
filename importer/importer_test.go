@@ -89,7 +89,8 @@ func TestRunSimple(t *testing.T) {
 	imp := Select("order")
 	mapping := imp.AutoMapping(file)
 	res := imp.Run(file, mapping)
-	assert.Equal(t, 2, res["failure"])
+	assert.Equal(t, 1, res["ignore"])
+	assert.Equal(t, 1, res["failure"])
 	assert.Equal(t, 2, res["success"])
 	assert.Equal(t, 4, res["total"])
 }

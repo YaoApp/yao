@@ -22,5 +22,16 @@ function mobile(value, row) {
 }
 
 function ImportData(columns, data) {
-  return 1;
+  last = columns.length - 1;
+  ignore = 0;
+  failure = 0;
+  if (data.length > 1) {
+    failure = 1;
+  }
+  for (var i in data) {
+    if (data[i][last] == false) {
+      ignore = ignore + 1;
+    }
+  }
+  return [failure, ignore];
 }

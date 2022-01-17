@@ -9,6 +9,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/importer/from"
@@ -205,6 +206,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 
 	total := 0
 	failed := 0
+	ignore := 0
 	imp.Chunk(src, mapping, func(line int, data [][]interface{}) {
 		length := len(data)
 		total = total + length
@@ -223,20 +225,27 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 			return
 		}
 
-		if res, ok := response.(int); ok {
-			failed = failed + res
+		if res, ok := response.([]int); ok && len(res) > 1 {
+			failed = failed + res[0]
+			ignore = ignore + res[1]
 			return
-		} else if res, ok := response.(int64); ok {
-			failed = failed + int(res)
+		} else if res, ok := response.([]int64); ok && len(res) > 1 {
+			failed = failed + int(res[0])
+			ignore = ignore + int(res[1])
+			return
+		} else if res, ok := response.([]interface{}); ok && len(res) > 1 {
+			failed = failed + any.Of(res[0]).CInt()
+			ignore = ignore + any.Of(res[1]).CInt()
 			return
 		}
 
 		xlog.Printf("导入处理器未返回失败结果 %#v %d %d", response, line, length)
 	})
 	return map[string]int{
-		"success": total - failed,
+		"success": total - failed - ignore,
 		"failure": failed,
 		"total":   total,
+		"ignore":  ignore,
 	}
 }
 
