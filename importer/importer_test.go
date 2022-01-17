@@ -94,3 +94,22 @@ func TestRunSimple(t *testing.T) {
 	assert.Equal(t, 2, res["success"])
 	assert.Equal(t, 4, res["total"])
 }
+
+func TestDataPreviewSimple(t *testing.T) {
+	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	file := xlsx.Open(simple)
+	defer file.Close()
+	imp := Select("order")
+	mapping := imp.AutoMapping(file)
+
+	res := imp.DataPreview(file, 2, 3, mapping)
+	data, ok := res["data"].([]map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, 2, res["page"])
+	assert.Equal(t, 3, res["next"])
+	assert.Equal(t, 10, res["pagecnt"])
+	assert.Equal(t, 3, res["pagesize"])
+	assert.Equal(t, 1, res["prev"])
+	assert.Equal(t, 1, len(data))
+	assert.Equal(t, 11, len(data[0]))
+}

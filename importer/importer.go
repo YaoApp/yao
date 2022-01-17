@@ -160,6 +160,45 @@ func DataValidate(row []interface{}, value interface{}, rule string) bool {
 	return false
 }
 
+// DataPreview 预览数据
+func (imp *Importer) DataPreview(src from.Source, page int, size int, mapping *Mapping) map[string]interface{} {
+	if page < 1 {
+		page = 1
+	}
+
+	data := []map[string]interface{}{}
+	res := map[string]interface{}{
+		"page":     page,
+		"pagesize": size,
+		"pagecnt":  10,
+		"next":     page + 1,
+		"prev":     page - 1,
+	}
+
+	if mapping == nil {
+		mapping = imp.AutoMapping(src)
+	}
+
+	columns, rows := imp.DataGet(src, page, size, mapping)
+	for _, row := range rows {
+		if len(row) != len(columns) {
+			exception.New("数据异常, 请联系管理员", 500).Ctx(map[string]interface{}{"row": row, "columns": columns}).Throw()
+		}
+
+		rs := map[string]interface{}{}
+		for i := range row {
+			key := columns[i]
+			value := row[i]
+			rs[key] = value
+		}
+
+		data = append(data, rs)
+	}
+
+	res["data"] = data
+	return res
+}
+
 // MappingPreview 预览字段映射关系
 func (imp *Importer) MappingPreview(src from.Source) *Mapping {
 
@@ -242,9 +281,9 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 		xlog.Printf("导入处理器未返回失败结果 %#v %d %d", response, line, length)
 	})
 	return map[string]int{
+		"total":   total,
 		"success": total - failed - ignore,
 		"failure": failed,
-		"total":   total,
 		"ignore":  ignore,
 	}
 }
