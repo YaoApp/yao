@@ -1,6 +1,6 @@
 {
   "title": "导入订单数据",
-  "process": "flows.order.Import",
+  "process": "scripts.rules.ImportData",
   "columns": [
     {
       "label": "订单号",
@@ -20,14 +20,14 @@
       "label": "性别",
       "name": "user.sex",
       "match": ["性别", "gender", "sex"],
-      "rules": ["scripts.rules.FmtUser"],
+      "rules": [],
       "nullable": true
     },
     {
       "label": "年龄",
       "name": "user.age",
       "match": ["年龄", "age"],
-      "rules": ["scripts.rules.FmtUser"],
+      "rules": [],
       "nullable": true
     },
     {
@@ -63,12 +63,12 @@
     {
       "label": "备注",
       "name": "remark",
-      "match": ["备注", "说明", "其他"]
+      "match": []
     }
   ],
   "option": {
     "autoMatching": true,
-    "chunkSize": 500,
+    "chunkSize": 3,
     "logging": "error",
     "mappingPreview": "auto",
     "dataPreview": "auto"

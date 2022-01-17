@@ -40,7 +40,9 @@ func TestAutoMappingSimple(t *testing.T) {
 		assert.Equal(t, dst["name"], col.Field)
 		assert.Equal(t, dst["label"], col.Label)
 		assert.Equal(t, dst["rules"], col.Rules)
-		assert.NotEmpty(t, col.Axis)
+		if col.Field != "remark" {
+			assert.NotEmpty(t, col.Axis)
+		}
 	}
 }
 
@@ -59,8 +61,35 @@ func TestDataGetSimple(t *testing.T) {
 	}, columns)
 
 	assert.Equal(t, [][]interface{}{
-		{"SN202101120018", "张三", "男", "26", "13211000011", "彩绘湖北地图", "3", "65.5", "196.5", "", true},
-		{"", "李四", "男", "42", "13211000011", "景祐遁甲符应经", "1", "34.8", "34.8", "", false},
+		{"SN202101120018", "张三", "男", "26", "13211000011", "彩绘湖北地图", "3", "65.5", "196.5", "自动添加备注 @From 张三", true},
+		{"", "李四", "男", "42", "13211000011", "景祐遁甲符应经", "1", "34.8", "34.8", "自动添加备注 @From 李四", false},
 	}, data)
 
+}
+
+func TestDataChunkSimple(t *testing.T) {
+	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	file := xlsx.Open(simple)
+	defer file.Close()
+
+	imp := Select("order")
+	mapping := imp.AutoMapping(file)
+	lines := []int{}
+	imp.Chunk(file, mapping, func(line int, data [][]interface{}) {
+		lines = append(lines, line)
+	})
+	assert.Equal(t, []int{3, 4}, lines)
+}
+
+func TestRunSimple(t *testing.T) {
+	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	file := xlsx.Open(simple)
+	defer file.Close()
+
+	imp := Select("order")
+	mapping := imp.AutoMapping(file)
+	res := imp.Run(file, mapping)
+	assert.Equal(t, 2, res["failure"])
+	assert.Equal(t, 2, res["success"])
+	assert.Equal(t, 4, res["total"])
 }

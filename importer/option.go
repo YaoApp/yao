@@ -25,14 +25,14 @@ func (option *Option) UnmarshalJSON(source []byte) error {
 // OptionOf 解析配置
 func OptionOf(data map[string]interface{}) (*Option, error) {
 	option := &Option{
-		AutoMatching:   true,
+		UseTemplate:    true,
 		ChunkSize:      500,
 		MappingPreview: PreviewAuto,
 		DataPreview:    PreviewAuto,
 	}
 
-	if autoMatching, ok := data["autoMatching"].(bool); ok {
-		option.AutoMatching = autoMatching
+	if autoMatching, ok := data["useTemplate"].(bool); ok {
+		option.UseTemplate = autoMatching
 	}
 
 	chunkSize := any.Of(data["chunkSize"]).CInt()

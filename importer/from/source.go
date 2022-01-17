@@ -19,8 +19,8 @@ const (
 type Source interface {
 	Data(row int, size int, cols []int) [][]interface{}
 	Columns() []Column
+	Chunk(size int, cols []int, cb func(line int, data [][]interface{}))
 	Inspect() Inspect
-	Bind()
 	Close() error
 }
 

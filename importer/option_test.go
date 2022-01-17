@@ -22,7 +22,7 @@ func TestOptionUnmarshalJSON(t *testing.T) {
 	var normal Option
 	err := jsoniter.Unmarshal(testDataOption["normal"], &normal)
 	assert.Nil(t, err)
-	assert.Equal(t, true, normal.AutoMatching)
+	assert.Equal(t, true, normal.UseTemplate)
 	assert.Equal(t, 200, normal.ChunkSize)
 	assert.Equal(t, "always", normal.MappingPreview)
 	assert.Equal(t, "never", normal.DataPreview)
@@ -30,7 +30,7 @@ func TestOptionUnmarshalJSON(t *testing.T) {
 	var defaults Option
 	err = jsoniter.Unmarshal(testDataOption["defaults"], &defaults)
 	assert.Nil(t, err)
-	assert.Equal(t, true, defaults.AutoMatching)
+	assert.Equal(t, true, defaults.UseTemplate)
 	assert.Equal(t, 500, defaults.ChunkSize)
 	assert.Equal(t, "auto", defaults.MappingPreview)
 	assert.Equal(t, "auto", defaults.DataPreview)

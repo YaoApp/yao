@@ -69,7 +69,7 @@ func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 		if !ok {
 			continue
 		}
-		binding := Binding{Name: "", Axis: "", Rules: []string{}, Field: name, Label: imp.Columns[i].Label}
+		binding := Binding{Name: "", Axis: "", Col: -1, Rules: []string{}, Field: name, Label: imp.Columns[i].Label}
 		for _, suggest := range imp.Columns[i].Match {
 			if srcCol, has := sourceColumns[suggest]; has {
 				binding = Binding{
@@ -89,7 +89,7 @@ func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 	return mapping
 }
 
-// DataGet 预览数据
+// DataGet 读取源数据记录
 func (imp *Importer) DataGet(src from.Source, page int, size int, mapping *Mapping) ([]string, [][]interface{}) {
 
 	row := (page-1)*size + mapping.RowStart
@@ -102,6 +102,15 @@ func (imp *Importer) DataGet(src from.Source, page int, size int, mapping *Mappi
 	}
 	data := src.Data(row, size, cols)
 	return imp.DataClean(data, mapping.Columns)
+}
+
+// Chunk 遍历数据
+func (imp *Importer) Chunk(src from.Source, mapping *Mapping, cb func(line int, data [][]interface{})) {
+	cols := []int{}
+	for _, d := range mapping.Columns {
+		cols = append(cols, d.Col)
+	}
+	src.Chunk(imp.Option.ChunkSize, cols, cb)
 }
 
 // DataClean 清洗数据
@@ -189,7 +198,47 @@ func (imp *Importer) SaveAsTemplate(src from.Source) {
 }
 
 // Run 运行导入
-func (imp *Importer) Run() {}
+func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
+	if mapping == nil {
+		mapping = imp.AutoMapping(src)
+	}
+
+	total := 0
+	failed := 0
+	imp.Chunk(src, mapping, func(line int, data [][]interface{}) {
+		length := len(data)
+		total = total + length
+		columns, data := imp.DataClean(data, mapping.Columns)
+		process, err := gou.ProcessOf(imp.Process, columns, data)
+		if err != nil {
+			failed = failed + length
+			xlog.Printf("导入失败 %d %s ", line, err.Error())
+			return
+		}
+
+		response, err := process.Exec()
+		if err != nil {
+			failed = failed + length
+			xlog.Printf("导入失败 %d %s ", line, err.Error())
+			return
+		}
+
+		if res, ok := response.(int); ok {
+			failed = failed + res
+			return
+		} else if res, ok := response.(int64); ok {
+			failed = failed + int(res)
+			return
+		}
+
+		xlog.Printf("导入处理器未返回失败结果 %#v %d %d", response, line, length)
+	})
+	return map[string]int{
+		"success": total - failed,
+		"failure": failed,
+		"total":   total,
+	}
+}
 
 // Start 运行导入(异步)
 func (imp *Importer) Start() {}

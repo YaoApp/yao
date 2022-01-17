@@ -73,27 +73,65 @@ func (xlsx *Xlsx) Inspect() from.Inspect {
 // Data 读取数据
 func (xlsx *Xlsx) Data(row int, size int, cols []int) [][]interface{} {
 	data := [][]interface{}{}
-	for r := row; r < row+size; r++ {
-		row := []interface{}{}
-		end := true
-		for _, c := range cols {
-			axis := positionToAxis(r, c)
-			value, err := xlsx.File.GetCellValue(xlsx.SheetName, axis)
-			if err != nil {
-				xlog.Printf("读取数据出错 %s %s %s", xlsx.SheetName, axis, err.Error())
-				value = ""
-			}
-			row = append(row, value)
-			if value != "" {
-				end = false
-			}
-		}
+	for line := row; line < row+size; line++ {
+		row, end := xlsx.readLine(line, cols)
 		if end {
 			break
 		}
 		data = append(data, row)
 	}
 	return data
+}
+
+// Chunk 遍历数据
+func (xlsx *Xlsx) Chunk(size int, cols []int, cb func(line int, data [][]interface{})) {
+	line := 0
+	data := [][]interface{}{}
+	for xlsx.Rows.Next() {
+		line++
+		if line < xlsx.RowStart {
+			continue
+		}
+		row, end := xlsx.readLine(line, cols)
+		if end {
+			cb(line, data)
+			break
+		}
+
+		data = append(data, row)
+		if line%size == 0 {
+			cb(line, data)
+			data = [][]interface{}{}
+		}
+	}
+
+	// 最后一批数据
+	if len(data) > 0 {
+		cb(line, data)
+	}
+}
+
+// readLine 读取给定行信息
+func (xlsx *Xlsx) readLine(line int, cols []int) ([]interface{}, bool) {
+	row := []interface{}{}
+	end := true
+	for _, c := range cols {
+		var value = ""
+		var err error
+		if c >= 0 {
+			axis := positionToAxis(line, c)
+			value, err = xlsx.File.GetCellValue(xlsx.SheetName, axis)
+			if err != nil {
+				xlog.Printf("读取数据出错 %s %s %s", xlsx.SheetName, axis, err.Error())
+				value = ""
+			}
+		}
+		row = append(row, value)
+		if value != "" {
+			end = false
+		}
+	}
+	return row, end
 }
 
 // Columns 读取列
@@ -140,10 +178,6 @@ func (xlsx *Xlsx) Columns() []from.Column {
 		line++
 	}
 	return columns
-}
-
-// Bind 绑定映射表
-func (xlsx *Xlsx) Bind() {
 }
 
 func (xlsx *Xlsx) getMergeCells() {
