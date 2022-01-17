@@ -38,3 +38,21 @@ type Option struct {
 	MappingPreview string `json:"mappingPreview,omitempty"` // 显示字段映射界面方式 auto 匹配模板失败显示, always 一直显示, never 不显示
 	DataPreview    string `json:"dataPreview,omitempty"`    // 数据预览界面方式 auto 有异常数据时显示, always 一直显示, never 不显示
 }
+
+// Mapping 字段映射表
+type Mapping struct {
+	Sheet        string     `json:"sheet"`        // 数据表
+	ColStart     int        `json:"colStart"`     // 第一列的位置
+	RowStart     int        `json:"rowStart"`     // 第一行的位置
+	Columns      []*Binding `json:"data"`         // 字段数据列表
+	AutoMatching bool       `json:"autoMatching"` // 是否自动匹配
+}
+
+// Binding 数据绑定
+type Binding struct {
+	Label string   `json:"label"` // 目标字段标签
+	Field string   `json:"field"` // 目标字段名称
+	Name  string   `json:"name"`  // 源关联字段名称
+	Axis  string   `json:"axis"`  // 源关联字段坐标
+	Rules []string `json:"rules"` // 清洗规则
+}

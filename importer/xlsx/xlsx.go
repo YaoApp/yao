@@ -2,6 +2,7 @@ package xlsx
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/kun/exception"
@@ -14,6 +15,8 @@ type Xlsx struct {
 	File       *excelize.File
 	SheetName  string
 	SheetIndex int
+	ColStart   int
+	RowStart   int
 	Cols       *excelize.Cols
 	Rows       *excelize.Rows
 }
@@ -57,6 +60,16 @@ func (xlsx *Xlsx) Close() error {
 	return nil
 }
 
+// Inspect 基本信息
+func (xlsx *Xlsx) Inspect() from.Inspect {
+	return from.Inspect{
+		SheetName:  xlsx.SheetName,
+		SheetIndex: xlsx.SheetIndex,
+		RowStart:   xlsx.RowStart,
+		ColStart:   xlsx.ColStart,
+	}
+}
+
 // Data 读取数据
 func (xlsx *Xlsx) Data(page int, size int) []map[string]interface{} {
 	return nil
@@ -64,24 +77,39 @@ func (xlsx *Xlsx) Data(page int, size int) []map[string]interface{} {
 
 // Columns 读取列
 func (xlsx *Xlsx) Columns() []from.Column {
-	fmt.Println(xlsx.SheetName, xlsx.Rows.TotalRows(), xlsx.Cols.TotalCols())
+	columns := []from.Column{}
 
 	// 扫描标题位置坐标 扫描行
-	pos := []int{0, 0, 0} // {行, 开始列, 结束列}
+	// 从第一行开始扫描，识别第一个不为空的列
 	line := 0
 	success := false
 	for xlsx.Rows.Next() {
 		row, err := xlsx.Rows.Columns()
 		if err != nil {
-			exception.New("数据表 %s 扫描行 %d 信息失败 %", 400, xlsx.SheetName, line, err.Error()).Throw()
+			exception.New("数据表 %s 扫描行 %d 信息失败 %s", 400, xlsx.SheetName, line, err.Error()).Throw()
 		}
 
 		// 扫描列
+		// 从第一列开始扫描，识别第一个不为空的列
 		for i, cell := range row {
 			if cell != "" {
-				pos = []int{line, i, len(row)}
 				success = true
-				break
+				axis := positionToAxis(line, i)
+				if xlsx.RowStart == 0 && xlsx.ColStart == 0 {
+					xlsx.RowStart = line + 1
+					xlsx.ColStart = i + 1
+				}
+				cellType, err := xlsx.File.GetCellType(xlsx.SheetName, axis)
+				if err != nil {
+					xlog.Printf("读取数据类型失败 %s", err.Error())
+				}
+				columns = append(columns, from.Column{
+					Name: cell,
+					Col:  i,
+					Row:  line,
+					Axis: axis,
+					Type: byte(cellType),
+				})
 			}
 		}
 
@@ -90,12 +118,52 @@ func (xlsx *Xlsx) Columns() []from.Column {
 		}
 		line++
 	}
-
-	fmt.Println(pos)
-
-	return nil
+	return columns
 }
 
 // Bind 绑定映射表
-func (xlsx *Xlsx) Bind(mapping from.Mapping) {
+func (xlsx *Xlsx) Bind() {
+}
+
+func (xlsx *Xlsx) getMergeCells() {
+	cells, err := xlsx.File.GetMergeCells(xlsx.SheetName)
+	if err != nil {
+		exception.New("读取单元格 %s 失败 %s", 400, xlsx.SheetName, err.Error()).Throw()
+		return
+	}
+
+	for _, cell := range cells {
+		fmt.Println(cell.GetStartAxis())
+	}
+}
+
+func positionToAxis(row, col int) string {
+	if row < 0 || col < 0 {
+		return ""
+	}
+	rowString := strconv.Itoa(row + 1)
+	colString := ""
+	col++
+	for col > 0 {
+		colString = fmt.Sprintf("%c%s", 'A'+col%26-1, colString)
+		col /= 26
+	}
+	return colString + rowString
+}
+
+func axisToPosition(axis string) (int, int, error) {
+	col := 0
+	for i, char := range axis {
+		if char >= 'A' && char <= 'Z' {
+			col *= 26
+			col += int(char - 'A' + 1)
+		} else if char >= 'a' && char <= 'z' {
+			col *= 26
+			col += int(char - 'a' + 1)
+		} else {
+			row, err := strconv.Atoi(axis[i:])
+			return row - 1, col - 1, err
+		}
+	}
+	return -1, -1, fmt.Errorf("invalid axis format %s", axis)
 }
