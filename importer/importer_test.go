@@ -43,3 +43,24 @@ func TestAutoMappingSimple(t *testing.T) {
 		assert.NotEmpty(t, col.Axis)
 	}
 }
+
+func TestDataGetSimple(t *testing.T) {
+	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	file := xlsx.Open(simple)
+	defer file.Close()
+
+	imp := Select("order")
+	mapping := imp.AutoMapping(file)
+	columns, data := imp.DataGet(file, 1, 2, mapping)
+
+	assert.Equal(t, []string{
+		"order_sn", "user.name", "user.sex", "user.age", "mobile", "skus[*].name",
+		"skus[*].amount", "skus[*].price", "total", "remark", "__effected",
+	}, columns)
+
+	assert.Equal(t, [][]interface{}{
+		{"SN202101120018", "张三", "男", "26", "13211000011", "彩绘湖北地图", "3", "65.5", "196.5", "", true},
+		{"", "李四", "男", "42", "13211000011", "景祐遁甲符应经", "1", "34.8", "34.8", "", false},
+	}, data)
+
+}

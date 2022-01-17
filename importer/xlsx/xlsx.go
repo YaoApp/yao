@@ -71,8 +71,29 @@ func (xlsx *Xlsx) Inspect() from.Inspect {
 }
 
 // Data 读取数据
-func (xlsx *Xlsx) Data(page int, size int) []map[string]interface{} {
-	return nil
+func (xlsx *Xlsx) Data(row int, size int, cols []int) [][]interface{} {
+	data := [][]interface{}{}
+	for r := row; r < row+size; r++ {
+		row := []interface{}{}
+		end := true
+		for _, c := range cols {
+			axis := positionToAxis(r, c)
+			value, err := xlsx.File.GetCellValue(xlsx.SheetName, axis)
+			if err != nil {
+				xlog.Printf("读取数据出错 %s %s %s", xlsx.SheetName, axis, err.Error())
+				value = ""
+			}
+			row = append(row, value)
+			if value != "" {
+				end = false
+			}
+		}
+		if end {
+			break
+		}
+		data = append(data, row)
+	}
+	return data
 }
 
 // Columns 读取列

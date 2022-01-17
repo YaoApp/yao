@@ -14,6 +14,7 @@ func TestMain(m *testing.M) {
 	share.DBConnect(config.Conf.Database)
 	model.Load(config.Conf)
 	query.Load(config.Conf)
+	share.Load(config.Conf)
 	Load(config.Conf)
 	code := m.Run()
 	os.Exit(code)

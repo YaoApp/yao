@@ -17,7 +17,7 @@ const (
 
 // Source 导入文件接口
 type Source interface {
-	Data(page int, size int) []map[string]interface{}
+	Data(row int, size int, cols []int) [][]interface{}
 	Columns() []Column
 	Inspect() Inspect
 	Bind()
