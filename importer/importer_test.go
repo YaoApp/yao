@@ -137,3 +137,13 @@ func TestMappingPreviewSimple(t *testing.T) {
 		}
 	}
 }
+
+func TestMappingSetting(t *testing.T) {
+	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	file := xlsx.Open(simple)
+	defer file.Close()
+
+	imp := Select("order")
+	setting := imp.MappingSetting(file)
+	assert.NotNil(t, setting)
+}

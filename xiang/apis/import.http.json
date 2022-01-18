@@ -55,7 +55,7 @@
       "path": "/:name/mapping/setting",
       "method": "GET",
       "process": "xiang.import.MappingSetting",
-      "in": ["$param.name", ":query"],
+      "in": ["$param.name", "$query.file"],
       "out": {
         "status": 200,
         "type": "application/json"

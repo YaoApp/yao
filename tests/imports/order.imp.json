@@ -72,5 +72,11 @@
     "logging": "error",
     "mappingPreview": "auto",
     "dataPreview": "auto"
+  },
+  "rules": {
+    "scripts.rules.order_sn": "订单号验证",
+    "scripts.rules.mobile": "手机号验证",
+    "scripts.rules.FmtUser": "用户数据匹配验证",
+    "scripts.rules.FmtGoods": "商品数据匹配验证"
   }
 }

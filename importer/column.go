@@ -67,16 +67,9 @@ func ColumnOf(data map[string]interface{}) (*Column, error) {
 
 // ToMap 转换为映射表
 func (column Column) ToMap() map[string]interface{} {
-	if column.IsArray {
-		column.Name = column.Name + "[*]"
-	}
-
-	if column.IsObject {
-		column.Name = column.Name + "." + column.Key
-	}
 
 	data := map[string]interface{}{
-		"name":  column.Name,
+		"name":  column.Field,
 		"label": column.Label,
 		"match": column.Match,
 		"rules": column.Rules,
@@ -132,6 +125,8 @@ func (column *Column) setName(data map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	column.Field = name // 留存原始数值
 
 	if strings.Contains(name, "[*]") { // Array
 		namer := strings.Split(name, "[*]")

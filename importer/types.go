@@ -11,16 +11,18 @@ const PreviewNever = "never"
 
 // Importer 数据导入器
 type Importer struct {
-	Title   string   `json:"title,omitempty"`  // 导入名称
-	Process string   `json:"process"`          // 处理器名称
-	Columns []Column `json:"columns"`          // 字段列表
-	Option  Option   `json:"option,omitempty"` // 导入配置项
+	Title   string            `json:"title,omitempty"`  // 导入名称
+	Process string            `json:"process"`          // 处理器名称
+	Columns []Column          `json:"columns"`          // 字段列表
+	Option  Option            `json:"option,omitempty"` // 导入配置项
+	Rules   map[string]string `json:"rules,omitempty"`  // 许可导入规则
 }
 
 // Column 导入字段定义
 type Column struct {
 	Label    string   `json:"label"`              // 字段标签
 	Name     string   `json:"name"`               // 字段名称
+	Field    string   `json:"field"`              // 字段名称(原始值)
 	Match    []string `json:"match,omitempty"`    // 匹配建议
 	Rules    []string `json:"rules,omitempty"`    // 清洗规则定义
 	Nullable bool     `json:"nullable,omitempty"` // 是否可以为空

@@ -66,7 +66,13 @@ func ProcessMapping(process *gou.Process) interface{} {
 // ProcessMappingSetting xiang.import.MappingSetting
 // 字段映射表格配置
 func ProcessMappingSetting(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0)
+	imp := Select(name)
+
+	filename := process.ArgsString(1)
+	src := Open(filename)
+	return imp.MappingSetting(src)
 }
 
 // ProcessRules xiang.import.Rules

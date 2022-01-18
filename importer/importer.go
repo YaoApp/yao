@@ -233,8 +233,71 @@ func (imp *Importer) DataSetting(src from.Source) []map[string]interface{} {
 }
 
 // MappingSetting 预览映射数据表格配置
-func (imp *Importer) MappingSetting(src from.Source) []map[string]interface{} {
-	return nil
+func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
+
+	columns := map[string]share.Column{
+		"关联字段": {
+			Label: "关联字段",
+			View: share.Render{
+				Type:  "label",
+				Props: map[string]interface{}{"value": ":label"},
+			},
+			Edit: share.Render{
+				Type:  "select",
+				Props: map[string]interface{}{"option": imp.getFieldOption(), "value": ":field"},
+			},
+		},
+		"数据源": {
+			Label: "数据源",
+			View: share.Render{
+				Type:  "label",
+				Props: map[string]interface{}{"value": ":name"},
+			},
+			Edit: share.Render{
+				Type:  "select",
+				Props: map[string]interface{}{"option": imp.getSourceOption(src), "value": ":axis"},
+			},
+		},
+		"清洗规则": {
+			Label: "清洗规则",
+			View: share.Render{
+				Type:  "tag",
+				Props: map[string]interface{}{"value": ":rules"},
+			},
+			Edit: share.Render{
+				Type:  "select",
+				Props: map[string]interface{}{"option": imp.getRulesOption(), "value": ":rules"},
+			},
+		},
+		"数据示例": {
+			Label: "数据示例",
+			View: share.Render{
+				Type:  "label",
+				Props: map[string]interface{}{"value": ":value"},
+			},
+		},
+	}
+	setting := map[string]interface{}{
+		"columns": columns,
+		"filters": map[string]interface{}{},
+		"list": share.Page{
+			Primary: "field",
+			Layout: map[string]interface{}{
+				"columns": []map[string]interface{}{
+					{"name": "字段"},
+					{"name": "数据源"},
+					{"name": "清洗规则"},
+					{"name": "数据示例"},
+				},
+			},
+		},
+		"actions": map[string]interface{}{},
+		"option": map[string]interface{}{
+			"operation": map[string]interface{}{"hideView": true, "hideEdit": true, "width": 0},
+		},
+		"edit": map[string]interface{}{},
+	}
+	return setting
 }
 
 // Fingerprint 文件结构指纹
@@ -332,4 +395,40 @@ func (imp *Importer) getColumns() map[string]*Column {
 		}
 	}
 	return columns
+}
+
+func (imp *Importer) getFieldOption() []map[string]interface{} {
+	option := []map[string]interface{}{}
+	for _, col := range imp.Columns {
+		option = append(option, map[string]interface{}{
+			"label": col.Label, "value": col.Field,
+		})
+	}
+	return option
+}
+
+func (imp *Importer) getSourceOption(src from.Source) []map[string]interface{} {
+	option := []map[string]interface{}{}
+	columns := src.Columns()
+	for _, col := range columns {
+		option = append(option, map[string]interface{}{
+			"label": col.Name, "value": col.Axis,
+		})
+	}
+	return option
+}
+
+func (imp *Importer) getRulesOption() []map[string]interface{} {
+	option := []map[string]interface{}{}
+	keys := []string{}
+	for key := range imp.Rules {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		option = append(option, map[string]interface{}{
+			"label": imp.Rules[key], "value": key,
+		})
+	}
+	return option
 }
