@@ -23,6 +23,7 @@ func ProcessRun(process *gou.Process) interface{} {
 	imp := Select(name)
 	filename := process.ArgsString(1)
 	src := Open(filename)
+	defer src.Close()
 	mapping := anyToMapping(process.Args[2])
 	return imp.Run(src, mapping)
 }
@@ -36,6 +37,7 @@ func ProcessData(process *gou.Process) interface{} {
 
 	filename := process.ArgsString(1)
 	src := Open(filename)
+	defer src.Close()
 
 	page := process.ArgsInt(2)
 	size := process.ArgsInt(3)
@@ -62,6 +64,7 @@ func ProcessMapping(process *gou.Process) interface{} {
 
 	filename := process.ArgsString(1)
 	src := Open(filename)
+	defer src.Close()
 	return imp.MappingPreview(src)
 }
 
@@ -74,6 +77,7 @@ func ProcessMappingSetting(process *gou.Process) interface{} {
 
 	filename := process.ArgsString(1)
 	src := Open(filename)
+	defer src.Close()
 	return imp.MappingSetting(src)
 }
 
