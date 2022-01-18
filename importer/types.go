@@ -36,6 +36,7 @@ type Column struct {
 // Option 导入配置项定
 type Option struct {
 	UseTemplate    bool   `json:"useTemplate,omitempty"`    // 使用已匹配过的模板
+	TemplateLink   string `json:"templateLink,omitempty"`   // 默认数据模板链接
 	ChunkSize      int    `json:"chunkSize,omitempty"`      // 每次处理记录数量
 	MappingPreview string `json:"mappingPreview,omitempty"` // 显示字段映射界面方式 auto 匹配模板失败显示, always 一直显示, never 不显示
 	DataPreview    string `json:"dataPreview,omitempty"`    // 数据预览界面方式 auto 有异常数据时显示, always 一直显示, never 不显示

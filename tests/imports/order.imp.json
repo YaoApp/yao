@@ -71,7 +71,8 @@
     "chunkSize": 3,
     "logging": "error",
     "mappingPreview": "auto",
-    "dataPreview": "auto"
+    "dataPreview": "auto",
+    "templateLink": "/somelinke/download/xxx"
   },
   "rules": {
     "scripts.rules.order_sn": "订单号验证",

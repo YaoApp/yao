@@ -16,6 +16,16 @@
       }
     },
     {
+      "path": "/:name/setting",
+      "method": "GET",
+      "process": "xiang.import.Setting",
+      "in": ["$param.name"],
+      "out": {
+        "status": 200,
+        "type": "application/json"
+      }
+    },
+    {
       "path": "/:name/data",
       "method": "POST",
       "process": "xiang.import.Data",

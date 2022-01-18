@@ -10,6 +10,7 @@ func init() {
 	// 注册处理器
 	gou.RegisterProcessHandler("xiang.import.Run", ProcessRun)
 	gou.RegisterProcessHandler("xiang.import.Data", ProcessData)
+	gou.RegisterProcessHandler("xiang.import.Setting", ProcessSetting)
 	gou.RegisterProcessHandler("xiang.import.DataSetting", ProcessDataSetting)
 	gou.RegisterProcessHandler("xiang.import.Mapping", ProcessMapping)
 	gou.RegisterProcessHandler("xiang.import.MappingSetting", ProcessMappingSetting)
@@ -26,6 +27,19 @@ func ProcessRun(process *gou.Process) interface{} {
 	defer src.Close()
 	mapping := anyToMapping(process.Args[2])
 	return imp.Run(src, mapping)
+}
+
+// ProcessSetting xiang.import.Setting
+// 导入配置选项
+func ProcessSetting(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	name := process.ArgsString(0)
+	imp := Select(name)
+	return map[string]interface{}{
+		"mappingPreview": imp.Option.MappingPreview,
+		"dataPreview":    imp.Option.DataPreview,
+		"title":          imp.Title,
+	}
 }
 
 // ProcessData xiang.import.Data

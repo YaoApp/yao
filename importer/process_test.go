@@ -41,6 +41,13 @@ func TestProcessDataSetting(t *testing.T) {
 	assert.True(t, ok)
 }
 
+func TestProcessSetting(t *testing.T) {
+	args := []interface{}{"order"}
+	response := gou.NewProcess("xiang.import.Setting", args...).Run()
+	_, ok := response.(map[string]interface{})
+	assert.True(t, ok)
+}
+
 func TestProcessRun(t *testing.T) {
 	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
 	mapping := gou.NewProcess("xiang.import.Mapping", "order", simple).Run()
