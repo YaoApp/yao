@@ -222,8 +222,24 @@ func (imp *Importer) MappingPreview(src from.Source) *Mapping {
 	// tpl := imp.Fingerprint(src)
 	// 查找已有模板
 
-	// 自动匹配
-	return imp.AutoMapping(src)
+	mapping := imp.AutoMapping(src) // 自动匹配
+
+	// 预设值
+	columns, rows := imp.DataGet(src, 1, 1, mapping)
+	if len(rows) > 0 {
+		row := rows[0]
+		rs := map[string]interface{}{}
+		for i := range row {
+			key := columns[i]
+			value := row[i]
+			rs[key] = value
+		}
+		for i := range mapping.Columns {
+			name := mapping.Columns[i].Field
+			mapping.Columns[i].Value = fmt.Sprintf("%v", rs[name])
+		}
+	}
+	return mapping
 }
 
 // DataSetting 预览数据表格配置

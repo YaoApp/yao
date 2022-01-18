@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "数据分析接口API",
   "group": "xiang/import",
-  "guard": "-",
+  "guard": "bearer-jwt",
   "paths": [
     {
       "path": "/:name",
