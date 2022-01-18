@@ -1,6 +1,10 @@
 package importer
 
-import "github.com/yaoapp/gou"
+import (
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
+)
 
 func init() {
 	// 注册处理器
@@ -15,13 +19,30 @@ func init() {
 // ProcessRun xiang.import.Run
 // 导入数据
 func ProcessRun(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(3)
+	name := process.ArgsString(0)
+	imp := Select(name)
+	filename := process.ArgsString(1)
+	src := Open(filename)
+	mapping := anyToMapping(process.Args[2])
+	return imp.Run(src, mapping)
 }
 
 // ProcessData xiang.import.Data
 // 数据预览
 func ProcessData(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(5)
+	name := process.ArgsString(0)
+	imp := Select(name)
+
+	filename := process.ArgsString(1)
+	src := Open(filename)
+
+	page := process.ArgsInt(2)
+	size := process.ArgsInt(3)
+	mapping := anyToMapping(process.Args[4])
+
+	return imp.DataPreview(src, page, size, mapping)
 }
 
 // ProcessDataSetting xiang.import.DataSetting
@@ -33,7 +54,13 @@ func ProcessDataSetting(process *gou.Process) interface{} {
 // ProcessMapping xiang.import.Mapping
 // 字段映射预览
 func ProcessMapping(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(2)
+	name := process.ArgsString(0)
+	imp := Select(name)
+
+	filename := process.ArgsString(1)
+	src := Open(filename)
+	return imp.MappingPreview(src)
 }
 
 // ProcessMappingSetting xiang.import.MappingSetting
@@ -46,4 +73,20 @@ func ProcessMappingSetting(process *gou.Process) interface{} {
 // 可用处理器下拉列表
 func ProcessRules(process *gou.Process) interface{} {
 	return nil
+}
+
+// 转换为映射表
+func anyToMapping(v interface{}) *Mapping {
+	var mapping Mapping
+	bytes, err := jsoniter.Marshal(v)
+	if err != nil {
+		exception.New("字段映射表数据格式不正确", 400).Throw()
+	}
+
+	err = jsoniter.Unmarshal(bytes, &mapping)
+	if err != nil {
+		exception.New("字段映射表数据格式不正确", 400).Throw()
+	}
+
+	return &mapping
 }
