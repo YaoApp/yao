@@ -71,10 +71,10 @@ func (xlsx *Xlsx) Inspect() from.Inspect {
 }
 
 // Data 读取数据
-func (xlsx *Xlsx) Data(row int, size int, cols []int) [][]interface{} {
+func (xlsx *Xlsx) Data(row int, size int, axises []string) [][]interface{} {
 	data := [][]interface{}{}
 	for line := row; line < row+size; line++ {
-		row, end := xlsx.readLine(line, cols)
+		row, end := xlsx.readLine(line, axises)
 		if end {
 			break
 		}
@@ -84,7 +84,7 @@ func (xlsx *Xlsx) Data(row int, size int, cols []int) [][]interface{} {
 }
 
 // Chunk 遍历数据
-func (xlsx *Xlsx) Chunk(size int, cols []int, cb func(line int, data [][]interface{})) {
+func (xlsx *Xlsx) Chunk(size int, axises []string, cb func(line int, data [][]interface{})) {
 	line := 0
 	data := [][]interface{}{}
 	for xlsx.Rows.Next() {
@@ -92,7 +92,7 @@ func (xlsx *Xlsx) Chunk(size int, cols []int, cb func(line int, data [][]interfa
 		if line < xlsx.RowStart {
 			continue
 		}
-		row, end := xlsx.readLine(line, cols)
+		row, end := xlsx.readLine(line, axises)
 		if end {
 			cb(line, data)
 			break
@@ -112,12 +112,12 @@ func (xlsx *Xlsx) Chunk(size int, cols []int, cb func(line int, data [][]interfa
 }
 
 // readLine 读取给定行信息
-func (xlsx *Xlsx) readLine(line int, cols []int) ([]interface{}, bool) {
+func (xlsx *Xlsx) readLine(line int, axises []string) ([]interface{}, bool) {
 	row := []interface{}{}
 	end := true
-	for _, c := range cols {
+	for _, axis := range axises {
+		_, c, err := axisToPosition(axis)
 		var value = ""
-		var err error
 		if c >= 0 {
 			axis := positionToAxis(line, c)
 			value, err = xlsx.File.GetCellValue(xlsx.SheetName, axis)
@@ -164,8 +164,6 @@ func (xlsx *Xlsx) Columns() []from.Column {
 				}
 				columns = append(columns, from.Column{
 					Name: cell,
-					Col:  i,
-					Row:  line,
 					Axis: axis,
 					Type: byte(cellType),
 				})

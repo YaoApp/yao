@@ -17,9 +17,9 @@ const (
 
 // Source 导入文件接口
 type Source interface {
-	Data(row int, size int, cols []int) [][]interface{}
+	Data(row int, size int, axises []string) [][]interface{}
 	Columns() []Column
-	Chunk(size int, cols []int, cb func(line int, data [][]interface{}))
+	Chunk(size int, axises []string, cb func(line int, data [][]interface{}))
 	Inspect() Inspect
 	Close() error
 }
@@ -28,8 +28,6 @@ type Source interface {
 type Column struct {
 	Name string
 	Type byte
-	Col  int
-	Row  int
 	Axis string
 }
 

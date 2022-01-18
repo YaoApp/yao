@@ -87,7 +87,7 @@ func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 		if !ok {
 			continue
 		}
-		binding := Binding{Name: "", Axis: "", Col: -1, Rules: []string{}, Field: name, Label: imp.Columns[i].Label}
+		binding := Binding{Name: "", Axis: "", Rules: []string{}, Field: name, Label: imp.Columns[i].Label}
 		for _, suggest := range imp.Columns[i].Match {
 			if srcCol, has := sourceColumns[suggest]; has {
 				binding = Binding{
@@ -95,7 +95,6 @@ func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 					Field: name,
 					Name:  srcCol.Name,
 					Axis:  srcCol.Axis,
-					Col:   srcCol.Col,
 					Rules: imp.Columns[i].Rules,
 				}
 				continue
@@ -114,21 +113,21 @@ func (imp *Importer) DataGet(src from.Source, page int, size int, mapping *Mappi
 	if row < 0 {
 		row = mapping.RowStart
 	}
-	cols := []int{}
+	axises := []string{}
 	for _, d := range mapping.Columns {
-		cols = append(cols, d.Col)
+		axises = append(axises, d.Axis)
 	}
-	data := src.Data(row, size, cols)
+	data := src.Data(row, size, axises)
 	return imp.DataClean(data, mapping.Columns)
 }
 
 // Chunk 遍历数据
 func (imp *Importer) Chunk(src from.Source, mapping *Mapping, cb func(line int, data [][]interface{})) {
-	cols := []int{}
+	axises := []string{}
 	for _, d := range mapping.Columns {
-		cols = append(cols, d.Col)
+		axises = append(axises, d.Axis)
 	}
-	src.Chunk(imp.Option.ChunkSize, cols, cb)
+	src.Chunk(imp.Option.ChunkSize, axises, cb)
 }
 
 // DataClean 清洗数据

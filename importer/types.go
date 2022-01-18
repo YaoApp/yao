@@ -57,6 +57,5 @@ type Binding struct {
 	Field string   `json:"field"` // 目标字段名称
 	Name  string   `json:"name"`  // 源关联字段名称
 	Axis  string   `json:"axis"`  // 源关联字段坐标
-	Col   int      `json:"col"`   // 源关联字段列号
 	Rules []string `json:"rules"` // 清洗规则
 }
