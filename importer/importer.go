@@ -228,16 +228,68 @@ func (imp *Importer) MappingPreview(src from.Source) *Mapping {
 }
 
 // DataSetting 预览数据表格配置
-func (imp *Importer) DataSetting(src from.Source) []map[string]interface{} {
-	return nil
+func (imp *Importer) DataSetting() map[string]interface{} {
+
+	columns := map[string]share.Column{}
+	layoutColumns := []map[string]interface{}{}
+	for _, column := range imp.Columns {
+		name := column.Label
+		layoutColumns = append(layoutColumns, map[string]interface{}{"name": name})
+		columns[name] = share.Column{
+			Label: name,
+			View: share.Render{
+				Type:  "label",
+				Props: map[string]interface{}{"value": fmt.Sprintf(":%s", column.Field)},
+			},
+		}
+	}
+
+	setting := map[string]interface{}{
+		"columns": columns,
+		"filters": map[string]interface{}{},
+		"list": share.Page{
+			Primary: "id",
+			Layout:  map[string]interface{}{"columns": layoutColumns},
+		},
+		"actions": map[string]interface{}{
+			"pagination": map[string]interface{}{
+				"props": map[string]interface{}{
+					"showTotal": true,
+				},
+			},
+		},
+		"option": map[string]interface{}{
+			"operation": map[string]interface{}{
+				"hideView": true,
+				"hideEdit": true,
+				"width":    120,
+				"unfold":   true,
+				"checkbox": map[string]interface{}{
+					"value":         ":__effected",
+					"visible_label": false,
+					"status": []map[string]interface{}{
+						{
+							"label": "有效",
+							"value": true,
+						},
+						{
+							"label": "无效",
+							"value": false,
+						},
+					},
+				},
+			},
+		},
+	}
+	return setting
 }
 
 // MappingSetting 预览映射数据表格配置
 func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 
 	columns := map[string]share.Column{
-		"关联字段": {
-			Label: "关联字段",
+		"字段名称": {
+			Label: "字段名称",
 			View: share.Render{
 				Type:  "label",
 				Props: map[string]interface{}{"value": ":label"},
@@ -281,10 +333,10 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 		"columns": columns,
 		"filters": map[string]interface{}{},
 		"list": share.Page{
-			Primary: "field",
+			Primary: "id",
 			Layout: map[string]interface{}{
 				"columns": []map[string]interface{}{
-					{"name": "字段"},
+					{"name": "字段名称"},
 					{"name": "数据源"},
 					{"name": "清洗规则"},
 					{"name": "数据示例"},
@@ -295,7 +347,6 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 		"option": map[string]interface{}{
 			"operation": map[string]interface{}{"hideView": true, "hideEdit": true, "width": 0},
 		},
-		"edit": map[string]interface{}{},
 	}
 	return setting
 }

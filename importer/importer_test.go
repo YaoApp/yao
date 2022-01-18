@@ -147,3 +147,9 @@ func TestMappingSetting(t *testing.T) {
 	setting := imp.MappingSetting(file)
 	assert.NotNil(t, setting)
 }
+
+func TestDataSetting(t *testing.T) {
+	imp := Select("order")
+	setting := imp.DataSetting()
+	assert.NotNil(t, setting)
+}

@@ -13,7 +13,6 @@ func init() {
 	gou.RegisterProcessHandler("xiang.import.DataSetting", ProcessDataSetting)
 	gou.RegisterProcessHandler("xiang.import.Mapping", ProcessMapping)
 	gou.RegisterProcessHandler("xiang.import.MappingSetting", ProcessMappingSetting)
-	gou.RegisterProcessHandler("xiang.import.Rules", ProcessRules)
 }
 
 // ProcessRun xiang.import.Run
@@ -48,7 +47,10 @@ func ProcessData(process *gou.Process) interface{} {
 // ProcessDataSetting xiang.import.DataSetting
 // 数据预览表格配置
 func ProcessDataSetting(process *gou.Process) interface{} {
-	return nil
+	process.ValidateArgNums(1)
+	name := process.ArgsString(0)
+	imp := Select(name)
+	return imp.DataSetting()
 }
 
 // ProcessMapping xiang.import.Mapping
@@ -73,12 +75,6 @@ func ProcessMappingSetting(process *gou.Process) interface{} {
 	filename := process.ArgsString(1)
 	src := Open(filename)
 	return imp.MappingSetting(src)
-}
-
-// ProcessRules xiang.import.Rules
-// 可用处理器下拉列表
-func ProcessRules(process *gou.Process) interface{} {
-	return nil
 }
 
 // 转换为映射表

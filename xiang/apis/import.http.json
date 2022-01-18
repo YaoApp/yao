@@ -35,7 +35,7 @@
       "path": "/:name/data/setting",
       "method": "GET",
       "process": "xiang.import.DataSetting",
-      "in": ["$param.name", ":query"],
+      "in": ["$param.name"],
       "out": {
         "status": 200,
         "type": "application/json"
@@ -56,16 +56,6 @@
       "method": "GET",
       "process": "xiang.import.MappingSetting",
       "in": ["$param.name", "$query.file"],
-      "out": {
-        "status": 200,
-        "type": "application/json"
-      }
-    },
-    {
-      "path": "/:name/rule/select",
-      "method": "GET",
-      "process": "xiang.import.Rules",
-      "in": ["$param.name", ":query"],
       "out": {
         "status": 200,
         "type": "application/json"

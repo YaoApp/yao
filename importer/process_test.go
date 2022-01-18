@@ -18,9 +18,11 @@ func TestProcessMapping(t *testing.T) {
 }
 
 func TestProcessMappingSetting(t *testing.T) {
-	args := []interface{}{"order"}
+	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	args := []interface{}{"order", simple}
 	response := gou.NewProcess("xiang.import.MappingSetting", args...).Run()
-	assert.Nil(t, response)
+	_, ok := response.(map[string]interface{})
+	assert.True(t, ok)
 }
 
 func TestProcessData(t *testing.T) {
@@ -35,7 +37,8 @@ func TestProcessData(t *testing.T) {
 func TestProcessDataSetting(t *testing.T) {
 	args := []interface{}{"order"}
 	response := gou.NewProcess("xiang.import.DataSetting", args...).Run()
-	assert.Nil(t, response)
+	_, ok := response.(map[string]interface{})
+	assert.True(t, ok)
 }
 
 func TestProcessRun(t *testing.T) {
@@ -45,10 +48,4 @@ func TestProcessRun(t *testing.T) {
 	response := gou.NewProcess("xiang.import.Run", args...).Run()
 	_, ok := response.(map[string]int)
 	assert.True(t, ok)
-}
-
-func TestProcessRules(t *testing.T) {
-	args := []interface{}{"order"}
-	response := gou.NewProcess("xiang.import.Rules", args...).Run()
-	assert.Nil(t, response)
 }
