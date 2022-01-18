@@ -38,6 +38,7 @@ func ProcessSetting(process *gou.Process) interface{} {
 	return map[string]interface{}{
 		"mappingPreview": imp.Option.MappingPreview,
 		"dataPreview":    imp.Option.DataPreview,
+		"templateLink":   imp.Option.TemplateLink,
 		"title":          imp.Title,
 	}
 }
