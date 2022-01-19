@@ -43,7 +43,7 @@ func ProcessSearch(process *gou.Process) interface{} {
 
 	// 参数表
 	process.ValidateArgNums(4)
-	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0)
+	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
 	page := process.ArgsInt(2, api.DefaultInt(1))
 	pagesize := process.ArgsInt(3, api.DefaultInt(2))
 
@@ -72,7 +72,7 @@ func ProcessFind(process *gou.Process) interface{} {
 	// 参数表
 	process.ValidateArgNums(2)
 	id := process.Args[1]
-	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1)
+	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1, process.Sid)
 
 	// 查询数据
 	response := gou.NewProcess(api.Process, id, param).Run()
@@ -135,7 +135,7 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 	}
 
 	// 批量删除
-	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0)
+	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
 	if param.Limit == 0 { // 限定删除行
 		param.Limit = 10
 	}
@@ -180,7 +180,7 @@ func ProcessUpdateWhere(process *gou.Process) interface{} {
 	}
 
 	// 批量更新
-	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0)
+	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
 	if param.Limit == 0 { // 限定删除行
 		param.Limit = 10
 	}

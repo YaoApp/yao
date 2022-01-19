@@ -6,9 +6,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/query/share"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/xiang/xlog"
 )
 
 // IsAllow 鉴权处理程序
@@ -42,25 +46,6 @@ func (api API) ValidateLoop(name string) API {
 // ProcessIs 检查处理器名称
 func (api API) ProcessIs(name string) bool {
 	return strings.ToLower(api.Process) == strings.ToLower(name)
-}
-
-// DefaultQueryParams 读取参数 QueryParam
-func (api API) DefaultQueryParams(i int, defaults ...gou.QueryParam) gou.QueryParam {
-	param := gou.QueryParam{}
-	if len(defaults) > 0 {
-		param = defaults[0]
-	}
-
-	if api.Default[i] == nil || len(api.Default) <= i {
-		return param
-	}
-
-	param, ok := api.Default[i].(gou.QueryParam)
-	if !ok {
-		param, ok = gou.AnyToQueryParam(api.Default[i])
-	}
-
-	return param
 }
 
 // DefaultInt 读取参数 Int
@@ -103,12 +88,11 @@ func (api API) DefaultString(i int, defaults ...string) string {
 }
 
 // MergeDefaultQueryParam 合并默认查询参数
-func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int) gou.QueryParam {
+func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int, sid string) gou.QueryParam {
 	if len(api.Default) > i && api.Default[i] != nil {
-		defaults, ok := gou.AnyToQueryParam(api.Default[i])
-		if !ok {
-			exception.New("参数默认值数据结构错误", 400).Ctx(api.Default[i]).Throw()
-		}
+
+		defaults := GetQueryParam(api.Default[i], sid)
+
 		if defaults.Withs != nil {
 			param.Withs = defaults.Withs
 		}
@@ -128,6 +112,25 @@ func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int) gou.QueryPara
 		if defaults.Orders != nil {
 			param.Orders = append(param.Orders, defaults.Orders...)
 		}
+	}
+	return param
+}
+
+// GetQueryParam 解析参数
+func GetQueryParam(v interface{}, sid string) gou.QueryParam {
+	data := map[string]interface{}{}
+	if sid != "" {
+		var err error
+		ss := session.Global().ID(sid)
+		data, err = ss.Dump()
+		if err != nil {
+			xlog.Printf("读取会话信息出错 %s", err.Error())
+		}
+	}
+	v = share.Bind(v, maps.Of(data).Dot())
+	param, ok := gou.AnyToQueryParam(v)
+	if !ok {
+		exception.New("参数默认值数据结构错误", 400).Ctx(v).Throw()
 	}
 	return param
 }
