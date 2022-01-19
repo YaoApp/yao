@@ -265,31 +265,31 @@ func (imp *Importer) DataSetting() map[string]interface{} {
 		"list": share.Page{
 			Primary: "id",
 			Layout:  map[string]interface{}{"columns": layoutColumns},
-		},
-		"actions": map[string]interface{}{
-			"pagination": map[string]interface{}{
-				"props": map[string]interface{}{
-					"showTotal": true,
+			Actions: map[string]share.Render{
+				"pagination": {
+					Props: map[string]interface{}{
+						"showTotal": true,
+					},
 				},
 			},
-		},
-		"option": map[string]interface{}{
-			"operation": map[string]interface{}{
-				"hideView": true,
-				"hideEdit": true,
-				"width":    120,
-				"unfold":   true,
-				"checkbox": map[string]interface{}{
-					"value":         ":__effected",
-					"visible_label": false,
-					"status": []map[string]interface{}{
-						{
-							"label": "有效",
-							"value": true,
-						},
-						{
-							"label": "无效",
-							"value": false,
+			Option: map[string]interface{}{
+				"operation": map[string]interface{}{
+					"hideView": true,
+					"hideEdit": true,
+					"width":    120,
+					"unfold":   true,
+					"checkbox": map[string]interface{}{
+						"value":         ":__effected",
+						"visible_label": false,
+						"status": []map[string]interface{}{
+							{
+								"label": "有效",
+								"value": true,
+							},
+							{
+								"label": "无效",
+								"value": false,
+							},
 						},
 					},
 				},
@@ -311,7 +311,7 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 			},
 			Edit: share.Render{
 				Type:  "select",
-				Props: map[string]interface{}{"option": imp.getFieldOption(), "value": ":field"},
+				Props: map[string]interface{}{"options": imp.getFieldOption(), "value": ":field"},
 			},
 		},
 		"数据源": {
@@ -322,18 +322,18 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 			},
 			Edit: share.Render{
 				Type:  "select",
-				Props: map[string]interface{}{"option": imp.getSourceOption(src), "value": ":axis"},
+				Props: map[string]interface{}{"options": imp.getSourceOption(src), "value": ":axis"},
 			},
 		},
 		"清洗规则": {
 			Label: "清洗规则",
 			View: share.Render{
-				Type:  "tag",
+				Type:  "tags",
 				Props: map[string]interface{}{"value": ":rules"},
 			},
 			Edit: share.Render{
 				Type:  "select",
-				Props: map[string]interface{}{"option": imp.getRulesOption(), "value": ":rules"},
+				Props: map[string]interface{}{"options": imp.getRulesOption(), "value": ":rules", "mode": "multiple"},
 			},
 		},
 		"数据示例": {
@@ -357,10 +357,10 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 					{"name": "数据示例"},
 				},
 			},
-		},
-		"actions": map[string]interface{}{},
-		"option": map[string]interface{}{
-			"operation": map[string]interface{}{"hideView": true, "hideEdit": true, "width": 0},
+			Option: map[string]interface{}{
+				"operation": map[string]interface{}{"hideView": true, "hideEdit": true, "width": 0},
+			},
+			Actions: map[string]share.Render{},
 		},
 	}
 	return setting
