@@ -161,13 +161,18 @@ func (table *Table) Before(process string, processArgs []interface{}) []interfac
 		res = append(res, processArgs[0])
 	}
 
-	response := gou.NewProcess(process, args...).Run()
+	response, err := gou.NewProcess(process, args...).Exec()
+	if err != nil {
+		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "args": args})
+		return processArgs
+	}
+
 	if fixedArgs, ok := response.([]interface{}); ok {
 		res = append(res, fixedArgs...)
 		return res
 	}
 
-	xlog.Println("无效的处理器", maps.StrAny{"process": process, "response": response})
+	xlog.Println("Hook执行失败: 无效的处理器", maps.StrAny{"process": process, "response": response})
 	return processArgs
 }
 
@@ -176,7 +181,12 @@ func (table *Table) After(process string, data interface{}) interface{} {
 	if process == "" {
 		return data
 	}
-	return gou.NewProcess(process, data).Run()
+	response, err := gou.NewProcess(process, data).Exec()
+	if err != nil {
+		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "data": data})
+		return data
+	}
+	return response
 }
 
 // loadFilters 加载查询过滤器
