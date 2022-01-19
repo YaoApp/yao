@@ -118,15 +118,20 @@ func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int, sid string) g
 
 // GetQueryParam 解析参数
 func GetQueryParam(v interface{}, sid string) gou.QueryParam {
+	fmt.Println("\n==== GetQueryParam =====  SID:", sid)
 	data := map[string]interface{}{}
 	if sid != "" {
 		var err error
 		ss := session.Global().ID(sid)
 		data, err = ss.Dump()
+		utils.Dump(data)
 		if err != nil {
 			xlog.Printf("读取会话信息出错 %s", err.Error())
 		}
 	}
+	fmt.Println("==== GetQueryParam========================")
+	fmt.Println("")
+
 	v = share.Bind(v, maps.Of(data).Dot())
 	param, ok := gou.AnyToQueryParam(v)
 	if !ok {

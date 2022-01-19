@@ -1,11 +1,13 @@
 package table
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/utils"
 )
 
 func init() {
@@ -39,11 +41,17 @@ func ProcessSearch(process *gou.Process) interface{} {
 	}
 
 	// Before Hook
-	process.Args = table.Before(table.Hooks.BeforeSearch, process.Args)
+	process.Args = table.Before(table.Hooks.BeforeSearch, process.Args, process.Sid)
 
 	// 参数表
 	process.ValidateArgNums(4)
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
+
+	fmt.Println("\n==== ProcessSearch =============  SID:", process.Sid)
+	utils.Dump(param)
+	fmt.Println("==== END ProcessSearch ===============================================")
+	fmt.Println("")
+
 	page := process.ArgsInt(2, api.DefaultInt(1))
 	pagesize := process.ArgsInt(3, api.DefaultInt(2))
 
@@ -51,7 +59,7 @@ func ProcessSearch(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, param, page, pagesize).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterSearch, response)
+	return table.After(table.Hooks.AfterSearch, response, process.Sid)
 }
 
 // ProcessFind xiang.table.Find
@@ -67,7 +75,7 @@ func ProcessFind(process *gou.Process) interface{} {
 	}
 
 	// Before Hook
-	process.Args = table.Before(table.Hooks.BeforeFind, process.Args)
+	process.Args = table.Before(table.Hooks.BeforeFind, process.Args, process.Sid)
 
 	// 参数表
 	process.ValidateArgNums(2)
@@ -78,7 +86,7 @@ func ProcessFind(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, id, param).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterFind, response)
+	return table.After(table.Hooks.AfterFind, response, process.Sid)
 }
 
 // ProcessSave xiang.table.Save
@@ -95,7 +103,7 @@ func ProcessSave(process *gou.Process) interface{} {
 	}
 
 	// Before Hook
-	process.Args = table.Before(table.Hooks.BeforeSave, process.Args)
+	process.Args = table.Before(table.Hooks.BeforeSave, process.Args, process.Sid)
 
 	// 参数处理
 	process.ValidateArgNums(2)
@@ -104,7 +112,7 @@ func ProcessSave(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, process.Args[1]).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterSave, response)
+	return table.After(table.Hooks.AfterSave, response, process.Sid)
 }
 
 // ProcessDelete xiang.table.Delete
@@ -315,10 +323,10 @@ func ProcessSelect(process *gou.Process) interface{} {
 	}
 
 	// Before Hook
-	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args)
+	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args, process.Sid)
 
 	response := gou.NewProcess(api.Process, process.Args[1:]...).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterSelect, response)
+	return table.After(table.Hooks.AfterSelect, response, process.Sid)
 }

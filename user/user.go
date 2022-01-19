@@ -1,14 +1,15 @@
 package user
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/xiang/helper"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -52,6 +53,7 @@ func Auth(field string, value string, password string) maps.Map {
 
 	row := rows[0]
 	passwordHash := row.Get("password").(string)
+	row.Del("password")
 
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
@@ -59,38 +61,23 @@ func Auth(field string, value string, password string) maps.Map {
 	}
 
 	expiresAt := time.Now().Unix() + 3600
-	token := MakeToken(row, expiresAt)
-	row.Del("password")
+
+	// token := MakeToken(row, expiresAt)
+	sid := session.ID()
+	id := any.Of(row.Get("id")).CInt()
+	token := helper.JwtMake(id, map[string]interface{}{}, map[string]interface{}{
+		"expires_at": expiresAt,
+		"sid":        sid,
+	})
+	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user_id", id)
+	session.Global().ID(sid).Set("user", row)
 
 	// 读取菜单
 	menus := gou.NewProcess("flows.xiang.menu").Run()
 	return maps.Map{
-		"expires_at": expiresAt,
-		"token":      token,
+		"expires_at": token.ExpiresAt,
+		"token":      token.Token,
 		"user":       row,
 		"menus":      menus,
 	}
-}
-
-// MakeToken  生成 JWT Token
-func MakeToken(row maps.Map, ExpiresAt int64) string {
-	claims := &JwtClaims{
-		ID:   int(row.Get("id").(int64)),
-		Type: row.Get("type").(string),
-		Name: row.Get("name").(string),
-		StandardClaims: jwt.StandardClaims{
-			Id:        fmt.Sprintf("%s_%d", row.Get("type"), row.Get("id")),
-			Subject:   fmt.Sprintf("%d", row.Get("id")),
-			ExpiresAt: ExpiresAt,
-			Issuer:    fmt.Sprintf("%d", row.Get("id")),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(config.Conf.JWT.Secret))
-	if err != nil {
-		exception.New("生成登录口令失败 %s", 500, err).Throw()
-	}
-
-	return tokenString
 }

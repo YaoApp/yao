@@ -93,7 +93,7 @@ func (table *Table) loadAPIs() {
 		return
 	}
 	defaults := getDefaultAPIs(table.Bind)
-	defaults["setting"] = apiDefaultSetting(table)
+	defaults["setting"] = apiDefaultSetting()
 
 	for name := range table.APIs {
 		if _, has := defaults[name]; !has {
@@ -150,7 +150,7 @@ func getDefaultAPIs(bind Bind) map[string]share.API {
 }
 
 // Before 运行 Before hook
-func (table *Table) Before(process string, processArgs []interface{}) []interface{} {
+func (table *Table) Before(process string, processArgs []interface{}, sid string) []interface{} {
 	if process == "" {
 		return processArgs
 	}
@@ -161,7 +161,7 @@ func (table *Table) Before(process string, processArgs []interface{}) []interfac
 		res = append(res, processArgs[0])
 	}
 
-	response, err := gou.NewProcess(process, args...).Exec()
+	response, err := gou.NewProcess(process, args...).WithSID(sid).Exec()
 	if err != nil {
 		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "args": args})
 		return processArgs
@@ -177,11 +177,11 @@ func (table *Table) Before(process string, processArgs []interface{}) []interfac
 }
 
 // After 运行 After hook
-func (table *Table) After(process string, data interface{}) interface{} {
+func (table *Table) After(process string, data interface{}, sid string) interface{} {
 	if process == "" {
 		return data
 	}
-	response, err := gou.NewProcess(process, data).Exec()
+	response, err := gou.NewProcess(process, data).WithSID(sid).Exec()
 	if err != nil {
 		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "data": data})
 		return data

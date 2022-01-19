@@ -2,6 +2,9 @@
   "name": "象传应用",
   "short": "象传",
   "description": "象传应用后台",
+  "option": {
+    "index": "/table/service"
+  },
   "storage": {
     "default": "oss",
     "oss": {
@@ -14,6 +17,5 @@
     },
     "cos": {},
     "s3": {}
-  },
-  "option": {}
+  }
 }

@@ -1,7 +1,7 @@
 {
-  "name": "云服务库",
+  "name": "会话调试",
   "version": "1.0.0",
-  "decription": "可信云云服务库",
+  "decription": "会话调试",
   "bind": {
     "model": "service",
     "withs": {
@@ -17,31 +17,19 @@
       }
     }
   },
+  "hooks": {
+    "before:search": "flows.hooks.session",
+    "after:search": "flows.hooks.session"
+  },
   "apis": {
-    "save": { "guard": "-" },
-    "select": { "guard": "-" },
     "search": {
-      "process": "models.service.Paginate",
-      "default": [null, null, 15]
-    },
-    "find": {
-      "process": "models.service.Find",
       "default": [
-        null,
         {
-          "withs": {
-            "manu": {
-              "query": {
-                "select": ["id", "name", "short_name", "status"]
-              }
-            },
-            "kind": {
-              "query": {
-                "select": ["id", "name"]
-              }
-            }
-          }
-        }
+          "wheres": [{ "column": "status", "value": "{{user_id}}" }],
+          "withs": { "manu": {}, "kind": {} }
+        },
+        null,
+        10
       ]
     }
   },
@@ -261,57 +249,7 @@
       }
     }
   },
-  "filters": {
-    "关键词": {
-      "label": "关键词",
-      "bind": "where.name.like",
-      "input": {
-        "type": "input",
-        "props": {
-          "placeholder": "请输入关键词"
-        }
-      }
-    },
-    "所属厂商": {
-      "label": "厂商",
-      "bind": "where.manu_id.in",
-      "input": {
-        "type": "select",
-        "props": {
-          "searchable": true,
-          "multiple": true,
-          "placeholder": "请选择所属厂商",
-          "remote": {
-            "api": "/api/manu/get",
-            "query": {
-              "select": ["id", "name"],
-              "keyword": "where_name_like"
-            }
-          }
-        }
-      }
-    },
-    "服务类型": {
-      "label": "类型",
-      "bind": "where.kind_id.in",
-      "input": {
-        "type": "select",
-        "props": {
-          "tree": true,
-          "searchable": true,
-          "multiple": true,
-          "placeholder": "请选择所属类型",
-          "remote": {
-            "api": "/api/kind/tree",
-            "query": {
-              "select": ["id", "name"],
-              "keyword": "where_name_like"
-            }
-          }
-        }
-      }
-    }
-  },
+  "filters": {},
   "list": {
     "primary": "id",
     "layout": {
@@ -325,33 +263,9 @@
         { "name": "创建时间", "width": 6 },
         { "name": "更新时间", "width": 6 }
       ],
-      "filters": [
-        { "name": "关键词", "width": 6 },
-        { "name": "所属厂商", "width": 6 },
-        { "name": "服务类型", "width": 4 }
-      ]
+      "filters": []
     },
-    "actions": {
-      "create": {
-        "type": "button",
-        "props": {
-          "label": "新建服务",
-          "icon": "fas fa-plus"
-        }
-      },
-      "view": {},
-      "edit": {},
-      "import": {},
-      "update": {},
-      "delete": {},
-      "insert": {},
-      "updateWhere": {},
-      "deleteWhere": {},
-      "updateSelect": {},
-      "deleteSelect": {},
-      "pagination": {},
-      "setting": {}
-    }
+    "actions": {}
   },
   "edit": {
     "primary": "id",
