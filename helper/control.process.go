@@ -5,6 +5,11 @@ import (
 	"github.com/yaoapp/kun/exception"
 )
 
+// ProcessReturn  xiang.helper.Return 返回数值
+func ProcessReturn(process *gou.Process) interface{} {
+	return process.Args
+}
+
 // ProcessThrow  xiang.helper.Throw 抛出异常
 func ProcessThrow(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)

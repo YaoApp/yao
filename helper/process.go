@@ -47,6 +47,7 @@ func init() {
 
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 	gou.RegisterProcessHandler("xiang.helper.Throw", ProcessThrow)
+	gou.RegisterProcessHandler("xiang.helper.Return", ProcessReturn)
 
 }
 
