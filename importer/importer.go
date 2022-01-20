@@ -196,18 +196,17 @@ func (imp *Importer) DataPreview(src from.Source, page int, size int, mapping *M
 	}
 
 	columns, rows := imp.DataGet(src, page, size, mapping)
-	for _, row := range rows {
+	for idx, row := range rows {
 		if len(row) != len(columns) {
 			exception.New("数据异常, 请联系管理员", 500).Ctx(map[string]interface{}{"row": row, "columns": columns}).Throw()
 		}
-
 		rs := map[string]interface{}{}
 		for i := range row {
 			key := columns[i]
 			value := row[i]
 			rs[key] = value
 		}
-
+		rs["id"] = idx + 1
 		data = append(data, rs)
 	}
 
@@ -309,10 +308,6 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 				Type:  "label",
 				Props: map[string]interface{}{"value": ":label"},
 			},
-			Edit: share.Render{
-				Type:  "select",
-				Props: map[string]interface{}{"options": imp.getFieldOption(), "value": ":field"},
-			},
 		},
 		"数据源": {
 			Label: "数据源",
@@ -348,12 +343,12 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 		"columns": columns,
 		"filters": map[string]interface{}{},
 		"list": share.Page{
-			Primary: "id",
+			Primary: "field",
 			Layout: map[string]interface{}{
 				"columns": []map[string]interface{}{
 					{"name": "字段名称"},
 					{"name": "数据源"},
-					{"name": "清洗规则"},
+					{"name": "清洗规则", "width": 300},
 					{"name": "数据示例"},
 				},
 			},

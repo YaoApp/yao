@@ -111,7 +111,7 @@ func TestDataPreviewSimple(t *testing.T) {
 	assert.Equal(t, 3, res["pagesize"])
 	assert.Equal(t, 1, res["prev"])
 	assert.Equal(t, 1, len(data))
-	assert.Equal(t, 11, len(data[0]))
+	assert.Equal(t, 12, len(data[0]))
 }
 
 func TestMappingPreviewSimple(t *testing.T) {
