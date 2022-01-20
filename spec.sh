@@ -13,6 +13,7 @@ rm -rf ../xiang-spec/xiang/*
 cp  dist/release/xiang-* ~/Code/bin/
 rm -f ~/Code/bin/xiang
 ln -s ~/Code/bin/xiang-$VERSION-darwin-amd64 ~/Code/bin/xiang
+ln -s ~/Code/bin/xiang-$VERSION-darwin-amd64 ~/Code/bin/yao
 
 # 更新 README.md 中的版本
 # repace "s/\[[0-9]+\.[0-9]+\.[0-9]+\]/[$VERSION]/g"

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/importer/xlsx"
 )
@@ -145,11 +146,13 @@ func TestMappingSetting(t *testing.T) {
 
 	imp := Select("order")
 	setting := imp.MappingSetting(file)
+	utils.Dump(setting)
 	assert.NotNil(t, setting)
 }
 
 func TestDataSetting(t *testing.T) {
 	imp := Select("order")
 	setting := imp.DataSetting()
+	utils.Dump(setting)
 	assert.NotNil(t, setting)
 }

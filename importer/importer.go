@@ -277,7 +277,7 @@ func (imp *Importer) DataSetting() map[string]interface{} {
 					"hideEdit": true,
 					"width":    120,
 					"unfold":   true,
-					"checkbox": map[string]interface{}{
+					"checkbox": []map[string]interface{}{{
 						"value":         ":__effected",
 						"visible_label": false,
 						"status": []map[string]interface{}{
@@ -290,7 +290,7 @@ func (imp *Importer) DataSetting() map[string]interface{} {
 								"value": false,
 							},
 						},
-					},
+					}},
 				},
 			},
 		},
