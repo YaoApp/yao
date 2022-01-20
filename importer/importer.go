@@ -328,7 +328,7 @@ func (imp *Importer) MappingSetting(src from.Source) map[string]interface{} {
 		"清洗规则": {
 			Label: "清洗规则",
 			View: share.Render{
-				Type:  "tags",
+				Type:  "tag",
 				Props: map[string]interface{}{"value": ":rules"},
 			},
 			Edit: share.Render{
