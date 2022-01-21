@@ -20,3 +20,4 @@ dist
 ui
 ^ui/index.html
 tests/data/*/*
+debug.log
