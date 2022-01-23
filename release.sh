@@ -15,7 +15,7 @@ ssh max@demo-crm.iqka.com mkdir -p /data/demo-crm/ui/releases/$VERSION/
 ssh max@demo-crm.iqka.com "echo {\\\"version\\\":\\\"$VERSION\\\"} > /data/demo-crm/ui/releases/latest.json"
 scp ~/Code/bin/xiang-$VERSION-linux-amd64 max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/yao-$VERSION-linux-amd64
 scp ~/Code/bin/xiang-$VERSION-darwin-amd64 max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/yao-$VERSION-darwin-amd64
-scp ~/Code/bin/xiang-$VERSION-windows-386 max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/yao-$VERSION-windows-386
+# scp ~/Code/bin/xiang-$VERSION-windows-386 max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/yao-$VERSION-windows-386
 
 repace "s/[0-9]+\.[0-9]+\.[0-9]+/$VERSION/g"
 scp ~/Code/yao/xiang/shell/install.sh.new max@demo-crm.iqka.com:/data/demo-crm/ui/releases/$VERSION/install.sh

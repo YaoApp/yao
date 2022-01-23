@@ -1,0 +1,78 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: [1.17]
+    steps:
+      - name: Setup Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Checkout Kun
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/gou
+          path: gou
+          token: ${{ secrets.TOKEN }}
+
+      - name: Checkout UI
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/xiang-ui
+          path: ui
+          token: ${{ secrets.TOKEN }}
+
+      - name: Move Kun, Xun, Gou, UI
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv ui ../
+          ls -l .
+          ls -l ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Setup Go Tools
+        run: |
+          if [[ "${GO111MODULE}" = "on" ]]; then go mod download; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
+
+      - name: Make Artifact
+        run: |
+          ls -l .
+          ls -l ../
