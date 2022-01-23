@@ -47,6 +47,7 @@ require (
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1 // indirect
 	google.golang.org/grpc v1.42.0 // indirect
+	rogchap.com/v8go v0.7.0 // indirect
 )
 
 // go env -w GOPRIVATE=github.com/yaoapp/*

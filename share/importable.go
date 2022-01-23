@@ -49,7 +49,7 @@ func LoadFrom(dir string) {
 	// 加载共享脚本
 	Walk(dir, ".js", func(root, filename string) {
 		name := SpecName(root, filename)
-		err := gou.JavaScriptVM.Load(filename, name)
+		err := gou.Yao.Load(filename, name)
 		if err != nil {
 			xlog.Printf("加载脚本失败 %s", err.Error())
 		}

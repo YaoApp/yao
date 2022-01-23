@@ -66,7 +66,7 @@ func TestAPI(t *testing.T) {
 }
 
 func TestScript(t *testing.T) {
-	res, err := gou.JavaScriptVM.Run("time", "hello", "world")
+	res, err := gou.Yao.New("time", "hello").Call("world")
 	assert.Nil(t, err)
 	assert.Equal(t, "name:world", res)
 }

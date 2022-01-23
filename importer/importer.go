@@ -143,8 +143,11 @@ func (imp *Importer) DataClean(data [][]interface{}, bindings []*Binding) ([]str
 		success := true
 		for i, binding := range bindings { // 调用字段清洗处理器
 			for _, rule := range binding.Rules {
-				if !DataValidate(row, row[i], rule) {
+				update, ok := DataValidate(row, row[i], rule)
+				if !ok {
 					success = false
+				} else {
+					row = update
 				}
 			}
 		}
@@ -157,23 +160,23 @@ func (imp *Importer) DataClean(data [][]interface{}, bindings []*Binding) ([]str
 }
 
 // DataValidate 数值校验
-func DataValidate(row []interface{}, value interface{}, rule string) bool {
+func DataValidate(row []interface{}, value interface{}, rule string) ([]interface{}, bool) {
 	process, err := gou.ProcessOf(rule, value, row)
 	if err != nil {
 		xlog.Printf("DataValidate: %s %s", rule, err.Error())
-		return true
+		return row, true
 	}
 	res, err := process.Exec()
 	if err != nil {
 		xlog.Printf("DataValidate: %s %s", rule, err.Error())
-		return true
+		return row, true
 	}
 
 	if update, ok := res.([]interface{}); ok {
 		row = update
-		return true
+		return update, true
 	}
-	return false
+	return row, false
 }
 
 // DataPreview 预览数据
