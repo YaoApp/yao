@@ -20,5 +20,5 @@ func check(t *testing.T) {
 	for key := range gou.APIs {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 3, len(keys))
+	assert.Equal(t, 4, len(keys))
 }

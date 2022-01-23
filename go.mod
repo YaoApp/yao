@@ -8,7 +8,7 @@ require (
 	github.com/armon/go-metrics v0.3.10 // indirect
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/buraksezer/consistent v0.9.0 // indirect
-	github.com/buraksezer/olric v0.4.0 // indirect
+	github.com/buraksezer/olric v0.4.0
 	github.com/caarlos0/env/v6 v6.7.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/elazarl/go-bindata-assetfs v1.0.1
@@ -36,7 +36,7 @@ require (
 	github.com/spf13/afero v1.6.0
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
-	github.com/xuri/excelize/v2 v2.5.0 // indirect
+	github.com/xuri/excelize/v2 v2.5.0
 	github.com/yaoapp/gou v0.0.0-20211120135538-e5387704eb03
 	github.com/yaoapp/kun v0.6.7
 	github.com/yaoapp/xun v0.6.0
