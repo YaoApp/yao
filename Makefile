@@ -253,7 +253,7 @@ artifacts: clean
 	mkdir -p dist/release
 
 #	UI制品
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
 	cd ../ui && npm install && npm run build
 
 #	静态文件打包
