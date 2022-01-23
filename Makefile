@@ -248,6 +248,29 @@ linux: clean
 	mv .tmp/xiang-*-* dist/release/
 	chmod +x dist/release/xiang-*-*
 
+.PHONY: artifacts
+artifacts: clean
+	mkdir -p dist/release
+
+#	UI制品
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
+	cd ../ui && npm install && npm run build
+
+#	静态文件打包
+	mkdir -p .tmp/data
+	cp -r ../ui .tmp/data/
+	cp -r xiang .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#   制品
+	mkdir -p dist
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
+	mkdir -p dist/release
+	mv dist/yao-*-* dist/release/
+	chmod +x dist/release/xiang-*-*
+
 .PHONY: win32
 win32: bindata
 	GOOS=windows GOARCH=386 go build -v -o .tmp/xiang-windows-386

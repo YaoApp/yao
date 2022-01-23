@@ -12,6 +12,7 @@ VERSION=$(go run . version)
 rm -rf ../xiang-spec/xiang/*
 cp  dist/release/xiang-* ~/Code/bin/
 rm -f ~/Code/bin/xiang
+rm -f ~/Code/bin/yao
 ln -s ~/Code/bin/xiang-$VERSION-darwin-amd64 ~/Code/bin/xiang
 ln -s ~/Code/bin/xiang-$VERSION-darwin-amd64 ~/Code/bin/yao
 

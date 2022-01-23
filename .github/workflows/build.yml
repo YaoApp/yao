@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  unit-test:
+  release:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -74,5 +74,4 @@ jobs:
 
       - name: Make Artifact
         run: |
-          ls -l .
-          ls -l ../
+          make artifacts
