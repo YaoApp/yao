@@ -71,6 +71,8 @@ jobs:
           if [[ "${GO111MODULE}" = "on" ]]; then go mod download; fi
           if [[ "${GO111MODULE}" = "on" ]]; then export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"; fi
           if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
+          go get github.com/go-bindata/go-bindata/...
+          go get github.com/elazarl/go-bindata-assetfs/...
 
       - name: Make Artifact
         run: |
