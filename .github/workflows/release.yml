@@ -3,8 +3,8 @@ name: Release
 on:
   push:
     branches: [main]
-    paths:
-      - "share/const.go"
+    # paths:
+    #   - "share/const.go"
 
 jobs:
   release:
@@ -13,6 +13,13 @@ jobs:
       matrix:
         go: [1.17]
     steps:
+      - name: arm env
+        run: |
+        apt-get update
+        apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
+        apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+        apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+
       - name: Setup Cache
         uses: actions/cache@v2
         with:
