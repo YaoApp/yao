@@ -269,7 +269,7 @@ artifacts: clean
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
-	chmod +x dist/release/xiang-*-*
+	chmod +x dist/release/yao-*-*
 
 .PHONY: win32
 win32: bindata
