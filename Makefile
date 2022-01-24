@@ -258,7 +258,7 @@ artifacts: clean
 
 #	静态文件打包
 	mkdir -p .tmp/data
-	cp -r ../ui .tmp/data/
+	cp -r ../ui/dist .tmp/data/ui
 	cp -r xiang .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
