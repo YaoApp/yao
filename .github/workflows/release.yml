@@ -80,7 +80,6 @@ jobs:
 
       - name: Push to China Mainland
         uses: nogsantos/scp-deploy@master
-        run: |
         with:
           src: ./dist/release/*
           host: ${{ secrets.BJ_SSH_HOST }}
