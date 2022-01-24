@@ -3,8 +3,8 @@ name: Release
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    paths:
+      - "share/const.go"
 
 jobs:
   release:
@@ -87,3 +87,12 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           user: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
+
+      - name: Distribution
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: ${{ secrets.SSH_CMD }}
