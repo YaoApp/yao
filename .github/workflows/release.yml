@@ -1,4 +1,4 @@
-name: Build
+name: Release
 
 on:
   push:
@@ -78,12 +78,12 @@ jobs:
         run: |
           make artifacts
 
-      - name: Push to China Mainland
+      - name: Push to Station (@Silicon Valley)
         uses: nogsantos/scp-deploy@master
         with:
           src: ./dist/release/*
-          host: ${{ secrets.BJ_SSH_HOST }}
-          remote: ${{ secrets.BJ_SSH_PATH }}
-          port: ${{ secrets.BJ_SSH_PORT }}
-          user: ${{ secrets.BJ_SSH_USER }}
-          key: ${{ secrets.BJ_SSH_KEY }}
+          host: ${{ secrets.SSH_HOST }}
+          remote: ${{ secrets.SSH_PATH }}
+          port: ${{ secrets.SSH_PORT }}
+          user: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
