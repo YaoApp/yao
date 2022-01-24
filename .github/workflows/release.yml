@@ -74,6 +74,17 @@ jobs:
           go get github.com/go-bindata/go-bindata/...
           go get github.com/elazarl/go-bindata-assetfs/...
 
-      - name: Make Artifact
+      - name: Make Artifacts
         run: |
           make artifacts
+
+      - name: Push to China Mainland
+        uses: nogsantos/scp-deploy@master
+        run: |
+        with:
+          src: ./dist/release/*
+          host: ${{ secrets.BJ_SSH_HOST }}
+          remote: ${{ secrets.BJ_SSH_PATH }}
+          port: ${{ secrets.BJ_SSH_PORT }}
+          user: ${{ secrets.BJ_SSH_USER }}
+          key: ${{ secrets.BJ_SSH_KEY }}
