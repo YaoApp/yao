@@ -270,6 +270,8 @@ artifacts: clean
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
+	ls -l dist/release/
+	dist/release/yao-${VERSION}-linux-amd64 version
 
 .PHONY: win32
 win32: bindata
