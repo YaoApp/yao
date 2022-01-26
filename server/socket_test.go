@@ -1,4 +1,4 @@
-package flow
+package server
 
 import (
 	"testing"
@@ -9,7 +9,6 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	gou.Flows = make(map[string]*gou.Flow)
 	Load(config.Conf)
 	LoadFrom("not a path", "404.")
 	check(t)
@@ -17,8 +16,8 @@ func TestLoad(t *testing.T) {
 
 func check(t *testing.T) {
 	keys := []string{}
-	for key := range gou.Flows {
+	for key := range gou.Servers {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 22, len(keys))
+	assert.Equal(t, 1, len(keys))
 }

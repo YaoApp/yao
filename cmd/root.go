@@ -30,11 +30,11 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(
 		versionCmd,
-		domainCmd,
+		// domainCmd,
 		migrateCmd,
 		inspectCmd,
 		startCmd,
-		importCmd,
+		// importCmd,
 		runCmd,
 	)
 	rootCmd.SetHelpCommand(helpCmd)

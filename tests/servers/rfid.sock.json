@@ -1,0 +1,9 @@
+{
+  "name": "RFID接收器",
+  "description": "用来接收并处理RIFD",
+  "version": "0.0.1",
+  "protocol": "tcp",
+  "host": "0.0.0.0",
+  "port": "3019",
+  "process": "flows.rfid.read"
+}

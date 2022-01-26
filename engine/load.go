@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/xiang/page"
 	"github.com/yaoapp/xiang/plugin"
 	"github.com/yaoapp/xiang/query"
+	"github.com/yaoapp/xiang/server"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
 	"github.com/yaoapp/xiang/workflow"
@@ -42,6 +43,7 @@ func Load(cfg config.Config) {
 	importer.Load(cfg) // 加载数据导入 imports
 	workflow.Load(cfg) // 加载工作流  workflow
 	api.Load(cfg)      // 加载业务接口 API
+	server.Load(cfg)   // 加载服务
 
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")

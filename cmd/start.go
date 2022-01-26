@@ -68,11 +68,11 @@ var startCmd = &cobra.Command{
 			port = ""
 		}
 
-		fmt.Printf(color.GreenString("\n\n访问入口"))
+		fmt.Printf(color.GreenString("\n\n象传应用引擎"))
 		fmt.Printf(color.WhiteString("\n---------------------------------"))
-		fmt.Printf(color.GreenString("\n前台界面: http://%s%s/\n", domain, port))
-		fmt.Printf(color.GreenString("管理后台: http://%s%s/xiang/login\n", domain, port))
-		fmt.Printf(color.GreenString("API 接口: http://%s%s/api\n", domain, port))
+		fmt.Printf(color.GreenString("\n前台界面: http://%s%s/\n", "127.0.0.1", port))
+		fmt.Printf(color.GreenString("管理后台: http://%s%s/xiang/login/admin\n", "127.0.0.1", port))
+		fmt.Printf(color.GreenString("API 接口: http://%s%s/api\n", "127.0.0.1", port))
 		fmt.Printf(color.GreenString("跨域访问: %s\n\n", strings.Join(config.Conf.Service.Allow, ",")))
 
 		// 调试模式
@@ -80,6 +80,16 @@ var startCmd = &cobra.Command{
 			service.Watch(config.Conf)
 		}
 
+		if len(args) > 0 && args[0] == "alpha" {
+			// 启动 Socket 服务 (alpha)
+			for _, srv := range gou.Servers {
+				fmt.Printf(color.GreenString("%s服务", srv.Name))
+				fmt.Printf(color.WhiteString("\n---------------------------------"))
+				fmt.Printf(color.GreenString("\nHost: %s://%s", srv.Protocol, srv.Host))
+				fmt.Printf(color.GreenString("\nPort: %s\n\n", srv.Port))
+				go srv.Start()
+			}
+		}
 		service.Start()
 	},
 }

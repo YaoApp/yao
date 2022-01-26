@@ -1,6 +1,8 @@
-package api
+package server
 
 import (
+	"path/filepath"
+
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
@@ -8,7 +10,8 @@ import (
 
 // Load 加载API
 func Load(cfg config.Config) {
-	LoadFrom(cfg.RootAPI, "")
+	var root = filepath.Join(cfg.RootAPI, "..", "servers")
+	LoadFrom(root, "")
 }
 
 // LoadFrom 从特定目录加载
@@ -18,9 +21,9 @@ func LoadFrom(dir string, prefix string) {
 		return
 	}
 
-	share.Walk(dir, ".http.json", func(root, filename string) {
+	share.Walk(dir, ".sock.json", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		gou.LoadAPI(string(content), name)
+		gou.LoadServer(string(content), name)
 	})
 }
