@@ -59,7 +59,7 @@ func ProcessSearch(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, param, page, pagesize).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterSearch, response, process.Sid)
+	return table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
 }
 
 // ProcessFind xiang.table.Find
@@ -86,7 +86,7 @@ func ProcessFind(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, id, param).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterFind, response, process.Sid)
+	return table.After(table.Hooks.AfterFind, response, []interface{}{id, param}, process.Sid)
 }
 
 // ProcessSave xiang.table.Save
@@ -98,9 +98,9 @@ func ProcessSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["save"].ValidateLoop("xiang.table.save")
-	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
-		return nil
-	}
+	// if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
+	// 	return nil
+	// }
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSave, process.Args, process.Sid)
@@ -112,7 +112,7 @@ func ProcessSave(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, process.Args[1]).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterSave, response, process.Sid)
+	return table.After(table.Hooks.AfterSave, response, []interface{}{process.Args[1]}, process.Sid)
 }
 
 // ProcessDelete xiang.table.Delete
@@ -328,5 +328,5 @@ func ProcessSelect(process *gou.Process) interface{} {
 	response := gou.NewProcess(api.Process, process.Args[1:]...).Run()
 
 	// After Hook
-	return table.After(table.Hooks.AfterSelect, response, process.Sid)
+	return table.After(table.Hooks.AfterSelect, response, process.Args[1:], process.Sid)
 }

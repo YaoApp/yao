@@ -177,13 +177,14 @@ func (table *Table) Before(process string, processArgs []interface{}, sid string
 }
 
 // After 运行 After hook
-func (table *Table) After(process string, data interface{}, sid string) interface{} {
+func (table *Table) After(process string, data interface{}, args []interface{}, sid string) interface{} {
 	if process == "" {
 		return data
 	}
-	response, err := gou.NewProcess(process, data).WithSID(sid).Exec()
+	args = append([]interface{}{data}, args...)
+	response, err := gou.NewProcess(process, args...).WithSID(sid).Exec()
 	if err != nil {
-		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "data": data})
+		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "args": args})
 		return data
 	}
 	return response
