@@ -21,3 +21,4 @@ ui
 ^ui/index.html
 tests/data/*/*
 debug.log
+yao-test
