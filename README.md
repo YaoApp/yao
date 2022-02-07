@@ -1,4 +1,7 @@
-# 入门指南
+# Yao
+
+[![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
+[![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 
 Yao 是一款 **Go** 语言驱动的低代码应用引擎，通过编写 JSON 描述即可快速制作 **API 接口**，**数据管理系统** ，**命令行工具** 等应用程序，应用可以运行在本地、云端和物联网设备上。
 
