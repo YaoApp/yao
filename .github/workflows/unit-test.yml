@@ -124,15 +124,15 @@ jobs:
           PASSWORD: ${{ secrets.UNIT_PASS }}
         run: |
           sudo echo "127.0.0.1 local.iqka.com" | sudo tee -a /etc/hosts 
-          echo "XIANG_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
+          echo "YAO_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
           echo "GITHUB_WORKSPACE:\n" && ls -l $GITHUB_WORKSPACE
 
           if [ "$DB_DRIVER" = "mysql" ]; then
-            echo "XIANG_DB_PRIMARY=$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
           elif [ "$DB_DRIVER" = "postgres" ]; then
-            echo "XIANG_DB_PRIMARY=postgres://$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=postgres://$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
           else
-            echo "XIANG_DB_PRIMARY=$XIANG_ROOT/$DB_HOST" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=$YAO_ROOT/$DB_HOST" >> $GITHUB_ENV
           fi
 
           echo ".:\n" && ls -l .
