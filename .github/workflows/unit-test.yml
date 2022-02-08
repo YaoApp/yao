@@ -21,6 +21,8 @@ env:
   YAO_DB_SECONDARY: "root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
   YAO_DB_AESKEY: "ZLX=T&f6refeCh-ro*r@"
 
+  ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
+
   # 象传服务配置
   # XIANG_MODE: debug
   # XIANG_SOURCE: ${{ github.WORKSPACE }}
@@ -139,13 +141,18 @@ jobs:
           echo "..:\n" && ls -l ..
           ping -c 1 -t 1 local.iqka.com
 
-      - name: Run Test
+      - name: Test Prepare
         run: |
           make vet
           make fmt-check
           make misspell-check
           make plugin
+          mkdir -p $YAO_ROOT/tests/plugins/
+          mv $ROOT_PLUGIN/user.so $YAO_ROOT/tests/plugins/
           make migrate
+
+      - name: Run test
+        run: |
           make test
 
       - name: Codecov Report
