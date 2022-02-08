@@ -16,9 +16,9 @@ env:
   YAO_LOG: "./logs/application.log"
   YAO_LOG_MODE: "TEXT"
   YAO_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
-  YAO_DB_DRIVER: mysql
-  YAO_DB_PRIMARY: "root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
-  YAO_DB_SECONDARY: "root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
+  # YAO_DB_DRIVER: mysql
+  # YAO_DB_PRIMARY: "root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
+  # YAO_DB_SECONDARY: "root:123456@tcp(db-server:3308)/xiang?charset=utf8mb4&parseTime=True&loc=Local"
   YAO_DB_AESKEY: "ZLX=T&f6refeCh-ro*r@"
 
   ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
@@ -149,6 +149,7 @@ jobs:
           make plugin
           mkdir -p $YAO_ROOT/tests/plugins/
           mv $ROOT_PLUGIN/user.so $YAO_ROOT/tests/plugins/
+          ls -l $YAO_ROOT/tests/plugins/
           make migrate
 
       - name: Run test
