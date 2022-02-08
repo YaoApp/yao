@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
@@ -9,6 +10,7 @@ import (
 	gshare "github.com/yaoapp/gou/query/share"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/str"
 	"github.com/yaoapp/xiang/config"
@@ -39,7 +41,7 @@ var WorkFlows = map[string]*WorkFlow{}
 
 // Load 加载数据表格
 func Load(cfg config.Config) {
-	LoadFrom(cfg.RootWorkFlow, "")
+	LoadFrom(filepath.Join(cfg.Root, "workflows"), "")
 }
 
 // LoadFrom 从特定目录加载
@@ -52,7 +54,7 @@ func LoadFrom(dir string, prefix string) {
 		content := share.ReadFile(filename)
 		_, err := LoadWorkFlow(content, name)
 		if err != nil {
-			exception.New("%s 工作流格式错误", 400, name).Ctx(filename).Throw()
+			log.With(log.F{"root": root, "filename": filename}).Error(err.Error())
 		}
 	})
 }

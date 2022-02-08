@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"path"
 	"testing"
 
@@ -18,7 +19,7 @@ func TestLoad(t *testing.T) {
 // 从文件系统载入引擎文件
 func TestLoadEngineFS(t *testing.T) {
 	defer Load(config.Conf)
-	root := "fs://" + path.Join(config.Conf.Source, "/xiang")
+	root := path.Join(os.Getenv("YAO_DEV"), "/xiang")
 	assert.NotPanics(t, func() {
 		LoadEngine(root)
 	})
@@ -28,8 +29,7 @@ func TestLoadEngineFS(t *testing.T) {
 // 从BinDataz载入引擎文件
 func TestLoadEngineBin(t *testing.T) {
 	defer Load(config.Conf)
-	root := "bin://xiang"
 	assert.NotPanics(t, func() {
-		LoadEngine(root)
+		LoadEngine()
 	})
 }

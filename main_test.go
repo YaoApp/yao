@@ -52,7 +52,7 @@ func TestCommandStart(t *testing.T) {
 	// 发送请求
 	request := func() (maps.MapStr, error) {
 		time.Sleep(time.Microsecond * 2000)
-		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "127.0.0.1", config.Conf.Service.Port)
+		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "127.0.0.1", config.Conf.Port)
 		// utils.Dump(url)
 		resp, err := http.Get(url)
 		if err != nil {
@@ -100,7 +100,7 @@ func TestCommandStop(t *testing.T) {
 	// 发送请求
 	request := func() (maps.MapStr, error) {
 		time.Sleep(time.Microsecond * 2000)
-		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "127.0.0.1", config.Conf.Service.Port)
+		url := fmt.Sprintf("http://%s:%d/api/user/find/1?select=id,name", "127.0.0.1", config.Conf.Port)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, err

@@ -1,29 +1,36 @@
 package server
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
 )
 
 // Load 加载API
 func Load(cfg config.Config) {
-	var root = filepath.Join(cfg.RootAPI, "..", "servers")
+	var root = filepath.Join(cfg.Root, "servers")
 	LoadFrom(root, "")
 }
 
 // LoadFrom 从特定目录加载
-func LoadFrom(dir string, prefix string) {
+func LoadFrom(dir string, prefix string) error {
 
 	if share.DirNotExists(dir) {
-		return
+		return fmt.Errorf("%s does not exists", dir)
 	}
 
-	share.Walk(dir, ".sock.json", func(root, filename string) {
+	err := share.Walk(dir, ".sock.json", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		gou.LoadServer(string(content), name)
+		_, err := gou.LoadServer(string(content), name)
+		if err != nil {
+			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
+		}
 	})
+
+	return err
 }

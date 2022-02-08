@@ -16,7 +16,6 @@ var inspectCmd = &cobra.Command{
 		Boot()
 		res := maps.Map{
 			"version": share.VERSION,
-			"domain":  share.DOMAIN,
 			"config":  config.Conf,
 		}
 		utils.Dump(res)

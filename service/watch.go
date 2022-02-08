@@ -17,15 +17,15 @@ import (
 
 // Watch 监听应用目录文件变更
 func Watch(cfg config.Config) {
-	WatchEngine(cfg.Path)
-	WatchModel(cfg.RootModel, "")
-	WatchAPI(cfg.RootAPI, "")
-	WatchFlow(cfg.RootFLow, "")
-	WatchPlugin(cfg.RootPlugin)
-	WatchTable(cfg.RootTable, "")
-	WatchChart(cfg.RootChart, "")
-	WatchPage(cfg.RootPage, "")
-	WatchWorkFlow(cfg.RootWorkFlow, "")
+	// WatchEngine(cfg.Path)
+	// WatchModel(cfg.RootModel, "")
+	// WatchAPI(cfg.RootAPI, "")
+	// WatchFlow(cfg.RootFLow, "")
+	// WatchPlugin(cfg.RootPlugin)
+	// WatchTable(cfg.RootTable, "")
+	// WatchChart(cfg.RootChart, "")
+	// WatchPage(cfg.RootPage, "")
+	// WatchWorkFlow(cfg.RootWorkFlow, "")
 
 	// 看板大屏
 	WatchPage(filepath.Join(cfg.Root, "/kanban"), "")

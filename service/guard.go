@@ -28,10 +28,10 @@ func bearerJWT(c *gin.Context) {
 
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	if config.Conf.Mode == "debug" {
-		xlog.Printf("JWT: %s Secret: %s", tokenString, config.Conf.JWT.Secret)
+		xlog.Printf("JWT: %s Secret: %s", tokenString, config.Conf.JWTSecret)
 	}
 	token, err := jwt.ParseWithClaims(tokenString, &helper.JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.Conf.JWT.Secret), nil
+		return []byte(config.Conf.JWTSecret), nil
 	})
 
 	if err != nil {

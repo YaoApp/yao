@@ -3,8 +3,8 @@ package share
 // VERSION 版本号
 const VERSION = "0.8.0"
 
-// DOMAIN 许可域(废弃)
-const DOMAIN = "*.iqka.com"
+// BUILDIN 应用打包成一个制品
+const BUILDIN = false
 
-// AllowHosts 解析后的许可域(废弃)
-var AllowHosts = []string{}
+// BUILDNAME 制品名称
+const BUILDNAME = "yao"

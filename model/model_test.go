@@ -11,7 +11,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	share.DBConnect(config.Conf.Database)
+	share.DBConnect(config.Conf.DB)
 	gou.Models = make(map[string]*gou.Model)
 	Load(config.Conf)
 	LoadFrom("not a path", "404.")

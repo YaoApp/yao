@@ -30,11 +30,9 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(
 		versionCmd,
-		// domainCmd,
 		migrateCmd,
 		inspectCmd,
 		startCmd,
-		// importCmd,
 		runCmd,
 	)
 	rootCmd.SetHelpCommand(helpCmd)
@@ -54,15 +52,18 @@ func Execute() {
 func Boot() {
 
 	if envFile == "" && appPath != "" {
-		config.SetAppPath(appPath, filepath.Join(appPath, ".env"))
+		config.Conf = config.LoadFrom(filepath.Join(appPath, ".env"))
+		config.Conf.Root = appPath
 		return
 	}
 
-	if envFile != "" { // 指定环境变量文件
-		config.SetEnvFile(envFile)
+	if envFile != "" && appPath == "" { // 指定环境变量文件
+		// config.SetEnvFile(envFile)
+		config.Conf = config.LoadFrom(envFile)
 	}
 
-	if appPath != "" {
-		config.SetAppPath(appPath)
+	if envFile != "" && appPath != "" {
+		config.Conf = config.LoadFrom(envFile)
+		config.Conf.Root = appPath
 	}
 }

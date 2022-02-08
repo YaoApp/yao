@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
@@ -19,33 +21,46 @@ import (
 var Tables = map[string]*Table{}
 
 // Load 加载数据表格
-func Load(cfg config.Config) {
-	LoadFrom(cfg.RootTable, "")
+func Load(cfg config.Config) error {
+	if share.BUILDIN {
+		return LoadBuildIn("tables", "")
+	}
+	return LoadFrom(filepath.Join(cfg.Root, "tables"), "")
 }
 
 // LoadFrom 从特定目录加载
-func LoadFrom(dir string, prefix string) {
+func LoadFrom(dir string, prefix string) error {
 
 	if share.DirNotExists(dir) {
-		return
+		return fmt.Errorf("%s does not exists", dir)
 	}
 
-	share.Walk(dir, ".json", func(root, filename string) {
+	err := share.Walk(dir, ".json", func(root, filename string) {
 		name := share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		LoadTable(string(content), name)
+		_, err := LoadTable(string(content), name)
+		if err != nil {
+			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
+		}
 	})
+
+	return err
+}
+
+// LoadBuildIn 从制品中读取
+func LoadBuildIn(dir string, prefix string) error {
+	return nil
 }
 
 // LoadTable 载入数据表格
-func LoadTable(source string, name string) *Table {
+func LoadTable(source string, name string) (*Table, error) {
 	var input io.Reader = nil
 	if strings.HasPrefix(source, "file://") || strings.HasPrefix(source, "fs://") {
 		filename := strings.TrimPrefix(source, "file://")
 		filename = strings.TrimPrefix(filename, "fs://")
 		file, err := os.Open(filename)
 		if err != nil {
-			exception.Err(err, 400).Throw()
+			return nil, err
 		}
 		defer file.Close()
 		input = file
@@ -66,7 +81,7 @@ func LoadTable(source string, name string) *Table {
 	table.loadFilters()
 	table.loadAPIs()
 	Tables[name] = &table
-	return Tables[name]
+	return Tables[name], nil
 }
 
 // Select 读取已加载表格配置
@@ -82,9 +97,13 @@ func Select(name string) *Table {
 }
 
 // Reload 更新数据表格配置
-func (table *Table) Reload() *Table {
-	*table = *LoadTable(table.Source, table.Name)
-	return table
+func (table *Table) Reload() (*Table, error) {
+	new, err := LoadTable(table.Source, table.Name)
+	if err != nil {
+		return nil, err
+	}
+	*table = *new
+	return table, nil
 }
 
 // loadAPIs 加载数据管理 API

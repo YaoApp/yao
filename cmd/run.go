@@ -21,7 +21,7 @@ var runCmd = &cobra.Command{
 		defer gou.KillPlugins()
 		Boot()
 		cfg := config.Conf
-		cfg.Session.IsCLI = true
+		// cfg.Session.IsCLI = true
 		engine.Load(cfg)
 		if len(args) < 1 {
 			fmt.Println(color.RedString("参数错误: 未指定处理名称"))

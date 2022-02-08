@@ -19,10 +19,9 @@ func Start() {
 	gou.SetHTTPGuards(Guards)
 	gou.ServeHTTP(
 		gou.Server{
-			Host:   config.Conf.Service.Host,
-			Port:   config.Conf.Service.Port,
-			Allows: config.Conf.Service.Allow,
-			Root:   "/api",
+			Host: config.Conf.Host,
+			Port: config.Conf.Port,
+			Root: "/api",
 		},
 		&shutdown, func(s gou.Server) {
 			shutdownComplete <- true

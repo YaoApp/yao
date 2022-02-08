@@ -29,7 +29,7 @@ type JwtToken struct {
 // JwtValidate JWT 校验
 func JwtValidate(tokenString string) *JwtClaims {
 	token, err := jwt.ParseWithClaims(tokenString, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.Conf.JWT.Secret), nil
+		return []byte(config.Conf.JWTSecret), nil
 	})
 
 	if err != nil {
@@ -94,7 +94,7 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{})
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(config.Conf.JWT.Secret))
+	tokenString, err := token.SignedString([]byte(config.Conf.JWTSecret))
 	if err != nil {
 		exception.New("生成令牌失败", 500).Ctx(err).Throw()
 	}

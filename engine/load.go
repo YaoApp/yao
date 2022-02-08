@@ -2,7 +2,8 @@ package engine
 
 import (
 	"fmt"
-	"strings"
+	"os"
+	"path/filepath"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
@@ -25,11 +26,17 @@ import (
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) {
 
-	share.DBConnect(cfg.Database)     // 创建数据库连接
+	share.DBConnect(cfg.DB)           // 创建数据库连接
 	share.SessionConnect(cfg.Session) // 创建会话服务器链接
 
 	app.Load(cfg) // 加载应用信息
-	LoadEngine(cfg.Path)
+
+	if os.Getenv("YAO_DEV") != "" {
+		LoadEngine(filepath.Join(os.Getenv("YAO_DEV"), "/xiang"))
+	} else {
+		LoadEngine()
+	}
+
 	query.Load(cfg) // 加载数据分析引擎
 
 	share.Load(cfg)  // 加载共享库 lib
@@ -46,7 +53,7 @@ func Load(cfg config.Config) {
 	server.Load(cfg)   // 加载服务
 
 	// 加密密钥函数
-	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.Database.AESKey), "AES")
+	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey), "AES")
 	gou.LoadCrypt(`{}`, "PASSWORD")
 }
 
@@ -60,15 +67,12 @@ func Reload(cfg config.Config) {
 }
 
 // LoadEngine 加载引擎的 API, Flow, Model 配置
-func LoadEngine(from string) {
-
+func LoadEngine(from ...string) {
 	var scripts []share.Script
-	if strings.HasPrefix(from, "fs://") || !strings.Contains(from, "://") {
-		root := strings.TrimPrefix(from, "fs://")
-		scripts = share.GetFilesFS(root, ".json")
-	} else if strings.HasPrefix(from, "bin://") {
-		root := strings.TrimPrefix(from, "bin://")
-		scripts = share.GetFilesBin(root, ".json")
+	if len(from) > 0 {
+		scripts = share.GetFilesFS(from[0], ".json")
+	} else {
+		scripts = share.GetFilesBin("/xiang", ".json")
 	}
 
 	if scripts == nil {

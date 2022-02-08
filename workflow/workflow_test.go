@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"os"
 	"path"
 	"testing"
 
@@ -16,10 +17,10 @@ import (
 )
 
 func init() {
-	share.DBConnect(config.Conf.Database)
+	share.DBConnect(config.Conf.DB)
 	share.Load(config.Conf)
 	model.Load(config.Conf)
-	engineModels := path.Join(config.Conf.Source, "xiang", "models")
+	engineModels := path.Join(os.Getenv("YAO_DEV"), "xiang", "models")
 	model.LoadFrom(engineModels, "xiang.")
 	query.Load(config.Conf)
 	flow.Load(config.Conf)
@@ -27,7 +28,7 @@ func init() {
 }
 
 func TestLoad(t *testing.T) {
-	share.DBConnect(config.Conf.Database)
+	share.DBConnect(config.Conf.DB)
 	share.Load(config.Conf)
 	model.Load(config.Conf)
 	query.Load(config.Conf)

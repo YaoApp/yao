@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"path/filepath"
+
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
@@ -25,11 +27,10 @@ func processPing(process *gou.Process) interface{} {
 
 	res := map[string]interface{}{
 		"code":    200,
-		"server":  "象传应用引擎",
+		"server":  "Yao App Engine",
 		"version": share.VERSION,
-		"domain":  share.DOMAIN,
-		"allows":  config.Conf.Service.Allow,
-		"args":    input,
+		// "allows":  config.Conf.Service.Allow,
+		"args": input,
 	}
 	return res
 }
@@ -60,7 +61,7 @@ func processFileContent(process *gou.Process) interface{} {
 // processAppFileContent 返回应用文件内容
 func processAppFileContent(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
-	fs := xfs.New(config.Conf.RootData)
+	fs := xfs.New(filepath.Join(config.Conf.Root, "data"))
 	filename := process.ArgsString(0)
 	encode := process.ArgsBool(1, true)
 	content := fs.MustReadFile(filename)

@@ -4,10 +4,9 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/xlog"
 )
 
 func init() {
@@ -19,9 +18,7 @@ func init() {
 func ProcessLogin(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 	payload := process.ArgsMap(0).Dot()
-	if config.IsDebug() {
-		xlog.Println(payload)
-	}
+	log.With(log.F{"payload": payload}).Debug("ProcessLogin")
 
 	id := any.Of(payload.Get("captcha.id")).CString()
 	value := any.Of(payload.Get("captcha.code")).CString()
@@ -32,9 +29,7 @@ func ProcessLogin(process *gou.Process) interface{} {
 		exception.New("请输入验证码", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
 	}
 	if !ValidateCaptcha(id, value) {
-		if config.IsDebug() {
-			xlog.Println("ID:", id, " Code:", value)
-		}
+		log.With(log.F{"id": id, "code": value}).Debug("ProcessLogin")
 		exception.New("验证码不正确", 403).Ctx(maps.Map{"id": id, "code": value}).Throw()
 		return nil
 	}

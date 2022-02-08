@@ -2,24 +2,24 @@ package share
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xiang/data"
 )
 
 // Walk 遍历应用目录，读取文件列表
-func Walk(root string, typeName string, cb func(root, filename string)) {
+func Walk(root string, typeName string, cb func(root, filename string)) error {
 	root = strings.TrimPrefix(root, "fs://")
 	root = strings.TrimPrefix(root, "file://")
 	root = path.Join(root, "/")
-	filepath.Walk(root, func(filename string, info os.FileInfo, err error) error {
+	err := filepath.Walk(root, func(filename string, info os.FileInfo, err error) error {
 		if err != nil {
-			exception.Err(err, 500).Throw()
+			log.With(log.F{"root": root, "type": typeName, "filename": filename}).Error(err.Error())
 			return err
 		}
 		if strings.HasSuffix(filename, typeName) {
@@ -27,6 +27,7 @@ func Walk(root string, typeName string, cb func(root, filename string)) {
 		}
 		return nil
 	})
+	return err
 }
 
 // SpecName 解析名称  root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"
@@ -78,7 +79,7 @@ func DirAbs(dir string) string {
 	dir = strings.TrimPrefix(dir, "file://")
 	dirAbs, err := filepath.Abs(dir)
 	if err != nil {
-		log.Panicf("获取绝对路径错误 %s %s", dir, err)
+		log.Panic("获取绝对路径错误 %s %s", dir, err)
 	}
 	return dirAbs
 }

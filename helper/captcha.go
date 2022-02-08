@@ -8,9 +8,8 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/xlog"
 )
 
 var captchaStore = base64Captcha.DefaultMemStore
@@ -83,9 +82,7 @@ func CaptchaMake(option CaptchaOption) (string, string) {
 	}
 
 	// 打印日志
-	if config.IsDebug() {
-		xlog.Println("图形/音频 ID:", id, "验证码:", captchaStore.Get(id, false))
-	}
+	log.Debug("图形/音频 ID:%s 验证码:%s", id, captchaStore.Get(id, false))
 
 	return id, content
 }

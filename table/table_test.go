@@ -11,7 +11,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	share.DBConnect(config.Conf.Database)
+	share.DBConnect(config.Conf.DB)
 	share.Load(config.Conf)
 	model.Load(config.Conf)
 

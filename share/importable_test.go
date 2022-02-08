@@ -1,17 +1,17 @@
 package share
 
 import (
+	"os"
 	"path"
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
 )
 
 func init() {
-	rootLib := path.Join(config.Conf.Source, "/tests/libs")
+	rootLib := path.Join(os.Getenv("YAO_DEV"), "/tests/libs")
 	LoadFrom(rootLib)
 }
 

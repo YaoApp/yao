@@ -36,7 +36,6 @@ var startCmd = &cobra.Command{
 		fmt.Printf(color.WhiteString("\n---------------------------------"))
 		fmt.Printf(color.GreenString("\n应用名称: %s v%s", share.App.Name, share.App.Version))
 		fmt.Printf(color.GreenString("\n应用根目录: %s", config.Conf.Root))
-		fmt.Printf(color.GreenString("\n数据存储目录: %s", config.Conf.RootData))
 		fmt.Printf(color.GreenString("\n数据存储引擎: %s", share.App.Storage.Default))
 		fmt.Printf(color.WhiteString("\n---------------------------------\n\n"))
 
@@ -58,12 +57,7 @@ var startCmd = &cobra.Command{
 
 		}
 
-		domain := share.DOMAIN
-		if domain == "*.iqka.com" {
-			domain = "local.iqka.com"
-		}
-
-		port := fmt.Sprintf(":%d", config.Conf.Service.Port)
+		port := fmt.Sprintf(":%d", config.Conf.Port)
 		if port == ":80" {
 			port = ""
 		}
@@ -73,7 +67,7 @@ var startCmd = &cobra.Command{
 		fmt.Printf(color.GreenString("\n前台界面: http://%s%s/\n", "127.0.0.1", port))
 		fmt.Printf(color.GreenString("管理后台: http://%s%s/xiang/login/admin\n", "127.0.0.1", port))
 		fmt.Printf(color.GreenString("API 接口: http://%s%s/api\n", "127.0.0.1", port))
-		fmt.Printf(color.GreenString("跨域访问: %s\n\n", strings.Join(config.Conf.Service.Allow, ",")))
+		// fmt.Printf(color.GreenString("跨域访问: %s\n\n", strings.Join(config.Conf.Service.Allow, ",")))
 
 		// 调试模式
 		if config.Conf.Mode == "debug" {

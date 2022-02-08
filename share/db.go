@@ -8,7 +8,7 @@ import (
 )
 
 // DBConnect 建立数据库连接
-func DBConnect(dbconfig config.DatabaseConfig) {
+func DBConnect(dbconfig config.DBConfig) {
 
 	// 连接主库
 	for i, dsn := range dbconfig.Primary {

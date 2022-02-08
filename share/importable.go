@@ -2,6 +2,7 @@ package share
 
 import (
 	"fmt"
+	"path/filepath"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
@@ -17,7 +18,7 @@ var Libs = map[string]map[string]interface{}{}
 
 // Load 加载共享库
 func Load(cfg config.Config) {
-	LoadFrom(cfg.RootLib)
+	LoadFrom(filepath.Join(cfg.Root, "libs"))
 }
 
 // LoadFrom 从特定目录加载共享库

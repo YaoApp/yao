@@ -3,7 +3,7 @@ package query
 import (
 	"github.com/yaoapp/gou"
 	dsl "github.com/yaoapp/gou/query/gou"
-	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xun/capsule"
 )
@@ -21,9 +21,10 @@ func XiangQuery() {
 			if mod, has := gou.Models[s]; has {
 				return mod.MetaData.Table.Name
 			}
-			exception.New("%s 数据模型尚未加载", 404).Throw()
+			// exception.New("%s 数据模型尚未加载", 404).Throw()
+			log.Error("%s model does not load", s)
 			return s
 		},
-		AESKey: config.Conf.Database.AESKey,
+		AESKey: config.Conf.DB.AESKey,
 	})
 }

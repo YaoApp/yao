@@ -7,39 +7,64 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xiang/share"
-	"github.com/yaoapp/xiang/xlog"
 )
 
 // Pages 已载入页面
 var Pages = map[string]*Page{}
 
 // Load 加载页面
-func Load(cfg config.Config) {
-	LoadFrom(path.Join(cfg.Root, "/kanban"), "")
-	LoadFrom(path.Join(cfg.Root, "/screen"), "")
-	LoadFrom(cfg.RootPage, "")
+func Load(cfg config.Config) error {
+
+	if share.BUILDIN {
+		return LoadBuildIn("pages", "")
+	}
+
+	var errs error = nil
+	if err := LoadFrom(path.Join(cfg.Root, "/kanban"), ""); err != nil {
+		log.Warn("load kanban error: %s ", err.Error())
+		errs = err
+	}
+	if err := LoadFrom(path.Join(cfg.Root, "/screen"), ""); err != nil {
+		log.Warn("load screen error: %s", err.Error())
+		errs = err
+	}
+	if err := LoadFrom(path.Join(cfg.Root, "/pages"), ""); err != nil {
+		log.Warn("load screen error: %s", err.Error())
+		errs = err
+	}
+
+	return errs
+}
+
+// LoadBuildIn 从制品中读取
+func LoadBuildIn(dir string, prefix string) error {
+	return nil
 }
 
 // LoadFrom 从特定目录加载
-func LoadFrom(dir string, prefix string) {
+func LoadFrom(dir string, prefix string) error {
 
 	if share.DirNotExists(dir) {
-		return
+		return fmt.Errorf("%s does not exists", dir)
 	}
 
-	share.Walk(dir, ".json", func(root, filename string) {
+	err := share.Walk(dir, ".json", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
 		_, err := LoadPage(content, name)
 		if err != nil {
-			exception.New("%s 页面格式错误", 400, name).Ctx(filename).Throw()
+			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
 		}
 	})
+	if err != nil {
+		return err
+	}
 
 	// Load Script
-	share.Walk(dir, ".js", func(root, filename string) {
+	err = share.Walk(dir, ".js", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		page := Select(name)
 		if page != nil {
@@ -48,6 +73,8 @@ func LoadFrom(dir string, prefix string) {
 			page.LoadScript(string(content), script)
 		}
 	})
+
+	return err
 
 }
 
@@ -60,9 +87,7 @@ func LoadPage(source []byte, name string) (*Page, error) {
 	}
 	err := jsoniter.Unmarshal(source, page)
 	if err != nil {
-		xlog.Println(name)
-		xlog.Println(err.Error())
-		xlog.Println(string(source))
+		log.With(log.F{"name": name, "source": source}).Error(err.Error())
 		return nil, err
 	}
 	page.Prepare()

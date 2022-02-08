@@ -39,7 +39,7 @@ type File interface {
 }
 
 func init() {
-	Stor = New(config.Conf.RootData)
+	Stor = New(filepath.Join(config.Conf.Root, "data"))
 }
 
 // New 创建文件系统
