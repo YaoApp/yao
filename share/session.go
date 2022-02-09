@@ -3,6 +3,7 @@ package share
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 
 	"github.com/buraksezer/olric"
@@ -72,7 +73,7 @@ func SessionServerStart() {
 	// c.BindAddr = config.Conf.Session.Host
 	// c.BindPort = config.Conf.Session.Port
 
-	// c.Logger.SetOutput(ioutil.Discard) // 暂时关闭日志
+	c.Logger.SetOutput(ioutil.Discard) // 暂时关闭日志
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Started = func() {
 		defer cancel()

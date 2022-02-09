@@ -78,6 +78,8 @@ var startCmd = &cobra.Command{
 		fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
 		fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/xiang/login/admin", host, port))
 		fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
+		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
+
 		fmt.Println("")
 
 		// 调试模式
@@ -97,7 +99,7 @@ var startCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Println(color.GreenString(L("✨DONE✨")))
+		fmt.Println(color.GreenString(L("✨LISTENING✨")))
 		service.Start()
 	},
 }

@@ -43,6 +43,8 @@ var langs = map[string]string{
 	"Initialize project":                    "项目初始化",
 	"✨DONE✨":                                "✨完成✨",
 	"NEXT:":                                 "下一步:",
+	"Listening":                             "    监听",
+	"✨LISTENING✨":                           "✨服务正在运行✨",
 }
 
 // L 多语言切换
