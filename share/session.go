@@ -102,14 +102,14 @@ func SessionServerStart() {
 	go func() {
 		err = sessServer.Start() // Call Start at background. It's a blocker call.
 		if err != nil {
-			klog.Panic("olric.Start returned an error: %v", err)
+			klog.Error("olric.Start returned an error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 	dm, err := sessServer.NewDMap("local-session")
 	if err != nil {
-		klog.Panic("olric.NewDMap returned an error: %v", err)
+		klog.Error("olric.NewDMap returned an error: %v", err)
 	}
 
 	session.MemoryUse(session.ServerDMap{DMap: dm})

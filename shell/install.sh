@@ -1,5 +1,5 @@
  #!/bin/bash
-VERSION=$(ls -lt /data/release/ui/download | grep yao- | head -n 1 |awk '{print $9}' |awk -F- '{print $2}')
+VERSION="0.9.0"
 URL="https://release.yaoapps.com/download"
 
 function macos(){

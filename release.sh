@@ -2,7 +2,7 @@
 
 repace() {
     echo $1
-    sed -E "$1" ~/Code/yao/xiang/shell/install.sh > ~/Code/yao/xiang/shell/install.sh.new
+    sed -E "$1" /data/release/ui/install.sh > /data/release/ui/install.sh.new
 }
 
 # 关闭代理
