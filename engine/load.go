@@ -7,6 +7,7 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/app"
 	"github.com/yaoapp/yao/chart"
@@ -53,36 +54,36 @@ func Load(cfg config.Config) (err error) {
 	// 第四步: 加载共享库 & JS 处理器
 	err = share.Load(cfg) // 加载共享库 lib
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 	err = script.Load(cfg) // 加载JS处理器 script
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 
 	// 第五步: 加载数据模型等
 	err = model.Load(cfg) // 加载数据模型 model
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 
 	err = flow.Load(cfg) // 加载业务逻辑 Flow
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 	err = plugin.Load(cfg) // 加载业务插件 plugin
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 
 	err = table.Load(cfg) // 加载数据表格 table
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 
 	err = chart.Load(cfg) // 加载分析图表 chart
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 
 	page.Load(cfg)     // 加载页面 page 忽略错误
@@ -91,7 +92,7 @@ func Load(cfg config.Config) (err error) {
 
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
-		exception.Err(err, 400).Throw()
+		log.Warn(err.Error())
 	}
 
 	server.Load(cfg) // 加载服务
