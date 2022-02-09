@@ -33,7 +33,7 @@ var startCmd = &cobra.Command{
 		mode := config.Conf.Mode
 		err := engine.Load(config.Conf) // 加载脚本等
 		if err != nil {
-			fmt.Printf(color.RedString(L("Fatal: %s"), err.Error()))
+			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
 		}
 		port := fmt.Sprintf(":%d", config.Conf.Port)

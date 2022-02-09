@@ -21,7 +21,7 @@ var migrateCmd = &cobra.Command{
 		// 加载数据模型
 		err := engine.Load(config.Conf)
 		if err != nil {
-			fmt.Printf(color.RedString("加载失败: %s\n", err.Error()))
+			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
 		}
 
@@ -35,12 +35,12 @@ var migrateCmd = &cobra.Command{
 
 		// Do Stuff Here
 		for _, mod := range gou.Models {
-			fmt.Println(color.GreenString("更新数据模型 %s 绑定数据表: %s", mod.Name, mod.MetaData.Table.Name))
+			fmt.Println(color.GreenString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
 			mod.Migrate(true)
 		}
 	},
 }
 
 func init() {
-	migrateCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "指定模型名称")
+	migrateCmd.PersistentFlags().StringVarP(&name, "name", "n", "", L("Model name"))
 }

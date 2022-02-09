@@ -37,6 +37,8 @@ var langs = map[string]string{
 	"Run: %s":                               "运行: %s",
 	"Arguments: %s":                         "参数错误: %s",
 	"%s Response":                           "%s 返回结果",
+	"Update schema model: %s (%s) ":         "更新表结构 model: %s (%s)",
+	"Model name":                            "模型名称",
 }
 
 // L 多语言切换
