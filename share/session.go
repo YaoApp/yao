@@ -15,15 +15,24 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/network"
 )
 
 var sessServer *olric.Olric
+
+// SessionPort Session 端口
+var SessionPort int
+
+func init() {
+	SessionPort = network.FreePort()
+	klog.Trace("session port: %d", SessionPort)
+}
 
 // SessionConnect 加载会话信息
 func SessionConnect(conf config.SessionConfig) {
 
 	var clientConfig = &client.Config{
-		Servers:    []string{fmt.Sprintf("%s:%d", conf.Host, conf.Port)},
+		Servers:    []string{fmt.Sprintf("%s:%d", "127.0.0.1", SessionPort)},
 		Serializer: serializer.NewMsgpackSerializer(),
 		Client:     config_olric.NewClient(),
 	}
@@ -46,9 +55,10 @@ func SessionServerStop() {
 
 // SessionServerStart 启动会话服务器
 func SessionServerStart() {
+
 	c := &config_olric.Config{
-		BindAddr:          config.Conf.Session.Host,
-		BindPort:          config.Conf.Session.Port,
+		BindAddr:          "127.0.0.1",
+		BindPort:          SessionPort,
 		ReadRepair:        false,
 		ReplicaCount:      1,
 		WriteQuorum:       1,

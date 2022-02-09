@@ -38,3 +38,25 @@ func IP() map[string]string {
 func ProcessIP(process *gou.Process) interface{} {
 	return IP()
 }
+
+// FreePort xiang.network.FreePort 获取可用端口
+func FreePort() int {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		exception.New("获取可用端口失败 %s", 500, err.Error()).Throw()
+		return 0
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		exception.New("获取可用端口失败 %s", 500, err.Error()).Throw()
+		return 0
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port
+}
+
+// ProcessFreePort  xiang.network.FreePort 获取可用端口
+func ProcessFreePort(process *gou.Process) interface{} {
+	return FreePort()
+}

@@ -45,6 +45,7 @@ var langs = map[string]string{
 	"NEXT:":                                 "下一步:",
 	"Listening":                             "    监听",
 	"✨LISTENING✨":                           "✨服务正在运行✨",
+	"SessionPort":                           "会话服务端口",
 }
 
 // L 多语言切换

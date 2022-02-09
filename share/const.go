@@ -1,5 +1,8 @@
 package share
 
+// Logs
+// (session -> freeport)
+
 // VERSION 版本号
 const VERSION = "0.9.0"
 
