@@ -26,6 +26,13 @@ var langs = map[string]string{
 	"Show version":                          "显示当前版本号",
 	"Development mode":                      "使用开发模式启动",
 	"Enabled unstable features":             "启用内测功能",
+	"Fatal: %s":                             "失败: %s",
+	"Service stopped":                       "服务已关闭",
+	"API":                                   " API接口",
+	"API List":                              "API列表",
+	"Root":                                  "应用目录",
+	"Frontend":                              "前台地址",
+	"Dashboard":                             "管理后台",
 }
 
 // L 多语言切换

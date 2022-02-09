@@ -23,7 +23,7 @@ var startCmd = &cobra.Command{
 	Short: L("Start Engine"),
 	Long:  L("Start Engine"),
 	Run: func(cmd *cobra.Command, args []string) {
-		defer service.Stop(func() { fmt.Println("服务已关闭") })
+		defer service.Stop(func() { fmt.Println(L("Service stopped")) })
 		Boot()
 
 		if startDebug { // 强制 debug 模式启动
@@ -31,55 +31,54 @@ var startCmd = &cobra.Command{
 		}
 
 		mode := config.Conf.Mode
-		if mode == "debug" {
-			mode = color.RedString("调试模式\n")
-		} else {
-			mode = "\n"
-		}
-
 		err := engine.Load(config.Conf) // 加载脚本等
 		if err != nil {
-			fmt.Printf(color.RedString("启动失败: %s\n", err.Error()))
+			fmt.Printf(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
 		}
-
-		// 打印应用目录信息
-		fmt.Printf(color.GreenString("象传应用引擎 v%s %s", share.VERSION, mode))
-		fmt.Printf(color.WhiteString("\n---------------------------------"))
-		fmt.Printf(color.GreenString("\n应用名称: %s v%s", share.App.Name, share.App.Version))
-		fmt.Printf(color.GreenString("\n应用根目录: %s", config.Conf.Root))
-		fmt.Printf(color.GreenString("\n数据存储引擎: %s", share.App.Storage.Default))
-		fmt.Printf(color.WhiteString("\n---------------------------------\n\n"))
-
-		fmt.Printf(color.GreenString("\n已注册API"))
-		fmt.Printf(color.WhiteString("\n---------------------------------"))
-
-		for _, api := range gou.APIs { // API信息
-			if len(api.HTTP.Paths) <= 0 {
-				continue
-			}
-
-			fmt.Printf(color.CyanString("\n%s(%d)\n", api.Name, len(api.HTTP.Paths)))
-			for _, p := range api.HTTP.Paths {
-				fmt.Println(
-					colorMehtod(p.Method),
-					color.WhiteString(filepath.Join("/api", api.HTTP.Group, p.Path)),
-					"\tprocess:", p.Process)
-			}
-
-		}
-
 		port := fmt.Sprintf(":%d", config.Conf.Port)
 		if port == ":80" {
 			port = ""
 		}
 
-		fmt.Printf(color.GreenString("\n\n象传应用引擎"))
-		fmt.Printf(color.WhiteString("\n---------------------------------"))
-		fmt.Printf(color.GreenString("\n前台界面: http://%s%s/\n", "127.0.0.1", port))
-		fmt.Printf(color.GreenString("管理后台: http://%s%s/xiang/login/admin\n", "127.0.0.1", port))
-		fmt.Printf(color.GreenString("API 接口: http://%s%s/api\n", "127.0.0.1", port))
-		// fmt.Printf(color.GreenString("跨域访问: %s\n\n", strings.Join(config.Conf.Service.Allow, ",")))
+		host := config.Conf.Host
+		if host == "0.0.0.0" {
+			host = "127.0.0.1"
+		}
+
+		if mode == "development" {
+			fmt.Println(color.WhiteString("\n---------------------------------"))
+			fmt.Println(color.WhiteString(L("API List")))
+			fmt.Println(color.WhiteString("---------------------------------"))
+
+			for _, api := range gou.APIs { // API信息
+				if len(api.HTTP.Paths) <= 0 {
+					continue
+				}
+
+				fmt.Printf(color.CyanString("\n%s(%d)\n", api.Name, len(api.HTTP.Paths)))
+				for _, p := range api.HTTP.Paths {
+					fmt.Println(
+						colorMehtod(p.Method),
+						color.WhiteString(filepath.Join("/api", api.HTTP.Group, p.Path)),
+						"\tprocess:", p.Process)
+				}
+
+			}
+		}
+
+		fmt.Println(color.WhiteString("\n---------------------------------"))
+		fmt.Println(color.WhiteString(share.App.Name), color.WhiteString(share.App.Version), mode)
+		fmt.Println(color.WhiteString("---------------------------------"))
+		if !share.BUILDIN {
+			root, _ := filepath.Abs(config.Conf.Root)
+			fmt.Println(color.WhiteString(L("Root")), color.GreenString(" %s", root))
+		}
+
+		fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
+		fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/xiang/login/admin", host, port))
+		fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
+		fmt.Println("")
 
 		// 调试模式
 		if config.Conf.Mode == "debug" {
@@ -89,13 +88,15 @@ var startCmd = &cobra.Command{
 		// 启用内测功能
 		if startAlpha {
 			for _, srv := range gou.Servers {
-				fmt.Printf(color.GreenString("%s服务", srv.Name))
-				fmt.Printf(color.WhiteString("\n---------------------------------"))
-				fmt.Printf(color.GreenString("\nHost: %s://%s", srv.Protocol, srv.Host))
-				fmt.Printf(color.GreenString("\nPort: %s\n\n", srv.Port))
+				fmt.Println(color.WhiteString("\n---------------------------------"))
+				fmt.Println(color.WhiteString(srv.Name))
+				fmt.Println(color.WhiteString("---------------------------------"))
+				fmt.Println(color.GreenString("Host: %s://%s", srv.Protocol, srv.Host))
+				fmt.Println(color.GreenString("Port: %s\n\n", srv.Port))
 				go srv.Start()
 			}
 		}
+
 		service.Start()
 	},
 }
