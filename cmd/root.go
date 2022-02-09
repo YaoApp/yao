@@ -24,6 +24,8 @@ var langs = map[string]string{
 	"Update database schema":                "更新数据库结构",
 	"Execute process":                       "更新数据库结构",
 	"Show version":                          "显示当前版本号",
+	"Development mode":                      "使用开发模式启动",
+	"Enabled unstable features":             "启用内测功能",
 }
 
 // L 多语言切换

@@ -15,6 +15,9 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+var startDebug = false
+var startAlpha = false
+
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: L("Start Engine"),
@@ -22,6 +25,11 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		defer service.Stop(func() { fmt.Println("服务已关闭") })
 		Boot()
+
+		if startDebug { // 强制 debug 模式启动
+			config.Development()
+		}
+
 		mode := config.Conf.Mode
 		if mode == "debug" {
 			mode = color.RedString("调试模式\n")
@@ -78,8 +86,8 @@ var startCmd = &cobra.Command{
 			service.Watch(config.Conf)
 		}
 
-		if len(args) > 0 && args[0] == "alpha" {
-			// 启动 Socket 服务 (alpha)
+		// 启用内测功能
+		if startAlpha {
 			for _, srv := range gou.Servers {
 				fmt.Printf(color.GreenString("%s服务", srv.Name))
 				fmt.Printf(color.WhiteString("\n---------------------------------"))
@@ -102,4 +110,9 @@ func colorMehtod(method string) string {
 	default:
 		return color.WhiteString(method)
 	}
+}
+
+func init() {
+	startCmd.PersistentFlags().BoolVarP(&startDebug, "debug", "", false, L("Development mode"))
+	startCmd.PersistentFlags().BoolVarP(&startAlpha, "alpha", "", false, L("Enabled unstable features"))
 }
