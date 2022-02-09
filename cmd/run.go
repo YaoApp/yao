@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/share"
 )
 
 var runCmd = &cobra.Command{
@@ -21,16 +22,16 @@ var runCmd = &cobra.Command{
 		defer gou.KillPlugins()
 		Boot()
 		cfg := config.Conf
-		// cfg.Session.IsCLI = true
+		cfg.Session.IsCLI = true
 		engine.Load(cfg)
 		if len(args) < 1 {
-			fmt.Println(color.RedString("参数错误: 未指定处理名称"))
-			fmt.Println(color.WhiteString("xiang run <处理器名称> [参数表...]"))
+			fmt.Println(color.RedString(L("Not enough arguments")))
+			fmt.Println(color.WhiteString(share.BUILDNAME + " help"))
 			return
 		}
 
 		name := args[0]
-		fmt.Println(color.GreenString("运行处理器: %s", name))
+		fmt.Println(color.GreenString(L("Run: %s"), name))
 		pargs := []interface{}{}
 		for i, arg := range args {
 			if i == 0 {
@@ -43,7 +44,7 @@ var runCmd = &cobra.Command{
 				var v interface{}
 				err := jsoniter.Unmarshal([]byte(arg), &v)
 				if err != nil {
-					fmt.Println(color.RedString("参数错误: %s", err.Error()))
+					fmt.Println(color.RedString(L("Arguments: %s"), err.Error()))
 					return
 				}
 				pargs = append(pargs, v)
@@ -61,8 +62,8 @@ var runCmd = &cobra.Command{
 
 		process := gou.NewProcess(name, pargs...)
 		res := process.Run()
-		fmt.Println(color.WhiteString("\n--------------------------------------"))
-		fmt.Println(color.WhiteString("%s 返回结果", name))
+		fmt.Println(color.WhiteString("--------------------------------------"))
+		fmt.Println(color.WhiteString(L("%s Response"), name))
 		fmt.Println(color.WhiteString("--------------------------------------"))
 		utils.Dump(res)
 	},

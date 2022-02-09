@@ -25,17 +25,9 @@ func init() {
 
 // processCreate 运行模型 MustCreate
 func processPing(process *gou.Process) interface{} {
-	var input interface{}
-	if process.NumOfArgs() > 0 {
-		input = process.Args[0]
-	}
-
 	res := map[string]interface{}{
-		"code":    200,
-		"server":  "Yao App Engine",
+		"engine":  share.BUILDNAME,
 		"version": share.VERSION,
-		// "allows":  config.Conf.Service.Allow,
-		"args": input,
 	}
 	return res
 }

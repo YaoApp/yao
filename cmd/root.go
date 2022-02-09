@@ -33,6 +33,10 @@ var langs = map[string]string{
 	"Root":                                  "应用目录",
 	"Frontend":                              "前台地址",
 	"Dashboard":                             "管理后台",
+	"Not enough arguments":                  "参数错误: 缺少参数",
+	"Run: %s":                               "运行: %s",
+	"Arguments: %s":                         "参数错误: %s",
+	"%s Response":                           "%s 返回结果",
 }
 
 // L 多语言切换
