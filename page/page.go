@@ -24,15 +24,15 @@ func Load(cfg config.Config) error {
 
 	var errs error = nil
 	if err := LoadFrom(path.Join(cfg.Root, "/kanban"), ""); err != nil {
-		log.Warn("load kanban error: %s ", err.Error())
+		log.Trace("load kanban error: %s ", err.Error())
 		errs = err
 	}
 	if err := LoadFrom(path.Join(cfg.Root, "/screen"), ""); err != nil {
-		log.Warn("load screen error: %s", err.Error())
+		log.Trace("load screen error: %s", err.Error())
 		errs = err
 	}
 	if err := LoadFrom(path.Join(cfg.Root, "/pages"), ""); err != nil {
-		log.Warn("load screen error: %s", err.Error())
+		log.Trace("load screen error: %s", err.Error())
 		errs = err
 	}
 
