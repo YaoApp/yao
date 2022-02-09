@@ -114,7 +114,7 @@ func LoadEngine(from ...string) {
 	if len(from) > 0 {
 		scripts = share.GetFilesFS(from[0], ".json")
 	} else {
-		scripts = share.GetFilesBin("/xiang", ".json")
+		scripts = share.GetFilesBin("xiang", ".json")
 	}
 
 	if scripts == nil {

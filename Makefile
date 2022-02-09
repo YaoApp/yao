@@ -143,7 +143,7 @@ xiang: bindata
 .PHONY: release
 release: clean
 	mkdir -p dist/release
-	git clone git@github.com:YaoApp/xiang.git dist/release
+	git clone git@github.com:YaoApp/yao.git dist/release
 	git clone git@github.com:YaoApp/kun.git dist/kun
 	git clone git@github.com:YaoApp/xun.git dist/xun
 	git clone git@github.com:YaoApp/gou.git dist/gou
@@ -187,7 +187,7 @@ hi:
 .PHONY: arm
 arm: clean
 	mkdir -p dist/release
-	git clone git@github.com:YaoApp/xiang.git dist/release
+	git clone git@github.com:YaoApp/yao.git dist/release
 	git clone git@github.com:YaoApp/kun.git dist/kun
 	git clone git@github.com:YaoApp/xun.git dist/xun
 	git clone git@github.com:YaoApp/gou.git dist/gou
@@ -219,7 +219,7 @@ arm: clean
 .PHONY: linux
 linux: clean
 	mkdir -p dist/release
-	git clone git@github.com:YaoApp/xiang.git dist/release
+	git clone git@github.com:YaoApp/yao.git dist/release
 	git clone git@github.com:YaoApp/kun.git dist/kun
 	git clone git@github.com:YaoApp/xun.git dist/xun
 	git clone git@github.com:YaoApp/gou.git dist/gou

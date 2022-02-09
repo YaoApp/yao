@@ -8,6 +8,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -20,6 +21,13 @@ var runCmd = &cobra.Command{
 	Long:  L("Execute process"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer gou.KillPlugins()
+		defer func() {
+			err := exception.Catch(recover())
+			if err != nil {
+				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			}
+		}()
+
 		Boot()
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
@@ -66,5 +74,7 @@ var runCmd = &cobra.Command{
 		fmt.Println(color.WhiteString(L("%s Response"), name))
 		fmt.Println(color.WhiteString("--------------------------------------"))
 		utils.Dump(res)
+		fmt.Println(color.WhiteString("--------------------------------------"))
+		fmt.Println(color.GreenString(L("✨DONE✨")))
 	},
 }

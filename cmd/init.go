@@ -22,6 +22,7 @@ var initCmd = &cobra.Command{
 		makeAppJSON()
 		makeEnv()
 		defaultApps()
+		fmt.Println(color.GreenString(L("✨DONE✨")))
 	},
 }
 

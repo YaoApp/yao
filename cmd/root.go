@@ -41,6 +41,7 @@ var langs = map[string]string{
 	"Update schema model: %s (%s) ":         "更新表结构 model: %s (%s)",
 	"Model name":                            "模型名称",
 	"Initialize project":                    "项目初始化",
+	"✨DONE✨":                                "✨完成✨",
 }
 
 // L 多语言切换

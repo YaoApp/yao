@@ -97,6 +97,7 @@ var startCmd = &cobra.Command{
 			}
 		}
 
+		fmt.Println(color.GreenString(L("✨DONE✨")))
 		service.Start()
 	},
 }

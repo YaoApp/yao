@@ -7,6 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
 )
@@ -17,6 +18,13 @@ var migrateCmd = &cobra.Command{
 	Short: L("Update database schema"),
 	Long:  L("Update database schema"),
 	Run: func(cmd *cobra.Command, args []string) {
+		defer func() {
+			err := exception.Catch(recover())
+			if err != nil {
+				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			}
+		}()
+
 		Boot()
 		// 加载数据模型
 		err := engine.Load(config.Conf)
@@ -38,6 +46,8 @@ var migrateCmd = &cobra.Command{
 			fmt.Println(color.GreenString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
 			mod.Migrate(true)
 		}
+
+		fmt.Println(color.GreenString(L("✨DONE✨")))
 	},
 }
 
