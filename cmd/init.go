@@ -29,7 +29,7 @@ var initCmd = &cobra.Command{
 }
 
 func makeDirs() {
-	dirs := []string{"db", "models", "flows", "scripts", "tables", "libs", "ui"}
+	dirs := []string{"db", "data", "apis", "models", "flows", "scripts", "tables", "libs", "ui"}
 	for _, name := range dirs {
 		dirname := filepath.Join(config.Conf.Root, name)
 		if _, err := os.Stat(dirname); errors.Is(err, os.ErrNotExist) {
@@ -183,6 +183,27 @@ function NextDay(day) {
 }
 `)
 
+	makeFile(filepath.Join("apis", "demo.http.json"), `{
+	"name": "Hi",
+	"version": "1.0.0",
+	"description": "API demo",
+	"guard": "bearer-jwt",
+	"group": "demo",
+	"paths": [
+	  {
+		"path": "/next",
+		"method": "GET",
+		"guard": "-",
+		"process": "scripts.day.NextDay",
+		"in": ["$query.day"],
+		"out": {
+		  "status": 200,
+		  "type": "application/json"
+		}
+	  }
+	]
+}`)
+
 	makeFile(filepath.Join("ui", "index.html"), `It works! <a href="https://yaoapps.com">https://yaoapps.com</a>`)
 
 	makeFile(filepath.Join("libs", "f.json"), `{
@@ -236,7 +257,7 @@ func makeAppJSON() {
 }
 
 func checkDir() {
-	dirs := []string{"db", "models", "flows", "scripts", "tables", "libs", "ui", ".env", "app.json"}
+	dirs := []string{"db", "data", "models", "flows", "apis", "scripts", "tables", "libs", "ui", ".env", "app.json"}
 	for _, name := range dirs {
 		dirname := filepath.Join(config.Conf.Root, name)
 		if _, err := os.Stat(dirname); !errors.Is(err, os.ErrNotExist) {
