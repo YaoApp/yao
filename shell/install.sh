@@ -1,6 +1,6 @@
  #!/bin/bash
-VERSION="0.9.11"
-URL="https://demo-crm.iqka.com/releases/$VERSION"
+VERSION=$(ls -lt /data/release/ui/download | grep yao- | head -n 1 |awk '{print $9}' |awk -F- '{print $2}')
+URL="https://release.yaoapps.com/download"
 
 function macos(){
     tmpdir=$(dirname $(mktemp -u))

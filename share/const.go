@@ -1,7 +1,8 @@
 package share
 
 // Logs
-// (session -> freeport)
+// session -> freeport
+// 更新制品目录 -> ui/downloads
 
 // VERSION 版本号
 const VERSION = "0.9.0"
