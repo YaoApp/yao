@@ -32,6 +32,14 @@ func Load(cfg config.Config) {
 	}
 }
 
+// L 语言包
+func L(word string) string {
+	if trans, has := share.App.L[word]; has {
+		return trans
+	}
+	return word
+}
+
 // Init 应用初始化
 func Init(cfg config.Config) {
 

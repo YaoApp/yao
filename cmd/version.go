@@ -9,8 +9,8 @@ import (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "显示当前版本号",
-	Long:  `显示当前版本号`,
+	Short: L("Show version"),
+	Long:  L("Show version"),
 	Run: func(cmd *cobra.Command, args []string) {
 		// Do Stuff Here
 		fmt.Println(share.VERSION)

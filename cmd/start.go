@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -16,8 +17,8 @@ import (
 
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "启动象传应用引擎",
-	Long:  `启动象传应用引擎`,
+	Short: L("Start Engine"),
+	Long:  L("Start Engine"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer service.Stop(func() { fmt.Println("服务已关闭") })
 		Boot()
@@ -28,11 +29,14 @@ var startCmd = &cobra.Command{
 			mode = "\n"
 		}
 
-		fmt.Printf(color.GreenString("象传应用引擎 v%s %s", share.VERSION, mode))
-
-		engine.Load(config.Conf) // 加载数据模型 API 等
+		err := engine.Load(config.Conf) // 加载脚本等
+		if err != nil {
+			fmt.Printf(color.RedString("启动失败: %s\n", err.Error()))
+			os.Exit(1)
+		}
 
 		// 打印应用目录信息
+		fmt.Printf(color.GreenString("象传应用引擎 v%s %s", share.VERSION, mode))
 		fmt.Printf(color.WhiteString("\n---------------------------------"))
 		fmt.Printf(color.GreenString("\n应用名称: %s v%s", share.App.Name, share.App.Version))
 		fmt.Printf(color.GreenString("\n应用根目录: %s", config.Conf.Root))

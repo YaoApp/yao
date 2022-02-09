@@ -10,8 +10,8 @@ import (
 
 var inspectCmd = &cobra.Command{
 	Use:   "inspect",
-	Short: "显示当前配置信息",
-	Long:  `显示当前配置信息`,
+	Short: L("Show app configure"),
+	Long:  L("Show app configure"),
 	Run: func(cmd *cobra.Command, args []string) {
 		Boot()
 		res := maps.Map{

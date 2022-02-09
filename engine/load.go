@@ -25,38 +25,76 @@ import (
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
-func Load(cfg config.Config) {
+func Load(cfg config.Config) (err error) {
+	defer func() { err = exception.Catch(recover()) }()
 
+	// 加载应用信息
+	// 第一步: 加载应用信息
+	app.Load(cfg)
+
+	// 第二步: 建立数据库 & 会话连接
 	share.DBConnect(cfg.DB)           // 创建数据库连接
 	share.SessionConnect(cfg.Session) // 创建会话服务器链接
 
-	app.Load(cfg) // 加载应用信息
-
+	// 加载应用引擎
 	if os.Getenv("YAO_DEV") != "" {
 		LoadEngine(filepath.Join(os.Getenv("YAO_DEV"), "/xiang"))
 	} else {
 		LoadEngine()
 	}
 
+	// 第三步: 加载数据分析引擎
 	query.Load(cfg) // 加载数据分析引擎
 
-	share.Load(cfg)  // 加载共享库 lib
-	script.Load(cfg) // 加载JS处理器 script
-	model.Load(cfg)  // 加载数据模型 model
-	flow.Load(cfg)   // 加载业务逻辑 Flow
-	plugin.Load(cfg) // 加载业务插件 plugin
-	table.Load(cfg)  // 加载数据表格 table
-	chart.Load(cfg)  // 加载分析图表 chart
-	page.Load(cfg)   // 加载页面 page
+	// 第四步: 加载共享库 & JS 处理器
+	err = share.Load(cfg) // 加载共享库 lib
+	if err != nil {
+		return err
+	}
+	err = script.Load(cfg) // 加载JS处理器 script
+	if err != nil {
+		return err
+	}
 
-	importer.Load(cfg) // 加载数据导入 imports
-	workflow.Load(cfg) // 加载工作流  workflow
-	api.Load(cfg)      // 加载业务接口 API
-	server.Load(cfg)   // 加载服务
+	// 第五步: 加载数据模型等
+	err = model.Load(cfg) // 加载数据模型 model
+	if err != nil {
+		return err
+	}
+	err = flow.Load(cfg) // 加载业务逻辑 Flow
+	if err != nil {
+		return err
+	}
+	err = plugin.Load(cfg) // 加载业务插件 plugin
+	if err != nil {
+		return err
+	}
+	err = table.Load(cfg) // 加载数据表格 table
+	if err != nil {
+		return err
+	}
+	err = chart.Load(cfg) // 加载分析图表 chart
+	if err != nil {
+		return err
+	}
+	err = page.Load(cfg) // 加载页面 page
+	if err != nil {
+		return err
+	}
+
+	importer.Load(cfg)  // 加载数据导入 imports
+	workflow.Load(cfg)  // 加载工作流  workflow
+	err = api.Load(cfg) // 加载业务接口 API
+	if err != nil {
+		return err
+	}
+
+	server.Load(cfg) // 加载服务
 
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey), "AES")
 	gou.LoadCrypt(`{}`, "PASSWORD")
+	return nil
 }
 
 // Reload 根据配置重新加载 API, FLow, Model, Plugin

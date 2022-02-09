@@ -13,8 +13,8 @@ import (
 var name string
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
-	Short: "更新数据结构",
-	Long:  `更新数据库结构`,
+	Short: L("Update database schema"),
+	Long:  L("Update database schema"),
 	Run: func(cmd *cobra.Command, args []string) {
 		Boot()
 		// 加载数据模型

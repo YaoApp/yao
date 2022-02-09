@@ -15,8 +15,8 @@ import (
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "运行处理器",
-	Long:  `运行处理器`,
+	Short: L("Execute process"),
+	Long:  L("Execute process"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer gou.KillPlugins()
 		Boot()

@@ -6,8 +6,8 @@ import (
 
 var helpCmd = &cobra.Command{
 	Use:   "help",
-	Short: "显示命令帮助文档",
-	Long:  `显示命令帮助文档`,
+	Short: L("Help for yao"),
+	Long:  L("Help for yao"),
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
