@@ -91,7 +91,7 @@ jobs:
         with:
           src: ./dist/release/*
           host: ${{ secrets.SSH_HOST }}
-          remote: ${{ secrets.SSH_PATH }}
+          remote: /data/down/
           port: ${{ secrets.SSH_PORT }}
           user: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}

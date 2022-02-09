@@ -1,7 +1,7 @@
 package share
 
 // VERSION 版本号
-const VERSION = "0.8.0"
+const VERSION = "0.9.0"
 
 // BUILDIN 应用打包成一个制品
 const BUILDIN = false
