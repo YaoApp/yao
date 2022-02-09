@@ -180,7 +180,7 @@ func (table *Table) Before(process string, processArgs []interface{}, sid string
 
 	response, err := gou.NewProcess(process, args...).WithSID(sid).Exec()
 	if err != nil {
-		log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: ", err.Error())
+		log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: %s", err.Error())
 		return processArgs
 	}
 
@@ -201,7 +201,7 @@ func (table *Table) After(process string, data interface{}, args []interface{}, 
 	args = append([]interface{}{data}, args...)
 	response, err := gou.NewProcess(process, args...).WithSID(sid).Exec()
 	if err != nil {
-		log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: ", err.Error())
+		log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: %s", err.Error())
 		return data
 	}
 	return response
