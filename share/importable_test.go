@@ -7,7 +7,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
 )
 
 func init() {
@@ -63,10 +62,4 @@ func TestAPI(t *testing.T) {
 	api := API{}
 	jsoniter.Unmarshal([]byte(content), &api)
 	assert.Equal(t, []interface{}{nil, nil, float64(10)}, api.Default)
-}
-
-func TestScript(t *testing.T) {
-	res, err := gou.Yao.New("time", "hello").Call("world")
-	assert.Nil(t, err)
-	assert.Equal(t, "name:world", res)
 }

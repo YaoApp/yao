@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/xiang/page"
 	"github.com/yaoapp/xiang/plugin"
 	"github.com/yaoapp/xiang/query"
+	"github.com/yaoapp/xiang/script"
 	"github.com/yaoapp/xiang/server"
 	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xiang/table"
@@ -40,6 +41,7 @@ func Load(cfg config.Config) {
 	query.Load(cfg) // 加载数据分析引擎
 
 	share.Load(cfg)  // 加载共享库 lib
+	script.Load(cfg) // 加载JS处理器 script
 	model.Load(cfg)  // 加载数据模型 model
 	flow.Load(cfg)   // 加载业务逻辑 Flow
 	plugin.Load(cfg) // 加载业务插件 plugin

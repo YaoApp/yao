@@ -8,34 +8,44 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/query/share"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/xlog"
 )
 
 // Libs 共享库
 var Libs = map[string]map[string]interface{}{}
 
 // Load 加载共享库
-func Load(cfg config.Config) {
-	LoadFrom(filepath.Join(cfg.Root, "libs"))
+func Load(cfg config.Config) error {
+	if BUILDIN {
+		return LoadBuildIn("libs")
+	}
+	return LoadFrom(filepath.Join(cfg.Root, "libs"))
+}
+
+// LoadBuildIn 从制品中读取
+func LoadBuildIn(dir string) error {
+	return nil
 }
 
 // LoadFrom 从特定目录加载共享库
-func LoadFrom(dir string) {
+func LoadFrom(dir string) error {
 
 	if DirNotExists(dir) {
-		return
+		return fmt.Errorf("%s does not exists", dir)
 	}
 
 	// 加载共享数据
-	Walk(dir, ".json", func(root, filename string) {
+	err := Walk(dir, ".json", func(root, filename string) {
 		name := SpecName(root, filename)
 		content := ReadFile(filename)
 		libs := map[string]map[string]interface{}{}
 		err := jsoniter.Unmarshal(content, &libs)
 		if err != nil {
 			exception.New("共享数据结构异常 %s", 400, err).Throw()
+			log.Error("加载脚本失败 %s", err.Error())
+			return
 		}
 		for key, lib := range libs {
 			key := fmt.Sprintf("%s.%s", name, key)
@@ -47,14 +57,19 @@ func LoadFrom(dir string) {
 		}
 	})
 
+	if err != nil {
+		return err
+	}
+
 	// 加载共享脚本
-	Walk(dir, ".js", func(root, filename string) {
+	err = Walk(dir, ".js", func(root, filename string) {
 		name := SpecName(root, filename)
 		err := gou.Yao.Load(filename, name)
 		if err != nil {
-			xlog.Printf("加载脚本失败 %s", err.Error())
+			log.Error("加载脚本失败 %s", err.Error())
 		}
 	})
+	return err
 }
 
 // UnmarshalJSON Column 字段JSON解析
