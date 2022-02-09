@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -39,6 +40,7 @@ var langs = map[string]string{
 	"%s Response":                           "%s 返回结果",
 	"Update schema model: %s (%s) ":         "更新表结构 model: %s (%s)",
 	"Model name":                            "模型名称",
+	"Initialize project":                    "项目初始化",
 }
 
 // L 多语言切换
@@ -75,6 +77,7 @@ func init() {
 		inspectCmd,
 		startCmd,
 		runCmd,
+		initCmd,
 	)
 	rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
@@ -89,12 +92,22 @@ func Execute() {
 	}
 }
 
-// Boot 设定配置
+// Boot 设定配置 (这个逻辑有 BUG )
 func Boot() {
 
 	if envFile == "" && appPath != "" {
-		config.Conf = config.LoadFrom(filepath.Join(appPath, ".env"))
-		config.Conf.Root = appPath
+		root, err := filepath.Abs(appPath)
+		if err != nil {
+			exception.New("Root error %s", 500, err.Error()).Throw()
+		}
+		config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
+		config.Conf.Root = root
+		if config.Conf.Mode == "production" {
+			config.Production()
+		} else if config.Conf.Mode == "development" {
+			config.Development()
+		}
+
 		return
 	}
 
@@ -104,7 +117,17 @@ func Boot() {
 	}
 
 	if envFile != "" && appPath != "" {
+		root, err := filepath.Abs(appPath)
+		if err != nil {
+			exception.New("Root error %s", 500, err.Error()).Throw()
+		}
 		config.Conf = config.LoadFrom(envFile)
-		config.Conf.Root = appPath
+		config.Conf.Root = root
+		if config.Conf.Mode == "production" {
+			config.Production()
+		} else if config.Conf.Mode == "development" {
+			config.Development()
+		}
+
 	}
 }
