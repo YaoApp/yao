@@ -3,8 +3,10 @@ package share
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
+
+	klog "github.com/yaoapp/kun/log"
 
 	"github.com/buraksezer/olric"
 	"github.com/buraksezer/olric/client"
@@ -55,6 +57,7 @@ func SessionServerStart() {
 		Peers:             []string{},
 		DMaps:             &config_olric.DMaps{},
 		StorageEngines:    config_olric.NewStorageEngine(),
+		Logger:            &log.Logger{},
 	}
 
 	m, err := config_olric.NewMemberlistConfig("local")
@@ -73,30 +76,30 @@ func SessionServerStart() {
 	// c.BindAddr = config.Conf.Session.Host
 	// c.BindPort = config.Conf.Session.Port
 
-	c.Logger.SetOutput(ioutil.Discard) // 暂时关闭日志
+	c.Logger.SetOutput(io.Discard) // 暂时关闭日志
 	ctx, cancel := context.WithCancel(context.Background())
 	c.Started = func() {
 		defer cancel()
-		log.Println("[INFO] Olric is ready to accept connections")
+		klog.Trace("[INFO] Olric is ready to accept connections")
 	}
 
 	sessServer, err = olric.New(c)
 
 	if err != nil {
-		log.Fatalf("Failed to create Olric instance: %v", err)
+		klog.Error("Failed to create Olric instance: %v", err)
 	}
 
 	go func() {
 		err = sessServer.Start() // Call Start at background. It's a blocker call.
 		if err != nil {
-			log.Fatalf("olric.Start returned an error: %v", err)
+			klog.Panic("olric.Start returned an error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 	dm, err := sessServer.NewDMap("local-session")
 	if err != nil {
-		log.Fatalf("olric.NewDMap returned an error: %v", err)
+		klog.Panic("olric.NewDMap returned an error: %v", err)
 	}
 
 	session.MemoryUse(session.ServerDMap{DMap: dm})
