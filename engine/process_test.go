@@ -14,3 +14,15 @@ func TestProcessPing(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, res["version"], share.VERSION)
 }
+
+func TestProcessAliasPing(t *testing.T) {
+	res, ok := gou.NewProcess("xiang.sys.Ping").Run().(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, res["version"], share.VERSION)
+}
+
+func TestProcessInspect(t *testing.T) {
+	res, ok := gou.NewProcess("xiang.sys.Inspect").Run().(share.AppInfo)
+	assert.True(t, ok)
+	assert.NotNil(t, res.Version)
+}

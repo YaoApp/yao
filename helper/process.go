@@ -41,11 +41,17 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.IF", ProcessIF)
 
 	gou.RegisterProcessHandler("xiang.helper.EnvSet", ProcessEnvSet)
+	gou.AliasProcess("xiang.helper.EnvSet", "xiang.env.Set")
 	gou.RegisterProcessHandler("xiang.helper.EnvGet", ProcessEnvGet)
+	gou.AliasProcess("xiang.helper.EnvGet", "xiang.env.Get")
 	gou.RegisterProcessHandler("xiang.helper.EnvMultiSet", ProcessEnvMultiSet)
+	gou.AliasProcess("xiang.helper.EnvMultiSet", "xiang.env.MultiSet")
 	gou.RegisterProcessHandler("xiang.helper.EnvMultiGet", ProcessEnvMultiGet)
+	gou.AliasProcess("xiang.helper.EnvMultiGet", "xiang.env.MultiGet")
 
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
+	gou.AliasProcess("xiang.helper.Print", "xiang.sys.Print")
+
 	gou.RegisterProcessHandler("xiang.helper.Throw", ProcessThrow)
 	gou.RegisterProcessHandler("xiang.helper.Return", ProcessReturn)
 
