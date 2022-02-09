@@ -6,9 +6,9 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/xlog"
 )
 
 // Guards 服务中间件
@@ -27,15 +27,13 @@ func bearerJWT(c *gin.Context) {
 	}
 
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
-	if config.Conf.Mode == "debug" {
-		xlog.Printf("JWT: %s Secret: %s", tokenString, config.Conf.JWTSecret)
-	}
+	log.Debug("JWT: %s Secret: %s", tokenString, config.Conf.JWTSecret)
 	token, err := jwt.ParseWithClaims(tokenString, &helper.JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(config.Conf.JWTSecret), nil
 	})
 
 	if err != nil {
-		xlog.Printf("JWT ParseWithClaims Error: %s", err)
+		log.Error("JWT ParseWithClaims Error: %s", err)
 		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("登录已过期或令牌失效(%s)", err)})
 		c.Abort()
 		return

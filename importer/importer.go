@@ -11,12 +11,12 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/importer/from"
 	"github.com/yaoapp/yao/importer/xlsx"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/xfs"
-	"github.com/yaoapp/yao/xlog"
 )
 
 // Importers 导入器
@@ -163,12 +163,12 @@ func (imp *Importer) DataClean(data [][]interface{}, bindings []*Binding) ([]str
 func DataValidate(row []interface{}, value interface{}, rule string) ([]interface{}, bool) {
 	process, err := gou.ProcessOf(rule, value, row)
 	if err != nil {
-		xlog.Printf("DataValidate: %s %s", rule, err.Error())
+		log.With(log.F{"rule": rule, "row": row}).Error("DataValidate: %s", err.Error())
 		return row, true
 	}
 	res, err := process.Exec()
 	if err != nil {
-		xlog.Printf("DataValidate: %s %s", rule, err.Error())
+		log.With(log.F{"rule": rule, "row": row}).Error("DataValidate: %s", err.Error())
 		return row, true
 	}
 
@@ -397,14 +397,14 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 		process, err := gou.ProcessOf(imp.Process, columns, data)
 		if err != nil {
 			failed = failed + length
-			xlog.Printf("导入失败 %d %s ", line, err.Error())
+			log.With(log.F{"line": line}).Error("导入失败: %s", err.Error())
 			return
 		}
 
 		response, err := process.Exec()
 		if err != nil {
 			failed = failed + length
-			xlog.Printf("导入失败 %d %s ", line, err.Error())
+			log.With(log.F{"line": line}).Error("导入失败: %s", err.Error())
 			return
 		}
 
@@ -422,7 +422,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 			return
 		}
 
-		xlog.Printf("导入处理器未返回失败结果 %#v %d %d", response, line, length)
+		log.With(log.F{"line": line, "response": response, "length": length}).Error("导入处理器未返回失败结果")
 	})
 	return map[string]int{
 		"total":   total,

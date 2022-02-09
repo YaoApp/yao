@@ -6,8 +6,8 @@ import (
 
 	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/importer/from"
-	"github.com/yaoapp/yao/xlog"
 )
 
 // Xlsx xlsx file
@@ -54,7 +54,7 @@ func Open(filename string) *Xlsx {
 // Close 关闭文件句柄
 func (xlsx *Xlsx) Close() error {
 	if err := xlsx.File.Close(); err != nil {
-		xlog.Println(err.Error())
+		log.Error("Close file error: %s", err.Error())
 		return err
 	}
 	return nil
@@ -122,7 +122,7 @@ func (xlsx *Xlsx) readLine(line int, axises []string) ([]interface{}, bool) {
 			axis := positionToAxis(line, c)
 			value, err = xlsx.File.GetCellValue(xlsx.SheetName, axis)
 			if err != nil {
-				xlog.Printf("读取数据出错 %s %s %s", xlsx.SheetName, axis, err.Error())
+				log.With(log.F{"SheetName": xlsx.SheetName, "axis": axis}).Error("读取数据出错 %s", err.Error())
 				value = ""
 			}
 		}
@@ -160,7 +160,7 @@ func (xlsx *Xlsx) Columns() []from.Column {
 				}
 				cellType, err := xlsx.File.GetCellType(xlsx.SheetName, axis)
 				if err != nil {
-					xlog.Printf("读取数据类型失败 %s", err.Error())
+					log.With(log.F{"SheetName": xlsx.SheetName, "axis": axis}).Error("读取数据类型失败 %s", err.Error())
 				}
 				columns = append(columns, from.Column{
 					Name: cell,

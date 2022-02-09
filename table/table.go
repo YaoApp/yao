@@ -11,10 +11,8 @@ import (
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/xlog"
 )
 
 // Tables 已载入模型
@@ -182,7 +180,7 @@ func (table *Table) Before(process string, processArgs []interface{}, sid string
 
 	response, err := gou.NewProcess(process, args...).WithSID(sid).Exec()
 	if err != nil {
-		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "args": args})
+		log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: ", err.Error())
 		return processArgs
 	}
 
@@ -191,7 +189,7 @@ func (table *Table) Before(process string, processArgs []interface{}, sid string
 		return res
 	}
 
-	xlog.Println("Hook执行失败: 无效的处理器", maps.StrAny{"process": process, "response": response})
+	log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: 无效的处理器")
 	return processArgs
 }
 
@@ -203,7 +201,7 @@ func (table *Table) After(process string, data interface{}, args []interface{}, 
 	args = append([]interface{}{data}, args...)
 	response, err := gou.NewProcess(process, args...).WithSID(sid).Exec()
 	if err != nil {
-		xlog.Println("Hook执行失败: ", err.Error(), maps.StrAny{"process": process, "args": args})
+		log.With(log.F{"process": process, "args": args}).Warn("Hook执行失败: ", err.Error())
 		return data
 	}
 	return response

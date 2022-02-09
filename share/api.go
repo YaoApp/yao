@@ -10,9 +10,9 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/yao/xlog"
 )
 
 // IsAllow 鉴权处理程序
@@ -118,20 +118,17 @@ func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int, sid string) g
 
 // GetQueryParam 解析参数
 func GetQueryParam(v interface{}, sid string) gou.QueryParam {
-	fmt.Println("\n==== GetQueryParam =====  SID:", sid)
+	log.With(log.F{"sid": sid}).Trace("GetQueryParam Entry")
 	data := map[string]interface{}{}
 	if sid != "" {
 		var err error
 		ss := session.Global().ID(sid)
 		data, err = ss.Dump()
-		utils.Dump(data)
+		log.With(log.F{"data": data}).Trace("GetQueryParam Session Data")
 		if err != nil {
-			xlog.Printf("读取会话信息出错 %s", err.Error())
+			log.Error("读取会话信息出错 %s", err.Error())
 		}
 	}
-	fmt.Println("==== GetQueryParam========================")
-	fmt.Println("")
-
 	v = share.Bind(v, maps.Of(data).Dot())
 	param, ok := gou.AnyToQueryParam(v)
 	if !ok {

@@ -16,7 +16,6 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/xlog"
 )
 
 // Process
@@ -64,9 +63,7 @@ func LoadWorkFlow(source []byte, name string) (*WorkFlow, error) {
 	workflow := WorkFlow{Name: name, Source: source}
 	err := jsoniter.Unmarshal(source, &workflow)
 	if err != nil {
-		xlog.Println(name)
-		xlog.Println(err.Error())
-		xlog.Println(string(source))
+		log.With(log.F{"name": name, "source": source}).Error("LoadWorkFlow: %s", err.Error())
 		return nil, err
 	}
 
