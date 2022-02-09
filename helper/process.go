@@ -36,9 +36,17 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.JwtValidate", ProcessJwtValidate)
 
 	gou.RegisterProcessHandler("xiang.helper.For", ProcessFor)
+	gou.AliasProcess("xiang.helper.For", "xiang.flow.For")
 	gou.RegisterProcessHandler("xiang.helper.Each", ProcessEach)
+	gou.AliasProcess("xiang.helper.Each", "xiang.flow.Each")
 	gou.RegisterProcessHandler("xiang.helper.Case", ProcessCase)
+	gou.AliasProcess("xiang.helper.Case", "xiang.flow.Case")
 	gou.RegisterProcessHandler("xiang.helper.IF", ProcessIF)
+	gou.AliasProcess("xiang.helper.IF", "xiang.flow.IF")
+	gou.RegisterProcessHandler("xiang.helper.Throw", ProcessThrow)
+	gou.AliasProcess("xiang.helper.Throw", "xiang.flow.Throw")
+	gou.RegisterProcessHandler("xiang.helper.Return", ProcessReturn)
+	gou.AliasProcess("xiang.helper.Return", "xiang.flow.Return")
 
 	gou.RegisterProcessHandler("xiang.helper.EnvSet", ProcessEnvSet)
 	gou.AliasProcess("xiang.helper.EnvSet", "xiang.env.Set")
@@ -51,9 +59,6 @@ func init() {
 
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 	gou.AliasProcess("xiang.helper.Print", "xiang.sys.Print")
-
-	gou.RegisterProcessHandler("xiang.helper.Throw", ProcessThrow)
-	gou.RegisterProcessHandler("xiang.helper.Return", ProcessReturn)
 
 }
 
