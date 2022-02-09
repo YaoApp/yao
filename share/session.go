@@ -75,8 +75,8 @@ func SessionServerStart() {
 		panic(fmt.Sprintf("unable to create a new memberlist config: %v", err))
 	}
 	// m.BindAddr = config.Conf.Session.Host
-	m.BindPort = config.Conf.Session.Port
-	m.AdvertisePort = config.Conf.Session.Port
+	m.BindPort = SessionPort
+	m.AdvertisePort = SessionPort
 	c.MemberlistConfig = m
 
 	// c.MemberlistConfig.BindAddr = config.Conf.Session.Host
@@ -102,14 +102,14 @@ func SessionServerStart() {
 	go func() {
 		err = sessServer.Start() // Call Start at background. It's a blocker call.
 		if err != nil {
-			klog.Error("olric.Start returned an error: %v", err)
+			klog.Panic("olric.Start returned an error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 	dm, err := sessServer.NewDMap("local-session")
 	if err != nil {
-		klog.Error("olric.NewDMap returned an error: %v", err)
+		klog.Panic("olric.NewDMap returned an error: %v", err)
 	}
 
 	session.MemoryUse(session.ServerDMap{DMap: dm})
