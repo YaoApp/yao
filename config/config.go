@@ -5,15 +5,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yaoapp/kun/log"
-
 	"github.com/caarlos0/env/v6"
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 )
 
 // Conf 配置参数
 var Conf Config
+
+// LogOutput 日志输出
+var LogOutput *os.File // 日志文件
 
 func init() {
 	filename, _ := filepath.Abs(filepath.Join(".", ".env"))
@@ -22,6 +25,11 @@ func init() {
 		return
 	}
 	Conf = LoadFrom(filename)
+	if Conf.Mode == "production" {
+		Production()
+	} else if Conf.Mode == "development" {
+		Development()
+	}
 }
 
 // LoadFrom 从配置项中加载
@@ -47,6 +55,74 @@ func Load() Config {
 	}
 	cfg.Root, _ = filepath.Abs(cfg.Root)
 	return cfg
+}
+
+// Production 设定为生产环境
+func Production() {
+	Conf.Mode = "production"
+	log.SetLevel(log.ErrorLevel)
+	log.SetFormatter(log.TEXT)
+	if Conf.LogMode == "JSON" {
+		log.SetFormatter(log.JSON)
+	}
+	gin.SetMode(gin.ReleaseMode)
+	ReloadLog()
+}
+
+// Development 设定为开发环境
+func Development() {
+	Conf.Mode = "development"
+	log.SetLevel(log.TraceLevel)
+	log.SetFormatter(log.TEXT)
+	if Conf.LogMode == "JSON" {
+		log.SetFormatter(log.JSON)
+	}
+	gin.SetMode(gin.DebugMode)
+	ReloadLog()
+}
+
+// ReloadLog 重新打开日志
+func ReloadLog() {
+	CloseLog()
+	OpenLog()
+}
+
+// OpenLog 打开日志
+func OpenLog() {
+	if Conf.Log != "" {
+		logfile, err := filepath.Abs(Conf.Log)
+		if err != nil {
+			log.With(log.F{"file": logfile}).Error(err.Error())
+			return
+		}
+
+		logpath := filepath.Dir(logfile)
+		if _, err := os.Stat(logpath); os.IsNotExist(err) {
+			if err := os.MkdirAll(logpath, os.ModePerm); err != nil {
+				log.With(log.F{"file": logfile}).Error(err.Error())
+				return
+			}
+		}
+		LogOutput, err = os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+		if err != nil {
+			log.With(log.F{"file": logfile}).Error(err.Error())
+			return
+		}
+
+		log.SetOutput(LogOutput)
+		gin.DefaultWriter = LogOutput
+	}
+}
+
+// CloseLog 关闭日志
+func CloseLog() {
+	if LogOutput != nil {
+		err := LogOutput.Close()
+		if err != nil {
+			log.Error(err.Error())
+			return
+		}
+	}
 }
 
 // // Config 系统配置

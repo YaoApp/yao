@@ -23,3 +23,5 @@ tests/data/*/*
 debug.log
 yao-test
 dev.sh
+logs
+logs/application.log
