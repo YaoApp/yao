@@ -2,6 +2,7 @@
   "name": "象传应用",
   "short": "象传",
   "description": "象传应用后台",
+  "lang": "en-US",
   "option": {
     "index": "/table/service"
   },

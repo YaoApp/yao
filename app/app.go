@@ -1,8 +1,14 @@
 package app
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
@@ -10,10 +16,20 @@ import (
 	"github.com/yaoapp/yao/xfs"
 )
 
+// langs 语言包
+var langs = map[string]map[string]string{}
+
 // Load 加载应用信息
 func Load(cfg config.Config) {
 	Init(cfg)
 	LoadInfo(cfg.Root)
+	LoadLang(cfg)
+
+	lang := strings.ToLower(share.App.Lang)
+	share.App.L = map[string]string{}
+	if l, has := langs[lang]; has {
+		share.App.L = l
+	}
 }
 
 // Init 应用初始化
@@ -83,6 +99,65 @@ func LoadInfo(root string) {
 	}
 
 	share.App = info
+}
+
+// LoadLang 加载语言包
+func LoadLang(cfg config.Config) error {
+
+	var defaults = []share.Script{}
+	if os.Getenv("YAO_DEV") != "" {
+		defaults = share.GetFilesFS(filepath.Join(os.Getenv("YAO_DEV"), "xiang", "langs"), ".json")
+	} else {
+		defaults = share.GetFilesBin("/xiang/langs", ".json")
+	}
+
+	for _, lang := range defaults {
+		content := lang.Content
+		name := strings.ToLower(lang.Type) // 这个读取函数需要优化
+		lang := map[string]string{}
+		err := jsoniter.Unmarshal(content, &lang)
+		if err != nil {
+			log.With(log.F{"name": name, "content": content}).Error(err.Error())
+		}
+		langs[name] = lang
+	}
+
+	if share.BUILDIN {
+		return LoadLangBuildIn("langs")
+	}
+	return LoadLangFrom(filepath.Join(cfg.Root, "langs"))
+}
+
+// LoadLangBuildIn 从制品中读取
+func LoadLangBuildIn(dir string) error {
+	return nil
+}
+
+// LoadLangFrom 从特定目录加载
+func LoadLangFrom(dir string) error {
+
+	if share.DirNotExists(dir) {
+		return fmt.Errorf("%s does not exists", dir)
+	}
+
+	err := share.Walk(dir, ".json", func(root, filename string) {
+		name := strings.ToLower(share.SpecName(root, filename))
+		content := share.ReadFile(filename)
+		lang := map[string]string{}
+		err := jsoniter.Unmarshal(content, &lang)
+		if err != nil {
+			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
+		}
+		if _, has := langs[name]; !has {
+			langs[name] = map[string]string{}
+		}
+		for src, dst := range lang {
+			langs[name][src] = dst
+		}
+	})
+
+	return err
+
 }
 
 // defaultInfo 读取默认应用信息
