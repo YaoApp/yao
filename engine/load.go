@@ -32,6 +32,10 @@ func Load(cfg config.Config) (err error) {
 	// 第一步: 加载应用信息
 	app.Load(cfg)
 
+	// 加密密钥函数
+	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey), "AES")
+	gou.LoadCrypt(`{}`, "PASSWORD")
+
 	// 第二步: 建立数据库 & 会话连接
 	share.DBConnect(cfg.DB)           // 创建数据库连接
 	share.SessionConnect(cfg.Session) // 创建会话服务器链接
@@ -49,51 +53,48 @@ func Load(cfg config.Config) (err error) {
 	// 第四步: 加载共享库 & JS 处理器
 	err = share.Load(cfg) // 加载共享库 lib
 	if err != nil {
-		return err
+		exception.Err(err, 400).Throw()
 	}
 	err = script.Load(cfg) // 加载JS处理器 script
 	if err != nil {
-		return err
+		exception.Err(err, 400).Throw()
 	}
 
 	// 第五步: 加载数据模型等
 	err = model.Load(cfg) // 加载数据模型 model
 	if err != nil {
-		return err
+		exception.Err(err, 400).Throw()
 	}
+
 	err = flow.Load(cfg) // 加载业务逻辑 Flow
 	if err != nil {
-		return err
+		exception.Err(err, 400).Throw()
 	}
 	err = plugin.Load(cfg) // 加载业务插件 plugin
 	if err != nil {
-		return err
-	}
-	err = table.Load(cfg) // 加载数据表格 table
-	if err != nil {
-		return err
-	}
-	err = chart.Load(cfg) // 加载分析图表 chart
-	if err != nil {
-		return err
-	}
-	err = page.Load(cfg) // 加载页面 page
-	if err != nil {
-		return err
+		exception.Err(err, 400).Throw()
 	}
 
-	importer.Load(cfg)  // 加载数据导入 imports
-	workflow.Load(cfg)  // 加载工作流  workflow
+	err = table.Load(cfg) // 加载数据表格 table
+	if err != nil {
+		exception.Err(err, 400).Throw()
+	}
+
+	err = chart.Load(cfg) // 加载分析图表 chart
+	if err != nil {
+		exception.Err(err, 400).Throw()
+	}
+
+	page.Load(cfg)     // 加载页面 page 忽略错误
+	importer.Load(cfg) // 加载数据导入 imports
+	workflow.Load(cfg) // 加载工作流  workflow
+
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
-		return err
+		exception.Err(err, 400).Throw()
 	}
 
 	server.Load(cfg) // 加载服务
-
-	// 加密密钥函数
-	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey), "AES")
-	gou.LoadCrypt(`{}`, "PASSWORD")
 	return nil
 }
 

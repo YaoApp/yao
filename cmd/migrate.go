@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -18,7 +19,11 @@ var migrateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		Boot()
 		// 加载数据模型
-		engine.Load(config.Conf)
+		err := engine.Load(config.Conf)
+		if err != nil {
+			fmt.Printf(color.RedString("加载失败: %s\n", err.Error()))
+			os.Exit(1)
+		}
 
 		if name != "" {
 			mod, has := gou.Models[name]
