@@ -42,6 +42,7 @@ var langs = map[string]string{
 	"Model name":                            "模型名称",
 	"Initialize project":                    "项目初始化",
 	"✨DONE✨":                                "✨完成✨",
+	"NEXT:":                                 "下一步:",
 }
 
 // L 多语言切换

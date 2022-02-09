@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 )
 
 var initCmd = &cobra.Command{
@@ -23,6 +24,7 @@ var initCmd = &cobra.Command{
 		makeEnv()
 		defaultApps()
 		fmt.Println(color.GreenString(L("✨DONE✨")))
+		fmt.Println(color.WhiteString(L("NEXT:")), color.GreenString("%s migrate && %s run flows.setmenu", share.BUILDNAME, share.BUILDNAME))
 	},
 }
 
@@ -120,7 +122,7 @@ func defaultApps() {
 			"filters": [{ "name": "Keywords" }]
 		  },
 		  "actions": { "pagination": { "props": { "showTotal": true } } },
-		  "option": {}
+		  "option": {  "operation": { "unfold": true} }
 		},
 		"edit": {
 		  "primary": "id",

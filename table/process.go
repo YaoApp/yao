@@ -1,13 +1,12 @@
 package table
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
 )
 
 func init() {
@@ -46,12 +45,7 @@ func ProcessSearch(process *gou.Process) interface{} {
 	// 参数表
 	process.ValidateArgNums(4)
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
-
-	fmt.Println("\n==== ProcessSearch =============  SID:", process.Sid)
-	utils.Dump(param)
-	fmt.Println("==== END ProcessSearch ===============================================")
-	fmt.Println("")
-
+	log.With(log.F{"param": param}).Trace("==== ProcessSearch =============  SID: %s", process.Sid)
 	page := process.ArgsInt(2, api.DefaultInt(1))
 	pagesize := process.ArgsInt(3, api.DefaultInt(2))
 
