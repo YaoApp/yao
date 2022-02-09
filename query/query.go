@@ -4,8 +4,8 @@ import (
 	"github.com/yaoapp/gou"
 	dsl "github.com/yaoapp/gou/query/gou"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xun/capsule"
+	"github.com/yaoapp/yao/config"
 )
 
 // Load 加载查询引擎

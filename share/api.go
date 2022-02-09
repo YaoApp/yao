@@ -12,7 +12,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/xiang/xlog"
+	"github.com/yaoapp/yao/xlog"
 )
 
 // IsAllow 鉴权处理程序

@@ -6,8 +6,8 @@ import (
 
 	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/xiang/importer/from"
-	"github.com/yaoapp/xiang/xlog"
+	"github.com/yaoapp/yao/importer/from"
+	"github.com/yaoapp/yao/xlog"
 )
 
 // Xlsx xlsx file

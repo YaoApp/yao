@@ -10,13 +10,13 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/flow"
-	_ "github.com/yaoapp/xiang/helper"
-	"github.com/yaoapp/xiang/model"
-	"github.com/yaoapp/xiang/query"
-	"github.com/yaoapp/xiang/share"
 	"github.com/yaoapp/xun/capsule"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/flow"
+	_ "github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/model"
+	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/share"
 )
 
 func init() {

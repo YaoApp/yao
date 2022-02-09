@@ -2,7 +2,7 @@ package page
 
 import (
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/share"
 )
 
 // Page 页面格式

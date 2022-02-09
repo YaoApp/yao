@@ -9,7 +9,7 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/yao/config"
 )
 
 // JwtClaims 用户Token

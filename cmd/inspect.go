@@ -4,8 +4,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 )
 
 var inspectCmd = &cobra.Command{

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/share"
 )
 
 func TestProcessPing(t *testing.T) {

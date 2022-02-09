@@ -1,4 +1,4 @@
-module github.com/yaoapp/xiang
+module github.com/yaoapp/yao
 
 go 1.16
 

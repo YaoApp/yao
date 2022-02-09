@@ -6,8 +6,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/engine"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/engine"
 )
 
 var name string

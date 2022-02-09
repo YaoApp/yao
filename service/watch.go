@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/chart"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/page"
-	"github.com/yaoapp/xiang/share"
-	"github.com/yaoapp/xiang/table"
-	"github.com/yaoapp/xiang/workflow"
+	"github.com/yaoapp/yao/chart"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/page"
+	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/table"
+	"github.com/yaoapp/yao/workflow"
 )
 
 // Watch 监听应用目录文件变更

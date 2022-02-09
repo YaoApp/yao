@@ -4,10 +4,10 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/data"
-	"github.com/yaoapp/xiang/share"
-	"github.com/yaoapp/xiang/xfs"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
+	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/xfs"
 )
 
 // Load 加载应用信息

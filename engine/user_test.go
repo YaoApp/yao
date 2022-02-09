@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/xiang/user"
+	"github.com/yaoapp/yao/user"
 )
 
 func TestUserAuth(t *testing.T) {

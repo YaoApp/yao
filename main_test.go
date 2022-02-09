@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/service"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/service"
 )
 
 func TestCommandVersion(t *testing.T) {

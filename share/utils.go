@@ -9,7 +9,7 @@ import (
 
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/xiang/data"
+	"github.com/yaoapp/yao/data"
 )
 
 // Walk 遍历应用目录，读取文件列表

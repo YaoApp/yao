@@ -1,7 +1,7 @@
 package chart
 
 import (
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/share"
 )
 
 // SetupAPIs 设定API数据

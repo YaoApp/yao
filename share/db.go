@@ -3,8 +3,8 @@ package share
 import (
 	"time"
 
-	"github.com/yaoapp/xiang/config"
 	"github.com/yaoapp/xun/capsule"
+	"github.com/yaoapp/yao/config"
 )
 
 // DBConnect 建立数据库连接

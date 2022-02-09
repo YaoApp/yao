@@ -6,9 +6,9 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/helper"
-	"github.com/yaoapp/xiang/xlog"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/xlog"
 )
 
 // Guards 服务中间件

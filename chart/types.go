@@ -2,7 +2,7 @@ package chart
 
 import (
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/share"
 )
 
 // Chart 图表格式

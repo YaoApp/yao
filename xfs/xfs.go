@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/afero/tarfs"
 	"github.com/spf13/afero/zipfs"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/yao/config"
 )
 
 // Stor 文件系统实例

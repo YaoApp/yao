@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/yao/config"
 )
 
 var cfg config.Config

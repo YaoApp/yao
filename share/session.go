@@ -11,7 +11,7 @@ import (
 	"github.com/buraksezer/olric/serializer"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/yao/config"
 )
 
 var sessServer *olric.Olric

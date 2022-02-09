@@ -12,9 +12,9 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
-	"github.com/yaoapp/xiang/xlog"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/xlog"
 )
 
 // Tables 已载入模型

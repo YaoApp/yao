@@ -8,8 +8,8 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 )
 
 // Charts 已载入图表

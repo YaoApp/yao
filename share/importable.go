@@ -10,7 +10,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/xiang/config"
+	"github.com/yaoapp/yao/config"
 )
 
 // Libs 共享库

@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 )
 
 func TestLoad(t *testing.T) {

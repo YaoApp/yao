@@ -6,8 +6,8 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 )
 
 // Load 加载业务逻辑编排

@@ -1,8 +1,8 @@
 package workflow
 
 import (
-	"github.com/yaoapp/xiang/helper"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/share"
 )
 
 // WorkFlow 工作流配置结构

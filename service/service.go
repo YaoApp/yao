@@ -2,8 +2,8 @@ package service
 
 import (
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 )
 
 var shutdown = make(chan bool)

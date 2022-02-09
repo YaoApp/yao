@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/data"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
 )
 
 // AdminFileServer 数据管理平台

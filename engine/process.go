@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/share"
-	"github.com/yaoapp/xiang/xfs"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/xfs"
 )
 
 func init() {

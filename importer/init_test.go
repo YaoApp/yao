@@ -4,11 +4,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/model"
-	"github.com/yaoapp/xiang/query"
-	"github.com/yaoapp/xiang/script"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/model"
+	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/script"
+	"github.com/yaoapp/yao/share"
 )
 
 func TestMain(m *testing.M) {

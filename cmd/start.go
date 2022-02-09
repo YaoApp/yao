@@ -8,10 +8,10 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/engine"
-	"github.com/yaoapp/xiang/service"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/service"
+	"github.com/yaoapp/yao/share"
 )
 
 var startCmd = &cobra.Command{

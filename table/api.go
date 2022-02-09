@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/share"
 )
 
 // apiSearchDefault search 接口默认值

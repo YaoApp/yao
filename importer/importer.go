@@ -11,12 +11,12 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/xiang/config"
-	"github.com/yaoapp/xiang/importer/from"
-	"github.com/yaoapp/xiang/importer/xlsx"
-	"github.com/yaoapp/xiang/share"
-	"github.com/yaoapp/xiang/xfs"
-	"github.com/yaoapp/xiang/xlog"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/importer/from"
+	"github.com/yaoapp/yao/importer/xlsx"
+	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/xfs"
+	"github.com/yaoapp/yao/xlog"
 )
 
 // Importers 导入器

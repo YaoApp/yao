@@ -2,7 +2,7 @@ package table
 
 import (
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/xiang/share"
+	"github.com/yaoapp/yao/share"
 )
 
 // Table 数据表格配置结构
