@@ -23,7 +23,7 @@ var langs = map[string]string{
 	"Help for yao":                          "显示命令帮助文档",
 	"Show app configure":                    "显示应用配置信息",
 	"Update database schema":                "更新数据库结构",
-	"Execute process":                       "更新数据库结构",
+	"Execute process":                       "运行处理器",
 	"Show version":                          "显示当前版本号",
 	"Development mode":                      "使用开发模式启动",
 	"Enabled unstable features":             "启用内测功能",
