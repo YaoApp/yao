@@ -55,3 +55,5 @@ replace github.com/yaoapp/kun => ../kun // kun local
 replace github.com/yaoapp/xun => ../xun // gou local
 
 replace github.com/yaoapp/gou => ../gou // gou local
+
+replace rogchap.com/v8go  => ../v8go

@@ -91,11 +91,19 @@ jobs:
           path: gou
           token: ${{ secrets.TOKEN }}
 
-      - name: Move Kun, Xun, Gou
+      - name: Checkout V8Go
+        uses: actions/checkout@v2
+        with:
+          repository: rogchap/v8go
+          ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
+          path: v8go
+
+      - name: Move Kun, Xun, Gou, V8Go
         run: |
           mv kun ../
           mv xun ../
           mv gou ../
+          mv v8go ../
           ls -l .
           ls -l ../
 

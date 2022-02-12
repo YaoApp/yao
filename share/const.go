@@ -3,9 +3,10 @@ package share
 // Logs
 // session -> freeport fix bug
 // 更新制品目录 -> ui/downloads
+// Arm64 制品
 
 // VERSION 版本号
-const VERSION = "0.9.0"
+const VERSION = "0.9.1"
 
 // BUILDIN 应用打包成一个制品
 const BUILDIN = false
