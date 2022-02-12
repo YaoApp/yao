@@ -300,7 +300,7 @@ artifacts-macos: clean
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-darwin-arm64 version
+	dist/release/yao-${VERSION}-darwin-amd64 version
 
 .PHONY: win32
 win32: bindata
