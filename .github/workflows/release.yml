@@ -102,22 +102,20 @@ jobs:
           make artifacts-macos
 
       - name: Push to Station (@Silicon Valley)
-        if: matrix.platform == 'ubuntu-latest'
-        uses: nogsantos/scp-deploy@master
+        uses: appleboy/scp-action@master
         with:
-          src: ./dist/release/*
+          source: ./dist/release/*
+          target: /data/release/ui/download/
           host: ${{ secrets.SSH_HOST }}
-          remote: /data/release/ui/download/
           port: ${{ secrets.SSH_PORT }}
-          user: ${{ secrets.SSH_USER }}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
 
       - name: Distribution
-        if: matrix.platform == 'ubuntu-latest'
         uses: appleboy/ssh-action@master
         with:
+          script: ${{ secrets.SSH_CMD }}
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: ${{ secrets.SSH_CMD }}
