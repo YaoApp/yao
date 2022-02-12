@@ -12,6 +12,7 @@ jobs:
       matrix:
         go: [1.17]
         platform: [ubuntu-latest, macos-11]
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Arm Build
         run: |
