@@ -26,3 +26,4 @@ dev.sh
 logs
 logs/application.log
 yao-arm64
+tests/db/yao.db
