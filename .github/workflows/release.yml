@@ -12,17 +12,16 @@ jobs:
       matrix:
         go: [1.17]
         platform: [ubuntu-latest, macos-11]
-        arch: [x86_64, arm64]
     runs-on: ${{ matrix.platform }}
     steps:
-      # - name: Arm Build
-      #   if: matrix.platform == 'ubuntu-latest' && matrix.arch == 'x86_64'
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
-      #     sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-      #     sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-      #     sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
+      - name: Arm Build
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
+          sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+          sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
 
       - name: Setup Cache
         uses: actions/cache@v2
@@ -96,11 +95,11 @@ jobs:
       - name: Make Artifacts Linux
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          make artifact-linux
+          make artifacts-linux
       - name: Make Artifacts MacOS
         if: matrix.platform == 'macos-11'
         run: |
-          make artifact-macos
+          make artifacts-macos
 
       - name: Push to Station (@Silicon Valley)
         uses: nogsantos/scp-deploy@master
