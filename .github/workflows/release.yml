@@ -15,6 +15,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Arm Build
+        if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
