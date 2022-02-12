@@ -3,7 +3,7 @@ package share
 // Logs
 // session -> freeport fix bug
 // 更新制品目录 -> ui/downloads
-// Arm64 制品 -> test
+// Arm64 制品 -> arm build test
 
 // VERSION 版本号
 const VERSION = "0.9.1"
