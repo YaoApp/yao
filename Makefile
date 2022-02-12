@@ -248,8 +248,8 @@ linux: clean
 	mv .tmp/xiang-*-* dist/release/
 	chmod +x dist/release/xiang-*-*
 
-.PHONY: artifacts
-artifacts: clean
+.PHONY: artifact-linux
+artifact-linux: clean
 	mkdir -p dist/release
 
 #	UI制品
@@ -266,17 +266,18 @@ artifacts: clean
 
 #   制品
 	mkdir -p dist
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ go build -v -o dist/yao-${VERSION}-linux-arm64
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" go build -v -o dist/yao-${VERSION}-linux-${RUNNER_ARCH}
+#	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
+#	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ go build -v -o dist/yao-${VERSION}-linux-arm64
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-linux-amd64 version
+	dist/release/yao-${VERSION}-linux-${RUNNER_ARCH} version
 
-.PHONY: artifacts-macos
-artifacts-macos: clean
+.PHONY: artifact-macos
+artifact-macos: clean
 	mkdir -p dist/release
 
 #	UI制品
@@ -293,13 +294,15 @@ artifacts-macos: clean
 
 #   制品
 	mkdir -p dist
-	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
+	CGO_ENABLED=1 go build -v -o dist/yao-${VERSION}-darwin-${RUNNER_ARCH}
+#	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
+#	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-linux-arm64
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-linux-amd64 version
+	dist/release/yao-${VERSION}-darwin-${RUNNER_ARCH} version
 
 .PHONY: win32
 win32: bindata
