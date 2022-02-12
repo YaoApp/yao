@@ -8,10 +8,10 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         go: [1.17]
+        platform: [ubuntu-latest, macos-11]
     steps:
       - name: Arm Build
         run: |
@@ -90,9 +90,14 @@ jobs:
           go get github.com/go-bindata/go-bindata/...
           go get github.com/elazarl/go-bindata-assetfs/...
 
-      - name: Make Artifacts
+      - name: Make Artifacts Linux
+        if: matrix.platform == 'ubuntu-latest'
         run: |
           make artifacts
+      - name: Make Artifacts MacOS
+        if: matrix.platform == 'macos-11'
+        run: |
+          make artifacts-macos
 
       - name: Push to Station (@Silicon Valley)
         uses: nogsantos/scp-deploy@master

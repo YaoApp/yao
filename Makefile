@@ -275,6 +275,32 @@ artifacts: clean
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-linux-amd64 version
 
+.PHONY: artifacts-macos
+artifacts-macos: clean
+	mkdir -p dist/release
+
+#	UI制品
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
+	cd ../ui && npm install && npm run build
+
+#	静态文件打包
+	mkdir -p .tmp/data
+	cp -r ../ui/dist .tmp/data/ui
+	cp -r xiang .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#   制品
+	mkdir -p dist
+	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
+
+	mkdir -p dist/release
+	mv dist/yao-*-* dist/release/
+	chmod +x dist/release/yao-*-*
+	ls -l dist/release/
+	dist/release/yao-${VERSION}-linux-amd64 version
+
 .PHONY: win32
 win32: bindata
 	GOOS=windows GOARCH=386 go build -v -o .tmp/xiang-windows-386
