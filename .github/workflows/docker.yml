@@ -1,0 +1,36 @@
+name: docker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docker/README.md"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: ./docker/development
+          build-args: |
+            VERSION=0.9.1 
+            ARCH=amd64
+          push: true
+          tags: yaoapp/yao:0.9.1-amd64-dev
