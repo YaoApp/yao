@@ -24,7 +24,9 @@ jobs:
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
 
       - name: Install coscmd
-        run: sudo pip install coscmd
+        run: |
+          echo "/Library/Frameworks/Python.framework/Versions/2.7/bin" >> $GITHUB_PATH
+          sudo pip install coscmd
 
       - name: Setup Cache
         uses: actions/cache@v2
