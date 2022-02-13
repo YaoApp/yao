@@ -113,6 +113,11 @@ jobs:
         run: |
           coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
+      - name: Debug Query
+        run: |
+          ls -l ./dist/release/
+          coscmd upload -h
+
       - name: Upload To SV
         run: |
           coscmd upload ./dist/release/* /archives/
