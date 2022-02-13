@@ -24,9 +24,17 @@ jobs:
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
 
       - name: Install coscmd
-        run: |
-          echo "/Library/Frameworks/Python.framework/Versions/2.7/bin" >> $GITHUB_PATH
-          sudo pip install coscmd
+        run: sudo pip3 install coscmd
+
+      # - name: Debug Query
+      #   if: matrix.platform == 'macos-11'
+      #   run: |
+      #     ls -l /Library/Frameworks/Python.framework/Versions/2.7/bin/
+
+      # - name: Setup coscmd
+      #   if: matrix.platform == 'macos-11'
+      #   run: |
+      #     ln -s /Library/Frameworks/Python.framework/Versions/2.7/bin/coscmd /usr/bin/coscmd
 
       - name: Setup Cache
         uses: actions/cache@v2
