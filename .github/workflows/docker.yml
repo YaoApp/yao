@@ -4,8 +4,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "docker/README.md"
-
+      - ".github/workflows/docker.yml"
+env:
+  VERSION: 0.9.1
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -30,37 +31,37 @@ jobs:
         with:
           context: ./docker/development
           build-args: |
-            VERSION=0.9.1 
+            VERSION=${VERSION}
             ARCH=amd64
           push: true
-          tags: yaoapp/yao:0.9.1-amd64-dev
+          tags: yaoapp/yao:${VERSION}-amd64-dev
 
       - name: Build Development Arm64
         uses: docker/build-push-action@v2
         with:
           context: ./docker/development
           build-args: |
-            VERSION=0.9.1 
+            VERSION=${VERSION} 
             ARCH=arm64
           push: true
-          tags: yaoapp/yao:0.9.1-arm64-dev
+          tags: yaoapp/yao:${VERSION}-arm64-dev
 
       - name: Build Production
         uses: docker/build-push-action@v2
         with:
           context: ./docker/production
           build-args: |
-            VERSION=0.9.1 
+            VERSION=${VERSION} 
             ARCH=amd64
           push: true
-          tags: yaoapp/yao:0.9.1-amd64
+          tags: yaoapp/yao:${VERSION}-amd64
 
       - name: Build Production Arm64
         uses: docker/build-push-action@v2
         with:
           context: ./docker/production
           build-args: |
-            VERSION=0.9.1 
+            VERSION=${VERSION} 
             ARCH=arm64
           push: true
-          tags: yaoapp/yao:0.9.1-arm64
+          tags: yaoapp/yao:${VERSION}-arm64
