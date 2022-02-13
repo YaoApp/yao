@@ -119,4 +119,4 @@ jobs:
 
       - name: Upload To SV
         run: |
-          coscmd -d upload ./dist/release/* /archives/
+          for file in ./dist/release/*; do coscmd -d upload $file /archives/; done;
