@@ -1,10 +1,10 @@
 name: Build and push docker images
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/docker.yml"
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - ".github/workflows/docker.yml"
   workflow_run:
     workflows: ["Release Linux"]
     types:
@@ -14,7 +14,7 @@ env:
   VERSION: 0.9.0
 jobs:
   build:
-    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
