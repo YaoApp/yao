@@ -22,7 +22,7 @@ jobs:
           sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
           sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
-      
+
       - name: Install coscmd
         run: sudo pip install coscmd
 
@@ -105,11 +105,11 @@ jobs:
           make artifacts-macos
 
       - name: Configure COS CMD
-      env:
-        SECRET_ID: ${{ secrets.COS_ID }}
-        SECRET_KEY: ${{ secrets.COS_KEY }}
-        BUCKET: release-sv-1252011659
-        REGION: na-siliconvalley
+        env:
+          SECRET_ID: ${{ secrets.COS_ID }}
+          SECRET_KEY: ${{ secrets.COS_KEY }}
+          BUCKET: release-sv-1252011659
+          REGION: na-siliconvalley
         run: |
           coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
