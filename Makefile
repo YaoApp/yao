@@ -9,7 +9,7 @@ VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests*|config')
 TESTTAGS ?= ""
 
-# 运行单元测试
+# Unit Test
 .PHONY: test
 test:
 	echo "mode: count" > coverage.out
@@ -79,7 +79,7 @@ tools:
 	go install golang.org/x/lint/golint; \
 	go install github.com/client9/misspell/cmd/misspell;
 
-# 编译测试用插件
+# make plugin
 .PHONY: plugin
 plugin: 
 	rm -rf $(HOME)/data/gou-unit/plugins
@@ -91,172 +91,36 @@ plugin:
 	ls -l $(HOME)/data/gou-unit/plugins
 	ls -l $(HOME)/data/gou-unit/logs
 	$(HOME)/data/gou-unit/plugins/user.so 2>&1 || true
+
+# make plugin-mac
+.PHONY: plugin-mac
 plugin-mac: 
 	rm -rf ./tests/plugins/user/dist
 	rm -rf ./tests/plugins/user.so
 	go build -o ./tests/plugins/user.so ./tests/plugins/user
 	chmod +x ./tests/plugins/user.so
 
-# 编译静态文件
-.PHONY: static
-static:
-	git clone git@github.com:YaoApp/xiang-saas-ui-kxy .tmp/ui
-	cd .tmp/ui && yarn install && yarn build
-	rm -rf ui
-	mv .tmp/ui/dist ui
-	rm -rf .tmp/ui
-# 将静态文件打包到命令工具
-.PHONY: bindata
-bindata: gen-bindata fmt
 
-# 将静态文件打包到命令工具
-.PHONY: gen-bindata
-gen-bindata:
+# make pack
+.PHONY: pack
+pack:
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
 	cp -r xiang .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 
-# 编译可执行文件
-.PHONY: xiang
-xiang: bindata
 
-	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		mv share/const.go share/const.go.bak;	\
-		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" share/const.go.bak > share/const.go; \
-	fi;
-
-#	GOOS=linux GOARCH=amd64 go build -v -o .tmp/xiang-linux-amd64
-#	GOOS=linux GOARCH=arm GOARM=7 go build -v -o .tmp/xiang-linux-arm
-#	GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o .tmp/xiang-linux-arm64
-	GOOS=darwin GOARCH=amd64 go build -v -o .tmp/xiang-darwin-amd64
-	mkdir -p dist/bin
-	mv .tmp/xiang-*-* dist/bin/
-	chmod +x dist/bin/xiang-*-*
-	
-	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		rm share/const.go; \
-		mv share/const.go.bak share/const.go; \
-	fi;
-
-.PHONY: release
-release: clean
-	mkdir -p dist/release
-	git clone git@github.com:YaoApp/yao.git dist/release
-	git clone git@github.com:YaoApp/kun.git dist/kun
-	git clone git@github.com:YaoApp/xun.git dist/xun
-	git clone git@github.com:YaoApp/gou.git dist/gou
-
-#	UI制品
-	git clone git@github.com:YaoApp/xiang-ui .tmp/ui
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && cnpm install && npm run build
-	rm -rf dist/release/ui
-	mv .tmp/ui/dist dist/release/ui
-
-#	静态文件打包
-	mkdir -p .tmp/data
-	cp -r dist/release/ui .tmp/data/
-	cp -r dist/release/xiang .tmp/data/
-	go-bindata -fs -pkg data -o dist/release/data/bindata.go -prefix ".tmp/data/" .tmp/data/...
-	rm -rf .tmp/data
-	rm -rf .tmp/ui
-
-#   制品
-	if [ ! -z "${XIANG_DOMAIN}" ]; then \
-		mv dist/release/share/const.go dist/release/share/const.go.bak;	\
-		sed "s/*.iqka.com/$(XIANG_DOMAIN)/g" dist/release/share/const.go.bak > dist/release/share/const.go; \
-	fi;
-
-#	cd dist/release && CGO_ENABLED=1 CC=x86_64-linux-musl-gcc CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
-#	cd dist/release && GOOS=linux GOARCH=arm GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm
-#	cd dist/release && GOOS=linux GOARCH=arm64 GOARM=7 go build -v -o ../../.tmp/xiang-${VERSION}-linux-arm64
-	cd dist/release && CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-darwin-amd64
-#	cd dist/release && GOOS=windows GOARCH=386 go build -v -o ../../.tmp/xiang-${VERSION}-windows-386
-	
-	rm -rf dist/release
-	mkdir -p dist/release
-	mv .tmp/xiang-*-* dist/release/
-	chmod +x dist/release/xiang-*-*
-
-.PHONY: hi
-hi: 
-	echo ${VERSION}
-
-.PHONY: arm
-arm: clean
-	mkdir -p dist/release
-	git clone git@github.com:YaoApp/yao.git dist/release
-	git clone git@github.com:YaoApp/kun.git dist/kun
-	git clone git@github.com:YaoApp/xun.git dist/xun
-	git clone git@github.com:YaoApp/gou.git dist/gou
-
-#	UI制品
-	git clone git@github.com:YaoApp/xiang-ui.git .tmp/ui
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && cnpm install && npm run build
-	rm -rf dist/release/ui
-	mv .tmp/ui/dist dist/release/ui
-
-#	静态文件打包
-	mkdir -p .tmp/data
-	cp -r dist/release/ui .tmp/data/
-	cp -r dist/release/xiang .tmp/data/
-	go-bindata -fs -pkg data -o dist/release/data/bindata.go -prefix ".tmp/data/" .tmp/data/...
-	rm -rf .tmp/data
-	rm -rf .tmp/ui
-
-#   制品
-	mkdir -p dist
-	cd dist/release && CC=arm-linux-gnueabi-gcc CXX=arm-linux-gnueabi-g++ CGO_ENABLED=1 GOOS=linux GOARCH=arm GOARM=7 go build  -v -o ../../.tmp/xiang-${VERSION}-linux-arm
-
-	rm -rf dist/release
-	mkdir -p dist/release
-	mv .tmp/xiang-*-* dist/release/
-	chmod +x dist/release/xiang-*-*
-
-.PHONY: linux
-linux: clean
-	mkdir -p dist/release
-	git clone git@github.com:YaoApp/yao.git dist/release
-	git clone git@github.com:YaoApp/kun.git dist/kun
-	git clone git@github.com:YaoApp/xun.git dist/xun
-	git clone git@github.com:YaoApp/gou.git dist/gou
-
-#	UI制品
-	git clone git@github.com:YaoApp/xiang-ui.git .tmp/ui
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && cnpm install && npm run build
-	rm -rf dist/release/ui
-	mv .tmp/ui/dist dist/release/ui
-
-#	静态文件打包
-	mkdir -p .tmp/data
-	cp -r dist/release/ui .tmp/data/
-	cp -r dist/release/xiang .tmp/data/
-	go-bindata -fs -pkg data -o dist/release/data/bindata.go -prefix ".tmp/data/" .tmp/data/...
-	rm -rf .tmp/data
-	rm -rf .tmp/ui
-
-#   制品
-	mkdir -p dist
-	cd dist/release && CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o ../../.tmp/xiang-${VERSION}-linux-amd64
-
-	rm -rf dist/release
-	mkdir -p dist/release
-	mv .tmp/xiang-*-* dist/release/
-	chmod +x dist/release/xiang-*-*
-
+# make artifacts-linux
 .PHONY: artifacts-linux
 artifacts-linux: clean
 	mkdir -p dist/release
 
-#	UI制品
+#	Building UI
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
 	cd ../ui && npm install && npm run build
 
-#	静态文件打包
+#	Packing
 	mkdir -p .tmp/data
 	cp -r ../ui/dist .tmp/data/ui
 	cp -r xiang .tmp/data/
@@ -264,7 +128,7 @@ artifacts-linux: clean
 	rm -rf .tmp/data
 	rm -rf .tmp/ui
 
-#   制品
+#   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ go build -v -o dist/yao-${VERSION}-linux-arm64
@@ -275,15 +139,16 @@ artifacts-linux: clean
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-linux-amd64 version
 
+# make artifacts-macos
 .PHONY: artifacts-macos
 artifacts-macos: clean
 	mkdir -p dist/release
 
-#	UI制品
+#	Building UI
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
 	cd ../ui && npm install && npm run build
 
-#	静态文件打包
+#	Packing
 	mkdir -p .tmp/data
 	cp -r ../ui/dist .tmp/data/ui
 	cp -r xiang .tmp/data/
@@ -291,7 +156,7 @@ artifacts-macos: clean
 	rm -rf .tmp/data
 	rm -rf .tmp/ui
 
-#   制品
+#   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
 	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-darwin-arm64
@@ -302,21 +167,14 @@ artifacts-macos: clean
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-darwin-amd64 version
 
-.PHONY: win32
-win32: bindata
-	GOOS=windows GOARCH=386 go build -v -o .tmp/xiang-windows-386
-	mkdir -p dist/bin
-	mv .tmp/xiang-*-* dist/bin/
-	chmod +x dist/bin/xiang-*-*
-
-
+# make clean
 .PHONY: clean
 clean: 
 	rm -rf ./tmp
 	rm -rf .tmp
 	rm -rf dist
 
-
+# make migrate ( for unit test)
 .PHONY: migrate
 migrate:
 	$(GO) test -tags $(TESTTAGS) -run TestCommandMigrate$
