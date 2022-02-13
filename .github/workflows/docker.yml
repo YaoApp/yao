@@ -1,14 +1,17 @@
-name: docker
+name: Build and push docker images
 
+# Only trigger, when the Release Linux workflow succeeded
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/docker.yml"
+  workflow_run:
+    workflows: ["Release Linux"]
+    types:
+      - completed
+
 env:
   VERSION: 0.9.0
 jobs:
   build:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

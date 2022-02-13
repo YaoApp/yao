@@ -1,0 +1,116 @@
+name: Release MacOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "share/const.go"
+
+jobs:
+  release:
+    strategy:
+      matrix:
+        go: [1.17]
+    runs-on: "macos-11"
+    steps:
+      - name: Install coscmd
+        run: sudo pip3 install coscmd
+
+      - name: Setup Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Checkout Kun
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/gou
+          path: gou
+          token: ${{ secrets.TOKEN }}
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v2
+        with:
+          repository: rogchap/v8go
+          ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
+          path: v8go
+
+      - name: Checkout UI
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/xgen
+          path: ui
+          token: ${{ secrets.TOKEN }}
+
+      - name: Move Kun, Xun, Gou, UI, V8Go
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv ui ../
+          ls -l .
+          ls -l ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Setup Go Tools
+        run: |
+          if [[ "${GO111MODULE}" = "on" ]]; then go mod download; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"; fi
+          if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
+          go get github.com/go-bindata/go-bindata/...
+          go get github.com/elazarl/go-bindata-assetfs/...
+
+      - name: Make Artifacts MacOS
+        run: |
+          make artifacts-macos
+
+      - name: Configure COS For Silicon Valley
+        env:
+          SECRET_ID: ${{ secrets.COS_ID }}
+          SECRET_KEY: ${{ secrets.COS_KEY }}
+          BUCKET: release-sv-1252011659
+          REGION: na-siliconvalley
+        run: |
+          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+
+      - name: Push To Silicon Valley
+        run: |
+          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+
+      - name: Configure COS For Beijing
+        env:
+          SECRET_ID: ${{ secrets.COS_ID }}
+          SECRET_KEY: ${{ secrets.COS_KEY }}
+          BUCKET: release-bj-1252011659
+          REGION: ap-beijing
+        run: |
+          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+
+      - name: Push To Beijing
+        run: |
+          for file in ./dist/release/*; do coscmd upload $file /archives/; done;

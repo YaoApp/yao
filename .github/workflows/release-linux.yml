@@ -1,4 +1,4 @@
-name: Release
+name: Release Linux
 
 on:
   push:
@@ -11,11 +11,9 @@ jobs:
     strategy:
       matrix:
         go: [1.17]
-        platform: [ubuntu-latest, macos-11]
-    runs-on: ${{ matrix.platform }}
+    runs-on: "ubuntu-latest"
     steps:
       - name: Arm Build
-        if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
@@ -96,13 +94,8 @@ jobs:
           go get github.com/elazarl/go-bindata-assetfs/...
 
       - name: Make Artifacts Linux
-        if: matrix.platform == 'ubuntu-latest'
         run: |
           make artifacts-linux
-      - name: Make Artifacts MacOS
-        if: matrix.platform == 'macos-11'
-        run: |
-          make artifacts-macos
 
       - name: Configure COS For Silicon Valley
         env:
