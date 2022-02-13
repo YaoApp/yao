@@ -22,6 +22,9 @@ jobs:
           sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
           sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
+      
+      - name: Install coscmd
+        run: sudo pip install coscmd
 
       - name: Setup Cache
         uses: actions/cache@v2
@@ -101,21 +104,13 @@ jobs:
         run: |
           make artifacts-macos
 
-      - name: Push to Station (@Silicon Valley)
-        uses: appleboy/scp-action@master
-        with:
-          source: ./dist/release/*
-          target: /data/release/ui/download/
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+      - name: Configure COS CMD
+      env:
+        SECRET_ID: ${{ secrets.COS_ID }}
+        SECRET_KEY: ${{ secrets.COS_KEY }}
+        BUCKET: release-sv-1252011659
+        REGION: na-siliconvalley
+      run: coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
-      - name: Distribution
-        uses: appleboy/ssh-action@master
-        with:
-          script: ${{ secrets.SSH_CMD }}
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+      - name: Upload To SV
+        run: coscmd upload ./dist/release/* /archives/
