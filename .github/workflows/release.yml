@@ -26,16 +26,6 @@ jobs:
       - name: Install coscmd
         run: sudo pip3 install coscmd
 
-      # - name: Debug Query
-      #   if: matrix.platform == 'macos-11'
-      #   run: |
-      #     ls -l /Library/Frameworks/Python.framework/Versions/2.7/bin/
-
-      # - name: Setup coscmd
-      #   if: matrix.platform == 'macos-11'
-      #   run: |
-      #     ln -s /Library/Frameworks/Python.framework/Versions/2.7/bin/coscmd /usr/bin/coscmd
-
       - name: Setup Cache
         uses: actions/cache@v2
         with:
@@ -114,7 +104,7 @@ jobs:
         run: |
           make artifacts-macos
 
-      - name: Configure COS CMD
+      - name: Configure COS For Silicon Valley
         env:
           SECRET_ID: ${{ secrets.COS_ID }}
           SECRET_KEY: ${{ secrets.COS_KEY }}
@@ -123,10 +113,19 @@ jobs:
         run: |
           coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
-      - name: Debug Query
+      - name: Push To Silicon Valley
         run: |
-          ls -l ./dist/release/
+          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
 
-      - name: Upload To SV
+      - name: Configure COS For Beijing
+        env:
+          SECRET_ID: ${{ secrets.COS_ID }}
+          SECRET_KEY: ${{ secrets.COS_KEY }}
+          BUCKET: release-bj-1252011659
+          REGION: ap-beijing
         run: |
-          for file in ./dist/release/*; do coscmd -d upload $file /archives/; done;
+          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+
+      - name: Push To Beijing
+        run: |
+          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
