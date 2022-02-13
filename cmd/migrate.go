@@ -10,9 +10,11 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/share"
 )
 
 var name string
+var force bool = false
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: L("Update database schema"),
@@ -26,6 +28,12 @@ var migrateCmd = &cobra.Command{
 		}()
 
 		Boot()
+
+		if !force && config.Conf.Mode == "production" {
+			fmt.Println(color.WhiteString(L("TRY:")), color.GreenString("%s migrate --force", share.BUILDNAME))
+			exception.New(L("Migrate is not allowed on production mode."), 403).Throw()
+		}
+
 		// 加载数据模型
 		err := engine.Load(config.Conf)
 		if err != nil {
@@ -53,4 +61,5 @@ var migrateCmd = &cobra.Command{
 
 func init() {
 	migrateCmd.PersistentFlags().StringVarP(&name, "name", "n", "", L("Model name"))
+	migrateCmd.PersistentFlags().BoolVarP(&force, "force", "", false, L("Force migrate"))
 }

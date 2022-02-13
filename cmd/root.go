@@ -22,7 +22,7 @@ var langs = map[string]string{
 	"Environment file":                      "指定环境变量文件",
 	"Help for yao":                          "显示命令帮助文档",
 	"Show app configure":                    "显示应用配置信息",
-	"Update database schema":                "更新数据库结构",
+	"Update database schema":                "更新数据表结构",
 	"Execute process":                       "运行处理器",
 	"Show version":                          "显示当前版本号",
 	"Development mode":                      "使用开发模式启动",
@@ -46,6 +46,8 @@ var langs = map[string]string{
 	"Listening":                             "    监听",
 	"✨LISTENING✨":                           "✨服务正在运行✨",
 	"SessionPort":                           "会话服务端口",
+	"Force migrate":                         "强制更新数据表结构",
+	"Migrate is not allowed on production mode.": "Migrate 不能再生产环境下使用",
 }
 
 // L 多语言切换

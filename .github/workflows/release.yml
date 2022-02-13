@@ -116,7 +116,6 @@ jobs:
       - name: Debug Query
         run: |
           ls -l ./dist/release/
-          coscmd upload -h
 
       - name: Upload To SV
         run: |
