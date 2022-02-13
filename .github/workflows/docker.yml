@@ -1,7 +1,10 @@
 name: Build and push docker images
 
-# Only trigger, when the Release Linux workflow succeeded
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/docker.yml"
   workflow_run:
     workflows: ["Release Linux"]
     types:
@@ -40,6 +43,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./docker/development
+          platforms: linux/amd64
           build-args: |
             VERSION=${{ env.VERSION }}
             ARCH=amd64
@@ -50,6 +54,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./docker/development
+          platforms: linux/arm64
           build-args: |
             VERSION=${{ env.VERSION }} 
             ARCH=arm64
@@ -60,6 +65,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./docker/production
+          platforms: linux/amd64
           build-args: |
             VERSION=${{ env.VERSION }} 
             ARCH=amd64
@@ -70,6 +76,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: ./docker/production
+          platforms: linux/arm64
           build-args: |
             VERSION=${{ env.VERSION }} 
             ARCH=arm64
