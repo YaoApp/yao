@@ -120,4 +120,4 @@ jobs:
 
       - name: Upload To SV
         run: |
-          coscmd upload ./dist/release/* /archives/
+          coscmd -d upload ./dist/release/* /archives/
