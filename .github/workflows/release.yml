@@ -110,7 +110,9 @@ jobs:
         SECRET_KEY: ${{ secrets.COS_KEY }}
         BUCKET: release-sv-1252011659
         REGION: na-siliconvalley
-      run: coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+        run: |
+          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
       - name: Upload To SV
-        run: coscmd upload ./dist/release/* /archives/
+        run: |
+          coscmd upload ./dist/release/* /archives/
