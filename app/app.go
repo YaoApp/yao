@@ -114,18 +114,21 @@ func LoadLang(cfg config.Config) error {
 
 	var defaults = []share.Script{}
 	if os.Getenv("YAO_DEV") != "" {
-		defaults = share.GetFilesFS(filepath.Join(os.Getenv("YAO_DEV"), "xiang", "langs"), ".json")
+		defaults = share.GetFilesFS(filepath.Join(os.Getenv("YAO_DEV"), "xiang"), ".json")
 	} else {
-		defaults = share.GetFilesBin("/xiang/langs", ".json")
+		defaults = share.GetFilesBin("xiang", ".json")
 	}
 
 	for _, lang := range defaults {
+		if lang.Type != "langs" {
+			continue
+		}
 		content := lang.Content
-		name := strings.ToLower(lang.Type) // 这个读取函数需要优化
+		name := strings.ToLower(lang.Name) // 这个读取函数需要优化
 		lang := map[string]string{}
 		err := jsoniter.Unmarshal(content, &lang)
 		if err != nil {
-			log.With(log.F{"name": name, "content": content}).Error(err.Error())
+			log.With(log.F{"name": name}).Error(err.Error())
 		}
 		langs[name] = lang
 	}

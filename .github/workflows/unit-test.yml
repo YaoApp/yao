@@ -17,6 +17,8 @@ env:
   YAO_LOG_MODE: "TEXT"
   YAO_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
   YAO_DB_AESKEY: "ZLX=T&f6refeCh-ro*r@"
+  OSS_TEST_ID: ${{ secrets.OSS_TEST_ID}}
+  OSS_TEST_SECRET: ${{ secrets.OSS_TEST_SECRET}}
   ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
 
 jobs:

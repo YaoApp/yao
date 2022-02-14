@@ -2,6 +2,7 @@ package xfs
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,8 +20,8 @@ func init() {
 			Default: "oss",
 			OSS: &share.AppStorageOSS{
 				Endpoint:    "oss-cn-hangzhou.aliyuncs.com",
-				ID:          "LTAI5tHXfWAMpcsobfqfeXsm",
-				Secret:      "4NeGNw97nFrfmgBWZTlFE0XtYQdMQO",
+				ID:          os.Getenv("OSS_TEST_ID"),
+				Secret:      os.Getenv("OSS_TEST_SECRET"),
 				RoleArn:     "acs:ram::31524094:role/ramosstest",
 				SessionName: "SessionTest",
 			},
