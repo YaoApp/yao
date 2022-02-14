@@ -20,7 +20,7 @@ func init() {
 	share.DBConnect(config.Conf.DB)
 	share.Load(config.Conf)
 	model.Load(config.Conf)
-	engineModels := path.Join(os.Getenv("YAO_DEV"), "xiang", "models")
+	engineModels := path.Join(os.Getenv("YAO_DEV"), "yao", "models")
 	model.LoadFrom(engineModels, "xiang.")
 	query.Load(config.Conf)
 	flow.Load(config.Conf)

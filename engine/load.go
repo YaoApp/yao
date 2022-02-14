@@ -43,7 +43,7 @@ func Load(cfg config.Config) (err error) {
 
 	// 加载应用引擎
 	if os.Getenv("YAO_DEV") != "" {
-		LoadEngine(filepath.Join(os.Getenv("YAO_DEV"), "/xiang"))
+		LoadEngine(filepath.Join(os.Getenv("YAO_DEV"), "/yao"))
 	} else {
 		LoadEngine()
 	}
@@ -114,7 +114,7 @@ func LoadEngine(from ...string) {
 	if len(from) > 0 {
 		scripts = share.GetFilesFS(from[0], ".json")
 	} else {
-		scripts = share.GetFilesBin("xiang", ".json")
+		scripts = share.GetFilesBin("yao", ".json")
 	}
 
 	if scripts == nil {

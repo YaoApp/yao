@@ -106,7 +106,7 @@ plugin-mac:
 pack:
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
-	cp -r xiang .tmp/data/
+	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 
@@ -123,7 +123,7 @@ artifacts-linux: clean
 #	Packing
 	mkdir -p .tmp/data
 	cp -r ../ui/dist .tmp/data/ui
-	cp -r xiang .tmp/data/
+	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/ui
@@ -151,21 +151,60 @@ artifacts-macos: clean
 #	Packing
 	mkdir -p .tmp/data
 	cp -r ../ui/dist .tmp/data/ui
-	cp -r xiang .tmp/data/
+	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/ui
 
 #   Making artifacts
 	mkdir -p dist
-	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
-	CGO_ENABLED=1 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-darwin-arm64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-darwin-arm64
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-darwin-amd64 version
+
+.PHONY: debug
+debug: clean
+	mkdir -p dist/release
+
+#	Packing
+	mkdir -p .tmp/data
+	cp -r ui .tmp/data/ui
+	cp -r yao .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+
+#   Making artifacts
+	mkdir -p dist
+	CGO_ENABLED=1 go build -v -o dist/release/yao-debug
+	chmod +x  dist/release/yao-debug
+
+.PHONY: release
+release: clean
+	mkdir -p dist/release
+	mkdir .tmp
+
+#	Building UI
+	git clone https://github.com/YaoApp/xgen.git .tmp/ui
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
+	cd .tmp/ui && npm install && npm run build
+
+#	Packing
+	mkdir -p .tmp/data
+	cp -r .tmp/ui/dist .tmp/data/ui
+	cp -r yao .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#   Making artifacts
+	mkdir -p dist
+	CGO_ENABLED=1 go build -v -o dist/release/yao
+	chmod +x  dist/release/yao
 
 # make clean
 .PHONY: clean

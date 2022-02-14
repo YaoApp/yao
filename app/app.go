@@ -94,16 +94,16 @@ func LoadInfo(root string) {
 		}
 	}
 
-	if fs.MustExists("/xiang/icons/icon.icns") {
-		info.Icons.Set("icns", xfs.Encode(fs.MustReadFile("/xiang/icons/icon.icns")))
+	if fs.MustExists("/yao/icons/icon.icns") {
+		info.Icons.Set("icns", xfs.Encode(fs.MustReadFile("/yao/icons/icon.icns")))
 	}
 
-	if fs.MustExists("/xiang/icons/icon.ico") {
-		info.Icons.Set("ico", xfs.Encode(fs.MustReadFile("/xiang/icons/icon.ico")))
+	if fs.MustExists("/yao/icons/icon.ico") {
+		info.Icons.Set("ico", xfs.Encode(fs.MustReadFile("/yao/icons/icon.ico")))
 	}
 
-	if fs.MustExists("/xiang/icons/icon.png") {
-		info.Icons.Set("png", xfs.Encode(fs.MustReadFile("/xiang/icons/icon.png")))
+	if fs.MustExists("/yao/icons/icon.png") {
+		info.Icons.Set("png", xfs.Encode(fs.MustReadFile("/yao/icons/icon.png")))
 	}
 
 	share.App = info
@@ -114,9 +114,9 @@ func LoadLang(cfg config.Config) error {
 
 	var defaults = []share.Script{}
 	if os.Getenv("YAO_DEV") != "" {
-		defaults = share.GetFilesFS(filepath.Join(os.Getenv("YAO_DEV"), "xiang"), ".json")
+		defaults = share.GetFilesFS(filepath.Join(os.Getenv("YAO_DEV"), "yao"), ".json")
 	} else {
-		defaults = share.GetFilesBin("xiang", ".json")
+		defaults = share.GetFilesBin("yao", ".json")
 	}
 
 	for _, lang := range defaults {
@@ -176,14 +176,14 @@ func defaultInfo() share.AppInfo {
 	info := share.AppInfo{
 		Icons: maps.MakeSync(),
 	}
-	err := jsoniter.Unmarshal(data.MustAsset("xiang/data/app.json"), &info)
+	err := jsoniter.Unmarshal(data.MustAsset("yao/data/app.json"), &info)
 	if err != nil {
 		exception.New("解析默认应用失败 %s", 500, err).Throw()
 	}
 
-	info.Icons.Set("icns", xfs.Encode(data.MustAsset("xiang/data/icons/icon.icns")))
-	info.Icons.Set("ico", xfs.Encode(data.MustAsset("xiang/data/icons/icon.ico")))
-	info.Icons.Set("png", xfs.Encode(data.MustAsset("xiang/data/icons/icon.png")))
+	info.Icons.Set("icns", xfs.Encode(data.MustAsset("yao/data/icons/icon.icns")))
+	info.Icons.Set("ico", xfs.Encode(data.MustAsset("yao/data/icons/icon.ico")))
+	info.Icons.Set("png", xfs.Encode(data.MustAsset("yao/data/icons/icon.png")))
 
 	return info
 }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "页面接口API",
   "group": "xiang/page",
-  "guard": "in-process",
+  "guard": "bearer-jwt",
   "paths": [
     {
       "path": "/:name/data",
