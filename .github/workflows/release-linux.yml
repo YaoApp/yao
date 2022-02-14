@@ -2,6 +2,7 @@ name: Release Linux
 
 on:
   workflow_dispatch:
+    description: "Version tag"
   push:
     branches: [main]
     paths:

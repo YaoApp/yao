@@ -2,6 +2,8 @@ name: Release MacOS
 
 on:
   workflow_dispatch:
+    tags:
+      description: "Version tag"
   push:
     branches: [main]
     paths:
