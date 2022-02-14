@@ -102,14 +102,16 @@ plugin-mac:
 
 
 # make pack
-.PHONY: pack
-pack:
+.PHONY: pack 
+pack: bindata vet
+
+.PHONY: bindata
+bindata:
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
-
 
 # make artifacts-linux
 .PHONY: artifacts-linux

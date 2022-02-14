@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -23,13 +24,14 @@ var initCmd = &cobra.Command{
 		makeAppJSON()
 		makeEnv()
 		defaultApps()
+		defaultIcons()
 		fmt.Println(color.GreenString(L("✨DONE✨")))
 		fmt.Println(color.WhiteString(L("NEXT:")), color.GreenString("%s migrate && %s run flows.setmenu", share.BUILDNAME, share.BUILDNAME))
 	},
 }
 
 func makeDirs() {
-	dirs := []string{"db", "data", "apis", "models", "flows", "scripts", "tables", "libs", "ui"}
+	dirs := []string{"db", "data", filepath.Join("yao", "icons"), "apis", "models", "flows", "scripts", "tables", "libs", "ui"}
 	for _, name := range dirs {
 		dirname := filepath.Join(config.Conf.Root, name)
 		if _, err := os.Stat(dirname); errors.Is(err, os.ErrNotExist) {
@@ -39,6 +41,29 @@ func makeDirs() {
 			}
 		}
 	}
+}
+
+func defaultIcons() {
+	png, err := data.Asset("yao/data/icons/icon.png")
+	if err != nil {
+		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+		os.Exit(1)
+	}
+	makeFileContent(filepath.Join("yao", "icons", "icon.png"), png)
+
+	ico, err := data.Asset("yao/data/icons/icon.ico")
+	if err != nil {
+		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+		os.Exit(1)
+	}
+	makeFileContent(filepath.Join("yao", "icons", "icon.ico"), ico)
+
+	icns, err := data.Asset("yao/data/icons/icon.icns")
+	if err != nil {
+		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+		os.Exit(1)
+	}
+	makeFileContent(filepath.Join("yao", "icons", "icon.icns"), icns)
 }
 
 func defaultApps() {
@@ -273,7 +298,10 @@ func makeFile(name string, source string) {
 		fmt.Println(color.RedString(L("Fatal: %s"), filename+" already existed"))
 		os.Exit(1)
 	}
-	content := []byte(source)
+	makeFileContent(name, []byte(source))
+}
+
+func makeFileContent(filename string, content []byte) {
 	err := os.WriteFile(filename, content, 0644)
 	if err != nil {
 		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))

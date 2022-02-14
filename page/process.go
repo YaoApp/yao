@@ -17,14 +17,11 @@ func init() {
 // 查询数据分析页面中定义的数据
 func ProcessData(process *gou.Process) interface{} {
 
-	process.ValidateArgNums(3)
+	process.ValidateArgNums(2)
 	name := process.ArgsString(0)
 	params := process.ArgsMap(1)
 	page := Select(name)
 	api := page.APIs["data"]
-	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
-		return nil
-	}
 
 	if len(api.Default) > 0 {
 		if defaults, ok := api.Default[0].(map[string]interface{}); ok {
@@ -47,10 +44,6 @@ func ProcessSetting(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	field := process.ArgsString(1)
 	page := Select(name)
-	api := page.APIs["setting"]
-	if process.NumOfArgsIs(2) && api.IsAllow(process.Args[1]) {
-		return nil
-	}
 
 	fields := strings.Split(field, ",")
 	setting := maps.Map{
