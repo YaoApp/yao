@@ -1,6 +1,7 @@
 name: Release Linux
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
