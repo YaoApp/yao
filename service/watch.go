@@ -67,7 +67,7 @@ func WatchGlobal(root string) {
 				fmt.Println(color.RedString("Fatal: %s", err.Error()))
 				return
 			}
-			Stop(func() {
+			StopWithouttSession(func() {
 				fmt.Println(color.GreenString("Service Restarted"))
 				go StartWithouttSession()
 			})
@@ -137,7 +137,7 @@ func WatchAPI(root string, prefix string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			Stop(func() {
+			StopWithouttSession(func() {
 				fmt.Println(color.GreenString("Service Restarted"))
 				go StartWithouttSession()
 			})
@@ -268,7 +268,7 @@ func WatchTable(root string, prefix string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			Stop(func() {
+			StopWithouttSession(func() {
 				fmt.Println(color.GreenString("Service Restarted"))
 				go StartWithouttSession()
 			})
@@ -335,7 +335,7 @@ func WatchChart(root string, prefix string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			Stop(func() {
+			StopWithouttSession(func() {
 				fmt.Println(color.GreenString("Service Restarted"))
 				go StartWithouttSession()
 			})
@@ -402,7 +402,7 @@ func WatchPage(root string, prefix string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			Stop(func() {
+			StopWithouttSession(func() {
 				fmt.Println(color.GreenString("Service Restarted"))
 				go StartWithouttSession()
 			})
@@ -450,7 +450,7 @@ func WatchWorkFlow(root string, prefix string) {
 
 		// 重启服务器
 		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			Stop(func() {
+			StopWithouttSession(func() {
 				fmt.Println(color.GreenString("Service Restarted"))
 				go StartWithouttSession()
 			})

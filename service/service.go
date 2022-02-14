@@ -45,6 +45,14 @@ func StartWithouttSession() {
 		Middlewares...)
 }
 
+// StopWithouttSession 关闭服务
+func StopWithouttSession(onComplete func()) {
+	shutdown <- true
+	<-shutdownComplete
+	gou.KillPlugins()
+	onComplete()
+}
+
 // Stop 关闭服务
 func Stop(onComplete func()) {
 	shutdown <- true
