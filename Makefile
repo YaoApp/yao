@@ -103,7 +103,7 @@ plugin-mac:
 
 # make pack
 .PHONY: pack 
-pack: bindata vet
+pack: bindata fmt
 
 .PHONY: bindata
 bindata:
