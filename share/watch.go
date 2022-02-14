@@ -1,11 +1,13 @@
 package share
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/yaoapp/kun/exception"
 )
@@ -55,7 +57,7 @@ func Watch(root string, cb func(op string, file string)) {
 				if !ok {
 					return
 				}
-				log.Println("error:", err)
+				log.Println("Error:", err)
 			}
 		}
 	}()
@@ -65,7 +67,7 @@ func Watch(root string, cb func(op string, file string)) {
 		log.Fatal(err)
 	}
 
-	log.Println("开始监听目录:", root)
+	fmt.Println(color.GreenString("Watching: %s", root))
 
 	// 监听子目录
 	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -86,7 +88,7 @@ func Watch(root string, cb func(op string, file string)) {
 
 	select {
 	case v := <-watchDone[last]:
-		log.Println("停止监听目录:", root)
+		fmt.Println(color.GreenString("Stop Watching: %s", root))
 		if v == true {
 			break
 		}
@@ -96,7 +98,7 @@ func Watch(root string, cb func(op string, file string)) {
 // StopWatch 停止监听
 func StopWatch() {
 	for i := range watchDone {
-		log.Println("发送停止信号:", i)
+		fmt.Println(color.GreenString("Stop: %d", i))
 		watchDone[i] <- true
 	}
 	watchDone = []chan bool{}

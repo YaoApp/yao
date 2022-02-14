@@ -11,7 +11,6 @@ import (
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -73,7 +72,8 @@ func LoadTable(source string, name string) (*Table, error) {
 	}
 	err := helper.UnmarshalFile(input, &table)
 	if err != nil {
-		exception.Err(err, 400).Ctx(maps.Map{"name": name}).Throw()
+		// exception.Err(err, 400).Ctx(maps.Map{"name": name}).Throw()
+		return &table, err
 	}
 
 	table.loadColumns()

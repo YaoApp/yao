@@ -29,6 +29,22 @@ func Start() {
 		Middlewares...)
 }
 
+// StartWithouttSession 启动服务
+func StartWithouttSession() {
+
+	gou.SetHTTPGuards(Guards)
+	gou.ServeHTTP(
+		gou.Server{
+			Host: config.Conf.Host,
+			Port: config.Conf.Port,
+			Root: "/api",
+		},
+		&shutdown, func(s gou.Server) {
+			shutdownComplete <- true
+		},
+		Middlewares...)
+}
+
 // Stop 关闭服务
 func Stop(onComplete func()) {
 	shutdown <- true

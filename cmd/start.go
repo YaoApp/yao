@@ -84,7 +84,7 @@ var startCmd = &cobra.Command{
 		fmt.Println("")
 
 		// 调试模式
-		if config.Conf.Mode == "debug" {
+		if mode == "development" {
 			service.Watch(config.Conf)
 		}
 
