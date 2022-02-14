@@ -1,6 +1,7 @@
 name: Release MacOS
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
