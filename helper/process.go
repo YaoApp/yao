@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"time"
+
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/utils"
 )
@@ -60,11 +62,21 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.Print", ProcessPrint)
 	gou.AliasProcess("xiang.helper.Print", "xiang.sys.Print")
 
+	gou.RegisterProcessHandler("xiang.flow.Sleep", ProcessSleep)
+
 }
 
 // ProcessPrint xiang.helper.Print 打印语句
 func ProcessPrint(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 	utils.Dump(process.Args...)
+	return nil
+}
+
+// ProcessSleep xiang.flow.Sleep 等待
+func ProcessSleep(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	ms := process.ArgsInt(0)
+	time.Sleep(time.Duration((ms * int(time.Millisecond))))
 	return nil
 }
