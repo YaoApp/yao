@@ -63,7 +63,7 @@ func init() {
 	gou.AliasProcess("xiang.helper.Print", "xiang.sys.Print")
 
 	gou.RegisterProcessHandler("xiang.flow.Sleep", ProcessSleep)
-
+	gou.AliasProcess("xiang.flow.Sleep", "xiang.sys.Sleep")
 }
 
 // ProcessPrint xiang.helper.Print 打印语句
