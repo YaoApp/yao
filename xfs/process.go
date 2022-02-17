@@ -140,13 +140,13 @@ const svg404 = `
 // processGetURL 返回文件CDN地址
 func processGetURL(process *gou.Process) interface{} {
 	if len(process.Args) < 1 {
-		return string(data.MustAsset("xiang/data/icons/404.png"))
+		return string(data.MustAsset("yao/data/icons/404.png"))
 	}
 
 	filename := process.ArgsString(0)
 	body, err := Stor.ReadFile(filename)
 	if err != nil {
-		return string(data.MustAsset("xiang/data/icons/404.png"))
+		return string(data.MustAsset("yao/data/icons/404.png"))
 	}
 	return string(body)
 }
