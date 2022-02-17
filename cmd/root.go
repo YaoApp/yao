@@ -71,6 +71,12 @@ var rootCmd = &cobra.Command{
 		DisableDefaultCmd: true,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 {
+			switch args[0] {
+			case "fuxi":
+				fuxi()
+			}
+		}
 		fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
 		os.Exit(1)
 	},
@@ -86,7 +92,7 @@ func init() {
 		runCmd,
 		initCmd,
 	)
-	rootCmd.SetHelpCommand(helpCmd)
+	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
 	rootCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", L("Environment file"))
 }

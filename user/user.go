@@ -68,6 +68,7 @@ func Auth(field string, value string, password string) maps.Map {
 	token := helper.JwtMake(id, map[string]interface{}{}, map[string]interface{}{
 		"expires_at": expiresAt,
 		"sid":        sid,
+		"issuer":     "xiang",
 	})
 	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user_id", id)
 	session.Global().ID(sid).Set("user", row)

@@ -17,6 +17,7 @@ func TestJwt(t *testing.T) {
 	assert.NotNil(t, res)
 	assert.Equal(t, float64(1), res.Data["id"])
 	assert.Equal(t, "world", res.Data["hello"])
+	assert.Equal(t, "UnitTest", res.Issuer)
 	time.Sleep(2 * time.Second)
 	assert.Panics(t, func() { JwtValidate(tokenString) })
 }
@@ -31,6 +32,7 @@ func TestProcessJwt(t *testing.T) {
 	res := gou.NewProcess("xiang.helper.JwtValidate", tokenString).Run().(*JwtClaims)
 	assert.Equal(t, float64(1), res.Data["id"])
 	assert.Equal(t, "world", res.Data["hello"])
+	assert.Equal(t, "UnitTest", res.Issuer)
 	time.Sleep(2 * time.Second)
 	assert.Panics(t, func() { gou.NewProcess("xiang.helper.JwtValidate", tokenString).Run() })
 }
