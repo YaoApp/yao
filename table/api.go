@@ -21,8 +21,8 @@ func apiSearchDefault(model *gou.Model, withs map[string]gou.With) share.API {
 	}
 
 	return share.API{
-		Name:    "search",
-		Guard:   "bearer-jwt",
+		Name: "search",
+		// Guard:   "bearer-jwt",
 		Process: fmt.Sprintf("models.%s.Paginate", model.Name),
 		Default: []interface{}{query, 1, 20},
 	}
@@ -37,8 +37,8 @@ func apiFindDefault(model *gou.Model, withs map[string]gou.With) share.API {
 	}
 
 	return share.API{
-		Name:    "find",
-		Guard:   "bearer-jwt",
+		Name: "find",
+		// Guard:   "bearer-jwt",
 		Process: fmt.Sprintf("models.%s.Find", model.Name),
 		Default: []interface{}{nil, query},
 	}
@@ -47,8 +47,8 @@ func apiFindDefault(model *gou.Model, withs map[string]gou.With) share.API {
 // apiDefault 接口默认值
 func apiDefault(model *gou.Model, name string, process string) share.API {
 	return share.API{
-		Name:    name,
-		Guard:   "bearer-jwt",
+		Name: name,
+		// Guard:   "bearer-jwt",
 		Process: fmt.Sprintf("models.%s.%s", model.Name, process),
 	}
 }
@@ -62,8 +62,8 @@ func apiDefaultWhere(model *gou.Model, withs map[string]gou.With, name string, p
 	}
 
 	return share.API{
-		Name:    name,
-		Guard:   "bearer-jwt",
+		Name: name,
+		// Guard:   "bearer-jwt",
 		Process: fmt.Sprintf("models.%s.%s", model.Name, process),
 		Default: []interface{}{query},
 	}
@@ -72,8 +72,8 @@ func apiDefaultWhere(model *gou.Model, withs map[string]gou.With, name string, p
 // apiDefaultSetting 数据表格配置默认值
 func apiDefaultSetting() share.API {
 	return share.API{
-		Name:    "setting",
-		Guard:   "bearer-jwt",
+		Name: "setting",
+		// Guard:   "bearer-jwt",
 		Process: fmt.Sprintf("xiang.table.setting"),
 	}
 }

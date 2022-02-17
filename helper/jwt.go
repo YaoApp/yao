@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 )
 
@@ -33,7 +34,8 @@ func JwtValidate(tokenString string) *JwtClaims {
 	})
 
 	if err != nil {
-		exception.New("令牌无效", 403).Ctx(err.Error()).Throw()
+		log.Error("JWT ParseWithClaims Error: %s", err)
+		exception.New("Invalid token", 403).Ctx(err.Error()).Throw()
 		return nil
 	}
 
@@ -41,7 +43,7 @@ func JwtValidate(tokenString string) *JwtClaims {
 		return claims
 	}
 
-	exception.New("令牌无效", 403).Ctx(token.Claims).Throw()
+	exception.New("Invalid token", 403).Ctx(token.Claims).Throw()
 	return nil
 }
 

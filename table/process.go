@@ -35,9 +35,11 @@ func ProcessSearch(process *gou.Process) interface{} {
 	table := Select(name)
 
 	api := table.APIs["search"].ValidateLoop("xiang.table.search")
-	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
+
+	// if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
+	// 	return nil
+	// }
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSearch, process.Args, process.Sid)
@@ -64,9 +66,7 @@ func ProcessFind(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["find"].ValidateLoop("xiang.table.find")
-	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeFind, process.Args, process.Sid)
@@ -92,9 +92,7 @@ func ProcessSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["save"].ValidateLoop("xiang.table.save")
-	// if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
-	// 	return nil
-	// }
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSave, process.Args, process.Sid)
@@ -116,9 +114,7 @@ func ProcessDelete(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete"].ValidateLoop("xiang.table.delete")
-	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	id := process.Args[1]
 	return gou.NewProcess(api.Process, id).Run()
@@ -132,9 +128,7 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete-where"].ValidateLoop("xiang.table.DeleteWhere")
-	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
@@ -153,9 +147,7 @@ func ProcessDeleteIn(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete-in"].ValidateLoop("xiang.table.DeleteIn")
-	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	ids := strings.Split(process.ArgsString(1), ",")
@@ -177,9 +169,7 @@ func ProcessUpdateWhere(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["update-where"].ValidateLoop("xiang.table.UpdateWhere")
-	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量更新
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
@@ -197,9 +187,7 @@ func ProcessUpdateIn(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["update-in"].ValidateLoop("xiang.table.UpdateIn")
-	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	ids := strings.Split(process.ArgsString(1), ",")
@@ -219,9 +207,7 @@ func ProcessInsert(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["insert"].ValidateLoop("xiang.table.Insert")
-	if process.NumOfArgsIs(4) && api.IsAllow(process.Args[3]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 	return gou.NewProcess(api.Process, process.Args[1:]...).Run()
 }
 
@@ -233,9 +219,7 @@ func ProcessSetting(process *gou.Process) interface{} {
 	field := process.ArgsString(1)
 	table := Select(name)
 	api := table.APIs["setting"]
-	if process.NumOfArgsIs(2) && api.IsAllow(process.Args[1]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	fields := strings.Split(field, ",")
 	if api.ProcessIs("xiang.table.Setting") {
@@ -280,9 +264,7 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["quicksave"].ValidateLoop("xiang.table.quicksave")
-	if process.NumOfArgsIs(3) && api.IsAllow(process.Args[2]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	args := []interface{}{}
 	payload := process.ArgsMap(1)
@@ -312,9 +294,7 @@ func ProcessSelect(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["select"].ValidateLoop("xiang.table.select")
-	if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
-		return nil
-	}
+	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args, process.Sid)

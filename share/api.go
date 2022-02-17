@@ -15,7 +15,7 @@ import (
 	"github.com/yaoapp/kun/utils"
 )
 
-// IsAllow 鉴权处理程序
+// IsAllow 鉴权处理程序 (废弃)
 func (api API) IsAllow(v interface{}) bool {
 	c, ok := v.(*gin.Context)
 	if !ok {

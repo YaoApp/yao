@@ -5,6 +5,7 @@
   "bind": {
     "model": "xiang.menu"
   },
+  "guard": "flows.xiang.admin.guard",
   "apis": {
     "search": {
       "process": "models.xiang.menu.Paginate",

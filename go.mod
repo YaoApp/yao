@@ -10,7 +10,6 @@ require (
 	github.com/buraksezer/consistent v0.9.0 // indirect
 	github.com/buraksezer/olric v0.4.2
 	github.com/caarlos0/env/v6 v6.9.1
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/fatih/color v1.13.0
 	github.com/fsnotify/fsnotify v1.5.1
@@ -56,4 +55,4 @@ replace github.com/yaoapp/xun => ../xun // gou local
 
 replace github.com/yaoapp/gou => ../gou // gou local
 
-replace rogchap.com/v8go  => ../v8go
+replace rogchap.com/v8go => ../v8go

@@ -72,6 +72,7 @@ func Auth(field string, value string, password string) maps.Map {
 	})
 	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user_id", id)
 	session.Global().ID(sid).Set("user", row)
+	session.Global().ID(sid).Set("issuer", "xiang")
 
 	// 读取菜单
 	menus := gou.NewProcess("flows.xiang.menu").Run()

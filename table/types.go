@@ -9,6 +9,7 @@ import (
 type Table struct {
 	Table      string                  `json:"-"`
 	Source     string                  `json:"-"`
+	Guard      string                  `json:"guard,omitempty"`
 	Name       string                  `json:"name"`
 	Version    string                  `json:"version"`
 	Title      string                  `json:"title,omitempty"`
