@@ -3,13 +3,13 @@
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 
-[中文介绍](README-zh-CN.md)
-
-Yao A low code engine to create web services and dashboard.
+![intro](docs/1.intro.png)
 
 Website: [https://yaoapps.com](https://yaoapps.com/en-US)
 
 Docs: [https://yaoapps.com/doc](https://yaoapps.com/en-US/doc)
+
+[中文介绍](README.zh-CN.md)
 
 ## Demo
 

@@ -3,9 +3,11 @@
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 
-[English](README.md)
+![intro](docs/1.intro.png)
 
 Yao 是一款支持快速创建 Web 服务和管理后台的开源低代码应用引擎。
+
+[English](README.md)
 
 官网: [https://yaoapps.com](https://yaoapps.com)
 
