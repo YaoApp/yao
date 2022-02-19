@@ -2,6 +2,8 @@
 
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
+[![Go Report Card](https://goreportcard.com/badge/github.com/yaoapp/yao)](https://goreportcard.com/report/github.com/yaoapp/yao)
+[![Go Reference](https://pkg.go.dev/badge/github.com/yaoapp/yao.svg)](https://pkg.go.dev/github.com/yaoapp/yao)
 
 ![intro](docs/1.intro.png)
 
@@ -23,7 +25,7 @@ A Customer Relationship Management System developed by Yao.
 
 An example of cloud + edge IoT application, an unattended intelligent warehouse management system that supports face recognition and RFID.
 
-[https://demo-wms.yaoapps.com](https://demo-crm.yaoapps.com/xiang/login/admin?autoLogin=true)
+[https://demo-wms.yaoapps.com](https://demo-wms.yaoapps.com/xiang/login/admin?autoLogin=true)
 
 ## Introduce
 
