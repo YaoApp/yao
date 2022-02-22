@@ -1,10 +1,5 @@
-![intro](docs/1.intro.png)
-
 <p align="center">
-  <a href="https://yaoapps.com">
-    <img src="https://yaoapps.com/images/logo_light.svg" height="128">
     <h1 align="center">YAO</h1>
-  </a>
 </p>
 
 <p align="center">
@@ -39,6 +34,8 @@
     <img src="https://pkg.go.dev/badge/github.com/yaoapp/yao.svg">
   </a>
 </p>
+
+![intro](docs/1.intro.png)
 
 [中文介绍](README.zh-CN.md)
 
