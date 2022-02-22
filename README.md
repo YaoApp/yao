@@ -1,15 +1,44 @@
-# Yao
-
-[![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
-[![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
-[![Go Report Card](https://goreportcard.com/badge/github.com/yaoapp/yao)](https://goreportcard.com/report/github.com/yaoapp/yao)
-[![Go Reference](https://pkg.go.dev/badge/github.com/yaoapp/yao.svg)](https://pkg.go.dev/github.com/yaoapp/yao)
-
 ![intro](docs/1.intro.png)
 
-Website: [https://yaoapps.com](https://yaoapps.com/en-US)
+<p align="center">
+  <a href="https://yaoapps.com">
+    <img src="https://yaoapps.com/images/logo_light.svg" height="128">
+    <h1 align="center">YAO</h1>
+  </a>
+</p>
 
-Docs: [https://yaoapps.com/doc](https://yaoapps.com/en-US/doc)
+<p align="center">
+  <a aria-label="website" href="https://yaoapps.com" target="_blank">
+    Website
+  </a>
+  ·
+  <a aria-label="producthunt" href="https://www.producthunt.com/posts/yao-app-engine" target="_blank">
+    Producthunt
+  </a>
+  ·
+  <a aria-label="twitter" href="https://twitter.com/YaoApp" target="_blank">
+    Twitter
+  </a>
+  ·
+  <a aria-label="slack" href="https://join.slack.com/t/yaoapps/shared_invite/zt-13dm0cwvo-R9Q8xFGbrLZUffeygm9tXQ" target="_blank">
+    Slack
+  </a>
+</p>
+
+<p align="center">
+  <a aria-label="UnitTest" href="https://github.com/YaoApp/yao/actions/workflows/unit-test.yml" target="_blank">
+    <img src="https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg">
+  </a>
+  <a aria-label="codecov" href="https://codecov.io/gh/YaoApp/yao" target="_blank">
+    <img src="https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J">
+  </a>
+  <a aria-label="Go Report Card" href="https://goreportcard.com/report/github.com/yaoapp/yao" target="_blank">
+    <img src="https://goreportcard.com/badge/github.com/yaoapp/yao">
+  </a>
+  <a aria-label="Go Reference" href="https://pkg.go.dev/github.com/yaoapp/yao" target="_blank">
+    <img src="https://pkg.go.dev/badge/github.com/yaoapp/yao.svg">
+  </a>
+</p>
 
 [中文介绍](README.zh-CN.md)
 
