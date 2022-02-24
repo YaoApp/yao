@@ -56,7 +56,6 @@ jobs:
         with:
           repository: yaoapp/gou
           path: gou
-          token: ${{ secrets.TOKEN }}
 
       - name: Checkout V8Go
         uses: actions/checkout@v2
