@@ -126,5 +126,4 @@ func Boot() {
 	} else if config.Conf.Mode == "development" {
 		config.Development()
 	}
-	fmt.Println(root)
 }
