@@ -301,7 +301,8 @@ func makeFile(name string, source string) {
 	makeFileContent(name, []byte(source))
 }
 
-func makeFileContent(filename string, content []byte) {
+func makeFileContent(name string, content []byte) {
+	filename := filepath.Join(config.Conf.Root, name)
 	err := os.WriteFile(filename, content, 0644)
 	if err != nil {
 		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
