@@ -8,7 +8,7 @@ import (
 	_ "github.com/yaoapp/yao/xfs"
 )
 
-// 主程序
+// 主程序 test
 func main() {
 	cmd.Execute()
 }
