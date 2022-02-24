@@ -107,8 +107,7 @@ func Execute() {
 
 // Boot 设定配置
 func Boot() {
-
-	root := ""
+	root := config.Conf.Root
 	if appPath != "" {
 		r, err := filepath.Abs(appPath)
 		if err != nil {
@@ -116,16 +115,16 @@ func Boot() {
 		}
 		root = r
 	}
-
-	if envFile == "" {
+	if envFile != "" {
+		config.Conf = config.LoadFrom(envFile)
+	} else {
 		config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
 	}
-	if root != "" {
-		config.Conf.Root = root
-	}
+
 	if config.Conf.Mode == "production" {
 		config.Production()
 	} else if config.Conf.Mode == "development" {
 		config.Development()
 	}
+	fmt.Println(root)
 }
