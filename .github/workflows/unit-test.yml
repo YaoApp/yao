@@ -80,7 +80,7 @@ jobs:
           kind: "${{ matrix.db }}"
           db: "xiang"
           user: "xiang"
-          password: 123456
+          password: ${{ secrets.UNIT_PASS }}
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v2
@@ -95,7 +95,7 @@ jobs:
 
       - name: Setup ENV & Host
         env:
-          PASSWORD: 123456
+          PASSWORD: ${{ secrets.UNIT_PASS }}
         run: |
           sudo echo "127.0.0.1 local.iqka.com" | sudo tee -a /etc/hosts 
           echo "YAO_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
