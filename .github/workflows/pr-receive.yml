@@ -12,9 +12,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Build
-        run: /bin/bash ./build.sh
-
       - name: Save PR number
         run: |
           mkdir -p ./pr
