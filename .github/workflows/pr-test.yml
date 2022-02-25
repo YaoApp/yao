@@ -33,6 +33,50 @@ jobs:
       ${{ github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' }}
     steps:
+      - name: "Download artifact"
+        uses: actions/github-script@v3.1.0
+        with:
+          script: |
+            var artifacts = await github.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{github.event.workflow_run.id }},
+            });
+            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "pr"
+            })[0];
+            var download = await github.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
+
+      - name: "Read NR & SHA"
+        run: |
+          unzip pr.zip
+          cat NR
+          cat SHA
+          echo HEAD=$(cat SHA) >> $GITHUB_ENV
+          echo NR=$(cat NR) >> $GITHUB_ENV
+
+      - name: "Comment on PR"
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { NR } = process.env
+            var fs = require('fs');
+            var issue_number = NR;
+            await github.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: 'Thank you for the PR! The test workflow is running, the results of the run will be commented later.'
+            });
+
       - name: Setup Cache
         uses: actions/cache@v2
         with:
@@ -76,35 +120,6 @@ jobs:
           mv v8go ../
           ls -l .
           ls -l ../
-
-      - name: "Download artifact"
-        uses: actions/github-script@v3.1.0
-        with:
-          script: |
-            var artifacts = await github.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-
-      - name: "Unzip"
-        run: |
-          unzip pr.zip
-          cat NR
-          cat SHA
-          echo HEAD=$(cat SHA) >> $GITHUB_ENV
-          echo NR=$(cat NR) >> $GITHUB_ENV
 
       - name: Checkout pull request HEAD commit
         uses: actions/checkout@v2
@@ -175,11 +190,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const { NR } = process.env
             var fs = require('fs');
-            var issue_number = ${NR};
+            var issue_number = NR;
             await github.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
-              body: 'Everything is OK. Thank you for the PR!'
+              body: '✨DONE✨ Everything is OK. Thanks Again！'
             });
