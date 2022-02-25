@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         go: [1.17]
-        db: [SQLite3]
+        db: [MySQL8.0, MySQL5.7, SQLite3]
     if: >
       ${{ github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' }}
