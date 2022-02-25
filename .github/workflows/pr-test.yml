@@ -38,7 +38,14 @@ jobs:
       - name: "Unzip"
         run: |
           unzip pr.zip
-          ls -l
+          cat NR
+          cat SHA
+          echo HEAD=$(cat SHA) >> $GITHUB_ENV
+
+      - name: Checkout pull request HEAD commit
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.HEAD }}
 
       - name: "Comment on PR"
         uses: actions/github-script@v3
