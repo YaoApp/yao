@@ -1,9 +1,12 @@
 {
-  "name": "RFID接收器",
-  "description": "用来接收并处理RIFD",
-  "version": "0.0.1",
+  "name": "RFID Receiver (Server Mode)",
+  "description": "RFID Receiver (Server Mode)",
+  "mode": "server",
+  "version": "0.9.2",
   "protocol": "tcp",
   "host": "0.0.0.0",
   "port": "3019",
-  "process": "flows.rfid.read"
+  "process": "flows.rfid.read",
+  "buffer": 60,
+  "keep": 0
 }

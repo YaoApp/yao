@@ -1,0 +1,12 @@
+{
+  "name": "RFID Receiver (Client Mode)",
+  "description": "RFID Receiver (Client Mode)",
+  "mode": "client",
+  "version": "0.9.2",
+  "protocol": "tcp",
+  "host": "192.168.1.192",
+  "port": "6000",
+  "process": "flows.rfid.read",
+  "buffer": 60,
+  "keep": 0
+}

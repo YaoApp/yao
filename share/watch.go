@@ -6,13 +6,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
 	"github.com/yaoapp/kun/exception"
 )
 
-var watchDone = []chan bool{}
+var watchGroup sync.WaitGroup
 var watchOp = map[fsnotify.Op]string{
 	fsnotify.Create: "create",
 	fsnotify.Write:  "write",
@@ -27,10 +28,12 @@ func Watch(root string, cb func(op string, file string)) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer watcher.Close()
+	defer func() {
+		watcher.Close()
+		watchGroup.Done()
+	}()
 
-	watchDone = append(watchDone, make(chan bool))
-	last := len(watchDone) - 1
+	watchGroup.Add(1)
 	go func() {
 		for {
 			select {
@@ -86,20 +89,6 @@ func Watch(root string, cb func(op string, file string)) {
 		return nil
 	})
 
-	select {
-	case v := <-watchDone[last]:
-		fmt.Println(color.GreenString("Stop Watching: %s", root))
-		if v == true {
-			break
-		}
-	}
-}
+	watchGroup.Wait()
 
-// StopWatch 停止监听
-func StopWatch() {
-	for i := range watchDone {
-		fmt.Println(color.GreenString("Stop: %d", i))
-		watchDone[i] <- true
-	}
-	watchDone = []chan bool{}
 }
