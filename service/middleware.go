@@ -27,7 +27,8 @@ func BinStatic(c *gin.Context) {
 
 	length := len(c.Request.URL.Path)
 
-	if length >= 5 && c.Request.URL.Path[0:5] == "/api/" { // API接口
+	if (length >= 5 && c.Request.URL.Path[0:5] == "/api/") ||
+		(length >= 11 && c.Request.URL.Path[0:11] == "/websocket/") { // API & websocket
 		c.Next()
 		return
 	} else if length >= 7 && c.Request.URL.Path[0:7] == "/xiang/" { // 数据管理后台

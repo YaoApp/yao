@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/websocket"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
 	"github.com/yaoapp/yao/service"
@@ -63,7 +64,14 @@ var startCmd = &cobra.Command{
 						color.WhiteString(filepath.Join("/api", api.HTTP.Group, p.Path)),
 						"\tprocess:", p.Process)
 				}
+			}
 
+			fmt.Printf(color.CyanString("\n%s(%d)\n", "WebSocket", len(websocket.Upgraders)))
+			for name, upgrader := range websocket.Upgraders { // WebSocket
+				fmt.Println(
+					colorMehtod("GET"),
+					color.WhiteString(filepath.Join("/websocket", name)),
+					"\tprocess:", upgrader.Process)
 			}
 		}
 
