@@ -91,6 +91,7 @@ func init() {
 		startCmd,
 		runCmd,
 		initCmd,
+		serviceCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
