@@ -14,6 +14,20 @@ func TestLoad(t *testing.T) {
 	check(t)
 }
 
+func TestProcessStart(t *testing.T) {
+	Load(config.Conf)
+	// assert.NotPanics(t, func() {
+	// 	gou.NewProcess("xiang.server.Start", "rfid").Run()
+	// })
+}
+
+func TestProcessConnect(t *testing.T) {
+	Load(config.Conf)
+	// assert.NotPanics(t, func() {
+	// 	gou.NewProcess("xiang.server.Connect", "rfid_client").Run()
+	// })
+}
+
 func check(t *testing.T) {
 	keys := []string{}
 	for key := range gou.Sockets {
