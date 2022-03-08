@@ -52,7 +52,10 @@ func ProcessSearch(process *gou.Process) interface{} {
 	pagesize := process.ArgsInt(3, api.DefaultInt(2))
 
 	// 查询数据
-	response := gou.NewProcess(api.Process, param, page, pagesize).Run()
+	response := gou.NewProcess(api.Process, param, page, pagesize).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
@@ -77,7 +80,10 @@ func ProcessFind(process *gou.Process) interface{} {
 	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1, process.Sid)
 
 	// 查询数据
-	response := gou.NewProcess(api.Process, id, param).Run()
+	response := gou.NewProcess(api.Process, id, param).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterFind, response, []interface{}{id, param}, process.Sid)
@@ -101,7 +107,10 @@ func ProcessSave(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// 查询数据
-	response := gou.NewProcess(api.Process, process.Args[1]).Run()
+	response := gou.NewProcess(api.Process, process.Args[1]).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterSave, response, []interface{}{process.Args[1]}, process.Sid)
@@ -117,7 +126,10 @@ func ProcessDelete(process *gou.Process) interface{} {
 	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	id := process.Args[1]
-	return gou.NewProcess(api.Process, id).Run()
+	return gou.NewProcess(api.Process, id).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessDeleteWhere xiang.table.DeleteWhere
@@ -136,7 +148,10 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 		param.Limit = 10
 	}
 
-	return gou.NewProcess(api.Process, param).Run()
+	return gou.NewProcess(api.Process, param).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessDeleteIn xiang.table.DeleteIn
@@ -158,7 +173,10 @@ func ProcessDeleteIn(process *gou.Process) interface{} {
 		},
 	}
 
-	return gou.NewProcess(api.Process, param).Run()
+	return gou.NewProcess(api.Process, param).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessUpdateWhere xiang.table.UpdateWhere
@@ -176,7 +194,10 @@ func ProcessUpdateWhere(process *gou.Process) interface{} {
 	if param.Limit == 0 { // 限定删除行
 		param.Limit = 10
 	}
-	return gou.NewProcess(api.Process, param, process.Args[2]).Run()
+	return gou.NewProcess(api.Process, param, process.Args[2]).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessUpdateIn xiang.table.UpdateWhere
@@ -197,7 +218,10 @@ func ProcessUpdateIn(process *gou.Process) interface{} {
 			{Column: primary, OP: "in", Value: ids},
 		},
 	}
-	return gou.NewProcess(api.Process, param, process.Args[3]).Run()
+	return gou.NewProcess(api.Process, param, process.Args[3]).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessInsert xiang.table.Insert
@@ -208,7 +232,9 @@ func ProcessInsert(process *gou.Process) interface{} {
 	table := Select(name)
 	api := table.APIs["insert"].ValidateLoop("xiang.table.Insert")
 	table.APIGuard(api.Guard, process.Sid, process.Global)
-	return gou.NewProcess(api.Process, process.Args[1:]...).Run()
+	return gou.NewProcess(api.Process, process.Args[1:]...).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 }
 
 // ProcessSetting xiang.table.Setting
@@ -254,7 +280,9 @@ func ProcessSetting(process *gou.Process) interface{} {
 		return setting
 	}
 
-	return gou.NewProcess(api.Process, fields).Run()
+	return gou.NewProcess(api.Process, fields).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 }
 
 // ProcessQuickSave xiang.table.QuickSave
@@ -284,7 +312,9 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 		args = append(args, payload.Get("query"))
 	}
 
-	return gou.NewProcess(api.Process, args...).Run()
+	return gou.NewProcess(api.Process, args...).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 }
 
 // ProcessSelect xiang.table.Select
@@ -299,7 +329,9 @@ func ProcessSelect(process *gou.Process) interface{} {
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args, process.Sid)
 
-	response := gou.NewProcess(api.Process, process.Args[1:]...).Run()
+	response := gou.NewProcess(api.Process, process.Args[1:]...).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterSelect, response, process.Args[1:], process.Sid)
