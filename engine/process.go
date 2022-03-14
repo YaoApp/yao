@@ -3,7 +3,9 @@ package engine
 import (
 	"path/filepath"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/xfs"
@@ -34,8 +36,19 @@ func processPing(process *gou.Process) interface{} {
 
 // processInspect 返回系统信息
 func processInspect(process *gou.Process) interface{} {
-	share.App.Icons.Set("favicon", "/api/xiang/favicon.ico")
-	return share.App.Public()
+	// share.App.Icons.Set("favicon", "/api/xiang/favicon.ico")
+	// return share.App.Public()
+
+	// Return app.json for xgen-next debug
+	info := map[string]interface{}{}
+	fs := xfs.New(config.Conf.Root)
+	if fs.MustExists("/app.json") {
+		err := jsoniter.Unmarshal(fs.MustReadFile("/app.json"), &info)
+		if err != nil {
+			exception.New("解析应用失败 %s", 500, err).Throw()
+		}
+	}
+	return info
 }
 
 // processFavicon 运行模型 MustCreate
