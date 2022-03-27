@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/server"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/store"
 	"github.com/yaoapp/yao/table"
 	"github.com/yaoapp/yao/workflow"
 )
@@ -56,6 +57,7 @@ func Load(cfg config.Config) (err error) {
 	if err != nil {
 		log.Warn(err.Error())
 	}
+
 	err = script.Load(cfg) // 加载JS处理器 script
 	if err != nil {
 		log.Warn(err.Error())
@@ -71,6 +73,12 @@ func Load(cfg config.Config) (err error) {
 	if err != nil {
 		log.Warn(err.Error())
 	}
+
+	err = store.Load(cfg) // Load stores
+	if err != nil {
+		log.Warn(err.Error())
+	}
+
 	err = plugin.Load(cfg) // 加载业务插件 plugin
 	if err != nil {
 		log.Warn(err.Error())
