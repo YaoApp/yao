@@ -55,7 +55,6 @@ jobs:
         with:
           repository: yaoapp/gou
           path: gou
-          token: ${{ secrets.TOKEN }}
 
       - name: Checkout V8Go
         uses: actions/checkout@v2
@@ -69,7 +68,6 @@ jobs:
         with:
           repository: yaoapp/xgen
           path: ui
-          token: ${{ secrets.TOKEN }}
 
       - name: Move Kun, Xun, Gou, UI, V8Go
         run: |
