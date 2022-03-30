@@ -35,7 +35,6 @@ func ProcessSearch(process *gou.Process) interface{} {
 	table := Select(name)
 
 	api := table.APIs["search"].ValidateLoop("xiang.table.search")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
 	// 	return nil
@@ -69,7 +68,6 @@ func ProcessFind(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["find"].ValidateLoop("xiang.table.find")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeFind, process.Args, process.Sid)
@@ -98,7 +96,6 @@ func ProcessSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["save"].ValidateLoop("xiang.table.save")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSave, process.Args, process.Sid)
@@ -123,7 +120,6 @@ func ProcessDelete(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete"].ValidateLoop("xiang.table.delete")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	id := process.Args[1]
 	return gou.NewProcess(api.Process, id).
@@ -140,7 +136,6 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete-where"].ValidateLoop("xiang.table.DeleteWhere")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
@@ -162,7 +157,6 @@ func ProcessDeleteIn(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete-in"].ValidateLoop("xiang.table.DeleteIn")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	ids := strings.Split(process.ArgsString(1), ",")
@@ -187,7 +181,6 @@ func ProcessUpdateWhere(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["update-where"].ValidateLoop("xiang.table.UpdateWhere")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量更新
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
@@ -208,7 +201,6 @@ func ProcessUpdateIn(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["update-in"].ValidateLoop("xiang.table.UpdateIn")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	ids := strings.Split(process.ArgsString(1), ",")
@@ -231,7 +223,7 @@ func ProcessInsert(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["insert"].ValidateLoop("xiang.table.Insert")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
+
 	return gou.NewProcess(api.Process, process.Args[1:]...).
 		WithGlobal(process.Global).
 		WithSID(process.Sid).Run()
@@ -245,7 +237,6 @@ func ProcessSetting(process *gou.Process) interface{} {
 	field := process.ArgsString(1)
 	table := Select(name)
 	api := table.APIs["setting"]
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	fields := strings.Split(field, ",")
 	if api.ProcessIs("xiang.table.Setting") {
@@ -292,7 +283,6 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["quicksave"].ValidateLoop("xiang.table.quicksave")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	args := []interface{}{}
 	payload := process.ArgsMap(1)
@@ -324,7 +314,6 @@ func ProcessSelect(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["select"].ValidateLoop("xiang.table.select")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args, process.Sid)

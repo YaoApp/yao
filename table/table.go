@@ -125,9 +125,9 @@ func (table *Table) loadAPIs() {
 			api.Process = table.APIs[name].Process
 		}
 
-		// if table.APIs[name].Guard != "" {
-		// 	api.Guard = table.APIs[name].Guard
-		// }
+		if table.APIs[name].Guard != "" {
+			api.Guard = table.APIs[name].Guard
+		}
 
 		if table.APIs[name].Default != nil {
 			// fmt.Printf("\n%s.APIs[%s].Default: entry\n", table.Table, name)
@@ -207,22 +207,6 @@ func (table *Table) After(process string, data interface{}, args []interface{}, 
 		return data
 	}
 	return response
-}
-
-// APIGuard API鉴权
-func (table *Table) APIGuard(guard string, sid string, global map[string]interface{}, args ...interface{}) {
-	if guard == "" {
-		guard = table.Guard
-	}
-	if guard == "-" || guard == "" {
-		return
-	}
-
-	log.With(log.F{"args": args}).Debug(guard)
-	gou.NewProcess(guard, args...).
-		WithSID(sid).
-		WithGlobal(global).
-		Run()
 }
 
 // loadFilters 加载查询过滤器
