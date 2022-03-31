@@ -193,7 +193,7 @@ release: clean
 #	Building UI
 	git clone https://github.com/YaoApp/xgen.git .tmp/ui
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && npm install && npm run build
+	cd .tmp/ui && yarn install && yarn build
 
 #	Packing
 	mkdir -p .tmp/data

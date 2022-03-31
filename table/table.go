@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
@@ -17,6 +18,52 @@ import (
 
 // Tables 已载入模型
 var Tables = map[string]*Table{}
+
+// Guard Table guard
+func Guard(c *gin.Context) {
+
+	if !strings.HasPrefix(c.FullPath(), "/api/xiang/table") {
+		c.Next()
+		return
+	}
+
+	routes := strings.Split(c.FullPath(), "/")
+	path := routes[len(routes)-1]
+	name, has := c.Params.Get("name")
+	if !has {
+		c.Next()
+		return
+	}
+
+	table, has := Tables[name]
+	if !has {
+		c.Next()
+		return
+	}
+
+	api, has := table.APIs[path]
+	if !has {
+		c.Next()
+		return
+	}
+
+	if api.Guard == "-" {
+		c.Next()
+		return
+	}
+
+	fmt.Println("Table Guard:", name, api.Guard)
+
+	if middleware, has := gou.HTTPGuards[api.Guard]; has {
+		middleware(c)
+		return
+	}
+
+	if api.Guard != "" {
+		gou.ProcessGuard(api.Guard)(c)
+		return
+	}
+}
 
 // Load 加载数据表格
 func Load(cfg config.Config) error {
@@ -125,6 +172,7 @@ func (table *Table) loadAPIs() {
 			api.Process = table.APIs[name].Process
 		}
 
+		api.Guard = "bearer-jwt"
 		if table.APIs[name].Guard != "" {
 			api.Guard = table.APIs[name].Guard
 		}
