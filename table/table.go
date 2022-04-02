@@ -52,16 +52,15 @@ func Guard(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("Table Guard:", name, api.Guard)
-
-	if middleware, has := gou.HTTPGuards[api.Guard]; has {
-		middleware(c)
-		return
-	}
-
-	if api.Guard != "" {
-		gou.ProcessGuard(api.Guard)(c)
-		return
+	guards := strings.Split(api.Guard, ",")
+	for _, guard := range guards {
+		guard = strings.TrimSpace(guard)
+		log.Trace("Guard Table %s %s", name, guard)
+		if middleware, has := gou.HTTPGuards[guard]; has {
+			middleware(c)
+			continue
+		}
+		gou.ProcessGuard(guard)(c)
 	}
 }
 
