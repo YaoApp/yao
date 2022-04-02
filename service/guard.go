@@ -27,7 +27,6 @@ func bearerJWT(c *gin.Context) {
 
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
-	c.Next()
 }
 
 // crossDomain 跨域访问
@@ -41,6 +40,4 @@ func crossDomain(c *gin.Context) {
 		c.AbortWithStatus(204)
 		return
 	}
-
-	c.Next()
 }

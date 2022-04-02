@@ -68,6 +68,7 @@ func Guard(c *gin.Context) {
 			gou.ProcessGuard(guard)(c)
 		}
 	}
+
 }
 
 // Load 加载数据表格
