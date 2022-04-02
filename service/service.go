@@ -19,9 +19,10 @@ func Start() {
 	gou.SetHTTPGuards(Guards)
 	gou.ServeHTTP(
 		gou.Server{
-			Host: config.Conf.Host,
-			Port: config.Conf.Port,
-			Root: "/api",
+			Host:   config.Conf.Host,
+			Port:   config.Conf.Port,
+			Root:   "/api",
+			Allows: config.Conf.AllowFrom,
 		},
 		&shutdown, func(s gou.Server) {
 			shutdownComplete <- true
@@ -35,9 +36,10 @@ func StartWithouttSession() {
 	gou.SetHTTPGuards(Guards)
 	gou.ServeHTTP(
 		gou.Server{
-			Host: config.Conf.Host,
-			Port: config.Conf.Port,
-			Root: "/api",
+			Host:   config.Conf.Host,
+			Port:   config.Conf.Port,
+			Root:   "/api",
+			Allows: config.Conf.AllowFrom,
 		},
 		&shutdown, func(s gou.Server) {
 			shutdownComplete <- true
