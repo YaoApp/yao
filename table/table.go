@@ -52,15 +52,21 @@ func Guard(c *gin.Context) {
 		return
 	}
 
+	if api.Guard == "" {
+		api.Guard = "bearer-jwt"
+	}
+
 	guards := strings.Split(api.Guard, ",")
 	for _, guard := range guards {
 		guard = strings.TrimSpace(guard)
 		log.Trace("Guard Table %s %s", name, guard)
-		if middleware, has := gou.HTTPGuards[guard]; has {
-			middleware(c)
-			continue
+		if guard != "" {
+			if middleware, has := gou.HTTPGuards[guard]; has {
+				middleware(c)
+				continue
+			}
+			gou.ProcessGuard(guard)(c)
 		}
-		gou.ProcessGuard(guard)(c)
 	}
 }
 
