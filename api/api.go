@@ -26,7 +26,7 @@ func LoadFrom(dir string, prefix string) error {
 	err := share.Walk(dir, ".http.json", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		_, err := gou.LoadAPIReturn(string(content), name)
+		_, err := gou.LoadAPIReturn(string(content), name, "bearer-jwt")
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
 		}
