@@ -25,7 +25,7 @@ var SessionMemberPort int
 func init() {
 	SessionPort = network.FreePort()
 	SessionMemberPort = network.FreePort()
-	klog.Trace("Session port: %d, Memeber Port: %d", SessionPort, SessionMemberPort)
+	klog.Trace("Session port: %d, Member Port: %d", SessionPort, SessionMemberPort)
 }
 
 // SessionConnect 加载会话信息 (废弃->共享方案用 Redis 替代)
