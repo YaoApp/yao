@@ -7,15 +7,11 @@ import (
 	"log"
 
 	klog "github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/network"
 
 	"github.com/buraksezer/olric"
-	"github.com/buraksezer/olric/client"
 	config_olric "github.com/buraksezer/olric/config"
-	"github.com/buraksezer/olric/serializer"
 	"github.com/yaoapp/gou/session"
-	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/network"
 )
 
 var sessServer *olric.Olric
@@ -23,28 +19,35 @@ var sessServer *olric.Olric
 // SessionPort Session 端口
 var SessionPort int
 
+// SessionMemberPort Session Member Port
+var SessionMemberPort int
+
 func init() {
 	SessionPort = network.FreePort()
-	klog.Trace("session port: %d", SessionPort)
+	SessionMemberPort = network.FreePort()
+	klog.Trace("Session port: %d, Memeber Port:", SessionPort, SessionMemberPort)
 }
 
-// SessionConnect 加载会话信息
-func SessionConnect(conf config.SessionConfig) {
+// SessionConnect 加载会话信息 (废弃->共享方案用 Redis 替代)
+// func SessionConnect() {
 
-	var clientConfig = &client.Config{
-		Servers:    []string{fmt.Sprintf("%s:%d", "127.0.0.1", SessionPort)},
-		Serializer: serializer.NewMsgpackSerializer(),
-		Client:     config_olric.NewClient(),
-	}
+// 	stats, err := sessServer.Stats()
+// 	fmt.Println(stats, err)
 
-	c, err := client.New(clientConfig)
-	if err != nil {
-		exception.New("会话服务器连接失败 %s", 500, err.Error()).Throw()
-	}
+// 	var clientConfig = &client.Config{
+// 		Servers:    []string{fmt.Sprintf("%s:%d", "127.0.0.1", SessionPort)},
+// 		Serializer: serializer.NewMsgpackSerializer(),
+// 		Client:     config_olric.NewClient(),
+// 	}
 
-	dm := c.NewDMap("local-session")
-	session.MemoryUse(session.ClientDMap{DMap: dm})
-}
+// 	c, err := client.New(clientConfig)
+// 	if err != nil {
+// 		exception.New("会话服务器连接失败 %s", 500, err.Error()).Throw()
+// 	}
+
+// 	dm := c.NewDMap("local-session")
+// 	session.MemoryUse(session.ClientDMap{DMap: dm})
+// }
 
 // SessionServerStop 关闭会话服务器
 func SessionServerStop() {
@@ -56,6 +59,7 @@ func SessionServerStop() {
 // SessionServerStart 启动会话服务器
 func SessionServerStart() {
 
+	// SessionPort := 0
 	c := &config_olric.Config{
 		BindAddr:          "127.0.0.1",
 		BindPort:          SessionPort,
@@ -74,9 +78,10 @@ func SessionServerStart() {
 	if err != nil {
 		panic(fmt.Sprintf("unable to create a new memberlist config: %v", err))
 	}
-	// m.BindAddr = config.Conf.Session.Host
-	m.BindPort = SessionPort
-	m.AdvertisePort = SessionPort
+	m.BindAddr = "127.0.0.1"
+	m.BindPort = SessionMemberPort
+	// m.AdvertiseAddr = "127.0.0.1"
+	// m.AdvertisePort = SessionPort
 	c.MemberlistConfig = m
 
 	// c.MemberlistConfig.BindAddr = config.Conf.Session.Host
@@ -94,14 +99,15 @@ func SessionServerStart() {
 	}
 
 	sessServer, err = olric.New(c)
-
 	if err != nil {
 		klog.Error("Failed to create Olric instance: %v", err)
 	}
 
 	go func() {
+		// fmt.Println("Session Port IS:", SessionPort) // DEBUG
 		err = sessServer.Start() // Call Start at background. It's a blocker call.
 		if err != nil {
+			fmt.Println(err)
 			klog.Panic("olric.Start returned an error: %v", err)
 		}
 	}()

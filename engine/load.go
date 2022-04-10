@@ -39,8 +39,8 @@ func Load(cfg config.Config) (err error) {
 	gou.LoadCrypt(`{}`, "PASSWORD")
 
 	// 第二步: 建立数据库 & 会话连接
-	share.DBConnect(cfg.DB)           // 创建数据库连接
-	share.SessionConnect(cfg.Session) // 创建会话服务器链接
+	share.DBConnect(cfg.DB) // 创建数据库连接
+	// share.SessionConnect(cfg.Session) // 创建会话服务器链接
 
 	// 加载应用引擎
 	if os.Getenv("YAO_DEV") != "" {

@@ -41,7 +41,7 @@ func ProcessIP(process *gou.Process) interface{} {
 
 // FreePort xiang.network.FreePort 获取可用端口
 func FreePort() int {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	addr, err := net.ResolveTCPAddr("tcp", ":0")
 	if err != nil {
 		exception.New("获取可用端口失败 %s", 500, err.Error()).Throw()
 		return 0
@@ -52,6 +52,7 @@ func FreePort() int {
 		exception.New("获取可用端口失败 %s", 500, err.Error()).Throw()
 		return 0
 	}
+
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port
 }
