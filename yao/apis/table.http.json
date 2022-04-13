@@ -19,7 +19,7 @@
       "path": "/:name/find/:id",
       "method": "GET",
       "process": "xiang.table.Find",
-      "in": ["$param.name", "$param.id"],
+      "in": ["$param.name", "$param.id", ":query-param"],
       "out": {
         "status": 200,
         "type": "application/json"

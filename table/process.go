@@ -75,7 +75,7 @@ func ProcessFind(process *gou.Process) interface{} {
 	// 参数表
 	process.ValidateArgNums(2)
 	id := process.Args[1]
-	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1, process.Sid)
+	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 2, process.Sid)
 
 	// 查询数据
 	response := gou.NewProcess(api.Process, id, param).
