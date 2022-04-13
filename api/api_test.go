@@ -27,6 +27,6 @@ func check(t *testing.T) {
 		wskeys = append(wskeys, key)
 	}
 
-	assert.Equal(t, 4, len(keys))
+	assert.Equal(t, 5, len(keys))
 	assert.Equal(t, 1, len(wskeys))
 }

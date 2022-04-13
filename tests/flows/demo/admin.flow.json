@@ -1,0 +1,61 @@
+{
+  "label": "Auto Login",
+  "version": "1.0.0",
+  "description": "Auto Login for demo",
+  "nodes": [
+    {
+      "name": "User",
+      "process": "models.xiang.user.Get",
+      "args": [
+        {
+          "select": ["id", "email", "name", "type"],
+          "wheres": [{ "column": "id", "value": 1 }],
+          "limit": 1
+        }
+      ]
+    },
+    {
+      "name": "Menu",
+      "process": "flows.xiang.menu",
+      "args": ["{{$res.User.0.id}}"]
+    },
+    {
+      "name": "SID",
+      "process": "session.start"
+    },
+    {
+      "name": "JWT",
+      "process": "xiang.helper.JWTMake",
+      "args": [
+        "{{$res.User.0.id}}",
+        {},
+        {
+          "timeout": 3600,
+          "sid": "{{$res.SID}}"
+        }
+      ]
+    },
+    {
+      "name": "Set User",
+      "process": "session.set",
+      "args": ["user", "{{$res.User.0}}"]
+    },
+    {
+      "name": "Set issuer",
+      "process": "session.set",
+      "args": ["issuer", "xiang"]
+    },
+    {
+      "name": "Set User ID",
+      "process": "session.set",
+      "args": ["user_id", "{{$res.User.0.id}}"]
+    }
+  ],
+  "output": {
+    "sid": "{{$res.SID}}",
+    "user": "{{$res.User.0}}",
+    "menus": "{{$res.Menu}}",
+    "token": "{{$res.JWT.token}}",
+    "expires_at": "{{$res.JWT.expires_at}}"
+  }
+}
