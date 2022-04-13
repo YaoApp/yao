@@ -104,15 +104,15 @@ jobs:
         run: |
           for file in ./dist/release/*; do coscmd upload $file /archives/; done;
 
-      - name: Configure COS For Beijing
-        env:
-          SECRET_ID: ${{ secrets.COS_ID }}
-          SECRET_KEY: ${{ secrets.COS_KEY }}
-          BUCKET: release-bj-1252011659
-          REGION: ap-beijing
-        run: |
-          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+      # - name: Configure COS For Beijing
+      #   env:
+      #     SECRET_ID: ${{ secrets.COS_ID }}
+      #     SECRET_KEY: ${{ secrets.COS_KEY }}
+      #     BUCKET: release-bj-1252011659
+      #     REGION: ap-beijing
+      #   run: |
+      #     coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
-      - name: Push To Beijing
-        run: |
-          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+      # - name: Push To Beijing
+      #   run: |
+      #     for file in ./dist/release/*; do coscmd upload $file /archives/; done;
