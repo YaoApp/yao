@@ -12,6 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
@@ -302,6 +303,10 @@ func (table *Table) Export(filename string, data interface{}, page int, chunkSiz
 	} else if values, ok := data.([]map[string]interface{}); ok {
 		for _, row := range values {
 			rows = append(rows, maps.Of(row).Dot())
+		}
+	} else if values, ok := data.([]interface{}); ok {
+		for _, row := range values {
+			rows = append(rows, any.Of(row).MapStr().Dot())
 		}
 	}
 
