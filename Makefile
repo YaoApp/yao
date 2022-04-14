@@ -205,6 +205,29 @@ release: clean
 
 #   Making artifacts
 	mkdir -p dist
+	CGO_ENABLED=1 go build -v -o dist/release/yao
+	chmod +x  dist/release/yao
+
+.PHONY: linux-release
+linux-release: clean
+	mkdir -p dist/release
+	mkdir .tmp
+
+#	Building UI
+	git clone https://github.com/YaoApp/xgen.git .tmp/ui
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
+	cd .tmp/ui && yarn install && yarn build
+
+#	Packing
+	mkdir -p .tmp/data
+	cp -r .tmp/ui/dist .tmp/data/ui
+	cp -r yao .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#   Making artifacts
+	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
 
