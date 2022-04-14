@@ -108,9 +108,9 @@ jobs:
         run: |
           coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
-      # - name: Push To Silicon Valley
-      #   run: |
-      #     for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+      - name: Push To Silicon Valley
+        run: |
+          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
 
       # - name: Configure COS For Beijing
       #   env:
