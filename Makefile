@@ -205,7 +205,7 @@ release: clean
 
 #   Making artifacts
 	mkdir -p dist
-	CGO_ENABLED=1 go build -v -o dist/release/yao
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
 
 # make clean

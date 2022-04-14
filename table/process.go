@@ -1,12 +1,19 @@
 package table
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/xfs"
 )
 
 func init() {
@@ -22,6 +29,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.table.QuickSave", ProcessQuickSave)
 	gou.RegisterProcessHandler("xiang.table.UpdateIn", ProcessUpdateIn)
 	gou.RegisterProcessHandler("xiang.table.DeleteIn", ProcessDeleteIn)
+	gou.RegisterProcessHandler("xiang.table.Export", ProcessExport)
 	gou.RegisterProcessHandler("xiang.table.Setting", ProcessSetting)
 }
 
@@ -35,10 +43,6 @@ func ProcessSearch(process *gou.Process) interface{} {
 	table := Select(name)
 
 	api := table.APIs["search"].ValidateLoop("xiang.table.search")
-
-	// if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
-	// 	return nil
-	// }
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSearch, process.Args, process.Sid)
@@ -328,4 +332,70 @@ func ProcessSelect(process *gou.Process) interface{} {
 
 	// After Hook
 	return table.After(table.Hooks.AfterSelect, response, process.Args[1:], process.Sid)
+}
+
+// ProcessExport xiang.table.Export (:table, :queryParam, :chunkSize)
+// Export query result to Excel
+func ProcessExport(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(1)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["search"].ValidateLoop("xiang.table.search")
+
+	// Make DIR
+	hash := md5.Sum([]byte(time.Now().Format("20060102-15:04:05")))
+	fingerprint := string(hex.EncodeToString(hash[:]))
+	fingerprint = strings.ToUpper(fingerprint)
+	dir := time.Now().Format("20060102")
+	ext := filepath.Ext("export.xlsx")
+	filename := filepath.Join(dir, fmt.Sprintf("%s%s", fingerprint, ext))
+	xfs.Stor.MustMkdirAll(dir, os.ModePerm)
+
+	page := 1
+	for page > 0 {
+
+		// Before Hook
+		process.Args = table.Before(table.Hooks.BeforeSearch, process.Args, process.Sid)
+
+		// 参数表
+		process.ValidateArgNums(3)
+		param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
+		pagesize := process.ArgsInt(2, api.DefaultInt(2))
+		if process.NumOfArgs() == 4 { // for search hook
+			pagesize = process.ArgsInt(3, api.DefaultInt(1))
+		}
+
+		// 查询数据
+		response := gou.NewProcess(api.Process, param, page, pagesize).
+			WithGlobal(process.Global).
+			WithSID(process.Sid).
+			Run()
+
+		// After Hook
+		response = table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
+
+		res, ok := response.(map[string]interface{})
+		if !ok {
+			res, ok = response.(maps.MapStrAny)
+			if !ok {
+				page = -1
+				continue
+			}
+		}
+
+		if _, ok := res["next"]; !ok {
+			page = -1
+			continue
+		}
+
+		err := table.Export(filename, res["data"], page, pagesize)
+		if err != nil {
+			log.Error("Export %s %s", table.Table, err.Error())
+		}
+
+		page = any.Of(res["next"]).CInt()
+	}
+
+	return filename
 }

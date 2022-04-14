@@ -316,11 +316,13 @@
     "primary": "id",
     "layout": {
       "columns": [
+        { "name": "id", "width": 6 },
         { "name": "服务名称", "width": 6 },
         { "name": "所属厂商", "width": 6 },
         { "name": "服务类型", "width": 4 },
         { "name": "状态", "width": 4 },
         { "name": "服务领域", "width": 4 },
+        { "name": "行业覆盖", "width": 4 },
         { "name": "计费方式", "width": 4 },
         { "name": "创建时间", "width": 6 },
         { "name": "更新时间", "width": 6 }

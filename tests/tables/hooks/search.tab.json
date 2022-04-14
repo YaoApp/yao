@@ -22,7 +22,7 @@
   "list": {
     "primary": "id",
     "layout": {
-      "columns": [{ "name": "ID", "width": 6 }],
+      "columns": [{ "name": "id", "width": 6 }, { "name": "城市" }],
       "filters": []
     },
     "actions": {}

@@ -27,10 +27,11 @@ type ColumnImp Column
 
 // Column 字段呈现方式
 type Column struct {
-	Label string `json:"label"`
-	View  Render `json:"view,omitempty"`
-	Edit  Render `json:"edit,omitempty"`
-	Form  Render `json:"form,omitempty"`
+	Label  string `json:"label"`
+	Export string `json:"export,omitempty"`
+	View   Render `json:"view,omitempty"`
+	Edit   Render `json:"edit,omitempty"`
+	Form   Render `json:"form,omitempty"`
 	Importable
 }
 
