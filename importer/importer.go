@@ -382,7 +382,7 @@ func (imp *Importer) SaveAsTemplate(src from.Source) {
 }
 
 // Run 运行导入
-func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
+func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 	if mapping == nil {
 		mapping = imp.AutoMapping(src)
 	}
@@ -424,12 +424,24 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 
 		log.With(log.F{"line": line, "response": response, "length": length}).Error("导入处理器未返回失败结果")
 	})
-	return map[string]int{
+
+	output := map[string]int{
 		"total":   total,
 		"success": total - failed - ignore,
 		"failure": failed,
 		"ignore":  ignore,
 	}
+
+	if imp.Output != "" {
+		res, err := gou.NewProcess(imp.Output, output).Exec()
+		if err != nil {
+			log.With(log.F{"output": imp.Output}).Error(err.Error())
+			return output
+		}
+		return res
+	}
+
+	return output
 }
 
 // Start 运行导入(异步)
