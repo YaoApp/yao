@@ -2,9 +2,11 @@ package network
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 
@@ -94,13 +96,18 @@ func RequestSend(method string, url string, params map[string]interface{}, data 
 		}
 	}
 
-	// Https
-	var client *http.Client = &http.Client{}
+	// Force using system DSN resolver
+	var dialer = &net.Dialer{Resolver: &net.Resolver{PreferGo: false}}
+	var dialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, addr)
+	}
+	var client *http.Client = &http.Client{Transport: &http.Transport{DialContext: dialContext}}
 
-	// SkipVerify false
+	// Https SkipVerify false
 	if strings.HasPrefix(url, "https://") {
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			DialContext:     dialContext,
 		}
 		client = &http.Client{Transport: tr}
 	}
