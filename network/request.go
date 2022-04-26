@@ -2,15 +2,14 @@ package network
 
 import (
 	"bytes"
-	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/dns"
 )
 
 // Response 请求响应结果
@@ -97,10 +96,8 @@ func RequestSend(method string, url string, params map[string]interface{}, data 
 	}
 
 	// Force using system DSN resolver
-	var dialer = &net.Dialer{Resolver: &net.Resolver{PreferGo: false}}
-	var dialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return dialer.DialContext(ctx, network, addr)
-	}
+	// var dialer = &net.Dialer{Resolver: &net.Resolver{PreferGo: false}}
+	var dialContext = dns.DialContext()
 	var client *http.Client = &http.Client{Transport: &http.Transport{DialContext: dialContext}}
 
 	// Https SkipVerify false
