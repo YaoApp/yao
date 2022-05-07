@@ -32,6 +32,8 @@ func Guard(c *gin.Context) {
 		return
 	}
 
+	log.Trace("Table Guard FullPath: %s", c.FullPath())
+
 	routes := strings.Split(c.FullPath(), "/")
 	path := routes[len(routes)-1]
 	name, has := c.Params.Get("name")
@@ -52,6 +54,8 @@ func Guard(c *gin.Context) {
 		return
 	}
 
+	log.Trace("Table Guard: %s %s %s", name, api.Guard, path)
+
 	if api.Guard == "-" {
 		c.Next()
 		return
@@ -64,7 +68,7 @@ func Guard(c *gin.Context) {
 	guards := strings.Split(api.Guard, ",")
 	for _, guard := range guards {
 		guard = strings.TrimSpace(guard)
-		log.Trace("Guard Table %s %s", name, guard)
+		log.Trace("Table Guard: %s %s", name, guard)
 		if guard != "" {
 			if middleware, has := gou.HTTPGuards[guard]; has {
 				middleware(c)

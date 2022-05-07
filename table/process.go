@@ -129,11 +129,17 @@ func ProcessDelete(process *gou.Process) interface{} {
 	table := Select(name)
 	api := table.APIs["delete"].ValidateLoop("xiang.table.delete")
 
+	// Before Hook
+	process.Args = table.Before(table.Hooks.BeforeDelete, process.Args, process.Sid)
+
 	id := process.Args[1]
-	return gou.NewProcess(api.Process, id).
+	response := gou.NewProcess(api.Process, id).
 		WithGlobal(process.Global).
 		WithSID(process.Sid).
 		Run()
+
+	// After Hook
+	return table.After(table.Hooks.AfterDelete, response, []interface{}{id}, process.Sid)
 }
 
 // ProcessDeleteWhere xiang.table.DeleteWhere
