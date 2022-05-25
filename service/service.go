@@ -12,8 +12,10 @@ var shutdownComplete = make(chan bool)
 // Start 启动服务
 func Start() {
 
-	if config.Conf.Session.Hosting && config.Conf.Session.IsCLI == false {
+	if config.Conf.Session.Store == "server" && config.Conf.Session.IsCLI == false {
 		share.SessionServerStart()
+	} else if config.Conf.Session.Store == "redis" {
+		share.SessionConnect()
 	}
 
 	gou.SetHTTPGuards(Guards)

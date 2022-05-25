@@ -24,3 +24,14 @@ type DBConfig struct {
 	Secondary []string `json:"secondary,omitempty" env:"YAO_DB_SECONDARY" envSeparator:"|"`                      // 从库连接DSN
 	AESKey    string   `json:"aeskey,omitempty" env:"YAO_DB_AESKEY"`                                             // 加密存储KEY
 }
+
+// SessionConfig 会话服务器
+type SessionConfig struct {
+	Store    string `json:"store,omitempty" env:"YAO_SESSION_STORE" envDefault:"server"`  // The session store. server | redis | file
+	Host     string `json:"host,omitempty" env:"YAO_SESSION_HOST" envDefault:"127.0.0.1"` // The redis host
+	Port     string `json:"port,omitempty" env:"YAO_SESSION_PORT" envDefault:"6379"`      // The redis port
+	Password string `json:"password,omitempty" env:"YAO_SESSION_PASSWORD"`                // The redis password
+	Username string `json:"username,omitempty" env:"YAO_SESSION_USERNAME"`                // The redis username
+	DB       string `json:"db,omitempty" env:"YAO_SESSION_DB" envDefault:"1"`             // The redis username
+	IsCLI    bool   `json:"iscli,omitempty" env:"YAO_SESSION_ISCLI" envDefault:"false"`   // Command Line Start
+}

@@ -7,6 +7,7 @@ import (
 	"log"
 
 	klog "github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/network"
 
 	"github.com/buraksezer/olric"
@@ -23,31 +24,34 @@ var SessionPort int
 var SessionMemberPort int
 
 func init() {
-	SessionPort = network.FreePort()
-	SessionMemberPort = network.FreePort()
-	klog.Trace("Session port: %d, Member Port: %d", SessionPort, SessionMemberPort)
+	if config.Conf.Session.Store == "server" {
+		SessionPort = network.FreePort()
+		SessionMemberPort = network.FreePort()
+		klog.Trace("Session port: %d, Member Port: %d", SessionPort, SessionMemberPort)
+	}
 }
 
-// SessionConnect 加载会话信息 (废弃->共享方案用 Redis 替代)
-// func SessionConnect() {
+// SessionConnect Connect redis server
+func SessionConnect() {
+	args := []string{}
+	if config.Conf.Session.Port == "" {
+		config.Conf.Session.Port = "6379"
+	}
 
-// 	stats, err := sessServer.Stats()
-// 	fmt.Println(stats, err)
+	if config.Conf.Session.DB == "" {
+		config.Conf.Session.DB = "1"
+	}
 
-// 	var clientConfig = &client.Config{
-// 		Servers:    []string{fmt.Sprintf("%s:%d", "127.0.0.1", SessionPort)},
-// 		Serializer: serializer.NewMsgpackSerializer(),
-// 		Client:     config_olric.NewClient(),
-// 	}
+	args = append(args, config.Conf.Session.Port, config.Conf.Session.DB, config.Conf.Session.Password)
+	rdb, err := session.NewRedis(config.Conf.Host, args...)
+	if err != nil {
+		panic(err)
+	}
 
-// 	c, err := client.New(clientConfig)
-// 	if err != nil {
-// 		exception.New("会话服务器连接失败 %s", 500, err.Error()).Throw()
-// 	}
-
-// 	dm := c.NewDMap("local-session")
-// 	session.MemoryUse(session.ClientDMap{DMap: dm})
-// }
+	session.Register("redis", rdb)
+	session.Name = "redis"
+	klog.Trace("Session Store:REDIS HOST:%s PORT:%s DB:%s", config.Conf.Session.Host, config.Conf.Session.Port, config.Conf.Session.DB)
+}
 
 // SessionServerStop 关闭会话服务器
 func SessionServerStop() {
