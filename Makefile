@@ -76,9 +76,10 @@ misspell:
 
 .PHONY: tools
 tools:
-	go install golang.org/x/lint/golint; \
-	go install github.com/client9/misspell/cmd/misspell;
-
+	go install golang.org/x/lint/golint@latest; \
+	go install github.com/client9/misspell/cmd/misspell@latest; \
+	go install github.com/go-bindata/go-bindata/...@latest;
+	
 # make plugin
 .PHONY: plugin
 plugin: 
