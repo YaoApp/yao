@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [1.17]
+        go: [1.18]
         db: [MySQL8.0, MySQL5.7, SQLite3]
     steps:
       - name: Setup Cache

@@ -14,7 +14,7 @@ jobs:
   release:
     strategy:
       matrix:
-        go: [1.17]
+        go: [1.18]
     runs-on: "ubuntu-latest"
     steps:
       - name: Arm Build
