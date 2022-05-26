@@ -43,7 +43,7 @@ func SessionConnect() {
 	}
 
 	args = append(args, config.Conf.Session.Port, config.Conf.Session.DB, config.Conf.Session.Password)
-	rdb, err := session.NewRedis(config.Conf.Host, args...)
+	rdb, err := session.NewRedis(config.Conf.Session.Host, args...)
 	if err != nil {
 		panic(err)
 	}
