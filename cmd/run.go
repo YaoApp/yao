@@ -20,8 +20,7 @@ var runCmd = &cobra.Command{
 	Short: L("Execute process"),
 	Long:  L("Execute process"),
 	Run: func(cmd *cobra.Command, args []string) {
-		share.SessionServerStart()      // Connect to session server
-		defer share.SessionServerStop() // Connect to session server
+		defer share.SessionStop()
 		defer gou.KillPlugins()
 		defer func() {
 			err := exception.Catch(recover())

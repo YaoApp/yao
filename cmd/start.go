@@ -86,7 +86,6 @@ var startCmd = &cobra.Command{
 		fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
 		fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/xiang/login/admin", host, port))
 		fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
-		fmt.Println(color.WhiteString(L("SessionPort")), color.GreenString(" %d", share.SessionPort))
 		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
 
 		fmt.Println("")

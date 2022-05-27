@@ -10,12 +10,11 @@ var shutdown = make(chan bool)
 var shutdownComplete = make(chan bool)
 
 // Start 启动服务
-func Start() {
+func Start() error {
 
-	if config.Conf.Session.Store == "server" && config.Conf.Session.IsCLI == false {
-		share.SessionServerStart()
-	} else if config.Conf.Session.Store == "redis" {
-		share.SessionConnect()
+	err := share.SessionStart()
+	if err != nil {
+		return err
 	}
 
 	gou.SetHTTPGuards(Guards)
@@ -30,6 +29,8 @@ func Start() {
 			shutdownComplete <- true
 		},
 		Middlewares...)
+
+	return nil
 }
 
 // StartWithouttSession 启动服务
@@ -61,7 +62,7 @@ func StopWithouttSession(onComplete func()) {
 func Stop(onComplete func()) {
 	shutdown <- true
 	<-shutdownComplete
-	share.SessionServerStop()
+	share.SessionStop()
 	gou.KillPlugins()
 	onComplete()
 }

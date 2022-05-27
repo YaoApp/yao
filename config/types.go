@@ -27,7 +27,8 @@ type DBConfig struct {
 
 // SessionConfig 会话服务器
 type SessionConfig struct {
-	Store    string `json:"store,omitempty" env:"YAO_SESSION_STORE" envDefault:"server"`  // The session store. server | redis | file
+	Store    string `json:"store,omitempty" env:"YAO_SESSION_STORE" envDefault:"file"`    // The session store. redis | file
+	File     string `json:"file,omitempty" env:"YAO_SESSION_FILE"`                        // The file path
 	Host     string `json:"host,omitempty" env:"YAO_SESSION_HOST" envDefault:"127.0.0.1"` // The redis host
 	Port     string `json:"port,omitempty" env:"YAO_SESSION_PORT" envDefault:"6379"`      // The redis port
 	Password string `json:"password,omitempty" env:"YAO_SESSION_PASSWORD"`                // The redis password

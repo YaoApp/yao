@@ -4,15 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/user"
 )
 
 func TestUserAuth(t *testing.T) {
-
-	// Start Session Server
-	share.SessionServerStart()
-	defer share.SessionServerStop()
 
 	res := user.Auth("email", "xiang@iqka.com", "A123456p+")
 	assert.True(t, res.Has("user"))
