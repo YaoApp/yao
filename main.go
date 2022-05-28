@@ -6,6 +6,7 @@ import (
 	_ "github.com/yaoapp/yao/network"
 	_ "github.com/yaoapp/yao/user"
 	_ "github.com/yaoapp/yao/xfs"
+	_ "github.com/yaoapp/yao/crypto"
 )
 
 // 主程序
