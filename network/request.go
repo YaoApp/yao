@@ -98,16 +98,18 @@ func RequestSend(method string, url string, params map[string]interface{}, data 
 	// Force using system DSN resolver
 	// var dialer = &net.Dialer{Resolver: &net.Resolver{PreferGo: false}}
 	var dialContext = dns.DialContext()
-	var client *http.Client = &http.Client{Transport: &http.Transport{DialContext: dialContext}}
+	var tr = &http.Transport{DialContext: dialContext}
+	var client *http.Client = &http.Client{Transport: tr}
 
 	// Https SkipVerify false
 	if strings.HasPrefix(url, "https://") {
-		tr := &http.Transport{
+		tr = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			DialContext:     dialContext,
 		}
 		client = &http.Client{Transport: tr}
 	}
+	defer tr.CloseIdleConnections()
 
 	resp, err := client.Do(req)
 	if err != nil {
