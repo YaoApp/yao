@@ -12,7 +12,13 @@ var versionCmd = &cobra.Command{
 	Short: L("Show version"),
 	Long:  L("Show version"),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		version := share.VERSION
+		if share.PRVERSION != "" {
+			version = fmt.Sprintf("%s-%s", share.VERSION, share.PRVERSION)
+		}
+
 		// Do Stuff Here
-		fmt.Println(share.VERSION)
+		fmt.Println(version)
 	},
 }
