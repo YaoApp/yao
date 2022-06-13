@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -49,6 +50,12 @@ var dumpCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		_, err = os.Stat(output)
+		if !errors.Is(err, os.ErrNotExist) {
+			fmt.Println(color.RedString("%s exists", output))
+			os.Exit(1)
+		}
+
 		// Load model
 		err = engine.Load(config.Conf)
 		if err != nil {
@@ -57,10 +64,8 @@ var dumpCmd = &cobra.Command{
 		}
 
 		if dumpModel != "" {
-			mod, has := gou.Models[dumpModel]
-			if has {
-				mod.Migrate(true)
-			}
+			fmt.Println(color.YellowString(L("Not supported yet")))
+			os.Exit(1)
 			return
 		}
 
@@ -100,9 +105,9 @@ var dumpCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	dumpCmd.PersistentFlags().StringVarP(&dumpModel, "name", "n", "", L("Model name"))
-}
+// func init() {
+// 	// dumpCmd.PersistentFlags().StringVarP(&dumpModel, "name", "n", "", L("Model name"))
+// }
 
 // gzipfiles
 func zipfiles(files []string, output string, process func(file string)) error {
