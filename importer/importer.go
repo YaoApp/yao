@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
@@ -387,14 +388,17 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 		mapping = imp.AutoMapping(src)
 	}
 
+	id := uuid.NewString()
+	page := 0
 	total := 0
 	failed := 0
 	ignore := 0
 	imp.Chunk(src, mapping, func(line int, data [][]interface{}) {
+		page++
 		length := len(data)
 		total = total + length
 		columns, data := imp.DataClean(data, mapping.Columns)
-		process, err := gou.ProcessOf(imp.Process, columns, data)
+		process, err := gou.ProcessOf(imp.Process, columns, data, id, page)
 		if err != nil {
 			failed = failed + length
 			log.With(log.F{"line": line}).Error("导入失败: %s", err.Error())
