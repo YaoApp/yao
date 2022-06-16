@@ -1,7 +1,7 @@
 package share
 
 // VERSION 版本号
-const VERSION = "0.9.2"
+const VERSION = "0.10.0"
 
 // PRVERSION  PreRelease Version
 const PRVERSION = "DEV"
