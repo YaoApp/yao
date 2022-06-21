@@ -152,7 +152,7 @@ func processGetURL(process *gou.Process) interface{} {
 
 	claims := helper.JwtValidate(token)
 	userID, err := session.Global().ID(claims.SID).Get("user_id")
-	if err != nil || userID == "" {
+	if err != nil || userID == nil {
 		exception.New("session expired", 403).Throw()
 	}
 
