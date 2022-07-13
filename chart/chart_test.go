@@ -25,5 +25,5 @@ func check(t *testing.T) {
 	for key := range Charts {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 1, len(keys))
+	assert.Equal(t, 2, len(keys))
 }

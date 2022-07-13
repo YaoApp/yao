@@ -65,9 +65,7 @@ func LoadFrom(dir string, prefix string) error {
 // LoadChart 载入数据表格
 func LoadChart(source []byte, name string) (*Chart, error) {
 	chart := &Chart{
-		Flow: gou.Flow{
-			Name: name,
-		},
+		Flow: &gou.Flow{Name: name},
 	}
 	err := jsoniter.Unmarshal(source, chart)
 	if err != nil {

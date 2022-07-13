@@ -33,6 +33,10 @@ func ProcessData(process *gou.Process) interface{} {
 		}
 	}
 
+	// with Session
+	chart.Flow.WithGlobal(process.Global)
+	chart.Flow.WithSID(process.Sid)
+
 	return chart.GetData(params)
 }
 
