@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"crypto"
+	"crypto/hmac"
 	"fmt"
 
 	"golang.org/x/crypto/md4"
@@ -41,4 +42,14 @@ func Hash(hash crypto.Hash, value string) (string, error) {
 		return "", err
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
+
+// Hmac the Keyed-Hash Message Authentication Code (HMAC)
+func Hmac(hash crypto.Hash, value string, key string) (string, error) {
+	mac := hmac.New(hash.New, []byte(key))
+	_, err := mac.Write([]byte(value))
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", mac.Sum(nil)), nil
 }
