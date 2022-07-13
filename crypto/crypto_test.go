@@ -54,3 +54,15 @@ func TestSHA256(t *testing.T) {
 	res = gou.NewProcess("yao.crypto.hmac", args...).Run()
 	assert.Equal(t, "b8ad08a3a547e35829b821b75370301dd8c4b06bdd7771f9b541a75914068718", res)
 }
+
+func TestSHA1Base64(t *testing.T) {
+	// Hash
+	args := []interface{}{"SHA1", "123456"}
+	res := gou.NewProcess("yao.crypto.hash", args...).Run()
+	assert.Equal(t, "7c4a8d09ca3762af61e59520943dc26494f8941b", res)
+
+	// HMac
+	args = append(args, "123456", "base64")
+	res = gou.NewProcess("yao.crypto.hmac", args...).Run()
+	assert.Equal(t, "dLVbarK45DisgQQ142njBHs5UdA=", res)
+}

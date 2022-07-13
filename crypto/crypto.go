@@ -3,6 +3,7 @@ package crypto
 import (
 	"crypto"
 	"crypto/hmac"
+	"encoding/base64"
 	"fmt"
 
 	"golang.org/x/crypto/md4"
@@ -45,11 +46,16 @@ func Hash(hash crypto.Hash, value string) (string, error) {
 }
 
 // Hmac the Keyed-Hash Message Authentication Code (HMAC)
-func Hmac(hash crypto.Hash, value string, key string) (string, error) {
+func Hmac(hash crypto.Hash, value string, key string, encoding ...string) (string, error) {
 	mac := hmac.New(hash.New, []byte(key))
 	_, err := mac.Write([]byte(value))
 	if err != nil {
 		return "", err
 	}
+
+	if len(encoding) > 0 && encoding[0] == "base64" {
+		return base64.StdEncoding.EncodeToString(mac.Sum(nil)), nil
+	}
+
 	return fmt.Sprintf("%x", mac.Sum(nil)), nil
 }
