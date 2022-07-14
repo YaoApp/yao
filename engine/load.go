@@ -55,43 +55,43 @@ func Load(cfg config.Config) (err error) {
 	// 第四步: 加载共享库 & JS 处理器
 	err = share.Load(cfg) // 加载共享库 lib
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	err = script.Load(cfg) // 加载JS处理器 script
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	// 第五步: 加载数据模型等
 	err = model.Load(cfg) // 加载数据模型 model
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	err = flow.Load(cfg) // 加载业务逻辑 Flow
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	err = store.Load(cfg) // Load stores
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	err = plugin.Load(cfg) // 加载业务插件 plugin
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	err = table.Load(cfg) // 加载数据表格 table
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	err = chart.Load(cfg) // 加载分析图表 chart
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	page.Load(cfg)     // 加载页面 page 忽略错误
@@ -100,7 +100,7 @@ func Load(cfg config.Config) (err error) {
 
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
-		log.Warn(err.Error())
+		log.Debug(err.Error())
 	}
 
 	server.Load(cfg) // 加载服务

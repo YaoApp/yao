@@ -60,7 +60,7 @@ func Load() Config {
 // Production 设定为生产环境
 func Production() {
 	Conf.Mode = "production"
-	log.SetLevel(log.ErrorLevel)
+	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(log.TEXT)
 	if Conf.LogMode == "JSON" {
 		log.SetFormatter(log.JSON)
