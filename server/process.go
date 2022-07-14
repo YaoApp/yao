@@ -6,8 +6,8 @@ import (
 )
 
 func init() {
-	gou.RegisterProcessHandler("xiang.server.Start", ProcessStart)
-	gou.RegisterProcessHandler("xiang.server.Connect", ProcessConnect)
+	// gou.RegisterProcessHandler("xiang.server.Start", ProcessStart)
+	// gou.RegisterProcessHandler("xiang.server.Open", ProcessOpen)
 }
 
 // ProcessStart  xiang.server.Start
@@ -33,25 +33,31 @@ func ProcessStart(process *gou.Process) interface{} {
 	return nil
 }
 
-// ProcessConnect  xiang.server.Connect
-func ProcessConnect(process *gou.Process) interface{} {
-	process.ValidateArgNums(1)
+// ProcessOpen xiang.server.Open
+// func ProcessOpen(process *gou.Process) interface{} {
+// 	process.ValidateArgNums(1)
 
-	name := process.ArgsString(0)
-	serv, has := gou.Sockets[name]
-	if !has {
-		exception.New("%s does not load", 400, name).Throw()
-	}
+// 	name := process.ArgsString(0)
+// 	serv, has := gou.Sockets[name]
+// 	if !has {
+// 		exception.New("%s does not load", 400, name).Throw()
+// 		return nil
+// 	}
 
-	args := []interface{}{}
-	if process.NumOfArgs() > 1 {
-		args = process.Args[1:]
-	}
+// 	args := []interface{}{}
+// 	if process.NumOfArgs() > 1 {
+// 		args = process.Args[1:]
+// 	}
 
-	if serv.Mode != "client" {
-		exception.New("%s mode [%s] not server", 400, name, serv.Mode).Throw()
-	}
+// 	if serv.Mode != "client" {
+// 		exception.New("%s mode [%s] should be client", 400, name, serv.Mode).Throw()
+// 		return nil
+// 	}
 
-	serv.Connect(args...)
-	return nil
-}
+// 	err := serv.Open(args...)
+// 	if err != nil {
+// 		exception.New("%s: %s", 500, name, err.Error()).Throw()
+// 	}
+
+// 	return nil
+// }

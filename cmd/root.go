@@ -94,6 +94,7 @@ func init() {
 		serviceCmd,
 		dumpCmd,
 		restoreCmd,
+		socketCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))

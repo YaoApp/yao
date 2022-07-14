@@ -107,7 +107,7 @@ var startCmd = &cobra.Command{
 				if sock.Mode == "server" {
 					go sock.Start()
 				} else if sock.Mode == "client" {
-					go sock.Connect()
+					go sock.Open()
 				}
 			}
 		}
