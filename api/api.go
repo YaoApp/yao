@@ -36,7 +36,7 @@ func LoadFrom(dir string, prefix string) error {
 	err = share.Walk(dir, ".ws.json", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		_, err := gou.LoadWebSocket(string(content), name)
+		_, err := gou.LoadWebSocketServer(string(content), name)
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
 		}
