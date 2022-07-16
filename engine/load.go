@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/app"
+	"github.com/yaoapp/yao/cert"
 	"github.com/yaoapp/yao/chart"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
@@ -37,6 +38,12 @@ func Load(cfg config.Config) (err error) {
 	// 加密密钥函数
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey), "AES")
 	gou.LoadCrypt(`{}`, "PASSWORD")
+
+	// Load Certs
+	err = cert.Load(cfg)
+	if err != nil {
+		log.Debug(err.Error())
+	}
 
 	// 第二步: 建立数据库 & 会话连接
 	share.DBConnect(cfg.DB) // 创建数据库连接
