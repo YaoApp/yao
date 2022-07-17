@@ -43,7 +43,7 @@ func serve(t *testing.T) (*websocket.Upgrader, string) {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	ws.SetHandler(func(message []byte) ([]byte, error) { return message, nil })
+	ws.SetHandler(func(message []byte, id int) ([]byte, error) { return message, nil })
 	ws.SetRouter(router)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
