@@ -1,4 +1,4 @@
-package server
+package socket
 
 import (
 	"fmt"
@@ -11,9 +11,9 @@ import (
 )
 
 // Load 加载API
-func Load(cfg config.Config) {
-	var root = filepath.Join(cfg.Root, "servers")
-	LoadFrom(root, "")
+func Load(cfg config.Config) error {
+	var root = filepath.Join(cfg.Root, "sockets")
+	return LoadFrom(root, "")
 }
 
 // LoadFrom 从特定目录加载

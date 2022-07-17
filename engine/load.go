@@ -20,11 +20,10 @@ import (
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/script"
-	"github.com/yaoapp/yao/server"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
 	"github.com/yaoapp/yao/table"
-	"github.com/yaoapp/yao/workflow"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
@@ -103,14 +102,19 @@ func Load(cfg config.Config) (err error) {
 
 	page.Load(cfg)     // 加载页面 page 忽略错误
 	importer.Load(cfg) // 加载数据导入 imports
-	workflow.Load(cfg) // 加载工作流  workflow
+
+	// workflow.Load(cfg) // 加载工作流  workflow
 
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
 		log.Debug(err.Error())
 	}
 
-	server.Load(cfg) // 加载服务
+	err = socket.Load(cfg) // Load sockets
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
 	return nil
 }
 

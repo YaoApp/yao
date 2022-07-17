@@ -78,12 +78,27 @@ var socketCmd = &cobra.Command{
 			return
 		}
 
+		host := socket.Host
+		port := socket.Port
+		argsLen := len(pargs)
+		if argsLen > 0 {
+			if inputHost, ok := pargs[0].(string); ok {
+				host = inputHost
+			}
+		}
+
+		if argsLen > 1 {
+			if inputPort, ok := pargs[1].(string); ok {
+				port = inputPort
+			}
+		}
+
 		fmt.Println(color.WhiteString("\n---------------------------------"))
 		fmt.Println(color.WhiteString(socket.Name))
 		fmt.Println(color.WhiteString("---------------------------------"))
 		fmt.Println(color.GreenString("Mode: %s", socket.Mode))
-		fmt.Println(color.GreenString("Host: %s://%s", socket.Protocol, socket.Host))
-		fmt.Println(color.GreenString("Port: %s", socket.Port))
+		fmt.Println(color.GreenString("Host: %s://%s", socket.Protocol, host))
+		fmt.Println(color.GreenString("Port: %s", port))
 		fmt.Println(color.WhiteString("--------------------------------------"))
 		err := socket.Open(pargs...)
 		if err != nil {
