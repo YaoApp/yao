@@ -16,8 +16,8 @@ import (
 
 var socketCmd = &cobra.Command{
 	Use:   "socket",
-	Short: L("Open socket"),
-	Long:  L("Open socket"),
+	Short: L("Open a socket connection"),
+	Long:  L("Open a socket connection"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer share.SessionStop()
 		defer gou.KillPlugins()

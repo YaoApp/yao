@@ -95,6 +95,7 @@ func init() {
 		dumpCmd,
 		restoreCmd,
 		socketCmd,
+		websocketCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))

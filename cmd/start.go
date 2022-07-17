@@ -47,7 +47,7 @@ var startCmd = &cobra.Command{
 			host = "127.0.0.1"
 		}
 
-		if mode == "development" {
+		if mode == "development" || mode == "production" {
 			fmt.Println(color.WhiteString("\n---------------------------------"))
 			fmt.Println(color.WhiteString(L("API List")))
 			fmt.Println(color.WhiteString("---------------------------------"))

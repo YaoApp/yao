@@ -24,6 +24,7 @@ import (
 	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
 	"github.com/yaoapp/yao/table"
+	"github.com/yaoapp/yao/websocket"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
@@ -111,6 +112,11 @@ func Load(cfg config.Config) (err error) {
 	}
 
 	err = socket.Load(cfg) // Load sockets
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
+	err = websocket.Load(cfg) // Load websockets (client)
 	if err != nil {
 		log.Debug(err.Error())
 	}

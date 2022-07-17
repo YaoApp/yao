@@ -1,0 +1,18 @@
+{
+  "name": "A WebSocket client",
+  "description": "A Chat WebSocket client",
+  "version": "0.10.0",
+  "url": "ws://127.0.0.1:5011/websocket/message",
+  "protocols": ["yao-message-01"],
+  "buffer": { "read": 1024, "write": 1024 },
+  "limit": { "read-wait": 10, "pong-wait": 20, "max-message": 1024 },
+  "timeout": 5,
+  "attempt_after": 200,
+  "attempts": 9,
+  "event": {
+    "data": "scripts.websocket.onData",
+    "closed": "scripts.websocket.onClosed",
+    "connected": "scripts.websocket.onConnected",
+    "error": "scripts.websocket.onError"
+  }
+}
