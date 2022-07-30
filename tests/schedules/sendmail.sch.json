@@ -1,0 +1,6 @@
+{
+  "name": "每分钟发送一封邮件",
+  "schedule": "*/1 * * * *",
+  "task": "mail",
+  "args": ["$ENV.SEND_MAIL_TEST_MAIL"]
+}

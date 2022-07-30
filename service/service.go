@@ -6,8 +6,8 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
-var shutdown = make(chan bool)
-var shutdownComplete = make(chan bool)
+var shutdown = make(chan bool, 1)
+var shutdownComplete = make(chan bool, 1)
 
 // Start 启动服务
 func Start() error {
@@ -25,7 +25,7 @@ func Start() error {
 			Root:   "/api",
 			Allows: config.Conf.AllowFrom,
 		},
-		&shutdown, func(s gou.Server) {
+		shutdown, func(s gou.Server) {
 			shutdownComplete <- true
 		},
 		Middlewares...)
@@ -44,7 +44,7 @@ func StartWithouttSession() {
 			Root:   "/api",
 			Allows: config.Conf.AllowFrom,
 		},
-		&shutdown, func(s gou.Server) {
+		shutdown, func(s gou.Server) {
 			shutdownComplete <- true
 		},
 		Middlewares...)
@@ -53,16 +53,18 @@ func StartWithouttSession() {
 // StopWithouttSession 关闭服务
 func StopWithouttSession(onComplete func()) {
 	shutdown <- true
-	<-shutdownComplete
-	gou.KillPlugins()
-	onComplete()
+	select {
+	case <-shutdownComplete:
+		onComplete()
+	}
 }
 
 // Stop 关闭服务
 func Stop(onComplete func()) {
 	shutdown <- true
-	<-shutdownComplete
-	share.SessionStop()
-	gou.KillPlugins()
-	onComplete()
+	select {
+	case <-shutdownComplete:
+		share.SessionStop()
+		onComplete()
+	}
 }

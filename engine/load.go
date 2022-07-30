@@ -19,11 +19,13 @@ import (
 	"github.com/yaoapp/yao/page"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
 	"github.com/yaoapp/yao/table"
+	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/websocket"
 )
 
@@ -117,6 +119,16 @@ func Load(cfg config.Config) (err error) {
 	}
 
 	err = websocket.Load(cfg) // Load websockets (client)
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
+	err = task.Load(cfg) // Load tasks
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
+	err = schedule.Load(cfg) // Load schedules
 	if err != nil {
 		log.Debug(err.Error())
 	}

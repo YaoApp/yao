@@ -24,7 +24,7 @@ var startCmd = &cobra.Command{
 	Short: L("Start Engine"),
 	Long:  L("Start Engine"),
 	Run: func(cmd *cobra.Command, args []string) {
-		defer service.Stop(func() { fmt.Println(L("Service stopped")) })
+		// defer service.Stop(func() { fmt.Println(L("Service stopped")) })
 		Boot()
 
 		if startDebug { // 强制 debug 模式启动
