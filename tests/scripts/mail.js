@@ -12,12 +12,12 @@ function NextID() {
 
 function Send(id, mail, flag) {
   for (var i = 1; i <= 3; i++) {
-    Process("xiang.system.Sleep", 200);
+    Process("xiang.sys.Sleep", 200);
     Process("tasks.mail.Progress", id, i, 3, "unit-test");
   }
   if (flag) {
     console.log(`flag: ${flag}`);
-    Process("xiang.system.Sleep", 2000);
+    Process("xiang.sys.Sleep", 2000);
   }
   console.log(
     `Send: ${JSON.stringify({ foo: "bar", mail: mail, flag: flag || "-" })}`

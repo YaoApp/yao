@@ -27,6 +27,7 @@ import (
 	"github.com/yaoapp/yao/table"
 	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/websocket"
+	"github.com/yaoapp/yao/widget"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
@@ -129,6 +130,11 @@ func Load(cfg config.Config) (err error) {
 	}
 
 	err = schedule.Load(cfg) // Load schedules
+	if err != nil {
+		log.Debug(err.Error())
+	}
+
+	err = widget.Load(cfg) // Load schedules
 	if err != nil {
 		log.Debug(err.Error())
 	}
