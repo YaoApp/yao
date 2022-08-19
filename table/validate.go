@@ -109,21 +109,21 @@ func (table Table) validateList() error {
 		for idx, fliter := range filters {
 			fli, ok := fliter.(map[string]interface{})
 			if !ok {
-				return fmt.Errorf("list.layout.fliters.%d format error", idx)
+				return fmt.Errorf("list.layout.filters.%d format error", idx)
 			}
 
 			name, has := fli["name"]
 			if !has {
-				return fmt.Errorf("list.layout.fliters.%d.name is required", idx)
+				return fmt.Errorf("list.layout.filters.%d.name is required", idx)
 			}
 
 			namestr, ok := name.(string)
 			if !ok {
-				return fmt.Errorf("list.layout.fliters.%d.name format error", idx)
+				return fmt.Errorf("list.layout.filters.%d.name format error", idx)
 			}
 
 			if _, has := table.Filters[namestr]; !has {
-				return fmt.Errorf("list.layout.fliters.%d.name %s is not found in fliters", idx, namestr)
+				return fmt.Errorf("list.layout.filters.%d.name %s is not found in filters", idx, namestr)
 			}
 		}
 	}
