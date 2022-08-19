@@ -8,7 +8,7 @@
     "layout": {
       "fieldset": [
         {
-          "columns": [{ "name": "商务负责人", "width": 24 }]
+          "columns": [{ "name": "name", "width": 24 }]
         }
       ]
     }

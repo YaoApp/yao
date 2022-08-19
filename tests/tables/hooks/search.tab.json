@@ -30,7 +30,7 @@
   "edit": {
     "primary": "id",
     "layout": {
-      "fieldset": [{ "columns": [{ "name": "ID", "width": 6 }] }]
+      "fieldset": [{ "columns": [{ "name": "id", "width": 6 }] }]
     },
     "actions": { "cancel": {} }
   },

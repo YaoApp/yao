@@ -12,6 +12,7 @@ import (
 	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
+	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
@@ -172,7 +173,20 @@ func LoadTable(source string, name string) (*Table, error) {
 	table.loadColumns()
 	table.loadFilters()
 	table.loadAPIs()
+
+	err = table.Validate()
+	if err != nil {
+		log.Error("[Table] %s is not valid: %s ", table.Table, err.Error())
+		return nil, err
+	}
+
 	Tables[name] = &table
+
+	// Apply a language pack
+	if lang.Default != nil {
+		lang.Default.Apply(Tables[name])
+	}
+
 	return Tables[name], nil
 }
 
