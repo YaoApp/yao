@@ -106,8 +106,8 @@ func (table Table) validateList() error {
 
 	filters, ok := table.List.Layout["filters"].([]interface{})
 	if ok {
-		for idx, fliter := range filters {
-			fli, ok := fliter.(map[string]interface{})
+		for idx, filter := range filters {
+			fli, ok := filter.(map[string]interface{})
 			if !ok {
 				return fmt.Errorf("list.layout.filters.%d format error", idx)
 			}
