@@ -1,0 +1,35 @@
+{
+  "name": "::Demo",
+  "connector": "trace",
+  "table": { "name": "user_trace", "comment": "::Demo" },
+  "columns": [
+    { "label": "ID", "name": "id", "type": "ID" },
+    {
+      "label": "::SN",
+      "name": "user_sn",
+      "type": "string",
+      "length": 42,
+      "index": true
+    },
+    {
+      "label": "::Uptime",
+      "name": "uptime",
+      "type": "datetime",
+      "index": true
+    },
+    {
+      "label": "::Action",
+      "name": "action",
+      "type": "enum",
+      "option": ["进入", "离开"],
+      "index": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "user_sn_action_unique",
+      "type": "unique",
+      "columns": ["user_sn", "action"]
+    }
+  ]
+}

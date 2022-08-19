@@ -1,35 +1,32 @@
 package app
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-
 	jsoniter "github.com/json-iterator/go"
+	l "github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
+	"github.com/yaoapp/yao/lang"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/xfs"
 )
 
-// langs 语言包
-var langs = map[string]map[string]string{}
-
-// Load 加载应用信息
+// Load Application
 func Load(cfg config.Config) {
-	Init(cfg)
-	LoadInfo(cfg.Root)
-	LoadLang(cfg)
 
-	lang := strings.ToLower(share.App.Lang)
+	// Load language packs
+	lang.Load(cfg)
+
+	// Set language pack
 	share.App.L = map[string]string{}
-	if l, has := langs[lang]; has {
-		share.App.L = l
+	if l.Default != nil {
+		share.App.L = l.Default.Global
 	}
+
+	// Load Info
+	LoadInfo(cfg.Root)
+
 }
 
 // L 语言包
@@ -38,49 +35,6 @@ func L(word string) string {
 		return trans
 	}
 	return word
-}
-
-// Init 应用初始化
-func Init(cfg config.Config) {
-
-	// // UI文件目录
-	// if _, err := os.Stat(cfg.RootUI); os.IsNotExist(err) {
-	// 	err := os.MkdirAll(cfg.RootUI, os.ModePerm)
-	// 	if err != nil {
-	// 		xlog.Printf("创建目录失败(%s) %s", cfg.RootUI, err)
-	// 		os.Exit(1)
-	// 	}
-
-	// 	content, err := data.Asset("xiang/data/index.html")
-	// 	if err != nil {
-	// 		xlog.Printf("读取文件失败(%s) %s", cfg.RootUI, err)
-	// 		os.Exit(1)
-	// 	}
-
-	// 	err = ioutil.WriteFile(filepath.Join(cfg.RootUI, "/index.html"), content, os.ModePerm)
-	// 	if err != nil {
-	// 		xlog.Printf("复制默认文件失败(%s) %s", cfg.RootUI, err)
-	// 		os.Exit(1)
-	// 	}
-	// }
-
-	// // 数据库目录
-	// if _, err := os.Stat(cfg.RootDB); os.IsNotExist(err) {
-	// 	err := os.MkdirAll(cfg.RootDB, os.ModePerm)
-	// 	if err != nil {
-	// 		xlog.Printf("创建目录失败(%s) %s", cfg.RootDB, err)
-	// 		os.Exit(1)
-	// 	}
-	// }
-
-	// // 文件数据目录
-	// if _, err := os.Stat(cfg.RootData); os.IsNotExist(err) {
-	// 	err := os.MkdirAll(cfg.RootData, os.ModePerm)
-	// 	if err != nil {
-	// 		xlog.Printf("创建目录失败(%s) %s", cfg.RootData, err)
-	// 		os.Exit(1)
-	// 	}
-	// }
 }
 
 // LoadInfo 应用信息
@@ -106,69 +60,13 @@ func LoadInfo(root string) {
 		info.Icons.Set("png", xfs.Encode(fs.MustReadFile("/yao/icons/icon.png")))
 	}
 
+	info.L = share.App.L
 	share.App = info
-}
-
-// LoadLang 加载语言包
-func LoadLang(cfg config.Config) error {
-
-	var defaults = []share.Script{}
-	if os.Getenv("YAO_DEV") != "" {
-		defaults = share.GetFilesFS(filepath.Join(os.Getenv("YAO_DEV"), "yao"), ".json")
-	} else {
-		defaults = share.GetFilesBin("yao", ".json")
-	}
-
-	for _, lang := range defaults {
-		if lang.Type != "langs" {
-			continue
-		}
-		content := lang.Content
-		name := strings.ToLower(lang.Name) // 这个读取函数需要优化
-		lang := map[string]string{}
-		err := jsoniter.Unmarshal(content, &lang)
-		if err != nil {
-			log.With(log.F{"name": name}).Error(err.Error())
-		}
-		langs[name] = lang
-	}
-
-	if share.BUILDIN {
-		return LoadLangBuildIn("langs")
-	}
-	return LoadLangFrom(filepath.Join(cfg.Root, "langs"))
 }
 
 // LoadLangBuildIn 从制品中读取
 func LoadLangBuildIn(dir string) error {
 	return nil
-}
-
-// LoadLangFrom 从特定目录加载
-func LoadLangFrom(dir string) error {
-
-	if share.DirNotExists(dir) {
-		return fmt.Errorf("%s does not exists", dir)
-	}
-
-	err := share.Walk(dir, ".json", func(root, filename string) {
-		name := strings.ToLower(share.SpecName(root, filename))
-		content := share.ReadFile(filename)
-		lang := map[string]string{}
-		err := jsoniter.Unmarshal(content, &lang)
-		if err != nil {
-			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
-		}
-		if _, has := langs[name]; !has {
-			langs[name] = map[string]string{}
-		}
-		for src, dst := range lang {
-			langs[name][src] = dst
-		}
-	})
-
-	return err
-
 }
 
 // defaultInfo 读取默认应用信息

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -31,7 +32,14 @@ func LoadFrom(dir string, prefix string) error {
 		_, err := gou.LoadModelReturn(string(content), name)
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
+			return
 		}
+
+		// Apply the language pack
+		if lang.Default != nil {
+			lang.Default.Apply(gou.Models[name])
+		}
+
 	})
 
 	return err

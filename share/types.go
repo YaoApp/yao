@@ -72,8 +72,7 @@ type Page struct {
 // AppInfo 应用信息
 type AppInfo struct {
 	Name        string                 `json:"name,omitempty"`
-	Lang        string                 `json:"lang,omitempty"`
-	L           map[string]string      `json:"-"` // 应用的语言包
+	L           map[string]string      `json:"-"`
 	Short       string                 `json:"short,omitempty"`
 	Version     string                 `json:"version,omitempty"`
 	Description string                 `json:"description,omitempty"`
