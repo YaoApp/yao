@@ -1,13 +1,12 @@
 {
-  "label": "指标对比",
+  "label": "::Demo",
   "version": "1.0.0",
-  "description": "指标对比用于测试",
+  "description": "::Demo",
   "nodes": [
     {
       "name": "行业",
       "engine": "xiang",
       "query": {
-        "debug": false,
         "select": [
           "city",
           ":COUNT(id) as 数量",
@@ -49,10 +48,10 @@
     }
   ],
   "output": {
-    "合并": "{{$res.合并结果}}",
-    "计费": "{{$res.计费}}",
-    "行业": "{{$res.行业}}",
-    "参数": "{{$in}}"
+    "::Merge": "{{$res.合并结果}}",
+    "::Billing": "{{$res.计费}}",
+    "::Industry": "{{$res.行业}}",
+    "::Parameter": "{{$in}}"
   },
   "apis": {
     "data": {
@@ -60,39 +59,36 @@
       "guard": "-",
       "default": [{ "from": "1980-01-02", "to": "2050-12-31" }]
     },
-    "setting": {
-      "disable": false,
-      "guard": "-"
-    }
+    "setting": { "disable": false, "guard": "-" }
   },
   "filters": {
-    "开始时间": {
-      "label": "开始时间",
+    "::Start": {
+      "label": "::Start",
       "bind": "from",
       "input": {
         "type": "date",
         "props": {
-          "placeholder": "请选择开始时间"
+          "placeholder": "::Please select a start time"
         }
       }
     },
-    "结束时间": {
-      "label": "结束时间",
+    "::End": {
+      "label": "::End",
       "bind": "to",
       "input": {
         "type": "date",
         "props": {
-          "placeholder": "请选择结束时间"
+          "placeholder": "::Please select an end time"
         }
       }
     }
   },
   "page": {
-    "primary": "城市",
+    "primary": "::City",
     "layout": {
       "filters": [
-        { "name": "开始时间", "width": 6 },
-        { "name": "结束时间", "width": 6 }
+        { "name": "::Start", "width": 6 },
+        { "name": "::End", "width": 6 }
       ],
       "charts": [
         { "type": "line", "props": {} },

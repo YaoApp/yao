@@ -6,6 +6,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -75,6 +76,12 @@ func LoadChart(source []byte, name string) (*Chart, error) {
 	chart.Prepare()
 	chart.SetupAPIs()
 	Charts[name] = chart
+
+	// Apply a language pack
+	if lang.Default != nil {
+		lang.Default.Apply(Charts[name])
+	}
+
 	return chart, nil
 }
 
