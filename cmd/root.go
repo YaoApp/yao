@@ -45,6 +45,7 @@ var langs = map[string]string{
 	"NEXT:":                                 "下一步:",
 	"Listening":                             "    监听",
 	"✨LISTENING✨":                           "✨服务正在运行✨",
+	"✨STOPPED✨":                             "✨服务已停止✨",
 	"SessionPort":                           "会话服务端口",
 	"Force migrate":                         "强制更新数据表结构",
 	"Migrate is not allowed on production mode.": "Migrate 不能再生产环境下使用",

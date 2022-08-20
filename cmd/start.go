@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -24,6 +26,11 @@ var startCmd = &cobra.Command{
 	Short: L("Start Engine"),
 	Long:  L("Start Engine"),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// recive interrupt signal
+		interrupt := make(chan os.Signal, 1)
+		signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+
 		// defer service.Stop(func() { fmt.Println(L("Service stopped")) })
 		Boot()
 
@@ -94,9 +101,18 @@ var startCmd = &cobra.Command{
 		if mode == "development" {
 			service.Watch(config.Conf)
 		}
-
+		go service.Start()
 		fmt.Println(color.GreenString(L("✨LISTENING✨")))
-		service.Start()
+
+		for {
+			select {
+			case <-interrupt:
+				service.Stop(func() {
+					fmt.Println(color.GreenString(L("✨STOPPED✨")))
+				})
+				return
+			}
+		}
 	},
 }
 

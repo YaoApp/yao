@@ -1,7 +1,10 @@
 package service
 
 import (
+	"context"
+
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -63,6 +66,19 @@ func StopWithouttSession(onComplete func()) {
 func Stop(onComplete func()) {
 	shutdown <- true
 	select {
+	case <-shutdownComplete:
+		share.SessionStop()
+		onComplete()
+	}
+}
+
+// StopWithContext stop with timeout
+func StopWithContext(ctx context.Context, onComplete func()) {
+	shutdown <- true
+	select {
+	case <-ctx.Done():
+		log.Error("[STOP] canceled (%v)", ctx.Err())
+		onComplete()
 	case <-shutdownComplete:
 		share.SessionStop()
 		onComplete()
