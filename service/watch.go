@@ -76,13 +76,18 @@ func watchStart(cfg config.Config) error {
 		}
 
 		name := dir.Name()
-		if _, has := handlers[name]; !has {
+		if _, has := excludes[name]; has {
+			continue
+		}
+
+		if strings.HasPrefix(name, ".") {
 			continue
 		}
 
 		filename := filepath.Join(root, name)
 		err := watcher.Add(filename)
 		if err != nil {
+			log.Error("[Watch] %s", err.Error())
 			return err
 		}
 
@@ -90,7 +95,13 @@ func watchStart(cfg config.Config) error {
 		log.Info("[Watch] Watching: %s", filename)
 
 		// sub dir
+		depth := 0
 		err = filepath.WalkDir(filename, func(path string, d fs.DirEntry, err error) error {
+			depth = depth + 1
+			if depth == 1 {
+				return nil
+			}
+
 			if !d.IsDir() {
 				return nil
 			}
@@ -98,13 +109,13 @@ func watchStart(cfg config.Config) error {
 			log.Info("[Watch] Watching: %s", path)
 			err = watcher.Add(path)
 			if err != nil {
-				return err
+				log.Error("[Watch] %s", err.Error())
 			}
 			return nil
 		})
 
 		if err != nil {
-			return err
+			log.Error("[Watch] %s", err.Error())
 		}
 	}
 
@@ -136,7 +147,7 @@ func watchStart(cfg config.Config) error {
 				if _, has := excludes[widget]; !has {
 					base := filepath.Base(event.Name)
 					isdir := true
-					if strings.HasSuffix(base, ".yao") || strings.HasSuffix(base, ".json") {
+					if strings.HasSuffix(base, ".yao") || strings.HasSuffix(base, ".json") || strings.HasSuffix(base, ".js") {
 						isdir = false
 					}
 
@@ -237,17 +248,21 @@ func watchModel(root string, file string, event string, cfg config.Config) {
 }
 
 func watchReload(root string, file string, event string, cfg config.Config) {
-	err := engine.Load(config.Conf) // 加载脚本等
-	if err != nil {
-		fmt.Println(color.RedString("[Watch] Reload: %s", err.Error()))
+
+	switch event {
+	case "CREATE", "WRITE", "REMOVE":
+		err := engine.Load(config.Conf) // 加载脚本等
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Reload: %s", err.Error()))
+		}
+
+		// Restart Server
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		StopWithContext(ctx, func() {
+			go Start()
+			fmt.Println(color.GreenString("[Watch] Reload Completed"))
+		})
 	}
-
-	// Restart Server
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	StopWithContext(ctx, func() {
-		go Start()
-		fmt.Println(color.GreenString("[Watch] Reload Completed"))
-	})
 }
