@@ -24,7 +24,7 @@ import (
 var watchShutdown = make(chan bool, 1) // shutdown signal
 var watchReady = make(chan bool, 1)    // ready signal
 var excludes = map[string]bool{"ui": true, "db": true, "data": true}
-var hanlders = map[string]func(root string, file string, event string, cfg config.Config){
+var handlers = map[string]func(root string, file string, event string, cfg config.Config){
 	"models": watchModel,
 }
 
@@ -76,7 +76,7 @@ func watchStart(cfg config.Config) error {
 		}
 
 		name := dir.Name()
-		if _, has := hanlders[name]; !has {
+		if _, has := handlers[name]; !has {
 			continue
 		}
 
@@ -108,7 +108,7 @@ func watchStart(cfg config.Config) error {
 		}
 	}
 
-	// event hanlder
+	// event handler
 	go func() {
 		for {
 			select {
@@ -129,8 +129,8 @@ func watchStart(cfg config.Config) error {
 				widget := pi[0]
 
 				watchHanler := watchReload
-				if hanlder, has := hanlders[widget]; has {
-					watchHanler = hanlder
+				if handler, has := handlers[widget]; has {
+					watchHanler = handler
 				}
 
 				if _, has := excludes[widget]; !has {
