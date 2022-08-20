@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	_ "github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/model"
@@ -68,8 +67,6 @@ func TestProcessData(t *testing.T) {
 	}
 	process := gou.NewProcess("xiang.page.Data", args...)
 	response := ProcessData(process)
-	utils.Dump(response)
-
 	assert.NotNil(t, response)
 
 	res := any.Of(response).Map().Dot()

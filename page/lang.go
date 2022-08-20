@@ -1,27 +1,27 @@
-package chart
+package page
 
 // Lang for applying a language pack
-func (chart *Chart) Lang(trans func(widget string, inst string, value *string) bool) {
-	inst := chart.Flow.Name
-	widget := "chart"
+func (page *Page) Lang(trans func(widget string, inst string, value *string) bool) {
+	inst := page.Flow.Name
+	widget := "page"
 
-	trans(widget, inst, &chart.Name)
-	trans(widget, inst, &chart.Label)
-	trans(widget, inst, &chart.Description)
-	trans(widget, inst, &chart.Page.Primary)
-	transMap(widget, inst, chart.Page.Layout, trans)
-	chart.Output = transAny(widget, inst, chart.Output, trans)
+	trans(widget, inst, &page.Name)
+	trans(widget, inst, &page.Label)
+	trans(widget, inst, &page.Description)
+	trans(widget, inst, &page.Page.Primary)
+	transMap(widget, inst, page.Page.Layout, trans)
+	page.Output = transAny(widget, inst, page.Output, trans)
 
 	// Filters
-	for name, filter := range chart.Filters {
+	for name, filter := range page.Filters {
 		new := name
 		trans(widget, inst, &new)
 		trans(widget, inst, &filter.Label)
-		delete(chart.Filters, name)
+		delete(page.Filters, name)
 
 		// Props
 		transMap(widget, inst, filter.Input.Props, trans)
-		chart.Filters[new] = filter
+		page.Filters[new] = filter
 	}
 
 }

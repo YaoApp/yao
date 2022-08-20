@@ -6,6 +6,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -24,15 +25,15 @@ func Load(cfg config.Config) error {
 
 	var errs error = nil
 	if err := LoadFrom(path.Join(cfg.Root, "/kanban"), ""); err != nil {
-		log.Trace("load kanban error: %s ", err.Error())
+		// log.Trace("load kanban error: %s ", err.Error())
 		errs = err
 	}
 	if err := LoadFrom(path.Join(cfg.Root, "/screen"), ""); err != nil {
-		log.Trace("load screen error: %s", err.Error())
+		// log.Trace("load screen error: %s", err.Error())
 		errs = err
 	}
 	if err := LoadFrom(path.Join(cfg.Root, "/pages"), ""); err != nil {
-		log.Trace("load screen error: %s", err.Error())
+		// log.Trace("load screen error: %s", err.Error())
 		errs = err
 	}
 
@@ -93,6 +94,12 @@ func LoadPage(source []byte, name string) (*Page, error) {
 	page.Prepare()
 	page.SetupAPIs()
 	Pages[name] = page
+
+	// Apply a language pack
+	if lang.Default != nil {
+		lang.Default.Apply(Pages[name])
+	}
+
 	return page, nil
 }
 

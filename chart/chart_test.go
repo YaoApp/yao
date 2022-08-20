@@ -40,4 +40,6 @@ func check(t *testing.T) {
 	filters := lang.Page.Layout["filters"].([]interface{})
 	begin := filters[0].(map[string]interface{})
 	assert.Equal(t, "開始時間", begin["name"])
+
+	assert.Equal(t, "請選擇開始時間", lang.Filters["開始時間"].Input.Props["placeholder"])
 }

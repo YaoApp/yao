@@ -12,7 +12,9 @@ import (
 func init() {
 	lang.RegisterWidget("tables", "table")
 	lang.RegisterWidget("charts", "chart")
-	lang.RegisterWidget("kanban", "kanban")
+	lang.RegisterWidget("kanban", "page")
+	lang.RegisterWidget("screen", "page")
+	lang.RegisterWidget("pages", "page")
 }
 
 // Load language packs
