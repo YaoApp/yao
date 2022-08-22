@@ -28,7 +28,7 @@ function Compile(name, dsl) {
  * @param {DSL} dsl
  */
 function OnLoad(name, dsl) {
-  console.log(name, dsl);
+  log.Info("[Widget] dyform.OnLoad %s %v", name, dsl);
 }
 
 /**
