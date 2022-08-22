@@ -127,14 +127,20 @@ func LoadFrom(dir string, prefix string) error {
 		return fmt.Errorf("%s does not exists", dir)
 	}
 
+	messages := []string{}
 	err := share.Walk(dir, ".json", func(root, filename string) {
 		name := share.SpecName(root, filename)
 		content := share.ReadFile(filename)
 		_, err := LoadTable(string(content), name)
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
+			messages = append(messages, fmt.Sprintf("%s %s", name, err.Error()))
 		}
 	})
+
+	if len(messages) > 0 {
+		return fmt.Errorf("%s", strings.Join(messages, ";"))
+	}
 
 	return err
 }
