@@ -116,7 +116,7 @@ func restoreModels(basePath string) {
 	for _, mod := range gou.Models {
 		fmt.Printf("\r%s", strings.Repeat(" ", 80))
 		fmt.Printf(color.GreenString(L("\rUpdate schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
-		err := mod.ForceCreateSchema()
+		err := mod.Migrate(true)
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)

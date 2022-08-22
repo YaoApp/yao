@@ -15,6 +15,7 @@ import (
 
 var name string
 var force bool = false
+var resetModel bool = false
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: L("Update database schema"),
@@ -43,23 +44,57 @@ var migrateCmd = &cobra.Command{
 
 		if name != "" {
 			mod, has := gou.Models[name]
-			if has {
-				mod.Migrate(true)
+			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
+
+			if !has {
+				fmt.Println(color.RedString(L("Model: %s does not exits"), name))
+				return
 			}
+
+			if resetModel {
+				err := mod.DropTable()
+				if err != nil {
+					fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+					return
+				}
+			}
+
+			err := mod.Migrate(false)
+			if err != nil {
+				fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+				return
+			}
+
+			fmt.Printf(color.GreenString(L("SUCCESS")) + "\n")
 			return
 		}
 
 		// Do Stuff Here
 		for _, mod := range gou.Models {
-			fmt.Println(color.GreenString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
-			mod.Migrate(true)
+			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
+
+			if resetModel {
+				err := mod.DropTable()
+				if err != nil {
+					fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+					continue
+				}
+			}
+
+			err := mod.Migrate(false)
+			if err != nil {
+				fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+				continue
+			}
+			fmt.Printf(color.GreenString(L("SUCCESS")) + "\n")
 		}
 
-		fmt.Println(color.GreenString(L("✨DONE✨")))
+		// fmt.Println(color.GreenString(L("✨DONE✨")))
 	},
 }
 
 func init() {
 	migrateCmd.PersistentFlags().StringVarP(&name, "name", "n", "", L("Model name"))
 	migrateCmd.PersistentFlags().BoolVarP(&force, "force", "", false, L("Force migrate"))
+	migrateCmd.PersistentFlags().BoolVarP(&resetModel, "reset", "", false, L("Drop the table if exist"))
 }
