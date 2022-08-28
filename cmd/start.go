@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -21,7 +23,7 @@ import (
 )
 
 var startDebug = false
-var startAlpha = false
+var startDisableWatching = false
 
 var startCmd = &cobra.Command{
 	Use:   "start",
@@ -74,7 +76,9 @@ var startCmd = &cobra.Command{
 			printApis(false)
 			printTasks(false)
 			printSchedules(false)
+		}
 
+		if mode == "development" && !startDisableWatching {
 			// Watching
 			fmt.Println(color.WhiteString("\n---------------------------------"))
 			fmt.Println(color.WhiteString(L("Watching")))
@@ -95,7 +99,9 @@ var startCmd = &cobra.Command{
 		for {
 			select {
 			case <-interrupt:
-				service.Stop(func() {
+				ctx, canceled := context.WithTimeout(context.Background(), (5 * time.Second))
+				defer canceled()
+				service.StopWithContext(ctx, func() {
 					fmt.Println(color.GreenString(L("✨STOPPED✨")))
 				})
 				return
@@ -206,5 +212,5 @@ func colorMehtod(method string) string {
 
 func init() {
 	startCmd.PersistentFlags().BoolVarP(&startDebug, "debug", "", false, L("Development mode"))
-	startCmd.PersistentFlags().BoolVarP(&startAlpha, "alpha", "", false, L("Enabled unstable features"))
+	startCmd.PersistentFlags().BoolVarP(&startDisableWatching, "disable-watching", "", false, L("Disable watching"))
 }
