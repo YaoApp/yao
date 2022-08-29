@@ -15,8 +15,8 @@
     Twitter
   </a>
   ·
-  <a aria-label="slack" href="https://join.slack.com/t/yaoapps/shared_invite/zt-13dm0cwvo-R9Q8xFGbrLZUffeygm9tXQ" target="_blank">
-    Slack
+  <a aria-label="discord" href="https://discord.gg/nsKmCXwvxU" target="_blank">
+    Discord
   </a>
 </p>
 
@@ -35,9 +35,13 @@
   </a>
 </p>
 
-![intro](docs/1.intro.png)
+![intro](docs/architecture.png)
 
 [中文介绍](README.zh-CN.md)
+
+**Discord:** https://discord.gg/nsKmCXwvxU
+
+**Documentation:** https://yaoapps.com/en-US/doc
 
 ## Demo
 
@@ -45,7 +49,11 @@
 
 A Customer Relationship Management System developed by Yao.
 
-[https://demo-crm.yaoapps.com](https://demo-crm.yaoapps.com/xiang/login/admin?autoLogin=true)
+DEMO: [View Demo](https://demo-crm.yaoapps.com/xiang/login/admin?autoLogin=true)
+
+SOURCE: [https://github.com/YaoApp/demo-crm](https://github.com/YaoApp/demo-crm)
+
+INFRA: https://letsinfra.com/openapp/crm
 
 ### Intelligent warehouse management system
 
@@ -55,7 +63,7 @@ An example of cloud + edge IoT application, an unattended intelligent warehouse 
 
 ## Introduce
 
-**Yao allows developers to create web services by processes.** Yao is a low-code engine that creates a database model, writes API services, and describes dashboard interface just by JSON for web & hardware, no code, and 10x productivity.
+**Yao allows developers to create web services by processes.** Yao is a app engine that creates a database model, writes API services, and describes dashboard interface just by JSON for web & hardware, and 10x productivity.
 
 Yao is based on the **flow-based** programming idea, developed in the **Go** language, and supports multiple ways to expand the data stream processor. This makes Yao extremely versatile, which can replace programming languages ​​in most scenarios, and is 10 times more efficient than traditional programming languages ​​in terms of reusability and coding efficiency; application performance and resource ratio Better than **PHP**, **JAVA** and other languages.
 
@@ -69,7 +77,7 @@ Run the script under terminal: (MacOS/Linux)
 curl -fsSL https://website.yaoapps.com/install.sh | bash
 ```
 
-For Windows users, please refer to the Installation and Debugging chapter: [Installation and debugging](https://yaoapps.com/en-US/doc/a.Introduction/b.Install)
+For Windows users, please refer to the Installation and Debugging chapter: [Installation and debugging](https://yaoapps.com/en-US/doc/Introduction/Install)
 
 ## Getting Started
 
@@ -121,4 +129,4 @@ yao start
 
 ## About Yao
 
-Yao's name is derived from the Chinese character **yao (yáo)**, the basic symbol that makes up the Eight Trigrams. The Eight Trigrams is a symbol system created by the ancient god Fuxi after observing and summarizing the laws of nature, which can refer to everything. Yao has two states of yin and yang, like 0 and 1. The transformation of yin and yang of Yao drives the replacement of Eight Trigrams, so as to summarize and record the development law of things.
+Yao's name is derived from the Chinese character **爻 (yáo)**, the basic symbol that makes up the Eight Trigrams. The Eight Trigrams is a symbol system created by the ancient god Fuxi after observing and summarizing the laws of nature, which can refer to everything. Yao has two states of yin and yang, like 0 and 1. The transformation of yin and yang of Yao drives the replacement of Eight Trigrams, so as to summarize and record the development law of things.
