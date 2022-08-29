@@ -39,6 +39,16 @@
 
 [中文介绍](README.zh-CN.md)
 
+YAO is an open-source application engine, written in Golang, in the form of a command-line tool that can be downloaded and used immediately. It is suitable for developing business systems, website/APP API, admin panel, self-built low-code platforms, etc.
+
+YAO adopts a flow-based programming model to implement various functions by writing YAO DSL (Logical Description in JSON format) or using JavaScript to write processes. The YAO DSL can be written in several ways:
+
+1. Purely hand-written
+
+2. Use automated scripts to generate contextual logic
+
+3. Use the visual editor to create by "drag and drop"
+
 **Discord:** https://discord.gg/nsKmCXwvxU
 
 **Documentation:** https://yaoapps.com/en-US/doc

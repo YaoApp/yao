@@ -3,11 +3,19 @@
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 
-![intro](docs/1.intro.png)
+![intro](docs/architecture.png)
+
+[English](README.md)
 
 YAO 是一款开源应用引擎，使用 Golang 编写，以一个命令行工具的形式存在, 下载即用。适合用于开发业务系统、网站/APP API 接口、管理后台、自建低代码平台等。
 
-[English](README.md)
+YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑描述) 或使用 JavaScript 编写处理器，实现各种功能。 YAO DSL 可以有多种编写方式:
+
+1. 纯手工编写
+
+2. 使用自动化脚本，根据上下文逻辑生成
+
+3. 使用可视化编辑器，通过“拖拉拽”制作
 
 官网: [https://yaoapps.com](https://yaoapps.com)
 
