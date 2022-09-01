@@ -3,12 +3,13 @@ package chart
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	_ "github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/model"
@@ -68,10 +69,36 @@ func TestProcessData(t *testing.T) {
 	}
 	process := gou.NewProcess("xiang.chart.Data", args...)
 	response := ProcessData(process)
-	utils.Dump(response)
+	// utils.Dump(response)
 
 	assert.NotNil(t, response)
 
 	res := any.Of(response).Map().Dot()
 	assert.Equal(t, "北京", res.Get("合并.0.城市"))
+}
+
+func TestProcessDataGlobalSession(t *testing.T) {
+
+	params := url.Values{
+		"from": []string{"1981-01-01", "1990-01-01"},
+	}
+	params.Set("to", "2049-12-31")
+
+	args := []interface{}{
+		"session",
+		params,
+		&gin.Context{},
+	}
+
+	sid := session.ID()
+	data := time.Now().String()
+	session.Global().ID(sid).Set("id", data)
+	process := gou.
+		NewProcess("xiang.chart.Data", args...).
+		WithSID(sid).
+		WithGlobal(map[string]interface{}{"foo": "bar"})
+
+	response := ProcessData(process)
+	res := any.Of(response).Map().Dot()
+	assert.Equal(t, data, res.Get("ID"))
 }

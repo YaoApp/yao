@@ -1,12 +1,19 @@
 package table
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/xfs"
 )
 
 func init() {
@@ -22,6 +29,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.table.QuickSave", ProcessQuickSave)
 	gou.RegisterProcessHandler("xiang.table.UpdateIn", ProcessUpdateIn)
 	gou.RegisterProcessHandler("xiang.table.DeleteIn", ProcessDeleteIn)
+	gou.RegisterProcessHandler("xiang.table.Export", ProcessExport)
 	gou.RegisterProcessHandler("xiang.table.Setting", ProcessSetting)
 }
 
@@ -35,11 +43,6 @@ func ProcessSearch(process *gou.Process) interface{} {
 	table := Select(name)
 
 	api := table.APIs["search"].ValidateLoop("xiang.table.search")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
-
-	// if process.NumOfArgsIs(5) && api.IsAllow(process.Args[4]) {
-	// 	return nil
-	// }
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSearch, process.Args, process.Sid)
@@ -52,7 +55,10 @@ func ProcessSearch(process *gou.Process) interface{} {
 	pagesize := process.ArgsInt(3, api.DefaultInt(2))
 
 	// 查询数据
-	response := gou.NewProcess(api.Process, param, page, pagesize).Run()
+	response := gou.NewProcess(api.Process, param, page, pagesize).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
@@ -66,7 +72,6 @@ func ProcessFind(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["find"].ValidateLoop("xiang.table.find")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeFind, process.Args, process.Sid)
@@ -74,10 +79,17 @@ func ProcessFind(process *gou.Process) interface{} {
 	// 参数表
 	process.ValidateArgNums(2)
 	id := process.Args[1]
-	param := api.MergeDefaultQueryParam(gou.QueryParam{}, 1, process.Sid)
+	queryParam := gou.QueryParam{}
+	if process.NumOfArgs() == 3 {
+		queryParam = process.ArgsQueryParams(2)
+	}
+	param := api.MergeDefaultQueryParam(queryParam, 1, process.Sid)
 
 	// 查询数据
-	response := gou.NewProcess(api.Process, id, param).Run()
+	response := gou.NewProcess(api.Process, id, param).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterFind, response, []interface{}{id, param}, process.Sid)
@@ -92,7 +104,6 @@ func ProcessSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["save"].ValidateLoop("xiang.table.save")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSave, process.Args, process.Sid)
@@ -101,7 +112,10 @@ func ProcessSave(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// 查询数据
-	response := gou.NewProcess(api.Process, process.Args[1]).Run()
+	response := gou.NewProcess(api.Process, process.Args[1]).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterSave, response, []interface{}{process.Args[1]}, process.Sid)
@@ -114,10 +128,18 @@ func ProcessDelete(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete"].ValidateLoop("xiang.table.delete")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
+
+	// Before Hook
+	process.Args = table.Before(table.Hooks.BeforeDelete, process.Args, process.Sid)
 
 	id := process.Args[1]
-	return gou.NewProcess(api.Process, id).Run()
+	response := gou.NewProcess(api.Process, id).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
+
+	// After Hook
+	return table.After(table.Hooks.AfterDelete, response, []interface{}{id}, process.Sid)
 }
 
 // ProcessDeleteWhere xiang.table.DeleteWhere
@@ -128,7 +150,6 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete-where"].ValidateLoop("xiang.table.DeleteWhere")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
@@ -136,7 +157,10 @@ func ProcessDeleteWhere(process *gou.Process) interface{} {
 		param.Limit = 10
 	}
 
-	return gou.NewProcess(api.Process, param).Run()
+	return gou.NewProcess(api.Process, param).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessDeleteIn xiang.table.DeleteIn
@@ -147,7 +171,6 @@ func ProcessDeleteIn(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["delete-in"].ValidateLoop("xiang.table.DeleteIn")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	ids := strings.Split(process.ArgsString(1), ",")
@@ -158,7 +181,10 @@ func ProcessDeleteIn(process *gou.Process) interface{} {
 		},
 	}
 
-	return gou.NewProcess(api.Process, param).Run()
+	return gou.NewProcess(api.Process, param).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessUpdateWhere xiang.table.UpdateWhere
@@ -169,14 +195,16 @@ func ProcessUpdateWhere(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["update-where"].ValidateLoop("xiang.table.UpdateWhere")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量更新
 	param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
 	if param.Limit == 0 { // 限定删除行
 		param.Limit = 10
 	}
-	return gou.NewProcess(api.Process, param, process.Args[2]).Run()
+	return gou.NewProcess(api.Process, param, process.Args[2]).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessUpdateIn xiang.table.UpdateWhere
@@ -187,7 +215,6 @@ func ProcessUpdateIn(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["update-in"].ValidateLoop("xiang.table.UpdateIn")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// 批量删除
 	ids := strings.Split(process.ArgsString(1), ",")
@@ -197,7 +224,10 @@ func ProcessUpdateIn(process *gou.Process) interface{} {
 			{Column: primary, OP: "in", Value: ids},
 		},
 	}
-	return gou.NewProcess(api.Process, param, process.Args[3]).Run()
+	return gou.NewProcess(api.Process, param, process.Args[3]).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 // ProcessInsert xiang.table.Insert
@@ -207,8 +237,10 @@ func ProcessInsert(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["insert"].ValidateLoop("xiang.table.Insert")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
-	return gou.NewProcess(api.Process, process.Args[1:]...).Run()
+
+	return gou.NewProcess(api.Process, process.Args[1:]...).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 }
 
 // ProcessSetting xiang.table.Setting
@@ -219,7 +251,6 @@ func ProcessSetting(process *gou.Process) interface{} {
 	field := process.ArgsString(1)
 	table := Select(name)
 	api := table.APIs["setting"]
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	fields := strings.Split(field, ",")
 	if api.ProcessIs("xiang.table.Setting") {
@@ -254,7 +285,9 @@ func ProcessSetting(process *gou.Process) interface{} {
 		return setting
 	}
 
-	return gou.NewProcess(api.Process, fields).Run()
+	return gou.NewProcess(api.Process, fields).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 }
 
 // ProcessQuickSave xiang.table.QuickSave
@@ -264,7 +297,6 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["quicksave"].ValidateLoop("xiang.table.quicksave")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	args := []interface{}{}
 	payload := process.ArgsMap(1)
@@ -284,7 +316,9 @@ func ProcessQuickSave(process *gou.Process) interface{} {
 		args = append(args, payload.Get("query"))
 	}
 
-	return gou.NewProcess(api.Process, args...).Run()
+	return gou.NewProcess(api.Process, args...).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 }
 
 // ProcessSelect xiang.table.Select
@@ -294,13 +328,80 @@ func ProcessSelect(process *gou.Process) interface{} {
 	name := process.ArgsString(0)
 	table := Select(name)
 	api := table.APIs["select"].ValidateLoop("xiang.table.select")
-	table.APIGuard(api.Guard, process.Sid, process.Global)
 
 	// Before Hook
 	process.Args = table.Before(table.Hooks.BeforeSelect, process.Args, process.Sid)
 
-	response := gou.NewProcess(api.Process, process.Args[1:]...).Run()
+	response := gou.NewProcess(api.Process, process.Args[1:]...).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).Run()
 
 	// After Hook
 	return table.After(table.Hooks.AfterSelect, response, process.Args[1:], process.Sid)
+}
+
+// ProcessExport xiang.table.Export (:table, :queryParam, :chunkSize)
+// Export query result to Excel
+func ProcessExport(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(1)
+	name := process.ArgsString(0)
+	table := Select(name)
+	api := table.APIs["search"].ValidateLoop("xiang.table.search")
+
+	// Make DIR
+	hash := md5.Sum([]byte(time.Now().Format("20060102-15:04:05")))
+	fingerprint := string(hex.EncodeToString(hash[:]))
+	fingerprint = strings.ToUpper(fingerprint)
+	dir := time.Now().Format("20060102")
+	ext := filepath.Ext("export.xlsx")
+	filename := filepath.Join(dir, fmt.Sprintf("%s%s", fingerprint, ext))
+	xfs.Stor.MustMkdirAll(dir, os.ModePerm)
+
+	page := 1
+	for page > 0 {
+
+		// Before Hook
+		process.Args = table.Before(table.Hooks.BeforeSearch, process.Args, process.Sid)
+
+		// 参数表
+		process.ValidateArgNums(3)
+		param := api.MergeDefaultQueryParam(process.ArgsQueryParams(1), 0, process.Sid)
+		pagesize := process.ArgsInt(2, api.DefaultInt(2))
+		if process.NumOfArgs() == 4 { // for search hook
+			pagesize = process.ArgsInt(3, api.DefaultInt(1))
+		}
+
+		// 查询数据
+		response := gou.NewProcess(api.Process, param, page, pagesize).
+			WithGlobal(process.Global).
+			WithSID(process.Sid).
+			Run()
+
+		// After Hook
+		response = table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
+
+		res, ok := response.(map[string]interface{})
+		if !ok {
+			res, ok = response.(maps.MapStrAny)
+			if !ok {
+				page = -1
+				continue
+			}
+		}
+
+		if _, ok := res["next"]; !ok {
+			page = -1
+			continue
+		}
+
+		err := table.Export(filename, res["data"], page, pagesize)
+		if err != nil {
+			log.Error("Export %s %s", table.Table, err.Error())
+		}
+
+		page = any.Of(res["next"]).CInt()
+	}
+
+	return filename
 }

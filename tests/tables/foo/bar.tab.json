@@ -11,47 +11,13 @@
   "list": {
     "primary": "id",
     "layout": {
-      "columns": [
-        {
-          "name": "名称",
-          "width": "240px"
-        },
-        {
-          "name": "父节点"
-        },
-        {
-          "name": "图标"
-        },
-        {
-          "name": "状态"
-        },
-        {
-          "name": "路由"
-        },
-        {
-          "name": "排列"
-        },
-        {
-          "name": "block布局"
-        },
-        {
-          "name": "显示"
-        }
-      ],
-      "filters": [
-        {
-          "name": "名称",
-          "width": 6
-        }
-      ]
+      "columns": [{ "name": "name", "width": "240px" }],
+      "filters": [{ "name": "name", "width": 6 }]
     },
     "actions": {
       "create": {
         "type": "button",
-        "props": {
-          "label": "新建菜单",
-          "icon": "fas fa-plus"
-        }
+        "props": { "label": "新建菜单", "icon": "fas fa-plus" }
       },
       "view": {},
       "edit": {},
@@ -75,30 +41,8 @@
           "title": "基础信息",
           "description": "",
           "columns": [
-            {
-              "name": "名称",
-              "width": 6
-            },
-            {
-              "name": "图标",
-              "width": 6
-            },
-            {
-              "name": "路由",
-              "width": 6
-            },
-            {
-              "name": "排列",
-              "width": 6
-            },
-            {
-              "name": "block布局",
-              "width": 6
-            },
-            {
-              "name": "显示",
-              "width": 6
-            }
+            { "name": "name", "width": 6 },
+            { "name": "id", "width": 6 }
           ]
         }
       ]

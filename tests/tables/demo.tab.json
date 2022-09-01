@@ -1,0 +1,85 @@
+{
+  "name": "::Demo",
+  "version": "1.0.0",
+  "decription": "::Demo",
+  "bind": { "model": "demo" },
+  "apis": {},
+  "columns": {
+    "::ID": {
+      "label": "::ID",
+      "view": { "type": "label", "props": { "value": ":id" } }
+    },
+    "::SN": {
+      "label": "::SN",
+      "view": { "type": "label", "props": { "value": ":sn" } },
+      "edit": {
+        "type": "input",
+        "props": { "value": ":sn", "placeholder": "::Please input the SN" }
+      }
+    },
+    "::Name": {
+      "label": "::Name",
+      "view": { "type": "label", "props": { "value": ":name" } },
+      "edit": { "type": "input", "props": { "value": ":name" } }
+    },
+    "::Kind": {
+      "label": "::Kind",
+      "view": { "type": "label", "props": { "value": ":kind" } },
+      "edit": {
+        "type": "select",
+        "props": {
+          "value": ":kind",
+          "options": [
+            { "label": "::Cat", "value": "cat" },
+            { "label": "::Dog", "value": "dog" }
+          ]
+        }
+      }
+    },
+    "::Description": {
+      "label": "::Description",
+      "view": { "type": "label", "props": { "value": ":desc" } },
+      "edit": { "type": "textArea", "props": { "value": ":desc", "rows": 4 } }
+    }
+  },
+  "filters": {
+    "::Keywords": {
+      "label": "::Keywords",
+      "bind": "where.name.match",
+      "input": {
+        "type": "input",
+        "props": { "placeholder": "::type the keywords..." }
+      }
+    }
+  },
+  "list": {
+    "primary": "id",
+    "layout": {
+      "columns": [
+        { "name": "::ID", "width": 80 },
+        { "name": "::SN", "width": 100 },
+        { "name": "::Name", "width": 200 },
+        { "name": "::Kind" }
+      ],
+      "filters": [{ "name": "::Keywords" }]
+    },
+    "actions": { "pagination": { "props": { "showTotal": true } } },
+    "option": { "operation": { "unfold": true } }
+  },
+  "edit": {
+    "primary": "id",
+    "layout": {
+      "fieldset": [
+        {
+          "columns": [
+            { "name": "::SN", "width": 8 },
+            { "name": "::Name", "width": 8 },
+            { "name": "::Kind", "width": 8 },
+            { "name": "::Description", "width": 24 }
+          ]
+        }
+      ]
+    },
+    "actions": { "cancel": {}, "save": {}, "delete": {} }
+  }
+}

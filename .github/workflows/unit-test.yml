@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [1.17]
+        go: [1.18.2]
         db: [MySQL8.0, MySQL5.7, SQLite3]
     steps:
       - name: Setup Cache
@@ -80,22 +80,20 @@ jobs:
           kind: "${{ matrix.db }}"
           db: "xiang"
           user: "xiang"
-          password: 123456
+          password: ${{ secrets.UNIT_PASS }}
 
       - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ matrix.go }}
 
       - name: Setup Go Tools
         run: |
-          if [[ "${GO111MODULE}" = "on" ]]; then go mod download; fi
-          if [[ "${GO111MODULE}" = "on" ]]; then export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"; fi
-          if [[ "${GO111MODULE}" = "on" ]]; then make tools; fi
+          make tools
 
       - name: Setup ENV & Host
         env:
-          PASSWORD: 123456
+          PASSWORD: ${{ secrets.UNIT_PASS }}
         run: |
           sudo echo "127.0.0.1 local.iqka.com" | sudo tee -a /etc/hosts 
           echo "YAO_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV

@@ -11,11 +11,13 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xun"
 	"github.com/yaoapp/yao/data"
+	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -141,6 +143,17 @@ const svg404 = `
 func processGetURL(process *gou.Process) interface{} {
 	if len(process.Args) < 1 {
 		return string(data.MustAsset("yao/data/icons/404.png"))
+	}
+
+	token := process.ArgsString(2)
+	if token == "" {
+		exception.New("token is null", 403).Throw()
+	}
+
+	claims := helper.JwtValidate(token)
+	userID, err := session.Global().ID(claims.SID).Get("user_id")
+	if err != nil || userID == nil {
+		exception.New("session expired", 403).Throw()
 	}
 
 	filename := process.ArgsString(0)

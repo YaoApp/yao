@@ -1,0 +1,8 @@
+{
+  "label": "Dynamic Form",
+  "description": "A form widget. users can design forms online",
+  "version": "0.1.0",
+  "root": "dyforms",
+  "extension": ".form.json",
+  "modules": ["Apis", "Models", "Tables", "Tasks", "Schedules"]
+}

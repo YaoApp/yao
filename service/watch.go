@@ -1,459 +1,268 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"io/fs"
+	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/fatih/color"
+	"github.com/fsnotify/fsnotify"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/yao/chart"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
-	"github.com/yaoapp/yao/page"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/table"
-	"github.com/yaoapp/yao/workflow"
 )
 
-// Watch 监听应用目录文件变更
-func Watch(cfg config.Config) {
-	if os.Getenv("YAO_DEV") != "" {
-		WatchEngine(filepath.Join(os.Getenv("YAO_DEV"), "/yao"))
-	}
-	WatchModel(filepath.Join(cfg.Root, "models"), "")
-	WatchAPI(filepath.Join(cfg.Root, "apis"), "")
-	WatchFlow(filepath.Join(cfg.Root, "flows"), "")
-	WatchPlugin(filepath.Join(cfg.Root, "plugins"))
-	WatchTable(filepath.Join(cfg.Root, "tables"), "")
-	WatchChart(filepath.Join(cfg.Root, "charts"), "")
-	WatchPage(filepath.Join(cfg.Root, "pages"), "")
-	WatchWorkFlow(filepath.Join(cfg.Root, "workflows"), "")
-
-	// 看板大屏
-	WatchPage(filepath.Join(cfg.Root, "kanban"), "")
-	WatchPage(filepath.Join(cfg.Root, "screen"), "")
-
-	// 监听脚本 & libs更新
-	WatchGlobal(filepath.Join(cfg.Root, "libs"))
-	WatchGlobal(filepath.Join(cfg.Root, "scripts"))
+var watchShutdown = make(chan bool, 1) // shutdown signal
+var watchReady = make(chan bool, 1)    // ready signal
+var excludes = map[string]bool{"ui": true, "db": true, "data": true}
+var handlers = map[string]func(root string, file string, event string, cfg config.Config){
+	"models": watchModel,
 }
 
-// WatchEngine 监听监听引擎内建数据变更
-func WatchEngine(root string) {
-	root = share.DirAbs(root)
-	WatchModel(filepath.Join(root, "models"), "xiang.")
-	WatchAPI(filepath.Join(root, "apis"), "xiang.")
-	WatchFlow(filepath.Join(root, "flows"), "xiang.")
-	WatchTable(filepath.Join(root, "tables"), "xiang.")
+// Watch the application code change for hot update
+func Watch(cfg config.Config) (err error) {
+	go func() { err = watchStart(cfg) }()
+	select {
+	case <-watchReady:
+		return nil
+	}
 }
 
-// WatchGlobal 监听通用程序更新
-func WatchGlobal(root string) {
-	if share.DirNotExists(root) {
-		return
+// StopWatch stop watching the code change
+func StopWatch() {
+	watchShutdown <- true
+	time.Sleep(200 * time.Millisecond)
+}
+
+func watchStart(cfg config.Config) error {
+
+	root := cfg.Root
+
+	// recive interrupt signal
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+
+	shutdown := make(chan bool, 1)
+
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
 	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-		if !strings.HasSuffix(filename, ".json") && !strings.HasSuffix(filename, ".js") {
-			return
+	defer watcher.Close()
+
+	root, err = filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+
+	dirs, err := ioutil.ReadDir(root)
+	if err != nil {
+		return err
+	}
+
+	// Add path
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
 		}
 
-		// 重启服务器
-		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			err := engine.Load(config.Conf)
+		name := dir.Name()
+		if _, has := excludes[name]; has {
+			continue
+		}
+
+		if strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		filename := filepath.Join(root, name)
+		err := watcher.Add(filename)
+		if err != nil {
+			log.Error("[Watch] %s", err.Error())
+			return err
+		}
+
+		fmt.Println(color.GreenString("[Watch] Watching %s", name))
+		log.Info("[Watch] Watching: %s", filename)
+
+		// sub dir
+		depth := 0
+		err = filepath.WalkDir(filename, func(path string, d fs.DirEntry, err error) error {
+			depth = depth + 1
+			if depth == 1 {
+				return nil
+			}
+
+			if !d.IsDir() {
+				return nil
+			}
+
+			log.Info("[Watch] Watching: %s", path)
+			err = watcher.Add(path)
 			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
+				log.Error("[Watch] %s", err.Error())
 			}
-			StopWithouttSession(func() {
-				fmt.Println(color.GreenString("Service Restarted"))
-				go StartWithouttSession()
-			})
-		}
-	})
-}
+			return nil
+		})
 
-// WatchModel 监听业务接口更新
-func WatchModel(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
+		if err != nil {
+			log.Error("[Watch] %s", err.Error())
+		}
 	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
 
-		if !strings.HasSuffix(filename, ".json") {
-			return
-		}
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			_, err := gou.LoadModelReturn(string(content), name) // Reload
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
+	// event handler
+	go func() {
+		for {
+			select {
+			case <-shutdown:
+				log.Info("[Watch] The event handler exit")
 				return
-			}
-			fmt.Println(color.GreenString("Model %s Reloaded", name))
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := gou.Models[name]; has {
-				delete(gou.Models, name)
-				fmt.Println(color.RedString("Model %s Removed", name))
-			}
-		}
-	})
-}
 
-// WatchAPI 监听业务接口更新
-func WatchAPI(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+				relpath := strings.TrimPrefix(event.Name, root)
+				if strings.HasPrefix(relpath, string(os.PathSeparator)) {
+					relpath = strings.TrimPrefix(relpath, string(os.PathSeparator))
+				}
 
-		if !strings.HasSuffix(filename, ".json") {
-			return
-		}
+				pi := strings.Split(relpath, string(os.PathSeparator))
+				widget := pi[0]
 
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			_, err := gou.LoadAPIReturn(string(content), name) // Reload
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
-			fmt.Println(color.GreenString("API %s Reloaded", name))
+				watchHanler := watchReload
+				if handler, has := handlers[widget]; has {
+					watchHanler = handler
+				}
 
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := gou.APIs[name]; has {
-				delete(gou.APIs, name)
-				fmt.Println(color.RedString("API %s Removed", name))
-			}
-		}
-
-		// 重启服务器
-		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			StopWithouttSession(func() {
-				fmt.Println(color.GreenString("Service Restarted"))
-				go StartWithouttSession()
-			})
-		}
-	})
-}
-
-// WatchFlow 监听业务逻辑变更
-func WatchFlow(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-		if !strings.HasSuffix(filename, ".json") && !strings.HasSuffix(filename, ".js") {
-			return
-		}
-
-		if strings.HasSuffix(filename, ".js") {
-			name := prefix + share.SpecName(root, filename)
-			name = strings.ReplaceAll(name, ".", "/")
-			filename = filepath.Join(root, name+".flow.json")
-		}
-
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			flow, err := gou.LoadFlowReturn(string(content), name) // Reload
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
-
-			if flow != nil { // Reload Script
-				dir := filepath.Dir(filename)
-				share.Walk(dir, ".js", func(root, filename string) {
-					script := share.ScriptName(filename)
-					content := share.ReadFile(filename)
-					_, err := flow.LoadScriptReturn(string(content), script)
-					if err != nil {
-						fmt.Println(color.RedString("Fatal: %s", err.Error()))
-						return
+				if _, has := excludes[widget]; !has {
+					base := filepath.Base(event.Name)
+					isdir := true
+					if strings.HasSuffix(base, ".yao") || strings.HasSuffix(base, ".json") || strings.HasSuffix(base, ".js") {
+						isdir = false
 					}
-				})
-			}
 
-			fmt.Println(color.GreenString("Flow %s Reloaded", name))
+					events := strings.Split(event.Op.String(), "|")
+					for _, eventType := range events {
 
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := gou.Flows[name]; has {
-				delete(gou.Flows, name)
-				fmt.Println(color.RedString("Flow %s Removed", name))
-			}
-		}
-	})
-}
+						// ADD / REMOVE Watching dir
+						if isdir {
+							switch eventType {
+							case "CREATE":
+								log.Info("[Watch] Watching: %s", event.Name)
+								watcher.Add(event.Name)
+								break
+							case "REMOVE":
+								log.Info("[Watch] Unwatching: %s", event.Name)
+								watcher.Remove(event.Name)
+								break
+							}
+							continue
+						}
 
-// WatchPlugin 监听业务插件变更
-func WatchPlugin(root string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-
-		if !strings.HasSuffix(filename, ".so") {
-			return
-		}
-
-		if op == "write" || op == "create" {
-			name := share.SpecName(root, filename)
-			_, err := gou.LoadPluginReturn(filename, name) // Reload
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
-			fmt.Println(color.GreenString("Plugin %s Reloaded", name))
-
-		} else if op == "remove" || op == "rename" {
-			name := share.SpecName(root, filename)
-			if _, has := gou.Plugins[name]; has {
-				delete(gou.Plugins, name)
-				fmt.Println(color.RedString("Plugin %s Removed", name))
-			}
-		}
-	})
-}
-
-// WatchTable 监听数据表格更新
-func WatchTable(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-
-		if !strings.HasSuffix(filename, ".json") {
-			return
-		}
-
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			_, err := table.LoadTable(string(content), name) // Reload Table
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
-
-			api, has := gou.APIs["xiang.table"]
-			if has {
-				_, err := gou.LoadAPIReturn(api.Source, api.Name)
-				if err != nil {
-					fmt.Println(color.RedString("Fatal: %s", err.Error()))
-					return
-				}
-			}
-			fmt.Println(color.GreenString("Table %s Reloaded", name))
-
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := table.Tables[name]; has {
-				delete(table.Tables, name)
-				fmt.Println(color.RedString("Table %s Removed", name))
-			}
-		}
-
-		// 重启服务器
-		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			StopWithouttSession(func() {
-				fmt.Println(color.GreenString("Service Restarted"))
-				go StartWithouttSession()
-			})
-		}
-	})
-}
-
-// WatchChart 监听分析图表更新
-func WatchChart(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-		if !strings.HasSuffix(filename, ".json") && !strings.HasSuffix(filename, ".js") {
-			return
-		}
-
-		if strings.HasSuffix(filename, ".js") {
-			name := prefix + share.SpecName(root, filename)
-			name = strings.ReplaceAll(name, ".", "/")
-			filename = filepath.Join(root, name+".chart.json")
-		}
-
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			chart, err := chart.LoadChart(content, name) // Relaod
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
-
-			if chart != nil { // Reload Script
-				dir := filepath.Dir(filename)
-				share.Walk(dir, ".js", func(root, filename string) {
-					script := share.ScriptName(filename)
-					content := share.ReadFile(filename)
-					_, err := chart.LoadScriptReturn(string(content), script)
-					if err != nil {
-						fmt.Println(color.RedString("Fatal: %s", err.Error()))
-						return
+						log.Info("[Watch] %s %s", eventType, event.Name)
+						watchHanler(root, event.Name, eventType, cfg)
 					}
-				})
-			}
+				}
+				break
 
-			api, has := gou.APIs["xiang.chart"]
-			if has {
-				_, err := gou.LoadAPIReturn(api.Source, api.Name)
-				if err != nil {
-					fmt.Println(color.RedString("Fatal: %s", err.Error()))
+			case err, ok := <-watcher.Errors:
+				if !ok {
 					return
 				}
-			}
-			fmt.Println(color.GreenString("Chart %s Reloaded", name))
-
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := chart.Charts[name]; has {
-				delete(chart.Charts, name)
-				fmt.Println(color.RedString("Chart %s Removed", name))
+				fmt.Println(color.RedString("[Watch] %s", err.Error()))
+				log.Error("[Watch] %s", err.Error())
+				break
 			}
 		}
+	}()
 
-		// 重启服务器
-		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			StopWithouttSession(func() {
-				fmt.Println(color.GreenString("Service Restarted"))
-				go StartWithouttSession()
-			})
+	fmt.Println(color.GreenString("[Watch] Started"))
+	watchReady <- true
+
+	for {
+		select {
+		case <-watchShutdown:
+			shutdown <- true
+			log.Info("[Watch] Stopped")
+			fmt.Println(color.YellowString("[Watch] Stopped"))
+			return nil
+
+		case <-interrupt:
+			shutdown <- true
+			log.Info("[Watch] Stopped")
+			fmt.Println(color.YellowString("[Watch] Stopped"))
+			return nil
 		}
-	})
+	}
 }
 
-// WatchPage 监听页面更新
-func WatchPage(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-		if !strings.HasSuffix(filename, ".json") && !strings.HasSuffix(filename, ".js") {
+func watchModel(root string, file string, event string, cfg config.Config) {
+	name := share.SpecName(root, file)
+	switch event {
+	case "CREATE":
+		content, err := ioutil.ReadFile(file)
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
+			return
+		}
+		mod, err := gou.LoadModelReturn(string(content), name)
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
 			return
 		}
 
-		if strings.HasSuffix(filename, ".js") {
-			name := prefix + share.SpecName(root, filename)
-			name = strings.ReplaceAll(name, ".", "/")
-			filename = filepath.Join(root, name+".page.json")
-		}
+		mod.Migrate(true)
+		fmt.Println(color.GreenString("[Watch] Model: %s Created", name))
+		break
 
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			page, err := page.LoadPage(content, name) // Relaod
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
-
-			if page != nil { // Reload Script
-				dir := filepath.Dir(filename)
-				share.Walk(dir, ".js", func(root, filename string) {
-					script := share.ScriptName(filename)
-					content := share.ReadFile(filename)
-					_, err := page.LoadScriptReturn(string(content), script)
-					if err != nil {
-						fmt.Println(color.RedString("Fatal: %s", err.Error()))
-						return
-					}
-				})
-			}
-
-			api, has := gou.APIs["xiang.page"]
-			if has {
-				_, err := gou.LoadAPIReturn(api.Source, api.Name)
-				if err != nil {
-					fmt.Println(color.RedString("Fatal: %s", err.Error()))
-					return
-				}
-			}
-			fmt.Println(color.GreenString("Page %s Reloaded", name))
-
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := page.Pages[name]; has {
-				delete(page.Pages, name)
-				fmt.Println(color.RedString("Page %s Removed", name))
-			}
-		}
-
-		// 重启服务器
-		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			StopWithouttSession(func() {
-				fmt.Println(color.GreenString("Service Restarted"))
-				go StartWithouttSession()
-			})
-		}
-	})
-}
-
-// WatchWorkFlow 监听工作流更新
-func WatchWorkFlow(root string, prefix string) {
-	if share.DirNotExists(root) {
-		return
-	}
-	root = share.DirAbs(root)
-	go share.Watch(root, func(op string, filename string) {
-		if !strings.HasSuffix(filename, ".json") {
+	case "WRITE":
+		content, err := ioutil.ReadFile(file)
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
 			return
 		}
+		mod, err := gou.LoadModelReturn(string(content), name)
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
+			return
+		}
+		mod.Migrate(false)
+		fmt.Println(color.GreenString("[Watch] Model: %s Reloaded", name))
+		break
 
-		if op == "write" || op == "create" {
-			name := prefix + share.SpecName(root, filename)
-			content := share.ReadFile(filename)
-			_, err := workflow.LoadWorkFlow(content, name) // Relaod
-			if err != nil {
-				fmt.Println(color.RedString("Fatal: %s", err.Error()))
-				return
-			}
+	case "REMOVE", "RENAME":
+		delete(gou.Models, name)
+		fmt.Println(color.GreenString("[Watch] Model: %s Removed", name))
+		break
+	}
+}
 
-			api, has := gou.APIs["xiang.workflow."+name]
-			if has {
-				_, err := gou.LoadAPIReturn(api.Source, api.Name)
-				if err != nil {
-					fmt.Println(color.RedString("Fatal: %s", err.Error()))
-					return
-				}
-			}
-			fmt.Println(color.GreenString("Workflow %s Reloaded", name))
+func watchReload(root string, file string, event string, cfg config.Config) {
 
-		} else if op == "remove" || op == "rename" {
-			name := prefix + share.SpecName(root, filename)
-			if _, has := workflow.WorkFlows[name]; has {
-				delete(workflow.WorkFlows, name)
-				fmt.Println(color.RedString("Workflow %s Removed", name))
-			}
+	switch event {
+	case "CREATE", "WRITE", "REMOVE":
+		err := engine.Load(config.Conf) // 加载脚本等
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Reload: %s", err.Error()))
 		}
 
-		// 重启服务器
-		if op == "write" || op == "create" || op == "remove" || op == "rename" {
-			StopWithouttSession(func() {
-				fmt.Println(color.GreenString("Service Restarted"))
-				go StartWithouttSession()
-			})
-		}
-	})
+		// Restart Server
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		StopWithContext(ctx, func() {
+			go Start()
+			fmt.Println(color.GreenString("[Watch] Reload Completed"))
+		})
+	}
 }

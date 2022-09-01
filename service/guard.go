@@ -5,12 +5,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/table"
 )
 
 // Guards 服务中间件
 var Guards = map[string]gin.HandlerFunc{
 	"bearer-jwt":   bearerJWT,   // JWT 鉴权
 	"cross-domain": crossDomain, // 跨域许可
+	"table-guard":  table.Guard, // Table Guard
 }
 
 // JWT 鉴权
@@ -25,7 +27,6 @@ func bearerJWT(c *gin.Context) {
 
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
-	c.Next()
 }
 
 // crossDomain 跨域访问
@@ -39,6 +40,4 @@ func crossDomain(c *gin.Context) {
 		c.AbortWithStatus(204)
 		return
 	}
-
-	c.Next()
 }

@@ -22,7 +22,7 @@
   "list": {
     "primary": "id",
     "layout": {
-      "columns": [{ "name": "ID", "width": 6 }],
+      "columns": [{ "name": "id", "width": 6 }, { "name": "城市" }],
       "filters": []
     },
     "actions": {}
@@ -30,7 +30,7 @@
   "edit": {
     "primary": "id",
     "layout": {
-      "fieldset": [{ "columns": [{ "name": "ID", "width": 6 }] }]
+      "fieldset": [{ "columns": [{ "name": "id", "width": 6 }] }]
     },
     "actions": { "cancel": {} }
   },

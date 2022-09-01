@@ -122,6 +122,7 @@ func TestCommandStop(t *testing.T) {
 		times++
 		res, err := request()
 		if err != nil {
+			fmt.Println("REQUEST ERROR:", err)
 			continue
 		}
 		assert.Equal(t, 1, any.Of(res.Get("id")).CInt())

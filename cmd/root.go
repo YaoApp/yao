@@ -45,6 +45,7 @@ var langs = map[string]string{
 	"NEXT:":                                 "下一步:",
 	"Listening":                             "    监听",
 	"✨LISTENING✨":                           "✨服务正在运行✨",
+	"✨STOPPED✨":                             "✨服务已停止✨",
 	"SessionPort":                           "会话服务端口",
 	"Force migrate":                         "强制更新数据表结构",
 	"Migrate is not allowed on production mode.": "Migrate 不能再生产环境下使用",
@@ -91,6 +92,11 @@ func init() {
 		startCmd,
 		runCmd,
 		initCmd,
+		serviceCmd,
+		dumpCmd,
+		restoreCmd,
+		socketCmd,
+		websocketCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
@@ -105,42 +111,25 @@ func Execute() {
 	}
 }
 
-// Boot 设定配置 (这个逻辑有 BUG )
+// Boot 设定配置
 func Boot() {
-
-	if envFile == "" && appPath != "" {
-		root, err := filepath.Abs(appPath)
+	root := config.Conf.Root
+	if appPath != "" {
+		r, err := filepath.Abs(appPath)
 		if err != nil {
 			exception.New("Root error %s", 500, err.Error()).Throw()
 		}
+		root = r
+	}
+	if envFile != "" {
+		config.Conf = config.LoadFrom(envFile)
+	} else {
 		config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
-		config.Conf.Root = root
-		if config.Conf.Mode == "production" {
-			config.Production()
-		} else if config.Conf.Mode == "development" {
-			config.Development()
-		}
-
-		return
 	}
 
-	if envFile != "" && appPath == "" { // 指定环境变量文件
-		// config.SetEnvFile(envFile)
-		config.Conf = config.LoadFrom(envFile)
-	}
-
-	if envFile != "" && appPath != "" {
-		root, err := filepath.Abs(appPath)
-		if err != nil {
-			exception.New("Root error %s", 500, err.Error()).Throw()
-		}
-		config.Conf = config.LoadFrom(envFile)
-		config.Conf.Root = root
-		if config.Conf.Mode == "production" {
-			config.Production()
-		} else if config.Conf.Mode == "development" {
-			config.Development()
-		}
-
+	if config.Conf.Mode == "production" {
+		config.Production()
+	} else if config.Conf.Mode == "development" {
+		config.Development()
 	}
 }

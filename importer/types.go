@@ -13,6 +13,7 @@ const PreviewNever = "never"
 type Importer struct {
 	Title   string            `json:"title,omitempty"`  // 导入名称
 	Process string            `json:"process"`          // 处理器名称
+	Output  string            `json:"output,omitempty"` // The process import output
 	Columns []Column          `json:"columns"`          // 字段列表
 	Option  Option            `json:"option,omitempty"` // 导入配置项
 	Rules   map[string]string `json:"rules,omitempty"`  // 许可导入规则

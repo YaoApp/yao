@@ -95,7 +95,7 @@ func (xlsx *Xlsx) Chunk(size int, axises []string, cb func(line int, data [][]in
 		row, end := xlsx.readLine(line, axises)
 		if end {
 			cb(line, data)
-			break
+			return
 		}
 
 		data = append(data, row)

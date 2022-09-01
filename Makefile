@@ -1,9 +1,11 @@
 GO ?= go
+GIT ?= git
 GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell $(GO) list ./...)
 VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
 VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
+COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests*|config')
@@ -76,9 +78,10 @@ misspell:
 
 .PHONY: tools
 tools:
-	go install golang.org/x/lint/golint; \
-	go install github.com/client9/misspell/cmd/misspell;
-
+	go install golang.org/x/lint/golint@latest; \
+	go install github.com/client9/misspell/cmd/misspell@latest; \
+	go install github.com/go-bindata/go-bindata/...@latest;
+	
 # make plugin
 .PHONY: plugin
 plugin: 
@@ -130,6 +133,9 @@ artifacts-linux: clean
 	rm -rf .tmp/data
 	rm -rf .tmp/ui
 
+#	Replace PRVERSION
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
+
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
@@ -140,6 +146,10 @@ artifacts-linux: clean
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-linux-amd64 version
+
+# 	Reset const 
+#	cp -f share/const.goe share/const.go
+#	rm -f share/const.goe
 
 # make artifacts-macos
 .PHONY: artifacts-macos
@@ -158,6 +168,9 @@ artifacts-macos: clean
 	rm -rf .tmp/data
 	rm -rf .tmp/ui
 
+#	Replace PRVERSION
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
+
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
@@ -168,6 +181,10 @@ artifacts-macos: clean
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-darwin-amd64 version
+
+# 	Reset const 
+#	cp -f share/const.goe share/const.go
+#	rm -f share/const.goe
 
 .PHONY: debug
 debug: clean
@@ -180,10 +197,18 @@ debug: clean
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 
+
+#	Replace PRVERSION
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-debug\"/g" share/const.go
+
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -o dist/release/yao-debug
 	chmod +x  dist/release/yao-debug
+
+# 	Reset const 
+	cp -f share/const.goe share/const.go
+	rm -f share/const.goe
 
 .PHONY: release
 release: clean
@@ -193,7 +218,37 @@ release: clean
 #	Building UI
 	git clone https://github.com/YaoApp/xgen.git .tmp/ui
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && npm install && npm run build
+	cd .tmp/ui && cnpm install && npm run build
+
+#	Packing
+	mkdir -p .tmp/data
+	cp -r .tmp/ui/dist .tmp/data/ui
+	cp -r yao .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/ui
+
+#	Replace PRVERSION
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
+
+#   Making artifacts
+	mkdir -p dist
+	CGO_ENABLED=1 go build -v -o dist/release/yao
+	chmod +x  dist/release/yao
+
+# 	Reset const 
+	cp -f share/const.goe share/const.go
+	rm share/const.goe
+
+.PHONY: linux-release
+linux-release: clean
+	mkdir -p dist/release
+	mkdir .tmp
+
+#	Building UI
+	git clone https://github.com/YaoApp/xgen.git .tmp/ui
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
+	cd .tmp/ui && yarn install && yarn build
 
 #	Packing
 	mkdir -p .tmp/data
@@ -205,7 +260,7 @@ release: clean
 
 #   Making artifacts
 	mkdir -p dist
-	CGO_ENABLED=1 go build -v -o dist/release/yao
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
 
 # make clean

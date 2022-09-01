@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,7 +10,8 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+	os.Setenv("YAO_LANG", "zh-cn")
 	Load(config.Conf)
-	assert.Equal(t, "Yao", share.App.L["Yao"])
-	assert.Equal(t, "Xiang", share.App.L["象传"])
+	assert.Equal(t, "YAO", share.App.L["Yao"])
+	assert.Equal(t, "象传", share.App.L["Xiang"])
 }

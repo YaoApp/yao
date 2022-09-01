@@ -1,4 +1,4 @@
-package server
+package task
 
 import (
 	"fmt"
@@ -10,23 +10,23 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
-// Load 加载API
-func Load(cfg config.Config) {
-	var root = filepath.Join(cfg.Root, "servers")
-	LoadFrom(root, "")
+// Load load task
+func Load(cfg config.Config) error {
+	var root = filepath.Join(cfg.Root, "tasks")
+	return LoadFrom(root, "")
 }
 
-// LoadFrom 从特定目录加载
+// LoadFrom load from dir
 func LoadFrom(dir string, prefix string) error {
 
 	if share.DirNotExists(dir) {
 		return fmt.Errorf("%s does not exists", dir)
 	}
 
-	err := share.Walk(dir, ".sock.json", func(root, filename string) {
+	err := share.Walk(dir, ".json", func(root, filename string) {
 		name := prefix + share.SpecName(root, filename)
 		content := share.ReadFile(filename)
-		_, err := gou.LoadServer(string(content), name)
+		_, err := gou.LoadTask(string(content), name)
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
 		}

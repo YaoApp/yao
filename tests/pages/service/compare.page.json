@@ -7,7 +7,7 @@
       "name": "行业",
       "engine": "xiang",
       "query": {
-        "debug": true,
+        "debug": false,
         "select": [
           "city",
           ":COUNT(id) as 数量",

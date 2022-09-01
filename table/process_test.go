@@ -467,3 +467,44 @@ func TestTableProcessSelectWithHook(t *testing.T) {
 	// 清空数据
 	capsule.Query().Table("service").WhereIn("id", []int{id}).Delete()
 }
+
+func TestTableProcessExport(t *testing.T) {
+
+	args := []interface{}{
+		"service",
+		gou.QueryParam{Wheres: []gou.QueryWhere{{Column: "status", Value: "enabled"}}},
+		2,
+	}
+	response := gou.NewProcess("xiang.table.Export", args...).Run()
+	assert.NotNil(t, response)
+	// fmt.Println(response)
+	// res := any.Of(response).Map()
+	// assert.True(t, res.Has("data"))
+	// assert.True(t, res.Has("next"))
+	// assert.True(t, res.Has("page"))
+	// assert.True(t, res.Has("pagecnt"))
+	// assert.True(t, res.Has("pagesize"))
+	// assert.True(t, res.Has("prev"))
+	// assert.True(t, res.Has("total"))
+	// assert.Equal(t, 1, res.Get("page"))
+	// assert.Equal(t, 2, res.Get("pagesize"))
+}
+
+func TestTableProcessExportWithHook(t *testing.T) {
+
+	args := []interface{}{"hooks.search"}
+	response := gou.NewProcess("xiang.table.Export", args...).Run()
+
+	assert.NotNil(t, response)
+	// res := any.Of(response).Map()
+	// assert.True(t, res.Has("data"))
+	// assert.True(t, res.Has("next"))
+	// assert.True(t, res.Has("page"))
+	// assert.True(t, res.Has("pagecnt"))
+	// assert.True(t, res.Has("pagesize"))
+	// assert.True(t, res.Has("prev"))
+	// assert.True(t, res.Has("total"))
+	// assert.Equal(t, 1, res.Get("page"))
+	// assert.Equal(t, 2, res.Get("pagesize"))
+	// assert.Equal(t, float64(100), res.Get("after"))
+}

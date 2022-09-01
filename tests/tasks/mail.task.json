@@ -1,0 +1,16 @@
+{
+  "name": "发送邮件",
+  "worker_nums": "$ENV.SEND_MAIL_WORKER_NUMS",
+  "attempts": 3,
+  "attempt_after": 200,
+  "timeout": 2,
+  "size": 1000,
+  "process": "scripts.mail.Send",
+  "event": {
+    "next": "scripts.mail.NextID",
+    "add": "scripts.mail.OnAdd",
+    "success": "scripts.mail.OnSuccess",
+    "error": "scripts.mail.OnError",
+    "progress": "scripts.mail.OnProgress"
+  }
+}

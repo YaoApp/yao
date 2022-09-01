@@ -8,6 +8,7 @@ import (
 )
 
 func TestUserAuth(t *testing.T) {
+
 	res := user.Auth("email", "xiang@iqka.com", "A123456p+")
 	assert.True(t, res.Has("user"))
 	assert.True(t, res.Has("token"))

@@ -11,8 +11,9 @@ type Config struct {
 	Log     string `json:"log,omitempty" env:"YAO_LOG"`                             // 服务日志地址
 	LogMode string `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"` // 服务日志模式 JSON|TEXT
 	// Session   string        `json:"session,omitempty" env:"YAO_SESSION" envDefault:"memory"`         // 用户会话模式 memory|redis|database
-	JWTSecret string        `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"` // JWT 密钥
-	DB        DBConfig      `json:"db,omitempty"`                              // 数据库配置
+	JWTSecret string        `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                  // JWT 密钥
+	DB        DBConfig      `json:"db,omitempty"`                                               // 数据库配置
+	AllowFrom []string      `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM" ` // Domain list the separator is |
 	Session   SessionConfig `json:"session,omitempty"`
 }
 
@@ -22,4 +23,16 @@ type DBConfig struct {
 	Primary   []string `json:"primary,omitempty" env:"YAO_DB_PRIMARY" envSeparator:"|" envDefault:"./db/yao.db"` // 主库连接DSN
 	Secondary []string `json:"secondary,omitempty" env:"YAO_DB_SECONDARY" envSeparator:"|"`                      // 从库连接DSN
 	AESKey    string   `json:"aeskey,omitempty" env:"YAO_DB_AESKEY"`                                             // 加密存储KEY
+}
+
+// SessionConfig 会话服务器
+type SessionConfig struct {
+	Store    string `json:"store,omitempty" env:"YAO_SESSION_STORE" envDefault:"file"`    // The session store. redis | file
+	File     string `json:"file,omitempty" env:"YAO_SESSION_FILE"`                        // The file path
+	Host     string `json:"host,omitempty" env:"YAO_SESSION_HOST" envDefault:"127.0.0.1"` // The redis host
+	Port     string `json:"port,omitempty" env:"YAO_SESSION_PORT" envDefault:"6379"`      // The redis port
+	Password string `json:"password,omitempty" env:"YAO_SESSION_PASSWORD"`                // The redis password
+	Username string `json:"username,omitempty" env:"YAO_SESSION_USERNAME"`                // The redis username
+	DB       string `json:"db,omitempty" env:"YAO_SESSION_DB" envDefault:"1"`             // The redis username
+	IsCLI    bool   `json:"iscli,omitempty" env:"YAO_SESSION_ISCLI" envDefault:"false"`   // Command Line Start
 }

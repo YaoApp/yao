@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/fatih/color"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/app"
+	"github.com/yaoapp/yao/cert"
 	"github.com/yaoapp/yao/chart"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
@@ -18,11 +20,15 @@ import (
 	"github.com/yaoapp/yao/page"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
-	"github.com/yaoapp/yao/server"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/socket"
+	"github.com/yaoapp/yao/store"
 	"github.com/yaoapp/yao/table"
-	"github.com/yaoapp/yao/workflow"
+	"github.com/yaoapp/yao/task"
+	"github.com/yaoapp/yao/websocket"
+	"github.com/yaoapp/yao/widget"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
@@ -37,9 +43,15 @@ func Load(cfg config.Config) (err error) {
 	gou.LoadCrypt(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey), "AES")
 	gou.LoadCrypt(`{}`, "PASSWORD")
 
+	// Load Certs
+	err = cert.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Cert", err)
+	}
+
 	// 第二步: 建立数据库 & 会话连接
-	share.DBConnect(cfg.DB)           // 创建数据库连接
-	share.SessionConnect(cfg.Session) // 创建会话服务器链接
+	share.DBConnect(cfg.DB) // 创建数据库连接
+	// share.SessionConnect(cfg.Session) // 创建会话服务器链接
 
 	// 加载应用引擎
 	if os.Getenv("YAO_DEV") != "" {
@@ -54,49 +66,92 @@ func Load(cfg config.Config) (err error) {
 	// 第四步: 加载共享库 & JS 处理器
 	err = share.Load(cfg) // 加载共享库 lib
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Lib", err)
 	}
+
 	err = script.Load(cfg) // 加载JS处理器 script
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Script", err)
 	}
 
 	// 第五步: 加载数据模型等
 	err = model.Load(cfg) // 加载数据模型 model
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Model", err)
 	}
 
 	err = flow.Load(cfg) // 加载业务逻辑 Flow
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Flow", err)
 	}
+
+	err = store.Load(cfg) // Load stores
+	if err != nil {
+		printErr(cfg.Mode, "Store", err)
+	}
+
 	err = plugin.Load(cfg) // 加载业务插件 plugin
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Plugin", err)
 	}
 
 	err = table.Load(cfg) // 加载数据表格 table
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Table", err)
 	}
 
 	err = chart.Load(cfg) // 加载分析图表 chart
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "Chart", err)
 	}
 
-	page.Load(cfg)     // 加载页面 page 忽略错误
+	err = page.Load(cfg) // 加载页面 page 忽略错误
+	if err != nil {
+		printErr(cfg.Mode, "Page", err)
+	}
+
 	importer.Load(cfg) // 加载数据导入 imports
-	workflow.Load(cfg) // 加载工作流  workflow
+
+	// workflow.Load(cfg) // 加载工作流  workflow
 
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
-		log.Warn(err.Error())
+		printErr(cfg.Mode, "API", err)
 	}
 
-	server.Load(cfg) // 加载服务
+	err = socket.Load(cfg) // Load sockets
+	if err != nil {
+		printErr(cfg.Mode, "Socket", err)
+	}
+
+	err = websocket.Load(cfg) // Load websockets (client)
+	if err != nil {
+		printErr(cfg.Mode, "WebSocket", err)
+	}
+
+	err = task.Load(cfg) // Load tasks
+	if err != nil {
+		printErr(cfg.Mode, "Task", err)
+	}
+
+	err = schedule.Load(cfg) // Load schedules
+	if err != nil {
+		printErr(cfg.Mode, "Schedule", err)
+	}
+
+	err = widget.Load(cfg) // Load widgets
+	if err != nil {
+		printErr(cfg.Mode, "Widget", err)
+	}
+
 	return nil
+}
+
+func printErr(mode, widget string, err error) {
+	message := fmt.Sprintf("[%s] %s", widget, err.Error())
+	if !strings.Contains(message, "does not exists") && mode == "development" {
+		color.Red(message)
+	}
 }
 
 // Reload 根据配置重新加载 API, FLow, Model, Plugin

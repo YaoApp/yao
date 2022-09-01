@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
@@ -382,19 +383,22 @@ func (imp *Importer) SaveAsTemplate(src from.Source) {
 }
 
 // Run 运行导入
-func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
+func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 	if mapping == nil {
 		mapping = imp.AutoMapping(src)
 	}
 
+	id := uuid.NewString()
+	page := 0
 	total := 0
 	failed := 0
 	ignore := 0
 	imp.Chunk(src, mapping, func(line int, data [][]interface{}) {
+		page++
 		length := len(data)
 		total = total + length
 		columns, data := imp.DataClean(data, mapping.Columns)
-		process, err := gou.ProcessOf(imp.Process, columns, data)
+		process, err := gou.ProcessOf(imp.Process, columns, data, id, page)
 		if err != nil {
 			failed = failed + length
 			log.With(log.F{"line": line}).Error("导入失败: %s", err.Error())
@@ -424,12 +428,24 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) map[string]int {
 
 		log.With(log.F{"line": line, "response": response, "length": length}).Error("导入处理器未返回失败结果")
 	})
-	return map[string]int{
+
+	output := map[string]int{
 		"total":   total,
 		"success": total - failed - ignore,
 		"failure": failed,
 		"ignore":  ignore,
 	}
+
+	if imp.Output != "" {
+		res, err := gou.NewProcess(imp.Output, output).Exec()
+		if err != nil {
+			log.With(log.F{"output": imp.Output}).Error(err.Error())
+			return output
+		}
+		return res
+	}
+
+	return output
 }
 
 // Start 运行导入(异步)

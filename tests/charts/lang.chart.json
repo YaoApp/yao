@@ -1,0 +1,100 @@
+{
+  "label": "::Demo",
+  "version": "1.0.0",
+  "description": "::Demo",
+  "nodes": [
+    {
+      "name": "行业",
+      "engine": "xiang",
+      "query": {
+        "select": [
+          "city",
+          ":COUNT(id) as 数量",
+          "industries[*](string 50) as industry"
+        ],
+        "from": "$service",
+        "wheres": [
+          { "field": "created_at", ">": "?:$from.0" },
+          { "field": "created_at", "<": "?:$to" }
+        ],
+        "orders": "数量 desc",
+        "limit": 100
+      }
+    },
+    {
+      "name": "计费",
+      "engine": "xiang",
+      "query": {
+        "select": ["city", ":COUNT(id) as 数量", "price_options[*] as option"],
+        "from": "$service",
+        "wheres": [
+          { "field": "created_at", ">": "?:$from.0" },
+          { "field": "created_at", "<": "?:$to" }
+        ],
+        "orders": "数量 desc",
+        "limit": 100
+      }
+    },
+    {
+      "name": "合并结果",
+      "process": "xiang.helper.ArrayPluck",
+      "args": [
+        ["城市", "行业", "计费"],
+        {
+          "行业": { "key": "city", "value": "数量", "items": "{{$res.行业}}" },
+          "计费": { "key": "city", "value": "数量", "items": "{{$res.计费}}" }
+        }
+      ]
+    }
+  ],
+  "output": {
+    "::Merge": "{{$res.合并结果}}",
+    "::Billing": "{{$res.计费}}",
+    "::Industry": "{{$res.行业}}",
+    "::Parameter": "{{$in}}"
+  },
+  "apis": {
+    "data": {
+      "disable": false,
+      "guard": "-",
+      "default": [{ "from": "1980-01-02", "to": "2050-12-31" }]
+    },
+    "setting": { "disable": false, "guard": "-" }
+  },
+  "filters": {
+    "::Start": {
+      "label": "::Start",
+      "bind": "from",
+      "input": {
+        "type": "date",
+        "props": {
+          "placeholder": "::Please select a start time"
+        }
+      }
+    },
+    "::End": {
+      "label": "::End",
+      "bind": "to",
+      "input": {
+        "type": "date",
+        "props": {
+          "placeholder": "::Please select an end time"
+        }
+      }
+    }
+  },
+  "page": {
+    "primary": "::City",
+    "layout": {
+      "filters": [
+        { "name": "::Start", "width": 6 },
+        { "name": "::End", "width": 6 }
+      ],
+      "charts": [
+        { "type": "line", "props": {} },
+        { "type": "bar", "props": {} }
+      ]
+    },
+    "actions": {}
+  }
+}

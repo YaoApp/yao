@@ -1,22 +1,116 @@
 package table
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
+	"github.com/yaoapp/gou/lang"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/xfs"
 )
 
 // Tables 已载入模型
 var Tables = map[string]*Table{}
+
+// apiNames mapping
+var apiNames = map[string]string{
+	"/:name/search":       "search",
+	"/:name/find/:id":     "find",
+	"/:name/save":         "save",
+	"/:name/delete/:id":   "delete",
+	"/:name/insert":       "insert",
+	"/:name/delete/in":    "delete-in",
+	"/:name/delete/where": "delete-where",
+	"/:name/update/in":    "update-in",
+	"/:name/update/where": "update-where",
+	"/:name/quicksave":    "quicksave",
+	"/:name/select":       "select",
+}
+
+// Guard Table guard
+func Guard(c *gin.Context) {
+
+	if !strings.HasPrefix(c.FullPath(), "/api/xiang/table") {
+		c.Next()
+		return
+	}
+
+	log.Trace("Table Guard FullPath: %s", c.FullPath())
+
+	routes := strings.Split(c.FullPath(), "/")
+	if len(routes) < 4 {
+		log.Trace("Table Guard Routes: %v", routes)
+		c.Next()
+		return
+	}
+
+	path := "/" + strings.Join(routes[4:], "/")
+	apiName, has := apiNames[path]
+	if !has {
+		log.Trace("Table Guard API Name: %v", path)
+		c.Next()
+		return
+	}
+
+	name, has := c.Params.Get("name")
+	if !has {
+		log.Trace("Table Guard Name: %v", c.Params)
+		c.Next()
+		return
+	}
+
+	table, has := Tables[name]
+	if !has {
+		log.Trace("Table Guard Table: %s", name)
+		c.Next()
+		return
+	}
+
+	api, has := table.APIs[apiName]
+	if !has {
+		log.Trace("Table Guard API: %s", apiName)
+		c.Next()
+		return
+	}
+
+	log.Trace("Table Guard: %s %s %s %s", name, api.Guard, path, apiName)
+
+	if api.Guard == "-" {
+		c.Next()
+		return
+	}
+
+	if api.Guard == "" {
+		api.Guard = "bearer-jwt"
+	}
+
+	guards := strings.Split(api.Guard, ",")
+	for _, guard := range guards {
+		guard = strings.TrimSpace(guard)
+		log.Trace("Table Guard: %s %s", name, guard)
+		if guard != "" {
+			if middleware, has := gou.HTTPGuards[guard]; has {
+				middleware(c)
+				continue
+			}
+			gou.ProcessGuard(guard)(c)
+		}
+	}
+
+}
 
 // Load 加载数据表格
 func Load(cfg config.Config) error {
@@ -33,14 +127,20 @@ func LoadFrom(dir string, prefix string) error {
 		return fmt.Errorf("%s does not exists", dir)
 	}
 
+	messages := []string{}
 	err := share.Walk(dir, ".json", func(root, filename string) {
 		name := share.SpecName(root, filename)
 		content := share.ReadFile(filename)
 		_, err := LoadTable(string(content), name)
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
+			messages = append(messages, fmt.Sprintf("%s %s", name, err.Error()))
 		}
 	})
+
+	if len(messages) > 0 {
+		return fmt.Errorf("%s", strings.Join(messages, ";"))
+	}
 
 	return err
 }
@@ -79,7 +179,20 @@ func LoadTable(source string, name string) (*Table, error) {
 	table.loadColumns()
 	table.loadFilters()
 	table.loadAPIs()
+
+	err = table.Validate()
+	if err != nil {
+		log.Error("[Table] %s is not valid: %s ", table.Table, err.Error())
+		return nil, err
+	}
+
 	Tables[name] = &table
+
+	// Apply a language pack
+	if lang.Default != nil {
+		lang.Default.Apply(Tables[name])
+	}
+
 	return Tables[name], nil
 }
 
@@ -125,9 +238,10 @@ func (table *Table) loadAPIs() {
 			api.Process = table.APIs[name].Process
 		}
 
-		// if table.APIs[name].Guard != "" {
-		// 	api.Guard = table.APIs[name].Guard
-		// }
+		api.Guard = "bearer-jwt"
+		if table.APIs[name].Guard != "" {
+			api.Guard = table.APIs[name].Guard
+		}
 
 		if table.APIs[name].Default != nil {
 			// fmt.Printf("\n%s.APIs[%s].Default: entry\n", table.Table, name)
@@ -209,22 +323,6 @@ func (table *Table) After(process string, data interface{}, args []interface{}, 
 	return response
 }
 
-// APIGuard API鉴权
-func (table *Table) APIGuard(guard string, sid string, global map[string]interface{}, args ...interface{}) {
-	if guard == "" {
-		guard = table.Guard
-	}
-	if guard == "-" || guard == "" {
-		return
-	}
-
-	log.With(log.F{"args": args}).Debug(guard)
-	gou.NewProcess(guard, args...).
-		WithSID(sid).
-		WithGlobal(global).
-		Run()
-}
-
 // loadFilters 加载查询过滤器
 func (table *Table) loadFilters() {
 	if table.Bind.Model == "" {
@@ -247,4 +345,129 @@ func (table *Table) loadColumns() {
 		defaults[name] = column
 	}
 	table.Columns = defaults
+}
+
+// Export Export query result to Excel
+func (table *Table) Export(filename string, data interface{}, page int, chunkSize int) error {
+
+	rows := []maps.MapStr{}
+	if values, ok := data.([]maps.MapStrAny); ok {
+		for _, row := range values {
+			rows = append(rows, row.Dot())
+		}
+	} else if values, ok := data.([]map[string]interface{}); ok {
+		for _, row := range values {
+			rows = append(rows, maps.Of(row).Dot())
+		}
+	} else if values, ok := data.([]interface{}); ok {
+		for _, row := range values {
+			rows = append(rows, any.Of(row).MapStr().Dot())
+		}
+	}
+
+	columns, err := table.exportSetting()
+	if err != nil {
+		return err
+	}
+
+	if len(columns) == 0 {
+		return fmt.Errorf("the table does not support export")
+	}
+
+	filename = filepath.Join(xfs.Stor.Root, filename)
+	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+		f := excelize.NewFile()
+		index := f.GetActiveSheetIndex()
+		name := f.GetSheetName(index)
+		f.SetSheetName(name, table.Name)
+		for i, column := range columns {
+			axis, err := excelize.CoordinatesToCellName(i+1, 1)
+			if err != nil {
+				return err
+			}
+			f.SetCellValue(table.Name, axis, column["name"])
+		}
+		if err := f.SaveAs(filename); err != nil {
+			fmt.Println(err)
+			return err
+		}
+	}
+
+	f, err := excelize.OpenFile(filename)
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+	offset := (page-1)*chunkSize + 2
+	for line, row := range rows {
+		for i, column := range columns {
+			v := row.Get(column["field"])
+			if v != nil {
+				axis, err := excelize.CoordinatesToCellName(i+1, line+offset)
+				if err != nil {
+					return err
+				}
+				f.SetCellValue(table.Name, axis, v)
+			}
+		}
+		// fmt.Println("--", line, page, offset, "--")
+	}
+
+	return f.Save()
+}
+
+func (table *Table) exportSetting() ([]map[string]string, error) {
+	// Validate params
+	if table.List.Layout == nil {
+		return nil, fmt.Errorf("the table layout does not found")
+	}
+
+	columns, has := table.List.Layout["columns"]
+	if !has {
+		return nil, fmt.Errorf("the columns table layout does not found")
+	}
+
+	fields, ok := columns.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("Table Layout columns format error")
+	}
+
+	setting := []map[string]string{}
+	for _, field := range fields {
+		f, ok := field.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		n, has := f["name"]
+		if !has {
+			continue
+		}
+
+		name, ok := n.(string)
+		if !ok {
+			continue
+		}
+
+		column, has := table.Columns[name]
+		if !has {
+			continue
+		}
+
+		field := column.Export
+		if field == "" {
+			if value, has := column.View.Props["value"]; has {
+				if valueStr, ok := value.(string); ok {
+					field = strings.TrimPrefix(valueStr, ":")
+				}
+			}
+		}
+
+		if field != "" && name != "" {
+			setting = append(setting, map[string]string{"name": name, "field": field})
+		}
+	}
+
+	return setting, nil
 }

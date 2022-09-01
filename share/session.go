@@ -1,116 +1,77 @@
 package share
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"log"
+	"path/filepath"
 
-	klog "github.com/yaoapp/kun/log"
-
-	"github.com/buraksezer/olric"
-	"github.com/buraksezer/olric/client"
-	config_olric "github.com/buraksezer/olric/config"
-	"github.com/buraksezer/olric/serializer"
-	"github.com/yaoapp/gou/session"
-	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/network"
+
+	"github.com/yaoapp/gou/session"
 )
 
-var sessServer *olric.Olric
+var sessionDB *session.BuntDB
 
-// SessionPort Session 端口
-var SessionPort int
-
-func init() {
-	SessionPort = network.FreePort()
-	klog.Trace("session port: %d", SessionPort)
+// SessionStart start session
+func SessionStart() error {
+	if config.Conf.Session.Store == "file" {
+		return SessionFile()
+	} else if config.Conf.Session.Store == "redis" {
+		return SessionRedis()
+	}
+	return fmt.Errorf("Session Store config error %s (file|redis)", config.Conf.Session.Store)
 }
 
-// SessionConnect 加载会话信息
-func SessionConnect(conf config.SessionConfig) {
-
-	var clientConfig = &client.Config{
-		Servers:    []string{fmt.Sprintf("%s:%d", "127.0.0.1", SessionPort)},
-		Serializer: serializer.NewMsgpackSerializer(),
-		Client:     config_olric.NewClient(),
-	}
-
-	c, err := client.New(clientConfig)
-	if err != nil {
-		exception.New("会话服务器连接失败 %s", 500, err.Error()).Throw()
-	}
-
-	dm := c.NewDMap("local-session")
-	session.MemoryUse(session.ClientDMap{DMap: dm})
-}
-
-// SessionServerStop 关闭会话服务器
-func SessionServerStop() {
-	if sessServer != nil {
-		sessServer.Shutdown(context.Background())
+// SessionStop stop session
+func SessionStop() {
+	if sessionDB != nil {
+		sessionDB.Close()
 	}
 }
 
-// SessionServerStart 启动会话服务器
-func SessionServerStart() {
-
-	c := &config_olric.Config{
-		BindAddr:          "127.0.0.1",
-		BindPort:          SessionPort,
-		ReadRepair:        false,
-		ReplicaCount:      1,
-		WriteQuorum:       1,
-		ReadQuorum:        1,
-		MemberCountQuorum: 1,
-		Peers:             []string{},
-		DMaps:             &config_olric.DMaps{},
-		StorageEngines:    config_olric.NewStorageEngine(),
-		Logger:            &log.Logger{},
+// SessionRedis Connect redis server
+func SessionRedis() error {
+	args := []string{}
+	if config.Conf.Session.Port == "" {
+		config.Conf.Session.Port = "6379"
 	}
 
-	m, err := config_olric.NewMemberlistConfig("local")
+	if config.Conf.Session.DB == "" {
+		config.Conf.Session.DB = "1"
+	}
+
+	args = append(args, config.Conf.Session.Port, config.Conf.Session.DB, config.Conf.Session.Password)
+	rdb, err := session.NewRedis(config.Conf.Session.Host, args...)
 	if err != nil {
-		panic(fmt.Sprintf("unable to create a new memberlist config: %v", err))
-	}
-	// m.BindAddr = config.Conf.Session.Host
-	m.BindPort = SessionPort
-	m.AdvertisePort = SessionPort
-	c.MemberlistConfig = m
-
-	// c.MemberlistConfig.BindAddr = config.Conf.Session.Host
-	// c.MemberlistConfig.BindPort = 3308
-
-	// c := config_olric.New("local")
-	// c.BindAddr = config.Conf.Session.Host
-	// c.BindPort = config.Conf.Session.Port
-
-	c.Logger.SetOutput(io.Discard) // 暂时关闭日志
-	ctx, cancel := context.WithCancel(context.Background())
-	c.Started = func() {
-		defer cancel()
-		klog.Trace("[INFO] Olric is ready to accept connections")
+		return err
 	}
 
-	sessServer, err = olric.New(c)
+	session.Register("redis", rdb)
+	session.Name = "redis"
+	log.Trace("Session Store:REDIS HOST:%s PORT:%s DB:%s", config.Conf.Session.Host, config.Conf.Session.Port, config.Conf.Session.DB)
+	return nil
+}
 
+// SessionFile Start session file
+func SessionFile() error {
+	file := config.Conf.Session.File
+	if file == "" {
+		file = filepath.Join(config.Conf.Root, "data", ".session.db")
+	}
+
+	file, err := filepath.Abs(file)
 	if err != nil {
-		klog.Error("Failed to create Olric instance: %v", err)
+		return err
 	}
 
-	go func() {
-		err = sessServer.Start() // Call Start at background. It's a blocker call.
-		if err != nil {
-			klog.Panic("olric.Start returned an error: %v", err)
-		}
-	}()
-
-	<-ctx.Done()
-	dm, err := sessServer.NewDMap("local-session")
+	burndb, err := session.NewBuntDB(file)
 	if err != nil {
-		klog.Panic("olric.NewDMap returned an error: %v", err)
+		return err
 	}
 
-	session.MemoryUse(session.ServerDMap{DMap: dm})
+	session.Register("file", burndb)
+	session.Name = "file"
+	sessionDB = burndb
+	log.Trace("Session Store: File %s", file)
+	return nil
 }

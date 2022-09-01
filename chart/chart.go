@@ -6,6 +6,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -65,9 +66,7 @@ func LoadFrom(dir string, prefix string) error {
 // LoadChart 载入数据表格
 func LoadChart(source []byte, name string) (*Chart, error) {
 	chart := &Chart{
-		Flow: gou.Flow{
-			Name: name,
-		},
+		Flow: &gou.Flow{Name: name},
 	}
 	err := jsoniter.Unmarshal(source, chart)
 	if err != nil {
@@ -77,6 +76,12 @@ func LoadChart(source []byte, name string) (*Chart, error) {
 	chart.Prepare()
 	chart.SetupAPIs()
 	Charts[name] = chart
+
+	// Apply a language pack
+	if lang.Default != nil {
+		lang.Default.Apply(Charts[name])
+	}
+
 	return chart, nil
 }
 

@@ -1,16 +1,22 @@
 package table
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/lang"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/share"
 )
 
 func TestLoad(t *testing.T) {
+
+	os.Setenv("YAO_LANG", "zh-hk")
+	lang.Load(config.Conf)
+
 	share.DBConnect(config.Conf.DB)
 	share.Load(config.Conf)
 	model.Load(config.Conf)
@@ -48,5 +54,14 @@ func check(t *testing.T) {
 	for key := range Tables {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 9, len(keys))
+	assert.Equal(t, 10, len(keys))
+
+	demo := Select("demo")
+	assert.NotNil(t, demo.Columns["類型"])
+	assert.NotNil(t, demo.Columns["類型"].Edit.Props["options"])
+
+	options := demo.Columns["類型"].Edit.Props["options"].([]interface{})
+	opt1 := options[0].(map[string]interface{})
+	assert.Equal(t, "貓", opt1["label"])
+
 }

@@ -9,8 +9,6 @@ import (
 )
 
 func TestGetQueryParam(t *testing.T) {
-	SessionServerStart()
-	defer SessionServerStop()
 	sid := session.ID()
 	s := session.Global().ID(sid).Expire(5000 * time.Microsecond)
 	s.MustSet("id", 10086)

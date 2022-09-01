@@ -8,7 +8,6 @@
     {
       "path": "/upload",
       "method": "POST",
-      "guard": "-",
       "process": "xiang.fs.Upload",
       "in": ["$file.file"],
       "out": {
@@ -19,7 +18,6 @@
     {
       "path": "/readfile",
       "method": "GET",
-      "guard": "-",
       "process": "xiang.fs.ReadFile",
       "in": ["$query.name", "$query.encode"],
       "out": {
@@ -32,16 +30,12 @@
       "method": "GET",
       "guard": "-",
       "process": "xiang.fs.GetURL",
-      "in": ["$query.name", "$query.type"],
-      "out": {
-        "status": 200,
-        "type": "image/png"
-      }
+      "in": ["$query.name", "$query.type", "$query.token"],
+      "out": { "status": 200, "type": "image/png" }
     },
     {
       "path": "/token",
       "method": "GET",
-      "guard": "-",
       "process": "xiang.fs.GetToken",
       "in": ["$query.name"],
       "out": {

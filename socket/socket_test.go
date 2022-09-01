@@ -1,4 +1,4 @@
-package server
+package socket
 
 import (
 	"testing"
@@ -16,8 +16,8 @@ func TestLoad(t *testing.T) {
 
 func check(t *testing.T) {
 	keys := []string{}
-	for key := range gou.Servers {
+	for key := range gou.Sockets {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 1, len(keys))
+	assert.Equal(t, 2, len(keys))
 }
