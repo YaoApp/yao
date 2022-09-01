@@ -22,6 +22,9 @@ env:
   OSS_TEST_ID: ${{ secrets.OSS_TEST_ID}}
   OSS_TEST_SECRET: ${{ secrets.OSS_TEST_SECRET}}
   ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
 
 jobs:
   unit-test:
@@ -44,19 +47,19 @@ jobs:
       - name: Checkout Kun
         uses: actions/checkout@v2
         with:
-          repository: ${{ github.event.org.login }}/kun
+          repository: ${{ env.REPO_KUN }}
           path: kun
 
       - name: Checkout Xun
         uses: actions/checkout@v2
         with:
-          repository: ${{ github.event.org.login }}/xun
+          repository: ${{ env.REPO_XUN }}
           path: xun
 
       - name: Checkout Gou
         uses: actions/checkout@v2
         with:
-          repository: ${{ github.event.org.login }}/gou
+          repository: ${{ env.REPO_GOU }}
           path: gou
 
       - name: Checkout V8Go
