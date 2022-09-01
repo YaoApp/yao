@@ -1,16 +1,9 @@
 package xfs
 
 import (
-	"fmt"
 	"os"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -30,31 +23,33 @@ func init() {
 }
 func TestProcessGetToken(t *testing.T) {
 
-	args := []interface{}{"oss"}
-	process := gou.NewProcess("xiang.fs.GetToken", args...)
-	response := processGetToken(process)
-	assert.NotNil(t, response)
-	res := any.Of(response).Map()
-	assert.True(t, res.Has("AccessKeyId"))
-	assert.True(t, res.Has("AccessKeySecret"))
-	assert.True(t, res.Has("Expiration"))
-	assert.True(t, res.Has("SecurityToken"))
-	assert.True(t, res.Has("Endpoint"))
+	// the oss support will be using new process
 
-	// 使用token
-	client, err := oss.New(
-		res.Get("Endpoint").(string),
-		res.Get("AccessKeyId").(string),
-		res.Get("AccessKeySecret").(string),
-		oss.SecurityToken(res.Get("SecurityToken").(string)),
-	)
-	assert.Nil(t, err)
+	// args := []interface{}{"oss"}
+	// process := gou.NewProcess("xiang.fs.GetToken", args...)
+	// response := processGetToken(process)
+	// assert.NotNil(t, response)
+	// res := any.Of(response).Map()
+	// assert.True(t, res.Has("AccessKeyId"))
+	// assert.True(t, res.Has("AccessKeySecret"))
+	// assert.True(t, res.Has("Expiration"))
+	// assert.True(t, res.Has("SecurityToken"))
+	// assert.True(t, res.Has("Endpoint"))
 
-	bucket, err := client.Bucket("image-appcook")
-	assert.Nil(t, err)
+	// // 使用token
+	// client, err := oss.New(
+	// 	res.Get("Endpoint").(string),
+	// 	res.Get("AccessKeyId").(string),
+	// 	res.Get("AccessKeySecret").(string),
+	// 	oss.SecurityToken(res.Get("SecurityToken").(string)),
+	// )
+	// assert.Nil(t, err)
 
-	// 上传字符串。
-	now := fmt.Sprintf("%d", time.Now().UnixNano())
-	err = bucket.PutObject("xiang/unit-test."+now+".txt", strings.NewReader(now))
-	assert.Nil(t, err)
+	// bucket, err := client.Bucket("image-appcook")
+	// assert.Nil(t, err)
+
+	// // 上传字符串。
+	// now := fmt.Sprintf("%d", time.Now().UnixNano())
+	// err = bucket.PutObject("xiang/unit-test."+now+".txt", strings.NewReader(now))
+	// assert.Nil(t, err)
 }

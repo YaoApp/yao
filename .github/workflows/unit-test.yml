@@ -1,6 +1,10 @@
 name: UnitTest
 
 on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Comment"
   push:
     branches: [main]
 
@@ -40,19 +44,19 @@ jobs:
       - name: Checkout Kun
         uses: actions/checkout@v2
         with:
-          repository: yaoapp/kun
+          repository: ${{ github.event.org.login }}/kun
           path: kun
 
       - name: Checkout Xun
         uses: actions/checkout@v2
         with:
-          repository: yaoapp/xun
+          repository: ${{ github.event.org.login }}/xun
           path: xun
 
       - name: Checkout Gou
         uses: actions/checkout@v2
         with:
-          repository: yaoapp/gou
+          repository: ${{ github.event.org.login }}/gou
           path: gou
 
       - name: Checkout V8Go

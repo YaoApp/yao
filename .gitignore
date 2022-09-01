@@ -19,7 +19,7 @@
 dist
 ui
 ^ui/index.html
-tests/data/*/*
+tests/data/*
 debug.log
 yao-test
 dev.sh
@@ -27,3 +27,4 @@ logs
 logs/application.log
 yao-arm64
 tests/db/yao.db
+env.*.sh
