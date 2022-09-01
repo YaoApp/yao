@@ -2,6 +2,8 @@ package workflow
 
 import "github.com/yaoapp/gou"
 
+// WARNING: the Workflow widget will be removed from yao engine
+
 // Process
 // 读取工作流 xiang.workflow.Find(name, workflow_id)
 // 读取工作流 xiang.workflow.Open(name, uid, data_id)
