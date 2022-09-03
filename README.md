@@ -55,15 +55,15 @@ YAO adopts a flow-based programming model to implement various functions by writ
 
 ## Demo
 
-### Customer Relationship Management System
+Applications developed with YAO
 
-A Customer Relationship Management System developed by Yao.
-
-DEMO: [View Demo](https://demo-crm.yaoapps.com/xiang/login/admin?autoLogin=true)
-
-SOURCE: [https://github.com/YaoApp/demo-crm](https://github.com/YaoApp/demo-crm)
-
-INFRA: https://letsinfra.com/openapp/crm
+| Application | INTRO                               | REPO                                  |
+| ----------- | ----------------------------------- | ------------------------------------- |
+| YAO WMS     | Warehouse Management Sytem          | https://github.com/yaoapp/yao-wms     |
+| LMS DEMO    | Library Management System Demo      | https://github.com/yaoapp/demo-lms    |
+| CRM DEMO    | Customer Management System Demo     | https://github.com/YaoApp/demo-crm    |
+| AMS DEMO    | Asset Management Sytem Demo         | https://github.com/YaoApp/demo-asset  |
+| Widget DEMO | Self-Hosting Low Code Platform Demo | https://github.com/YaoApp/demo-widget |
 
 ### Intelligent warehouse management system
 
