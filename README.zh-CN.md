@@ -27,25 +27,15 @@ YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑�
 
 ## 演示
 
-### 客户管理系统
+使用 YAO 开发的典型应用
 
-使用 Yao 搭建的一套通用 CRM 管理系统。
-
-演示: [查看演示](https://demo-crm.yaoapps.com/xiang/login/admin?autoLogin=true)
-
-源码: https://github.com/YaoApp/demo-crm
-
-Infra 一键部署: https://letsinfra.com/openapp/crm
-
-### 智能仓库管理系统
-
-使用 Yao 搭建的云+边物联网应用，支持人脸识别、RFID 的无人值守智能仓库管理系统。
-
-演示: [查看演示](https://demo-crm.yaoapps.com/xiang/login/admin?autoLogin=true)
-
-源码: https://github.com/YaoApp/yao-wms
-
-Infra 一键部署: https://letsinfra.com/openapp/wms
+| 应用        | 介绍                 | 代码仓库                              |
+| ----------- | -------------------- | ------------------------------------- |
+| YAO WMS     | 仓库管理系统         | https://github.com/yaoapp/yao-wms     |
+| LMS DEMO    | 图书管理系统(演示)   | https://github.com/yaoapp/demo-lms    |
+| CRM DEMO    | 客户管理系统(演示)   | https://github.com/YaoApp/demo-crm    |
+| AMS DEMO    | 资产管理系统(演示)   | https://github.com/YaoApp/demo-asset  |
+| Widget DEMO | 自建低代码平台(演示) | https://github.com/YaoApp/demo-widget |
 
 ## 介绍
 
