@@ -13,6 +13,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/gou/task"
 	"github.com/yaoapp/gou/websocket"
 	"github.com/yaoapp/kun/log"
@@ -76,6 +78,8 @@ var startCmd = &cobra.Command{
 			printApis(false)
 			printTasks(false)
 			printSchedules(false)
+			printConnectors(false)
+			printStores(false)
 		}
 
 		if mode == "development" && !startDisableWatching {
@@ -90,6 +94,8 @@ var startCmd = &cobra.Command{
 			printApis(true)
 			printTasks(true)
 			printSchedules(true)
+			printConnectors(true)
+			printStores(true)
 		}
 
 		// Start server
@@ -110,7 +116,55 @@ var startCmd = &cobra.Command{
 	},
 }
 
+func printConnectors(silent bool) {
+
+	if len(connector.Connectors) == 0 {
+		return
+	}
+
+	if silent {
+		for name := range connector.Connectors {
+			log.Info("[Connector] %s loaded", name)
+		}
+		return
+	}
+
+	fmt.Println(color.WhiteString("\n---------------------------------"))
+	fmt.Println(color.WhiteString(L("Connectors List (%d)"), len(connector.Connectors)))
+	fmt.Println(color.WhiteString("---------------------------------"))
+	for name := range connector.Connectors {
+		fmt.Printf(color.CyanString("[Connector]"))
+		fmt.Printf(color.WhiteString(" %s\t loaded\n", name))
+	}
+}
+
+func printStores(silent bool) {
+	if len(store.Pools) == 0 {
+		return
+	}
+
+	if silent {
+		for name := range store.Pools {
+			log.Info("[Store] %s loaded", name)
+		}
+		return
+	}
+
+	fmt.Println(color.WhiteString("\n---------------------------------"))
+	fmt.Println(color.WhiteString(L("Stores List (%d)"), len(connector.Connectors)))
+	fmt.Println(color.WhiteString("---------------------------------"))
+	for name := range store.Pools {
+		fmt.Printf(color.CyanString("[Store]"))
+		fmt.Printf(color.WhiteString(" %s\t loaded\n", name))
+	}
+}
+
 func printSchedules(silent bool) {
+
+	if len(gou.Schedules) == 0 {
+		return
+	}
+
 	if silent {
 		for name, sch := range gou.Schedules {
 			process := fmt.Sprintf("Process: %s", sch.Process)
@@ -136,6 +190,10 @@ func printSchedules(silent bool) {
 }
 
 func printTasks(silent bool) {
+
+	if len(task.Tasks) == 0 {
+		return
+	}
 
 	if silent {
 		for _, t := range task.Tasks {

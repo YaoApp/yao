@@ -1,0 +1,6 @@
+{
+  "name": "MongoDB Key-Value store",
+  "description": "MongoDB Key-Value store",
+  "connector": "mongo",
+  "option": {}
+}
