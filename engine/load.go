@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/cert"
 	"github.com/yaoapp/yao/chart"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/connector"
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/importer"
 	"github.com/yaoapp/yao/model"
@@ -47,6 +48,12 @@ func Load(cfg config.Config) (err error) {
 	err = cert.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Cert", err)
+	}
+
+	// Load connectors
+	err = connector.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Connector", err)
 	}
 
 	// 第二步: 建立数据库 & 会话连接

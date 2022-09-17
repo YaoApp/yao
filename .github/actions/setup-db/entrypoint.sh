@@ -3,11 +3,18 @@
 docker_run="docker run"
 
 startMySQL() {
+    
+    PORT="3306"
+    if [ ! -z "$INPUT_PORT" ]; then
+        PORT=$INPUT_PORT
+    fi
+
+
     VERSION=$1
     echo "Start MySQL $VERSION"
     docker_run="$docker_run -e MYSQL_RANDOM_ROOT_PASSWORD=true -e MYSQL_USER=$INPUT_USER -e MYSQL_PASSWORD=$INPUT_PASSWORD"
     docker_run="$docker_run -e MYSQL_DATABASE=$INPUT_DB"
-    docker_run="$docker_run -d -p 3306:3306 mysql:$VERSION --port=3306 --sql-mode=''"
+    docker_run="$docker_run -d -p $PORT:3306 mysql:$VERSION --port=3306 --sql-mode=''"
     
     if [ "$VERSION" = "5.6" ]; then 
         docker_run="$docker_run --character-set-server=utf8 --collation-server=utf8_general_ci"
@@ -17,7 +24,7 @@ startMySQL() {
 
     sh -c "$docker_run"
 
-    DB_HOST="tcp(127.0.0.1:3306)/$INPUT_DB?charset=utf8mb4&parseTime=True&loc=Local"
+    DB_HOST="tcp(127.0.0.1:$PORT)/$INPUT_DB?charset=utf8mb4&parseTime=True&loc=Local"
     DB_USER=$INPUT_USER
     echo "DB_HOST=$DB_HOST" >> $GITHUB_ENV
     echo "DB_USER=$DB_USER" >> $GITHUB_ENV

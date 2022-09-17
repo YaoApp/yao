@@ -1,0 +1,9 @@
+{
+  "LANG": "1.0.0",
+  "VERSION": "1.0.0",
+  "label": "SQLite TEST",
+  "type": "sqlite3",
+  "options": {
+    "file": "$ENV.SQLITE_DB"
+  }
+}

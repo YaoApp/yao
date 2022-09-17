@@ -1,6 +1,0 @@
-{
-  "name": "Share LRU Cache",
-  "description": "The share memory LRU cache",
-  "type": "lru",
-  "option": { "size": 1024 }
-}

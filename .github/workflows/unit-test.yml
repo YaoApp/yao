@@ -26,6 +26,22 @@ env:
   REPO_XUN: ${{ github.repository_owner }}/xun
   REPO_GOU: ${{ github.repository_owner }}/gou
 
+  MYSQL_TEST_HOST: "127.0.0.1"
+  MYSQL_TEST_PORT: "3308"
+  MYSQL_TEST_USER: test
+  MYSQL_TEST_PASS: "123456"
+
+  SQLITE_DB: "./app/db/yao.db"
+
+  REDIS_TEST_HOST: "127.0.0.1"
+  REDIS_TEST_PORT: "6379"
+  REDIS_TEST_DB: "2"
+
+  MONGO_TEST_HOST: "127.0.0.1"
+  MONGO_TEST_PORT: "27017"
+  MONGO_TEST_USER: "root"
+  MONGO_TEST_PASS: "123456"
+
 jobs:
   unit-test:
     runs-on: ubuntu-latest
@@ -33,6 +49,8 @@ jobs:
       matrix:
         go: [1.18.2]
         db: [MySQL8.0, MySQL5.7, SQLite3]
+        redis: [4, 5, 6]
+        mongo: ["6.0"]
     steps:
       - name: Setup Cache
         uses: actions/cache@v2
@@ -80,6 +98,28 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v2
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: ${{ matrix.redis }}
+
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.8.0
+        with:
+          mongodb-version: ${{ matrix.mongo }}
+          mongodb-username: root
+          mongodb-password: 123456
+          mongodb-db: test
+
+      - name: Setup MySQL8.0 (connector)
+        uses: ./.github/actions/setup-db
+        with:
+          kind: "MySQL8.0"
+          db: "test"
+          user: "test"
+          password: "123456"
+          port: "3308"
 
       - name: Setup ${{ matrix.db }}
         uses: ./.github/actions/setup-db

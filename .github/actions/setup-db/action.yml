@@ -6,6 +6,9 @@ inputs:
     description: "The name of database"
     required: false
     default: "github"
+  port:
+    description: "The port of database"
+    required: false
   user:
     description: "The user of database"
     required: false
