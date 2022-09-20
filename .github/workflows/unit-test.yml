@@ -42,6 +42,8 @@ env:
   MONGO_TEST_USER: "root"
   MONGO_TEST_PASS: "123456"
 
+  DEMO_APP: ${{ github.WORKSPACE }}/../app
+
 jobs:
   unit-test:
     runs-on: ubuntu-latest
@@ -87,12 +89,19 @@ jobs:
           ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
           path: v8go
 
+      - name: Checkout Demo App
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/demo-app
+          path: app
+
       - name: Move Kun, Xun, Gou, V8Go
         run: |
           mv kun ../
           mv xun ../
           mv gou ../
           mv v8go ../
+          mv app ../
           ls -l .
           ls -l ../
 
@@ -172,6 +181,11 @@ jobs:
       - name: Run test
         run: |
           make test
+
+      - name: Run widgets test
+        run: |
+          echo "YAO_ROOT=$DEMO_APP" >> $GITHUB_ENV
+          make test-widgets
 
       - name: Codecov Report
         uses: codecov/codecov-action@v2

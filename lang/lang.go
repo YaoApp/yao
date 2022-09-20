@@ -15,6 +15,7 @@ func init() {
 	lang.RegisterWidget("kanban", "page")
 	lang.RegisterWidget("screen", "page")
 	lang.RegisterWidget("pages", "page")
+	lang.RegisterWidget("logins", "login")
 }
 
 // Load language packs
@@ -25,6 +26,8 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Set default
+	lang.Pick("default").AsDefault()
 	name := os.Getenv("YAO_LANG")
 	if name != "" {
 		if _, has := lang.Dicts[name]; !has {

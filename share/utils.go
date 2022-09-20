@@ -30,6 +30,11 @@ func Walk(root string, typeName string, cb func(root, filename string)) error {
 	return err
 }
 
+// ID parse unique name root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"
+func ID(root string, file string) string {
+	return SpecName(root, file)
+}
+
 // SpecName 解析名称  root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"
 func SpecName(root string, file string) string {
 	filename := strings.TrimPrefix(file, root+"/") // "foo/bar.http.json"
