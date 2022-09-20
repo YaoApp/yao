@@ -8,14 +8,42 @@ VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed
 COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests*|config')
+TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests*|config|widgets')
 TESTTAGS ?= ""
+
+TESTWIDGETS := $(shell $(GO) list ./widgets/...)
 
 # Unit Test
 .PHONY: test
 test:
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER); do \
+		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
+
+# Unit Test
+.PHONY: test-widgets
+test-widgets:
+	echo "mode: count" > coverage.out
+	for d in $(TESTWIDGETS); do \
 		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
 		cat tmp.out; \
 		if grep -q "^--- FAIL" tmp.out; then \
