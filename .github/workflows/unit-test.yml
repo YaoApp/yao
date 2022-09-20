@@ -183,8 +183,9 @@ jobs:
           make test
 
       - name: Run widgets test
+        env:
+          YAO_ROOT: ${{ env.DEMO_APP }}
         run: |
-          echo "YAO_ROOT=$DEMO_APP" >> $GITHUB_ENV
           make test-widgets
 
       - name: Codecov Report
