@@ -133,7 +133,7 @@ Open a command line terminal, **run in the project root directory**:
 yao start
 ```
 
-1. Open a browser, visit `https://127.0.0.1:5099/xiang/login/admin`,
+1. Open a browser, visit `http://127.0.0.1:5099/xiang/login/admin`,
 
 2. Enter the default username: `xiang@iqka.com`, password: `A123456p+`
 
