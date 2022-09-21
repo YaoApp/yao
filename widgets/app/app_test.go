@@ -13,7 +13,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-
+	os.Unsetenv("YAO_LANG")
 	lang.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -126,11 +126,11 @@ func TestProcessXgen(t *testing.T) {
 	xgen := any.Of(res).MapStr().Dot()
 	assert.Equal(t, "__yao", xgen.Get("apiPrefix"))
 	assert.Equal(t, "Another yao application", xgen.Get("description"))
-	assert.Equal(t, "/api/__yao/login/admin/captcha", xgen.Get("login.admin.captcha"))
+	assert.Equal(t, "/api/__yao/login/admin/captcha?type=digit", xgen.Get("login.admin.captcha"))
 	assert.Equal(t, "/api/__yao/login/admin", xgen.Get("login.admin.login"))
 	assert.Equal(t, "/x/Table/pet", xgen.Get("login.entry.admin"))
 	assert.Equal(t, "/x/Table/dash", xgen.Get("login.entry.user"))
-	assert.Equal(t, "/api/__yao/login/user/captcha", xgen.Get("login.user.captcha"))
+	assert.Equal(t, "/api/__yao/login/user/captcha?type=digit", xgen.Get("login.user.captcha"))
 	assert.Equal(t, "/api/__yao/login/user", xgen.Get("login.user.login"))
 	assert.Equal(t, os.Getenv("YAO_ENV"), xgen.Get("mode"))
 	assert.Equal(t, "Demo Application", xgen.Get("name"))
