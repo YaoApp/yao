@@ -99,7 +99,7 @@ yao run flows.setmenu
 yao start
 ```
 
-1. 打开浏览器, 访问 `https://127.0.0.1:5099/xiang/login/admin`，
+1. 打开浏览器, 访问 `http://127.0.0.1:5099/xiang/login/admin`，
 
 2. 输入默认用户名: `xiang@iqka.com`， 密码: `A123456p+`
 
