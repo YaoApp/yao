@@ -14,7 +14,7 @@ import (
 //
 // API:
 //   GET  /api/__yao/login/:id/captcha  -> Default process: yao.utils.Captcha :query
-//  POST  /api/__yao/login/:id  -> Default process: yao.user.Login :payload
+//  POST  /api/__yao/login/:id  -> Default process: yao.admin.Login :payload
 //
 
 // Logins the loaded login widgets
@@ -74,7 +74,7 @@ func exportAPI() error {
 	for _, dsl := range Logins {
 
 		// login action
-		process := "yao.user.Login"
+		process := "yao.admin.Login"
 		args := []string{":payload"}
 		if dsl.Action.Process != "" {
 			process = dsl.Action.Process

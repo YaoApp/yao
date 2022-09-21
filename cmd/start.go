@@ -247,12 +247,14 @@ func printApis(silent bool) {
 		}
 	}
 
-	fmt.Printf(color.CyanString("\n%s(%d)\n", "WebSocket", len(websocket.Upgraders)))
-	for name, upgrader := range websocket.Upgraders { // WebSocket
-		fmt.Println(
-			colorMehtod("GET"),
-			color.WhiteString(filepath.Join("/websocket", name)),
-			"\tprocess:", upgrader.Process)
+	if len(websocket.Upgraders) > 0 {
+		fmt.Printf(color.CyanString("\n%s(%d)\n", "WebSocket", len(websocket.Upgraders)))
+		for name, upgrader := range websocket.Upgraders { // WebSocket
+			fmt.Println(
+				colorMehtod("GET"),
+				color.WhiteString(filepath.Join("/websocket", name)),
+				"\tprocess:", upgrader.Process)
+		}
 	}
 }
 

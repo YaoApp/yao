@@ -158,7 +158,7 @@ func processXgen(process *gou.Process) interface{} {
 	if admin, has := login.Logins["admin"]; has {
 		xgenLogin["entry"]["admin"] = admin.Layout.Entry
 		xgenLogin["admin"] = map[string]interface{}{
-			"captcha": "/api/__yao/login/admin/captcha",
+			"captcha": "/api/__yao/login/admin/captcha?type=digit",
 			"login":   "/api/__yao/login/admin",
 		}
 	}
@@ -166,7 +166,7 @@ func processXgen(process *gou.Process) interface{} {
 	if user, has := login.Logins["user"]; has {
 		xgenLogin["entry"]["user"] = user.Layout.Entry
 		xgenLogin["user"] = map[string]interface{}{
-			"captcha": "/api/__yao/login/user/captcha",
+			"captcha": "/api/__yao/login/user/captcha?type=digit",
 			"login":   "/api/__yao/login/user",
 		}
 	}

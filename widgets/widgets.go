@@ -9,13 +9,23 @@ import (
 // Load the widgets
 func Load(cfg config.Config) error {
 
+	// login widget
 	err := login.Load(cfg)
 	if err != nil {
 		return err
 	}
 
-	// app login
+	err = login.Export()
+	if err != nil {
+		return err
+	}
+
+	// app widget
 	err = app.Load(cfg)
+	if err != nil {
+		return err
+	}
+	err = app.Export()
 	if err != nil {
 		return err
 	}
