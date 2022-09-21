@@ -30,6 +30,7 @@ import (
 	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/websocket"
 	"github.com/yaoapp/yao/widget"
+	"github.com/yaoapp/yao/widgets"
 )
 
 // Load 根据配置加载 API, FLow, Model, Plugin
@@ -102,6 +103,14 @@ func Load(cfg config.Config) (err error) {
 		printErr(cfg.Mode, "Plugin", err)
 	}
 
+	// XGEN NEXT
+	if os.Getenv("YAO_UI") == "XGEN-NEXT" {
+		err = widgets.Load(cfg) // Load build-in widgets
+		if err != nil {
+			printErr(cfg.Mode, "Widgets", err)
+		}
+	}
+
 	err = table.Load(cfg) // 加载数据表格 table
 	if err != nil {
 		printErr(cfg.Mode, "Table", err)
@@ -118,8 +127,6 @@ func Load(cfg config.Config) (err error) {
 	}
 
 	importer.Load(cfg) // 加载数据导入 imports
-
-	// workflow.Load(cfg) // 加载工作流  workflow
 
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {

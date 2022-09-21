@@ -12,6 +12,7 @@ import (
 func init() {
 	gou.RegisterProcessHandler("xiang.user.Captcha", ProcessCaptcha)
 	gou.RegisterProcessHandler("xiang.user.Login", ProcessLogin)
+	gou.AliasProcess("xiang.user.Login", "yao.admin.Login")
 }
 
 // ProcessLogin xiang.user.Login 用户登录

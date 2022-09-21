@@ -13,6 +13,7 @@ import (
 
 func TestLoad(t *testing.T) {
 
+	os.Unsetenv("YAO_LANG")
 	lang.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -23,7 +24,7 @@ func TestLoad(t *testing.T) {
 
 	assert.Equal(t, "admin", Logins["admin"].ID)
 	assert.Equal(t, "Admin Login", Logins["admin"].Name)
-	assert.Equal(t, "yao.user.login", Logins["admin"].Action.Process)
+	assert.Equal(t, "yao.admin.Login", Logins["admin"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
 	assert.Equal(t, "/images/admin-cover.png", Logins["admin"].Layout.Cover)
@@ -55,7 +56,7 @@ func TestLoadHK(t *testing.T) {
 
 	assert.Equal(t, "admin", Logins["admin"].ID)
 	assert.Equal(t, "管理員登錄", Logins["admin"].Name)
-	assert.Equal(t, "yao.user.login", Logins["admin"].Action.Process)
+	assert.Equal(t, "yao.admin.Login", Logins["admin"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
 	assert.Equal(t, "/images/admin-cover.png", Logins["admin"].Layout.Cover)
@@ -87,7 +88,7 @@ func TestLoadCN(t *testing.T) {
 
 	assert.Equal(t, "admin", Logins["admin"].ID)
 	assert.Equal(t, "管理员登录", Logins["admin"].Name)
-	assert.Equal(t, "yao.user.login", Logins["admin"].Action.Process)
+	assert.Equal(t, "yao.admin.Login", Logins["admin"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
 	assert.Equal(t, "/images/admin-cover.png", Logins["admin"].Layout.Cover)
