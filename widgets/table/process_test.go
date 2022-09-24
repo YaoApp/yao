@@ -333,14 +333,14 @@ func testData(t *testing.T) {
 }
 
 func clear(t *testing.T) {
-	pet := gou.Select("pet")
-	err := pet.DropTable()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = pet.Migrate(true)
-	if err != nil {
-		t.Fatal(err)
+	for _, m := range gou.Models {
+		err := m.DropTable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = m.Migrate(true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }

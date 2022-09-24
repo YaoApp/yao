@@ -21,7 +21,8 @@ import (
 //   GET  /api/__yao/table/:id/get  						-> Default process: yao.table.Get $param.id :query
 //   GET  /api/__yao/table/:id/find/:primary  				-> Default process: yao.table.Find $param.id $param.primary :query
 //   GET  /api/__yao/table/:id/component/:name/:method  	-> Default process: yao.table.Component $param.id $param.name $param.method :query
-//  POST  /api/__yao/table/:id/save  						-> Default process: yao.table.Save $param.id $param.primary :payload
+//  POST  /api/__yao/table/:id/save  						-> Default process: yao.table.Save $param.id :payload
+//  POST  /api/__yao/table/:id/create  						-> Default process: yao.table.Create $param.id :payload
 //  POST  /api/__yao/table/:id/insert  						-> Default process: yao.table.Insert :payload
 //  POST  /api/__yao/table/:id/update/:primary  			-> Default process: yao.table.Update $param.id $param.primary :payload
 //  POST  /api/__yao/table/:id/update/where  				-> Default process: yao.table.UpdateWhere $param.id :query :payload
