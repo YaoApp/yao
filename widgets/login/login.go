@@ -3,6 +3,7 @@ package login
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
@@ -14,7 +15,7 @@ import (
 //
 // API:
 //   GET  /api/__yao/login/:id/captcha  -> Default process: yao.utils.Captcha :query
-//  POST  /api/__yao/login/:id  -> Default process: yao.admin.Login :payload
+//  POST  /api/__yao/login/:id  		-> Default process: yao.admin.Login :payload
 //
 
 // Logins the loaded login widgets
@@ -40,7 +41,8 @@ func LoadFrom(dir string, prefix string) error {
 		dsl := &DSL{ID: id}
 		err := jsoniter.Unmarshal(data, dsl)
 		if err != nil {
-			messages = append(messages, err.Error())
+			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
+			return
 		}
 
 		// Apply a language pack
@@ -50,6 +52,10 @@ func LoadFrom(dir string, prefix string) error {
 
 		Logins[id] = dsl
 	})
+
+	if len(messages) > 0 {
+		return fmt.Errorf(strings.Join(messages, ";"))
+	}
 
 	return err
 }

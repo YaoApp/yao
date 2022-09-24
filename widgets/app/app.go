@@ -17,8 +17,8 @@ import (
 
 //
 // API:
-//   GET /api/__yao/app/setting -> Default process: yao.app.Xgen
-//   GET /api/__yao/app/menu  -> Default process: yao.app.Menu
+//   GET /api/__yao/app/setting 	-> Default process: yao.app.Xgen
+//   GET /api/__yao/app/menu  		-> Default process: yao.app.Menu
 //
 // Process:
 // 	 yao.app.Setting Return the App DSL
