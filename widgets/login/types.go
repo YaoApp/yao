@@ -1,6 +1,6 @@
 package login
 
-// DSL the app DSL
+// DSL the login DSL
 type DSL struct {
 	ID     string    `json:"id,omitempty"`
 	Name   string    `json:"name,omitempty"`
