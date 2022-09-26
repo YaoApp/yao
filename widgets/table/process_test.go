@@ -348,6 +348,23 @@ func TestProcessComponentError(t *testing.T) {
 	assert.Contains(t, err.Error(), "fields.filter.edit.props.状态.::not-exist")
 }
 
+func TestProcessSetting(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{"pet"}
+	res, err := gou.NewProcess("yao.table.Setting", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
+	assert.Equal(t, "跳转", data.Get("header.preset.import.operation.0.title"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
+}
+
 func TestProcessXgen(t *testing.T) {
 	load(t)
 	clear(t)

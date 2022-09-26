@@ -15,7 +15,7 @@ var processActionDefaults = map[string]*ProcessActionDSL{
 	"Setting": {
 		Name:    "yao.table.Setting",
 		Process: "yao.table.Xgen",
-		Default: []interface{}{},
+		Default: []interface{}{nil},
 	},
 	"Component": {
 		Name:    "yao.table.Component",

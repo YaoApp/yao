@@ -70,6 +70,7 @@ func processComponent(process *gou.Process) interface{} {
 
 func processSetting(process *gou.Process) interface{} {
 	tab := MustGet(process)
+	process.Args = append(process.Args, process.Args[0]) // table name
 	return tab.Action.Setting.MustExec(process)
 }
 
