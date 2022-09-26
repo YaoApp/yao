@@ -21,8 +21,8 @@ type ActionDSL struct {
 	Icon    string               `json:"icon,omitempty"`
 	Style   string               `json:"style,omitempty"`
 	Props   PropsDSL             `json:"props,omitempty"`
-	Confirm ConfirmActionDSL     `json:"confirm,omitempty"`
-	Action  map[string]ParamsDSL `json:"actions,omitempty"`
+	Confirm *ConfirmActionDSL    `json:"confirm,omitempty"`
+	Action  map[string]ParamsDSL `json:"action,omitempty"`
 }
 
 // ConfirmActionDSL action.confirm
