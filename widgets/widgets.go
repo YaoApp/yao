@@ -4,6 +4,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/widgets/app"
 	"github.com/yaoapp/yao/widgets/login"
+	"github.com/yaoapp/yao/widgets/table"
 )
 
 // Load the widgets
@@ -26,6 +27,16 @@ func Load(cfg config.Config) error {
 		return err
 	}
 	err = app.Export()
+	if err != nil {
+		return err
+	}
+
+	// table widget
+	err = table.Load(cfg)
+	if err != nil {
+		return err
+	}
+	err = table.Export()
 	if err != nil {
 		return err
 	}
