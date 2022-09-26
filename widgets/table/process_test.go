@@ -315,7 +315,7 @@ func TestProcessComponent(t *testing.T) {
 	testData(t)
 	args := []interface{}{
 		"pet",
-		"fields.filter.edit.props.状态.xProps",
+		"fields.filter.状态.edit.props.xProps",
 		"remote",
 		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
 	}
