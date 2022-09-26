@@ -20,7 +20,7 @@ import (
 //   GET  /api/__yao/table/:id/search  						-> Default process: yao.table.Search $param.id :query $query.page  $query.pagesize
 //   GET  /api/__yao/table/:id/get  						-> Default process: yao.table.Get $param.id :query
 //   GET  /api/__yao/table/:id/find/:primary  				-> Default process: yao.table.Find $param.id $param.primary :query
-//   GET  /api/__yao/table/:id/component/:name/:method  	-> Default process: yao.table.Component $param.id $param.name $param.method :query
+//   GET  /api/__yao/table/:id/component/:xpath/:method  	-> Default process: yao.table.Component $param.id $param.xpath $param.method :query
 //  POST  /api/__yao/table/:id/save  						-> Default process: yao.table.Save $param.id :payload
 //  POST  /api/__yao/table/:id/create  						-> Default process: yao.table.Create $param.id :payload
 //  POST  /api/__yao/table/:id/insert  						-> Default process: yao.table.Insert :payload
@@ -80,7 +80,7 @@ var Tables map[string]*DSL = map[string]*DSL{}
 func New(id string) *DSL {
 	return &DSL{
 		ID:          id,
-		Components:  map[string]*component.DSL{},
+		CProps:      map[string]component.CloudPropsDSL{},
 		ComputesIn:  map[string]string{},
 		ComputesOut: map[string]string{},
 	}
@@ -131,7 +131,11 @@ func LoadFrom(dir string, prefix string) error {
 		}
 
 		// Parse
-		dsl.Parse()
+		err = dsl.Parse()
+		if err != nil {
+			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
+			return
+		}
 
 		// Validate
 		err = dsl.Validate()
@@ -178,32 +182,108 @@ func Get(table interface{}) (*DSL, error) {
 func MustGet(table interface{}) *DSL {
 	t, err := Get(table)
 	if err != nil {
-		exception.New(err.Error(), 500).Throw()
+		exception.New(err.Error(), 400).Throw()
 	}
 	return t
 }
 
-// Parse Layout default
-func (dsl *DSL) Parse() {
+// Parse Layout
+func (dsl *DSL) Parse() error {
 
+	// init
 	if dsl.Fields == nil {
 		dsl.Fields = &FieldsDSL{
 			Filter: map[string]FilterFiledsDSL{},
 			Table:  map[string]ViewFiledsDSL{},
 		}
 	}
+	return dsl.parseProps()
+}
 
-	for name, field := range dsl.Fields.Table {
+// Xgen trans to xgen setting
+func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 
-		if field.In != "" {
-			dsl.ComputesIn[field.Bind] = field.In
-			dsl.ComputesIn[name] = field.In
-		}
+	setting, err := dsl.Layout.Xgen()
+	if err != nil {
+		return nil, err
+	}
 
-		if field.Out != "" {
-			dsl.ComputesOut[field.Bind] = field.Out
-			dsl.ComputesOut[name] = field.Out
+	fields, err := dsl.Fields.Xgen()
+	if err != nil {
+		return nil, err
+	}
+
+	setting["fields"] = fields
+	for _, cProp := range dsl.CProps {
+		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
+			return map[string]interface{}{
+				"api":    fmt.Sprintf("/api/__yao/table/%s/component/%s/%s", dsl.ID, cProp.Xpath, cProp.Name),
+				"params": cProp.Query,
+			}
+		})
+
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	return setting, nil
+}
+
+// parseCloudProps parse the props
+func (dsl *DSL) parseProps() error {
+
+	// filter
+	for name, filter := range dsl.Fields.Filter {
+		if filter.Edit != nil && filter.Edit.Props != nil {
+			xpath := fmt.Sprintf("fields.filter.%s.edit.props", name)
+			cProps, err := filter.Edit.Props.CloudProps(xpath)
+			if err != nil {
+				return err
+			}
+			dsl.mergeCProps(cProps)
+		}
+	}
+
+	// table
+	for name, column := range dsl.Fields.Table {
+
+		// Computes
+		if column.In != "" {
+			dsl.ComputesIn[column.Bind] = column.In
+			dsl.ComputesIn[name] = column.In
+		}
+
+		if column.Out != "" {
+			dsl.ComputesOut[column.Bind] = column.Out
+			dsl.ComputesOut[name] = column.Out
+		}
+
+		// Cloud Props
+		if column.View != nil && column.View.Props != nil {
+			xpath := fmt.Sprintf("fields.table.%s.view.props", name)
+			cProps, err := column.View.Props.CloudProps(xpath)
+			if err != nil {
+				return err
+			}
+			dsl.mergeCProps(cProps)
+		}
+
+		if column.Edit != nil && column.Edit.Props != nil {
+			xpath := fmt.Sprintf("fields.table.%s.edit.props", name)
+			cProps, err := column.Edit.Props.CloudProps(xpath)
+			if err != nil {
+				return err
+			}
+			dsl.mergeCProps(cProps)
+		}
+	}
+
+	return nil
+}
+
+func (dsl *DSL) mergeCProps(cProps map[string]component.CloudPropsDSL) {
+	for k, v := range cProps {
+		dsl.CProps[k] = v
+	}
 }

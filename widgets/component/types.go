@@ -36,3 +36,11 @@ type PropsDSL map[string]interface{}
 
 // ParamsDSL action params
 type ParamsDSL map[string]interface{}
+
+// CloudPropsDSL the cloud props
+type CloudPropsDSL struct {
+	Xpath   string                 `json:"xpath,omitempty"`
+	Name    string                 `json:"name,omitempty"`
+	Process string                 `json:"process,omitempty"`
+	Query   map[string]interface{} `json:"query,omitempty"`
+}

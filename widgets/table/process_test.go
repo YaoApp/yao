@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	q "github.com/yaoapp/yao/query"
 )
@@ -306,6 +307,62 @@ func TestProcessDeleteIn(t *testing.T) {
 
 	_, err = gou.NewProcess("yao.table.find", "pet", 1).Exec()
 	assert.Contains(t, err.Error(), "ID=1")
+}
+
+func TestProcessComponent(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{
+		"pet",
+		"fields.filter.状态.edit.props.xProps",
+		"remote",
+		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
+	}
+
+	res, err := gou.NewProcess("yao.table.Component", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pets, ok := res.([]maps.MapStr)
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(pets))
+	assert.Equal(t, "Cookie", pets[0]["name"])
+	assert.Equal(t, "checked", pets[0]["status"])
+	assert.Equal(t, "Baby", pets[1]["name"])
+	assert.Equal(t, "checked", pets[1]["status"])
+}
+
+func TestProcessComponentError(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{
+		"pet",
+		"fields.filter.edit.props.状态.::not-exist",
+		"remote",
+		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
+	}
+	_, err := gou.NewProcess("yao.table.Component", args...).Exec()
+	assert.Contains(t, err.Error(), "fields.filter.edit.props.状态.::not-exist")
+}
+
+func TestProcessXgen(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{"pet"}
+	res, err := gou.NewProcess("yao.table.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
+	assert.Equal(t, "跳转", data.Get("header.preset.import.operation.0.title"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 }
 
 func load(t *testing.T) {

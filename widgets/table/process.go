@@ -1,9 +1,11 @@
 package table
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/exception"
 )
 
 // Export process
@@ -27,11 +29,43 @@ func exportProcess() {
 }
 
 func processXgen(process *gou.Process) interface{} {
-	return nil
+
+	tab := MustGet(process)
+	setting, err := tab.Xgen()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return setting
 }
 
 func processComponent(process *gou.Process) interface{} {
-	return nil
+
+	process.ValidateArgNums(3)
+	tab := MustGet(process)
+	xpath := process.ArgsString(1)
+	method := process.ArgsString(2)
+	key := fmt.Sprintf("%s.$%s", xpath, method)
+
+	// get cloud props
+	cProp, has := tab.CProps[key]
+	if !has {
+		exception.New("%s does not exist", 400, key).Throw()
+	}
+
+	// :query
+	query := map[string]interface{}{}
+	if process.NumOfArgsIs(4) {
+		query = process.ArgsMap(3)
+	}
+
+	// execute query
+	res, err := cProp.ExecQuery(process, query)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return res
 }
 
 func processSetting(process *gou.Process) interface{} {
