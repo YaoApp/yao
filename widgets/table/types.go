@@ -4,15 +4,14 @@ import "github.com/yaoapp/yao/widgets/component"
 
 // DSL the table DSL
 type DSL struct {
-	ID          string                    `json:"id,omitempty"`
-	Name        string                    `json:"name,omitempty"`
-	Action      *ActionDSL                `json:"action"`
-	Layout      *LayoutDSL                `json:"layout"`
-	Fields      *FieldsDSL                `json:"fields"`
-	ComputesIn  map[string]string         `json:"-"`
-	ComputesOut map[string]string         `json:"-"`
-	Components  map[string]*component.DSL `json:"-"`
-	Filters     map[string]*component.DSL `json:"-"`
+	ID          string                             `json:"id,omitempty"`
+	Name        string                             `json:"name,omitempty"`
+	Action      *ActionDSL                         `json:"action"`
+	Layout      *LayoutDSL                         `json:"layout"`
+	Fields      *FieldsDSL                         `json:"fields"`
+	ComputesIn  map[string]string                  `json:"-"`
+	ComputesOut map[string]string                  `json:"-"`
+	CProps      map[string]component.CloudPropsDSL `json:"-"`
 }
 
 // ActionDSL the table action DSL
@@ -94,14 +93,14 @@ type LayoutDSL struct {
 
 // HeaderLayoutDSL layout.header
 type HeaderLayoutDSL struct {
-	Preset  PresetHeaderDSL       `json:"preset,omitempty"`
+	Preset  *PresetHeaderDSL      `json:"preset,omitempty"`
 	Actions []component.ActionDSL `json:"actions,omitempty"`
 }
 
 // PresetHeaderDSL layout.header.preset
 type PresetHeaderDSL struct {
-	Batch  BatchPresetDSL  `json:"batch,omitempty"`
-	Import ImportPresetDSL `json:"import,omitempty"`
+	Batch  *BatchPresetDSL  `json:"batch,omitempty"`
+	Import *ImportPresetDSL `json:"import,omitempty"`
 }
 
 // BatchPresetDSL layout.header.preset.batch
