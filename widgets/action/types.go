@@ -18,5 +18,5 @@ type Process struct {
 	Handler     Handler       `json:"-"`
 }
 
-// Handler action hanlder
+// Handler action handler
 type Handler func(p *Process, process *gou.Process) (interface{}, error)

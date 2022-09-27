@@ -23,7 +23,7 @@ func NewProcess(name string, p *Process) *Process {
 	return p
 }
 
-// SetHandler set the hanlder
+// SetHandler set the handler
 func (p *Process) SetHandler(handler Handler) *Process {
 	p.Handler = handler
 	return p
