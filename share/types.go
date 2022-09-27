@@ -79,6 +79,8 @@ type AppInfo struct {
 	Icons       maps.MapStrSync        `json:"icons,omitempty"`
 	Storage     AppStorage             `json:"storage,omitempty"`
 	Option      map[string]interface{} `json:"option,omitempty"`
+	XGen        string                 `json:"xgen,omitempty"`
+	Optional    map[string]interface{} `json:"optional,omitempty"`
 }
 
 // AppStorage 应用存储

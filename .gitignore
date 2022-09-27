@@ -28,3 +28,7 @@ logs/application.log
 yao-arm64
 tests/db/yao.db
 env.*.sh
+xgen/v0.9/*
+xgen/v1.0/*
+!xgen/v0.9/index.html
+!xgen/v1.0/index.html
