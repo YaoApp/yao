@@ -11,6 +11,7 @@ import (
 
 func init() {
 	lang.RegisterWidget("tables", "table")
+	lang.RegisterWidget("forms", "form")
 	lang.RegisterWidget("charts", "chart")
 	lang.RegisterWidget("kanban", "page")
 	lang.RegisterWidget("screen", "page")

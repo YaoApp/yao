@@ -29,6 +29,15 @@ import (
 // Setting the application setting
 var Setting *DSL
 
+// LoadAndExport load app
+func LoadAndExport(cfg config.Config) error {
+	err := Load(cfg)
+	if err != nil {
+		return err
+	}
+	return Export()
+}
+
 // Load the app DSL
 func Load(cfg config.Config) error {
 

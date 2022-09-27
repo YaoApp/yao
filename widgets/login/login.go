@@ -21,7 +21,16 @@ import (
 // Logins the loaded login widgets
 var Logins map[string]*DSL = map[string]*DSL{}
 
-// Load load task
+// LoadAndExport load login
+func LoadAndExport(cfg config.Config) error {
+	err := Load(cfg)
+	if err != nil {
+		return err
+	}
+	return Export()
+}
+
+// Load load login
 func Load(cfg config.Config) error {
 	var root = filepath.Join(cfg.Root, "logins")
 	return LoadFrom(root, "")
