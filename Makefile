@@ -151,7 +151,7 @@ artifacts-linux: clean
 	mkdir -p dist/release
 
 #	Building XGEN v0.9
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../xgen-v0.9/public/icon/md_icon.css
 	cd ../xgen-v0.9 && npm install && npm run build
 
 #	Building XGEN v1.0
@@ -194,7 +194,7 @@ artifacts-macos: clean
 
 
 #	Building XGEN v0.9
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../xgen-v0.9/public/icon/md_icon.css
 	cd ../xgen-v0.9 && npm install && npm run build
 
 #	Building XGEN v1.0
