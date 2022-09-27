@@ -8,6 +8,12 @@ type DSL struct {
 	Props PropsDSL `json:"props,omitempty"`
 }
 
+// Actions the actions
+type Actions []ActionDSL
+
+// Instances the Instances
+type Instances []InstanceDSL
+
 // InstanceDSL the component instance DSL
 type InstanceDSL struct {
 	Name   string      `json:"name,omitempty"`

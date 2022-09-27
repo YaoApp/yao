@@ -1,4 +1,4 @@
-package table
+package hook
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 // Exec execute the hook
-func (hook *BeforeHookActionDSL) Exec(args []interface{}, sid string, global map[string]interface{}) ([]interface{}, error) {
+func (hook *Before) Exec(args []interface{}, sid string, global map[string]interface{}) ([]interface{}, error) {
 
 	p, err := gou.ProcessOf(hook.String(), args...)
 	if err != nil {
@@ -32,7 +32,7 @@ func (hook *BeforeHookActionDSL) Exec(args []interface{}, sid string, global map
 }
 
 // Exec execute the hook
-func (hook *AfterHookActionDSL) Exec(value interface{}, sid string, global map[string]interface{}) (interface{}, error) {
+func (hook *After) Exec(value interface{}, sid string, global map[string]interface{}) (interface{}, error) {
 
 	args := []interface{}{}
 	switch value.(type) {
@@ -56,11 +56,11 @@ func (hook *AfterHookActionDSL) Exec(value interface{}, sid string, global map[s
 }
 
 // String cast to string
-func (hook *BeforeHookActionDSL) String() string {
+func (hook *Before) String() string {
 	return string(*hook)
 }
 
 // String cast to string
-func (hook *AfterHookActionDSL) String() string {
+func (hook *After) String() string {
 	return string(*hook)
 }

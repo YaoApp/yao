@@ -1,60 +1,65 @@
 package table
 
-import "github.com/yaoapp/yao/widgets/component"
+import (
+	"github.com/yaoapp/yao/widgets/action"
+	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/field"
+	"github.com/yaoapp/yao/widgets/hook"
+)
 
 // DSL the table DSL
 type DSL struct {
-	ID          string                             `json:"id,omitempty"`
-	Name        string                             `json:"name,omitempty"`
-	Action      *ActionDSL                         `json:"action"`
-	Layout      *LayoutDSL                         `json:"layout"`
-	Fields      *FieldsDSL                         `json:"fields"`
-	ComputesIn  map[string]string                  `json:"-"`
-	ComputesOut map[string]string                  `json:"-"`
-	CProps      map[string]component.CloudPropsDSL `json:"-"`
+	ID          string              `json:"id,omitempty"`
+	Name        string              `json:"name,omitempty"`
+	Action      *ActionDSL          `json:"action"`
+	Layout      *LayoutDSL          `json:"layout"`
+	Fields      *FieldsDSL          `json:"fields"`
+	ComputesIn  field.ComputeFields `json:"-"`
+	ComputesOut field.ComputeFields `json:"-"`
+	CProps      field.CloudProps    `json:"-"`
 }
 
 // ActionDSL the table action DSL
 type ActionDSL struct {
-	Bind              *BindActionDSL       `json:"bind,omitempty"`
-	Setting           *ProcessActionDSL    `json:"setting,omitempty"`
-	Component         *ProcessActionDSL    `json:"component,omitempty"`
-	Search            *ProcessActionDSL    `json:"search,omitempty"`
-	Get               *ProcessActionDSL    `json:"get,omitempty"`
-	Find              *ProcessActionDSL    `json:"find,omitempty"`
-	Save              *ProcessActionDSL    `json:"save,omitempty"`
-	Create            *ProcessActionDSL    `json:"create,omitempty"`
-	Insert            *ProcessActionDSL    `json:"insert,omitempty"`
-	Delete            *ProcessActionDSL    `json:"delete,omitempty"`
-	DeleteIn          *ProcessActionDSL    `json:"delete-in,omitempty"`
-	DeleteWhere       *ProcessActionDSL    `json:"delete-where,omitempty"`
-	Update            *ProcessActionDSL    `json:"update,omitempty"`
-	UpdateIn          *ProcessActionDSL    `json:"update-in,omitempty"`
-	UpdateWhere       *ProcessActionDSL    `json:"update-where,omitempty"`
-	BeforeFind        *BeforeHookActionDSL `json:"before:find,omitempty"`
-	AfterFind         *AfterHookActionDSL  `json:"after:find,omitempty"`
-	BeforeSearch      *BeforeHookActionDSL `json:"before:search,omitempty"`
-	AfterSearch       *AfterHookActionDSL  `json:"after:search,omitempty"`
-	BeforeGet         *BeforeHookActionDSL `json:"before:get,omitempty"`
-	AfterGet          *AfterHookActionDSL  `json:"after:get,omitempty"`
-	BeforeSave        *BeforeHookActionDSL `json:"before:save,omitempty"`
-	AfterSave         *AfterHookActionDSL  `json:"after:save,omitempty"`
-	BeforeCreate      *BeforeHookActionDSL `json:"before:create,omitempty"`
-	AfterCreate       *AfterHookActionDSL  `json:"after:create,omitempty"`
-	BeforeInsert      *BeforeHookActionDSL `json:"before:insert,omitempty"`
-	AfterInsert       *AfterHookActionDSL  `json:"after:insert,omitempty"`
-	BeforeDelete      *BeforeHookActionDSL `json:"before:delete,omitempty"`
-	AfterDelete       *AfterHookActionDSL  `json:"after:delete,omitempty"`
-	BeforeDeleteIn    *BeforeHookActionDSL `json:"before:delete-in,omitempty"`
-	AfterDeleteIn     *AfterHookActionDSL  `json:"after:delete-in,omitempty"`
-	BeforeDeleteWhere *BeforeHookActionDSL `json:"before:delete-where,omitempty"`
-	AfterDeleteWhere  *AfterHookActionDSL  `json:"after:delete-where,omitempty"`
-	BeforeUpdate      *BeforeHookActionDSL `json:"before:update,omitempty"`
-	AfterUpdate       *AfterHookActionDSL  `json:"after:update,omitempty"`
-	BeforeUpdateIn    *BeforeHookActionDSL `json:"before:update-in,omitempty"`
-	AfterUpdateIn     *AfterHookActionDSL  `json:"after:update-in,omitempty"`
-	BeforeUpdateWhere *BeforeHookActionDSL `json:"before:update-where,omitempty"`
-	AfterUpdateWhere  *AfterHookActionDSL  `json:"after:update-where,omitempty"`
+	Bind              *BindActionDSL  `json:"bind,omitempty"`
+	Setting           *action.Process `json:"setting,omitempty"`
+	Component         *action.Process `json:"component,omitempty"`
+	Search            *action.Process `json:"search,omitempty"`
+	Get               *action.Process `json:"get,omitempty"`
+	Find              *action.Process `json:"find,omitempty"`
+	Save              *action.Process `json:"save,omitempty"`
+	Create            *action.Process `json:"create,omitempty"`
+	Insert            *action.Process `json:"insert,omitempty"`
+	Delete            *action.Process `json:"delete,omitempty"`
+	DeleteIn          *action.Process `json:"delete-in,omitempty"`
+	DeleteWhere       *action.Process `json:"delete-where,omitempty"`
+	Update            *action.Process `json:"update,omitempty"`
+	UpdateIn          *action.Process `json:"update-in,omitempty"`
+	UpdateWhere       *action.Process `json:"update-where,omitempty"`
+	BeforeFind        *hook.Before    `json:"before:find,omitempty"`
+	AfterFind         *hook.After     `json:"after:find,omitempty"`
+	BeforeSearch      *hook.Before    `json:"before:search,omitempty"`
+	AfterSearch       *hook.After     `json:"after:search,omitempty"`
+	BeforeGet         *hook.Before    `json:"before:get,omitempty"`
+	AfterGet          *hook.After     `json:"after:get,omitempty"`
+	BeforeSave        *hook.Before    `json:"before:save,omitempty"`
+	AfterSave         *hook.After     `json:"after:save,omitempty"`
+	BeforeCreate      *hook.Before    `json:"before:create,omitempty"`
+	AfterCreate       *hook.After     `json:"after:create,omitempty"`
+	BeforeInsert      *hook.Before    `json:"before:insert,omitempty"`
+	AfterInsert       *hook.After     `json:"after:insert,omitempty"`
+	BeforeDelete      *hook.Before    `json:"before:delete,omitempty"`
+	AfterDelete       *hook.After     `json:"after:delete,omitempty"`
+	BeforeDeleteIn    *hook.Before    `json:"before:delete-in,omitempty"`
+	AfterDeleteIn     *hook.After     `json:"after:delete-in,omitempty"`
+	BeforeDeleteWhere *hook.Before    `json:"before:delete-where,omitempty"`
+	AfterDeleteWhere  *hook.After     `json:"after:delete-where,omitempty"`
+	BeforeUpdate      *hook.Before    `json:"before:update,omitempty"`
+	AfterUpdate       *hook.After     `json:"after:update,omitempty"`
+	BeforeUpdateIn    *hook.Before    `json:"before:update-in,omitempty"`
+	AfterUpdateIn     *hook.After     `json:"after:update-in,omitempty"`
+	BeforeUpdateWhere *hook.Before    `json:"before:update-where,omitempty"`
+	AfterUpdateWhere  *hook.After     `json:"after:update-where,omitempty"`
 }
 
 // BindActionDSL action.bind
@@ -63,24 +68,6 @@ type BindActionDSL struct {
 	Store  string                 `json:"store,omitempty"`  // bind store
 	Table  string                 `json:"table,omitempty"`  // bind table
 	Option map[string]interface{} `json:"option,omitempty"` // bind option
-}
-
-// BeforeHookActionDSL action.before:search ...
-type BeforeHookActionDSL string
-
-// AfterHookActionDSL  action.after:search ...
-type AfterHookActionDSL string
-
-// ProcessActionDSL action.search ...
-type ProcessActionDSL struct {
-	Name        string               `json:"-"`
-	Process     string               `json:"process,omitempty"`
-	ProcessBind string               `json:"bind,omitempty"`
-	Guard       string               `json:"guard,omitempty"`
-	Default     []interface{}        `json:"default,omitempty"`
-	Disable     bool                 `json:"disable,omitempty"`
-	Before      *BeforeHookActionDSL `json:"-"`
-	After       *AfterHookActionDSL  `json:"-"`
 }
 
 // LayoutDSL the table layout
@@ -123,40 +110,25 @@ type OperationImportDSL struct {
 
 // FilterLayoutDSL layout.filter
 type FilterLayoutDSL struct {
-	BtnAddText string                  `json:"btnAddText,omitempty"`
-	Columns    []component.InstanceDSL `json:"columns,omitempty"`
+	BtnAddText string              `json:"btnAddText,omitempty"`
+	Columns    component.Instances `json:"columns,omitempty"`
 }
 
 // ViewLayoutDSL layout.table
 type ViewLayoutDSL struct {
-	Props     component.PropsDSL      `json:"props,omitempty"`
-	Columns   []component.InstanceDSL `json:"columns,omitempty"`
-	Operation OperationTableDSL       `json:"operation,omitempty"`
+	Props     component.PropsDSL  `json:"props,omitempty"`
+	Columns   component.Instances `json:"columns,omitempty"`
+	Operation OperationTableDSL   `json:"operation,omitempty"`
 }
 
 // OperationTableDSL layout.table.operation
 type OperationTableDSL struct {
-	Fold    bool                  `json:"fold,omitempty"`
-	Actions []component.ActionDSL `json:"actions,omitempty"`
+	Fold    bool              `json:"fold,omitempty"`
+	Actions component.Actions `json:"actions,omitempty"`
 }
 
 // FieldsDSL the table fields DSL
 type FieldsDSL struct {
-	Filter map[string]FilterFiledsDSL `json:"filter,omitempty"`
-	Table  map[string]ViewFiledsDSL   `json:"table,omitempty"`
-}
-
-// FilterFiledsDSL fields.filter
-type FilterFiledsDSL struct {
-	Bind string         `json:"bind,omitempty"`
-	Edit *component.DSL `json:"edit,omitempty"`
-}
-
-// ViewFiledsDSL fields.table
-type ViewFiledsDSL struct {
-	Bind string         `json:"bind,omitempty"`
-	In   string         `json:"in,omitempty"`
-	Out  string         `json:"out,omitempty"`
-	View *component.DSL `json:"view,omitempty"`
-	Edit *component.DSL `json:"edit,omitempty"`
+	Filter field.Filters `json:"filter,omitempty"`
+	Table  field.Columns `json:"table,omitempty"`
 }

@@ -3,6 +3,7 @@ package widgets
 import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/widgets/app"
+	"github.com/yaoapp/yao/widgets/form"
 	"github.com/yaoapp/yao/widgets/login"
 	"github.com/yaoapp/yao/widgets/table"
 )
@@ -11,32 +12,25 @@ import (
 func Load(cfg config.Config) error {
 
 	// login widget
-	err := login.Load(cfg)
-	if err != nil {
-		return err
-	}
-
-	err = login.Export()
+	err := login.LoadAndExport(cfg)
 	if err != nil {
 		return err
 	}
 
 	// app widget
-	err = app.Load(cfg)
-	if err != nil {
-		return err
-	}
-	err = app.Export()
+	err = app.LoadAndExport(cfg)
 	if err != nil {
 		return err
 	}
 
 	// table widget
-	err = table.Load(cfg)
+	err = table.LoadAndExport(cfg)
 	if err != nil {
 		return err
 	}
-	err = table.Export()
+
+	// form widget
+	err = form.LoadAndExport(cfg)
 	if err != nil {
 		return err
 	}

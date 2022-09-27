@@ -5,12 +5,12 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/widgets/action"
 )
 
-var processActionDefaults = map[string]*ProcessActionDSL{
+var processActionDefaults = map[string]*action.Process{
 
 	"Setting": {
 		Name:    "yao.table.Setting",
@@ -72,113 +72,104 @@ var processActionDefaults = map[string]*ProcessActionDSL{
 }
 
 // SetDefaultProcess set the default value of action
-func (action *ActionDSL) SetDefaultProcess() {
-	action.Setting = action.newProcessAction("Setting", action.Setting, nil, nil)
-	action.Component = action.newProcessAction("Component", action.Component, nil, nil)
-	action.Search = action.newProcessAction("Search", action.Search, action.BeforeSearch, action.AfterSearch)
-	action.Get = action.newProcessAction("Get", action.Get, action.BeforeGet, action.AfterGet)
-	action.Find = action.newProcessAction("Find", action.Find, action.BeforeFind, action.AfterFind)
-	action.Save = action.newProcessAction("Save", action.Save, action.BeforeSave, action.AfterSave)
-	action.Create = action.newProcessAction("Create", action.Create, action.BeforeCreate, action.AfterCreate)
-	action.Insert = action.newProcessAction("Insert", action.Insert, action.BeforeInsert, action.AfterInsert)
-	action.Update = action.newProcessAction("Update", action.Update, action.BeforeUpdate, action.AfterUpdate)
-	action.UpdateWhere = action.newProcessAction("UpdateWhere", action.UpdateWhere, action.BeforeUpdateWhere, action.AfterUpdateWhere)
-	action.UpdateIn = action.newProcessAction("UpdateIn", action.UpdateIn, action.BeforeUpdateIn, action.AfterUpdateIn)
-	action.Delete = action.newProcessAction("Delete", action.Delete, action.BeforeDelete, action.AfterDelete)
-	action.DeleteWhere = action.newProcessAction("DeleteWhere", action.DeleteWhere, action.BeforeDeleteWhere, action.AfterDeleteWhere)
-	action.DeleteIn = action.newProcessAction("DeleteIn", action.DeleteIn, action.BeforeDeleteIn, action.AfterDeleteIn)
+func (act *ActionDSL) SetDefaultProcess() {
+
+	act.Setting = action.NewProcess("Setting", act.Setting).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Component = action.NewProcess("Component", act.Component).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Search = action.NewProcess("Search", act.Search).
+		WithBefore(act.BeforeSearch).WithAfter(act.AfterSearch).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Get = action.NewProcess("Get", act.Get).
+		WithBefore(act.BeforeGet).WithAfter(act.AfterGet).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Find = action.NewProcess("Find", act.Find).
+		WithBefore(act.BeforeFind).
+		WithAfter(act.AfterFind).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Save = action.NewProcess("Save", act.Save).
+		WithBefore(act.BeforeSave).WithAfter(act.AfterSave).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Create = action.NewProcess("Create", act.Create).
+		WithBefore(act.BeforeCreate).WithAfter(act.AfterCreate).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Insert = action.NewProcess("Insert", act.Insert).
+		WithBefore(act.BeforeInsert).WithAfter(act.AfterInsert).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Update = action.NewProcess("Update", act.Update).
+		WithBefore(act.BeforeUpdate).WithAfter(act.AfterUpdate).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.UpdateWhere = action.NewProcess("UpdateWhere", act.UpdateWhere).
+		WithBefore(act.BeforeUpdateWhere).WithAfter(act.AfterUpdateWhere).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.UpdateIn = action.NewProcess("UpdateIn", act.UpdateIn).
+		WithBefore(act.BeforeUpdateIn).WithAfter(act.AfterUpdateIn).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.Delete = action.NewProcess("Delete", act.Delete).
+		WithBefore(act.BeforeDelete).WithAfter(act.AfterDelete).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.DeleteWhere = action.NewProcess("DeleteWhere", act.DeleteWhere).
+		WithBefore(act.BeforeDeleteWhere).WithAfter(act.AfterDeleteWhere).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
+
+	act.DeleteIn = action.NewProcess("DeleteIn", act.DeleteIn).
+		WithBefore(act.BeforeDeleteIn).WithAfter(act.AfterDeleteIn).
+		SetDefault(processActionDefaults).
+		SetHandler(processHandler)
 }
 
 // BindModel bind model
-func (action *ActionDSL) BindModel(m *gou.Model) {
-	name := m.ID // should be id
-	action.Search.Bind(fmt.Sprintf("models.%s.Paginate", name))
-	action.Get.Bind(fmt.Sprintf("models.%s.Get", name))
-	action.Find.Bind(fmt.Sprintf("models.%s.Find", name))
-	action.Save.Bind(fmt.Sprintf("models.%s.Save", name))
-	action.Create.Bind(fmt.Sprintf("models.%s.Create", name))
-	action.Insert.Bind(fmt.Sprintf("models.%s.Insert", name))
-	action.Update.Bind(fmt.Sprintf("models.%s.Update", name))
-	action.UpdateWhere.Bind(fmt.Sprintf("models.%s.UpdateWhere", name))
-	action.UpdateIn.Bind(fmt.Sprintf("models.%s.UpdateWhere", name))
-	action.Delete.Bind(fmt.Sprintf("models.%s.Delete", name))
-	action.DeleteWhere.Bind(fmt.Sprintf("models.%s.DeleteWhere", name))
-	action.DeleteIn.Bind(fmt.Sprintf("models.%s.DeleteWhere", name))
+func (act *ActionDSL) BindModel(m *gou.Model) {
+
+	name := m.ID
+	act.Search.Bind(fmt.Sprintf("models.%s.Paginate", name))
+	act.Get.Bind(fmt.Sprintf("models.%s.Get", name))
+	act.Find.Bind(fmt.Sprintf("models.%s.Find", name))
+	act.Save.Bind(fmt.Sprintf("models.%s.Save", name))
+	act.Create.Bind(fmt.Sprintf("models.%s.Create", name))
+	act.Insert.Bind(fmt.Sprintf("models.%s.Insert", name))
+	act.Update.Bind(fmt.Sprintf("models.%s.Update", name))
+	act.UpdateWhere.Bind(fmt.Sprintf("models.%s.UpdateWhere", name))
+	act.UpdateIn.Bind(fmt.Sprintf("models.%s.UpdateWhere", name))
+	act.Delete.Bind(fmt.Sprintf("models.%s.Delete", name))
+	act.DeleteWhere.Bind(fmt.Sprintf("models.%s.DeleteWhere", name))
+	act.DeleteIn.Bind(fmt.Sprintf("models.%s.DeleteWhere", name))
 
 	// bind options
-	if action.Bind.Option != nil {
-		action.Search.Default[0] = action.Bind.Option
-		action.Get.Default[0] = action.Bind.Option
-		action.Find.Default[1] = action.Bind.Option
+	if act.Bind.Option != nil {
+		act.Search.Default[0] = act.Bind.Option
+		act.Get.Default[0] = act.Bind.Option
+		act.Find.Default[1] = act.Bind.Option
 	}
 }
 
-// setDefault Set the process action disabled
-func (action *ActionDSL) newProcessAction(name string, p *ProcessActionDSL, before *BeforeHookActionDSL, after *AfterHookActionDSL) *ProcessActionDSL {
-
-	if p == nil {
-		p = &ProcessActionDSL{}
-	}
-
-	p.After = after
-	p.Before = before
-
-	if defaultProcess, has := processActionDefaults[name]; has {
-
-		p.Name = defaultProcess.Name
-
-		if p.Process == "" {
-			p.Process = defaultProcess.Process
-		}
-
-		if p.Guard == "" {
-			p.Guard = defaultProcess.Guard
-		}
-
-		if p.Default == nil {
-			p.Default = defaultProcess.Default
-		}
-
-		// format defaults
-		if len(p.Default) != len(defaultProcess.Default) {
-			defauts := defaultProcess.Default
-			nums := len(p.Default)
-			if nums > len(defaultProcess.Default) {
-				nums = len(defaultProcess.Default)
-			}
-			for i := 0; i < nums; i++ {
-				defauts[i] = p.Default[i]
-			}
-			p.Default = defauts
-		}
-
-	}
-
-	return p
-}
-
-// Bind the process name
-func (p *ProcessActionDSL) Bind(name string) {
-	p.ProcessBind = name
-}
-
-// Args get the process args
-func (p *ProcessActionDSL) Args(process *gou.Process) []interface{} {
-	process.ValidateArgNums(1)
-	args := p.Default
-	nums := len(process.Args[1:])
-	if nums > len(args) {
-		nums = len(args)
-	}
-
-	for i := 0; i < nums; i++ {
-		args[i] = p.deepMergeDefault(process.Args[i+1], args[i])
-	}
-	return args
-}
-
-// Exec exec the process
-func (p *ProcessActionDSL) Exec(process *gou.Process) (interface{}, error) {
+func processHandler(p *action.Process, process *gou.Process) (interface{}, error) {
 
 	tab, err := Get(process)
 	if err != nil {
@@ -222,6 +213,7 @@ func (p *ProcessActionDSL) Exec(process *gou.Process) (interface{}, error) {
 			args[0] = data
 		}
 		break
+
 	case "yao.table.Update", "yao.table.UpdateWhere", "yao.table.UpdateIn":
 		switch args[1].(type) {
 		case map[string]interface{}:
@@ -233,6 +225,7 @@ func (p *ProcessActionDSL) Exec(process *gou.Process) (interface{}, error) {
 			args[1] = data
 		}
 		break
+
 	case "yao.table.Insert":
 		break
 	}
@@ -264,7 +257,6 @@ func (p *ProcessActionDSL) Exec(process *gou.Process) (interface{}, error) {
 		break
 
 	case "yao.table.Get":
-
 		if _, ok := res.([]maps.MapStr); ok {
 			data := []interface{}{}
 			for _, v := range res.([]maps.MapStr) {
@@ -309,51 +301,4 @@ func (p *ProcessActionDSL) Exec(process *gou.Process) (interface{}, error) {
 	}
 
 	return res, nil
-}
-
-// MustExec exec the process
-func (p *ProcessActionDSL) MustExec(process *gou.Process) interface{} {
-	res, err := p.Exec(process)
-	if err != nil {
-		exception.New(err.Error(), 500).Throw()
-	}
-	return res
-}
-
-// deepMergeDefault deep merge args
-func (p *ProcessActionDSL) deepMergeDefault(value interface{}, defaults interface{}) interface{} {
-
-	if value == nil {
-		return defaults
-	}
-
-	switch defaults.(type) {
-
-	case map[string]interface{}:
-		defaultMap := defaults.(map[string]interface{})
-		valueMap := any.Of(value).MapStr()
-		for key, v := range defaultMap {
-			valueMap[key] = p.deepMergeDefault(valueMap[key], v)
-		}
-		return valueMap
-
-	case []interface{}:
-		defaultArr := defaults.([]interface{})
-		valueArr := any.Of(value).CArray()
-
-		// pad
-		nums := len(defaultArr) - len(valueArr)
-		for i := 0; i < nums; i++ {
-			valueArr = append(valueArr, nil)
-		}
-
-		// set default
-		for idx, v := range defaultArr {
-			valueArr[idx] = p.deepMergeDefault(valueArr[idx], v)
-		}
-
-		return valueArr
-	}
-
-	return value
 }

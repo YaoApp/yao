@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/field"
 )
 
 //
@@ -80,13 +81,23 @@ var Tables map[string]*DSL = map[string]*DSL{}
 func New(id string) *DSL {
 	return &DSL{
 		ID:          id,
-		CProps:      map[string]component.CloudPropsDSL{},
-		ComputesIn:  map[string]string{},
-		ComputesOut: map[string]string{},
+		Fields:      &FieldsDSL{Filter: field.Filters{}, Table: field.Columns{}},
+		CProps:      field.CloudProps{},
+		ComputesIn:  field.ComputeFields{},
+		ComputesOut: field.ComputeFields{},
 	}
 }
 
-// Load load task
+// LoadAndExport load table
+func LoadAndExport(cfg config.Config) error {
+	err := Load(cfg)
+	if err != nil {
+		return err
+	}
+	return Export()
+}
+
+// Load load table
 func Load(cfg config.Config) error {
 	var root = filepath.Join(cfg.Root, "tables")
 	return LoadFrom(root, "")
@@ -190,14 +201,22 @@ func MustGet(table interface{}) *DSL {
 // Parse Layout
 func (dsl *DSL) Parse() error {
 
-	// init
-	if dsl.Fields == nil {
-		dsl.Fields = &FieldsDSL{
-			Filter: map[string]FilterFiledsDSL{},
-			Table:  map[string]ViewFiledsDSL{},
-		}
+	// ComputeFields
+	dsl.Fields.Table.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
+
+	// Filters
+	err := dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {
+		return fmt.Sprintf("fields.filter.%s.edit.props", name)
+	})
+
+	if err != nil {
+		return err
 	}
-	return dsl.parseProps()
+
+	// Columns
+	return dsl.Fields.Table.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {
+		return fmt.Sprintf("fields.table.%s.%s.props", name, kind)
+	})
 }
 
 // Xgen trans to xgen setting
@@ -228,62 +247,4 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	}
 
 	return setting, nil
-}
-
-// parseCloudProps parse the props
-func (dsl *DSL) parseProps() error {
-
-	// filter
-	for name, filter := range dsl.Fields.Filter {
-		if filter.Edit != nil && filter.Edit.Props != nil {
-			xpath := fmt.Sprintf("fields.filter.%s.edit.props", name)
-			cProps, err := filter.Edit.Props.CloudProps(xpath)
-			if err != nil {
-				return err
-			}
-			dsl.mergeCProps(cProps)
-		}
-	}
-
-	// table
-	for name, column := range dsl.Fields.Table {
-
-		// Computes
-		if column.In != "" {
-			dsl.ComputesIn[column.Bind] = column.In
-			dsl.ComputesIn[name] = column.In
-		}
-
-		if column.Out != "" {
-			dsl.ComputesOut[column.Bind] = column.Out
-			dsl.ComputesOut[name] = column.Out
-		}
-
-		// Cloud Props
-		if column.View != nil && column.View.Props != nil {
-			xpath := fmt.Sprintf("fields.table.%s.view.props", name)
-			cProps, err := column.View.Props.CloudProps(xpath)
-			if err != nil {
-				return err
-			}
-			dsl.mergeCProps(cProps)
-		}
-
-		if column.Edit != nil && column.Edit.Props != nil {
-			xpath := fmt.Sprintf("fields.table.%s.edit.props", name)
-			cProps, err := column.Edit.Props.CloudProps(xpath)
-			if err != nil {
-				return err
-			}
-			dsl.mergeCProps(cProps)
-		}
-	}
-
-	return nil
-}
-
-func (dsl *DSL) mergeCProps(cProps map[string]component.CloudPropsDSL) {
-	for k, v := range cProps {
-		dsl.CProps[k] = v
-	}
 }
