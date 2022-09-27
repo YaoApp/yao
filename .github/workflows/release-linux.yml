@@ -28,6 +28,9 @@ jobs:
       - name: Install coscmd
         run: sudo pip3 install coscmd
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Setup Cache
         uses: actions/cache@v2
         with:
@@ -63,11 +66,17 @@ jobs:
           ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
           path: v8go
 
-      - name: Checkout UI
+      - name: Checkout XGen v0.9
         uses: actions/checkout@v2
         with:
           repository: yaoapp/xgen
-          path: ui
+          path: xgen-v0.9
+
+      - name: Checkout XGen v1.0
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/xgen-next
+          path: xgen-v1.0
 
       - name: Move Kun, Xun, Gou, UI, V8Go
         run: |
@@ -75,7 +84,8 @@ jobs:
           mv xun ../
           mv gou ../
           mv v8go ../
-          mv ui ../
+          mv xgen-v0.9 ../
+          mv xgen-v1.0 ../
           ls -l .
           ls -l ../
 

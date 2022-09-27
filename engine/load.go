@@ -103,27 +103,41 @@ func Load(cfg config.Config) (err error) {
 		printErr(cfg.Mode, "Plugin", err)
 	}
 
-	// XGEN NEXT
-	if os.Getenv("YAO_UI") == "XGEN-NEXT" {
-		err = widgets.Load(cfg) // Load build-in widgets
+	// XGEN 1.0
+	if share.App.XGen == "1.0" {
+
+		// SET XGEN_BASE
+		// adminRoot := "yao"
+		// if share.App.Optional != nil {
+		// 	if root, has := share.App.Optional["adminRoot"]; has {
+		// 		adminRoot = fmt.Sprintf("%v", root)
+		// 	}
+		// }
+		// os.Setenv("XGEN_BASE", adminRoot)
+
+		// Load build-in widgets
+		err = widgets.Load(cfg)
 		if err != nil {
 			printErr(cfg.Mode, "Widgets", err)
 		}
-	}
 
-	err = table.Load(cfg) // 加载数据表格 table
-	if err != nil {
-		printErr(cfg.Mode, "Table", err)
-	}
+		delete(gou.APIs, "xiang.table")
 
-	err = chart.Load(cfg) // 加载分析图表 chart
-	if err != nil {
-		printErr(cfg.Mode, "Chart", err)
-	}
+	} else { // old version
+		err = table.Load(cfg) // 加载数据表格 table
+		if err != nil {
+			printErr(cfg.Mode, "Table", err)
+		}
 
-	err = page.Load(cfg) // 加载页面 page 忽略错误
-	if err != nil {
-		printErr(cfg.Mode, "Page", err)
+		err = chart.Load(cfg) // 加载分析图表 chart
+		if err != nil {
+			printErr(cfg.Mode, "Chart", err)
+		}
+
+		err = page.Load(cfg) // 加载页面 page 忽略错误
+		if err != nil {
+			printErr(cfg.Mode, "Page", err)
+		}
 	}
 
 	importer.Load(cfg) // 加载数据导入 imports

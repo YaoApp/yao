@@ -8,10 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
+	"github.com/yaoapp/yao/share"
 )
 
-// AdminFileServer 数据管理平台
-var AdminFileServer http.Handler = http.FileServer(data.AssetFS())
+// XGenFileServerV0 XGen v0.9
+var XGenFileServerV0 http.Handler = http.FileServer(data.XgenV0())
+
+// XGenFileServerV1 XGen v1.0
+var XGenFileServerV1 http.Handler = http.FileServer(data.XgenV1())
 
 // AppFileServer 应用静态文件
 var AppFileServer http.Handler = http.FileServer(http.Dir(filepath.Join(config.Conf.Root, "ui")))
@@ -31,11 +35,19 @@ func BinStatic(c *gin.Context) {
 		(length >= 11 && c.Request.URL.Path[0:11] == "/websocket/") { // API & websocket
 		c.Next()
 		return
-	} else if length >= 7 && c.Request.URL.Path[0:7] == "/xiang/" { // 数据管理后台
-		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/xiang")
-		AdminFileServer.ServeHTTP(c.Writer, c.Request)
+
+	} else if share.App.XGen == "1.0" && length >= 5 && c.Request.URL.Path[0:5] == "/yao/" {
+		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/yao")
+		XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 		return
+
+	} else if share.App.XGen == "" && length >= 7 && c.Request.URL.Path[0:7] == "/xiang/" { // 数据管理后台
+		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/xiang")
+		XGenFileServerV0.ServeHTTP(c.Writer, c.Request)
+		c.Abort()
+		return
+
 	}
 
 	// 应用内静态文件目录(/ui)

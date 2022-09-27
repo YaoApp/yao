@@ -140,6 +140,7 @@ pack: bindata fmt
 bindata:
 	mkdir -p .tmp/data
 	cp -r ui .tmp/data/
+	cp -r xgen .tmp/data/
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
@@ -149,17 +150,24 @@ bindata:
 artifacts-linux: clean
 	mkdir -p dist/release
 
-#	Building UI
+#	Building XGEN v0.9
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
-	cd ../ui && npm install && npm run build
+	cd ../xgen-v0.9 && npm install && npm run build
+
+#	Building XGEN v1.0
+	export XGEN_BASE=yao
+	export BASE=yao
+	export NODE_ENV=production
+	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #	Packing
-	mkdir -p .tmp/data
-	cp -r ../ui/dist .tmp/data/ui
+	mkdir -p .tmp/data/xgen
+	cp -r ./ui .tmp/data/ui
+	cp -r ../xgen-v0.9/dist .tmp/data/xgen/v0.9
+	cp -r ../xgen-v1.0/packages/app/dist .tmp/data/xgen/v1.0
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
-	rm -rf .tmp/ui
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
@@ -184,17 +192,25 @@ artifacts-linux: clean
 artifacts-macos: clean
 	mkdir -p dist/release
 
-#	Building UI
+
+#	Building XGEN v0.9
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../ui/public/icon/md_icon.css
-	cd ../ui && npm install && npm run build
+	cd ../xgen-v0.9 && npm install && npm run build
+
+#	Building XGEN v1.0
+	export XGEN_BASE=yao
+	export BASE=yao
+	export NODE_ENV=production
+	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #	Packing
-	mkdir -p .tmp/data
-	cp -r ../ui/dist .tmp/data/ui
+	mkdir -p .tmp/data/xgen
+	cp -r ./ui .tmp/data/ui
+	cp -r ../xgen-v0.9/dist .tmp/data/xgen/v0.9
+	cp -r ../xgen-v1.0/packages/app/dist .tmp/data/xgen/v1.0
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
-	rm -rf .tmp/ui
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
@@ -243,18 +259,29 @@ release: clean
 	mkdir -p dist/release
 	mkdir .tmp
 
-#	Building UI
-	git clone https://github.com/YaoApp/xgen.git .tmp/ui
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && cnpm install && npm run build
+#	Building XGEN v0.9
+#	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v0.9
+#	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/xgen/v0.9/public/icon/md_icon.css
+#	cd .tmp/xgen/v0.9 && npm install && npm run build
+	mkdir -p .tmp/xgen/v0.9
+	cp -r xgen/v0.9 .tmp/xgen/v0.9/dist
+
+#	Building XGEN v1.0
+	export XGEN_BASE=yao
+	export BASE=yao
+	export NODE_ENV=production
+	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
+	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
 
 #	Packing
-	mkdir -p .tmp/data
-	cp -r .tmp/ui/dist .tmp/data/ui
+	mkdir -p .tmp/data/xgen
+	cp -r ./ui .tmp/data/ui
+	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
+	cp -r .tmp/xgen/v1.0/packages/app/dist .tmp/data/xgen/v1.0
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
-	rm -rf .tmp/ui
+	rm -rf .tmp/xgen
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
@@ -273,18 +300,29 @@ linux-release: clean
 	mkdir -p dist/release
 	mkdir .tmp
 
-#	Building UI
-	git clone https://github.com/YaoApp/xgen.git .tmp/ui
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/ui/public/icon/md_icon.css
-	cd .tmp/ui && yarn install && yarn build
+#	Building XGEN v0.9
+	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v0.9
+	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/xgen/v0.9/public/icon/md_icon.css
+	cd .tmp/xgen/v0.9 && yarn install && yarn build
+	mkdir -p .tmp/xgen/v0.9
+	cp -r xgen/v0.9 .tmp/xgen/v0.9/dist
+
+#	Building XGEN v1.0
+	export XGEN_BASE=yao
+	export BASE=yao
+	export NODE_ENV=production
+	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
+	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
 
 #	Packing
-	mkdir -p .tmp/data
-	cp -r .tmp/ui/dist .tmp/data/ui
+	mkdir -p .tmp/data/xgen
+	cp -r ./ui .tmp/data/ui
+	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
+	cp -r .tmp/xgen/v1.0/packages/app/dist .tmp/data/xgen/v1.0
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
-	rm -rf .tmp/ui
+	rm -rf .tmp/xgen
 
 #   Making artifacts
 	mkdir -p dist
