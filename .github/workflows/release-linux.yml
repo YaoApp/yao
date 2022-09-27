@@ -28,7 +28,7 @@ jobs:
       - name: Install coscmd
         run: sudo pip3 install coscmd
 
-     - name: Install pnpm
+      - name: Install pnpm
         run: npm install -g pnpm
 
       - name: Setup Cache
