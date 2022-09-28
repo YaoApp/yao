@@ -3,6 +3,7 @@ package widgets
 import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/widgets/app"
+	"github.com/yaoapp/yao/widgets/chart"
 	"github.com/yaoapp/yao/widgets/form"
 	"github.com/yaoapp/yao/widgets/login"
 	"github.com/yaoapp/yao/widgets/table"
@@ -31,6 +32,12 @@ func Load(cfg config.Config) error {
 
 	// form widget
 	err = form.LoadAndExport(cfg)
+	if err != nil {
+		return err
+	}
+
+	// chart widget
+	err = chart.LoadAndExport(cfg)
 	if err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ type CloudProps map[string]component.CloudPropsDSL
 // ColumnDSL the field column dsl
 type ColumnDSL struct {
 	Bind string         `json:"bind,omitempty"`
+	Link string         `json:"link,omitempty"`
 	In   string         `json:"in,omitempty"`
 	Out  string         `json:"out,omitempty"`
 	View *component.DSL `json:"view,omitempty"`
