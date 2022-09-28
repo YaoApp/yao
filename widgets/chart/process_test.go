@@ -88,4 +88,34 @@ func load(t *testing.T) {
 		t.Fatal(err)
 	}
 	q.Load(config.Conf)
+	clear(t)
+	testData(t)
+}
+
+func testData(t *testing.T) {
+	pet := gou.Select("pet")
+	err := pet.Insert(
+		[]string{"name", "type", "status", "mode", "stay", "cost", "doctor_id"},
+		[][]interface{}{
+			{"Cookie", "cat", "checked", "enabled", 200, 105, 1},
+			{"Baby", "dog", "checked", "enabled", 186, 24, 1},
+			{"Poo", "others", "checked", "enabled", 199, 66, 1},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func clear(t *testing.T) {
+	for _, m := range gou.Models {
+		err := m.DropTable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = m.Migrate(true)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
