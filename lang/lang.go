@@ -10,13 +10,13 @@ import (
 )
 
 func init() {
+	lang.RegisterWidget("logins", "login")
 	lang.RegisterWidget("tables", "table")
 	lang.RegisterWidget("forms", "form")
 	lang.RegisterWidget("charts", "chart")
 	lang.RegisterWidget("kanban", "page")
 	lang.RegisterWidget("screen", "page")
 	lang.RegisterWidget("pages", "page")
-	lang.RegisterWidget("logins", "login")
 }
 
 // Load language packs

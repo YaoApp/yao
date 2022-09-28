@@ -68,8 +68,8 @@ func exportAPI() error {
 
 	//   GET  /api/__yao/table/:id/component/:xpath/:method  	-> Default process: yao.table.Component $param.id $param.xpath $param.method :query
 	path = gou.Path{
-		Label:       "Find",
-		Description: "Find",
+		Label:       "Component",
+		Description: "Component",
 		Path:        "/:id/component/:xpath/:method",
 		Method:      "GET",
 		Process:     "yao.table.Component",

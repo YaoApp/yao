@@ -46,14 +46,14 @@ func (dsl *DSL) computeIn(process *gou.Process, key string, values map[string]in
 	if name, has := dsl.ComputesIn[key]; has {
 		compute, err := gou.ProcessOf(name, key, values[key], values)
 		if err != nil {
-			log.Error("[table] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[table] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
+			log.Error("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
+			return fmt.Errorf("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
 		}
 
 		res, err := compute.WithGlobal(process.Global).WithSID(process.Sid).Exec()
 		if err != nil {
-			log.Error("[table] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[table] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
+			log.Error("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
+			return fmt.Errorf("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
 		}
 		values[key] = res
 	}
@@ -64,14 +64,14 @@ func (dsl *DSL) computeOut(process *gou.Process, key string, values map[string]i
 	if name, has := dsl.ComputesOut[key]; has {
 		compute, err := gou.ProcessOf(name, key, values[key], values)
 		if err != nil {
-			log.Error("[table] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[table] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
+			log.Error("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
+			return fmt.Errorf("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
 		}
 
 		res, err := compute.WithGlobal(process.Global).WithSID(process.Sid).Exec()
 		if err != nil {
-			log.Error("[table] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[table] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
+			log.Error("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
+			return fmt.Errorf("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
 		}
 		values[key] = res
 	}
