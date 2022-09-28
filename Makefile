@@ -158,6 +158,7 @@ artifacts-linux: clean
 	export XGEN_BASE=yao
 	export BASE=yao
 	export NODE_ENV=production
+	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #	Packing
@@ -201,6 +202,7 @@ artifacts-macos: clean
 	export XGEN_BASE=yao
 	export BASE=yao
 	export NODE_ENV=production
+	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #	Packing
@@ -312,6 +314,7 @@ linux-release: clean
 	export BASE=yao
 	export NODE_ENV=production
 	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
+	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
 	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
 
 #	Packing
