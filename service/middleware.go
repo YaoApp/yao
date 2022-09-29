@@ -27,6 +27,12 @@ var Middlewares = []gin.HandlerFunc{
 	BinStatic,
 }
 
+// AdminRoot cache
+var AdminRoot = ""
+
+// AdminRootLen cache
+var AdminRootLen = 0
+
 // BinStatic 静态文件服务
 func BinStatic(c *gin.Context) {
 
@@ -47,6 +53,13 @@ func BinStatic(c *gin.Context) {
 			return
 		}
 
+		if length >= 18 && c.Request.URL.Path[0:18] == "/__yao_admin_root/" {
+			c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/__yao_admin_root")
+			XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
+			c.Abort()
+			return
+		}
+
 	} else if share.App.XGen == "" && length >= 7 && c.Request.URL.Path[0:7] == "/xiang/" {
 		// Xgen 0.9
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/xiang")
@@ -62,6 +75,10 @@ func BinStatic(c *gin.Context) {
 }
 
 func adminRoot() (string, int) {
+	if AdminRoot != "" {
+		return AdminRoot, AdminRootLen
+	}
+
 	adminRoot := "/yao/"
 	if root, ok := share.App.Optional["adminRoot"].(string); ok && root != "" {
 		root = strings.TrimPrefix(root, "/")
@@ -69,5 +86,7 @@ func adminRoot() (string, int) {
 		adminRoot = fmt.Sprintf("/%s/", root)
 	}
 	adminRootLen := len(adminRoot)
-	return adminRoot, adminRootLen
+	AdminRoot = adminRoot
+	AdminRootLen = adminRootLen
+	return AdminRoot, AdminRootLen
 }
