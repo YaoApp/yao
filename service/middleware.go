@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -36,13 +37,18 @@ func BinStatic(c *gin.Context) {
 		c.Next()
 		return
 
-	} else if share.App.XGen == "1.0" && length >= 5 && c.Request.URL.Path[0:5] == "/yao/" {
-		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/yao")
-		XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
-		c.Abort()
-		return
+	} else if share.App.XGen == "1.0" {
+		// Xgen 1.0
+		adminRoot, adminRootLen := adminRoot()
+		if length >= adminRootLen && c.Request.URL.Path[0:adminRootLen] == adminRoot {
+			c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, c.Request.URL.Path[0:adminRootLen-1])
+			XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
+			c.Abort()
+			return
+		}
 
-	} else if share.App.XGen == "" && length >= 7 && c.Request.URL.Path[0:7] == "/xiang/" { // 数据管理后台
+	} else if share.App.XGen == "" && length >= 7 && c.Request.URL.Path[0:7] == "/xiang/" {
+		// Xgen 0.9
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/xiang")
 		XGenFileServerV0.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
@@ -53,4 +59,15 @@ func BinStatic(c *gin.Context) {
 	// 应用内静态文件目录(/ui)
 	AppFileServer.ServeHTTP(c.Writer, c.Request)
 	c.Abort()
+}
+
+func adminRoot() (string, int) {
+	adminRoot := "/yao/"
+	if root, ok := share.App.Optional["adminRoot"].(string); ok && root != "" {
+		root = strings.TrimPrefix(root, "/")
+		root = strings.TrimSuffix(root, "/")
+		adminRoot = fmt.Sprintf("/%s/", root)
+	}
+	adminRootLen := len(adminRoot)
+	return adminRoot, adminRootLen
 }

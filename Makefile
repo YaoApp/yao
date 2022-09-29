@@ -6,6 +6,7 @@ VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
 VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
 COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
+NOW := $(shell date +"%FT%T%z")
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests*|config|widgets')
@@ -155,10 +156,9 @@ artifacts-linux: clean
 	cd ../xgen-v0.9 && npm install && npm run build
 
 #	Building XGEN v1.0
-	export XGEN_BASE=yao
-	export BASE=yao
 	export NODE_ENV=production
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
+	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #	Packing
@@ -171,7 +171,7 @@ artifacts-linux: clean
 	rm -rf .tmp/data
 
 #	Replace PRVERSION
-	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -199,10 +199,9 @@ artifacts-macos: clean
 	cd ../xgen-v0.9 && npm install && npm run build
 
 #	Building XGEN v1.0
-	export XGEN_BASE=yao
-	export BASE=yao
 	export NODE_ENV=production
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
+	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #	Packing
@@ -215,7 +214,7 @@ artifacts-macos: clean
 	rm -rf .tmp/data
 
 #	Replace PRVERSION
-	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -245,7 +244,7 @@ debug: clean
 
 
 #	Replace PRVERSION
-	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-debug\"/g" share/const.go
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}-debug\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -262,31 +261,27 @@ release: clean
 	mkdir .tmp
 
 #	Building XGEN v0.9
-#	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v0.9
-#	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/xgen/v0.9/public/icon/md_icon.css
-#	cd .tmp/xgen/v0.9 && npm install && npm run build
-	mkdir -p .tmp/xgen/v0.9
-	cp -r xgen/v0.9 .tmp/xgen/v0.9/dist
+	mkdir -p .tmp/xgen/v0.9/dist
+	echo "XGEN v0.9" > .tmp/xgen/v0.9/dist/index.html
 
 #	Building XGEN v1.0
-	export XGEN_BASE=yao
-	export BASE=yao
 	export NODE_ENV=production
 	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
+	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
 
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
+	cp -r ./yao .tmp/data/yao
 	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
 	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
-	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/xgen
 
 #	Replace PRVERSION
-	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}\"/g" share/const.go
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -310,19 +305,18 @@ linux-release: clean
 	cp -r xgen/v0.9 .tmp/xgen/v0.9/dist
 
 #	Building XGEN v1.0
-	export XGEN_BASE=yao
-	export BASE=yao
 	export NODE_ENV=production
 	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
 	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
+	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
 
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
+	cp -r ./yao .tmp/data/yao
 	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
 	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
-	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/xgen

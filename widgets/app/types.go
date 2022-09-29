@@ -21,5 +21,6 @@ type MenuDSL struct {
 type OptionalDSL struct {
 	HideNotification bool   `json:"hideNotification,omitempty"`
 	HideSetting      bool   `json:"hideSetting,omitempty"`
+	AdminRoot        string `json:"adminRoot,omitempty"`
 	Setting          string `json:"setting,omitempty"` // custom setting process
 }

@@ -69,9 +69,10 @@ var startCmd = &cobra.Command{
 		}
 
 		if share.App.XGen == "1.0" {
+			root, _ := adminRoot()
 			fmt.Println(color.WhiteString(L("    XGen")), color.GreenString(" 1.0"))
 			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
-			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/yao/login/admin", host, port))
+			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s%slogin/admin", host, port, root))
 			fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
 			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
 
@@ -123,6 +124,17 @@ var startCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func adminRoot() (string, int) {
+	adminRoot := "/yao/"
+	if root, ok := share.App.Optional["adminRoot"].(string); ok && root != "" {
+		root = strings.TrimPrefix(root, "/")
+		root = strings.TrimSuffix(root, "/")
+		adminRoot = fmt.Sprintf("/%s/", root)
+	}
+	adminRootLen := len(adminRoot)
+	return adminRoot, adminRootLen
 }
 
 func printConnectors(silent bool) {
