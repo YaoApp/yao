@@ -36,9 +36,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"net/http"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,7 +106,6 @@ func (fi bindataFileInfo) IsDir() bool {
 func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
-
 
 type assetFile struct {
 	*bytes.Reader
@@ -919,62 +918,62 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"ui": &bintree{nil, map[string]*bintree{
-		"index.html": &bintree{uiIndexHtml, map[string]*bintree{}},
+	"ui": {nil, map[string]*bintree{
+		"index.html": {uiIndexHtml, map[string]*bintree{}},
 	}},
-	"xgen": &bintree{nil, map[string]*bintree{
-		"v0.9": &bintree{nil, map[string]*bintree{
-			"index.html": &bintree{xgenV09IndexHtml, map[string]*bintree{}},
+	"xgen": {nil, map[string]*bintree{
+		"v0.9": {nil, map[string]*bintree{
+			"index.html": {xgenV09IndexHtml, map[string]*bintree{}},
 		}},
-		"v1.0": &bintree{nil, map[string]*bintree{
-			"index.html": &bintree{xgenV10IndexHtml, map[string]*bintree{}},
-			"umi.js":     &bintree{xgenV10UmiJs, map[string]*bintree{}},
+		"v1.0": {nil, map[string]*bintree{
+			"index.html": {xgenV10IndexHtml, map[string]*bintree{}},
+			"umi.js":     {xgenV10UmiJs, map[string]*bintree{}},
 		}},
 	}},
-	"yao": &bintree{nil, map[string]*bintree{
-		"apis": &bintree{nil, map[string]*bintree{
-			"README.md":         &bintree{yaoApisReadmeMd, map[string]*bintree{}},
-			"chart.http.json":   &bintree{yaoApisChartHttpJson, map[string]*bintree{}},
-			"import.http.json":  &bintree{yaoApisImportHttpJson, map[string]*bintree{}},
-			"page.http.json":    &bintree{yaoApisPageHttpJson, map[string]*bintree{}},
-			"storage.http.json": &bintree{yaoApisStorageHttpJson, map[string]*bintree{}},
-			"table.http.json":   &bintree{yaoApisTableHttpJson, map[string]*bintree{}},
-			"user.http.json":    &bintree{yaoApisUserHttpJson, map[string]*bintree{}},
-			"xiang.http.json":   &bintree{yaoApisXiangHttpJson, map[string]*bintree{}},
+	"yao": {nil, map[string]*bintree{
+		"apis": {nil, map[string]*bintree{
+			"README.md":         {yaoApisReadmeMd, map[string]*bintree{}},
+			"chart.http.json":   {yaoApisChartHttpJson, map[string]*bintree{}},
+			"import.http.json":  {yaoApisImportHttpJson, map[string]*bintree{}},
+			"page.http.json":    {yaoApisPageHttpJson, map[string]*bintree{}},
+			"storage.http.json": {yaoApisStorageHttpJson, map[string]*bintree{}},
+			"table.http.json":   {yaoApisTableHttpJson, map[string]*bintree{}},
+			"user.http.json":    {yaoApisUserHttpJson, map[string]*bintree{}},
+			"xiang.http.json":   {yaoApisXiangHttpJson, map[string]*bintree{}},
 		}},
-		"data": &bintree{nil, map[string]*bintree{
-			"app.json": &bintree{yaoDataAppJson, map[string]*bintree{}},
-			"icons": &bintree{nil, map[string]*bintree{
-				"404.png":   &bintree{yaoDataIcons404Png, map[string]*bintree{}},
-				"icon.icns": &bintree{yaoDataIconsIconIcns, map[string]*bintree{}},
-				"icon.ico":  &bintree{yaoDataIconsIconIco, map[string]*bintree{}},
-				"icon.png":  &bintree{yaoDataIconsIconPng, map[string]*bintree{}},
+		"data": {nil, map[string]*bintree{
+			"app.json": {yaoDataAppJson, map[string]*bintree{}},
+			"icons": {nil, map[string]*bintree{
+				"404.png":   {yaoDataIcons404Png, map[string]*bintree{}},
+				"icon.icns": {yaoDataIconsIconIcns, map[string]*bintree{}},
+				"icon.ico":  {yaoDataIconsIconIco, map[string]*bintree{}},
+				"icon.png":  {yaoDataIconsIconPng, map[string]*bintree{}},
 			}},
-			"index.html": &bintree{yaoDataIndexHtml, map[string]*bintree{}},
+			"index.html": {yaoDataIndexHtml, map[string]*bintree{}},
 		}},
-		"flows": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{yaoFlowsReadmeMd, map[string]*bintree{}},
-			"admin": &bintree{nil, map[string]*bintree{
-				"guard.flow.json": &bintree{yaoFlowsAdminGuardFlowJson, map[string]*bintree{}},
+		"flows": {nil, map[string]*bintree{
+			"README.md": {yaoFlowsReadmeMd, map[string]*bintree{}},
+			"admin": {nil, map[string]*bintree{
+				"guard.flow.json": {yaoFlowsAdminGuardFlowJson, map[string]*bintree{}},
 			}},
-			"menu.flow.json": &bintree{yaoFlowsMenuFlowJson, map[string]*bintree{}},
-			"user": &bintree{nil, map[string]*bintree{
-				"find.flow.json": &bintree{yaoFlowsUserFindFlowJson, map[string]*bintree{}},
+			"menu.flow.json": {yaoFlowsMenuFlowJson, map[string]*bintree{}},
+			"user": {nil, map[string]*bintree{
+				"find.flow.json": {yaoFlowsUserFindFlowJson, map[string]*bintree{}},
 			}},
 		}},
-		"langs": &bintree{nil, map[string]*bintree{
-			"en-US.json": &bintree{yaoLangsEnUsJson, map[string]*bintree{}},
+		"langs": {nil, map[string]*bintree{
+			"en-US.json": {yaoLangsEnUsJson, map[string]*bintree{}},
 		}},
-		"models": &bintree{nil, map[string]*bintree{
-			"README.md":         &bintree{yaoModelsReadmeMd, map[string]*bintree{}},
-			"menu.mod.json":     &bintree{yaoModelsMenuModJson, map[string]*bintree{}},
-			"user.mod.json":     &bintree{yaoModelsUserModJson, map[string]*bintree{}},
-			"workflow.mod.json": &bintree{yaoModelsWorkflowModJson, map[string]*bintree{}},
+		"models": {nil, map[string]*bintree{
+			"README.md":         {yaoModelsReadmeMd, map[string]*bintree{}},
+			"menu.mod.json":     {yaoModelsMenuModJson, map[string]*bintree{}},
+			"user.mod.json":     {yaoModelsUserModJson, map[string]*bintree{}},
+			"workflow.mod.json": {yaoModelsWorkflowModJson, map[string]*bintree{}},
 		}},
-		"tables": &bintree{nil, map[string]*bintree{
-			"README.md":     &bintree{yaoTablesReadmeMd, map[string]*bintree{}},
-			"menu.tab.json": &bintree{yaoTablesMenuTabJson, map[string]*bintree{}},
-			"user.tab.json": &bintree{yaoTablesUserTabJson, map[string]*bintree{}},
+		"tables": {nil, map[string]*bintree{
+			"README.md":     {yaoTablesReadmeMd, map[string]*bintree{}},
+			"menu.tab.json": {yaoTablesMenuTabJson, map[string]*bintree{}},
+			"user.tab.json": {yaoTablesUserTabJson, map[string]*bintree{}},
 		}},
 	}},
 }}
