@@ -32,3 +32,4 @@ xgen/v0.9/*
 xgen/v1.0/*
 !xgen/v0.9/index.html
 !xgen/v1.0/index.html
+!xgen/v1.0/umi.js
