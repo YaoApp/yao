@@ -6,13 +6,11 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
 )
 
 func init() {
 	gou.RegisterProcessHandler("xiang.user.Captcha", ProcessCaptcha)
 	gou.RegisterProcessHandler("xiang.user.Login", ProcessLogin)
-	gou.AliasProcess("xiang.user.Login", "yao.admin.Login")
 }
 
 // ProcessLogin xiang.user.Login 用户登录
@@ -41,7 +39,6 @@ func ProcessLogin(process *gou.Process) interface{} {
 	if email != "" {
 		return Auth("email", email, password)
 	} else if mobile != "" {
-		utils.Dump(mobile, password)
 		return Auth("mobile", mobile, password)
 	}
 

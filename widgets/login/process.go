@@ -1,0 +1,116 @@
+package login
+
+import (
+	"time"
+
+	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
+	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/user"
+	"golang.org/x/crypto/bcrypt"
+)
+
+var loginTypes = map[string]string{
+	"email":  "email",
+	"mobile": "mobile",
+}
+
+// Export process
+
+func exportProcess() {
+	gou.RegisterProcessHandler("yao.login.admin", processLoginAdmin)
+}
+
+// processLoginAdmin yao.admin.login 用户登录
+func processLoginAdmin(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	payload := process.ArgsMap(0).Dot()
+	log.With(log.F{"payload": payload}).Debug("processLoginAdmin")
+
+	id := any.Of(payload.Get("captcha.id")).CString()
+	value := any.Of(payload.Get("captcha.code")).CString()
+	if id == "" {
+		exception.New("请输入验证码ID", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
+	}
+	if value == "" {
+		exception.New("请输入验证码", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
+	}
+	if !user.ValidateCaptcha(id, value) {
+		log.With(log.F{"id": id, "code": value}).Debug("ProcessLogin")
+		exception.New("验证码不正确", 403).Ctx(maps.Map{"id": id, "code": value}).Throw()
+		return nil
+	}
+
+	email := any.Of(payload.Get("email")).CString()
+	mobile := any.Of(payload.Get("mobile")).CString()
+	password := any.Of(payload.Get("password")).CString()
+	if email != "" {
+		return auth("email", email, password)
+	} else if mobile != "" {
+		return auth("mobile", mobile, password)
+	}
+
+	exception.New("参数错误", 400).Ctx(payload).Throw()
+	return nil
+}
+
+func auth(field string, value string, password string) maps.Map {
+	column, has := loginTypes[field]
+	if !has {
+		exception.New("登录方式(%s)尚未支持", 400, field).Throw()
+	}
+
+	user := gou.Select("xiang.user")
+	rows, err := user.Get(gou.QueryParam{
+		Select: []interface{}{"id", "password", "name", "type", "email", "mobile", "extra"},
+		Limit:  1,
+		Wheres: []gou.QueryWhere{
+			{Column: column, Value: value},
+			{Column: "status", Value: "enabled"},
+		},
+	})
+
+	if err != nil {
+		exception.New("数据库查询错误", 500, field).Throw()
+	}
+
+	if len(rows) == 0 {
+		exception.New("用户不存在(%s)", 404, value).Throw()
+	}
+
+	row := rows[0]
+	passwordHash := row.Get("password").(string)
+	row.Del("password")
+
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	if err != nil {
+		exception.New("登录密码错误", 403, value).Throw()
+	}
+
+	expiresAt := time.Now().Unix() + 3600
+
+	// token := MakeToken(row, expiresAt)
+	sid := session.ID()
+	id := any.Of(row.Get("id")).CInt()
+	token := helper.JwtMake(id, map[string]interface{}{}, map[string]interface{}{
+		"expires_at": expiresAt,
+		"sid":        sid,
+		"issuer":     "xiang",
+	})
+	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user_id", id)
+	session.Global().ID(sid).Set("user", row)
+	session.Global().ID(sid).Set("issuer", "xiang")
+
+	// 读取菜单
+	menus := gou.NewProcess("yao.app.menu").Run()
+	return maps.Map{
+		"expires_at": token.ExpiresAt,
+		"token":      token.Token,
+		"user":       row,
+		"menus":      menus,
+	}
+}
