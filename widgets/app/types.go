@@ -7,6 +7,8 @@ type DSL struct {
 	Version     string      `json:"version,omitempty"`
 	Description string      `json:"description,omitempty"`
 	Theme       string      `json:"theme,omitempty"`
+	Logo        string      `json:"logo,omitempty"`
+	Favicon     string      `json:"favicon,omitempty"`
 	Menu        MenuDSL     `json:"menu,omitempty"`
 	Optional    OptionalDSL `json:"optional,omitempty"`
 }

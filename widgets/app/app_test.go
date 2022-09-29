@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/lang"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -86,7 +87,7 @@ func TestExport(t *testing.T) {
 
 	api, has := gou.APIs["widgets.app"]
 	assert.True(t, has)
-	assert.Equal(t, 2, len(api.HTTP.Paths))
+	assert.Equal(t, 3, len(api.HTTP.Paths))
 
 	_, has = gou.ThirdHandlers["yao.app.setting"]
 	assert.True(t, has)
@@ -132,10 +133,31 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "/x/Table/pet", xgen.Get("login.entry.user"))
 	assert.Equal(t, "/api/__yao/login/user/captcha?type=digit", xgen.Get("login.user.captcha"))
 	assert.Equal(t, "/api/__yao/login/user", xgen.Get("login.user.login"))
+	assert.Equal(t, "/images/login/cover.svg", xgen.Get("login.layout.cover"))
+	assert.Equal(t, "/api/__yao/app/icons/app.ico", xgen.Get("favicon"))
+	assert.Equal(t, "/api/__yao/app/icons/app.png", xgen.Get("logo"))
 	assert.Equal(t, os.Getenv("YAO_ENV"), xgen.Get("mode"))
 	assert.Equal(t, "Demo Application", xgen.Get("name"))
 	assert.Equal(t, true, xgen.Get("optional.hideNotification"))
 	assert.Equal(t, "localStorage", xgen.Get("token"))
+}
+
+func TestProcessMenu(t *testing.T) {
+	loadApp(t)
+	res, err := gou.NewProcess("yao.app.Menu").Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Len(t, res, 2)
+}
+
+func TestProcessIcons(t *testing.T) {
+	loadApp(t)
+	res, err := gou.NewProcess("yao.app.Icons", "app.png").Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Greater(t, len(res.(string)), 10)
 }
 
 func loadApp(t *testing.T) {
@@ -144,6 +166,11 @@ func loadApp(t *testing.T) {
 	lang.Load(config.Conf)
 
 	err := login.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = flow.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,7 +27,7 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "yao.login.Admin", Logins["admin"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
-	assert.Equal(t, "/images/admin-cover.png", Logins["admin"].Layout.Cover)
+	assert.Equal(t, "/images/login/cover.svg", Logins["admin"].Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", Logins["admin"].Layout.Entry)
 	assert.Equal(t, "https://yaoapps.com", Logins["admin"].Layout.Site)
 	assert.Equal(t, "Make Your Dream With Yao App Engine", Logins["admin"].Layout.Slogan)
@@ -37,9 +37,9 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "scripts.user.Login", Logins["user"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["user"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["user"].Layout.Captcha)
-	assert.Equal(t, "/images/user-cover.png", Logins["user"].Layout.Cover)
+	assert.Equal(t, "/images/login/cover.svg", Logins["user"].Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", Logins["user"].Layout.Entry)
-	assert.Equal(t, "https://yaoapps.com/docs", Logins["user"].Layout.Site)
+	assert.Equal(t, "https://yaoapps.com/doc", Logins["user"].Layout.Site)
 	assert.Equal(t, "Make Your Dream With Yao App Engine", Logins["user"].Layout.Slogan)
 }
 
@@ -59,7 +59,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "yao.login.Admin", Logins["admin"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
-	assert.Equal(t, "/images/admin-cover.png", Logins["admin"].Layout.Cover)
+	assert.Equal(t, "/images/login/cover.svg", Logins["admin"].Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", Logins["admin"].Layout.Entry)
 	assert.Equal(t, "https://yaoapps.com", Logins["admin"].Layout.Site)
 	assert.Equal(t, "夢想讓我們與眾不同", Logins["admin"].Layout.Slogan)
@@ -69,9 +69,9 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "scripts.user.Login", Logins["user"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["user"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["user"].Layout.Captcha)
-	assert.Equal(t, "/images/user-cover.png", Logins["user"].Layout.Cover)
+	assert.Equal(t, "/images/login/cover.svg", Logins["user"].Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", Logins["user"].Layout.Entry)
-	assert.Equal(t, "https://yaoapps.com/docs", Logins["user"].Layout.Site)
+	assert.Equal(t, "https://yaoapps.com/doc", Logins["user"].Layout.Site)
 	assert.Equal(t, "夢想讓我們與眾不同", Logins["user"].Layout.Slogan)
 }
 
@@ -91,7 +91,7 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "yao.login.Admin", Logins["admin"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
-	assert.Equal(t, "/images/admin-cover.png", Logins["admin"].Layout.Cover)
+	assert.Equal(t, "/images/login/cover.svg", Logins["admin"].Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", Logins["admin"].Layout.Entry)
 	assert.Equal(t, "https://yaoapps.com", Logins["admin"].Layout.Site)
 	assert.Equal(t, "梦想让我们与众不同", Logins["admin"].Layout.Slogan)
@@ -101,9 +101,9 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "scripts.user.Login", Logins["user"].Action.Process)
 	assert.Equal(t, []string{":payload"}, Logins["user"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["user"].Layout.Captcha)
-	assert.Equal(t, "/images/user-cover.png", Logins["user"].Layout.Cover)
+	assert.Equal(t, "/images/login/cover.svg", Logins["user"].Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", Logins["user"].Layout.Entry)
-	assert.Equal(t, "https://yaoapps.com/docs", Logins["user"].Layout.Site)
+	assert.Equal(t, "https://yaoapps.com/doc", Logins["user"].Layout.Site)
 	assert.Equal(t, "梦想让我们与众不同", Logins["user"].Layout.Slogan)
 }
 
