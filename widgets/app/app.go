@@ -5,12 +5,14 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -52,10 +54,16 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	dsl := &DSL{}
+	dsl := &DSL{Optional: OptionalDSL{}}
 	err = jsoniter.Unmarshal(data, dsl)
 	if err != nil {
-		return nil
+		return err
+	}
+
+	// Replace Admin Root
+	err = dsl.replaceAdminRoot()
+	if err != nil {
+		return err
 	}
 
 	// Apply a language pack
@@ -199,4 +207,21 @@ func (dsl *DSL) Lang(trans func(widget string, inst string, value *string) bool)
 	trans(widget, "app", &dsl.Name)
 	trans(widget, "app", &dsl.Short)
 	trans(widget, "app", &dsl.Description)
+}
+
+// replaceAdminRoot
+func (dsl *DSL) replaceAdminRoot() error {
+
+	if dsl.Optional.AdminRoot == "" {
+		dsl.Optional.AdminRoot = "yao"
+	}
+
+	root := strings.TrimPrefix(dsl.Optional.AdminRoot, "/")
+	root = strings.TrimSuffix(root, "/")
+	err := data.ReplaceXGen("/__yao_admin_root/", fmt.Sprintf("/%s/", root))
+	if err != nil {
+		return err
+	}
+
+	return data.ReplaceXGen("\"__yao_admin_root\"", fmt.Sprintf("\"%s\"", root))
 }
