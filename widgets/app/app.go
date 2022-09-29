@@ -43,6 +43,10 @@ func LoadAndExport(cfg config.Config) error {
 // Load the app DSL
 func Load(cfg config.Config) error {
 
+	if os.Getenv("YAO_LANG") == "" {
+		os.Setenv("YAO_LANG", "en-us")
+	}
+
 	file := filepath.Join(cfg.Root, "app.json")
 	file, err := filepath.Abs(file)
 	if err != nil {
@@ -111,8 +115,9 @@ func exportAPI() error {
 	process = "yao.app.Menu"
 	args := []string{}
 	if Setting.Menu.Process != "" {
-		process = Setting.Menu.Process
-		args = Setting.Menu.Args
+		if Setting.Menu.Args != nil {
+			args = Setting.Menu.Args
+		}
 	}
 
 	path = gou.Path{
@@ -146,7 +151,40 @@ func Export() error {
 func exportProcess() {
 	gou.RegisterProcessHandler("yao.app.setting", processSetting)
 	gou.RegisterProcessHandler("yao.app.xgen", processXgen)
-	gou.AliasProcess("flows.xiang.menu", "yao.app.menu")
+	gou.RegisterProcessHandler("yao.app.menu", processMenu)
+}
+
+func processMenu(process *gou.Process) interface{} {
+
+	if Setting.Menu.Process != "" {
+		return gou.
+			NewProcess(Setting.Menu.Process, process.Args...).
+			WithGlobal(process.Global).
+			WithSID(process.Sid).
+			Run()
+	}
+
+	args := map[string]interface{}{
+		"select": []string{"id", "name", "icon", "parent", "path", "blocks", "visible_menu"},
+		"withs": map[string]interface{}{
+			"children": map[string]interface{}{
+				"query": map[string]interface{}{
+					"select": []string{"id", "name", "icon", "parent", "path", "blocks", "visible_menu"},
+				},
+			},
+		},
+		"wheres": []map[string]interface{}{
+			{"column": "status", "value": "enabled"},
+			{"column": "parent", "op": "null"},
+		},
+		"limit":  200,
+		"orders": []map[string]interface{}{{"column": "rank", "option": "asc"}},
+	}
+	return gou.
+		NewProcess("models.xiang.menu.get", args).
+		WithGlobal(process.Global).
+		WithSID(process.Sid).
+		Run()
 }
 
 func processSetting(process *gou.Process) interface{} {
@@ -191,6 +229,7 @@ func processXgen(process *gou.Process) interface{} {
 	xgenSetting := map[string]interface{}{
 		"name":        Setting.Name,
 		"description": Setting.Description,
+		"theme":       Setting.Theme,
 		"mode":        mode,
 		"apiPrefix":   "__yao",
 		"token":       "localStorage",
