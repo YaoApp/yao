@@ -70,6 +70,9 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Load icons
+	dsl.icons(cfg)
+
 	// Apply a language pack
 	if lang.Default != nil {
 		lang.Default.Apply(dsl)
@@ -131,6 +134,19 @@ func exportAPI() error {
 	}
 	http.Paths = append(http.Paths, path)
 
+	process = "yao.app.Icons"
+	path = gou.Path{
+		Label:       "App Icons",
+		Description: "App Icons",
+		Path:        "/icons/:name",
+		Guard:       "-",
+		Method:      "GET",
+		Process:     process,
+		In:          []string{"$param.name"},
+		Out:         gou.Out{Status: 200},
+	}
+	http.Paths = append(http.Paths, path)
+
 	// api source
 	source, err := jsoniter.Marshal(http)
 	if err != nil {
@@ -152,6 +168,21 @@ func exportProcess() {
 	gou.RegisterProcessHandler("yao.app.setting", processSetting)
 	gou.RegisterProcessHandler("yao.app.xgen", processXgen)
 	gou.RegisterProcessHandler("yao.app.menu", processMenu)
+	gou.RegisterProcessHandler("yao.app.icons", processIcons)
+}
+
+func processIcons(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	name := process.ArgsString(0)
+	file, err := filepath.Abs(filepath.Join(config.Conf.Root, "icons", name))
+	if err != nil {
+		exception.New(err.Error(), 400).Throw()
+	}
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		exception.New(err.Error(), 400).Throw()
+	}
+	return string(content)
 }
 
 func processMenu(process *gou.Process) interface{} {
@@ -211,19 +242,48 @@ func processXgen(process *gou.Process) interface{} {
 	}
 
 	if admin, has := login.Logins["admin"]; has {
+		layout := map[string]interface{}{}
+		if admin.Layout.Site != "" {
+			layout["site"] = admin.Layout.Site
+		}
+
+		if admin.Layout.Slogan != "" {
+			layout["slogan"] = admin.Layout.Slogan
+		}
+
+		if admin.Layout.Cover != "" {
+			layout["cover"] = admin.Layout.Cover
+		}
+
 		xgenLogin["entry"]["admin"] = admin.Layout.Entry
 		xgenLogin["admin"] = map[string]interface{}{
 			"captcha": "/api/__yao/login/admin/captcha?type=digit",
 			"login":   "/api/__yao/login/admin",
+			"layout":  layout,
 		}
 	}
 
 	if user, has := login.Logins["user"]; has {
+		layout := map[string]interface{}{}
+		if user.Layout.Site != "" {
+			layout["site"] = user.Layout.Site
+		}
+
+		if user.Layout.Slogan != "" {
+			layout["slogan"] = user.Layout.Slogan
+		}
+
+		if user.Layout.Cover != "" {
+			layout["cover"] = user.Layout.Cover
+		}
+
 		xgenLogin["entry"]["user"] = user.Layout.Entry
 		xgenLogin["user"] = map[string]interface{}{
 			"captcha": "/api/__yao/login/user/captcha?type=digit",
 			"login":   "/api/__yao/login/user",
+			"layout":  layout,
 		}
+		xgenLogin["layout"] = layout
 	}
 
 	xgenSetting := map[string]interface{}{
@@ -235,6 +295,14 @@ func processXgen(process *gou.Process) interface{} {
 		"token":       "localStorage",
 		"optional":    Setting.Optional,
 		"login":       xgenLogin,
+	}
+
+	if Setting.Logo != "" {
+		xgenSetting["logo"] = Setting.Logo
+	}
+
+	if Setting.Favicon != "" {
+		xgenSetting["favicon"] = Setting.Favicon
 	}
 
 	return xgenSetting
@@ -263,4 +331,18 @@ func (dsl *DSL) replaceAdminRoot() error {
 	}
 
 	return data.ReplaceXGen("\"__yao_admin_root\"", fmt.Sprintf("\"%s\"", root))
+}
+
+// icons
+func (dsl *DSL) icons(cfg config.Config) {
+
+	favicon := filepath.Join(cfg.Root, "icons", "app.ico")
+	if _, err := os.Stat(favicon); err == nil {
+		dsl.Favicon = fmt.Sprintf("/api/__yao/app/icons/app.ico")
+	}
+
+	logo := filepath.Join(cfg.Root, "icons", "app.png")
+	if _, err := os.Stat(logo); err == nil {
+		dsl.Logo = fmt.Sprintf("/api/__yao/app/icons/app.png")
+	}
 }
