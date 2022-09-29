@@ -33,3 +33,4 @@ xgen/v1.0/*
 !xgen/v0.9/index.html
 !xgen/v1.0/index.html
 !xgen/v1.0/umi.js
+!xgen/v1.0/layouts__index.async.js

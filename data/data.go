@@ -39,7 +39,13 @@ func ReplaceXGen(search, replace string) error {
 	if err != nil {
 		return err
 	}
-	return replaceXGenUmi(search, replace)
+
+	err = replaceXGenUmi(search, replace)
+	if err != nil {
+		return err
+	}
+
+	return replaceXGenLayouts(search, replace)
 }
 
 // ReplaceXGenIndex bindata file
@@ -85,5 +91,28 @@ func replaceXGenUmi(search, replace string) error {
 	}
 
 	_xgenV10UmiJs = b.Bytes()
+	return nil
+}
+
+// replaceXGenLayouts bindata file
+func replaceXGenLayouts(search, replace string) error {
+
+	content, err := bindataRead(_xgenV10Layouts__indexAsyncJs, "xgen/v1.0/layouts__index.async.js")
+	if err != nil {
+		return err
+	}
+
+	new := strings.ReplaceAll(string(content), search, replace)
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	if _, err := gz.Write([]byte(new)); err != nil {
+		return err
+	}
+
+	if err := gz.Close(); err != nil {
+		return err
+	}
+
+	_xgenV10Layouts__indexAsyncJs = b.Bytes()
 	return nil
 }
