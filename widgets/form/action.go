@@ -133,8 +133,8 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	switch p.Name {
 	case "yao.form.Save", "yao.form.Create":
 		switch args[0].(type) {
-		case map[string]interface{}:
-			data := args[0].(map[string]interface{})
+		case map[string]interface{}, maps.MapStr:
+			data := any.Of(args[0]).Map().MapStrAny
 			err := form.computeSave(process, data)
 			if err != nil {
 				log.Error("[form] %s %s -> %s %s", form.ID, p.Name, name, err.Error())
@@ -145,8 +145,8 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 
 	case "yao.form.Update":
 		switch args[1].(type) {
-		case map[string]interface{}:
-			data := args[1].(map[string]interface{})
+		case map[string]interface{}, maps.MapStr:
+			data := any.Of(args[1]).Map().MapStrAny
 			err := form.computeSave(process, data)
 			if err != nil {
 				log.Error("[form] %s %s -> %s %s", form.ID, p.Name, name, err.Error())
