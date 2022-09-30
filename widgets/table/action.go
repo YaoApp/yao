@@ -204,8 +204,8 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	switch p.Name {
 	case "yao.table.Save", "yao.table.Create":
 		switch args[0].(type) {
-		case map[string]interface{}:
-			data := args[0].(map[string]interface{})
+		case map[string]interface{}, maps.MapStr:
+			data := any.Of(args[0]).Map().MapStrAny
 			err := tab.computeSave(process, data)
 			if err != nil {
 				log.Error("[table] %s %s -> %s %s", tab.ID, p.Name, name, err.Error())
@@ -216,8 +216,8 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 
 	case "yao.table.Update", "yao.table.UpdateWhere", "yao.table.UpdateIn":
 		switch args[1].(type) {
-		case map[string]interface{}:
-			data := args[1].(map[string]interface{})
+		case map[string]interface{}, maps.MapStr:
+			data := any.Of(args[1]).Map().MapStrAny
 			err := tab.computeSave(process, data)
 			if err != nil {
 				log.Error("[table] %s %s -> %s %s", tab.ID, p.Name, name, err.Error())
