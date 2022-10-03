@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/environment"
 	"github.com/yaoapp/yao/widgets/field"
 )
 
@@ -113,9 +114,9 @@ func LoadFrom(dir string, prefix string) error {
 	messages := []string{}
 	err := share.Walk(dir, ".json", func(root, filename string) {
 		id := prefix + share.ID(root, filename)
-		data := share.ReadFile(filename)
+		data, err := environment.ReadFile(filename)
 		dsl := New(id)
-		err := jsoniter.Unmarshal(data, dsl)
+		err = jsoniter.Unmarshal(data, dsl)
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
 			return
