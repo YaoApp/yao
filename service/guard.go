@@ -6,13 +6,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/table"
+
+	widget_table "github.com/yaoapp/yao/widgets/table"
 )
 
 // Guards 服务中间件
 var Guards = map[string]gin.HandlerFunc{
-	"bearer-jwt":   bearerJWT,   // JWT 鉴权
-	"cross-domain": crossDomain, // 跨域许可
-	"table-guard":  table.Guard, // Table Guard
+	"bearer-jwt":   bearerJWT,          // JWT 鉴权
+	"cross-domain": crossDomain,        // 跨域许可
+	"table-guard":  table.Guard,        // Table Guard
+	"widget-table": widget_table.Guard, // Widget Table Guard
 }
 
 // JWT 鉴权
@@ -20,7 +23,7 @@ func bearerJWT(c *gin.Context) {
 	tokenString := c.Request.Header.Get("Authorization")
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	if tokenString == "" {
-		c.JSON(403, gin.H{"code": 403, "message": "无权访问该页面"})
+		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
 		c.Abort()
 		return
 	}

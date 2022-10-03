@@ -1,10 +1,84 @@
 package table
 
 import (
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/widgets/action"
 )
+
+// Guard table widget guard
+func Guard(c *gin.Context) {
+
+	id := c.Param("id")
+	if id == "" {
+		abort(c, 400, "the table widget id does not found")
+		return
+	}
+
+	tab, has := Tables[id]
+	if !has {
+		abort(c, 404, fmt.Sprintf("the table widget %s does not exist", id))
+		return
+	}
+
+	act, err := tab.getAction(c.FullPath())
+	if err != nil {
+		abort(c, 404, err.Error())
+		return
+	}
+
+	err = act.UseGuard(c, id)
+	if err != nil {
+		abort(c, 400, err.Error())
+		return
+	}
+
+}
+
+func abort(c *gin.Context, code int, message string) {
+	c.JSON(code, gin.H{"code": code, "message": message})
+	c.Abort()
+}
+
+func (table *DSL) getAction(path string) (*action.Process, error) {
+
+	switch path {
+	case "/api/__yao/table/:id/setting":
+		return table.Action.Setting, nil
+	case "/api/__yao/table/:id/component/:xpath/:method":
+		return table.Action.Component, nil
+	case "/api/__yao/table/:id/search":
+		return table.Action.Search, nil
+	case "/api/__yao/table/:id/get":
+		return table.Action.Get, nil
+	case "/api/__yao/table/:id/find/:primary":
+		return table.Action.Find, nil
+	case "/api/__yao/table/:id/save":
+		return table.Action.Save, nil
+	case "/api/__yao/table/:id/create":
+		return table.Action.Create, nil
+	case "/api/__yao/table/:id/insert":
+		return table.Action.Insert, nil
+	case "/api/__yao/table/:id/update/:primary":
+		return table.Action.Update, nil
+	case "/api/__yao/table/:id/update/in":
+		return table.Action.UpdateIn, nil
+	case "/api/__yao/table/:id/update/where":
+		return table.Action.UpdateWhere, nil
+	case "/api/__yao/table/:id/delete/:primary":
+		return table.Action.Delete, nil
+	case "/api/__yao/table/:id/delete/in":
+		return table.Action.DeleteIn, nil
+	case "/api/__yao/table/:id/delete/where":
+		return table.Action.DeleteWhere, nil
+	}
+
+	return nil, fmt.Errorf("the table widget %s %s action does not exist", table.ID, path)
+}
 
 // export API
 func exportAPI() error {
@@ -13,7 +87,7 @@ func exportAPI() error {
 		Name:        "Widget Table API",
 		Description: "Widget Table API",
 		Version:     share.VERSION,
-		Guard:       "-",
+		Guard:       "widget-table",
 		Group:       "__yao/table",
 		Paths:       []gou.Path{},
 	}
