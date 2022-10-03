@@ -52,21 +52,36 @@ func replaceAny(value interface{}, defaults map[string]interface{}) interface{} 
 
 func replaceStr(value string, defaults map[string]interface{}) interface{} {
 
-	if strings.HasPrefix(value, "\\$$ENV.") {
-		return fmt.Sprintf("$ENV.%s", strings.TrimLeft(value, "\\$$ENV."))
+	v := strings.TrimSpace(value)
+	if strings.HasPrefix(v, "\\$$ENV.") {
+		return fmt.Sprintf("$ENV.%s", strings.TrimLeft(v, "\\$$ENV."))
 	}
 
-	if !strings.HasPrefix(value, "$ENV.") {
+	if !strings.HasPrefix(v, "$ENV.") {
 		return value
 	}
 
-	name := strings.TrimLeft(value, "$ENV.")
+	return getEnv(v, defaults)
+}
+
+func getEnv(value string, defaults map[string]interface{}) interface{} {
+
+	vars := strings.Split(value, "||")
+	name := strings.TrimLeft(strings.TrimSpace(vars[0]), "$ENV.")
 	v := os.Getenv(name)
 	if v != "" {
 		return v
 	}
 
-	return defaults[name]
+	if len(vars) > 1 {
+		v = strings.TrimSpace(vars[1])
+	}
+
+	if v == "" {
+		return defaults[name]
+	}
+
+	return v
 }
 
 func replaceMap(values map[string]interface{}, defaults map[string]interface{}) map[string]interface{} {
