@@ -41,6 +41,7 @@ env:
   TAB_NAME: "::PET ADMIN"
   PAGE_SIZE: "20"
   PAGE_LINK: "https://yaoapps.com"
+  PAGE_ICON: "icon-trash"
 
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
