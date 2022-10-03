@@ -14,59 +14,73 @@ var processActionDefaults = map[string]*action.Process{
 
 	"Setting": {
 		Name:    "yao.table.Setting",
+		Guard:   "bearer-jwt",
 		Process: "yao.table.Xgen",
 		Default: []interface{}{nil},
 	},
 	"Component": {
 		Name:    "yao.table.Component",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil, nil},
 	},
 	"Search": {
 		Name:    "yao.table.Search",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, 1, 20},
 	},
 	"Get": {
 		Name:    "yao.table.Get",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil},
 	},
 	"Find": {
 		Name:    "yao.table.Find",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil},
 	},
 	"Save": {
 		Name:    "yao.table.Save",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil},
 	},
 	"Create": {
 		Name:    "yao.table.Create",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil},
 	},
 	"Insert": {
 		Name:    "yao.table.Insert",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil},
 	},
 	"Update": {
 		Name:    "yao.table.Update",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil},
 	},
 	"UpdateWhere": {
 		Name:    "yao.table.UpdateWhere",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil},
 	},
 	"UpdateIn": {
 		Name:    "yao.table.UpdateIn",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil},
 	},
 	"Delete": {
 		Name:    "yao.table.Delete",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil},
 	},
 	"DeleteWhere": {
 		Name:    "yao.table.DeleteWhere",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil},
 	},
 	"DeleteIn": {
 		Name:    "yao.table.DeleteIn",
+		Guard:   "bearer-jwt",
 		Default: []interface{}{nil},
 	},
 }

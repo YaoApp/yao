@@ -1,15 +1,15 @@
 package table
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/lang"
+	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/script"
-	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/widgets/app"
+	"github.com/yaoapp/yao/widgets/test"
 )
 
 func TestLoad(t *testing.T) {
@@ -24,18 +24,13 @@ func TestLoad(t *testing.T) {
 
 func prepare(t *testing.T, language ...string) {
 
-	// langs
-	if len(language) < 1 {
-		os.Unsetenv("YAO_LANG")
-	} else {
-		os.Setenv("YAO_LANG", language[0])
+	err := test.LoadEngine(language...)
+	if err != nil {
+		t.Fatal(err)
 	}
-	lang.Load(config.Conf)
-
-	share.DBConnect(config.Conf.DB) // removed later
 
 	// load scripts
-	err := script.Load(config.Conf)
+	err = script.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +41,17 @@ func prepare(t *testing.T, language ...string) {
 		t.Fatal(err)
 	}
 
-	// load scripts
+	// load flows
+	err = flow.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// load app widget
+	err = app.LoadAndExport(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// export
 	err = Export()
