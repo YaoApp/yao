@@ -42,6 +42,10 @@ env:
   MONGO_TEST_USER: "root"
   MONGO_TEST_PASS: "123456"
 
+  TAB_NAME: "::PET ADMIN"
+  PAGE_SIZE: "20"
+  PAGE_LINK: "https://yaoapps.com"
+
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
 jobs:
