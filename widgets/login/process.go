@@ -66,7 +66,7 @@ func auth(field string, value string, password string) maps.Map {
 
 	user := gou.Select("xiang.user")
 	rows, err := user.Get(gou.QueryParam{
-		Select: []interface{}{"id", "password", "name", "type", "email", "mobile", "extra"},
+		Select: []interface{}{"id", "password", "name", "type", "email", "mobile", "extra", "status"},
 		Limit:  1,
 		Wheres: []gou.QueryWhere{
 			{Column: column, Value: value},

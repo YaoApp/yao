@@ -30,18 +30,17 @@ var processActionDefaults = map[string]*action.Process{
 // SetDefaultProcess set the default value of action
 func (act *ActionDSL) SetDefaultProcess() {
 
-	act.Setting = action.NewProcess("Setting", act.Setting).
-		SetDefault(processActionDefaults).
+	act.Setting = action.ProcessOf(act.Setting).
+		Merge(processActionDefaults["Setting"]).
 		SetHandler(processHandler)
 
-	act.Component = action.NewProcess("Component", act.Component).
-		SetDefault(processActionDefaults).
+	act.Component = action.ProcessOf(act.Component).
+		Merge(processActionDefaults["Component"]).
 		SetHandler(processHandler)
 
-	act.Data = action.NewProcess("Data", act.Data).
-		WithBefore(act.BeforeData).
-		WithAfter(act.AfterData).
-		SetDefault(processActionDefaults).
+	act.Data = action.ProcessOf(act.Data).
+		WithBefore(act.BeforeData).WithAfter(act.AfterData).
+		Merge(processActionDefaults["Data"]).
 		SetHandler(processHandler)
 
 }

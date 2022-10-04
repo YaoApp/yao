@@ -46,6 +46,40 @@ func TestAPISetting(t *testing.T) {
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 }
 
+func TestAPISearch(t *testing.T) {
+	port := start(t)
+	defer test.Stop(func() {})
+
+	req := test.NewRequest(port).Route("/api/__yao/table/session/search")
+	res, err := req.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 403, res.Status())
+
+	req = test.NewRequest(port).Route("/api/__yao/table/session/search").Token(token(t))
+	res, err = req.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 200, res.Status())
+	resp, err := res.Map()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := any.Of(resp).MapStr().Dot()
+	assert.Equal(t, "20", fmt.Sprintf("%v", data.Get("pagesize")))
+	assert.Equal(t, "3", fmt.Sprintf("%v", data.Get("total")))
+	assert.Equal(t, "#FF0000", data.Get("data.0.status.color"))
+	assert.Equal(t, "status", data.Get("data.0.status.field"))
+	assert.Equal(t, "checked", data.Get("data.0.status.label"))
+	assert.Equal(t, "Cookie", data.Get("data.0.status.name"))
+	assert.Equal(t, "enabled", data.Get("data.0.mode"))
+	assert.Equal(t, "1", fmt.Sprintf("%v", data.Get("data.0.doctor_id")))
+
+}
+
 func TestAPISave(t *testing.T) {
 	port := start(t)
 	defer test.Stop(func() {})

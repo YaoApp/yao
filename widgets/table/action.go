@@ -88,73 +88,73 @@ var processActionDefaults = map[string]*action.Process{
 // SetDefaultProcess set the default value of action
 func (act *ActionDSL) SetDefaultProcess() {
 
-	act.Setting = action.NewProcess("Setting", act.Setting).
-		SetDefault(processActionDefaults).
+	act.Setting = action.ProcessOf(act.Setting).
+		Merge(processActionDefaults["Setting"]).
 		SetHandler(processHandler)
 
-	act.Component = action.NewProcess("Component", act.Component).
-		SetDefault(processActionDefaults).
+	act.Component = action.ProcessOf(act.Component).
+		Merge(processActionDefaults["Component"]).
 		SetHandler(processHandler)
 
-	act.Search = action.NewProcess("Search", act.Search).
+	act.Search = action.ProcessOf(act.Search).
 		WithBefore(act.BeforeSearch).WithAfter(act.AfterSearch).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Search"]).
 		SetHandler(processHandler)
 
-	act.Get = action.NewProcess("Get", act.Get).
+	act.Get = action.ProcessOf(act.Get).
 		WithBefore(act.BeforeGet).WithAfter(act.AfterGet).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Get"]).
 		SetHandler(processHandler)
 
-	act.Find = action.NewProcess("Find", act.Find).
+	act.Find = action.ProcessOf(act.Find).
 		WithBefore(act.BeforeFind).
 		WithAfter(act.AfterFind).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Find"]).
 		SetHandler(processHandler)
 
-	act.Save = action.NewProcess("Save", act.Save).
+	act.Save = action.ProcessOf(act.Save).
 		WithBefore(act.BeforeSave).WithAfter(act.AfterSave).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Save"]).
 		SetHandler(processHandler)
 
-	act.Create = action.NewProcess("Create", act.Create).
+	act.Create = action.ProcessOf(act.Create).
 		WithBefore(act.BeforeCreate).WithAfter(act.AfterCreate).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Create"]).
 		SetHandler(processHandler)
 
-	act.Insert = action.NewProcess("Insert", act.Insert).
+	act.Insert = action.ProcessOf(act.Insert).
 		WithBefore(act.BeforeInsert).WithAfter(act.AfterInsert).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Insert"]).
 		SetHandler(processHandler)
 
-	act.Update = action.NewProcess("Update", act.Update).
+	act.Update = action.ProcessOf(act.Update).
 		WithBefore(act.BeforeUpdate).WithAfter(act.AfterUpdate).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Update"]).
 		SetHandler(processHandler)
 
-	act.UpdateWhere = action.NewProcess("UpdateWhere", act.UpdateWhere).
+	act.UpdateWhere = action.ProcessOf(act.UpdateWhere).
 		WithBefore(act.BeforeUpdateWhere).WithAfter(act.AfterUpdateWhere).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["UpdateWhere"]).
 		SetHandler(processHandler)
 
-	act.UpdateIn = action.NewProcess("UpdateIn", act.UpdateIn).
+	act.UpdateIn = action.ProcessOf(act.UpdateIn).
 		WithBefore(act.BeforeUpdateIn).WithAfter(act.AfterUpdateIn).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["UpdateIn"]).
 		SetHandler(processHandler)
 
-	act.Delete = action.NewProcess("Delete", act.Delete).
+	act.Delete = action.ProcessOf(act.Delete).
 		WithBefore(act.BeforeDelete).WithAfter(act.AfterDelete).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["Delete"]).
 		SetHandler(processHandler)
 
-	act.DeleteWhere = action.NewProcess("DeleteWhere", act.DeleteWhere).
+	act.DeleteWhere = action.ProcessOf(act.DeleteWhere).
 		WithBefore(act.BeforeDeleteWhere).WithAfter(act.AfterDeleteWhere).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["DeleteWhere"]).
 		SetHandler(processHandler)
 
-	act.DeleteIn = action.NewProcess("DeleteIn", act.DeleteIn).
+	act.DeleteIn = action.ProcessOf(act.DeleteIn).
 		WithBefore(act.BeforeDeleteIn).WithAfter(act.AfterDeleteIn).
-		SetDefault(processActionDefaults).
+		Merge(processActionDefaults["DeleteIn"]).
 		SetHandler(processHandler)
 }
 
@@ -177,9 +177,9 @@ func (act *ActionDSL) BindModel(m *gou.Model) {
 
 	// bind options
 	if act.Bind.Option != nil {
-		act.Search.Default[0] = act.Bind.Option
-		act.Get.Default[0] = act.Bind.Option
-		act.Find.Default[1] = act.Bind.Option
+		act.Search.DefaultMerge([]interface{}{act.Bind.Option})
+		act.Get.DefaultMerge([]interface{}{act.Bind.Option})
+		act.Find.DefaultMerge([]interface{}{nil, act.Bind.Option})
 	}
 }
 
