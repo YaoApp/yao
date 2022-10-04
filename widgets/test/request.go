@@ -190,7 +190,7 @@ func (p *Response) To(v interface{}) error {
 func AutoLogin(id int) (map[string]interface{}, error) {
 
 	user := gou.Select("xiang.user")
-	row, err := user.Find(id, gou.QueryParam{Select: []interface{}{"id", "password", "name", "type", "email", "mobile", "extra"}})
+	row, err := user.Find(id, gou.QueryParam{Select: []interface{}{"id", "name", "type", "email", "mobile", "extra", "status"}})
 	if err != nil {
 		return nil, err
 	}
