@@ -48,6 +48,11 @@ func ReplaceXGen(search, replace string) error {
 	return replaceXGenLayouts(search, replace)
 }
 
+// Read file from bin
+func Read(name string) ([]byte, error) {
+	return Asset(name)
+}
+
 // ReplaceXGenIndex bindata file
 func replaceXGenIndex(search, replace string) error {
 

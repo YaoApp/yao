@@ -1,0 +1,558 @@
+{
+  "variables": {
+    "color": { "primary": "#FFEE00" }
+  },
+
+  "aliases": {
+    "string": "default",
+    "char": "default",
+    "mediumText": "text",
+    "longText": "text",
+    "binary": "text",
+    "datetimeTz": "datetime",
+    "timeTz": "time",
+    "timestampTz": "timestamp",
+    "tinyInteger": "integer",
+    "tinyIncrements": "integer",
+    "unsignedTinyInteger": "integer",
+    "smallInteger": "integer",
+    "smallIncrements": "integer",
+    "bigInteger": "integer",
+    "bigIncrements": "integer",
+    "unsignedBigInteger": "unsignedInteger",
+    "unsignedSmallInteger": "unsignedInteger",
+    "ID": "id",
+    "increments": "id",
+    "decimal": "float",
+    "double": "float",
+    "unsignedDecimal": "unsignedFloat",
+    "unsignedDouble": "unsignedFloat",
+    "JSON": "json",
+    "jsonb": "json",
+    "JSONB": "json",
+    "uuid": "default",
+    "ipAddress": "default",
+    "macAddress": "default"
+  },
+
+  "fields": {
+    "default": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "Input",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "Input",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Text",
+          "props": {}
+        },
+        "edit": {
+          "type": "Input",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      }
+    },
+
+    "enum": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.eq",
+        "edit": {
+          "type": "Select",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "options": "$.SelectOption{option}"
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "Select",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "options": "$.SelectOption{option}"
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "in": "TagEdit",
+        "out": "TagView",
+        "view": { "type": "Tag", "props": { "pure": true } },
+        "edit": {
+          "type": "Select",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "options": "$.SelectOption{option}"
+          }
+        }
+      }
+    },
+
+    "text": {
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "TextArea",
+          "props": {
+            "placeholder": "::please input ${label || comment}",
+            "autoSize": { "minRows": 2, "maxRows": 6 }
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Tooltip",
+          "props": { "title": "${label || comment}" }
+        },
+        "edit": {
+          "type": "TextArea",
+          "props": {
+            "placeholder": "::please input ${label || comment}",
+            "autoSize": { "minRows": 2, "maxRows": 6 }
+          }
+        }
+      }
+    },
+
+    "time": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.eq",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "time"
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "time"
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": { "type": "Text", "props": {} },
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "time"
+          }
+        }
+      }
+    },
+    "year": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.eq",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "year"
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "year"
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": { "type": "Text", "props": {} },
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "year"
+          }
+        }
+      }
+    },
+    "date": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.eq",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "date"
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "date"
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": { "type": "Text", "props": {} },
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "picker": "date"
+          }
+        }
+      }
+    },
+    "datetime": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.eq",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "showTime": { "format": "HH:mm:ss" }
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "showTime": { "format": "HH:mm:ss" }
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": { "type": "Text", "props": {} },
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "showTime": { "format": "HH:mm:ss" }
+          }
+        }
+      }
+    },
+    "timestamp": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.eq",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "showTime": { "format": "HH:mm:ss" }
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "showTime": { "format": "HH:mm:ss" }
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": { "type": "Text", "props": {} },
+        "edit": {
+          "type": "DatePicker",
+          "props": {
+            "placeholder": "::please select ${label || comment}",
+            "showTime": { "format": "HH:mm:ss" }
+          }
+        }
+      }
+    },
+
+    "integer": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Text",
+          "props": {}
+        },
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      }
+    },
+    "unsignedInteger": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Text",
+          "props": {}
+        },
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      }
+    },
+
+    "id": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "InputNumber",
+          "props": {
+            "placeholder": "::please input ${label || comment}",
+            "disabled": true
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Text",
+          "props": {}
+        },
+        "edit": {
+          "type": "InputNumber",
+          "props": {
+            "placeholder": "::please input ${label || comment}",
+            "disabled": true
+          }
+        }
+      }
+    },
+
+    "float": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "InputNumber",
+          "props": {
+            "placeholder": "::please input ${label || comment}"
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Text",
+          "props": {}
+        },
+        "edit": {
+          "type": "InputNumber",
+          "props": {
+            "placeholder": "::please input ${label || comment}"
+          }
+        }
+      }
+    },
+
+    "unsignedFloat": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "InputNumber",
+          "props": { "placeholder": "::please input ${label || comment}" }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "InputNumber",
+          "props": {
+            "placeholder": "::please input ${label || comment}"
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Text",
+          "props": {}
+        },
+        "edit": {
+          "type": "InputNumber",
+          "props": {
+            "placeholder": "::please input ${label || comment}"
+          }
+        }
+      }
+    },
+
+    "boolean": {
+      "filter": {
+        "key": "${label || comment || name}",
+        "bind": "where.${name}.match",
+        "edit": {
+          "type": "RadioGroup",
+          "props": {
+            "options": [
+              { "label": "::Enable", "value": 1 },
+              { "label": "::Disable", "value": 0 }
+            ]
+          }
+        }
+      },
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "RadioGroup",
+          "props": {
+            "options": [
+              { "label": "::Enable", "value": 1 },
+              { "label": "::Disable", "value": 0 }
+            ]
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Switch",
+          "props": {
+            "checkedValue": 1,
+            "unCheckedValue": 0,
+            "checkedChildren": "::Enable",
+            "unCheckedChildren": "::Disable"
+          }
+        }
+      }
+    },
+
+    "json": {
+      "form": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "edit": {
+          "type": "TextArea",
+          "props": {
+            "placeholder": "::please input ${label || comment}",
+            "autoSize": { "minRows": 2, "maxRows": 6 }
+          }
+        }
+      },
+      "table": {
+        "key": "${label || comment || name}",
+        "bind": "${name}",
+        "view": {
+          "type": "Tooltip",
+          "props": { "title": "${label || comment}" }
+        },
+        "edit": {
+          "type": "TextArea",
+          "props": {
+            "placeholder": "::please input ${label || comment}",
+            "autoSize": { "minRows": 2, "maxRows": 6 }
+          }
+        }
+      }
+    }
+  }
+}

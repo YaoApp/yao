@@ -5,11 +5,51 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/widgets/component"
 )
 
 // BindModel bind model
-func (layout *LayoutDSL) BindModel(m *gou.Model) {
-	layout.Primary = m.PrimaryKey
+func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) {
+
+	if layout.Primary == "" {
+		layout.Primary = m.PrimaryKey
+	}
+
+	if layout.Filter == nil && len(fields.Filter) > 0 {
+
+		layout.Filter = &FilterLayoutDSL{
+			BtnAddText: "::Create",
+			Columns:    component.Instances{},
+		}
+		max := 3
+		curr := 0
+		for name := range fields.Filter {
+			curr++
+			if curr >= max {
+				break
+			}
+			layout.Filter.Columns = append(layout.Filter.Columns, component.InstanceDSL{
+				Name: name,
+			})
+		}
+	}
+
+	if layout.Table == nil && len(fields.Table) > 0 {
+		layout.Table = &ViewLayoutDSL{
+			Props:   component.PropsDSL{},
+			Columns: component.Instances{},
+			Operation: OperationTableDSL{
+				Fold:    false,
+				Actions: component.Actions{},
+			},
+		}
+		for name := range fields.Table {
+			layout.Table.Columns = append(layout.Table.Columns, component.InstanceDSL{
+				Name: name,
+			})
+		}
+	}
+
 }
 
 // Xgen trans to Xgen setting

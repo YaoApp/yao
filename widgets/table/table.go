@@ -128,7 +128,12 @@ func LoadFrom(dir string, prefix string) error {
 		dsl.Action.SetDefaultProcess()
 
 		if dsl.Layout == nil {
-			dsl.Layout = &LayoutDSL{}
+			dsl.Layout = &LayoutDSL{
+				Header: &HeaderLayoutDSL{
+					Preset:  &PresetHeaderDSL{},
+					Actions: []component.ActionDSL{},
+				},
+			}
 		}
 
 		if dsl.Fields == nil {
@@ -228,7 +233,7 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	fields, err := dsl.Fields.Xgen()
+	fields, err := dsl.Fields.Xgen(dsl.Layout)
 	if err != nil {
 		return nil, err
 	}
@@ -247,5 +252,6 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		}
 	}
 
+	setting["name"] = dsl.Name
 	return setting, nil
 }

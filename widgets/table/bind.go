@@ -36,9 +36,13 @@ func (dsl *DSL) bindModel() error {
 		return fmt.Errorf("%s does not exist", id)
 	}
 
+	err := dsl.Fields.BindModel(m)
+	if err != nil {
+		return err
+	}
+
 	dsl.Action.BindModel(m)
-	dsl.Fields.BindModel(m)
-	dsl.Layout.BindModel(m)
+	dsl.Layout.BindModel(m, dsl.Fields)
 	return nil
 }
 

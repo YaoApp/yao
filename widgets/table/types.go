@@ -81,7 +81,7 @@ type LayoutDSL struct {
 // HeaderLayoutDSL layout.header
 type HeaderLayoutDSL struct {
 	Preset  *PresetHeaderDSL      `json:"preset,omitempty"`
-	Actions []component.ActionDSL `json:"actions,omitempty"`
+	Actions []component.ActionDSL `json:"actions"`
 }
 
 // PresetHeaderDSL layout.header.preset
@@ -124,7 +124,7 @@ type ViewLayoutDSL struct {
 // OperationTableDSL layout.table.operation
 type OperationTableDSL struct {
 	Fold    bool              `json:"fold,omitempty"`
-	Actions component.Actions `json:"actions,omitempty"`
+	Actions component.Actions `json:"actions"`
 }
 
 // FieldsDSL the table fields DSL

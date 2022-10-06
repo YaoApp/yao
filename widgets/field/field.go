@@ -1,73 +1,53 @@
 package field
 
 import (
-	"github.com/yaoapp/yao/widgets/component"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
 )
 
-// CPropsMerge merge the Filters cloud props
-func (filters Filters) CPropsMerge(cloudProps map[string]component.CloudPropsDSL, getXpath func(name string, filter FilterDSL) (xpath string)) error {
+// LoadAndExport load table
+func LoadAndExport(cfg config.Config) error {
 
-	for name, filter := range filters {
-		if filter.Edit != nil && filter.Edit.Props != nil {
-			xpath := getXpath(name, filter)
-			cProps, err := filter.Edit.Props.CloudProps(xpath)
-			if err != nil {
-				return err
-			}
-			mergeCProps(cloudProps, cProps)
+	if os.Getenv("YAO_DEV") != "" {
+		file := filepath.Join(os.Getenv("YAO_DEV"), "yao", "fields", "model.trans.json")
+		source, err := ioutil.ReadFile(file)
+		if err != nil {
+			return err
 		}
+		_, err = OpenTransform(source, "model")
+		if err != nil {
+			return err
+		}
+	}
+
+	source, err := data.Read(filepath.Join("yao", "fields", "model.trans.json"))
+	if err != nil {
+		return err
+	}
+
+	_, err = OpenTransform(source, "model")
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-// CPropsMerge merge the Columns cloud props
-func (columns Columns) CPropsMerge(cloudProps map[string]component.CloudPropsDSL, getXpath func(name string, kind string, column ColumnDSL) (xpath string)) error {
-
-	for name, column := range columns {
-
-		if column.Edit != nil && column.Edit.Props != nil {
-			xpath := getXpath(name, "edit", column)
-			cProps, err := column.Edit.Props.CloudProps(xpath)
-			if err != nil {
-				return err
-			}
-			mergeCProps(cloudProps, cProps)
-		}
-
-		if column.View != nil && column.View.Props != nil {
-			xpath := getXpath(name, "view", column)
-			cProps, err := column.View.Props.CloudProps(xpath)
-			if err != nil {
-				return err
-			}
-			mergeCProps(cloudProps, cProps)
-		}
+// SelectTransform select a transform via name
+func SelectTransform(name string) (*Transform, error) {
+	trans, has := Transforms[name]
+	if !has {
+		return nil, fmt.Errorf("%s does not found", name)
 	}
-
-	return nil
+	return trans, nil
 }
 
-// ComputeFieldsMerge merge the compute fields
-func (columns Columns) ComputeFieldsMerge(computeInFields map[string]string, computeOutFields map[string]string) {
-	for name, column := range columns {
-
-		// Compute In
-		if column.In != "" {
-			computeInFields[column.Bind] = column.In
-			computeInFields[name] = column.In
-		}
-
-		// Compute Out
-		if column.Out != "" {
-			computeOutFields[column.Bind] = column.Out
-			computeOutFields[name] = column.Out
-		}
-	}
-}
-
-func mergeCProps(cloudProps map[string]component.CloudPropsDSL, cProps map[string]component.CloudPropsDSL) {
-	for k, v := range cProps {
-		cloudProps[k] = v
-	}
+// ModelTransform select model transform via name
+func ModelTransform() (*Transform, error) {
+	return SelectTransform("model")
 }
