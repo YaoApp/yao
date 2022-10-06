@@ -4,6 +4,9 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/widgets/app"
 	"github.com/yaoapp/yao/widgets/chart"
+	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/expression"
+	"github.com/yaoapp/yao/widgets/field"
 	"github.com/yaoapp/yao/widgets/form"
 	"github.com/yaoapp/yao/widgets/login"
 	"github.com/yaoapp/yao/widgets/table"
@@ -12,8 +15,26 @@ import (
 // Load the widgets
 func Load(cfg config.Config) error {
 
+	// load expression
+	err := expression.Export()
+	if err != nil {
+		return err
+	}
+
+	// load component
+	err = component.Export()
+	if err != nil {
+		return err
+	}
+
+	// load field transform
+	err = field.LoadAndExport(config.Conf)
+	if err != nil {
+		return err
+	}
+
 	// login widget
-	err := login.LoadAndExport(cfg)
+	err = login.LoadAndExport(cfg)
 	if err != nil {
 		return err
 	}
