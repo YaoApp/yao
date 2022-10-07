@@ -28,6 +28,33 @@ func (filter FilterDSL) Replace(data map[string]interface{}) (*FilterDSL, error)
 	return &new, nil
 }
 
+// Trans trans
+func (filter *FilterDSL) Trans(widgetName string, inst string, trans func(widget string, inst string, value *string) bool) bool {
+	res := false
+	if filter.Edit != nil {
+		if filter.Edit.Trans(widgetName, inst, trans) {
+			res = true
+		}
+	}
+	return res
+}
+
+// Trans column trans
+func (filters Filters) Trans(widgetName string, inst string, trans func(widget string, inst string, value *string) bool) bool {
+	res := false
+	for key, filter := range filters {
+		if trans(widgetName, inst, &key) {
+			res = true
+		}
+		newPtr := &filter
+		if newPtr.Trans(widgetName, inst, trans) {
+			res = true
+		}
+		filters[key] = *newPtr
+	}
+	return res
+}
+
 // Map cast to map[string]inteface{}
 func (filter FilterDSL) Map() map[string]interface{} {
 	res := map[string]interface{}{

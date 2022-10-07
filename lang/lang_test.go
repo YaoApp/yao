@@ -11,6 +11,9 @@ import (
 
 func TestLoad(t *testing.T) {
 	share.DBConnect(config.Conf.DB)
-	Load(config.Conf)
+	err := Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	assert.Len(t, lang.Dicts, 2)
 }

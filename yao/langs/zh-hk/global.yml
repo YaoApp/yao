@@ -1,0 +1,42 @@
+Start Engine: "啟動像傳應用引擎"
+One or more arguments are not correct: "參數錯誤"
+Application directory: "指定應用路徑"
+Environment file: "指定環境變量文件"
+Help for yao: "顯示命令幫助文檔"
+Show app configure: "顯示應用配置信息"
+Update database schema: "更新數據表結構"
+Execute process: "運行處理器"
+Show version: "顯示當前版本號"
+Development mode: "使用開發模式啟動"
+Enabled unstable features: "啟用內測功能"
+"Fatal: %s": "失敗: %s"
+Service stopped: "服務已關閉"
+API: " API接口"
+API List: "API列表"
+Root: "應用目錄"
+Frontend: "前台地址"
+Dashboard: "管理後台"
+Not enough arguments: "參數錯誤: 缺少參數"
+"Run: %s": "運行: %s"
+"Arguments: %s": "參數錯誤: %s"
+"%s Response": "%s 返回結果"
+"Update schema model: %s (%s) ": "更新表結構 model: %s (%s)"
+Model name: "模型名稱"
+Initialize project: "項目初始化"
+✨DONE✨: "✨完成✨"
+"NEXT:": "下一步:"
+Listening: "    監聽"
+✨LISTENING✨: "✨服務正在運行✨"
+✨STOPPED✨: "✨服務已停止✨"
+SessionPort: "會話服務端口"
+Force migrate: "強制更新數據表結構"
+Migrate is not allowed on production mode.: "Migrate 不能再生產環境下使用"
+Create: 創建
+Edit: 編輯
+View: 查看
+please input: 請輸入
+Please input: 請輸入
+please select: 請選擇
+Please select: 請選擇
+Enable: 開啟
+Disable: 關閉

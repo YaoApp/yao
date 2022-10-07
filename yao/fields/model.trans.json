@@ -42,7 +42,7 @@
         "bind": "where.${name}.match",
         "edit": {
           "type": "Input",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "form": {
@@ -50,7 +50,7 @@
         "bind": "${name}",
         "edit": {
           "type": "Input",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "table": {
@@ -62,7 +62,7 @@
         },
         "edit": {
           "type": "Input",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       }
     },
@@ -74,7 +74,7 @@
         "edit": {
           "type": "Select",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "options": "$.SelectOption{option}"
           }
         }
@@ -85,7 +85,7 @@
         "edit": {
           "type": "Select",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "options": "$.SelectOption{option}"
           }
         }
@@ -99,7 +99,7 @@
         "edit": {
           "type": "Select",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "options": "$.SelectOption{option}"
           }
         }
@@ -113,7 +113,7 @@
         "edit": {
           "type": "TextArea",
           "props": {
-            "placeholder": "::please input ${label || comment}",
+            "placeholder": "$L(please input) ${label || comment}",
             "autoSize": { "minRows": 2, "maxRows": 6 }
           }
         }
@@ -128,7 +128,7 @@
         "edit": {
           "type": "TextArea",
           "props": {
-            "placeholder": "::please input ${label || comment}",
+            "placeholder": "$L(please input) ${label || comment}",
             "autoSize": { "minRows": 2, "maxRows": 6 }
           }
         }
@@ -142,7 +142,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "time"
           }
         }
@@ -153,7 +153,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "time"
           }
         }
@@ -165,7 +165,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "time"
           }
         }
@@ -178,7 +178,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "year"
           }
         }
@@ -189,7 +189,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "year"
           }
         }
@@ -201,7 +201,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "year"
           }
         }
@@ -214,7 +214,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "date"
           }
         }
@@ -225,7 +225,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "date"
           }
         }
@@ -237,7 +237,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "picker": "date"
           }
         }
@@ -250,7 +250,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "showTime": { "format": "HH:mm:ss" }
           }
         }
@@ -261,7 +261,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "showTime": { "format": "HH:mm:ss" }
           }
         }
@@ -273,7 +273,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "showTime": { "format": "HH:mm:ss" }
           }
         }
@@ -286,7 +286,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "showTime": { "format": "HH:mm:ss" }
           }
         }
@@ -297,7 +297,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "showTime": { "format": "HH:mm:ss" }
           }
         }
@@ -309,7 +309,7 @@
         "edit": {
           "type": "DatePicker",
           "props": {
-            "placeholder": "::please select ${label || comment}",
+            "placeholder": "$L(please select) ${label || comment}",
             "showTime": { "format": "HH:mm:ss" }
           }
         }
@@ -322,7 +322,7 @@
         "bind": "where.${name}.match",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "form": {
@@ -330,7 +330,7 @@
         "bind": "${name}",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "table": {
@@ -342,7 +342,7 @@
         },
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       }
     },
@@ -352,7 +352,7 @@
         "bind": "where.${name}.match",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "form": {
@@ -360,7 +360,7 @@
         "bind": "${name}",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "table": {
@@ -372,7 +372,7 @@
         },
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       }
     },
@@ -383,7 +383,7 @@
         "bind": "where.${name}.match",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "form": {
@@ -392,7 +392,7 @@
         "edit": {
           "type": "InputNumber",
           "props": {
-            "placeholder": "::please input ${label || comment}",
+            "placeholder": "$L(please input) ${label || comment}",
             "disabled": true
           }
         }
@@ -407,7 +407,7 @@
         "edit": {
           "type": "InputNumber",
           "props": {
-            "placeholder": "::please input ${label || comment}",
+            "placeholder": "$L(please input) ${label || comment}",
             "disabled": true
           }
         }
@@ -420,7 +420,7 @@
         "bind": "where.${name}.match",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "form": {
@@ -429,7 +429,7 @@
         "edit": {
           "type": "InputNumber",
           "props": {
-            "placeholder": "::please input ${label || comment}"
+            "placeholder": "$L(please input) ${label || comment}"
           }
         }
       },
@@ -443,7 +443,7 @@
         "edit": {
           "type": "InputNumber",
           "props": {
-            "placeholder": "::please input ${label || comment}"
+            "placeholder": "$L(please input) ${label || comment}"
           }
         }
       }
@@ -455,7 +455,7 @@
         "bind": "where.${name}.match",
         "edit": {
           "type": "InputNumber",
-          "props": { "placeholder": "::please input ${label || comment}" }
+          "props": { "placeholder": "$L(please input) ${label || comment}" }
         }
       },
       "form": {
@@ -464,7 +464,7 @@
         "edit": {
           "type": "InputNumber",
           "props": {
-            "placeholder": "::please input ${label || comment}"
+            "placeholder": "$L(please input) ${label || comment}"
           }
         }
       },
@@ -478,7 +478,7 @@
         "edit": {
           "type": "InputNumber",
           "props": {
-            "placeholder": "::please input ${label || comment}"
+            "placeholder": "$L(please input) ${label || comment}"
           }
         }
       }
@@ -533,7 +533,7 @@
         "edit": {
           "type": "TextArea",
           "props": {
-            "placeholder": "::please input ${label || comment}",
+            "placeholder": "$L(please input) ${label || comment}",
             "autoSize": { "minRows": 2, "maxRows": 6 }
           }
         }
@@ -548,7 +548,7 @@
         "edit": {
           "type": "TextArea",
           "props": {
-            "placeholder": "::please input ${label || comment}",
+            "placeholder": "$L(please input) ${label || comment}",
             "autoSize": { "minRows": 2, "maxRows": 6 }
           }
         }
