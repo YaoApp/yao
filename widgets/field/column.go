@@ -38,6 +38,42 @@ func (column ColumnDSL) Replace(data map[string]interface{}) (*ColumnDSL, error)
 	return &new, nil
 }
 
+// Trans trans
+func (column *ColumnDSL) Trans(widgetName string, inst string, trans func(widget string, inst string, value *string) bool) bool {
+	res := false
+	if column.Edit != nil {
+		if column.Edit.Trans(widgetName, inst, trans) {
+			res = true
+		}
+	}
+
+	if column.View != nil {
+		if column.View.Trans(widgetName, inst, trans) {
+			res = true
+		}
+	}
+
+	return res
+}
+
+// Trans column trans
+func (columns Columns) Trans(widgetName string, inst string, trans func(widget string, inst string, value *string) bool) bool {
+	res := false
+
+	for key, column := range columns {
+		if trans(widgetName, inst, &key) {
+			res = true
+		}
+		newPtr := &column
+		if newPtr.Trans(widgetName, inst, trans) {
+			res = true
+		}
+		columns[key] = *newPtr
+	}
+
+	return res
+}
+
 // Map cast to map[string]inteface{}
 func (column ColumnDSL) Map() map[string]interface{} {
 	res := map[string]interface{}{

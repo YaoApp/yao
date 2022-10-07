@@ -34,7 +34,7 @@ func TestTransformFilter(t *testing.T) {
 	}
 	assert.Equal(t, "Bar", fi.Key)
 	assert.Equal(t, "where.Foo.match", fi.Bind)
-	assert.Equal(t, "::please input Bar", fi.Edit.Props["placeholder"])
+	assert.Equal(t, "$L(please input) Bar", fi.Edit.Props["placeholder"])
 
 	fi, err = tr.Filter("not-found", data)
 	assert.True(t, IsNotFound(err))
@@ -52,7 +52,7 @@ func TestTransformTable(t *testing.T) {
 	}
 	assert.Equal(t, "Bar", tab.Key)
 	assert.Equal(t, "Foo", tab.Bind)
-	assert.Equal(t, "::please input Bar", tab.Edit.Props["placeholder"])
+	assert.Equal(t, "$L(please input) Bar", tab.Edit.Props["placeholder"])
 
 	tab, err = tr.Table("not-found", data)
 	assert.True(t, IsNotFound(err))
@@ -67,7 +67,7 @@ func TestTransformForm(t *testing.T) {
 	}
 	assert.Equal(t, "Bar", form.Key)
 	assert.Equal(t, "Foo", form.Bind)
-	assert.Equal(t, "::please input Bar", form.Edit.Props["placeholder"])
+	assert.Equal(t, "$L(please input) Bar", form.Edit.Props["placeholder"])
 
 	form, err = tr.Form("not-found", data)
 	assert.True(t, IsNotFound(err))
