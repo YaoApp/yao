@@ -91,17 +91,32 @@ func New(id string) *DSL {
 
 // LoadAndExport load table
 func LoadAndExport(cfg config.Config) error {
-	err := Load(cfg)
+	err := Export()
 	if err != nil {
 		return err
 	}
-	return Export()
+	return Load(cfg)
 }
 
 // Load load table
 func Load(cfg config.Config) error {
 	var root = filepath.Join(cfg.Root, "tables")
 	return LoadFrom(root, "")
+}
+
+// LoadID load by id
+func LoadID(id string, root string) error {
+	dirs := strings.Split(id, ".")
+	name := fmt.Sprintf("%s.tab.json", dirs[len(dirs)-1])
+	elems := []string{root}
+	elems = append(elems, dirs[0:len(dirs)-1]...)
+	elems = append(elems, name)
+	filename := filepath.Join(elems...)
+	data, err := environment.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("[%s] root=%s %s", id, root, err.Error())
+	}
+	return LoadData(data, id, root)
 }
 
 // LoadFrom load from dir
@@ -115,58 +130,16 @@ func LoadFrom(dir string, prefix string) error {
 	err := share.Walk(dir, ".json", func(root, filename string) {
 		id := prefix + share.ID(root, filename)
 		data, err := environment.ReadFile(filename)
-		dsl := New(id)
-		err = jsoniter.Unmarshal(data, dsl)
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
 			return
 		}
 
-		if dsl.Action == nil {
-			dsl.Action = &ActionDSL{}
-		}
-		dsl.Action.SetDefaultProcess()
-
-		if dsl.Layout == nil {
-			dsl.Layout = &LayoutDSL{
-				Header: &HeaderLayoutDSL{
-					Preset:  &PresetHeaderDSL{},
-					Actions: []component.ActionDSL{},
-				},
-			}
-		}
-
-		if dsl.Fields == nil {
-			dsl.Fields = &FieldsDSL{}
-		}
-
-		// Bind model / store / table / ...
-		err = dsl.Bind()
+		err = LoadData(data, id, root)
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
 			return
 		}
-
-		// Parse
-		err = dsl.Parse()
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-
-		// Validate
-		err = dsl.Validate()
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-
-		// Apply a language pack
-		if lang.Default != nil {
-			lang.Default.Apply(dsl)
-		}
-
-		Tables[id] = dsl
 	})
 
 	if len(messages) > 0 {
@@ -174,6 +147,61 @@ func LoadFrom(dir string, prefix string) error {
 	}
 
 	return err
+}
+
+// LoadData load table from source
+func LoadData(data []byte, id string, root string) error {
+	dsl := New(id)
+	dsl.Root = root
+
+	err := jsoniter.Unmarshal(data, dsl)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	if dsl.Action == nil {
+		dsl.Action = &ActionDSL{}
+	}
+	dsl.Action.SetDefaultProcess()
+
+	if dsl.Layout == nil {
+		dsl.Layout = &LayoutDSL{
+			Header: &HeaderLayoutDSL{
+				Preset:  &PresetHeaderDSL{},
+				Actions: []component.ActionDSL{},
+			},
+		}
+	}
+
+	if dsl.Fields == nil {
+		dsl.Fields = &FieldsDSL{}
+	}
+
+	// Bind model / store / table / ...
+	err = dsl.Bind()
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	// Parse
+	err = dsl.Parse()
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	// Validate
+	err = dsl.Validate()
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	// Apply a language pack
+	if lang.Default != nil {
+		lang.Default.Apply(dsl)
+	}
+
+	Tables[id] = dsl
+	return nil
 }
 
 // Get table via process or id

@@ -1,6 +1,7 @@
 package table
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,12 +18,19 @@ import (
 
 func TestLoad(t *testing.T) {
 	prepare(t)
-
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 4, len(Tables))
+	assert.Equal(t, 5, len(Tables))
+}
+
+func TestLoadID(t *testing.T) {
+	prepare(t)
+	err := LoadID("pet", filepath.Join(config.Conf.Root, "tables"))
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func prepare(t *testing.T, language ...string) {
