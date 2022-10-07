@@ -10,6 +10,9 @@ import (
 // BindModel cast model to fields
 func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 
+	fields.filterMap = map[string]field.FilterDSL{}
+	fields.tableMap = map[string]field.ColumnDSL{}
+
 	trans, err := field.ModelTransform()
 	if err != nil {
 		return err
@@ -24,6 +27,7 @@ func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 		// append columns
 		if _, has := fields.Table[tableField.Key]; !has {
 			fields.Table[tableField.Key] = *tableField
+			fields.tableMap[col.Name] = fields.Table[tableField.Key]
 		}
 
 		// Index as filter
@@ -34,6 +38,7 @@ func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 			}
 			if _, has := fields.Filter[filterField.Key]; !has {
 				fields.Filter[tableField.Key] = *filterField
+				fields.filterMap[col.Name] = fields.Filter[tableField.Key]
 			}
 		}
 	}

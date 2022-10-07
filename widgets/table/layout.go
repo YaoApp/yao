@@ -9,7 +9,13 @@ import (
 )
 
 // BindModel bind model
-func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) error {
+func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[string]interface{}) error {
+
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+
+	formName, hasForm := option["form"]
 
 	if layout.Primary == "" {
 		layout.Primary = m.PrimaryKey
@@ -17,20 +23,28 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) error {
 
 	if layout.Filter == nil && len(fields.Filter) > 0 {
 
-		layout.Filter = &FilterLayoutDSL{
-			BtnAddText: "::Create",
-			Columns:    component.Instances{},
+		layout.Filter = &FilterLayoutDSL{Columns: component.Instances{}}
+		if hasForm {
+			layout.Filter.BtnAddText = "创建"
 		}
+
 		max := 3
 		curr := 0
-		for name := range fields.Filter {
-			curr++
-			if curr >= max {
-				break
+		for _, namev := range m.ColumnNames {
+			name, ok := namev.(string)
+
+			if ok {
+
+				if fli, has := fields.filterMap[name]; has {
+					curr++
+					if curr >= max {
+						break
+					}
+					layout.Filter.Columns = append(layout.Filter.Columns, component.InstanceDSL{
+						Name: fli.Key,
+					})
+				}
 			}
-			layout.Filter.Columns = append(layout.Filter.Columns, component.InstanceDSL{
-				Name: name,
-			})
 		}
 	}
 
@@ -43,10 +57,57 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) error {
 				Actions: component.Actions{},
 			},
 		}
-		for name := range fields.Table {
-			layout.Table.Columns = append(layout.Table.Columns, component.InstanceDSL{
-				Name: name,
-			})
+
+		if hasForm {
+			layout.Table.Operation.Actions = append(
+				layout.Table.Operation.Actions,
+
+				component.ActionDSL{
+					Title: "查看",
+					Icon:  "icon-eye",
+					Action: map[string]component.ParamsDSL{
+						"Common.openModal": {
+							"width": 640,
+							"Form":  map[string]interface{}{"type": "view", "model": formName},
+						},
+					},
+				},
+
+				component.ActionDSL{
+					Title: "编辑",
+					Icon:  "icon-edit-2",
+					Action: map[string]component.ParamsDSL{
+						"Common.openModal": {
+							"width": 640,
+							"Form":  map[string]interface{}{"type": "edit", "model": formName},
+						},
+					},
+				},
+
+				component.ActionDSL{
+					Title: "删除",
+					Icon:  "icon-trash-2",
+					Style: "danger",
+					Action: map[string]component.ParamsDSL{
+						"Table.delete": {"model": formName},
+					},
+					Confirm: &component.ConfirmActionDSL{
+						Title: "提示",
+						Desc:  "确认删除，删除后数据无法恢复？",
+					},
+				},
+			)
+		}
+
+		for _, namev := range m.ColumnNames {
+			name, ok := namev.(string)
+			if ok && name != "deleted_at" {
+				if col, has := fields.tableMap[name]; has {
+					layout.Table.Columns = append(layout.Table.Columns, component.InstanceDSL{
+						Name: col.Key,
+					})
+				}
+			}
 		}
 	}
 

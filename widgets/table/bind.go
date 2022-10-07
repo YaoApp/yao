@@ -46,7 +46,7 @@ func (dsl *DSL) bindModel() error {
 		return err
 	}
 
-	err = dsl.Layout.BindModel(m, dsl.Fields)
+	err = dsl.Layout.BindModel(m, dsl.Fields, dsl.Action.Bind.Option)
 	if err != nil {
 		return err
 	}
