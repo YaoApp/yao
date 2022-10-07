@@ -41,17 +41,61 @@ func (dsl *DSL) bindModel() error {
 		return err
 	}
 
-	dsl.Action.BindModel(m)
-	dsl.Layout.BindModel(m, dsl.Fields)
+	err = dsl.Action.BindModel(m)
+	if err != nil {
+		return err
+	}
+
+	err = dsl.Layout.BindModel(m, dsl.Fields)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (dsl *DSL) bindTable() error {
+
+	// Bind ID
+	id := dsl.Action.Bind.Table
+	if id == dsl.ID {
+		return fmt.Errorf("bind.table %s can't bind self table", id)
+	}
+
+	// Load table
+	if _, has := Tables[id]; !has {
+		if err := LoadID(id, dsl.Root); err != nil {
+			return err
+		}
+	}
+
+	tab, err := Get(id)
+	if err != nil {
+		return err
+	}
+
+	// Bind Fields
+	err = dsl.Fields.BindTable(tab)
+	if err != nil {
+		return err
+	}
+
+	// Bind Actions
+	err = dsl.Action.BindTable(tab)
+	if err != nil {
+		return err
+	}
+
+	// Bind Layout
+	err = dsl.Layout.BindTable(tab, dsl.Fields)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (dsl *DSL) bindStore() error {
 	id := dsl.Action.Bind.Store
 	return fmt.Errorf("bind.store %s does not support yet", id)
-}
-
-func (dsl *DSL) bindTable() error {
-	id := dsl.Action.Bind.Table
-	return fmt.Errorf("bind.table %s does not support yet", id)
 }

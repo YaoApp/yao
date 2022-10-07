@@ -41,6 +41,36 @@ func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 	return nil
 }
 
+// BindTable bind table
+func (fields *FieldsDSL) BindTable(tab *DSL) error {
+
+	// Bind filter
+	if fields.Filter == nil || len(fields.Filter) == 0 {
+		fields.Filter = tab.Fields.Filter
+
+	} else if tab.Fields.Filter != nil {
+		for key, filter := range tab.Fields.Filter {
+			if _, has := fields.Filter[key]; !has {
+				fields.Filter[key] = filter
+			}
+		}
+	}
+
+	// Bind Table
+	if fields.Table == nil || len(fields.Table) == 0 {
+		fields.Table = tab.Fields.Table
+
+	} else if tab.Fields.Table != nil {
+		for key, table := range tab.Fields.Table {
+			if _, has := fields.Table[key]; !has {
+				fields.Table[key] = table
+			}
+		}
+	}
+
+	return nil
+}
+
 // Xgen trans to xgen setting
 func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error) {
 	res := map[string]interface{}{}

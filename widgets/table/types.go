@@ -9,6 +9,7 @@ import (
 
 // DSL the table DSL
 type DSL struct {
+	Root        string              `json:"-"`
 	ID          string              `json:"id,omitempty"`
 	Name        string              `json:"name,omitempty"`
 	Action      *ActionDSL          `json:"action"`
@@ -67,6 +68,7 @@ type BindActionDSL struct {
 	Model  string                 `json:"model,omitempty"`  // bind model
 	Store  string                 `json:"store,omitempty"`  // bind store
 	Table  string                 `json:"table,omitempty"`  // bind table
+	Form   string                 `json:"form,omitempty"`   // bind form
 	Option map[string]interface{} `json:"option,omitempty"` // bind option
 }
 

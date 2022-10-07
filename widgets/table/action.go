@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/widgets/action"
+	"github.com/yaoapp/yao/widgets/hook"
 )
 
 var processActionDefaults = map[string]*action.Process{
@@ -159,7 +160,7 @@ func (act *ActionDSL) SetDefaultProcess() {
 }
 
 // BindModel bind model
-func (act *ActionDSL) BindModel(m *gou.Model) {
+func (act *ActionDSL) BindModel(m *gou.Model) error {
 
 	name := m.ID
 	act.Search.Bind(fmt.Sprintf("models.%s.Paginate", name))
@@ -181,6 +182,54 @@ func (act *ActionDSL) BindModel(m *gou.Model) {
 		act.Get.DefaultMerge([]interface{}{act.Bind.Option})
 		act.Find.DefaultMerge([]interface{}{nil, act.Bind.Option})
 	}
+
+	return nil
+}
+
+// BindTable bind table
+func (act *ActionDSL) BindTable(tab *DSL) error {
+
+	// Copy Hooks
+	hook.CopyBefore(act.BeforeSearch, tab.Action.BeforeSearch)
+	hook.CopyBefore(act.BeforeGet, tab.Action.BeforeGet)
+	hook.CopyBefore(act.BeforeFind, tab.Action.BeforeFind)
+	hook.CopyBefore(act.BeforeSave, tab.Action.BeforeSave)
+	hook.CopyBefore(act.BeforeCreate, tab.Action.BeforeCreate)
+	hook.CopyBefore(act.BeforeInsert, tab.Action.BeforeInsert)
+	hook.CopyBefore(act.BeforeUpdate, tab.Action.BeforeUpdate)
+	hook.CopyBefore(act.BeforeUpdateWhere, tab.Action.BeforeUpdateWhere)
+	hook.CopyBefore(act.BeforeUpdateIn, tab.Action.BeforeUpdateIn)
+	hook.CopyBefore(act.BeforeDelete, tab.Action.BeforeDelete)
+	hook.CopyBefore(act.BeforeDeleteWhere, tab.Action.BeforeDeleteWhere)
+	hook.CopyBefore(act.BeforeDeleteIn, tab.Action.BeforeDeleteIn)
+	hook.CopyAfter(act.AfterSearch, tab.Action.AfterSearch)
+	hook.CopyAfter(act.AfterGet, tab.Action.AfterGet)
+	hook.CopyAfter(act.AfterFind, tab.Action.AfterFind)
+	hook.CopyAfter(act.AfterSave, tab.Action.AfterSave)
+	hook.CopyAfter(act.AfterCreate, tab.Action.AfterCreate)
+	hook.CopyAfter(act.AfterInsert, tab.Action.AfterInsert)
+	hook.CopyAfter(act.AfterUpdate, tab.Action.AfterUpdate)
+	hook.CopyAfter(act.AfterUpdateWhere, tab.Action.AfterUpdateWhere)
+	hook.CopyAfter(act.AfterUpdateIn, tab.Action.AfterUpdateIn)
+	hook.CopyAfter(act.AfterDelete, tab.Action.AfterDelete)
+	hook.CopyAfter(act.AfterDeleteWhere, tab.Action.AfterDeleteWhere)
+	hook.CopyAfter(act.AfterDeleteIn, tab.Action.AfterDeleteIn)
+
+	// Merge Actions
+	act.Search.Merge(tab.Action.Search)
+	act.Get.Merge(tab.Action.Get)
+	act.Find.Merge(tab.Action.Find)
+	act.Save.Merge(tab.Action.Save)
+	act.Create.Merge(tab.Action.Create)
+	act.Insert.Merge(tab.Action.Insert)
+	act.Update.Merge(tab.Action.Update)
+	act.UpdateWhere.Merge(tab.Action.UpdateWhere)
+	act.UpdateIn.Merge(tab.Action.UpdateIn)
+	act.Delete.Merge(tab.Action.Delete)
+	act.DeleteWhere.Merge(tab.Action.DeleteWhere)
+	act.DeleteIn.Merge(tab.Action.DeleteIn)
+
+	return nil
 }
 
 func processHandler(p *action.Process, process *gou.Process) (interface{}, error) {

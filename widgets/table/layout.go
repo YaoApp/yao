@@ -9,7 +9,7 @@ import (
 )
 
 // BindModel bind model
-func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) {
+func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) error {
 
 	if layout.Primary == "" {
 		layout.Primary = m.PrimaryKey
@@ -50,6 +50,28 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL) {
 		}
 	}
 
+	return nil
+
+}
+
+// BindTable bind table
+func (layout *LayoutDSL) BindTable(tab *DSL, fields *FieldsDSL) error {
+
+	if layout.Primary == "" {
+		layout.Primary = tab.Layout.Primary
+	}
+
+	if layout.Filter == nil && tab.Layout.Filter != nil {
+		layout.Filter = &FilterLayoutDSL{}
+		*layout.Filter = *tab.Layout.Filter
+	}
+
+	if layout.Table == nil && tab.Layout.Table != nil {
+		layout.Table = &ViewLayoutDSL{}
+		*layout.Table = *tab.Layout.Table
+	}
+
+	return nil
 }
 
 // Xgen trans to Xgen setting

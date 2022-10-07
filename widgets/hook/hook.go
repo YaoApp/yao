@@ -6,6 +6,20 @@ import (
 	"github.com/yaoapp/gou"
 )
 
+// CopyBefore copy a before hook
+func CopyBefore(hook *Before, new *Before) {
+	if hook != nil {
+		*hook = *new
+	}
+}
+
+// CopyAfter copy a after hook
+func CopyAfter(hook *After, new *After) {
+	if hook != nil {
+		*hook = *new
+	}
+}
+
 // Exec execute the hook
 func (hook *Before) Exec(args []interface{}, sid string, global map[string]interface{}) ([]interface{}, error) {
 
