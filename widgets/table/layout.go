@@ -53,12 +53,15 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 			Props:   component.PropsDSL{},
 			Columns: component.Instances{},
 			Operation: OperationTableDSL{
+				Hide:    true,
 				Fold:    false,
 				Actions: component.Actions{},
 			},
 		}
 
 		if hasForm {
+			layout.Table.Operation.Width = 160
+			layout.Table.Operation.Hide = false
 			layout.Table.Operation.Actions = append(
 				layout.Table.Operation.Actions,
 
@@ -104,7 +107,8 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 			if ok && name != "deleted_at" {
 				if col, has := fields.tableMap[name]; has {
 					layout.Table.Columns = append(layout.Table.Columns, component.InstanceDSL{
-						Name: col.Key,
+						Name:  col.Key,
+						Width: 160,
 					})
 				}
 			}

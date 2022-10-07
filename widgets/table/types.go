@@ -125,7 +125,9 @@ type ViewLayoutDSL struct {
 
 // OperationTableDSL layout.table.operation
 type OperationTableDSL struct {
+	Width   int               `json:"width,omitempty"`
 	Fold    bool              `json:"fold,omitempty"`
+	Hide    bool              `json:"hide,omitempty"`
 	Actions component.Actions `json:"actions"`
 }
 
