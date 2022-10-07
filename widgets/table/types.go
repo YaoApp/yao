@@ -131,6 +131,8 @@ type OperationTableDSL struct {
 
 // FieldsDSL the table fields DSL
 type FieldsDSL struct {
-	Filter field.Filters `json:"filter,omitempty"`
-	Table  field.Columns `json:"table,omitempty"`
+	Filter    field.Filters `json:"filter,omitempty"`
+	Table     field.Columns `json:"table,omitempty"`
+	filterMap map[string]field.FilterDSL
+	tableMap  map[string]field.ColumnDSL
 }
