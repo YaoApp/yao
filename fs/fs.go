@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/fs/dsl"
 	"github.com/yaoapp/gou/fs/system"
 	"github.com/yaoapp/yao/config"
 )
@@ -12,20 +13,30 @@ import (
 // Load system fs
 func Load(cfg config.Config) error {
 
-	root, err := Root(cfg)
+	root, err := filepath.Abs(cfg.Root)
 	if err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(root); os.IsNotExist(err) {
-		err := os.MkdirAll(root, os.ModePerm)
+	dataRoot, err := Root(cfg)
+	if err != nil {
+		return err
+	}
+
+	scriptRoot := filepath.Join(root, "scripts")
+	dslDenyList := []string{scriptRoot, dataRoot}
+
+	if _, err := os.Stat(dataRoot); os.IsNotExist(err) {
+		err := os.MkdirAll(dataRoot, os.ModePerm)
 		if err != nil {
 			return err
 		}
 	}
 
-	fs.Register("system", system.New(root))
-	fs.Register("binary", system.New(root)) // next
+	fs.Register("system", system.New(dataRoot))
+	fs.Register("dsl", dsl.New(root).DenyAbs(dslDenyList...)) // DSL
+	fs.Register("script", system.New(scriptRoot))             // Script
+	fs.Register("binary", system.New(root))                   // Binary
 	return nil
 }
 
