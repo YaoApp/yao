@@ -133,7 +133,7 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "/x/Table/pet", xgen.Get("login.entry.user"))
 	assert.Equal(t, "/api/__yao/login/user/captcha?type=digit", xgen.Get("login.user.captcha"))
 	assert.Equal(t, "/api/__yao/login/user", xgen.Get("login.user.login"))
-	assert.Equal(t, "/images/login/cover.svg", xgen.Get("login.layout.cover"))
+	assert.Equal(t, "/assets/images/login/cover.svg", xgen.Get("login.layout.cover"))
 	assert.Equal(t, "/api/__yao/app/icons/app.ico", xgen.Get("favicon"))
 	assert.Equal(t, "/api/__yao/app/icons/app.png", xgen.Get("logo"))
 	assert.Equal(t, os.Getenv("YAO_ENV"), xgen.Get("mode"))

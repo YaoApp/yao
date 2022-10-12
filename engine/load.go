@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/connector"
 	"github.com/yaoapp/yao/flow"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/importer"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/page"
@@ -55,6 +56,12 @@ func Load(cfg config.Config) (err error) {
 	err = connector.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Connector", err)
+	}
+
+	// Load FileSystem
+	err = fs.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "FileSystem", err)
 	}
 
 	// 第二步: 建立数据库 & 会话连接

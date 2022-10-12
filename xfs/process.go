@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// DEPRECATED
 func init() {
 	// 注册处理器
 	gou.RegisterProcessHandler("xiang.fs.Upload", processUpload)

@@ -20,6 +20,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/share"
 )
@@ -60,6 +61,8 @@ var startCmd = &cobra.Command{
 			host = "127.0.0.1"
 		}
 
+		dataRoot, _ := fs.Root(config.Conf)
+
 		fmt.Println(color.WhiteString("\n---------------------------------"))
 		fmt.Println(color.WhiteString(share.App.Name), color.WhiteString(share.App.Version), mode)
 		fmt.Println(color.WhiteString("---------------------------------"))
@@ -71,12 +74,14 @@ var startCmd = &cobra.Command{
 		if share.App.XGen == "1.0" {
 			root, _ := adminRoot()
 			fmt.Println(color.WhiteString(L("    XGen")), color.GreenString(" 1.0"))
+			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
 			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
 			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s%slogin/admin", host, port, root))
 			fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
 			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
 
 		} else {
+			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
 			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
 			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/xiang/login/admin", host, port))
 			fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))

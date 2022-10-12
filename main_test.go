@@ -31,7 +31,7 @@ func TestCommandMigrate(t *testing.T) {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 
-	os.Args = append(os.Args, "migrate")
+	os.Args = append(os.Args, "migrate", "--reset", "--force")
 	assert.NotPanics(t, func() {
 		main()
 	})

@@ -32,6 +32,7 @@ var langs = map[string]string{
 	"API":                                   " API接口",
 	"API List":                              "API列表",
 	"Root":                                  "应用目录",
+	"Data":                                  "数据目录",
 	"Frontend":                              "前台地址",
 	"Dashboard":                             "管理后台",
 	"Not enough arguments":                  "参数错误: 缺少参数",

@@ -19,6 +19,8 @@ import (
 	"github.com/yaoapp/yao/config"
 )
 
+// DEPRECATED
+
 // Stor 文件系统实例
 var Stor Xfs
 
@@ -209,7 +211,7 @@ func (xfs *Xfs) GetTempDir(subPath string) string {
 	return afero.GetTempDir(xfs.Fs, subPath)
 }
 
-//MustTempDir 创建临时文件夹
+// MustTempDir 创建临时文件夹
 func (xfs *Xfs) MustTempDir(dirname string, prefix string) string {
 	name, err := xfs.TempDir(dirname, prefix)
 	if err != nil {

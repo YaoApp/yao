@@ -30,7 +30,9 @@ func init() {
 }
 
 // ProcessFind xiang.workflow.Find 读取工作流
-//   args: [工作流名称*, 工作流ID*]
+//
+//	args: [工作流名称*, 工作流ID*]
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessFind(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
@@ -39,7 +41,9 @@ func ProcessFind(process *gou.Process) interface{} {
 }
 
 // ProcessOpen xiang.workflow.Open 读取工作流
-//   args: [工作流名称*, 当前用户ID*, 关联数据ID*]
+//
+//	args: [工作流名称*, 当前用户ID*, 关联数据ID*]
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessOpen(process *gou.Process) interface{} {
 	process.ValidateArgNums(3)
@@ -48,7 +52,9 @@ func ProcessOpen(process *gou.Process) interface{} {
 }
 
 // ProcessSetting xiang.workflow.Setting 读取工作流配置
-//   args: [工作流名称*, 当前用户ID*, 关联数据ID*]
+//
+//	args: [工作流名称*, 当前用户ID*, 关联数据ID*]
+//
 // return: map[string]interface{} 工作流配置
 func ProcessSetting(process *gou.Process) interface{} {
 	process.ValidateArgNums(3)
@@ -57,7 +63,9 @@ func ProcessSetting(process *gou.Process) interface{} {
 }
 
 // ProcessSave xiang.workflow.Save 保存工作流节点信息
-//   args: [工作流名称*, 当前用户ID*, 节点名称*, 关联数据ID*, 输入数据*, 输出数据] (输入数据: {"data":{}, "form":{}}  data 关联数据记录信息, form 工作流body表单信息, 输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 节点名称*, 关联数据ID*, 输入数据*, 输出数据] (输入数据: {"data":{}, "form":{}}  data 关联数据记录信息, form 工作流body表单信息, 输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessSave(process *gou.Process) interface{} {
 	process.ValidateArgNums(5)
@@ -71,7 +79,9 @@ func ProcessSave(process *gou.Process) interface{} {
 }
 
 // ProcessNext xiang.workflow.Next 进入下一个节点
-//   args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessNext(process *gou.Process) interface{} {
 	process.ValidateArgNums(4)
@@ -81,7 +91,9 @@ func ProcessNext(process *gou.Process) interface{} {
 }
 
 // ProcessGoto xiang.workflow.Goto 跳转到指定节点
-//   args: [工作流名称*, 当前用户ID*, 工作流ID*, 节点名称*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 工作流ID*, 节点名称*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessGoto(process *gou.Process) interface{} {
 	process.ValidateArgNums(5)
@@ -91,7 +103,9 @@ func ProcessGoto(process *gou.Process) interface{} {
 }
 
 // ProcessStatus xiang.workflow.Status 更新工作流状态
-//   args: [工作流名称*, 当前用户ID*, 工作流ID*, 状态名称*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 工作流ID*, 状态名称*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessStatus(process *gou.Process) interface{} {
 	process.ValidateArgNums(5)
@@ -101,7 +115,9 @@ func ProcessStatus(process *gou.Process) interface{} {
 }
 
 // ProcessDone xiang.workflow.Done 标记结束流程
-//   args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessDone(process *gou.Process) interface{} {
 	process.ValidateArgNums(4)
@@ -111,7 +127,9 @@ func ProcessDone(process *gou.Process) interface{} {
 }
 
 // ProcessClose xiang.workflow.Close 标记关闭流程
-//   args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessClose(process *gou.Process) interface{} {
 	process.ValidateArgNums(4)
@@ -121,7 +139,9 @@ func ProcessClose(process *gou.Process) interface{} {
 }
 
 // ProcessReset xiang.workflow.Reset 标记重置流程
-//   args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
+//	args: [工作流名称*, 当前用户ID*, 工作流ID*, 输出数据*] (输出数据: {"foo":"bar"} )
+//
 // return: map[string]interface{} 工作流数据记录
 func ProcessReset(process *gou.Process) interface{} {
 	process.ValidateArgNums(4)
