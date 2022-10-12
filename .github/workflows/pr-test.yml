@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go: [1.18.2]
+        go: [1.19.2]
         db: [MySQL8.0, MySQL5.7, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]
@@ -99,7 +99,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
-              body: 'Thank you for the PR! The ${{ matrix.db }} test workflow is running, the results of the run will be commented later.'
+              body: 'Thank you for the PR! The db: ${{ matrix.db }}  redis: ${{ matrix.redis }}  mongo: ${{ matrix.mongo }} test workflow is running, the results of the run will be commented later.'
             });
 
       - name: Setup Cache
@@ -255,5 +255,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
-              body: '✨DONE✨ ${{ matrix.db }} passed.'
+              body: '✨DONE✨  db: ${{ matrix.db }}  redis: ${{ matrix.redis }}  mongo: ${{ matrix.mongo }} passed.'
             });

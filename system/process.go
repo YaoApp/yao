@@ -1,42 +1,33 @@
 package system
 
-import (
-	"fmt"
-	"os/exec"
-	"strings"
+// func init() {
+// 	// gou.RegisterProcessHandler("yao.system.Exec", processExec)
+// }
 
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/kun/exception"
-)
+// // processExec execute the system command
+// func processExec(process *gou.Process) interface{} {
+// 	process.ValidateArgNums(1)
+// 	cmd := process.ArgsString(0)
 
-func init() {
-	gou.RegisterProcessHandler("yao.system.Exec", processExec)
-}
+// 	_, err := exec.LookPath(cmd)
+// 	if err != nil {
+// 		exception.New("command %s not found: %s", 400, cmd, err.Error()).Throw()
+// 		return nil
+// 	}
 
-// processExec execute the system command
-func processExec(process *gou.Process) interface{} {
-	process.ValidateArgNums(1)
-	cmd := process.ArgsString(0)
+// 	args := []string{}
+// 	for i, arg := range process.Args {
+// 		if i == 0 {
+// 			continue
+// 		}
+// 		args = append(args, fmt.Sprintf("%v", arg))
+// 	}
 
-	_, err := exec.LookPath(cmd)
-	if err != nil {
-		exception.New("command %s not found: %s", 400, cmd, err.Error()).Throw()
-		return nil
-	}
+// 	res, err := exec.Command(cmd, args...).Output()
+// 	if err != nil {
+// 		exception.New("command %s error: %s", 500, cmd, err.Error()).Throw()
+// 		return nil
+// 	}
 
-	args := []string{}
-	for i, arg := range process.Args {
-		if i == 0 {
-			continue
-		}
-		args = append(args, fmt.Sprintf("%v", arg))
-	}
-
-	res, err := exec.Command(cmd, args...).Output()
-	if err != nil {
-		exception.New("command %s error: %s", 500, cmd, err.Error()).Throw()
-		return nil
-	}
-
-	return strings.TrimRight(string(res), "\n")
-}
+// 	return strings.TrimRight(string(res), "\n")
+// }

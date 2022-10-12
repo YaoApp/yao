@@ -7,6 +7,8 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// DEPRECATED
+
 func init() {
 	share.App = share.AppInfo{
 		Storage: share.AppStorage{
