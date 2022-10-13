@@ -385,17 +385,22 @@ func ProcessExport(process *gou.Process) interface{} {
 			WithSID(process.Sid).
 			Run()
 
-		// After Hook
-		response = table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
-
 		if debug {
 			bytes, _ := jsoniter.Marshal(response)
 			log.Info("[Export] %s %d %d Prepare: %s", filename, page, pagesize, string(bytes))
 		}
 
-		res, ok := response.(map[string]interface{})
+		// After Hook
+		respAfterHook := table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
+
+		if debug {
+			bytes, _ := jsoniter.Marshal(respAfterHook)
+			log.Info("[Export] %s %d %d Prepare After: %s", filename, page, pagesize, string(bytes))
+		}
+
+		res, ok := respAfterHook.(map[string]interface{})
 		if !ok {
-			res, ok = response.(maps.MapStrAny)
+			res, ok = respAfterHook.(maps.MapStrAny)
 			if !ok {
 				page = -1
 				continue
