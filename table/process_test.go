@@ -1,6 +1,7 @@
 package table
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	_ "github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -23,6 +25,7 @@ func init() {
 	model.Load(config.Conf)
 	share.Load(config.Conf)
 	query.Load(config.Conf)
+	script.Load(config.Conf)
 	flow.LoadFrom(filepath.Join(config.Conf.Root, "flows", "hooks"), "hooks.")
 	Load(config.Conf)
 }
@@ -506,4 +509,41 @@ func TestTableProcessExportWithHook(t *testing.T) {
 	// assert.Equal(t, 1, res.Get("page"))
 	// assert.Equal(t, 2, res.Get("pagesize"))
 	// assert.Equal(t, float64(100), res.Get("after"))
+}
+
+func TestTableProcessExportWithScriptHook(t *testing.T) {
+	// testData()
+	args := []interface{}{"hooks.search_script"}
+	response := gou.NewProcess("xiang.table.Export", args...).Run()
+	// utils.Dump(response)
+
+	assert.NotNil(t, response)
+	// res := any.Of(response).Map()
+	// assert.True(t, res.Has("data"))
+	// assert.True(t, res.Has("next"))
+	// assert.True(t, res.Has("page"))
+	// assert.True(t, res.Has("pagecnt"))
+	// assert.True(t, res.Has("pagesize"))
+	// assert.True(t, res.Has("prev"))
+	// assert.True(t, res.Has("total"))
+	// assert.Equal(t, 1, res.Get("page"))
+	// assert.Equal(t, 2, res.Get("pagesize"))
+	// assert.Equal(t, float64(100), res.Get("after"))
+}
+
+func testData() {
+	m := gou.Select("service")
+	data := [][]interface{}{}
+	for i := 0; i < 2000; i++ {
+		col := []interface{}{fmt.Sprintf("NAME-%d", i), 1, 1}
+		data = append(data, col)
+	}
+
+	m.DestroyWhere(gou.QueryParam{
+		Wheres: []gou.QueryWhere{
+			{Column: "id", OP: "ge", Value: 0},
+		},
+	})
+	err := m.Insert([]string{"name", "kind_id", "manu_id"}, data)
+	fmt.Println(err)
 }

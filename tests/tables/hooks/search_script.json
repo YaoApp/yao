@@ -1,0 +1,43 @@
+{
+  "name": "云服务库",
+  "version": "1.0.0",
+  "decription": "云服务库",
+  "bind": {
+    "model": "service",
+    "withs": {}
+  },
+  "hooks": {
+    "before:search": "scripts.service.BeforeSearch",
+    "after:search": "scripts.service.AfterSearch"
+  },
+  "apis": {
+    "search": {
+      "process": "models.service.Paginate",
+      "guard": "-",
+      "default": [{ "orders": [{ "column": "id" }] }, null, 15]
+    }
+  },
+  "columns": {},
+  "filters": {},
+  "list": {
+    "primary": "id",
+    "layout": {
+      "columns": [
+        { "name": "id", "width": 6 },
+        { "name": "服务名称" },
+        { "name": "城市" }
+      ],
+      "filters": []
+    },
+    "actions": {}
+  },
+  "edit": {
+    "primary": "id",
+    "layout": {
+      "fieldset": [{ "columns": [{ "name": "id", "width": 6 }] }]
+    },
+    "actions": { "cancel": {} }
+  },
+  "insert": {},
+  "view": {}
+}

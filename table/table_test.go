@@ -54,7 +54,7 @@ func check(t *testing.T) {
 	for key := range Tables {
 		keys = append(keys, key)
 	}
-	assert.Equal(t, 10, len(keys))
+	assert.Equal(t, 11, len(keys))
 
 	demo := Select("demo")
 	assert.NotNil(t, demo.Columns["類型"])
