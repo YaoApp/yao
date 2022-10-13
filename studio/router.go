@@ -1,0 +1,183 @@
+package studio
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou"
+)
+
+// Serve start the api server
+func setRouter(router *gin.Engine) {
+
+	router.Use(gin.CustomRecovery(hdRecovered))
+
+	// DSL ReadDir, ReadFile
+	router.GET("/dsl/:method", func(c *gin.Context) {
+		method := strings.ToLower(c.Param("method"))
+		switch method {
+
+		case "readfile":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "file name is required")
+				return
+			}
+
+			data, err := dfs.ReadFile(name)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+
+			res := map[string]interface{}{}
+			err = jsoniter.Unmarshal(data, &res)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+			c.JSON(200, res)
+			c.Done()
+			break
+
+		case "readdir":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "dir name is required")
+				return
+			}
+
+			recursive := false
+			if c.Query("recursive") == "1" || strings.ToLower(c.Query("recursive")) == "true" {
+				recursive = true
+			}
+			data, err := dfs.ReadDir(name, recursive)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+			c.JSON(200, data)
+			c.Done()
+			break
+		}
+	})
+
+	// DSL WriteFile, Mkdir, MkdirAll ...
+	router.POST("/dsl/:method", func(c *gin.Context) {
+
+		method := strings.ToLower(c.Param("method"))
+		switch method {
+		case "writefile":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "dir name is required")
+				return
+			}
+
+			payload, err := io.ReadAll(c.Request.Body)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+
+			if payload == nil || len(payload) == 0 {
+				throw(c, 500, "file content is required")
+				return
+			}
+
+			length, err := dfs.WriteFile(name, payload, 0644)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+
+			c.JSON(200, length)
+			c.Done()
+			break
+
+		case "mkdir":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "dir name is required")
+				return
+			}
+
+			err := dfs.Mkdir(name, int(os.ModePerm))
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+			c.Status(200)
+			c.Done()
+			break
+
+		case "mkdirall":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "dir name is required")
+				return
+			}
+
+			err := dfs.MkdirAll(name, int(os.ModePerm))
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+			c.Status(200)
+			c.Done()
+			break
+		}
+
+	})
+
+	// Cloud Functions
+	router.POST("/service/:name", func(c *gin.Context) {
+
+		name := c.Param("name")
+		if name == "" {
+			throw(c, 400, "service name is required")
+			return
+		}
+
+		service := fmt.Sprintf("__yao.studio.%s", c.Param("name"))
+
+		payload, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			throw(c, 500, err.Error())
+			return
+		}
+
+		if payload == nil || len(payload) > 0 {
+			throw(c, 400, "file content is required")
+			return
+		}
+
+		var call cloudCall
+		err = jsoniter.Unmarshal(payload, &call)
+		if err != nil {
+			throw(c, 500, err.Error())
+			return
+		}
+
+		res, err := gou.Yao.Engine.Call(map[string]interface{}{}, service, call.Method, call.Args...)
+		if err != nil {
+			throw(c, 500, err.Error())
+			return
+		}
+
+		c.JSON(200, res)
+		c.Done()
+	})
+}
+
+func throw(c *gin.Context, code int, message string) {
+	c.JSON(code, map[string]interface{}{
+		"message": message,
+		"code":    code,
+	})
+	c.Done()
+}

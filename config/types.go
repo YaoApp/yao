@@ -2,20 +2,26 @@ package config
 
 // Config 象传应用引擎配置
 type Config struct {
-	Mode     string `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`    // 象传引擎启动模式 production/development
-	Root     string `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`            // 应用根目录
-	DataRoot string `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`   // DATA PATH
-	Host     string `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`      // 服务监听地址
-	Port     int    `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`         // 服务监听端口
-	Cert     string `json:"cert,omitempty" env:"YAO_CERT"`                           // HTTPS 证书文件地址
-	Key      string `json:"key,omitempty" env:"YAO_KEY"`                             // HTTPS 证书密钥地址
-	Log      string `json:"log,omitempty" env:"YAO_LOG"`                             // 服务日志地址
-	LogMode  string `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"` // 服务日志模式 JSON|TEXT
-	// Session   string        `json:"session,omitempty" env:"YAO_SESSION" envDefault:"memory"`         // 用户会话模式 memory|redis|database
-	JWTSecret string        `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                  // JWT 密钥
-	DB        DBConfig      `json:"db,omitempty"`                                               // 数据库配置
-	AllowFrom []string      `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM" ` // Domain list the separator is |
-	Session   SessionConfig `json:"session,omitempty"`
+	Mode      string        `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`      // 象传引擎启动模式 production/development
+	Root      string        `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`              // 应用根目录
+	DataRoot  string        `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`     // DATA PATH
+	Host      string        `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`        // 服务监听地址
+	Port      int           `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`           // 服务监听端口
+	Cert      string        `json:"cert,omitempty" env:"YAO_CERT"`                             // HTTPS 证书文件地址
+	Key       string        `json:"key,omitempty" env:"YAO_KEY"`                               // HTTPS 证书密钥地址
+	Log       string        `json:"log,omitempty" env:"YAO_LOG"`                               // 服务日志地址
+	LogMode   string        `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`   // 服务日志模式 JSON|TEXT
+	JWTSecret string        `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                 // JWT 密钥
+	DB        DBConfig      `json:"db,omitempty"`                                              // 数据库配置
+	AllowFrom []string      `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"` // Domain list the separator is |
+	Session   SessionConfig `json:"session,omitempty"`                                         // Session Config
+	Studio    StudioConfig  `json:"studio,omitempty"`                                          // Studio config
+}
+
+// StudioConfig the studio config
+type StudioConfig struct {
+	Port   int `json:"studio_port,omitempty" env:"YAO_STUDIO_PORT" envDefault:"5077"` // Studio port
+	Secret int `json:"studio_secret,omitempty" env:"YAO_STUDIO_SECRET"`               // Studio Secret, if does not set, auto-generate a secret
 }
 
 // DBConfig 数据库配置
