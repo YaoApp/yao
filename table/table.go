@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/xuri/excelize/v2"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/helper"
@@ -350,6 +351,13 @@ func (table *Table) loadColumns() {
 // Export Export query result to Excel
 func (table *Table) Export(filename string, data interface{}, page int, chunkSize int) error {
 
+	debug := os.Getenv("YAO_EXPORT_DEBUG") != ""
+
+	if debug {
+		bytes, _ := jsoniter.Marshal(data)
+		log.Info("[Export] %s %d %d Before: %s", filename, page, chunkSize, string(bytes))
+	}
+
 	rows := []maps.MapStr{}
 	if values, ok := data.([]maps.MapStrAny); ok {
 		for _, row := range values {
@@ -363,6 +371,11 @@ func (table *Table) Export(filename string, data interface{}, page int, chunkSiz
 		for _, row := range values {
 			rows = append(rows, any.Of(row).MapStr().Dot())
 		}
+	}
+
+	if debug {
+		bytes, _ := jsoniter.Marshal(rows)
+		log.Info("[Export] %s %d %d After: %s", filename, page, chunkSize, string(bytes))
 	}
 
 	columns, err := table.exportSetting()

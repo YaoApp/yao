@@ -9,7 +9,6 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
@@ -58,7 +57,7 @@ func TestTableProcessSearchWithHook(t *testing.T) {
 
 	args := []interface{}{"hooks.search"}
 	response := gou.NewProcess("xiang.table.Search", args...).Run()
-	utils.Dump(response)
+	// utils.Dump(response)
 
 	assert.NotNil(t, response)
 	res := any.Of(response).Map()
