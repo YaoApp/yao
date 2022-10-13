@@ -344,6 +344,7 @@ func ProcessSelect(process *gou.Process) interface{} {
 // ProcessExport xiang.table.Export (:table, :queryParam, :chunkSize)
 // Export query result to Excel
 func ProcessExport(process *gou.Process) interface{} {
+	// var testDataM = map[string]string{}
 
 	debug := os.Getenv("YAO_EXPORT_DEBUG") != ""
 	process.ValidateArgNums(1)
@@ -374,6 +375,8 @@ func ProcessExport(process *gou.Process) interface{} {
 			pagesize = process.ArgsInt(3, api.DefaultInt(1))
 		}
 
+		// fmt.Printf("\n%d/%d\n", page, pagesize)
+
 		if debug {
 			bytes, _ := jsoniter.Marshal(param)
 			log.Info("[Export] %s %s %d %d Params: %s", api.Process, filename, page, pagesize, string(bytes))
@@ -384,6 +387,10 @@ func ProcessExport(process *gou.Process) interface{} {
 			WithGlobal(process.Global).
 			WithSID(process.Sid).
 			Run()
+
+		// for i, v := range response.(maps.MapStrAny)["data"].([]maps.MapStrAny) {
+		// 	fmt.Println("i=", i, "id=", v["id"], v["status"])
+		// }
 
 		if debug {
 			bytes, _ := jsoniter.Marshal(response)
@@ -397,6 +404,20 @@ func ProcessExport(process *gou.Process) interface{} {
 			bytes, _ := jsoniter.Marshal(respAfterHook)
 			log.Info("[Export] %s %d %d Prepare After: %s", filename, page, pagesize, string(bytes))
 		}
+
+		// utils.Dump(respAfterHook)
+		// for _, v := range respAfterHook.(map[string]interface{})["data"].([]interface{}) {
+		// 	name := v.(map[string]interface{})["name"].(string)
+		// 	if _, has := testDataM[name]; has {
+		// 		fmt.Printf("**** %s Has\n\n", testDataM[name])
+		// 	} else {
+		// 		testDataM[name] = fmt.Sprintf("%s %d/%d", name, page, pagesize)
+		// 	}
+		// 	fmt.Println("i=", i, "id=", v.(map[string]interface{})["id"], v.(map[string]interface{})["status"])
+		// }
+
+		// fmt.Println("---")
+		// fmt.Println("")
 
 		res, ok := respAfterHook.(map[string]interface{})
 		if !ok {
