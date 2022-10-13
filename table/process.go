@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
@@ -344,6 +345,7 @@ func ProcessSelect(process *gou.Process) interface{} {
 // Export query result to Excel
 func ProcessExport(process *gou.Process) interface{} {
 
+	debug := os.Getenv("YAO_EXPORT_DEBUG") != ""
 	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
 	table := Select(name)
@@ -372,6 +374,11 @@ func ProcessExport(process *gou.Process) interface{} {
 			pagesize = process.ArgsInt(3, api.DefaultInt(1))
 		}
 
+		if debug {
+			bytes, _ := jsoniter.Marshal(param)
+			log.Info("[Export] %s %s %d %d Params: %s", api.Process, filename, page, pagesize, string(bytes))
+		}
+
 		// 查询数据
 		response := gou.NewProcess(api.Process, param, page, pagesize).
 			WithGlobal(process.Global).
@@ -380,6 +387,11 @@ func ProcessExport(process *gou.Process) interface{} {
 
 		// After Hook
 		response = table.After(table.Hooks.AfterSearch, response, []interface{}{param, page, pagesize}, process.Sid)
+
+		if debug {
+			bytes, _ := jsoniter.Marshal(response)
+			log.Info("[Export] %s %d %d Prepare: %s", filename, page, pagesize, string(bytes))
+		}
 
 		res, ok := response.(map[string]interface{})
 		if !ok {
