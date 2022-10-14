@@ -4,12 +4,15 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/crypto"
 )
 
 // Conf 配置参数
@@ -54,6 +57,17 @@ func Load() Config {
 		exception.New("Can't read config %s", 500, err.Error()).Throw()
 	}
 	cfg.Root, _ = filepath.Abs(cfg.Root)
+
+	// Studio Secret
+	if cfg.Studio.Secret == nil {
+		v, err := crypto.Hash(crypto.HashTypes["SHA256"], uuid.New().String())
+		if err != nil {
+			exception.New("Can't gengrate studio secret %s", 500, err.Error()).Throw()
+		}
+		cfg.Studio.Secret = []byte(strings.ToUpper(v))
+		cfg.Studio.Auto = true
+	}
+
 	return cfg
 }
 

@@ -69,6 +69,12 @@ func Open(name string) from.Source {
 	return nil
 }
 
+// WithSid attch sid
+func (imp *Importer) WithSid(sid string) *Importer {
+	imp.Sid = sid
+	return imp
+}
+
 // AutoMapping 根据文件信息获取字段映射表
 func (imp *Importer) AutoMapping(src from.Source) *Mapping {
 	sourceColumns := getSourceColumns(src)
@@ -405,7 +411,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 			return
 		}
 
-		response, err := process.Exec()
+		response, err := process.WithSID(imp.Sid).Exec()
 		if err != nil {
 			failed = failed + length
 			log.With(log.F{"line": line}).Error("导入失败: %s", err.Error())
@@ -437,7 +443,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 	}
 
 	if imp.Output != "" {
-		res, err := gou.NewProcess(imp.Output, output).Exec()
+		res, err := gou.NewProcess(imp.Output, output).WithSID(imp.Sid).Exec()
 		if err != nil {
 			log.With(log.F{"output": imp.Output}).Error(err.Error())
 			return output

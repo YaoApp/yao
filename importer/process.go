@@ -21,7 +21,7 @@ func init() {
 func ProcessRun(process *gou.Process) interface{} {
 	process.ValidateArgNums(3)
 	name := process.ArgsString(0)
-	imp := Select(name)
+	imp := Select(name).WithSid(process.Sid)
 	filename := process.ArgsString(1)
 	src := Open(filename)
 	defer src.Close()
@@ -34,7 +34,7 @@ func ProcessRun(process *gou.Process) interface{} {
 func ProcessSetting(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
-	imp := Select(name)
+	imp := Select(name).WithSid(process.Sid)
 	return map[string]interface{}{
 		"mappingPreview": imp.Option.MappingPreview,
 		"dataPreview":    imp.Option.DataPreview,
@@ -48,7 +48,7 @@ func ProcessSetting(process *gou.Process) interface{} {
 func ProcessData(process *gou.Process) interface{} {
 	process.ValidateArgNums(5)
 	name := process.ArgsString(0)
-	imp := Select(name)
+	imp := Select(name).WithSid(process.Sid)
 
 	filename := process.ArgsString(1)
 	src := Open(filename)
@@ -66,7 +66,7 @@ func ProcessData(process *gou.Process) interface{} {
 func ProcessDataSetting(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
-	imp := Select(name)
+	imp := Select(name).WithSid(process.Sid)
 	return imp.DataSetting()
 }
 
@@ -75,7 +75,7 @@ func ProcessDataSetting(process *gou.Process) interface{} {
 func ProcessMapping(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
 	name := process.ArgsString(0)
-	imp := Select(name)
+	imp := Select(name).WithSid(process.Sid)
 
 	filename := process.ArgsString(1)
 	src := Open(filename)
@@ -88,7 +88,7 @@ func ProcessMapping(process *gou.Process) interface{} {
 func ProcessMappingSetting(process *gou.Process) interface{} {
 	process.ValidateArgNums(2)
 	name := process.ArgsString(0)
-	imp := Select(name)
+	imp := Select(name).WithSid(process.Sid)
 
 	filename := process.ArgsString(1)
 	src := Open(filename)

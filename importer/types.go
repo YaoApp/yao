@@ -17,6 +17,7 @@ type Importer struct {
 	Columns []Column          `json:"columns"`          // 字段列表
 	Option  Option            `json:"option,omitempty"` // 导入配置项
 	Rules   map[string]string `json:"rules,omitempty"`  // 许可导入规则
+	Sid     string            `json:"-"`                // sid
 }
 
 // Column 导入字段定义

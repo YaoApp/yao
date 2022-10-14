@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/helper"
 )
 
 type kv map[string]interface{}
@@ -57,7 +58,7 @@ func TestStartStopError(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 }
 
-func TestGetAPI(t *testing.T) {
+func TestAPI(t *testing.T) {
 
 	Load(config.Conf)
 
@@ -132,7 +133,16 @@ func httpGet[T kv | arr | interface{} | map[string]interface{} | int | []interfa
 
 	var data T
 	url = fmt.Sprintf("http://127.0.0.1:%d%s", config.Conf.Studio.Port, url)
-	res, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token := getToken(t)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	client := http.Client{}
+	res, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,10 +153,10 @@ func httpGet[T kv | arr | interface{} | map[string]interface{} | int | []interfa
 			t.Fatal(err)
 		}
 
-		if body != nil {
+		if body != nil && len(body) > 0 {
 			err = jsoniter.Unmarshal(body, &data)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatal(fmt.Sprintf("%s\n%s\n", err.Error(), string(body)))
 			}
 		}
 	}
@@ -164,11 +174,16 @@ func httpPost[T kv | arr | interface{} | map[string]interface{} | int | []interf
 	}
 
 	url = fmt.Sprintf("http://127.0.0.1:%d%s", config.Conf.Studio.Port, url)
-	res, err := http.Post(url, "application/json", buff)
+	req, err := http.NewRequest("POST", url, buff)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	token := getToken(t)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	client := http.Client{}
+	res, err := client.Do(req)
 	if res.Body != nil {
 		body, err := io.ReadAll(res.Body)
 		if err != nil {
@@ -196,4 +211,13 @@ func httpPostJSON[T kv | arr | interface{} | map[string]interface{} | int | []in
 		}
 	}
 	return httpPost[T](url, data, t)
+}
+
+func getToken(t *testing.T) string {
+	return helper.JwtMake(
+		1,
+		map[string]interface{}{"id": 1, "user_id": 1, "user": kv{"id": 1, "name": "test"}},
+		map[string]interface{}{"issuer": "unit-test", "timeout": 3600},
+		config.Conf.Studio.Secret,
+	).Token
 }

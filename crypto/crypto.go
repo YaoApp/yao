@@ -13,7 +13,8 @@ func init() {
 	crypto.RegisterHash(crypto.MD4, md4.New)
 }
 
-var hashTypes = map[string]crypto.Hash{
+// HashTypes string
+var HashTypes = map[string]crypto.Hash{
 	"MD4":         crypto.MD4,
 	"MD5":         crypto.MD5,
 	"SHA1":        crypto.SHA1,
