@@ -23,7 +23,7 @@ var shutdownSignal = make(chan bool, 1)
 var dfs fs.FileSystem
 var scripts = map[string][]byte{}
 
-type cloudCall struct {
+type cfunc struct {
 	Method string        `json:"method"`
 	Args   []interface{} `json:"args,omitempty"`
 }
@@ -38,7 +38,7 @@ func Start(cfg config.Config) (err error) {
 	errCh := make(chan error, 1)
 
 	// Set router
-	router := gin.Default()
+	router := gin.New()
 	setRouter(router)
 
 	// Server setting
