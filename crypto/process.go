@@ -18,7 +18,7 @@ func ProcessHash(process *gou.Process) interface{} {
 	typ := process.ArgsString(0)
 	value := process.ArgsString(1)
 
-	h, has := hashTypes[typ]
+	h, has := HashTypes[typ]
 	if !has {
 		exception.New("%s does not support", 400, typ).Throw()
 	}
@@ -41,7 +41,7 @@ func ProcessHmac(process *gou.Process) interface{} {
 	value := process.ArgsString(1)
 	key := process.ArgsString(2)
 
-	h, has := hashTypes[typ]
+	h, has := HashTypes[typ]
 	if !has {
 		exception.New("%s does not support", 400, typ).Throw()
 	}

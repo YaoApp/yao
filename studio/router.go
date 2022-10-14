@@ -18,7 +18,7 @@ var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
 // Serve start the api server
 func setRouter(router *gin.Engine) {
 
-	router.Use(gin.CustomRecovery(hdRecovered))
+	router.Use(gin.CustomRecovery(hdRecovered), hdAuth)
 
 	// DSL ReadDir, ReadFile
 	router.GET("/dsl/:method", func(c *gin.Context) {
@@ -202,7 +202,12 @@ func setRouter(router *gin.Engine) {
 			return
 		}
 
-		res, err := gou.Yao.Engine.Call(map[string]interface{}{}, service, fun.Method, fun.Args...)
+		req := gou.Yao.New(service, fun.Method)
+		if sid, has := c.Get("__sid"); has {
+			req.WithSid(fmt.Sprintf("%s", sid))
+		}
+
+		res, err := req.Call(fun.Args...)
 		if err != nil {
 			// parse Exception
 			code := 500

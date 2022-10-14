@@ -20,8 +20,9 @@ type Config struct {
 
 // StudioConfig the studio config
 type StudioConfig struct {
-	Port   int `json:"studio_port,omitempty" env:"YAO_STUDIO_PORT" envDefault:"5077"` // Studio port
-	Secret int `json:"studio_secret,omitempty" env:"YAO_STUDIO_SECRET"`               // Studio Secret, if does not set, auto-generate a secret
+	Port   int    `json:"studio_port,omitempty" env:"YAO_STUDIO_PORT" envDefault:"5077"` // Studio port
+	Secret []byte `json:"studio_secret,omitempty" env:"YAO_STUDIO_SECRET"`               // Studio Secret, if does not set, auto-generate a secret
+	Auto   bool   `json:"-"`
 }
 
 // DBConfig 数据库配置

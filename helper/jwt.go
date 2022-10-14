@@ -28,9 +28,15 @@ type JwtToken struct {
 }
 
 // JwtValidate JWT 校验
-func JwtValidate(tokenString string) *JwtClaims {
+func JwtValidate(tokenString string, secret ...[]byte) *JwtClaims {
+
+	jwtSecret := []byte(config.Conf.JWTSecret)
+	if len(secret) > 0 {
+		jwtSecret = secret[0]
+	}
+
 	token, err := jwt.ParseWithClaims(tokenString, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.Conf.JWTSecret), nil
+		return jwtSecret, nil
 	})
 
 	if err != nil {
@@ -49,7 +55,13 @@ func JwtValidate(tokenString string) *JwtClaims {
 
 // JwtMake  生成 JWT
 // option: {"subject":"<主题>", "audience": "<接收人>", "issuer":"<签发人>", "timeout": "<有效期,单位秒>", "sid":"<会话ID>"}
-func JwtMake(id int, data map[string]interface{}, option map[string]interface{}) JwtToken {
+func JwtMake(id int, data map[string]interface{}, option map[string]interface{}, secret ...[]byte) JwtToken {
+
+	jwtSecret := []byte(config.Conf.JWTSecret)
+	if len(secret) > 0 {
+		jwtSecret = secret[0]
+	}
+
 	now := time.Now().Unix()
 	sid := ""
 	timeout := int64(3600)
@@ -96,7 +108,7 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{})
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(config.Conf.JWTSecret))
+	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
 		exception.New("生成令牌失败", 500).Ctx(err).Throw()
 	}
