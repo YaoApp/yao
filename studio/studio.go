@@ -134,8 +134,8 @@ func loadScriptFrom(dir string) error {
 
 	messages := []string{}
 	err := share.Walk(dir, ".js", func(root, filename string) {
-		name := fmt.Sprintf("__yao.studio.%s", share.SpecName(root, filename))
-		err := gou.Yao.Load(filename, name)
+		name := share.SpecName(root, filename)
+		err := gou.Yao.RootLoad(filename, name)
 		if err != nil {
 			messages = append(messages, err.Error())
 		}

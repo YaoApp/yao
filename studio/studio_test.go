@@ -25,9 +25,13 @@ func TestLoad(t *testing.T) {
 	}
 	assert.NotNil(t, dfs)
 
-	res, err := gou.Yao.Engine.Call(map[string]interface{}{}, "__yao.studio.table", "Ping")
+	res, err := gou.Yao.Engine.RootCall(map[string]interface{}{}, "table", "Ping")
 	assert.Nil(t, err)
 	assert.Equal(t, "PONG", res)
+
+	_, err = gou.Yao.Engine.Call(map[string]interface{}{}, "table", "Ping")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "The table does not loaded")
 }
 
 func TestStartStop(t *testing.T) {

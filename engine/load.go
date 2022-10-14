@@ -27,6 +27,7 @@ import (
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
+	"github.com/yaoapp/yao/studio"
 	"github.com/yaoapp/yao/table"
 	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/websocket"
@@ -62,6 +63,12 @@ func Load(cfg config.Config) (err error) {
 	err = fs.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "FileSystem", err)
+	}
+
+	// Load Studio
+	err = studio.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Studio", err)
 	}
 
 	// 第二步: 建立数据库 & 会话连接

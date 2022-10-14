@@ -23,6 +23,7 @@ import (
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/studio"
 )
 
 var startDebug = false
@@ -90,11 +91,18 @@ var startCmd = &cobra.Command{
 
 		// development mode
 		if mode == "development" {
+
+			// Start Studio Server
+			go studio.Start(config.Conf)
+			defer studio.Stop()
+
 			printApis(false)
 			printTasks(false)
 			printSchedules(false)
 			printConnectors(false)
 			printStores(false)
+			printStudio(false, host)
+
 		}
 
 		if mode == "development" && !startDisableWatching {
@@ -182,6 +190,29 @@ func printStores(silent bool) {
 	for name := range store.Pools {
 		fmt.Printf(color.CyanString("[Store]"))
 		fmt.Printf(color.WhiteString(" %s\t loaded\n", name))
+	}
+}
+
+func printStudio(silent bool, host string) {
+
+	if silent {
+		log.Info("[Studio] http://%s:%d", host, config.Conf.Studio.Port)
+		if config.Conf.Studio.Auto {
+			log.Info("[Studio] Secret: %s", config.Conf.Studio.Secret)
+		}
+		return
+	}
+
+	fmt.Println(color.WhiteString("\n---------------------------------"))
+	fmt.Println(color.WhiteString(L("Yao Studio Server")))
+	fmt.Println(color.WhiteString("---------------------------------"))
+	fmt.Printf(color.CyanString("HOST  : "))
+	fmt.Printf(color.WhiteString(" %s\n", config.Conf.Host))
+	fmt.Printf(color.CyanString("PORT  : "))
+	fmt.Printf(color.WhiteString(" %d\n", config.Conf.Studio.Port))
+	if config.Conf.Studio.Auto {
+		fmt.Printf(color.CyanString("SECRET: "))
+		fmt.Printf(color.WhiteString(" %s\n", config.Conf.Studio.Secret))
 	}
 }
 

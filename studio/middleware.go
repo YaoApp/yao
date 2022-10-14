@@ -45,8 +45,18 @@ func hdRecovered(c *gin.Context, recovered interface{}) {
 	c.AbortWithStatus(code)
 }
 
-// cross domian
-func hdCrossDomain(c *gin.Context) {
+// CORS Cross-origin
+func hdCORS(c *gin.Context) {
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+	c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+	c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+
+	if c.Request.Method == "OPTIONS" {
+		c.AbortWithStatus(204)
+		return
+	}
+	c.Next()
 }
 
 // studio API Auth
@@ -63,6 +73,7 @@ func hdAuth(c *gin.Context) {
 
 		claims := helper.JwtValidate(tokenString, config.Conf.Studio.Secret)
 		c.Set("__sid", claims.SID)
+		c.Next()
 		return
 
 	} else if strings.HasPrefix(tokenString, "Signature ") { // For Yao Studio
@@ -71,6 +82,7 @@ func hdAuth(c *gin.Context) {
 		ts := c.Request.Header.Get("Studio-Timestamp")
 		query := c.Request.URL.Query()
 		log.Trace("[Studio] %s, %s %s %v", signature, nonce, ts, query)
+		c.Next()
 		return
 	}
 

@@ -33,7 +33,7 @@ func TestLoad(t *testing.T) {
 
 func TestDSL(t *testing.T) {
 	Load(config.Conf)
-	dsl := fs.MustGet("dsl")
+	dsl := fs.MustRootGet("dsl")
 	name := filepath.Join("models", "test.mod.json")
 	_, err := fs.WriteFile(dsl, name, []byte(`{"foo": "bar", "hello":{ "int": 1, "float": 0.618}}`), 0644)
 	assert.Nil(t, err)
@@ -45,11 +45,16 @@ func TestDSL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = fs.Get("dsl")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "dsl does not registered")
+
 }
 
 func TestScirpt(t *testing.T) {
 	Load(config.Conf)
-	script := fs.MustGet("script")
+	script := fs.MustRootGet("script")
 	name := "test.js"
 	_, err := fs.WriteFile(script, name, []byte(`console.log("hello")`), 0644)
 	assert.Nil(t, err)
@@ -61,4 +66,8 @@ func TestScirpt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	_, err = fs.Get("script")
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "script does not registered")
 }
