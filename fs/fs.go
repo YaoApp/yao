@@ -34,9 +34,9 @@ func Load(cfg config.Config) error {
 	}
 
 	fs.Register("system", system.New(dataRoot))
-	fs.Register("dsl", dsl.New(root).DenyAbs(dslDenyList...)) // DSL
-	fs.Register("script", system.New(scriptRoot))             // Script
-	fs.Register("binary", system.New(root))                   // Binary
+	// fs.Register("binary", system.New(root))                    // Next
+	fs.RootRegister("dsl", dsl.New(root).DenyAbs(dslDenyList...)) // DSL
+	fs.RootRegister("script", system.New(scriptRoot))             // Script
 	return nil
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// **** DEPRECATED ****
 var serviceCmd = &cobra.Command{
 	Use:   "service",
 	Short: L("Service manager"),

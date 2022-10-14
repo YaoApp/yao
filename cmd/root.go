@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/yao/cmd/studio"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -84,8 +85,23 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+var studioCmd = &cobra.Command{
+	Use:   "studio",
+	Short: "Yao Studio CLI",
+	Long:  `Yao Studio CLI`,
+	Args:  cobra.MinimumNArgs(1),
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
+		os.Exit(1)
+	},
+}
+
 // 加载命令
 func init() {
+	studioCmd.AddCommand(studio.RunCmd)
 	rootCmd.AddCommand(
 		versionCmd,
 		migrateCmd,
@@ -93,11 +109,11 @@ func init() {
 		startCmd,
 		runCmd,
 		initCmd,
-		serviceCmd,
 		dumpCmd,
 		restoreCmd,
 		socketCmd,
 		websocketCmd,
+		studioCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
