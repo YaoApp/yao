@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 )
+
+var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
 
 // Serve start the api server
 func setRouter(router *gin.Engine) {
@@ -42,7 +46,7 @@ func setRouter(router *gin.Engine) {
 			}
 			c.JSON(200, res)
 			c.Done()
-			break
+			return
 
 		case "readdir":
 			name := c.Query("name")
@@ -62,11 +66,13 @@ func setRouter(router *gin.Engine) {
 			}
 			c.JSON(200, data)
 			c.Done()
-			break
+			return
 		}
+
+		throw(c, 404, fmt.Sprintf("%s method does not found", c.Param("method")))
 	})
 
-	// DSL WriteFile, Mkdir, MkdirAll ...
+	// DSL WriteFile, Mkdir, MkdirAll, Remove, RemoveAll ...
 	router.POST("/dsl/:method", func(c *gin.Context) {
 
 		method := strings.ToLower(c.Param("method"))
@@ -97,7 +103,7 @@ func setRouter(router *gin.Engine) {
 
 			c.JSON(200, length)
 			c.Done()
-			break
+			return
 
 		case "mkdir":
 			name := c.Query("name")
@@ -113,7 +119,7 @@ func setRouter(router *gin.Engine) {
 			}
 			c.Status(200)
 			c.Done()
-			break
+			return
 
 		case "mkdirall":
 			name := c.Query("name")
@@ -129,9 +135,42 @@ func setRouter(router *gin.Engine) {
 			}
 			c.Status(200)
 			c.Done()
-			break
+			return
+
+		case "remove":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "name is required")
+				return
+			}
+
+			err := dfs.Remove(name)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+			c.Status(200)
+			c.Done()
+			return
+
+		case "removeall":
+			name := c.Query("name")
+			if name == "" {
+				throw(c, 400, "name is required")
+				return
+			}
+
+			err := dfs.RemoveAll(name)
+			if err != nil {
+				throw(c, 500, err.Error())
+				return
+			}
+			c.Status(200)
+			c.Done()
+			return
 		}
 
+		throw(c, 404, fmt.Sprintf("%s method does not found", c.Param("method")))
 	})
 
 	// Cloud Functions
@@ -151,21 +190,31 @@ func setRouter(router *gin.Engine) {
 			return
 		}
 
-		if payload == nil || len(payload) > 0 {
+		if payload == nil || len(payload) == 0 {
 			throw(c, 400, "file content is required")
 			return
 		}
 
-		var call cloudCall
-		err = jsoniter.Unmarshal(payload, &call)
+		var fun cfunc
+		err = jsoniter.Unmarshal(payload, &fun)
 		if err != nil {
 			throw(c, 500, err.Error())
 			return
 		}
 
-		res, err := gou.Yao.Engine.Call(map[string]interface{}{}, service, call.Method, call.Args...)
+		res, err := gou.Yao.Engine.Call(map[string]interface{}{}, service, fun.Method, fun.Args...)
 		if err != nil {
-			throw(c, 500, err.Error())
+			// parse Exception
+			code := 500
+			message := err.Error()
+			match := regExcp.FindStringSubmatch(message)
+			if len(match) > 0 {
+				code, err = strconv.Atoi(match[1])
+				if err == nil {
+					message = strings.TrimSpace(match[2])
+				}
+			}
+			throw(c, code, message)
 			return
 		}
 
