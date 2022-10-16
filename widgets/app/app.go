@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
@@ -43,10 +45,6 @@ func LoadAndExport(cfg config.Config) error {
 // Load the app DSL
 func Load(cfg config.Config) error {
 
-	if os.Getenv("YAO_LANG") == "" {
-		os.Setenv("YAO_LANG", "en-us")
-	}
-
 	file := filepath.Join(cfg.Root, "app.json")
 	file, err := filepath.Abs(file)
 	if err != nil {
@@ -58,7 +56,7 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	dsl := &DSL{Optional: OptionalDSL{}}
+	dsl := &DSL{Optional: OptionalDSL{}, Lang: cfg.Lang}
 	err = jsoniter.Unmarshal(data, dsl)
 	if err != nil {
 		return err
@@ -106,6 +104,19 @@ func exportAPI() error {
 		Method:      "GET",
 		Process:     process,
 		In:          []string{},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
+	// POST
+	path = gou.Path{
+		Label:       "App Setting",
+		Description: "App Setting",
+		Guard:       "-",
+		Path:        "/setting",
+		Method:      "POST",
+		Process:     process,
+		In:          []string{":payload"},
 		Out:         gou.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)
@@ -219,11 +230,33 @@ func processSetting(process *gou.Process) interface{} {
 		return nil
 	}
 
+	sid := process.Sid
+	if sid == "" {
+		sid = session.ID()
+	}
+
+	// Set User ENV
+	if process.NumOfArgs() > 0 {
+		payload := process.ArgsMap(0, map[string]interface{}{
+			"now":  time.Now().Unix(),
+			"lang": "en-us",
+			"sid":  "",
+		})
+
+		if payload["sid"] != "" {
+			sid = payload["sid"].(string)
+		}
+
+		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
+		session.Global().ID(sid).Set("__yao_lang", lang)
+	}
+
 	setting, err := i18n.Trans(process.Lang(), "app", "app", Setting)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	setting.(*DSL).Sid = sid
 	return *setting.(*DSL)
 }
 
@@ -231,6 +264,27 @@ func processXgen(process *gou.Process) interface{} {
 
 	if Setting == nil {
 		exception.New("the app does not init", 500).Throw()
+	}
+
+	sid := process.Sid
+	if sid == "" {
+		sid = session.ID()
+	}
+
+	// Set User ENV
+	if process.NumOfArgs() > 0 {
+		payload := process.ArgsMap(0, map[string]interface{}{
+			"now":  time.Now().Unix(),
+			"lang": "en-us",
+			"sid":  "",
+		})
+
+		if payload["sid"] != "" {
+			sid = payload["sid"].(string)
+		}
+
+		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
+		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
 	mode := os.Getenv("YAO_ENV")
@@ -304,6 +358,7 @@ func processXgen(process *gou.Process) interface{} {
 		"name":        Setting.Name,
 		"description": Setting.Description,
 		"theme":       Setting.Theme,
+		"lang":        Setting.Lang,
 		"mode":        mode,
 		"apiPrefix":   "__yao",
 		"token":       "localStorage",
@@ -324,6 +379,7 @@ func processXgen(process *gou.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	setting.(map[string]interface{})["sid"] = sid
 	return setting.(map[string]interface{})
 }
 
