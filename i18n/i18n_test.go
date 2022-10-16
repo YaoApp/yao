@@ -1,4 +1,4 @@
-package lang
+package i18n
 
 import (
 	"testing"

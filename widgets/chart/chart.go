@@ -7,7 +7,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -102,11 +101,6 @@ func LoadFrom(dir string, prefix string) error {
 			return
 		}
 
-		// Apply a language pack
-		if lang.Default != nil {
-			lang.Default.Apply(dsl)
-		}
-
 		Charts[id] = dsl
 	})
 
@@ -117,16 +111,16 @@ func LoadFrom(dir string, prefix string) error {
 	return err
 }
 
-// Get form via process or id
-func Get(form interface{}) (*DSL, error) {
+// Get chart via process or id
+func Get(chart interface{}) (*DSL, error) {
 	id := ""
-	switch form.(type) {
+	switch chart.(type) {
 	case string:
-		id = form.(string)
+		id = chart.(string)
 	case *gou.Process:
-		id = form.(*gou.Process).ArgsString(0)
+		id = chart.(*gou.Process).ArgsString(0)
 	default:
-		return nil, fmt.Errorf("%v type does not support", form)
+		return nil, fmt.Errorf("%v type does not support", chart)
 	}
 
 	t, has := Charts[id]
@@ -136,9 +130,9 @@ func Get(form interface{}) (*DSL, error) {
 	return t, nil
 }
 
-// MustGet Get form via process or id thow error
-func MustGet(form interface{}) *DSL {
-	t, err := Get(form)
+// MustGet Get chart via process or id thow error
+func MustGet(chart interface{}) *DSL {
+	t, err := Get(chart)
 	if err != nil {
 		exception.New(err.Error(), 400).Throw()
 	}

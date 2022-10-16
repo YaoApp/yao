@@ -17,8 +17,8 @@ func exportProcess() {
 
 func processXgen(process *gou.Process) interface{} {
 
-	form := MustGet(process)
-	setting, err := form.Xgen()
+	chart := MustGet(process)
+	setting, err := chart.Xgen()
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -29,13 +29,13 @@ func processXgen(process *gou.Process) interface{} {
 func processComponent(process *gou.Process) interface{} {
 
 	process.ValidateArgNums(3)
-	form := MustGet(process)
+	chart := MustGet(process)
 	xpath := process.ArgsString(1)
 	method := process.ArgsString(2)
 	key := fmt.Sprintf("%s.$%s", xpath, method)
 
 	// get cloud props
-	cProp, has := form.CProps[key]
+	cProp, has := chart.CProps[key]
 	if !has {
 		exception.New("%s does not exist", 400, key).Throw()
 	}

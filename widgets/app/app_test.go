@@ -6,24 +6,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
-	"github.com/yaoapp/yao/lang"
+	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/widgets/login"
 )
 
 func TestLoad(t *testing.T) {
-	os.Unsetenv("YAO_LANG")
-	lang.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "Demo Application", Setting.Name)
-	assert.Equal(t, "Demo", Setting.Short)
-	assert.Equal(t, "Another yao application", Setting.Description)
+	assert.Equal(t, "::Demo Application", Setting.Name)
+	assert.Equal(t, "::Demo", Setting.Short)
+	assert.Equal(t, "::Another yao application", Setting.Description)
 	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional.HideNotification)
@@ -32,17 +31,33 @@ func TestLoad(t *testing.T) {
 
 func TestLoadHK(t *testing.T) {
 
-	os.Setenv("YAO_LANG", "zh-hk")
-	lang.Load(config.Conf)
-
-	err := Load(config.Conf)
+	err := i18n.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "示例應用", Setting.Name)
-	assert.Equal(t, "演示", Setting.Short)
-	assert.Equal(t, "又一個YAO應用", Setting.Description)
+	err = Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newSetting, err := i18n.Trans("zh-hk", "app", "app", Setting)
+	if err != nil {
+		t.Fatal(err)
+	}
+	setting := newSetting.(*DSL)
+
+	assert.Equal(t, "示例應用", setting.Name)
+	assert.Equal(t, "演示", setting.Short)
+	assert.Equal(t, "又一個YAO應用", setting.Description)
+	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
+	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
+	assert.Equal(t, true, setting.Optional.HideNotification)
+	assert.Equal(t, false, setting.Optional.HideSetting)
+
+	assert.Equal(t, "::Demo Application", Setting.Name)
+	assert.Equal(t, "::Demo", Setting.Short)
+	assert.Equal(t, "::Another yao application", Setting.Description)
 	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional.HideNotification)
@@ -51,17 +66,33 @@ func TestLoadHK(t *testing.T) {
 
 func TestLoadCN(t *testing.T) {
 
-	os.Setenv("YAO_LANG", "zh-cn")
-	lang.Load(config.Conf)
-
-	err := Load(config.Conf)
+	err := i18n.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "示例应用", Setting.Name)
-	assert.Equal(t, "演示", Setting.Short)
-	assert.Equal(t, "又一个 YAO 应用", Setting.Description)
+	err = Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newSetting, err := i18n.Trans("zh-cn", "app", "app", Setting)
+	if err != nil {
+		t.Fatal(err)
+	}
+	setting := newSetting.(*DSL)
+
+	assert.Equal(t, "示例应用", setting.Name)
+	assert.Equal(t, "演示", setting.Short)
+	assert.Equal(t, "又一个 YAO 应用", setting.Description)
+	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
+	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
+	assert.Equal(t, true, setting.Optional.HideNotification)
+	assert.Equal(t, false, setting.Optional.HideSetting)
+
+	assert.Equal(t, "::Demo Application", Setting.Name)
+	assert.Equal(t, "::Demo", Setting.Short)
+	assert.Equal(t, "::Another yao application", Setting.Description)
 	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional.HideNotification)
@@ -162,10 +193,13 @@ func TestProcessIcons(t *testing.T) {
 
 func loadApp(t *testing.T) {
 
-	os.Setenv("YAO_LANG", "")
-	lang.Load(config.Conf)
+	err := i18n.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lang.Pick("en-us").AsDefault()
 
-	err := login.Load(config.Conf)
+	err = login.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

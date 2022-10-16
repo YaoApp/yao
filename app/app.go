@@ -7,16 +7,12 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
-	"github.com/yaoapp/yao/lang"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/xfs"
 )
 
 // Load Application
 func Load(cfg config.Config) {
-
-	// Load language packs
-	lang.Load(cfg)
 
 	// Set language pack
 	share.App.L = map[string]string{}

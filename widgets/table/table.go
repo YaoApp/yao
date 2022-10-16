@@ -7,7 +7,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -193,11 +192,6 @@ func LoadData(data []byte, id string, root string) error {
 	err = dsl.Validate()
 	if err != nil {
 		return fmt.Errorf("[%s] %s", id, err.Error())
-	}
-
-	// Apply a language pack
-	if lang.Default != nil {
-		lang.Default.Apply(dsl)
 	}
 
 	Tables[id] = dsl

@@ -7,7 +7,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -52,11 +51,6 @@ func LoadFrom(dir string, prefix string) error {
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
 			return
-		}
-
-		// Apply a language pack
-		if lang.Default != nil {
-			lang.Default.Apply(dsl)
 		}
 
 		Logins[id] = dsl
@@ -138,12 +132,4 @@ func exportAPI() error {
 	// load apis
 	_, err = gou.LoadAPIReturn(string(source), "widgets.login")
 	return err
-}
-
-// Lang for applying a language pack
-func (dsl *DSL) Lang(trans func(widget string, inst string, value *string) bool) {
-	widget := "login"
-	trans(widget, dsl.ID, &dsl.Name)
-	trans(widget, dsl.ID, &dsl.Layout.Slogan)
-	trans(widget, dsl.ID, &dsl.Layout.Site)
 }

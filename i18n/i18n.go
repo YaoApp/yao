@@ -1,9 +1,10 @@
-package lang
+package i18n
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/log"
@@ -11,6 +12,18 @@ import (
 	"github.com/yaoapp/yao/data"
 	"gopkg.in/yaml.v3"
 )
+
+type langCache = struct {
+	data map[string]interface{}
+	mu   sync.RWMutex
+}
+
+var cache langCache = langCache{
+	data: map[string]interface{}{},
+	mu:   sync.RWMutex{},
+}
+
+var timezone *time.Location
 
 func init() {
 	lang.RegisterWidget("logins", "login")
@@ -29,24 +42,64 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Load langs
 	root := filepath.Join(cfg.Root, "langs")
 	err = lang.Load(root)
 	if err != nil {
 		return err
 	}
+	if _, has := lang.Dicts[cfg.Lang]; !has {
+		log.Error("The language pack %s does not found", cfg.Lang)
+		return nil
+	}
+	lang.Pick(cfg.Lang).AsDefault()
 
-	// Set default
-	lang.Pick("default").AsDefault()
-	name := os.Getenv("YAO_LANG")
-	if name != "" {
-		if _, has := lang.Dicts[name]; !has {
-			log.Error("The language pack %s does not found", name)
-			return nil
+	// Load Timezone
+	if cfg.TimeZone != "" {
+		loc, err := time.LoadLocation(cfg.TimeZone)
+		if err != nil {
+			log.Error("Load timezone error %s", cfg.TimeZone)
 		}
-		lang.Pick(name).AsDefault()
+		timezone = loc
 	}
 
+	// Clear lang cache
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	cache.data = map[string]interface{}{}
+
 	return nil
+}
+
+// Trans translate dsl
+func Trans(langName, widgetName, widgetInstance string, data interface{}) (interface{}, error) {
+
+	// Get From cache
+	key := fmt.Sprintf("%s::%s::%s", langName, widgetName, widgetInstance)
+	if res, has := cache.data[key]; has {
+		return res, nil
+	}
+
+	var dict *lang.Dict = lang.Default
+	if langName != "" {
+		dict = lang.Pick(langName)
+	}
+
+	res, err := dict.ReplaceClone(widgetName, widgetInstance, data)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheSet(dict, widgetName, widgetInstance, res)
+	return res, nil
+}
+
+// cacheSet cache set
+func cacheSet(dict *lang.Dict, widgetName, widgetInstance string, value interface{}) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	key := fmt.Sprintf("%s::%s::%s", dict.Name, widgetName, widgetInstance)
+	cache.data[key] = value
 }
 
 func loadFromBin() error {
