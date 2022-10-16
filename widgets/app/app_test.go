@@ -118,7 +118,7 @@ func TestExport(t *testing.T) {
 
 	api, has := gou.APIs["widgets.app"]
 	assert.True(t, has)
-	assert.Equal(t, 3, len(api.HTTP.Paths))
+	assert.Equal(t, 4, len(api.HTTP.Paths))
 
 	_, has = gou.ThirdHandlers["yao.app.setting"]
 	assert.True(t, has)
@@ -146,6 +146,19 @@ func TestProcessSetting(t *testing.T) {
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
 	assert.Equal(t, true, setting.Optional.HideNotification)
 	assert.Equal(t, false, setting.Optional.HideSetting)
+	assert.Equal(t, true, setting.Sid != "")
+
+	// Set
+	res, err = gou.NewProcess("yao.app.Setting", map[string]interface{}{"lang": "zh-hk", "sid": setting.Sid}).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	setting2, ok := res.(DSL)
+	assert.Equal(t, setting.Sid, setting2.Sid)
+
+	lang := gou.NewProcess("yao.app.Setting").WithSID(setting.Sid).Lang()
+	assert.Equal(t, "zh-hk", lang)
 }
 
 func TestProcessXgen(t *testing.T) {
@@ -171,6 +184,20 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "Demo Application", xgen.Get("name"))
 	assert.Equal(t, true, xgen.Get("optional.hideNotification"))
 	assert.Equal(t, "localStorage", xgen.Get("token"))
+	assert.Equal(t, true, xgen.Get("sid").(string) != "")
+
+	// Set
+	res, err = gou.NewProcess("yao.app.Xgen", map[string]interface{}{"lang": "zh-hk", "sid": xgen.Get("sid")}).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	xgen2 := any.Of(res).MapStr().Dot()
+	assert.Equal(t, xgen.Get("sid"), xgen2.Get("sid"))
+
+	lang := gou.NewProcess("yao.app.Setting").WithSID(xgen2.Get("sid").(string)).Lang()
+	assert.Equal(t, "zh-hk", lang)
+
 }
 
 func TestProcessMenu(t *testing.T) {

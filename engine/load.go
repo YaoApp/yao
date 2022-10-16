@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/yao/connector"
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/fs"
+	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/importer"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/page"
@@ -65,10 +66,18 @@ func Load(cfg config.Config) (err error) {
 		printErr(cfg.Mode, "FileSystem", err)
 	}
 
-	// Load Studio
-	err = studio.Load(cfg)
+	// Load i18n
+	err = i18n.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Studio", err)
+		printErr(cfg.Mode, "i18n", err)
+	}
+
+	// Load Studio development mode only
+	if cfg.Mode == "development" {
+		err = studio.Load(cfg)
+		if err != nil {
+			printErr(cfg.Mode, "Studio", err)
+		}
 	}
 
 	// 第二步: 建立数据库 & 会话连接
