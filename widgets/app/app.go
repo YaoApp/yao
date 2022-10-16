@@ -247,7 +247,7 @@ func processSetting(process *gou.Process) interface{} {
 			sid = payload["sid"].(string)
 		}
 
-		lang := fmt.Sprintf("%v", payload["lang"])
+		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
 		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
@@ -283,7 +283,7 @@ func processXgen(process *gou.Process) interface{} {
 			sid = payload["sid"].(string)
 		}
 
-		lang := fmt.Sprintf("%v", payload["lang"])
+		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
 		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
