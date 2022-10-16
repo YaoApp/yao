@@ -4,6 +4,8 @@ package config
 type Config struct {
 	Mode      string        `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`      // 象传引擎启动模式 production/development
 	Root      string        `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`              // 应用根目录
+	Lang      string        `json:"lang,omitempty" env:"YAO_LANG" envDefault:"en-us"`          // Default language setting
+	TimeZone  string        `json:"timezone,omitempty" env:"YAO_TIMEZONE"`                     // Default TimeZone
 	DataRoot  string        `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`     // DATA PATH
 	Host      string        `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`        // 服务监听地址
 	Port      int           `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`           // 服务监听端口

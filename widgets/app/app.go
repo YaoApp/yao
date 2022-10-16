@@ -9,10 +9,10 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
+	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -72,11 +72,6 @@ func Load(cfg config.Config) error {
 
 	// Load icons
 	dsl.icons(cfg)
-
-	// Apply a language pack
-	if lang.Default != nil {
-		lang.Default.Apply(dsl)
-	}
 
 	Setting = dsl
 	return nil
@@ -223,7 +218,13 @@ func processSetting(process *gou.Process) interface{} {
 		exception.New("the app does not init", 500).Throw()
 		return nil
 	}
-	return *Setting
+
+	setting, err := i18n.Trans(process.Lang(), "app", "app", Setting)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return *setting.(*DSL)
 }
 
 func processXgen(process *gou.Process) interface{} {
@@ -255,12 +256,19 @@ func processXgen(process *gou.Process) interface{} {
 			layout["cover"] = admin.Layout.Cover
 		}
 
+		// Translate
+		newLayout, err := i18n.Trans(process.Lang(), "login", "admin", layout)
+		if err != nil {
+			layout = newLayout.(map[string]interface{})
+		}
+
 		xgenLogin["entry"]["admin"] = admin.Layout.Entry
 		xgenLogin["admin"] = map[string]interface{}{
 			"captcha": "/api/__yao/login/admin/captcha?type=digit",
 			"login":   "/api/__yao/login/admin",
 			"layout":  layout,
 		}
+
 	}
 
 	if user, has := login.Logins["user"]; has {
@@ -275,6 +283,12 @@ func processXgen(process *gou.Process) interface{} {
 
 		if user.Layout.Cover != "" {
 			layout["cover"] = user.Layout.Cover
+		}
+
+		// Translate
+		newLayout, err := i18n.Trans(process.Lang(), "login", "user", layout)
+		if err != nil {
+			layout = newLayout.(map[string]interface{})
 		}
 
 		xgenLogin["entry"]["user"] = user.Layout.Entry
@@ -305,15 +319,12 @@ func processXgen(process *gou.Process) interface{} {
 		xgenSetting["favicon"] = Setting.Favicon
 	}
 
-	return xgenSetting
-}
+	setting, err := i18n.Trans(process.Lang(), "app", "app", xgenSetting)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
 
-// Lang for applying a language pack
-func (dsl *DSL) Lang(trans func(widget string, inst string, value *string) bool) {
-	widget := "app"
-	trans(widget, "app", &dsl.Name)
-	trans(widget, "app", &dsl.Short)
-	trans(widget, "app", &dsl.Description)
+	return setting.(map[string]interface{})
 }
 
 // replaceAdminRoot
