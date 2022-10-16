@@ -45,10 +45,6 @@ func LoadAndExport(cfg config.Config) error {
 // Load the app DSL
 func Load(cfg config.Config) error {
 
-	if os.Getenv("YAO_LANG") == "" {
-		os.Setenv("YAO_LANG", "en-us")
-	}
-
 	file := filepath.Join(cfg.Root, "app.json")
 	file, err := filepath.Abs(file)
 	if err != nil {
@@ -60,7 +56,7 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	dsl := &DSL{Optional: OptionalDSL{}}
+	dsl := &DSL{Optional: OptionalDSL{}, Lang: cfg.Lang}
 	err = jsoniter.Unmarshal(data, dsl)
 	if err != nil {
 		return err
@@ -362,6 +358,7 @@ func processXgen(process *gou.Process) interface{} {
 		"name":        Setting.Name,
 		"description": Setting.Description,
 		"theme":       Setting.Theme,
+		"lang":        Setting.Lang,
 		"mode":        mode,
 		"apiPrefix":   "__yao",
 		"token":       "localStorage",
