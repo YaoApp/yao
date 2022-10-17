@@ -246,7 +246,7 @@ func processService(process *gou.Process) interface{} {
 		req.WithSid(process.Sid)
 	}
 
-	res, err := req.RootCall(args...)
+	res, err := req.Call(args...)
 	if err != nil {
 		// parse Exception
 		code := 500
