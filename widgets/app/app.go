@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,9 +23,12 @@ import (
 
 //
 // API:
-//   GET  /api/__yao/app/setting 	-> Default process: yao.app.Xgen
-//   POST /api/__yao/app/setting 	-> Default process: yao.app.Xgen  {"sid":"xxx", "lang":"zh-hk", "time": "2022-10-10 22:00:10"}
-//   GET  /api/__yao/app/menu  		-> Default process: yao.app.Menu
+//   GET   /api/__yao/app/setting 			-> Default process: yao.app.Xgen
+//   POST  /api/__yao/app/setting 			-> Default process: yao.app.Xgen  {"sid":"xxx", "lang":"zh-hk", "time": "2022-10-10 22:00:10"}
+//   GET   /api/__yao/app/menu  			-> Default process: yao.app.Menu
+//   POST  /api/__yao/app/check  			-> Default process: yao.app.Check
+//   POST  /api/__yao/app/setup  			-> Default process: yao.app.Setup   {"sid":"xxxx", ...}
+//   POST  /api/__yao/app/service/:name  	-> Default process: yao.app.Service {"method":"Bar", "args":["hello", "world"]}
 //
 // Process:
 // 	 yao.app.Setting Return the App DSL
@@ -33,6 +38,7 @@ import (
 
 // Setting the application setting
 var Setting *DSL
+var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
 
 // LoadAndExport load app
 func LoadAndExport(cfg config.Config) error {
@@ -154,6 +160,42 @@ func exportAPI() error {
 	}
 	http.Paths = append(http.Paths, path)
 
+	path = gou.Path{
+		Label:       "Setup",
+		Description: "Setup",
+		Path:        "/setup",
+		Guard:       "-",
+		Method:      "POST",
+		Process:     "yao.app.Setup",
+		In:          []string{":payload"},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
+	path = gou.Path{
+		Label:       "Check",
+		Description: "Check",
+		Path:        "/check",
+		Guard:       "-",
+		Method:      "POST",
+		Process:     "yao.app.Check",
+		In:          []string{":payload"},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
+	path = gou.Path{
+		Label:       "Serivce",
+		Description: "Serivce",
+		Path:        "/service/:name",
+		Guard:       "bearer-jwt",
+		Method:      "POST",
+		Process:     "yao.app.Serivce",
+		In:          []string{"$param.name", ":payload"},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
 	// api source
 	source, err := jsoniter.Marshal(http)
 	if err != nil {
@@ -176,6 +218,95 @@ func exportProcess() {
 	gou.RegisterProcessHandler("yao.app.xgen", processXgen)
 	gou.RegisterProcessHandler("yao.app.menu", processMenu)
 	gou.RegisterProcessHandler("yao.app.icons", processIcons)
+	gou.RegisterProcessHandler("yao.app.setup", processSetup)
+	gou.RegisterProcessHandler("yao.app.check", processCheck)
+	gou.RegisterProcessHandler("yao.app.service", processService)
+}
+
+func processService(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	service := fmt.Sprintf("__yao_service.%s", process.ArgsString(0))
+	payload := process.ArgsMap(1)
+	if payload == nil || len(payload) == 0 {
+		exception.New("content is required", 400).Throw()
+	}
+
+	method, ok := payload["method"].(string)
+	if !ok || service == "" {
+		exception.New("method is required", 400).Throw()
+	}
+
+	args := []interface{}{}
+	if v, ok := payload["args"].([]interface{}); ok {
+		args = v
+	}
+
+	req := gou.Yao.New(service, method)
+	if process.Sid != "" {
+		req.WithSid(process.Sid)
+	}
+
+	res, err := req.RootCall(args...)
+	if err != nil {
+		// parse Exception
+		code := 500
+		message := err.Error()
+		match := regExcp.FindStringSubmatch(message)
+		if len(match) > 0 {
+			code, err = strconv.Atoi(match[1])
+			if err == nil {
+				message = strings.TrimSpace(match[2])
+			}
+		}
+		exception.New(message, code).Throw()
+	}
+
+	return res
+}
+
+func processCheck(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	payload := process.ArgsMap(0)
+	time.Sleep(3 * time.Second)
+
+	if _, has := payload["error"]; has {
+		exception.New("Something error", 500).Throw()
+	}
+	return nil
+}
+
+func processSetup(process *gou.Process) interface{} {
+	process.ValidateArgNums(1)
+	payload := process.ArgsMap(0)
+	time.Sleep(3 * time.Second)
+
+	if _, has := payload["error"]; has {
+		exception.New("Something error", 500).Throw()
+	}
+
+	lang := process.Lang()
+	if sid, has := payload["sid"]; has {
+		lang, err := session.Global().ID(sid.(string)).Get("__yao_lang")
+		if err != nil {
+			lang = strings.ToLower(lang.(string))
+		}
+	}
+
+	root := "yao"
+	if Setting.Optional.AdminRoot != "" {
+		root = Setting.Optional.AdminRoot
+	}
+
+	setting, err := i18n.Trans(lang, "app", "app", Setting)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return map[string]interface{}{
+		"home":    fmt.Sprintf("http://127.0.0.1:%d", config.Conf.Port),
+		"admin":   fmt.Sprintf("http://127.0.0.1:%d/%s/", config.Conf.Port, root),
+		"setting": setting,
+	}
 }
 
 func processIcons(process *gou.Process) interface{} {

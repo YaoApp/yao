@@ -11,7 +11,7 @@ import (
 
 func init() {
 	rootLib := path.Join(os.Getenv("YAO_DEV"), "/tests/scripts")
-	LoadFrom(rootLib)
+	LoadFrom(rootLib, "")
 }
 func TestScript(t *testing.T) {
 	res, err := gou.Yao.New("time", "hello").Call("world")

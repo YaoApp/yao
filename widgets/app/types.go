@@ -28,3 +28,9 @@ type OptionalDSL struct {
 	AdminRoot        string `json:"adminRoot,omitempty"`
 	Setting          string `json:"setting,omitempty"` // custom setting process
 }
+
+// CFUN cloud function
+type CFUN struct {
+	Method string        `json:"method"`
+	Args   []interface{} `json:"args,omitempty"`
+}
