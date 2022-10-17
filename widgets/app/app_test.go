@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/widgets/login"
 )
 
@@ -118,7 +119,7 @@ func TestExport(t *testing.T) {
 
 	api, has := gou.APIs["widgets.app"]
 	assert.True(t, has)
-	assert.Equal(t, 4, len(api.HTTP.Paths))
+	assert.Equal(t, 7, len(api.HTTP.Paths))
 
 	_, has = gou.ThirdHandlers["yao.app.setting"]
 	assert.True(t, has)
@@ -127,6 +128,15 @@ func TestExport(t *testing.T) {
 	assert.True(t, has)
 
 	_, has = gou.ThirdHandlers["yao.app.menu"]
+	assert.True(t, has)
+
+	_, has = gou.ThirdHandlers["yao.app.check"]
+	assert.True(t, has)
+
+	_, has = gou.ThirdHandlers["yao.app.setup"]
+	assert.True(t, has)
+
+	_, has = gou.ThirdHandlers["yao.app.service"]
 	assert.True(t, has)
 }
 
@@ -218,9 +228,52 @@ func TestProcessIcons(t *testing.T) {
 	assert.Greater(t, len(res.(string)), 10)
 }
 
+func TestProcessCheck(t *testing.T) {
+	loadApp(t)
+	res, err := gou.NewProcess("yao.app.Check", map[string]interface{}{}).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+
+	_, err = gou.NewProcess("yao.app.Check", map[string]interface{}{"error": "1"}).Exec()
+	assert.NotNil(t, err)
+}
+
+func TestProcessSetup(t *testing.T) {
+	loadApp(t)
+	res, err := gou.NewProcess("yao.app.Setup", map[string]interface{}{"sid": "hello"}).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "http://127.0.0.1:5099/admin/", res.(map[string]interface{})["admin"])
+	_, err = gou.NewProcess("yao.app.Setup", map[string]interface{}{"error": "1"}).Exec()
+	assert.NotNil(t, err)
+}
+
+func TestProcessService(t *testing.T) {
+	loadApp(t)
+	res, err := gou.NewProcess(
+		"yao.app.Service",
+		"foo",
+		map[string]interface{}{"method": "Bar", "args": []interface{}{"hello", "world"}},
+	).Exec()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []interface{}{"hello", "world"}, res)
+}
+
 func loadApp(t *testing.T) {
 
-	err := i18n.Load(config.Conf)
+	err := script.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = i18n.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
