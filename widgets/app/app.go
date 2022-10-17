@@ -21,8 +21,9 @@ import (
 
 //
 // API:
-//   GET /api/__yao/app/setting 	-> Default process: yao.app.Xgen
-//   GET /api/__yao/app/menu  		-> Default process: yao.app.Menu
+//   GET  /api/__yao/app/setting 	-> Default process: yao.app.Xgen
+//   POST /api/__yao/app/setting 	-> Default process: yao.app.Xgen  {"sid":"xxx", "lang":"zh-hk", "time": "2022-10-10 22:00:10"}
+//   GET  /api/__yao/app/menu  		-> Default process: yao.app.Menu
 //
 // Process:
 // 	 yao.app.Setting Return the App DSL
