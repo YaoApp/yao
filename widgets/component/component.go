@@ -21,3 +21,19 @@ func (dsl DSL) Map() map[string]interface{} {
 		"props": map[string]interface{}(dsl.Props),
 	}
 }
+
+// Clone Component
+func (dsl *DSL) Clone() *DSL {
+	new := DSL{
+		Type:  dsl.Type,
+		In:    dsl.In,
+		Out:   dsl.Out,
+		Props: PropsDSL{},
+	}
+	if dsl.Props != nil {
+		for key, val := range dsl.Props {
+			new.Props[key] = val
+		}
+	}
+	return &new
+}

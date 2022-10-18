@@ -217,7 +217,14 @@ func valueOf(name string, data maps.MapStrAny) (interface{}, bool) {
 
 	// label / comment
 	if data.Has(name) {
-		return data.Get(name), true
+		value := data.Get(name)
+		if valstr, ok := value.(string); ok {
+			//  ::value
+			if strings.HasPrefix(valstr, "::") {
+				return fmt.Sprintf("$L(%s)", strings.TrimPrefix(valstr, "::")), true
+			}
+		}
+		return value, true
 	}
 
 	return nil, false

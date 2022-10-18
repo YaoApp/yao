@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
@@ -50,7 +51,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 
 	if layout.Table == nil && len(fields.Table) > 0 {
 		layout.Table = &ViewLayoutDSL{
-			Props:   component.PropsDSL{},
+			Props:   component.PropsDSL{"scroll": map[string]interface{}{"x": "max-content"}},
 			Columns: component.Instances{},
 			Operation: OperationTableDSL{
 				Hide:    true,
@@ -106,9 +107,16 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 			name, ok := namev.(string)
 			if ok && name != "deleted_at" {
 				if col, has := fields.tableMap[name]; has {
+					width := 160
+					if c, has := m.Columns[name]; has {
+						typ := strings.ToLower(c.Type)
+						if typ == "id" || strings.Contains(typ, "integer") || strings.Contains(typ, "float") {
+							width = 100
+						}
+					}
 					layout.Table.Columns = append(layout.Table.Columns, component.InstanceDSL{
 						Name:  col.Key,
-						Width: 160,
+						Width: width,
 					})
 				}
 			}
