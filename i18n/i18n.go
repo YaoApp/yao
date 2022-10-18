@@ -3,6 +3,7 @@ package i18n
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,10 +73,10 @@ func Load(cfg config.Config) error {
 }
 
 // Trans translate dsl
-func Trans(langName, widgetName, widgetInstance string, data interface{}) (interface{}, error) {
+func Trans(langName string, widgets []string, data interface{}) (interface{}, error) {
 
 	// Get From cache
-	key := fmt.Sprintf("%s::%s::%s", langName, widgetName, widgetInstance)
+	key := fmt.Sprintf("%s::%s", langName, strings.Join(widgets, "::"))
 	if res, has := cache.data[key]; has {
 		return res, nil
 	}
@@ -85,20 +86,20 @@ func Trans(langName, widgetName, widgetInstance string, data interface{}) (inter
 		dict = lang.Pick(langName)
 	}
 
-	res, err := dict.ReplaceClone(widgetName, widgetInstance, data)
+	res, err := dict.ReplaceClone(widgets, data)
 	if err != nil {
 		return nil, err
 	}
 
-	cacheSet(dict, widgetName, widgetInstance, res)
+	cacheSet(dict, widgets, res)
 	return res, nil
 }
 
 // cacheSet cache set
-func cacheSet(dict *lang.Dict, widgetName, widgetInstance string, value interface{}) {
+func cacheSet(dict *lang.Dict, widgets []string, value interface{}) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	key := fmt.Sprintf("%s::%s::%s", dict.Name, widgetName, widgetInstance)
+	key := fmt.Sprintf("%s::%s", dict.Name, strings.Join(widgets, "::"))
 	cache.data[key] = value
 }
 
@@ -107,18 +108,17 @@ func loadFromBin() error {
 	dirs := map[string][]struct {
 		File     string
 		Widget   string
-		Instance string
 		IsGlobal bool
 	}{
 		"zh-cn": {
 			{File: "yao/langs/zh-cn/global.yml", IsGlobal: true},
-			{File: "yao/langs/zh-cn/logins/admin.login.yml", Widget: "login", Instance: "admin"},
-			{File: "yao/langs/zh-cn/logins/user.login.yml", Widget: "login", Instance: "user"},
+			{File: "yao/langs/zh-cn/logins/admin.login.yml", Widget: "login.admin"},
+			{File: "yao/langs/zh-cn/logins/user.login.yml", Widget: "login.user"},
 		},
 		"zh-hk": {
 			{File: "yao/langs/zh-hk/global.yml", IsGlobal: true},
-			{File: "yao/langs/zh-hk/logins/admin.login.yml", Widget: "login", Instance: "admin"},
-			{File: "yao/langs/zh-hk/logins/user.login.yml", Widget: "login", Instance: "user"},
+			{File: "yao/langs/zh-hk/logins/admin.login.yml", Widget: "login.admin"},
+			{File: "yao/langs/zh-hk/logins/user.login.yml", Widget: "login.user"},
 		},
 	}
 
@@ -127,7 +127,7 @@ func loadFromBin() error {
 		dict := &lang.Dict{
 			Name:    langName,
 			Global:  lang.Words{},
-			Widgets: map[string]lang.Widget{},
+			Widgets: map[string]lang.Words{},
 		}
 
 		for _, f := range files {
@@ -148,9 +148,9 @@ func loadFromBin() error {
 			}
 
 			if _, has := dict.Widgets[f.Widget]; !has {
-				dict.Widgets[f.Widget] = map[string]lang.Words{}
+				dict.Widgets[f.Widget] = lang.Words{}
 			}
-			dict.Widgets[f.Widget][f.Instance] = words
+			dict.Widgets[f.Widget] = words
 		}
 
 		if _, has := lang.Dicts[langName]; has {

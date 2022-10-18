@@ -28,7 +28,7 @@ func check(t *testing.T) {
 		keys = append(keys, key)
 	}
 	assert.Equal(t, 2, len(keys))
-	_, err := i18n.Trans("zh-hk", "chart", "lang", Pages["lang"])
+	_, err := i18n.Trans("zh-hk", []string{"chart.lang"}, Pages["lang"])
 	if err != nil {
 		t.Fatal(err)
 	}

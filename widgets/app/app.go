@@ -297,7 +297,7 @@ func processSetup(process *gou.Process) interface{} {
 		root = Setting.Optional.AdminRoot
 	}
 
-	setting, err := i18n.Trans(lang, "app", "app", Setting)
+	setting, err := i18n.Trans(lang, []string{"app.app"}, Setting)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -383,7 +383,7 @@ func processSetting(process *gou.Process) interface{} {
 		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
-	setting, err := i18n.Trans(process.Lang(), "app", "app", Setting)
+	setting, err := i18n.Trans(process.Lang(config.Conf.Lang), []string{"app.app"}, Setting)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -443,7 +443,7 @@ func processXgen(process *gou.Process) interface{} {
 		}
 
 		// Translate
-		newLayout, err := i18n.Trans(process.Lang(), "login", "admin", layout)
+		newLayout, err := i18n.Trans(process.Lang(config.Conf.Lang), []string{"login.admin"}, layout)
 		if err != nil {
 			layout = newLayout.(map[string]interface{})
 		}
@@ -472,7 +472,7 @@ func processXgen(process *gou.Process) interface{} {
 		}
 
 		// Translate
-		newLayout, err := i18n.Trans(process.Lang(), "login", "user", layout)
+		newLayout, err := i18n.Trans(process.Lang(config.Conf.Lang), []string{"login.user"}, layout)
 		if err != nil {
 			layout = newLayout.(map[string]interface{})
 		}
@@ -506,7 +506,7 @@ func processXgen(process *gou.Process) interface{} {
 		xgenSetting["favicon"] = Setting.Favicon
 	}
 
-	setting, err := i18n.Trans(process.Lang(), "app", "app", xgenSetting)
+	setting, err := i18n.Trans(process.Lang(config.Conf.Lang), []string{"app.app"}, xgenSetting)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/widgets/action"
 	"github.com/yaoapp/yao/widgets/hook"
@@ -367,24 +368,20 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	// Tranlate
 	if p.Name == "yao.table.Setting" {
 
-		res, err = i18n.Trans(process.Lang(), "table", tab.ID, res)
-		if err != nil {
-			return nil, fmt.Errorf("[table] Trans.table.%s %s", tab.ID, err.Error())
+		widgets := []string{}
+		if tab.Action.Bind.Model != "" {
+			m := gou.Select(tab.Action.Bind.Model)
+			widgets = append(widgets, fmt.Sprintf("model.%s", m.ID))
 		}
 
 		if tab.Action.Bind.Table != "" {
-			res, err = i18n.Trans(process.Lang(), "table", tab.Action.Bind.Table, res)
-			if err != nil {
-				return nil, fmt.Errorf("[table] Trans.bind.table.%s %s", tab.ID, err.Error())
-			}
+			widgets = append(widgets, fmt.Sprintf("table.%s", tab.Action.Bind.Table))
 		}
 
-		if tab.Action.Bind.Model != "" {
-			m := gou.Select(tab.Action.Bind.Model)
-			res, err = i18n.Trans(process.Lang(), "model", m.ID, res)
-			if err != nil {
-				return nil, fmt.Errorf("[table] Trans.model.%s %s", m.ID, err.Error())
-			}
+		widgets = append(widgets, fmt.Sprintf("table.%s", tab.ID))
+		res, err = i18n.Trans(process.Lang(config.Conf.Lang), widgets, res)
+		if err != nil {
+			return nil, fmt.Errorf("[table] Trans.table.%s %s", tab.ID, err.Error())
 		}
 
 	}

@@ -71,7 +71,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "https://yaoapps.com/doc", Logins["user"].Layout.Site)
 	assert.Equal(t, "::Make Your Dream With Yao App Engine", Logins["user"].Layout.Slogan)
 
-	adminV, err := i18n.Trans("zh-hk", "login", "admin", Logins["admin"])
+	adminV, err := i18n.Trans("zh-hk", []string{"login.admin"}, Logins["admin"])
 	admin := adminV.(*DSL)
 	assert.Equal(t, "admin", admin.ID)
 	assert.Equal(t, "管理員登錄", admin.Name)
@@ -83,7 +83,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "https://yaoapps.com", admin.Layout.Site)
 	assert.Equal(t, "和 Yao App Engine 一起，為夢想而努力", admin.Layout.Slogan)
 
-	userV, err := i18n.Trans("zh-hk", "login", "user", Logins["user"])
+	userV, err := i18n.Trans("zh-hk", []string{"login.user"}, Logins["user"])
 	user := userV.(*DSL)
 	assert.Equal(t, "user", user.ID)
 	assert.Equal(t, "用戶登錄", user.Name)
@@ -107,7 +107,7 @@ func TestLoadCN(t *testing.T) {
 
 	assert.Equal(t, 2, len(Logins))
 
-	adminV, err := i18n.Trans("zh-cn", "login", "admin", Logins["admin"])
+	adminV, err := i18n.Trans("zh-cn", []string{"login.admin"}, Logins["admin"])
 	admin := adminV.(*DSL)
 
 	assert.Equal(t, "admin", admin.ID)
@@ -120,7 +120,7 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "https://yaoapps.com", admin.Layout.Site)
 	assert.Equal(t, "和 Yao App Engine 一起，为梦想而努力", admin.Layout.Slogan)
 
-	userV, err := i18n.Trans("zh-cn", "login", "user", Logins["user"])
+	userV, err := i18n.Trans("zh-cn", []string{"login.user"}, Logins["user"])
 	user := userV.(*DSL)
 
 	assert.Equal(t, "user", user.ID)
