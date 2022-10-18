@@ -46,20 +46,25 @@ func processLoginAdmin(process *gou.Process) interface{} {
 		return nil
 	}
 
+	sid := session.ID()
+	if csid, ok := payload["sid"].(string); ok {
+		sid = csid
+	}
+
 	email := any.Of(payload.Get("email")).CString()
 	mobile := any.Of(payload.Get("mobile")).CString()
 	password := any.Of(payload.Get("password")).CString()
 	if email != "" {
-		return auth("email", email, password)
+		return auth("email", email, password, sid)
 	} else if mobile != "" {
-		return auth("mobile", mobile, password)
+		return auth("mobile", mobile, password, sid)
 	}
 
 	exception.New("参数错误", 400).Ctx(payload).Throw()
 	return nil
 }
 
-func auth(field string, value string, password string) maps.Map {
+func auth(field string, value string, password string, sid string) maps.Map {
 	column, has := loginTypes[field]
 	if !has {
 		exception.New("登录方式(%s)尚未支持", 400, field).Throw()
@@ -95,13 +100,13 @@ func auth(field string, value string, password string) maps.Map {
 	expiresAt := time.Now().Unix() + 3600
 
 	// token := MakeToken(row, expiresAt)
-	sid := session.ID()
 	id := any.Of(row.Get("id")).CInt()
 	token := helper.JwtMake(id, map[string]interface{}{}, map[string]interface{}{
 		"expires_at": expiresAt,
 		"sid":        sid,
 		"issuer":     "yao",
 	})
+	log.Debug("[login] auth sid=%s", sid)
 	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user_id", id)
 	session.Global().ID(sid).Set("user", row)
 	session.Global().ID(sid).Set("issuer", "yao")
