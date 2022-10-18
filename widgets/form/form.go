@@ -7,7 +7,6 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -129,11 +128,6 @@ func LoadFrom(dir string, prefix string) error {
 			return
 		}
 
-		// Apply a language pack
-		if lang.Default != nil {
-			lang.Default.Apply(dsl)
-		}
-
 		Forms[id] = dsl
 	})
 
@@ -211,5 +205,6 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		}
 	}
 
+	setting["name"] = dsl.Name
 	return setting, nil
 }

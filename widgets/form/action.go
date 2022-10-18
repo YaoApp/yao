@@ -7,6 +7,8 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/widgets/action"
 )
 
@@ -194,6 +196,27 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 			log.Trace("[form] %s %s after: %v", form.ID, p.Name, newRes)
 			res = newRes
 		}
+	}
+
+	// Tranlate
+	if p.Name == "yao.form.Setting" {
+
+		widgets := []string{}
+		if form.Action.Bind.Model != "" {
+			m := gou.Select(form.Action.Bind.Model)
+			widgets = append(widgets, fmt.Sprintf("model.%s", m.ID))
+		}
+
+		if form.Action.Bind.Table != "" {
+			widgets = append(widgets, fmt.Sprintf("table.%s", form.Action.Bind.Table))
+		}
+
+		widgets = append(widgets, fmt.Sprintf("form.%s", form.ID))
+		res, err = i18n.Trans(process.Lang(config.Conf.Lang), widgets, res)
+		if err != nil {
+			return nil, fmt.Errorf("[form] Trans.table.%s %s", form.ID, err.Error())
+		}
+
 	}
 
 	return res, nil
