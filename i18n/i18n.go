@@ -1,6 +1,7 @@
 package i18n
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -76,7 +77,9 @@ func Load(cfg config.Config) error {
 func Trans(langName string, widgets []string, data interface{}) (interface{}, error) {
 
 	// Get From cache
-	key := fmt.Sprintf("%s::%s", langName, strings.Join(widgets, "::"))
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%v", data)))
+	key := fmt.Sprintf("%s::%s::%s", langName, strings.Join(widgets, "::"), hash)
+
 	if res, has := cache.data[key]; has {
 		return res, nil
 	}
@@ -99,7 +102,8 @@ func Trans(langName string, widgets []string, data interface{}) (interface{}, er
 func cacheSet(dict *lang.Dict, widgets []string, value interface{}) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	key := fmt.Sprintf("%s::%s", dict.Name, strings.Join(widgets, "::"))
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%v", value)))
+	key := fmt.Sprintf("%s::%s::%s", dict.Name, strings.Join(widgets, "::"), hash)
 	cache.data[key] = value
 }
 
