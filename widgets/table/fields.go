@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/widgets/field"
@@ -84,21 +85,37 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 	tables := map[string]interface{}{}
 	if layout.Filter != nil {
 		for i, f := range layout.Filter.Columns {
-			field, has := fields.Filter[f.Name]
+			name := f.Name
+			field, has := fields.Filter[name]
 			if !has {
+				if strings.HasPrefix(f.Name, "::") {
+					name = fmt.Sprintf("$L(%s)", strings.TrimPrefix(f.Name, "::"))
+					if field, has = fields.Filter[name]; has {
+						filters[name] = field.Map()
+						continue
+					}
+				}
 				return nil, fmt.Errorf("fields.filter.%s not found, checking layout.filter.columns.%d.name", f.Name, i)
 			}
-			filters[f.Name] = field.Map()
+			filters[name] = field.Map()
 		}
 	}
 
 	if layout.Table != nil {
 		for i, f := range layout.Table.Columns {
-			field, has := fields.Table[f.Name]
+			name := f.Name
+			field, has := fields.Table[name]
 			if !has {
+				if strings.HasPrefix(f.Name, "::") {
+					name = fmt.Sprintf("$L(%s)", strings.TrimPrefix(f.Name, "::"))
+					if field, has = fields.Table[name]; has {
+						tables[name] = field.Map()
+						continue
+					}
+				}
 				return nil, fmt.Errorf("fields.table.%s not found, checking layout.table.columns.%d.name", f.Name, i)
 			}
-			tables[f.Name] = field.Map()
+			tables[name] = field.Map()
 		}
 	}
 

@@ -26,7 +26,16 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 
 		layout.Filter = &FilterLayoutDSL{Columns: component.Instances{}}
 		if hasForm {
-			layout.Filter.BtnAddText = "创建"
+			layout.Filter.Actions = component.Actions{
+				{
+					Title: "::Create",
+					Icon:  "icon-plus",
+					Width: 3,
+					Action: map[string]component.ParamsDSL{
+						"Common.historyPush": {"pathname": fmt.Sprintf("/x/Form/%s/0/edit", formName)},
+					},
+				},
+			}
 		}
 
 		max := 3

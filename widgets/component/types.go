@@ -24,6 +24,7 @@ type InstanceDSL struct {
 // ActionDSL the component action DSL
 type ActionDSL struct {
 	Title   string               `json:"title,omitempty"`
+	Width   int                  `json:"width,omitempty"`
 	Icon    string               `json:"icon,omitempty"`
 	Style   string               `json:"style,omitempty"`
 	Props   PropsDSL             `json:"props,omitempty"`

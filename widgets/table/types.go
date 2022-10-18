@@ -112,8 +112,8 @@ type OperationImportDSL struct {
 
 // FilterLayoutDSL layout.filter
 type FilterLayoutDSL struct {
-	BtnAddText string              `json:"btnAddText,omitempty"`
-	Columns    component.Instances `json:"columns,omitempty"`
+	Actions component.Actions   `json:"actions,omitempty"`
+	Columns component.Instances `json:"columns,omitempty"`
 }
 
 // ViewLayoutDSL layout.table
