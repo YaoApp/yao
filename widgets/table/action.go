@@ -7,6 +7,8 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/widgets/action"
 	"github.com/yaoapp/yao/widgets/hook"
 )
@@ -296,13 +298,13 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	// Execute Process
 	act, err := gou.ProcessOf(name, args...)
 	if err != nil {
-		log.Error("[table] %s %s -> %s %s", tab.ID, p.Name, name, err.Error())
+		log.Error("[table] %s %s -> %s %s %v", tab.ID, p.Name, name, err.Error(), args)
 		return nil, fmt.Errorf("[table] %s %s -> %s %s", tab.ID, p.Name, name, err.Error())
 	}
 
 	res, err := act.WithGlobal(process.Global).WithSID(process.Sid).Exec()
 	if err != nil {
-		log.Error("[table] %s %s -> %s %s", tab.ID, p.Name, name, err.Error())
+		log.Error("[table] %s %s -> %s %s %v", tab.ID, p.Name, name, err.Error(), args)
 		return nil, fmt.Errorf("[table] %s %s -> %s %s", tab.ID, p.Name, name, err.Error())
 	}
 
@@ -361,6 +363,27 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 			log.Trace("[table] %s %s after: %v", tab.ID, p.Name, newRes)
 			res = newRes
 		}
+	}
+
+	// Tranlate
+	if p.Name == "yao.table.Setting" {
+
+		widgets := []string{}
+		if tab.Action.Bind.Model != "" {
+			m := gou.Select(tab.Action.Bind.Model)
+			widgets = append(widgets, fmt.Sprintf("model.%s", m.ID))
+		}
+
+		if tab.Action.Bind.Table != "" {
+			widgets = append(widgets, fmt.Sprintf("table.%s", tab.Action.Bind.Table))
+		}
+
+		widgets = append(widgets, fmt.Sprintf("table.%s", tab.ID))
+		res, err = i18n.Trans(process.Lang(config.Conf.Lang), widgets, res)
+		if err != nil {
+			return nil, fmt.Errorf("[table] Trans.table.%s %s", tab.ID, err.Error())
+		}
+
 	}
 
 	return res, nil

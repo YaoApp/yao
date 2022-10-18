@@ -92,7 +92,9 @@ func (t *Transform) column(column *ColumnDSL, data map[string]interface{}) (*Col
 			data[k] = v
 		}
 	}
-	return column.Replace(data)
+
+	new := column.Clone()
+	return new.Replace(data)
 }
 
 // trans transform to filter
@@ -103,5 +105,6 @@ func (t *Transform) filter(filter *FilterDSL, data map[string]interface{}) (*Fil
 			data[k] = v
 		}
 	}
-	return filter.Replace(data)
+	new := filter.Clone()
+	return new.Replace(data)
 }

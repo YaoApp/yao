@@ -42,7 +42,7 @@ func TestLoadHK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	newSetting, err := i18n.Trans("zh-hk", "app", "app", Setting)
+	newSetting, err := i18n.Trans("zh-hk", []string{"app.app"}, Setting)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestLoadCN(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	newSetting, err := i18n.Trans("zh-cn", "app", "app", Setting)
+	newSetting, err := i18n.Trans("zh-cn", []string{"app.app"}, Setting)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,6 +142,8 @@ func TestExport(t *testing.T) {
 
 func TestProcessSetting(t *testing.T) {
 	loadApp(t)
+	backup := config.Conf.Lang
+	config.Conf.Lang = "en-us"
 	res, err := gou.NewProcess("yao.app.Setting").Exec()
 	if err != nil {
 		t.Fatal(err)
@@ -169,10 +171,14 @@ func TestProcessSetting(t *testing.T) {
 
 	lang := gou.NewProcess("yao.app.Setting").WithSID(setting.Sid).Lang()
 	assert.Equal(t, "zh-hk", lang)
+
+	config.Conf.Lang = backup
 }
 
 func TestProcessXgen(t *testing.T) {
 	loadApp(t)
+	backup := config.Conf.Lang
+	config.Conf.Lang = "en-us"
 	res, err := gou.NewProcess("yao.app.Xgen").Exec()
 	if err != nil {
 		t.Fatal(err)
@@ -207,7 +213,7 @@ func TestProcessXgen(t *testing.T) {
 
 	lang := gou.NewProcess("yao.app.Setting").WithSID(xgen2.Get("sid").(string)).Lang()
 	assert.Equal(t, "zh-hk", lang)
-
+	config.Conf.Lang = backup
 }
 
 func TestProcessMenu(t *testing.T) {

@@ -93,9 +93,7 @@
       "table": {
         "key": "${label || comment || name}",
         "bind": "${name}",
-        "in": "TagEdit",
-        "out": "TagView",
-        "view": { "type": "Tag", "props": { "pure": true } },
+        "view": { "type": "Text", "props": {} },
         "edit": {
           "type": "Select",
           "props": {
@@ -233,7 +231,7 @@
       "table": {
         "key": "${label || comment || name}",
         "bind": "${name}",
-        "view": { "type": "Text", "props": {} },
+        "view": { "type": "Text", "props": { "format": "YYYY-MM-DD" } },
         "edit": {
           "type": "DatePicker",
           "props": {
@@ -269,7 +267,10 @@
       "table": {
         "key": "${label || comment || name}",
         "bind": "${name}",
-        "view": { "type": "Text", "props": {} },
+        "view": {
+          "type": "Text",
+          "props": { "format": "YYYY-MM-DD HH:mm:ss" }
+        },
         "edit": {
           "type": "DatePicker",
           "props": {
@@ -305,7 +306,10 @@
       "table": {
         "key": "${label || comment || name}",
         "bind": "${name}",
-        "view": { "type": "Text", "props": {} },
+        "view": {
+          "type": "Text",
+          "props": { "format": "YYYY-MM-DD HH:mm:ss" }
+        },
         "edit": {
           "type": "DatePicker",
           "props": {
