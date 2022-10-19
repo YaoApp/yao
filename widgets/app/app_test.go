@@ -26,8 +26,8 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "::Another yao application", Setting.Description)
 	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
-	assert.Equal(t, true, Setting.Optional.HideNotification)
-	assert.Equal(t, false, Setting.Optional.HideSetting)
+	assert.Equal(t, true, Setting.Optional["hideNotification"])
+	assert.Equal(t, false, Setting.Optional["hideSetting"])
 }
 
 func TestLoadHK(t *testing.T) {
@@ -53,16 +53,16 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "又一個YAO應用", setting.Description)
 	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
-	assert.Equal(t, true, setting.Optional.HideNotification)
-	assert.Equal(t, false, setting.Optional.HideSetting)
+	assert.Equal(t, true, Setting.Optional["hideNotification"])
+	assert.Equal(t, false, Setting.Optional["hideSetting"])
 
 	assert.Equal(t, "::Demo Application", Setting.Name)
 	assert.Equal(t, "::Demo", Setting.Short)
 	assert.Equal(t, "::Another yao application", Setting.Description)
 	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
-	assert.Equal(t, true, Setting.Optional.HideNotification)
-	assert.Equal(t, false, Setting.Optional.HideSetting)
+	assert.Equal(t, true, Setting.Optional["hideNotification"])
+	assert.Equal(t, false, Setting.Optional["hideSetting"])
 }
 
 func TestLoadCN(t *testing.T) {
@@ -88,16 +88,16 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "又一个 YAO 应用", setting.Description)
 	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
-	assert.Equal(t, true, setting.Optional.HideNotification)
-	assert.Equal(t, false, setting.Optional.HideSetting)
+	assert.Equal(t, true, Setting.Optional["hideNotification"])
+	assert.Equal(t, false, Setting.Optional["hideSetting"])
 
 	assert.Equal(t, "::Demo Application", Setting.Name)
 	assert.Equal(t, "::Demo", Setting.Short)
 	assert.Equal(t, "::Another yao application", Setting.Description)
 	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
-	assert.Equal(t, true, Setting.Optional.HideNotification)
-	assert.Equal(t, false, Setting.Optional.HideSetting)
+	assert.Equal(t, true, Setting.Optional["hideNotification"])
+	assert.Equal(t, false, Setting.Optional["hideSetting"])
 }
 
 func TestExport(t *testing.T) {
@@ -156,8 +156,8 @@ func TestProcessSetting(t *testing.T) {
 	assert.Equal(t, "Another yao application", setting.Description)
 	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
-	assert.Equal(t, true, setting.Optional.HideNotification)
-	assert.Equal(t, false, setting.Optional.HideSetting)
+	assert.Equal(t, true, Setting.Optional["hideNotification"])
+	assert.Equal(t, false, Setting.Optional["hideSetting"])
 	assert.Equal(t, true, setting.Sid != "")
 
 	// Set
