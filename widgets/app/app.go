@@ -99,8 +99,8 @@ func exportAPI() error {
 	}
 
 	process := "yao.app.Xgen"
-	if Setting.Optional.Setting != "" {
-		process = Setting.Optional.Setting
+	if Setting.Setting != "" {
+		process = Setting.Setting
 	}
 
 	path := gou.Path{
@@ -293,8 +293,8 @@ func processSetup(process *gou.Process) interface{} {
 	}
 
 	root := "yao"
-	if Setting.Optional.AdminRoot != "" {
-		root = Setting.Optional.AdminRoot
+	if Setting.AdminRoot != "" {
+		root = Setting.AdminRoot
 	}
 
 	setting, err := i18n.Trans(lang, []string{"app.app"}, Setting)
@@ -518,11 +518,11 @@ func processXgen(process *gou.Process) interface{} {
 // replaceAdminRoot
 func (dsl *DSL) replaceAdminRoot() error {
 
-	if dsl.Optional.AdminRoot == "" {
-		dsl.Optional.AdminRoot = "yao"
+	if dsl.AdminRoot == "" {
+		dsl.AdminRoot = "yao"
 	}
 
-	root := strings.TrimPrefix(dsl.Optional.AdminRoot, "/")
+	root := strings.TrimPrefix(dsl.AdminRoot, "/")
 	root = strings.TrimSuffix(root, "/")
 	err := data.ReplaceXGen("/__yao_admin_root/", fmt.Sprintf("/%s/", root))
 	if err != nil {

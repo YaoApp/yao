@@ -12,7 +12,9 @@ type DSL struct {
 	Logo        string      `json:"logo,omitempty"`
 	Favicon     string      `json:"favicon,omitempty"`
 	Menu        MenuDSL     `json:"menu,omitempty"`
+	AdminRoot   string      `json:"adminRoot,omitempty"`
 	Optional    OptionalDSL `json:"optional,omitempty"`
+	Setting     string      `json:"setting,omitempty"` // custom setting process
 }
 
 // MenuDSL the menu DSL
@@ -22,12 +24,7 @@ type MenuDSL struct {
 }
 
 // OptionalDSL the Optional DSL
-type OptionalDSL struct {
-	HideNotification bool   `json:"hideNotification,omitempty"`
-	HideSetting      bool   `json:"hideSetting,omitempty"`
-	AdminRoot        string `json:"adminRoot,omitempty"`
-	Setting          string `json:"setting,omitempty"` // custom setting process
-}
+type OptionalDSL map[string]interface{}
 
 // CFUN cloud function
 type CFUN struct {
