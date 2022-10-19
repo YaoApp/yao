@@ -9,14 +9,15 @@ import (
 
 // DSL the chart DSL
 type DSL struct {
-	ID          string              `json:"id,omitempty"`
-	Name        string              `json:"name,omitempty"`
-	Action      *ActionDSL          `json:"action"`
-	Layout      *LayoutDSL          `json:"layout"`
-	Fields      *FieldsDSL          `json:"fields"`
-	ComputesIn  field.ComputeFields `json:"-"`
-	ComputesOut field.ComputeFields `json:"-"`
-	CProps      field.CloudProps    `json:"-"`
+	ID          string                 `json:"id,omitempty"`
+	Name        string                 `json:"name,omitempty"`
+	Action      *ActionDSL             `json:"action"`
+	Layout      *LayoutDSL             `json:"layout"`
+	Fields      *FieldsDSL             `json:"fields"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	ComputesIn  field.ComputeFields    `json:"-"`
+	ComputesOut field.ComputeFields    `json:"-"`
+	CProps      field.CloudProps       `json:"-"`
 }
 
 // ActionDSL the chart action DSL

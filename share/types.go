@@ -80,6 +80,7 @@ type AppInfo struct {
 	Storage     AppStorage             `json:"storage,omitempty"`
 	Option      map[string]interface{} `json:"option,omitempty"`
 	XGen        string                 `json:"xgen,omitempty"`
+	AdminRoot   string                 `json:"adminRoot,omitempty"`
 	Optional    map[string]interface{} `json:"optional,omitempty"`
 }
 

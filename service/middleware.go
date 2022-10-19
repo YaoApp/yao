@@ -80,8 +80,8 @@ func adminRoot() (string, int) {
 	}
 
 	adminRoot := "/yao/"
-	if root, ok := share.App.Optional["adminRoot"].(string); ok && root != "" {
-		root = strings.TrimPrefix(root, "/")
+	if share.App.AdminRoot != "" {
+		root := strings.TrimPrefix(share.App.AdminRoot, "/")
 		root = strings.TrimSuffix(root, "/")
 		adminRoot = fmt.Sprintf("/%s/", root)
 	}

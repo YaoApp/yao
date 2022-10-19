@@ -174,6 +174,7 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	}
 
 	setting["fields"] = fields
+	setting["config"] = dsl.Config
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
 			return map[string]interface{}{
