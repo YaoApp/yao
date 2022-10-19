@@ -285,8 +285,8 @@ func processSetup(process *gou.Process) interface{} {
 	}
 
 	lang := process.Lang()
-	if sid, has := payload["sid"]; has {
-		lang, err := session.Global().ID(sid.(string)).Get("__yao_lang")
+	if sid, has := payload["sid"].(string); has {
+		lang, err := session.Global().ID(sid).Get("__yao_lang")
 		if err != nil {
 			lang = strings.ToLower(lang.(string))
 		}
@@ -375,8 +375,8 @@ func processSetting(process *gou.Process) interface{} {
 			"sid":  "",
 		})
 
-		if payload["sid"] != "" {
-			sid = payload["sid"].(string)
+		if v, ok := payload["sid"].(string); ok && v != "" {
+			sid = v
 		}
 
 		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
@@ -411,8 +411,8 @@ func processXgen(process *gou.Process) interface{} {
 			"sid":  "",
 		})
 
-		if payload["sid"] != "" {
-			sid = payload["sid"].(string)
+		if v, ok := payload["sid"].(string); ok && v != "" {
+			sid = v
 		}
 
 		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
