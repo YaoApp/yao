@@ -83,6 +83,7 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 
 	filters := map[string]interface{}{}
 	tables := map[string]interface{}{}
+
 	if layout.Filter != nil {
 		for i, f := range layout.Filter.Columns {
 			name := f.Name

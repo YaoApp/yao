@@ -2,6 +2,7 @@ package component
 
 // DSL the component DSL
 type DSL struct {
+	Bind  string   `json:"bind,omitempty"`
 	Type  string   `json:"type,omitempty"`
 	In    string   `json:"in,omitempty"`
 	Out   string   `json:"out,omitempty"`
