@@ -1,0 +1,48 @@
+package component
+
+import (
+	"fmt"
+	"strings"
+)
+
+var hanlders = map[string]ComputeHanlder{
+	"Trim":          Trim,
+	"Concat":        Concat,
+	"QueryString":   Trim,
+	"ImagesView":    Trim,
+	"ImagesEdit":    Trim,
+	"Duration":      Trim,
+	"HumanDataTime": Trim,
+	"Mapping":       Trim,
+	"Currency":      Trim,
+}
+
+// Trim string
+func Trim(args ...interface{}) (interface{}, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("Trim args[0] is required")
+	}
+
+	if args[0] == nil {
+		return "", nil
+	}
+
+	v, ok := args[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("Trim args[0] is not a string value")
+	}
+
+	return strings.TrimSpace(v), nil
+}
+
+// Concat string
+func Concat(args ...interface{}) (interface{}, error) {
+	res := ""
+	for _, arg := range args {
+		if arg == nil {
+			continue
+		}
+		res = fmt.Sprintf("%v%v", res, arg)
+	}
+	return res, nil
+}
