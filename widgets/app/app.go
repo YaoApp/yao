@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
@@ -445,7 +446,11 @@ func processXgen(process *gou.Process) interface{} {
 		// Translate
 		newLayout, err := i18n.Trans(process.Lang(config.Conf.Lang), []string{"login.admin"}, layout)
 		if err != nil {
-			layout = newLayout.(map[string]interface{})
+			log.Error("[Login] Xgen i18n.Trans login.admin %s", err.Error())
+		}
+
+		if new, ok := newLayout.(map[string]interface{}); ok {
+			layout = new
 		}
 
 		xgenLogin["entry"]["admin"] = admin.Layout.Entry
@@ -454,7 +459,6 @@ func processXgen(process *gou.Process) interface{} {
 			"login":   "/api/__yao/login/admin",
 			"layout":  layout,
 		}
-
 	}
 
 	if user, has := login.Logins["user"]; has {
@@ -474,16 +478,18 @@ func processXgen(process *gou.Process) interface{} {
 		// Translate
 		newLayout, err := i18n.Trans(process.Lang(config.Conf.Lang), []string{"login.user"}, layout)
 		if err != nil {
-			layout = newLayout.(map[string]interface{})
+			log.Error("[Login] Xgen %s", err.Error())
 		}
 
+		if new, ok := newLayout.(map[string]interface{}); ok {
+			layout = new
+		}
 		xgenLogin["entry"]["user"] = user.Layout.Entry
 		xgenLogin["user"] = map[string]interface{}{
 			"captcha": "/api/__yao/login/user/captcha?type=digit",
 			"login":   "/api/__yao/login/user",
 			"layout":  layout,
 		}
-		xgenLogin["layout"] = layout
 	}
 
 	xgenSetting := map[string]interface{}{
