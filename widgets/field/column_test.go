@@ -30,8 +30,6 @@ func testColumn() ColumnDSL {
 	return ColumnDSL{
 		Key:  "${label || comment}",
 		Bind: "${name}",
-		In:   "TagEdit",
-		Out:  "TagView",
 		View: &component.DSL{
 			Type:  "Tag",
 			Props: component.PropsDSL{"pure": true},

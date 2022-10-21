@@ -21,8 +21,6 @@ type ColumnDSL struct {
 	Key  string         `json:"key,omitempty"`
 	Bind string         `json:"bind,omitempty"`
 	Link string         `json:"link,omitempty"`
-	In   Compute        `json:"in,omitempty"`
-	Out  Compute        `json:"out,omitempty"`
 	View *component.DSL `json:"view,omitempty"`
 	Edit *component.DSL `json:"edit,omitempty"`
 }

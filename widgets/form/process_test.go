@@ -25,10 +25,7 @@ func TestProcessFind(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "#FF0000", data.Get("status.color"))
-	assert.Equal(t, "status", data.Get("status.field"))
-	assert.Equal(t, "checked", data.Get("status.label"))
-	assert.Equal(t, "Cookie", data.Get("status.name"))
+	assert.Equal(t, "checked", data.Get("status"))
 }
 
 func TestProcessSave(t *testing.T) {
@@ -57,7 +54,7 @@ func TestProcessSave(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessCreate(t *testing.T) {
@@ -87,7 +84,7 @@ func TestProcessCreate(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessUpdate(t *testing.T) {
@@ -115,7 +112,7 @@ func TestProcessUpdate(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessDelete(t *testing.T) {

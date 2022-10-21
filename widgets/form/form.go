@@ -170,7 +170,7 @@ func MustGet(form interface{}) *DSL {
 func (dsl *DSL) Parse() error {
 
 	// ComputeFields
-	dsl.Fields.Form.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
+	// dsl.Fields.Form.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
 
 	// Columns
 	return dsl.Fields.Form.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {

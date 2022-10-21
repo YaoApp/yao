@@ -4,8 +4,6 @@ package component
 type DSL struct {
 	Bind    string   `json:"bind,omitempty"`
 	Type    string   `json:"type,omitempty"`
-	In      string   `json:"in,omitempty"`
-	Out     string   `json:"out,omitempty"`
 	Compute *Compute `json:"compute,omitempty"`
 	Props   PropsDSL `json:"props,omitempty"`
 }
