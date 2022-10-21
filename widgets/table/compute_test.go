@@ -97,7 +97,7 @@ func TestComputeSave(t *testing.T) {
 	}
 	assert.Equal(t, "4", fmt.Sprintf("%v", res))
 
-	res, err = gou.NewProcess("yao.table.find", "pet", res).Exec()
+	res, err = gou.NewProcess("yao.table.find", "compute", res).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestComputeUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	res, err := gou.NewProcess("yao.table.find", "compute", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestComputeInsert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	res, err := gou.NewProcess("yao.table.find", "compute", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
