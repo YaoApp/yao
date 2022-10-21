@@ -270,7 +270,7 @@ func TestProcessService(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, []interface{}{"hello", "world"}, res)
+	assert.Equal(t, []interface{}{"hello", "world"}, res.(map[string]interface{})["args"])
 }
 
 func loadApp(t *testing.T) {
