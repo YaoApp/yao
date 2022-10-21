@@ -219,20 +219,20 @@ func (dsl *DSL) computeEditRow(name string, process *gou.Process, res map[string
 	messages := []string{}
 	row := maps.MapOf(res).Dot()
 	data := maps.StrAny{"row": row}.Dot()
-	for key, computes := range dsl.computes.edit {
-
-		c := computes[0]
-		field := dsl.Fields.Table[c.name]
-		data.Set("value", res[key])
-		data.Set("type", field.Edit.Type)
-		data.Set("props", field.Edit.Props)
-
-		new, err := field.Edit.Compute.Value(data, process.Sid, process.Global)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("fields.table.%s bind: %s, value: %v error: %s", c.name, key, res[key], err.Error()))
-			continue
+	for key := range res {
+		if computes, has := dsl.computes.edit[key]; has {
+			c := computes[0]
+			field := dsl.Fields.Table[c.name]
+			data.Set("value", res[key])
+			data.Set("type", field.Edit.Type)
+			data.Set("props", field.Edit.Props)
+			new, err := field.Edit.Compute.Value(data, process.Sid, process.Global)
+			if err != nil {
+				messages = append(messages, fmt.Sprintf("fields.table.%s bind: %s, value: %v error: %s", c.name, key, res[key], err.Error()))
+				continue
+			}
+			res[key] = new
 		}
-		res[key] = new
 	}
 
 	if len(messages) > 0 {
