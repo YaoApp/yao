@@ -1,9 +1,6 @@
 package field
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/expression"
 )
@@ -38,14 +35,28 @@ func (column ColumnDSL) Replace(data map[string]interface{}) (*ColumnDSL, error)
 	return &new, nil
 }
 
+// ViewBind get the bind field name of view
+func (column ColumnDSL) ViewBind() string {
+	if column.View != nil && column.View.Bind != "" {
+		return column.View.Bind
+	}
+	return column.Bind
+}
+
+// EditBind get the bind field name of edit
+func (column ColumnDSL) EditBind() string {
+	if column.Edit != nil && column.Edit.Bind != "" {
+		return column.Edit.Bind
+	}
+	return column.Bind
+}
+
 // Clone column
 func (column *ColumnDSL) Clone() *ColumnDSL {
 	new := ColumnDSL{
 		Key:  column.Key,
 		Bind: column.Bind,
 		Link: column.Link,
-		In:   column.In,
-		Out:  column.Out,
 	}
 
 	if column.View != nil {
@@ -103,30 +114,6 @@ func (columns Columns) CPropsMerge(cloudProps map[string]component.CloudPropsDSL
 	}
 
 	return nil
-}
-
-// ComputeFieldsMerge merge the compute fields
-func (columns Columns) ComputeFieldsMerge(computeInFields map[string]string, computeOutFields map[string]string) {
-	for name, column := range columns {
-
-		// Compute In
-		if column.In != "" {
-			if !strings.Contains(string(column.In), ".") {
-				column.In = Compute(fmt.Sprintf("yao.component.%s", column.In))
-			}
-			computeInFields[column.Bind] = string(column.In)
-			computeInFields[name] = string(column.In)
-		}
-
-		// Compute Out
-		if column.Out != "" {
-			if !strings.Contains(string(column.Out), ".") {
-				column.In = Compute(fmt.Sprintf("yao.component.%s", column.Out))
-			}
-			computeOutFields[column.Bind] = string(column.Out)
-			computeOutFields[name] = string(column.Out)
-		}
-	}
 }
 
 func mergeCProps(cloudProps map[string]component.CloudPropsDSL, cProps map[string]component.CloudPropsDSL) {

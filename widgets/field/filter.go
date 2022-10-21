@@ -53,6 +53,14 @@ func (filter FilterDSL) Map() map[string]interface{} {
 	return res
 }
 
+// FilterBind get the bind field name of filter
+func (filter FilterDSL) FilterBind() string {
+	if filter.Edit != nil && filter.Edit.Bind != "" {
+		return filter.Edit.Bind
+	}
+	return filter.Bind
+}
+
 // CPropsMerge merge the Filters cloud props
 func (filters Filters) CPropsMerge(cloudProps map[string]component.CloudPropsDSL, getXpath func(name string, filter FilterDSL) (xpath string)) error {
 

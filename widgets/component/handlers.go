@@ -6,6 +6,7 @@ import (
 )
 
 var hanlders = map[string]ComputeHanlder{
+	"Get":           Get,
 	"Trim":          Trim,
 	"Concat":        Concat,
 	"QueryString":   Trim,
@@ -45,4 +46,12 @@ func Concat(args ...interface{}) (interface{}, error) {
 		res = fmt.Sprintf("%v%v", res, arg)
 	}
 	return res, nil
+}
+
+// Get value
+func Get(args ...interface{}) (interface{}, error) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+	return args[0], nil
 }

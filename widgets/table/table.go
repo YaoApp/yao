@@ -230,13 +230,15 @@ func MustGet(table interface{}) *DSL {
 func (dsl *DSL) Parse() error {
 
 	// ComputeFields
-	dsl.Fields.Table.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
+	err := dsl.computeMapping()
+	if err != nil {
+		return err
+	}
 
 	// Filters
-	err := dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {
+	err = dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {
 		return fmt.Sprintf("fields.filter.%s.edit.props", name)
 	})
-
 	if err != nil {
 		return err
 	}

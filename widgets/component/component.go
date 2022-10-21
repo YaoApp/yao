@@ -38,8 +38,6 @@ func (dsl *DSL) Clone() *DSL {
 	new := DSL{
 		Bind:  dsl.Bind,
 		Type:  dsl.Type,
-		In:    dsl.In,
-		Out:   dsl.Out,
 		Props: PropsDSL{},
 	}
 	if dsl.Props != nil {

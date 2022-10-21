@@ -7,6 +7,15 @@ import (
 	"github.com/yaoapp/yao/widgets/hook"
 )
 
+const (
+	// TypeView View component
+	TypeView uint8 = iota
+	// TypeEdit Edit component
+	TypeEdit
+	// TypeFilter Filter component
+	TypeFilter
+)
+
 // DSL the table DSL
 type DSL struct {
 	Root        string                 `json:"-"`
@@ -19,6 +28,18 @@ type DSL struct {
 	ComputesIn  field.ComputeFields    `json:"-"`
 	ComputesOut field.ComputeFields    `json:"-"`
 	CProps      field.CloudProps       `json:"-"`
+	computes    *computeMaps
+}
+
+type computeMaps struct {
+	edit   map[string][]compute
+	view   map[string][]compute
+	filter map[string][]compute
+}
+
+type compute struct {
+	name string // index
+	kind uint8  // Type
 }
 
 // ActionDSL the table action DSL

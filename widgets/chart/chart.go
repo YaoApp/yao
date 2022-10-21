@@ -143,7 +143,7 @@ func MustGet(chart interface{}) *DSL {
 func (dsl *DSL) Parse() error {
 
 	// ComputeFields
-	dsl.Fields.Chart.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
+	// dsl.Fields.Chart.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
 
 	// Filters
 	err := dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {

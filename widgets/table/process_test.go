@@ -34,10 +34,7 @@ func TestProcessSearch(t *testing.T) {
 	assert.Equal(t, "AfterSearch", data.Get("after:hook"))
 	assert.Equal(t, "1", fmt.Sprintf("%v", data.Get("pagesize")))
 	assert.Equal(t, "3", fmt.Sprintf("%v", data.Get("total")))
-	assert.Equal(t, "#FF0000", data.Get("data.0.status.color"))
-	assert.Equal(t, "status", data.Get("data.0.status.field"))
-	assert.Equal(t, "checked", data.Get("data.0.status.label"))
-	assert.Equal(t, "Cookie", data.Get("data.0.status.name"))
+	assert.Equal(t, "checked", data.Get("data.0.status"))
 }
 
 func TestProcessGet(t *testing.T) {
@@ -63,10 +60,7 @@ func TestProcessGet(t *testing.T) {
 	assert.Equal(t, 2, len(arr))
 
 	data := any.Of(arr[0]).MapStr().Dot()
-	assert.Equal(t, "#FF0000", data.Get("status.color"))
-	assert.Equal(t, "status", data.Get("status.field"))
-	assert.Equal(t, "checked", data.Get("status.label"))
-	assert.Equal(t, "Cookie", data.Get("status.name"))
+	assert.Equal(t, "checked", data.Get("status"))
 
 }
 
@@ -83,10 +77,7 @@ func TestProcessFind(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "#FF0000", data.Get("status.color"))
-	assert.Equal(t, "status", data.Get("status.field"))
-	assert.Equal(t, "checked", data.Get("status.label"))
-	assert.Equal(t, "Cookie", data.Get("status.name"))
+	assert.Equal(t, "checked", data.Get("status"))
 }
 
 func TestProcessSave(t *testing.T) {
@@ -115,7 +106,7 @@ func TestProcessSave(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessCreate(t *testing.T) {
@@ -145,7 +136,7 @@ func TestProcessCreate(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessUpdate(t *testing.T) {
@@ -173,7 +164,7 @@ func TestProcessUpdate(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessUpdateWhere(t *testing.T) {
@@ -203,7 +194,7 @@ func TestProcessUpdateWhere(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessUpdateIn(t *testing.T) {
@@ -232,7 +223,7 @@ func TestProcessUpdateIn(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "New Pet|New Pet", data.Get("name"))
+	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
 func TestProcessInsert(t *testing.T) {

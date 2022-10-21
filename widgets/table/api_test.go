@@ -71,10 +71,7 @@ func TestAPISearch(t *testing.T) {
 	data := any.Of(resp).MapStr().Dot()
 	assert.Equal(t, "20", fmt.Sprintf("%v", data.Get("pagesize")))
 	assert.Equal(t, "3", fmt.Sprintf("%v", data.Get("total")))
-	assert.Equal(t, "#FF0000", data.Get("data.0.status.color"))
-	assert.Equal(t, "status", data.Get("data.0.status.field"))
-	assert.Equal(t, "checked", data.Get("data.0.status.label"))
-	assert.Equal(t, "Cookie", data.Get("data.0.status.name"))
+	assert.Equal(t, "checked", data.Get("data.0.status"))
 	assert.Equal(t, "enabled", data.Get("data.0.mode"))
 	assert.Equal(t, "1", fmt.Sprintf("%v", data.Get("data.0.doctor_id")))
 
