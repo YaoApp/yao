@@ -1,5 +1,9 @@
 package component
 
+import (
+	jsoniter "github.com/json-iterator/go"
+)
+
 // process
 // yao.component.TagView
 // yao.component.TagEdit
@@ -12,19 +16,27 @@ func Export() error {
 	return nil
 }
 
+// MarshalJSON  Custom JSON parse
+func (dsl DSL) MarshalJSON() ([]byte, error) {
+	return jsoniter.Marshal(dsl.Map())
+}
+
 // Map cast to map[string]interface{}
 func (dsl DSL) Map() map[string]interface{} {
-	return map[string]interface{}{
+	res := map[string]interface{}{
 		"type":  dsl.Type,
-		"in":    dsl.In,
-		"out":   dsl.Out,
 		"props": map[string]interface{}(dsl.Props),
 	}
+	if dsl.Bind != "" {
+		res["bind"] = dsl.Bind
+	}
+	return res
 }
 
 // Clone Component
 func (dsl *DSL) Clone() *DSL {
 	new := DSL{
+		Bind:  dsl.Bind,
 		Type:  dsl.Type,
 		In:    dsl.In,
 		Out:   dsl.Out,

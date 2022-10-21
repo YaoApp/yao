@@ -43,7 +43,6 @@ func (filter *FilterDSL) Clone() *FilterDSL {
 // Map cast to map[string]inteface{}
 func (filter FilterDSL) Map() map[string]interface{} {
 	res := map[string]interface{}{
-		"key":  filter.Key,
 		"bind": filter.Bind,
 	}
 

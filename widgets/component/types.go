@@ -2,10 +2,12 @@ package component
 
 // DSL the component DSL
 type DSL struct {
-	Type  string   `json:"type,omitempty"`
-	In    string   `json:"in,omitempty"`
-	Out   string   `json:"out,omitempty"`
-	Props PropsDSL `json:"props,omitempty"`
+	Bind    string   `json:"bind,omitempty"`
+	Type    string   `json:"type,omitempty"`
+	In      string   `json:"in,omitempty"`
+	Out     string   `json:"out,omitempty"`
+	Compute *Compute `json:"compute,omitempty"`
+	Props   PropsDSL `json:"props,omitempty"`
 }
 
 // Actions the actions
@@ -43,6 +45,25 @@ type PropsDSL map[string]interface{}
 
 // ParamsDSL action params
 type ParamsDSL map[string]interface{}
+
+// Compute process
+type Compute struct {
+	Process string `json:"process"`
+	Args    []CArg `json:"args,omitempty"`
+}
+
+// computeAlias for JSON UnmarshalJSON
+type computeAlias Compute
+
+// CArg compute interface{}
+type CArg struct {
+	IsExp bool
+	key   string
+	value interface{}
+}
+
+// ComputeHanlder computeHanlder
+type ComputeHanlder func(args ...interface{}) (interface{}, error)
 
 // CloudPropsDSL the cloud props
 type CloudPropsDSL struct {

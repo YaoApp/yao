@@ -18,6 +18,6 @@ func TestFiledsBindModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "id", tab.Fields.Table["ID"].Bind)
-	assert.Equal(t, 15, len(tab.Fields.Table))
-	assert.Equal(t, 4, len(tab.Fields.Filter))
+	assert.Equal(t, 17, len(tab.Fields.Table))
+	assert.Equal(t, 6, len(tab.Fields.Filter))
 }

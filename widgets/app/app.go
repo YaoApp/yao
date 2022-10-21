@@ -191,7 +191,7 @@ func exportAPI() error {
 		Path:        "/service/:name",
 		Guard:       "bearer-jwt",
 		Method:      "POST",
-		Process:     "yao.app.Serivce",
+		Process:     "yao.app.Service",
 		In:          []string{"$param.name", ":payload"},
 		Out:         gou.Out{Status: 200, Type: "application/json"},
 	}

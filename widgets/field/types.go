@@ -21,8 +21,8 @@ type ColumnDSL struct {
 	Key  string         `json:"key,omitempty"`
 	Bind string         `json:"bind,omitempty"`
 	Link string         `json:"link,omitempty"`
-	In   string         `json:"in,omitempty"`
-	Out  string         `json:"out,omitempty"`
+	In   Compute        `json:"in,omitempty"`
+	Out  Compute        `json:"out,omitempty"`
 	View *component.DSL `json:"view,omitempty"`
 	Edit *component.DSL `json:"edit,omitempty"`
 }
@@ -33,6 +33,9 @@ type FilterDSL struct {
 	Bind string         `json:"bind,omitempty"`
 	Edit *component.DSL `json:"edit,omitempty"`
 }
+
+// Compute the compute filed
+type Compute string
 
 // Transform the field transform
 type Transform struct {

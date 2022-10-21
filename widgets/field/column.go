@@ -61,9 +61,11 @@ func (column *ColumnDSL) Clone() *ColumnDSL {
 // Map cast to map[string]inteface{}
 func (column ColumnDSL) Map() map[string]interface{} {
 	res := map[string]interface{}{
-		"key":  column.Key,
-		"link": column.Link,
 		"bind": column.Bind,
+	}
+
+	if column.Link != "" {
+		res["link"] = column.Link
 	}
 
 	if column.View != nil {
@@ -109,20 +111,20 @@ func (columns Columns) ComputeFieldsMerge(computeInFields map[string]string, com
 
 		// Compute In
 		if column.In != "" {
-			if !strings.Contains(column.In, ".") {
-				column.In = fmt.Sprintf("yao.component.%s", column.In)
+			if !strings.Contains(string(column.In), ".") {
+				column.In = Compute(fmt.Sprintf("yao.component.%s", column.In))
 			}
-			computeInFields[column.Bind] = column.In
-			computeInFields[name] = column.In
+			computeInFields[column.Bind] = string(column.In)
+			computeInFields[name] = string(column.In)
 		}
 
 		// Compute Out
 		if column.Out != "" {
-			if !strings.Contains(column.Out, ".") {
-				column.In = fmt.Sprintf("yao.component.%s", column.Out)
+			if !strings.Contains(string(column.Out), ".") {
+				column.In = Compute(fmt.Sprintf("yao.component.%s", column.Out))
 			}
-			computeOutFields[column.Bind] = column.Out
-			computeOutFields[name] = column.Out
+			computeOutFields[column.Bind] = string(column.Out)
+			computeOutFields[name] = string(column.Out)
 		}
 	}
 }
