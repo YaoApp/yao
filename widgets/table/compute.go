@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 )
 
@@ -147,8 +148,7 @@ func (dsl *DSL) computeViewRow(name string, process *gou.Process, res map[string
 		c := computes[0]
 		field := dsl.Fields.Table[c.name]
 		data.Set("value", res[key])
-		data.Set("type", field.View.Type)
-		data.Set("props", field.View.Props)
+		data.Merge(any.MapOf(field.View.Map()).MapStrAny.Dot())
 		new, err := field.View.Compute.Value(data, process.Sid, process.Global)
 		if err != nil {
 			res[key] = nil
@@ -224,8 +224,7 @@ func (dsl *DSL) computeEditRow(name string, process *gou.Process, res map[string
 			c := computes[0]
 			field := dsl.Fields.Table[c.name]
 			data.Set("value", res[key])
-			data.Set("type", field.Edit.Type)
-			data.Set("props", field.Edit.Props)
+			data.Merge(any.MapOf(field.Edit.Map()).MapStrAny.Dot())
 			new, err := field.Edit.Compute.Value(data, process.Sid, process.Global)
 			if err != nil {
 				messages = append(messages, fmt.Sprintf("fields.table.%s bind: %s, value: %v error: %s", c.name, key, res[key], err.Error()))
