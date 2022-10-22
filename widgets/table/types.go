@@ -3,41 +3,22 @@ package table
 import (
 	"github.com/yaoapp/yao/widgets/action"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/compute"
 	"github.com/yaoapp/yao/widgets/field"
 	"github.com/yaoapp/yao/widgets/hook"
 )
 
-const (
-	// TypeView View component
-	TypeView uint8 = iota
-	// TypeEdit Edit component
-	TypeEdit
-	// TypeFilter Filter component
-	TypeFilter
-)
-
 // DSL the table DSL
 type DSL struct {
-	Root     string                 `json:"-"`
-	ID       string                 `json:"id,omitempty"`
-	Name     string                 `json:"name,omitempty"`
-	Action   *ActionDSL             `json:"action"`
-	Layout   *LayoutDSL             `json:"layout"`
-	Fields   *FieldsDSL             `json:"fields"`
-	Config   map[string]interface{} `json:"config,omitempty"`
-	CProps   field.CloudProps       `json:"-"`
-	computes *computeMaps
-}
-
-type computeMaps struct {
-	edit   map[string][]compute
-	view   map[string][]compute
-	filter map[string][]compute
-}
-
-type compute struct {
-	name string // index
-	kind uint8  // Type
+	Root   string                 `json:"-"`
+	ID     string                 `json:"id,omitempty"`
+	Name   string                 `json:"name,omitempty"`
+	Action *ActionDSL             `json:"action"`
+	Layout *LayoutDSL             `json:"layout"`
+	Fields *FieldsDSL             `json:"fields"`
+	Config map[string]interface{} `json:"config,omitempty"`
+	CProps field.CloudProps       `json:"-"`
+	compute.Computable
 }
 
 // ActionDSL the table action DSL

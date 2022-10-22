@@ -2,78 +2,62 @@ package form
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/widgets/compute"
+	"github.com/yaoapp/yao/widgets/field"
 )
 
-func (dsl *DSL) computeFind(process *gou.Process, values map[string]interface{}) error {
-
-	messages := []string{}
-	for key := range values {
-		err := dsl.computeOut(process, key, values)
-		if err != nil {
-			messages = append(messages, err.Error())
+func (dsl *DSL) getField() func(string) (*field.ColumnDSL, string, error) {
+	return func(name string) (*field.ColumnDSL, string, error) {
+		field, has := dsl.Fields.Form[name]
+		if !has {
+			return nil, "fields.table", fmt.Errorf("fields.table.%s does not exist", name)
 		}
+		return &field, "fields.table", nil
 	}
-
-	if len(messages) > 0 {
-		return fmt.Errorf("%s", strings.Join(messages, ";"))
-	}
-
-	return nil
 }
 
-func (dsl *DSL) computeSave(process *gou.Process, values map[string]interface{}) error {
-
-	messages := []string{}
-	for key := range values {
-		err := dsl.computeIn(process, key, values)
-		if err != nil {
-			messages = append(messages, err.Error())
+func (dsl *DSL) computeMapping() error {
+	if dsl.Computes == nil {
+		dsl.Computes = &compute.Maps{
+			Filter: map[string][]compute.Unit{},
+			Edit:   map[string][]compute.Unit{},
+			View:   map[string][]compute.Unit{},
 		}
 	}
 
-	if len(messages) > 0 {
-		return fmt.Errorf("%s", strings.Join(messages, ";"))
+	if dsl.Fields == nil {
+		return nil
 	}
 
-	return nil
-}
+	if dsl.Fields.Form != nil && dsl.Layout.Form != nil && dsl.Layout.Form.Sections != nil {
+		for _, section := range dsl.Layout.Form.Sections {
 
-func (dsl *DSL) computeIn(process *gou.Process, key string, values map[string]interface{}) error {
-	if name, has := dsl.ComputesIn[key]; has {
-		compute, err := gou.ProcessOf(name, key, values[key], values)
-		if err != nil {
-			log.Error("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
-		}
+			for _, inst := range section.Columns {
 
-		res, err := compute.WithGlobal(process.Global).WithSID(process.Sid).Exec()
-		if err != nil {
-			log.Error("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[form] %s compute-in -> %s %s %s", dsl.ID, name, key, err.Error())
+				if field, has := dsl.Fields.Form[inst.Name]; has {
+
+					// View
+					if field.View != nil && field.View.Compute != nil {
+						bind := field.ViewBind()
+						if _, has := dsl.Computes.View[bind]; !has {
+							dsl.Computes.View[bind] = []compute.Unit{}
+						}
+						dsl.Computes.View[bind] = append(dsl.Computes.View[bind], compute.Unit{Name: inst.Name, Kind: compute.View})
+					}
+
+					// Edit
+					if field.Edit != nil && field.Edit.Compute != nil {
+						bind := field.EditBind()
+						if _, has := dsl.Computes.Edit[bind]; !has {
+							dsl.Computes.Edit[bind] = []compute.Unit{}
+						}
+						dsl.Computes.Edit[bind] = append(dsl.Computes.Edit[bind], compute.Unit{Name: inst.Name, Kind: compute.Edit})
+					}
+				}
+			}
 		}
-		values[key] = res
 	}
-	return nil
-}
 
-func (dsl *DSL) computeOut(process *gou.Process, key string, values map[string]interface{}) error {
-	if name, has := dsl.ComputesOut[key]; has {
-		compute, err := gou.ProcessOf(name, key, values[key], values)
-		if err != nil {
-			log.Error("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
-		}
-
-		res, err := compute.WithGlobal(process.Global).WithSID(process.Sid).Exec()
-		if err != nil {
-			log.Error("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
-			return fmt.Errorf("[form] %s compute-out -> %s %s %s", dsl.ID, name, key, err.Error())
-		}
-		values[key] = res
-	}
 	return nil
 }
