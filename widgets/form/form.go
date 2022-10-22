@@ -55,7 +55,9 @@ func New(id string) *DSL {
 	return &DSL{
 		ID:     id,
 		Fields: &FieldsDSL{Form: field.Columns{}},
+		Layout: &LayoutDSL{},
 		CProps: field.CloudProps{},
+		Config: map[string]interface{}{},
 	}
 }
 
@@ -182,6 +184,14 @@ func (dsl *DSL) Parse() error {
 // Xgen trans to xgen setting
 func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 
+	if dsl.Layout == nil {
+		dsl.Layout = &LayoutDSL{Form: &ViewLayoutDSL{}}
+	}
+
+	if dsl.Layout.Form == nil {
+		dsl.Layout.Form = &ViewLayoutDSL{}
+	}
+
 	setting, err := dsl.Layout.Xgen()
 	if err != nil {
 		return nil, err
@@ -190,6 +200,11 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	fields, err := dsl.Fields.Xgen()
 	if err != nil {
 		return nil, err
+	}
+
+	// full width default value
+	if _, has := dsl.Config["full"]; !has {
+		dsl.Config["full"] = true
 	}
 
 	setting["fields"] = fields
@@ -201,7 +216,6 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 				"params": cProp.Query,
 			}
 		})
-
 		if err != nil {
 			return nil, err
 		}
