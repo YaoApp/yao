@@ -1,10 +1,70 @@
 package form
 
 import (
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/widgets/action"
 )
+
+// Guard form widget guard
+func Guard(c *gin.Context) {
+
+	id := c.Param("id")
+	if id == "" {
+		abort(c, 400, "the form widget id does not found")
+		return
+	}
+
+	form, has := Forms[id]
+	if !has {
+		abort(c, 404, fmt.Sprintf("the form widget %s does not exist", id))
+		return
+	}
+
+	act, err := form.getAction(c.FullPath())
+	if err != nil {
+		abort(c, 404, err.Error())
+		return
+	}
+
+	err = act.UseGuard(c, id)
+	if err != nil {
+		abort(c, 400, err.Error())
+		return
+	}
+
+}
+
+func abort(c *gin.Context, code int, message string) {
+	c.JSON(code, gin.H{"code": code, "message": message})
+	c.Abort()
+}
+
+func (form *DSL) getAction(path string) (*action.Process, error) {
+
+	switch path {
+	case "/api/__yao/form/:id/setting":
+		return form.Action.Setting, nil
+	case "/api/__yao/form/:id/component/:xpath/:method":
+		return form.Action.Component, nil
+	case "/api/__yao/form/:id/find/:primary":
+		return form.Action.Find, nil
+	case "/api/__yao/form/:id/save":
+		return form.Action.Save, nil
+	case "/api/__yao/form/:id/create":
+		return form.Action.Create, nil
+	case "/api/__yao/form/:id/insert":
+		return form.Action.Update, nil
+	case "/api/__yao/form/:id/delete/:primary":
+		return form.Action.Delete, nil
+	}
+
+	return nil, fmt.Errorf("the form widget %s %s action does not exist", form.ID, path)
+}
 
 // export API
 func exportAPI() error {
@@ -13,7 +73,7 @@ func exportAPI() error {
 		Name:        "Widget Form API",
 		Description: "Widget Form API",
 		Version:     share.VERSION,
-		Guard:       "-",
+		Guard:       "widget-form",
 		Group:       "__yao/form",
 		Paths:       []gou.Path{},
 	}

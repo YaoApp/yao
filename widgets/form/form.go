@@ -53,11 +53,9 @@ var Forms map[string]*DSL = map[string]*DSL{}
 // New create a new DSL
 func New(id string) *DSL {
 	return &DSL{
-		ID:          id,
-		Fields:      &FieldsDSL{Form: field.Columns{}},
-		CProps:      field.CloudProps{},
-		ComputesIn:  field.ComputeFields{},
-		ComputesOut: field.ComputeFields{},
+		ID:     id,
+		Fields: &FieldsDSL{Form: field.Columns{}},
+		CProps: field.CloudProps{},
 	}
 }
 
@@ -170,7 +168,10 @@ func MustGet(form interface{}) *DSL {
 func (dsl *DSL) Parse() error {
 
 	// ComputeFields
-	// dsl.Fields.Form.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
+	err := dsl.computeMapping()
+	if err != nil {
+		return err
+	}
 
 	// Columns
 	return dsl.Fields.Form.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {

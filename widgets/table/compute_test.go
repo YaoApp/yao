@@ -18,13 +18,13 @@ func TestComputeMapping(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 11, len(tab.computes.view))
-	assert.Equal(t, 1, len(tab.computes.view["created_at"]))
-	assert.Equal(t, 1, len(tab.computes.view["stay"]))
-	assert.Equal(t, 4, len(tab.computes.edit))
-	assert.Equal(t, 1, len(tab.computes.edit["stay"]))
-	assert.Equal(t, 2, len(tab.computes.filter))
-	assert.Equal(t, 2, len(tab.computes.filter["where.name.like"]))
+	assert.Equal(t, 11, len(tab.Computes.View))
+	assert.Equal(t, 1, len(tab.Computes.View["created_at"]))
+	assert.Equal(t, 1, len(tab.Computes.View["stay"]))
+	assert.Equal(t, 4, len(tab.Computes.Edit))
+	assert.Equal(t, 1, len(tab.Computes.Edit["stay"]))
+	assert.Equal(t, 2, len(tab.Computes.Filter))
+	assert.Equal(t, 2, len(tab.Computes.Filter["where.name.like"]))
 }
 
 func TestComputeFind(t *testing.T) {

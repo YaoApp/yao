@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/log"
@@ -15,7 +16,7 @@ import (
 // ********************************
 // Life-Circle: Compute Filter → Before Hook → Compute Edit → Run Process → Compute View → After Hook
 // Execute Compute Filter On:  Search, Get, Find
-// Execute Compute Edit On:    Save, Create, Update, UpdateWhere, UpdateIn, Insert(not support yet)
+// Execute Compute Edit On:    Save, Create, Update, UpdateWhere, UpdateIn, Insert
 // Execute Compute View On:    Search, Get, Find
 func processHandler(p *action.Process, process *gou.Process) (interface{}, error) {
 
@@ -37,7 +38,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	}
 
 	// Compute Filter
-	err = tab.computeFilter(p.Name, process, args)
+	err = tab.ComputeFilter(p.Name, process, args, tab.getFilter())
 	if err != nil {
 		log.Error("[table] %s %s Compute Filter Error: %s", tab.ID, p.Name, err.Error())
 	}
@@ -55,7 +56,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	}
 
 	// Compute Edit
-	err = tab.computeEdit(p.Name, process, args)
+	err = tab.ComputeEdit(p.Name, process, args, tab.getField())
 	if err != nil {
 		log.Error("[table] %s %s Compute Edit Error: %s", tab.ID, p.Name, err.Error())
 	}
@@ -74,7 +75,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	}
 
 	// Compute View
-	err = tab.computeView(p.Name, process, res)
+	err = tab.ComputeView(p.Name, process, res, tab.getField())
 	if err != nil {
 		log.Error("[table] %s %s Compute View Error: %s", tab.ID, p.Name, err.Error())
 	}
@@ -103,7 +104,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 // translateSetting
 func (dsl *DSL) translate(name string, process *gou.Process, data interface{}) (interface{}, error) {
 
-	if name != "yao.table.Setting" {
+	if strings.ToLower(name) != "yao.table.setting" {
 		return data, nil
 	}
 
