@@ -70,43 +70,41 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 		}
 
 		if hasForm {
-			layout.Table.Operation.Width = 160
+			layout.Table.Operation.Width = 140
 			layout.Table.Operation.Hide = false
 			layout.Table.Operation.Actions = append(
 				layout.Table.Operation.Actions,
 
 				component.ActionDSL{
-					Title: "查看",
+					Title: "::View",
 					Icon:  "icon-eye",
 					Action: map[string]component.ParamsDSL{
 						"Common.openModal": {
-							"width": 640,
-							"Form":  map[string]interface{}{"type": "view", "model": formName},
+							"Form": map[string]interface{}{"type": "view", "model": formName},
 						},
 					},
 				},
 
 				component.ActionDSL{
-					Title: "编辑",
+					Title: "::Edit",
 					Icon:  "icon-edit-2",
 					Action: map[string]component.ParamsDSL{
 						"Common.openModal": {
-							"width": 640,
-							"Form":  map[string]interface{}{"type": "edit", "model": formName},
+							"Form": map[string]interface{}{"type": "edit", "model": formName},
 						},
 					},
 				},
 
 				component.ActionDSL{
-					Title: "删除",
+					Title: "::Delete",
 					Icon:  "icon-trash-2",
 					Style: "danger",
 					Action: map[string]component.ParamsDSL{
 						"Table.delete": {"model": formName},
 					},
 					Confirm: &component.ConfirmActionDSL{
-						Title: "提示",
-						Desc:  "确认删除，删除后数据无法恢复？",
+						Title: "::Confirm",
+						Desc:  "::Please confirm, the data cannot be recovered",
 					},
 				},
 			)
@@ -159,6 +157,17 @@ func (layout *LayoutDSL) BindTable(tab *DSL, fields *FieldsDSL) error {
 // Xgen trans to Xgen setting
 func (layout *LayoutDSL) Xgen() (map[string]interface{}, error) {
 	res := map[string]interface{}{}
+
+	if layout.Table != nil {
+		if layout.Table.Props == nil {
+			layout.Table.Props = component.PropsDSL{}
+		}
+
+		if _, has := layout.Table.Props["scroll"]; !has {
+			layout.Table.Props["scroll"] = map[string]interface{}{"x": "max-content"}
+		}
+	}
+
 	data, err := jsoniter.Marshal(layout)
 	if err != nil {
 		return nil, err

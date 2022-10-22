@@ -20,9 +20,9 @@ func TestColumnReplace(t *testing.T) {
 	assert.Equal(t, "Bar", new.Key)
 	assert.Equal(t, "Foo", new.Bind)
 	assert.Equal(t, "::please select Bar", new.Edit.Props["placeholder"])
-	assert.Equal(t, "Hello", new.Edit.Props["options"].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", new.Edit.Props["options"].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", new.Edit.Props["options"].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", new.Edit.Props["options"].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", new.Edit.Props["options"].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", new.Edit.Props["options"].([]map[string]interface{})[1]["value"])
 }
 

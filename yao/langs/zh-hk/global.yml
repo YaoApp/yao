@@ -31,12 +31,20 @@ Listening: "    監聽"
 SessionPort: "會話服務端口"
 Force migrate: "強制更新數據表結構"
 Migrate is not allowed on production mode.: "Migrate 不能再生產環境下使用"
+Please confirm, the data cannot be recovered: 請確認刪除，刪除後數據無法恢復
 Create: 創建
 Edit: 編輯
 View: 查看
+Confirm: 確認
 please input: 請輸入
 Please input: 請輸入
 please select: 請選擇
 Please select: 請選擇
 Enable: 開啟
 Disable: 關閉
+enable: 開啟
+disable: 關閉
+Enabled: 開啟
+Disabled: 關閉
+enabled: 開啟
+disabled: 關閉

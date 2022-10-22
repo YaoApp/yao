@@ -25,7 +25,7 @@ func processSelectOption(process *gou.Process) interface{} {
 		opts := strings.Split(input.(string), ",")
 		for _, opt := range opts {
 			options = append(options, map[string]interface{}{
-				"label": strings.TrimSpace(opt),
+				"label": fmt.Sprintf("::%s", strings.TrimSpace(opt)),
 				"value": strings.TrimSpace(opt),
 			})
 		}
@@ -38,7 +38,7 @@ func processSelectOption(process *gou.Process) interface{} {
 			switch opt.(type) {
 			case string, int, int64, int32, int8, float32, float64:
 				options = append(options, map[string]interface{}{
-					"label": strings.TrimSpace(fmt.Sprintf("%v", opt)),
+					"label": fmt.Sprintf("::%s", strings.TrimSpace(fmt.Sprintf("%v", opt))),
 					"value": strings.TrimSpace(fmt.Sprintf("%v", opt)),
 				})
 				break
@@ -57,7 +57,7 @@ func processSelectOption(process *gou.Process) interface{} {
 
 				row := any.Of(opt).MapStr()
 				options = append(options, map[string]interface{}{
-					"label": row.Get(key),
+					"label": fmt.Sprintf("::%s", row.Get(key)),
 					"value": row.Get(value),
 				})
 				break
