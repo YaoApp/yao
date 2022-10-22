@@ -80,11 +80,10 @@ var Tables map[string]*DSL = map[string]*DSL{}
 // New create a new DSL
 func New(id string) *DSL {
 	return &DSL{
-		ID:          id,
-		Fields:      &FieldsDSL{Filter: field.Filters{}, Table: field.Columns{}},
-		CProps:      field.CloudProps{},
-		ComputesIn:  field.ComputeFields{},
-		ComputesOut: field.ComputeFields{},
+		ID:     id,
+		Fields: &FieldsDSL{Filter: field.Filters{}, Table: field.Columns{}},
+		CProps: field.CloudProps{},
+		Config: map[string]interface{}{},
 	}
 }
 
@@ -260,6 +259,11 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	fields, err := dsl.Fields.Xgen(dsl.Layout)
 	if err != nil {
 		return nil, err
+	}
+
+	// full width default value
+	if _, has := dsl.Config["full"]; !has {
+		dsl.Config["full"] = true
 	}
 
 	setting["fields"] = fields

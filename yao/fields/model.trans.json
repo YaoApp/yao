@@ -93,7 +93,13 @@
       "table": {
         "key": "${label || comment || name}",
         "bind": "${name}",
-        "view": { "type": "Text", "props": {} },
+        "view": {
+          "type": "Tag",
+          "props": {
+            "placeholder": "$L(please select) ${label || comment}",
+            "options": "$.SelectOption{option}"
+          }
+        },
         "edit": {
           "type": "Select",
           "props": {
@@ -496,8 +502,8 @@
           "type": "RadioGroup",
           "props": {
             "options": [
-              { "label": "::Enable", "value": 1 },
-              { "label": "::Disable", "value": 0 }
+              { "label": "::Enable", "value": true },
+              { "label": "::Disable", "value": false }
             ]
           }
         }
@@ -509,8 +515,8 @@
           "type": "RadioGroup",
           "props": {
             "options": [
-              { "label": "::Enable", "value": 1 },
-              { "label": "::Disable", "value": 0 }
+              { "label": "::Enable", "value": true },
+              { "label": "::Disable", "value": false }
             ]
           }
         }
@@ -521,8 +527,8 @@
         "view": {
           "type": "Switch",
           "props": {
-            "checkedValue": 1,
-            "unCheckedValue": 0,
+            "checkedValue": true,
+            "unCheckedValue": false,
             "checkedChildren": "::Enable",
             "unCheckedChildren": "::Disable"
           }

@@ -135,9 +135,9 @@ func TestReplaceMap(t *testing.T) {
 	err := Replace(&mapv, data)
 	assert.Nil(t, err)
 	assert.Equal(t, "::please select Bar", mapv["placeholder"])
-	assert.Equal(t, "Hello", mapv["options"].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", mapv["options"].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", mapv["options"].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", mapv["options"].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", mapv["options"].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", mapv["options"].([]map[string]interface{})[1]["value"])
 }
 
@@ -149,9 +149,9 @@ func TestReplaceSlice(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(arrv))
 	assert.Equal(t, "::please select Bar", arrv[0])
-	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", arrv[1].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", arrv[1].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["value"])
 }
 
@@ -162,17 +162,17 @@ func TestReplaceNest(t *testing.T) {
 	err := Replace(&nestv, data)
 	assert.Nil(t, err)
 	assert.Equal(t, "::please select Bar", nestv["placeholder"])
-	assert.Equal(t, "Hello", nestv["options"].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", nestv["options"].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", nestv["options"].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", nestv["options"].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", nestv["options"].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", nestv["options"].([]map[string]interface{})[1]["value"])
 
 	arrv := nestv["data"].([]interface{})
 	assert.Equal(t, 2, len(arrv))
 	assert.Equal(t, "::please select Bar", arrv[0])
-	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", arrv[1].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", arrv[1].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["value"])
 }
 
@@ -184,17 +184,17 @@ func TestReplaceStruct(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "Bar", structv.Name)
-	assert.Equal(t, "Hello", structv.Map["options"].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", structv.Map["options"].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", structv.Map["options"].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", structv.Map["options"].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", structv.Map["options"].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", structv.Map["options"].([]map[string]interface{})[1]["value"])
 
 	arrv := structv.Slice
 	assert.Equal(t, 2, len(arrv))
 	assert.Equal(t, "::please select Bar", arrv[0])
-	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", arrv[1].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", arrv[1].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["value"])
 }
 
@@ -276,9 +276,9 @@ func TestReplaceAny(t *testing.T) {
 	res, ok := anyv.([]map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "Hello", res[0]["label"])
+	assert.Equal(t, "::Hello", res[0]["label"])
 	assert.Equal(t, "Hello", res[0]["value"])
-	assert.Equal(t, "World", res[1]["label"])
+	assert.Equal(t, "::World", res[1]["label"])
 	assert.Equal(t, "World", res[1]["value"])
 
 	anyv = 1024
@@ -293,9 +293,9 @@ func TestReplaceAny(t *testing.T) {
 	err = Replace(&anyv, data)
 	assert.Nil(t, err)
 	assert.Equal(t, "::please select Bar", anyv.(TestMap)["placeholder"])
-	assert.Equal(t, "Hello", anyv.(TestMap)["options"].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", anyv.(TestMap)["options"].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", anyv.(TestMap)["options"].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", anyv.(TestMap)["options"].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", anyv.(TestMap)["options"].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", anyv.(TestMap)["options"].([]map[string]interface{})[1]["value"])
 
 	anyv = testSlice()
@@ -303,26 +303,26 @@ func TestReplaceAny(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(anyv.([]interface{})))
 	assert.Equal(t, "::please select Bar", anyv.([]interface{})[0])
-	assert.Equal(t, "Hello", anyv.([]interface{})[1].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", anyv.([]interface{})[1].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", anyv.([]interface{})[1].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", anyv.([]interface{})[1].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", anyv.([]interface{})[1].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", anyv.([]interface{})[1].([]map[string]interface{})[1]["value"])
 
 	anyv = testNest()
 	err = Replace(&anyv, data)
 	assert.Nil(t, err)
 	assert.Equal(t, "::please select Bar", anyv.(TestMap)["placeholder"])
-	assert.Equal(t, "Hello", anyv.(TestMap)["options"].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", anyv.(TestMap)["options"].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", anyv.(TestMap)["options"].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", anyv.(TestMap)["options"].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", anyv.(TestMap)["options"].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", anyv.(TestMap)["options"].([]map[string]interface{})[1]["value"])
 
 	arrv := anyv.(TestMap)["data"].([]interface{})
 	assert.Equal(t, 2, len(arrv))
 	assert.Equal(t, "::please select Bar", arrv[0])
-	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["label"])
+	assert.Equal(t, "::Hello", arrv[1].([]map[string]interface{})[0]["label"])
 	assert.Equal(t, "Hello", arrv[1].([]map[string]interface{})[0]["value"])
-	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["label"])
+	assert.Equal(t, "::World", arrv[1].([]map[string]interface{})[1]["label"])
 	assert.Equal(t, "World", arrv[1].([]map[string]interface{})[1]["value"])
 
 }

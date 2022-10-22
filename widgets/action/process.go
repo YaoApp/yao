@@ -43,6 +43,10 @@ func (p *Process) Merge(newProcess *Process) *Process {
 		p.Process = newProcess.Process
 	}
 
+	if p.ProcessBind == "" {
+		p.ProcessBind = newProcess.ProcessBind
+	}
+
 	if p.Guard == "" {
 		p.Guard = newProcess.Guard
 	}

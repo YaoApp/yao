@@ -31,12 +31,20 @@ Listening: "    监听"
 SessionPort: "会话服务端口"
 Force migrate: "强制更新数据表结构"
 Migrate is not allowed on production mode.: "Migrate 不能再生产环境下使用"
+Please confirm, the data cannot be recovered: 请确认删除，删除后数据无法恢复
 Create: 创建
 Edit: 编辑
 View: 查看
+Confirm: 确认
 please input: 请输入
 Please input: 请输入
 please select: 请选择
 Please select: 请选择
 Enable: 开启
 Disable: 关闭
+enable: 开启
+disable: 关闭
+Enabled: 开启
+Disabled: 关闭
+enabled: 开启
+disabled: 关闭

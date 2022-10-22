@@ -18,17 +18,15 @@ const (
 
 // DSL the table DSL
 type DSL struct {
-	Root        string                 `json:"-"`
-	ID          string                 `json:"id,omitempty"`
-	Name        string                 `json:"name,omitempty"`
-	Action      *ActionDSL             `json:"action"`
-	Layout      *LayoutDSL             `json:"layout"`
-	Fields      *FieldsDSL             `json:"fields"`
-	Config      map[string]interface{} `json:"config,omitempty"`
-	ComputesIn  field.ComputeFields    `json:"-"`
-	ComputesOut field.ComputeFields    `json:"-"`
-	CProps      field.CloudProps       `json:"-"`
-	computes    *computeMaps
+	Root     string                 `json:"-"`
+	ID       string                 `json:"id,omitempty"`
+	Name     string                 `json:"name,omitempty"`
+	Action   *ActionDSL             `json:"action"`
+	Layout   *LayoutDSL             `json:"layout"`
+	Fields   *FieldsDSL             `json:"fields"`
+	Config   map[string]interface{} `json:"config,omitempty"`
+	CProps   field.CloudProps       `json:"-"`
+	computes *computeMaps
 }
 
 type computeMaps struct {
