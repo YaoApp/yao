@@ -223,7 +223,7 @@ func TestProcessMenu(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Len(t, res, 2)
+	assert.Len(t, res, 3)
 }
 
 func TestProcessIcons(t *testing.T) {
