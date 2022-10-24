@@ -5,6 +5,8 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/widgets/action"
+	"github.com/yaoapp/yao/widgets/hook"
+	"github.com/yaoapp/yao/widgets/table"
 )
 
 var processActionDefaults = map[string]*action.Process{
@@ -99,4 +101,54 @@ func (act *ActionDSL) BindModel(m *gou.Model) {
 	if act.Bind.Option != nil {
 		act.Find.Default[1] = act.Bind.Option
 	}
+}
+
+// BindForm bind form
+func (act *ActionDSL) BindForm(form *DSL) error {
+
+	// Copy Hooks
+	hook.CopyBefore(act.BeforeFind, form.Action.BeforeFind)
+	hook.CopyBefore(act.BeforeSave, form.Action.BeforeSave)
+	hook.CopyBefore(act.BeforeCreate, form.Action.BeforeCreate)
+	hook.CopyBefore(act.BeforeUpdate, form.Action.BeforeUpdate)
+	hook.CopyBefore(act.BeforeDelete, form.Action.BeforeDelete)
+	hook.CopyAfter(act.AfterFind, form.Action.AfterFind)
+	hook.CopyAfter(act.AfterSave, form.Action.AfterSave)
+	hook.CopyAfter(act.AfterCreate, form.Action.AfterCreate)
+	hook.CopyAfter(act.AfterUpdate, form.Action.AfterUpdate)
+	hook.CopyAfter(act.AfterDelete, form.Action.AfterDelete)
+
+	// Merge Actions
+	act.Find.Merge(form.Action.Find)
+	act.Save.Merge(form.Action.Save)
+	act.Create.Merge(form.Action.Create)
+	act.Update.Merge(form.Action.Update)
+	act.Delete.Merge(form.Action.Delete)
+
+	return nil
+}
+
+// BindTable bind table
+func (act *ActionDSL) BindTable(tab *table.DSL) error {
+
+	// Copy Hooks
+	hook.CopyBefore(act.BeforeFind, tab.Action.BeforeFind)
+	hook.CopyBefore(act.BeforeSave, tab.Action.BeforeSave)
+	hook.CopyBefore(act.BeforeCreate, tab.Action.BeforeCreate)
+	hook.CopyBefore(act.BeforeUpdate, tab.Action.BeforeUpdate)
+	hook.CopyBefore(act.BeforeDelete, tab.Action.BeforeDelete)
+	hook.CopyAfter(act.AfterFind, tab.Action.AfterFind)
+	hook.CopyAfter(act.AfterSave, tab.Action.AfterSave)
+	hook.CopyAfter(act.AfterCreate, tab.Action.AfterCreate)
+	hook.CopyAfter(act.AfterUpdate, tab.Action.AfterUpdate)
+	hook.CopyAfter(act.AfterDelete, tab.Action.AfterDelete)
+
+	// Merge Actions
+	act.Find.Merge(tab.Action.Find)
+	act.Save.Merge(tab.Action.Save)
+	act.Create.Merge(tab.Action.Create)
+	act.Update.Merge(tab.Action.Update)
+	act.Delete.Merge(tab.Action.Delete)
+
+	return nil
 }

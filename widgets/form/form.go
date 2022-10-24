@@ -8,9 +8,11 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/environment"
 	"github.com/yaoapp/yao/widgets/field"
 )
 
@@ -65,7 +67,7 @@ func New(id string) *DSL {
 func LoadAndExport(cfg config.Config) error {
 	err := Load(cfg)
 	if err != nil {
-		return err
+		log.Error(err.Error())
 	}
 	return Export()
 }
@@ -86,56 +88,83 @@ func LoadFrom(dir string, prefix string) error {
 	messages := []string{}
 	err := share.Walk(dir, ".json", func(root, filename string) {
 		id := prefix + share.ID(root, filename)
-		data := share.ReadFile(filename)
-		dsl := New(id)
-		err := jsoniter.Unmarshal(data, dsl)
+		data, err := environment.ReadFile(filename)
 		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
+			messages = append(messages, err.Error())
 			return
 		}
 
-		if dsl.Action == nil {
-			dsl.Action = &ActionDSL{}
-		}
-		dsl.Action.SetDefaultProcess()
-
-		if dsl.Layout == nil {
-			dsl.Layout = &LayoutDSL{}
-		}
-
-		if dsl.Fields == nil {
-			dsl.Fields = &FieldsDSL{}
-		}
-
-		// Bind model / store / table / ...
-		err = dsl.Bind()
+		err = LoadData(data, id, filepath.Dir(dir))
 		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
+			messages = append(messages, err.Error())
 		}
-
-		// Parse
-		err = dsl.Parse()
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-
-		// Validate
-		err = dsl.Validate()
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-
-		Forms[id] = dsl
 	})
 
 	if len(messages) > 0 {
-		return fmt.Errorf(strings.Join(messages, ";"))
+		return fmt.Errorf(strings.Join(messages, ";\n"))
 	}
 
 	return err
+}
+
+// LoadID load via id
+func LoadID(id string, root string) error {
+	dirs := strings.Split(id, ".")
+	name := fmt.Sprintf("%s.form.json", dirs[len(dirs)-1])
+	elems := []string{root}
+	elems = append(elems, dirs[0:len(dirs)-1]...)
+	elems = append(elems, "forms", name)
+	filename := filepath.Join(elems...)
+	data, err := environment.ReadFile(filename)
+	if err != nil {
+		return fmt.Errorf("[Form] LoadID %s root=%s %s", id, root, err.Error())
+	}
+	return LoadData(data, id, root)
+}
+
+// LoadData load via data
+func LoadData(data []byte, id string, root string) error {
+	dsl := New(id)
+	dsl.Root = root
+
+	err := jsoniter.Unmarshal(data, dsl)
+	if err != nil {
+		return fmt.Errorf("[Form] LoadData %s %s", id, err.Error())
+	}
+
+	if dsl.Action == nil {
+		dsl.Action = &ActionDSL{}
+	}
+	dsl.Action.SetDefaultProcess()
+
+	if dsl.Layout == nil {
+		dsl.Layout = &LayoutDSL{}
+	}
+
+	if dsl.Fields == nil {
+		dsl.Fields = &FieldsDSL{}
+	}
+
+	// Bind model / store / table / ...
+	err = dsl.Bind()
+	if err != nil {
+		return fmt.Errorf("[Form] LoadData Bind %s %s", id, err.Error())
+	}
+
+	// Parse
+	err = dsl.Parse()
+	if err != nil {
+		return fmt.Errorf("[Form] LoadData Parse %s %s", id, err.Error())
+	}
+
+	// Validate
+	err = dsl.Validate()
+	if err != nil {
+		return fmt.Errorf("[Form] LoadData Validate %s %s", id, err.Error())
+	}
+
+	Forms[id] = dsl
+	return nil
 }
 
 // Get form via process or id

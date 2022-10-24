@@ -6,6 +6,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/table"
 )
 
 // BindModel bind model
@@ -58,7 +59,91 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, formID string, fields *FieldsDS
 		}
 		layout.Form.Sections = []SectionDSL{{Columns: columns}}
 	}
+}
 
+// BindForm bind form
+func (layout *LayoutDSL) BindForm(form *DSL, fields *FieldsDSL) error {
+
+	if layout.Primary == "" {
+		layout.Primary = form.Layout.Primary
+	}
+
+	if layout.Operation == nil && form.Layout.Operation != nil {
+		layout.Operation = &OperationLayoutDSL{
+			Actions: []component.ActionDSL{},
+			Preset:  map[string]map[string]interface{}{},
+		}
+	}
+
+	if (layout.Operation.Actions == nil || len(layout.Operation.Actions) == 0) &&
+		form.Layout.Operation.Actions != nil {
+		layout.Operation.Actions = form.Layout.Operation.Actions
+	}
+
+	if layout.Operation.Preset == nil || len(layout.Operation.Preset) == 0 &&
+		form.Layout.Operation.Preset != nil {
+		layout.Operation.Preset = form.Layout.Operation.Preset
+	}
+
+	if layout.Form == nil && form.Layout.Form != nil {
+		layout.Form = &ViewLayoutDSL{}
+		*layout.Form = *form.Layout.Form
+	}
+	return nil
+}
+
+// BindTable bind table
+func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *FieldsDSL) error {
+
+	if layout.Primary == "" {
+		layout.Primary = tab.Layout.Primary
+	}
+
+	if layout.Operation == nil {
+		layout.Operation = &OperationLayoutDSL{
+			Preset: map[string]map[string]interface{}{"save": {}, "back": {}},
+			Actions: []component.ActionDSL{
+				{
+					Title: "::Delete",
+					Icon:  "icon-trash-2",
+					Style: "danger",
+					Action: map[string]component.ParamsDSL{
+						"Table.delete": {"model": formID},
+					},
+					Confirm: &component.ConfirmActionDSL{
+						Title: "::Confirm",
+						Desc:  "::Please confirm, the data cannot be recovered",
+					},
+				},
+			},
+		}
+	}
+
+	if layout.Form == nil &&
+		tab.Layout != nil && tab.Layout.Table != nil && tab.Layout.Table.Columns != nil &&
+		len(tab.Layout.Table.Columns) > 0 {
+
+		layout.Form = &ViewLayoutDSL{
+			Props:    component.PropsDSL{},
+			Sections: []SectionDSL{{Columns: []Column{}}},
+		}
+
+		columns := []Column{}
+		for _, column := range tab.Fields.Table {
+			if column.Edit == nil {
+				continue
+			}
+
+			name := column.Key
+			if col, has := fields.Form[name]; has {
+				width := 12
+				columns = append(columns, Column{InstanceDSL: component.InstanceDSL{Name: col.Key, Width: width}})
+			}
+		}
+		layout.Form.Sections = []SectionDSL{{Columns: columns}}
+	}
+
+	return nil
 }
 
 func (layout *LayoutDSL) listColumns(fn func(string, Column), path string, sections []SectionDSL) {

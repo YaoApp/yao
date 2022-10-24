@@ -27,7 +27,7 @@ func TestLoad(t *testing.T) {
 
 func TestLoadID(t *testing.T) {
 	prepare(t)
-	err := LoadID("pet", filepath.Join(config.Conf.Root, "tables"))
+	err := LoadID("pet", filepath.Join(config.Conf.Root))
 	if err != nil {
 		t.Fatal(err)
 	}

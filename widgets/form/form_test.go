@@ -9,6 +9,9 @@ import (
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/table"
+	"github.com/yaoapp/yao/widgets/expression"
+	"github.com/yaoapp/yao/widgets/field"
 )
 
 func TestLoad(t *testing.T) {
@@ -38,7 +41,23 @@ func prepare(t *testing.T, language ...string) {
 		t.Fatal(err)
 	}
 
-	// load scripts
+	// load field transform
+	err = field.LoadAndExport(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// load expression
+	err = expression.Export()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// load tables
+	err = table.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// export
 	err = Export()
