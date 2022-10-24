@@ -38,7 +38,7 @@ func (dsl *DSL) bindModel() error {
 
 	dsl.Action.BindModel(m)
 	dsl.Fields.BindModel(m)
-	// dsl.Layout.BindModel(m)
+	dsl.Layout.BindModel(m, dsl.ID, dsl.Fields, dsl.Action.Bind.Option)
 	return nil
 }
 

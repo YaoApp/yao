@@ -197,7 +197,7 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	fields, err := dsl.Fields.Xgen()
+	fields, err := dsl.Fields.Xgen(dsl.Layout)
 	if err != nil {
 		return nil, err
 	}
