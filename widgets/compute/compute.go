@@ -11,7 +11,7 @@ import (
 	"github.com/yaoapp/yao/widgets/field"
 )
 
-var views = map[string]bool{"find": true, "get": true, "search": true}
+var views = map[string]bool{"find": true, "get": true, "search": true, "data": true}
 
 // ComputeEdit edit compute edit
 func (c *Computable) ComputeEdit(name string, process *gou.Process, args []interface{}, getField func(string) (*field.ColumnDSL, string, error)) error {

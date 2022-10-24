@@ -3,21 +3,21 @@ package chart
 import (
 	"github.com/yaoapp/yao/widgets/action"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/compute"
 	"github.com/yaoapp/yao/widgets/field"
 	"github.com/yaoapp/yao/widgets/hook"
 )
 
 // DSL the chart DSL
 type DSL struct {
-	ID          string                 `json:"id,omitempty"`
-	Name        string                 `json:"name,omitempty"`
-	Action      *ActionDSL             `json:"action"`
-	Layout      *LayoutDSL             `json:"layout"`
-	Fields      *FieldsDSL             `json:"fields"`
-	Config      map[string]interface{} `json:"config,omitempty"`
-	ComputesIn  field.ComputeFields    `json:"-"`
-	ComputesOut field.ComputeFields    `json:"-"`
-	CProps      field.CloudProps       `json:"-"`
+	ID     string                 `json:"id,omitempty"`
+	Name   string                 `json:"name,omitempty"`
+	Action *ActionDSL             `json:"action"`
+	Layout *LayoutDSL             `json:"layout"`
+	Fields *FieldsDSL             `json:"fields"`
+	Config map[string]interface{} `json:"config,omitempty"`
+	CProps field.CloudProps       `json:"-"`
+	compute.Computable
 }
 
 // ActionDSL the chart action DSL
@@ -31,14 +31,23 @@ type ActionDSL struct {
 
 // FieldsDSL the chart fields DSL
 type FieldsDSL struct {
-	Filter field.Filters `json:"filter,omitempty"`
-	Chart  field.Columns `json:"chart,omitempty"`
+	Filter    field.Filters `json:"filter,omitempty"`
+	Chart     field.Columns `json:"chart,omitempty"`
+	filterMap map[string]field.FilterDSL
+	chartMap  map[string]field.ColumnDSL
 }
 
 // LayoutDSL the chart layout DSL
 type LayoutDSL struct {
 	Operation *OperationLayoutDSL `json:"operation,omitempty"`
 	Chart     *ViewLayoutDSL      `json:"chart,omitempty"`
+	Filter    *FilterLayoutDSL    `json:"filter,omitempty"`
+}
+
+// FilterLayoutDSL layout.filter
+type FilterLayoutDSL struct {
+	Actions component.Actions   `json:"actions,omitempty"`
+	Columns component.Instances `json:"columns,omitempty"`
 }
 
 // OperationLayoutDSL layout.operation

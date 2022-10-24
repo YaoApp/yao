@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/yao/helper"
 	table_v0 "github.com/yaoapp/yao/table"
 
+	"github.com/yaoapp/yao/widgets/chart"
 	"github.com/yaoapp/yao/widgets/form"
 	"github.com/yaoapp/yao/widgets/table"
 )
@@ -18,6 +19,7 @@ var Guards = map[string]gin.HandlerFunc{
 	"table-guard":  table_v0.Guard,   // Table Guard ( v0.9 table)
 	"widget-table": table.Guard,      // Widget Table Guard
 	"widget-form":  form.Guard,       // Widget Form Guard
+	"widget-chart": chart.Guard,      // Widget Chart Guard
 }
 
 // JWT Bearer JWT
