@@ -67,7 +67,8 @@ type OperationLayoutDSL struct {
 
 // FieldsDSL the form fields DSL
 type FieldsDSL struct {
-	Form field.Columns `json:"form,omitempty"`
+	Form    field.Columns `json:"form,omitempty"`
+	formMap map[string]field.ColumnDSL
 }
 
 // ViewLayoutDSL layout.form
@@ -78,13 +79,13 @@ type ViewLayoutDSL struct {
 
 // SectionDSL layout.form.sections[*]
 type SectionDSL struct {
-	Title   string    `json:"title,omitempty"`
-	Desc    string    `json:"desc,omitempty"`
-	Columns []Columns `json:"columns,omitempty"`
+	Title   string   `json:"title,omitempty"`
+	Desc    string   `json:"desc,omitempty"`
+	Columns []Column `json:"columns,omitempty"`
 }
 
-// Columns table columns
-type Columns struct {
+// Column table columns
+type Column struct {
 	Tabs []SectionDSL `json:"tabs,omitempty"`
 	component.InstanceDSL
 }
