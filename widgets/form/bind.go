@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/widgets/table"
 )
 
 // Bind model / store / table / ...
@@ -15,6 +16,10 @@ func (dsl *DSL) Bind() error {
 
 	if dsl.Action.Bind.Model != "" {
 		return dsl.bindModel()
+	}
+
+	if dsl.Action.Bind.Form != "" {
+		return dsl.bindForm()
 	}
 
 	if dsl.Action.Bind.Store != "" {
@@ -42,9 +47,79 @@ func (dsl *DSL) bindModel() error {
 	return nil
 }
 
+func (dsl *DSL) bindForm() error {
+	id := dsl.Action.Bind.Form
+	if id == dsl.ID {
+		return fmt.Errorf("bind.form %s can't bind self form", id)
+	}
+
+	// Load form
+	if _, has := Forms[id]; !has {
+		if err := LoadID(id, dsl.Root); err != nil {
+			return err
+		}
+	}
+
+	form, err := Get(id)
+	if err != nil {
+		return err
+	}
+
+	// Bind Fields
+	err = dsl.Fields.BindForm(form)
+	if err != nil {
+		return err
+	}
+
+	// Bind Actions
+	err = dsl.Action.BindForm(form)
+	if err != nil {
+		return err
+	}
+
+	// Bind Layout
+	err = dsl.Layout.BindForm(form, dsl.Fields)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (dsl *DSL) bindTable() error {
 	id := dsl.Action.Bind.Table
-	return fmt.Errorf("bind.table %s does not support yet", id)
+
+	// Load table
+	if _, has := table.Tables[id]; !has {
+		if err := table.LoadID(id, dsl.Root); err != nil {
+			return err
+		}
+	}
+
+	tab, err := table.Get(id)
+	if err != nil {
+		return err
+	}
+
+	// Bind Fields
+	err = dsl.Fields.BindTable(tab)
+	if err != nil {
+		return err
+	}
+
+	// Bind Actions
+	err = dsl.Action.BindTable(tab)
+	if err != nil {
+		return err
+	}
+
+	// Bind Layout
+	err = dsl.Layout.BindTable(tab, dsl.ID, dsl.Fields)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (dsl *DSL) bindStore() error {

@@ -8,6 +8,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
@@ -91,7 +92,7 @@ func New(id string) *DSL {
 func LoadAndExport(cfg config.Config) error {
 	err := Export()
 	if err != nil {
-		return err
+		log.Error(err.Error())
 	}
 	return Load(cfg)
 }
@@ -108,11 +109,11 @@ func LoadID(id string, root string) error {
 	name := fmt.Sprintf("%s.tab.json", dirs[len(dirs)-1])
 	elems := []string{root}
 	elems = append(elems, dirs[0:len(dirs)-1]...)
-	elems = append(elems, name)
+	elems = append(elems, "tables", name)
 	filename := filepath.Join(elems...)
 	data, err := environment.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("[%s] root=%s %s", id, root, err.Error())
+		return fmt.Errorf("[table] LoadID %s root=%s %s", id, root, err.Error())
 	}
 	return LoadData(data, id, root)
 }
@@ -133,7 +134,7 @@ func LoadFrom(dir string, prefix string) error {
 			return
 		}
 
-		err = LoadData(data, id, root)
+		err = LoadData(data, id, filepath.Dir(dir))
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
 			return
@@ -154,7 +155,7 @@ func LoadData(data []byte, id string, root string) error {
 
 	err := jsoniter.Unmarshal(data, dsl)
 	if err != nil {
-		return fmt.Errorf("[%s] %s", id, err.Error())
+		return fmt.Errorf("[Table] LoadData %s %s", id, err.Error())
 	}
 
 	if dsl.Action == nil {
@@ -178,19 +179,19 @@ func LoadData(data []byte, id string, root string) error {
 	// Bind model / store / table / ...
 	err = dsl.Bind()
 	if err != nil {
-		return fmt.Errorf("[%s] %s", id, err.Error())
+		return fmt.Errorf("[Table] LoadData Bind %s %s", id, err.Error())
 	}
 
 	// Parse
 	err = dsl.Parse()
 	if err != nil {
-		return fmt.Errorf("[%s] %s", id, err.Error())
+		return fmt.Errorf("[Table] LoadData Parse %s %s", id, err.Error())
 	}
 
 	// Validate
 	err = dsl.Validate()
 	if err != nil {
-		return fmt.Errorf("[%s] %s", id, err.Error())
+		return fmt.Errorf("[Table] LoadData Validate %s %s", id, err.Error())
 	}
 
 	Tables[id] = dsl

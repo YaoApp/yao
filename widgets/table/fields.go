@@ -8,6 +8,11 @@ import (
 	"github.com/yaoapp/yao/widgets/field"
 )
 
+// TableMap get table maps
+func (fields *FieldsDSL) TableMap() map[string]field.ColumnDSL {
+	return fields.tableMap
+}
+
 // BindModel cast model to fields
 func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 

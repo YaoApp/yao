@@ -11,6 +11,7 @@ import (
 // DSL the form DSL
 type DSL struct {
 	ID     string                 `json:"id,omitempty"`
+	Root   string                 `json:"-"`
 	Name   string                 `json:"name,omitempty"`
 	Action *ActionDSL             `json:"action"`
 	Layout *LayoutDSL             `json:"layout"`
