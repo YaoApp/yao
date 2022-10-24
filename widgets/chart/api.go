@@ -1,10 +1,62 @@
 package chart
 
 import (
+	"fmt"
+
+	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/widgets/action"
 )
+
+// Guard form widget chart
+func Guard(c *gin.Context) {
+
+	id := c.Param("id")
+	if id == "" {
+		abort(c, 400, "the chart widget id does not found")
+		return
+	}
+
+	chart, has := Charts[id]
+	if !has {
+		abort(c, 404, fmt.Sprintf("the chart widget %s does not exist", id))
+		return
+	}
+
+	act, err := chart.getAction(c.FullPath())
+	if err != nil {
+		abort(c, 404, err.Error())
+		return
+	}
+
+	err = act.UseGuard(c, id)
+	if err != nil {
+		abort(c, 400, err.Error())
+		return
+	}
+
+}
+
+func abort(c *gin.Context, code int, message string) {
+	c.JSON(code, gin.H{"code": code, "message": message})
+	c.Abort()
+}
+
+func (chart *DSL) getAction(path string) (*action.Process, error) {
+
+	switch path {
+	case "/api/__yao/chart/:id/setting":
+		return chart.Action.Setting, nil
+	case "/api/__yao/chart/:id/component/:xpath/:method":
+		return chart.Action.Component, nil
+	case "/api/__yao/chart/:id/data":
+		return chart.Action.Data, nil
+	}
+
+	return nil, fmt.Errorf("the form widget %s %s action does not exist", chart.ID, path)
+}
 
 // export API
 func exportAPI() error {
@@ -13,7 +65,7 @@ func exportAPI() error {
 		Name:        "Widget Form API",
 		Description: "Widget Form API",
 		Version:     share.VERSION,
-		Guard:       "-",
+		Guard:       "widget-chart",
 		Group:       "__yao/chart",
 		Paths:       []gou.Path{},
 	}

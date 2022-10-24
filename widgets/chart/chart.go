@@ -37,11 +37,10 @@ var Charts map[string]*DSL = map[string]*DSL{}
 // New create a new DSL
 func New(id string) *DSL {
 	return &DSL{
-		ID:          id,
-		Fields:      &FieldsDSL{Chart: field.Columns{}, Filter: field.Filters{}},
-		CProps:      field.CloudProps{},
-		ComputesIn:  field.ComputeFields{},
-		ComputesOut: field.ComputeFields{},
+		ID:     id,
+		Fields: &FieldsDSL{Chart: field.Columns{}, Filter: field.Filters{}},
+		CProps: field.CloudProps{},
+		Config: map[string]interface{}{},
 	}
 }
 
@@ -143,10 +142,13 @@ func MustGet(chart interface{}) *DSL {
 func (dsl *DSL) Parse() error {
 
 	// ComputeFields
-	// dsl.Fields.Chart.ComputeFieldsMerge(dsl.ComputesIn, dsl.ComputesOut)
+	err := dsl.computeMapping()
+	if err != nil {
+		return err
+	}
 
 	// Filters
-	err := dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {
+	err = dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {
 		return fmt.Sprintf("fields.filter.%s.edit.props", name)
 	})
 
@@ -171,6 +173,11 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	fields, err := dsl.Fields.Xgen()
 	if err != nil {
 		return nil, err
+	}
+
+	// full width default value
+	if _, has := dsl.Config["full"]; !has {
+		dsl.Config["full"] = true
 	}
 
 	setting["fields"] = fields
