@@ -119,6 +119,13 @@ jobs:
         run: |
           for file in ./dist/release/*; do coscmd upload $file /archives/; done;
 
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: yao-linux
+          path: |
+            dist/release/*
+
       # - name: Configure COS For Beijing
       #   env:
       #     SECRET_ID: ${{ secrets.COS_ID }}
