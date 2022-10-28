@@ -1240,7 +1240,23 @@ func makeSetup(root string) error {
 
 	if app.Setting != nil && app.Setting.Setup != "" {
 
-		p, err := gou.ProcessOf(app.Setting.Setup)
+		if strings.HasPrefix(app.Setting.Setup, "studio.") {
+			names := strings.Split(app.Setting.Setup, ".")
+			if len(names) < 3 {
+				return fmt.Errorf("setup studio script %s error", app.Setting.Setup)
+			}
+
+			service := strings.Join(names[1:len(names)-1], ".")
+			method := names[len(names)-1]
+			req := gou.Yao.New(service, method)
+			_, err := req.RootCall(cfg)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		p, err := gou.ProcessOf(app.Setting.Setup, cfg)
 		if err != nil {
 			return err
 		}
