@@ -67,8 +67,8 @@ func runSetup(c *gin.Context) {
 		return
 	}
 
-	if hasInstalled(cfg) {
-		c.JSON(403, gin.H{"code": 400, "message": "应用已安装, 删除 .env 文件后重试"})
+	if !Check() {
+		c.JSON(403, gin.H{"code": 400, "message": "应用已安装, 删除 .env 文件和 db 目录后重试"})
 		return
 	}
 
