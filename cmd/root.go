@@ -17,7 +17,8 @@ var envFile string
 
 var lang = os.Getenv("YAO_LANG")
 var langs = map[string]string{
-	"Start Engine":                          "启动象传应用引擎",
+	"Start Engine":                          "启动 YAO 应用引擎",
+	"Get an application":                    "下载应用源码",
 	"One or more arguments are not correct": "参数错误",
 	"Application directory":                 "指定应用路径",
 	"Environment file":                      "指定环境变量文件",
@@ -108,7 +109,7 @@ func init() {
 		inspectCmd,
 		startCmd,
 		runCmd,
-		initCmd,
+		getCmd,
 		dumpCmd,
 		restoreCmd,
 		socketCmd,
