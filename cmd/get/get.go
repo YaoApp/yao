@@ -131,7 +131,7 @@ func urlExists(url string) bool {
 func (pkg *Package) Download() error {
 
 	if pkg.Remote == "" {
-		return fmt.Errorf("remote url is requried")
+		return fmt.Errorf("remote url is required")
 	}
 
 	root, err := os.MkdirTemp("", "*-yao-zip")
@@ -231,11 +231,7 @@ func (pkg *Package) Unpack(dest string) (*app.DSL, error) {
 	}
 
 	// Remove env
-	err = fs.Remove(filepath.Join(dest, ".env"))
-	if err != nil {
-		return nil, err
-	}
-
+	fs.Remove(filepath.Join(dest, ".env"))
 	return &setting, nil
 }
 
