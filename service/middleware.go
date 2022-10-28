@@ -1,37 +1,16 @@
 package service
 
 import (
-	"fmt"
-	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/share"
 )
 
-// XGenFileServerV0 XGen v0.9
-var XGenFileServerV0 http.Handler = http.FileServer(data.XgenV0())
-
-// XGenFileServerV1 XGen v1.0
-var XGenFileServerV1 http.Handler = http.FileServer(data.XgenV1())
-
-// AppFileServer 应用静态文件
-var AppFileServer http.Handler = http.FileServer(http.Dir(filepath.Join(config.Conf.Root, "ui")))
-
 // Middlewares 服务中间件
 var Middlewares = []gin.HandlerFunc{
-	// BindDomain,
 	BinStatic,
 }
-
-// AdminRoot cache
-var AdminRoot = ""
-
-// AdminRootLen cache
-var AdminRootLen = 0
 
 // BinStatic 静态文件服务
 func BinStatic(c *gin.Context) {
@@ -44,10 +23,10 @@ func BinStatic(c *gin.Context) {
 		return
 
 	} else if share.App.XGen == "1.0" {
+
 		// Xgen 1.0
-		adminRoot, adminRootLen := adminRoot()
-		if length >= adminRootLen && c.Request.URL.Path[0:adminRootLen] == adminRoot {
-			c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, c.Request.URL.Path[0:adminRootLen-1])
+		if length >= AdminRootLen && c.Request.URL.Path[0:AdminRootLen] == AdminRoot {
+			c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, c.Request.URL.Path[0:AdminRootLen-1])
 			XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
 			c.Abort()
 			return
@@ -69,24 +48,7 @@ func BinStatic(c *gin.Context) {
 
 	}
 
-	// 应用内静态文件目录(/ui)
+	// 应用内静态文件目录(/ui or public)
 	AppFileServer.ServeHTTP(c.Writer, c.Request)
 	c.Abort()
-}
-
-func adminRoot() (string, int) {
-	if AdminRoot != "" {
-		return AdminRoot, AdminRootLen
-	}
-
-	adminRoot := "/yao/"
-	if share.App.AdminRoot != "" {
-		root := strings.TrimPrefix(share.App.AdminRoot, "/")
-		root = strings.TrimSuffix(root, "/")
-		adminRoot = fmt.Sprintf("/%s/", root)
-	}
-	adminRootLen := len(adminRoot)
-	AdminRoot = adminRoot
-	AdminRootLen = adminRootLen
-	return AdminRoot, AdminRootLen
 }

@@ -215,14 +215,14 @@ func watchModel(root string, file string, event string, cfg config.Config) {
 			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
 			return
 		}
-		mod, err := gou.LoadModelReturn(string(content), name)
+		_, err = gou.LoadModelReturn(string(content), name)
 		if err != nil {
 			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
 			return
 		}
 
-		mod.Migrate(true)
-		fmt.Println(color.GreenString("[Watch] Model: %s Created", name))
+		// mod.Migrate(true)
+		fmt.Println(color.GreenString("[Watch] Model: %s Created (Please run yao migrate manually)", name))
 		break
 
 	case "WRITE":
@@ -231,13 +231,13 @@ func watchModel(root string, file string, event string, cfg config.Config) {
 			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
 			return
 		}
-		mod, err := gou.LoadModelReturn(string(content), name)
+		_, err = gou.LoadModelReturn(string(content), name)
 		if err != nil {
 			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
 			return
 		}
-		mod.Migrate(false)
-		fmt.Println(color.GreenString("[Watch] Model: %s Reloaded", name))
+		// mod.Migrate(false)
+		fmt.Println(color.GreenString("[Watch] Model: %s Reloaded (Please run yao migrate manually)", name))
 		break
 
 	case "REMOVE", "RENAME":
