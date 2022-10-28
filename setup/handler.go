@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xun"
+	"github.com/yaoapp/yao/widgets/app"
 )
 
 // recovered custom recovered
@@ -91,10 +92,18 @@ func runSetup(c *gin.Context) {
 		return
 	}
 
+	adminRoot := "yao"
+	if app.Setting.AdminRoot != "" {
+		adminRoot = app.Setting.AdminRoot
+	}
+	adminRoot = strings.Trim(adminRoot, "/")
+
 	c.JSON(200, gin.H{
 		"code":    200,
 		"message": "安装成功",
 		"urls":    urls,
+		"port":    cfg.Port,
+		"root":    adminRoot,
 	})
 
 	Complete()
