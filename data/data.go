@@ -33,6 +33,18 @@ func XgenV1() *assetfs.AssetFS {
 	panic("unreachable")
 }
 
+// Setup Setup ui
+func Setup() *assetfs.AssetFS {
+	assetInfo := func(path string) (os.FileInfo, error) {
+		return os.Stat(path)
+	}
+	for k := range _bintree.Children {
+		k = "xgen/setup"
+		return &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: assetInfo, Prefix: k, Fallback: "index.html"}
+	}
+	panic("unreachable")
+}
+
 // ReplaceXGen bindata file
 func ReplaceXGen(search, replace string) error {
 	err := replaceXGenIndex(search, replace)

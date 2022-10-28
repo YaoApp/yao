@@ -51,6 +51,26 @@ func (c *Computable) ComputeEdit(name string, process *gou.Process, args []inter
 			return nil
 		}
 
+		if columns, ok := args[0].([]interface{}); ok {
+			new := []string{}
+			for _, col := range columns {
+				new = append(new, fmt.Sprintf("%v", col))
+			}
+			args[0] = new
+		}
+
+		if values, ok := args[1].([]interface{}); ok {
+			new := [][]interface{}{}
+			for _, value := range values {
+				arr, ok := value.([]interface{})
+				if !ok {
+					return fmt.Errorf("args[1] is not a [][] %s", reflect.ValueOf(args[1]).Type().Name())
+				}
+				new = append(new, arr)
+			}
+			args[1] = new
+		}
+
 		if _, ok := args[0].([]string); !ok {
 			return fmt.Errorf("args[0] is not a []string %s", reflect.ValueOf(args[0]).Type().Name())
 		}

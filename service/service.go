@@ -10,12 +10,13 @@ import (
 )
 
 var shutdown = make(chan bool, 1)
+
 var shutdownComplete = make(chan bool, 1)
 
 // Start 启动服务
 func Start() error {
 
-	err := share.SessionStart()
+	err := prepare()
 	if err != nil {
 		return err
 	}
@@ -83,4 +84,20 @@ func StopWithContext(ctx context.Context, onComplete func()) {
 		share.SessionStop()
 		onComplete()
 	}
+}
+
+func prepare() error {
+
+	// Session server
+	err := share.SessionStart()
+	if err != nil {
+		return err
+	}
+
+	err = SetupStatic()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

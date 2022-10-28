@@ -22,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/engine"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/service"
+	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/studio"
 )
@@ -34,6 +35,19 @@ var startCmd = &cobra.Command{
 	Short: L("Start Engine"),
 	Long:  L("Start Engine"),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// Setup
+		if setup.Check() {
+			go setup.Start()
+			select {
+			case <-setup.Done:
+				setup.Stop()
+				break
+			case <-setup.Canceled:
+				os.Exit(1)
+				break
+			}
+		}
 
 		// recive interrupt signal
 		interrupt := make(chan os.Signal, 1)
@@ -58,10 +72,6 @@ var startCmd = &cobra.Command{
 		}
 
 		host := config.Conf.Host
-		if host == "0.0.0.0" {
-			host = "127.0.0.1"
-		}
-
 		dataRoot, _ := fs.Root(config.Conf)
 
 		fmt.Println(color.WhiteString("\n---------------------------------"))
@@ -73,15 +83,29 @@ var startCmd = &cobra.Command{
 		}
 
 		if share.App.XGen == "1.0" {
+
 			root, _ := adminRoot()
-			fmt.Println(color.WhiteString(L("    XGen")), color.GreenString(" 1.0"))
+			urls := []string{fmt.Sprintf("http://%s:%s", host, port)}
+			if host == "0.0.0.0" {
+				urls, _ = setup.URLs(config.Conf)
+			}
+
+			fmt.Println(color.WhiteString(L("XGen")), color.GreenString(" 1.0"))
 			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
-			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
-			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s%slogin/admin", host, port, root))
-			fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
+			for _, url := range urls {
+				fmt.Println(color.WhiteString(L("Frontend ")), color.GreenString(" %s", url))
+				fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
+				fmt.Println(color.WhiteString(L("API      ")), color.GreenString(" %s/api", url))
+			}
+
 			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
 
 		} else {
+
+			if host == "0.0.0.0" {
+				host = "127.0.0.1"
+			}
+
 			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
 			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
 			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/xiang/login/admin", host, port))

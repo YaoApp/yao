@@ -40,12 +40,14 @@ func LoadFrom(envfile string) Config {
 
 	file, err := filepath.Abs(envfile)
 	if err != nil {
-		log.Warn("Can't load env file. %s", err.Error())
+		// log.Warn("Can't load env file. %s", err.Error())
+		return Load()
 	}
-	err = godotenv.Overload(file)
-	if err != nil {
-		log.Warn("Can't load env file. %s", err.Error())
-	}
+
+	godotenv.Overload(file)
+	// if err != nil {
+	// 	// log.Warn("Can't load env file. %s", err.Error())
+	// }
 
 	return Load()
 }
