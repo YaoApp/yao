@@ -81,7 +81,11 @@ func Load(cfg config.Config) (err error) {
 	}
 
 	// 第二步: 建立数据库 & 会话连接
-	share.DBConnect(cfg.DB) // 创建数据库连接
+	err = share.DBConnect(cfg.DB) // 创建数据库连接
+	if err != nil {
+		printErr(cfg.Mode, "DB", err)
+	}
+
 	// share.SessionConnect(cfg.Session) // 创建会话服务器链接
 
 	// 加载应用引擎

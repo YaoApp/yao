@@ -47,55 +47,35 @@ import (
 //		  "option.host.pass": "123456"
 //		}
 //	}
-func Install(option map[string]map[string]string) error {
+func Install(payload map[string]map[string]string) error {
 
-	env, has := option["env"]
-	if !has {
-		return fmt.Errorf("缺少服务配置信息")
-	}
-
-	db, has := option["db"]
-	if !has {
-		return fmt.Errorf("缺少数据库配置信息")
-	}
-
-	if env["YAO_ENV"] == "开发模式(推荐)" {
-		env["YAO_ENV"] = "development"
-	} else {
-		env["YAO_ENV"] = "production"
-	}
-
-	if env["YAO_LANG"] == "中文" {
-		env["YAO_LANG"] = "zh-cn"
-	} else {
-		env["YAO_LANG"] = "en-us"
-	}
-
-	dbName := db["type"]
-	dbOption := map[string]string{}
-	switch dbName {
-	case "", "sqlite", "sqlite3":
-		dbName = "sqlite3"
-		dbOption["file"] = db["option.file"]
-		break
-
-	case "mysql":
-		dbName = "mysql"
-		dbOption["db"] = db["option.db"]
-		dbOption["host"] = db["option.host.host"]
-		dbOption["port"] = db["option.host.port"]
-		dbOption["user"] = db["option.host.user"]
-		dbOption["pass"] = db["option.host.pass"]
-		break
-	}
-
-	root := appRoot()
-	err := makeService(root, "0.0.0.0", env["YAO_PORT"], env["YAO_STUDIO_PORT"], env["YAO_LANG"])
+	dbOption, err := getDBOption(payload)
 	if err != nil {
 		return err
 	}
 
-	err = makeDB(root, dbName, dbOption)
+	err = ValidateDB(dbOption)
+	if err != nil {
+		return err
+	}
+
+	envOption, err := getENVOption(payload)
+	if err != nil {
+		return err
+	}
+
+	err = ValidateHosting(envOption)
+	if err != nil {
+		return err
+	}
+
+	root := appRoot()
+	err = makeService(root, "0.0.0.0", envOption["YAO_PORT"], envOption["YAO_STUDIO_PORT"], envOption["YAO_LANG"])
+	if err != nil {
+		return err
+	}
+
+	err = makeDB(root, dbOption)
 	if err != nil {
 		return err
 	}
@@ -145,85 +125,32 @@ func makeService(root string, host string, port string, studioPort string, lang 
 		return err
 	}
 
+	err = envSet(file, "YAO_STUDIO_PORT", studioPort)
+	if err != nil {
+		return err
+	}
+
 	return envSet(file, "YAO_LANG", lang)
 }
 
-func makeDB(root string, driver string, option map[string]string) error {
+func makeDB(root string, option map[string]string) error {
 
+	driver, dsn, err := getDSN(option)
 	if driver != "mysql" && driver != "sqlite3" {
 		return fmt.Errorf("数据库驱动应该为: mysql/sqlite3")
 	}
 
 	file := filepath.Join(root, ".env")
-
-	dsn := ""
-	switch driver {
-	case "mysql":
-
-		db := "yao"
-		if v, has := option["db"]; has {
-			db = v
-		}
-
-		host := "127.0.0.1"
-		if v, has := option["host"]; has {
-			host = v
-		}
-
-		port := "3306"
-		if v, has := option["port"]; has {
-			port = v
-		}
-
-		user := "root"
-		if v, has := option["user"]; has {
-			user = v
-		}
-
-		pass := ""
-		if v, has := option["pass"]; has {
-			pass = v
-		}
-
-		err := envSet(file, "YAO_DB_DRIVER", driver)
-		if err != nil {
-			return err
-		}
-
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, pass, host, port, db)
-		return envSet(file, "YAO_DB_PRIMARY", dsn)
-
-	case "sqlite", "sqlite3":
-
-		var err error
-		db := filepath.Join("db", "yao.db")
-		if v, has := option["db"]; has {
-			file = v
-		}
-
-		if !strings.HasPrefix(db, "/") {
-			db = filepath.Join(root, db)
-			db, err = filepath.Abs(db)
-			if err != nil && !os.IsNotExist(err) {
-				return err
-			}
-		}
-
-		dir := filepath.Dir(db)
-		err = os.MkdirAll(dir, os.ModePerm)
-		if err != nil && !os.IsExist(err) {
-			return err
-		}
-
-		err = envSet(file, "YAO_DB_DRIVER", "sqlite3")
-		if err != nil {
-			return err
-		}
-
-		return envSet(file, "YAO_DB_PRIMARY", db)
+	if err != nil {
+		return err
 	}
 
-	return fmt.Errorf("数据库驱动应该为: mysql/sqlite3")
+	err = envSet(file, "YAO_DB_DRIVER", driver)
+	if err != nil {
+		return err
+	}
+
+	return envSet(file, "YAO_DB_PRIMARY", dsn)
 }
 
 func makeSession(root string) error {
@@ -246,7 +173,7 @@ func makeSession(root string) error {
 		return err
 	}
 
-	ssfile := filepath.Join(root, "data", ".session")
+	ssfile := filepath.Join(root, "db", ".session")
 	return envSet(file, "YAO_SESSION_FILE", ssfile)
 }
 
@@ -292,6 +219,11 @@ func makeDirs(root string) error {
 	}
 
 	err = os.MkdirAll(filepath.Join(root, "logs"), os.ModePerm)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	err = os.MkdirAll(filepath.Join(root, "db"), os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}
