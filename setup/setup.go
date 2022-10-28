@@ -19,6 +19,9 @@ import (
 	"github.com/yaoapp/yao/widgets/app"
 )
 
+// SetupPort setup port
+var SetupPort string = "5099"
+
 // XGenSetupServer XGen Setup
 var XGenSetupServer http.Handler = http.FileServer(data.Setup())
 
@@ -75,7 +78,7 @@ func Start() (err error) {
 	router.POST("/api/__yao/app/setup", runSetup)
 
 	// Server setting
-	addr := ":5099"
+	addr := fmt.Sprintf(":%s", SetupPort)
 
 	// Listen
 	l, err := net.Listen("tcp4", addr)
@@ -199,6 +202,7 @@ func welcome(l net.Listener) {
 	}
 
 	fmt.Println()
+	SetupPort = port
 }
 
 func printError(message string, args ...interface{}) {
