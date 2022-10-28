@@ -89,13 +89,24 @@ func hasInstalled(cfg config.Config) bool {
 	switch cfg.DB.Driver {
 
 	case "sqlite3":
-		if cfg.DB.Primary != nil {
+		if cfg.DB.Primary != nil && len(cfg.DB.Primary) > 0 {
+
+			dbfile, err := filepath.Abs(cfg.DB.Primary[0])
+			if err != nil {
+				return false
+			}
+
+			if _, err := os.Stat(dbfile); err != nil && os.IsNotExist(err) {
+				fmt.Println(dbfile)
+				return false
+			}
+
 			return true
 		}
 		break
 
 	case "mysql":
-		if cfg.DB.Primary != nil {
+		if cfg.DB.Primary != nil && len(cfg.DB.Primary) > 0 {
 			return true
 		}
 		break
