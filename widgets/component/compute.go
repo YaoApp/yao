@@ -15,6 +15,7 @@ var defaults = []CArg{
 	{IsExp: true, key: "value", value: nil},
 	{IsExp: true, key: "props", value: nil},
 	{IsExp: true, key: "type", value: nil},
+	{IsExp: true, key: "id", value: nil},
 }
 
 // Value compute value

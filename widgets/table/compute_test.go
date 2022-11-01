@@ -39,7 +39,7 @@ func TestComputeFind(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "cat::Cookie-checked", data.Get("name_view"))
+	assert.Equal(t, "cat::Cookie-checked-compute", data.Get("name_view"))
 }
 
 func TestComputeGet(t *testing.T) {
@@ -57,7 +57,7 @@ func TestComputeGet(t *testing.T) {
 	}
 	arr := any.Of(res).CArray()
 	data := any.Of(arr[0]).MapStr().Dot()
-	assert.Equal(t, "cat::Cookie-checked", data.Get("name_view"))
+	assert.Equal(t, "cat::Cookie-checked-compute", data.Get("name_view"))
 
 }
 
@@ -74,7 +74,7 @@ func TestComputeSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "cat::Cookie-checked", data.Get("data.0.name_view"))
+	assert.Equal(t, "cat::Cookie-checked-compute", data.Get("data.0.name_view"))
 }
 
 func TestComputeSave(t *testing.T) {

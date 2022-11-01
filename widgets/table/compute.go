@@ -7,23 +7,23 @@ import (
 	"github.com/yaoapp/yao/widgets/field"
 )
 
-func (dsl *DSL) getField() func(string) (*field.ColumnDSL, string, error) {
-	return func(name string) (*field.ColumnDSL, string, error) {
+func (dsl *DSL) getField() func(string) (*field.ColumnDSL, string, string, error) {
+	return func(name string) (*field.ColumnDSL, string, string, error) {
 		field, has := dsl.Fields.Table[name]
 		if !has {
-			return nil, "fields.table", fmt.Errorf("fields.table.%s does not exist", name)
+			return nil, "fields.table", dsl.ID, fmt.Errorf("fields.table.%s does not exist", name)
 		}
-		return &field, "fields.table", nil
+		return &field, "fields.table", dsl.ID, nil
 	}
 }
 
-func (dsl *DSL) getFilter() func(string) (*field.FilterDSL, string, error) {
-	return func(name string) (*field.FilterDSL, string, error) {
+func (dsl *DSL) getFilter() func(string) (*field.FilterDSL, string, string, error) {
+	return func(name string) (*field.FilterDSL, string, string, error) {
 		field, has := dsl.Fields.Filter[name]
 		if !has {
-			return nil, "fields.filter", fmt.Errorf("fields.filter.%s does not exist", name)
+			return nil, "fields.filter", dsl.ID, fmt.Errorf("fields.filter.%s does not exist", name)
 		}
-		return &field, "fields.filter", nil
+		return &field, "fields.filter", dsl.ID, nil
 	}
 }
 
