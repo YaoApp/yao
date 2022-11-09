@@ -12,16 +12,19 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/websocket"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
 )
 
 func TestLoad(t *testing.T) {
+	runtime.Load(config.Conf)
 	Load(config.Conf)
 	LoadFrom("not a path", "404.")
 	check(t)
 }
 
 func TestWebSocketOpen(t *testing.T) {
+	runtime.Load(config.Conf)
 	Load(config.Conf)
 	script.Load(config.Conf)
 	srv, url := serve(t)

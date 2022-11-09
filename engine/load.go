@@ -23,6 +23,7 @@ import (
 	"github.com/yaoapp/yao/page"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
@@ -39,6 +40,12 @@ import (
 // Load 根据配置加载 API, FLow, Model, Plugin
 func Load(cfg config.Config) (err error) {
 	defer func() { err = exception.Catch(recover()) }()
+
+	// Load Runtime
+	err = runtime.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Runtime", err)
+	}
 
 	// 加载应用信息
 	// 第一步: 加载应用信息

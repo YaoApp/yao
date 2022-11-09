@@ -12,10 +12,12 @@ import (
 	_ "github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
 
 func init() {
+	runtime.Load(config.Conf)
 	share.DBConnect(config.Conf.DB)
 	model.Load(config.Conf)
 	query.Load(config.Conf)

@@ -6,6 +6,10 @@ import (
 	"github.com/yaoapp/gou"
 )
 
+// *******************************************************
+// * DEPRECATED	→ http								     *
+// *******************************************************
+
 // ProcessPost  xiang.helper.Post HTTP Post
 func ProcessPost(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)

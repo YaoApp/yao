@@ -273,7 +273,7 @@ release: clean
 
 #	Building XGEN v1.0
 	export NODE_ENV=production
-	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
+	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
 # 	cd .tmp/xgen/v1.0 && git checkout 9ce17a22904b3f09de90f08abbbdaf42f6b0ef68
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
@@ -310,7 +310,7 @@ linux-release: clean
 	mkdir .tmp
 
 #	Building XGEN v0.9
-	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v0.9
+	git clone https://github.com/YaoApp/xgen-deprecated.git .tmp/xgen/v0.9
 	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/xgen/v0.9/public/icon/md_icon.css
 	cd .tmp/xgen/v0.9 && yarn install && yarn build
 	mkdir -p .tmp/xgen/v0.9
@@ -318,7 +318,7 @@ linux-release: clean
 
 #	Building XGEN v1.0
 	export NODE_ENV=production
-	git clone https://github.com/YaoApp/xgen-next.git .tmp/xgen/v1.0
+	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
 	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build

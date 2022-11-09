@@ -13,12 +13,14 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/runtime"
 )
 
 type kv map[string]interface{}
 type arr []interface{}
 
 func TestLoad(t *testing.T) {
+	runtime.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
