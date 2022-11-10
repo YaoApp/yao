@@ -351,7 +351,8 @@ func TestProcessSetting(t *testing.T) {
 
 	data := any.Of(res).MapStr().Dot()
 	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
-	// assert.Equal(t, "跳转", data.Get("header.preset.import.operation.0.title"))
+	assert.Equal(t, "查看详情1", data.Get("header.preset.import.actions[0].title"))
+	assert.Equal(t, "查看详情2", data.Get("header.preset.import.actions[1].title"))
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 }
@@ -368,7 +369,8 @@ func TestProcessXgen(t *testing.T) {
 
 	data := any.Of(res).MapStr().Dot()
 	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
-	// assert.Equal(t, "跳转", data.Get("header.preset.import.operation.0.title"))
+	assert.Equal(t, "查看详情1", data.Get("header.preset.import.actions[0].title"))
+	assert.Equal(t, "查看详情2", data.Get("header.preset.import.actions[1].title"))
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 }

@@ -181,7 +181,6 @@ func (layout *LayoutDSL) Xgen() (map[string]interface{}, error) {
 	// replace import
 	if layout.Header != nil && layout.Header.Preset != nil && layout.Header.Preset.Import != nil {
 		name := layout.Header.Preset.Import.Name
-		operation := layout.Header.Preset.Import.Operation
 		res["header"].(map[string]interface{})["preset"].(map[string]interface{})["import"] = map[string]interface{}{
 			"api": map[string]interface{}{
 				"setting":               fmt.Sprintf("/api/xiang/import/%s/setting", name),
@@ -191,7 +190,7 @@ func (layout *LayoutDSL) Xgen() (map[string]interface{}, error) {
 				"mapping_setting_model": fmt.Sprintf("import_%s_mapping", name),
 				"preview_setting_model": fmt.Sprintf("import_%s_preview", name),
 			},
-			"operation": operation,
+			"actions": layout.Header.Preset.Import.Actions,
 		}
 	}
 
