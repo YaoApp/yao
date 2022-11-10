@@ -101,14 +101,8 @@ type BatchPresetDSL struct {
 
 // ImportPresetDSL layout.header.preset.import
 type ImportPresetDSL struct {
-	Name      string               `json:"name,omitempty"`
-	Operation []OperationImportDSL `json:"operation,omitempty"`
-}
-
-// OperationImportDSL  layout.header.preset.import.operation[*]
-type OperationImportDSL struct {
-	Title string `json:"title,omitempty"`
-	Link  string `json:"link,omitempty"`
+	Name    string                `json:"name,omitempty"`
+	Actions []component.ActionDSL `json:"actions,omitempty"`
 }
 
 // FilterLayoutDSL layout.filter
