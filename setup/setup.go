@@ -196,8 +196,8 @@ func welcome(l net.Listener) {
 	}
 
 	port := addr[1]
+	fmt.Println(color.WhiteString("\nOpen URL in the browser to continue:\n"))
 	for _, ip := range ips {
-		fmt.Println(color.WhiteString("\nOpen URL in the browser to continue:\n"))
 		printInfo("http://%s:%s", ip, port)
 	}
 
@@ -221,7 +221,7 @@ func Ips() ([]string, error) {
 		return nil, err
 	}
 
-	iplist := []string{}
+	iplist := []string{"127.0.0.1"}
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it
 		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
