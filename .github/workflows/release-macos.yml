@@ -27,7 +27,8 @@ jobs:
 
       - name: coscmd test
         run: |
-          $COSCMD -v
+          coscmd -h
+          $COSCMD -h
 
       - name: Install pnpm
         run: npm install -g pnpm
