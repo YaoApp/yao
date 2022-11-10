@@ -7,13 +7,21 @@ import (
 )
 
 func init() {
+
 	// 注册处理器
-	gou.RegisterProcessHandler("xiang.import.Run", ProcessRun)
-	gou.RegisterProcessHandler("xiang.import.Data", ProcessData)
-	gou.RegisterProcessHandler("xiang.import.Setting", ProcessSetting)
-	gou.RegisterProcessHandler("xiang.import.DataSetting", ProcessDataSetting)
-	gou.RegisterProcessHandler("xiang.import.Mapping", ProcessMapping)
-	gou.RegisterProcessHandler("xiang.import.MappingSetting", ProcessMappingSetting)
+	gou.RegisterProcessHandler("xiang.import.Run", ProcessRun)                       // deprecated → yao.import.Run
+	gou.RegisterProcessHandler("xiang.import.Data", ProcessData)                     // deprecated → yao.import.Data
+	gou.RegisterProcessHandler("xiang.import.Setting", ProcessSetting)               // deprecated → yao.import.Setting
+	gou.RegisterProcessHandler("xiang.import.DataSetting", ProcessDataSetting)       // deprecated → yao.import.DataSetting
+	gou.RegisterProcessHandler("xiang.import.Mapping", ProcessMapping)               // deprecated → yao.import.Mapping
+	gou.RegisterProcessHandler("xiang.import.MappingSetting", ProcessMappingSetting) // deprecated → yao.import.MappingSetting
+
+	gou.AliasProcess("xiang.import.Run", "yao.import.Run")
+	gou.AliasProcess("xiang.import.Data", "yao.import.Data")
+	gou.AliasProcess("xiang.import.Setting", "yao.import.Setting")
+	gou.AliasProcess("xiang.import.DataSetting", "yao.import.DataSetting")
+	gou.AliasProcess("xiang.import.Mapping", "yao.import.Mapping")
+	gou.AliasProcess("xiang.import.MappingSetting", "yao.import.MappingSetting")
 }
 
 // ProcessRun xiang.import.Run
