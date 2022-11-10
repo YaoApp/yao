@@ -21,10 +21,8 @@ jobs:
         run: |
           sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
           sudo pip3 install coscmd 
+          echo /Library/Frameworks/Python.framework/Versions/3.11/bin >> $GITHUB_PATH
           echo $PATH
-          find /Library/Frameworks/Python.framework/Versions/3.11/bin
-          find ~
-          whereis coscmd
           coscmd -v
 
       - name: Install pnpm
