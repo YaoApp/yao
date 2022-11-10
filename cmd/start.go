@@ -75,7 +75,7 @@ var startCmd = &cobra.Command{
 		dataRoot, _ := fs.Root(config.Conf)
 
 		fmt.Println(color.WhiteString("\n---------------------------------"))
-		fmt.Println(color.WhiteString(share.App.Name), color.WhiteString(share.App.Version), mode)
+		fmt.Println(color.WhiteString(strings.TrimPrefix(share.App.Name, "::")), color.WhiteString(share.App.Version), mode)
 		fmt.Println(color.WhiteString("---------------------------------"))
 		if !share.BUILDIN {
 			root, _ := filepath.Abs(config.Conf.Root)
@@ -90,15 +90,16 @@ var startCmd = &cobra.Command{
 				urls, _ = setup.URLs(config.Conf)
 			}
 
-			fmt.Println(color.WhiteString(L("XGen")), color.GreenString(" 1.0"))
 			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
-			for _, url := range urls {
-				fmt.Println(color.WhiteString(L("Frontend ")), color.GreenString(" %s", url))
-				fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
-				fmt.Println(color.WhiteString(L("API      ")), color.GreenString(" %s/api", url))
-			}
-
+			fmt.Println(color.WhiteString(L("   XGEN")), color.GreenString("  1.0"))
 			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
+			for _, url := range urls {
+				fmt.Println(color.CyanString("\n%s", url))
+				fmt.Println(color.WhiteString("--------------------------"))
+				fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" %s", url))
+				fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
+				fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
+			}
 
 		} else {
 
