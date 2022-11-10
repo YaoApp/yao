@@ -156,6 +156,11 @@ func Load(cfg config.Config) (err error) {
 		}
 
 		delete(gou.APIs, "xiang.table")
+		delete(gou.APIs, "xiang.page")
+		delete(gou.APIs, "xiang.chart")
+		delete(gou.APIs, "xiang.xiang")
+		delete(gou.APIs, "xiang.user")
+		delete(gou.APIs, "xiang.storage")
 
 	} else { // old version
 		err = table.Load(cfg) // 加载数据表格 table

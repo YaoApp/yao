@@ -320,7 +320,12 @@ func printApis(silent bool) {
 			continue
 		}
 
-		fmt.Printf(color.CyanString("\n%s(%d)\n", api.Name, len(api.HTTP.Paths)))
+		deprecated := ""
+		if strings.HasPrefix(api.Name, "xiang.") {
+			deprecated = " WILL BE DEPRECATED"
+		}
+
+		fmt.Printf("%s%s\n", color.CyanString("\n%s(%d)", api.Name, len(api.HTTP.Paths)), color.RedString(deprecated))
 		for _, p := range api.HTTP.Paths {
 			fmt.Println(
 				colorMehtod(p.Method),
