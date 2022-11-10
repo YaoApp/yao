@@ -20,7 +20,7 @@ jobs:
       - name: Install coscmd
         run: |
           sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
-          sudo pip3 install coscmd 
+          sudo pip install coscmd 
           whereis coscmd
           coscmd -v
 
