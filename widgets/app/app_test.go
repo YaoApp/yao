@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -274,6 +275,7 @@ func TestProcessService(t *testing.T) {
 }
 
 func loadApp(t *testing.T) {
+	runtime.Load(config.Conf)
 
 	err := script.Load(config.Conf)
 	if err != nil {

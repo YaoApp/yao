@@ -61,13 +61,13 @@ jobs:
       - name: Checkout XGen v0.9
         uses: actions/checkout@v2
         with:
-          repository: yaoapp/xgen
+          repository: yaoapp/xgen-deprecated
           path: xgen-v0.9
 
       - name: Checkout XGen v1.0
         uses: actions/checkout@v2
         with:
-          repository: yaoapp/xgen-next
+          repository: yaoapp/xgen
           # ref: 9ce17a22904b3f09de90f08abbbdaf42f6b0ef68
           path: xgen-v1.0
 

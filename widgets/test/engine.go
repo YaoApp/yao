@@ -8,12 +8,13 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/model"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
 
 // LoadEngine load engine
 func LoadEngine(language ...string) error {
-
+	runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	share.DBConnect(config.Conf.DB) // removed later
 	gou.LoadCrypt(`{}`, "PASSWORD")

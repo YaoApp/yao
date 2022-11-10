@@ -7,7 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -35,6 +37,7 @@ func TestProcessHexToStringInFlow(t *testing.T) {
 }
 
 func TestProcessHexToStringInScript(t *testing.T) {
+	runtime.Load(config.Conf)
 	testscirpt := path.Join(os.Getenv("YAO_DEV"), "tests", "scripts")
 	share.LoadFrom(testscirpt)
 

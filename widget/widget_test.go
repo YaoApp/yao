@@ -7,10 +7,12 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
 
 func TestLoad(t *testing.T) {
+	runtime.Load(config.Conf)
 	share.DBConnect(config.Conf.DB) // 创建数据库连接
 	Load(config.Conf)
 	LoadFrom("not a path")

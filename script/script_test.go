@@ -7,9 +7,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/runtime"
 )
 
 func init() {
+	runtime.Load(config.Conf)
 	rootLib := path.Join(os.Getenv("YAO_DEV"), "/tests/scripts")
 	LoadFrom(rootLib, "")
 }

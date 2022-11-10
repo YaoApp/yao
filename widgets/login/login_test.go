@@ -9,10 +9,11 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/runtime"
 )
 
 func TestLoad(t *testing.T) {
-
+	runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -43,7 +44,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadHK(t *testing.T) {
-
+	runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
