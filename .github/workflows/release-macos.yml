@@ -20,14 +20,9 @@ jobs:
       - name: Install coscmd
         run: |
           sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
-          sudo pip install coscmd 
-          echo $PATH
-          find /Library/Frameworks/Python.framework/Versions/3.11/bin
-          ls -l ~/Library/Python 
-          find ~/Library/Python 
-          whereis coscmd
-          coscmd -v
-
+          sudo pip3 install coscmd 
+          echo "/Library/Frameworks/Python.framework/Versions/3.11/bin" >> $GITHUB_PATH
+          
       - name: Install pnpm
         run: npm install -g pnpm
 
