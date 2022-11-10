@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: yaoapp/xgen
-          # ref: 9ce17a22904b3f09de90f08abbbdaf42f6b0ef68
+          ref: 5002c3fded585aaa69a4366135b415ea3234964e
           path: xgen-v1.0
 
       - name: Move Kun, Xun, Gou, UI, V8Go
