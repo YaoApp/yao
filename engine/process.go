@@ -11,16 +11,16 @@ import (
 
 func init() {
 	// 注册处理器
-	gou.RegisterProcessHandler("xiang.main.Ping", processPing)
-	gou.AliasProcess("xiang.main.Ping", "xiang.sys.Ping")
+	gou.RegisterProcessHandler("xiang.main.Ping", processPing) // deprecated → utils.app.Ping  @/utils/process.go
+	gou.AliasProcess("xiang.main.Ping", "xiang.sys.Ping")      // deprecated
 
-	gou.RegisterProcessHandler("xiang.main.FileContent", processFileContent)
-	gou.RegisterProcessHandler("xiang.main.AppFileContent", processAppFileContent)
+	gou.RegisterProcessHandler("xiang.main.FileContent", processFileContent)       // deprecated
+	gou.RegisterProcessHandler("xiang.main.AppFileContent", processAppFileContent) // deprecated
 
-	gou.RegisterProcessHandler("xiang.main.Inspect", processInspect)
-	gou.AliasProcess("xiang.main.Inspect", "xiang.sys.Inspect")
+	gou.RegisterProcessHandler("xiang.main.Inspect", processInspect) // deprecated → utils.app.Inspect @/utils/process.go
+	gou.AliasProcess("xiang.main.Inspect", "xiang.sys.Inspect")      // deprecated
 
-	gou.RegisterProcessHandler("xiang.main.Favicon", processFavicon)
+	gou.RegisterProcessHandler("xiang.main.Favicon", processFavicon) // deprecated
 }
 
 // processCreate 运行模型 MustCreate

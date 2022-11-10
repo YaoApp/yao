@@ -6,8 +6,11 @@ import (
 )
 
 func init() {
-	gou.RegisterProcessHandler("yao.crypto.hash", ProcessHash)
-	gou.RegisterProcessHandler("yao.crypto.hmac", ProcessHmac)
+	gou.RegisterProcessHandler("yao.crypto.hash", ProcessHash) // deprecated → crypto.Hash
+	gou.RegisterProcessHandler("yao.crypto.hmac", ProcessHmac) // deprecated → crypto.Hash
+
+	gou.AliasProcess("yao.crypto.hash", "crypto.Hash")
+	gou.AliasProcess("yao.crypto.hmac", "crypto.Hmac")
 }
 
 // ProcessHash yao.crypto.hash Crypto Hash

@@ -243,11 +243,11 @@ debug: clean
 	mkdir -p dist/release
 
 #	Packing
-	mkdir -p .tmp/data
-	cp -r ui .tmp/data/ui
-	cp -r yao .tmp/data/
-	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
-	rm -rf .tmp/data
+#	mkdir -p .tmp/data
+#	cp -r ui .tmp/data/ui
+#	cp -r yao .tmp/data/
+#	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+#	rm -rf .tmp/data
 
 
 #	Replace PRVERSION
