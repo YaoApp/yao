@@ -274,7 +274,7 @@ release: clean
 #	Building XGEN v1.0
 	export NODE_ENV=production
 	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
-	cd .tmp/xgen/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
+# 	cd .tmp/xgen/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
 
