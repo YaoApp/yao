@@ -23,7 +23,7 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 10, len(Tables))
+	assert.Equal(t, 11, len(Tables))
 }
 
 func TestLoadID(t *testing.T) {

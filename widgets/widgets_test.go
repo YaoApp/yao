@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/widgets/test"
 )
 
 func TestLoad(t *testing.T) {
@@ -19,12 +20,18 @@ func TestLoad(t *testing.T) {
 }
 
 func prepare(t *testing.T, language ...string) {
+
+	err := test.LoadEngine(language...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	share.DBConnect(config.Conf.DB) // removed later
 
 	// load scripts
-	err := script.Load(config.Conf)
+	err = script.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -48,6 +48,7 @@
       "form": {
         "key": "${label || comment || name}",
         "bind": "${name}",
+        "view": {},
         "edit": {
           "type": "Input",
           "props": { "placeholder": "$L(please input) ${label || comment}" }
@@ -56,10 +57,7 @@
       "table": {
         "key": "${label || comment || name}",
         "bind": "${name}",
-        "view": {
-          "type": "Text",
-          "props": {}
-        },
+        "view": { "type": "Text", "props": {} },
         "edit": {
           "type": "Input",
           "props": { "placeholder": "$L(please input) ${label || comment}" }
@@ -540,8 +538,10 @@
       "form": {
         "key": "${label || comment || name}",
         "bind": "${name}",
+        "view": { "compute": "encoding.json.Encode" },
         "edit": {
           "type": "TextArea",
+          "compute": "encoding.json.Decode",
           "props": {
             "placeholder": "$L(please input) ${label || comment}",
             "autoSize": { "minRows": 2, "maxRows": 6 }
@@ -553,10 +553,12 @@
         "bind": "${name}",
         "view": {
           "type": "Tooltip",
+          "compute": "encoding.json.Encode",
           "props": { "title": "${label || comment}" }
         },
         "edit": {
           "type": "TextArea",
+          "compute": "encoding.json.Decode",
           "props": {
             "placeholder": "$L(please input) ${label || comment}",
             "autoSize": { "minRows": 2, "maxRows": 6 }

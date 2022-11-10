@@ -94,7 +94,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
-		exception.New("登录密码错误", 403, value).Throw()
+		exception.New("登录密码错误 (%v)", 403, value).Throw()
 	}
 
 	expiresAt := time.Now().Unix() + 3600
