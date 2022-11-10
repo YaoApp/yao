@@ -9,8 +9,6 @@ on:
     branches: [main]
     paths:
       - "share/const.go"
-env:
-  COSCMD: /Library/Frameworks/Python.framework/Versions/3.11/bin/coscmd
 
 jobs:
   release:
@@ -24,12 +22,7 @@ jobs:
           sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
           sudo pip3 install coscmd 
           echo "/Library/Frameworks/Python.framework/Versions/3.11/bin" >> $GITHUB_PATH
-
-      - name: coscmd test
-        run: |
-          coscmd -h
-          $COSCMD -h
-
+          
       - name: Install pnpm
         run: npm install -g pnpm
 
@@ -115,11 +108,11 @@ jobs:
           BUCKET: release-sv-1252011659
           REGION: na-siliconvalley
         run: |
-          $COSCMD config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
       - name: Push To Silicon Valley
         run: |
-          for file in ./dist/release/*; do $COSCMD upload $file /archives/; done;
+          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
