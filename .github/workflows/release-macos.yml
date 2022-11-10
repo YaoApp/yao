@@ -18,7 +18,11 @@ jobs:
     runs-on: "macos-11"
     steps:
       - name: Install coscmd
-        run: sudo pip3 install coscmd
+        run: |
+          sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
+          sudo pip3 install coscmd 
+          whereis coscmd
+          coscmd -v
 
       - name: Install pnpm
         run: npm install -g pnpm
