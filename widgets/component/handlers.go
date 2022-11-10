@@ -8,6 +8,7 @@ import (
 var hanlders = map[string]ComputeHanlder{
 	"Get":           Get,
 	"Trim":          Trim,
+	"Hide":          Hide,
 	"Concat":        Concat,
 	"QueryString":   Trim,
 	"ImagesView":    Trim,
@@ -54,4 +55,9 @@ func Get(args ...interface{}) (interface{}, error) {
 		return nil, nil
 	}
 	return args[0], nil
+}
+
+// Hide value
+func Hide(args ...interface{}) (interface{}, error) {
+	return nil, nil
 }

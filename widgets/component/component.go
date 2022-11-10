@@ -36,9 +36,10 @@ func (dsl DSL) Map() map[string]interface{} {
 // Clone Component
 func (dsl *DSL) Clone() *DSL {
 	new := DSL{
-		Bind:  dsl.Bind,
-		Type:  dsl.Type,
-		Props: PropsDSL{},
+		Bind:    dsl.Bind,
+		Type:    dsl.Type,
+		Compute: dsl.Compute,
+		Props:   PropsDSL{},
 	}
 	if dsl.Props != nil {
 		for key, val := range dsl.Props {

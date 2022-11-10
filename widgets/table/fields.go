@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/field"
 )
 
@@ -33,6 +34,21 @@ func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 		// append columns
 		if _, has := fields.Table[tableField.Key]; !has {
 			fields.Table[tableField.Key] = *tableField
+
+			// PASSWORD Fields
+			if col.Crypt == "PASSWORD" {
+				if fields.Table[tableField.Key].View != nil {
+					fields.Table[tableField.Key].View.Compute = &component.Compute{
+						Process: "Hide",
+						Args:    []component.CArg{component.NewExp("value")},
+					}
+				}
+
+				if fields.Table[tableField.Key].Edit != nil {
+					fields.Table[tableField.Key].Edit.Props["type"] = "password"
+				}
+			}
+
 			fields.tableMap[col.Name] = fields.Table[tableField.Key]
 		}
 

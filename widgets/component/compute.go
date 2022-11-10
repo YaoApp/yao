@@ -18,6 +18,11 @@ var defaults = []CArg{
 	{IsExp: true, key: "id", value: nil},
 }
 
+// NewExp create a new exp CArg
+func NewExp(key string) CArg {
+	return CArg{IsExp: true, key: key, value: nil}
+}
+
 // Value compute value
 func (compute *Compute) Value(data maps.MapStr, sid string, global map[string]interface{}) (interface{}, error) {
 
