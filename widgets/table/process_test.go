@@ -2,12 +2,12 @@ package table
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	q "github.com/yaoapp/yao/query"
 )
@@ -308,7 +308,13 @@ func TestProcessComponent(t *testing.T) {
 		"pet",
 		"fields.filter.状态.edit.props.xProps",
 		"remote",
-		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
+		map[string]interface{}{
+			"model":    "pet",
+			"label":    "name",
+			"value":    "status",
+			"wheres[]": `{"column":"id","op":"ge","value":0}`,
+			"limit":    "2",
+		},
 	}
 
 	res, err := gou.NewProcess("yao.table.Component", args...).Exec()
@@ -316,13 +322,13 @@ func TestProcessComponent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pets, ok := res.([]maps.MapStr)
+	pets, ok := res.([]map[string]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(pets))
-	assert.Equal(t, "Cookie", pets[0]["name"])
-	assert.Equal(t, "checked", pets[0]["status"])
-	assert.Equal(t, "Baby", pets[1]["name"])
-	assert.Equal(t, "checked", pets[1]["status"])
+	assert.Equal(t, "Cookie", pets[0]["label"])
+	assert.Equal(t, "checked", pets[0]["value"])
+	assert.Equal(t, "Baby", pets[1]["label"])
+	assert.Equal(t, "checked", pets[1]["value"])
 }
 
 func TestProcessComponentError(t *testing.T) {
@@ -353,8 +359,8 @@ func TestProcessSetting(t *testing.T) {
 	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
 	assert.Equal(t, "查看详情1", data.Get("header.preset.import.actions[0].title"))
 	assert.Equal(t, "查看详情2", data.Get("header.preset.import.actions[1].title"))
-	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
-	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table."+url.QueryEscape("入院状态")+".view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table."+url.QueryEscape("入院状态")+".edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 }
 
 func TestProcessXgen(t *testing.T) {
@@ -371,8 +377,8 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
 	assert.Equal(t, "查看详情1", data.Get("header.preset.import.actions[0].title"))
 	assert.Equal(t, "查看详情2", data.Get("header.preset.import.actions[1].title"))
-	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
-	assert.Equal(t, "/api/__yao/table/pet/component/fields.table.入院状态.edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table."+url.QueryEscape("入院状态")+".view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/table/pet/component/fields.table."+url.QueryEscape("入院状态")+".edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 }
 
 func load(t *testing.T) {

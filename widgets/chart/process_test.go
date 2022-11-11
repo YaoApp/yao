@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,7 +67,7 @@ func TestProcessSetting(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter.状态.edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
 }
 
 func TestProcessXgen(t *testing.T) {
@@ -78,7 +79,7 @@ func TestProcessXgen(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter.状态.edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
 }
 
 func load(t *testing.T) {

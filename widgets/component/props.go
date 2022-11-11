@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
@@ -14,11 +15,24 @@ func (p PropsDSL) CloudProps(xpath string) (map[string]CloudPropsDSL, error) {
 	return p.parseCloudProps(xpath, p)
 }
 
+// Path api path
+func (cProp CloudPropsDSL) Path() string {
+	return fmt.Sprintf("/component/%s/%s", url.QueryEscape(cProp.Xpath), url.QueryEscape(cProp.Name))
+}
+
 // ExecQuery execute query
 func (cProp CloudPropsDSL) ExecQuery(process *gou.Process, query map[string]interface{}) (interface{}, error) {
 
 	if query == nil {
 		query = map[string]interface{}{}
+	}
+
+	// filter array
+	for key, value := range query {
+		if strings.HasSuffix(key, "[]") {
+			query[strings.TrimSuffix(key, "[]")] = value
+			delete(query, key)
+		}
 	}
 
 	// Process
