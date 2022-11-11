@@ -2,6 +2,7 @@ package form
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -180,7 +181,7 @@ func TestProcessSetting(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "/api/__yao/form/pet/component/fields.form.状态.edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
 }
 
 func TestProcessXgen(t *testing.T) {
@@ -194,7 +195,7 @@ func TestProcessXgen(t *testing.T) {
 	}
 
 	data := any.Of(res).MapStr().Dot()
-	assert.Equal(t, "/api/__yao/form/pet/component/fields.form.状态.edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
 }
 
 func load(t *testing.T) {

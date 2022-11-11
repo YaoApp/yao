@@ -272,7 +272,7 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
 			return map[string]interface{}{
-				"api":    fmt.Sprintf("/api/__yao/table/%s/component/%s/%s", dsl.ID, cProp.Xpath, cProp.Name),
+				"api":    fmt.Sprintf("/api/__yao/table/%s%s", dsl.ID, cProp.Path()),
 				"params": cProp.Query,
 			}
 		})
