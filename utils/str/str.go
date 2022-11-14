@@ -1,0 +1,31 @@
+package str
+
+import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
+	"github.com/yaoapp/gou"
+)
+
+// ProcessJoin utils.str.Join
+func ProcessJoin(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	args := process.ArgsArray(0)
+	sep := process.ArgsString(1)
+	strs := []string{}
+	for i := range args {
+		strs = append(strs, fmt.Sprintf("%v", args[i]))
+	}
+	return strings.Join(strs, sep)
+}
+
+// ProcessJoinPath utils.str.JoinPath
+func ProcessJoinPath(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	paths := []string{}
+	for _, arg := range process.Args {
+		paths = append(paths, fmt.Sprintf("%v", arg))
+	}
+	return filepath.Join(paths...)
+}
