@@ -56,12 +56,12 @@ func processComponent(process *gou.Process) interface{} {
 }
 
 func processSetting(process *gou.Process) interface{} {
-	form := MustGet(process)
+	chart := MustGet(process)
 	process.Args = append(process.Args, process.Args[0]) // chart name
-	return form.Action.Setting.MustExec(process)
+	return chart.Action.Setting.MustExec(process)
 }
 
 func processData(process *gou.Process) interface{} {
-	form := MustGet(process)
-	return form.Action.Data.MustExec(process)
+	chart := MustGet(process)
+	return chart.Action.Data.MustExec(process)
 }
