@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/yaoapp/gou"
+import (
+	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/utils/datetime"
+	"github.com/yaoapp/yao/utils/str"
+)
 
 func init() {
 	gou.AliasProcess("xiang.helper.Captcha", "yao.utils.Captcha")                 // deprecated
@@ -45,6 +49,8 @@ func init() {
 
 	// String
 	gou.AliasProcess("xiang.helper.StrConcat", "utils.str.Concat")
+	gou.RegisterProcessHandler("utils.str.Join", str.ProcessJoin)
+	gou.RegisterProcessHandler("utils.str.JoinPath", str.ProcessJoinPath)
 
 	// Array
 	gou.AliasProcess("xiang.helper.ArrayPluck", "utils.arr.Pluck")
@@ -68,5 +74,9 @@ func init() {
 
 	// Time
 	gou.AliasProcess("xiang.flow.Sleep", "utils.time.Sleep")
-
+	gou.RegisterProcessHandler("utils.now.Time", datetime.ProcessTime)
+	gou.RegisterProcessHandler("utils.now.Date", datetime.ProcessDate)
+	gou.RegisterProcessHandler("utils.now.DateTime", datetime.ProcessDateTime)
+	gou.RegisterProcessHandler("utils.now.Timestamp", datetime.ProcessTimestamp)
+	gou.RegisterProcessHandler("utils.now.Timestampms", datetime.ProcessTimestampms)
 }
