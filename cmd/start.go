@@ -300,7 +300,7 @@ func printApis(silent bool) {
 			if len(api.HTTP.Paths) <= 0 {
 				continue
 			}
-			log.Info("[API] %s(%d)", api.Name, len(api.HTTP.Paths))
+			log.Info("[API] %s(%d)", api.ID, len(api.HTTP.Paths))
 			for _, p := range api.HTTP.Paths {
 				log.Info("%s %s %s", p.Method, filepath.Join("/api", api.HTTP.Group, p.Path), p.Process)
 			}
@@ -321,11 +321,11 @@ func printApis(silent bool) {
 		}
 
 		deprecated := ""
-		if strings.HasPrefix(api.Name, "xiang.") {
+		if strings.HasPrefix(api.ID, "xiang.") {
 			deprecated = " WILL BE DEPRECATED"
 		}
 
-		fmt.Printf("%s%s\n", color.CyanString("\n%s(%d)", api.Name, len(api.HTTP.Paths)), color.RedString(deprecated))
+		fmt.Printf("%s%s\n", color.CyanString("\n%s(%d)", api.ID, len(api.HTTP.Paths)), color.RedString(deprecated))
 		for _, p := range api.HTTP.Paths {
 			fmt.Println(
 				colorMehtod(p.Method),
