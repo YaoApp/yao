@@ -51,6 +51,8 @@ func (form *DSL) getAction(path string) (*action.Process, error) {
 		return form.Action.Setting, nil
 	case "/api/__yao/form/:id/component/:xpath/:method":
 		return form.Action.Component, nil
+	case "/api/__yao/form/:id/upload/:xpath/:method":
+		return form.Action.Upload, nil
 	case "/api/__yao/form/:id/find/:primary":
 		return form.Action.Find, nil
 	case "/api/__yao/form/:id/save":
@@ -110,6 +112,18 @@ func exportAPI() error {
 		Method:      "GET",
 		Process:     "yao.form.Component",
 		In:          []string{"$param.id", "$param.xpath", "$param.method", ":query"},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
+	//   POST  /api/__yao/table/:id/upload/:xpath/:method  	-> Default process: yao.form.Upload $param.id $param.xpath $param.method $file.file
+	path = gou.Path{
+		Label:       "Upload",
+		Description: "Upload",
+		Path:        "/:id/upload/:xpath/:method",
+		Method:      "POST",
+		Process:     "yao.form.Upload",
+		In:          []string{"$param.id", "$param.xpath", "$param.method", "$file.file"},
 		Out:         gou.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)

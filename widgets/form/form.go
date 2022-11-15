@@ -240,6 +240,11 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	setting["config"] = dsl.Config
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
+
+			if cProp.Type == "Upload" {
+				return fmt.Sprintf("/api/__yao/form/%s%s", dsl.ID, cProp.UploadPath())
+			}
+
 			return map[string]interface{}{
 				"api":    fmt.Sprintf("/api/__yao/form/%s%s", dsl.ID, cProp.Path()),
 				"params": cProp.Query,
