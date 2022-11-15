@@ -112,7 +112,7 @@ func setRouter(router *gin.Engine) {
 				return
 			}
 
-			err := dfs.Mkdir(name, int(os.ModePerm))
+			err := dfs.Mkdir(name, uint32(os.ModePerm))
 			if err != nil {
 				throw(c, 500, err.Error())
 				return
@@ -128,7 +128,7 @@ func setRouter(router *gin.Engine) {
 				return
 			}
 
-			err := dfs.MkdirAll(name, int(os.ModePerm))
+			err := dfs.MkdirAll(name, uint32(os.ModePerm))
 			if err != nil {
 				throw(c, 500, err.Error())
 				return
