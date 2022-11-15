@@ -96,7 +96,7 @@ func (columns Columns) CPropsMerge(cloudProps map[string]component.CloudPropsDSL
 
 		if column.Edit != nil && column.Edit.Props != nil {
 			xpath := getXpath(name, "edit", column)
-			cProps, err := column.Edit.Props.CloudProps(xpath)
+			cProps, err := column.Edit.Props.CloudProps(xpath, column.Edit.Type)
 			if err != nil {
 				return err
 			}
@@ -105,7 +105,7 @@ func (columns Columns) CPropsMerge(cloudProps map[string]component.CloudPropsDSL
 
 		if column.View != nil && column.View.Props != nil {
 			xpath := getXpath(name, "view", column)
-			cProps, err := column.View.Props.CloudProps(xpath)
+			cProps, err := column.View.Props.CloudProps(xpath, column.View.Type)
 			if err != nil {
 				return err
 			}

@@ -21,6 +21,11 @@ var processActionDefaults = map[string]*action.Process{
 		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil, nil},
 	},
+	"Upload": {
+		Name:    "yao.table.Upload",
+		Guard:   "bearer-jwt",
+		Default: []interface{}{nil, nil, nil},
+	},
 	"Search": {
 		Name:    "yao.table.Search",
 		Guard:   "bearer-jwt",
@@ -92,6 +97,10 @@ func (act *ActionDSL) SetDefaultProcess() {
 
 	act.Component = action.ProcessOf(act.Component).
 		Merge(processActionDefaults["Component"]).
+		SetHandler(processHandler)
+
+	act.Upload = action.ProcessOf(act.Upload).
+		Merge(processActionDefaults["Upload"]).
 		SetHandler(processHandler)
 
 	act.Search = action.ProcessOf(act.Search).

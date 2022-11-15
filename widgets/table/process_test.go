@@ -3,6 +3,7 @@ package table
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -331,6 +332,27 @@ func TestProcessComponent(t *testing.T) {
 	assert.Equal(t, "checked", pets[1]["value"])
 }
 
+func TestProcessUpload(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{
+		"pet",
+		"fields.table.相关图片.edit.props",
+		"api",
+		gou.UploadFile{TempFile: tempFile(t)},
+	}
+
+	res, err := gou.NewProcess("yao.table.Upload", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file, ok := res.(string)
+	assert.True(t, ok)
+	assert.NotEmpty(t, file)
+}
+
 func TestProcessComponentError(t *testing.T) {
 	load(t)
 	clear(t)
@@ -403,6 +425,21 @@ func testData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func tempFile(t *testing.T) string {
+	file, err := os.CreateTemp("", "unit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	_, err = file.Write([]byte("HELLO"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return file.Name()
 }
 
 func clear(t *testing.T) {

@@ -66,6 +66,7 @@ type ComputeHanlder func(args ...interface{}) (interface{}, error)
 // CloudPropsDSL the cloud props
 type CloudPropsDSL struct {
 	Xpath   string                 `json:"xpath,omitempty"`
+	Type    string                 `json:"type,omitempty"`
 	Name    string                 `json:"name,omitempty"`
 	Process string                 `json:"process,omitempty"`
 	Query   map[string]interface{} `json:"query,omitempty"`
