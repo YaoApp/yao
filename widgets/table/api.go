@@ -51,6 +51,8 @@ func (table *DSL) getAction(path string) (*action.Process, error) {
 		return table.Action.Setting, nil
 	case "/api/__yao/table/:id/component/:xpath/:method":
 		return table.Action.Component, nil
+	case "/api/__yao/table/:id/upload/:xpath/:method":
+		return table.Action.Upload, nil
 	case "/api/__yao/table/:id/search":
 		return table.Action.Search, nil
 	case "/api/__yao/table/:id/get":
@@ -148,6 +150,18 @@ func exportAPI() error {
 		Method:      "GET",
 		Process:     "yao.table.Component",
 		In:          []string{"$param.id", "$param.xpath", "$param.method", ":query"},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
+	//   POST  /api/__yao/table/:id/upload/:xpath/:method  	-> Default process: yao.table.Component $param.id $param.xpath $param.method $file.file
+	path = gou.Path{
+		Label:       "Upload",
+		Description: "Component",
+		Path:        "/:id/upload/:xpath/:method",
+		Method:      "POST",
+		Process:     "yao.table.Upload",
+		In:          []string{"$param.id", "$param.xpath", "$param.method", "$file.file"},
 		Out:         gou.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)

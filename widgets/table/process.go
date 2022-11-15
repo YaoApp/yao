@@ -14,6 +14,7 @@ func exportProcess() {
 	gou.RegisterProcessHandler("yao.table.setting", processSetting)
 	gou.RegisterProcessHandler("yao.table.xgen", processXgen)
 	gou.RegisterProcessHandler("yao.table.component", processComponent)
+	gou.RegisterProcessHandler("yao.table.upload", processUpload)
 	gou.RegisterProcessHandler("yao.table.search", processSearch)
 	gou.RegisterProcessHandler("yao.table.get", processGet)
 	gou.RegisterProcessHandler("yao.table.find", processFind)
@@ -37,6 +38,35 @@ func processXgen(process *gou.Process) interface{} {
 	}
 
 	return setting
+}
+
+func processUpload(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(4)
+	tab := MustGet(process)
+	xpath := process.ArgsString(1)
+	method := process.ArgsString(2)
+	key := fmt.Sprintf("%s.$%s", xpath, method)
+
+	// get cloud props
+	cProp, has := tab.CProps[key]
+	if !has {
+		exception.New("%s does not exist", 400, key).Throw()
+	}
+
+	// $file.file
+	tmpfile, ok := process.Args[3].(gou.UploadFile)
+	if !ok {
+		exception.New("parameters error: %v", 400, process.Args[3]).Throw()
+	}
+
+	// execute upload
+	res, err := cProp.ExecUpload(process, tmpfile)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return res
 }
 
 func processComponent(process *gou.Process) interface{} {

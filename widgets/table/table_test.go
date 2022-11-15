@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
@@ -37,6 +38,12 @@ func TestLoadID(t *testing.T) {
 func prepare(t *testing.T, language ...string) {
 	runtime.Load(config.Conf)
 	err := test.LoadEngine(language...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// load fs
+	err = fs.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

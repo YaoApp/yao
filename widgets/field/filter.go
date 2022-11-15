@@ -67,7 +67,7 @@ func (filters Filters) CPropsMerge(cloudProps map[string]component.CloudPropsDSL
 	for name, filter := range filters {
 		if filter.Edit != nil && filter.Edit.Props != nil {
 			xpath := getXpath(name, filter)
-			cProps, err := filter.Edit.Props.CloudProps(xpath)
+			cProps, err := filter.Edit.Props.CloudProps(xpath, filter.Edit.Type)
 			if err != nil {
 				return err
 			}
