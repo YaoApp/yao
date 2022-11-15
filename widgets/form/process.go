@@ -12,6 +12,7 @@ func exportProcess() {
 	gou.RegisterProcessHandler("yao.form.setting", processSetting)
 	gou.RegisterProcessHandler("yao.form.xgen", processXgen)
 	gou.RegisterProcessHandler("yao.form.component", processComponent)
+	gou.RegisterProcessHandler("yao.form.upload", processUpload)
 	gou.RegisterProcessHandler("yao.form.find", processFind)
 	gou.RegisterProcessHandler("yao.form.save", processSave)
 	gou.RegisterProcessHandler("yao.form.create", processCreate)
@@ -52,6 +53,35 @@ func processComponent(process *gou.Process) interface{} {
 
 	// execute query
 	res, err := cProp.ExecQuery(process, query)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return res
+}
+
+func processUpload(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(4)
+	form := MustGet(process)
+	xpath := process.ArgsString(1)
+	method := process.ArgsString(2)
+	key := fmt.Sprintf("%s.$%s", xpath, method)
+
+	// get cloud props
+	cProp, has := form.CProps[key]
+	if !has {
+		exception.New("%s does not exist", 400, key).Throw()
+	}
+
+	// $file.file
+	tmpfile, ok := process.Args[3].(gou.UploadFile)
+	if !ok {
+		exception.New("parameters error: %v", 400, process.Args[3]).Throw()
+	}
+
+	// execute upload
+	res, err := cProp.ExecUpload(process, tmpfile)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

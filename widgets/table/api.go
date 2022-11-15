@@ -154,10 +154,10 @@ func exportAPI() error {
 	}
 	http.Paths = append(http.Paths, path)
 
-	//   POST  /api/__yao/table/:id/upload/:xpath/:method  	-> Default process: yao.table.Component $param.id $param.xpath $param.method $file.file
+	//   POST  /api/__yao/table/:id/upload/:xpath/:method  	-> Default process: yao.table.Upload $param.id $param.xpath $param.method $file.file
 	path = gou.Path{
 		Label:       "Upload",
-		Description: "Component",
+		Description: "Upload",
 		Path:        "/:id/upload/:xpath/:method",
 		Method:      "POST",
 		Process:     "yao.table.Upload",

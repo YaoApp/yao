@@ -26,6 +26,7 @@ type ActionDSL struct {
 	Bind         *BindActionDSL  `json:"bind,omitempty"`
 	Setting      *action.Process `json:"setting,omitempty"`
 	Component    *action.Process `json:"component,omitempty"`
+	Upload       *action.Process `json:"upload,omitempty"`
 	Find         *action.Process `json:"find,omitempty"`
 	Save         *action.Process `json:"save,omitempty"`
 	Update       *action.Process `json:"update,omitempty"`

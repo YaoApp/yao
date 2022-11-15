@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/runtime"
@@ -35,6 +36,12 @@ func prepare(t *testing.T, language ...string) {
 
 	i18n.Load(config.Conf)
 	share.DBConnect(config.Conf.DB) // removed later
+
+	// load fs
+	err = fs.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// load scripts
 	err = script.Load(config.Conf)
