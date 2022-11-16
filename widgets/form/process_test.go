@@ -8,9 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/helper"
 	q "github.com/yaoapp/yao/query"
 )
 
@@ -157,6 +159,20 @@ func TestProcessComponent(t *testing.T) {
 	assert.Equal(t, "checked", pets[1]["status"])
 }
 
+func TestProcessComponentError(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{
+		"pet",
+		"fields.filter.edit.props.状态.::not-exist",
+		"remote",
+		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
+	}
+	_, err := gou.NewProcess("yao.form.Component", args...).Exec()
+	assert.Contains(t, err.Error(), "fields.filter.edit.props.状态.::not-exist")
+}
+
 func TestProcessUpload(t *testing.T) {
 	load(t)
 	clear(t)
@@ -178,18 +194,28 @@ func TestProcessUpload(t *testing.T) {
 	assert.NotEmpty(t, file)
 }
 
-func TestProcessComponentError(t *testing.T) {
+func TestProcessDownload(t *testing.T) {
 	load(t)
 	clear(t)
 	testData(t)
-	args := []interface{}{
-		"pet",
-		"fields.filter.edit.props.状态.::not-exist",
-		"remote",
-		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
+
+	jwt := helper.JwtMake(1, map[string]interface{}{"id": 1}, map[string]interface{}{"sid": 1})
+	fs := fs.MustGet("system")
+	_, err := fs.WriteFile("/text.txt", []byte("Hello"), uint32(os.ModePerm))
+	if err != nil {
+		t.Fatal(err)
 	}
-	_, err := gou.NewProcess("yao.form.Component", args...).Exec()
-	assert.Contains(t, err.Error(), "fields.filter.edit.props.状态.::not-exist")
+
+	args := []interface{}{"pet", "images", "/text.txt", jwt.Token}
+	res, err := gou.NewProcess("yao.form.Download", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, ok := res.(map[string]interface{})
+	assert.True(t, ok)
+	assert.Equal(t, []byte("Hello"), body["content"])
+	assert.Equal(t, "text/plain; charset=utf-8", body["type"])
 }
 
 func TestProcessSetting(t *testing.T) {
