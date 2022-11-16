@@ -102,6 +102,7 @@ func (c *Computable) editRow(process *gou.Process, res map[string]interface{}, g
 
 			data.Set("id", id)
 			data.Set("value", res[key])
+			data.Set("path", fmt.Sprintf("%s.%s", path, unit.Name))
 			data.Merge(any.MapOf(field.Edit.Map()).MapStrAny.Dot())
 			new, err := field.Edit.Compute.Value(data, process.Sid, process.Global)
 			if err != nil {
@@ -243,6 +244,7 @@ func (c *Computable) viewRow(name string, process *gou.Process, res map[string]i
 
 		data.Set("value", res[key])
 		data.Set("id", id)
+		data.Set("path", fmt.Sprintf("%s.%s", path, unit.Name))
 		data.Merge(any.MapOf(field.View.Map()).MapStrAny.Dot())
 		new, err := field.View.Compute.Value(data, process.Sid, process.Global)
 		if err != nil {
