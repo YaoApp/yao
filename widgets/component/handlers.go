@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -10,6 +11,8 @@ var hanlders = map[string]ComputeHanlder{
 	"Trim":          Trim,
 	"Hide":          Hide,
 	"Concat":        Concat,
+	"Download":      Download,
+	"Upload":        Upload,
 	"QueryString":   Trim,
 	"ImagesView":    Trim,
 	"ImagesEdit":    Trim,
@@ -60,4 +63,154 @@ func Get(args ...interface{}) (interface{}, error) {
 // Hide value
 func Hide(args ...interface{}) (interface{}, error) {
 	return nil, nil
+}
+
+// Upload return the file download path
+func Upload(args ...interface{}) (interface{}, error) {
+
+	if len(args) < 5 {
+		return nil, fmt.Errorf("Upload args[0]~args[4] is required")
+	}
+
+	if args[0] == nil {
+		return "", nil
+	}
+
+	files := []string{}
+	switch values := args[0].(type) {
+	case []interface{}:
+		for i := range values {
+			file := fmt.Sprintf("%v", values[i])
+			if file != "" {
+				files = append(files, fmt.Sprintf("%v", file))
+			}
+		}
+		break
+
+	case []string:
+		for _, file := range values {
+			if file != "" {
+				files = append(files, fmt.Sprintf("%v", file))
+			}
+		}
+		break
+
+	case string:
+		if values != "" {
+			files = append(files, fmt.Sprintf("%v", values))
+		}
+		break
+
+	case map[string]interface{}:
+		for name := range values {
+			file := fmt.Sprintf("%v", values[name])
+			if file != "" {
+				files = append(files, fmt.Sprintf("%v", file))
+			}
+		}
+		break
+	}
+
+	id, ok := args[3].(string)
+	if !ok {
+		return nil, fmt.Errorf("Upload args[3] is not string")
+	}
+
+	path, ok := args[4].(string)
+	if !ok {
+		return nil, fmt.Errorf("Upload args[4] is not string")
+	}
+
+	preifx := fmt.Sprintf("/api/__yao/table/%s/download/%s?name=", id, url.QueryEscape(path))
+	res := []string{}
+	for _, file := range files {
+		file = strings.TrimSpace(file)
+		if strings.HasPrefix(file, "http") {
+			res = append(res, file)
+			continue
+		}
+		res = append(res, strings.TrimPrefix(file, preifx))
+	}
+
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	return res, nil
+}
+
+// Download return the file download path
+func Download(args ...interface{}) (interface{}, error) {
+
+	if len(args) < 5 {
+		return nil, fmt.Errorf("Download args[0]~args[4] is required")
+	}
+
+	if args[0] == nil {
+		return "", nil
+	}
+
+	files := []string{}
+	switch values := args[0].(type) {
+	case []interface{}:
+		for i := range values {
+			file := fmt.Sprintf("%v", values[i])
+			if file != "" {
+				files = append(files, fmt.Sprintf("%v", file))
+			}
+		}
+		break
+
+	case []string:
+		for _, file := range values {
+			if file != "" {
+				files = append(files, fmt.Sprintf("%v", file))
+			}
+		}
+		break
+
+	case string:
+		if values != "" {
+			files = append(files, fmt.Sprintf("%v", values))
+		}
+		break
+
+	case map[string]interface{}:
+		for name := range values {
+			file := fmt.Sprintf("%v", values[name])
+			if file != "" {
+				files = append(files, fmt.Sprintf("%v", file))
+			}
+		}
+		break
+	}
+
+	id, ok := args[3].(string)
+	if !ok {
+		return nil, fmt.Errorf("Download args[3] is not string")
+	}
+
+	path, ok := args[4].(string)
+	if !ok {
+		return nil, fmt.Errorf("Download args[4] is not string")
+	}
+
+	res := []string{}
+	for _, file := range files {
+
+		file = strings.TrimSpace(file)
+		if strings.HasPrefix(file, "http") {
+			res = append(res, file)
+			continue
+		}
+
+		file = fmt.Sprintf("/api/__yao/table/%s/download/%s?name=%s", id, url.QueryEscape(path), file)
+		res = append(res, file)
+	}
+
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	return res, nil
 }

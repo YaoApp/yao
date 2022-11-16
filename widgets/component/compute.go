@@ -16,6 +16,7 @@ var defaults = []CArg{
 	{IsExp: true, key: "props", value: nil},
 	{IsExp: true, key: "type", value: nil},
 	{IsExp: true, key: "id", value: nil},
+	{IsExp: true, key: "path", value: nil},
 }
 
 // NewExp create a new exp CArg
