@@ -27,6 +27,12 @@ var processActionDefaults = map[string]*action.Process{
 		Guard:   "bearer-jwt",
 		Default: []interface{}{nil, nil, nil},
 	},
+	"Download": {
+		Name:    "yao.form.Download",
+		Guard:   "-",
+		Process: "fs.system.Download",
+		Default: []interface{}{nil},
+	},
 	"Find": {
 		Name:    "yao.form.Find",
 		Guard:   "bearer-jwt",
@@ -67,6 +73,10 @@ func (act *ActionDSL) SetDefaultProcess() {
 
 	act.Upload = action.ProcessOf(act.Upload).
 		Merge(processActionDefaults["Upload"]).
+		SetHandler(processHandler)
+
+	act.Download = action.ProcessOf(act.Download).
+		Merge(processActionDefaults["Download"]).
 		SetHandler(processHandler)
 
 	act.Find = action.ProcessOf(act.Find).

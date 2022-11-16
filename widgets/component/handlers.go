@@ -121,7 +121,13 @@ func Upload(args ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Upload args[4] is not string")
 	}
 
-	preifx := fmt.Sprintf("/api/__yao/table/%s/download/%s?name=", id, url.QueryEscape(path))
+	widget := "table"
+	pinfo := strings.Split(path, ".")
+	if len(pinfo) >= 2 {
+		widget = pinfo[1]
+	}
+
+	preifx := fmt.Sprintf("/api/__yao/%s/%s/download/%s?name=", widget, id, url.QueryEscape(path))
 	res := []string{}
 	for _, file := range files {
 		file = strings.TrimSpace(file)
@@ -195,6 +201,12 @@ func Download(args ...interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("Download args[4] is not string")
 	}
 
+	widget := "table"
+	pinfo := strings.Split(path, ".")
+	if len(pinfo) >= 2 {
+		widget = pinfo[1]
+	}
+
 	res := []string{}
 	for _, file := range files {
 
@@ -204,7 +216,7 @@ func Download(args ...interface{}) (interface{}, error) {
 			continue
 		}
 
-		file = fmt.Sprintf("/api/__yao/table/%s/download/%s?name=%s", id, url.QueryEscape(path), file)
+		file = fmt.Sprintf("/api/__yao/%s/%s/download/%s?name=%s", widget, id, url.QueryEscape(path), file)
 		res = append(res, file)
 	}
 

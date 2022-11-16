@@ -11,9 +11,9 @@ func (dsl *DSL) getField() func(string) (*field.ColumnDSL, string, string, error
 	return func(name string) (*field.ColumnDSL, string, string, error) {
 		field, has := dsl.Fields.Form[name]
 		if !has {
-			return nil, "fields.table", dsl.ID, fmt.Errorf("fields.table.%s does not exist", name)
+			return nil, "fields.form", dsl.ID, fmt.Errorf("fields.form.%s does not exist", name)
 		}
-		return &field, "fields.table", dsl.ID, nil
+		return &field, "fields.form", dsl.ID, nil
 	}
 }
 
