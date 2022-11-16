@@ -432,6 +432,18 @@ func TestProcessXgen(t *testing.T) {
 
 }
 
+func TestProcessExport(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+	args := []interface{}{"pet", gou.QueryParam{Wheres: []gou.QueryWhere{{Column: "mode", Value: "enabled"}}}, 2}
+	response := gou.NewProcess("yao.table.Export", args...).Run()
+	assert.NotNil(t, response)
+	fs := fs.MustGet("system")
+	size, _ := fs.Size(response.(string))
+	assert.Greater(t, size, 1000)
+}
+
 func load(t *testing.T) {
 	prepare(t)
 	err := Load(config.Conf)
