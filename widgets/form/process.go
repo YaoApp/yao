@@ -2,6 +2,7 @@ package form
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/yaoapp/gou"
@@ -133,6 +134,12 @@ func processUpload(process *gou.Process) interface{} {
 	res, err := cProp.ExecUpload(process, tmpfile)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
+	}
+
+	if file, ok := res.(string); ok {
+		field := strings.TrimSuffix(xpath, ".edit.props")
+		file = fmt.Sprintf("/api/__yao/form/%s/download/%s?name=%s", form.ID, url.QueryEscape(field), file)
+		return file
 	}
 
 	return res

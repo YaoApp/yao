@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -120,6 +121,12 @@ func processUpload(process *gou.Process) interface{} {
 	res, err := cProp.ExecUpload(process, tmpfile)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
+	}
+
+	if file, ok := res.(string); ok {
+		field := strings.TrimSuffix(xpath, ".edit.props")
+		file = fmt.Sprintf("/api/__yao/table/%s/download/%s?name=%s", tab.ID, url.QueryEscape(field), file)
+		return file
 	}
 
 	return res
