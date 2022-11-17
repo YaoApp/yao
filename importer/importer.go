@@ -59,10 +59,11 @@ func Open(name string) from.Source {
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
 	switch ext {
 	case "xlsx":
-		fullpath := name
-		if !strings.HasPrefix(fullpath, "/") {
-			fullpath = filepath.Join(xfs.Stor.Root, name)
-		}
+		// fullpath := name
+		fullpath := filepath.Join(xfs.Stor.Root, name)
+		// if !strings.HasPrefix(fullpath, "/") {
+		// 	fullpath = filepath.Join(xfs.Stor.Root, name)
+		// }
 		return xlsx.Open(fullpath)
 	}
 	exception.New("暂不支持: %s 文件导入", 400, ext).Throw()
