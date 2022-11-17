@@ -229,7 +229,6 @@ func makeDirs(root string) error {
 }
 
 func makeInit(root string) error {
-	files := data.AssetNames()
 
 	// if the app.json exist ignore
 	file := filepath.Join("app.json")
@@ -237,12 +236,18 @@ func makeInit(root string) error {
 		return nil
 	}
 
+	files := data.AssetNames()
 	for _, file := range files {
 		if strings.HasPrefix(file, "init/") {
 			dst := filepath.Join(root, strings.TrimPrefix(file, "init/"))
 			content, err := data.Read(file)
 			if err != nil {
 				return err
+			}
+
+			if _, err := os.Stat(dst); err == nil { // exists
+				log.Error("[setup] %s exists", dst)
+				continue
 			}
 
 			dir := filepath.Dir(dst)
