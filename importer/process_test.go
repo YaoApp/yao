@@ -6,11 +6,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
-	"github.com/yaoapp/yao/config"
 )
 
 func TestProcessMapping(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join("assets", "simple.xlsx")
 	args := []interface{}{"order", simple}
 	response := gou.NewProcess("xiang.import.Mapping", args...).Run()
 	_, ok := response.(*Mapping)
@@ -18,7 +17,7 @@ func TestProcessMapping(t *testing.T) {
 }
 
 func TestProcessMappingSetting(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join("assets", "simple.xlsx")
 	args := []interface{}{"order", simple}
 	response := gou.NewProcess("xiang.import.MappingSetting", args...).Run()
 	_, ok := response.(map[string]interface{})
@@ -26,7 +25,7 @@ func TestProcessMappingSetting(t *testing.T) {
 }
 
 func TestProcessData(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join("assets", "simple.xlsx")
 	mapping := gou.NewProcess("xiang.import.Mapping", "order", simple).Run()
 	args := []interface{}{"order", simple, 1, 2, mapping}
 	response := gou.NewProcess("xiang.import.Data", args...).Run()
@@ -49,7 +48,7 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessRun(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join("assets", "simple.xlsx")
 	mapping := gou.NewProcess("xiang.import.Mapping", "order", simple).Run()
 	args := []interface{}{"order", simple, mapping}
 	response := gou.NewProcess("xiang.import.Run", args...).Run()

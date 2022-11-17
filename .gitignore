@@ -20,6 +20,7 @@ dist
 ui
 ^ui/index.html
 tests/data/*
+!tests/data/assets
 debug.log
 yao-test
 dev.sh
