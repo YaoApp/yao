@@ -74,6 +74,12 @@ jobs:
           # ref: 5002c3fded585aaa69a4366135b415ea3234964e
           path: xgen-v1.0
 
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v2
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
+
       - name: Move Kun, Xun, Gou, UI, V8Go
         run: |
           mv kun ../
@@ -82,6 +88,7 @@ jobs:
           mv v8go ../
           mv xgen-v0.9 ../
           mv xgen-v1.0 ../
+          mv yao-init ../
           ls -l .
           ls -l ../
 

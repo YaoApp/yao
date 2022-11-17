@@ -43,16 +43,15 @@ func LoadInfo(root string) {
 			exception.New("解析应用失败 %s", 500, err).Throw()
 		}
 	}
-
-	if fs.MustExists("/yao/icons/icon.icns") {
+	if has, _ := fs.Exists("/yao/icons/icon.icns"); has {
 		info.Icons.Set("icns", xfs.Encode(fs.MustReadFile("/yao/icons/icon.icns")))
 	}
 
-	if fs.MustExists("/yao/icons/icon.ico") {
+	if has, _ := fs.Exists("/yao/icons/icon.ico"); has {
 		info.Icons.Set("ico", xfs.Encode(fs.MustReadFile("/yao/icons/icon.ico")))
 	}
 
-	if fs.MustExists("/yao/icons/icon.png") {
+	if has, _ := fs.Exists("/yao/icons/icon.png"); has {
 		info.Icons.Set("png", xfs.Encode(fs.MustReadFile("/yao/icons/icon.png")))
 	}
 
