@@ -15,7 +15,7 @@ func TestLoad(t *testing.T) {
 	assert.IsType(t, &Importer{}, Select("order"))
 }
 func TestFingerprintSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 	imp := Select("order")
@@ -24,7 +24,7 @@ func TestFingerprintSimple(t *testing.T) {
 }
 
 func TestAutoMappingSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -48,7 +48,7 @@ func TestAutoMappingSimple(t *testing.T) {
 }
 
 func TestDataGetSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -69,7 +69,7 @@ func TestDataGetSimple(t *testing.T) {
 }
 
 func TestDataChunkSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -83,7 +83,7 @@ func TestDataChunkSimple(t *testing.T) {
 }
 
 func TestRunSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -97,7 +97,7 @@ func TestRunSimple(t *testing.T) {
 }
 
 func TestDataPreviewSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 	imp := Select("order")
@@ -116,7 +116,7 @@ func TestDataPreviewSimple(t *testing.T) {
 }
 
 func TestMappingPreviewSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -140,7 +140,7 @@ func TestMappingPreviewSimple(t *testing.T) {
 }
 
 func TestMappingSetting(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "imports", "assets", "simple.xlsx")
+	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
