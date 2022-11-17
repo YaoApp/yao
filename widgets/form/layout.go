@@ -24,7 +24,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, formID string, fields *FieldsDS
 					Icon:  "icon-trash-2",
 					Style: "danger",
 					Action: map[string]component.ParamsDSL{
-						"Table.delete": {"model": formID},
+						"Form.delete": {"model": formID},
 					},
 					Confirm: &component.ConfirmActionDSL{
 						Title: "::Confirm",
@@ -108,7 +108,7 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *Fields
 					Icon:  "icon-trash-2",
 					Style: "danger",
 					Action: map[string]component.ParamsDSL{
-						"Table.delete": {"model": formID},
+						"Form.delete": {"model": formID},
 					},
 					Confirm: &component.ConfirmActionDSL{
 						Title: "::Confirm",
@@ -135,7 +135,7 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *Fields
 			}
 
 			name := column.Key
-			if col, has := fields.Form[name]; has {
+			if col, has := fields.Form[name]; has && column.Bind != "deleted_at" {
 				width := 12
 				columns = append(columns, Column{InstanceDSL: component.InstanceDSL{Name: col.Key, Width: width}})
 			}
