@@ -139,12 +139,28 @@ pack: bindata fmt
 
 .PHONY: bindata
 bindata:
+
+#   Setup Workdir
+	rm -rf .tmp/data
+	rm -rf .tmp/yao-init
 	mkdir -p .tmp/data
+
+#	Checkout init
+	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
+	rm -rf .tmp/yao-init/.git
+	rm -rf .tmp/yao-init/.gitignore
+	rm -rf .tmp/yao-init/LICENSE
+	rm -rf .tmp/yao-init/README.md
+	
+#	Copy Files
+	cp -r .tmp/yao-init .tmp/data/init
 	cp -r ui .tmp/data/
+	cp -r ui .tmp/data/public
 	cp -r xgen .tmp/data/
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
+	rm -rf .tmp/yao-init
 
 # make artifacts-linux
 .PHONY: artifacts-linux
@@ -160,8 +176,15 @@ artifacts-linux: clean
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install && pnpm run build
+
 #   Setup UI
 	cd ../xgen-v1.0/packages/setup  && pnpm install && pnpm run build
+
+#	Init Application
+	cd ../yao-init rm -rf .git
+	cd ../yao-init rm -rf .gitignore
+	cd ../yao-init rm -rf LICENSE
+	cd ../yao-init rm -rf README.md
 
 #	Packing
 	mkdir -p .tmp/data/xgen
@@ -169,6 +192,7 @@ artifacts-linux: clean
 	cp -r ../xgen-v0.9/dist .tmp/data/xgen/v0.9
 	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r ../yao-init .tmp/data/init
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
@@ -206,9 +230,15 @@ artifacts-macos: clean
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install && pnpm run build
+
 #   Setup UI
 	cd ../xgen-v1.0/packages/setup  && pnpm install && pnpm run build
 
+#	Init Application
+	cd ../yao-init rm -rf .git
+	cd ../yao-init rm -rf .gitignore
+	cd ../yao-init rm -rf LICENSE
+	cd ../yao-init rm -rf README.md
 
 #	Packing
 	mkdir -p .tmp/data/xgen
@@ -216,6 +246,7 @@ artifacts-macos: clean
 	cp -r ../xgen-v0.9/dist .tmp/data/xgen/v0.9
 	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r ../yao-init .tmp/data/init
 	cp -r yao .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
@@ -281,6 +312,14 @@ release: clean
 #   Setup UI
 	cd .tmp/xgen/v1.0/packages/setup  && pnpm install && pnpm run build
 
+
+#	Checkout init
+	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
+	rm -rf .tmp/yao-init/.git
+	rm -rf .tmp/yao-init/.gitignore
+	rm -rf .tmp/yao-init/LICENSE
+	rm -rf .tmp/yao-init/README.md
+
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
@@ -288,6 +327,7 @@ release: clean
 	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
 	cp -r .tmp/xgen/v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/xgen
@@ -326,6 +366,14 @@ linux-release: clean
 #   Setup UI
 	cd .tmp/xgen/v1.0/packages/setup  && pnpm install && pnpm run build
 
+
+#	Checkout init
+	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
+	rm -rf .tmp/yao-init/.git
+	rm -rf .tmp/yao-init/.gitignore
+	rm -rf .tmp/yao-init/LICENSE
+	rm -rf .tmp/yao-init/README.md
+
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
@@ -333,6 +381,7 @@ linux-release: clean
 	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
 	cp -r .tmp/xgen/v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/xgen
