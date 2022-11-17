@@ -230,6 +230,13 @@ func makeDirs(root string) error {
 
 func makeInit(root string) error {
 	files := data.AssetNames()
+
+	// if the app.json exist ignore
+	file := filepath.Join("app.json")
+	if _, err := os.Stat(filepath.Join(root, file)); err == nil { // exists
+		return nil
+	}
+
 	for _, file := range files {
 		if strings.HasPrefix(file, "init/") {
 			dst := filepath.Join(root, strings.TrimPrefix(file, "init/"))
