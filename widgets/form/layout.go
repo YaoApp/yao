@@ -47,6 +47,9 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, formID string, fields *FieldsDS
 			if ok && name != "deleted_at" {
 				if col, has := fields.formMap[name]; has {
 					width := 12
+					if col.Edit != nil && (col.Edit.Type == "TextArea" || col.Edit.Type == "Upload") {
+						width = 24
+					}
 					// if c, has := m.Columns[name]; has {
 					// 	typ := strings.ToLower(c.Type)
 					// 	if typ == "id" || strings.Contains(typ, "integer") || strings.Contains(typ, "float") {
@@ -137,6 +140,9 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *Fields
 			name := column.Key
 			if col, has := fields.Form[name]; has && column.Bind != "deleted_at" {
 				width := 12
+				if col.Edit != nil && (col.Edit.Type == "TextArea" || col.Edit.Type == "Upload") {
+					width = 24
+				}
 				columns = append(columns, Column{InstanceDSL: component.InstanceDSL{Name: col.Key, Width: width}})
 			}
 		}
