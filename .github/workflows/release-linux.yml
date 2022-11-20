@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: yaoapp/xgen
-          #ref: 5002c3fded585aaa69a4366135b415ea3234964e
+          ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
           path: xgen-v1.0
 
       - name: Checkout Yao-Init
