@@ -35,7 +35,7 @@
   </a>
 </p>
 
-![intro](https://release-bj.yaoapps.com/docs/v0.10.2/介绍/assets/architecture.png)
+![intro](docs/architecture.png)
 
 [中文介绍](README.zh-CN.md)
 

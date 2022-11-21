@@ -3,7 +3,7 @@
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 
-![介绍](https://release-bj.yaoapps.com/docs/v0.10.2/%E4%BB%8B%E7%BB%8D/assets/architecture.png)
+![介绍](docs/architecture.png)
 
 [English](README.md)
 
@@ -23,13 +23,13 @@ YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑�
 
 微信群: 添加微信 17192175099 备注(开发交流)
 
-![微信群](https://release-bj.yaoapps.com/docs/v0.10.2/%E4%BB%8B%E7%BB%8D/assets/wechat.jpg)
+![微信群](docs/wechat.jpg)
 
 ## 演示
 
 使用 YAO 开发的典型应用
 
-![界面](https://release-bj.yaoapps.com/docs/v0.10.2/%E5%9F%BA%E7%A1%80/assets/yao-setup-demo.jpg)
+![界面](docs/yao-setup-demo.jpg)
 
 | 应用                | 简介                       | 代码仓库                               |
 | ------------------- | -------------------------- | -------------------------------------- |
@@ -77,7 +77,7 @@ yao start # 启动安装界面
 
 - 密码: **A123456p+**
 
-[安装界面](https://release-bj.yaoapps.com/docs/v0.10.2/%E5%9F%BA%E7%A1%80/assets/yao-setup-step2.jpg)
+[安装界面](docs/yao-setup-step2.jpg)
 
 #### 下载已上架应用
 
