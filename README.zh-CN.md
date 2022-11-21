@@ -3,7 +3,7 @@
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 
-![intro](docs/architecture.png)
+![介绍](docs/architecture.png)
 
 [English](README.md)
 
@@ -27,15 +27,17 @@ YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑�
 
 ## 演示
 
-使用 YAO 开发的典型应用
+![界面](docs/yao-setup-demo.jpg)
 
-| 应用        | 介绍                 | 代码仓库                              |
-| ----------- | -------------------- | ------------------------------------- |
-| YAO WMS     | 仓库管理系统         | https://github.com/yaoapp/yao-wms     |
-| LMS DEMO    | 图书管理系统(演示)   | https://github.com/yaoapp/demo-lms    |
-| CRM DEMO    | 客户管理系统(演示)   | https://github.com/YaoApp/demo-crm    |
-| AMS DEMO    | 资产管理系统(演示)   | https://github.com/YaoApp/demo-asset  |
-| Widget DEMO | 自建低代码平台(演示) | https://github.com/YaoApp/demo-widget |
+使用 YAO 开发的应用
+
+| 应用                | 简介                       | 代码仓库                               |
+| ------------------- | -------------------------- | -------------------------------------- |
+| yaoapp/yao-admin    | 一个通用管理后台           | https://github.com/yaoapp/yao-admin    |
+| yaoapp/demo-app     | 演示应用 (演示)            | https://github.com/yaoapp/demo-app     |
+| yaoapp/demo-project | 工程项目管理演示应用(演示) | https://github.com/yaoapp/demo-project |
+| yaoapp/demo-finance | 财务管理演示应用(演示)     | https://github.com/yaoapp/demo-finance |
+| yaoapp/demo-plm     | 生产项目管理演示应用(演示) | https://github.com/yaoapp/demo-plm     |
 
 ## 介绍
 
@@ -45,7 +47,7 @@ Yao 基于 **flow-based** 编程思想，采用 **Go** 语言开发，支持多�
 
 Yao 内置了一套数据管理系统，通过编写 **JSON** 描述界面布局，即可实现 90% 常见界面交互功能，特别适合快速制作各类管理后台、CRM、ERP 等企业内部系统。对于特殊交互功能亦可通过编写扩展组件或 HTML 页面的方式实现。内置管理系统与 Yao 并不耦合，亦可采用 **VUE**, **React** 等任意前端技术实现管理界面。
 
-## Install
+## 安装
 
 在终端下运行脚本: ( MacOS / Linux )
 
@@ -53,55 +55,48 @@ Yao 内置了一套数据管理系统，通过编写 **JSON** 描述界面布局
 curl -fsSL https://website.yaoapps.com/install.sh | bash
 ```
 
-Windows 用户请参考安装调试章节: [安装调试](https://yaoapps.com/doc/a.介绍/b.安装调试)
+Windows 用户请参考安装调试章节: [安装调试](https://yaoapps.com/doc/%E4%BB%8B%E7%BB%8D/%E5%AE%89%E8%A3%85%E8%B0%83%E8%AF%95)
 
 ## 入门指南
 
-### Step 1: 创建项目
+详细说明请看[文档](https://yaoapps.com/doc/%E4%BB%8B%E7%BB%8D/%E5%85%A5%E9%97%A8%E6%8C%87%E5%8D%97)
 
-新建一个项目目录，进入项目目录，运行 `yao init` 命令，创建一个空白的 Yao 应用。
+### 创建应用
 
-```bash
-mkdir -p /data/crm  # 创建项目目录
-cd /data/crm  # 进入项目目录
-yao init # 运行初始化程序
-```
+#### 新建一个空白应用
 
-命令运行成功后，将创建 `app.json文件` , `db`, `ui` , `data` 等目录
+新建一个应用目录，进入应用目录，运行 `yao start` 命令, 启动安装界面。
 
 ```bash
-├── data        # 用于存放应用产生的文件，如图片,PDF等
-├── db          # 用于存放 SQLite 数据库文件
-│   └── yao.db
-└── ui          # 静态文件服务器文件目录，可以放置自定义前端制品，该目录下文件可通过 http://host:port/文件名称 访问。
-└── app.json    # 应用配置文件, 用来定义应用名称等
+mkdir -p /data/app  # 创建应用目录
+cd /data/app  # 进入应用目录
+yao start # 启动安装界面
 ```
 
-### Step 2: Create the data table
+**默认账号**
 
-使用 `yao migrate` 命令创建数据表，打开命令行终端，**在项目根录下运行**:
+- 用户名: **xiang@iqka.com**
+
+- 密码: **A123456p+**
+
+![安装界面](docs/yao-setup-step2.jpg)
+
+#### 下载已上架应用
+
+新建一个项目目录，进入项目目录，运行 `yao get` 命令, 下载应用代码。
 
 ```bash
-yao migrate
+mkdir -p /data/app  # 创建应用目录
+cd /data/app  # 进入应用目录
+yao get yaoapp/demo-app # 下载应用代码 (必须为空目录)
+yao start # 启动安装界面
 ```
 
-初始化菜单
+**默认账号**
 
-```bash
-yao run flows.setmenu
-```
+- 用户名: **xiang@iqka.com**
 
-### Step 3: Start the service
-
-打开命令行终端，**在项目根录下运行**:
-
-```bash
-yao start
-```
-
-1. 打开浏览器, 访问 `http://127.0.0.1:5099/xiang/login/admin`，
-
-2. 输入默认用户名: `xiang@iqka.com`， 密码: `A123456p+`
+- 密码: **A123456p+**
 
 ## 关于 Yao
 
