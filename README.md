@@ -60,10 +60,10 @@ Applications developed with YAO
 | Application         | INTRO                               | REPO                                   |
 | ------------------- | ----------------------------------- | -------------------------------------- |
 | yaoapp/yao-admin    | Admin Dashboard                     | https://github.com/yaoapp/yao-admin    |
-| yaoapp/demo-app     | Demo App                            | https://github.com/yaoapp/demo-app     |
-| yaoapp/demo-project | Project management system (Demo)    | https://github.com/yaoapp/demo-project |
-| yaoapp/demo-finance | Finance management system (Demo)    | https://github.com/yaoapp/demo-finance |
-| yaoapp/demo-plm     | Production management system (Demo) | https://github.com/yaoapp/demo-plm     |
+| yaoapp/demo-app     | Demo Application                    | https://github.com/yaoapp/demo-app     |
+| yaoapp/demo-project | Project Management System (Demo)    | https://github.com/yaoapp/demo-project |
+| yaoapp/demo-finance | Finance Management System (Demo)    | https://github.com/yaoapp/demo-finance |
+| yaoapp/demo-plm     | Production Management System (Demo) | https://github.com/yaoapp/demo-plm     |
 
 ## Introduce
 
