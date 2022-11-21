@@ -79,7 +79,7 @@ yao start # 启动安装界面
 
 - 密码: **A123456p+**
 
-[安装界面](docs/yao-setup-step2.jpg)
+![安装界面](docs/yao-setup-step2.jpg)
 
 #### 下载已上架应用
 
