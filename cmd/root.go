@@ -52,6 +52,13 @@ var langs = map[string]string{
 	"SessionPort":                           "会话服务端口",
 	"Force migrate":                         "强制更新数据表结构",
 	"Migrate is not allowed on production mode.": "Migrate 不能再生产环境下使用",
+	"Upgrade yao to latest version":              "升级 yao 到最新版本",
+	"🎉Current version is the latest🎉":            "🎉当前版本是最新的🎉",
+	"Do you want to update to %s ? (y/n): ":      "是否更新到 %s ? (y/n): ",
+	"Invalid input":                              "输入错误",
+	"Canceled upgrade":                           "已取消更新",
+	"Error occurred while updating binary: %s":   "更新二进制文件时出错: %s",
+	"🎉Successfully updated to version: %s🎉":      "🎉成功更新到版本: %s🎉",
 }
 
 // L 多语言切换
@@ -115,6 +122,7 @@ func init() {
 		socketCmd,
 		websocketCmd,
 		studioCmd,
+		upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
