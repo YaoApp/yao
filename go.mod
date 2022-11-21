@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1286
+	github.com/blang/semver v3.5.1+incompatible
 	github.com/caarlos0/env/v6 v6.9.1
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/fatih/color v1.13.0
@@ -13,6 +14,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mojocn/base64Captcha v1.3.5
+	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/afero v1.6.0
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.1
@@ -21,6 +23,16 @@ require (
 	github.com/yaoapp/kun v0.9.0
 	github.com/yaoapp/xun v0.9.0
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
+)
+
+require (
+	github.com/google/go-github/v30 v30.1.0 // indirect
+	github.com/google/go-querystring v1.0.0 // indirect
+	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf // indirect
+	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
+	github.com/ulikunitz/xz v0.5.9 // indirect
+	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602 // indirect
+	google.golang.org/appengine v1.6.7 // indirect
 )
 
 require (
