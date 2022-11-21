@@ -59,6 +59,8 @@ Windows 用户请参考安装调试章节: [安装调试](https://yaoapps.com/do
 
 ## 入门指南
 
+详细说明请看[文档](https://yaoapps.com/doc/%E4%BB%8B%E7%BB%8D/%E5%85%A5%E9%97%A8%E6%8C%87%E5%8D%97)
+
 ### 创建应用
 
 #### 新建一个空白应用

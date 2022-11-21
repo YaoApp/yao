@@ -85,6 +85,8 @@ For Windows users, please refer to the Installation and Debugging chapter: [Inst
 
 ## Getting Started
 
+See [documentation](https://yaoapps.com/en-US/doc/Introduction/Getting%20Started) for more details.
+
 ### Create a blank project
 
 Create a new application directory, enter the application directory, run the `yao start` command, and start the installation.
