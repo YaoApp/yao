@@ -59,6 +59,7 @@ var langs = map[string]string{
 	"Canceled upgrade":                           "已取消更新",
 	"Error occurred while updating binary: %s":   "更新二进制文件时出错: %s",
 	"🎉Successfully updated to version: %s🎉":      "🎉成功更新到版本: %s🎉",
+	"Print all version information":              "显示详细版本信息",
 }
 
 // L 多语言切换
