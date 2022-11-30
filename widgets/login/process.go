@@ -126,7 +126,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	}
 
 	// 读取菜单
-	menus := gou.NewProcess("yao.app.menu").Run()
+	menus := gou.NewProcess("yao.app.menu").WithSID(sid).Run()
 	return maps.Map{
 		"expires_at": token.ExpiresAt,
 		"token":      token.Token,
