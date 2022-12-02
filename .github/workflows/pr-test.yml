@@ -140,7 +140,7 @@ jobs:
       - name: Checkout Demo App
         uses: actions/checkout@v2
         with:
-          repository: yaoapp/demo-app
+          repository: yaoapp/yao-dev-app
           path: app
 
       - name: Move Kun, Xun, Gou, V8Go

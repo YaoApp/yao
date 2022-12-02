@@ -23,7 +23,7 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 9, len(Forms))
+	assert.Equal(t, 10, len(Forms))
 }
 
 func prepare(t *testing.T, language ...string) {

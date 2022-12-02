@@ -70,7 +70,7 @@ func TestAPISearch(t *testing.T) {
 	}
 
 	data := any.Of(resp).MapStr().Dot()
-	assert.Equal(t, "20", fmt.Sprintf("%v", data.Get("pagesize")))
+	assert.Equal(t, "1", fmt.Sprintf("%v", data.Get("pagesize")))
 	assert.Equal(t, "3", fmt.Sprintf("%v", data.Get("total")))
 	assert.Equal(t, "checked", data.Get("data.0.status"))
 	assert.Equal(t, "enabled", data.Get("data.0.mode"))

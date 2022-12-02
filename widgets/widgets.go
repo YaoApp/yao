@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/widgets/expression"
 	"github.com/yaoapp/yao/widgets/field"
 	"github.com/yaoapp/yao/widgets/form"
+	"github.com/yaoapp/yao/widgets/list"
 	"github.com/yaoapp/yao/widgets/login"
 	"github.com/yaoapp/yao/widgets/table"
 )
@@ -52,6 +53,12 @@ func Load(cfg config.Config) error {
 
 	// table widget
 	err = table.LoadAndExport(cfg)
+	if err != nil {
+		messages = append(messages, err.Error())
+	}
+
+	// list widget
+	err = list.LoadAndExport(cfg)
 	if err != nil {
 		messages = append(messages, err.Error())
 	}
