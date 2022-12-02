@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
+	_ "github.com/yaoapp/yao/utils"
 	"github.com/yaoapp/yao/widgets/app"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/expression"
@@ -24,7 +25,7 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 11, len(Tables))
+	assert.Equal(t, 12, len(Tables))
 }
 
 func TestLoadID(t *testing.T) {

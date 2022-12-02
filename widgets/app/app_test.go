@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
+	_ "github.com/yaoapp/yao/utils"
 	"github.com/yaoapp/yao/widgets/login"
 )
 
@@ -224,7 +225,10 @@ func TestProcessMenu(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Len(t, res, 3)
+
+	data := any.Of(res).MapStr()
+	assert.True(t, data.Has("items"))
+	assert.True(t, data.Has("setting"))
 }
 
 func TestProcessIcons(t *testing.T) {
