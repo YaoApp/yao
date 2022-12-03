@@ -21,12 +21,21 @@ type InstanceDSL struct {
 	Height interface{} `json:"height,omitempty"`
 }
 
+// ActionsExport the export actions
+type ActionsExport struct {
+	Type    string  `json:"type,omitempty"`
+	Xpath   string  `json:"xpath"`
+	Actions Actions `json:"actions,omitempty"`
+}
+
 // ActionDSL the component action DSL
 type ActionDSL struct {
 	Title   string               `json:"title,omitempty"`
 	Width   int                  `json:"width,omitempty"`
 	Icon    string               `json:"icon,omitempty"`
 	Style   string               `json:"style,omitempty"`
+	ID      string               `json:"id,omitempty"`
+	Xpath   string               `json:"xpath,omitempty"`
 	Props   PropsDSL             `json:"props,omitempty"`
 	Confirm *ConfirmActionDSL    `json:"confirm,omitempty"`
 	Action  map[string]ParamsDSL `json:"action,omitempty"`

@@ -6,7 +6,9 @@ import (
 
 // WidgetHandlers Processes
 var WidgetHandlers = map[string]gou.ProcessHandler{
-	"apis": processApis,
+	"apis":    processApis,
+	"actions": processActions,
+	"models":  processModels,
 }
 
 func init() {
@@ -19,11 +21,14 @@ func processApis(process *gou.Process) interface{} {
 }
 
 // Get the actions of each widget
-func processActions() {
+func processActions(process *gou.Process) interface{} {
+	return Actions()
 }
 
 // Get the loaded Models
-func processModels() {}
+func processModels(process *gou.Process) interface{} {
+	return Models()
+}
 
 // Get the loaded flows
 func processFlows() {}
