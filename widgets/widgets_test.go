@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/model"
@@ -38,6 +39,12 @@ func prepare(t *testing.T, language ...string) {
 
 	// load models
 	err = model.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// load apis
+	err = api.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
