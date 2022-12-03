@@ -103,8 +103,8 @@ type BatchPresetDSL struct {
 
 // ImportPresetDSL layout.header.preset.import
 type ImportPresetDSL struct {
-	Name    string                `json:"name,omitempty"`
-	Actions []component.ActionDSL `json:"actions,omitempty"`
+	Name    string            `json:"name,omitempty"`
+	Actions component.Actions `json:"actions,omitempty"`
 }
 
 // FilterLayoutDSL layout.filter

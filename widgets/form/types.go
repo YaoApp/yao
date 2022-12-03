@@ -65,7 +65,7 @@ type LayoutDSL struct {
 // OperationLayoutDSL layout.operation
 type OperationLayoutDSL struct {
 	Preset  map[string]map[string]interface{} `json:"preset,omitempty"`
-	Actions []component.ActionDSL             `json:"actions,omitempty"`
+	Actions component.Actions                 `json:"actions,omitempty"`
 }
 
 // FieldsDSL the form fields DSL

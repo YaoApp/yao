@@ -197,3 +197,36 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 
 	return setting, nil
 }
+
+// Actions get the chart actions
+func (dsl *DSL) Actions() []component.ActionsExport {
+
+	res := []component.ActionsExport{}
+
+	// layout.operation.actions
+	if dsl.Layout != nil &&
+		dsl.Layout.Operation != nil &&
+		dsl.Layout.Operation.Actions != nil &&
+		len(dsl.Layout.Operation.Actions) > 0 {
+
+		res = append(res, component.ActionsExport{
+			Type:    "operation",
+			Xpath:   "layout.operation.actions",
+			Actions: dsl.Layout.Operation.Actions.Hash(),
+		})
+	}
+
+	// layout.filter.actions
+	if dsl.Layout != nil &&
+		dsl.Layout.Filter != nil &&
+		dsl.Layout.Filter.Actions != nil &&
+		len(dsl.Layout.Filter.Actions) > 0 {
+
+		res = append(res, component.ActionsExport{
+			Type:    "filter",
+			Xpath:   "layout.filter.actions",
+			Actions: dsl.Layout.Filter.Actions.Hash(),
+		})
+	}
+	return res
+}

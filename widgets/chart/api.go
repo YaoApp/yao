@@ -62,8 +62,8 @@ func (chart *DSL) getAction(path string) (*action.Process, error) {
 func exportAPI() error {
 
 	http := gou.HTTP{
-		Name:        "Widget Form API",
-		Description: "Widget Form API",
+		Name:        "Widget Chart API",
+		Description: "Widget Chart API",
 		Version:     share.VERSION,
 		Guard:       "widget-chart",
 		Group:       "__yao/chart",

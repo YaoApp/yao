@@ -294,3 +294,50 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	setting["name"] = dsl.Name
 	return setting, nil
 }
+
+// Actions get the table actions
+func (dsl *DSL) Actions() []component.ActionsExport {
+
+	res := []component.ActionsExport{}
+
+	// layout.header.preset.import.actions
+	if dsl.Layout != nil &&
+		dsl.Layout.Header != nil &&
+		dsl.Layout.Header.Preset != nil &&
+		dsl.Layout.Header.Preset.Import != nil &&
+		dsl.Layout.Header.Preset.Import.Actions != nil &&
+		len(dsl.Layout.Header.Preset.Import.Actions) > 0 {
+
+		res = append(res, component.ActionsExport{
+			Type:    "import",
+			Xpath:   "layout.header.preset.import.actions",
+			Actions: dsl.Layout.Header.Preset.Import.Actions.Hash(),
+		})
+	}
+
+	// layout.filter.actions
+	if dsl.Layout != nil &&
+		dsl.Layout.Filter != nil &&
+		dsl.Layout.Filter.Actions != nil &&
+		len(dsl.Layout.Filter.Actions) > 0 {
+		res = append(res, component.ActionsExport{
+			Type:    "filter",
+			Xpath:   "layout.filter.actions",
+			Actions: dsl.Layout.Filter.Actions.Hash(),
+		})
+	}
+
+	// layout.table.operation.actions
+	if dsl.Layout != nil &&
+		dsl.Layout.Table != nil &&
+		dsl.Layout.Table.Operation.Actions != nil &&
+		len(dsl.Layout.Table.Operation.Actions) > 0 {
+		res = append(res, component.ActionsExport{
+			Type:    "operation",
+			Xpath:   "layout.table.operation.actions",
+			Actions: dsl.Layout.Table.Operation.Actions.Hash(),
+		})
+	}
+
+	return res
+}

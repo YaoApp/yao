@@ -52,7 +52,7 @@ type FilterLayoutDSL struct {
 
 // OperationLayoutDSL layout.operation
 type OperationLayoutDSL struct {
-	Actions []component.ActionDSL `json:"actions,omitempty"`
+	Actions component.Actions `json:"actions,omitempty"`
 }
 
 // ViewLayoutDSL layout.form
