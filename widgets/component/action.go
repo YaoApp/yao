@@ -23,7 +23,8 @@ func (actions Actions) Hash() Actions {
 	h := md4.New()
 	for i := range actions {
 		keys := []string{}
-		for key, value := range actions[i].Action {
+		for i, value := range actions[i].Action {
+			key := fmt.Sprintf("%d", i)
 			for k, v := range value {
 				data, _ := jsoniter.Marshal(v)
 				key = fmt.Sprintf("%s%s%s", key, k, data)
