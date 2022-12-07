@@ -280,14 +280,12 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 
 	// layout.operation.actions
 	if dsl.Layout != nil &&
-		dsl.Layout.Operation != nil &&
-		dsl.Layout.Operation.Actions != nil &&
-		len(dsl.Layout.Operation.Actions) > 0 {
-
+		dsl.Layout.Actions != nil &&
+		len(dsl.Layout.Actions) > 0 {
 		res = append(res, component.ActionsExport{
 			Type:    "operation",
 			Xpath:   "layout.operation.actions",
-			Actions: dsl.Layout.Operation.Actions.Hash(),
+			Actions: dsl.Layout.Actions.Hash(),
 		})
 	}
 	return res

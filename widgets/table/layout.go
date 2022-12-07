@@ -31,8 +31,12 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 					Title: "::Create",
 					Icon:  "icon-plus",
 					Width: 3,
-					Action: map[string]component.ParamsDSL{
-						"Common.historyPush": {"pathname": fmt.Sprintf("/x/Form/%s/0/edit", formName)},
+					Action: []component.ParamsDSL{
+						{
+							"name":    "HistoryPush",
+							"type":    "Common.historyPush",
+							"payload": map[string]interface{}{"pathname": fmt.Sprintf("/x/Form/%s/0/edit", formName)},
+						},
 					},
 				},
 			}
@@ -78,9 +82,16 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 				component.ActionDSL{
 					Title: "::View",
 					Icon:  "icon-eye",
-					Action: map[string]component.ParamsDSL{
-						"Common.openModal": {
-							"Form": map[string]interface{}{"type": "view", "model": formName},
+					Action: []component.ParamsDSL{
+						{
+							"name": "OpenModal",
+							"type": "Common.openModal",
+							"payload": map[string]interface{}{
+								"Form": map[string]interface{}{
+									"type":  "view",
+									"model": formName,
+								},
+							},
 						},
 					},
 				},
@@ -88,9 +99,16 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 				component.ActionDSL{
 					Title: "::Edit",
 					Icon:  "icon-edit-2",
-					Action: map[string]component.ParamsDSL{
-						"Common.openModal": {
-							"Form": map[string]interface{}{"type": "edit", "model": formName},
+					Action: []component.ParamsDSL{
+						{
+							"name": "OpenModal",
+							"type": "Common.openModal",
+							"payload": map[string]interface{}{
+								"Form": map[string]interface{}{
+									"type":  "edit",
+									"model": formName,
+								},
+							},
 						},
 					},
 				},
@@ -99,8 +117,12 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 					Title: "::Delete",
 					Icon:  "icon-trash-2",
 					Style: "danger",
-					Action: map[string]component.ParamsDSL{
-						"Table.delete": {"model": formName},
+					Action: []component.ParamsDSL{
+						{
+							"name":    "Delete",
+							"type":    "Table.delete",
+							"payload": map[string]interface{}{"model": formName},
+						},
 					},
 					Confirm: &component.ConfirmActionDSL{
 						Title: "::Confirm",

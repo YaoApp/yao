@@ -56,16 +56,10 @@ type BindActionDSL struct {
 
 // LayoutDSL the form layout DSL
 type LayoutDSL struct {
-	Primary   string                 `json:"primary,omitempty"`
-	Operation *OperationLayoutDSL    `json:"operation,omitempty"`
-	Form      *ViewLayoutDSL         `json:"form,omitempty"`
-	Config    map[string]interface{} `json:"config,omitempty"`
-}
-
-// OperationLayoutDSL layout.operation
-type OperationLayoutDSL struct {
-	Preset  map[string]map[string]interface{} `json:"preset,omitempty"`
-	Actions component.Actions                 `json:"actions,omitempty"`
+	Primary string                 `json:"primary,omitempty"`
+	Actions component.Actions      `json:"actions,omitempty"`
+	Form    *ViewLayoutDSL         `json:"form,omitempty"`
+	Config  map[string]interface{} `json:"config,omitempty"`
 }
 
 // FieldsDSL the form fields DSL

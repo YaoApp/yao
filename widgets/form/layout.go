@@ -15,21 +15,22 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, formID string, fields *FieldsDS
 		layout.Primary = m.PrimaryKey
 	}
 
-	if layout.Operation == nil {
-		layout.Operation = &OperationLayoutDSL{
-			Preset: map[string]map[string]interface{}{"save": {}, "back": {}},
-			Actions: []component.ActionDSL{
-				{
-					Title: "::Delete",
-					Icon:  "icon-trash-2",
-					Style: "danger",
-					Action: map[string]component.ParamsDSL{
-						"Form.delete": {"model": formID},
+	if layout.Actions == nil {
+		layout.Actions = []component.ActionDSL{
+			{
+				Title: "::Delete",
+				Icon:  "icon-trash-2",
+				Style: "danger",
+				Action: []component.ParamsDSL{
+					{
+						"name":    "Delete",
+						"type":    "Form.delete",
+						"payload": map[string]interface{}{"model": formID},
 					},
-					Confirm: &component.ConfirmActionDSL{
-						Title: "::Confirm",
-						Desc:  "::Please confirm, the data cannot be recovered",
-					},
+				},
+				Confirm: &component.ConfirmActionDSL{
+					Title: "::Confirm",
+					Desc:  "::Please confirm, the data cannot be recovered",
 				},
 			},
 		}
@@ -71,21 +72,9 @@ func (layout *LayoutDSL) BindForm(form *DSL, fields *FieldsDSL) error {
 		layout.Primary = form.Layout.Primary
 	}
 
-	if layout.Operation == nil && form.Layout.Operation != nil {
-		layout.Operation = &OperationLayoutDSL{
-			Actions: []component.ActionDSL{},
-			Preset:  map[string]map[string]interface{}{},
-		}
-	}
-
-	if (layout.Operation.Actions == nil || len(layout.Operation.Actions) == 0) &&
-		form.Layout.Operation.Actions != nil {
-		layout.Operation.Actions = form.Layout.Operation.Actions
-	}
-
-	if layout.Operation.Preset == nil || len(layout.Operation.Preset) == 0 &&
-		form.Layout.Operation.Preset != nil {
-		layout.Operation.Preset = form.Layout.Operation.Preset
+	if (layout.Actions == nil || len(layout.Actions) == 0) &&
+		form.Layout.Actions != nil {
+		layout.Actions = form.Layout.Actions
 	}
 
 	if layout.Form == nil && form.Layout.Form != nil {
@@ -102,21 +91,22 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *Fields
 		layout.Primary = tab.Layout.Primary
 	}
 
-	if layout.Operation == nil {
-		layout.Operation = &OperationLayoutDSL{
-			Preset: map[string]map[string]interface{}{"save": {}, "back": {}},
-			Actions: []component.ActionDSL{
-				{
-					Title: "::Delete",
-					Icon:  "icon-trash-2",
-					Style: "danger",
-					Action: map[string]component.ParamsDSL{
-						"Form.delete": {"model": formID},
+	if layout.Actions == nil {
+		layout.Actions = []component.ActionDSL{
+			{
+				Title: "::Delete",
+				Icon:  "icon-trash-2",
+				Style: "danger",
+				Action: []component.ParamsDSL{
+					{
+						"name":    "Delete",
+						"type":    "Form.delete",
+						"payload": map[string]interface{}{"model": formID},
 					},
-					Confirm: &component.ConfirmActionDSL{
-						Title: "::Confirm",
-						Desc:  "::Please confirm, the data cannot be recovered",
-					},
+				},
+				Confirm: &component.ConfirmActionDSL{
+					Title: "::Confirm",
+					Desc:  "::Please confirm, the data cannot be recovered",
 				},
 			},
 		}
