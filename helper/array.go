@@ -162,15 +162,26 @@ func OfArrayPluckValue(any interface{}) ArrayPluckValue {
 
 // NewArrayTreeOption 创建配置
 func NewArrayTreeOption(option map[string]interface{}) ArrayTreeOption {
+
 	new := ArrayTreeOption{
 		Empty:    0,
 		Key:      "id",
 		Parent:   "parent",
 		Children: "children",
 	}
+
+	if v, ok := option["empty"]; ok {
+		new.Empty = v
+	}
+
 	if v, ok := option["parent"].(string); ok {
 		new.Parent = v
 	}
+
+	if v, ok := option["primary"].(string); ok {
+		new.Key = v
+	}
+
 	if v, ok := option["children"].(string); ok {
 		new.Children = v
 	}

@@ -100,6 +100,7 @@ func (columns Columns) CPropsMerge(cloudProps map[string]component.CloudPropsDSL
 			if err != nil {
 				return err
 			}
+
 			mergeCProps(cloudProps, cProps)
 		}
 

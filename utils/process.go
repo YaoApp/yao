@@ -4,6 +4,7 @@ import (
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/utils/datetime"
 	"github.com/yaoapp/yao/utils/str"
+	"github.com/yaoapp/yao/utils/tree"
 )
 
 func init() {
@@ -61,6 +62,10 @@ func init() {
 	gou.AliasProcess("xiang.helper.ArrayGet", "utils.arr.Get")
 	gou.AliasProcess("xiang.helper.ArrayColumn", "utils.arr.Column") // doc
 	gou.AliasProcess("xiang.helper.ArrayKeep", "utils.arr.Keep")
+	gou.AliasProcess("xiang.helper.ArrayMapSet", "utils.arr.MapSet")
+
+	// Tree
+	gou.RegisterProcessHandler("utils.tree.Flatten", tree.ProcessFlatten)
 
 	// Map
 	gou.AliasProcess("xiang.helper.MapGet", "utils.map.Get")

@@ -17,7 +17,7 @@ func init() {
 	gou.RegisterProcessHandler("xiang.helper.ArrayKeep", ProcessArrayKeep)       // deprecated → utils.arr.Keep  @/utils/process.go
 	gou.RegisterProcessHandler("xiang.helper.ArrayTree", ProcessArrayTree)       // deprecated → utils.arr.Tree  @/utils/process.go
 	gou.RegisterProcessHandler("xiang.helper.ArrayUnique", ProcessArrayUnique)   // deprecated → utils.arr.Unique  @/utils/process.go
-	gou.RegisterProcessHandler("xiang.helper.ArrayMapSet", ProcessArrayMapSet)
+	gou.RegisterProcessHandler("xiang.helper.ArrayMapSet", ProcessArrayMapSet)   // deprecated → utils.arr.MapSet  @/utils/process.go
 
 	gou.RegisterProcessHandler("xiang.helper.MapKeys", ProcessMapKeys)         // deprecated → utils.map.Keys @/utils/process.go
 	gou.RegisterProcessHandler("xiang.helper.MapValues", ProcessMapValues)     // deprecated → utils.map.Values @/utils/process.go
