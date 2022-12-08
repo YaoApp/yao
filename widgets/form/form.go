@@ -236,7 +236,7 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		dsl.Config["full"] = true
 	}
 
-	// action.Hooks
+	// Hooks
 	hooks := map[string]interface{}{}
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
@@ -256,8 +256,8 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 			return nil, err
 		}
 
-		// action.hooks
-		if cProp.Name == "onChange" {
+		// hooks
+		if cProp.Name == "on:change" {
 			field := strings.TrimPrefix(cProp.Xpath, "fields.form.")
 			field = strings.TrimSuffix(field, ".edit.props")
 			hooks[field] = map[string]interface{}{
@@ -265,10 +265,9 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 				"params": cProp.Query,
 			}
 		}
-
 	}
 
-	setting["action"] = map[string]interface{}{"hooks": hooks}
+	setting["hooks"] = hooks
 	setting["name"] = dsl.Name
 	return setting, nil
 }

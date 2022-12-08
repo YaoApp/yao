@@ -109,6 +109,7 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 	if layout.Form != nil && layout.Form.Sections != nil {
 
 		layout.listColumns(func(path string, f Column) {
+
 			name := f.Name
 			field, has := fields.Form[name]
 			if !has {
@@ -120,7 +121,15 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 					}
 				}
 				messages = append(messages, fmt.Sprintf("fields.form.%s not found, checking %s", f.Name, path))
+				return
 			}
+
+			if field.Edit != nil && field.Edit.Props != nil {
+				if _, has := field.Edit.Props["$on:change"]; has {
+					delete(field.Edit.Props, "$on:change")
+				}
+			}
+
 			forms[name] = field.Map()
 		}, "", nil)
 	}
