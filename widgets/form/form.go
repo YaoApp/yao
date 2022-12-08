@@ -237,7 +237,7 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	}
 
 	// Hooks
-	hooks := map[string]interface{}{}
+	onChange := map[string]interface{}{}
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
 	for _, cProp := range dsl.CProps {
@@ -260,14 +260,14 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		if cProp.Name == "on:change" {
 			field := strings.TrimPrefix(cProp.Xpath, "fields.form.")
 			field = strings.TrimSuffix(field, ".edit.props")
-			hooks[field] = map[string]interface{}{
+			onChange[field] = map[string]interface{}{
 				"api":    fmt.Sprintf("/api/__yao/form/%s%s", dsl.ID, cProp.Path()),
 				"params": cProp.Query,
 			}
 		}
 	}
 
-	setting["hooks"] = hooks
+	setting["hooks"] = map[string]interface{}{"onChange": onChange}
 	setting["name"] = dsl.Name
 	return setting, nil
 }
