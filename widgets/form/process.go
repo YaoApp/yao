@@ -41,8 +41,8 @@ func processComponent(process *gou.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	form := MustGet(process)
-	xpath := process.ArgsString(1)
-	method := process.ArgsString(2)
+	xpath, _ := url.QueryUnescape(process.ArgsString(1))
+	method, _ := url.QueryUnescape(process.ArgsString(2))
 	key := fmt.Sprintf("%s.$%s", xpath, method)
 
 	// get cloud props
@@ -147,7 +147,8 @@ func processUpload(process *gou.Process) interface{} {
 
 func processSetting(process *gou.Process) interface{} {
 	form := MustGet(process)
-	process.Args = append(process.Args, process.Args[0]) // formle name
+	args := []interface{}{form.ID}
+	process.Args = append(args, process.Args...) // form name
 	return form.Action.Setting.MustExec(process)
 }
 

@@ -15,7 +15,7 @@ var processActionDefaults = map[string]*action.Process{
 		Name:    "yao.form.Setting",
 		Guard:   "bearer-jwt",
 		Process: "yao.form.Xgen",
-		Default: []interface{}{nil},
+		Default: []interface{}{nil, nil},
 	},
 	"Component": {
 		Name:    "yao.form.Component",
