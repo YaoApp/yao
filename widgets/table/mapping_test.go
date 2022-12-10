@@ -9,7 +9,7 @@ import (
 	"github.com/yaoapp/kun/any"
 )
 
-func TestComputeMapping(t *testing.T) {
+func TestMapping(t *testing.T) {
 	load(t)
 	clear(t)
 	testData(t)
@@ -27,7 +27,7 @@ func TestComputeMapping(t *testing.T) {
 	assert.Equal(t, 2, len(tab.Computes.Filter["where.name.like"]))
 }
 
-func TestComputeFind(t *testing.T) {
+func TestMappingFind(t *testing.T) {
 
 	load(t)
 	clear(t)
@@ -42,7 +42,7 @@ func TestComputeFind(t *testing.T) {
 	assert.Equal(t, "cat::Cookie-checked-compute", data.Get("name_view"))
 }
 
-func TestComputeGet(t *testing.T) {
+func TestMappingGet(t *testing.T) {
 
 	load(t)
 	clear(t)
@@ -61,7 +61,7 @@ func TestComputeGet(t *testing.T) {
 
 }
 
-func TestComputeSearch(t *testing.T) {
+func TestMappingSearch(t *testing.T) {
 
 	load(t)
 	clear(t)
@@ -77,7 +77,7 @@ func TestComputeSearch(t *testing.T) {
 	assert.Equal(t, "cat::Cookie-checked-compute", data.Get("data.0.name_view"))
 }
 
-func TestComputeSave(t *testing.T) {
+func TestMappingSave(t *testing.T) {
 	load(t)
 	clear(t)
 	testData(t)
@@ -106,7 +106,7 @@ func TestComputeSave(t *testing.T) {
 	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
-func TestComputeUpdate(t *testing.T) {
+func TestMappingUpdate(t *testing.T) {
 	load(t)
 	clear(t)
 	testData(t)
@@ -134,7 +134,7 @@ func TestComputeUpdate(t *testing.T) {
 	assert.Equal(t, "New Pet", data.Get("name"))
 }
 
-func TestComputeInsert(t *testing.T) {
+func TestMappingInsert(t *testing.T) {
 	load(t)
 	clear(t)
 	args := []interface{}{"compute",

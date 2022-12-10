@@ -30,7 +30,7 @@ func (filter *FilterDSL) UnmarshalJSON(data []byte) error {
 // Hash hash value
 func (filter FilterDSL) Hash() (string, error) {
 	h := md4.New()
-	origin := fmt.Sprintf("%#v", filter)
+	origin := fmt.Sprintf("FILTER::%#v", filter.Map())
 	// fmt.Println(origin)
 	io.WriteString(h, origin)
 	return fmt.Sprintf("%x", h.Sum(nil)), nil

@@ -118,16 +118,27 @@ func (node ActionNode) Custom() bool {
 // Hash hash value
 func (action ActionDSL) Hash() (string, error) {
 	h := md4.New()
-	origin := fmt.Sprintf("%#v", action.Action)
-	// fmt.Println(origin)
+	origin := fmt.Sprintf("ACTION::%#v", action.Action)
+	// fmt.Println("Origin:", origin)
 	io.WriteString(h, origin)
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
-// SetPath set actions xpath
-func (actions Actions) SetPath(root string) Actions {
-	for i := range actions {
-		actions[i].Xpath = fmt.Sprintf("%s.%d", root, i)
+// Filter actions
+func (actions Actions) Filter(excludes map[string]bool) Actions {
+	new := []ActionDSL{}
+	for _, action := range actions {
+		if _, has := excludes[action.ID]; !has {
+			new = append(new, action)
+		}
 	}
-	return actions
+	return new
 }
+
+// SetPath set actions xpath
+// func (actions Actions) SetPath(root string) Actions {
+// 	for i := range actions {
+// 		actions[i].Xpath = fmt.Sprintf("%s.%d", root, i)
+// 	}
+// 	return actions
+// }

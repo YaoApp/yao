@@ -100,8 +100,8 @@ func (fields *FieldsDSL) BindTable(tab *DSL) error {
 
 // Xgen trans to xgen setting
 func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error) {
-	res := map[string]interface{}{}
 
+	res := map[string]interface{}{}
 	filters := map[string]interface{}{}
 	tables := map[string]interface{}{}
 
@@ -119,6 +119,7 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 				}
 				return nil, fmt.Errorf("fields.filter.%s not found, checking layout.filter.columns.%d.name", f.Name, i)
 			}
+
 			filters[name] = field.Map()
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
@@ -429,6 +430,52 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table."+url.QueryEscape("入院状态")+".view.props.xProps/remote", data.Get("fields.table.入院状态.view.props.xProps.remote.api"))
 	assert.Equal(t, "/api/__yao/table/pet/component/fields.table."+url.QueryEscape("入院状态")+".edit.props.xProps/remote", data.Get("fields.table.入院状态.edit.props.xProps.remote.api"))
 	assert.Equal(t, "/api/__yao/table/pet/upload/fields.table."+url.QueryEscape("相关图片")+".edit.props/api", data.Get("fields.table.相关图片.edit.props.api"))
+
+}
+
+func TestProcessXgenWithPermissions(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+
+	session.Global().Set("__permissions", []string{
+		"8ca9bdf0fa2cbc8f1018f8566ed6ab5e", // fields.table.消费金额
+		"f03f1ae60c46dd6cdeda87b919a51d7e", // fields.filter.状态
+		"b1483ade34cd51261817558114e74e3f", // filter.actions[0] 添加宠物
+		"e6a67850312980e8372e550c5b361097", // operation.actions[0] 查看
+	})
+
+	args := []interface{}{"pet"}
+	res, err := gou.NewProcess("yao.table.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
+	assert.Equal(t, "查看详情1", data.Get("header.preset.import.actions[0].title"))
+	assert.Equal(t, "查看详情2", data.Get("header.preset.import.actions[1].title"))
+	assert.False(t, data.Has("fields.table.消费金额"))
+	assert.False(t, data.Has("fields.filter.状态"))
+	assert.False(t, data.Has("filter.actions[0]"))
+	assert.Len(t, data.Get("table.columns"), 3)
+	assert.Len(t, data.Get("table.operation.actions"), 4)
+
+	session.Global().Set("__permissions", nil)
+	res, err = gou.NewProcess("yao.table.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data = any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
+	assert.Equal(t, "查看详情1", data.Get("header.preset.import.actions[0].title"))
+	assert.Equal(t, "查看详情2", data.Get("header.preset.import.actions[1].title"))
+	assert.True(t, data.Has("fields.table.消费金额"))
+	assert.True(t, data.Has("fields.filter.状态"))
+	assert.True(t, data.Has("filter.actions[0]"))
+	assert.Len(t, data.Get("table.columns"), 4)
+	assert.Len(t, data.Get("table.operation.actions"), 6)
 
 }
 

@@ -30,7 +30,7 @@ func (column *ColumnDSL) UnmarshalJSON(data []byte) error {
 // Hash hash value
 func (column ColumnDSL) Hash() (string, error) {
 	h := md4.New()
-	origin := fmt.Sprintf("%#v", column)
+	origin := fmt.Sprintf("COLUMN::%#v", column.Map())
 	// fmt.Println(origin)
 	io.WriteString(h, origin)
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
