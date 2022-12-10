@@ -28,18 +28,28 @@ type ActionsExport struct {
 	Actions Actions `json:"actions,omitempty"`
 }
 
+type aliasActionDSL ActionDSL
+
 // ActionDSL the component action DSL
 type ActionDSL struct {
+	ID      string            `json:"id,omitempty"`
 	Title   string            `json:"title,omitempty"`
 	Width   int               `json:"width,omitempty"`
 	Icon    string            `json:"icon,omitempty"`
 	Style   string            `json:"style,omitempty"`
-	ID      string            `json:"id,omitempty"`
 	Xpath   string            `json:"xpath,omitempty"`
 	Props   PropsDSL          `json:"props,omitempty"`
 	Confirm *ConfirmActionDSL `json:"confirm,omitempty"`
-	Action  []ParamsDSL       `json:"action,omitempty"`
+	Action  ActionNodes       `json:"action,omitempty"`
 }
+
+type aliasActionNodes []ActionNode
+
+// ActionNodes the action nodes
+type ActionNodes []ActionNode
+
+// ActionNode the action node
+type ActionNode map[string]interface{}
 
 // ConfirmActionDSL action.confirm
 type ConfirmActionDSL struct {
@@ -49,9 +59,6 @@ type ConfirmActionDSL struct {
 
 // PropsDSL component props
 type PropsDSL map[string]interface{}
-
-// ParamsDSL action params
-type ParamsDSL map[string]interface{}
 
 // Compute process
 type Compute struct {

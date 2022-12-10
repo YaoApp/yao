@@ -31,7 +31,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 					Title: "::Create",
 					Icon:  "icon-plus",
 					Width: 3,
-					Action: []component.ParamsDSL{
+					Action: component.ActionNodes{
 						{
 							"name":    "HistoryPush",
 							"type":    "Common.historyPush",
@@ -82,7 +82,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 				component.ActionDSL{
 					Title: "::View",
 					Icon:  "icon-eye",
-					Action: []component.ParamsDSL{
+					Action: component.ActionNodes{
 						{
 							"name": "OpenModal",
 							"type": "Common.openModal",
@@ -99,7 +99,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 				component.ActionDSL{
 					Title: "::Edit",
 					Icon:  "icon-edit-2",
-					Action: []component.ParamsDSL{
+					Action: component.ActionNodes{
 						{
 							"name": "OpenModal",
 							"type": "Common.openModal",
@@ -117,7 +117,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[s
 					Title: "::Delete",
 					Icon:  "icon-trash-2",
 					Style: "danger",
-					Action: []component.ParamsDSL{
+					Action: component.ActionNodes{
 						{
 							"name":    "Delete",
 							"type":    "Table.delete",

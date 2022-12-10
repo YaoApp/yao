@@ -311,7 +311,7 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 		res = append(res, component.ActionsExport{
 			Type:    "import",
 			Xpath:   "layout.header.preset.import.actions",
-			Actions: dsl.Layout.Header.Preset.Import.Actions.Hash(),
+			Actions: dsl.Layout.Header.Preset.Import.Actions,
 		})
 	}
 
@@ -323,7 +323,7 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 		res = append(res, component.ActionsExport{
 			Type:    "filter",
 			Xpath:   "layout.filter.actions",
-			Actions: dsl.Layout.Filter.Actions.Hash(),
+			Actions: dsl.Layout.Filter.Actions,
 		})
 	}
 
@@ -335,7 +335,7 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 		res = append(res, component.ActionsExport{
 			Type:    "operation",
 			Xpath:   "layout.table.operation.actions",
-			Actions: dsl.Layout.Table.Operation.Actions.Hash(),
+			Actions: dsl.Layout.Table.Operation.Actions,
 		})
 	}
 

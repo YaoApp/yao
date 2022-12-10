@@ -284,7 +284,7 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 		res = append(res, component.ActionsExport{
 			Type:    "operation",
 			Xpath:   "layout.operation.actions",
-			Actions: dsl.Layout.Actions.Hash(),
+			Actions: dsl.Layout.Actions,
 		})
 	}
 	return res
