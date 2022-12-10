@@ -18,6 +18,7 @@ type CloudProps map[string]component.CloudPropsDSL
 
 // ColumnDSL the field column dsl
 type ColumnDSL struct {
+	ID   string         `json:"id,omitempty"`
 	Key  string         `json:"key,omitempty"`
 	Bind string         `json:"bind,omitempty"`
 	Link string         `json:"link,omitempty"`
@@ -25,12 +26,17 @@ type ColumnDSL struct {
 	Edit *component.DSL `json:"edit,omitempty"`
 }
 
+type aliasColumnDSL ColumnDSL
+
 // FilterDSL the field filter dsl
 type FilterDSL struct {
+	ID   string         `json:"id,omitempty"`
 	Key  string         `json:"key,omitempty"`
 	Bind string         `json:"bind,omitempty"`
 	Edit *component.DSL `json:"edit,omitempty"`
 }
+
+type aliasFilterDSL FilterDSL
 
 // Compute the compute filed
 type Compute string
