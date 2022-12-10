@@ -1,9 +1,40 @@
 package field
 
 import (
+	"fmt"
+	"io"
+
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/expression"
+	"golang.org/x/crypto/md4"
 )
+
+// UnmarshalJSON for json UnmarshalJSON
+func (column *ColumnDSL) UnmarshalJSON(data []byte) error {
+	var alias aliasColumnDSL
+	err := jsoniter.Unmarshal(data, &alias)
+	if err != nil {
+		return err
+	}
+
+	*column = ColumnDSL(alias)
+	column.ID, err = column.Hash()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Hash hash value
+func (column ColumnDSL) Hash() (string, error) {
+	h := md4.New()
+	origin := fmt.Sprintf("COLUMN::%#v", column.Map())
+	// fmt.Println(origin)
+	io.WriteString(h, origin)
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
 
 // Replace replace with data
 func (column ColumnDSL) Replace(data map[string]interface{}) (*ColumnDSL, error) {
@@ -72,6 +103,7 @@ func (column *ColumnDSL) Clone() *ColumnDSL {
 // Map cast to map[string]inteface{}
 func (column ColumnDSL) Map() map[string]interface{} {
 	res := map[string]interface{}{
+		"id":   column.ID,
 		"bind": column.Bind,
 	}
 

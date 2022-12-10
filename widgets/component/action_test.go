@@ -18,7 +18,7 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Len(t, action.Action, 1)
 	assert.Equal(t, "Delete", action.Action[0]["name"])
 	assert.Equal(t, "Form.delete", action.Action[0]["type"])
-	assert.Equal(t, "6212f23054ddacf15e7a7c7354c6a5a6", action.ID)
+	assert.Equal(t, "408ebbf0c51d7a51417c04ac73a0a1bc", action.ID)
 
 	action = ActionDSL{}
 	err = jsoniter.Unmarshal(data["many"], &action)
@@ -30,7 +30,7 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "Form.save", action.Action[0]["type"])
 	assert.Equal(t, "historyPush", action.Action[1]["name"])
 	assert.Equal(t, "Common.historyPush", action.Action[1]["type"])
-	assert.Equal(t, "85f029739d324bcc3185c419000739e3", action.ID)
+	assert.Equal(t, "1c70ca190ae5259a37414f98ed9d86c3", action.ID)
 
 	action = ActionDSL{}
 	err = jsoniter.Unmarshal(data["flow"], &action)
@@ -42,7 +42,7 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "Form.save", action.Action[0]["type"])
 	assert.Equal(t, "Flow", action.Action[1]["name"])
 	assert.Equal(t, "Actions.test.check", action.Action[1]["type"])
-	assert.Equal(t, "0e1d99723154fbbeea64833be4151ada", action.ID)
+	assert.Equal(t, "c6d4ae7f02cea12a236bbae38956179c", action.ID)
 
 	action = ActionDSL{}
 	err = jsoniter.Unmarshal(data["sugar-string"], &action)
@@ -52,7 +52,7 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Len(t, action.Action, 1)
 	assert.Equal(t, "Actions.test.back", action.Action[0]["name"])
 	assert.Equal(t, "Actions.test.back", action.Action[0]["type"])
-	assert.Equal(t, "9c8e6e7281ef5df76c2ef84c85308884", action.ID)
+	assert.Equal(t, "6188373a217ef9312bf14e6ca4b21fd2", action.ID)
 
 	action = ActionDSL{}
 	err = jsoniter.Unmarshal(data["sugar-map"], &action)
@@ -62,7 +62,7 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Len(t, action.Action, 1)
 	assert.Equal(t, "Form.delete", action.Action[0]["name"])
 	assert.Equal(t, "Form.delete", action.Action[0]["type"])
-	assert.Equal(t, "d5d48c687da8afd46145cab1f5825523", action.ID)
+	assert.Equal(t, "1fe1bac887859171a97af154bb193821", action.ID)
 
 	action = ActionDSL{}
 	err = jsoniter.Unmarshal(data["sugar-map-custom"], &action)
@@ -72,7 +72,7 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Len(t, action.Action, 1)
 	assert.Equal(t, "Actions.test.back", action.Action[0]["name"])
 	assert.Equal(t, "Actions.test.back", action.Action[0]["type"])
-	assert.Equal(t, "99434a339accfe83ff38b74358e0b3af", action.ID)
+	assert.Equal(t, "7daf632016d4d8ea77066bc54afd525e", action.ID)
 
 }
 

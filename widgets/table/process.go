@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/widgets/app"
 )
 
 // Export process
@@ -45,11 +46,12 @@ func exportProcess() {
 func processXgen(process *gou.Process) interface{} {
 
 	tab := MustGet(process)
-	setting, err := tab.Xgen()
+	data := process.ArgsMap(1, map[string]interface{}{})
+	excludes := app.Permissions(process)
+	setting, err := tab.Xgen(data, excludes)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
-
 	return setting
 }
 

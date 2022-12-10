@@ -1,9 +1,40 @@
 package field
 
 import (
+	"fmt"
+	"io"
+
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/expression"
+	"golang.org/x/crypto/md4"
 )
+
+// UnmarshalJSON for json UnmarshalJSON
+func (filter *FilterDSL) UnmarshalJSON(data []byte) error {
+	var alias aliasFilterDSL
+	err := jsoniter.Unmarshal(data, &alias)
+	if err != nil {
+		return err
+	}
+
+	*filter = FilterDSL(alias)
+	filter.ID, err = filter.Hash()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Hash hash value
+func (filter FilterDSL) Hash() (string, error) {
+	h := md4.New()
+	origin := fmt.Sprintf("FILTER::%#v", filter.Map())
+	// fmt.Println(origin)
+	io.WriteString(h, origin)
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
+}
 
 // Replace replace with data
 func (filter FilterDSL) Replace(data map[string]interface{}) (*FilterDSL, error) {
@@ -42,7 +73,9 @@ func (filter *FilterDSL) Clone() *FilterDSL {
 
 // Map cast to map[string]inteface{}
 func (filter FilterDSL) Map() map[string]interface{} {
+
 	res := map[string]interface{}{
+		"id":   filter.ID,
 		"bind": filter.Bind,
 	}
 
