@@ -21,7 +21,7 @@ func (layout *LayoutDSL) BindModel(m *gou.Model, formID string, fields *FieldsDS
 				Title: "::Delete",
 				Icon:  "icon-trash-2",
 				Style: "danger",
-				Action: []component.ParamsDSL{
+				Action: component.ActionNodes{
 					{
 						"name":    "Delete",
 						"type":    "Form.delete",
@@ -97,7 +97,7 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *Fields
 				Title: "::Delete",
 				Icon:  "icon-trash-2",
 				Style: "danger",
-				Action: []component.ParamsDSL{
+				Action: component.ActionNodes{
 					{
 						"name":    "Delete",
 						"type":    "Form.delete",
