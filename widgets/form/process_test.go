@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
@@ -250,6 +251,46 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "开发者定义数据", data.Get("hooks.onChange.住院天数.params.extra"))
 	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
 	assert.Equal(t, "/api/__yao/form/pet/upload/fields.form."+url.QueryEscape("相关图片")+".edit.props/api", data.Get("fields.form.相关图片.edit.props.api"))
+}
+
+func TestProcessXgenWithPermissions(t *testing.T) {
+	load(t)
+	clear(t)
+	testData(t)
+
+	session.Global().Set("__permissions", map[string]interface{}{
+		"forms.pet": []string{
+			"b57eff5c9bac87d74e2a26596ed2b76f", // actions[0] 删除
+			"773bee07c83276b4627b5bd7b99844ed", // fields.form.相关图片
+		},
+	})
+
+	args := []interface{}{"pet"}
+	res, err := gou.NewProcess("yao.form.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("住院天数")+".edit.props/"+url.QueryEscape("on:change"), data.Get("hooks.onChange.住院天数.api"))
+	assert.Equal(t, "开发者定义数据", data.Get("hooks.onChange.住院天数.params.extra"))
+	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, nil, data.Get("fields.form.相关图片"))
+	assert.NotEqual(t, "删除", data.Get("actions[0].title"))
+
+	session.Global().Set("__permissions", nil)
+	res, err = gou.NewProcess("yao.form.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data = any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("住院天数")+".edit.props/"+url.QueryEscape("on:change"), data.Get("hooks.onChange.住院天数.api"))
+	assert.Equal(t, "开发者定义数据", data.Get("hooks.onChange.住院天数.params.extra"))
+	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/form/pet/upload/fields.form."+url.QueryEscape("相关图片")+".edit.props/api", data.Get("fields.form.相关图片.edit.props.api"))
+	assert.Equal(t, "删除", data.Get("actions[0].title"))
+
 }
 
 func load(t *testing.T) {
