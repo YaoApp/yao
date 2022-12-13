@@ -147,6 +147,40 @@ func TestAPICustomGuard(t *testing.T) {
 	assert.Equal(t, 200, res.Status())
 }
 
+func TestAPIGlobalCustomGuard(t *testing.T) {
+
+	port := start(t)
+	defer test.Stop(func() {})
+
+	req := test.NewRequest(port).Route("/api/__yao/table/guard/find/1")
+	res, err := req.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 403, res.Status())
+
+	req = test.NewRequest(port).Route("/api/__yao/table/guard/get")
+	res, err = req.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 403, res.Status())
+
+	req = test.NewRequest(port).Route("/api/__yao/table/guard/get").Token(token(t)).Header("Unit-Test", "yes")
+	res, err = req.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 418, res.Status())
+
+	req = test.NewRequest(port).Route("/api/__yao/table/guard/get").Token(token(t))
+	res, err = req.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 200, res.Status())
+}
+
 func start(t *testing.T) int {
 	port := network.FreePort()
 	load(t)

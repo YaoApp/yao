@@ -94,84 +94,96 @@ var processActionDefaults = map[string]*action.Process{
 	},
 }
 
+func (act *ActionDSL) getDefaults() map[string]*action.Process {
+	defaults := map[string]*action.Process{}
+	for key, action := range processActionDefaults {
+		new := *action
+		if act.Guard != "" {
+			new.Guard = act.Guard
+		}
+		defaults[key] = &new
+	}
+	return defaults
+}
+
 // SetDefaultProcess set the default value of action
 func (act *ActionDSL) SetDefaultProcess() {
-
+	defaults := act.getDefaults()
 	act.Setting = action.ProcessOf(act.Setting).
-		Merge(processActionDefaults["Setting"]).
+		Merge(defaults["Setting"]).
 		SetHandler(processHandler)
 
 	act.Component = action.ProcessOf(act.Component).
-		Merge(processActionDefaults["Component"]).
+		Merge(defaults["Component"]).
 		SetHandler(processHandler)
 
 	act.Upload = action.ProcessOf(act.Upload).
-		Merge(processActionDefaults["Upload"]).
+		Merge(defaults["Upload"]).
 		SetHandler(processHandler)
 
 	act.Download = action.ProcessOf(act.Download).
-		Merge(processActionDefaults["Download"]).
+		Merge(defaults["Download"]).
 		SetHandler(processHandler)
 
 	act.Search = action.ProcessOf(act.Search).
 		WithBefore(act.BeforeSearch).WithAfter(act.AfterSearch).
-		Merge(processActionDefaults["Search"]).
+		Merge(defaults["Search"]).
 		SetHandler(processHandler)
 
 	act.Get = action.ProcessOf(act.Get).
 		WithBefore(act.BeforeGet).WithAfter(act.AfterGet).
-		Merge(processActionDefaults["Get"]).
+		Merge(defaults["Get"]).
 		SetHandler(processHandler)
 
 	act.Find = action.ProcessOf(act.Find).
 		WithBefore(act.BeforeFind).
 		WithAfter(act.AfterFind).
-		Merge(processActionDefaults["Find"]).
+		Merge(defaults["Find"]).
 		SetHandler(processHandler)
 
 	act.Save = action.ProcessOf(act.Save).
 		WithBefore(act.BeforeSave).WithAfter(act.AfterSave).
-		Merge(processActionDefaults["Save"]).
+		Merge(defaults["Save"]).
 		SetHandler(processHandler)
 
 	act.Create = action.ProcessOf(act.Create).
 		WithBefore(act.BeforeCreate).WithAfter(act.AfterCreate).
-		Merge(processActionDefaults["Create"]).
+		Merge(defaults["Create"]).
 		SetHandler(processHandler)
 
 	act.Insert = action.ProcessOf(act.Insert).
 		WithBefore(act.BeforeInsert).WithAfter(act.AfterInsert).
-		Merge(processActionDefaults["Insert"]).
+		Merge(defaults["Insert"]).
 		SetHandler(processHandler)
 
 	act.Update = action.ProcessOf(act.Update).
 		WithBefore(act.BeforeUpdate).WithAfter(act.AfterUpdate).
-		Merge(processActionDefaults["Update"]).
+		Merge(defaults["Update"]).
 		SetHandler(processHandler)
 
 	act.UpdateWhere = action.ProcessOf(act.UpdateWhere).
 		WithBefore(act.BeforeUpdateWhere).WithAfter(act.AfterUpdateWhere).
-		Merge(processActionDefaults["UpdateWhere"]).
+		Merge(defaults["UpdateWhere"]).
 		SetHandler(processHandler)
 
 	act.UpdateIn = action.ProcessOf(act.UpdateIn).
 		WithBefore(act.BeforeUpdateIn).WithAfter(act.AfterUpdateIn).
-		Merge(processActionDefaults["UpdateIn"]).
+		Merge(defaults["UpdateIn"]).
 		SetHandler(processHandler)
 
 	act.Delete = action.ProcessOf(act.Delete).
 		WithBefore(act.BeforeDelete).WithAfter(act.AfterDelete).
-		Merge(processActionDefaults["Delete"]).
+		Merge(defaults["Delete"]).
 		SetHandler(processHandler)
 
 	act.DeleteWhere = action.ProcessOf(act.DeleteWhere).
 		WithBefore(act.BeforeDeleteWhere).WithAfter(act.AfterDeleteWhere).
-		Merge(processActionDefaults["DeleteWhere"]).
+		Merge(defaults["DeleteWhere"]).
 		SetHandler(processHandler)
 
 	act.DeleteIn = action.ProcessOf(act.DeleteIn).
 		WithBefore(act.BeforeDeleteIn).WithAfter(act.AfterDeleteIn).
-		Merge(processActionDefaults["DeleteIn"]).
+		Merge(defaults["DeleteIn"]).
 		SetHandler(processHandler)
 }
 
