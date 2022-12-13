@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/widgets/app"
 )
 
 // Export process
@@ -29,7 +30,9 @@ func exportProcess() {
 func processXgen(process *gou.Process) interface{} {
 
 	form := MustGet(process)
-	setting, err := form.Xgen()
+	data := process.ArgsMap(1, map[string]interface{}{})
+	excludes := app.Permissions(process, "forms", form.ID)
+	setting, err := form.Xgen(data, excludes)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -147,8 +150,7 @@ func processUpload(process *gou.Process) interface{} {
 
 func processSetting(process *gou.Process) interface{} {
 	form := MustGet(process)
-	args := []interface{}{form.ID}
-	process.Args = append(args, process.Args...) // form name
+	process.Args = append(process.Args, process.Args[0]) // form name
 	return form.Action.Setting.MustExec(process)
 }
 

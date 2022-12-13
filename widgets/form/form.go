@@ -151,10 +151,10 @@ func LoadData(data []byte, id string, root string) error {
 		return fmt.Errorf("[Form] LoadData Bind %s %s", id, err.Error())
 	}
 
-	// Parse
-	err = dsl.Parse()
+	// mapping
+	err = dsl.mapping()
 	if err != nil {
-		return fmt.Errorf("[Form] LoadData Parse %s %s", id, err.Error())
+		return fmt.Errorf("[Form] LoadData Mapping %s %s", id, err.Error())
 	}
 
 	// Validate
@@ -195,23 +195,8 @@ func MustGet(form interface{}) *DSL {
 	return t
 }
 
-// Parse Layout
-func (dsl *DSL) Parse() error {
-
-	// ComputeFields
-	err := dsl.computeMapping()
-	if err != nil {
-		return err
-	}
-
-	// Columns
-	return dsl.Fields.Form.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {
-		return fmt.Sprintf("fields.form.%s.%s.props", name, kind)
-	})
-}
-
 // Xgen trans to xgen setting
-func (dsl *DSL) Xgen() (map[string]interface{}, error) {
+func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
 
 	if dsl.Layout == nil {
 		dsl.Layout = &LayoutDSL{Form: &ViewLayoutDSL{}}
@@ -221,12 +206,12 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		dsl.Layout.Form = &ViewLayoutDSL{}
 	}
 
-	setting, err := dsl.Layout.Xgen()
+	layout, err := dsl.Layout.Xgen(data, excludes, dsl.Mapping)
 	if err != nil {
 		return nil, err
 	}
 
-	fields, err := dsl.Fields.Xgen(dsl.Layout)
+	fields, err := dsl.Fields.Xgen(layout)
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +219,17 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	// full width default value
 	if _, has := dsl.Config["full"]; !has {
 		dsl.Config["full"] = true
+	}
+
+	setting := map[string]interface{}{}
+	bytes, err := jsoniter.Marshal(layout)
+	if err != nil {
+		return nil, err
+	}
+
+	err = jsoniter.Unmarshal(bytes, &setting)
+	if err != nil {
+		return nil, err
 	}
 
 	// Hooks
@@ -283,7 +279,7 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 		len(dsl.Layout.Actions) > 0 {
 		res = append(res, component.ActionsExport{
 			Type:    "operation",
-			Xpath:   "layout.operation.actions",
+			Xpath:   "layout.actions",
 			Actions: dsl.Layout.Actions,
 		})
 	}

@@ -6,6 +6,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/mapping"
 	"github.com/yaoapp/yao/widgets/table"
 )
 
@@ -177,17 +178,89 @@ func (layout *LayoutDSL) listColumns(fn func(string, Column), path string, secti
 }
 
 // Xgen trans to Xgen setting
-func (layout *LayoutDSL) Xgen() (map[string]interface{}, error) {
-	res := map[string]interface{}{}
-	data, err := jsoniter.Marshal(layout)
+func (layout *LayoutDSL) Xgen(data map[string]interface{}, excludes map[string]bool, mapping *mapping.Mapping) (*LayoutDSL, error) {
+	clone, err := layout.Clone()
 	if err != nil {
 		return nil, err
 	}
 
-	err = jsoniter.Unmarshal(data, &res)
+	// layout.actions
+	if clone.Actions != nil && len(clone.Actions) > 0 {
+		clone.Actions = clone.Actions.Filter(excludes)
+	}
+
+	// layout.form.sections
+	if clone.Form != nil && clone.Form.Sections != nil {
+		sections := []SectionDSL{}
+		for _, section := range clone.Form.Sections {
+			new, err := section.Filter(excludes, mapping)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(new.Columns) > 0 {
+				sections = append(sections, new)
+			}
+		}
+		clone.Form.Sections = sections
+	}
+
+	return clone, nil
+}
+
+// Filter exclude filter
+func (section SectionDSL) Filter(excludes map[string]bool, mapping *mapping.Mapping) (SectionDSL, error) {
+	new := SectionDSL{Columns: []Column{}, Title: section.Title, Desc: section.Desc}
+	columns, err := section.filterColumns(section.Columns, excludes, mapping)
+	if err != nil {
+		return new, err
+	}
+	new.Columns = columns
+	return new, nil
+}
+
+func (section SectionDSL) filterColumns(columns []Column, excludes map[string]bool, mapping *mapping.Mapping) ([]Column, error) {
+
+	new := []Column{}
+	for i, column := range columns {
+
+		if column.Tabs != nil {
+			for j, tab := range column.Tabs {
+				tabColumns, err := tab.filterColumns(columns[i].Tabs[j].Columns, excludes, mapping)
+				if err != nil {
+					return nil, err
+				}
+				column.Tabs[j].Columns = tabColumns
+			}
+
+			new = append(new, column)
+			continue
+		}
+
+		id, has := mapping.Columns[column.Name]
+		if !has {
+			continue
+		}
+
+		if _, has := excludes[id]; has {
+			continue
+		}
+
+		new = append(new, column)
+	}
+	return new, nil
+}
+
+// Clone layout for output
+func (layout *LayoutDSL) Clone() (*LayoutDSL, error) {
+	new := LayoutDSL{}
+	bytes, err := jsoniter.Marshal(layout)
 	if err != nil {
 		return nil, err
 	}
-
-	return res, nil
+	err = jsoniter.Unmarshal(bytes, &new)
+	if err != nil {
+		return nil, err
+	}
+	return &new, nil
 }
