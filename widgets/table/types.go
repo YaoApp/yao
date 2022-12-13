@@ -25,6 +25,7 @@ type DSL struct {
 
 // ActionDSL the table action DSL
 type ActionDSL struct {
+	Guard             string          `json:"guard,omitempty"` // the default guard
 	Bind              *BindActionDSL  `json:"bind,omitempty"`
 	Setting           *action.Process `json:"setting,omitempty"`
 	Component         *action.Process `json:"component,omitempty"`
