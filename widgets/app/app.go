@@ -553,10 +553,17 @@ func (dsl *DSL) icons(cfg config.Config) {
 }
 
 // Permissions get the permission blacklist
-func Permissions(process *gou.Process) map[string]bool {
+// {"<widget>.<ID>":[<id...>]}
+func Permissions(process *gou.Process, widget string, id string) map[string]bool {
 	permissions := map[string]bool{}
 	sessionData, _ := session.Global().ID(process.Sid).Get("__permissions")
-	switch values := sessionData.(type) {
+	data, ok := sessionData.(map[string]interface{})
+	if !ok && sessionData != nil {
+		log.Error("[Permissions] session data should be a map, but got %#v", sessionData)
+		return permissions
+	}
+
+	switch values := data[fmt.Sprintf("%s.%s", widget, id)].(type) {
 	case []interface{}:
 		for _, value := range values {
 			permissions[fmt.Sprintf("%v", value)] = true

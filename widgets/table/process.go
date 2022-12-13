@@ -47,7 +47,7 @@ func processXgen(process *gou.Process) interface{} {
 
 	tab := MustGet(process)
 	data := process.ArgsMap(1, map[string]interface{}{})
-	excludes := app.Permissions(process)
+	excludes := app.Permissions(process, "tables", tab.ID)
 	setting, err := tab.Xgen(data, excludes)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
