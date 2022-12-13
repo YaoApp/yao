@@ -38,6 +38,26 @@ func TestProcessModels(t *testing.T) {
 	assert.Greater(t, len(res.([]Item)), 0)
 }
 
+func TestProcessFields(t *testing.T) {
+	testData(t)
+	args := []interface{}{}
+	res, err := gou.NewProcess("widget.fields", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Greater(t, len(res.([]Item)), 0)
+}
+
+func TestProcessFilters(t *testing.T) {
+	testData(t)
+	args := []interface{}{}
+	res, err := gou.NewProcess("widget.filters", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Greater(t, len(res.([]Item)), 0)
+}
+
 func testData(t *testing.T) {
 	prepare(t)
 	err := Load(config.Conf)

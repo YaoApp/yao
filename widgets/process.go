@@ -9,6 +9,8 @@ var WidgetHandlers = map[string]gou.ProcessHandler{
 	"apis":    processApis,
 	"actions": processActions,
 	"models":  processModels,
+	"fields":  processFields,
+	"filters": processFilters,
 }
 
 func init() {
@@ -28,6 +30,16 @@ func processActions(process *gou.Process) interface{} {
 // Get the loaded Models
 func processModels(process *gou.Process) interface{} {
 	return Models()
+}
+
+// Get the loaded Fields
+func processFields(process *gou.Process) interface{} {
+	return Fields()
+}
+
+// Get the loaded Filters
+func processFilters(process *gou.Process) interface{} {
+	return Filters()
 }
 
 // Get the loaded flows
