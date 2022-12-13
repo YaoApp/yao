@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/yao/widgets/compute"
 	"github.com/yaoapp/yao/widgets/field"
 	"github.com/yaoapp/yao/widgets/hook"
+	"github.com/yaoapp/yao/widgets/mapping"
 )
 
 // DSL the chart DSL
@@ -18,6 +19,7 @@ type DSL struct {
 	Config map[string]interface{} `json:"config,omitempty"`
 	CProps field.CloudProps       `json:"-"`
 	compute.Computable
+	*mapping.Mapping
 }
 
 // ActionDSL the chart action DSL

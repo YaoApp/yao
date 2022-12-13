@@ -86,10 +86,10 @@ func LoadFrom(dir string, prefix string) error {
 			dsl.Layout = &LayoutDSL{}
 		}
 
-		// Parse
-		err = dsl.Parse()
+		// mapping
+		err = dsl.mapping()
 		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
+			messages = append(messages, fmt.Sprintf("[%s] Mapping %s", id, err.Error()))
 			return
 		}
 
@@ -138,39 +138,15 @@ func MustGet(chart interface{}) *DSL {
 	return t
 }
 
-// Parse Layout
-func (dsl *DSL) Parse() error {
-
-	// ComputeFields
-	err := dsl.computeMapping()
-	if err != nil {
-		return err
-	}
-
-	// Filters
-	err = dsl.Fields.Filter.CPropsMerge(dsl.CProps, func(name string, filter field.FilterDSL) (xpath string) {
-		return fmt.Sprintf("fields.filter.%s.edit.props", name)
-	})
-
-	if err != nil {
-		return err
-	}
-
-	// Columns
-	return dsl.Fields.Chart.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {
-		return fmt.Sprintf("fields.chart.%s.%s.props", name, kind)
-	})
-}
-
 // Xgen trans to xgen setting
-func (dsl *DSL) Xgen() (map[string]interface{}, error) {
+func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
 
-	setting, err := dsl.Layout.Xgen()
+	layout, err := dsl.Layout.Xgen(data, excludes, dsl.Mapping)
 	if err != nil {
 		return nil, err
 	}
 
-	fields, err := dsl.Fields.Xgen()
+	fields, err := dsl.Fields.Xgen(layout)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +154,17 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 	// full width default value
 	if _, has := dsl.Config["full"]; !has {
 		dsl.Config["full"] = true
+	}
+
+	setting := map[string]interface{}{}
+	bytes, err := jsoniter.Marshal(layout)
+	if err != nil {
+		return nil, err
+	}
+
+	err = jsoniter.Unmarshal(bytes, &setting)
+	if err != nil {
+		return nil, err
 	}
 
 	setting["fields"] = fields
@@ -189,7 +176,6 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 				"params": cProp.Query,
 			}
 		})
-
 		if err != nil {
 			return nil, err
 		}

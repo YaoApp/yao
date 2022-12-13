@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
@@ -80,6 +81,41 @@ func TestProcessXgen(t *testing.T) {
 
 	data := any.Of(res).MapStr().Dot()
 	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+}
+
+func TestProcessXgenWithPermissions(t *testing.T) {
+	load(t)
+	session.Global().Set("__permissions", map[string]interface{}{
+		"charts.dashboard": []string{
+			"7f46a38d7ff3f1832375ff63cd412f41", // operation.actions[0] 跳转至大屏
+			"09302a46b1b6f13a346deeea79b859dd", // filter.columns[0].时间区间
+			"f11f01be1f77fe6563f8577806a46158", // 综合评分
+		},
+	})
+
+	args := []interface{}{"dashboard"}
+	res, err := gou.NewProcess("yao.chart.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data := any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+	assert.NotEqual(t, "时间区间", data.Get("filter.columns[0].name"))
+	assert.Equal(t, nil, data.Get("operation.actions[0]"))
+	assert.Equal(t, nil, data.Get("fields.chart.综合评分"))
+
+	session.Global().Set("__permissions", nil)
+	res, err = gou.NewProcess("yao.chart.Xgen", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data = any.Of(res).MapStr().Dot()
+	assert.Equal(t, "/api/__yao/chart/dashboard/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "时间区间", data.Get("filter.columns[0].name"))
+	assert.NotEqual(t, nil, data.Get("operation.actions[0]"))
+	assert.NotEqual(t, nil, data.Get("fields.chart.综合评分"))
 }
 
 func load(t *testing.T) {
