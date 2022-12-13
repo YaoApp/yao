@@ -55,7 +55,7 @@ func widgetActions(actions map[string]interface{}, widget WidgetAction, widgetID
 	items := widget.Actions()
 	if len(items) > 0 {
 		actions[dsl] = map[string]interface{}{
-			"items": widget.Actions(),
+			"items": items,
 			"DSL":   dsl,
 			"ID":    widgetID,
 			"name":  name,

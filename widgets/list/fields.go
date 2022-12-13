@@ -109,6 +109,13 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 				path := fmt.Sprintf("layout.columns[%d]", i)
 				messages = append(messages, fmt.Sprintf("fields.list.%s not found, checking %s", f.Name, path))
 			}
+
+			if field.Edit != nil && field.Edit.Props != nil {
+				if _, has := field.Edit.Props["$on:change"]; has {
+					delete(field.Edit.Props, "$on:change")
+				}
+			}
+
 			lists[name] = field.Map()
 		}
 	}

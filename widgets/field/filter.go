@@ -56,6 +56,11 @@ func (filter FilterDSL) Replace(data map[string]interface{}) (*FilterDSL, error)
 		}
 	}
 
+	new.ID, err = filter.Hash()
+	if err != nil {
+		return nil, err
+	}
+
 	return &new, nil
 }
 

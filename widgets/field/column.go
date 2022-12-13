@@ -63,6 +63,11 @@ func (column ColumnDSL) Replace(data map[string]interface{}) (*ColumnDSL, error)
 		}
 	}
 
+	new.ID, err = column.Hash()
+	if err != nil {
+		return nil, err
+	}
+
 	return &new, nil
 }
 

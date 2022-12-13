@@ -3,6 +3,8 @@ package list
 import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/mapping"
 	"github.com/yaoapp/yao/widgets/table"
 )
 
@@ -119,17 +121,42 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, listID string, fields *Fields
 }
 
 // Xgen trans to Xgen setting
-func (layout *LayoutDSL) Xgen() (map[string]interface{}, error) {
-	res := map[string]interface{}{}
-	data, err := jsoniter.Marshal(layout)
+func (layout *LayoutDSL) Xgen(data map[string]interface{}, excludes map[string]bool, mapping *mapping.Mapping) (*LayoutDSL, error) {
+	clone, err := layout.Clone()
 	if err != nil {
 		return nil, err
 	}
 
-	err = jsoniter.Unmarshal(data, &res)
+	// layout.list.columns
+	columns := []component.InstanceDSL{}
+	if clone.List != nil && clone.List.Columns != nil {
+		for _, column := range clone.List.Columns {
+			id, has := mapping.Columns[column.Name]
+			if !has {
+				continue
+			}
+
+			if _, has := excludes[id]; has {
+				continue
+			}
+			columns = append(columns, column)
+		}
+		clone.List.Columns = columns
+	}
+
+	return clone, nil
+}
+
+// Clone layout for output
+func (layout *LayoutDSL) Clone() (*LayoutDSL, error) {
+	new := LayoutDSL{}
+	bytes, err := jsoniter.Marshal(layout)
 	if err != nil {
 		return nil, err
 	}
-
-	return res, nil
+	err = jsoniter.Unmarshal(bytes, &new)
+	if err != nil {
+		return nil, err
+	}
+	return &new, nil
 }
