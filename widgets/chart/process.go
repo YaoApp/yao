@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/yao/widgets/app"
 )
 
 // Export process
@@ -18,7 +19,9 @@ func exportProcess() {
 func processXgen(process *gou.Process) interface{} {
 
 	chart := MustGet(process)
-	setting, err := chart.Xgen()
+	data := process.ArgsMap(1, map[string]interface{}{})
+	excludes := app.Permissions(process, "charts", chart.ID)
+	setting, err := chart.Xgen(data, excludes)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
