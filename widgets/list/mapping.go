@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/yao/widgets/compute"
 	"github.com/yaoapp/yao/widgets/field"
+	"github.com/yaoapp/yao/widgets/mapping"
 )
 
 func (dsl *DSL) getField() func(string) (*field.ColumnDSL, string, string, error) {
@@ -17,7 +18,7 @@ func (dsl *DSL) getField() func(string) (*field.ColumnDSL, string, string, error
 	}
 }
 
-func (dsl *DSL) computeMapping() error {
+func (dsl *DSL) mapping() error {
 	if dsl.Computes == nil {
 		dsl.Computes = &compute.Maps{
 			Filter: map[string][]compute.Unit{},
@@ -26,15 +27,32 @@ func (dsl *DSL) computeMapping() error {
 		}
 	}
 
+	if dsl.Mapping == nil {
+		dsl.Mapping = &mapping.Mapping{}
+	}
+
+	if dsl.Mapping.Filters == nil {
+		dsl.Mapping.Filters = map[string]string{}
+	}
+
+	if dsl.Mapping.Columns == nil {
+		dsl.Mapping.Columns = map[string]string{}
+	}
+
 	if dsl.Fields == nil {
 		return nil
 	}
 
+	// Mapping compute and id
 	if dsl.Fields.List != nil && dsl.Layout.List != nil {
 
 		for _, inst := range dsl.Layout.List.Columns {
 
 			if field, has := dsl.Fields.List[inst.Name]; has {
+
+				// Mapping ID
+				dsl.Mapping.Columns[field.ID] = inst.Name
+				dsl.Mapping.Columns[inst.Name] = field.ID
 
 				// View
 				if field.View != nil && field.View.Compute != nil {
@@ -57,5 +75,8 @@ func (dsl *DSL) computeMapping() error {
 		}
 	}
 
-	return nil
+	// Columns
+	return dsl.Fields.List.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {
+		return fmt.Sprintf("fields.list.%s.%s.props", name, kind)
+	})
 }

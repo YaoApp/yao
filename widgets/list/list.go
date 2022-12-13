@@ -143,10 +143,10 @@ func LoadData(data []byte, id string, root string) error {
 		return fmt.Errorf("[List] LoadData Bind %s %s", id, err.Error())
 	}
 
-	// Parse
-	err = dsl.Parse()
+	// Mapping
+	err = dsl.mapping()
 	if err != nil {
-		return fmt.Errorf("[List] LoadData Parse %s %s", id, err.Error())
+		return fmt.Errorf("[List] LoadData Mapping %s %s", id, err.Error())
 	}
 
 	// Validate
@@ -187,23 +187,8 @@ func MustGet(list interface{}) *DSL {
 	return t
 }
 
-// Parse Layout
-func (dsl *DSL) Parse() error {
-
-	// ComputeFields
-	err := dsl.computeMapping()
-	if err != nil {
-		return err
-	}
-
-	// Columns
-	return dsl.Fields.List.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {
-		return fmt.Sprintf("fields.list.%s.%s.props", name, kind)
-	})
-}
-
 // Xgen trans to xgen setting
-func (dsl *DSL) Xgen() (map[string]interface{}, error) {
+func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
 
 	if dsl.Layout == nil {
 		dsl.Layout = &LayoutDSL{List: &ViewLayoutDSL{}}
@@ -213,12 +198,12 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		dsl.Layout.List = &ViewLayoutDSL{}
 	}
 
-	setting, err := dsl.Layout.Xgen()
+	layout, err := dsl.Layout.Xgen(data, excludes, dsl.Mapping)
 	if err != nil {
 		return nil, err
 	}
 
-	fields, err := dsl.Fields.Xgen(dsl.Layout)
+	fields, err := dsl.Fields.Xgen(layout)
 	if err != nil {
 		return nil, err
 	}
@@ -228,6 +213,18 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 		dsl.Config["full"] = true
 	}
 
+	setting := map[string]interface{}{}
+	bytes, err := jsoniter.Marshal(layout)
+	if err != nil {
+		return nil, err
+	}
+
+	err = jsoniter.Unmarshal(bytes, &setting)
+	if err != nil {
+		return nil, err
+	}
+
+	onChange := map[string]interface{}{} // Hooks
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
 	for _, cProp := range dsl.CProps {
@@ -242,11 +239,22 @@ func (dsl *DSL) Xgen() (map[string]interface{}, error) {
 				"params": cProp.Query,
 			}
 		})
+
 		if err != nil {
 			return nil, err
 		}
-	}
 
+		// hooks
+		if cProp.Name == "on:change" {
+			field := strings.TrimPrefix(cProp.Xpath, "fields.list.")
+			field = strings.TrimSuffix(field, ".edit.props")
+			onChange[field] = map[string]interface{}{
+				"api":    fmt.Sprintf("/api/__yao/list/%s%s", dsl.ID, cProp.Path()),
+				"params": cProp.Query,
+			}
+		}
+	}
+	setting["hooks"] = map[string]interface{}{"onChange": onChange}
 	setting["name"] = dsl.Name
 	return setting, nil
 }

@@ -110,6 +110,18 @@ func exportAPI() error {
 	}
 	http.Paths = append(http.Paths, path)
 
+	//   POST  /api/__yao/list/:id/component/:xpath/:method  	-> Default process: yao.list.Component $param.id $param.xpath $param.method :payload
+	path = gou.Path{
+		Label:       "Component",
+		Description: "Component",
+		Path:        "/:id/component/:xpath/:method",
+		Method:      "POST",
+		Process:     "yao.list.Component",
+		In:          []string{"$param.id", "$param.xpath", "$param.method", ":payload"},
+		Out:         gou.Out{Status: 200, Type: "application/json"},
+	}
+	http.Paths = append(http.Paths, path)
+
 	//   POST  /api/__yao/table/:id/upload/:xpath/:method  	-> Default process: yao.list.Upload $param.id $param.xpath $param.method $file.file
 	path = gou.Path{
 		Label:       "Upload",

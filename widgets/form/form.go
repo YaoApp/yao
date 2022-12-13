@@ -232,10 +232,10 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 		return nil, err
 	}
 
-	// Hooks
-	onChange := map[string]interface{}{}
+	onChange := map[string]interface{}{} // Hooks
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
+
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
 
