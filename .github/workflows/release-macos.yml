@@ -97,6 +97,7 @@ jobs:
           mv v0.9 ../xgen-v0.9
           mv xgen-v1.0 ../
           mv yao-init ../
+          rm ../xgen-v1.0/packages/setup/vite.config.ts.*
           ls -l .
           ls -l ../
 
