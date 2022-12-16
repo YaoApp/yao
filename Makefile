@@ -165,11 +165,8 @@ bindata:
 # make artifacts-linux
 .PHONY: artifacts-linux
 artifacts-linux: clean
-	mkdir -p dist/release
 
-#	Building XGEN v0.9
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../xgen-v0.9/public/icon/md_icon.css
-	cd ../xgen-v0.9 && npm install && npm run build
+	mkdir -p dist/release
 
 #	Building XGEN v1.0
 	export NODE_ENV=production
@@ -218,12 +215,8 @@ artifacts-linux: clean
 # make artifacts-macos
 .PHONY: artifacts-macos
 artifacts-macos: clean
+
 	mkdir -p dist/release
-
-
-#	Building XGEN v0.9
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" ../xgen-v0.9/public/icon/md_icon.css
-	cd ../xgen-v0.9 && npm install && npm run build
 
 #	Building XGEN v1.0
 	export NODE_ENV=production
