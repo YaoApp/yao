@@ -459,6 +459,11 @@ func processXgen(process *gou.Process) interface{} {
 			"login":   "/api/__yao/login/admin",
 			"layout":  layout,
 		}
+
+		if admin.ThirdPartyLogin != nil && len(admin.ThirdPartyLogin) > 0 {
+			xgenLogin["admin"]["thirdPartyLogin"] = admin.ThirdPartyLogin
+		}
+
 	}
 
 	if user, has := login.Logins["user"]; has {
@@ -489,6 +494,10 @@ func processXgen(process *gou.Process) interface{} {
 			"captcha": "/api/__yao/login/user/captcha?type=digit",
 			"login":   "/api/__yao/login/user",
 			"layout":  layout,
+		}
+
+		if user.ThirdPartyLogin != nil && len(user.ThirdPartyLogin) > 0 {
+			xgenLogin["user"]["thirdPartyLogin"] = user.ThirdPartyLogin
 		}
 	}
 

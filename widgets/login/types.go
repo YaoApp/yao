@@ -2,10 +2,11 @@ package login
 
 // DSL the login DSL
 type DSL struct {
-	ID     string    `json:"id,omitempty"`
-	Name   string    `json:"name,omitempty"`
-	Action ActionDSL `json:"action,omitempty"`
-	Layout LayoutDSL `json:"layout,omitempty"`
+	ID              string               `json:"id,omitempty"`
+	Name            string               `json:"name,omitempty"`
+	Action          ActionDSL            `json:"action,omitempty"`
+	Layout          LayoutDSL            `json:"layout,omitempty"`
+	ThirdPartyLogin []ThirdPartyLoginDSL `json:"thirdPartyLogin,omitempty"`
 }
 
 // ActionDSL the login action DSL
@@ -21,4 +22,12 @@ type LayoutDSL struct {
 	Cover   string `json:"cover,omitempty"`
 	Slogan  string `json:"slogan,omitempty"`
 	Site    string `json:"site,omitempty"`
+}
+
+// ThirdPartyLoginDSL the thirdparty login url
+type ThirdPartyLoginDSL struct {
+	Title string `json:"title,omitempty"`
+	Href  string `json:"href,omitempty"`
+	Icon  string `json:"icon,omitempty"`
+	Blank bool   `json:"blank,omitempty"`
 }
