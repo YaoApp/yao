@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         go: [1.19.2]
-    runs-on: "macos-11"
+    runs-on: "macos-12"
     steps:
       - name: Install coscmd
         run: |
@@ -66,17 +66,18 @@ jobs:
           ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
           path: v8go
 
-      - name: Checkout XGen v0.9
-        uses: actions/checkout@v2
+      - name: Download XGen v0.9
+        uses: dsaltares/fetch-gh-release-asset@master
         with:
-          repository: yaoapp/xgen-deprecated
-          path: xgen-v0.9
+          repo: "yaoapp/xgen-deprecated"
+          version: "tags/v0.9.0"
+          file: "xgen-v0.9-dist.tar.gz"
 
       - name: Checkout XGen v1.0
         uses: actions/checkout@v2
         with:
           repository: yaoapp/xgen
-          ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
+          # ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
           path: xgen-v1.0
 
       - name: Checkout Yao-Init
@@ -87,15 +88,19 @@ jobs:
 
       - name: Move Kun, Xun, Gou, UI, V8Go
         run: |
+          tar xvfz xgen-v0.9-dist.tar.gz
+          rm xgen-v0.9-dist.tar.gz
           mv kun ../
           mv xun ../
           mv gou ../
           mv v8go ../
-          mv xgen-v0.9 ../
+          mv v0.9 ../xgen-v0.9
           mv xgen-v1.0 ../
           mv yao-init ../
+          rm -f ../xgen-v1.0/packages/setup/vite.config.ts.*
           ls -l .
           ls -l ../
+          ls -l ../xgen-v1.0/packages/setup/
 
       - name: Checkout Code
         uses: actions/checkout@v2
