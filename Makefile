@@ -165,7 +165,6 @@ bindata:
 # make artifacts-linux
 .PHONY: artifacts-linux
 artifacts-linux: clean
-
 	mkdir -p dist/release
 
 #	Building XGEN v1.0
@@ -222,15 +221,10 @@ artifacts-macos: clean
 	export NODE_ENV=production
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
-	cd ../xgen-v1.0 && pnpm install
-	cd ../xgen-v1.0/packages/actionflow && pnpm install
-	cd ../xgen-v1.0/packages/storex && pnpm install
-	cd ../xgen-v1.0/packages/xgen && pnpm install
-	cd ../xgen-v1.0/packages/setup && pnpm install
-	cd ../xgen-v1.0 && pnpm run build
+	cd ../xgen-v1.0 && pnpm install && pnpm run build
 
 #   Setup UI
-	cd ../xgen-v1.0/packages/setup  && pnpm run build
+	cd ../xgen-v1.0/packages/setup  && pnpm install && pnpm run build
 
 #	Init Application
 	cd ../yao-init rm -rf .git
