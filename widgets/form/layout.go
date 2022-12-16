@@ -159,14 +159,16 @@ func (layout *LayoutDSL) listColumns(fn func(string, Column), path string, secti
 
 				if sections[i].Columns[j].Tabs != nil {
 					for k := range sections[i].Columns[j].Tabs {
+						tab := sections[i].Columns[j].Tabs[k]
 						layout.listColumns(
 							fn,
 							fmt.Sprintf("%s[%d].Columns[%d].tabs[%d]", path, i, j, k),
-							[]SectionDSL{sections[i].Columns[j].Tabs[k]},
+							[]SectionDSL{tab},
 						)
 					}
 					continue
 				}
+
 				if path == "layout.sections" {
 					fn(fmt.Sprintf("%s[%d].Columns[%d]", path, i, j), sections[i].Columns[j])
 				} else {
