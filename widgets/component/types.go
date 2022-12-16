@@ -32,15 +32,17 @@ type aliasActionDSL ActionDSL
 
 // ActionDSL the component action DSL
 type ActionDSL struct {
-	ID      string            `json:"id,omitempty"`
-	Title   string            `json:"title,omitempty"`
-	Width   int               `json:"width,omitempty"`
-	Icon    string            `json:"icon,omitempty"`
-	Style   string            `json:"style,omitempty"`
-	Xpath   string            `json:"xpath,omitempty"`
-	Props   PropsDSL          `json:"props,omitempty"`
-	Confirm *ConfirmActionDSL `json:"confirm,omitempty"`
-	Action  ActionNodes       `json:"action,omitempty"`
+	ID                 string            `json:"id,omitempty"`
+	Title              string            `json:"title,omitempty"`
+	Width              int               `json:"width,omitempty"`
+	Icon               string            `json:"icon,omitempty"`
+	Style              string            `json:"style,omitempty"`
+	Xpath              string            `json:"xpath,omitempty"`
+	DivideLine         bool              `json:"divideLine,omitempty"`
+	ShowWhenAddAndView bool              `json:"showWhenAddAndView,omitempty"`
+	Props              PropsDSL          `json:"props,omitempty"`
+	Confirm            *ConfirmActionDSL `json:"confirm,omitempty"`
+	Action             ActionNodes       `json:"action,omitempty"`
 }
 
 type aliasActionNodes []ActionNode
