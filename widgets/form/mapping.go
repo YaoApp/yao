@@ -45,36 +45,33 @@ func (dsl *DSL) mapping() error {
 
 	// Mapping compute and id
 	if dsl.Fields.Form != nil && dsl.Layout.Form != nil && dsl.Layout.Form.Sections != nil {
-		for _, section := range dsl.Layout.Form.Sections {
+		dsl.Layout.listColumns(func(path string, inst Column) {
 
-			for _, inst := range section.Columns {
+			if field, has := dsl.Fields.Form[inst.Name]; has {
+				// Mapping ID
+				dsl.Mapping.Columns[field.ID] = inst.Name
+				dsl.Mapping.Columns[inst.Name] = field.ID
 
-				if field, has := dsl.Fields.Form[inst.Name]; has {
-
-					// Mapping ID
-					dsl.Mapping.Columns[field.ID] = inst.Name
-					dsl.Mapping.Columns[inst.Name] = field.ID
-
-					// View
-					if field.View != nil && field.View.Compute != nil {
-						bind := field.ViewBind()
-						if _, has := dsl.Computes.View[bind]; !has {
-							dsl.Computes.View[bind] = []compute.Unit{}
-						}
-						dsl.Computes.View[bind] = append(dsl.Computes.View[bind], compute.Unit{Name: inst.Name, Kind: compute.View})
+				// View
+				if field.View != nil && field.View.Compute != nil {
+					bind := field.ViewBind()
+					if _, has := dsl.Computes.View[bind]; !has {
+						dsl.Computes.View[bind] = []compute.Unit{}
 					}
+					dsl.Computes.View[bind] = append(dsl.Computes.View[bind], compute.Unit{Name: inst.Name, Kind: compute.View})
+				}
 
-					// Edit
-					if field.Edit != nil && field.Edit.Compute != nil {
-						bind := field.EditBind()
-						if _, has := dsl.Computes.Edit[bind]; !has {
-							dsl.Computes.Edit[bind] = []compute.Unit{}
-						}
-						dsl.Computes.Edit[bind] = append(dsl.Computes.Edit[bind], compute.Unit{Name: inst.Name, Kind: compute.Edit})
+				// Edit
+				if field.Edit != nil && field.Edit.Compute != nil {
+					bind := field.EditBind()
+					if _, has := dsl.Computes.Edit[bind]; !has {
+						dsl.Computes.Edit[bind] = []compute.Unit{}
 					}
+					dsl.Computes.Edit[bind] = append(dsl.Computes.Edit[bind], compute.Unit{Name: inst.Name, Kind: compute.Edit})
 				}
 			}
-		}
+
+		}, "", nil)
 	}
 
 	// Mapping Actions
