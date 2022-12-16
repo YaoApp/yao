@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         go: [1.19.2]
-    runs-on: "macos-11"
+    runs-on: "macos-12"
     steps:
       - name: Install coscmd
         run: |
@@ -100,7 +100,7 @@ jobs:
           rm -f ../xgen-v1.0/packages/setup/vite.config.ts.*
           ls -l .
           ls -l ../
-          ls -l ../xgen-v1.0/packages/
+          ls -l ../xgen-v1.0/packages/setup/
 
       - name: Checkout Code
         uses: actions/checkout@v2
