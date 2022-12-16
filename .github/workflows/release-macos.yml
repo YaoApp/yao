@@ -23,6 +23,11 @@ jobs:
           sudo pip3 install coscmd 
           echo "/Library/Frameworks/Python.framework/Versions/3.11/bin" >> $GITHUB_PATH
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
       - name: Install pnpm
         run: npm install -g pnpm
 
