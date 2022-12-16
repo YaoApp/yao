@@ -97,9 +97,10 @@ jobs:
           mv v0.9 ../xgen-v0.9
           mv xgen-v1.0 ../
           mv yao-init ../
-          rm ../xgen-v1.0/packages/setup/vite.config.ts.*
+          rm -f ../xgen-v1.0/packages/setup/vite.config.ts.*
           ls -l .
           ls -l ../
+          ls -l ../xgen-v1.0/packages/
 
       - name: Checkout Code
         uses: actions/checkout@v2
