@@ -102,6 +102,9 @@ func TestProcessSetting(t *testing.T) {
 
 	data := any.Of(res).MapStr().Dot()
 	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("图表展示1")+"/data", data.Get("fields.dashboard.图表展示1.data.api"))
+	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("图表展示2")+"/data", data.Get("fields.dashboard.图表展示2.data.api"))
+	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("宠物列表")+".view.props/"+url.QueryEscape("on:change"), data.Get("hooks.onChange.宠物列表.api"))
 }
 
 func TestProcessXgen(t *testing.T) {
@@ -116,6 +119,7 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
 	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("图表展示1")+"/data", data.Get("fields.dashboard.图表展示1.data.api"))
 	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("图表展示2")+"/data", data.Get("fields.dashboard.图表展示2.data.api"))
+	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("宠物列表")+".view.props/"+url.QueryEscape("on:change"), data.Get("hooks.onChange.宠物列表.api"))
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {

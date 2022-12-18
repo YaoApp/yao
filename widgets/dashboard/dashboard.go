@@ -169,6 +169,8 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
+
+	onChange := map[string]interface{}{} // Hooks
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
 			return map[string]interface{}{
@@ -179,8 +181,19 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 		if err != nil {
 			return nil, err
 		}
-	}
 
+		// hooks
+		if cProp.Name == "on:change" {
+			field := strings.TrimPrefix(cProp.Xpath, "fields.dashboard.")
+			field = strings.TrimSuffix(field, ".view.props")
+			field = strings.TrimSuffix(field, ".edit.props")
+			onChange[field] = map[string]interface{}{
+				"api":    fmt.Sprintf("/api/__yao/dashboard/%s%s", dsl.ID, cProp.Path()),
+				"params": cProp.Query,
+			}
+		}
+	}
+	setting["hooks"] = map[string]interface{}{"onChange": onChange}
 	return setting, nil
 }
 

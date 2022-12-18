@@ -22,12 +22,38 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 	if layout.Dashboard != nil && layout.Dashboard.Columns != nil {
 		for _, inst := range layout.Dashboard.Columns {
 			if c, has := fields.Dashboard[inst.Name]; has {
+
+				if c.Edit != nil && c.Edit.Props != nil {
+					if _, has := c.Edit.Props["$on:change"]; has {
+						delete(c.Edit.Props, "$on:change")
+					}
+				}
+
+				if c.View != nil && c.View.Props != nil {
+					if _, has := c.View.Props["$on:change"]; has {
+						delete(c.View.Props, "$on:change")
+					}
+				}
+
 				columns[inst.Name] = c
 			}
 
 			if inst.Rows != nil {
 				for _, inst := range inst.Rows {
 					if c, has := fields.Dashboard[inst.Name]; has {
+
+						if c.Edit != nil && c.Edit.Props != nil {
+							if _, has := c.Edit.Props["$on:change"]; has {
+								delete(c.Edit.Props, "$on:change")
+							}
+						}
+
+						if c.View != nil && c.View.Props != nil {
+							if _, has := c.View.Props["$on:change"]; has {
+								delete(c.View.Props, "$on:change")
+							}
+						}
+
 						columns[inst.Name] = c
 					}
 				}
