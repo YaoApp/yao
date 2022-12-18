@@ -16,9 +16,10 @@ type Instances []InstanceDSL
 
 // InstanceDSL the component instance DSL
 type InstanceDSL struct {
-	Name   string      `json:"name,omitempty"`
-	Width  interface{} `json:"width,omitempty"`
-	Height interface{} `json:"height,omitempty"`
+	Name   string        `json:"name,omitempty"`
+	Width  interface{}   `json:"width,omitempty"`
+	Height interface{}   `json:"height,omitempty"`
+	Rows   []InstanceDSL `json:"rows,omitempty"`
 }
 
 // ActionsExport the export actions

@@ -112,6 +112,10 @@ func (column ColumnDSL) Map() map[string]interface{} {
 		"bind": column.Bind,
 	}
 
+	if column.Data != nil {
+		res["data"] = map[string]interface{}{"process": column.Data.Process, "query": column.Data.Query}
+	}
+
 	if column.Link != "" {
 		res["link"] = column.Link
 	}
@@ -130,6 +134,18 @@ func (column ColumnDSL) Map() map[string]interface{} {
 func (columns Columns) CPropsMerge(cloudProps map[string]component.CloudPropsDSL, getXpath func(name string, kind string, column ColumnDSL) (xpath string)) error {
 
 	for name, column := range columns {
+
+		if column.Data != nil {
+			xpath := getXpath(name, "data", column)
+			cProps := map[string]component.CloudPropsDSL{}
+			cprop := *column.Data
+			cprop.Xpath = xpath
+			cprop.Name = "data"
+			cprop.Type = "data"
+			fullname := fmt.Sprintf("%s.$data", xpath)
+			cProps[fullname] = cprop
+			mergeCProps(cloudProps, cProps)
+		}
 
 		if column.Edit != nil && column.Edit.Props != nil {
 			xpath := getXpath(name, "edit", column)

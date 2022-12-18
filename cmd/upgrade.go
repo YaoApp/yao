@@ -3,12 +3,13 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+
 	"github.com/blang/semver"
 	"github.com/fatih/color"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/yao/share"
-	"os"
 )
 
 var upgradeCmd = &cobra.Command{
@@ -27,7 +28,7 @@ var upgradeCmd = &cobra.Command{
 		currentVersion := semver.MustParse(share.VERSION)
 		if !found || latest.Version.LTE(currentVersion) {
 			fmt.Println(color.GreenString(L("🎉Current version is the latest🎉")))
-			os.Exit(1)
+			os.Exit(0)
 		}
 		fmt.Println(color.WhiteString(L("Do you want to update to %s ? (y/n): "), latest.Version))
 		input, err := bufio.NewReader(os.Stdin).ReadString('\n')
