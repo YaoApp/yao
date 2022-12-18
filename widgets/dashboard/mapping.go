@@ -131,6 +131,9 @@ func (dsl *DSL) mapping() error {
 
 	// Columns
 	return dsl.Fields.Dashboard.CPropsMerge(dsl.CProps, func(name string, kind string, column field.ColumnDSL) (xpath string) {
+		if kind == "data" {
+			return fmt.Sprintf("fields.dashboard.%s", name)
+		}
 		return fmt.Sprintf("fields.dashboard.%s.%s.props", name, kind)
 	})
 

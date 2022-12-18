@@ -45,6 +45,39 @@ func TestProcessComponent(t *testing.T) {
 	assert.Equal(t, "checked", pets[0]["status"])
 	assert.Equal(t, "Baby", pets[1]["name"])
 	assert.Equal(t, "checked", pets[1]["status"])
+
+	args = []interface{}{
+		"workspace",
+		"fields.dashboard.图表展示1",
+		"data",
+		map[string]interface{}{"foo": "bar"},
+	}
+
+	res2, err := gou.NewProcess("yao.dashboard.Component", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	values, ok := res2.([]interface{})
+	assert.True(t, ok)
+	assert.Greater(t, len(values), 1)
+
+	args = []interface{}{
+		"workspace",
+		"fields.dashboard.图表展示2",
+		"data",
+		map[string]interface{}{"foo": "bar"},
+	}
+
+	res2, err = gou.NewProcess("yao.dashboard.Component", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	values, ok = res2.([]interface{})
+	assert.True(t, ok)
+	assert.Greater(t, len(values), 1)
+
 }
 
 func TestProcessComponentError(t *testing.T) {
@@ -81,6 +114,8 @@ func TestProcessXgen(t *testing.T) {
 
 	data := any.Of(res).MapStr().Dot()
 	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.filter."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.filter.状态.edit.props.xProps.remote.api"))
+	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("图表展示1")+"/data", data.Get("fields.dashboard.图表展示1.data.api"))
+	assert.Equal(t, "/api/__yao/dashboard/workspace/component/fields.dashboard."+url.QueryEscape("图表展示2")+"/data", data.Get("fields.dashboard.图表展示2.data.api"))
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
@@ -89,8 +124,8 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 		"dashboards.workspace": []string{
 			"7f46a38d7ff3f1832375ff63cd412f41", // operation.actions[0] 跳转至大屏
 			"09302a46b1b6f13a346deeea79b859dd", // 时间区间
-			"2e1b0010d201887cac2948ec75a2fae5", // 图表展示2
-			"37dd001c9efada4f1d21530deba2a7cf", // 图表展示1
+			"8b445709024e0e5361d8bcdd58c75fcb", // 图表展示2
+			"0bdee1c9858ef2a821a0ff7109d3fc5b", // 图表展示1
 		},
 	})
 
