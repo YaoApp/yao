@@ -49,6 +49,10 @@ func (layout *LayoutDSL) Xgen(data map[string]interface{}, excludes map[string]b
 
 			if column.Rows != nil {
 				new := component.InstanceDSL{Rows: []component.InstanceDSL{}}
+				if column.Width != nil {
+					new.Width = column.Width
+				}
+
 				for _, column := range column.Rows {
 					id, has := mapping.Columns[column.Name]
 					if !has {
