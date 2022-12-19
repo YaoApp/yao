@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/widgets/app"
 	"github.com/yaoapp/yao/widgets/chart"
 	"github.com/yaoapp/yao/widgets/component"
+	"github.com/yaoapp/yao/widgets/dashboard"
 	"github.com/yaoapp/yao/widgets/expression"
 	"github.com/yaoapp/yao/widgets/field"
 	"github.com/yaoapp/yao/widgets/form"
@@ -71,6 +72,12 @@ func Load(cfg config.Config) error {
 
 	// chart widget
 	err = chart.LoadAndExport(cfg)
+	if err != nil {
+		messages = append(messages, err.Error())
+	}
+
+	// dashboard widget
+	err = dashboard.LoadAndExport(cfg)
 	if err != nil {
 		messages = append(messages, err.Error())
 	}
