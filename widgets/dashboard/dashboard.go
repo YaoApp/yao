@@ -167,6 +167,7 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 		return nil, err
 	}
 
+	setting["name"] = dsl.Name
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
 
