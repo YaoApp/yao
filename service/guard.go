@@ -8,6 +8,7 @@ import (
 	table_v0 "github.com/yaoapp/yao/table"
 
 	"github.com/yaoapp/yao/widgets/chart"
+	"github.com/yaoapp/yao/widgets/dashboard"
 	"github.com/yaoapp/yao/widgets/form"
 	"github.com/yaoapp/yao/widgets/list"
 	"github.com/yaoapp/yao/widgets/table"
@@ -15,13 +16,14 @@ import (
 
 // Guards middlewares
 var Guards = map[string]gin.HandlerFunc{
-	"bearer-jwt":   guardBearerJWT,   // Bearer JWT
-	"cross-origin": guardCrossOrigin, // Cross-Origin Resource Sharing
-	"table-guard":  table_v0.Guard,   // Table Guard ( v0.9 table)
-	"widget-table": table.Guard,      // Widget Table Guard
-	"widget-list":  list.Guard,       // Widget List Guard
-	"widget-form":  form.Guard,       // Widget Form Guard
-	"widget-chart": chart.Guard,      // Widget Chart Guard
+	"bearer-jwt":       guardBearerJWT,   // Bearer JWT
+	"cross-origin":     guardCrossOrigin, // Cross-Origin Resource Sharing
+	"table-guard":      table_v0.Guard,   // Table Guard ( v0.9 table)
+	"widget-table":     table.Guard,      // Widget Table Guard
+	"widget-list":      list.Guard,       // Widget List Guard
+	"widget-form":      form.Guard,       // Widget Form Guard
+	"widget-chart":     chart.Guard,      // Widget Chart Guard
+	"widget-dashboard": dashboard.Guard,  // Widget Dashboard Guard
 }
 
 // JWT Bearer JWT
