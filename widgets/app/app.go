@@ -539,12 +539,12 @@ func (dsl *DSL) replaceAdminRoot() error {
 
 	root := strings.TrimPrefix(dsl.AdminRoot, "/")
 	root = strings.TrimSuffix(root, "/")
-	err := data.ReplaceXGen("/__yao_admin_root/", fmt.Sprintf("/%s/", root))
-	if err != nil {
-		return err
-	}
+	// err := data.ReplaceXGen("/__yao_admin_root/", fmt.Sprintf("/%s/", root))
+	// if err != nil {
+	// 	return err
+	// }
 
-	return data.ReplaceXGen("\"__yao_admin_root\"", fmt.Sprintf("\"%s\"", root))
+	return data.ReplaceXGen("__yao_admin_root", root)
 }
 
 // icons
