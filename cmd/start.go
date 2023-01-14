@@ -118,7 +118,13 @@ var startCmd = &cobra.Command{
 		if mode == "development" {
 
 			// Start Studio Server
-			go studio.Start(config.Conf)
+			go func() {
+				err := studio.Start(config.Conf)
+				if err != nil {
+					fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+					os.Exit(1)
+				}
+			}()
 			defer studio.Stop()
 
 			printApis(false)
@@ -147,7 +153,14 @@ var startCmd = &cobra.Command{
 		}
 
 		// Start server
-		go service.Start()
+		go func() {
+			err := service.Start()
+			if err != nil {
+				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+				os.Exit(1)
+			}
+		}()
+
 		fmt.Println(color.GreenString(L("✨LISTENING✨")))
 
 		for {
