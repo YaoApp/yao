@@ -66,7 +66,7 @@ func SessionFile() error {
 
 	burndb, err := session.NewBuntDB(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("Session Store File %s Error: %s. Try to remove the file then restart", file, err.Error())
 	}
 
 	session.Register("file", burndb)
