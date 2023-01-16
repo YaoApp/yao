@@ -251,7 +251,13 @@ func watchReload(root string, file string, event string, cfg config.Config) {
 
 	switch event {
 	case "CREATE", "WRITE", "REMOVE":
-		err := engine.Load(config.Conf) // 加载脚本等
+
+		err := share.DBClose()
+		if err != nil {
+			fmt.Println(color.RedString("[Watch] Reload: %s", err.Error()))
+		}
+
+		err = engine.Load(config.Conf) // 加载脚本等
 		if err != nil {
 			fmt.Println(color.RedString("[Watch] Reload: %s", err.Error()))
 		}
