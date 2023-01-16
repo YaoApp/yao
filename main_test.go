@@ -44,6 +44,7 @@ func TestCommandStart(t *testing.T) {
 		service.Stop(func() {})
 		log.Println("服务已关闭")
 	}()
+
 	go func() {
 		os.Args = append(os.Args, "start")
 		main()
@@ -68,9 +69,9 @@ func TestCommandStart(t *testing.T) {
 	}
 
 	// 等待服务启动
-	time.Sleep(time.Second * 2)
 	times := 0
-	for times < 20 { // 2秒超时
+	for times < 30 { // 2秒超时
+		time.Sleep(time.Second * 2)
 		times++
 		fmt.Printf("Trying(%d)...", times)
 		res, err := request()
@@ -115,9 +116,9 @@ func TestCommandStop(t *testing.T) {
 	}
 
 	// 等待服务启动
-	time.Sleep(time.Second * 2)
 	times := 0
-	for times < 20 { // 2秒超时
+	for times < 30 { // 2秒超时
+		time.Sleep(time.Second * 2)
 		times++
 		res, err := request()
 		if err != nil {

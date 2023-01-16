@@ -2,6 +2,7 @@ package share
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/yaoapp/kun/log"
@@ -44,4 +45,27 @@ func DBConnect(dbconfig config.DBConfig) (err error) {
 	}()
 
 	return err
+}
+
+// DBClose close the database connections
+func DBClose() error {
+	messages := []string{}
+	capsule.Global.Connections.Range(func(key, value any) bool {
+		log.Trace("[DBClose] %s", key)
+		if conn, ok := value.(*capsule.Connection); ok {
+			err := conn.Close()
+			if err != nil {
+				messages = append(messages, err.Error())
+			}
+		}
+		return true
+	})
+
+	if len(messages) > 0 {
+		msg := fmt.Sprintf("[DBClose] %s ", strings.Join(messages, ";"))
+		log.Error(msg)
+		return fmt.Errorf(msg)
+	}
+
+	return nil
 }
