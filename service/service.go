@@ -69,6 +69,7 @@ func Stop(onComplete func()) {
 	select {
 	case <-shutdownComplete:
 		share.SessionStop()
+		share.DBClose()
 		onComplete()
 	}
 }
