@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/log"
@@ -21,6 +22,7 @@ func Load(cfg config.Config) error {
 // LoadFrom 从特定目录加载
 func LoadFrom(dir string, prefix string) error {
 
+	messages := []string{}
 	if share.DirNotExists(dir) {
 		return fmt.Errorf("%s does not exists", dir)
 	}
@@ -31,11 +33,19 @@ func LoadFrom(dir string, prefix string) error {
 		_, err := gou.LoadModelReturn(string(content), name)
 		if err != nil {
 			log.With(log.F{"root": root, "file": filename}).Error(err.Error())
-			return
+			messages = append(messages, err.Error())
 		}
 	})
 
-	return err
+	if err != nil {
+		messages = append(messages, err.Error())
+	}
+
+	if len(messages) > 0 {
+		return fmt.Errorf("[Model] %s", strings.Join(messages, ";"))
+	}
+
+	return nil
 }
 
 // LoadBuildIn 从制品中读取

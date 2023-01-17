@@ -122,7 +122,7 @@ var startCmd = &cobra.Command{
 				err := studio.Start(config.Conf)
 				if err != nil {
 					fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
-					os.Exit(1)
+					os.Exit(2)
 				}
 			}()
 			defer studio.Stop()
@@ -157,7 +157,7 @@ var startCmd = &cobra.Command{
 			err := service.Start()
 			if err != nil {
 				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
-				os.Exit(1)
+				os.Exit(3)
 			}
 		}()
 

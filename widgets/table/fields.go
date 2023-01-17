@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/field"
 )
@@ -54,15 +55,24 @@ func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 
 		// Index as filter
 		if col.Index || col.Unique || col.Primary {
+
 			filterField, err := trans.Filter(col.Type, data)
 			if err != nil && !field.IsNotFound(err) {
 				return err
 			}
-			if _, has := fields.Filter[filterField.Key]; !has {
-				fields.Filter[tableField.Key] = *filterField
-				fields.filterMap[col.Name] = fields.Filter[tableField.Key]
+
+			if filterField == nil {
+				log.Warn("[Fields.BindModel] %s.%s (%s) No matching filters found", m.Name, col.Name, col.Type)
+			}
+
+			if filterField != nil {
+				if _, has := fields.Filter[filterField.Key]; !has {
+					fields.Filter[tableField.Key] = *filterField
+					fields.filterMap[col.Name] = fields.Filter[tableField.Key]
+				}
 			}
 		}
+
 	}
 
 	return nil
