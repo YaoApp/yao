@@ -40,8 +40,10 @@ type ActionDSL struct {
 	Style        string            `json:"style,omitempty"`
 	Xpath        string            `json:"xpath,omitempty"`
 	DivideLine   bool              `json:"divideLine,omitempty"`
+	Hide         []string          `json:"hide,omitempty"` // Syntactic sugar ["add", "edit", "view"]
 	ShowWhenAdd  bool              `json:"showWhenAdd,omitempty"`
 	ShowWhenView bool              `json:"showWhenView,omitempty"`
+	HideWhenEdit bool              `json:"hideWhenEdit,omitempty"`
 	Props        PropsDSL          `json:"props,omitempty"`
 	Confirm      *ConfirmActionDSL `json:"confirm,omitempty"`
 	Action       ActionNodes       `json:"action,omitempty"`

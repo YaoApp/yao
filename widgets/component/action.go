@@ -23,6 +23,31 @@ func (action *ActionDSL) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Syntactic sugar { "hide": ["add", "edit", "view"] }
+	// ["add", "edit", "view"]
+	if action.Hide != nil {
+
+		// set default value
+		action.ShowWhenAdd = true   // shown in add form
+		action.ShowWhenView = true  // shown in view form
+		action.HideWhenEdit = false // shown in edit form
+
+		for _, kind := range action.Hide {
+			kind = strings.ToLower(kind)
+			switch kind {
+			case "add":
+				action.ShowWhenAdd = false
+				break
+			case "view":
+				action.ShowWhenView = false
+				break
+			case "edit":
+				action.HideWhenEdit = true
+				break
+			}
+		}
+	}
+
 	if action.Action == nil {
 		action.Action = ActionNodes{}
 	}
