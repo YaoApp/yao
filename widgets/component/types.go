@@ -19,6 +19,7 @@ type InstanceDSL struct {
 	Name   string        `json:"name,omitempty"`
 	Width  interface{}   `json:"width,omitempty"`
 	Height interface{}   `json:"height,omitempty"`
+	Fixed  bool          `json:"fixed,omitempty"` // for widget table
 	Rows   []InstanceDSL `json:"rows,omitempty"`
 }
 
