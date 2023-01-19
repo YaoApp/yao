@@ -23,6 +23,21 @@ func (action *ActionDSL) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	//  Syntactic sugar Disabled
+	if action.Disabled != nil {
+		if action.Disabled.Eq != nil {
+			action.Disabled.Value = action.Disabled.Eq
+		}
+
+		if action.Disabled.Equal != nil {
+			action.Disabled.Value = action.Disabled.Equal
+		}
+
+		if action.Disabled.Field != "" {
+			action.Disabled.Bind = fmt.Sprintf("{{%s}}", action.Disabled.Field)
+		}
+	}
+
 	// Syntactic sugar { "hide": ["add", "edit", "view"] }
 	// ["add", "edit", "view"]
 	if action.Hide != nil {
