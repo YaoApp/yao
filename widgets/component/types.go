@@ -52,7 +52,10 @@ type ActionDSL struct {
 
 // DisabledDSL the action disabled
 type DisabledDSL struct {
+	Field string      `json:"Field,omitempty"` //  Syntactic sugar -> bind
 	Bind  string      `json:"bind,omitempty"`
+	Eq    interface{} `json:"eq,omitempty"`    // string | array<string>  Syntactic sugar eq -> value
+	Equal interface{} `json:"equal,omitempty"` // string | array<string>  Syntactic sugar equal -> value
 	Value interface{} `json:"value,omitempty"` // string | array<string>
 }
 

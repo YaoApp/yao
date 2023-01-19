@@ -74,6 +74,30 @@ func TestActionUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "Actions.test.back", action.Action[0]["type"])
 	assert.Equal(t, "7daf632016d4d8ea77066bc54afd525e", action.ID)
 
+	action = ActionDSL{}
+	err = jsoniter.Unmarshal(data["sugar-hide"], &action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, false, action.ShowWhenAdd)
+	assert.Equal(t, false, action.ShowWhenView)
+	assert.Equal(t, false, action.HideWhenEdit)
+
+	action = ActionDSL{}
+	err = jsoniter.Unmarshal(data["sugar-disabled-eq"], &action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "{{data}}", action.Disabled.Bind)
+	assert.Equal(t, "1", action.Disabled.Value)
+
+	action = ActionDSL{}
+	err = jsoniter.Unmarshal(data["sugar-disabled-equal"], &action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "{{data}}", action.Disabled.Bind)
+	assert.Equal(t, "1", action.Disabled.Value)
 }
 
 // testActionData
@@ -158,6 +182,41 @@ func testActionData() map[string][]byte {
 				"Actions.test.back": {  "pathname": "/x/Table/env" }
 			},
 			"confirm": { "title": "Tips", "desc": "Delete Confirm" }
+		}`),
+
+		"sugar-hide": []byte(`{
+			"title": "Delete",
+			"icon": "icon-trash-2",
+			"style": "danger",
+			"hide": ["view", "add"],
+			"action": {
+				"Actions.test.back": {  "pathname": "/x/Table/env" }
+			},
+			"confirm": { "title": "Tips", "desc": "Delete Confirm" }
+		}`),
+
+		"sugar-disabled-eq": []byte(`{
+			"title": "Delete",
+			"icon": "icon-trash-2",
+			"style": "danger",
+			"hide": ["view", "add"],
+			"action": {
+				"Actions.test.back": {  "pathname": "/x/Table/env" }
+			},
+			"confirm": { "title": "Tips", "desc": "Delete Confirm" },
+			"disabled": { "field":"data", "eq": "1" }
+		}`),
+
+		"sugar-disabled-equal": []byte(`{
+			"title": "Delete",
+			"icon": "icon-trash-2",
+			"style": "danger",
+			"hide": ["view", "add"],
+			"action": {
+				"Actions.test.back": {  "pathname": "/x/Table/env" }
+			},
+			"confirm": { "title": "Tips", "desc": "Delete Confirm" },
+			"disabled": {"field":"data", "equal": "1" }
 		}`),
 	}
 }
