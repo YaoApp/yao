@@ -57,6 +57,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: yaoapp/gou
+          ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
           path: gou
 
       - name: Checkout V8Go
