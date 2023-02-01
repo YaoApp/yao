@@ -224,11 +224,6 @@ jobs:
           make vet
           make fmt-check
           make misspell-check
-          make plugin
-          mkdir -p $YAO_ROOT/plugins/
-          mv $ROOT_PLUGIN/user.so $YAO_ROOT/plugins/
-          ls -l $YAO_ROOT/plugins/
-          make migrate
 
       - name: Run test
         run: |

@@ -387,8 +387,3 @@ clean:
 	rm -rf ./tmp
 	rm -rf .tmp
 	rm -rf dist
-
-# make migrate ( for unit test)
-.PHONY: migrate
-migrate:
-	$(GO) test -tags $(TESTTAGS) -run TestCommandMigrate$
