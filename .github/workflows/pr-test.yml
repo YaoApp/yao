@@ -45,6 +45,8 @@ env:
 
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+
 jobs:
   UnitTest:
     runs-on: ubuntu-20.04
@@ -128,14 +130,13 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: yaoapp/gou
-          ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
           path: gou
 
       - name: Checkout V8Go
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          repository: rogchap/v8go
-          ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
+          repository: yaoapp/v8go
+          ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
           path: v8go
 
       - name: Checkout Demo App

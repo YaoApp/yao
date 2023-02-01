@@ -11,6 +11,9 @@ import (
 func Load(cfg config.Config) error {
 	exts := []string{"*.http.yao", "*.http.json", "*.http.jsonc"}
 	return application.App.Walk("apis", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
 		_, err := api.Load(file, share.ID(root, file))
 		return err
 	}, exts...)

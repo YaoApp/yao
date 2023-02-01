@@ -49,6 +49,8 @@ env:
 
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+
 jobs:
   unit-test:
     runs-on: ubuntu-20.04
@@ -70,33 +72,32 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: ${{ env.REPO_KUN }}
           path: kun
 
       - name: Checkout Xun
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: ${{ env.REPO_XUN }}
           path: xun
 
       - name: Checkout Gou
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: ${{ env.REPO_GOU }}
-          ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
           path: gou
 
       - name: Checkout V8Go
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          repository: rogchap/v8go
-          ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
+          repository: yaoapp/v8go
+          ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
           path: v8go
 
       - name: Checkout Demo App
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/yao-dev-app
           path: app
@@ -112,7 +113,7 @@ jobs:
           ls -l ../
 
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Start Redis
         uses: supercharge/redis-github-action@1.4.0
