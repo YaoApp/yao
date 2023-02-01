@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -208,8 +208,8 @@ func Get(table interface{}) (*DSL, error) {
 	switch table.(type) {
 	case string:
 		id = table.(string)
-	case *gou.Process:
-		id = table.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = table.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", table)
 	}

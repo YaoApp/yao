@@ -3,20 +3,20 @@ package dashboard
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/widgets/app"
 )
 
 // Export process
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.dashboard.setting", processSetting)
-	gou.RegisterProcessHandler("yao.dashboard.xgen", processXgen)
-	gou.RegisterProcessHandler("yao.dashboard.component", processComponent)
-	gou.RegisterProcessHandler("yao.dashboard.data", processData)
+	process.Register("yao.dashboard.setting", processSetting)
+	process.Register("yao.dashboard.xgen", processXgen)
+	process.Register("yao.dashboard.component", processComponent)
+	process.Register("yao.dashboard.data", processData)
 }
 
-func processXgen(process *gou.Process) interface{} {
+func processXgen(process *process.Process) interface{} {
 
 	dashboard := MustGet(process)
 	data := process.ArgsMap(1, map[string]interface{}{})
@@ -29,7 +29,7 @@ func processXgen(process *gou.Process) interface{} {
 	return setting
 }
 
-func processComponent(process *gou.Process) interface{} {
+func processComponent(process *process.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	dashboard := MustGet(process)
@@ -58,13 +58,13 @@ func processComponent(process *gou.Process) interface{} {
 	return res
 }
 
-func processSetting(process *gou.Process) interface{} {
+func processSetting(process *process.Process) interface{} {
 	dashboard := MustGet(process)
 	process.Args = append(process.Args, process.Args[0]) // dashboard name
 	return dashboard.Action.Setting.MustExec(process)
 }
 
-func processData(process *gou.Process) interface{} {
+func processData(process *process.Process) interface{} {
 	dashboard := MustGet(process)
 	return dashboard.Action.Data.MustExec(process)
 }

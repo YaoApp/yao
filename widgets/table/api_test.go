@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/yao/network"
 	"github.com/yaoapp/yao/widgets/test"
 )
 
@@ -182,7 +181,7 @@ func TestAPIGlobalCustomGuard(t *testing.T) {
 }
 
 func start(t *testing.T) int {
-	port := network.FreePort()
+	port := 0
 	load(t)
 	clear(t)
 	testData(t)

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/widgets/field"
@@ -14,7 +14,7 @@ import (
 var views = map[string]bool{"find": true, "get": true, "search": true, "data": true}
 
 // ComputeEdit edit compute edit
-func (c *Computable) ComputeEdit(name string, process *gou.Process, args []interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
+func (c *Computable) ComputeEdit(name string, process *process.Process, args []interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 	namer := strings.Split(strings.ToLower(name), ".")
 	name = namer[len(namer)-1]
 
@@ -86,7 +86,7 @@ func (c *Computable) ComputeEdit(name string, process *gou.Process, args []inter
 }
 
 // EditRow edit row
-func (c *Computable) editRow(process *gou.Process, res map[string]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
+func (c *Computable) editRow(process *process.Process, res map[string]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 
 	messages := []string{}
 	row := maps.MapOf(res).Dot()
@@ -121,7 +121,7 @@ func (c *Computable) editRow(process *gou.Process, res map[string]interface{}, g
 }
 
 // EditRows edit row
-func (c *Computable) editRows(process *gou.Process, columns []string, res [][]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
+func (c *Computable) editRows(process *process.Process, columns []string, res [][]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 
 	messages := []string{}
 	keys := map[string]int{}
@@ -157,7 +157,7 @@ func (c *Computable) editRows(process *gou.Process, columns []string, res [][]in
 }
 
 // ComputeView view view
-func (c *Computable) ComputeView(name string, process *gou.Process, res interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
+func (c *Computable) ComputeView(name string, process *process.Process, res interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 
 	namer := strings.Split(strings.ToLower(name), ".")
 	name = namer[len(namer)-1]
@@ -180,7 +180,7 @@ func (c *Computable) ComputeView(name string, process *gou.Process, res interfac
 }
 
 // ViewRows viewrows
-func (c *Computable) viewRows(name string, process *gou.Process, res interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
+func (c *Computable) viewRows(name string, process *process.Process, res interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 	switch res.(type) {
 
 	case []interface{}:
@@ -214,7 +214,7 @@ func (c *Computable) viewRows(name string, process *gou.Process, res interface{}
 }
 
 // ViewRow row
-func (c *Computable) viewRow(name string, process *gou.Process, res map[string]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
+func (c *Computable) viewRow(name string, process *process.Process, res map[string]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 
 	messages := []string{}
 	row := maps.MapOf(res).Dot()
@@ -263,6 +263,6 @@ func (c *Computable) viewRow(name string, process *gou.Process, res map[string]i
 }
 
 // ComputeFilter filter
-func (c *Computable) ComputeFilter(name string, process *gou.Process, args []interface{}, getFilter func(string) (*field.FilterDSL, string, string, error)) error {
+func (c *Computable) ComputeFilter(name string, process *process.Process, args []interface{}, getFilter func(string) (*field.FilterDSL, string, string, error)) error {
 	return nil
 }

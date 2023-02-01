@@ -8,7 +8,7 @@ import (
 )
 
 // Middlewares 服务中间件
-var Middlewares = []gin.HandlerFunc{
+var Middlewares = []func(c *gin.Context){
 	BinStatic,
 }
 

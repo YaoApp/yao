@@ -6,14 +6,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/runtime"
 )
 
 func TestLoad(t *testing.T) {
-	runtime.Load(config.Conf)
+	// runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -44,7 +43,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadHK(t *testing.T) {
-	runtime.Load(config.Conf)
+	// runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -147,7 +146,7 @@ func TestExport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	api, has := gou.APIs["widgets.login"]
+	api, has := api.APIs["widgets.login"]
 	assert.True(t, has)
 	assert.Equal(t, 4, len(api.HTTP.Paths))
 }

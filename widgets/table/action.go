@@ -3,7 +3,7 @@ package table
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/widgets/action"
 	"github.com/yaoapp/yao/widgets/hook"
 )
@@ -188,7 +188,7 @@ func (act *ActionDSL) SetDefaultProcess() {
 }
 
 // BindModel bind model
-func (act *ActionDSL) BindModel(m *gou.Model) error {
+func (act *ActionDSL) BindModel(m *model.Model) error {
 
 	name := m.ID
 	act.Search.Bind(fmt.Sprintf("models.%s.Paginate", name))

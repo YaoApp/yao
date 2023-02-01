@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/maps"
 )
 
@@ -42,7 +42,7 @@ func (compute *Compute) Value(data maps.MapStr, sid string, global map[string]in
 	}
 
 	// Run process
-	process, err := gou.ProcessOf(compute.Process, args...)
+	process, err := process.Of(compute.Process, args...)
 	if err != nil {
 		return nil, err
 	}

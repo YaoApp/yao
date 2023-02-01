@@ -7,7 +7,8 @@ import (
 	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/plugin"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
@@ -22,7 +23,7 @@ var RunCmd = &cobra.Command{
 	Long:  L("Execute Yao Studio Script"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer share.SessionStop()
-		defer gou.KillPlugins()
+		defer plugin.KillAll()
 		defer func() {
 			err := exception.Catch(recover())
 			if err != nil {
@@ -71,8 +72,18 @@ var RunCmd = &cobra.Command{
 			}
 		}
 
-		req := gou.Yao.New(service, method)
-		res, err := req.RootCall(pargs...)
+		script, err := v8.SelectRoot(service)
+		if err != nil {
+			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+		}
+
+		ctx, err := script.NewContext("", nil)
+		if err != nil {
+			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+		}
+		defer ctx.Close()
+
+		res, err := ctx.Call(method, pargs...)
 		if err != nil {
 			fmt.Println(color.RedString("--------------------------------------"))
 			fmt.Println(color.RedString(L("%s Error"), args[0]))

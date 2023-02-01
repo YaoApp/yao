@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 )
 
 // Export process
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.expression.selectoption", processSelectOption)
-	gou.RegisterProcessHandler("yao.expression.trimspace", processTrimSpace)
+	process.Register("yao.expression.selectoption", processSelectOption)
+	process.Register("yao.expression.trimspace", processTrimSpace)
 }
 
-func processSelectOption(process *gou.Process) interface{} {
+func processSelectOption(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	input := process.Args[0]
 	switch input.(type) {
@@ -69,7 +69,7 @@ func processSelectOption(process *gou.Process) interface{} {
 	return []map[string]interface{}{}
 }
 
-func processTrimSpace(process *gou.Process) interface{} {
+func processTrimSpace(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	input := process.ArgsString(0)
 	return strings.TrimSpace(input)

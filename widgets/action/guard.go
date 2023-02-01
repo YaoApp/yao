@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/kun/log"
 )
 
@@ -19,11 +19,11 @@ func (p *Process) UseGuard(c *gin.Context, id string) error {
 		}
 
 		if guard != "" {
-			if middleware, has := gou.HTTPGuards[guard]; has {
+			if middleware, has := api.HTTPGuards[guard]; has {
 				middleware(c)
 				continue
 			}
-			gou.ProcessGuard(guard)(c)
+			api.ProcessGuard(guard)(c)
 		}
 	}
 	return nil

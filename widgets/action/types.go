@@ -1,7 +1,7 @@
 package action
 
 import (
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/widgets/hook"
 )
 
@@ -19,4 +19,4 @@ type Process struct {
 }
 
 // Handler action handler
-type Handler func(p *Process, process *gou.Process) (interface{}, error)
+type Handler func(p *Process, process *process.Process) (interface{}, error)

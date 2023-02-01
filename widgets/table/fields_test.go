@@ -4,14 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 )
 
 func TestFiledsBindModel(t *testing.T) {
 	load(t)
 	clear(t)
 	testData(t)
-	m := gou.Select("pet")
+	m := model.Select("pet")
 	tab := New("unit-test")
 	err := tab.Fields.BindModel(m)
 	if err != nil {

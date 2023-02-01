@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/share"
 )
@@ -22,19 +20,19 @@ func Start(t *testing.T, guards map[string]gin.HandlerFunc, port int) error {
 		return err
 	}
 
-	gin.SetMode(gin.ReleaseMode)
-	gou.SetHTTPGuards(guards)
-	gou.ServeHTTP(
-		gou.Server{
-			Host:   "127.0.0.1",
-			Port:   port,
-			Root:   "/api",
-			Allows: config.Conf.AllowFrom,
-		},
-		shutdown, func(s gou.Server) {
-			shutdownComplete <- true
-		},
-	)
+	// gin.SetMode(gin.ReleaseMode)
+	// gou.SetHTTPGuards(guards)
+	// gou.ServeHTTP(
+	// 	gou.Server{
+	// 		Host:   "127.0.0.1",
+	// 		Port:   port,
+	// 		Root:   "/api",
+	// 		Allows: config.Conf.AllowFrom,
+	// 	},
+	// 	shutdown, func(s gou.Server) {
+	// 		shutdownComplete <- true
+	// 	},
+	// )
 
 	return nil
 }

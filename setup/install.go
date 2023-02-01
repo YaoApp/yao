@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/engine"
@@ -276,7 +277,7 @@ func makeMigrate(root string) error {
 	}
 
 	// Do Stuff Here
-	for _, mod := range gou.Models {
+	for _, mod := range model.Models {
 		has, err := mod.HasTable()
 		if err != nil {
 			return err
@@ -316,17 +317,17 @@ func makeSetup(root string) error {
 				return fmt.Errorf("setup studio script %s error", app.Setting.Setup)
 			}
 
-			service := strings.Join(names[1:len(names)-1], ".")
-			method := names[len(names)-1]
-			req := gou.Yao.New(service, method)
-			_, err := req.RootCall(cfg)
-			if err != nil {
-				return err
-			}
+			// service := strings.Join(names[1:len(names)-1], ".")
+			// method := names[len(names)-1]
+			// req := gou.Yao.New(service, method)
+			// _, err := req.RootCall(cfg)
+			// if err != nil {
+			// 	return err
+			// }
 			return nil
 		}
 
-		p, err := gou.ProcessOf(app.Setting.Setup, cfg)
+		p, err := process.Of(app.Setting.Setup, cfg)
 		if err != nil {
 			return err
 		}

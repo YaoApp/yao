@@ -3,7 +3,7 @@ package share
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 )
 
 var elms = map[string]Column{
@@ -54,7 +54,7 @@ var elms = map[string]Column{
 
 // GetDefaultColumns 读取数据模型字段的呈现方式
 func GetDefaultColumns(name string) map[string]Column {
-	mod := gou.Select(name)
+	mod := model.Select(name)
 	cmap := mod.Columns
 	columns := map[string]Column{}
 

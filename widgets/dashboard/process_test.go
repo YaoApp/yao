@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
@@ -16,7 +17,7 @@ import (
 func TestProcessData(t *testing.T) {
 	load(t)
 	args := []interface{}{"workspace", map[string]interface{}{"range": "2022-01-02", "status": "checked"}}
-	res, err := gou.NewProcess("yao.dashboard.Data", args...).Exec()
+	res, err := process.New("yao.dashboard.Data", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestProcessComponent(t *testing.T) {
 		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
 	}
 
-	res, err := gou.NewProcess("yao.dashboard.Component", args...).Exec()
+	res, err := process.New("yao.dashboard.Component", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestProcessComponent(t *testing.T) {
 		map[string]interface{}{"foo": "bar"},
 	}
 
-	res2, err := gou.NewProcess("yao.dashboard.Component", args...).Exec()
+	res2, err := process.New("yao.dashboard.Component", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestProcessComponent(t *testing.T) {
 		map[string]interface{}{"foo": "bar"},
 	}
 
-	res2, err = gou.NewProcess("yao.dashboard.Component", args...).Exec()
+	res2, err = process.New("yao.dashboard.Component", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,14 +89,14 @@ func TestProcessComponentError(t *testing.T) {
 		"remote",
 		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
 	}
-	_, err := gou.NewProcess("yao.dashboard.Component", args...).Exec()
+	_, err := process.New("yao.dashboard.Component", args...).Exec()
 	assert.Contains(t, err.Error(), "fields.filter.edit.props.状态.::not-exist")
 }
 
 func TestProcessSetting(t *testing.T) {
 	load(t)
 	args := []interface{}{"workspace"}
-	res, err := gou.NewProcess("yao.dashboard.Setting", args...).Exec()
+	res, err := process.New("yao.dashboard.Setting", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestProcessSetting(t *testing.T) {
 func TestProcessXgen(t *testing.T) {
 	load(t)
 	args := []interface{}{"workspace"}
-	res, err := gou.NewProcess("yao.dashboard.Xgen", args...).Exec()
+	res, err := process.New("yao.dashboard.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +135,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	})
 
 	args := []interface{}{"workspace"}
-	res, err := gou.NewProcess("yao.dashboard.Xgen", args...).Exec()
+	res, err := process.New("yao.dashboard.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +148,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.Equal(t, nil, data.Get("fields.dashboard.图表展示2"))
 
 	session.Global().Set("__permissions", nil)
-	res, err = gou.NewProcess("yao.dashboard.Xgen", args...).Exec()
+	res, err = process.New("yao.dashboard.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +173,7 @@ func load(t *testing.T) {
 }
 
 func testData(t *testing.T) {
-	pet := gou.Select("pet")
+	pet := model.Select("pet")
 	err := pet.Insert(
 		[]string{"name", "type", "status", "mode", "stay", "cost", "doctor_id"},
 		[][]interface{}{
@@ -187,7 +188,7 @@ func testData(t *testing.T) {
 }
 
 func clear(t *testing.T) {
-	for _, m := range gou.Models {
+	for _, m := range model.Models {
 		err := m.DropTable()
 		if err != nil {
 			t.Fatal(err)

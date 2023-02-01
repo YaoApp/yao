@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
@@ -18,7 +19,7 @@ func TestProcessSetting(t *testing.T) {
 	clear(t)
 	testData(t)
 	args := []interface{}{"category"}
-	res, err := gou.NewProcess("yao.list.Setting", args...).Exec()
+	res, err := process.New("yao.list.Setting", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestProcessXgen(t *testing.T) {
 	clear(t)
 	testData(t)
 	args := []interface{}{"category"}
-	res, err := gou.NewProcess("yao.list.Xgen", args...).Exec()
+	res, err := process.New("yao.list.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +56,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	})
 
 	args := []interface{}{"category"}
-	res, err := gou.NewProcess("yao.list.Xgen", args...).Exec()
+	res, err := process.New("yao.list.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.False(t, data.Has("fields.list.库存预警"))
 
 	session.Global().Set("__permissions", nil)
-	res, err = gou.NewProcess("yao.list.Xgen", args...).Exec()
+	res, err = process.New("yao.list.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +89,7 @@ func load(t *testing.T) {
 }
 
 func testData(t *testing.T) {
-	category := gou.Select("category")
+	category := model.Select("category")
 	err := category.Insert(
 		[]string{"name", "stock", "status", "rank"},
 		[][]interface{}{
@@ -118,7 +119,7 @@ func tempFile(t *testing.T) string {
 }
 
 func clear(t *testing.T) {
-	for _, m := range gou.Models {
+	for _, m := range model.Models {
 		err := m.DropTable()
 		if err != nil {
 			t.Fatal(err)

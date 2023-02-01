@@ -9,7 +9,8 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/yao/helper"
 )
@@ -189,8 +190,8 @@ func (p *Response) To(v interface{}) error {
 // AutoLogin auto login
 func AutoLogin(id int) (map[string]interface{}, error) {
 
-	user := gou.Select("xiang.user")
-	row, err := user.Find(id, gou.QueryParam{Select: []interface{}{"id", "name", "type", "email", "mobile", "extra", "status"}})
+	user := model.Select("xiang.user")
+	row, err := user.Find(id, model.QueryParam(model.QueryParam{Select: []interface{}{"id", "name", "type", "email", "mobile", "extra", "status"}}))
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +206,7 @@ func AutoLogin(id int) (map[string]interface{}, error) {
 	session.Global().ID(sid).Set("user", row)
 	session.Global().ID(sid).Set("issuer", "xiang")
 
-	p, err := gou.ProcessOf("yao.app.menu")
+	p, err := process.Of("yao.app.menu")
 	if err != nil {
 		return nil, err
 	}

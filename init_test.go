@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/yao/config"
 )
 
@@ -16,7 +16,7 @@ func TestMain(m *testing.M) {
 	exitVal := m.Run()
 
 	// we can do clean up code here
-	gou.KillPlugins()
+	plugin.KillAll()
 
 	os.Exit(exitVal)
 }

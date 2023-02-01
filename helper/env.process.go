@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 // ProcessEnvGet  xiang.helper.EnvGet 读取ENV
-func ProcessEnvGet(process *gou.Process) interface{} {
+func ProcessEnvGet(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
 	return os.Getenv(name)
 }
 
 // ProcessEnvSet  xiang.helper.EnvSet 设置ENV
-func ProcessEnvSet(process *gou.Process) interface{} {
+func ProcessEnvSet(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	name := process.ArgsString(0)
 	value := process.ArgsString(1)
@@ -24,7 +24,7 @@ func ProcessEnvSet(process *gou.Process) interface{} {
 }
 
 // ProcessEnvMultiGet  xiang.helper.MultiGet 读取ENV
-func ProcessEnvMultiGet(process *gou.Process) interface{} {
+func ProcessEnvMultiGet(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	res := map[string]string{}
 	for i := range process.Args {
@@ -35,7 +35,7 @@ func ProcessEnvMultiGet(process *gou.Process) interface{} {
 }
 
 // ProcessEnvMultiSet xiang.helper.MultiSet 设置ENV
-func ProcessEnvMultiSet(process *gou.Process) interface{} {
+func ProcessEnvMultiSet(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	envs := process.ArgsMap(0)
 	message := ""

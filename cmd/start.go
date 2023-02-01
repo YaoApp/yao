@@ -12,8 +12,9 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/schedule"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/gou/task"
 	"github.com/yaoapp/gou/websocket"
@@ -152,14 +153,17 @@ var startCmd = &cobra.Command{
 			printStores(true)
 		}
 
+		srv, err := service.Start()
+
 		// Start server
 		go func() {
-			err := service.Start()
+			srv.Start()
 			if err != nil {
 				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 				os.Exit(3)
 			}
 		}()
+		defer srv.Stop()
 
 		fmt.Println(color.GreenString(L("✨LISTENING✨")))
 
@@ -256,12 +260,12 @@ func printStudio(silent bool, host string) {
 
 func printSchedules(silent bool) {
 
-	if len(gou.Schedules) == 0 {
+	if len(schedule.Schedules) == 0 {
 		return
 	}
 
 	if silent {
-		for name, sch := range gou.Schedules {
+		for name, sch := range schedule.Schedules {
 			process := fmt.Sprintf("Process: %s", sch.Process)
 			if sch.TaskName != "" {
 				process = fmt.Sprintf("Task: %s", sch.TaskName)
@@ -272,9 +276,9 @@ func printSchedules(silent bool) {
 	}
 
 	fmt.Println(color.WhiteString("\n---------------------------------"))
-	fmt.Println(color.WhiteString(L("Schedules List (%d)"), len(gou.Schedules)))
+	fmt.Println(color.WhiteString(L("Schedules List (%d)"), len(schedule.Schedules)))
 	fmt.Println(color.WhiteString("---------------------------------"))
-	for name, sch := range gou.Schedules {
+	for name, sch := range schedule.Schedules {
 		process := fmt.Sprintf("Process: %s", sch.Process)
 		if sch.TaskName != "" {
 			process = fmt.Sprintf("Task: %s", sch.TaskName)
@@ -309,7 +313,7 @@ func printTasks(silent bool) {
 func printApis(silent bool) {
 
 	if silent {
-		for _, api := range gou.APIs {
+		for _, api := range api.APIs {
 			if len(api.HTTP.Paths) <= 0 {
 				continue
 			}
@@ -328,7 +332,7 @@ func printApis(silent bool) {
 	fmt.Println(color.WhiteString(L("API List")))
 	fmt.Println(color.WhiteString("---------------------------------"))
 
-	for _, api := range gou.APIs { // API信息
+	for _, api := range api.APIs { // API信息
 		if len(api.HTTP.Paths) <= 0 {
 			continue
 		}

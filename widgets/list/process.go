@@ -5,8 +5,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
+	gouProcess "github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
@@ -15,15 +16,15 @@ import (
 
 // Export process
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.list.setting", processSetting)
-	gou.RegisterProcessHandler("yao.list.xgen", processXgen)
-	gou.RegisterProcessHandler("yao.list.component", processComponent)
-	gou.RegisterProcessHandler("yao.list.upload", processUpload)
-	gou.RegisterProcessHandler("yao.list.download", processDownload)
-	gou.RegisterProcessHandler("yao.list.save", processSave)
+	gouProcess.Register("yao.list.setting", processSetting)
+	gouProcess.Register("yao.list.xgen", processXgen)
+	gouProcess.Register("yao.list.component", processComponent)
+	gouProcess.Register("yao.list.upload", processUpload)
+	gouProcess.Register("yao.list.download", processDownload)
+	gouProcess.Register("yao.list.save", processSave)
 }
 
-func processXgen(process *gou.Process) interface{} {
+func processXgen(process *gouProcess.Process) interface{} {
 
 	list := MustGet(process)
 	data := process.ArgsMap(1, map[string]interface{}{})
@@ -36,7 +37,7 @@ func processXgen(process *gou.Process) interface{} {
 	return setting
 }
 
-func processComponent(process *gou.Process) interface{} {
+func processComponent(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	list := MustGet(process)
@@ -65,7 +66,7 @@ func processComponent(process *gou.Process) interface{} {
 	return res
 }
 
-func processDownload(process *gou.Process) interface{} {
+func processDownload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	list := MustGet(process)
@@ -93,7 +94,7 @@ func processDownload(process *gou.Process) interface{} {
 	}
 
 	// Create process
-	p, err := gou.ProcessOf(name, file)
+	p, err := gouProcess.Of(name, file)
 	if err != nil {
 		log.Error("[downalod] %s.%s %s", list.ID, field, err.Error())
 		exception.New("[downalod] %s.%s %s", 400, list.ID, field, err.Error()).Throw()
@@ -109,7 +110,7 @@ func processDownload(process *gou.Process) interface{} {
 	return res
 }
 
-func processUpload(process *gou.Process) interface{} {
+func processUpload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	list := MustGet(process)
@@ -124,7 +125,7 @@ func processUpload(process *gou.Process) interface{} {
 	}
 
 	// $file.file
-	tmpfile, ok := process.Args[3].(gou.UploadFile)
+	tmpfile, ok := process.Args[3].(types.UploadFile)
 	if !ok {
 		exception.New("parameters error: %v", 400, process.Args[3]).Throw()
 	}
@@ -144,18 +145,18 @@ func processUpload(process *gou.Process) interface{} {
 	return res
 }
 
-func processSetting(process *gou.Process) interface{} {
+func processSetting(process *gouProcess.Process) interface{} {
 	list := MustGet(process)
 	process.Args = append(process.Args, process.Args[0]) // list name
 	return list.Action.Setting.MustExec(process)
 }
 
-func processGet(process *gou.Process) interface{} {
+func processGet(process *gouProcess.Process) interface{} {
 	list := MustGet(process)
 	return list.Action.Get.MustExec(process)
 }
 
-func processSave(process *gou.Process) interface{} {
+func processSave(process *gouProcess.Process) interface{} {
 	list := MustGet(process)
 	return list.Action.Save.MustExec(process)
 }

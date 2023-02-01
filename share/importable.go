@@ -5,8 +5,7 @@ import (
 	"path/filepath"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/query/share"
+	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
@@ -63,11 +62,11 @@ func LoadFrom(dir string) error {
 
 	// 加载共享脚本
 	err = Walk(dir, ".js", func(root, filename string) {
-		name := SpecName(root, filename)
-		err := gou.Yao.Load(filename, name)
-		if err != nil {
-			log.Error("加载脚本失败 %s", err.Error())
-		}
+		// name := SpecName(root, filename)
+		// err := gou.Yao.Load(filename, name)
+		// if err != nil {
+		// 	log.Error("加载脚本失败 %s", err.Error())
+		// }
 	})
 	return err
 }
@@ -174,7 +173,7 @@ func ImportJSON(name string, in []interface{}, v interface{}) error {
 	}
 
 	data := maps.MapStrAny{"$in": in}.Dot()
-	content, err := jsoniter.Marshal(share.Bind(lib, data))
+	content, err := jsoniter.Marshal(helper.Bind(lib, data))
 	if err != nil {
 		return err
 	}

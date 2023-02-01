@@ -120,8 +120,8 @@ func init() {
 		getCmd,
 		dumpCmd,
 		restoreCmd,
-		socketCmd,
-		websocketCmd,
+		// socketCmd,
+		// websocketCmd,
 		studioCmd,
 		upgradeCmd,
 	)

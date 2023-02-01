@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -173,8 +173,8 @@ func Get(form interface{}) (*DSL, error) {
 	switch form.(type) {
 	case string:
 		id = form.(string)
-	case *gou.Process:
-		id = form.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = form.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", form)
 	}

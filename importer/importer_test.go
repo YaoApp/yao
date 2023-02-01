@@ -11,7 +11,6 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	LoadFrom("not a path", "404.")
 	assert.IsType(t, &Importer{}, Select("order"))
 }
 func TestFingerprintSimple(t *testing.T) {

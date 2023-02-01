@@ -4,12 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 func TestIF(t *testing.T) {
 
-	gou.RegisterProcessHandler("xiang.unit.return", func(process *gou.Process) interface{} {
+	process.Register("xiang.unit.return", func(process *process.Process) interface{} {
 		return process.Args
 	})
 
@@ -38,7 +38,7 @@ func TestIF(t *testing.T) {
 
 func TestProcessIF(t *testing.T) {
 
-	gou.RegisterProcessHandler("xiang.unit.return", func(process *gou.Process) interface{} {
+	process.Register("xiang.unit.return", func(process *process.Process) interface{} {
 		return process.Args
 	})
 
@@ -56,7 +56,7 @@ func TestProcessIF(t *testing.T) {
 			"args":    []interface{}{"foo"},
 		},
 	}
-	process := gou.NewProcess("xiang.helper.IF", args...)
+	process := process.New("xiang.helper.IF", args...)
 	res := process.Run().([]interface{})
 	assert.Equal(t, "world", res[0])
 }

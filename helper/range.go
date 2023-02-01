@@ -5,8 +5,8 @@ import (
 	"regexp"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/query/share"
+	"github.com/yaoapp/gou/helper"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 )
@@ -69,14 +69,14 @@ func For(from int, to int, p Process) {
 			"value": i,
 		}
 		args := bindArgs(p.Args, bindings)
-		gou.NewProcess(p.Process, args...).Run()
+		process.New(p.Process, args...).Run()
 	}
 }
 
 func bindArgs(args []interface{}, bindings map[string]interface{}) []interface{} {
 	new := []interface{}{}
 	for i := range args {
-		new = append(new, share.Bind(args[i], bindings, reVar))
+		new = append(new, helper.Bind(args[i], bindings, reVar))
 	}
 	return new
 }
@@ -89,7 +89,7 @@ func rangeString(v string, p Process) {
 			"value": value,
 		}
 		args := bindArgs(p.Args, bindings)
-		gou.NewProcess(p.Process, args...).Run()
+		process.New(p.Process, args...).Run()
 	}
 
 }
@@ -101,7 +101,7 @@ func rangeMap(v map[string]interface{}, p Process) {
 			"value": value,
 		}
 		args := bindArgs(p.Args, bindings)
-		gou.NewProcess(p.Process, args...).Run()
+		process.New(p.Process, args...).Run()
 	}
 }
 
@@ -112,7 +112,7 @@ func rangeArray(v []interface{}, p Process) {
 			"value": value,
 		}
 		args := bindArgs(p.Args, bindings)
-		gou.NewProcess(p.Process, args...).Run()
+		process.New(p.Process, args...).Run()
 	}
 }
 
@@ -141,7 +141,7 @@ func ProcessOf(v map[string]interface{}) Process {
 }
 
 // ProcessEach  xiang.helper.Each 循环过程控制
-func ProcessEach(process *gou.Process) interface{} {
+func ProcessEach(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	v := process.Args[0]
 	p := ProcessOf(process.ArgsMap(1))
@@ -150,7 +150,7 @@ func ProcessEach(process *gou.Process) interface{} {
 }
 
 // ProcessFor xiang.helper.For 循环过程控制
-func ProcessFor(process *gou.Process) interface{} {
+func ProcessFor(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
 	from := process.ArgsInt(0)
 	to := process.ArgsInt(1)

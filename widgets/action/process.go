@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
@@ -103,7 +103,7 @@ func (p *Process) WithAfter(after *hook.After) *Process {
 }
 
 // Args get the process args
-func (p *Process) Args(process *gou.Process) []interface{} {
+func (p *Process) Args(process *process.Process) []interface{} {
 	process.ValidateArgNums(1)
 	args := []interface{}{}
 	args = append(args, p.Default...)
@@ -122,7 +122,7 @@ func (p *Process) Args(process *gou.Process) []interface{} {
 }
 
 // Exec exec the process
-func (p *Process) Exec(process *gou.Process) (interface{}, error) {
+func (p *Process) Exec(process *process.Process) (interface{}, error) {
 	if p.Handler == nil {
 		return nil, fmt.Errorf("%s handler does not set", p.Name)
 	}
@@ -130,7 +130,7 @@ func (p *Process) Exec(process *gou.Process) (interface{}, error) {
 }
 
 // MustExec exec the process
-func (p *Process) MustExec(process *gou.Process) interface{} {
+func (p *Process) MustExec(process *process.Process) interface{} {
 	res, err := p.Exec(process)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()

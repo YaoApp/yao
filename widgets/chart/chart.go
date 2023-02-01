@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -116,8 +116,8 @@ func Get(chart interface{}) (*DSL, error) {
 	switch chart.(type) {
 	case string:
 		id = chart.(string)
-	case *gou.Process:
-		id = chart.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = chart.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", chart)
 	}

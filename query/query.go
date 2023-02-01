@@ -1,7 +1,7 @@
 package query
 
 import (
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query"
 	dsl "github.com/yaoapp/gou/query/gou"
 	"github.com/yaoapp/kun/log"
@@ -19,7 +19,7 @@ func DefaultQuery() {
 	query.Register("default", &dsl.Query{
 		Query: capsule.Query(),
 		GetTableName: func(s string) string {
-			if mod, has := gou.Models[s]; has {
+			if mod, has := model.Models[s]; has {
 				return mod.MetaData.Table.Name
 			}
 			log.Error("%s model does not load", s)

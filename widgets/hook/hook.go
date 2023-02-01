@@ -3,7 +3,7 @@ package hook
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 // CopyBefore copy a before hook
@@ -23,7 +23,7 @@ func CopyAfter(hook *After, new *After) {
 // Exec execute the hook
 func (hook *Before) Exec(args []interface{}, sid string, global map[string]interface{}) ([]interface{}, error) {
 
-	p, err := gou.ProcessOf(hook.String(), args...)
+	p, err := process.Of(hook.String(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s", hook.String(), err.Error())
 	}
@@ -56,7 +56,7 @@ func (hook *After) Exec(value interface{}, sid string, global map[string]interfa
 		args = append(args, value)
 	}
 
-	p, err := gou.ProcessOf(hook.String(), args...)
+	p, err := process.Of(hook.String(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] %s", hook.String(), err.Error())
 	}

@@ -8,7 +8,6 @@ import (
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/model"
-	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
 )
@@ -23,7 +22,7 @@ func TestLoad(t *testing.T) {
 }
 
 func prepare(t *testing.T, language ...string) {
-	runtime.Load(config.Conf)
+	// runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	share.DBConnect(config.Conf.DB) // removed later
 

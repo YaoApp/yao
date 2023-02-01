@@ -5,8 +5,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
+	gouProcess "github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
@@ -15,19 +16,19 @@ import (
 
 // Export process
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.form.setting", processSetting)
-	gou.RegisterProcessHandler("yao.form.xgen", processXgen)
-	gou.RegisterProcessHandler("yao.form.component", processComponent)
-	gou.RegisterProcessHandler("yao.form.upload", processUpload)
-	gou.RegisterProcessHandler("yao.form.download", processDownload)
-	gou.RegisterProcessHandler("yao.form.find", processFind)
-	gou.RegisterProcessHandler("yao.form.save", processSave)
-	gou.RegisterProcessHandler("yao.form.create", processCreate)
-	gou.RegisterProcessHandler("yao.form.update", processUpdate)
-	gou.RegisterProcessHandler("yao.form.delete", processDelete)
+	gouProcess.Register("yao.form.setting", processSetting)
+	gouProcess.Register("yao.form.xgen", processXgen)
+	gouProcess.Register("yao.form.component", processComponent)
+	gouProcess.Register("yao.form.upload", processUpload)
+	gouProcess.Register("yao.form.download", processDownload)
+	gouProcess.Register("yao.form.find", processFind)
+	gouProcess.Register("yao.form.save", processSave)
+	gouProcess.Register("yao.form.create", processCreate)
+	gouProcess.Register("yao.form.update", processUpdate)
+	gouProcess.Register("yao.form.delete", processDelete)
 }
 
-func processXgen(process *gou.Process) interface{} {
+func processXgen(process *gouProcess.Process) interface{} {
 
 	form := MustGet(process)
 	data := process.ArgsMap(1, map[string]interface{}{})
@@ -40,7 +41,7 @@ func processXgen(process *gou.Process) interface{} {
 	return setting
 }
 
-func processComponent(process *gou.Process) interface{} {
+func processComponent(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	form := MustGet(process)
@@ -69,7 +70,7 @@ func processComponent(process *gou.Process) interface{} {
 	return res
 }
 
-func processDownload(process *gou.Process) interface{} {
+func processDownload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	form := MustGet(process)
@@ -97,7 +98,7 @@ func processDownload(process *gou.Process) interface{} {
 	}
 
 	// Create process
-	p, err := gou.ProcessOf(name, file)
+	p, err := gouProcess.Of(name, file)
 	if err != nil {
 		log.Error("[downalod] %s.%s %s", form.ID, field, err.Error())
 		exception.New("[downalod] %s.%s %s", 400, form.ID, field, err.Error()).Throw()
@@ -113,7 +114,7 @@ func processDownload(process *gou.Process) interface{} {
 	return res
 }
 
-func processUpload(process *gou.Process) interface{} {
+func processUpload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	form := MustGet(process)
@@ -128,7 +129,7 @@ func processUpload(process *gou.Process) interface{} {
 	}
 
 	// $file.file
-	tmpfile, ok := process.Args[3].(gou.UploadFile)
+	tmpfile, ok := process.Args[3].(types.UploadFile)
 	if !ok {
 		exception.New("parameters error: %v", 400, process.Args[3]).Throw()
 	}
@@ -148,33 +149,33 @@ func processUpload(process *gou.Process) interface{} {
 	return res
 }
 
-func processSetting(process *gou.Process) interface{} {
+func processSetting(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	process.Args = append(process.Args, process.Args[0]) // form name
 	return form.Action.Setting.MustExec(process)
 }
 
-func processSave(process *gou.Process) interface{} {
+func processSave(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	return form.Action.Save.MustExec(process)
 }
 
-func processCreate(process *gou.Process) interface{} {
+func processCreate(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	return form.Action.Create.MustExec(process)
 }
 
-func processFind(process *gou.Process) interface{} {
+func processFind(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	return form.Action.Find.MustExec(process)
 }
 
-func processUpdate(process *gou.Process) interface{} {
+func processUpdate(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	return form.Action.Update.MustExec(process)
 }
 
-func processDelete(process *gou.Process) interface{} {
+func processDelete(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	return form.Action.Delete.MustExec(process)
 }

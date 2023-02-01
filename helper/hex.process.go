@@ -3,12 +3,12 @@ package helper
 import (
 	"encoding/hex"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 )
 
 // ProcessHexToString xiang.helper.HexToString
-func ProcessHexToString(process *gou.Process) interface{} {
+func ProcessHexToString(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 
 	switch process.Args[0].(type) {

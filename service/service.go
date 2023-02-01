@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 
-	"github.com/yaoapp/gou"
+	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -14,44 +16,38 @@ var shutdown = make(chan bool, 1)
 var shutdownComplete = make(chan bool, 1)
 
 // Start 启动服务
-func Start() error {
+func Start() (*http.Server, error) {
 
 	err := prepare()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	gou.SetHTTPGuards(Guards)
-	gou.ServeHTTP(
-		gou.Server{
-			Host:   config.Conf.Host,
-			Port:   config.Conf.Port,
-			Root:   "/api",
-			Allows: config.Conf.AllowFrom,
-		},
-		shutdown, func(s gou.Server) {
-			shutdownComplete <- true
-		},
-		Middlewares...)
+	router := gin.New()
+	api.SetRoutes(router, "/api", config.Conf.AllowFrom...)
+	srv := http.New(router, http.Option{
+		Host:   config.Conf.Host,
+		Port:   config.Conf.Port,
+		Root:   "/api",
+		Allows: config.Conf.AllowFrom,
+	}).With(Middlewares...)
 
-	return nil
+	return srv, nil
 }
 
 // StartWithouttSession 启动服务
-func StartWithouttSession() {
+func StartWithouttSession() (*http.Server, error) {
 
-	gou.SetHTTPGuards(Guards)
-	gou.ServeHTTP(
-		gou.Server{
-			Host:   config.Conf.Host,
-			Port:   config.Conf.Port,
-			Root:   "/api",
-			Allows: config.Conf.AllowFrom,
-		},
-		shutdown, func(s gou.Server) {
-			shutdownComplete <- true
-		},
-		Middlewares...)
+	router := gin.New()
+	api.SetRoutes(router, "/api", config.Conf.AllowFrom...)
+	srv := http.New(router, http.Option{
+		Host:   config.Conf.Host,
+		Port:   config.Conf.Port,
+		Root:   "/api",
+		Allows: config.Conf.AllowFrom,
+	}).With(Middlewares...)
+
+	return srv, nil
 }
 
 // StopWithouttSession 关闭服务

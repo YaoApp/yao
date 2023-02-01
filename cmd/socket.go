@@ -7,7 +7,8 @@ import (
 	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/plugin"
+	"github.com/yaoapp/gou/socket"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -20,7 +21,7 @@ var socketCmd = &cobra.Command{
 	Long:  L("Open a socket connection"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer share.SessionStop()
-		defer gou.KillPlugins()
+		defer plugin.KillAll()
 		defer func() {
 			err := exception.Catch(recover())
 			if err != nil {
@@ -67,7 +68,7 @@ var socketCmd = &cobra.Command{
 
 		}
 
-		socket, has := gou.Sockets[name]
+		socket, has := socket.Sockets[name]
 		if !has {
 			fmt.Println(color.RedString(L("%s not exists!"), name))
 			return

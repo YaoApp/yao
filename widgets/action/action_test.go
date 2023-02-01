@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 func TestNewProcess(t *testing.T) {
@@ -46,7 +46,7 @@ func testData() map[string]*Process {
 	}
 }
 
-func testHandler(p *Process, process *gou.Process) (interface{}, error) {
+func testHandler(p *Process, process *process.Process) (interface{}, error) {
 	args := p.Args(process)
 	return args, nil
 }

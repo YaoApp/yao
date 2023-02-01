@@ -7,7 +7,8 @@ import (
 	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/plugin"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
@@ -21,7 +22,7 @@ var runCmd = &cobra.Command{
 	Long:  L("Execute process"),
 	Run: func(cmd *cobra.Command, args []string) {
 		defer share.SessionStop()
-		defer gou.KillPlugins()
+		defer plugin.KillAll()
 		defer func() {
 			err := exception.Catch(recover())
 			if err != nil {
@@ -69,7 +70,7 @@ var runCmd = &cobra.Command{
 
 		}
 
-		process := gou.NewProcess(name, pargs...)
+		process := process.New(name, pargs...)
 		res := process.Run()
 		fmt.Println(color.WhiteString("--------------------------------------"))
 		fmt.Println(color.WhiteString(L("%s Response"), name))

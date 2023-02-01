@@ -8,7 +8,6 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/model"
-	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/test"
@@ -27,7 +26,7 @@ func prepare(t *testing.T, language ...string) {
 		t.Fatal(err)
 	}
 
-	runtime.Load(config.Conf)
+	// runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	share.DBConnect(config.Conf.DB) // removed later
 

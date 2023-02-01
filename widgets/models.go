@@ -5,14 +5,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 )
 
 // Models return loaded models
 func Models() []Item {
 
 	models := map[string]interface{}{}
-	for id, widget := range gou.Models {
+	for id, widget := range model.Models {
 
 		if strings.HasPrefix(id, "xiang.") {
 			continue

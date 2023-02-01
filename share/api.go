@@ -1,39 +1,17 @@
 package share
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/gou/query/share"
+	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/gou/session"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/kun/utils"
 )
-
-// IsAllow 鉴权处理程序 (废弃)
-func (api API) IsAllow(v interface{}) bool {
-	c, ok := v.(*gin.Context)
-	if !ok {
-		return false
-	}
-
-	guards := strings.Split(api.Guard, ",")
-	for _, guard := range guards {
-		guard = strings.TrimSpace(guard)
-		handler, has := gou.HTTPGuards[guard]
-		if has {
-			handler(c)
-			fmt.Println(api.Guard, c.IsAborted())
-			return c.IsAborted()
-		}
-	}
-	return false
-}
 
 // ValidateLoop 循环引用校验
 func (api API) ValidateLoop(name string) API {
@@ -88,7 +66,7 @@ func (api API) DefaultString(i int, defaults ...string) string {
 }
 
 // MergeDefaultQueryParam 合并默认查询参数
-func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int, sid string) gou.QueryParam {
+func (api API) MergeDefaultQueryParam(param types.QueryParam, i int, sid string) types.QueryParam {
 	if len(api.Default) > i && api.Default[i] != nil {
 
 		defaults := GetQueryParam(api.Default[i], sid)
@@ -104,7 +82,7 @@ func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int, sid string) g
 
 		if defaults.Wheres != nil {
 			if param.Wheres == nil {
-				param.Wheres = []gou.QueryWhere{}
+				param.Wheres = []types.QueryWhere{}
 			}
 			param.Wheres = append(param.Wheres, defaults.Wheres...)
 		}
@@ -117,7 +95,7 @@ func (api API) MergeDefaultQueryParam(param gou.QueryParam, i int, sid string) g
 }
 
 // GetQueryParam 解析参数
-func GetQueryParam(v interface{}, sid string) gou.QueryParam {
+func GetQueryParam(v interface{}, sid string) types.QueryParam {
 	log.With(log.F{"sid": sid}).Trace("GetQueryParam Entry")
 	data := map[string]interface{}{}
 	if sid != "" {
@@ -129,8 +107,8 @@ func GetQueryParam(v interface{}, sid string) gou.QueryParam {
 			log.Error("读取会话信息出错 %s", err.Error())
 		}
 	}
-	v = share.Bind(v, maps.Of(data).Dot())
-	param, ok := gou.AnyToQueryParam(v)
+	v = helper.Bind(v, maps.Of(data).Dot())
+	param, ok := types.AnyToQueryParam(v)
 	if !ok {
 		exception.New("参数默认值数据结构错误", 400).Ctx(v).Throw()
 	}

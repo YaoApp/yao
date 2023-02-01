@@ -1,11 +1,11 @@
 package widgets
 
 import (
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 // WidgetHandlers Processes
-var WidgetHandlers = map[string]gou.ProcessHandler{
+var WidgetHandlers = map[string]process.Handler{
 	"apis":    processApis,
 	"actions": processActions,
 	"models":  processModels,
@@ -14,31 +14,31 @@ var WidgetHandlers = map[string]gou.ProcessHandler{
 }
 
 func init() {
-	gou.RegisterProcessGroup("widget", WidgetHandlers)
+	process.RegisterGroup("widget", WidgetHandlers)
 }
 
 // Get the loaded APIs
-func processApis(process *gou.Process) interface{} {
+func processApis(process *process.Process) interface{} {
 	return Apis()
 }
 
 // Get the actions of each widget
-func processActions(process *gou.Process) interface{} {
+func processActions(process *process.Process) interface{} {
 	return Actions()
 }
 
 // Get the loaded Models
-func processModels(process *gou.Process) interface{} {
+func processModels(process *process.Process) interface{} {
 	return Models()
 }
 
 // Get the loaded Fields
-func processFields(process *gou.Process) interface{} {
+func processFields(process *process.Process) interface{} {
 	return Fields()
 }
 
 // Get the loaded Filters
-func processFilters(process *gou.Process) interface{} {
+func processFilters(process *process.Process) interface{} {
 	return Filters()
 }
 

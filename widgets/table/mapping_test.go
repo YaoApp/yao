@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 )
 
@@ -34,7 +34,7 @@ func TestMappingFind(t *testing.T) {
 	testData(t)
 
 	args := []interface{}{"compute", 1}
-	res, err := gou.NewProcess("yao.table.find", args...).Exec()
+	res, err := process.New("yao.table.find", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestMappingGet(t *testing.T) {
 	params := map[string]interface{}{"limit": 2}
 
 	args := []interface{}{"compute", params}
-	res, err := gou.NewProcess("yao.table.get", args...).Exec()
+	res, err := process.New("yao.table.get", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestMappingSearch(t *testing.T) {
 
 	params := map[string]interface{}{}
 	args := []interface{}{"compute", params, 1, 5}
-	res, err := gou.NewProcess("yao.table.search", args...).Exec()
+	res, err := process.New("yao.table.search", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,13 +91,13 @@ func TestMappingSave(t *testing.T) {
 		"doctor_id": 1,
 	}}
 
-	res, err := gou.NewProcess("yao.table.Save", args...).Exec()
+	res, err := process.New("yao.table.Save", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "4", fmt.Sprintf("%v", res))
 
-	res, err = gou.NewProcess("yao.table.find", "compute", res).Exec()
+	res, err = process.New("yao.table.find", "compute", res).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,12 +120,12 @@ func TestMappingUpdate(t *testing.T) {
 		"doctor_id": 1,
 	}}
 
-	_, err := gou.NewProcess("yao.table.Update", args...).Exec()
+	_, err := process.New("yao.table.Update", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "compute", 1).Exec()
+	res, err := process.New("yao.table.find", "compute", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,12 +146,12 @@ func TestMappingInsert(t *testing.T) {
 		},
 	}
 
-	_, err := gou.NewProcess("yao.table.Insert", args...).Exec()
+	_, err := process.New("yao.table.Insert", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "compute", 1).Exec()
+	res, err := process.New("yao.table.find", "compute", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}

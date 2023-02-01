@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/maps"
 )
 
@@ -116,7 +116,7 @@ func TestProcessArrayPluck(t *testing.T) {
 			"计费": map[string]interface{}{"key": "city", "value": "计费种类", "items": []map[string]interface{}{{"city": "北京", "计费种类": 6}, {"city": "西安", "计费种类": 3}}},
 		},
 	}
-	process := gou.NewProcess("xiang.helper.ArrayPluck", args...)
+	process := process.New("xiang.helper.ArrayPluck", args...)
 	response := ProcessArrayPluck(process)
 	assert.NotNil(t, response)
 	items, ok := response.([]map[string]interface{})
@@ -137,7 +137,7 @@ func TestProcessArraySplit(t *testing.T) {
 			{"name": "世纪互联蓝云", "short_name": "上海蓝云"},
 		},
 	}
-	process := gou.NewProcess("xiang.helper.ArraySplit", args...)
+	process := process.New("xiang.helper.ArraySplit", args...)
 	response := process.Run()
 	assert.NotNil(t, response)
 	res, ok := response.(map[string]interface{})
@@ -159,7 +159,7 @@ func TestProcessArrayUnique(t *testing.T) {
 	args := []interface{}{
 		[]interface{}{1, 2, 3, 3},
 	}
-	process := gou.NewProcess("xiang.helper.ArrayUnique", args...)
+	process := process.New("xiang.helper.ArrayUnique", args...)
 	response := process.Run()
 	assert.NotNil(t, response)
 	res, ok := response.([]interface{})
@@ -171,7 +171,7 @@ func TestProcessArrayIndexes(t *testing.T) {
 	args := []interface{}{
 		[]interface{}{1, 2, 3, 3},
 	}
-	response := gou.NewProcess("xiang.helper.ArrayIndexes", args...).Run()
+	response := process.New("xiang.helper.ArrayIndexes", args...).Run()
 	assert.NotNil(t, response)
 	res, ok := response.([]int)
 	assert.True(t, ok)
@@ -180,10 +180,10 @@ func TestProcessArrayIndexes(t *testing.T) {
 
 func TestProcessArrayGet(t *testing.T) {
 
-	response := gou.NewProcess("xiang.helper.ArrayGet", []interface{}{1, 2, 3, 3}, 2).Run()
+	response := process.New("xiang.helper.ArrayGet", []interface{}{1, 2, 3, 3}, 2).Run()
 	assert.Equal(t, 3, response)
 
-	response = gou.NewProcess("xiang.helper.ArrayGet", []interface{}{1, 2, 3, 3}, 4).Run()
+	response = process.New("xiang.helper.ArrayGet", []interface{}{1, 2, 3, 3}, 4).Run()
 	assert.Nil(t, response)
 
 }

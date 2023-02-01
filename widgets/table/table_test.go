@@ -9,7 +9,6 @@ import (
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/model"
-	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/script"
 	_ "github.com/yaoapp/yao/utils"
 	"github.com/yaoapp/yao/widgets/app"
@@ -37,7 +36,7 @@ func TestLoadID(t *testing.T) {
 }
 
 func prepare(t *testing.T, language ...string) {
-	runtime.Load(config.Conf)
+	// runtime.Load(config.Conf)
 	err := test.LoadEngine(language...)
 	if err != nil {
 		t.Fatal(err)

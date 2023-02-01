@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/mapping"
 )
 
 // BindModel bind model
-func (layout *LayoutDSL) BindModel(m *gou.Model, fields *FieldsDSL, option map[string]interface{}) error {
+func (layout *LayoutDSL) BindModel(m *model.Model, fields *FieldsDSL, option map[string]interface{}) error {
 
 	if option == nil {
 		option = map[string]interface{}{}

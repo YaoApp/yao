@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/widgets/table"
 )
 
 // BindModel bind model
-func (fields *FieldsDSL) BindModel(m *gou.Model) error {
+func (fields *FieldsDSL) BindModel(m *model.Model) error {
 
 	// fields.listMap = map[string]field.ColumnDSL{}
 

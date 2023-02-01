@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -72,25 +72,25 @@ func Export() error {
 // exportAPI export login api
 func exportAPI() error {
 
-	http := gou.HTTP{
+	http := api.HTTP{
 		Name:        "Widget Login API",
 		Description: "Widget Login API",
 		Version:     share.VERSION,
 		Guard:       "bearer-jwt",
 		Group:       "__yao/login",
-		Paths:       []gou.Path{},
+		Paths:       []api.Path{},
 	}
 
 	for _, dsl := range Logins {
 
 		// login action
 		process := "yao.login.Admin"
-		args := []string{":payload"}
+		args := []interface{}{":payload"}
 		if dsl.Action.Process != "" {
 			process = dsl.Action.Process
 			args = dsl.Action.Args
 		}
-		path := gou.Path{
+		path := api.Path{
 			Label:       fmt.Sprintf("%s login", dsl.ID),
 			Description: fmt.Sprintf("%s login", dsl.ID),
 			Guard:       "-",
@@ -98,18 +98,18 @@ func exportAPI() error {
 			Method:      "POST",
 			Process:     process,
 			In:          args,
-			Out:         gou.Out{Status: 200, Type: "application/json"},
+			Out:         api.Out{Status: 200, Type: "application/json"},
 		}
 		http.Paths = append(http.Paths, path)
 
 		// captcha
 		process = "yao.utils.Captcha"
-		args = []string{":query"}
+		args = []interface{}{":query"}
 		if dsl.Layout.Captcha != "" {
 			process = dsl.Layout.Captcha
 		}
 
-		path = gou.Path{
+		path = api.Path{
 			Label:       fmt.Sprintf("%s captcha", dsl.ID),
 			Description: fmt.Sprintf("%s captcha", dsl.ID),
 			Guard:       "-",
@@ -117,7 +117,7 @@ func exportAPI() error {
 			Method:      "GET",
 			Process:     process,
 			In:          args,
-			Out:         gou.Out{Status: 200, Type: "application/json"},
+			Out:         api.Out{Status: 200, Type: "application/json"},
 		}
 		http.Paths = append(http.Paths, path)
 
@@ -130,6 +130,6 @@ func exportAPI() error {
 	}
 
 	// load apis
-	_, err = gou.LoadAPIReturn(string(source), "widgets.login")
+	_, err = api.Load(string(source), "widgets.login")
 	return err
 }

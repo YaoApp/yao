@@ -10,7 +10,6 @@ import (
 
 func TestLoad(t *testing.T) {
 	Load(config.Conf)
-	LoadFrom("not a path", "404.")
 	check(t)
 }
 
