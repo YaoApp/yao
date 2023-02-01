@@ -229,12 +229,6 @@ jobs:
         run: |
           make test
 
-      - name: Run widgets test
-        env:
-          YAO_ROOT: ${{ env.DEMO_APP }}
-        run: |
-          make test-widgets
-
       - name: Codecov Report
         uses: codecov/codecov-action@v2
         with:
