@@ -1,6 +1,8 @@
 package cert
 
 import (
+	"path/filepath"
+
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/ssl"
 	"github.com/yaoapp/yao/config"
@@ -11,7 +13,10 @@ import (
 func Load(cfg config.Config) error {
 	exts := []string{"*.pem", "*.key", "*.pub"}
 	return application.App.Walk("certs", func(root, file string, isdir bool) error {
-		_, err := ssl.Load(file, share.ID(root, file))
+		if isdir {
+			return nil
+		}
+		_, err := ssl.Load(file, share.ID(root, file)+filepath.Ext(file))
 		return err
 	}, exts...)
 }
