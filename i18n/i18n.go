@@ -3,7 +3,6 @@ package i18n
 import (
 	"crypto/sha256"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -45,8 +44,7 @@ func Load(cfg config.Config) error {
 	}
 
 	// Load langs
-	root := filepath.Join(cfg.Root, "langs")
-	err = lang.Load(root)
+	err = lang.Load("langs")
 	if err != nil {
 		return err
 	}
