@@ -50,6 +50,7 @@ env:
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
   YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+  YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
 
 jobs:
   unit-test:
@@ -102,13 +103,20 @@ jobs:
           repository: yaoapp/yao-dev-app
           path: app
 
-      - name: Move Kun, Xun, Gou, V8Go
+      - name: Checkout Extension
+        uses: actions/checkout@v3
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Kun, Xun, Gou, V8Go, Extension
         run: |
           mv kun ../
           mv xun ../
           mv gou ../
           mv v8go ../
           mv app ../
+          mv extension ../
           ls -l .
           ls -l ../
 
