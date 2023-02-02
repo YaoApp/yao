@@ -62,7 +62,7 @@ jobs:
         mongo: ["6.0"]
     steps:
       - name: Setup Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
@@ -185,6 +185,6 @@ jobs:
           make test
 
       - name: Codecov Report
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos

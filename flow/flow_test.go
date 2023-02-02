@@ -6,17 +6,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/flow"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	Load(config.Conf)
 	check(t)
 }
 
 func check(t *testing.T) {
-	keys := []string{}
-	for key := range flow.Flows {
-		keys = append(keys, key)
+	ids := map[string]bool{}
+	for id := range flow.Flows {
+		ids[id] = true
 	}
-	assert.Equal(t, 26, len(keys))
+	assert.True(t, ids["tests.basic"])
+	assert.True(t, ids["tests.session"])
+
+	// wskeys := []string{}
+	// for key := range websocket.Upgraders {
+	// 	wskeys = append(wskeys, key)
+	// }
+
+	// assert.Equal(t, 5, len(keys))
+	// assert.Equal(t, 1, len(wskeys))
 }

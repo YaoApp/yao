@@ -11,7 +11,7 @@ import (
 )
 
 func TestLoad(t *testing.T) {
-	test.Prepare(t)
+	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
 	Load(config.Conf)
