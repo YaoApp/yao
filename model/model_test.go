@@ -7,23 +7,28 @@ import (
 
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
-	share.DBConnect(config.Conf.DB)
+	test.Prepare(t)
+	defer test.Clean()
+
 	Load(config.Conf)
 	check(t)
 }
 
 func check(t *testing.T) {
-	keys := []string{}
-	for key := range model.Models {
-		keys = append(keys, key)
+	ids := map[string]bool{}
+	for id := range model.Models {
+		ids[id] = true
 	}
-	assert.Equal(t, 11, len(keys))
 
-	demo := model.Select("demo")
-	assert.Equal(t, demo.MetaData.Name, "::Demo")
-	assert.Equal(t, demo.Columns["action"].Label, "::Action")
+	assert.True(t, ids["user"])
+	assert.True(t, ids["category"])
+	assert.True(t, ids["tag"])
+	assert.True(t, ids["pet"])
+	assert.True(t, ids["pet.tag"])
+	assert.True(t, ids["user.pet"])
+	assert.True(t, ids["tests.user"])
 }
