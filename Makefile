@@ -9,7 +9,7 @@ COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
 NOW := $(shell date +"%FT%T%z")
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -E 'api|model|flow|script|fs|i18n|connector|query|plugin|cert|crypto|task|schedule|runtime|helper|utils|widget|importer|store' | grep -vE 'examples|tests*|config|widgets')
+TESTFOLDER := $(shell $(GO) list ./... | grep -E 'api|model|flow|script|fs|i18n|connector|query|plugin|cert|crypto|task|schedule|runtime|helper|utils|widget|importer|store|widgets/app|widgets/login' | grep -vE 'examples|tests*|config|widgets')
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
