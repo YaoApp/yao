@@ -24,12 +24,4 @@ func check(t *testing.T) {
 	}
 	assert.True(t, ids["tests.basic"])
 	assert.True(t, ids["tests.session"])
-
-	// wskeys := []string{}
-	// for key := range websocket.Upgraders {
-	// 	wskeys = append(wskeys, key)
-	// }
-
-	// assert.Equal(t, 5, len(keys))
-	// assert.Equal(t, 1, len(wskeys))
 }

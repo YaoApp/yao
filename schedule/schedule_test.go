@@ -7,14 +7,25 @@ import (
 	"github.com/yaoapp/gou/schedule"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/task"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
-	task.Load(config.Conf)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	err := task.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	Load(config.Conf)
 	check(t)
 }
 
 func check(t *testing.T) {
-	assert.Equal(t, 2, len(schedule.Schedules))
+	ids := map[string]bool{}
+	for id := range schedule.Schedules {
+		ids[id] = true
+	}
+	assert.True(t, ids["mail"])
+	assert.True(t, ids["sendmail"])
 }
