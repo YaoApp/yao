@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/importer/from"
 	"github.com/yaoapp/yao/importer/xlsx"
 	"github.com/yaoapp/yao/share"
@@ -22,9 +23,23 @@ import (
 // Importers 导入器
 var Importers = map[string]*Importer{}
 
+// DataRoot data file root
+var DataRoot string = ""
+
 // Load 加载导入器
 func Load(cfg config.Config) error {
-	return application.App.Walk("apis", func(root, file string, isdir bool) error {
+
+	root, err := fs.Root(cfg)
+	if err != nil {
+		return err
+	}
+	DataRoot = root
+
+	exts := []string{"*.imp.yao", "*.imp.json", "*.imp.jsonc"}
+	return application.App.Walk("imports", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
 
 		id := share.ID(root, file)
 		data, err := application.App.Read(file)
@@ -37,10 +52,10 @@ func Load(cfg config.Config) error {
 		if err != nil {
 			return fmt.Errorf("%s 导入配置错误. %s", id, err.Error())
 		}
-		Importers[id] = &importer
 
-		return err
-	}, config.DSLExtensions...)
+		Importers[id] = &importer
+		return nil
+	}, exts...)
 }
 
 // Select 选择已加载导入器
@@ -57,13 +72,8 @@ func Open(name string) from.Source {
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
 	switch ext {
 	case "xlsx":
-		// Refector *****
-		// fullpath := name
-		// fullpath := filepath.Join(xfs.Stor.Root, name)
-		// if !strings.HasPrefix(fullpath, "/") {
-		// 	fullpath = filepath.Join(xfs.Stor.Root, name)
-		// }
-		return xlsx.Open(name)
+		file := filepath.Join(DataRoot, name)
+		return xlsx.Open(file)
 	}
 	exception.New("暂不支持: %s 文件导入", 400, ext).Throw()
 	return nil

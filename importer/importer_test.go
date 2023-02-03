@@ -5,25 +5,41 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/importer/xlsx"
+	"github.com/yaoapp/yao/script"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t, config.Conf)
 	assert.IsType(t, &Importer{}, Select("order"))
 }
 func TestFingerprintSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
+
 	imp := Select("order")
 	fingerprint := imp.Fingerprint(file)
 	assert.Equal(t, "3451ca87d71801687abba8993e5a69af79482914435d7cc064236fd93160f999", fingerprint)
 }
 
 func TestAutoMappingSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -47,7 +63,12 @@ func TestAutoMappingSimple(t *testing.T) {
 }
 
 func TestDataGetSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -68,7 +89,11 @@ func TestDataGetSimple(t *testing.T) {
 }
 
 func TestDataChunkSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -82,7 +107,11 @@ func TestDataChunkSimple(t *testing.T) {
 }
 
 func TestRunSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -96,7 +125,11 @@ func TestRunSimple(t *testing.T) {
 }
 
 func TestDataPreviewSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 	imp := Select("order")
@@ -115,7 +148,11 @@ func TestDataPreviewSimple(t *testing.T) {
 }
 
 func TestMappingPreviewSimple(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
@@ -139,19 +176,47 @@ func TestMappingPreviewSimple(t *testing.T) {
 }
 
 func TestMappingSetting(t *testing.T) {
-	simple := filepath.Join(config.Conf.Root, "data", "assets", "simple.xlsx")
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	root := prepare(t, config.Conf)
+	simple := filepath.Join(root, "assets", "simple.xlsx")
 	file := xlsx.Open(simple)
 	defer file.Close()
 
 	imp := Select("order")
 	setting := imp.MappingSetting(file)
-	utils.Dump(setting)
+	// utils.Dump(setting)
 	assert.NotNil(t, setting)
 }
 
 func TestDataSetting(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t, config.Conf)
+
 	imp := Select("order")
 	setting := imp.DataSetting()
-	utils.Dump(setting)
+	// utils.Dump(setting)
 	assert.NotNil(t, setting)
+}
+
+func prepare(t *testing.T, cfg config.Config) string {
+	err := Load(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dataRoot, err := fs.Root(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = script.Load(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return dataRoot
 }

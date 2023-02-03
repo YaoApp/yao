@@ -22,7 +22,7 @@ var Conf Config
 var LogOutput *os.File // 日志文件
 
 // DSLExtensions the dsl file Extensions
-var DSLExtensions = []string{".yao", ".json", ".jsonc"}
+var DSLExtensions = []string{"*.yao", "*.json", "*.jsonc"}
 
 func init() {
 	filename, _ := filepath.Abs(filepath.Join(".", ".env"))
