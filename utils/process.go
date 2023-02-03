@@ -50,6 +50,7 @@ func init() {
 
 	// String
 	process.Alias("xiang.helper.StrConcat", "utils.str.Concat")
+	process.Alias("xiang.helper.HexToString", "utils.str.Hex")
 	process.Register("utils.str.Join", str.ProcessJoin)
 	process.Register("utils.str.JoinPath", str.ProcessJoinPath)
 

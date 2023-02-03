@@ -27,7 +27,7 @@ func init() {
 	process.Register("xiang.helper.MapDel", ProcessMapDel)           // deprecated → utils.map.Del @/utils/process.go
 	process.Register("xiang.helper.MapMultiDel", ProcessMapMultiDel) // deprecated → utils.map.DelMany @/utils/process.go
 
-	process.Register("xiang.helper.HexToString", ProcessHexToString) // deprecated
+	process.Register("xiang.helper.HexToString", ProcessHexToString) // deprecated → utils.str.Hex @/utils/process.go new 2022.2.3
 
 	process.Register("xiang.helper.StrConcat", ProcessStrConcat) // deprecated → utils.str.Concat @/utils/process.go
 
