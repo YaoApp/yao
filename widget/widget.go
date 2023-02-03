@@ -1,6 +1,8 @@
 package widget
 
 import (
+	"path/filepath"
+
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/widget"
 	"github.com/yaoapp/yao/config"
@@ -10,14 +12,15 @@ import (
 func Load(cfg config.Config) error {
 
 	register := moduleRegister()
-
 	return application.App.Walk("widgets", func(root, file string, isdir bool) error {
-		if !isdir {
+		if isdir {
 			return nil
 		}
-		_, err := widget.Load(file, nil, register)
+		path := filepath.Dir(file)
+		_, err := widget.Load(path, nil, register)
 		return err
-	}, config.DSLExtensions...)
+
+	}, "widget.yao", "widget.json", "widget.jsonc")
 
 	// var root = filepath.Join(cfg.Root, "widgets")
 	// return LoadFrom(root)
@@ -64,48 +67,46 @@ func Load(cfg config.Config) error {
 // }
 
 func moduleRegister() widget.ModuleRegister {
-	// return widget.ModuleRegister{
-	// 	"Apis": func(name string, source []byte) error {
-	// 		_, err := api.Load(string(source), name)
-	// 		log.Trace("[Widget] Register api %s", name)
-	// 		if err != nil {
-	// 			log.Error("[Widget] Register api %s %v", name, err)
-	// 		}
-	// 		return err
-	// 	},
-	// 	"Models": func(name string, source []byte) error {
-	// 		_, err := model.Load(string(source), name)
-	// 		log.Trace("[Widget] Register model %s", name)
-	// 		if err != nil {
-	// 			log.Error("[Widget] Register model %s %v", name, err)
-	// 		}
-	// 		return err
-	// 	},
-	// 	"Tables": func(name string, source []byte) error {
-	// 		log.Trace("[Widget] Register table %s", name)
-	// 		_, err := table.LoadTable(string(source), name)
-	// 		if err != nil {
-	// 			log.Error("[Widget] Register table %s %v", name, err)
-	// 		}
-	// 		return nil
-	// 	},
-	// 	"Tasks": func(name string, source []byte) error {
-	// 		log.Trace("[Widget] Register task %s", name)
-	// 		_, err := gou.LoadTask(string(source), name)
-	// 		if err != nil {
-	// 			log.Error("[Widget] Register task %s %v", name, err)
-	// 		}
-	// 		return nil
-	// 	},
-	// 	"Schedules": func(name string, source []byte) error {
-	// 		log.Trace("[Widget] Register schedule %s", name)
-	// 		_, err := gou.LoadSchedule(string(source), name)
-	// 		if err != nil {
-	// 			log.Error("[Widget] Register schedule %s %v", name, err)
-	// 		}
-	// 		return nil
-	// 	},
-	// }
-
-	return nil
+	return widget.ModuleRegister{
+		// "Apis": func(name string, source []byte) error {
+		// 	_, err := api.Load(string(source), name)
+		// 	log.Trace("[Widget] Register api %s", name)
+		// 	if err != nil {
+		// 		log.Error("[Widget] Register api %s %v", name, err)
+		// 	}
+		// 	return err
+		// },
+		// "Models": func(name string, source []byte) error {
+		// 	_, err := model.Load(string(source), name)
+		// 	log.Trace("[Widget] Register model %s", name)
+		// 	if err != nil {
+		// 		log.Error("[Widget] Register model %s %v", name, err)
+		// 	}
+		// 	return err
+		// },
+		// "Tables": func(name string, source []byte) error {
+		// 	log.Trace("[Widget] Register table %s", name)
+		// 	_, err := table.LoadTable(string(source), name)
+		// 	if err != nil {
+		// 		log.Error("[Widget] Register table %s %v", name, err)
+		// 	}
+		// 	return nil
+		// },
+		// "Tasks": func(name string, source []byte) error {
+		// 	log.Trace("[Widget] Register task %s", name)
+		// 	_, err := gou.LoadTask(string(source), name)
+		// 	if err != nil {
+		// 		log.Error("[Widget] Register task %s %v", name, err)
+		// 	}
+		// 	return nil
+		// },
+		// "Schedules": func(name string, source []byte) error {
+		// 	log.Trace("[Widget] Register schedule %s", name)
+		// 	_, err := gou.LoadSchedule(string(source), name)
+		// 	if err != nil {
+		// 		log.Error("[Widget] Register schedule %s %v", name, err)
+		// 	}
+		// 	return nil
+		// },
+	}
 }
