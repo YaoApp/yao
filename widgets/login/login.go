@@ -2,11 +2,10 @@ package login
 
 import (
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -31,36 +30,32 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load login
 func Load(cfg config.Config) error {
-	var root = filepath.Join(cfg.Root, "logins")
-	return LoadFrom(root, "")
+	exts := []string{"*.login.yao", "*.login.json", "*.login.jsonc"}
+	return application.App.Walk("logins", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		return LoadFile(root, file)
+	}, exts...)
 }
 
-// LoadFrom load from dir
-func LoadFrom(dir string, prefix string) error {
+// LoadFile by dsl file
+func LoadFile(root string, file string) error {
 
-	if share.DirNotExists(dir) {
-		return fmt.Errorf("%s does not exists", dir)
+	id := share.ID(root, file)
+	data, err := application.App.Read(file)
+	if err != nil {
+		return err
 	}
 
-	messages := []string{}
-	err := share.Walk(dir, ".json", func(root, filename string) {
-		id := prefix + share.ID(root, filename)
-		data := share.ReadFile(filename)
-		dsl := &DSL{ID: id}
-		err := jsoniter.Unmarshal(data, dsl)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-
-		Logins[id] = dsl
-	})
-
-	if len(messages) > 0 {
-		return fmt.Errorf(strings.Join(messages, ";"))
+	dsl := &DSL{ID: id}
+	err = application.Parse(file, data, dsl)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
 	}
 
-	return err
+	Logins[id] = dsl
+	return nil
 }
 
 // Export export login api
@@ -130,6 +125,6 @@ func exportAPI() error {
 	}
 
 	// load apis
-	_, err = api.Load(string(source), "widgets.login")
+	_, err = api.LoadSource("<widget.login>.yao", source, "widgets.login")
 	return err
 }

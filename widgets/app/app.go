@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -11,7 +10,9 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/process"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
@@ -53,19 +54,40 @@ func LoadAndExport(cfg config.Config) error {
 // Load the app DSL
 func Load(cfg config.Config) error {
 
-	file := filepath.Join(cfg.Root, "app.json")
-	file, err := filepath.Abs(file)
+	// file := filepath.Join(cfg.Root, "app.json")
+	// file, err := filepath.Abs(file)
+	// if err != nil {
+	// 	return err
+	// }
+
+	var data []byte
+	var err error
+	var file string
+	application.App.Walk("", func(root, filename string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		data, err = application.App.Read(filename)
+		if err != nil {
+			return err
+		}
+
+		file = filename
+		return nil
+
+	}, "app.yao", "app.json", "app.jsonc")
+
 	if err != nil {
 		return err
 	}
 
-	data, err := ioutil.ReadFile(file)
-	if err != nil {
-		return err
+	if data == nil {
+		return fmt.Errorf("app.yao not found")
 	}
 
 	dsl := &DSL{Optional: OptionalDSL{}, Lang: cfg.Lang}
-	err = jsoniter.Unmarshal(data, dsl)
+	err = application.Parse(file, data, dsl)
 	if err != nil {
 		return err
 	}
@@ -204,7 +226,7 @@ func exportAPI() error {
 	}
 
 	// load apis
-	_, err = api.Load(string(source), "widgets.app")
+	_, err = api.LoadSource("<widget.app>.yao", source, "widgets.app")
 	return err
 }
 
@@ -226,44 +248,43 @@ func exportProcess() {
 
 func processService(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
-	// service := fmt.Sprintf("__yao_service.%s", process.ArgsString(0))
+	service := fmt.Sprintf("__yao_service.%s", process.ArgsString(0))
 	payload := process.ArgsMap(1)
 	if payload == nil || len(payload) == 0 {
 		exception.New("content is required", 400).Throw()
 	}
 
-	// method, ok := payload["method"].(string)
-	// if !ok || service == "" {
-	// 	exception.New("method is required", 400).Throw()
-	// }
+	method, ok := payload["method"].(string)
+	if !ok || service == "" {
+		exception.New("method is required", 400).Throw()
+	}
 
-	// args := []interface{}{}
-	// if v, ok := payload["args"].([]interface{}); ok {
-	// 	args = v
-	// }
+	args := []interface{}{}
+	if v, ok := payload["args"].([]interface{}); ok {
+		args = v
+	}
 
-	// req := gou.Yao.New(service, method)
-	// if process.Sid != "" {
-	// 	req.WithSid(process.Sid)
-	// }
+	script, err := v8.Select(service)
+	if err != nil {
+		exception.New("services.%s not loaded", 404, process.ArgsString(0)).Throw()
+		return nil
+	}
 
-	// res, err := req.Call(args...)
-	// if err != nil {
-	// 	// parse Exception
-	// 	code := 500
-	// 	message := err.Error()
-	// 	match := regExcp.FindStringSubmatch(message)
-	// 	if len(match) > 0 {
-	// 		code, err = strconv.Atoi(match[1])
-	// 		if err == nil {
-	// 			message = strings.TrimSpace(match[2])
-	// 		}
-	// 	}
-	// 	exception.New(message, code).Throw()
-	// }
+	ctx, err := script.NewContext(process.Sid, process.Global)
+	if err != nil {
+		message := fmt.Sprintf("services.%s failed to create context. %s", process.ArgsString(0), err.Error())
+		log.Error("[V8] process error. %s", message)
+		exception.New(message, 500).Throw()
+		return nil
+	}
+	defer ctx.Close()
 
-	return nil
+	res, err := ctx.Call(method, args...)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
 
+	return res
 }
 
 func processCheck(process *process.Process) interface{} {
@@ -314,11 +335,8 @@ func processSetup(process *process.Process) interface{} {
 func processIcons(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
-	file, err := filepath.Abs(filepath.Join(config.Conf.Root, "icons", name))
-	if err != nil {
-		exception.New(err.Error(), 400).Throw()
-	}
-	content, err := ioutil.ReadFile(file)
+	file := filepath.Join("icons", name)
+	content, err := application.App.Read(file)
 	if err != nil {
 		exception.New(err.Error(), 400).Throw()
 	}
@@ -552,15 +570,18 @@ func (dsl *DSL) replaceAdminRoot() error {
 // icons
 func (dsl *DSL) icons(cfg config.Config) {
 
-	favicon := filepath.Join(cfg.Root, "icons", "app.ico")
-	if _, err := os.Stat(favicon); err == nil {
-		dsl.Favicon = fmt.Sprintf("/api/__yao/app/icons/app.ico")
-	}
+	dsl.Favicon = fmt.Sprintf("/api/__yao/app/icons/app.ico")
+	dsl.Logo = fmt.Sprintf("/api/__yao/app/icons/app.png")
 
-	logo := filepath.Join(cfg.Root, "icons", "app.png")
-	if _, err := os.Stat(logo); err == nil {
-		dsl.Logo = fmt.Sprintf("/api/__yao/app/icons/app.png")
-	}
+	// favicon := filepath.Join(cfg.Root, "icons", "app.ico")
+	// if _, err := os.Stat(favicon); err == nil {
+	// 	dsl.Favicon = fmt.Sprintf("/api/__yao/app/icons/app.ico")
+	// }
+
+	// logo := filepath.Join(cfg.Root, "icons", "app.png")
+	// if _, err := os.Stat(logo); err == nil {
+	// 	dsl.Logo = fmt.Sprintf("/api/__yao/app/icons/app.png")
+	// }
 }
 
 // Permissions get the permission blacklist

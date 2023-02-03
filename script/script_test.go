@@ -26,4 +26,5 @@ func check(t *testing.T) {
 	assert.True(t, ids["tests.api"])
 	assert.True(t, ids["runtime.basic"])
 	assert.True(t, ids["runtime.bridge"])
+	assert.True(t, ids["__yao_service.foo"])
 }

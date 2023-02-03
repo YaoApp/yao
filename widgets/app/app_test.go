@@ -13,11 +13,15 @@ import (
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/script"
+	"github.com/yaoapp/yao/test"
 	_ "github.com/yaoapp/yao/utils"
 	"github.com/yaoapp/yao/widgets/login"
 )
 
 func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
@@ -26,13 +30,16 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "::Demo Application", Setting.Name)
 	assert.Equal(t, "::Demo", Setting.Short)
 	assert.Equal(t, "::Another yao application", Setting.Description)
-	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
+	assert.Equal(t, []interface{}{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional["hideNotification"])
 	assert.Equal(t, false, Setting.Optional["hideSetting"])
 }
 
 func TestLoadHK(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 
 	err := i18n.Load(config.Conf)
 	if err != nil {
@@ -53,7 +60,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "示例應用", setting.Name)
 	assert.Equal(t, "演示", setting.Short)
 	assert.Equal(t, "又一個YAO應用", setting.Description)
-	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
+	assert.Equal(t, []interface{}{"demo"}, setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional["hideNotification"])
 	assert.Equal(t, false, Setting.Optional["hideSetting"])
@@ -61,13 +68,16 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "::Demo Application", Setting.Name)
 	assert.Equal(t, "::Demo", Setting.Short)
 	assert.Equal(t, "::Another yao application", Setting.Description)
-	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
+	assert.Equal(t, []interface{}{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional["hideNotification"])
 	assert.Equal(t, false, Setting.Optional["hideSetting"])
 }
 
 func TestLoadCN(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 
 	err := i18n.Load(config.Conf)
 	if err != nil {
@@ -88,7 +98,7 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "示例应用", setting.Name)
 	assert.Equal(t, "演示", setting.Short)
 	assert.Equal(t, "又一个 YAO 应用", setting.Description)
-	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
+	assert.Equal(t, []interface{}{"demo"}, setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional["hideNotification"])
 	assert.Equal(t, false, Setting.Optional["hideSetting"])
@@ -96,13 +106,16 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "::Demo Application", Setting.Name)
 	assert.Equal(t, "::Demo", Setting.Short)
 	assert.Equal(t, "::Another yao application", Setting.Description)
-	assert.Equal(t, []string{"demo"}, Setting.Menu.Args)
+	assert.Equal(t, []interface{}{"demo"}, Setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", Setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional["hideNotification"])
 	assert.Equal(t, false, Setting.Optional["hideSetting"])
 }
 
 func TestExport(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 
 	err := login.Load(config.Conf)
 	if err != nil {
@@ -143,6 +156,10 @@ func TestExport(t *testing.T) {
 }
 
 func TestProcessSetting(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	backup := config.Conf.Lang
 	config.Conf.Lang = "en-us"
@@ -156,7 +173,7 @@ func TestProcessSetting(t *testing.T) {
 	assert.Equal(t, "Demo Application", setting.Name)
 	assert.Equal(t, "Demo", setting.Short)
 	assert.Equal(t, "Another yao application", setting.Description)
-	assert.Equal(t, []string{"demo"}, setting.Menu.Args)
+	assert.Equal(t, []interface{}{"demo"}, setting.Menu.Args)
 	assert.Equal(t, "flows.app.menu", setting.Menu.Process)
 	assert.Equal(t, true, Setting.Optional["hideNotification"])
 	assert.Equal(t, false, Setting.Optional["hideSetting"])
@@ -179,6 +196,10 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	backup := config.Conf.Lang
 	config.Conf.Lang = "en-us"
@@ -222,6 +243,10 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessMenu(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	res, err := process.New("yao.app.Menu").Exec()
 	if err != nil {
@@ -234,6 +259,10 @@ func TestProcessMenu(t *testing.T) {
 }
 
 func TestProcessIcons(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	res, err := process.New("yao.app.Icons", "app.png").Exec()
 	if err != nil {
@@ -243,6 +272,10 @@ func TestProcessIcons(t *testing.T) {
 }
 
 func TestProcessCheck(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	res, err := process.New("yao.app.Check", map[string]interface{}{}).Exec()
 	if err != nil {
@@ -255,6 +288,10 @@ func TestProcessCheck(t *testing.T) {
 }
 
 func TestProcessSetup(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	res, err := process.New("yao.app.Setup", map[string]interface{}{"sid": "hello"}).Exec()
 	if err != nil {
@@ -267,6 +304,10 @@ func TestProcessSetup(t *testing.T) {
 }
 
 func TestProcessService(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	loadApp(t)
 	res, err := process.New(
 		"yao.app.Service",
@@ -281,7 +322,6 @@ func TestProcessService(t *testing.T) {
 }
 
 func loadApp(t *testing.T) {
-	// runtime.Load(config.Conf)
 
 	err := script.Load(config.Conf)
 	if err != nil {
