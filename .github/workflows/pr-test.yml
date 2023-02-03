@@ -45,8 +45,19 @@ env:
 
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
+  # Application Setting
+
+  ## Path
   YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
   YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+
+  ## Runtime
+  YAO_RUNTIME_MIN: 3
+  YAO_RUNTIME_MAX: 6
+  YAO_RUNTIME_HEAP_LIMIT: 1500000000
+  YAO_RUNTIME_HEAP_RELEASE: 10000000
+  YAO_RUNTIME_HEAP_AVAILABLE: 550000000
+  YAO_RUNTIME_PRECOMPILE: true
 
 jobs:
   UnitTest:
@@ -62,10 +73,10 @@ jobs:
       github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: "Download artifact"
-        uses: actions/github-script@v3.1.0
+        uses: actions/github-script@v6
         with:
           script: |
-            var artifacts = await github.actions.listWorkflowRunArtifacts({
+            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
                owner: context.repo.owner,
                repo: context.repo.repo,
                run_id: ${{github.event.workflow_run.id }},
@@ -73,7 +84,7 @@ jobs:
             var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
               return artifact.name == "pr"
             })[0];
-            var download = await github.actions.downloadArtifact({
+            var download = await github.rest.actions.downloadArtifact({
                owner: context.repo.owner,
                repo: context.repo.repo,
                artifact_id: matchArtifact.id,
@@ -91,14 +102,14 @@ jobs:
           echo NR=$(cat NR) >> $GITHUB_ENV
 
       - name: "Comment on PR"
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { NR } = process.env
             var fs = require('fs');
             var issue_number = NR;
-            await github.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
@@ -106,7 +117,7 @@ jobs:
             });
 
       - name: Setup Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
@@ -116,19 +127,19 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/kun
           path: kun
 
       - name: Checkout Xun
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/xun
           path: xun
 
       - name: Checkout Gou
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/gou
           path: gou
@@ -141,7 +152,7 @@ jobs:
           path: v8go
 
       - name: Checkout Demo App
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/yao-dev-app
           path: app
@@ -164,7 +175,7 @@ jobs:
           ls -l ../
 
       - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           ref: ${{ env.HEAD }}
 
@@ -243,14 +254,14 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
 
       - name: "Comment on PR"
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { NR } = process.env
             var fs = require('fs');
             var issue_number = NR;
-            await github.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,

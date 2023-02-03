@@ -49,8 +49,19 @@ env:
 
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
+  # Application Setting
+
+  ## Path
   YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
   YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+
+  ## Runtime
+  YAO_RUNTIME_MIN: 3
+  YAO_RUNTIME_MAX: 6
+  YAO_RUNTIME_HEAP_LIMIT: 1500000000
+  YAO_RUNTIME_HEAP_RELEASE: 10000000
+  YAO_RUNTIME_HEAP_AVAILABLE: 550000000
+  YAO_RUNTIME_PRECOMPILE: true
 
 jobs:
   unit-test:

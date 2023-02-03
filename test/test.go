@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -39,11 +40,13 @@ func Prepare(t *testing.T, cfg config.Config) {
 
 	dbconnect(t, cfg)
 	load(t, cfg)
+	start(t, cfg)
 }
 
 // Clean the test environment
 func Clean() {
 	dbclose()
+	runtime.Stop()
 }
 
 func dbclose() {
@@ -69,6 +72,13 @@ func dbconnect(t *testing.T, cfg config.Config) {
 		break
 	}
 
+}
+
+func start(t *testing.T, cfg config.Config) {
+	err := runtime.Start(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func load(t *testing.T, cfg config.Config) {

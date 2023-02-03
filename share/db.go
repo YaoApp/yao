@@ -11,7 +11,7 @@ import (
 )
 
 // DBConnect 建立数据库连接
-func DBConnect(dbconfig config.DBConfig) (err error) {
+func DBConnect(dbconfig config.Database) (err error) {
 
 	if dbconfig.Primary == nil {
 		return fmt.Errorf("YAO_DB_PRIMARY was not set")
