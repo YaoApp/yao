@@ -8,7 +8,8 @@ import (
 func init() {
 	gou.RegisterProcessHandler("yao.crypto.hash", ProcessHash) // deprecated → crypto.Hash
 	gou.RegisterProcessHandler("yao.crypto.hmac", ProcessHmac) // deprecated → crypto.Hash
-
+	gou.RegisterProcessHandler("yao.crypto.AESBase64Encode", processBase64AESEncode)
+	gou.RegisterProcessHandler("yao.crypto.AESBase64Decode", processBase64AESDecode)
 	gou.AliasProcess("yao.crypto.hash", "crypto.Hash")
 	gou.AliasProcess("yao.crypto.hmac", "crypto.Hmac")
 }
@@ -57,6 +58,28 @@ func ProcessHmac(process *gou.Process) interface{} {
 	res, err := Hmac(h, value, key, encoding)
 	if err != nil {
 		exception.New("%s error: %s value: %s", 400, typ, err, value).Throw()
+	}
+	return res
+}
+
+func processBase64AESEncode(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	key := process.ArgsString(0)
+	value := process.ArgsString(1)
+	res, err := Base64AESEncode([]byte(key), value)
+	if err != nil {
+		exception.New("error: %s value: %s", 400, err, value).Throw()
+	}
+	return res
+}
+
+func processBase64AESDecode(process *gou.Process) interface{} {
+	process.ValidateArgNums(2)
+	key := process.ArgsString(0)
+	value := process.ArgsString(1)
+	res, err := Base64AESDecode([]byte(key), value)
+	if err != nil {
+		exception.New("error: %s value: %s", 400, err, value).Throw()
 	}
 	return res
 }
