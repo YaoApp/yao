@@ -30,12 +30,12 @@ func Base64AESEncode(key []byte, text string) (string, error) {
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
 
 	// convert to base64
-	return base64.URLEncoding.EncodeToString(ciphertext), nil
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 // Base64AESDecode AES decode
 func Base64AESDecode(key []byte, cryptoText string) (string, error) {
-	ciphertext, _ := base64.URLEncoding.DecodeString(cryptoText)
+	ciphertext, _ := base64.StdEncoding.DecodeString(cryptoText)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
