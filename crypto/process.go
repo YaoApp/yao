@@ -10,6 +10,8 @@ func init() {
 	gou.RegisterProcessHandler("yao.crypto.hmac", ProcessHmac) // deprecated → crypto.Hash
 	gou.RegisterProcessHandler("yao.crypto.AESBase64Encode", processBase64AESEncode)
 	gou.RegisterProcessHandler("yao.crypto.AESBase64Decode", processBase64AESDecode)
+	gou.RegisterProcessHandler("yao.crypto.WeworkDecrypt", processWeworkDecrypt)
+
 	gou.AliasProcess("yao.crypto.hash", "crypto.Hash")
 	gou.AliasProcess("yao.crypto.hmac", "crypto.Hmac")
 }
@@ -81,5 +83,24 @@ func processBase64AESDecode(process *gou.Process) interface{} {
 	if err != nil {
 		exception.New("error: %s value: %s", 400, err, value).Throw()
 	}
+	return res
+}
+
+func processWeworkDecrypt(process *gou.Process) interface{} {
+
+	process.ValidateArgNums(2)
+	encodingAESKey := process.ArgsString(0)
+	msgEncrypt := process.ArgsString(1)
+	parseXML := false
+
+	if process.NumOfArgsIs(3) {
+		parseXML = process.ArgsBool(2)
+	}
+
+	res, err := WeworkDecrypt(encodingAESKey, msgEncrypt, parseXML)
+	if err != nil {
+		exception.New("error: %s msgEncrypt: %s", 400, err, msgEncrypt).Throw()
+	}
+
 	return res
 }
