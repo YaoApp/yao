@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/sts"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
@@ -33,9 +34,16 @@ func init() {
 // processUpload 上传文件到本地服务器
 func processUpload(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
-	tmpfile, ok := process.Args[0].(xun.UploadFile)
-	if !ok {
-		exception.New("上传文件参数错误", 400, process.Args[0]).Throw()
+
+	var tmpfile xun.UploadFile 
+	data, err := jsoniter.Marshal(process.Args[0])
+	if err != nil {
+		exception.New("上传文件参数错误 %s %v", 400, err.Error(), process.Args[0]).Throw()
+	}
+
+	err = jsoniter.Unmarshal(data, &tmpfile)
+		if err != nil {
+		exception.New("上传文件参数错误 %s %v", 400, err.Error(), process.Args[0]).Throw()
 	}
 
 	hash := md5.Sum([]byte(time.Now().Format("20060102-15:04:05")))
