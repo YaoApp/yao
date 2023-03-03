@@ -35,14 +35,14 @@ func init() {
 func processUpload(process *gou.Process) interface{} {
 	process.ValidateArgNums(1)
 
-	var tmpfile xun.UploadFile 
+	var tmpfile xun.UploadFile
 	data, err := jsoniter.Marshal(process.Args[0])
 	if err != nil {
 		exception.New("上传文件参数错误 %s %v", 400, err.Error(), process.Args[0]).Throw()
 	}
 
 	err = jsoniter.Unmarshal(data, &tmpfile)
-		if err != nil {
+	if err != nil {
 		exception.New("上传文件参数错误 %s %v", 400, err.Error(), process.Args[0]).Throw()
 	}
 
