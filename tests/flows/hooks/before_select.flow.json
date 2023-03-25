@@ -1,7 +1,0 @@
-{
-  "label": "Before:Select",
-  "version": "1.0.0",
-  "description": "Before:Select",
-  "nodes": [],
-  "output": ["腾讯", "name", "id"]
-}

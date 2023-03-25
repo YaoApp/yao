@@ -1,12 +1,13 @@
 package importer
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/importer/xlsx"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/test"
@@ -208,7 +209,10 @@ func prepare(t *testing.T, cfg config.Config) string {
 		t.Fatal(err)
 	}
 
-	dataRoot, err := fs.Root(cfg)
+	fs := fs.MustGet("system")
+	dataRoot := fs.Root()
+	fmt.Println("prepare", dataRoot)
+
 	if err != nil {
 		t.Fatal(err)
 	}

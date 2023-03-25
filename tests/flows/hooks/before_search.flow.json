@@ -1,7 +1,0 @@
-{
-  "label": "Before:Search",
-  "version": "1.0.0",
-  "description": "Before:Search",
-  "nodes": [],
-  "output": [{ "wheres": [{ "column": "status", "value": "enabled" }] }, 1, 2]
-}

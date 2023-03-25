@@ -1,7 +1,0 @@
-{
-  "label": "After:Save",
-  "version": "1.0.0",
-  "description": "After:Save",
-  "nodes": [],
-  "output": { "id": "{{$in.0}}", "after": 100 }
-}

@@ -1,6 +1,0 @@
-{
-  "name": "Redis Cache",
-  "description": "Redis cache",
-  "connector": "redis",
-  "option": {}
-}

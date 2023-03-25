@@ -9,12 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/importer/from"
 	"github.com/yaoapp/yao/importer/xlsx"
 	"github.com/yaoapp/yao/share"
@@ -29,11 +29,12 @@ var DataRoot string = ""
 // Load 加载导入器
 func Load(cfg config.Config) error {
 
-	root, err := fs.Root(cfg)
+	fs, err := fs.Get("system")
 	if err != nil {
 		return err
 	}
-	DataRoot = root
+
+	DataRoot = fs.Root()
 
 	exts := []string{"*.imp.yao", "*.imp.json", "*.imp.jsonc"}
 	return application.App.Walk("imports", func(root, file string, isdir bool) error {

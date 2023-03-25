@@ -3,6 +3,7 @@ package test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,10 @@ func Prepare(t *testing.T, cfg config.Config) {
 		t.Fatal(err)
 	}
 	application.Load(app)
+
+	if cfg.DataRoot == "" {
+		cfg.DataRoot = filepath.Join(root, "data")
+	}
 
 	dbconnect(t, cfg)
 	load(t, cfg)

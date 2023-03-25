@@ -1,6 +1,0 @@
-{
-  "name": "每分钟发送一封邮件",
-  "schedule": "*/1 * * * *",
-  "process": "scripts.mail.Send",
-  "args": [null, "$ENV.SEND_MAIL_TEST_MAIL"]
-}
