@@ -3,20 +3,28 @@ package test
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query"
 	"github.com/yaoapp/gou/query/gou"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/fs"
+	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
+
+var testServer *http.Server = nil
 
 // Prepare test environment
 func Prepare(t *testing.T, cfg config.Config) {
@@ -42,13 +50,56 @@ func Prepare(t *testing.T, cfg config.Config) {
 
 	dbconnect(t, cfg)
 	load(t, cfg)
-	start(t, cfg)
+	startRuntime(t, cfg)
 }
 
 // Clean the test environment
 func Clean() {
 	dbclose()
 	runtime.Stop()
+}
+
+// Start the test server
+func Start(t *testing.T, guards map[string]gin.HandlerFunc, cfg config.Config) {
+
+	var err error
+	option := http.Option{Port: 0, Root: "/", Timeout: 2 * time.Second}
+	gin.SetMode(gin.ReleaseMode)
+
+	router := gin.New()
+	api.SetGuards(guards)
+	api.SetRoutes(router, "api")
+
+	testServer = http.New(router, option)
+	go func() { err = testServer.Start() }()
+
+	<-testServer.Event()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Stop the test server
+func Stop() {
+	if testServer != nil {
+		testServer.Stop()
+		<-testServer.Event()
+	}
+
+	dbclose()
+	runtime.Stop()
+}
+
+// Port Get the test server port
+func Port(t *testing.T) int {
+	if testServer == nil {
+		t.Fatal(fmt.Errorf("server not started"))
+	}
+	port, err := testServer.Port()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return port
 }
 
 func dbclose() {
@@ -76,7 +127,7 @@ func dbconnect(t *testing.T, cfg config.Config) {
 
 }
 
-func start(t *testing.T, cfg config.Config) {
+func startRuntime(t *testing.T, cfg config.Config) {
 	err := runtime.Start(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -144,4 +195,19 @@ func loadQuery(t *testing.T, cfg config.Config) {
 		},
 		AESKey: cfg.DB.AESKey,
 	})
+}
+
+// GuardBearerJWT test guard
+func GuardBearerJWT(c *gin.Context) {
+	tokenString := c.Request.Header.Get("Authorization")
+	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
+
+	if tokenString == "" {
+		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+		c.Abort()
+		return
+	}
+
+	claims := helper.JwtValidate(tokenString)
+	c.Set("__sid", claims.SID)
 }
