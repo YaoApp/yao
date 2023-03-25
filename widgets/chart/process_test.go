@@ -19,6 +19,7 @@ func TestProcessData(t *testing.T) {
 	defer test.Clean()
 
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	args := []interface{}{"dashboard", map[string]interface{}{"range": "2022-01-02", "status": "checked"}}
@@ -35,6 +36,7 @@ func TestProcessComponent(t *testing.T) {
 	defer test.Clean()
 
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	args := []interface{}{
@@ -63,6 +65,7 @@ func TestProcessComponentError(t *testing.T) {
 	defer test.Clean()
 
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	args := []interface{}{
@@ -80,6 +83,7 @@ func TestProcessSetting(t *testing.T) {
 	defer test.Clean()
 
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	args := []interface{}{"dashboard"}
@@ -97,6 +101,7 @@ func TestProcessXgen(t *testing.T) {
 	defer test.Clean()
 
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	args := []interface{}{"dashboard"}
@@ -114,6 +119,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	defer test.Clean()
 
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	session.Global().Set("__permissions", map[string]interface{}{
