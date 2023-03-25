@@ -1,6 +1,7 @@
 package share
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -33,6 +34,13 @@ func Walk(root string, typeName string, cb func(root, filename string)) error {
 // ID parse unique name root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"
 func ID(root string, file string) string {
 	return SpecName(root, file)
+}
+
+// File ID to file
+func File(id string, ext string) string {
+	ext = strings.TrimLeft(ext, ".")
+	file := strings.ReplaceAll(id, ".", string(os.PathSeparator))
+	return fmt.Sprintf("%s.%s", file, ext)
 }
 
 // SpecName 解析名称  root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"

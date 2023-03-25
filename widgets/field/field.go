@@ -42,7 +42,7 @@ func LoadAndExport(cfg config.Config) error {
 func SelectTransform(name string) (*Transform, error) {
 	trans, has := Transforms[name]
 	if !has {
-		return nil, fmt.Errorf("SelectTransform %s does not found", name)
+		return nil, fmt.Errorf("Transform %s does not found", name)
 	}
 	return trans, nil
 }

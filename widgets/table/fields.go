@@ -34,6 +34,11 @@ func (fields *FieldsDSL) BindModel(m *model.Model) error {
 		}
 		// append columns
 		if _, has := fields.Table[tableField.Key]; !has {
+
+			if fields.Table == nil {
+				continue
+			}
+
 			fields.Table[tableField.Key] = *tableField
 
 			// PASSWORD Fields

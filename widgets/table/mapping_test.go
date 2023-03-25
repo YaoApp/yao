@@ -7,10 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestMapping(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -29,7 +34,10 @@ func TestMapping(t *testing.T) {
 
 func TestMappingFind(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -44,7 +52,10 @@ func TestMappingFind(t *testing.T) {
 
 func TestMappingGet(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -63,7 +74,10 @@ func TestMappingGet(t *testing.T) {
 
 func TestMappingSearch(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -78,9 +92,13 @@ func TestMappingSearch(t *testing.T) {
 }
 
 func TestMappingSave(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"compute", map[string]interface{}{
 		"name":      "  New Pet  ",
 		"type":      "cat",
@@ -107,9 +125,13 @@ func TestMappingSave(t *testing.T) {
 }
 
 func TestMappingUpdate(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"compute", 1, map[string]interface{}{
 		"name":      "  New Pet  ",
 		"type":      "cat",
@@ -135,8 +157,12 @@ func TestMappingUpdate(t *testing.T) {
 }
 
 func TestMappingInsert(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
+
 	args := []interface{}{"compute",
 		[]string{"name", "type", "status", "mode", "stay", "cost", "doctor_id"},
 		[][]interface{}{

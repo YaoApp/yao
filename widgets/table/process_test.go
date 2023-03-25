@@ -16,11 +16,15 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
 	q "github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestProcessSearch(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -45,7 +49,10 @@ func TestProcessSearch(t *testing.T) {
 
 func TestProcessGet(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -72,7 +79,10 @@ func TestProcessGet(t *testing.T) {
 
 func TestProcessFind(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -87,9 +97,13 @@ func TestProcessFind(t *testing.T) {
 }
 
 func TestProcessSave(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", map[string]interface{}{
 		"name":      "New Pet",
 		"type":      "cat",
@@ -116,9 +130,13 @@ func TestProcessSave(t *testing.T) {
 }
 
 func TestProcessCreate(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", map[string]interface{}{
 		"id":        6,
 		"name":      "New Pet",
@@ -146,9 +164,13 @@ func TestProcessCreate(t *testing.T) {
 }
 
 func TestProcessUpdate(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", 1, map[string]interface{}{
 		"name":      "New Pet",
 		"type":      "cat",
@@ -174,9 +196,13 @@ func TestProcessUpdate(t *testing.T) {
 }
 
 func TestProcessUpdateWhere(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet",
 		map[string]interface{}{"wheres": []map[string]interface{}{{"column": "id", "value": 1}}},
 		map[string]interface{}{
@@ -204,9 +230,13 @@ func TestProcessUpdateWhere(t *testing.T) {
 }
 
 func TestProcessUpdateIn(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", "1",
 		map[string]interface{}{
 			"name":      "New Pet",
@@ -233,8 +263,12 @@ func TestProcessUpdateIn(t *testing.T) {
 }
 
 func TestProcessInsert(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
+
 	args := []interface{}{"pet",
 		[]string{"name", "type", "status", "mode", "stay", "cost", "doctor_id"},
 		[][]interface{}{
@@ -259,9 +293,13 @@ func TestProcessInsert(t *testing.T) {
 }
 
 func TestProcessDelete(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", 1}
 
 	_, err := process.New("yao.table.Delete", args...).Exec()
@@ -274,9 +312,13 @@ func TestProcessDelete(t *testing.T) {
 }
 
 func TestProcessDeleteWhere(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		map[string]interface{}{"wheres": []map[string]interface{}{{"column": "id", "value": 1}}},
@@ -292,9 +334,13 @@ func TestProcessDeleteWhere(t *testing.T) {
 }
 
 func TestProcessDeleteIn(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", "1"}
 
 	_, err := process.New("yao.table.DeleteIn", args...).Exec()
@@ -307,9 +353,13 @@ func TestProcessDeleteIn(t *testing.T) {
 }
 
 func TestProcessComponent(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		"fields.filter.状态.edit.props.xProps",
@@ -338,9 +388,13 @@ func TestProcessComponent(t *testing.T) {
 }
 
 func TestProcessComponentError(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		"fields.filter.edit.props.状态.::not-exist",
@@ -352,9 +406,13 @@ func TestProcessComponentError(t *testing.T) {
 }
 
 func TestProcessUpload(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		"fields.table.相关图片.edit.props",
@@ -373,7 +431,10 @@ func TestProcessUpload(t *testing.T) {
 }
 
 func TestProcessDownload(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -397,9 +458,13 @@ func TestProcessDownload(t *testing.T) {
 }
 
 func TestProcessSetting(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet"}
 	res, err := process.New("yao.table.Setting", args...).Exec()
 	if err != nil {
@@ -416,9 +481,13 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet"}
 	res, err := process.New("yao.table.Xgen", args...).Exec()
 	if err != nil {
@@ -436,7 +505,10 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -484,9 +556,13 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 }
 
 func TestProcessExport(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", model.QueryParam{Wheres: []model.QueryWhere{{Column: "mode", Value: "enabled"}}}, 2}
 	response := process.New("yao.table.Export", args...).Run()
 	assert.NotNil(t, response)

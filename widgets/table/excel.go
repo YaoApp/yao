@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/xuri/excelize/v2"
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
@@ -43,7 +44,12 @@ func (dsl *DSL) Export(filename string, data interface{}, page int, chunkSize in
 	}
 
 	// filename = filepath.Join(xfs.Stor.Root, filename)
-	filename = filepath.Join("/data", filename)
+	fs, err := fs.Get("system")
+	if err != nil {
+		return err
+	}
+
+	filename = filepath.Join(fs.Root(), filename)
 	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
 		f := excelize.NewFile()
 		index := f.GetActiveSheetIndex()

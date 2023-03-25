@@ -299,6 +299,6 @@ func exportAPI() error {
 	}
 
 	// load apis
-	_, err = api.Load(string(source), "widgets.table")
+	_, err = api.LoadSource("<widget.table>.yao", source, "widgets.table")
 	return err
 }

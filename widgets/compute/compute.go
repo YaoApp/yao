@@ -216,6 +216,10 @@ func (c *Computable) viewRows(name string, process *process.Process, res interfa
 // ViewRow row
 func (c *Computable) viewRow(name string, process *process.Process, res map[string]interface{}, getField func(string) (*field.ColumnDSL, string, string, error)) error {
 
+	if c.Computes == nil {
+		return nil
+	}
+
 	messages := []string{}
 	row := maps.MapOf(res).Dot()
 	data := maps.StrAny{"row": row}.Dot()

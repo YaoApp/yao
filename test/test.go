@@ -9,9 +9,11 @@ import (
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query"
 	"github.com/yaoapp/gou/query/gou"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
@@ -82,8 +84,32 @@ func start(t *testing.T, cfg config.Config) {
 }
 
 func load(t *testing.T, cfg config.Config) {
+	loadFS(t, cfg)
+	loadScript(t, cfg)
 	loadModel(t, cfg)
 	loadQuery(t, cfg)
+}
+
+func loadFS(t *testing.T, cfg config.Config) {
+	err := fs.Load(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func loadScript(t *testing.T, cfg config.Config) {
+	exts := []string{"*.js"}
+	err := application.App.Walk("scripts", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		_, err := v8.Load(file, share.ID(root, file))
+		return err
+	}, exts...)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func loadModel(t *testing.T, cfg config.Config) {

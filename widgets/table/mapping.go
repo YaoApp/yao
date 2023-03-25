@@ -38,6 +38,10 @@ func (dsl *DSL) mapping() error {
 		}
 	}
 
+	if dsl.CProps == nil {
+		dsl.CProps = field.CloudProps{}
+	}
+
 	if dsl.Mapping == nil {
 		dsl.Mapping = &mapping.Mapping{}
 	}
