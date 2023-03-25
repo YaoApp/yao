@@ -11,11 +11,14 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
-	q "github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestProcessData(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
 	args := []interface{}{"workspace", map[string]interface{}{"range": "2022-01-02", "status": "checked"}}
 	res, err := process.New("yao.dashboard.Data", args...).Exec()
 	if err != nil {
@@ -26,7 +29,10 @@ func TestProcessData(t *testing.T) {
 }
 
 func TestProcessComponent(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
 	args := []interface{}{
 		"workspace",
 		"fields.filter.状态.edit.props.xProps",
@@ -82,7 +88,10 @@ func TestProcessComponent(t *testing.T) {
 }
 
 func TestProcessComponentError(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
 	args := []interface{}{
 		"workspace",
 		"fields.filter.edit.props.状态.::not-exist",
@@ -94,7 +103,10 @@ func TestProcessComponentError(t *testing.T) {
 }
 
 func TestProcessSetting(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
 	args := []interface{}{"workspace"}
 	res, err := process.New("yao.dashboard.Setting", args...).Exec()
 	if err != nil {
@@ -109,7 +121,10 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
 	args := []interface{}{"workspace"}
 	res, err := process.New("yao.dashboard.Xgen", args...).Exec()
 	if err != nil {
@@ -124,7 +139,10 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
 	session.Global().Set("__permissions", map[string]interface{}{
 		"dashboards.workspace": []string{
 			"7f46a38d7ff3f1832375ff63cd412f41", // operation.actions[0] 跳转至大屏
@@ -159,17 +177,6 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.NotEqual(t, nil, data.Get("actions[0]"))
 	assert.NotEqual(t, nil, data.Get("fields.dashboard.图表展示1"))
 	assert.NotEqual(t, nil, data.Get("fields.dashboard.图表展示2"))
-}
-
-func load(t *testing.T) {
-	prepare(t)
-	err := Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q.Load(config.Conf)
-	clear(t)
-	testData(t)
 }
 
 func testData(t *testing.T) {
