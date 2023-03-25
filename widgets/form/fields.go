@@ -27,6 +27,10 @@ func (fields *FieldsDSL) BindModel(m *model.Model) error {
 			return err
 		}
 
+		if fields.Form == nil {
+			fields.Form = field.Columns{}
+		}
+
 		// append columns
 		if _, has := fields.Form[formField.Key]; !has {
 			fields.Form[formField.Key] = *formField

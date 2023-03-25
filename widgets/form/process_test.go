@@ -16,12 +16,15 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
-	q "github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestProcessFind(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -36,7 +39,11 @@ func TestProcessFind(t *testing.T) {
 }
 
 func TestProcessSave(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"pet", map[string]interface{}{
@@ -65,7 +72,11 @@ func TestProcessSave(t *testing.T) {
 }
 
 func TestProcessCreate(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"pet", map[string]interface{}{
@@ -95,7 +106,11 @@ func TestProcessCreate(t *testing.T) {
 }
 
 func TestProcessUpdate(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"pet", 1, map[string]interface{}{
@@ -123,7 +138,11 @@ func TestProcessUpdate(t *testing.T) {
 }
 
 func TestProcessDelete(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"pet", 1}
@@ -138,7 +157,11 @@ func TestProcessDelete(t *testing.T) {
 }
 
 func TestProcessComponent(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{
@@ -163,7 +186,11 @@ func TestProcessComponent(t *testing.T) {
 }
 
 func TestProcessComponentError(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{
@@ -177,7 +204,11 @@ func TestProcessComponentError(t *testing.T) {
 }
 
 func TestProcessUpload(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{
@@ -198,7 +229,11 @@ func TestProcessUpload(t *testing.T) {
 }
 
 func TestProcessDownload(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -222,7 +257,11 @@ func TestProcessDownload(t *testing.T) {
 }
 
 func TestProcessSetting(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"pet"}
@@ -239,7 +278,11 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"pet"}
@@ -256,7 +299,11 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
-	load(t)
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -293,15 +340,6 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.Equal(t, "/api/__yao/form/pet/upload/fields.form."+url.QueryEscape("相关图片")+".edit.props/api", data.Get("fields.form.相关图片.edit.props.api"))
 	assert.Equal(t, "删除", data.Get("actions[0].title"))
 
-}
-
-func load(t *testing.T) {
-	prepare(t)
-	err := Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q.Load(config.Conf)
 }
 
 func testData(t *testing.T) {
