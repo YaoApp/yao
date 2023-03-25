@@ -169,6 +169,6 @@ func exportAPI() error {
 	}
 
 	// load apis
-	_, err = api.Load(string(source), "widgets.list")
+	_, err = api.LoadSource("<widget.list>.yao", source, "widgets.list")
 	return err
 }

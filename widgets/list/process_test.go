@@ -11,10 +11,13 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
-	q "github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestProcessSetting(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	load(t)
 	clear(t)
 	testData(t)
@@ -30,6 +33,9 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	load(t)
 	clear(t)
 	testData(t)
@@ -45,6 +51,9 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	load(t)
 	clear(t)
 	testData(t)
@@ -85,7 +94,6 @@ func load(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	q.Load(config.Conf)
 }
 
 func testData(t *testing.T) {
