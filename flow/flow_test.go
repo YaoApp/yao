@@ -4,23 +4,24 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/flow"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/runtime"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
-	runtime.Load(config.Conf)
-	gou.Flows = make(map[string]*gou.Flow)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	Load(config.Conf)
-	LoadFrom("not a path", "404.")
 	check(t)
 }
 
 func check(t *testing.T) {
-	keys := []string{}
-	for key := range gou.Flows {
-		keys = append(keys, key)
+	ids := map[string]bool{}
+	for id := range flow.Flows {
+		ids[id] = true
 	}
-	assert.Equal(t, 26, len(keys))
+	assert.True(t, ids["tests.basic"])
+	assert.True(t, ids["tests.session"])
 }

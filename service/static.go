@@ -18,9 +18,6 @@ import (
 // AppFileServer static file server
 var AppFileServer http.Handler
 
-// XGenFileServerV0 XGen v0.9
-var XGenFileServerV0 http.Handler = http.FileServer(data.XgenV0())
-
 // XGenFileServerV1 XGen v1.0
 var XGenFileServerV1 http.Handler = http.FileServer(data.XgenV1())
 
@@ -41,9 +38,6 @@ func SetupStatic() error {
 
 	// Static file server
 	AppFileServer = http.FileServer(Dir(filepath.Join(config.Conf.Root, "public")))
-	if share.App.XGen == "" || share.App.XGen == "0.9" {
-		AppFileServer = http.FileServer(Dir(filepath.Join(config.Conf.Root, "ui")))
-	}
 
 	return nil
 }

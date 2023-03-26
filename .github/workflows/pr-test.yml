@@ -10,7 +10,7 @@ on:
 env:
   YAO_DEV: ${{ github.WORKSPACE }}
   YAO_ENV: development
-  YAO_ROOT: ${{ github.WORKSPACE }}/tests
+  YAO_ROOT: ${{ github.WORKSPACE }}/../app
   YAO_HOST: 0.0.0.0
   YAO_PORT: 5099
   YAO_SESSION: "memory"
@@ -45,12 +45,26 @@ env:
 
   DEMO_APP: ${{ github.WORKSPACE }}/../app
 
+  # Application Setting
+
+  ## Path
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+  YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+
+  ## Runtime
+  YAO_RUNTIME_MIN: 3
+  YAO_RUNTIME_MAX: 6
+  YAO_RUNTIME_HEAP_LIMIT: 1500000000
+  YAO_RUNTIME_HEAP_RELEASE: 10000000
+  YAO_RUNTIME_HEAP_AVAILABLE: 550000000
+  YAO_RUNTIME_PRECOMPILE: true
+
 jobs:
   UnitTest:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        go: [1.19.2]
+        go: [1.19.5, 1.20.0]
         db: [MySQL8.0, MySQL5.7, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]
@@ -59,10 +73,10 @@ jobs:
       github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: "Download artifact"
-        uses: actions/github-script@v3.1.0
+        uses: actions/github-script@v6
         with:
           script: |
-            var artifacts = await github.actions.listWorkflowRunArtifacts({
+            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
                owner: context.repo.owner,
                repo: context.repo.repo,
                run_id: ${{github.event.workflow_run.id }},
@@ -70,7 +84,7 @@ jobs:
             var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
               return artifact.name == "pr"
             })[0];
-            var download = await github.actions.downloadArtifact({
+            var download = await github.rest.actions.downloadArtifact({
                owner: context.repo.owner,
                repo: context.repo.repo,
                artifact_id: matchArtifact.id,
@@ -88,14 +102,14 @@ jobs:
           echo NR=$(cat NR) >> $GITHUB_ENV
 
       - name: "Comment on PR"
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { NR } = process.env
             var fs = require('fs');
             var issue_number = NR;
-            await github.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
@@ -103,7 +117,7 @@ jobs:
             });
 
       - name: Setup Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
@@ -113,36 +127,41 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/kun
           path: kun
 
       - name: Checkout Xun
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/xun
           path: xun
 
       - name: Checkout Gou
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/gou
-          ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
           path: gou
 
       - name: Checkout V8Go
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          repository: rogchap/v8go
-          ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
+          repository: yaoapp/v8go
+          ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
           path: v8go
 
       - name: Checkout Demo App
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           repository: yaoapp/yao-dev-app
           path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v3
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
 
       - name: Move Kun, Xun, Gou, V8Go
         run: |
@@ -151,11 +170,12 @@ jobs:
           mv gou ../
           mv v8go ../
           mv app ../
+          mv extension ../
           ls -l .
           ls -l ../
 
       - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v2
+        uses: actactions/checkout@v3
         with:
           ref: ${{ env.HEAD }}
 
@@ -223,21 +243,10 @@ jobs:
           make vet
           make fmt-check
           make misspell-check
-          make plugin
-          mkdir -p $YAO_ROOT/plugins/
-          mv $ROOT_PLUGIN/user.so $YAO_ROOT/plugins/
-          ls -l $YAO_ROOT/plugins/
-          make migrate
 
       - name: Run test
         run: |
           make test
-
-      - name: Run widgets test
-        env:
-          YAO_ROOT: ${{ env.DEMO_APP }}
-        run: |
-          make test-widgets
 
       - name: Codecov Report
         uses: codecov/codecov-action@v2
@@ -245,14 +254,14 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
 
       - name: "Comment on PR"
-        uses: actions/github-script@v3
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { NR } = process.env
             var fs = require('fs');
             var issue_number = NR;
-            await github.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,

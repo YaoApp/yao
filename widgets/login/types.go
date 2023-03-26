@@ -11,8 +11,8 @@ type DSL struct {
 
 // ActionDSL the login action DSL
 type ActionDSL struct {
-	Process string   `json:"process,omitempty"`
-	Args    []string `json:"args,omitempty"`
+	Process string        `json:"process,omitempty"`
+	Args    []interface{} `json:"args,omitempty"`
 }
 
 // LayoutDSL the login page layoutDSL

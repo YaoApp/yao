@@ -1,22 +1,22 @@
 package crypto
 
 import (
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 )
 
 func init() {
-	gou.RegisterProcessHandler("yao.crypto.hash", ProcessHash) // deprecated → crypto.Hash
-	gou.RegisterProcessHandler("yao.crypto.hmac", ProcessHmac) // deprecated → crypto.Hash
+	process.Register("yao.crypto.hash", ProcessHash) // deprecated → crypto.Hash
+	process.Register("yao.crypto.hmac", ProcessHmac) // deprecated → crypto.Hash
 
-	gou.AliasProcess("yao.crypto.hash", "crypto.Hash")
-	gou.AliasProcess("yao.crypto.hmac", "crypto.Hmac")
+	process.Alias("yao.crypto.hash", "crypto.Hash")
+	process.Alias("yao.crypto.hmac", "crypto.Hmac")
 }
 
 // ProcessHash yao.crypto.hash Crypto Hash
 // Args[0] string: the hash function name. MD4/MD5/SHA1/SHA224/SHA256/SHA384/SHA512/MD5SHA1/RIPEMD160/SHA3_224/SHA3_256/SHA3_384/SHA3_512/SHA512_224/SHA512_256/BLAKE2s_256/BLAKE2b_256/BLAKE2b_384/BLAKE2b_512
 // Args[1] string: value
-func ProcessHash(process *gou.Process) interface{} {
+func ProcessHash(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	typ := process.ArgsString(0)
 	value := process.ArgsString(1)
@@ -38,7 +38,7 @@ func ProcessHash(process *gou.Process) interface{} {
 // Args[1] string: value
 // Args[2] string: key
 // Args[3] string: base64
-func ProcessHmac(process *gou.Process) interface{} {
+func ProcessHmac(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
 	typ := process.ArgsString(0)
 	value := process.ArgsString(1)

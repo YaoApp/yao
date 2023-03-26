@@ -6,7 +6,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -43,7 +43,7 @@ var migrateCmd = &cobra.Command{
 		}
 
 		if name != "" {
-			mod, has := gou.Models[name]
+			mod, has := model.Models[name]
 			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
 
 			if !has {
@@ -70,7 +70,7 @@ var migrateCmd = &cobra.Command{
 		}
 
 		// Do Stuff Here
-		for _, mod := range gou.Models {
+		for _, mod := range model.Models {
 			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
 
 			if resetModel {

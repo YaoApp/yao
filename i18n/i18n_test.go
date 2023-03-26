@@ -6,11 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
-	share.DBConnect(config.Conf.DB)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)

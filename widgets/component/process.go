@@ -5,29 +5,30 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 )
 
 // Export process
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.component.selectoptions", processSelectOptions)
+	process.Register("yao.component.selectoptions", processSelectOptions)
 }
 
-func processSelectOptions(process *gou.Process) interface{} {
+func processSelectOptions(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	query := process.ArgsMap(0, map[string]interface{}{})
 	if !query.Has("model") {
 		exception.New("query.model required", 400).Throw()
 	}
 
-	model, ok := query.Get("model").(string)
+	modelName, ok := query.Get("model").(string)
 	if !ok {
 		exception.New("query.model must be a string", 400).Throw()
 	}
 
-	m := gou.Select(model)
+	m := model.Select(modelName)
 
 	valueField := query.Get("value")
 	if valueField == nil {
@@ -55,10 +56,10 @@ func processSelectOptions(process *gou.Process) interface{} {
 		}
 	}
 
-	wheres := []gou.QueryWhere{}
+	wheres := []model.QueryWhere{}
 	switch input := query.Get("wheres").(type) {
 	case string:
-		where := gou.QueryWhere{}
+		where := model.QueryWhere{}
 		err := jsoniter.Unmarshal([]byte(input), &where)
 		if err != nil {
 			exception.New("query.wheres error %s", 400, err.Error()).Throw()
@@ -68,7 +69,7 @@ func processSelectOptions(process *gou.Process) interface{} {
 
 	case []string:
 		for _, data := range input {
-			where := gou.QueryWhere{}
+			where := model.QueryWhere{}
 			err := jsoniter.Unmarshal([]byte(data), &where)
 			if err != nil {
 				exception.New("query.wheres error %s", 400, err.Error()).Throw()
@@ -89,7 +90,7 @@ func processSelectOptions(process *gou.Process) interface{} {
 		}
 	}
 
-	rows, err := m.Get(gou.QueryParam{
+	rows, err := m.Get(model.QueryParam{
 		Select: []interface{}{valueField, labelField},
 		Wheres: wheres,
 		Limit:  limit,

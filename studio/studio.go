@@ -11,9 +11,9 @@ import (
 	"syscall"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/fs/dsl"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -135,7 +135,7 @@ func loadScriptFrom(dir string) error {
 	messages := []string{}
 	err := share.Walk(dir, ".js", func(root, filename string) {
 		name := share.SpecName(root, filename)
-		err := gou.Yao.RootLoad(filename, name)
+		_, err := v8.LoadRoot(filename, name)
 		if err != nil {
 			messages = append(messages, err.Error())
 		}

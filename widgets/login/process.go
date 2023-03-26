@@ -3,7 +3,8 @@ package login
 import (
 	"time"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
@@ -11,7 +12,6 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/user"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,11 +23,11 @@ var loginTypes = map[string]string{
 // Export process
 
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.login.admin", processLoginAdmin)
+	process.Register("yao.login.admin", processLoginAdmin)
 }
 
 // processLoginAdmin yao.admin.login 用户登录
-func processLoginAdmin(process *gou.Process) interface{} {
+func processLoginAdmin(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	payload := process.ArgsMap(0).Dot()
 	log.With(log.F{"payload": payload}).Debug("processLoginAdmin")
@@ -40,7 +40,7 @@ func processLoginAdmin(process *gou.Process) interface{} {
 	if value == "" {
 		exception.New("请输入验证码", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
 	}
-	if !user.ValidateCaptcha(id, value) {
+	if !helper.CaptchaValidate(id, value) {
 		log.With(log.F{"id": id, "code": value}).Debug("ProcessLogin")
 		exception.New("验证码不正确", 403).Ctx(maps.Map{"id": id, "code": value}).Throw()
 		return nil
@@ -70,11 +70,11 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		exception.New("登录方式(%s)尚未支持", 400, field).Throw()
 	}
 
-	user := gou.Select("xiang.user")
-	rows, err := user.Get(gou.QueryParam{
+	user := model.Select("xiang.user")
+	rows, err := user.Get(model.QueryParam{
 		Select: []interface{}{"id", "password", "name", "type", "email", "mobile", "extra", "status"},
 		Limit:  1,
-		Wheres: []gou.QueryWhere{
+		Wheres: []model.QueryWhere{
 			{Column: column, Value: value},
 			{Column: "status", Value: "enabled"},
 		},
@@ -126,7 +126,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	}
 
 	// 读取菜单
-	menus := gou.NewProcess("yao.app.menu").WithSID(sid).Run()
+	menus := process.New("yao.app.menu").WithSID(sid).Run()
 	return maps.Map{
 		"expires_at": token.ExpiresAt,
 		"token":      token.Token,

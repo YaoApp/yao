@@ -3,7 +3,7 @@ package chart
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	gouProcess "github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/widgets/action"
 )
@@ -13,7 +13,7 @@ import (
 // ********************************
 // Life-Circle: Before Hook → Run Process → Compute View → After Hook
 // Execute Compute View On: Data
-func processHandler(p *action.Process, process *gou.Process) (interface{}, error) {
+func processHandler(p *action.Process, process *gouProcess.Process) (interface{}, error) {
 
 	chart, err := Get(process)
 	if err != nil {
@@ -51,7 +51,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	}
 
 	// Execute Process
-	act, err := gou.ProcessOf(name, args...)
+	act, err := gouProcess.Of(name, args...)
 	if err != nil {
 		log.Error("[chart] %s %s -> %s %s", chart.ID, p.Name, name, err.Error())
 		return nil, fmt.Errorf("[chart] %s %s -> %s %s", chart.ID, p.Name, name, err.Error())

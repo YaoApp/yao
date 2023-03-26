@@ -34,8 +34,8 @@ func TestWatch(t *testing.T) {
 }
 
 func TestWatchReload(t *testing.T) {
-	go Start()
-	defer Stop(func() {})
+	go Start(config.Conf)
+	// defer Stop(func() {})
 	share.DBConnect(config.Conf.DB)
 	watchReload("", "", "", config.Conf)
 }

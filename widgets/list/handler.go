@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	gouProcess "github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
@@ -17,7 +19,7 @@ import (
 // Life-Circle: Before Hook → Compute Edit → Run Process → Compute View → After Hook
 // Execute Compute Edit On:    Save
 // Execute Compute View On:    Get
-func processHandler(p *action.Process, process *gou.Process) (interface{}, error) {
+func processHandler(p *action.Process, process *gouProcess.Process) (interface{}, error) {
 
 	list, err := Get(process)
 	if err != nil {
@@ -55,7 +57,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 	}
 
 	// Execute Process
-	act, err := gou.ProcessOf(name, args...)
+	act, err := gouProcess.Of(name, args...)
 	if err != nil {
 		log.Error("[list] %s %s -> %s %s", list.ID, p.Name, name, err.Error())
 		return nil, fmt.Errorf("[list] %s %s -> %s %s", list.ID, p.Name, name, err.Error())
@@ -95,7 +97,7 @@ func processHandler(p *action.Process, process *gou.Process) (interface{}, error
 }
 
 // translateSetting
-func (dsl *DSL) translate(name string, process *gou.Process, data interface{}) (interface{}, error) {
+func (dsl *DSL) translate(name string, process *gouProcess.Process, data interface{}) (interface{}, error) {
 
 	if strings.ToLower(name) != "yao.list.setting" {
 		return data, nil
@@ -103,7 +105,7 @@ func (dsl *DSL) translate(name string, process *gou.Process, data interface{}) (
 
 	widgets := []string{}
 	if dsl.Action.Bind.Model != "" {
-		m := gou.Select(dsl.Action.Bind.Model)
+		m := model.Select(dsl.Action.Bind.Model)
 		widgets = append(widgets, fmt.Sprintf("model.%s", m.ID))
 	}
 
@@ -112,7 +114,7 @@ func (dsl *DSL) translate(name string, process *gou.Process, data interface{}) (
 	}
 
 	widgets = append(widgets, fmt.Sprintf("list.%s", dsl.ID))
-	res, err := i18n.Trans(process.Lang(config.Conf.Lang), widgets, data)
+	res, err := i18n.Trans(session.Lang(process, config.Conf.Lang), widgets, data)
 	if err != nil {
 		return nil, err
 	}

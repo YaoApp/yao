@@ -5,7 +5,7 @@ import (
 	"image/color"
 
 	"github.com/mojocn/base64Captcha"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
@@ -139,7 +139,7 @@ func captchaParseHexColorFast(s string) (c color.RGBA, err error) {
 }
 
 // ProcessCaptchaValidate xiang.helper.CaptchaValidate 校验图形/音频验证码
-func ProcessCaptchaValidate(process *gou.Process) interface{} {
+func ProcessCaptchaValidate(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	id := process.ArgsString(0)
 	code := process.ArgsString(1)
@@ -155,7 +155,7 @@ func ProcessCaptchaValidate(process *gou.Process) interface{} {
 }
 
 // ProcessCaptcha xiang.helper.Captcha 校验图形/音频验证码
-func ProcessCaptcha(process *gou.Process) interface{} {
+func ProcessCaptcha(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	option := CaptchaOption{
 		Width:      any.Of(process.ArgsURLValue(0, "width", "240")).CInt(),

@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
-	"github.com/yaoapp/yao/widgets/environment"
 	"github.com/yaoapp/yao/widgets/field"
 )
 
@@ -66,31 +66,18 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load task
 func Load(cfg config.Config) error {
-	var root = filepath.Join(cfg.Root, "lists")
-	return LoadFrom(root, "")
-}
-
-// LoadFrom load from dir
-func LoadFrom(dir string, prefix string) error {
-
-	if share.DirNotExists(dir) {
-		return fmt.Errorf("%s does not exists", dir)
-	}
-
 	messages := []string{}
-	err := share.Walk(dir, ".json", func(root, filename string) {
-		id := prefix + share.ID(root, filename)
-		data, err := environment.ReadFile(filename)
-		if err != nil {
+	exts := []string{"*.yao", "*.json", "*.jsonc"}
+	err := application.App.Walk("lists", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		if err := LoadFile(root, file); err != nil {
 			messages = append(messages, err.Error())
-			return
 		}
 
-		err = LoadData(data, id, filepath.Dir(dir))
-		if err != nil {
-			messages = append(messages, err.Error())
-		}
-	})
+		return nil
+	}, exts...)
 
 	if len(messages) > 0 {
 		return fmt.Errorf(strings.Join(messages, ";\n"))
@@ -99,30 +86,52 @@ func LoadFrom(dir string, prefix string) error {
 	return err
 }
 
+// LoadFile load table dsl by file
+func LoadFile(root string, file string) error {
+
+	id := share.ID(root, file)
+	data, err := application.App.Read(file)
+	if err != nil {
+		return err
+	}
+
+	dsl := New(id)
+	err = application.Parse(file, data, dsl)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	err = dsl.parse(id, root)
+	if err != nil {
+		return err
+	}
+
+	Lists[id] = dsl
+	return nil
+}
+
 // LoadID load via id
 func LoadID(id string, root string) error {
-	dirs := strings.Split(id, ".")
-	name := fmt.Sprintf("%s.list.json", dirs[len(dirs)-1])
-	elems := []string{root}
-	elems = append(elems, dirs[0:len(dirs)-1]...)
-	elems = append(elems, "lists", name)
-	filename := filepath.Join(elems...)
-	data, err := environment.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("[List] LoadID %s root=%s %s", id, root, err.Error())
+	file := filepath.Join("lists", share.File(id, ".yao"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("lists", file)
 	}
-	return LoadData(data, id, root)
+
+	file = filepath.Join("lists", share.File(id, ".jsonc"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("lists", file)
+	}
+
+	file = filepath.Join("lists", share.File(id, ".json"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("lists", file)
+	}
+
+	return fmt.Errorf("list %s not found", id)
 }
 
 // LoadData load via data
-func LoadData(data []byte, id string, root string) error {
-	dsl := New(id)
-	dsl.Root = root
-
-	err := jsoniter.Unmarshal(data, dsl)
-	if err != nil {
-		return fmt.Errorf("[List] LoadData %s %s", id, err.Error())
-	}
+func (dsl *DSL) parse(id string, root string) error {
 
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
@@ -138,7 +147,7 @@ func LoadData(data []byte, id string, root string) error {
 	}
 
 	// Bind model / store / list / ...
-	err = dsl.Bind()
+	err := dsl.Bind()
 	if err != nil {
 		return fmt.Errorf("[List] LoadData Bind %s %s", id, err.Error())
 	}
@@ -165,8 +174,8 @@ func Get(list interface{}) (*DSL, error) {
 	switch list.(type) {
 	case string:
 		id = list.(string)
-	case *gou.Process:
-		id = list.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = list.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", list)
 	}

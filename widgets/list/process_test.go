@@ -6,19 +6,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
-	q "github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestProcessSetting(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	load(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"category"}
-	res, err := gou.NewProcess("yao.list.Setting", args...).Exec()
+	res, err := process.New("yao.list.Setting", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,11 +33,14 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	load(t)
 	clear(t)
 	testData(t)
 	args := []interface{}{"category"}
-	res, err := gou.NewProcess("yao.list.Xgen", args...).Exec()
+	res, err := process.New("yao.list.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +51,9 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	load(t)
 	clear(t)
 	testData(t)
@@ -55,7 +65,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	})
 
 	args := []interface{}{"category"}
-	res, err := gou.NewProcess("yao.list.Xgen", args...).Exec()
+	res, err := process.New("yao.list.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +76,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.False(t, data.Has("fields.list.库存预警"))
 
 	session.Global().Set("__permissions", nil)
-	res, err = gou.NewProcess("yao.list.Xgen", args...).Exec()
+	res, err = process.New("yao.list.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,11 +94,10 @@ func load(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	q.Load(config.Conf)
 }
 
 func testData(t *testing.T) {
-	category := gou.Select("category")
+	category := model.Select("category")
 	err := category.Insert(
 		[]string{"name", "stock", "status", "rank"},
 		[][]interface{}{
@@ -118,7 +127,7 @@ func tempFile(t *testing.T) string {
 }
 
 func clear(t *testing.T) {
-	for _, m := range gou.Models {
+	for _, m := range model.Models {
 		err := m.DropTable()
 		if err != nil {
 			t.Fatal(err)

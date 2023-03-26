@@ -12,7 +12,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -71,7 +71,7 @@ var dumpCmd = &cobra.Command{
 
 		// Export models
 		files := []string{}
-		for _, mod := range gou.Models {
+		for _, mod := range model.Models {
 
 			fmt.Printf("\r%s", color.GreenString(L("Export the models: %s (%s)"), mod.Name, mod.MetaData.Table.Name))
 			jsonfiles, err := mod.Export(5000, func(curr, total int) {

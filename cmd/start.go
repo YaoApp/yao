@@ -1,30 +1,29 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/schedule"
+	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/gou/task"
 	"github.com/yaoapp/gou/websocket"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
-	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/studio"
 )
 
 var startDebug = false
@@ -56,23 +55,33 @@ var startCmd = &cobra.Command{
 		// defer service.Stop(func() { fmt.Println(L("Service stopped")) })
 		Boot()
 
-		if startDebug { // 强制 debug 模式启动
+		// force debug
+		if startDebug {
 			config.Development()
 		}
 
-		mode := config.Conf.Mode
-		err := engine.Load(config.Conf) // 加载脚本等
+		// load the application engine
+		err := engine.Load(config.Conf)
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
 		}
+
 		port := fmt.Sprintf(":%d", config.Conf.Port)
 		if port == ":80" {
 			port = ""
 		}
 
+		// variables for the service
+		fs, err := fs.Get("system")
+		if err != nil {
+			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			os.Exit(1)
+		}
+
+		mode := config.Conf.Mode
 		host := config.Conf.Host
-		dataRoot, _ := fs.Root(config.Conf)
+		dataRoot := fs.Root()
 
 		fmt.Println(color.WhiteString("\n---------------------------------"))
 		fmt.Println(color.WhiteString(strings.TrimPrefix(share.App.Name, "::")), color.WhiteString(share.App.Version), mode)
@@ -82,50 +91,34 @@ var startCmd = &cobra.Command{
 			fmt.Println(color.WhiteString(L("Root")), color.GreenString(" %s", root))
 		}
 
-		if share.App.XGen == "1.0" {
-
-			root, _ := adminRoot()
-			urls := []string{fmt.Sprintf("http://%s:%s", host, port)}
-			if host == "0.0.0.0" {
-				urls, _ = setup.URLs(config.Conf)
-			}
-
-			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
-			fmt.Println(color.WhiteString(L("   XGEN")), color.GreenString("  1.0"))
-			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
-			for _, url := range urls {
-				fmt.Println(color.CyanString("\n%s", url))
-				fmt.Println(color.WhiteString("--------------------------"))
-				fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" %s", url))
-				fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
-				fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
-			}
-
-		} else {
-
-			if host == "0.0.0.0" {
-				host = "127.0.0.1"
-			}
-
-			fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
-			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" http://%s%s/", host, port))
-			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" http://%s%s/xiang/login/admin", host, port))
-			fmt.Println(color.WhiteString(L("API")), color.GreenString(" http://%s%s/api", host, port))
-			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
+		root, _ := adminRoot()
+		urls := []string{fmt.Sprintf("http://%s:%s", host, port)}
+		if host == "0.0.0.0" {
+			urls, _ = setup.URLs(config.Conf)
 		}
 
-		// development mode
+		fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
+		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
+		for _, url := range urls {
+			fmt.Println(color.CyanString("\n%s", url))
+			fmt.Println(color.WhiteString("--------------------------"))
+			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" %s", url))
+			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
+			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
+		}
+
+		// print the messages under the development mode
 		if mode == "development" {
 
 			// Start Studio Server
-			go func() {
-				err := studio.Start(config.Conf)
-				if err != nil {
-					fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
-					os.Exit(2)
-				}
-			}()
-			defer studio.Stop()
+			// go func() {
+			// 	err := studio.Start(config.Conf)
+			// 	if err != nil {
+			// 		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			// 		os.Exit(2)
+			// 	}
+			// }()
+			// defer studio.Stop()
 
 			printApis(false)
 			printTasks(false)
@@ -136,14 +129,16 @@ var startCmd = &cobra.Command{
 
 		}
 
+		// start watching
 		if mode == "development" && !startDisableWatching {
 			// Watching
 			fmt.Println(color.WhiteString("\n---------------------------------"))
 			fmt.Println(color.WhiteString(L("Watching")))
 			fmt.Println(color.WhiteString("---------------------------------"))
-			service.Watch(config.Conf)
+			// service.Watch(config.Conf)
 		}
 
+		// print the messages under the production mode
 		if mode == "production" {
 			printApis(true)
 			printTasks(true)
@@ -152,25 +147,29 @@ var startCmd = &cobra.Command{
 			printStores(true)
 		}
 
-		// Start server
-		go func() {
-			err := service.Start()
-			if err != nil {
-				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
-				os.Exit(3)
-			}
+		srv, err := service.Start(config.Conf)
+		defer func() {
+			service.Stop(srv)
+			fmt.Println(color.GreenString(L("✨EXITED✨")))
 		}()
-
-		fmt.Println(color.GreenString(L("✨LISTENING✨")))
 
 		for {
 			select {
+			case v := <-srv.Event():
+
+				switch v {
+				case http.READY:
+					fmt.Println(color.GreenString(L("✨LISTENING✨")))
+					break
+
+				case http.CLOSED:
+					fmt.Println(color.GreenString(L("✨EXITED✨")))
+					return
+				default:
+					fmt.Println("hello", v)
+				}
+
 			case <-interrupt:
-				ctx, canceled := context.WithTimeout(context.Background(), (5 * time.Second))
-				defer canceled()
-				service.StopWithContext(ctx, func() {
-					fmt.Println(color.GreenString(L("✨STOPPED✨")))
-				})
 				return
 			}
 		}
@@ -256,12 +255,12 @@ func printStudio(silent bool, host string) {
 
 func printSchedules(silent bool) {
 
-	if len(gou.Schedules) == 0 {
+	if len(schedule.Schedules) == 0 {
 		return
 	}
 
 	if silent {
-		for name, sch := range gou.Schedules {
+		for name, sch := range schedule.Schedules {
 			process := fmt.Sprintf("Process: %s", sch.Process)
 			if sch.TaskName != "" {
 				process = fmt.Sprintf("Task: %s", sch.TaskName)
@@ -272,9 +271,9 @@ func printSchedules(silent bool) {
 	}
 
 	fmt.Println(color.WhiteString("\n---------------------------------"))
-	fmt.Println(color.WhiteString(L("Schedules List (%d)"), len(gou.Schedules)))
+	fmt.Println(color.WhiteString(L("Schedules List (%d)"), len(schedule.Schedules)))
 	fmt.Println(color.WhiteString("---------------------------------"))
-	for name, sch := range gou.Schedules {
+	for name, sch := range schedule.Schedules {
 		process := fmt.Sprintf("Process: %s", sch.Process)
 		if sch.TaskName != "" {
 			process = fmt.Sprintf("Task: %s", sch.TaskName)
@@ -309,7 +308,7 @@ func printTasks(silent bool) {
 func printApis(silent bool) {
 
 	if silent {
-		for _, api := range gou.APIs {
+		for _, api := range api.APIs {
 			if len(api.HTTP.Paths) <= 0 {
 				continue
 			}
@@ -328,7 +327,7 @@ func printApis(silent bool) {
 	fmt.Println(color.WhiteString(L("API List")))
 	fmt.Println(color.WhiteString("---------------------------------"))
 
-	for _, api := range gou.APIs { // API信息
+	for _, api := range api.APIs { // API信息
 		if len(api.HTTP.Paths) <= 0 {
 			continue
 		}

@@ -4,14 +4,14 @@ import (
 	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/mapping"
 	"github.com/yaoapp/yao/widgets/table"
 )
 
 // BindModel bind model
-func (layout *LayoutDSL) BindModel(m *gou.Model, formID string, fields *FieldsDSL, option map[string]interface{}) {
+func (layout *LayoutDSL) BindModel(m *model.Model, formID string, fields *FieldsDSL, option map[string]interface{}) {
 	if layout.Primary == "" {
 		layout.Primary = m.PrimaryKey
 	}

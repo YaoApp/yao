@@ -6,18 +6,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	Load(config.Conf)
-	LoadFrom("not a path", "404.")
 	check(t)
 }
 
 func check(t *testing.T) {
-	keys := []string{}
-	for key := range connector.Connectors {
-		keys = append(keys, key)
+	ids := map[string]bool{}
+	for id := range connector.Connectors {
+		ids[id] = true
 	}
-	assert.Equal(t, 4, len(keys))
+	assert.True(t, ids["mongo"])
+	assert.True(t, ids["mysql"])
+	assert.True(t, ids["redis"])
+	assert.True(t, ids["sqlite"])
 }

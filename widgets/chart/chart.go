@@ -2,11 +2,11 @@ package chart
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -55,59 +55,75 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load task
 func Load(cfg config.Config) error {
-	var root = filepath.Join(cfg.Root, "charts")
-	return LoadFrom(root, "")
-}
-
-// LoadFrom load from dir
-func LoadFrom(dir string, prefix string) error {
-
-	if share.DirNotExists(dir) {
-		return fmt.Errorf("%s does not exists", dir)
-	}
-
 	messages := []string{}
-	err := share.Walk(dir, ".json", func(root, filename string) {
-		id := prefix + share.ID(root, filename)
-		data := share.ReadFile(filename)
-		dsl := New(id)
-		err := jsoniter.Unmarshal(data, dsl)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
+	exts := []string{"*.yao", "*.json", "*.jsonc"}
+	err := application.App.Walk("charts", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		if err := LoadFile(root, file); err != nil {
+			messages = append(messages, err.Error())
 		}
 
-		if dsl.Action == nil {
-			dsl.Action = &ActionDSL{}
-		}
-		dsl.Action.SetDefaultProcess()
-
-		if dsl.Layout == nil {
-			dsl.Layout = &LayoutDSL{}
-		}
-
-		// mapping
-		err = dsl.mapping()
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] Mapping %s", id, err.Error()))
-			return
-		}
-
-		// Validate
-		err = dsl.Validate()
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-
-		Charts[id] = dsl
-	})
+		return nil
+	}, exts...)
 
 	if len(messages) > 0 {
-		return fmt.Errorf(strings.Join(messages, ";"))
+		return fmt.Errorf(strings.Join(messages, ";\n"))
 	}
 
 	return err
+}
+
+// LoadFile load table dsl by file
+func LoadFile(root string, file string) error {
+
+	id := share.ID(root, file)
+	data, err := application.App.Read(file)
+	if err != nil {
+		return err
+	}
+
+	dsl := New(id)
+	err = application.Parse(file, data, dsl)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	err = dsl.parse(id, root)
+	if err != nil {
+		return err
+	}
+
+	Charts[id] = dsl
+	return nil
+}
+
+// LoadData load via data
+func (dsl *DSL) parse(id string, root string) error {
+
+	if dsl.Action == nil {
+		dsl.Action = &ActionDSL{}
+	}
+	dsl.Action.SetDefaultProcess()
+
+	if dsl.Layout == nil {
+		dsl.Layout = &LayoutDSL{}
+	}
+
+	// mapping
+	err := dsl.mapping()
+	if err != nil {
+		return err
+	}
+
+	// Validate
+	err = dsl.Validate()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Get chart via process or id
@@ -116,8 +132,8 @@ func Get(chart interface{}) (*DSL, error) {
 	switch chart.(type) {
 	case string:
 		id = chart.(string)
-	case *gou.Process:
-		id = chart.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = chart.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", chart)
 	}

@@ -10,8 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/model"
+	gouProcess "github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
@@ -23,27 +25,27 @@ import (
 // Export process
 
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.table.setting", processSetting)
-	gou.RegisterProcessHandler("yao.table.xgen", processXgen)
-	gou.RegisterProcessHandler("yao.table.component", processComponent)
-	gou.RegisterProcessHandler("yao.table.upload", processUpload)
-	gou.RegisterProcessHandler("yao.table.download", processDownload)
-	gou.RegisterProcessHandler("yao.table.search", processSearch)
-	gou.RegisterProcessHandler("yao.table.get", processGet)
-	gou.RegisterProcessHandler("yao.table.find", processFind)
-	gou.RegisterProcessHandler("yao.table.save", processSave)
-	gou.RegisterProcessHandler("yao.table.create", processCreate)
-	gou.RegisterProcessHandler("yao.table.insert", processInsert)
-	gou.RegisterProcessHandler("yao.table.update", processUpdate)
-	gou.RegisterProcessHandler("yao.table.updatewhere", processUpdateWhere)
-	gou.RegisterProcessHandler("yao.table.updatein", processUpdateIn)
-	gou.RegisterProcessHandler("yao.table.delete", processDelete)
-	gou.RegisterProcessHandler("yao.table.deletewhere", processDeleteWhere)
-	gou.RegisterProcessHandler("yao.table.deletein", processDeleteIn)
-	gou.RegisterProcessHandler("yao.table.export", processExport)
+	gouProcess.Register("yao.table.setting", processSetting)
+	gouProcess.Register("yao.table.xgen", processXgen)
+	gouProcess.Register("yao.table.component", processComponent)
+	gouProcess.Register("yao.table.upload", processUpload)
+	gouProcess.Register("yao.table.download", processDownload)
+	gouProcess.Register("yao.table.search", processSearch)
+	gouProcess.Register("yao.table.get", processGet)
+	gouProcess.Register("yao.table.find", processFind)
+	gouProcess.Register("yao.table.save", processSave)
+	gouProcess.Register("yao.table.create", processCreate)
+	gouProcess.Register("yao.table.insert", processInsert)
+	gouProcess.Register("yao.table.update", processUpdate)
+	gouProcess.Register("yao.table.updatewhere", processUpdateWhere)
+	gouProcess.Register("yao.table.updatein", processUpdateIn)
+	gouProcess.Register("yao.table.delete", processDelete)
+	gouProcess.Register("yao.table.deletewhere", processDeleteWhere)
+	gouProcess.Register("yao.table.deletein", processDeleteIn)
+	gouProcess.Register("yao.table.export", processExport)
 }
 
-func processXgen(process *gou.Process) interface{} {
+func processXgen(process *gouProcess.Process) interface{} {
 
 	tab := MustGet(process)
 	data := process.ArgsMap(1, map[string]interface{}{})
@@ -55,7 +57,7 @@ func processXgen(process *gou.Process) interface{} {
 	return setting
 }
 
-func processDownload(process *gou.Process) interface{} {
+func processDownload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	tab := MustGet(process)
@@ -83,7 +85,7 @@ func processDownload(process *gou.Process) interface{} {
 	}
 
 	// Create process
-	p, err := gou.ProcessOf(name, file)
+	p, err := gouProcess.Of(name, file)
 	if err != nil {
 		log.Error("[downalod] %s.%s %s", tab.ID, field, err.Error())
 		exception.New("[downalod] %s.%s %s", 400, tab.ID, field, err.Error()).Throw()
@@ -99,7 +101,7 @@ func processDownload(process *gou.Process) interface{} {
 	return res
 }
 
-func processUpload(process *gou.Process) interface{} {
+func processUpload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	tab := MustGet(process)
@@ -114,7 +116,7 @@ func processUpload(process *gou.Process) interface{} {
 	}
 
 	// $file.file
-	tmpfile, ok := process.Args[3].(gou.UploadFile)
+	tmpfile, ok := process.Args[3].(types.UploadFile)
 	if !ok {
 		exception.New("parameters error: %v", 400, process.Args[3]).Throw()
 	}
@@ -134,7 +136,7 @@ func processUpload(process *gou.Process) interface{} {
 	return res
 }
 
-func processComponent(process *gou.Process) interface{} {
+func processComponent(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	tab := MustGet(process)
@@ -163,80 +165,80 @@ func processComponent(process *gou.Process) interface{} {
 	return res
 }
 
-func processSetting(process *gou.Process) interface{} {
+func processSetting(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	process.Args = append(process.Args, process.Args[0]) // table name
 	return tab.Action.Setting.MustExec(process)
 }
 
-func processSearch(process *gou.Process) interface{} {
+func processSearch(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Search.MustExec(process)
 }
 
-func processGet(process *gou.Process) interface{} {
+func processGet(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Get.MustExec(process)
 }
 
-func processSave(process *gou.Process) interface{} {
+func processSave(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Save.MustExec(process)
 }
 
-func processCreate(process *gou.Process) interface{} {
+func processCreate(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Create.MustExec(process)
 }
 
-func processFind(process *gou.Process) interface{} {
+func processFind(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Find.MustExec(process)
 }
 
-func processInsert(process *gou.Process) interface{} {
+func processInsert(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Insert.MustExec(process)
 }
 
-func processUpdate(process *gou.Process) interface{} {
+func processUpdate(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Update.MustExec(process)
 }
 
-func processUpdateWhere(process *gou.Process) interface{} {
+func processUpdateWhere(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.UpdateWhere.MustExec(process)
 }
 
-func processUpdateIn(process *gou.Process) interface{} {
+func processUpdateIn(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(3)
 	tab := MustGet(process)
 	ids := strings.Split(process.ArgsString(1), ",")
-	process.Args[1] = gou.QueryParam{
-		Wheres: []gou.QueryWhere{
+	process.Args[1] = model.QueryParam{
+		Wheres: []model.QueryWhere{
 			{Column: tab.Layout.Primary, OP: "in", Value: ids},
 		},
 	}
 	return tab.Action.UpdateIn.MustExec(process)
 }
 
-func processDelete(process *gou.Process) interface{} {
+func processDelete(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.Delete.MustExec(process)
 }
 
-func processDeleteWhere(process *gou.Process) interface{} {
+func processDeleteWhere(process *gouProcess.Process) interface{} {
 	tab := MustGet(process)
 	return tab.Action.DeleteWhere.MustExec(process)
 }
 
-func processDeleteIn(process *gou.Process) interface{} {
+func processDeleteIn(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(2)
 	tab := MustGet(process)
 	ids := strings.Split(process.ArgsString(1), ",")
-	process.Args[1] = gou.QueryParam{
-		Wheres: []gou.QueryWhere{
+	process.Args[1] = model.QueryParam{
+		Wheres: []model.QueryWhere{
 			{Column: tab.Layout.Primary, OP: "in", Value: ids},
 		},
 	}
@@ -244,10 +246,10 @@ func processDeleteIn(process *gou.Process) interface{} {
 }
 
 // processExport yao.table.Export (:table, :queryParam, :chunkSize)
-func processExport(process *gou.Process) interface{} {
+func processExport(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
 	tab := MustGet(process) // 0
-	params := process.ArgsQueryParams(1, gou.QueryParam{})
+	params := process.ArgsQueryParams(1, types.QueryParam{})
 	pagesize := process.ArgsInt(2, 50)
 
 	// Filename

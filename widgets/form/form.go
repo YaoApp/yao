@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
-	"github.com/yaoapp/yao/widgets/environment"
 	"github.com/yaoapp/yao/widgets/field"
 )
 
@@ -74,31 +74,18 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load task
 func Load(cfg config.Config) error {
-	var root = filepath.Join(cfg.Root, "forms")
-	return LoadFrom(root, "")
-}
-
-// LoadFrom load from dir
-func LoadFrom(dir string, prefix string) error {
-
-	if share.DirNotExists(dir) {
-		return fmt.Errorf("%s does not exists", dir)
-	}
-
 	messages := []string{}
-	err := share.Walk(dir, ".json", func(root, filename string) {
-		id := prefix + share.ID(root, filename)
-		data, err := environment.ReadFile(filename)
-		if err != nil {
+	exts := []string{"*.form.yao", "*.form.json", "*.form.jsonc"}
+	err := application.App.Walk("forms", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		if err := LoadFile(root, file); err != nil {
 			messages = append(messages, err.Error())
-			return
 		}
 
-		err = LoadData(data, id, filepath.Dir(dir))
-		if err != nil {
-			messages = append(messages, err.Error())
-		}
-	})
+		return nil
+	}, exts...)
 
 	if len(messages) > 0 {
 		return fmt.Errorf(strings.Join(messages, ";\n"))
@@ -107,31 +94,55 @@ func LoadFrom(dir string, prefix string) error {
 	return err
 }
 
+// LoadFile load table dsl by file
+func LoadFile(root string, file string) error {
+
+	id := share.ID(root, file)
+	data, err := application.App.Read(file)
+	if err != nil {
+		return err
+	}
+
+	dsl := New(id)
+	err = application.Parse(file, data, dsl)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	err = dsl.parse(id, root)
+	if err != nil {
+		return err
+	}
+
+	Forms[id] = dsl
+	return nil
+}
+
 // LoadID load via id
 func LoadID(id string, root string) error {
-	dirs := strings.Split(id, ".")
-	name := fmt.Sprintf("%s.form.json", dirs[len(dirs)-1])
-	elems := []string{root}
-	elems = append(elems, dirs[0:len(dirs)-1]...)
-	elems = append(elems, "forms", name)
-	filename := filepath.Join(elems...)
-	data, err := environment.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("[Form] LoadID %s root=%s %s", id, root, err.Error())
+
+	file := filepath.Join("forms", share.File(id, ".form.yao"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("forms", file)
 	}
-	return LoadData(data, id, root)
+
+	file = filepath.Join("forms", share.File(id, ".form.jsonc"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("forms", file)
+	}
+
+	file = filepath.Join("forms", share.File(id, ".form.json"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("forms", file)
+	}
+
+	return fmt.Errorf("form %s not found", id)
 }
 
 // LoadData load via data
-func LoadData(data []byte, id string, root string) error {
-	dsl := New(id)
+func (dsl *DSL) parse(id string, root string) error {
+
 	dsl.Root = root
-
-	err := jsoniter.Unmarshal(data, dsl)
-	if err != nil {
-		return fmt.Errorf("[Form] LoadData %s %s", id, err.Error())
-	}
-
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
 	}
@@ -146,7 +157,7 @@ func LoadData(data []byte, id string, root string) error {
 	}
 
 	// Bind model / store / table / ...
-	err = dsl.Bind()
+	err := dsl.Bind()
 	if err != nil {
 		return fmt.Errorf("[Form] LoadData Bind %s %s", id, err.Error())
 	}
@@ -173,8 +184,8 @@ func Get(form interface{}) (*DSL, error) {
 	switch form.(type) {
 	case string:
 		id = form.(string)
-	case *gou.Process:
-		id = form.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = form.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", form)
 	}
@@ -197,6 +208,10 @@ func MustGet(form interface{}) *DSL {
 
 // Xgen trans to xgen setting
 func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
+
+	if dsl.Config == nil {
+		dsl.Config = map[string]interface{}{}
+	}
 
 	if dsl.Layout == nil {
 		dsl.Layout = &LayoutDSL{Form: &ViewLayoutDSL{}}

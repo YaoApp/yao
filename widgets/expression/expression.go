@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 )
@@ -167,18 +167,18 @@ func replace(value string, data maps.MapStrAny) (interface{}, bool) {
 	return value, replaced
 }
 
-func computeOf(process string, argsvars []string, data maps.MapStrAny) (interface{}, bool) {
+func computeOf(processName string, argsvars []string, data maps.MapStrAny) (interface{}, bool) {
 	args := []interface{}{}
 	for _, name := range argsvars {
 		arg, _ := valueOf(strings.TrimSpace(name), data)
 		args = append(args, arg)
 	}
 
-	if !strings.Contains(process, ".") {
-		process = fmt.Sprintf("yao.expression.%s", process)
+	if !strings.Contains(processName, ".") {
+		processName = fmt.Sprintf("yao.expression.%s", processName)
 	}
 
-	p, err := gou.ProcessOf(process, args...)
+	p, err := process.Of(processName, args...)
 	if err != nil {
 		return err.Error(), true
 	}

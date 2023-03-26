@@ -3,7 +3,7 @@ package table
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 )
 
 // Bind model / store / table / ...
@@ -31,7 +31,7 @@ func (dsl *DSL) Bind() error {
 func (dsl *DSL) bindModel() error {
 
 	id := dsl.Action.Bind.Model
-	m, has := gou.Models[id]
+	m, has := model.Models[id]
 	if !has {
 		return fmt.Errorf("%s does not exist", id)
 	}

@@ -9,10 +9,10 @@ COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
 NOW := $(shell date +"%FT%T%z")
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests*|config|widgets')
+TESTFOLDER := $(shell $(GO) list ./... | grep -E 'api|model|flow|script|fs|i18n|connector|query|plugin|cert|crypto|task|schedule|runtime|helper|utils|widget|importer|store|widgets|engine|service' | grep -vE 'examples|tests*|config')
 TESTTAGS ?= ""
 
-TESTWIDGETS := $(shell $(GO) list ./widgets/...)
+# TESTWIDGETS := $(shell $(GO) list ./widgets/...)
 
 # Unit Test
 .PHONY: test
@@ -40,35 +40,6 @@ test:
 		fi; \
 	done
 
-# Unit Test
-.PHONY: test-widgets
-test-widgets:
-	echo "mode: count" > coverage.out
-	for d in $(TESTWIDGETS); do \
-		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-
-.PHONY: fmt
-fmt:
-	$(GOFMT) -w $(GOFILES)
 
 .PHONY: fmt-check
 fmt-check:
@@ -80,8 +51,6 @@ fmt-check:
 	fi;
 
 vet:
-	$(GO) env -w GONOPROXY=github.com/yaoapp/gou
-	$(GO) env -w GOPRIVATE=github.com/yaoapp/gou
 	$(GO) vet $(VETPACKAGES)
 
 .PHONY: lint
@@ -389,8 +358,3 @@ clean:
 	rm -rf ./tmp
 	rm -rf .tmp
 	rm -rf dist
-
-# make migrate ( for unit test)
-.PHONY: migrate
-migrate:
-	$(GO) test -tags $(TESTTAGS) -run TestCommandMigrate$

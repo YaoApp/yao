@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/yao/widgets/chart"
 	"github.com/yaoapp/yao/widgets/form"
 	"github.com/yaoapp/yao/widgets/list"
@@ -35,7 +35,7 @@ func userApis(apis map[string]interface{}) {
 	// Group       string `json:"group,omitempty"`
 	// Guard       string `json:"guard,omitempty"`
 	// Paths       []Path `json:"paths,omitempty"`
-	for group, api := range gou.APIs {
+	for group, api := range api.APIs {
 		if strings.HasPrefix(group, "widgets") {
 			continue
 		}
@@ -85,7 +85,7 @@ func userApis(apis map[string]interface{}) {
 
 func tableApis(apis map[string]interface{}) {
 
-	api, has := gou.APIs["widgets.table"]
+	api, has := api.APIs["widgets.table"]
 	if !has {
 		return
 	}
@@ -115,7 +115,7 @@ func tableApis(apis map[string]interface{}) {
 
 func formApis(apis map[string]interface{}) {
 
-	api, has := gou.APIs["widgets.form"]
+	api, has := api.APIs["widgets.form"]
 	if !has {
 		return
 	}
@@ -138,7 +138,7 @@ func formApis(apis map[string]interface{}) {
 
 func listApis(apis map[string]interface{}) {
 
-	api, has := gou.APIs["widgets.list"]
+	api, has := api.APIs["widgets.list"]
 	if !has {
 		return
 	}
@@ -158,7 +158,7 @@ func listApis(apis map[string]interface{}) {
 
 func chartApis(apis map[string]interface{}) {
 
-	api, has := gou.APIs["widgets.chart"]
+	api, has := api.APIs["widgets.chart"]
 	if !has {
 		return
 	}
@@ -173,10 +173,10 @@ func chartApis(apis map[string]interface{}) {
 	}
 }
 
-func widgetApis(apis map[string]interface{}, api *gou.API, widgetID string, dsl string, groupGuard string, pathGuards []map[string]string) {
+func widgetApis(apis map[string]interface{}, apiInst *api.API, widgetID string, dsl string, groupGuard string, pathGuards []map[string]string) {
 
-	pathMapping := map[string]gou.Path{}
-	for _, path := range api.HTTP.Paths {
+	pathMapping := map[string]api.Path{}
+	for _, path := range apiInst.HTTP.Paths {
 		pathMapping[path.Path] = path
 	}
 
@@ -203,7 +203,7 @@ func widgetApis(apis map[string]interface{}, api *gou.API, widgetID string, dsl 
 			guard = groupGuard
 		}
 
-		fullpath := fmt.Sprintf("/apis/%s%s", api.HTTP.Group, path.Path)
+		fullpath := fmt.Sprintf("/apis/%s%s", apiInst.HTTP.Group, path.Path)
 		paths = append(paths, map[string]interface{}{
 			"name":        path.Label,
 			"description": path.Description,
@@ -221,11 +221,11 @@ func widgetApis(apis map[string]interface{}, api *gou.API, widgetID string, dsl 
 
 	apis[dsl] = map[string]interface{}{
 		"DSL":         dsl,
-		"name":        api.HTTP.Name,
-		"version":     api.HTTP.Version,
-		"group":       fmt.Sprintf("/%s", api.HTTP.Group),
+		"name":        apiInst.HTTP.Name,
+		"version":     apiInst.HTTP.Version,
+		"group":       fmt.Sprintf("/%s", apiInst.HTTP.Group),
 		"guard":       groupGuard,
-		"description": api.HTTP.Description,
+		"description": apiInst.HTTP.Description,
 		"paths":       paths,
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/widgets/component"
 	"github.com/yaoapp/yao/widgets/field"
@@ -16,7 +16,7 @@ func (fields *FieldsDSL) TableMap() map[string]field.ColumnDSL {
 }
 
 // BindModel cast model to fields
-func (fields *FieldsDSL) BindModel(m *gou.Model) error {
+func (fields *FieldsDSL) BindModel(m *model.Model) error {
 
 	fields.filterMap = map[string]field.FilterDSL{}
 	fields.tableMap = map[string]field.ColumnDSL{}
@@ -34,6 +34,11 @@ func (fields *FieldsDSL) BindModel(m *gou.Model) error {
 		}
 		// append columns
 		if _, has := fields.Table[tableField.Key]; !has {
+
+			if fields.Table == nil {
+				continue
+			}
+
 			fields.Table[tableField.Key] = *tableField
 
 			// PASSWORD Fields

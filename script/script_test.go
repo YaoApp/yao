@@ -1,23 +1,30 @@
 package script
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/runtime"
+	"github.com/yaoapp/yao/test"
 )
 
-func init() {
-	runtime.Load(config.Conf)
-	rootLib := path.Join(os.Getenv("YAO_DEV"), "/tests/scripts")
-	LoadFrom(rootLib, "")
+func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	Load(config.Conf)
+	check(t)
 }
-func TestScript(t *testing.T) {
-	res, err := gou.Yao.New("time", "hello").Call("world")
-	assert.Nil(t, err)
-	assert.Equal(t, "name:world", res)
+
+func check(t *testing.T) {
+	ids := map[string]bool{}
+	for id := range v8.Scripts {
+		ids[id] = true
+	}
+	assert.True(t, ids["tests.task.mail"])
+	assert.True(t, ids["tests.api"])
+	assert.True(t, ids["runtime.basic"])
+	assert.True(t, ids["runtime.bridge"])
+	assert.True(t, ids["__yao_service.foo"])
 }

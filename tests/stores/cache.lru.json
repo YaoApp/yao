@@ -1,6 +1,0 @@
-{
-  "name": "LRU Cache",
-  "description": "LRU cache",
-  "type": "lru",
-  "option": { "size": 1024 }
-}

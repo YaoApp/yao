@@ -1,7 +1,0 @@
-{
-  "label": "a chat Websocket process",
-  "version": "1.0.0",
-  "description": "a chat Websocket process",
-  "nodes": [],
-  "output": "{{$in.0}}"
-}

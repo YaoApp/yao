@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -207,44 +205,44 @@ func watchStart(cfg config.Config) error {
 }
 
 func watchModel(root string, file string, event string, cfg config.Config) {
-	name := share.SpecName(root, file)
-	switch event {
-	case "CREATE":
-		content, err := ioutil.ReadFile(file)
-		if err != nil {
-			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
-			return
-		}
-		_, err = gou.LoadModelReturn(string(content), name)
-		if err != nil {
-			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
-			return
-		}
+	// name := share.SpecName(root, file)
+	// switch event {
+	// case "CREATE":
+	// 	content, err := ioutil.ReadFile(file)
+	// 	if err != nil {
+	// 		fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
+	// 		return
+	// 	}
+	// 	_, err = gou.LoadModelReturn(string(content), name)
+	// 	if err != nil {
+	// 		fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
+	// 		return
+	// 	}
 
-		// mod.Migrate(true)
-		fmt.Println(color.GreenString("[Watch] Model: %s Created (Please run yao migrate manually)", name))
-		break
+	// 	// mod.Migrate(true)
+	// 	fmt.Println(color.GreenString("[Watch] Model: %s Created (Please run yao migrate manually)", name))
+	// 	break
 
-	case "WRITE":
-		content, err := ioutil.ReadFile(file)
-		if err != nil {
-			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
-			return
-		}
-		_, err = gou.LoadModelReturn(string(content), name)
-		if err != nil {
-			fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
-			return
-		}
-		// mod.Migrate(false)
-		fmt.Println(color.GreenString("[Watch] Model: %s Reloaded (Please run yao migrate manually)", name))
-		break
+	// case "WRITE":
+	// 	content, err := ioutil.ReadFile(file)
+	// 	if err != nil {
+	// 		fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
+	// 		return
+	// 	}
+	// 	_, err = gou.LoadModelReturn(string(content), name)
+	// 	if err != nil {
+	// 		fmt.Println(color.RedString("[Watch] Model: %s %s", name, err.Error()))
+	// 		return
+	// 	}
+	// 	// mod.Migrate(false)
+	// 	fmt.Println(color.GreenString("[Watch] Model: %s Reloaded (Please run yao migrate manually)", name))
+	// 	break
 
-	case "REMOVE", "RENAME":
-		delete(gou.Models, name)
-		fmt.Println(color.GreenString("[Watch] Model: %s Removed", name))
-		break
-	}
+	// case "REMOVE", "RENAME":
+	// 	delete(gou.Models, name)
+	// 	fmt.Println(color.GreenString("[Watch] Model: %s Removed", name))
+	// 	break
+	// }
 }
 
 func watchReload(root string, file string, event string, cfg config.Config) {
@@ -263,12 +261,12 @@ func watchReload(root string, file string, event string, cfg config.Config) {
 		}
 
 		// Restart Server
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// defer cancel()
 
-		StopWithContext(ctx, func() {
-			go Start()
-			fmt.Println(color.GreenString("[Watch] Reload Completed"))
-		})
+		// Stop(func() {
+		// 	go Start()
+		// 	fmt.Println(color.GreenString("[Watch] Reload Completed"))
+		// })
 	}
 }

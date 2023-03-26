@@ -7,18 +7,24 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
 	q "github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestProcessSearch(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -29,7 +35,7 @@ func TestProcessSearch(t *testing.T) {
 	}
 
 	args := []interface{}{"pet", params, 1, 5}
-	res, err := gou.NewProcess("yao.table.search", args...).Exec()
+	res, err := process.New("yao.table.search", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +49,10 @@ func TestProcessSearch(t *testing.T) {
 
 func TestProcessGet(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -55,7 +64,7 @@ func TestProcessGet(t *testing.T) {
 	}
 
 	args := []interface{}{"pet", params}
-	res, err := gou.NewProcess("yao.table.get", args...).Exec()
+	res, err := process.New("yao.table.get", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,12 +79,15 @@ func TestProcessGet(t *testing.T) {
 
 func TestProcessFind(t *testing.T) {
 
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
 	args := []interface{}{"pet", 1}
-	res, err := gou.NewProcess("yao.table.find", args...).Exec()
+	res, err := process.New("yao.table.find", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,9 +97,13 @@ func TestProcessFind(t *testing.T) {
 }
 
 func TestProcessSave(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", map[string]interface{}{
 		"name":      "New Pet",
 		"type":      "cat",
@@ -98,13 +114,13 @@ func TestProcessSave(t *testing.T) {
 		"doctor_id": 1,
 	}}
 
-	res, err := gou.NewProcess("yao.table.Save", args...).Exec()
+	res, err := process.New("yao.table.Save", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "4", fmt.Sprintf("%v", res))
 
-	res, err = gou.NewProcess("yao.table.find", "pet", res).Exec()
+	res, err = process.New("yao.table.find", "pet", res).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,9 +130,13 @@ func TestProcessSave(t *testing.T) {
 }
 
 func TestProcessCreate(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", map[string]interface{}{
 		"id":        6,
 		"name":      "New Pet",
@@ -128,13 +148,13 @@ func TestProcessCreate(t *testing.T) {
 		"doctor_id": 1,
 	}}
 
-	res, err := gou.NewProcess("yao.table.Create", args...).Exec()
+	res, err := process.New("yao.table.Create", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "6", fmt.Sprintf("%v", res))
 
-	res, err = gou.NewProcess("yao.table.find", "pet", res).Exec()
+	res, err = process.New("yao.table.find", "pet", res).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,9 +164,13 @@ func TestProcessCreate(t *testing.T) {
 }
 
 func TestProcessUpdate(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", 1, map[string]interface{}{
 		"name":      "New Pet",
 		"type":      "cat",
@@ -157,12 +181,12 @@ func TestProcessUpdate(t *testing.T) {
 		"doctor_id": 1,
 	}}
 
-	_, err := gou.NewProcess("yao.table.Update", args...).Exec()
+	_, err := process.New("yao.table.Update", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	res, err := process.New("yao.table.find", "pet", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,9 +196,13 @@ func TestProcessUpdate(t *testing.T) {
 }
 
 func TestProcessUpdateWhere(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet",
 		map[string]interface{}{"wheres": []map[string]interface{}{{"column": "id", "value": 1}}},
 		map[string]interface{}{
@@ -187,12 +215,12 @@ func TestProcessUpdateWhere(t *testing.T) {
 			"doctor_id": 1,
 		}}
 
-	_, err := gou.NewProcess("yao.table.UpdateWhere", args...).Exec()
+	_, err := process.New("yao.table.UpdateWhere", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	res, err := process.New("yao.table.find", "pet", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,9 +230,13 @@ func TestProcessUpdateWhere(t *testing.T) {
 }
 
 func TestProcessUpdateIn(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", "1",
 		map[string]interface{}{
 			"name":      "New Pet",
@@ -216,12 +248,12 @@ func TestProcessUpdateIn(t *testing.T) {
 			"doctor_id": 1,
 		}}
 
-	_, err := gou.NewProcess("yao.table.UpdateIn", args...).Exec()
+	_, err := process.New("yao.table.UpdateIn", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	res, err := process.New("yao.table.find", "pet", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,8 +263,12 @@ func TestProcessUpdateIn(t *testing.T) {
 }
 
 func TestProcessInsert(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
+
 	args := []interface{}{"pet",
 		[]string{"name", "type", "status", "mode", "stay", "cost", "doctor_id"},
 		[][]interface{}{
@@ -242,12 +278,12 @@ func TestProcessInsert(t *testing.T) {
 		},
 	}
 
-	_, err := gou.NewProcess("yao.table.Insert", args...).Exec()
+	_, err := process.New("yao.table.Insert", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	res, err := process.New("yao.table.find", "pet", 1).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,57 +293,73 @@ func TestProcessInsert(t *testing.T) {
 }
 
 func TestProcessDelete(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", 1}
 
-	_, err := gou.NewProcess("yao.table.Delete", args...).Exec()
+	_, err := process.New("yao.table.Delete", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	_, err = process.New("yao.table.find", "pet", 1).Exec()
 	assert.Contains(t, err.Error(), "ID=1")
 }
 
 func TestProcessDeleteWhere(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		map[string]interface{}{"wheres": []map[string]interface{}{{"column": "id", "value": 1}}},
 	}
 
-	_, err := gou.NewProcess("yao.table.DeleteWhere", args...).Exec()
+	_, err := process.New("yao.table.DeleteWhere", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	_, err = process.New("yao.table.find", "pet", 1).Exec()
 	assert.Contains(t, err.Error(), "ID=1")
 }
 
 func TestProcessDeleteIn(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet", "1"}
 
-	_, err := gou.NewProcess("yao.table.DeleteIn", args...).Exec()
+	_, err := process.New("yao.table.DeleteIn", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = gou.NewProcess("yao.table.find", "pet", 1).Exec()
+	_, err = process.New("yao.table.find", "pet", 1).Exec()
 	assert.Contains(t, err.Error(), "ID=1")
 }
 
 func TestProcessComponent(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		"fields.filter.状态.edit.props.xProps",
@@ -321,7 +373,7 @@ func TestProcessComponent(t *testing.T) {
 		},
 	}
 
-	res, err := gou.NewProcess("yao.table.Component", args...).Exec()
+	res, err := process.New("yao.table.Component", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,31 +388,39 @@ func TestProcessComponent(t *testing.T) {
 }
 
 func TestProcessComponentError(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		"fields.filter.edit.props.状态.::not-exist",
 		"remote",
 		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
 	}
-	_, err := gou.NewProcess("yao.table.Component", args...).Exec()
+	_, err := process.New("yao.table.Component", args...).Exec()
 	assert.Contains(t, err.Error(), "fields.filter.edit.props.状态.::not-exist")
 }
 
 func TestProcessUpload(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{
 		"pet",
 		"fields.table.相关图片.edit.props",
 		"api",
-		gou.UploadFile{TempFile: tempFile(t)},
+		types.UploadFile{TempFile: tempFile(t)},
 	}
 
-	res, err := gou.NewProcess("yao.table.Upload", args...).Exec()
+	res, err := process.New("yao.table.Upload", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +431,10 @@ func TestProcessUpload(t *testing.T) {
 }
 
 func TestProcessDownload(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -383,7 +446,7 @@ func TestProcessDownload(t *testing.T) {
 	}
 
 	args := []interface{}{"pet", "images", "/text.txt", jwt.Token}
-	res, err := gou.NewProcess("yao.table.Download", args...).Exec()
+	res, err := process.New("yao.table.Download", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,11 +458,15 @@ func TestProcessDownload(t *testing.T) {
 }
 
 func TestProcessSetting(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet"}
-	res, err := gou.NewProcess("yao.table.Setting", args...).Exec()
+	res, err := process.New("yao.table.Setting", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -414,11 +481,15 @@ func TestProcessSetting(t *testing.T) {
 }
 
 func TestProcessXgen(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
+
 	args := []interface{}{"pet"}
-	res, err := gou.NewProcess("yao.table.Xgen", args...).Exec()
+	res, err := process.New("yao.table.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,7 +505,10 @@ func TestProcessXgen(t *testing.T) {
 }
 
 func TestProcessXgenWithPermissions(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
 
@@ -448,7 +522,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	})
 
 	args := []interface{}{"pet"}
-	res, err := gou.NewProcess("yao.table.Xgen", args...).Exec()
+	res, err := process.New("yao.table.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +538,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.Len(t, data.Get("table.operation.actions"), 4)
 
 	session.Global().Set("__permissions", nil)
-	res, err = gou.NewProcess("yao.table.Xgen", args...).Exec()
+	res, err = process.New("yao.table.Xgen", args...).Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,11 +556,15 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 }
 
 func TestProcessExport(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
-	args := []interface{}{"pet", gou.QueryParam{Wheres: []gou.QueryWhere{{Column: "mode", Value: "enabled"}}}, 2}
-	response := gou.NewProcess("yao.table.Export", args...).Run()
+
+	args := []interface{}{"pet", model.QueryParam{Wheres: []model.QueryWhere{{Column: "mode", Value: "enabled"}}}, 2}
+	response := process.New("yao.table.Export", args...).Run()
 	assert.NotNil(t, response)
 	fs := fs.MustGet("system")
 	size, _ := fs.Size(response.(string))
@@ -503,7 +581,7 @@ func load(t *testing.T) {
 }
 
 func testData(t *testing.T) {
-	pet := gou.Select("pet")
+	pet := model.Select("pet")
 	err := pet.Insert(
 		[]string{"name", "type", "status", "mode", "stay", "cost", "doctor_id"},
 		[][]interface{}{
@@ -533,7 +611,7 @@ func tempFile(t *testing.T) string {
 }
 
 func clear(t *testing.T) {
-	for _, m := range gou.Models {
+	for _, m := range model.Models {
 		err := m.DropTable()
 		if err != nil {
 			t.Fatal(err)

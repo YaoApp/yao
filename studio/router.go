@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 )
 
 var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
@@ -202,12 +202,18 @@ func setRouter(router *gin.Engine) {
 			return
 		}
 
-		req := gou.Yao.New(service, fun.Method)
-		if sid, has := c.Get("__sid"); has {
-			req.WithSid(fmt.Sprintf("%s", sid))
+		sid, _ := c.Get("__sid")
+		script, err := v8.SelectRoot(service)
+		if err != nil {
+			throw(c, 500, err.Error())
 		}
 
-		res, err := req.RootCall(fun.Args...)
+		ctx, err := script.NewContext(fmt.Sprintf("%v", sid), nil)
+		if err != nil {
+			throw(c, 500, err.Error())
+		}
+		res, err := ctx.Call(fun.Method, fun.Args...)
+
 		if err != nil {
 			// parse Exception
 			code := 500

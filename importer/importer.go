@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
@@ -17,32 +18,45 @@ import (
 	"github.com/yaoapp/yao/importer/from"
 	"github.com/yaoapp/yao/importer/xlsx"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/xfs"
 )
 
 // Importers 导入器
 var Importers = map[string]*Importer{}
 
-// Load 加载导入器
-func Load(cfg config.Config) {
-	LoadFrom(filepath.Join(cfg.Root, "imports"), "")
-}
+// DataRoot data file root
+var DataRoot string = ""
 
-// LoadFrom 从特定目录加载
-func LoadFrom(dir string, prefix string) {
-	if share.DirNotExists(dir) {
-		return
+// Load 加载导入器
+func Load(cfg config.Config) error {
+
+	fs, err := fs.Get("system")
+	if err != nil {
+		return err
 	}
-	share.Walk(dir, ".json", func(root, filename string) {
-		var importer Importer
-		name := prefix + share.SpecName(root, filename)
-		content := share.ReadFile(filename)
-		err := jsoniter.Unmarshal(content, &importer)
-		if err != nil {
-			exception.New("%s 导入配置错误. %s", 400, name, err.Error()).Ctx(filename).Throw()
+
+	DataRoot = fs.Root()
+
+	exts := []string{"*.imp.yao", "*.imp.json", "*.imp.jsonc"}
+	return application.App.Walk("imports", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
 		}
-		Importers[name] = &importer
-	})
+
+		id := share.ID(root, file)
+		data, err := application.App.Read(file)
+		if err != nil {
+			return err
+		}
+
+		var importer Importer
+		err = application.Parse(file, data, &importer)
+		if err != nil {
+			return fmt.Errorf("%s 导入配置错误. %s", id, err.Error())
+		}
+
+		Importers[id] = &importer
+		return nil
+	}, exts...)
 }
 
 // Select 选择已加载导入器
@@ -59,12 +73,8 @@ func Open(name string) from.Source {
 	ext := strings.ToLower(strings.TrimPrefix(filepath.Ext(name), "."))
 	switch ext {
 	case "xlsx":
-		// fullpath := name
-		fullpath := filepath.Join(xfs.Stor.Root, name)
-		// if !strings.HasPrefix(fullpath, "/") {
-		// 	fullpath = filepath.Join(xfs.Stor.Root, name)
-		// }
-		return xlsx.Open(fullpath)
+		file := filepath.Join(DataRoot, name)
+		return xlsx.Open(file)
 	}
 	exception.New("暂不支持: %s 文件导入", 400, ext).Throw()
 	return nil
@@ -169,7 +179,7 @@ func (imp *Importer) DataClean(data [][]interface{}, bindings []*Binding) ([]str
 
 // DataValidate 数值校验
 func DataValidate(row []interface{}, value interface{}, rule string) ([]interface{}, bool) {
-	process, err := gou.ProcessOf(rule, value, row)
+	process, err := process.Of(rule, value, row)
 	if err != nil {
 		log.With(log.F{"rule": rule, "row": row}).Error("DataValidate: %s", err.Error())
 		return row, true
@@ -405,7 +415,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 		length := len(data)
 		total = total + length
 		columns, data := imp.DataClean(data, mapping.Columns)
-		process, err := gou.ProcessOf(imp.Process, columns, data, id, page)
+		process, err := process.Of(imp.Process, columns, data, id, page)
 		if err != nil {
 			failed = failed + length
 			log.With(log.F{"line": line}).Error("导入失败: %s", err.Error())
@@ -444,7 +454,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 	}
 
 	if imp.Output != "" {
-		res, err := gou.NewProcess(imp.Output, output).WithSID(imp.Sid).Exec()
+		res, err := process.New(imp.Output, output).WithSID(imp.Sid).Exec()
 		if err != nil {
 			log.With(log.F{"output": imp.Output}).Error(err.Error())
 			return output

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
@@ -119,7 +119,7 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 }
 
 // ProcessJwtMake xiang.helper.JwtMake 生成JWT
-func ProcessJwtMake(process *gou.Process) interface{} {
+func ProcessJwtMake(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	id := process.ArgsInt(0)
 	data := process.ArgsMap(1)
@@ -131,7 +131,7 @@ func ProcessJwtMake(process *gou.Process) interface{} {
 }
 
 // ProcessJwtValidate xiang.helper.JwtValidate 校验JWT
-func ProcessJwtValidate(process *gou.Process) interface{} {
+func ProcessJwtValidate(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	tokenString := process.ArgsString(0)
 	return JwtValidate(tokenString)

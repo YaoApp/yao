@@ -7,17 +7,15 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/model"
-	"github.com/yaoapp/yao/runtime"
-	"github.com/yaoapp/yao/script"
-	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/table"
+	"github.com/yaoapp/yao/test"
 	"github.com/yaoapp/yao/widgets/expression"
 	"github.com/yaoapp/yao/widgets/field"
-	"github.com/yaoapp/yao/widgets/test"
+	"github.com/yaoapp/yao/widgets/table"
 )
 
 func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 	prepare(t)
 	err := Load(config.Conf)
 	if err != nil {
@@ -28,29 +26,10 @@ func TestLoad(t *testing.T) {
 
 func prepare(t *testing.T, language ...string) {
 
-	runtime.Load(config.Conf)
-	err := test.LoadEngine(language...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	i18n.Load(config.Conf)
-	share.DBConnect(config.Conf.DB) // removed later
 
 	// load fs
-	err = fs.Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// load scripts
-	err = script.Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// load models
-	err = model.Load(config.Conf)
+	err := fs.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

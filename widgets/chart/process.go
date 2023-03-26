@@ -3,20 +3,20 @@ package chart
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/widgets/app"
 )
 
 // Export process
 func exportProcess() {
-	gou.RegisterProcessHandler("yao.chart.setting", processSetting)
-	gou.RegisterProcessHandler("yao.chart.xgen", processXgen)
-	gou.RegisterProcessHandler("yao.chart.component", processComponent)
-	gou.RegisterProcessHandler("yao.chart.data", processData)
+	process.Register("yao.chart.setting", processSetting)
+	process.Register("yao.chart.xgen", processXgen)
+	process.Register("yao.chart.component", processComponent)
+	process.Register("yao.chart.data", processData)
 }
 
-func processXgen(process *gou.Process) interface{} {
+func processXgen(process *process.Process) interface{} {
 
 	chart := MustGet(process)
 	data := process.ArgsMap(1, map[string]interface{}{})
@@ -29,7 +29,7 @@ func processXgen(process *gou.Process) interface{} {
 	return setting
 }
 
-func processComponent(process *gou.Process) interface{} {
+func processComponent(process *process.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	chart := MustGet(process)
@@ -58,13 +58,13 @@ func processComponent(process *gou.Process) interface{} {
 	return res
 }
 
-func processSetting(process *gou.Process) interface{} {
+func processSetting(process *process.Process) interface{} {
 	chart := MustGet(process)
 	process.Args = append(process.Args, process.Args[0]) // chart name
 	return chart.Action.Setting.MustExec(process)
 }
 
-func processData(process *gou.Process) interface{} {
+func processData(process *process.Process) interface{} {
 	chart := MustGet(process)
 	return chart.Action.Data.MustExec(process)
 }

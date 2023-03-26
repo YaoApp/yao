@@ -3,13 +3,13 @@ package share
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 )
 
 // GetDefaultFilters 读取数据模型索引字段的过滤器
 func GetDefaultFilters(name string) map[string]Filter {
 
-	mod := gou.Select(name)
+	mod := model.Select(name)
 	cmap := mod.Columns
 	filters := map[string]Filter{}
 	for _, index := range mod.MetaData.Indexes {

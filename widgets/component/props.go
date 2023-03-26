@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	gouProcess "github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/log"
 )
 
@@ -26,7 +27,7 @@ func (cProp CloudPropsDSL) UploadPath() string {
 }
 
 // ExecUpload execute upload
-func (cProp CloudPropsDSL) ExecUpload(process *gou.Process, upload gou.UploadFile) (interface{}, error) {
+func (cProp CloudPropsDSL) ExecUpload(process *gouProcess.Process, upload types.UploadFile) (interface{}, error) {
 
 	if upload.TempFile == "" {
 		log.Error("[component] %s.$%s upload file is required", cProp.Xpath, cProp.Name)
@@ -41,7 +42,7 @@ func (cProp CloudPropsDSL) ExecUpload(process *gou.Process, upload gou.UploadFil
 	}
 
 	// Create process
-	p, err := gou.ProcessOf(name, upload)
+	p, err := gouProcess.Of(name, upload)
 	if err != nil {
 		log.Error("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 		return nil, fmt.Errorf("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
@@ -58,7 +59,7 @@ func (cProp CloudPropsDSL) ExecUpload(process *gou.Process, upload gou.UploadFil
 }
 
 // ExecQuery execute query
-func (cProp CloudPropsDSL) ExecQuery(process *gou.Process, query map[string]interface{}) (interface{}, error) {
+func (cProp CloudPropsDSL) ExecQuery(process *gouProcess.Process, query map[string]interface{}) (interface{}, error) {
 
 	if query == nil {
 		query = map[string]interface{}{}
@@ -80,7 +81,7 @@ func (cProp CloudPropsDSL) ExecQuery(process *gou.Process, query map[string]inte
 	}
 
 	// Create process
-	p, err := gou.ProcessOf(name, query)
+	p, err := gouProcess.Of(name, query)
 	if err != nil {
 		log.Error("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 		return nil, fmt.Errorf("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())

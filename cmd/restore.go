@@ -13,7 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -113,7 +113,7 @@ func restoreModels(basePath string) {
 	}
 
 	// Migrate models
-	for _, mod := range gou.Models {
+	for _, mod := range model.Models {
 		fmt.Printf("\r%s", strings.Repeat(" ", 80))
 		fmt.Printf(color.GreenString(L("\rUpdate schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
 		err := mod.Migrate(true)
@@ -128,7 +128,7 @@ func restoreModels(basePath string) {
 	for _, file := range files {
 		namer := strings.Split(file.Name(), ".")
 		name := strings.Join(namer[:len(namer)-2], ".")
-		if mod, has := gou.Models[name]; has {
+		if mod, has := model.Models[name]; has {
 			fmt.Printf("\r%s", strings.Repeat(" ", 80))
 			fmt.Printf(color.GreenString(L("\rRestore model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
 			err := mod.Import(filepath.Join(basePath, file.Name()))

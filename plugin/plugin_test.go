@@ -5,21 +5,23 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
-	gou.Plugins = make(map[string]*gou.Plugin)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	Load(config.Conf)
-	LoadFrom("404")
 	check(t)
 }
 
 func check(t *testing.T) {
-	keys := []string{}
-	for key := range gou.Plugins {
-		keys = append(keys, key)
+	ids := map[string]bool{}
+	for id := range plugin.Plugins {
+		ids[id] = true
 	}
-	assert.Equal(t, 1, len(keys))
+	assert.True(t, ids["user"])
 }

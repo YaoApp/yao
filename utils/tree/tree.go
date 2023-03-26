@@ -3,11 +3,11 @@ package tree
 import (
 	"fmt"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 // ProcessFlatten utils.tree.Flatten cast to array
-func ProcessFlatten(process *gou.Process) interface{} {
+func ProcessFlatten(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	array := process.ArgsArray(0)
 	option := process.ArgsMap(1, map[string]interface{}{"primary": "id", "children": "children", "parent": "parent"})

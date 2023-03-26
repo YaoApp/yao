@@ -20,8 +20,8 @@ type DSL struct {
 
 // MenuDSL the menu DSL
 type MenuDSL struct {
-	Process string   `json:"process,omitempty"`
-	Args    []string `json:"args,omitempty"`
+	Process string        `json:"process,omitempty"`
+	Args    []interface{} `json:"args,omitempty"`
 }
 
 // OptionalDSL the Optional DSL

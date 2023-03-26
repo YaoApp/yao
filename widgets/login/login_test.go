@@ -6,14 +6,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/runtime"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
-	runtime.Load(config.Conf)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	i18n.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -25,7 +27,7 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "admin", Logins["admin"].ID)
 	assert.Equal(t, "::Admin Login", Logins["admin"].Name)
 	assert.Equal(t, "yao.login.Admin", Logins["admin"].Action.Process)
-	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", Logins["admin"].Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", Logins["admin"].Layout.Entry)
@@ -35,7 +37,7 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "user", Logins["user"].ID)
 	assert.Equal(t, "::User Login", Logins["user"].Name)
 	assert.Equal(t, "scripts.user.Login", Logins["user"].Action.Process)
-	assert.Equal(t, []string{":payload"}, Logins["user"].Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, Logins["user"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["user"].Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", Logins["user"].Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", Logins["user"].Layout.Entry)
@@ -44,7 +46,10 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadHK(t *testing.T) {
-	runtime.Load(config.Conf)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
 	err := Load(config.Conf)
 	if err != nil {
@@ -55,7 +60,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "admin", Logins["admin"].ID)
 	assert.Equal(t, "::Admin Login", Logins["admin"].Name)
 	assert.Equal(t, "yao.login.Admin", Logins["admin"].Action.Process)
-	assert.Equal(t, []string{":payload"}, Logins["admin"].Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, Logins["admin"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["admin"].Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", Logins["admin"].Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", Logins["admin"].Layout.Entry)
@@ -65,7 +70,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "user", Logins["user"].ID)
 	assert.Equal(t, "::User Login", Logins["user"].Name)
 	assert.Equal(t, "scripts.user.Login", Logins["user"].Action.Process)
-	assert.Equal(t, []string{":payload"}, Logins["user"].Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, Logins["user"].Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", Logins["user"].Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", Logins["user"].Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", Logins["user"].Layout.Entry)
@@ -77,7 +82,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "admin", admin.ID)
 	assert.Equal(t, "管理員登錄", admin.Name)
 	assert.Equal(t, "yao.login.Admin", admin.Action.Process)
-	assert.Equal(t, []string{":payload"}, admin.Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, admin.Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", admin.Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", admin.Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", admin.Layout.Entry)
@@ -89,7 +94,7 @@ func TestLoadHK(t *testing.T) {
 	assert.Equal(t, "user", user.ID)
 	assert.Equal(t, "用戶登錄", user.Name)
 	assert.Equal(t, "scripts.user.Login", user.Action.Process)
-	assert.Equal(t, []string{":payload"}, user.Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, user.Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", user.Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", user.Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", user.Layout.Entry)
@@ -98,6 +103,9 @@ func TestLoadHK(t *testing.T) {
 }
 
 func TestLoadCN(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 
 	os.Setenv("YAO_LANG", "zh-cn")
 	i18n.Load(config.Conf)
@@ -114,7 +122,7 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "admin", admin.ID)
 	assert.Equal(t, "管理员登录", admin.Name)
 	assert.Equal(t, "yao.login.Admin", admin.Action.Process)
-	assert.Equal(t, []string{":payload"}, admin.Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, admin.Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", admin.Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", admin.Layout.Cover)
 	assert.Equal(t, "/x/Chart/dashboard", admin.Layout.Entry)
@@ -127,7 +135,7 @@ func TestLoadCN(t *testing.T) {
 	assert.Equal(t, "user", user.ID)
 	assert.Equal(t, "用户登录", user.Name)
 	assert.Equal(t, "scripts.user.Login", user.Action.Process)
-	assert.Equal(t, []string{":payload"}, user.Action.Args)
+	assert.Equal(t, []interface{}{":payload"}, user.Action.Args)
 	assert.Equal(t, "yao.utils.Captcha", user.Layout.Captcha)
 	assert.Equal(t, "/assets/images/login/cover.svg", user.Layout.Cover)
 	assert.Equal(t, "/x/Table/pet", user.Layout.Entry)
@@ -136,6 +144,9 @@ func TestLoadCN(t *testing.T) {
 }
 
 func TestExport(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 
 	err := Load(config.Conf)
 	if err != nil {
@@ -147,7 +158,7 @@ func TestExport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	api, has := gou.APIs["widgets.login"]
+	api, has := api.APIs["widgets.login"]
 	assert.True(t, has)
 	assert.Equal(t, 4, len(api.HTTP.Paths))
 }

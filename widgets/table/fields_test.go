@@ -4,20 +4,26 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestFiledsBindModel(t *testing.T) {
-	load(t)
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
 	clear(t)
 	testData(t)
-	m := gou.Select("pet")
+
+	m := model.Select("pet")
 	tab := New("unit-test")
 	err := tab.Fields.BindModel(m)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, "id", tab.Fields.Table["ID"].Bind)
-	assert.Equal(t, 17, len(tab.Fields.Table))
-	assert.Equal(t, 6, len(tab.Fields.Filter))
+	assert.Equal(t, 18, len(tab.Fields.Table))
+	assert.Equal(t, 7, len(tab.Fields.Filter))
 }

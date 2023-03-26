@@ -1,87 +1,88 @@
 package utils
 
 import (
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/utils/datetime"
 	"github.com/yaoapp/yao/utils/str"
 	"github.com/yaoapp/yao/utils/tree"
 )
 
 func init() {
-	gou.AliasProcess("xiang.helper.Captcha", "yao.utils.Captcha")                 // deprecated
-	gou.AliasProcess("xiang.helper.CaptchaValidate", "yao.utils.CaptchaValidate") // deprecated
+	process.Alias("xiang.helper.Captcha", "yao.utils.Captcha")                 // deprecated
+	process.Alias("xiang.helper.CaptchaValidate", "yao.utils.CaptchaValidate") // deprecated
 
 	// ****************************************
 	// * Migrate Processes Version 0.10.2+
 	// ****************************************
 
 	// Application
-	gou.AliasProcess("xiang.main.Ping", "utils.app.Ping")
-	gou.AliasProcess("xiang.main.Inspect", "utils.app.Inspect")
+	process.Alias("xiang.main.Ping", "utils.app.Ping")
+	process.Alias("xiang.main.Inspect", "utils.app.Inspect")
 
 	// FMT
-	gou.AliasProcess("xiang.helper.Print", "utils.fmt.Print")
+	process.Alias("xiang.helper.Print", "utils.fmt.Print")
 
 	// ENV
-	gou.AliasProcess("xiang.helper.EnvSet", "utils.env.Get")
-	gou.AliasProcess("xiang.helper.EnvGet", "utils.env.Get")
-	gou.AliasProcess("xiang.helper.EnvMultiSet", "utils.env.SetMany")
-	gou.AliasProcess("xiang.helper.EnvMultiGet", "utils.env.GetMany")
+	process.Alias("xiang.helper.EnvSet", "utils.env.Get")
+	process.Alias("xiang.helper.EnvGet", "utils.env.Get")
+	process.Alias("xiang.helper.EnvMultiSet", "utils.env.SetMany")
+	process.Alias("xiang.helper.EnvMultiGet", "utils.env.GetMany")
 
 	// Flow
-	gou.AliasProcess("xiang.helper.For", "utils.flow.For")
-	gou.AliasProcess("xiang.helper.Each", "utils.flow.Each")
-	gou.AliasProcess("xiang.helper.Case", "utils.flow.Case")
-	gou.AliasProcess("xiang.helper.IF", "utils.flow.IF")
-	gou.AliasProcess("xiang.helper.Throw", "utils.flow.Throw")
-	gou.AliasProcess("xiang.helper.Return", "utils.flow.Return")
+	process.Alias("xiang.helper.For", "utils.flow.For")
+	process.Alias("xiang.helper.Each", "utils.flow.Each")
+	process.Alias("xiang.helper.Case", "utils.flow.Case")
+	process.Alias("xiang.helper.IF", "utils.flow.IF")
+	process.Alias("xiang.helper.Throw", "utils.flow.Throw")
+	process.Alias("xiang.helper.Return", "utils.flow.Return")
 
 	// JWT
-	gou.AliasProcess("xiang.helper.JwtMake", "utils.jwt.Make")
-	gou.AliasProcess("xiang.helper.JwtValidate", "utils.jwt.Verify")
+	process.Alias("xiang.helper.JwtMake", "utils.jwt.Make")
+	process.Alias("xiang.helper.JwtValidate", "utils.jwt.Verify")
 
 	// Password
 	// utils.pwd.Hash
-	gou.AliasProcess("xiang.helper.PasswordValidate", "utils.pwd.Verify")
+	process.Alias("xiang.helper.PasswordValidate", "utils.pwd.Verify")
 
 	// Captcha
-	gou.AliasProcess("xiang.helper.Captcha", "utils.captcha.Make")
-	gou.AliasProcess("xiang.helper.CaptchaValidate", "utils.captcha.Verify")
+	process.Alias("xiang.helper.Captcha", "utils.captcha.Make")
+	process.Alias("xiang.helper.CaptchaValidate", "utils.captcha.Verify")
 
 	// String
-	gou.AliasProcess("xiang.helper.StrConcat", "utils.str.Concat")
-	gou.RegisterProcessHandler("utils.str.Join", str.ProcessJoin)
-	gou.RegisterProcessHandler("utils.str.JoinPath", str.ProcessJoinPath)
+	process.Alias("xiang.helper.StrConcat", "utils.str.Concat")
+	process.Alias("xiang.helper.HexToString", "utils.str.Hex")
+	process.Register("utils.str.Join", str.ProcessJoin)
+	process.Register("utils.str.JoinPath", str.ProcessJoinPath)
 
 	// Array
-	gou.AliasProcess("xiang.helper.ArrayPluck", "utils.arr.Pluck")
-	gou.AliasProcess("xiang.helper.ArraySplit", "utils.arr.Split")
-	gou.AliasProcess("xiang.helper.ArrayTree", "utils.arr.Tree")
-	gou.AliasProcess("xiang.helper.ArrayUnique", "utils.arr.Unique")
-	gou.AliasProcess("xiang.helper.ArrayIndexes", "utils.arr.Indexes")
-	gou.AliasProcess("xiang.helper.ArrayGet", "utils.arr.Get")
-	gou.AliasProcess("xiang.helper.ArrayColumn", "utils.arr.Column") // doc
-	gou.AliasProcess("xiang.helper.ArrayKeep", "utils.arr.Keep")
-	gou.AliasProcess("xiang.helper.ArrayMapSet", "utils.arr.MapSet")
+	process.Alias("xiang.helper.ArrayPluck", "utils.arr.Pluck")
+	process.Alias("xiang.helper.ArraySplit", "utils.arr.Split")
+	process.Alias("xiang.helper.ArrayTree", "utils.arr.Tree")
+	process.Alias("xiang.helper.ArrayUnique", "utils.arr.Unique")
+	process.Alias("xiang.helper.ArrayIndexes", "utils.arr.Indexes")
+	process.Alias("xiang.helper.ArrayGet", "utils.arr.Get")
+	process.Alias("xiang.helper.ArrayColumn", "utils.arr.Column") // doc
+	process.Alias("xiang.helper.ArrayKeep", "utils.arr.Keep")
+	process.Alias("xiang.helper.ArrayMapSet", "utils.arr.MapSet")
 
 	// Tree
-	gou.RegisterProcessHandler("utils.tree.Flatten", tree.ProcessFlatten)
+	process.Register("utils.tree.Flatten", tree.ProcessFlatten)
 
 	// Map
-	gou.AliasProcess("xiang.helper.MapGet", "utils.map.Get")
-	gou.AliasProcess("xiang.helper.MapSet", "utils.map.Set")
-	gou.AliasProcess("xiang.helper.MapDel", "utils.map.Del")
-	gou.AliasProcess("xiang.helper.MapDel", "utils.map.DelMany")
-	gou.AliasProcess("xiang.helper.MapKeys", "utils.map.Keys")
-	gou.AliasProcess("xiang.helper.MapValues", "utils.map.Values")
-	gou.AliasProcess("xiang.helper.MapToArray", "utils.map.Array") // doc
+	process.Alias("xiang.helper.MapGet", "utils.map.Get")
+	process.Alias("xiang.helper.MapSet", "utils.map.Set")
+	process.Alias("xiang.helper.MapDel", "utils.map.Del")
+	process.Alias("xiang.helper.MapDel", "utils.map.DelMany")
+	process.Alias("xiang.helper.MapKeys", "utils.map.Keys")
+	process.Alias("xiang.helper.MapValues", "utils.map.Values")
+	process.Alias("xiang.helper.MapToArray", "utils.map.Array") // doc
 	// utils.map.Merge
 
 	// Time
-	gou.AliasProcess("xiang.flow.Sleep", "utils.time.Sleep")
-	gou.RegisterProcessHandler("utils.now.Time", datetime.ProcessTime)
-	gou.RegisterProcessHandler("utils.now.Date", datetime.ProcessDate)
-	gou.RegisterProcessHandler("utils.now.DateTime", datetime.ProcessDateTime)
-	gou.RegisterProcessHandler("utils.now.Timestamp", datetime.ProcessTimestamp)
-	gou.RegisterProcessHandler("utils.now.Timestampms", datetime.ProcessTimestampms)
+	process.Alias("xiang.flow.Sleep", "utils.time.Sleep")
+	process.Register("utils.now.Time", datetime.ProcessTime)
+	process.Register("utils.now.Date", datetime.ProcessDate)
+	process.Register("utils.now.DateTime", datetime.ProcessDateTime)
+	process.Register("utils.now.Timestamp", datetime.ProcessTimestamp)
+	process.Register("utils.now.Timestampms", datetime.ProcessTimestampms)
 }

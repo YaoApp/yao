@@ -7,14 +7,14 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/model"
-	"github.com/yaoapp/yao/runtime"
-	"github.com/yaoapp/yao/script"
-	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/test"
 )
 
 func TestLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 	prepare(t)
+
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
@@ -23,23 +23,13 @@ func TestLoad(t *testing.T) {
 }
 
 func prepare(t *testing.T, language ...string) {
-	runtime.Load(config.Conf)
 	i18n.Load(config.Conf)
-	share.DBConnect(config.Conf.DB) // removed later
 
-	// load scripts
-	err := script.Load(config.Conf)
+	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// load models
-	err = model.Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// load flows
 	err = flow.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)

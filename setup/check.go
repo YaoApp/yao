@@ -16,7 +16,7 @@ func Check() bool {
 
 	root := appRoot()
 
-	appfile := filepath.Join(root, "app.json")
+	appfile := filepath.Join(root, "app.yao")
 	if _, err := os.Stat(appfile); err != nil && os.IsNotExist(err) {
 		return true
 	}

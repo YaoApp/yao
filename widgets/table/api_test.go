@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/yao/network"
-	"github.com/yaoapp/yao/widgets/test"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
 var guards = map[string]gin.HandlerFunc{
@@ -19,8 +18,9 @@ var guards = map[string]gin.HandlerFunc{
 }
 
 func TestAPISetting(t *testing.T) {
+
 	port := start(t)
-	defer test.Stop(func() {})
+	defer stop()
 
 	req := test.NewRequest(port).Route("/api/__yao/table/pet/setting")
 	res, err := req.Get()
@@ -40,6 +40,7 @@ func TestAPISetting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	data := any.Of(v).MapStr().Dot()
 	assert.Equal(t, "/api/xiang/import/pet", data.Get("header.preset.import.api.import"))
 	// assert.Equal(t, "跳转", data.Get("header.preset.import.operation.0.title"))
@@ -49,7 +50,7 @@ func TestAPISetting(t *testing.T) {
 
 func TestAPISearch(t *testing.T) {
 	port := start(t)
-	defer test.Stop(func() {})
+	defer test.Stop()
 
 	req := test.NewRequest(port).Route("/api/__yao/table/session/search")
 	res, err := req.Get()
@@ -80,7 +81,7 @@ func TestAPISearch(t *testing.T) {
 
 func TestAPISave(t *testing.T) {
 	port := start(t)
-	defer test.Stop(func() {})
+	defer test.Stop()
 
 	payload := map[string]interface{}{
 		"name":      "New Pet",
@@ -117,7 +118,7 @@ func TestAPISave(t *testing.T) {
 func TestAPICustomGuard(t *testing.T) {
 
 	port := start(t)
-	defer test.Stop(func() {})
+	defer test.Stop()
 
 	req := test.NewRequest(port).Route("/api/__yao/table/pet/find/1")
 	res, err := req.Get()
@@ -150,7 +151,7 @@ func TestAPICustomGuard(t *testing.T) {
 func TestAPIGlobalCustomGuard(t *testing.T) {
 
 	port := start(t)
-	defer test.Stop(func() {})
+	defer test.Stop()
 
 	req := test.NewRequest(port).Route("/api/__yao/table/guard/find/1")
 	res, err := req.Get()
@@ -182,13 +183,17 @@ func TestAPIGlobalCustomGuard(t *testing.T) {
 }
 
 func start(t *testing.T) int {
-	port := network.FreePort()
-	load(t)
+	test.Prepare(t, config.Conf)
+	prepare(t)
 	clear(t)
 	testData(t)
-	go test.Start(t, guards, port)
-	time.Sleep(200 * time.Millisecond)
-	return port
+	test.Start(t, guards, config.Conf)
+
+	return test.Port(t)
+}
+
+func stop() {
+	test.Stop()
 }
 
 func token(t *testing.T) string {

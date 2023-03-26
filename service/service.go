@@ -1,91 +1,69 @@
 package service
 
 import (
-	"context"
+	"time"
 
-	"github.com/yaoapp/gou"
-	"github.com/yaoapp/kun/log"
+	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
 
-var shutdown = make(chan bool, 1)
+// Start the yao service
+func Start(cfg config.Config) (*http.Server, error) {
 
-var shutdownComplete = make(chan bool, 1)
-
-// Start 启动服务
-func Start() error {
+	if cfg.AllowFrom == nil {
+		cfg.AllowFrom = []string{}
+	}
 
 	err := prepare()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	gou.SetHTTPGuards(Guards)
-	gou.ServeHTTP(
-		gou.Server{
-			Host:   config.Conf.Host,
-			Port:   config.Conf.Port,
-			Root:   "/api",
-			Allows: config.Conf.AllowFrom,
-		},
-		shutdown, func(s gou.Server) {
-			shutdownComplete <- true
-		},
-		Middlewares...)
+	router := gin.New()
+	router.Use(gin.Logger())
+	api.SetGuards(Guards)
+	api.SetRoutes(router, "/api", cfg.AllowFrom...)
 
+	srv := http.New(router, http.Option{
+		Host:    cfg.Host,
+		Port:    cfg.Port,
+		Root:    "/api",
+		Allows:  cfg.AllowFrom,
+		Timeout: 5 * time.Second,
+	}).With(Middlewares...)
+
+	go func() {
+		err = srv.Start()
+	}()
+
+	return srv, nil
+}
+
+// Stop the yao service
+func Stop(srv *http.Server) error {
+	err := srv.Stop()
+	if err != nil {
+		return err
+	}
+	<-srv.Event()
 	return nil
 }
 
-// StartWithouttSession 启动服务
-func StartWithouttSession() {
-
-	gou.SetHTTPGuards(Guards)
-	gou.ServeHTTP(
-		gou.Server{
-			Host:   config.Conf.Host,
-			Port:   config.Conf.Port,
-			Root:   "/api",
-			Allows: config.Conf.AllowFrom,
-		},
-		shutdown, func(s gou.Server) {
-			shutdownComplete <- true
-		},
-		Middlewares...)
-}
-
-// StopWithouttSession 关闭服务
-func StopWithouttSession(onComplete func()) {
-	shutdown <- true
-	select {
-	case <-shutdownComplete:
-		onComplete()
-	}
-}
-
-// Stop 关闭服务
-func Stop(onComplete func()) {
-	shutdown <- true
-	select {
-	case <-shutdownComplete:
-		share.SessionStop()
-		share.DBClose()
-		onComplete()
-	}
-}
-
 // StopWithContext stop with timeout
-func StopWithContext(ctx context.Context, onComplete func()) {
-	shutdown <- true
-	select {
-	case <-ctx.Done():
-		log.Error("[STOP] canceled (%v)", ctx.Err())
-		onComplete()
-	case <-shutdownComplete:
-		share.SessionStop()
-		onComplete()
-	}
-}
+// func StopWithContext(ctx context.Context, onComplete func()) {
+// 	shutdown <- true
+// 	select {
+// 	case <-ctx.Done():
+// 		log.Error("[STOP] canceled (%v)", ctx.Err())
+// 		onComplete()
+// 	case <-shutdownComplete:
+// 		share.SessionStop()
+// 		onComplete()
+// 	}
+// }
 
 func prepare() error {
 

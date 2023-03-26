@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
-	"github.com/yaoapp/yao/widgets/environment"
 	"github.com/yaoapp/yao/widgets/field"
 )
 
@@ -101,70 +101,81 @@ func LoadAndExport(cfg config.Config) error {
 	return Load(cfg)
 }
 
-// Load load table
+// Load load table dsl
 func Load(cfg config.Config) error {
-	var root = filepath.Join(cfg.Root, "tables")
-	return LoadFrom(root, "")
-}
-
-// LoadID load by id
-func LoadID(id string, root string) error {
-	dirs := strings.Split(id, ".")
-	name := fmt.Sprintf("%s.tab.json", dirs[len(dirs)-1])
-	elems := []string{root}
-	elems = append(elems, dirs[0:len(dirs)-1]...)
-	elems = append(elems, "tables", name)
-	filename := filepath.Join(elems...)
-	data, err := environment.ReadFile(filename)
-	if err != nil {
-		return fmt.Errorf("[table] LoadID %s root=%s %s", id, root, err.Error())
-	}
-	return LoadData(data, id, root)
-}
-
-// LoadFrom load from dir
-func LoadFrom(dir string, prefix string) error {
-
-	if share.DirNotExists(dir) {
-		return fmt.Errorf("%s does not exists", dir)
-	}
-
 	messages := []string{}
-	err := share.Walk(dir, ".json", func(root, filename string) {
-		id := prefix + share.ID(root, filename)
-		data, err := environment.ReadFile(filename)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
+	exts := []string{"*.tab.yao", "*.tab.json", "*.tab.jsonc"}
+	err := application.App.Walk("tables", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		if err := LoadFile(root, file); err != nil {
+			messages = append(messages, err.Error())
 		}
 
-		err = LoadData(data, id, filepath.Dir(dir))
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("[%s] %s", id, err.Error()))
-			return
-		}
-	})
+		return nil
+	}, exts...)
 
 	if len(messages) > 0 {
-		return fmt.Errorf(strings.Join(messages, ";"))
+		return fmt.Errorf(strings.Join(messages, ";\n"))
 	}
 
 	return err
 }
 
-// LoadData load table from source
-func LoadData(data []byte, id string, root string) error {
-	dsl := New(id)
-	dsl.Root = root
+// LoadID load table dsl by id
+func LoadID(id string, root string) error {
 
-	err := jsoniter.Unmarshal(data, dsl)
-	if err != nil {
-		return fmt.Errorf("[Table] LoadData %s %s", id, err.Error())
+	file := filepath.Join("tables", share.File(id, ".tab.yao"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("tables", file)
 	}
 
+	file = filepath.Join("tables", share.File(id, ".tab.jsonc"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("tables", file)
+	}
+
+	file = filepath.Join("tables", share.File(id, ".tab.json"))
+	if exists, _ := application.App.Exists(file); exists {
+		return LoadFile("tables", file)
+	}
+
+	return fmt.Errorf("table %s not found", id)
+}
+
+// LoadFile load table dsl by file
+func LoadFile(root string, file string) error {
+
+	id := share.ID(root, file)
+	data, err := application.App.Read(file)
+	if err != nil {
+		return err
+	}
+
+	dsl := &DSL{ID: id}
+	err = application.Parse(file, data, dsl)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	err = dsl.parse(id, root)
+	if err != nil {
+		return err
+	}
+
+	Tables[id] = dsl
+	return nil
+}
+
+// parse parse table dsl source
+func (dsl *DSL) parse(id string, root string) error {
+
+	dsl.Root = root // remove next version
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
 	}
+
 	dsl.Action.SetDefaultProcess()
 
 	if dsl.Layout == nil {
@@ -181,7 +192,7 @@ func LoadData(data []byte, id string, root string) error {
 	}
 
 	// Bind model / store / table / ...
-	err = dsl.Bind()
+	err := dsl.Bind()
 	if err != nil {
 		return fmt.Errorf("[Table] LoadData Bind %s %s", id, err.Error())
 	}
@@ -208,8 +219,8 @@ func Get(table interface{}) (*DSL, error) {
 	switch table.(type) {
 	case string:
 		id = table.(string)
-	case *gou.Process:
-		id = table.(*gou.Process).ArgsString(0)
+	case *process.Process:
+		id = table.(*process.Process).ArgsString(0)
 	default:
 		return nil, fmt.Errorf("%v type does not support", table)
 	}
@@ -232,6 +243,10 @@ func MustGet(table interface{}) *DSL {
 
 // Xgen trans to xgen setting
 func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
+
+	if dsl.Config == nil {
+		dsl.Config = map[string]interface{}{}
+	}
 
 	layout, err := dsl.Layout.Xgen(data, excludes, dsl.Mapping)
 	if err != nil {

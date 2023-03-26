@@ -5,7 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 func TestProcessTreeFlatten(t *testing.T) {
@@ -26,7 +26,7 @@ func TestProcessTreeFlatten(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rows := gou.NewProcess("utils.tree.Flatten", data, map[string]interface{}{"primary": "id", "children": "children", "parent": "parent"}).Run().([]interface{})
+	rows := process.New("utils.tree.Flatten", data, map[string]interface{}{"primary": "id", "children": "children", "parent": "parent"}).Run().([]interface{})
 	assert.Equal(t, 4, len(rows))
 	assert.Equal(t, float64(1), rows[1].(map[string]interface{})["parent"])
 }

@@ -1,7 +1,7 @@
 package list
 
 import (
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/widgets/action"
 	"github.com/yaoapp/yao/widgets/hook"
 	"github.com/yaoapp/yao/widgets/table"
@@ -74,7 +74,7 @@ func (act *ActionDSL) SetDefaultProcess() {
 }
 
 // BindModel bind model
-func (act *ActionDSL) BindModel(m *gou.Model) error {
+func (act *ActionDSL) BindModel(m *model.Model) error {
 	return nil
 }
 

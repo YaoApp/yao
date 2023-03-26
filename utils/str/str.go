@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 )
 
 // ProcessJoin utils.str.Join
-func ProcessJoin(process *gou.Process) interface{} {
+func ProcessJoin(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	args := process.ArgsArray(0)
 	sep := process.ArgsString(1)
@@ -21,7 +21,7 @@ func ProcessJoin(process *gou.Process) interface{} {
 }
 
 // ProcessJoinPath utils.str.JoinPath
-func ProcessJoinPath(process *gou.Process) interface{} {
+func ProcessJoinPath(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	paths := []string{}
 	for _, arg := range process.Args {

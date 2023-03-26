@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/action"
 )
@@ -61,48 +61,48 @@ func (dashboard *DSL) getAction(path string) (*action.Process, error) {
 // export API
 func exportAPI() error {
 
-	http := gou.HTTP{
+	http := api.HTTP{
 		Name:        "Widget Dashboard API",
 		Description: "Widget Dashboard API",
 		Version:     share.VERSION,
 		Guard:       "widget-dashboard",
 		Group:       "__yao/dashboard",
-		Paths:       []gou.Path{},
+		Paths:       []api.Path{},
 	}
 
 	//   GET  /api/__yao/dashboard/:id/setting  					-> Default process: yao.dashboard.Xgen
-	path := gou.Path{
+	path := api.Path{
 		Label:       "Setting",
 		Description: "Setting",
 		Path:        "/:id/setting",
 		Method:      "GET",
 		Process:     "yao.dashboard.Setting",
-		In:          []string{"$param.id"},
-		Out:         gou.Out{Status: 200, Type: "application/json"},
+		In:          []interface{}{"$param.id"},
+		Out:         api.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)
 
 	//   GET  /api/__yao/dashboard/:id/data 					-> Default process: yao.dashboard.Data $param.id :query
-	path = gou.Path{
+	path = api.Path{
 		Label:       "Data",
 		Description: "Data",
 		Path:        "/:id/data",
 		Method:      "GET",
 		Process:     "yao.dashboard.Data",
-		In:          []string{"$param.id", ":query"},
-		Out:         gou.Out{Status: 200, Type: "application/json"},
+		In:          []interface{}{"$param.id", ":query"},
+		Out:         api.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)
 
 	//   GET  /api/__yao/dashboard/:id/component/:xpath/:method  	-> Default process: yao.dashboard.Component $param.id $param.xpath $param.method :query
-	path = gou.Path{
+	path = api.Path{
 		Label:       "Component",
 		Description: "Component",
 		Path:        "/:id/component/:xpath/:method",
 		Method:      "GET",
 		Process:     "yao.dashboard.Component",
-		In:          []string{"$param.id", "$param.xpath", "$param.method", ":query"},
-		Out:         gou.Out{Status: 200, Type: "application/json"},
+		In:          []interface{}{"$param.id", "$param.xpath", "$param.method", ":query"},
+		Out:         api.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)
 
@@ -113,6 +113,6 @@ func exportAPI() error {
 	}
 
 	// load apis
-	_, err = gou.LoadAPIReturn(string(source), "widgets.dashboard")
+	_, err = api.LoadSource("<widget.dashboard>.yao", source, "widgets.dashboard")
 	return err
 }

@@ -2,7 +2,7 @@ package helper
 
 import (
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 )
 
@@ -18,7 +18,7 @@ type CaseParam struct {
 func Case(params ...CaseParam) interface{} {
 	for _, param := range params {
 		if When(param.When) {
-			return gou.NewProcess(param.Process, param.Args...).Run()
+			return process.New(param.Process, param.Args...).Run()
 		}
 	}
 	return nil
@@ -39,7 +39,7 @@ func CaseParamOf(v interface{}) CaseParam {
 }
 
 // ProcessCase xiang.helper.Case Case条件判断
-func ProcessCase(process *gou.Process) interface{} {
+func ProcessCase(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	params := []CaseParam{}
 	for _, v := range process.Args {
