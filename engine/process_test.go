@@ -22,7 +22,7 @@ func TestProcessAliasPing(t *testing.T) {
 }
 
 func TestProcessInspect(t *testing.T) {
-	res, ok := process.New("xiang.sys.Inspect").Run().(share.AppInfo)
+	res, ok := process.New("xiang.sys.Inspect").Run().(map[string]interface{})
 	assert.True(t, ok)
-	assert.NotNil(t, res.Version)
+	assert.NotNil(t, res["VERSION"])
 }

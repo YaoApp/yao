@@ -34,8 +34,7 @@ func Prepare(t *testing.T, cfg config.Config) {
 	var err error
 
 	if root == "bin:application.pkg" {
-		key := os.Getenv("YAO_TEST_PRIVATE_KEY")
-		app, err = application.OpenFromBin(root, key) // Load app from Bin
+		app, err = application.OpenFromBin(root, &share.Pack{}) // Load app from Bin
 		if err != nil {
 			t.Fatal(err)
 		}

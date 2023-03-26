@@ -1,7 +1,10 @@
 package engine
 
 import (
+	"fmt"
+
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -30,8 +33,11 @@ func processPing(process *process.Process) interface{} {
 
 // processInspect 返回系统信息
 func processInspect(process *process.Process) interface{} {
-	share.App.Icons.Set("favicon", "/api/xiang/favicon.ico")
-	return share.App.Public()
+	return map[string]interface{}{
+		"VERSION":   fmt.Sprintf("%s %s", share.VERSION, share.PRVERSION),
+		"BUILDNAME": share.BUILDNAME,
+		"CONFIG":    config.Conf,
+	}
 }
 
 // processFavicon 运行模型 MustCreate

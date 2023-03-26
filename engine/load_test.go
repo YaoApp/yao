@@ -1,35 +1,26 @@
 package engine
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/yao/config"
 )
 
 func TestLoad(t *testing.T) {
-	defer Load(config.Conf)
-	assert.NotPanics(t, func() {
-		Load(config.Conf)
-	})
+	defer Unload()
+	err := Load(config.Conf)
+	assert.Nil(t, err)
+	assert.Greater(t, len(api.APIs), 0)
 }
 
-// 从文件系统载入引擎文件
-func TestLoadEngineFS(t *testing.T) {
-	defer Load(config.Conf)
-	root := path.Join(os.Getenv("YAO_DEV"), "/yao")
-	assert.NotPanics(t, func() {
-		LoadEngine(root)
-	})
+func TestReload(t *testing.T) {
+	defer Unload()
+	err := Load(config.Conf)
+	assert.Nil(t, err)
 
-}
-
-// 从BinDataz载入引擎文件
-func TestLoadEngineBin(t *testing.T) {
-	defer Load(config.Conf)
-	assert.NotPanics(t, func() {
-		LoadEngine()
-	})
+	Reload(config.Conf)
+	assert.Nil(t, err)
+	assert.Greater(t, len(api.APIs), 0)
 }

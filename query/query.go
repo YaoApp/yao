@@ -11,7 +11,7 @@ import (
 )
 
 // Load 加载查询引擎
-func Load(cfg config.Config) {
+func Load(cfg config.Config) error {
 
 	if _, has := query.Engines["default"]; !has {
 		registerDefault()
@@ -36,6 +36,8 @@ func Load(cfg config.Config) {
 			})
 		}
 	}
+
+	return nil
 }
 
 // registerDefaultQuery register the default engine

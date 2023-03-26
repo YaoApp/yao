@@ -11,7 +11,7 @@ on:
 env:
   YAO_DEV: ${{ github.WORKSPACE }}
   YAO_ENV: development
-  YAO_ROOT: ${{ github.WORKSPACE }}/tests
+  YAO_ROOT: ${{ github.WORKSPACE }}/../app
   YAO_HOST: 0.0.0.0
   YAO_PORT: 5099
   YAO_SESSION: "memory"
