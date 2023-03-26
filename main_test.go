@@ -14,7 +14,6 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/service"
 )
 
 func TestCommandVersion(t *testing.T) {
@@ -41,7 +40,7 @@ func TestCommandStart(t *testing.T) {
 	oldArgs := os.Args
 	defer func() {
 		os.Args = oldArgs
-		service.Stop(func() {})
+		// service.Stop(func() {})
 		log.Println("服务已关闭")
 	}()
 
@@ -129,7 +128,7 @@ func TestCommandStop(t *testing.T) {
 		assert.Equal(t, "管理员", res.Get("name"))
 
 		// 测试关闭
-		service.Stop(func() { log.Println("服务已关闭") })
+		// service.Stop(func() { log.Println("服务已关闭") })
 		time.Sleep(time.Second * 5)
 		_, err = request()
 		assert.NotNil(t, err)

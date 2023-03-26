@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -245,7 +246,33 @@ func loadApp(root string) error {
 	}
 
 	application.Load(app)
-	return nil
+
+	var info []byte
+
+	// Read app setting
+	if has, _ := application.App.Exists("app.yao"); has {
+		info, err = application.App.Read("app.yao")
+		if err != nil {
+			return err
+		}
+
+	} else if has, _ := application.App.Exists("app.jsonc"); has {
+		info, err = application.App.Read("app.jsonc")
+		if err != nil {
+			return err
+		}
+
+	} else if has, _ := application.App.Exists("app.json"); has {
+		info, err = application.App.Read("app.json")
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("app.yao or app.jsonc or app.json does not exists")
+	}
+
+	share.App = share.AppInfo{}
+	return json.Unmarshal(info, &share.App)
 }
 
 func printErr(mode, widget string, err error) {

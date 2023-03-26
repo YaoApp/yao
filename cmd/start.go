@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -153,7 +151,7 @@ var startCmd = &cobra.Command{
 			printStores(true)
 		}
 
-		srv, err := service.Start()
+		srv, err := service.Start(config.Conf)
 
 		// Start server
 		go func() {
@@ -170,11 +168,9 @@ var startCmd = &cobra.Command{
 		for {
 			select {
 			case <-interrupt:
-				ctx, canceled := context.WithTimeout(context.Background(), (5 * time.Second))
-				defer canceled()
-				service.StopWithContext(ctx, func() {
-					fmt.Println(color.GreenString(L("✨STOPPED✨")))
-				})
+				// ctx, canceled := context.WithTimeout(context.Background(), (5 * time.Second))
+				// defer canceled()
+				service.Stop(srv)
 				return
 			}
 		}
