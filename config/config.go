@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,6 +110,11 @@ func ReloadLog() {
 // OpenLog 打开日志
 func OpenLog() {
 	if Conf.Log != "" {
+
+		if !filepath.IsAbs(Conf.Log) {
+			Conf.Log = filepath.Join(Conf.Root, Conf.Log)
+		}
+
 		logfile, err := filepath.Abs(Conf.Log)
 		if err != nil {
 			log.With(log.F{"file": logfile}).Error(err.Error())
@@ -129,7 +135,7 @@ func OpenLog() {
 		}
 
 		log.SetOutput(LogOutput)
-		gin.DefaultWriter = LogOutput
+		gin.DefaultWriter = io.MultiWriter(LogOutput)
 	}
 }
 

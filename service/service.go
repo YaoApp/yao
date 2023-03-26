@@ -23,6 +23,7 @@ func Start(cfg config.Config) (*http.Server, error) {
 	}
 
 	router := gin.New()
+	router.Use(gin.Logger())
 	api.SetGuards(Guards)
 	api.SetRoutes(router, "/api", cfg.AllowFrom...)
 
