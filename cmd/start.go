@@ -129,13 +129,15 @@ var startCmd = &cobra.Command{
 
 		}
 
-		// start watching
-		if mode == "development" && !startDisableWatching {
-			// Watching
-			fmt.Println(color.WhiteString("\n---------------------------------"))
-			fmt.Println(color.WhiteString(L("Watching")))
-			fmt.Println(color.WhiteString("---------------------------------"))
-			// service.Watch(config.Conf)
+		srv, err := service.Start(config.Conf)
+		defer func() {
+			service.Stop(srv)
+			fmt.Println(color.GreenString(L("✨EXITED✨")))
+		}()
+
+		if err != nil {
+			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			os.Exit(1)
 		}
 
 		// print the messages under the production mode
@@ -147,11 +149,15 @@ var startCmd = &cobra.Command{
 			printStores(true)
 		}
 
-		srv, err := service.Start(config.Conf)
-		defer func() {
-			service.Stop(srv)
-			fmt.Println(color.GreenString(L("✨EXITED✨")))
-		}()
+		// start watching
+		watchDone := make(chan uint8, 1)
+		if mode == "development" && !startDisableWatching {
+			// Watching
+			fmt.Println(color.WhiteString("\n---------------------------------"))
+			fmt.Println(color.WhiteString(L("Watching")))
+			fmt.Println(color.WhiteString("---------------------------------"))
+			go service.Watch(srv, watchDone)
+		}
 
 		for {
 			select {
@@ -170,6 +176,7 @@ var startCmd = &cobra.Command{
 				}
 
 			case <-interrupt:
+				watchDone <- 1
 				return
 			}
 		}
