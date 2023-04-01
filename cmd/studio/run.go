@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/studio"
 )
 
 // RunCmd command
@@ -34,11 +35,21 @@ var RunCmd = &cobra.Command{
 		Boot()
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
-		engine.Load(cfg)
+
 		if len(args) < 1 {
 			fmt.Println(color.RedString(L("Not enough arguments")))
 			fmt.Println(color.WhiteString(share.BUILDNAME + " help"))
 			return
+		}
+
+		err := engine.Load(cfg)
+		if err != nil {
+			fmt.Println(color.RedString(L("Engine: %s"), err.Error()))
+		}
+
+		err = studio.Load(cfg)
+		if err != nil {
+			fmt.Println(color.RedString(L("Studio: %s"), err.Error()))
 		}
 
 		name := strings.Split(args[0], ".")

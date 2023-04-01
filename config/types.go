@@ -2,20 +2,21 @@ package config
 
 // Config 象传应用引擎配置
 type Config struct {
-	Mode          string   `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // 象传引擎启动模式 production/development
-	Root          string   `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`                    // 应用根目录
+	Mode          string   `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
+	AppSource     string   `json:"app,omitempty"  env:"YAO_APP_SOURCE"`                             // The Application Source Root Path default same as Root
+	Root          string   `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`                    // The Application Root Path
 	Lang          string   `json:"lang,omitempty" env:"YAO_LANG" envDefault:"en-us"`                // Default language setting
 	TimeZone      string   `json:"timezone,omitempty" env:"YAO_TIMEZONE"`                           // Default TimeZone
-	DataRoot      string   `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`           // DATA PATH
+	DataRoot      string   `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`           // The data root path
 	ExtensionRoot string   `json:"extension_root,omitempty" env:"YAO_EXTENSION_ROOT" envDefault:""` // Plugin, Wasm root PATH, Default is <YAO_ROOT> (<YAO_ROOT>/plugins <YAO_ROOT>/wasms)
-	Host          string   `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`              // 服务监听地址
-	Port          int      `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`                 // 服务监听端口
-	Cert          string   `json:"cert,omitempty" env:"YAO_CERT"`                                   // HTTPS 证书文件地址
-	Key           string   `json:"key,omitempty" env:"YAO_KEY"`                                     // HTTPS 证书密钥地址
-	Log           string   `json:"log,omitempty" env:"YAO_LOG"`                                     // 服务日志地址
-	LogMode       string   `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // 服务日志模式 JSON|TEXT
-	JWTSecret     string   `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                       // JWT 密钥
-	DB            Database `json:"db,omitempty"`                                                    // 数据库配置
+	Host          string   `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`              // The server host
+	Port          int      `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`                 // The server port
+	Cert          string   `json:"cert,omitempty" env:"YAO_CERT"`                                   // The HTTPS certificate path
+	Key           string   `json:"key,omitempty" env:"YAO_KEY"`                                     // The HTTPS certificate key path
+	Log           string   `json:"log,omitempty" env:"YAO_LOG"`                                     // The log file path
+	LogMode       string   `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // The log mode TEXT|JSON
+	JWTSecret     string   `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                       // The JWT Secret
+	DB            Database `json:"db,omitempty"`                                                    // The database config
 	AllowFrom     []string `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`       // Domain list the separator is |
 	Session       Session  `json:"session,omitempty"`                                               // Session Config
 	Studio        Studio   `json:"studio,omitempty"`                                                // Studio config

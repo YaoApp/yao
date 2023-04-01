@@ -12,17 +12,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/test"
 )
 
 type kv map[string]interface{}
 type arr []interface{}
 
 func TestLoad(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.NotNil(t, dfs)
 
 	// res, err := gou.Yao.Engine.RootCall(map[string]interface{}{}, "table", "Ping")
 	// assert.Nil(t, err)
@@ -34,6 +38,10 @@ func TestLoad(t *testing.T) {
 }
 
 func TestStartStop(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	var err error
 	go func() { err = Start(config.Conf) }()
 	if err != nil {
@@ -46,6 +54,10 @@ func TestStartStop(t *testing.T) {
 }
 
 func TestStartStopError(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	var err error
 	go func() { err = Start(config.Conf) }()
 	if err != nil {
@@ -63,6 +75,9 @@ func TestStartStopError(t *testing.T) {
 
 func TestAPI(t *testing.T) {
 
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	Load(config.Conf)
 
 	var err error
@@ -73,23 +88,23 @@ func TestAPI(t *testing.T) {
 	defer Stop()
 	time.Sleep(500 * time.Millisecond)
 
-	code, row := httpGet[kv]("/dsl/ReadFile?name=/models/user.json", t)
+	code, row := httpGet[kv]("/dsl/ReadFile?name=/models/user.mod.yao", t)
 	assert.Equal(t, 200, code)
-	assert.Equal(t, "用户", row["name"])
+	assert.Equal(t, "User", row["name"])
 
 	code, rows := httpGet[arr]("/dsl/ReadDir?name=/models", t)
 	assert.Equal(t, 200, code)
-	assert.Equal(t, 11, len(rows))
+	assert.Equal(t, 8, len(rows))
 
 	code, rows = httpGet[arr]("/dsl/ReadDir?name=/models&recursive=1", t)
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 12, len(rows))
 
-	code, length := httpPost[int]("/dsl/WriteFile?name=/models/foo.mod.json", []byte(`{"name":"foo"}`), t)
+	code, length := httpPost[int]("/dsl/WriteFile?name=/models/foo.mod.yao", []byte(`{"name":"foo"}`), t)
 	assert.Equal(t, 200, code)
 	assert.Equal(t, 19, length)
 
-	code, _ = httpPost[kv]("/dsl/Remove?name=/models/foo.mod.json", nil, t)
+	code, _ = httpPost[kv]("/dsl/Remove?name=/models/foo.mod.yao", nil, t)
 	assert.Equal(t, 200, code)
 
 	code, _ = httpPost[kv]("/dsl/Mkdir?name=/models/bar", nil, t)

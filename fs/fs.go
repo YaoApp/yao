@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/yaoapp/gou/fs"
@@ -13,44 +12,11 @@ import (
 // Load system fs
 func Load(cfg config.Config) error {
 
-	root, err := filepath.Abs(cfg.Root)
-	if err != nil {
-		return err
-	}
+	scriptRoot := filepath.Join(cfg.AppSource, "scripts")
+	dslDenyList := []string{scriptRoot, cfg.DataRoot}
 
-	dataRoot, err := Root(cfg)
-	if err != nil {
-		return err
-	}
-
-	scriptRoot := filepath.Join(root, "scripts")
-	dslDenyList := []string{scriptRoot, dataRoot}
-
-	if _, err := os.Stat(dataRoot); os.IsNotExist(err) {
-		err := os.MkdirAll(dataRoot, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
-
-	fs.Register("system", system.New(dataRoot))
-	// fs.Register("binary", system.New(root))                    // Next
-	fs.RootRegister("dsl", dsl.New(root).DenyAbs(dslDenyList...)) // DSL
-	fs.RootRegister("script", system.New(scriptRoot))             // Script
+	fs.Register("system", system.New(cfg.DataRoot))
+	fs.RootRegister("dsl", dsl.New(cfg.AppSource).DenyAbs(dslDenyList...)) // DSL
+	fs.RootRegister("script", system.New(scriptRoot))                      // Script
 	return nil
-}
-
-// Root return data root
-func Root(cfg config.Config) (string, error) {
-	root := cfg.DataRoot
-	if root == "" {
-		root = filepath.Join(cfg.Root, "data")
-	}
-
-	root, err := filepath.Abs(root)
-	if err != nil {
-		return "", err
-	}
-
-	return root, nil
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/studio"
 )
 
 var startDebug = false
@@ -115,14 +116,14 @@ var startCmd = &cobra.Command{
 		if mode == "development" {
 
 			// Start Studio Server
-			// go func() {
-			// 	err := studio.Start(config.Conf)
-			// 	if err != nil {
-			// 		fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
-			// 		os.Exit(2)
-			// 	}
-			// }()
-			// defer studio.Stop()
+			go func() {
+				err := studio.Start(config.Conf)
+				if err != nil {
+					fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+					os.Exit(2)
+				}
+			}()
+			defer studio.Stop()
 
 			printApis(false)
 			printTasks(false)

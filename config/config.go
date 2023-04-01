@@ -31,6 +31,7 @@ func init() {
 		Conf = Load()
 		return
 	}
+
 	Conf = LoadFrom(filename)
 	if Conf.Mode == "production" {
 		Production()
@@ -56,13 +57,20 @@ func LoadFrom(envfile string) Config {
 	return Load()
 }
 
-// Load 加载配置
+// Load the config
 func Load() Config {
 	cfg := Config{}
 	if err := env.Parse(&cfg); err != nil {
 		exception.New("Can't read config %s", 500, err.Error()).Throw()
 	}
+
+	// Root path
 	cfg.Root, _ = filepath.Abs(cfg.Root)
+
+	// App Root
+	if cfg.AppSource == "" {
+		cfg.AppSource = cfg.Root
+	}
 
 	// Studio Secret
 	if cfg.Studio.Secret == nil {
@@ -72,6 +80,20 @@ func Load() Config {
 		}
 		cfg.Studio.Secret = []byte(strings.ToUpper(v))
 		cfg.Studio.Auto = true
+	}
+
+	// DataRoot
+	if cfg.DataRoot == "" {
+		cfg.DataRoot = filepath.Join(cfg.Root, "data")
+		if !filepath.IsAbs(cfg.DataRoot) {
+			cfg.DataRoot, _ = filepath.Abs(cfg.DataRoot)
+		}
+
+		if _, err := os.Stat(cfg.DataRoot); errors.Is(err, os.ErrNotExist) {
+			if err := os.MkdirAll(cfg.DataRoot, os.ModePerm); err != nil {
+				exception.New("Can't create data root %s", 500, err.Error()).Throw()
+			}
+		}
 	}
 
 	return cfg
