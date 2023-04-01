@@ -174,7 +174,7 @@ artifacts-linux: clean
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-linux-amd64 version
+	dist/release/yao-${VERSION}-dev-linux-amd64 version
 
 # 	Reset const 
 #	cp -f share/const.goe share/const.go
@@ -224,7 +224,7 @@ artifacts-macos: clean
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-darwin-amd64 version
+	dist/release/yao-${VERSION}-dev-darwin-amd64 version
 
 # 	Reset const 
 #	cp -f share/const.goe share/const.go

@@ -20,7 +20,7 @@ ARG ARCH
 RUN groupadd -r yao && useradd -r -g yao yao && \
     apt-get update && \
     apt-get install -y curl sudo procps net-tools
-RUN curl -fsSL "https://release-sv-1252011659.cos.na-siliconvalley.myqcloud.com/archives/yao-${VERSION}-linux-${ARCH}" > /usr/local/bin/yao && \
+RUN curl -fsSL "https://release-sv-1252011659.cos.na-siliconvalley.myqcloud.com/archives/yao-${VERSION}-dev-linux-${ARCH}" > /usr/local/bin/yao && \
     chmod +x /usr/local/bin/yao && \
     mkdir -p /data/app
 

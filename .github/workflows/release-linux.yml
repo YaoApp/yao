@@ -6,7 +6,7 @@ on:
       tags:
         description: "Version tags"
   push:
-    branches: [main]
+    branches: [v0.10.3-dev]
     paths:
       - "share/const.go"
 
@@ -108,6 +108,8 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v2
+        with:
+          ref: v0.10.3-dev
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v3
