@@ -154,7 +154,6 @@ artifacts-linux: clean
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
-	cp -r ../xgen-v0.9/dist .tmp/data/xgen/v0.9
 	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
 	cp -r ../yao-init .tmp/data/init
@@ -204,7 +203,6 @@ artifacts-macos: clean
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
-	cp -r ../xgen-v0.9/dist .tmp/data/xgen/v0.9
 	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
 	cp -r ../yao-init .tmp/data/init
