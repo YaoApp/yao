@@ -1,5 +1,5 @@
 <p align="center">
-    <h1 align="center">YAO App Engine ( v0.10.3 - dev ) </h1>
+    <h1 align="center">YAO App Engine</h1>
 </p>
 
 <p align="center">
@@ -14,10 +14,10 @@
   <a aria-label="twitter" href="https://twitter.com/YaoApp" target="_blank">
     Twitter
   </a>
-  ·
+  <!-- ·
   <a aria-label="discord" href="https://discord.gg/nsKmCXwvxU" target="_blank">
     Discord
-  </a>
+  </a> -->
 </p>
 
 <p align="center">
