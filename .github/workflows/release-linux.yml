@@ -47,47 +47,40 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/kun
           path: kun
 
       - name: Checkout Xun
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/xun
           path: xun
 
       - name: Checkout Gou
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/gou
-          ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
+          # ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
           path: gou
 
       - name: Checkout V8Go
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          repository: rogchap/v8go
-          ref: 5e91d3d9dcabd2986f901b6b31590e49fc3c4dd8
+          repository: yaoapp/v8go
+          # ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
           path: v8go
 
-      - name: Download XGen v0.9
-        uses: dsaltares/fetch-gh-release-asset@master
-        with:
-          repo: "yaoapp/xgen-deprecated"
-          version: "tags/v0.9.0"
-          file: "xgen-v0.9-dist.tar.gz"
-
       - name: Checkout XGen v1.0
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/xgen
           #ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
           path: xgen-v1.0
 
       - name: Checkout Yao-Init
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/yao-init
           path: yao-init
@@ -107,9 +100,7 @@ jobs:
           ls -l ../
 
       - name: Checkout Code
-        uses: actions/checkout@v2
-        with:
-          ref: v0.10.3-dev
+        uses: actions/checkout@v3
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v3
