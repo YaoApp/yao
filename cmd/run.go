@@ -33,11 +33,15 @@ var runCmd = &cobra.Command{
 		Boot()
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
-		engine.Load(cfg)
 		if len(args) < 1 {
 			fmt.Println(color.RedString(L("Not enough arguments")))
 			fmt.Println(color.WhiteString(share.BUILDNAME + " help"))
 			return
+		}
+
+		err := engine.Load(cfg)
+		if err != nil {
+			fmt.Println(color.RedString(L("Engine: %s"), err.Error()))
 		}
 
 		name := args[0]
@@ -48,7 +52,7 @@ var runCmd = &cobra.Command{
 				continue
 			}
 
-			// 解析参数
+			// Parse the arguments
 			if strings.HasPrefix(arg, "::") {
 				arg := strings.TrimPrefix(arg, "::")
 				var v interface{}
@@ -59,10 +63,12 @@ var runCmd = &cobra.Command{
 				}
 				pargs = append(pargs, v)
 				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+
 			} else if strings.HasPrefix(arg, "\\::") {
 				arg := "::" + strings.TrimPrefix(arg, "\\::")
 				pargs = append(pargs, arg)
 				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+
 			} else {
 				pargs = append(pargs, arg)
 				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
@@ -71,7 +77,11 @@ var runCmd = &cobra.Command{
 		}
 
 		process := process.New(name, pargs...)
-		res := process.Run()
+		res, err := process.Exec()
+		if err != nil {
+			fmt.Println(color.RedString(L("Process: %s"), err.Error()))
+		}
+
 		fmt.Println(color.WhiteString("--------------------------------------"))
 		fmt.Println(color.WhiteString(L("%s Response"), name))
 		fmt.Println(color.WhiteString("--------------------------------------"))

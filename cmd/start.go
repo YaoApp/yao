@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/schedule"
 	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/gou/store"
@@ -34,6 +35,9 @@ var startCmd = &cobra.Command{
 	Short: L("Start Engine"),
 	Long:  L("Start Engine"),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		defer share.SessionStop()
+		defer plugin.KillAll()
 
 		// Setup
 		if setup.Check() {
