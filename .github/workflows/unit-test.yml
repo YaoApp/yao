@@ -6,7 +6,7 @@ on:
       tags:
         description: "Version"
   push:
-    branches: [v0.10.3-dev]
+    branches: [main]
 
 env:
   YAO_DEV: ${{ github.WORKSPACE }}
