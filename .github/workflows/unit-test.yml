@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tags:
-        description: "Comment"
+        description: "Version"
   push:
-    branches: [main]
+    branches: [v0.10.3-dev]
 
 env:
   YAO_DEV: ${{ github.WORKSPACE }}
@@ -133,6 +133,8 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          ref: v0.10.3-dev
 
       - name: Start Redis
         uses: supercharge/redis-github-action@1.4.0
