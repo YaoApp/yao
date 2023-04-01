@@ -206,6 +206,7 @@ func setRouter(router *gin.Engine) {
 		script, err := v8.SelectRoot(service)
 		if err != nil {
 			throw(c, 500, err.Error())
+			return
 		}
 
 		ctx, err := script.NewContext(fmt.Sprintf("%v", sid), nil)

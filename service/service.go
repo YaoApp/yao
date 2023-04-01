@@ -52,19 +52,6 @@ func Stop(srv *http.Server) error {
 	return nil
 }
 
-// StopWithContext stop with timeout
-// func StopWithContext(ctx context.Context, onComplete func()) {
-// 	shutdown <- true
-// 	select {
-// 	case <-ctx.Done():
-// 		log.Error("[STOP] canceled (%v)", ctx.Err())
-// 		onComplete()
-// 	case <-shutdownComplete:
-// 		share.SessionStop()
-// 		onComplete()
-// 	}
-// }
-
 func prepare() error {
 
 	// Session server

@@ -18,8 +18,7 @@ func TestLoad(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 2, size)
 
-	root, err := Root(config.Conf)
-	assert.Nil(t, err)
+	root := config.Conf.DataRoot
 
 	info, err := os.Stat(filepath.Join(root, "test.file"))
 	assert.Nil(t, err)
