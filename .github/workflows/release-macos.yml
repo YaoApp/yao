@@ -82,8 +82,6 @@ jobs:
 
       - name: Move Kun, Xun, Gou, UI, V8Go
         run: |
-          tar xvfz xgen-v0.9-dist.tar.gz
-          rm xgen-v0.9-dist.tar.gz
           mv kun ../
           mv xun ../
           mv gou ../
