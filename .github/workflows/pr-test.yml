@@ -127,19 +127,19 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actactions/checkout@v3
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/kun
           path: kun
 
       - name: Checkout Xun
-        uses: actactions/checkout@v3
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/xun
           path: xun
 
       - name: Checkout Gou
-        uses: actactions/checkout@v3
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/gou
           path: gou
@@ -152,7 +152,7 @@ jobs:
           path: v8go
 
       - name: Checkout Demo App
-        uses: actactions/checkout@v3
+        uses: actions/checkout@v3
         with:
           repository: yaoapp/yao-dev-app
           path: app
@@ -175,7 +175,7 @@ jobs:
           ls -l ../
 
       - name: Checkout pull request HEAD commit
-        uses: actactions/checkout@v3
+        uses: actions/checkout@v3
         with:
           ref: ${{ env.HEAD }}
 
