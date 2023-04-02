@@ -33,7 +33,7 @@ jobs:
         run: npm install -g pnpm
 
       - name: Setup Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.cache/go-build
