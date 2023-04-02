@@ -21,6 +21,15 @@ func TestLoad(t *testing.T) {
 	check(t)
 }
 
+func TestStartStop(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	Load(config.Conf)
+	Start()
+	defer Stop()
+}
+
 func check(t *testing.T) {
 	ids := map[string]bool{}
 	for id := range schedule.Schedules {
