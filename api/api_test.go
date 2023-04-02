@@ -25,6 +25,9 @@ func check(t *testing.T) {
 	assert.True(t, ids["user"])
 	assert.True(t, ids["user.pet"])
 
+	assert.True(t, ids["xiang.import"])  // will be removed in the future
+	assert.True(t, ids["xiang.storage"]) // will be removed in the future
+
 	// wskeys := []string{}
 	// for key := range websocket.Upgraders {
 	// 	wskeys = append(wskeys, key)
