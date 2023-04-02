@@ -1,17 +1,13 @@
-name: Release Linux
+name: Build Linux Dev
 
 on:
   workflow_dispatch:
     inputs:
       tags:
         description: "Version tags"
-  push:
-    branches: [v0.10.3-dev]
-    paths:
-      - "share/const.go"
 
 jobs:
-  release:
+  build:
     strategy:
       matrix:
         go: [1.19.2]
