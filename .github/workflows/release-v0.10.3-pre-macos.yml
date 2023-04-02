@@ -85,6 +85,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: yaoapp/yao-init
+          ref: v0.10.3-pre
           path: yao-init
 
       - name: Move Kun, Xun, Gou, UI, V8Go
