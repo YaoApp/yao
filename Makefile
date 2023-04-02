@@ -40,6 +40,9 @@ test:
 		fi; \
 	done
 
+.PHONY: fmt
+fmt:
+	$(GOFMT) -w $(GOFILES)
 
 .PHONY: fmt-check
 fmt-check:
