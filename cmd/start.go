@@ -70,7 +70,7 @@ var startCmd = &cobra.Command{
 		// load the application engine
 		err := engine.Load(config.Conf)
 		if err != nil {
-			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			fmt.Println(color.RedString(L("Load: %s"), err.Error()))
 			os.Exit(1)
 		}
 
@@ -82,7 +82,7 @@ var startCmd = &cobra.Command{
 		// variables for the service
 		fs, err := fs.Get("system")
 		if err != nil {
-			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+			fmt.Println(color.RedString(L("FileSystem: %s"), err.Error()))
 			os.Exit(1)
 		}
 
@@ -121,7 +121,7 @@ var startCmd = &cobra.Command{
 			go func() {
 				err := studio.Start(config.Conf)
 				if err != nil {
-					fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+					fmt.Println(color.RedString(L("Studio: %s"), err.Error()))
 					os.Exit(2)
 				}
 			}()
@@ -159,9 +159,9 @@ var startCmd = &cobra.Command{
 		// Start watching
 		watchDone := make(chan uint8, 1)
 		if mode == "development" && !startDisableWatching {
-			fmt.Println(color.WhiteString("\n---------------------------------"))
-			fmt.Println(color.WhiteString(L("Watching")))
-			fmt.Println(color.WhiteString("---------------------------------"))
+			// fmt.Println(color.WhiteString("\n---------------------------------"))
+			// fmt.Println(color.WhiteString(L("Watching")))
+			// fmt.Println(color.WhiteString("---------------------------------"))
 			go service.Watch(srv, watchDone)
 		}
 

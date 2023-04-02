@@ -34,6 +34,7 @@ import (
 
 // Load application engine
 func Load(cfg config.Config) (err error) {
+
 	defer func() { err = exception.Catch(recover()) }()
 
 	// SET XGEN_BASE
