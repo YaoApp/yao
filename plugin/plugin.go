@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -18,8 +19,9 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	return filepath.Walk(root, func(file string, info fs.FileInfo, err error) error {
-		if info.IsDir() {
+	messages := []string{}
+	err = filepath.Walk(root, func(file string, info fs.FileInfo, err error) error {
+		if info == nil || info.IsDir() {
 			return nil
 		}
 
@@ -28,8 +30,17 @@ func Load(cfg config.Config) error {
 		}
 
 		_, err = plugin.Load(file, share.ID(root, file))
+		if err != nil {
+			messages = append(messages, err.Error())
+		}
 		return err
 	})
+
+	if len(messages) > 0 {
+		return fmt.Errorf(strings.Join(messages, ";\n"))
+	}
+
+	return err
 
 }
 
