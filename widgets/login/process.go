@@ -37,9 +37,11 @@ func processLoginAdmin(process *process.Process) interface{} {
 	if id == "" {
 		exception.New("请输入验证码ID", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
 	}
+
 	if value == "" {
 		exception.New("请输入验证码", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
 	}
+
 	if !helper.CaptchaValidate(id, value) {
 		log.With(log.F{"id": id, "code": value}).Debug("ProcessLogin")
 		exception.New("验证码不正确", 403).Ctx(maps.Map{"id": id, "code": value}).Throw()
@@ -70,7 +72,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		exception.New("登录方式(%s)尚未支持", 400, field).Throw()
 	}
 
-	user := model.Select("xiang.user")
+	user := model.Select("admin.user")
 	rows, err := user.Get(model.QueryParam{
 		Select: []interface{}{"id", "password", "name", "type", "email", "mobile", "extra", "status"},
 		Limit:  1,
