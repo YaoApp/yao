@@ -10,7 +10,7 @@ jobs:
   release:
     strategy:
       matrix:
-        go: [1.20.0]
+        go: [1.19.2]
     runs-on: "ubuntu-20.04"
     steps:
       - name: Arm Build
