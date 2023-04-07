@@ -214,7 +214,7 @@ func setRouter(router *gin.Engine) {
 			throw(c, 500, err.Error())
 			return
 		}
-		
+
 		res, err := ctx.Call(fun.Method, fun.Args...)
 
 		if err != nil {
