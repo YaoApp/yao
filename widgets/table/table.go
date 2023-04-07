@@ -188,7 +188,12 @@ func (dsl *DSL) parse(id string, root string) error {
 	}
 
 	if dsl.Fields == nil {
-		dsl.Fields = &FieldsDSL{}
+		dsl.Fields = &FieldsDSL{
+			Table:     field.Columns{},
+			Filter:    field.Filters{},
+			filterMap: map[string]field.FilterDSL{},
+			tableMap:  map[string]field.ColumnDSL{},
+		}
 	}
 
 	// Bind model / store / table / ...
