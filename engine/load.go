@@ -278,7 +278,7 @@ func loadApp(root string) error {
 
 func printErr(mode, widget string, err error) {
 	message := fmt.Sprintf("[%s] %s", widget, err.Error())
-	if !strings.Contains(message, "does not exists") && mode == "development" {
+	if !strings.Contains(message, "does not exists") && !strings.Contains(message, "no such file or directory") && mode == "development" {
 		color.Red(message)
 	}
 }

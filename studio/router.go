@@ -212,7 +212,9 @@ func setRouter(router *gin.Engine) {
 		ctx, err := script.NewContext(fmt.Sprintf("%v", sid), nil)
 		if err != nil {
 			throw(c, 500, err.Error())
+			return
 		}
+
 		res, err := ctx.Call(fun.Method, fun.Args...)
 
 		if err != nil {

@@ -119,9 +119,16 @@ var startCmd = &cobra.Command{
 
 			// Start Studio Server
 			go func() {
+
+				err = studio.Load(config.Conf)
+				if err != nil {
+					fmt.Println(color.RedString(L("Studio Load: %s"), err.Error()))
+					os.Exit(2)
+				}
+
 				err := studio.Start(config.Conf)
 				if err != nil {
-					fmt.Println(color.RedString(L("Studio: %s"), err.Error()))
+					fmt.Println(color.RedString(L("Studio Start: %s"), err.Error()))
 					os.Exit(2)
 				}
 			}()
