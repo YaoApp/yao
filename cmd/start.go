@@ -122,14 +122,15 @@ var startCmd = &cobra.Command{
 
 				err = studio.Load(config.Conf)
 				if err != nil {
-					fmt.Println(color.RedString(L("Studio Load: %s"), err.Error()))
-					os.Exit(2)
+					// fmt.Println(color.RedString(L("Studio Load: %s"), err.Error()))
+					log.Error("Studio Load: %s", err.Error())
+					return
 				}
 
 				err := studio.Start(config.Conf)
 				if err != nil {
-					fmt.Println(color.RedString(L("Studio Start: %s"), err.Error()))
-					os.Exit(2)
+					log.Error("Studio Start: %s", err.Error())
+					return
 				}
 			}()
 			defer studio.Stop()
@@ -140,7 +141,6 @@ var startCmd = &cobra.Command{
 			printConnectors(false)
 			printStores(false)
 			printStudio(false, host)
-
 		}
 
 		// Start Tasks

@@ -137,6 +137,7 @@ func Complete() {
 
 // Stop stop the studio api server
 func Stop() {
+	engine.Unload()
 	shutdown <- true
 }
 
