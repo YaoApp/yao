@@ -50,7 +50,6 @@ func Load(cfg config.Config) (err error) {
 	err = loadApp(cfg.AppSource)
 	if err != nil {
 		printErr(cfg.Mode, "Load Application", err)
-		panic(err)
 	}
 
 	// Load Certs

@@ -5,22 +5,24 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
 )
 
-// Check setup programe
+// Check if the app is installed
+// true: start setup, false: start app
 func Check() bool {
 
-	root := appRoot()
-
-	appfile := filepath.Join(root, "app.yao")
-	if _, err := os.Stat(appfile); err != nil && os.IsNotExist(err) {
+	// check app source
+	if !appSourceExists() {
 		return true
 	}
 
+	// check env file
+	root := appRoot()
 	envfile := filepath.Join(root, ".env")
 	if _, err := os.Stat(envfile); err != nil && os.IsNotExist(err) {
 		cfg, err := getConfig()
@@ -30,6 +32,29 @@ func Check() bool {
 	}
 
 	return false
+}
+
+func appSourceExists() bool {
+
+	appsource := appSource()
+
+	if strings.HasSuffix(appsource, ".pkg") || strings.HasPrefix(appsource, "bin:") {
+		return true
+	}
+
+	// check app.yao/app.json/app.jsonc
+	root := appRoot()
+	appfiles := []string{"app.yao", "app.json", "app.jsonc"}
+	exist := false
+	for _, appfile := range appfiles {
+		appfile = filepath.Join(root, appfile)
+		if _, err := os.Stat(appfile); err == nil {
+			exist = true
+			break
+		}
+	}
+
+	return exist
 }
 
 // ValidateHosting host ports
@@ -87,6 +112,10 @@ func ValidateDB(option map[string]string) error {
 	return nil
 }
 
+func appSource() string {
+	return os.Getenv("YAO_APP_SOURCE")
+}
+
 func appRoot() string {
 
 	root := os.Getenv("YAO_ROOT")
@@ -117,30 +146,32 @@ func getConfig() (config.Config, error) {
 
 func hasInstalled(cfg config.Config) bool {
 
-	switch cfg.DB.Driver {
-
-	case "sqlite3":
-		if cfg.DB.Primary != nil && len(cfg.DB.Primary) > 0 {
-
-			dbfile, err := filepath.Abs(cfg.DB.Primary[0])
-			if err != nil {
-				return false
-			}
-
-			if _, err := os.Stat(dbfile); err != nil && os.IsNotExist(err) {
-				return false
-			}
-
-			return true
-		}
-		break
-
-	case "mysql":
-		if cfg.DB.Primary != nil && len(cfg.DB.Primary) > 0 {
-			return true
-		}
-		break
-	}
-
 	return false
+
+	// switch cfg.DB.Driver {
+
+	// case "sqlite3":
+	// 	if cfg.DB.Primary != nil && len(cfg.DB.Primary) > 0 {
+
+	// 		dbfile, err := filepath.Abs(cfg.DB.Primary[0])
+	// 		if err != nil {
+	// 			return false
+	// 		}
+
+	// 		if _, err := os.Stat(dbfile); err != nil && os.IsNotExist(err) {
+	// 			return false
+	// 		}
+
+	// 		return false
+	// 	}
+	// 	break
+
+	// case "mysql":
+	// 	if cfg.DB.Primary != nil && len(cfg.DB.Primary) > 0 {
+	// 		return true
+	// 	}
+	// 	break
+	// }
+
+	// return false
 }

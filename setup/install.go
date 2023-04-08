@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/engine"
 	"github.com/yaoapp/yao/widgets/app"
@@ -98,12 +100,28 @@ func Install(payload map[string]map[string]string) error {
 		return err
 	}
 
-	err = makeMigrate(root)
+	cfg, err := getConfig()
 	if err != nil {
 		return err
 	}
 
-	err = makeSetup(root)
+	// Load engine
+	err = engine.Load(cfg)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		engine.Unload()
+		time.Sleep(time.Millisecond * 200)
+	}()
+
+	//  Migrage & Setup
+	err = makeMigrate(root, cfg)
+	if err != nil {
+		return err
+	}
+
+	err = makeSetup(root, cfg)
 	if err != nil {
 		return err
 	}
@@ -206,16 +224,6 @@ func makeDirs(root string) error {
 		return err
 	}
 
-	err = os.MkdirAll(filepath.Join(root, "services"), os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-
-	err = os.MkdirAll(filepath.Join(root, "studio"), os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		return err
-	}
-
 	err = os.MkdirAll(filepath.Join(root, "logs"), os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		return err
@@ -231,9 +239,7 @@ func makeDirs(root string) error {
 
 func makeInit(root string) error {
 
-	// if the app.json exist ignore
-	file := filepath.Join("app.json")
-	if _, err := os.Stat(filepath.Join(root, file)); err == nil { // exists
+	if appSourceExists() {
 		return nil
 	}
 
@@ -264,17 +270,7 @@ func makeInit(root string) error {
 	return nil
 }
 
-func makeMigrate(root string) error {
-
-	cfg, err := getConfig()
-	if err != nil {
-		return err
-	}
-
-	err = engine.Load(cfg)
-	if err != nil {
-		return err
-	}
+func makeMigrate(root string, cfg config.Config) error {
 
 	// Do Stuff Here
 	for _, mod := range model.Models {
@@ -297,17 +293,7 @@ func makeMigrate(root string) error {
 	return nil
 }
 
-func makeSetup(root string) error {
-
-	cfg, err := getConfig()
-	if err != nil {
-		return err
-	}
-
-	err = engine.Load(cfg)
-	if err != nil {
-		return err
-	}
+func makeSetup(root string, cfg config.Config) error {
 
 	if app.Setting != nil && app.Setting.Setup != "" {
 

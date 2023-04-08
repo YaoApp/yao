@@ -45,16 +45,16 @@ func LoadFrom(envfile string) Config {
 
 	file, err := filepath.Abs(envfile)
 	if err != nil {
-		// log.Warn("Can't load env file. %s", err.Error())
-		return Load()
+		cfg := Load()
+		ReloadLog()
+		return cfg
 	}
 
+	// load from env
 	godotenv.Overload(file)
-	// if err != nil {
-	// 	// log.Warn("Can't load env file. %s", err.Error())
-	// }
-
-	return Load()
+	cfg := Load()
+	ReloadLog()
+	return cfg
 }
 
 // Load the config
@@ -131,34 +131,36 @@ func ReloadLog() {
 
 // OpenLog 打开日志
 func OpenLog() {
-	if Conf.Log != "" {
 
-		if !filepath.IsAbs(Conf.Log) {
-			Conf.Log = filepath.Join(Conf.Root, Conf.Log)
-		}
-
-		logfile, err := filepath.Abs(Conf.Log)
-		if err != nil {
-			log.With(log.F{"file": logfile}).Error(err.Error())
-			return
-		}
-
-		logpath := filepath.Dir(logfile)
-		if _, err := os.Stat(logpath); os.IsNotExist(err) {
-			if err := os.MkdirAll(logpath, os.ModePerm); err != nil {
-				log.With(log.F{"file": logfile}).Error(err.Error())
-				return
-			}
-		}
-		LogOutput, err = os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-		if err != nil {
-			log.With(log.F{"file": logfile}).Error(err.Error())
-			return
-		}
-
-		log.SetOutput(LogOutput)
-		gin.DefaultWriter = io.MultiWriter(LogOutput)
+	if Conf.Log == "" {
+		Conf.Log = filepath.Join(Conf.Root, "logs", "application.log")
 	}
+
+	if !filepath.IsAbs(Conf.Log) {
+		Conf.Log = filepath.Join(Conf.Root, Conf.Log)
+	}
+
+	logfile, err := filepath.Abs(Conf.Log)
+	if err != nil {
+		log.With(log.F{"file": logfile}).Error(err.Error())
+		return
+	}
+
+	logpath := filepath.Dir(logfile)
+	if _, err := os.Stat(logpath); os.IsNotExist(err) {
+		if err := os.MkdirAll(logpath, os.ModePerm); err != nil {
+			log.With(log.F{"file": logfile}).Error(err.Error())
+			return
+		}
+	}
+	LogOutput, err = os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.With(log.F{"file": logfile}).Error(err.Error())
+		return
+	}
+
+	log.SetOutput(LogOutput)
+	gin.DefaultWriter = io.MultiWriter(LogOutput)
 }
 
 // CloseLog 关闭日志
