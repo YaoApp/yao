@@ -13,9 +13,10 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/json-iterator/go v1.1.12
 	github.com/mojocn/base64Captcha v1.3.5
+	github.com/pkoukk/tiktoken-go v0.1.0
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/cobra v1.2.1
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.8.2
 	github.com/xuri/excelize/v2 v2.5.0
 	github.com/yaoapp/gou v0.10.3
 	github.com/yaoapp/kun v0.9.0
@@ -24,6 +25,7 @@ require (
 )
 
 require (
+	github.com/dlclark/regexp2 v1.8.1 // indirect
 	github.com/google/go-github/v30 v30.1.0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf // indirect
