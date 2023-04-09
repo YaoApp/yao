@@ -8,6 +8,7 @@ import (
 	_ "github.com/yaoapp/yao/helper"
 	_ "github.com/yaoapp/yao/openai"
 	_ "github.com/yaoapp/yao/utils"
+	_ "github.com/yaoapp/yao/wework"
 )
 
 // 主程序
