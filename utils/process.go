@@ -53,6 +53,7 @@ func init() {
 	process.Alias("xiang.helper.HexToString", "utils.str.Hex")
 	process.Register("utils.str.Join", str.ProcessJoin)
 	process.Register("utils.str.JoinPath", str.ProcessJoinPath)
+	process.Register("utils.str.UUID", str.ProcessUUID)
 
 	// Array
 	process.Alias("xiang.helper.ArrayPluck", "utils.arr.Pluck")

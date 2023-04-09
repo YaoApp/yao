@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/gou/process"
 )
 
@@ -28,4 +29,10 @@ func ProcessJoinPath(process *process.Process) interface{} {
 		paths = append(paths, fmt.Sprintf("%v", arg))
 	}
 	return filepath.Join(paths...)
+}
+
+// ProcessUUID utils.str.uuid
+func ProcessUUID(process *process.Process) interface{} {
+	uuid := uuid.New()
+	return uuid.String()
 }
