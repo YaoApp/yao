@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
 	_ "github.com/yaoapp/yao/helper"
@@ -19,6 +20,16 @@ func TestProcessStrJoinPath(t *testing.T) {
 	res := process.New("utils.str.JoinPath", "data", 20, "app").Run().(string)
 	shouldBe := fmt.Sprintf("data%s20%sapp", string(os.PathSeparator), string(os.PathSeparator))
 	assert.Equal(t, shouldBe, res)
+}
+
+func TestProcessUUID(t *testing.T) {
+	res := process.New("utils.str.UUID").Run().(string)
+	_, err := uuid.Parse(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 36, len(res))
 }
 
 func TestProcessStrHex(t *testing.T) {
