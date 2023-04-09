@@ -16,6 +16,8 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+var runSilent = false
+
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: L("Execute process"),
@@ -26,7 +28,11 @@ var runCmd = &cobra.Command{
 		defer func() {
 			err := exception.Catch(recover())
 			if err != nil {
-				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
+				if !runSilent {
+					color.Red(L("Fatal: %s\n"), err.Error())
+					return
+				}
+				fmt.Printf("%s\n", err.Error())
 			}
 		}()
 
@@ -34,18 +40,31 @@ var runCmd = &cobra.Command{
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
 		if len(args) < 1 {
-			fmt.Println(color.RedString(L("Not enough arguments")))
-			fmt.Println(color.WhiteString(share.BUILDNAME + " help"))
+			if !runSilent {
+				color.Red(L("Not enough arguments\n"))
+				color.White(share.BUILDNAME + " help\n")
+				return
+			}
+			fmt.Printf(L("Not enough arguments\n"))
 			return
 		}
 
 		err := engine.Load(cfg)
 		if err != nil {
-			fmt.Println(color.RedString(L("Engine: %s"), err.Error()))
+			if !runSilent {
+				color.Red(L("Engine: %s\n"), err.Error())
+				return
+			}
+
+			fmt.Printf("%s\n", err.Error())
+			return
 		}
 
 		name := args[0]
-		fmt.Println(color.GreenString(L("Run: %s"), name))
+		if !runSilent {
+			color.Green(L("Run: %s\n"), name)
+		}
+
 		pargs := []interface{}{}
 		for i, arg := range args {
 			if i == 0 {
@@ -58,20 +77,27 @@ var runCmd = &cobra.Command{
 				var v interface{}
 				err := jsoniter.Unmarshal([]byte(arg), &v)
 				if err != nil {
-					fmt.Println(color.RedString(L("Arguments: %s"), err.Error()))
+					color.Red(L("Arguments: %s\n"), err.Error())
 					return
 				}
 				pargs = append(pargs, v)
-				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+
+				if !runSilent {
+					color.White("args[%d]: %s\n", i-1, arg)
+				}
 
 			} else if strings.HasPrefix(arg, "\\::") {
 				arg := "::" + strings.TrimPrefix(arg, "\\::")
 				pargs = append(pargs, arg)
-				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+				if !runSilent {
+					color.White("args[%d]: %s\n", i-1, arg)
+				}
 
 			} else {
 				pargs = append(pargs, arg)
-				fmt.Println(color.WhiteString("args[%d]: %s", i-1, arg))
+				if !runSilent {
+					color.White("args[%d]: %s\n", i-1, arg)
+				}
 			}
 
 		}
@@ -79,14 +105,45 @@ var runCmd = &cobra.Command{
 		process := process.New(name, pargs...)
 		res, err := process.Exec()
 		if err != nil {
-			fmt.Println(color.RedString(L("Process: %s"), err.Error()))
+			if !runSilent {
+				color.Red(L("Process: %s\n"), err.Error())
+				return
+			}
+			fmt.Printf("%s\n", err.Error())
+			return
 		}
 
-		fmt.Println(color.WhiteString("--------------------------------------"))
-		fmt.Println(color.WhiteString(L("%s Response"), name))
-		fmt.Println(color.WhiteString("--------------------------------------"))
-		utils.Dump(res)
-		fmt.Println(color.WhiteString("--------------------------------------"))
-		fmt.Println(color.GreenString(L("✨DONE✨")))
+		if !runSilent {
+			color.White("--------------------------------------\n")
+			color.White(L("%s Response\n"), name)
+			color.White("--------------------------------------\n")
+			utils.Dump(res)
+			color.White("--------------------------------------\n")
+			color.Green(L("✨DONE✨\n"))
+			return
+		}
+
+		// Silent mode output
+		switch res.(type) {
+
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+			fmt.Printf("%v\n", res)
+			return
+
+		case string, []byte:
+			fmt.Printf("%s\n", res)
+			return
+
+		default:
+			txt, err := jsoniter.Marshal(res)
+			if err != nil {
+				fmt.Printf("%s\n", err.Error())
+			}
+			fmt.Printf("%s\n", txt)
+		}
 	},
+}
+
+func init() {
+	runCmd.PersistentFlags().BoolVarP(&runSilent, "silent", "s", false, L("Silent mode"))
 }
