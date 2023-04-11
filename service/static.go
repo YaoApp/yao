@@ -54,7 +54,13 @@ func (d Dir) Open(name string) (http.File, error) {
 		dir = "."
 	}
 
-	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
+	name = path.Clean("/" + name)
+	fullName := filepath.Join(dir, filepath.FromSlash(name))
+	if isPWA() {
+		if filepath.Ext(fullName) == "" && fullName != dir {
+			fullName = filepath.Join(dir, "index.html")
+		}
+	}
 
 	// Close dir views Disable directory listing
 	stat, err := os.Stat(fullName)
@@ -99,6 +105,14 @@ func mapOpenError(originalErr error, name string, sep rune, stat func(string) (f
 		}
 	}
 	return originalErr
+}
+
+// rewrite path
+func isPWA() bool {
+	if share.App.Static == nil {
+		return false
+	}
+	return share.App.Static.PWA
 }
 
 // SetupAdmin setup admin static root
