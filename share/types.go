@@ -81,7 +81,13 @@ type AppInfo struct {
 	Option      map[string]interface{} `json:"option,omitempty"`
 	XGen        string                 `json:"xgen,omitempty"`
 	AdminRoot   string                 `json:"adminRoot,omitempty"`
+	Static      *Static                `json:"public,omitempty"`
 	Optional    map[string]interface{} `json:"optional,omitempty"`
+}
+
+// Static setting
+type Static struct {
+	PWA bool `json:"pwa,omitempty"`
 }
 
 // AppStorage 应用存储
