@@ -8,14 +8,14 @@ import (
 
 // CopyBefore copy a before hook
 func CopyBefore(hook *Before, new *Before) {
-	if hook != nil {
+	if hook != nil && new != nil {
 		*hook = *new
 	}
 }
 
 // CopyAfter copy a after hook
 func CopyAfter(hook *After, new *After) {
-	if hook != nil {
+	if hook != nil && new != nil {
 		*hook = *new
 	}
 }

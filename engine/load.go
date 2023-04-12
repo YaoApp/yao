@@ -36,6 +36,7 @@ import (
 func Load(cfg config.Config) (err error) {
 
 	defer func() { err = exception.Catch(recover()) }()
+	exception.Mode = cfg.Mode
 
 	// SET XGEN_BASE
 	adminRoot := "yao"
