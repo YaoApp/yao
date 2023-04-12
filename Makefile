@@ -143,10 +143,10 @@ artifacts-linux: clean
 	export NODE_ENV=production
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
-	cd ../xgen-v1.0 && pnpm install && pnpm run build
+	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #   Setup UI
-	cd ../xgen-v1.0/packages/setup  && pnpm install && pnpm run build
+	cd ../xgen-v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 #	Init Application
 	cd ../yao-init rm -rf .git
@@ -192,10 +192,10 @@ artifacts-macos: clean
 	export NODE_ENV=production
 	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
-	cd ../xgen-v1.0 && pnpm install && pnpm run build
+	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #   Setup UI
-	cd ../xgen-v1.0/packages/setup  && pnpm install && pnpm run build
+	cd ../xgen-v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 #	Init Application
 	cd ../yao-init rm -rf .git
@@ -269,10 +269,10 @@ release: clean
 	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
 # 	cd .tmp/xgen/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
-	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
+	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #   Setup UI
-	cd .tmp/xgen/v1.0/packages/setup  && pnpm install && pnpm run build
+	cd .tmp/xgen/v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 
 #	Checkout init
@@ -323,10 +323,10 @@ linux-release: clean
 	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
 	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
-	cd .tmp/xgen/v1.0 && pnpm install && pnpm run build
+	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #   Setup UI
-	cd .tmp/xgen/v1.0/packages/setup  && pnpm install && pnpm run build
+	cd .tmp/xgen/v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 
 #	Checkout init
