@@ -192,9 +192,16 @@ var startCmd = &cobra.Command{
 
 				case http.CLOSED:
 					fmt.Println(color.GreenString(L("✨EXITED✨")))
+					watchDone <- 1
 					return
+
+				case http.ERROR:
+					color.RedString(L("Fatal: %s"), err)
+					watchDone <- 1
+					return
+
 				default:
-					fmt.Println("hello", v)
+					fmt.Println("Signal:", v)
 				}
 
 			case <-interrupt:
