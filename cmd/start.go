@@ -196,7 +196,7 @@ var startCmd = &cobra.Command{
 					return
 
 				case http.ERROR:
-					color.RedString(L("Fatal: %s"), err)
+					color.Red("Fatal: check the error information in the log")
 					watchDone <- 1
 					return
 
