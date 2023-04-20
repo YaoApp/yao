@@ -122,6 +122,7 @@ func init() {
 		restoreCmd,
 		// socketCmd,
 		// websocketCmd,
+		packCmd,
 		studioCmd,
 		upgradeCmd,
 	)
