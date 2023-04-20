@@ -225,28 +225,27 @@ func loadApp(root string) error {
 	var err error
 	var app application.Application
 
-	if root == "bin:application.pkg" {
-		app, err = application.OpenFromBin(root, &share.Pack{}) // Load app from Bin
+	if root == "bin:application.yaz" {
+		app, err = application.OpenFromYaz(root, &share.Pack{}) // Load app from Bin
 		if err != nil {
 			return err
 		}
 		application.Load(app)
 
-	} else if strings.HasSuffix(root, ".pkg") {
+	} else if strings.HasSuffix(root, ".yaz") {
+		app, err = application.OpenFromYaz(root, &share.Pack{}) // Load app from .yaz file
+		if err != nil {
+			return err
+		}
+		application.Load(app)
 
-		app, err = application.OpenFromPkg(root, &share.Pack{}) // Load app from .pkg file
+	} else {
+		app, err = application.OpenFromDisk(root) // Load app from Disk
 		if err != nil {
 			return err
 		}
 		application.Load(app)
 	}
-
-	app, err = application.OpenFromDisk(root) // Load app from Disk
-	if err != nil {
-		return err
-	}
-
-	application.Load(app)
 
 	var info []byte
 

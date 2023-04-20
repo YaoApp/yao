@@ -14,6 +14,7 @@ import (
 
 var appPath string
 var envFile string
+var yazFile string
 
 var lang = os.Getenv("YAO_LANG")
 var langs = map[string]string{
@@ -128,6 +129,7 @@ func init() {
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
+	rootCmd.PersistentFlags().StringVarP(&yazFile, "file", "f", "", L("Application package file"))
 	rootCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", L("Environment file"))
 }
 
@@ -142,6 +144,7 @@ func Execute() {
 // Boot 设定配置
 func Boot() {
 	root := config.Conf.Root
+
 	if appPath != "" {
 		r, err := filepath.Abs(appPath)
 		if err != nil {
@@ -149,10 +152,15 @@ func Boot() {
 		}
 		root = r
 	}
+
 	if envFile != "" {
 		config.Conf = config.LoadFrom(envFile)
 	} else {
 		config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
+	}
+
+	if yazFile != "" {
+		config.Conf.AppSource = yazFile
 	}
 
 	if config.Conf.Mode == "production" {

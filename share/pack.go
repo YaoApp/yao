@@ -1,5 +1,7 @@
 package share
 
+import "io"
+
 // ********************************************************************************
 // WARNING: DO NOT MODIFY THIS FILE. IT WILL BE REPLACED BY THE APPLICATION CODE.
 // *********************************************************************************
@@ -7,12 +9,14 @@ package share
 // Pack the yao app package
 type Pack struct{}
 
-// Decode the package decode method
-func (pkg *Pack) Decode(data []byte) ([]byte, error) {
-	return data, nil
+// Encrypt encrypt
+func (pkg *Pack) Encrypt(reader io.Reader, writer io.Writer) error {
+	_, err := io.Copy(writer, reader)
+	return err
 }
 
-// Encode the package encode method
-func (pkg *Pack) Encode(data []byte) ([]byte, error) {
-	return data, nil
+// Decrypt decrypt
+func (pkg *Pack) Decrypt(reader io.Reader, writer io.Writer) error {
+	_, err := io.Copy(writer, reader)
+	return err
 }
