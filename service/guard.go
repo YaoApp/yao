@@ -16,6 +16,7 @@ import (
 // Guards middlewares
 var Guards = map[string]gin.HandlerFunc{
 	"bearer-jwt":       guardBearerJWT,   // Bearer JWT
+	"query-jwt":        guardQueryJWT,    // Get JWT Token from query string  "__tk"
 	"cross-origin":     guardCrossOrigin, // Cross-Origin Resource Sharing
 	"widget-table":     table.Guard,      // Widget Table Guard
 	"widget-list":      list.Guard,       // Widget List Guard
@@ -28,6 +29,19 @@ var Guards = map[string]gin.HandlerFunc{
 func guardBearerJWT(c *gin.Context) {
 	tokenString := c.Request.Header.Get("Authorization")
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
+	if tokenString == "" {
+		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+		c.Abort()
+		return
+	}
+
+	claims := helper.JwtValidate(tokenString)
+	c.Set("__sid", claims.SID)
+}
+
+// JWT Bearer JWT
+func guardQueryJWT(c *gin.Context) {
+	tokenString := c.Query("__tk")
 	if tokenString == "" {
 		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
 		c.Abort()

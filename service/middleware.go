@@ -6,13 +6,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Middlewares 服务中间件
+// Middlewares the middlewares
 var Middlewares = []func(c *gin.Context){
-	BinStatic,
+	withStaticFileServer,
 }
 
-// BinStatic 静态文件服务
-func BinStatic(c *gin.Context) {
+// withStaticFileServer static file server
+func withStaticFileServer(c *gin.Context) {
 
 	length := len(c.Request.URL.Path)
 
@@ -38,7 +38,7 @@ func BinStatic(c *gin.Context) {
 		return
 	}
 
-	// 应用内静态文件目录(/ui or public)
+	// static file server
 	AppFileServer.ServeHTTP(c.Writer, c.Request)
 	c.Abort()
 }
