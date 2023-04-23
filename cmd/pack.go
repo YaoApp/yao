@@ -11,9 +11,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou/application/yaz"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/pack"
 )
 
 var packOutput = ""
+var packLicense = ""
+
 var packCmd = &cobra.Command{
 	Use:   "pack",
 	Short: L("Package the application"),
@@ -65,7 +68,14 @@ var packCmd = &cobra.Command{
 		}
 
 		os.Remove(outputFile)
-		err = yaz.CompressTo(cfg.Root, outputFile)
+		if packLicense != "" {
+			pack.SetCipher(packLicense)
+			err = yaz.PackTo(cfg.Root, outputFile, pack.Cipher)
+
+		} else {
+			err = yaz.CompressTo(cfg.Root, outputFile)
+		}
+
 		if err != nil {
 			color.Red(err.Error())
 			os.Exit(1)
@@ -77,4 +87,5 @@ var packCmd = &cobra.Command{
 
 func init() {
 	packCmd.PersistentFlags().StringVarP(&packOutput, "output", "o", "", L("Output Directory"))
+	packCmd.PersistentFlags().StringVarP(&packLicense, "license", "l", "", L("Pack with the license"))
 }

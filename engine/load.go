@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/importer"
 	"github.com/yaoapp/yao/model"
+	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/runtime"
@@ -226,14 +227,14 @@ func loadApp(root string) error {
 	var app application.Application
 
 	if root == "bin:application.yaz" {
-		app, err = application.OpenFromYaz(root, &share.Pack{}) // Load app from Bin
+		app, err = application.OpenFromYaz(root, pack.Cipher) // Load app from Bin
 		if err != nil {
 			return err
 		}
 		application.Load(app)
 
 	} else if strings.HasSuffix(root, ".yaz") {
-		app, err = application.OpenFromYaz(root, &share.Pack{}) // Load app from .yaz file
+		app, err = application.OpenFromYaz(root, pack.Cipher) // Load app from .yaz file
 		if err != nil {
 			return err
 		}

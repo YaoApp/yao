@@ -9,12 +9,13 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/cmd/studio"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/share"
 )
 
 var appPath string
-var envFile string
 var yazFile string
+var licenseKey string
 
 var lang = os.Getenv("YAO_LANG")
 var langs = map[string]string{
@@ -130,7 +131,7 @@ func init() {
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
 	rootCmd.PersistentFlags().StringVarP(&yazFile, "file", "f", "", L("Application package file"))
-	rootCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", L("Environment file"))
+	rootCmd.PersistentFlags().StringVarP(&licenseKey, "key", "k", "", L("Application license key"))
 }
 
 // Execute 运行Root
@@ -153,11 +154,7 @@ func Boot() {
 		root = r
 	}
 
-	if envFile != "" {
-		config.Conf = config.LoadFrom(envFile)
-	} else {
-		config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
-	}
+	config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
 
 	if yazFile != "" {
 		config.Conf.AppSource = yazFile
@@ -167,5 +164,10 @@ func Boot() {
 		config.Production()
 	} else if config.Conf.Mode == "development" {
 		config.Development()
+	}
+
+	// set license
+	if licenseKey != "" {
+		pack.SetCipher(licenseKey)
 	}
 }
