@@ -33,7 +33,7 @@ func TestLoadYaz(t *testing.T) {
 	defer Unload()
 
 	// package yaz
-	file, err := yaz.Pack(config.Conf.Root,pack.Cipher)
+	file, err := yaz.Pack(config.Conf.Root, pack.Cipher)
 	if err != nil {
 		t.Fatal(err)
 	}
