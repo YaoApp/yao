@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
@@ -34,7 +35,7 @@ func Prepare(t *testing.T, cfg config.Config) {
 	var err error
 
 	if root == "bin:application.pkg" {
-		app, err = application.OpenFromBin(root, &share.Pack{}) // Load app from Bin
+		app, err = application.OpenFromBin(root, pack.Cipher) // Load app from Bin
 		if err != nil {
 			t.Fatal(err)
 		}
