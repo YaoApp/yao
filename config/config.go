@@ -25,10 +25,17 @@ var LogOutput *os.File // 日志文件
 // DSLExtensions the dsl file Extensions
 var DSLExtensions = []string{"*.yao", "*.json", "*.jsonc"}
 
-func init() {
+// Init setting
+func Init() {
+
 	filename, _ := filepath.Abs(filepath.Join(".", ".env"))
 	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
 		Conf = Load()
+		if Conf.Mode == "production" {
+			Production()
+		} else if Conf.Mode == "development" {
+			Development()
+		}
 		return
 	}
 
@@ -88,12 +95,6 @@ func Load() Config {
 		if !filepath.IsAbs(cfg.DataRoot) {
 			cfg.DataRoot, _ = filepath.Abs(cfg.DataRoot)
 		}
-
-		if _, err := os.Stat(cfg.DataRoot); errors.Is(err, os.ErrNotExist) {
-			if err := os.MkdirAll(cfg.DataRoot, os.ModePerm); err != nil {
-				exception.New("Can't create data root %s", 500, err.Error()).Throw()
-			}
-		}
 	}
 
 	return cfg
@@ -101,6 +102,7 @@ func Load() Config {
 
 // Production 设定为生产环境
 func Production() {
+	os.Setenv("YAO_MODE", "production")
 	Conf.Mode = "production"
 	log.SetLevel(log.InfoLevel)
 	log.SetFormatter(log.TEXT)
@@ -113,6 +115,7 @@ func Production() {
 
 // Development 设定为开发环境
 func Development() {
+	os.Setenv("YAO_MODE", "development")
 	Conf.Mode = "development"
 	log.SetLevel(log.TraceLevel)
 	log.SetFormatter(log.TEXT)

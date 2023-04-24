@@ -23,6 +23,7 @@ var packCmd = &cobra.Command{
 	Long:  L("Package the application into a single file"),
 	Run: func(cmd *cobra.Command, args []string) {
 
+		config.Init()
 		cfg := config.Conf
 		output, err := filepath.Abs(filepath.Join(cfg.Root, "dist"))
 		if err != nil {

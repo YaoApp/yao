@@ -42,25 +42,25 @@ var startCmd = &cobra.Command{
 		defer share.SessionStop()
 		defer plugin.KillAll()
 
+		// recive interrupt signal
+		interrupt := make(chan os.Signal, 1)
+		signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+
+		Boot()
+
 		// Setup
 		if setup.Check() {
 			go setup.Start()
 			select {
 			case <-setup.Done:
 				setup.Stop()
+				Boot()
 				break
 			case <-setup.Canceled:
 				os.Exit(1)
 				break
 			}
 		}
-
-		// recive interrupt signal
-		interrupt := make(chan os.Signal, 1)
-		signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-
-		// defer service.Stop(func() { fmt.Println(L("Service stopped")) })
-		Boot()
 
 		// force debug
 		if startDebug {

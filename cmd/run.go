@@ -37,6 +37,7 @@ var runCmd = &cobra.Command{
 		}()
 
 		Boot()
+
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
 		if len(args) < 1 {

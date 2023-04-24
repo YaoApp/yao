@@ -144,8 +144,9 @@ func Execute() {
 
 // Boot 设定配置
 func Boot() {
-	root := config.Conf.Root
 
+	config.Init()
+	root := config.Conf.Root
 	if appPath != "" {
 		r, err := filepath.Abs(appPath)
 		if err != nil {
@@ -156,7 +157,13 @@ func Boot() {
 
 	config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
 
+	if share.BUILDIN {
+		os.Setenv("YAO_APP_SOURCE", "::binary")
+		config.Conf.AppSource = "::binary"
+	}
+
 	if yazFile != "" {
+		os.Setenv("YAO_APP_SOURCE", yazFile)
 		config.Conf.AppSource = yazFile
 	}
 

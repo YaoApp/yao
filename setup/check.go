@@ -25,10 +25,7 @@ func Check() bool {
 	root := appRoot()
 	envfile := filepath.Join(root, ".env")
 	if _, err := os.Stat(envfile); err != nil && os.IsNotExist(err) {
-		cfg, err := getConfig()
-		if err != nil || !hasInstalled(cfg) {
-			return true
-		}
+		return true
 	}
 
 	return false
@@ -37,8 +34,7 @@ func Check() bool {
 func appSourceExists() bool {
 
 	appsource := appSource()
-
-	if strings.HasSuffix(appsource, ".pkg") || strings.HasPrefix(appsource, "bin:") {
+	if strings.HasSuffix(appsource, ".yaz") || strings.HasPrefix(appsource, "::binary") {
 		return true
 	}
 
