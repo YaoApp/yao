@@ -219,12 +219,14 @@ func makeLog(root string) error {
 
 func makeDirs(root string) error {
 
-	err := os.MkdirAll(filepath.Join(root, "public"), os.ModePerm)
-	if err != nil && !os.IsExist(err) {
-		return err
+	if !appSourceExists() {
+		err := os.MkdirAll(filepath.Join(root, "public"), os.ModePerm)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
 	}
 
-	err = os.MkdirAll(filepath.Join(root, "logs"), os.ModePerm)
+	err := os.MkdirAll(filepath.Join(root, "logs"), os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		return err
 	}

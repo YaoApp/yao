@@ -252,6 +252,7 @@ func loadApp(root string) error {
 		}
 
 		application.Load(app)
+		config.Init() // Reset Config
 		data.RemoveApp()
 
 	} else if strings.HasSuffix(root, ".yaz") {
@@ -260,6 +261,7 @@ func loadApp(root string) error {
 			return err
 		}
 		application.Load(app)
+		config.Init() // Reset Config
 
 	} else {
 		app, err = application.OpenFromDisk(root) // Load app from Disk
