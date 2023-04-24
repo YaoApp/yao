@@ -25,6 +25,10 @@ var LogOutput *os.File // 日志文件
 // DSLExtensions the dsl file Extensions
 var DSLExtensions = []string{"*.yao", "*.json", "*.jsonc"}
 
+func init() {
+	Init()
+}
+
 // Init setting
 func Init() {
 

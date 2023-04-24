@@ -145,7 +145,6 @@ func Execute() {
 // Boot 设定配置
 func Boot() {
 
-	config.Init()
 	root := config.Conf.Root
 	if appPath != "" {
 		r, err := filepath.Abs(appPath)
