@@ -191,6 +191,7 @@ jobs:
 
           echo ".:\n" && ls -l .
           echo "..:\n" && ls -l ..
+          echo "../app:\n" && ls -l ../app
           ping -c 1 -t 1 local.iqka.com
 
       - name: Test Prepare
@@ -202,6 +203,8 @@ jobs:
       - name: Inspect
         run: |
           go run . run utils.env.Get MONGO_TEST_HOST
+          go run . run utils.env.Get REDIS_TEST_HOST
+          go run . inspect
 
       - name: Run test
         run: |
