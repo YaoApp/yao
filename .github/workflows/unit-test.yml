@@ -199,6 +199,10 @@ jobs:
           make fmt-check
           make misspell-check
 
+      - name: Inspect
+        run: |
+          go run . run utils.env.Get MONGO_TEST_HOST
+
       - name: Run test
         run: |
           make test
