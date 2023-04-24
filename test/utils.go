@@ -21,7 +21,6 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 )
@@ -34,14 +33,34 @@ func Prepare(t *testing.T, cfg config.Config) {
 	var app application.Application
 	var err error
 
-	if root == "bin:application.pkg" {
-		app, err = application.OpenFromBin(root, pack.Cipher) // Load app from Bin
-		if err != nil {
-			t.Fatal(err)
-		}
-		application.Load(app)
-		return
-	}
+	// if share.BUILDIN {
+
+	// 	file, err := os.Executable()
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+
+	// 	// Load from cache
+	// 	app, err := application.OpenFromYazCache(file, pack.Cipher)
+
+	// 	if err != nil {
+
+	// 		// load from bin
+	// 		reader, err := data.ReadApp()
+	// 		if err != nil {
+	// 			t.Fatal(err)
+	// 		}
+
+	// 		app, err = application.OpenFromYaz(reader, file, pack.Cipher) // Load app from Bin
+	// 		if err != nil {
+	// 			t.Fatal(err)
+	// 		}
+	// 	}
+
+	// 	application.Load(app)
+	// 	data.RemoveApp()
+	// 	return
+	// }
 
 	app, err = application.OpenFromDisk(root) // Load app from Disk
 	if err != nil {

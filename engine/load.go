@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/yao/cert"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/connector"
+	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
@@ -226,15 +227,35 @@ func loadApp(root string) error {
 	var err error
 	var app application.Application
 
-	if root == "bin:application.yaz" {
-		app, err = application.OpenFromYaz(root, pack.Cipher) // Load app from Bin
+	if share.BUILDIN {
+
+		file, err := os.Executable()
 		if err != nil {
 			return err
 		}
+
+		// Load from cache
+		app, err := application.OpenFromYazCache(file, pack.Cipher)
+
+		if err != nil {
+
+			// load from bin
+			reader, err := data.ReadApp()
+			if err != nil {
+				return err
+			}
+
+			app, err = application.OpenFromYaz(reader, file, pack.Cipher) // Load app from Bin
+			if err != nil {
+				return err
+			}
+		}
+
 		application.Load(app)
+		data.RemoveApp()
 
 	} else if strings.HasSuffix(root, ".yaz") {
-		app, err = application.OpenFromYaz(root, pack.Cipher) // Load app from .yaz file
+		app, err = application.OpenFromYazFile(root, pack.Cipher) // Load app from .yaz file
 		if err != nil {
 			return err
 		}

@@ -3,6 +3,7 @@ package data
 import (
 	"bytes"
 	"compress/gzip"
+	"io"
 	"os"
 	"strings"
 
@@ -63,6 +64,21 @@ func ReplaceXGen(search, replace string) error {
 // Read file from bin
 func Read(name string) ([]byte, error) {
 	return Asset(name)
+}
+
+// ReadApp read app from bin
+func ReadApp() (io.Reader, error) {
+	asset, err := yaoReleaseAppYazBytes()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewBuffer(asset), nil
+}
+
+// RemoveApp remove app from bin
+func RemoveApp() {
+	_yaoReleaseAppYaz = []byte{}
+	delete(_bindata, "yao/release/app.yaz")
 }
 
 // ReplaceXGenIndex bindata file
