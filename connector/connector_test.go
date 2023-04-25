@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -14,6 +15,7 @@ func TestLoad(t *testing.T) {
 	defer test.Clean()
 
 	Load(config.Conf)
+	utils.Dump(config.Conf)
 	check(t)
 }
 
@@ -22,6 +24,8 @@ func check(t *testing.T) {
 	for id := range connector.Connectors {
 		ids[id] = true
 	}
+
+	utils.Dump(ids)
 	assert.True(t, ids["mongo"])
 	assert.True(t, ids["mysql"])
 	assert.True(t, ids["redis"])
