@@ -98,7 +98,7 @@ func TestAPI(t *testing.T) {
 
 	code, rows = httpGet[arr]("/dsl/ReadDir?name=/models&recursive=1", t)
 	assert.Equal(t, 200, code)
-	assert.Equal(t, 12, len(rows))
+	assert.Equal(t, 13, len(rows))
 
 	code, length := httpPost[int]("/dsl/WriteFile?name=/models/foo.mod.yao", []byte(`{"name":"foo"}`), t)
 	assert.Equal(t, 200, code)
