@@ -3,6 +3,7 @@ package openai
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/connector"
@@ -94,13 +95,13 @@ func TestEdits(t *testing.T) {
 	defer test.Clean()
 
 	openai := prepare(t, "text-davinci-edit-001")
-	data, err := openai.Edits("Fix the spelling mistakes", nil)
+	data, err := openai.Edits("Hello world"+uuid.NewString(), nil)
 	if err != nil {
 		t.Fatal(err.Message)
 	}
 	assert.NotNil(t, data.(map[string]interface{})["created"])
 
-	data, err = openai.Edits("Fix the spelling mistakes 2nd", map[string]interface{}{"input": "What day of the wek is it?"})
+	data, err = openai.Edits("Fix the spelling mistakes 2nd"+uuid.NewString(), map[string]interface{}{"input": "What day of the wek is it?"})
 	if err != nil {
 		t.Fatal(err.Message)
 	}
