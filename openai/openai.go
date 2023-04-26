@@ -8,7 +8,6 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/utils"
 )
 
 // Tiktoken get number of tokens
@@ -187,8 +186,6 @@ func (openai OpenAI) stream(path string, payload map[string]interface{}, cb func
 func (openai OpenAI) isError(res *http.Response) *exception.Exception {
 
 	if res.Status != 200 {
-		utils.Dump(res)
-
 		message := "OpenAI Error"
 		if data, ok := res.Data.(map[string]interface{}); ok {
 			if err, has := data["error"]; has {
