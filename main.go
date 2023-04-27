@@ -4,6 +4,7 @@ import (
 	"github.com/yaoapp/yao/cmd"
 
 	_ "github.com/yaoapp/gou/encoding"
+	_ "github.com/yaoapp/yao/aigc"
 	_ "github.com/yaoapp/yao/crypto"
 	_ "github.com/yaoapp/yao/helper"
 	_ "github.com/yaoapp/yao/openai"
