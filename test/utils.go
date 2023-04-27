@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query"
 	"github.com/yaoapp/gou/query/gou"
@@ -162,6 +163,7 @@ func load(t *testing.T, cfg config.Config) {
 	loadFS(t, cfg)
 	loadScript(t, cfg)
 	loadModel(t, cfg)
+	loadConnector(t, cfg)
 	loadQuery(t, cfg)
 }
 
@@ -170,6 +172,17 @@ func loadFS(t *testing.T, cfg config.Config) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func loadConnector(t *testing.T, cfg config.Config) {
+	exts := []string{"*.yao", "*.json", "*.jsonc"}
+	application.App.Walk("connectors", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		_, err := connector.Load(file, share.ID(root, file))
+		return err
+	}, exts...)
 }
 
 func loadScript(t *testing.T, cfg config.Config) {

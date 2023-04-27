@@ -22,9 +22,10 @@ func Tiktoken(model string, input string) (int, error) {
 
 // OpenAI struct
 type OpenAI struct {
-	key   string
-	model string
-	host  string
+	key      string
+	model    string
+	host     string
+	maxToken int
 }
 
 // New create a new OpenAI instance by connector id
@@ -40,9 +41,10 @@ func New(id string) (*OpenAI, error) {
 
 	setting := c.Setting()
 	return &OpenAI{
-		key:   setting["key"].(string),
-		model: setting["model"].(string),
-		host:  setting["host"].(string),
+		key:      setting["key"].(string),
+		model:    setting["model"].(string),
+		host:     setting["host"].(string),
+		maxToken: 2048,
 	}, nil
 }
 
@@ -189,6 +191,36 @@ func (openai OpenAI) Tiktoken(input string) (int, error) {
 	}
 	token := tkm.Encode(input, nil, nil)
 	return len(token), nil
+}
+
+// MaxToken get max number of tokens
+func (openai OpenAI) MaxToken() int {
+	return openai.maxToken
+}
+
+// GetContent get the content of chat completions
+func (openai OpenAI) GetContent(response interface{}) (string, *exception.Exception) {
+	if response == nil {
+		return "", exception.New("response is nil", 500)
+	}
+
+	if data, ok := response.(map[string]interface{}); ok {
+		if choices, ok := data["choices"].([]interface{}); ok {
+			if len(choices) == 0 {
+				return "", exception.New("choices is null, %v", 500, response)
+			}
+
+			if choice, ok := choices[0].(map[string]interface{}); ok {
+				if message, ok := choice["message"].(map[string]interface{}); ok {
+					if content, ok := message["content"].(string); ok {
+						return content, nil
+					}
+				}
+			}
+		}
+	}
+
+	return "", exception.New("response format error, %#v", 500, response)
 }
 
 // post post request
