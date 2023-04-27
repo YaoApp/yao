@@ -15,7 +15,7 @@ func processAigcs(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	aigc, err := Select(process.ID)
 	if err != nil {
-		exception.New("scripts.%s not loaded", 404, process.ID).Throw()
+		exception.New("aigcs.%s not loaded", 404, process.ID).Throw()
 		return nil
 	}
 
