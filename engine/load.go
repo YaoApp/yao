@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/cert"
 	"github.com/yaoapp/yao/config"
@@ -175,6 +176,11 @@ func Load(cfg config.Config) (err error) {
 	err = widget.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Widget", err)
+	}
+
+	err = aigc.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "AIGC", err)
 	}
 
 	return nil
