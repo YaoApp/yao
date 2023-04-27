@@ -101,6 +101,7 @@ func (openai OpenAI) Embeddings(input interface{}, user string) (interface{}, *e
 }
 
 // AudioTranscriptions Transcribes audio into the input language.
+// https://platform.openai.com/docs/api-reference/audio/create
 func (openai OpenAI) AudioTranscriptions(dataBase64 string, option map[string]interface{}) (interface{}, *exception.Exception) {
 	data, err := base64.StdEncoding.DecodeString(dataBase64)
 	if err != nil {
@@ -111,6 +112,73 @@ func (openai OpenAI) AudioTranscriptions(dataBase64 string, option map[string]in
 		option = map[string]interface{}{}
 	}
 	return openai.postFile("/v1/audio/transcriptions", map[string][]byte{"file": data}, option)
+}
+
+// ImagesGenerations Creates an image given a prompt.
+// https://platform.openai.com/docs/api-reference/images
+func (openai OpenAI) ImagesGenerations(prompt string, option map[string]interface{}) (interface{}, *exception.Exception) {
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+
+	if option["response_format"] == nil {
+		option["response_format"] = "b64_json"
+	}
+
+	option["prompt"] = prompt
+	return openai.postWithoutModel("/v1/images/generations", option)
+}
+
+// ImagesEdits Creates an edited or extended image given an original image and a prompt.
+// https://platform.openai.com/docs/api-reference/images/create-edit
+func (openai OpenAI) ImagesEdits(imageBase64 string, prompt string, option map[string]interface{}) (interface{}, *exception.Exception) {
+
+	image, err := base64.StdEncoding.DecodeString(imageBase64)
+	if err != nil {
+		return nil, exception.New("Base64 error :%s", 400, err.Error())
+	}
+
+	files := map[string][]byte{"image": image}
+
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+
+	if maskBase64, ok := option["mask"].(string); ok {
+		mask, err := base64.StdEncoding.DecodeString(maskBase64)
+		if err != nil {
+			return nil, exception.New("Base64 error :%s", 400, err.Error())
+		}
+		files["mask"] = mask
+	}
+
+	if option["response_format"] == nil {
+		option["response_format"] = "b64_json"
+	}
+
+	option["prompt"] = prompt
+	return openai.postFileWithoutModel("/v1/images/edits", files, option)
+}
+
+// ImagesVariations Creates a variation of a given image.
+// https://platform.openai.com/docs/api-reference/images/create-variation
+func (openai OpenAI) ImagesVariations(imageBase64 string, option map[string]interface{}) (interface{}, *exception.Exception) {
+
+	image, err := base64.StdEncoding.DecodeString(imageBase64)
+	if err != nil {
+		return nil, exception.New("Base64 error :%s", 400, err.Error())
+	}
+
+	files := map[string][]byte{"image": image}
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+
+	if option["response_format"] == nil {
+		option["response_format"] = "b64_json"
+	}
+
+	return openai.postFileWithoutModel("/v1/images/variations", files, option)
 }
 
 // Tiktoken get number of tokens
@@ -140,12 +208,51 @@ func (openai OpenAI) post(path string, payload map[string]interface{}) (interfac
 	return res.Data, nil
 }
 
-// post post request
+// post post request without model
+func (openai OpenAI) postWithoutModel(path string, payload map[string]interface{}) (interface{}, *exception.Exception) {
+
+	url := fmt.Sprintf("%s%s", openai.host, path)
+	key := fmt.Sprintf("Bearer %s", openai.key)
+
+	req := http.New(url).
+		WithHeader(map[string][]string{"Authorization": {key}})
+
+	res := req.Post(payload)
+	if err := openai.isError(res); err != nil {
+		return nil, err
+	}
+	return res.Data, nil
+}
+
+// post post request with file
 func (openai OpenAI) postFile(path string, files map[string][]byte, option map[string]interface{}) (interface{}, *exception.Exception) {
 
 	url := fmt.Sprintf("%s%s", openai.host, path)
 	key := fmt.Sprintf("Bearer %s", openai.key)
 	option["model"] = openai.model
+
+	req := http.New(url).
+		WithHeader(map[string][]string{
+			"Authorization": {key},
+			"Content-Type":  {"multipart/form-data"},
+		})
+
+	for name, data := range files {
+		req.AddFileBytes(name, fmt.Sprintf("%s.mp3", name), data)
+	}
+
+	res := req.Send("POST", option)
+	if err := openai.isError(res); err != nil {
+		return nil, err
+	}
+	return res.Data, nil
+}
+
+// post post request with file without model
+func (openai OpenAI) postFileWithoutModel(path string, files map[string][]byte, option map[string]interface{}) (interface{}, *exception.Exception) {
+
+	url := fmt.Sprintf("%s%s", openai.host, path)
+	key := fmt.Sprintf("Bearer %s", openai.key)
 
 	req := http.New(url).
 		WithHeader(map[string][]string{
