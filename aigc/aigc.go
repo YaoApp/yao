@@ -30,8 +30,8 @@ func (ai *DSL) Call(content string, user string, option map[string]interface{}) 
 	messages := []map[string]interface{}{}
 	for _, prompt := range ai.Prompts {
 		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
-		if prompt.User != "" {
-			message["user"] = prompt.User
+		if prompt.Name != "" {
+			message["name"] = prompt.Name
 		}
 		messages = append(messages, message)
 	}

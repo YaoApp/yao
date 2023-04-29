@@ -8,20 +8,20 @@ import (
 
 // DSL the connector DSL
 type DSL struct {
-	ID        string   `json:"-"`
+	ID        string   `json:"-" yaml:"-"`
 	Name      string   `json:"name,omitempty"`
 	Connector string   `json:"connector"`
 	Process   string   `json:"process,omitempty"`
 	Prompts   []Prompt `json:"prompts"`
 	Optional  Optional `json:"optional,omitempty"`
-	AI        AI       `json:"-"`
+	AI        AI       `json:"-" yaml:"-"`
 }
 
 // Prompt a prompt
 type Prompt struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
-	User    string `json:"user,omitempty"`
+	Name    string `json:"name,omitempty"`
 }
 
 // Optional optional

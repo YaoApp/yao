@@ -4,17 +4,17 @@ import "github.com/yaoapp/yao/aigc"
 
 // Neo AI assistant
 type Neo struct {
-	ID                  string                 `json:"-"`
+	ID                  string                 `json:"-" yaml:"-"`
 	Name                string                 `json:"name,omitempty"`
 	Guard               string                 `json:"guard,omitempty"`
 	Connector           string                 `json:"connector"`
 	ConversationSetting ConversationSetting    `json:"conversation"`
 	Option              map[string]interface{} `json:"option"`
-	Prompts             []aigc.Prompt          `json:"prompts"`
+	Prompts             []aigc.Prompt          `json:"prompts,omitempty"`
 	Allows              []string               `json:"allows,omitempty"`
-	AI                  aigc.AI                `json:"-"`
-	Conversation        Conversation           `json:"-"`
-	Command             Command                `json:"-"`
+	AI                  aigc.AI                `json:"-" yaml:"-"`
+	Conversation        Conversation           `json:"-" yaml:"-"`
+	Command             Command                `json:"-" yaml:"-"`
 }
 
 // ConversationSetting the conversation config

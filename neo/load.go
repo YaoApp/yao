@@ -26,12 +26,12 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	err = application.Parse("neo.yml", bytes, &neo)
+	err = application.Parse("neo.yml", bytes, &setting)
 	if err != nil {
 		return err
 	}
 
-	*neo = setting
+	neo = &setting
 	err = neo.newAI()
 	if err != nil {
 		return err
