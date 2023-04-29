@@ -1,6 +1,10 @@
 package aigc
 
-import "github.com/yaoapp/kun/exception"
+import (
+	"context"
+
+	"github.com/yaoapp/kun/exception"
+)
 
 // DSL the connector DSL
 type DSL struct {
@@ -29,6 +33,7 @@ type Optional struct {
 // AI the AI interface
 type AI interface {
 	ChatCompletions(messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception)
+	ChatCompletionsWith(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception)
 	GetContent(response interface{}) (string, *exception.Exception)
 	Embeddings(input interface{}, user string) (interface{}, *exception.Exception)
 	Tiktoken(input string) (int, error)

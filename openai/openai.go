@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 
@@ -58,7 +59,24 @@ func (openai OpenAI) Completions(prompt interface{}, option map[string]interface
 
 	if cb != nil {
 		option["stream"] = true
-		return nil, openai.stream("/v1/completions", option, cb)
+		return nil, openai.stream(context.Background(), "/v1/completions", option, cb)
+	}
+
+	option["stream"] = false
+	return openai.post("/v1/completions", option)
+}
+
+// CompletionsWith Creates a completion for the provided prompt and parameters.
+// https://platform.openai.com/docs/api-reference/completions/create
+func (openai OpenAI) CompletionsWith(ctx context.Context, prompt interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception) {
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+	option["prompt"] = prompt
+
+	if cb != nil {
+		option["stream"] = true
+		return nil, openai.stream(ctx, "/v1/completions", option, cb)
 	}
 
 	option["stream"] = false
@@ -75,7 +93,24 @@ func (openai OpenAI) ChatCompletions(messages []map[string]interface{}, option m
 
 	if cb != nil {
 		option["stream"] = true
-		return nil, openai.stream("/v1/chat/completions", option, cb)
+		return nil, openai.stream(context.Background(), "/v1/chat/completions", option, cb)
+	}
+
+	option["stream"] = false
+	return openai.post("/v1/chat/completions", option)
+}
+
+// ChatCompletionsWith Creates a model response for the given chat conversation.
+// https://platform.openai.com/docs/api-reference/chat/create
+func (openai OpenAI) ChatCompletionsWith(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception) {
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+	option["messages"] = messages
+
+	if cb != nil {
+		option["stream"] = true
+		return nil, openai.stream(ctx, "/v1/chat/completions", option, cb)
 	}
 
 	option["stream"] = false
@@ -304,7 +339,7 @@ func (openai OpenAI) postFileWithoutModel(path string, files map[string][]byte, 
 }
 
 // stream post request
-func (openai OpenAI) stream(path string, payload map[string]interface{}, cb func(data []byte) int) *exception.Exception {
+func (openai OpenAI) stream(ctx context.Context, path string, payload map[string]interface{}, cb func(data []byte) int) *exception.Exception {
 	url := fmt.Sprintf("%s%s", openai.host, path)
 	key := fmt.Sprintf("Bearer %s", openai.key)
 	payload["model"] = openai.model
@@ -314,7 +349,7 @@ func (openai OpenAI) stream(path string, payload map[string]interface{}, cb func
 			"Content-Type":  {"application/json; charset=utf-8"},
 			"Authorization": {key},
 		}).
-		Stream("POST", payload, cb)
+		Stream(ctx, "POST", payload, cb)
 
 	if err != nil {
 		return exception.New(err.Error(), 500)
