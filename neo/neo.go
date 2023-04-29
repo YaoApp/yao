@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
@@ -21,7 +22,11 @@ func (neo *Neo) API(router *gin.Engine, path string, allows ...string) error {
 
 	prompts := []map[string]interface{}{}
 	for _, prompt := range neo.Prompts {
-		prompts = append(prompts, map[string]interface{}{"role": prompt.Role, "content": prompt.Content, "user": prompt.User})
+		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
+		if prompt.Name != "" {
+			message["name"] = prompt.Name
+		}
+		prompts = append(prompts, message)
 	}
 
 	// set the guard
@@ -37,7 +42,11 @@ func (neo *Neo) API(router *gin.Engine, path string, allows ...string) error {
 	router.GET(path, func(c *gin.Context) {
 
 		sid := c.GetString("__sid")
-		content := c.GetString("content")
+		if sid == "" {
+			sid = uuid.New().String()
+		}
+
+		content := c.Query("content")
 		if content == "" {
 			c.JSON(400, gin.H{"message": "content is required", "code": 400})
 			return
@@ -51,7 +60,7 @@ func (neo *Neo) API(router *gin.Engine, path string, allows ...string) error {
 		}
 
 		messages = append(messages, history...)
-		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "user": sid})
+		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": sid})
 
 		// reply the content
 		ctx, cancel := context.WithCancel(context.Background())
@@ -80,7 +89,7 @@ func (neo *Neo) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 			close(chanError)
 		}()
 
-		_, ex := neo.AI.ChatCompletions(messages, neo.Option, func(data []byte) int {
+		_, ex := neo.AI.ChatCompletionsWith(ctx, messages, neo.Option, func(data []byte) int {
 			chanStream <- data
 			return 1
 		})
@@ -103,9 +112,6 @@ func (neo *Neo) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 			msg = append(msg, []byte("\n")...)
 			w.Write(msg)
 			return true
-
-		case <-ctx.Done():
-			return false
 		}
 	})
 
@@ -198,6 +204,7 @@ func (neo *Neo) newAI() error {
 			return err
 		}
 		neo.AI = ai
+		return nil
 	}
 
 	return fmt.Errorf("%s connector %s not support, should be a openai", neo.ID, neo.Connector)
