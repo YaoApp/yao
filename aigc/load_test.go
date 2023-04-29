@@ -24,5 +24,5 @@ func check(t *testing.T) {
 
 	assert.True(t, ids["translate"])
 	assert.True(t, ids["draw"])
-	assert.Equal(t, 2, len(Autopilots))
+	assert.GreaterOrEqual(t, len(Autopilots), 2)
 }

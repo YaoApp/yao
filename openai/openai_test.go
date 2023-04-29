@@ -1,8 +1,10 @@
 package openai
 
 import (
+	"context"
 	"encoding/base64"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -52,6 +54,35 @@ func TestCompletions(t *testing.T) {
 	assert.NotEmpty(t, res)
 }
 
+func TestCompletionsWith(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	openai := prepare(t, "text-davinci-003")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+	}()
+
+	res := []byte{}
+	_, err := openai.CompletionsWith(ctx, "Write an article about internet ", nil, func(data []byte) int {
+		res = append(res, data...)
+		if len(data) == 0 {
+			res = append(res, []byte("\n")...)
+		}
+
+		if string(data) == "data: [DONE]" {
+			return 0
+		}
+
+		return 1
+	})
+
+	assert.Contains(t, err.Message, "context canceled")
+}
+
 func TestChatCompletions(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
@@ -90,6 +121,35 @@ func TestChatCompletions(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, res)
+}
+
+func TestChatCompletionsWith(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	openai := prepare(t, "gpt-3_5-turbo")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+	}()
+
+	res := []byte{}
+	_, err := openai.ChatCompletionsWith(ctx, []map[string]interface{}{{"role": "user", "content": "Write an article about internet"}}, nil, func(data []byte) int {
+		res = append(res, data...)
+		if len(data) == 0 {
+			res = append(res, []byte("\n")...)
+		}
+
+		if string(data) == "data: [DONE]" {
+			return 0
+		}
+
+		return 1
+	})
+
+	assert.Contains(t, err.Message, "context canceled")
 }
 
 func TestEdits(t *testing.T) {

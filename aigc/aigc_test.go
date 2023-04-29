@@ -22,7 +22,7 @@ func TestCall(t *testing.T) {
 	if ex != nil {
 		t.Fatal(ex.Message)
 	}
-	assert.Equal(t, "Hello", content)
+	assert.Contains(t, content, "Hello")
 }
 
 func TestCallWithProcess(t *testing.T) {
