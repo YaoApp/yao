@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/openai"
@@ -63,6 +64,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 
 		messages = append(messages, history...)
 		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": sid})
+		// utils.Dump(messages)
 
 		// reply the content
 		ctx, cancel := context.WithCancel(context.Background())
@@ -101,6 +103,25 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 		}
 	}()
 
+	// save the history
+	content := []byte{}
+	defer func() {
+		sid := c.GetString("__sid")
+		if len(content) > 0 && sid != "" && len(messages) > 0 {
+			err := neo.Conversation.SaveHistory(
+				sid,
+				[]map[string]interface{}{
+					{"role": "user", "content": messages[len(messages)-1]["content"], "name": sid},
+					{"role": "assistant", "content": string(content), "name": sid},
+				},
+			)
+
+			if err != nil {
+				log.Error("Save history error: %s", err.Error())
+			}
+		}
+	}()
+
 	c.Header("Content-Type", "text/event-stream;charset=utf-8")
 	ok := c.Stream(func(w io.Writer) bool {
 		select {
@@ -125,8 +146,9 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 					}
 
 					if len(message.Choices) > 0 {
-						content := message.Choices[0].Delta.Content
-						data, _ := jsoniter.Marshal(map[string]interface{}{"text": content})
+						text := message.Choices[0].Delta.Content
+						content = append(content, []byte(text)...)
+						data, _ := jsoniter.Marshal(map[string]interface{}{"text": text})
 						w.Write([]byte(fmt.Sprintf("data: %s\n\n", data)))
 						return true
 					}
@@ -136,9 +158,6 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 					return true
 				}
 			}
-
-			// msg = append(msg, []byte("\n")...)
-			// w.Write(msg)
 			return true
 		}
 	})
@@ -244,19 +263,21 @@ func (neo *DSL) newAI() error {
 // newConversation create a new conversation
 func (neo *DSL) newConversation() error {
 
+	var err error
 	if neo.ConversationSetting.Connector == "default" || neo.ConversationSetting.Connector == "" {
-		neo.Conversation = conversation.NewXun()
-		return nil
+		neo.Conversation, err = conversation.NewXun(neo.ConversationSetting)
+		return err
 	}
 
+	// other connector
 	conn, err := connector.Select(neo.ConversationSetting.Connector)
 	if err != nil {
 		return err
 	}
 
 	if conn.Is(connector.DATABASE) {
-		neo.Conversation = conversation.NewXun()
-		return nil
+		neo.Conversation, err = conversation.NewXun(neo.ConversationSetting)
+		return err
 
 	} else if conn.Is(connector.REDIS) {
 		neo.Conversation = conversation.NewRedis()
