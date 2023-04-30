@@ -6,9 +6,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
@@ -18,7 +20,7 @@ import (
 )
 
 // API is a method on the Neo type
-func (neo *Neo) API(router *gin.Engine, path string, allows ...string) error {
+func (neo *DSL) API(router *gin.Engine, path string) error {
 
 	prompts := []map[string]interface{}{}
 	for _, prompt := range neo.Prompts {
@@ -36,7 +38,7 @@ func (neo *Neo) API(router *gin.Engine, path string, allows ...string) error {
 	}
 
 	// Cross-Domain
-	neo.crossDomain(router, path, allows...)
+	neo.crossDomain(router, path)
 
 	// api router
 	router.GET(path, func(c *gin.Context) {
@@ -78,7 +80,7 @@ func (neo *Neo) API(router *gin.Engine, path string, allows ...string) error {
 }
 
 // Answer the message
-func (neo *Neo) Answer(ctx context.Context, c *gin.Context, messages []map[string]interface{}) error {
+func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[string]interface{}) error {
 
 	chanStream := make(chan []byte, 1)
 	chanError := make(chan error, 1)
@@ -104,13 +106,39 @@ func (neo *Neo) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 		select {
 		case err := <-chanError:
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, err.Error())
+				c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "code": 500})
 			}
 			return false
 
 		case msg := <-chanStream:
-			msg = append(msg, []byte("\n")...)
-			w.Write(msg)
+			if msg != nil && len(msg) > 0 {
+
+				if strings.Contains(string(msg), `"delta":{"content"`) {
+					msg = []byte(strings.TrimPrefix(string(msg), "data: "))
+					var message openai.Message
+					err := jsoniter.Unmarshal(msg, &message)
+
+					if err != nil {
+						data, _ := jsoniter.Marshal(map[string]interface{}{"text": err.Error()})
+						w.Write([]byte(fmt.Sprintf("data: %s\n\n", data)))
+						return true
+					}
+
+					if len(message.Choices) > 0 {
+						content := message.Choices[0].Delta.Content
+						data, _ := jsoniter.Marshal(map[string]interface{}{"text": content})
+						w.Write([]byte(fmt.Sprintf("data: %s\n\n", data)))
+						return true
+					}
+
+				} else if strings.Contains(string(msg), `[DONE]`) {
+					w.Write([]byte(fmt.Sprintf("data: %s\n\n", `{"done":true}`)))
+					return true
+				}
+			}
+
+			// msg = append(msg, []byte("\n")...)
+			// w.Write(msg)
 			return true
 		}
 	})
@@ -124,14 +152,16 @@ func (neo *Neo) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 	return nil
 }
 
-func (neo *Neo) crossDomain(router *gin.Engine, path string, allows ...string) {
+func (neo *DSL) crossDomain(router *gin.Engine, path string) {
 
-	if len(allows) == 0 {
+	if len(neo.Allows) == 0 {
 		return
 	}
 
 	allowsMap := map[string]bool{}
-	for _, allow := range allows {
+	for _, allow := range neo.Allows {
+		allow = strings.TrimPrefix(allow, "http://")
+		allow = strings.TrimPrefix(allow, "https://")
 		allowsMap[allow] = true
 	}
 
@@ -140,7 +170,8 @@ func (neo *Neo) crossDomain(router *gin.Engine, path string, allows ...string) {
 		if referer != "" {
 
 			if !api.IsAllowed(c, allowsMap) {
-				c.AbortWithStatus(403)
+				c.JSON(403, gin.H{"message": referer + " not allowed", "code": 403})
+				c.Abort()
 				return
 			}
 
@@ -150,14 +181,14 @@ func (neo *Neo) crossDomain(router *gin.Engine, path string, allows ...string) {
 			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-			c.AbortWithStatus(204)
+			c.Next()
 		}
 	})
 
-	router.OPTIONS(path, func(c *gin.Context) { c.Status(200) })
+	router.OPTIONS(path, func(c *gin.Context) { c.AbortWithStatus(204) })
 }
 
-func (neo *Neo) setGuard(router *gin.Engine) error {
+func (neo *DSL) setGuard(router *gin.Engine) error {
 
 	if neo.Guard == "" {
 		router.Use(func(c *gin.Context) {
@@ -187,7 +218,7 @@ func (neo *Neo) setGuard(router *gin.Engine) error {
 }
 
 // NewAI create a new AI
-func (neo *Neo) newAI() error {
+func (neo *DSL) newAI() error {
 
 	if neo.Connector == "" {
 		return fmt.Errorf("%s connector is required", neo.ID)
@@ -211,7 +242,7 @@ func (neo *Neo) newAI() error {
 }
 
 // newConversation create a new conversation
-func (neo *Neo) newConversation() error {
+func (neo *DSL) newConversation() error {
 
 	if neo.ConversationSetting.Connector == "default" || neo.ConversationSetting.Connector == "" {
 		neo.Conversation = conversation.NewXun()

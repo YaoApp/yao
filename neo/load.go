@@ -8,12 +8,13 @@ import (
 	"github.com/yaoapp/yao/config"
 )
 
-var neo *Neo
+// Neo the neo AI assistant
+var Neo *DSL
 
 // Load load AIGC
 func Load(cfg config.Config) error {
 
-	setting := Neo{
+	setting := DSL{
 		ID:                  "neo",
 		Prompts:             []aigc.Prompt{},
 		Option:              map[string]interface{}{},
@@ -31,13 +32,13 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	neo = &setting
-	err = neo.newAI()
+	Neo = &setting
+	err = Neo.newAI()
 	if err != nil {
 		return err
 	}
 
-	err = neo.newConversation()
+	err = Neo.newConversation()
 	if err != nil {
 		return err
 	}
@@ -46,4 +47,4 @@ func Load(cfg config.Config) error {
 }
 
 // LoadCommands load the commands
-func (neo *Neo) LoadCommands() {}
+func (neo *DSL) LoadCommands() {}
