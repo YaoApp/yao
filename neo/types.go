@@ -1,6 +1,9 @@
 package neo
 
-import "github.com/yaoapp/yao/aigc"
+import (
+	"github.com/yaoapp/yao/aigc"
+	"github.com/yaoapp/yao/neo/conversation"
+)
 
 // DSL AI assistant
 type DSL struct {
@@ -8,20 +11,13 @@ type DSL struct {
 	Name                string                 `json:"name,omitempty"`
 	Guard               string                 `json:"guard,omitempty"`
 	Connector           string                 `json:"connector"`
-	ConversationSetting ConversationSetting    `json:"conversation"`
+	ConversationSetting conversation.Setting   `json:"conversation" yaml:"conversation"`
 	Option              map[string]interface{} `json:"option"`
 	Prompts             []aigc.Prompt          `json:"prompts,omitempty"`
 	Allows              []string               `json:"allows,omitempty"`
 	AI                  aigc.AI                `json:"-" yaml:"-"`
 	Conversation        Conversation           `json:"-" yaml:"-"`
 	Command             Command                `json:"-" yaml:"-"`
-}
-
-// ConversationSetting the conversation config
-type ConversationSetting struct {
-	Connector string `json:"connector,omitempty"`
-	Table     string `json:"table,omitempty"`
-	MaxSize   int    `json:"max_size,omitempty"`
 }
 
 // Conversation the store interface

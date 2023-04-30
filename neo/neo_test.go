@@ -49,7 +49,7 @@ func TestAPI(t *testing.T) {
 		return 1
 	})
 
-	assert.Contains(t, string(res), "[DONE]")
+	assert.Contains(t, string(res), `{"done":true}`)
 }
 
 func TestAPIAuth(t *testing.T) {
