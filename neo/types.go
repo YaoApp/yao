@@ -2,8 +2,8 @@ package neo
 
 import "github.com/yaoapp/yao/aigc"
 
-// Neo AI assistant
-type Neo struct {
+// DSL AI assistant
+type DSL struct {
 	ID                  string                 `json:"-" yaml:"-"`
 	Name                string                 `json:"name,omitempty"`
 	Guard               string                 `json:"guard,omitempty"`

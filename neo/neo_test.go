@@ -25,7 +25,7 @@ func TestAPI(t *testing.T) {
 
 	// test router
 	router := testRouter(t)
-	err := neo.API(router, "/neo/chat")
+	err := Neo.API(router, "/neo/chat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestAPIAuth(t *testing.T) {
 	defer test.Clean()
 
 	router := testRouter(t)
-	err := neo.API(router, "/neo/chat")
+	err := Neo.API(router, "/neo/chat")
 	if err != nil {
 		t.Fatal(err)
 	}

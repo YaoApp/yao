@@ -20,6 +20,7 @@ import (
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/importer"
 	"github.com/yaoapp/yao/model"
+	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
@@ -178,7 +179,14 @@ func Load(cfg config.Config) (err error) {
 		printErr(cfg.Mode, "Widget", err)
 	}
 
+	// Load AIGC
 	err = aigc.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "AIGC", err)
+	}
+
+	// Load Neo
+	err = neo.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "AIGC", err)
 	}

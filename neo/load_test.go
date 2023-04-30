@@ -20,5 +20,5 @@ func TestLoad(t *testing.T) {
 }
 
 func check(t *testing.T) {
-	assert.NotNil(t, neo)
+	assert.NotNil(t, Neo)
 }
