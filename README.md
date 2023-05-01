@@ -33,6 +33,9 @@
   <a aria-label="Go Reference" href="https://pkg.go.dev/github.com/yaoapp/yao" target="_blank">
     <img src="https://pkg.go.dev/badge/github.com/yaoapp/yao.svg">
   </a>
+  <a href="https://app.fossa.com/projects/git%2Bgithub.com%2FYaoApp%2Fyao?ref=badge_shield" alt="FOSSA Status">
+    <img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2FYaoApp%2Fyao.svg?type=shield"/>
+  </a>
 </p>
 
 ![intro](docs/architecture.png)
