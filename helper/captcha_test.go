@@ -19,8 +19,7 @@ func TestCaptcha(t *testing.T) {
 	})
 	assert.IsType(t, "string", id)
 	assert.IsType(t, "string", content)
-	captchaStore.Get(id, false)
-	assert.True(t, CaptchaValidate(id, captchaStore.Get(id, false)))
+	assert.True(t, CaptchaValidate(id, toString(store.Get(id, false))))
 
 	id, content = CaptchaMake(CaptchaOption{
 		Type:   "math",
@@ -31,8 +30,7 @@ func TestCaptcha(t *testing.T) {
 	})
 	assert.IsType(t, "string", id)
 	assert.IsType(t, "string", content)
-	captchaStore.Get(id, false)
-	assert.True(t, CaptchaValidate(id, captchaStore.Get(id, false)))
+	assert.True(t, CaptchaValidate(id, toString(store.Get(id, false))))
 
 	id, content = CaptchaMake(CaptchaOption{
 		Type:   "digit",
@@ -43,8 +41,7 @@ func TestCaptcha(t *testing.T) {
 	})
 	assert.IsType(t, "string", id)
 	assert.IsType(t, "string", content)
-	captchaStore.Get(id, false)
-	assert.True(t, CaptchaValidate(id, captchaStore.Get(id, false)))
+	assert.True(t, CaptchaValidate(id, toString(store.Get(id, false))))
 }
 
 func TestProcessCaptcha(t *testing.T) {
@@ -56,7 +53,7 @@ func TestProcessCaptcha(t *testing.T) {
 	assert.IsType(t, "string", res.Get("id"))
 	assert.IsType(t, "string", res.Get("content"))
 
-	value := captchaStore.Get(res.Get("id").(string), false)
+	value := toString(store.Get(res.Get("id").(string), false))
 	p = process.New("xiang.helper.CaptchaValidate", res.Get("id"), value)
 	assert.True(t, p.Run().(bool))
 	assert.Panics(t, func() {
