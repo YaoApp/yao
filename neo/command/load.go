@@ -1,4 +1,4 @@
-package aigc
+package command
 
 import (
 	"fmt"
@@ -9,11 +9,18 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// Commands the commands
+var Commands = map[string]*Command{}
+
+// Autopilots the autopilots
+var Autopilots = []string{}
+
 // Load load AIGC
 func Load(cfg config.Config) error {
-	exts := []string{"*.ai.yml", "*.ai.yaml"}
+	exts := []string{"*.cmd.yml", "*.cmd.yaml"}
 	messages := []string{}
-	err := application.App.Walk("aigcs", func(root, file string, isdir bool) error {
+
+	err := application.App.Walk("neo", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
@@ -23,7 +30,6 @@ func Load(cfg config.Config) error {
 		if err != nil {
 			messages = append(messages, err.Error())
 		}
-
 		return nil
 	}, exts...)
 
@@ -36,10 +42,11 @@ func Load(cfg config.Config) error {
 	}
 
 	return nil
+
 }
 
 // LoadFile load AIGC by file
-func LoadFile(file string, id string) (*DSL, error) {
+func LoadFile(file string, id string) (*Command, error) {
 
 	data, err := application.App.Read(file)
 	if err != nil {
@@ -49,37 +56,51 @@ func LoadFile(file string, id string) (*DSL, error) {
 }
 
 // LoadSource load AIGC
-func LoadSource(data []byte, file, id string) (*DSL, error) {
+func LoadSource(data []byte, file, id string) (*Command, error) {
 
-	dsl := DSL{
+	cmd := Command{
 		ID: id,
+		Prepare: Prepare{
+			Option: map[string]interface{}{},
+		},
 		Optional: Optional{
-			Autopilot: false,
-			JSON:      false,
+			Autopilot:   false,
+			Confirm:     false,
+			MaxAttempts: 10,
 		},
 	}
 
-	err := application.Parse(file, data, &dsl)
+	err := application.Parse(file, data, &cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	if dsl.Prompts == nil || len(dsl.Prompts) == 0 {
+	if cmd.Process == "" {
+		return nil, fmt.Errorf("%s process is required", id)
+	}
+
+	if cmd.Prepare.Prompts == nil || len(cmd.Prepare.Prompts) == 0 {
 		return nil, fmt.Errorf("%s prompts is required", id)
 	}
 
 	// create AI interface
-	dsl.AI, err = dsl.newAI()
+	cmd.AI, err = cmd.newAI()
 	if err != nil {
 		return nil, err
 	}
 
 	// add to autopilots
-	if dsl.Optional.Autopilot {
+	if cmd.Optional.Autopilot {
 		Autopilots = append(Autopilots, id)
 	}
 
+	// save
+	err = cmd.save()
+	if err != nil {
+		return nil, err
+	}
+
 	// add to AIGCs
-	AIGCs[id] = &dsl
-	return AIGCs[id], nil
+	Commands[id] = &cmd
+	return Commands[id], nil
 }

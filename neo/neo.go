@@ -1,10 +1,8 @@
 package neo
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -16,6 +14,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/neo/command"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/openai"
 )
@@ -66,8 +65,8 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": sid})
 		// utils.Dump(messages)
 
-		// reply the content
-		ctx, cancel := context.WithCancel(context.Background())
+		// set the context
+		ctx, cancel := command.NewContextWithCancel(sid, c.GetString("context"))
 		defer cancel()
 
 		err = neo.Answer(ctx, c, messages)
@@ -82,10 +81,15 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 }
 
 // Answer the message
-func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[string]interface{}) error {
+func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string]interface{}) error {
 
 	chanStream := make(chan []byte, 1)
 	chanError := make(chan error, 1)
+
+	// check the command
+	// cmd, isCommand := neo.Command.Match(ctx, messages)
+	isCommand := false
+	cmd := command.Command{}
 
 	go func() {
 		defer func() {
@@ -93,6 +97,27 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 			close(chanError)
 		}()
 
+		// execute the command
+		if isCommand {
+
+			req, err := cmd.NewRequest(ctx, messages)
+			if err != nil {
+				chanError <- err
+				return
+			}
+
+			_, err = req.Run(func(data []byte) int {
+				chanStream <- data
+				return 1
+			})
+
+			if err != nil {
+				chanError <- err
+			}
+			return
+		}
+
+		// chat with AI
 		_, ex := neo.AI.ChatCompletionsWith(ctx, messages, neo.Option, func(data []byte) int {
 			chanStream <- data
 			return 1
@@ -106,7 +131,7 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 	// save the history
 	content := []byte{}
 	defer func() {
-		sid := c.GetString("__sid")
+		sid := answer.GetString("__sid")
 		if len(content) > 0 && sid != "" && len(messages) > 0 {
 			err := neo.Conversation.SaveHistory(
 				sid,
@@ -122,13 +147,14 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 		}
 	}()
 
-	c.Header("Content-Type", "text/event-stream;charset=utf-8")
-	ok := c.Stream(func(w io.Writer) bool {
+	answer.Header("Content-Type", "text/event-stream;charset=utf-8")
+	ok := answer.Stream(func(w io.Writer) bool {
 		select {
 		case err := <-chanError:
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error(), "code": 500})
+				w.Write([]byte(fmt.Sprintf(`data: {"text":"%s"}%s`, err.Error(), "\n\n")))
 			}
+			w.Write([]byte(fmt.Sprintf("data: %s\n\n", `{"done":true}`)))
 			return false
 
 		case msg := <-chanStream:
@@ -163,11 +189,11 @@ func (neo *DSL) Answer(ctx context.Context, c *gin.Context, messages []map[strin
 	})
 
 	if !ok {
-		c.Status(500)
+		answer.Status(500)
 		return nil
 	}
 
-	c.Status(200)
+	answer.Status(200)
 	return nil
 }
 

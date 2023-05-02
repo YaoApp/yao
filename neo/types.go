@@ -1,7 +1,10 @@
 package neo
 
 import (
+	"io"
+
 	"github.com/yaoapp/yao/aigc"
+	"github.com/yaoapp/yao/neo/command"
 	"github.com/yaoapp/yao/neo/conversation"
 )
 
@@ -28,5 +31,13 @@ type Conversation interface {
 
 // Command the command interface
 type Command interface {
-	Match(messages []map[string]interface{}) (bool, error)
+	Match(ctx command.Context, messages []map[string]interface{}) (*command.Command, bool)
+}
+
+// Answer the answer interface
+type Answer interface {
+	GetString(key string) (s string)
+	Stream(func(w io.Writer) bool) bool
+	Status(code int)
+	Header(key, value string)
 }
