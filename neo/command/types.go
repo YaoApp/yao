@@ -9,10 +9,9 @@ import (
 
 // Request the command request
 type Request struct {
-	id       string
-	sid      string
-	ctx      Context
-	messages []map[string]interface{}
+	id  string
+	sid string
+	ctx Context
 	*Command
 }
 
@@ -66,7 +65,7 @@ type Optional struct {
 type Context struct {
 	Sid             string `json:"-" yaml:"-"`
 	Stack           string `json:"stack,omitempty"`
-	Path            string `json:"path,omitempty"`
+	Path            string `json:"pathname,omitempty"`
 	context.Context `json:"-" yaml:"-"`
 }
 

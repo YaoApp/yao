@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/command"
+	"github.com/yaoapp/yao/neo/command/driver"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/openai"
 )
@@ -66,7 +67,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		// utils.Dump(messages)
 
 		// set the context
-		ctx, cancel := command.NewContextWithCancel(sid, c.GetString("context"))
+		ctx, cancel := command.NewContextWithCancel(sid, c.Query("context"))
 		defer cancel()
 
 		err = neo.Answer(ctx, c, messages)
@@ -87,9 +88,13 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 	chanError := make(chan error, 1)
 
 	// check the command
-	// cmd, isCommand := neo.Command.Match(ctx, messages)
-	isCommand := false
-	cmd := command.Command{}
+	var cmd *command.Command
+	var isCommand = false
+	input := messages[len(messages)-1]["content"].(string)
+	name, err := command.Match(ctx.Sid, driver.Query{Stack: ctx.Stack, Path: ctx.Path}, input)
+	if err == nil && name != "" {
+		cmd, isCommand = command.Commands[name]
+	}
 
 	go func() {
 		defer func() {
@@ -100,13 +105,13 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 		// execute the command
 		if isCommand {
 
-			req, err := cmd.NewRequest(ctx, messages)
+			req, err := cmd.NewRequest(ctx)
 			if err != nil {
 				chanError <- err
 				return
 			}
 
-			_, err = req.Run(func(data []byte) int {
+			_, err = req.Run(messages, func(data []byte) int {
 				chanStream <- data
 				return 1
 			})
@@ -114,6 +119,7 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 			if err != nil {
 				chanError <- err
 			}
+
 			return
 		}
 

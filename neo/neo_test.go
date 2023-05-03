@@ -15,6 +15,7 @@ import (
 	httpTest "github.com/yaoapp/gou/http"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/neo/command"
 	"github.com/yaoapp/yao/test"
 	_ "github.com/yaoapp/yao/utils"
 )
@@ -104,10 +105,17 @@ func testServer(t *testing.T, router *gin.Engine) (string, func()) {
 
 func testRouter(t *testing.T) *gin.Engine {
 
+	// Load Config
 	err := Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Load Commands
+	err = command.Load(config.Conf)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
 	router := gin.New()
 	gin.SetMode(gin.ReleaseMode)
