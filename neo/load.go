@@ -4,8 +4,11 @@ import (
 	"path/filepath"
 
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/neo/command"
+	"github.com/yaoapp/yao/neo/command/driver"
 	"github.com/yaoapp/yao/neo/conversation"
 )
 
@@ -41,18 +44,31 @@ func Load(cfg config.Config) error {
 	}
 
 	Neo = &setting
+
+	// AI Setting
 	err = Neo.newAI()
 	if err != nil {
 		return err
 	}
 
+	// Conversation Setting
 	err = Neo.newConversation()
 	if err != nil {
 		return err
 	}
 
+	// Command Setting
+	store, err := driver.NewMemory("gpt-3_5-turbo", nil)
+	if err != nil {
+		return err
+	}
+	command.SetStore(store)
+
+	// Load the commands
+	err = command.Load(cfg)
+	if err != nil {
+		log.Error("Command Load Error: %s", err.Error())
+	}
+
 	return nil
 }
-
-// LoadCommands load the commands
-func (neo *DSL) LoadCommands() {}

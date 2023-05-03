@@ -8,39 +8,40 @@ import (
 // MatchStack match the stack
 func (query Query) MatchStack(stack string) bool {
 
-	if query.Stack == "" || query.Stack == "*" || stack == "" {
+	if stack == "" || stack == "*" || query.Stack == "" {
 		return true
 	}
 
-	if query.Stack == stack {
+	if stack == query.Stack {
 		return true
 	}
 
-	matched, _ := regexp.MatchString(strings.ReplaceAll(query.Stack, "*", ".*"), stack)
+	matched, _ := regexp.MatchString(strings.ReplaceAll(stack, "*", ".*"), query.Stack)
 	return matched
 }
 
 // MatchPath match the path
 func (query Query) MatchPath(path string) bool {
-	if query.Path == "" || query.Path == "*" || path == "" {
+	if path == "" || path == "*" || query.Path == "" {
 		return true
 	}
 
-	if query.Path == path {
+	if path == query.Path {
 		return true
 	}
 
-	matched, _ := regexp.MatchString(strings.ReplaceAll(query.Path, "*", ".*"), path)
+	matched, _ := regexp.MatchString(strings.ReplaceAll(path, "*", ".*"), query.Path)
 	return matched
 }
 
 // MatchAny match the stack or path
 func (query Query) MatchAny(stack, path string) bool {
-	if query.Path == "" || query.Path == "-" {
+
+	if path == "" || path == "-" {
 		return query.MatchStack(stack)
 	}
 
-	if query.Stack == "" || query.Stack == "-" {
+	if stack == "" || stack == "-" {
 		return query.MatchPath(path)
 	}
 
