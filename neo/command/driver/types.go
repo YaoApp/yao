@@ -16,9 +16,3 @@ type Command struct {
 	Stack       string                   `json:"stack,omitempty"`
 	Path        string                   `json:"path,omitempty"`
 }
-
-// Query the query struct
-type Query struct {
-	Stack string `json:"stack,omitempty"`
-	Path  string `json:"path,omitempty"`
-}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/neo/command/driver"
+	"github.com/yaoapp/yao/neo/command/query"
 )
 
 // Request the command request
@@ -71,7 +72,7 @@ type Context struct {
 
 // Store the command driver
 type Store interface {
-	Match(query driver.Query, content string) (string, error)
+	Match(query query.Param, content string) (string, error)
 	Set(id string, cmd driver.Command) error
 	Get(id string) (driver.Command, bool)
 	Del(id string)

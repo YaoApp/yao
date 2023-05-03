@@ -7,6 +7,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/aigc"
+	"github.com/yaoapp/yao/neo/command/query"
 	"github.com/yaoapp/yao/openai"
 )
 
@@ -47,7 +48,7 @@ func NewMemory(model string, prompts []aigc.Prompt) (*Memory, error) {
 }
 
 // Match match the command data
-func (driver *Memory) Match(query Query, content string) (string, error) {
+func (driver *Memory) Match(query query.Param, content string) (string, error) {
 	prompts := append([]aigc.Prompt{}, driver.prompts...)
 	has := false
 	commands.Range(func(key, value interface{}) bool {
