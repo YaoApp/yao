@@ -5,27 +5,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yaoapp/yao/neo/message"
 )
 
-func output(format string, args ...interface{}) []byte {
-	content := fmt.Sprintf(format, args...)
-	return []byte(fmt.Sprintf(`{"id":"chatcmpl-7Atx502nGBuYcvoZfIaWU4FREI1mT","object":"chat.completion.chunk","created":1682832715,"model":"gpt-3.5-turbo-0301","choices":[{"delta":{"content":"%s"},"index":0,"finish_reason":null}]}`, content))
+// Run the command
+func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.JSON) int) (interface{}, error) {
+
+	cb(req.msg().Text(fmt.Sprintf("- Command: %s\n", req.Command.Name)))
+	time.Sleep(200 * time.Millisecond)
+
+	cb(req.msg().Text(fmt.Sprintf("- Session: %s\n", req.sid)))
+	time.Sleep(200 * time.Millisecond)
+
+	cb(req.msg().Text(fmt.Sprintf("- Request: %s\n", req.sid)))
+	time.Sleep(200 * time.Millisecond)
+
+	cb(req.msg().Done())
+	return nil, nil
 }
 
-// Run the command
-func (req *Request) Run(messages []map[string]interface{}, cb func(data []byte) int) (interface{}, error) {
-
-	cb(output("- Command: %s\\n", req.Command.ID))
-	time.Sleep(200 * time.Millisecond)
-
-	cb(output("- Session: %s\\n", req.sid))
-	time.Sleep(200 * time.Millisecond)
-
-	cb(output("- Request: %s\\n", req.id))
-	time.Sleep(200 * time.Millisecond)
-
-	cb([]byte(`[DONE]`))
-	return nil, nil
+func (req *Request) msg() *message.JSON {
+	return message.New().Command(req.Command.Name, req.Command.ID, req.id)
 }
 
 // NewRequest create a new request

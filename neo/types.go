@@ -29,7 +29,6 @@ type Conversation interface {
 
 // Answer the answer interface
 type Answer interface {
-	GetString(key string) (s string)
 	Stream(func(w io.Writer) bool) bool
 	Status(code int)
 	Header(key, value string)
