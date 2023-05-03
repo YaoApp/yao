@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/neo/command/driver"
+	"github.com/yaoapp/yao/neo/command/query"
 	"github.com/yaoapp/yao/openai"
 )
 
@@ -18,7 +19,7 @@ func SetStore(store Store) {
 }
 
 // Match the command from the content
-func Match(sid string, query driver.Query, input string) (string, error) {
+func Match(sid string, query query.Param, input string) (string, error) {
 
 	if DefaultStore == nil {
 		return "", fmt.Errorf("command store is not set")

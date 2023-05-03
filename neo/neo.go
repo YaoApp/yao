@@ -15,7 +15,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/command"
-	"github.com/yaoapp/yao/neo/command/driver"
+	"github.com/yaoapp/yao/neo/command/query"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/openai"
 )
@@ -91,7 +91,7 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 	var cmd *command.Command
 	var isCommand = false
 	input := messages[len(messages)-1]["content"].(string)
-	name, err := command.Match(ctx.Sid, driver.Query{Stack: ctx.Stack, Path: ctx.Path}, input)
+	name, err := command.Match(ctx.Sid, query.Param{Stack: ctx.Stack, Path: ctx.Path}, input)
 	if err == nil && name != "" {
 		cmd, isCommand = command.Commands[name]
 	}

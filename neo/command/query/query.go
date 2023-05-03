@@ -1,12 +1,18 @@
-package driver
+package query
 
 import (
 	"regexp"
 	"strings"
 )
 
+// Param the command param
+type Param struct {
+	Stack string `json:"stack,omitempty"`
+	Path  string `json:"path,omitempty"`
+}
+
 // MatchStack match the stack
-func (query Query) MatchStack(stack string) bool {
+func (query Param) MatchStack(stack string) bool {
 
 	if stack == "" || stack == "*" || query.Stack == "" {
 		return true
@@ -21,7 +27,7 @@ func (query Query) MatchStack(stack string) bool {
 }
 
 // MatchPath match the path
-func (query Query) MatchPath(path string) bool {
+func (query Param) MatchPath(path string) bool {
 	if path == "" || path == "*" || query.Path == "" {
 		return true
 	}
@@ -35,7 +41,7 @@ func (query Query) MatchPath(path string) bool {
 }
 
 // MatchAny match the stack or path
-func (query Query) MatchAny(stack, path string) bool {
+func (query Param) MatchAny(stack, path string) bool {
 
 	if path == "" || path == "-" {
 		return query.MatchStack(stack)
