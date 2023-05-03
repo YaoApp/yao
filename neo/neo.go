@@ -41,7 +41,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Cross-Domain
 	neo.crossDomain(router, path)
 
-	// api router
+	// api router chat
 	router.GET(path, func(c *gin.Context) {
 
 		sid := c.GetString("__sid")
@@ -76,6 +76,66 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 			c.Done()
 		}
 
+	})
+
+	// api router chat histor
+	router.GET(path+"/history", func(c *gin.Context) {
+		sid := c.GetString("__sid")
+		if sid == "" {
+			c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+			c.Done()
+			return
+		}
+
+		history, err := neo.Conversation.GetHistory(sid)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+
+		c.JSON(200, history)
+		c.Done()
+	})
+
+	// api router exit command mode
+	router.POST(path, func(c *gin.Context) {
+		sid := c.GetString("__sid")
+		if sid == "" {
+			c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+			c.Done()
+			return
+		}
+
+		var payload map[string]interface{}
+		err := c.ShouldBindJSON(&payload)
+		if err != nil {
+			c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+			c.Done()
+			return
+		}
+
+		cmd, ok := payload["cmd"].(string)
+		if !ok {
+			c.JSON(400, gin.H{"message": "command is required", "code": 400})
+			c.Done()
+			return
+		}
+
+		switch cmd {
+		case "ExitCommandMode":
+			err := command.Exit(sid)
+			if err != nil {
+				c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+				c.Done()
+				return
+			}
+			c.JSON(200, gin.H{"message": "success", "code": 200})
+			c.Done()
+
+		default:
+			c.JSON(400, gin.H{"message": "command is not supported", "code": 400})
+		}
 	})
 
 	return nil
@@ -168,6 +228,7 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 	return nil
 }
 
+// matchCommand match the command
 func (neo *DSL) matchCommand(ctx command.Context, messages []map[string]interface{}) (*command.Command, bool) {
 	if len(messages) < 1 {
 		return nil, false

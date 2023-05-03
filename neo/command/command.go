@@ -34,6 +34,16 @@ func Match(sid string, query query.Param, input string) (string, error) {
 	return DefaultStore.Match(query, input)
 }
 
+// Exit the command
+func Exit(sid string) error {
+	if DefaultStore == nil {
+		return fmt.Errorf("command store is not set")
+	}
+
+	DefaultStore.DelRequest(sid)
+	return nil
+}
+
 // save the command to the store
 func (cmd *Command) save() error {
 	if DefaultStore == nil {
