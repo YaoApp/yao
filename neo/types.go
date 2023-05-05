@@ -9,22 +9,16 @@ import (
 
 // DSL AI assistant
 type DSL struct {
-	ID                  string                 `json:"-" yaml:"-"`
-	Name                string                 `json:"name,omitempty"`
-	Guard               string                 `json:"guard,omitempty"`
-	Connector           string                 `json:"connector"`
-	ConversationSetting conversation.Setting   `json:"conversation" yaml:"conversation"`
-	Option              map[string]interface{} `json:"option"`
-	Prompts             []aigc.Prompt          `json:"prompts,omitempty"`
-	Allows              []string               `json:"allows,omitempty"`
-	AI                  aigc.AI                `json:"-" yaml:"-"`
-	Conversation        Conversation           `json:"-" yaml:"-"`
-}
-
-// Conversation the store interface
-type Conversation interface {
-	GetHistory(sid string) ([]map[string]interface{}, error)
-	SaveHistory(sid string, messages []map[string]interface{}) error
+	ID                  string                    `json:"-" yaml:"-"`
+	Name                string                    `json:"name,omitempty"`
+	Guard               string                    `json:"guard,omitempty"`
+	Connector           string                    `json:"connector"`
+	ConversationSetting conversation.Setting      `json:"conversation" yaml:"conversation"`
+	Option              map[string]interface{}    `json:"option"`
+	Prompts             []aigc.Prompt             `json:"prompts,omitempty"`
+	Allows              []string                  `json:"allows,omitempty"`
+	AI                  aigc.AI                   `json:"-" yaml:"-"`
+	Conversation        conversation.Conversation `json:"-" yaml:"-"`
 }
 
 // Answer the answer interface

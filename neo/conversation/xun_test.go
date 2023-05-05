@@ -43,7 +43,7 @@ func TestNewXunDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fields := []string{"id", "sid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "rid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		assert.Equal(t, true, tab.HasColumn(field))
 	}
@@ -101,7 +101,7 @@ func TestNewXunConnector(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fields := []string{"id", "sid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "rid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		assert.Equal(t, true, tab.HasColumn(field))
 	}
@@ -145,6 +145,38 @@ func TestXunSaveAndGetHistory(t *testing.T) {
 
 	// get the history
 	data, err := conv.GetHistory("123456")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(data))
+}
+
+func TestXunSaveAndGetRequest(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation")
+
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conv, err := NewXun(Setting{
+		Connector: "default",
+		Table:     "__unit_test_conversation",
+		TTL:       3600,
+	})
+
+	// save the history
+	err = conv.SaveRequest("123456", "912836", "test.command", []map[string]interface{}{
+		{"role": "user", "name": "user1", "content": "hello"},
+		{"role": "assistant", "name": "user1", "content": "Hello there, how"},
+	})
+	assert.Nil(t, err)
+
+	// get the history
+	data, err := conv.GetRequest("123456", "912836")
 	if err != nil {
 		t.Fatal(err)
 	}

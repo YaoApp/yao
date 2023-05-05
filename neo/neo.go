@@ -23,15 +23,6 @@ import (
 // API is a method on the Neo type
 func (neo *DSL) API(router *gin.Engine, path string) error {
 
-	prompts := []map[string]interface{}{}
-	for _, prompt := range neo.Prompts {
-		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
-		if prompt.Name != "" {
-			message["name"] = prompt.Name
-		}
-		prompts = append(prompts, message)
-	}
-
 	// set the guard
 	err := neo.setGuard(router)
 	if err != nil {
@@ -55,22 +46,11 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 			return
 		}
 
-		messages := append([]map[string]interface{}{}, prompts...)
-		history, err := neo.Conversation.GetHistory(sid)
-		if err != nil {
-			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-			c.Done()
-		}
-
-		messages = append(messages, history...)
-		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": sid})
-		// utils.Dump(messages)
-
 		// set the context
 		ctx, cancel := command.NewContextWithCancel(sid, c.Query("context"))
 		defer cancel()
 
-		err = neo.Answer(ctx, c, messages)
+		err = neo.Answer(ctx, content, c)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
@@ -78,7 +58,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 
 	})
 
-	// api router chat histor
+	// api router chat history
 	router.GET(path+"/history", func(c *gin.Context) {
 		sid := c.GetString("__sid")
 		if sid == "" {
@@ -142,11 +122,17 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 }
 
 // Answer the message
-func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string]interface{}) error {
+func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) error {
 
 	chanStream := make(chan *message.JSON, 1)
 	chanError := make(chan error, 1)
 	content := []byte{}
+
+	// get the chat messages
+	messages, err := neo.chatMessages(ctx.Sid, question)
+	if err != nil {
+		return err
+	}
 
 	// check the command
 	cmd, isCommand := neo.matchCommand(ctx, messages)
@@ -165,7 +151,7 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 				return
 			}
 
-			_, err = req.Run(messages, func(msg *message.JSON) int {
+			_, err = req.Run(neo.Conversation, messages, func(msg *message.JSON) int {
 				chanStream <- msg
 				return 1
 			})
@@ -226,6 +212,32 @@ func (neo *DSL) Answer(ctx command.Context, answer Answer, messages []map[string
 
 	answer.Status(200)
 	return nil
+}
+
+// prompts get the prompts
+func (neo *DSL) prompts() []map[string]interface{} {
+	prompts := []map[string]interface{}{}
+	for _, prompt := range neo.Prompts {
+		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
+		if prompt.Name != "" {
+			message["name"] = prompt.Name
+		}
+		prompts = append(prompts, message)
+	}
+
+	return prompts
+}
+
+// chatMessages get the chat messages
+func (neo *DSL) chatMessages(sid, content string) ([]map[string]interface{}, error) {
+	messages := append([]map[string]interface{}{}, neo.prompts()...)
+	history, err := neo.Conversation.GetHistory(sid)
+	if err != nil {
+		return nil, err
+	}
+	messages = append(messages, history...)
+	messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": sid})
+	return messages, nil
 }
 
 // matchCommand match the command

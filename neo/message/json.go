@@ -52,6 +52,13 @@ func NewOpenAI(data []byte) *JSON {
 	return &JSON{msg}
 }
 
+func (json *JSON) String() string {
+	if json.Message == nil {
+		return ""
+	}
+	return json.Message.Text
+}
+
 // Text set the text
 func (json *JSON) Text(text string) *JSON {
 	json.Message.Text = text

@@ -17,3 +17,13 @@ func (conv *Mongo) GetHistory(sid string) ([]map[string]interface{}, error) {
 func (conv *Mongo) SaveHistory(sid string, messages []map[string]interface{}) error {
 	return nil
 }
+
+// GetRequest get the request
+func (conv *Mongo) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
+	return nil, nil
+}
+
+// SaveRequest save the request
+func (conv *Mongo) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
+	return nil
+}
