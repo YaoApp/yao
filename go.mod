@@ -22,6 +22,8 @@ require (
 	github.com/yaoapp/kun v0.9.0
 	github.com/yaoapp/xun v0.9.0
 	golang.org/x/crypto v0.7.0
+	gopkg.in/yaml.v3 v3.0.1
+	rogchap.com/v8go v0.8.0
 )
 
 require (
@@ -106,8 +108,6 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1
-	rogchap.com/v8go v0.8.0 // indirect
 )
 
 // go env -w GOPRIVATE=github.com/yaoapp/*
