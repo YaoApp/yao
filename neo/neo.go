@@ -145,13 +145,13 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 		// execute the command
 		if isCommand {
 
-			req, err := cmd.NewRequest(ctx)
+			req, err := cmd.NewRequest(ctx, neo.Conversation)
 			if err != nil {
 				chanError <- err
 				return
 			}
 
-			_, err = req.Run(neo.Conversation, messages, func(msg *message.JSON) int {
+			err = req.Run(messages, func(msg *message.JSON) int {
 				chanStream <- msg
 				return 1
 			})

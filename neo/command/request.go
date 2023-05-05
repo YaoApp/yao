@@ -5,44 +5,128 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
 	"rogchap.com/v8go"
 )
 
 // Run the command
-func (req *Request) Run(conversation conversation.Conversation, messages []map[string]interface{}, cb func(msg *message.JSON) int) (interface{}, error) {
+func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.JSON) int) error {
 
-	content, err := req.prepare(conversation, messages, cb)
+	input, err := req.prepare(messages, cb)
 	if err != nil {
 		req.error(err, cb)
-		return nil, err
+		return err
 	}
 
-	fmt.Println(string(content))
+	args, err := req.parseArgs(input, cb)
+	if err != nil {
+		cb(req.msg().Done())
+		return nil
+	}
+
+	if req.Command.Optional.Confirm != "" {
+		req.confirm(args, cb)
+		return nil
+	}
+
+	utils.Dump(args)
 
 	// DONE
 	cb(req.msg().Done())
 
-	// cb(req.msg().Text(fmt.Sprintf("- Command: %s\n", req.Command.Name)))
-	// time.Sleep(200 * time.Millisecond)
+	return nil
+}
 
-	// cb(req.msg().Text(fmt.Sprintf("- Session: %s\n", req.sid)))
-	// time.Sleep(200 * time.Millisecond)
+// confirm the command
+func (req *Request) confirm(args []interface{}, cb func(msg *message.JSON) int) {
 
-	// cb(req.msg().Text(fmt.Sprintf("- Request: %s\n", req.sid)))
-	// time.Sleep(200 * time.Millisecond)
+	service := strings.Split(req.Command.Optional.Confirm, ".")
+	if len(service) == 0 {
+		service = []string{"neo", "Exec"}
+	} else if len(service) == 1 {
+		service = []string{"neo", service[0]}
+	}
 
-	// cb(req.msg().Done())
-	return nil, nil
+	payload := map[string]interface{}{
+		"method": service[1],
+		"args": []interface{}{
+			req.id,
+			req.Command.Process,
+			args,
+		},
+	}
+
+	msg := req.msg().
+		Action("ExecCommand", fmt.Sprintf("Service.%s", service[0]), payload, "").
+		Confirm().
+		Done()
+
+	if req.Actions != nil && len(req.Actions) > 0 {
+		for _, action := range req.Actions {
+			msg.Action(action.Name, action.Type, action.Payload, action.Next)
+		}
+	}
+
+	cb(msg)
+}
+
+// validate the command
+func (req *Request) parseArgs(input interface{}, cb func(msg *message.JSON) int) ([]interface{}, error) {
+	args := []interface{}{}
+	data := map[string]interface{}{}
+
+	switch v := input.(type) {
+	case string:
+		err := jsoniter.Unmarshal([]byte(v), &data)
+		if err != nil {
+			return nil, err
+		}
+		break
+
+	case []byte:
+		err := jsoniter.Unmarshal(v, &data)
+		if err != nil {
+			return nil, err
+		}
+		break
+
+	case map[string]interface{}:
+		data = v
+		break
+
+	default:
+		err := fmt.Errorf("\nInvalid input type: %T", v)
+		req.error(err, cb)
+		return nil, err
+	}
+
+	// validate the args
+	if req.Command.Args != nil && len(req.Command.Args) > 0 {
+		for _, arg := range req.Command.Args {
+			v, ok := data[arg.Name]
+			if arg.Required && !ok {
+				err := fmt.Errorf("\nMissing required argument: %s", arg.Name)
+				return nil, err
+			}
+
+			// @todo: validate the type
+			args = append(args, v)
+		}
+	}
+
+	return args, nil
 }
 
 // RunPrepare the command
-func (req *Request) prepare(conversation conversation.Conversation, messages []map[string]interface{}, cb func(msg *message.JSON) int) ([]byte, error) {
+func (req *Request) prepare(messages []map[string]interface{}, cb func(msg *message.JSON) int) (interface{}, error) {
 
+	// Before hook
 	data, err := req.prepareBefore(messages, cb)
 	if err != nil {
 		return nil, err
@@ -67,7 +151,7 @@ func (req *Request) prepare(conversation conversation.Conversation, messages []m
 		return nil, err
 	}
 
-	chatMessages, err := req.messages(conversation, prompts, question)
+	chatMessages, err := req.messages(prompts, question)
 	if err != nil {
 		req.error(err, cb)
 		return nil, err
@@ -91,9 +175,17 @@ func (req *Request) prepare(conversation conversation.Conversation, messages []m
 		req.error(fmt.Errorf(ex.Message), cb)
 		return nil, fmt.Errorf("Chat error: %s", ex.Message)
 	}
-	defer req.saveHistory(conversation, content, chatMessages)
+	defer req.saveHistory(content, chatMessages)
 
-	return content, nil
+	// After hook
+	args, err := req.prepareAfter(string(content), cb)
+	if err != nil {
+		log.Error("Prepare after error: %s", err.Error())
+		fmt.Println(err)
+		return content, nil
+	}
+
+	return args, nil
 }
 
 // prepareBefore hook
@@ -112,11 +204,24 @@ func (req *Request) prepareBefore(messages []map[string]interface{}, cb func(msg
 	return req.runScript(req.Prepare.Before, args, cb)
 }
 
+// prepareAfter hook
+func (req *Request) prepareAfter(content string, cb func(msg *message.JSON) int) (interface{}, error) {
+
+	if req.Prepare.After == "" {
+		return content, nil
+	}
+
+	// prepare the args
+	args := []interface{}{content}
+
+	return req.runScript(req.Prepare.After, args, cb)
+}
+
 // saveHistory save the history
-func (req *Request) saveHistory(conversation conversation.Conversation, content []byte, messages []map[string]interface{}) {
+func (req *Request) saveHistory(content []byte, messages []map[string]interface{}) {
 
 	if len(content) > 0 && req.sid != "" && len(messages) > 0 {
-		err := conversation.SaveRequest(
+		err := req.conversation.SaveRequest(
 			req.sid,
 			req.id,
 			req.Command.ID,
@@ -151,7 +256,7 @@ func (req *Request) question(messages []map[string]interface{}) (string, error) 
 	return question, nil
 }
 
-func (req *Request) messages(conversation conversation.Conversation, prompts []Prompt, question string) ([]map[string]interface{}, error) {
+func (req *Request) messages(prompts []Prompt, question string) ([]map[string]interface{}, error) {
 	messages := []map[string]interface{}{}
 	for _, prompt := range prompts {
 		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
@@ -161,7 +266,7 @@ func (req *Request) messages(conversation conversation.Conversation, prompts []P
 		messages = append(messages, message)
 	}
 
-	history, err := conversation.GetRequest(req.sid, req.id)
+	history, err := req.conversation.GetRequest(req.sid, req.id)
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +345,7 @@ func (req *Request) msg() *message.JSON {
 }
 
 // NewRequest create a new request
-func (cmd *Command) NewRequest(ctx Context) (*Request, error) {
+func (cmd *Command) NewRequest(ctx Context, conversation conversation.Conversation) (*Request, error) {
 
 	if DefaultStore == nil {
 		return nil, fmt.Errorf("command store is not set")
@@ -257,10 +362,11 @@ func (cmd *Command) NewRequest(ctx Context) (*Request, error) {
 			return nil, fmt.Errorf("request id is not match")
 		}
 		return &Request{
-			Command: cmd,
-			sid:     ctx.Sid,
-			id:      id,
-			ctx:     ctx,
+			Command:      cmd,
+			sid:          ctx.Sid,
+			id:           id,
+			ctx:          ctx,
+			conversation: conversation,
 		}, nil
 	}
 
@@ -272,10 +378,11 @@ func (cmd *Command) NewRequest(ctx Context) (*Request, error) {
 	}
 
 	return &Request{
-		Command: cmd,
-		sid:     ctx.Sid,
-		id:      id,
-		ctx:     ctx,
+		Command:      cmd,
+		sid:          ctx.Sid,
+		id:           id,
+		ctx:          ctx,
+		conversation: conversation,
 	}, nil
 }
 
