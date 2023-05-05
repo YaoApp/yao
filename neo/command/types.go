@@ -6,29 +6,33 @@ import (
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/neo/command/driver"
 	"github.com/yaoapp/yao/neo/command/query"
+	"github.com/yaoapp/yao/neo/conversation"
+	"github.com/yaoapp/yao/neo/message"
 )
 
 // Request the command request
 type Request struct {
-	id  string
-	sid string
-	ctx Context
+	id           string
+	sid          string
+	ctx          Context
+	conversation conversation.Conversation
 	*Command
 }
 
 // Command the command struct
 type Command struct {
-	ID          string   `json:"-" yaml:"-"`
-	Name        string   `json:"name,omitempty"`
-	Connector   string   `json:"connector"`
-	Process     string   `json:"process"`
-	Prepare     Prepare  `json:"prepare"`
-	Description string   `json:"description,omitempty"`
-	Optional    Optional `json:"optional,omitempty"`
-	Args        []Arg    `json:"args,omitempty"`
-	Stack       string   `json:"stack,omitempty"` // query stack
-	Path        string   `json:"path,omitempty"`  // query path
-	AI          aigc.AI  `json:"-" yaml:"-"`
+	ID          string           `json:"-" yaml:"-"`
+	Name        string           `json:"name,omitempty"`
+	Connector   string           `json:"connector"`
+	Process     string           `json:"process"`
+	Prepare     Prepare          `json:"prepare"`
+	Description string           `json:"description,omitempty"`
+	Optional    Optional         `json:"optional,omitempty"`
+	Args        []Arg            `json:"args,omitempty"`
+	Actions     []message.Action `json:"actions,omitempty"`
+	Stack       string           `json:"stack,omitempty"` // query stack
+	Path        string           `json:"path,omitempty"`  // query path
+	AI          aigc.AI          `json:"-" yaml:"-"`
 }
 
 // Arg the argument
@@ -57,9 +61,9 @@ type Prompt struct {
 
 // Optional optional
 type Optional struct {
-	Autopilot   bool `json:"autopilot,omitempty"`
-	Confirm     bool `json:"confirm,omitempty"`
-	MaxAttempts int  `json:"maxAttempts,omitempty"` // default 10
+	Autopilot   bool   `json:"autopilot,omitempty"`
+	Confirm     string `json:"confirm,omitempty"`
+	MaxAttempts int    `json:"maxAttempts,omitempty"` // default 10
 }
 
 // Context the context
