@@ -3,44 +3,45 @@ package command
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
 	"rogchap.com/v8go"
 )
 
 // Run the command
-func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.JSON) int) (interface{}, error) {
+func (req *Request) Run(conversation conversation.Conversation, messages []map[string]interface{}, cb func(msg *message.JSON) int) (interface{}, error) {
 
-	prompts, err := req.prepare(messages, cb)
+	content, err := req.prepare(conversation, messages, cb)
 	if err != nil {
-		cb(req.msg().Text(fmt.Sprintf("Prepare Before Error: %s\n", err.Error())))
-		cb(message.New().Done())
-		req.Done()
+		req.error(err, cb)
 		return nil, err
 	}
 
-	utils.Dump(prompts)
+	fmt.Println(string(content))
 
-	cb(req.msg().Text(fmt.Sprintf("- Command: %s\n", req.Command.Name)))
-	time.Sleep(200 * time.Millisecond)
-
-	cb(req.msg().Text(fmt.Sprintf("- Session: %s\n", req.sid)))
-	time.Sleep(200 * time.Millisecond)
-
-	cb(req.msg().Text(fmt.Sprintf("- Request: %s\n", req.sid)))
-	time.Sleep(200 * time.Millisecond)
-
+	// DONE
 	cb(req.msg().Done())
+
+	// cb(req.msg().Text(fmt.Sprintf("- Command: %s\n", req.Command.Name)))
+	// time.Sleep(200 * time.Millisecond)
+
+	// cb(req.msg().Text(fmt.Sprintf("- Session: %s\n", req.sid)))
+	// time.Sleep(200 * time.Millisecond)
+
+	// cb(req.msg().Text(fmt.Sprintf("- Request: %s\n", req.sid)))
+	// time.Sleep(200 * time.Millisecond)
+
+	// cb(req.msg().Done())
 	return nil, nil
 }
 
 // RunPrepare the command
-func (req *Request) prepare(messages []map[string]interface{}, cb func(msg *message.JSON) int) ([]Prompt, error) {
+func (req *Request) prepare(conversation conversation.Conversation, messages []map[string]interface{}, cb func(msg *message.JSON) int) ([]byte, error) {
 
 	data, err := req.prepareBefore(messages, cb)
 	if err != nil {
@@ -60,7 +61,39 @@ func (req *Request) prepare(messages []map[string]interface{}, cb func(msg *mess
 		}
 	}
 
-	return prompts, nil
+	question, err := req.question(messages)
+	if err != nil {
+		req.error(err, cb)
+		return nil, err
+	}
+
+	chatMessages, err := req.messages(conversation, prompts, question)
+	if err != nil {
+		req.error(err, cb)
+		return nil, err
+	}
+
+	// chat with AI
+	content := []byte{}
+	_, ex := req.AI.ChatCompletionsWith(req.ctx, chatMessages, req.Prepare.Option, func(data []byte) int {
+		msg := message.NewOpenAI(data)
+		if msg != nil {
+			if msg.IsDone() {
+				return 0
+			}
+			content = msg.Append(content)
+			cb(req.msg().Text(msg.String()))
+		}
+		return 1
+	})
+
+	if ex != nil {
+		req.error(fmt.Errorf(ex.Message), cb)
+		return nil, fmt.Errorf("Chat error: %s", ex.Message)
+	}
+	defer req.saveHistory(conversation, content, chatMessages)
+
+	return content, nil
 }
 
 // prepareBefore hook
@@ -77,6 +110,64 @@ func (req *Request) prepareBefore(messages []map[string]interface{}, cb func(msg
 	}
 
 	return req.runScript(req.Prepare.Before, args, cb)
+}
+
+// saveHistory save the history
+func (req *Request) saveHistory(conversation conversation.Conversation, content []byte, messages []map[string]interface{}) {
+
+	if len(content) > 0 && req.sid != "" && len(messages) > 0 {
+		err := conversation.SaveRequest(
+			req.sid,
+			req.id,
+			req.Command.ID,
+			[]map[string]interface{}{
+				{"role": "user", "content": messages[len(messages)-1]["content"], "name": req.sid},
+				{"role": "assistant", "content": string(content), "name": req.sid},
+			},
+		)
+
+		if err != nil {
+			log.Error("Save request error: %s", err.Error())
+		}
+	}
+}
+
+func (req *Request) error(err error, cb func(msg *message.JSON) int) {
+	cb(req.msg().Text(err.Error()))
+	cb(message.New().Done())
+	req.Done()
+}
+
+func (req *Request) question(messages []map[string]interface{}) (string, error) {
+	if len(messages) < 1 {
+		return "", fmt.Errorf("No messages")
+	}
+
+	question, ok := messages[len(messages)-1]["content"].(string)
+	if !ok {
+		return "", fmt.Errorf("messages content is not string")
+	}
+
+	return question, nil
+}
+
+func (req *Request) messages(conversation conversation.Conversation, prompts []Prompt, question string) ([]map[string]interface{}, error) {
+	messages := []map[string]interface{}{}
+	for _, prompt := range prompts {
+		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
+		if prompt.Name != "" {
+			message["name"] = prompt.Name
+		}
+		messages = append(messages, message)
+	}
+
+	history, err := conversation.GetRequest(req.sid, req.id)
+	if err != nil {
+		return nil, err
+	}
+	messages = append(messages, history...)
+	messages = append(messages, map[string]interface{}{"role": "user", "content": question, "name": req.sid})
+	return messages, nil
 }
 
 func (req *Request) runScript(id string, args []interface{}, cb func(msg *message.JSON) int) (map[string]interface{}, error) {
@@ -116,7 +207,7 @@ func (req *Request) runScript(id string, args []interface{}, cb func(msg *messag
 			cb(req.msg().Text(text))
 		}
 
-		cb(message.New().Done())
+		cb(req.msg().Done())
 		req.Done()
 		return v8go.Null(v8ctx.Isolate())
 	})

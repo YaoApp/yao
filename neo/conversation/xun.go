@@ -23,6 +23,8 @@ type row struct {
 	Name      string      `json:"name"`
 	Content   string      `json:"content"`
 	Sid       string      `json:"sid"`
+	Rid       string      `json:"rid"`
+	Cid       string      `json:"cid"`
 	ExpiredAt interface{} `json:"expired_at"`
 }
 
@@ -66,6 +68,7 @@ func (conv *Xun) GetHistory(sid string) ([]map[string]interface{}, error) {
 	qb := conv.query.Table(conv.setting.Table).
 		Select("role", "name", "content").
 		Where("sid", sid).
+		Where("cid", "").
 		OrderBy("id", "desc")
 
 	if conv.setting.TTL > 0 {
@@ -122,6 +125,71 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}) erro
 	return conv.query.Table(conv.setting.Table).Insert(values)
 }
 
+// GetRequest get the request history
+func (conv *Xun) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
+
+	qb := conv.query.Table(conv.setting.Table).
+		Select("role", "name", "content", "sid").
+		Where("rid", rid).
+		Where("sid", sid).
+		OrderBy("id", "desc")
+
+	if conv.setting.TTL > 0 {
+		qb.Where("expired_at", ">", time.Now())
+	}
+
+	limit := 20
+	if conv.setting.MaxSize > 0 {
+		limit = conv.setting.MaxSize
+	}
+
+	rows, err := qb.Limit(limit).Get()
+	if err != nil {
+		return nil, err
+	}
+
+	res := []map[string]interface{}{}
+	for _, row := range rows {
+		res = append([]map[string]interface{}{{
+			"role":    row.Get("role"),
+			"name":    row.Get("name"),
+			"content": row.Get("content"),
+		}}, res...)
+	}
+
+	return res, nil
+}
+
+// SaveRequest save the request history
+func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
+
+	defer conv.clean()
+	var expiredAt interface{} = nil
+	values := []row{}
+	if conv.setting.TTL > 0 {
+		expiredAt = time.Now().Add(time.Duration(conv.setting.TTL) * time.Second)
+	}
+
+	for _, message := range messages {
+		value := row{
+			Role:      message["role"].(string),
+			Name:      "",
+			Content:   message["content"].(string),
+			Sid:       sid,
+			Cid:       cid,
+			Rid:       rid,
+			ExpiredAt: expiredAt,
+		}
+
+		if message["name"] != nil {
+			value.Name = message["name"].(string)
+		}
+		values = append(values, value)
+	}
+
+	return conv.query.Table(conv.setting.Table).Insert(values)
+}
+
 func (conv *Xun) clean() {
 	nums, err := conv.query.Table(conv.setting.Table).Where("expired_at", "<=", time.Now()).Delete()
 	if err != nil {
@@ -148,6 +216,8 @@ func (conv *Xun) Init() error {
 
 			table.ID("id") // The ID field
 			table.String("sid", 255).Index()
+			table.String("rid", 255).Null().Index() // The request ID
+			table.String("cid", 200).Null().Index() // The Command ID
 			table.String("role", 200).Null().Index()
 			table.String("name", 200).Null().Index()
 			table.Text("content").Null()
@@ -169,7 +239,7 @@ func (conv *Xun) Init() error {
 		return err
 	}
 
-	fields := []string{"id", "sid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "rid", "cid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
