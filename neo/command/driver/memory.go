@@ -92,7 +92,6 @@ func (driver *Memory) Match(query query.Param, content string) (string, error) {
 		"content": content,
 	})
 
-	prompts = append([]aigc.Prompt{}, driver.prompts...)
 	res, ex := driver.ai.ChatCompletions(messages, nil, nil)
 	if ex != nil {
 		return "", fmt.Errorf(ex.Message)
