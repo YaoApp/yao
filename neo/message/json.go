@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openai"
 )
 
@@ -61,7 +63,15 @@ func (json *JSON) String() string {
 
 // Text set the text
 func (json *JSON) Text(text string) *JSON {
+
 	json.Message.Text = text
+	if json.Message.Data != nil {
+		replaced := helper.Bind(text, json.Message.Data)
+		if replacedText, ok := replaced.(string); ok {
+			json.Message.Text = replacedText
+		}
+	}
+
 	return json
 }
 
@@ -89,12 +99,27 @@ func (json *JSON) Command(name, id, request string) *JSON {
 
 // Action set the action
 func (json *JSON) Action(name string, t string, payload interface{}, next string) *JSON {
+
+	if json.Message.Data != nil {
+		payload = helper.Bind(payload, json.Message.Data)
+	}
+
 	json.Message.Actions = append(json.Message.Actions, Action{
 		Name:    name,
 		Type:    t,
 		Payload: payload,
 		Next:    next,
 	})
+	return json
+}
+
+// Bind replace with data
+func (json *JSON) Bind(data map[string]interface{}) *JSON {
+	if data == nil {
+		return json
+	}
+
+	json.Message.Data = maps.Of(data).Dot()
 	return json
 }
 

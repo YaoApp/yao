@@ -7,6 +7,7 @@ type Message struct {
 	Confirm bool     `json:"confirm,omitempty"`
 	Command *Command `json:"command,omitempty"`
 	Actions []Action `json:"actions,omitempty"`
+	Data    map[string]interface{}
 }
 
 // Action the action

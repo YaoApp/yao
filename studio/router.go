@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/neo"
 )
 
 var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
@@ -236,6 +237,12 @@ func setRouter(router *gin.Engine) {
 		c.JSON(200, res)
 		c.Done()
 	})
+
+	// Neo API for studio
+	if neo.Neo != nil {
+		neo.Neo.API(router, "/neo")
+	}
+
 }
 
 func throw(c *gin.Context, code int, message string) {

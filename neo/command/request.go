@@ -6,10 +6,10 @@ import (
 
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/process"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
 	"rogchap.com/v8go"
@@ -30,16 +30,57 @@ func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.
 		return nil
 	}
 
+	// Send the command to the service
 	if req.Command.Optional.Confirm != "" {
 		req.confirm(args, cb)
 		return nil
 	}
 
-	utils.Dump(args)
+	// Execute the command by script
+	if strings.HasPrefix(req.Command.Process, "scripts.") || strings.HasPrefix(req.Command.Process, "studio.") {
+
+		res, err := req.runScript(req.Command.Process, args, cb)
+		if err != nil {
+			cb(req.msg().Text("\n\n" + err.Error()))
+			return err
+		}
+
+		msg := req.msg().Bind(res)
+		if req.Actions != nil && len(req.Actions) > 0 {
+			for _, action := range req.Actions {
+				msg.Action(action.Name, action.Type, action.Payload, action.Next)
+			}
+		}
+
+		cb(msg.Done())
+		return nil
+	}
+
+	// Other process
+	p, err := process.Of(req.Command.Process, args...)
+	if err != nil {
+		return err
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		cb(req.msg().Text("\n\n" + err.Error()))
+		return err
+	}
+
+	msg := req.msg()
+	if data, ok := res.(map[string]interface{}); ok {
+		msg = msg.Bind(data)
+	}
+
+	if req.Actions != nil && len(req.Actions) > 0 {
+		for _, action := range req.Actions {
+			msg.Action(action.Name, action.Type, action.Payload, action.Next)
+		}
+	}
 
 	// DONE
 	cb(req.msg().Done())
-
 	return nil
 }
 
@@ -280,7 +321,15 @@ func (req *Request) runScript(id string, args []interface{}, cb func(msg *messag
 	namer := strings.Split(id, ".")
 	method := namer[len(namer)-1]
 	scriptID := strings.Join(namer[1:len(namer)-1], ".")
-	script, err := v8.Select(scriptID)
+
+	var err error
+	var script *v8.Script
+	if namer[0] == "scripts" {
+		script, err = v8.Select(scriptID)
+	} else if namer[0] == "studio" {
+		script, err = v8.SelectRoot(scriptID)
+	}
+
 	if err != nil {
 		return nil, err
 	}
