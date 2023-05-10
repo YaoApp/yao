@@ -80,7 +80,7 @@ func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.
 	}
 
 	// DONE
-	cb(req.msg().Done())
+	cb(msg.Done())
 	return nil
 }
 
