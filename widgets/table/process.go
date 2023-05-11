@@ -43,6 +43,7 @@ func exportProcess() {
 	gouProcess.Register("yao.table.deletewhere", processDeleteWhere)
 	gouProcess.Register("yao.table.deletein", processDeleteIn)
 	gouProcess.Register("yao.table.export", processExport)
+	gouProcess.Register("yao.table.load", processLoad)
 }
 
 func processXgen(process *gouProcess.Process) interface{} {
@@ -306,4 +307,16 @@ func processExport(process *gouProcess.Process) interface{} {
 	}
 
 	return filename
+}
+
+// processLoad yao.table.Load (:file)
+func processLoad(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	file := process.ArgsString(0)
+	if file == "" {
+		exception.New("file is required", 400).Throw()
+	}
+
+	file = strings.TrimPrefix(file, string(os.PathSeparator))
+	return LoadFile("tables", file)
 }

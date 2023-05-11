@@ -120,7 +120,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 			"expires_at": expiresAt,
 			"sid":        sid,
 			"issuer":     "yao",
-		}, config.Conf.Studio.Secret)
+		}, []byte(config.Conf.Studio.Secret))
 
 		studio["port"] = config.Conf.Studio.Port
 		studio["token"] = studioToken.Token

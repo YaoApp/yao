@@ -236,6 +236,6 @@ func getToken(t *testing.T) string {
 		1,
 		map[string]interface{}{"id": 1, "user_id": 1, "user": kv{"id": 1, "name": "test"}},
 		map[string]interface{}{"issuer": "unit-test", "timeout": 3600},
-		config.Conf.Studio.Secret,
+		[]byte(config.Conf.Studio.Secret),
 	).Token
 }

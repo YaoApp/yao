@@ -54,29 +54,15 @@ func LoadAndExport(cfg config.Config) error {
 // Load the app DSL
 func Load(cfg config.Config) error {
 
-	// file := filepath.Join(cfg.Root, "app.json")
-	// file, err := filepath.Abs(file)
-	// if err != nil {
-	// 	return err
-	// }
+	file, err := getAppFile()
+	if err != nil {
+		return err
+	}
 
-	var data []byte
-	var err error
-	var file string
-	application.App.Walk("", func(root, filename string, isdir bool) error {
-		if isdir {
-			return nil
-		}
-
-		data, err = application.App.Read(filename)
-		if err != nil {
-			return err
-		}
-
-		file = filename
-		return nil
-
-	}, "app.yao", "app.json", "app.jsonc")
+	data, err := application.App.Read(file)
+	if err != nil {
+		return err
+	}
 
 	if err != nil {
 		return err
@@ -103,6 +89,26 @@ func Load(cfg config.Config) error {
 
 	Setting = dsl
 	return nil
+}
+
+func getAppFile() (string, error) {
+
+	file := filepath.Join(string(os.PathSeparator), "app.yao")
+	if has, _ := application.App.Exists(file); has {
+		return file, nil
+	}
+
+	file = filepath.Join(string(os.PathSeparator), "app.jsonc")
+	if has, _ := application.App.Exists(file); has {
+		return file, nil
+	}
+
+	file = filepath.Join(string(os.PathSeparator), "app.json")
+	if has, _ := application.App.Exists(file); has {
+		return file, nil
+	}
+
+	return "", fmt.Errorf("app.yao not found")
 }
 
 // exportAPI export login api

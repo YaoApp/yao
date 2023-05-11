@@ -89,7 +89,7 @@ func hdAuth(c *gin.Context) {
 			return
 		}
 
-		claims := helper.JwtValidate(tokenString, config.Conf.Studio.Secret)
+		claims := helper.JwtValidate(tokenString, []byte(config.Conf.Studio.Secret))
 		c.Set("__sid", claims.SID)
 		c.Next()
 		return

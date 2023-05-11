@@ -197,11 +197,14 @@ func Load(cfg config.Config) (err error) {
 func Unload() (err error) {
 	defer func() { err = exception.Catch(recover()) }()
 
+	// Stop Runtime
+	err = runtime.Stop()
+
 	// Close DB
 	err = share.DBClose()
 
-	// Stop Runtime
-	err = runtime.Stop()
+	// Close Connectors
+	err = connector.Close()
 
 	// Recycle
 	// api
@@ -226,7 +229,147 @@ func Unload() (err error) {
 }
 
 // Reload the application engine
-func Reload(cfg config.Config) error {
+func Reload(cfg config.Config) (err error) {
+
+	defer func() { err = exception.Catch(recover()) }()
+	exception.Mode = cfg.Mode
+
+	// SET XGEN_BASE
+	adminRoot := "yao"
+	if share.App.Optional != nil {
+		if root, has := share.App.Optional["adminRoot"]; has {
+			adminRoot = fmt.Sprintf("%v", root)
+		}
+	}
+	os.Setenv("XGEN_BASE", adminRoot)
+
+	// load the application
+	err = loadApp(cfg.AppSource)
+	if err != nil {
+		printErr(cfg.Mode, "Load Application", err)
+	}
+
+	// Load Certs
+	err = cert.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Cert", err)
+	}
+
+	// Load FileSystem
+	err = fs.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "FileSystem", err)
+	}
+
+	// Load i18n
+	err = i18n.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "i18n", err)
+	}
+
+	// Load Query Engine
+	err = query.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Query Engine", err)
+	}
+
+	// Load Scripts
+	err = script.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Script", err)
+	}
+
+	// Load Models
+	err = model.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Model", err)
+	}
+
+	// Load Data flows
+	err = flow.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Flow", err)
+	}
+
+	// Load Stores
+	err = store.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Store", err)
+	}
+
+	// Load Plugins
+	err = plugin.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Plugin", err)
+	}
+
+	// Load WASM Application (experimental)
+
+	// Load build-in widgets (table / form / chart / ...)
+	err = widgets.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Widgets", err)
+	}
+
+	// Load Importers
+	err = importer.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Plugin", err)
+	}
+
+	// Load Apis
+	err = api.Load(cfg) // 加载业务接口 API
+	if err != nil {
+		printErr(cfg.Mode, "API", err)
+	}
+
+	// Load Sockets
+	err = socket.Load(cfg) // Load sockets
+	if err != nil {
+		printErr(cfg.Mode, "Socket", err)
+	}
+
+	// Load websockets (client mode)
+	err = websocket.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "WebSocket", err)
+	}
+
+	// Load tasks
+	err = task.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Task", err)
+	}
+
+	// Load schedules
+	err = schedule.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Schedule", err)
+	}
+
+	// Load Custom Widget
+	err = widget.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Widget", err)
+	}
+
+	// Load AIGC
+	err = aigc.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "AIGC", err)
+	}
+
+	// Load Neo
+	err = neo.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "AIGC", err)
+	}
+
+	return err
+}
+
+// Restart the application engine
+func Restart(cfg config.Config) error {
 	err := Unload()
 	if err != nil {
 		return err

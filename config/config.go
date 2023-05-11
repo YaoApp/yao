@@ -84,12 +84,12 @@ func Load() Config {
 	}
 
 	// Studio Secret
-	if cfg.Studio.Secret == nil {
+	if cfg.Studio.Secret == "" {
 		v, err := crypto.Hash(crypto.HashTypes["SHA256"], uuid.New().String())
 		if err != nil {
 			exception.New("Can't gengrate studio secret %s", 500, err.Error()).Throw()
 		}
-		cfg.Studio.Secret = []byte(strings.ToUpper(v))
+		cfg.Studio.Secret = strings.ToUpper(v)
 		cfg.Studio.Auto = true
 	}
 

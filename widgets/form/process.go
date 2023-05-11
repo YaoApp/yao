@@ -3,6 +3,7 @@ package form
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/yaoapp/gou/fs"
@@ -26,6 +27,7 @@ func exportProcess() {
 	gouProcess.Register("yao.form.create", processCreate)
 	gouProcess.Register("yao.form.update", processUpdate)
 	gouProcess.Register("yao.form.delete", processDelete)
+	gouProcess.Register("yao.form.load", processLoad)
 }
 
 func processXgen(process *gouProcess.Process) interface{} {
@@ -178,4 +180,16 @@ func processUpdate(process *gouProcess.Process) interface{} {
 func processDelete(process *gouProcess.Process) interface{} {
 	form := MustGet(process)
 	return form.Action.Delete.MustExec(process)
+}
+
+// processLoad yao.table.Load (:file)
+func processLoad(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	file := process.ArgsString(0)
+	if file == "" {
+		exception.New("file is required", 400).Throw()
+	}
+
+	file = strings.TrimPrefix(file, string(os.PathSeparator))
+	return LoadFile("forms", file)
 }

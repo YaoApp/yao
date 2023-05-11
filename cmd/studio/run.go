@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou/plugin"
@@ -88,7 +89,9 @@ var RunCmd = &cobra.Command{
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 		}
 
-		ctx, err := script.NewContext("", nil)
+		sid := uuid.New().String()
+		global := map[string]interface{}{}
+		ctx, err := script.NewContext(sid, global)
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 		}
