@@ -20,6 +20,28 @@ func TestProcessTiktoken(t *testing.T) {
 	assert.Equal(t, 6, res)
 }
 
+func TestProcessEmbeddings(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	args := []interface{}{"text-embedding-ada-002", "hello world"}
+	data := process.New("openai.Embeddings", args...).Run()
+	assert.NotNil(t, data.(map[string]interface{})["data"])
+
+	args = []interface{}{"text-embedding-ada-002", []string{"The food was delicious and the waiter", "hello"}, "user-01"}
+	data = process.New("openai.Embeddings", args...).Run()
+	assert.NotNil(t, data.(map[string]interface{})["data"])
+}
+
+func TestProcessAudioTranscriptions(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	args := []interface{}{"whisper-1", audio(t)}
+	data := process.New("openai.audio.Transcriptions", args...).Run()
+	assert.Equal(t, "今晚打老虎", data.(map[string]interface{})["text"])
+}
+
 func TestProcessChatCompletions(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
