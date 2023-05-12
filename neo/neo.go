@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/api"
@@ -143,7 +144,7 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 	content := []byte{}
 
 	// get the chat messages
-	messages, err := neo.chatMessages(ctx.Sid, question)
+	messages, err := neo.chatMessages(ctx, question)
 	if err != nil {
 		return err
 	}
@@ -242,15 +243,64 @@ func (neo *DSL) prompts() []map[string]interface{} {
 	return prompts
 }
 
+// prepare the messages
+func (neo *DSL) prepare(ctx command.Context, messages []map[string]interface{}) []map[string]interface{} {
+	if neo.Prepare == "" {
+		return []map[string]interface{}{}
+	}
+
+	prompts := []map[string]interface{}{}
+	p, err := process.Of(neo.Prepare, ctx, messages)
+	if err != nil {
+		color.Red("Neo prepare error: %s", err.Error())
+		return prompts
+	}
+
+	data, err := p.Exec()
+	if err != nil {
+		color.Red("Neo prepare execute error: %s", err.Error())
+		return prompts
+	}
+
+	items, ok := data.([]interface{})
+	if !ok {
+		color.Red("Neo prepare response is not array")
+		return prompts
+	}
+
+	for i, item := range items {
+		v, ok := item.(map[string]interface{})
+		if !ok {
+			color.Red("Neo prepare response [%d] is not map", i)
+			continue
+		}
+
+		if _, ok := v["role"]; !ok {
+			color.Red(`Neo prepare response [%d]["role"] required`, i)
+			continue
+		}
+
+		if _, ok := v["content"]; !ok {
+			color.Red(`Neo prepare response [%d]["content"] required`, i)
+			continue
+		}
+		prompts = append(prompts, v)
+	}
+
+	return prompts
+}
+
 // chatMessages get the chat messages
-func (neo *DSL) chatMessages(sid, content string) ([]map[string]interface{}, error) {
+func (neo *DSL) chatMessages(ctx command.Context, content string) ([]map[string]interface{}, error) {
 	messages := append([]map[string]interface{}{}, neo.prompts()...)
-	history, err := neo.Conversation.GetHistory(sid)
+
+	history, err := neo.Conversation.GetHistory(ctx.Sid)
 	if err != nil {
 		return nil, err
 	}
+	messages = append(messages, neo.prepare(ctx, messages)...) // Add prepare messages
 	messages = append(messages, history...)
-	messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": sid})
+	messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": ctx.Sid})
 	return messages, nil
 }
 

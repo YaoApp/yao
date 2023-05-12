@@ -318,7 +318,7 @@ func (req *Request) saveHistory(content []byte, messages []map[string]interface{
 
 func (req *Request) error(err error, cb func(msg *message.JSON) int) {
 	cb(req.msg().Text(err.Error()))
-	cb(message.New().Done())
+	cb(req.msg().Done())
 	// req.Done()
 }
 
@@ -400,7 +400,7 @@ func (req *Request) runScript(id string, args []interface{}, cb func(msg *messag
 		}
 
 		cb(req.msg().Done())
-		req.Done()
+		// req.Done()
 		return v8go.Null(v8ctx.Isolate())
 	})
 
