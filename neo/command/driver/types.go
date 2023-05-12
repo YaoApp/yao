@@ -10,6 +10,7 @@ type Request struct {
 // Command the command struct
 type Command struct {
 	ID          string                   `json:"-" yaml:"-"`
+	Use         string                   `json:"use,omitempty"`
 	Name        string                   `json:"name,omitempty"`
 	Description string                   `json:"description,omitempty"`
 	Args        []map[string]interface{} `json:"args,omitempty"`

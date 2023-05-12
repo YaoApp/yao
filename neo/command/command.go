@@ -2,6 +2,8 @@ package command
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/aigc"
@@ -12,6 +14,8 @@ import (
 
 // DefaultStore the default store driver
 var DefaultStore Store
+var recmd, _ = regexp.Compile(`^\/([a-zA-Z]+) +`)
+var reCmdOnly, _ = regexp.Compile(`^\/([a-zA-Z]+)$`)
 
 // SetStore the driver interface
 func SetStore(store Store) {
@@ -29,6 +33,21 @@ func Match(sid string, query query.Param, input string) (string, error) {
 	if id, cid, has := DefaultStore.GetRequest(sid); has {
 		fmt.Println("Match Requst:", id)
 		return cid, nil
+	}
+
+	// Match the command use the command ID
+	match := reCmdOnly.FindSubmatch([]byte(strings.TrimSpace(input)))
+	if match == nil {
+		match = recmd.FindSubmatch([]byte(strings.TrimSpace(input)))
+	}
+	if match != nil {
+		key := fmt.Sprintf("[Index]%s", match[1])
+		fmt.Println("Match Index:", key)
+
+		if cmd, ok := DefaultStore.Get(key); ok {
+			fmt.Println("Match Command:", cmd.ID)
+			return cmd.ID, nil
+		}
 	}
 
 	return DefaultStore.Match(query, input)
@@ -60,13 +79,24 @@ func (cmd *Command) save() error {
 		})
 	}
 
-	return DefaultStore.Set(cmd.ID, driver.Command{
+	data := driver.Command{
 		ID:          cmd.ID,
+		Use:         cmd.Use,
 		Description: cmd.Description,
 		Args:        args,
 		Stack:       cmd.Stack,
 		Path:        cmd.Path,
-	})
+	}
+
+	if cmd.Use != "" {
+		key := fmt.Sprintf("[Index]%s", cmd.Use)
+		err := DefaultStore.Set(key, data)
+		if err != nil {
+			return err
+		}
+	}
+
+	return DefaultStore.Set(cmd.ID, data)
 }
 
 // NewAI create a new AI
