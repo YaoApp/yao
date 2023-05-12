@@ -23,6 +23,7 @@ type Request struct {
 type Command struct {
 	ID          string           `json:"-" yaml:"-"`
 	Name        string           `json:"name,omitempty"`
+	Use         string           `json:"use,omitempty"`
 	Connector   string           `json:"connector"`
 	Process     string           `json:"process"`
 	Prepare     Prepare          `json:"prepare"`
@@ -77,9 +78,9 @@ type Context struct {
 // Store the command driver
 type Store interface {
 	Match(query query.Param, content string) (string, error)
-	Set(id string, cmd driver.Command) error
-	Get(id string) (driver.Command, bool)
-	Del(id string)
+	Set(key string, cmd driver.Command) error
+	Get(key string) (driver.Command, bool)
+	Del(key string)
 	SetRequest(sid, id, cid string) error
 	GetRequest(sid string) (string, string, bool)
 	DelRequest(sid string)

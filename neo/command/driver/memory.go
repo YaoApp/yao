@@ -60,6 +60,7 @@ func (driver *Memory) Match(query query.Param, content string) (string, error) {
 			has = true
 			bytes, err := jsoniter.Marshal(map[string]interface{}{
 				"id":          cmd.ID,
+				"use":         cmd.Use,
 				"name":        cmd.Name,
 				"description": cmd.Description,
 				"args":        cmd.Args,
@@ -118,19 +119,19 @@ func (driver *Memory) Match(query query.Param, content string) (string, error) {
 }
 
 // Set Set the command data
-func (driver *Memory) Set(id string, cmd Command) error {
-	commands.Store(id, cmd)
+func (driver *Memory) Set(key string, cmd Command) error {
+	commands.Store(key, cmd)
 	return nil
 }
 
 // Del delete the command data
-func (driver *Memory) Del(id string) {
-	commands.Delete(id)
+func (driver *Memory) Del(key string) {
+	commands.Delete(key)
 }
 
 // Get the command data
-func (driver *Memory) Get(id string) (Command, bool) {
-	v, ok := commands.Load(id)
+func (driver *Memory) Get(key string) (Command, bool) {
+	v, ok := commands.Load(key)
 	if !ok {
 		return Command{}, false
 	}

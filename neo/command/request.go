@@ -10,6 +10,8 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
 	"rogchap.com/v8go"
@@ -18,16 +20,44 @@ import (
 // Run the command
 func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.JSON) int) error {
 
+	// Enter the command mode
+	if input, ok := messages[len(messages)-1]["content"].(string); ok {
+		match := reCmdOnly.FindSubmatch([]byte(strings.TrimSpace(input)))
+		if match != nil {
+			fmt.Printf("Match Command: %s  | %s\n", match[1], input)
+			cb(req.msg().Text("Enter the command Mode"))
+			cb(req.msg().Done())
+			return nil
+		}
+	}
+
+	if config.Conf.Mode == "development" {
+		utils.Dump("----Request Run ----")
+		fmt.Printf("Command Request: %s %s\n", req.Command.ID, req.sid)
+		fmt.Printf("Command Process: %s\n", req.Command.Process)
+		fmt.Printf("Command Prepare Before: %s\n", req.Command.Prepare.Before)
+		fmt.Printf("Command Prepare Before: %s\n", req.Command.Prepare.After)
+	}
+
 	input, err := req.prepare(messages, cb)
 	if err != nil {
 		req.error(err, cb)
 		return err
 	}
 
+	if config.Conf.Mode == "development" {
+		utils.Dump("----Input After Prepare ----", input)
+	}
+
 	args, err := req.parseArgs(input, cb)
 	if err != nil {
+		cb(req.msg().Text("\n\n" + err.Error()))
 		cb(req.msg().Done())
 		return nil
+	}
+
+	if config.Conf.Mode == "development" {
+		utils.Dump("---- Command Args ----", args)
 	}
 
 	// Send the command to the service
@@ -167,6 +197,10 @@ func (req *Request) parseArgs(input interface{}, cb func(msg *message.JSON) int)
 // RunPrepare the command
 func (req *Request) prepare(messages []map[string]interface{}, cb func(msg *message.JSON) int) (interface{}, error) {
 
+	if config.Conf.Mode == "development" {
+		utils.Dump("----Messages Before Prepare ----", messages)
+	}
+
 	// Before hook
 	data, err := req.prepareBefore(messages, cb)
 	if err != nil {
@@ -196,6 +230,10 @@ func (req *Request) prepare(messages []map[string]interface{}, cb func(msg *mess
 	if err != nil {
 		req.error(err, cb)
 		return nil, err
+	}
+
+	if config.Conf.Mode == "development" {
+		utils.Dump("----Command Prompts ----", chatMessages)
 	}
 
 	// chat with AI
@@ -281,7 +319,7 @@ func (req *Request) saveHistory(content []byte, messages []map[string]interface{
 func (req *Request) error(err error, cb func(msg *message.JSON) int) {
 	cb(req.msg().Text(err.Error()))
 	cb(message.New().Done())
-	req.Done()
+	// req.Done()
 }
 
 func (req *Request) question(messages []map[string]interface{}) (string, error) {

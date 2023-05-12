@@ -251,9 +251,9 @@ func (neo *DSL) matchCommand(ctx command.Context, messages []map[string]interfac
 		return nil, false
 	}
 
-	name, err := command.Match(ctx.Sid, query.Param{Stack: ctx.Stack, Path: ctx.Path}, input)
-	if err == nil && name != "" {
-		cmd, isCommand := command.Commands[name]
+	id, err := command.Match(ctx.Sid, query.Param{Stack: ctx.Stack, Path: ctx.Path}, input)
+	if err == nil && id != "" {
+		cmd, isCommand := command.Commands[id]
 		return cmd, isCommand
 	}
 
