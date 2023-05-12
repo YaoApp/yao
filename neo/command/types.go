@@ -84,4 +84,5 @@ type Store interface {
 	SetRequest(sid, id, cid string) error
 	GetRequest(sid string) (string, string, bool)
 	DelRequest(sid string)
+	GetCommands() ([]driver.Command, error)
 }

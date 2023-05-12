@@ -58,9 +58,16 @@ func Exit(sid string) error {
 	if DefaultStore == nil {
 		return fmt.Errorf("command store is not set")
 	}
-
 	DefaultStore.DelRequest(sid)
 	return nil
+}
+
+// GetCommands get all commands
+func GetCommands() ([]driver.Command, error) {
+	if DefaultStore == nil {
+		return nil, fmt.Errorf("command store is not set")
+	}
+	return DefaultStore.GetCommands()
 }
 
 // save the command to the store
@@ -81,6 +88,7 @@ func (cmd *Command) save() error {
 
 	data := driver.Command{
 		ID:          cmd.ID,
+		Name:        cmd.Name,
 		Use:         cmd.Use,
 		Description: cmd.Description,
 		Args:        args,

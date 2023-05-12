@@ -78,6 +78,20 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		c.Done()
 	})
 
+	// api router chat commands
+	router.GET(path+"/commands", func(c *gin.Context) {
+
+		commands, err := command.GetCommands()
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+
+		c.JSON(200, commands)
+		c.Done()
+	})
+
 	// api router exit command mode
 	router.POST(path, func(c *gin.Context) {
 		sid := c.GetString("__sid")
