@@ -16,6 +16,7 @@ type DSL struct {
 	Connector           string                    `json:"connector"`
 	ConversationSetting conversation.Setting      `json:"conversation" yaml:"conversation"`
 	Option              map[string]interface{}    `json:"option"`
+	Prepare             string                    `json:"prepare,omitempty"`
 	Prompts             []aigc.Prompt             `json:"prompts,omitempty"`
 	Allows              []string                  `json:"allows,omitempty"`
 	AI                  aigc.AI                   `json:"-" yaml:"-"`
