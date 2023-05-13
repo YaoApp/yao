@@ -382,7 +382,7 @@ func (neo *DSL) setGuard(router *gin.Engine) error {
 
 	if neo.Guard == "" {
 		router.Use(func(c *gin.Context) {
-			token := c.Query("token")
+			token := strings.TrimSpace(strings.TrimPrefix(c.Query("token"), "Bearer "))
 			if token == "" {
 				c.JSON(403, gin.H{"message": "token is required", "code": 403})
 				c.Abort()

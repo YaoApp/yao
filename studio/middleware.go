@@ -65,20 +65,8 @@ func hdAuth(c *gin.Context) {
 	tokenString := c.Request.Header.Get("Authorization")
 
 	// Get token from query
-	if tokenString == "" {
-
-		// Temporary solution (will be removed in the future)
-		tokenString = strings.TrimSpace(strings.TrimPrefix(c.Query("token"), "Bearer "))
-		if tokenString == "" {
-			c.JSON(403, gin.H{"code": 403, "message": "No permission"})
-			c.Abort()
-			return
-		}
-
-		claims := helper.JwtValidate(tokenString, []byte(config.Conf.JWTSecret))
-		c.Set("__sid", claims.SID)
-		c.Next()
-		return
+	if c.Query("studio") != "" {
+		tokenString = c.Query("studio")
 	}
 
 	if strings.HasPrefix(tokenString, "Bearer") {
