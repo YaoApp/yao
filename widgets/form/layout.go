@@ -66,22 +66,30 @@ func (layout *LayoutDSL) BindModel(m *model.Model, formID string, fields *Fields
 		}
 
 		columns := []Column{}
+		ignoreFields := map[string]bool{"deleted_at": m.MetaData.Option.SoftDeletes}
 		for _, namev := range m.ColumnNames {
 			name, ok := namev.(string)
-			if ok && name != "deleted_at" {
-				if col, has := fields.formMap[name]; has {
-					width := 12
-					if col.Edit != nil && (col.Edit.Type == "TextArea" || col.Edit.Type == "Upload") {
-						width = 24
-					}
-					// if c, has := m.Columns[name]; has {
-					// 	typ := strings.ToLower(c.Type)
-					// 	if typ == "id" || strings.Contains(typ, "integer") || strings.Contains(typ, "float") {
-					// 		width = 6
-					// 	}
-					// }
-					columns = append(columns, Column{InstanceDSL: component.InstanceDSL{Name: col.Key, Width: width}})
+			if !ok {
+				continue
+			}
+
+			ignore, has := ignoreFields[name]
+			if has && ignore {
+				continue
+			}
+
+			if col, has := fields.formMap[name]; has {
+				width := 12
+				if col.Edit != nil && (col.Edit.Type == "TextArea" || col.Edit.Type == "Upload") {
+					width = 24
 				}
+				// if c, has := m.Columns[name]; has {
+				// 	typ := strings.ToLower(c.Type)
+				// 	if typ == "id" || strings.Contains(typ, "integer") || strings.Contains(typ, "float") {
+				// 		width = 6
+				// 	}
+				// }
+				columns = append(columns, Column{InstanceDSL: component.InstanceDSL{Name: col.Key, Width: width}})
 			}
 		}
 		layout.Form.Sections = []SectionDSL{{Columns: columns}}
