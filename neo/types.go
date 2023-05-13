@@ -19,6 +19,7 @@ type DSL struct {
 	Prepare             string                    `json:"prepare,omitempty"`
 	Prompts             []aigc.Prompt             `json:"prompts,omitempty"`
 	Allows              []string                  `json:"allows,omitempty"`
+	Command             Command                   `json:"command,omitempty"`
 	AI                  aigc.AI                   `json:"-" yaml:"-"`
 	Conversation        conversation.Conversation `json:"-" yaml:"-"`
 }
@@ -28,4 +29,9 @@ type Answer interface {
 	Stream(func(w io.Writer) bool) bool
 	Status(code int)
 	Header(key, value string)
+}
+
+// Command setting
+type Command struct {
+	Parser string `json:"parser,omitempty"`
 }

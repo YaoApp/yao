@@ -23,6 +23,7 @@ func Load(cfg config.Config) error {
 		Prompts: []aigc.Prompt{},
 		Option:  map[string]interface{}{},
 		Allows:  []string{},
+		Command: Command{Parser: ""},
 		ConversationSetting: conversation.Setting{
 			Table:     "yao_neo_conversation",
 			Connector: "default",
@@ -58,7 +59,11 @@ func Load(cfg config.Config) error {
 	}
 
 	// Command Setting
-	store, err := driver.NewMemory("gpt-3_5-turbo", nil)
+	parser := setting.Command.Parser
+	if parser == "" || parser == "default" {
+		parser = setting.Connector
+	}
+	store, err := driver.NewMemory(setting.Command.Parser, nil)
 	if err != nil {
 		return err
 	}
