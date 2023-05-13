@@ -79,57 +79,40 @@ func (layout *LayoutDSL) BindModel(m *model.Model, fields *FieldsDSL, option map
 			layout.Table.Operation.Hide = false
 			layout.Table.Operation.Actions = append(
 				layout.Table.Operation.Actions,
-
-				component.ActionDSL{
+				[]component.ActionDSL{{
 					Title: "::View",
 					Icon:  "icon-eye",
-					Action: component.ActionNodes{
-						{
-							"name": "OpenModal",
-							"type": "Common.openModal",
-							"payload": map[string]interface{}{
-								"Form": map[string]interface{}{
-									"type":  "view",
-									"model": formName,
-								},
-							},
+					Action: component.ActionNodes{{
+						"name": "OpenModal",
+						"type": "Common.openModal",
+						"payload": map[string]interface{}{
+							"Form": map[string]interface{}{"type": "view", "model": formName},
 						},
-					},
-				},
-
-				component.ActionDSL{
+					}},
+				}, {
 					Title: "::Edit",
 					Icon:  "icon-edit-2",
-					Action: component.ActionNodes{
-						{
-							"name": "OpenModal",
-							"type": "Common.openModal",
-							"payload": map[string]interface{}{
-								"Form": map[string]interface{}{
-									"type":  "edit",
-									"model": formName,
-								},
-							},
+					Action: component.ActionNodes{{
+						"name": "OpenModal",
+						"type": "Common.openModal",
+						"payload": map[string]interface{}{
+							"Form": map[string]interface{}{"type": "edit", "model": formName},
 						},
-					},
-				},
-
-				component.ActionDSL{
+					}},
+				}, {
 					Title: "::Delete",
 					Icon:  "icon-trash-2",
 					Style: "danger",
-					Action: component.ActionNodes{
-						{
-							"name":    "Delete",
-							"type":    "Table.delete",
-							"payload": map[string]interface{}{"model": formName},
-						},
-					},
-					Confirm: &component.ConfirmActionDSL{
-						Title: "::Confirm",
-						Desc:  "::Please confirm, the data cannot be recovered",
-					},
-				},
+					Action: component.ActionNodes{{
+						"name":    "Confirm",
+						"type":    "Common.confirm",
+						"payload": map[string]interface{}{"title": "::Confirm", "content": "::Please confirm, the data cannot be recovered"},
+					}, {
+						"name":    "Delete",
+						"type":    "Table.delete",
+						"payload": map[string]interface{}{"model": formName},
+					}},
+				}}...,
 			)
 		}
 

@@ -19,20 +19,42 @@ func (layout *LayoutDSL) BindModel(m *model.Model, formID string, fields *Fields
 	if layout.Actions == nil {
 		layout.Actions = []component.ActionDSL{
 			{
+				Title:       "::Save",
+				Icon:        "icon-check",
+				Style:       "primary",
+				ShowWhenAdd: true,
+				Action: component.ActionNodes{{
+					"name":    "Submit",
+					"type":    "Form.submit",
+					"payload": map[string]interface{}{},
+				}},
+			}, {
 				Title: "::Delete",
 				Icon:  "icon-trash-2",
 				Style: "danger",
-				Action: component.ActionNodes{
-					{
-						"name":    "Delete",
-						"type":    "Form.delete",
-						"payload": map[string]interface{}{"model": formID},
-					},
-				},
-				Confirm: &component.ConfirmActionDSL{
-					Title: "::Confirm",
-					Desc:  "::Please confirm, the data cannot be recovered",
-				},
+				Action: component.ActionNodes{{
+					"name":    "Confirm",
+					"type":    "Common.confirm",
+					"payload": map[string]interface{}{"title": "::Confirm", "content": "::Please confirm, the data cannot be recovered"},
+				}, {
+					"name":    "Delete",
+					"type":    "Form.delete",
+					"payload": map[string]interface{}{"model": formID},
+				}, {
+					"name":    "Back",
+					"type":    "Common.historyBack",
+					"payload": map[string]interface{}{},
+				}},
+			}, {
+				Title:        "::Back",
+				Icon:         "icon-arrow-left",
+				ShowWhenAdd:  true,
+				ShowWhenView: true,
+				Action: component.ActionNodes{{
+					"name":    "Back",
+					"type":    "Common.historyBack",
+					"payload": map[string]interface{}{},
+				}},
 			},
 		}
 	}
@@ -95,20 +117,42 @@ func (layout *LayoutDSL) BindTable(tab *table.DSL, formID string, fields *Fields
 	if layout.Actions == nil {
 		layout.Actions = []component.ActionDSL{
 			{
+				Title:       "::Save",
+				Icon:        "icon-check",
+				Style:       "primary",
+				ShowWhenAdd: true,
+				Action: component.ActionNodes{{
+					"name":    "Submit",
+					"type":    "Form.submit",
+					"payload": map[string]interface{}{},
+				}},
+			}, {
 				Title: "::Delete",
 				Icon:  "icon-trash-2",
 				Style: "danger",
-				Action: component.ActionNodes{
-					{
-						"name":    "Delete",
-						"type":    "Form.delete",
-						"payload": map[string]interface{}{"model": formID},
-					},
-				},
-				Confirm: &component.ConfirmActionDSL{
-					Title: "::Confirm",
-					Desc:  "::Please confirm, the data cannot be recovered",
-				},
+				Action: component.ActionNodes{{
+					"name":    "Confirm",
+					"type":    "Common.confirm",
+					"payload": map[string]interface{}{"title": "::Confirm", "content": "::Please confirm, the data cannot be recovered"},
+				}, {
+					"name":    "Delete",
+					"type":    "Form.delete",
+					"payload": map[string]interface{}{"model": formID},
+				}, {
+					"name":    "Back",
+					"type":    "Common.historyBack",
+					"payload": map[string]interface{}{},
+				}},
+			}, {
+				Title:        "::Back",
+				Icon:         "icon-arrow-left",
+				ShowWhenAdd:  true,
+				ShowWhenView: true,
+				Action: component.ActionNodes{{
+					"name":    "Back",
+					"type":    "Common.historyBack",
+					"payload": map[string]interface{}{},
+				}},
 			},
 		}
 	}
