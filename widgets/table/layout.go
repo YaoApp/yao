@@ -1,7 +1,6 @@
 package table
 
 import (
-	"fmt"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
@@ -34,9 +33,11 @@ func (layout *LayoutDSL) BindModel(m *model.Model, fields *FieldsDSL, option map
 					Width: 3,
 					Action: component.ActionNodes{
 						{
-							"name":    "HistoryPush",
-							"type":    "Common.historyPush",
-							"payload": map[string]interface{}{"pathname": fmt.Sprintf("/x/Form/%s/0/edit", formName)},
+							"name": "OpenModal",
+							"type": "Common.openModal",
+							"payload": map[string]interface{}{
+								"Form": map[string]interface{}{"type": "edit", "model": formName},
+							},
 						},
 					},
 				},
