@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
@@ -81,6 +82,7 @@ import (
 
 // Tables the loaded table widgets
 var Tables map[string]*DSL = map[string]*DSL{}
+var lock sync.Mutex
 
 // New create a new DSL
 func New(id string) *DSL {
@@ -142,6 +144,13 @@ func LoadID(id string, root string) error {
 	}
 
 	return fmt.Errorf("table %s not found", id)
+}
+
+// LoadFileSync load table dsl by file
+func LoadFileSync(root string, file string) error {
+	lock.Lock()
+	defer lock.Unlock()
+	return LoadFile(root, file)
 }
 
 // LoadFile load table dsl by file
