@@ -112,7 +112,14 @@ func (cProp CloudPropsDSL) replaceAny(data interface{}, root string, replace fun
 
 func (cProp CloudPropsDSL) replaceMap(data map[string]interface{}, root string, replace func(cProp CloudPropsDSL) interface{}) error {
 	xpath := fmt.Sprintf(".%s.$%s", cProp.Xpath, cProp.Name)
+
+	// get keys
+	keys := []string{}
 	for key := range data {
+		keys = append(keys, key)
+	}
+
+	for _, key := range keys {
 		path := fmt.Sprintf("%s.%s", root, key)
 		if !strings.HasPrefix(xpath, path) {
 			continue

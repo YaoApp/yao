@@ -318,5 +318,5 @@ func processLoad(process *gouProcess.Process) interface{} {
 	}
 
 	file = strings.TrimPrefix(file, string(os.PathSeparator))
-	return LoadFile("tables", file)
+	return LoadFileSync("tables", file)
 }

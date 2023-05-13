@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
@@ -51,6 +52,7 @@ import (
 
 // Forms the loaded form widgets
 var Forms map[string]*DSL = map[string]*DSL{}
+var lock sync.Mutex
 
 // New create a new DSL
 func New(id string) *DSL {
@@ -94,7 +96,14 @@ func Load(cfg config.Config) error {
 	return err
 }
 
-// LoadFile load table dsl by file
+// LoadFileSync load form dsl by file
+func LoadFileSync(root string, file string) error {
+	lock.Lock()
+	defer lock.Unlock()
+	return LoadFile(root, file)
+}
+
+// LoadFile load form dsl by file
 func LoadFile(root string, file string) error {
 
 	id := share.ID(root, file)
