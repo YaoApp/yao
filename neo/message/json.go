@@ -48,7 +48,7 @@ func NewOpenAI(data []byte) *JSON {
 		break
 
 	default:
-		return nil
+		msg.Error = string(data)
 	}
 
 	return &JSON{msg}

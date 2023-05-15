@@ -15,3 +15,16 @@ type Message struct {
 		FinishReason string `json:"finish_reason,omitempty"`
 	} `json:"choices,omitempty"`
 }
+
+// ErrorMessage is the error response from OpenAI
+type ErrorMessage struct {
+	Error Error `json:"error,omitempty"`
+}
+
+// Error is the error response from OpenAI
+type Error struct {
+	Message string      `json:"message,omitempty"`
+	Type    string      `json:"type,omitempty"`
+	Param   interface{} `json:"param,omitempty"`
+	Code    string      `json:"code,omitempty"`
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
@@ -142,6 +143,7 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 	chanStream := make(chan *message.JSON, 1)
 	chanError := make(chan error, 1)
 	content := []byte{}
+	errorMsg := []byte{}
 
 	// get the chat messages
 	messages, err := neo.chatMessages(ctx, question)
@@ -200,6 +202,25 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 				message.New().Text(err.Error()).Write(w)
 			}
 
+			if len(errorMsg) > 0 {
+
+				var errData openai.ErrorMessage
+				err := jsoniter.Unmarshal(errorMsg, &errData)
+				if err == nil {
+					msg := errData.Error.Message
+					if msg == "" {
+						msg = fmt.Sprintf("OpenAI error: %s", errData.Error.Code)
+					}
+					message.New().Text(msg).Write(w)
+					message.New().Done().Write(w)
+					return false
+				}
+
+				message.New().Text(string(errorMsg)).Write(w)
+				message.New().Done().Write(w)
+				return false
+			}
+
 			message.New().Done().Write(w)
 			return false
 
@@ -207,6 +228,12 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 			if msg == nil {
 				return true
 			}
+
+			if msg.Error != "" {
+				errorMsg = append(errorMsg, []byte(msg.Error)...)
+				return true
+			}
+
 			msg.Write(w)
 			content = msg.Append(content)
 			return !msg.IsDone()
@@ -215,6 +242,26 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 			if err := ctx.Err(); err != nil {
 				message.New().Text(err.Error()).Write(w)
 			}
+
+			if len(errorMsg) > 0 {
+
+				var errData openai.ErrorMessage
+				err := jsoniter.Unmarshal(errorMsg, &errData)
+				if err == nil {
+					msg := errData.Error.Message
+					if msg == "" {
+						msg = fmt.Sprintf("OpenAI error: %s", errData.Error.Code)
+					}
+					message.New().Text(msg).Write(w)
+					message.New().Done().Write(w)
+					return false
+				}
+
+				message.New().Text(string(errorMsg)).Write(w)
+				message.New().Done().Write(w)
+				return false
+			}
+
 			message.New().Done().Write(w)
 			return false
 		}
