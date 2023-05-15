@@ -70,7 +70,7 @@ func (fields *FieldsDSL) BindModel(m *model.Model) error {
 				log.Warn("[Fields.BindModel] %s.%s (%s) No matching filters found", m.Name, col.Name, col.Type)
 			}
 
-			if filterField != nil {
+			if filterField != nil && fields.Filter != nil {
 				if _, has := fields.Filter[filterField.Key]; !has {
 					fields.Filter[tableField.Key] = *filterField
 					fields.filterMap[col.Name] = fields.Filter[tableField.Key]

@@ -107,7 +107,7 @@ var runCmd = &cobra.Command{
 		res, err := process.Exec()
 		if err != nil {
 			if !runSilent {
-				color.Red(L("Process: %s\n"), err.Error())
+				color.Red(L("Process: %s\n"), fmt.Sprintf("%s", strings.TrimPrefix(err.Error(), "Exception|404:")))
 				return
 			}
 			fmt.Printf("%s\n", err.Error())
