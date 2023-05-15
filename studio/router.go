@@ -14,7 +14,7 @@ import (
 	"github.com/yaoapp/yao/neo"
 )
 
-var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
+var regExcp = regexp.MustCompile(`Exception\|(\d+):(.*)`)
 
 // Serve start the api server
 func setRouter(router *gin.Engine) {
@@ -212,15 +212,22 @@ func setRouter(router *gin.Engine) {
 
 		ctx, err := script.NewContext(fmt.Sprintf("%v", sid), nil)
 		if err != nil {
-			throw(c, 500, err.Error())
+			code := 500
+			message := err.Error()
+			match := regExcp.FindStringSubmatch(message)
+			if len(match) > 0 {
+				code, err = strconv.Atoi(match[1])
+				if err == nil {
+					message = strings.TrimSpace(match[2])
+				}
+			}
+			throw(c, code, message)
 			return
 		}
 		defer ctx.Close()
 
 		res, err := ctx.Call(fun.Method, fun.Args...)
-
 		if err != nil {
-			// parse Exception
 			code := 500
 			message := err.Error()
 			match := regExcp.FindStringSubmatch(message)
