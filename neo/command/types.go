@@ -62,9 +62,9 @@ type Prompt struct {
 
 // Optional optional
 type Optional struct {
-	Autopilot   bool   `json:"autopilot,omitempty"`
-	Confirm     string `json:"confirm,omitempty"`
-	MaxAttempts int    `json:"maxAttempts,omitempty"` // default 10
+	Autopilot   bool `json:"autopilot,omitempty"`
+	Confirm     bool `json:"confirm,omitempty"`
+	MaxAttempts int  `json:"maxAttempts,omitempty"` // default 10
 }
 
 // Context the context

@@ -61,7 +61,7 @@ func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.
 	}
 
 	// Send the command to the service
-	if req.Command.Optional.Confirm != "" {
+	if req.Command.Optional.Confirm {
 		req.confirm(args, cb)
 		return nil
 	}
@@ -117,24 +117,18 @@ func (req *Request) Run(messages []map[string]interface{}, cb func(msg *message.
 // confirm the command
 func (req *Request) confirm(args []interface{}, cb func(msg *message.JSON) int) {
 
-	service := strings.Split(req.Command.Optional.Confirm, ".")
-	if len(service) == 0 {
-		service = []string{"neo", "Exec"}
-	} else if len(service) == 1 {
-		service = []string{"neo", service[0]}
-	}
-
 	payload := map[string]interface{}{
-		"method": service[1],
+		"method": "ExecCommand",
 		"args": []interface{}{
 			req.id,
 			req.Command.Process,
 			args,
+			map[string]interface{}{"stack": req.ctx.Stack, "path": req.ctx.Path},
 		},
 	}
 
 	msg := req.msg().
-		Action("ExecCommand", fmt.Sprintf("Service.%s", service[0]), payload, "").
+		Action("ExecCommand", "Service.__neo", payload, "").
 		Confirm().
 		Done()
 
@@ -291,7 +285,10 @@ func (req *Request) prepareAfter(content string, cb func(msg *message.JSON) int)
 	}
 
 	// prepare the args
-	args := []interface{}{content}
+	args := []interface{}{
+		content,
+		map[string]interface{}{"stack": req.ctx.Stack, "path": req.ctx.Path}, // context
+	}
 
 	return req.runScript(req.Prepare.After, args, cb)
 }

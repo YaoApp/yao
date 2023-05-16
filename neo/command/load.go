@@ -65,7 +65,7 @@ func LoadSource(data []byte, file, id string) (*Command, error) {
 		},
 		Optional: Optional{
 			Autopilot:   false,
-			Confirm:     "",
+			Confirm:     false,
 			MaxAttempts: 10,
 		},
 	}
