@@ -423,6 +423,8 @@ func (neo *DSL) crossDomain(router *gin.Engine, path string) {
 	})
 
 	router.OPTIONS(path, func(c *gin.Context) { c.AbortWithStatus(204) })
+	router.OPTIONS(path+"/commands", func(c *gin.Context) { c.AbortWithStatus(204) })
+	router.OPTIONS(path+"/history", func(c *gin.Context) { c.AbortWithStatus(204) })
 }
 
 func (neo *DSL) setGuard(router *gin.Engine) error {

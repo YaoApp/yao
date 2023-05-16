@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -270,22 +271,53 @@ func processService(process *process.Process) interface{} {
 		args = v
 	}
 
+	// Foward: Neo Confirm Command
+	if service == "__yao_service.__neo" && method == "ExecCommand" {
+		if len(args) < 4 {
+			exception.New("args is required (%v)", 400, args).Throw()
+		}
+
+		id := args[0].(string)
+		ctx := args[3].(map[string]interface{})
+		processName := args[1].(string)
+		processArgs := append(args[2].([]interface{}), ctx)
+		result := forwardNeoExecCommand(process, processName, processArgs...)
+		return map[string]interface{}{"id": id, "result": result, "context": ctx}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	script, err := v8.Select(service)
 	if err != nil {
 		exception.New("services.%s not loaded", 404, process.ArgsString(0)).Throw()
 		return nil
 	}
 
-	ctx, err := script.NewContext(process.Sid, process.Global)
+	v8ctx, err := script.NewContext(process.Sid, process.Global)
 	if err != nil {
 		message := fmt.Sprintf("services.%s failed to create context. %s", process.ArgsString(0), err.Error())
 		log.Error("[V8] process error. %s", message)
 		exception.New(message, 500).Throw()
 		return nil
 	}
-	defer ctx.Close()
+	defer v8ctx.Close()
 
-	res, err := ctx.Call(method, args...)
+	res, err := v8ctx.CallWith(ctx, method, args...)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return res
+}
+
+func forwardNeoExecCommand(p *process.Process, name string, args ...interface{}) interface{} {
+	new, err := process.Of(name, args...)
+	if err != nil {
+		exception.New(err.Error(), 400).Throw()
+	}
+
+	res, err := new.WithGlobal(p.Global).WithSID(p.Sid).Exec()
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
