@@ -271,7 +271,11 @@ func processService(process *process.Process) interface{} {
 		args = v
 	}
 
-	// Foward: Neo Confirm Command
+	//
+	// Forward: Neo confirm Command
+	// @file   neo/command/request.go
+	// @method func (req *Request) confirm(args []interface{}, cb func(msg *message.JSON) int)
+	//
 	if service == "__yao_service.__neo" && method == "ExecCommand" {
 		if len(args) < 4 {
 			exception.New("args is required (%v)", 400, args).Throw()
