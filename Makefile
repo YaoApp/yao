@@ -122,7 +122,7 @@ bindata:
 	rm -rf .tmp/yao-init/.git
 	rm -rf .tmp/yao-init/.gitignore
 	rm -rf .tmp/yao-init/LICENSE
-	rm -rf .tmp/yao-init/README.md
+#	rm -rf .tmp/yao-init/README.md
 	
 #	Copy Files
 	cp -r .tmp/yao-init .tmp/data/init
@@ -149,10 +149,10 @@ artifacts-linux: clean
 	cd ../xgen-v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 #	Init Application
-	cd ../yao-init rm -rf .git
-	cd ../yao-init rm -rf .gitignore
-	cd ../yao-init rm -rf LICENSE
-	cd ../yao-init rm -rf README.md
+	cd ../yao-init && rm -rf .git
+	cd ../yao-init && rm -rf .gitignore
+	cd ../yao-init && rm -rf LICENSE
+#	cd ../yao-init rm -rf README.md
 
 #	Packing
 	mkdir -p .tmp/data/xgen
@@ -198,10 +198,10 @@ artifacts-macos: clean
 	cd ../xgen-v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 #	Init Application
-	cd ../yao-init rm -rf .git
-	cd ../yao-init rm -rf .gitignore
-	cd ../yao-init rm -rf LICENSE
-	cd ../yao-init rm -rf README.md
+	cd ../yao-init && rm -rf .git
+	cd ../yao-init && rm -rf .gitignore
+	cd ../yao-init && rm -rf LICENSE
+#	 cd ../yao-init && rm -rf README.md
 
 #	Packing
 	mkdir -p .tmp/data/xgen
