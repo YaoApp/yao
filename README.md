@@ -52,21 +52,19 @@ YAO adopts a flow-based programming model to implement various functions by writ
 
 3. Use the visual editor to create by "drag and drop"
 
-**Discord:** https://discord.gg/nsKmCXwvxU
-
 **Documentation:** https://yaoapps.com/en-US/doc
 
 ## Demo
 
 Applications developed with YAO
 
-| Application         | INTRO                               | REPO                                   |
-| ------------------- | ----------------------------------- | -------------------------------------- |
-| yaoapp/yao-admin    | Admin Dashboard                     | https://github.com/yaoapp/yao-admin    |
-| yaoapp/demo-app     | Demo Application                    | https://github.com/yaoapp/demo-app     |
-| yaoapp/demo-project | Project Management System (Demo)    | https://github.com/yaoapp/demo-project |
-| yaoapp/demo-finance | Finance Management System (Demo)    | https://github.com/yaoapp/demo-finance |
-| yaoapp/demo-plm     | Production Management System (Demo) | https://github.com/yaoapp/demo-plm     |
+| Application          | Description                                          | Repository                              |
+| -------------------- | ---------------------------------------------------- | --------------------------------------- |
+| yaoapp/yao-knowledge | A knowledge base application (Coming soon)           | https://github.com/YaoApp/yao-knowledge |
+| yaoapp/xgen-dev-app  | A demo application                                   | https://github.com/YaoApp/xgen-dev-app  |
+| yaoapp/demo-project  | A demo application for project management            | https://github.com/yaoapp/demo-project  |
+| yaoapp/demo-finance  | A demo application for financial management          | https://github.com/yaoapp/demo-finance  |
+| yaoapp/demo-plm      | A demo application for production project management | https://github.com/yaoapp/demo-plm      |
 
 ## Introduce
 
@@ -113,7 +111,7 @@ Create a new project directory, enter the project directory, run the `yao get` c
 ```bash
 mkdir -p /data/app # create project directory
 cd /data/app # Enter the project directory
-yao get yaoapp/demo-app # download demo-app
+yao get yaoapp/demo-plm # download demo-plm
 yao start # Start installation
 ```
 
