@@ -22,7 +22,7 @@ jobs:
 
       - name: Get Version
         run: |
-          echo VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g")-dev  >> $GITHUB_ENV
+          echo VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g")  >> $GITHUB_ENV
 
       - name: Check Version
         run: echo $VERSION
