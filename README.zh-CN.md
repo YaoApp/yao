@@ -31,13 +31,13 @@ YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑�
 
 使用 YAO 开发的应用
 
-| 应用                | 简介                       | 代码仓库                               |
-| ------------------- | -------------------------- | -------------------------------------- |
-| yaoapp/yao-admin    | 一个通用管理后台           | https://github.com/yaoapp/yao-admin    |
-| yaoapp/demo-app     | 演示应用 (演示)            | https://github.com/yaoapp/demo-app     |
-| yaoapp/demo-project | 工程项目管理演示应用(演示) | https://github.com/yaoapp/demo-project |
-| yaoapp/demo-finance | 财务管理演示应用(演示)     | https://github.com/yaoapp/demo-finance |
-| yaoapp/demo-plm     | 生产项目管理演示应用(演示) | https://github.com/yaoapp/demo-plm     |
+| 应用                 | 简介                                    | 代码仓库                                |
+| -------------------- | --------------------------------------- | --------------------------------------- |
+| yaoapp/yao-knowledge | ChatGPT 驱动的知识管理库应用 (稍后开放) | https://github.com/YaoApp/yao-knowledge |
+| yaoapp/xgen-dev-app  | 演示应用 (演示)                         | https://github.com/YaoApp/xgen-dev-app  |
+| yaoapp/demo-project  | 工程项目管理演示应用(演示)              | https://github.com/yaoapp/demo-project  |
+| yaoapp/demo-finance  | 财务管理演示应用(演示)                  | https://github.com/yaoapp/demo-finance  |
+| yaoapp/demo-plm      | 生产项目管理演示应用(演示)              | https://github.com/yaoapp/demo-plm      |
 
 ## 介绍
 
@@ -88,7 +88,7 @@ yao start # 启动安装界面
 ```bash
 mkdir -p /data/app  # 创建应用目录
 cd /data/app  # 进入应用目录
-yao get yaoapp/demo-app # 下载应用代码 (必须为空目录)
+yao get yaoapp/demo-plm # 下载 demo-plm
 yao start # 启动安装界面
 ```
 

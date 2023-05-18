@@ -28,8 +28,8 @@ var getCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println(color.WhiteString("From Infra: %s", pkg.Remote))
-		fmt.Println(color.WhiteString("Visit: https://LetsInfra.com"))
+		fmt.Println(color.WhiteString("From Yao: %s", pkg.Remote))
+		fmt.Println(color.WhiteString("Visit: https://yaoapps.com"))
 		err = pkg.Download()
 		if err != nil {
 			fmt.Println(color.RedString(err.Error()))
