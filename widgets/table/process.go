@@ -1,8 +1,6 @@
 package table
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/model"
 	gouProcess "github.com/yaoapp/gou/process"
@@ -252,11 +251,10 @@ func processExport(process *gouProcess.Process) interface{} {
 	tab := MustGet(process) // 0
 	params := process.ArgsQueryParams(1, types.QueryParam{})
 	pagesize := process.ArgsInt(2, 50)
+	log.Trace("[table] export %s %v %d", tab.ID, params, pagesize)
 
 	// Filename
-	hash := md5.Sum([]byte(time.Now().Format("20060102-15:04:05")))
-	fingerprint := string(hex.EncodeToString(hash[:]))
-	fingerprint = strings.ToUpper(fingerprint)
+	fingerprint := uuid.NewString()
 	dir := time.Now().Format("20060102")
 	filename := filepath.Join(string(os.PathSeparator), dir, fmt.Sprintf("%s.xlsx", fingerprint))
 
