@@ -183,13 +183,10 @@ func (pkg *Package) Unpack(dest string) (*app.DSL, error) {
 		return nil, err
 	}
 
-	if len(files) > 0 {
-		for _, f := range files {
-			if f.Name() != "logs" {
-				return nil, fmt.Errorf("current folder shoud be empty")
-			}
+	for _, f := range files {
+		if !strings.HasPrefix(f.Name(), "logs") {
+			return nil, fmt.Errorf("current folder shoud be empty")
 		}
-		return nil, fmt.Errorf("current folder shoud be empty")
 	}
 
 	temp, err := os.MkdirTemp("", "*-yao-unzip")
