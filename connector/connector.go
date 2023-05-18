@@ -35,6 +35,22 @@ func Load(cfg config.Config) error {
 	return nil
 }
 
+// Unload Connector
+func Unload() error {
+	messages := []string{}
+	for id, conn := range connector.Connectors {
+		err := conn.Close()
+		if err != nil {
+			messages = append(messages, err.Error())
+		}
+		delete(connector.Connectors, id)
+	}
+	if len(messages) > 0 {
+		return fmt.Errorf("%s", strings.Join(messages, ";\n"))
+	}
+	return nil
+}
+
 // Close close connector
 func Close() error {
 	messages := []string{}

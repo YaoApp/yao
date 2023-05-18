@@ -132,23 +132,22 @@ func Start() (err error) {
 
 // Complete stop the studio api server
 func Complete() {
+	engine.Unload()
 	Done <- true
 }
 
 // Stop stop the studio api server
 func Stop() {
-	engine.Unload()
 	shutdown <- true
 }
 
 // AdminURL get admin url
 func AdminURL(cfg config.Config) ([]string, error) {
-	err := engine.Load(cfg)
+
+	urls, err := URLs(cfg)
 	if err != nil {
 		return nil, err
 	}
-
-	urls, err := URLs(cfg)
 
 	adminRoot := "yao"
 	if app.Setting.AdminRoot != "" {
@@ -164,10 +163,6 @@ func AdminURL(cfg config.Config) ([]string, error) {
 
 // URLs get admin url
 func URLs(cfg config.Config) ([]string, error) {
-	err := engine.Load(cfg)
-	if err != nil {
-		return nil, err
-	}
 
 	ips, err := Ips()
 	if err != nil {

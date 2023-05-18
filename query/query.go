@@ -40,6 +40,14 @@ func Load(cfg config.Config) error {
 	return nil
 }
 
+// Unload Query Engine
+func Unload() error {
+	for id := range query.Engines {
+		query.Unregister(id)
+	}
+	return nil
+}
+
 // registerDefaultQuery register the default engine
 func registerDefault() {
 	if capsule.Global != nil {
