@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/studio"
 	"github.com/yaoapp/yao/widgets/app"
 )
 
@@ -112,10 +113,17 @@ func Install(payload map[string]map[string]string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		engine.Unload()
 		time.Sleep(time.Millisecond * 200)
 	}()
+
+	// Load Studio
+	err = studio.Load(cfg)
+	if err != nil {
+		return err
+	}
 
 	//  Migrage & Setup
 	err = makeMigrate(root, cfg)

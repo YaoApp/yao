@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/xun"
+	"github.com/yaoapp/yao/engine"
 	"github.com/yaoapp/yao/widgets/app"
 )
 
@@ -80,6 +81,12 @@ func runSetup(c *gin.Context) {
 
 	// Reload Config
 	cfg, err = getConfig()
+	if err != nil {
+		c.JSON(500, gin.H{"code": 500, "message": err.Error()})
+		return
+	}
+
+	err = engine.Load(cfg)
 	if err != nil {
 		c.JSON(500, gin.H{"code": 500, "message": err.Error()})
 		return

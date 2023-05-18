@@ -56,6 +56,12 @@ func Load(cfg config.Config) (err error) {
 		printErr(cfg.Mode, "Load Application", err)
 	}
 
+	// Make Database connections
+	err = share.DBConnect(cfg.DB)
+	if err != nil {
+		printErr(cfg.Mode, "DB", err)
+	}
+
 	// Load Certs
 	err = cert.Load(cfg)
 	if err != nil {
@@ -84,12 +90,6 @@ func Load(cfg config.Config) (err error) {
 	err = runtime.Start(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Runtime", err)
-	}
-
-	// Make Database connections
-	err = share.DBConnect(cfg.DB)
-	if err != nil {
-		printErr(cfg.Mode, "DB", err)
 	}
 
 	// Load Query Engine
@@ -203,8 +203,11 @@ func Unload() (err error) {
 	// Close DB
 	err = share.DBClose()
 
+	// Close Query Engine
+	err = query.Unload()
+
 	// Close Connectors
-	err = connector.Close()
+	err = connector.Unload()
 
 	// Recycle
 	// api
