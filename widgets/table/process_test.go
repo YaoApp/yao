@@ -569,6 +569,13 @@ func TestProcessExport(t *testing.T) {
 	fs := fs.MustGet("system")
 	size, _ := fs.Size(response.(string))
 	assert.Greater(t, size, 1000)
+
+	// Export all data
+	args = []interface{}{"pet", nil, 2}
+	response = process.New("yao.table.Export", args...).Run()
+	assert.NotNil(t, response)
+	size, _ = fs.Size(response.(string))
+	assert.Greater(t, size, 1000)
 }
 
 func load(t *testing.T) {
