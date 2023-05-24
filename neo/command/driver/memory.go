@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/neo/command/query"
@@ -50,73 +49,76 @@ func NewMemory(model string, prompts []aigc.Prompt) (*Memory, error) {
 
 // Match match the command data
 func (driver *Memory) Match(query query.Param, content string) (string, error) {
-	prompts := append([]aigc.Prompt{}, driver.prompts...)
-	has := false
-	commands.Range(func(key, value interface{}) bool {
-		cmd, ok := value.(Command)
-		if !ok {
-			return true
-		}
-		if query.MatchAny(cmd.Stack, cmd.Path) {
-			has = true
-			bytes, err := jsoniter.Marshal(map[string]interface{}{
-				"id":          cmd.ID,
-				"use":         cmd.Use,
-				"name":        cmd.Name,
-				"description": cmd.Description,
-				"args":        cmd.Args,
-			})
-			if err != nil {
-				return true
-			}
-			prompts = append(prompts, aigc.Prompt{
-				Role:    "system",
-				Content: string(bytes),
-			})
-		}
-		return true
-	})
 
-	if !has {
-		return "", fmt.Errorf("no related command found")
-	}
+	return "", fmt.Errorf("no related command found")
 
-	messages := []map[string]interface{}{}
-	for _, prompt := range prompts {
-		messages = append(messages, map[string]interface{}{
-			"role":    prompt.Role,
-			"content": prompt.Content,
-		})
-	}
+	// prompts := append([]aigc.Prompt{}, driver.prompts...)
+	// has := false
+	// commands.Range(func(key, value interface{}) bool {
+	// 	cmd, ok := value.(Command)
+	// 	if !ok {
+	// 		return true
+	// 	}
+	// 	if query.MatchAny(cmd.Stack, cmd.Path) {
+	// 		has = true
+	// 		bytes, err := jsoniter.Marshal(map[string]interface{}{
+	// 			"id":          cmd.ID,
+	// 			"use":         cmd.Use,
+	// 			"name":        cmd.Name,
+	// 			"description": cmd.Description,
+	// 			"args":        cmd.Args,
+	// 		})
+	// 		if err != nil {
+	// 			return true
+	// 		}
+	// 		prompts = append(prompts, aigc.Prompt{
+	// 			Role:    "system",
+	// 			Content: string(bytes),
+	// 		})
+	// 	}
+	// 	return true
+	// })
 
-	messages = append(messages, map[string]interface{}{
-		"role":    "user",
-		"content": content,
-	})
+	// if !has {
+	// 	return "", fmt.Errorf("no related command found")
+	// }
 
-	res, ex := driver.ai.ChatCompletions(messages, nil, nil)
-	if ex != nil {
-		return "", fmt.Errorf(ex.Message)
-	}
+	// messages := []map[string]interface{}{}
+	// for _, prompt := range prompts {
+	// 	messages = append(messages, map[string]interface{}{
+	// 		"role":    prompt.Role,
+	// 		"content": prompt.Content,
+	// 	})
+	// }
 
-	bytes, err := jsoniter.Marshal(res)
-	if err != nil {
-		return "", err
-	}
+	// messages = append(messages, map[string]interface{}{
+	// 	"role":    "user",
+	// 	"content": content,
+	// })
 
-	var data struct {
-		Choices []struct{ Message struct{ Content string } }
-	}
-	err = jsoniter.Unmarshal(bytes, &data)
-	if err != nil {
-		return "", err
-	}
+	// res, ex := driver.ai.ChatCompletions(messages, nil, nil)
+	// if ex != nil {
+	// 	return "", fmt.Errorf(ex.Message)
+	// }
 
-	if len(data.Choices) == 0 {
-		return "", fmt.Errorf("no related command found")
-	}
+	// bytes, err := jsoniter.Marshal(res)
+	// if err != nil {
+	// 	return "", err
+	// }
 
-	return data.Choices[0].Message.Content, nil
+	// var data struct {
+	// 	Choices []struct{ Message struct{ Content string } }
+	// }
+	// err = jsoniter.Unmarshal(bytes, &data)
+	// if err != nil {
+	// 	return "", err
+	// }
+
+	// if len(data.Choices) == 0 {
+	// 	return "", fmt.Errorf("no related command found")
+	// }
+
+	// return data.Choices[0].Message.Content, nil
 }
 
 // Set Set the command data
