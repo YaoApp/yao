@@ -339,15 +339,24 @@ func (neo *DSL) prepare(ctx command.Context, messages []map[string]interface{}) 
 
 // chatMessages get the chat messages
 func (neo *DSL) chatMessages(ctx command.Context, content string) ([]map[string]interface{}, error) {
-	messages := append([]map[string]interface{}{}, neo.prompts()...)
 
 	history, err := neo.Conversation.GetHistory(ctx.Sid)
 	if err != nil {
 		return nil, err
 	}
-	messages = append(messages, neo.prepare(ctx, messages)...) // Add prepare messages
+	messages := append([]map[string]interface{}{}, neo.prompts()...)
 	messages = append(messages, history...)
 	messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": ctx.Sid})
+
+	// Add prepare messages witch is query from vector database
+	preparePrompts := neo.prepare(ctx, messages)
+	if len(preparePrompts) > 0 {
+		messages = append([]map[string]interface{}{}, neo.prompts()...)
+		messages = append(messages, preparePrompts...)
+		messages = append(messages, history...)
+		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": ctx.Sid})
+	}
+
 	return messages, nil
 }
 
