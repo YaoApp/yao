@@ -38,7 +38,9 @@
   </a>
 </p>
 
-![intro](docs/architecture.png)
+https://github.com/YaoApp/yao/assets/1842210/6b23ac89-ef6e-4c24-874f-753a98370dec
+
+(English version coming soon)
 
 [中文介绍](README.zh-CN.md)
 
