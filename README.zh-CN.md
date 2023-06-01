@@ -34,7 +34,7 @@ YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑�
 | 应用                 | 简介                                    | 代码仓库                                |
 | -------------------- | --------------------------------------- | --------------------------------------- |
 | yaoapp/yao-examples  | Yao 应用示例                            | https://github.com/YaoApp/yao-examples  |
-| yaoapp/yao-knowledge | ChatGPT 驱动的知识管理库应用 (稍后开放) | https://github.com/YaoApp/yao-knowledge |
+| yaoapp/yao-knowledge | ChatGPT 驱动的知识管理库应用              | https://github.com/YaoApp/yao-knowledge |
 | yaoapp/xgen-dev-app  | 演示应用 (演示)                         | https://github.com/YaoApp/xgen-dev-app  |
 | yaoapp/demo-project  | 工程项目管理演示应用(演示)              | https://github.com/yaoapp/demo-project  |
 | yaoapp/demo-finance  | 财务管理演示应用(演示)                  | https://github.com/yaoapp/demo-finance  |
