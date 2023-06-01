@@ -63,7 +63,7 @@ Applications developed with YAO
 | Application          | Description                                          | Repository                              |
 | -------------------- | ---------------------------------------------------- | --------------------------------------- |
 | yaoapp/yao-examples  | Yao Examples                                         | https://github.com/YaoApp/yao-examples  |
-| yaoapp/yao-knowledge | A knowledge base application (Coming soon)           | https://github.com/YaoApp/yao-knowledge |
+| yaoapp/yao-knowledge | A knowledge base application                         | https://github.com/YaoApp/yao-knowledge |
 | yaoapp/xgen-dev-app  | A demo application                                   | https://github.com/YaoApp/xgen-dev-app  |
 | yaoapp/demo-project  | A demo application for project management            | https://github.com/yaoapp/demo-project  |
 | yaoapp/demo-finance  | A demo application for financial management          | https://github.com/yaoapp/demo-finance  |
