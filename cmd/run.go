@@ -13,7 +13,9 @@ import (
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	ischedule "github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/share"
+	itask "github.com/yaoapp/yao/task"
 )
 
 var runSilent = false
@@ -25,6 +27,7 @@ var runCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		defer share.SessionStop()
 		defer plugin.KillAll()
+
 		defer func() {
 			err := exception.Catch(recover())
 			if err != nil {
@@ -102,6 +105,14 @@ var runCmd = &cobra.Command{
 			}
 
 		}
+
+		// Start Tasks
+		itask.Start()
+		defer itask.Stop()
+
+		// Start Schedules
+		ischedule.Start()
+		defer ischedule.Stop()
 
 		process := process.New(name, pargs...)
 		res, err := process.Exec()
