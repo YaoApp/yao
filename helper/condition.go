@@ -18,7 +18,7 @@ var Computes = map[string]ComputeFunc{
 		return left == right
 	},
 	">": func(left interface{}, right interface{}) bool {
-		return any.Of(left).CFloat64() == any.Of(right).CFloat64()
+		return any.Of(left).CFloat64() > any.Of(right).CFloat64()
 	},
 	">=": func(left interface{}, right interface{}) bool {
 		return any.Of(left).CFloat64() >= any.Of(right).CFloat64()
