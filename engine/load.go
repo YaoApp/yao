@@ -172,12 +172,6 @@ func Load(cfg config.Config) (err error) {
 		printErr(cfg.Mode, "Schedule", err)
 	}
 
-	// Load Custom Widget
-	err = widget.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Widget", err)
-	}
-
 	// Load AIGC
 	err = aigc.Load(cfg)
 	if err != nil {
@@ -188,6 +182,18 @@ func Load(cfg config.Config) (err error) {
 	err = neo.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "AIGC", err)
+	}
+
+	// Load Custom Widget
+	err = widget.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Widget", err)
+	}
+
+	// Load Custom Widget Instances
+	err = widget.LoadInstances()
+	if err != nil {
+		printErr(cfg.Mode, "Widget", err)
 	}
 
 	return nil
