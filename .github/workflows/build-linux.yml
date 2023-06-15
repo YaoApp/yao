@@ -1,22 +1,28 @@
-name: Build MacOS Dev
+name: Build Linux Dev
 
 on:
   workflow_dispatch:
     inputs:
       tags:
         description: "Version tags"
+
 jobs:
   build:
     strategy:
       matrix:
         go: [1.19.2]
-    runs-on: "macos-12"
+    runs-on: "ubuntu-20.04"
     steps:
-      - name: Install coscmd
+      - name: Arm Build
         run: |
-          sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
-          sudo pip3 install coscmd 
-          echo "/Library/Frameworks/Python.framework/Versions/3.11/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
+          sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+          sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
+
+      - name: Install coscmd
+        run: sudo pip3 install coscmd
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -66,7 +72,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: yaoapp/xgen
-          # ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
+          #ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
           path: xgen-v1.0
 
       - name: Checkout Yao-Init
@@ -83,10 +89,8 @@ jobs:
           mv v8go ../
           mv xgen-v1.0 ../
           mv yao-init ../
-          rm -f ../xgen-v1.0/packages/setup/vite.config.ts.*
           ls -l .
           ls -l ../
-          ls -l ../xgen-v1.0/packages/setup/
 
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -100,9 +104,11 @@ jobs:
         run: |
           make tools
 
-      - name: Make Artifacts MacOS
+      - name: Make Artifacts Linux
         run: |
-          make artifacts-macos
+          make artifacts-linux
+          mv dist/release/yao-0.10.3-dev-linux-arm64 dist/release/yao-0.10.3-unstable-linux-arm64
+          mv dist/release/yao-0.10.3-dev-linux-amd64 dist/release/yao-0.10.3-unstable-linux-amd64
 
       - name: Configure COS For Silicon Valley
         env:
@@ -120,7 +126,7 @@ jobs:
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: yao-macos
+          name: yao-linux
           path: |
             dist/release/*
 
