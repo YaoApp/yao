@@ -30,6 +30,7 @@ require (
 	github.com/bytedance/sonic v1.8.8 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/dlclark/regexp2 v1.8.1 // indirect
+	github.com/evanw/esbuild v0.18.2 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/google/go-github/v30 v30.1.0 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
