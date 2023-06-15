@@ -169,7 +169,7 @@ func (app *Connector) init() error {
 	fields := []string{"id", "file", "source", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
-			return fmt.Errorf("%s is required", field)
+			return fmt.Errorf("%s table %s field %s is required", app.Widget, app.Table, field)
 		}
 	}
 

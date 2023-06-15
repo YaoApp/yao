@@ -5,6 +5,10 @@ on:
     inputs:
       tags:
         description: "Version tags"
+
+env:
+  VERSION: 0.9.0
+
 jobs:
   build:
     strategy:
@@ -100,11 +104,15 @@ jobs:
         run: |
           make tools
 
+      - name: Get Version
+        run: |
+          echo VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g")  >> $GITHUB_ENV
+
       - name: Make Artifacts MacOS
         run: |
           make artifacts-macos
-          mv dist/release/yao-0.10.3-dev-darwin-arm64 dist/release/yao-0.10.3-unstable-darwin-arm64
-          mv dist/release/yao-0.10.3-dev-darwin-amd64 dist/release/yao-0.10.3-unstable-darwin-amd64
+          mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
+          mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
 
       - name: Configure COS For Silicon Valley
         env:
