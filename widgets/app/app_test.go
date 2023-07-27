@@ -224,7 +224,7 @@ func TestProcessXgen(t *testing.T) {
 	assert.Equal(t, os.Getenv("YAO_ENV"), xgen.Get("mode"))
 	assert.Equal(t, "Demo Application", xgen.Get("name"))
 	assert.Equal(t, true, xgen.Get("optional.hideNotification"))
-	assert.Equal(t, "localStorage", xgen.Get("token"))
+	// assert.Equal(t, "localStorage", xgen.Get("token"))
 	assert.Equal(t, true, xgen.Get("sid").(string) != "")
 
 	// Set

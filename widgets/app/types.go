@@ -14,6 +14,7 @@ type DSL struct {
 	Menu        MenuDSL     `json:"menu,omitempty"`
 	AdminRoot   string      `json:"adminRoot,omitempty"`
 	Optional    OptionalDSL `json:"optional,omitempty"`
+	Token       OptionalDSL `json:"token,omitempty"`
 	Setting     string      `json:"setting,omitempty"` // custom setting process
 	Setup       string      `json:"setup,omitempty"`   // setup process
 }
