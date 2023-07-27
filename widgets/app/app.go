@@ -570,7 +570,7 @@ func processXgen(process *process.Process) interface{} {
 		"lang":        Setting.Lang,
 		"mode":        mode,
 		"apiPrefix":   "__yao",
-		"token":       "localStorage",
+		"token":       Setting.Token,
 		"optional":    Setting.Optional,
 		"login":       xgenLogin,
 	}
