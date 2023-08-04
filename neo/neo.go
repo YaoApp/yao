@@ -303,7 +303,7 @@ func (neo *DSL) prepare(ctx command.Context, messages []map[string]interface{}) 
 		return prompts
 	}
 
-	data, err := p.Exec()
+	data, err := p.WithSID(ctx.Sid).Exec()
 	if err != nil {
 		color.Red("Neo prepare execute error: %s", err.Error())
 		return prompts

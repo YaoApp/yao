@@ -69,7 +69,7 @@ type Optional struct {
 
 // Context the context
 type Context struct {
-	Sid             string `json:"-" yaml:"-"`
+	Sid             string `json:"sid" yaml:"-"`
 	Stack           string `json:"stack,omitempty"`
 	Path            string `json:"pathname,omitempty"`
 	context.Context `json:"-" yaml:"-"`
