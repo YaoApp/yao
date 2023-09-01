@@ -141,7 +141,7 @@ artifacts-linux: clean
 
 #	Building XGEN v1.0
 	export NODE_ENV=production
-	rm -f ../xgen-v1.0/pnpm-lock.yaml
+# 	rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
@@ -190,7 +190,7 @@ artifacts-macos: clean
 
 #	Building XGEN v1.0
 	export NODE_ENV=production
-	rm -f ../xgen-v1.0/pnpm-lock.yaml
+#   rm -f ../xgen-v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
