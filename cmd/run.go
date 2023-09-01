@@ -7,10 +7,10 @@ import (
 	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
+	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
 	ischedule "github.com/yaoapp/yao/schedule"
@@ -129,7 +129,7 @@ var runCmd = &cobra.Command{
 			color.White("--------------------------------------\n")
 			color.White(L("%s Response\n"), name)
 			color.White("--------------------------------------\n")
-			utils.Dump(res)
+			helper.Dump(res)
 			color.White("--------------------------------------\n")
 			color.Green(L("✨DONE✨\n"))
 			return
