@@ -87,7 +87,8 @@ type AppInfo struct {
 
 // Static setting
 type Static struct {
-	PWA bool `json:"pwa,omitempty"`
+	PWA  bool     `json:"pwa,omitempty"`
+	Apps []string `json:"apps,omitempty"`
 }
 
 // AppStorage 应用存储
