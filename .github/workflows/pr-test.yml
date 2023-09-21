@@ -63,7 +63,7 @@ env:
 
 jobs:
   UnitTest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         go: [1.20.0, 1.21.1]
