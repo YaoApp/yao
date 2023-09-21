@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Arm Build
         run: |
-          sudo sh -c 'echo "deb http://mirrors.kernel.org/ubuntu mantic main universe" >> /etc/apt/sources.list'
+          sudo sh -c 'echo "deb http://cz.archive.ubuntu.com/ubuntu mantic main universe" >> /etc/apt/sources.list'
           sudo apt-get update
           sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
           sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
