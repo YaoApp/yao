@@ -98,7 +98,7 @@ func exportAPI() error {
 		http.Paths = append(http.Paths, path)
 
 		// captcha
-		process = "yao.utils.Captcha"
+		process = "utils.captcha.Make"
 		args = []interface{}{":query"}
 		if dsl.Layout.Captcha != "" {
 			process = dsl.Layout.Captcha

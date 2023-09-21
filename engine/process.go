@@ -20,6 +20,10 @@ func init() {
 	process.Alias("xiang.main.Inspect", "xiang.sys.Inspect") // deprecated
 
 	process.Register("xiang.main.Favicon", processFavicon) // deprecated
+
+	// Application
+	process.Alias("xiang.main.Ping", "utils.app.Ping")
+	process.Alias("xiang.main.Inspect", "utils.app.Inspect")
 }
 
 // processCreate 运行模型 MustCreate

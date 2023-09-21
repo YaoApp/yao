@@ -63,10 +63,10 @@ env:
 
 jobs:
   UnitTest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        go: [1.19.5, 1.20.0]
+        go: [1.20.0, 1.21.1]
         db: [MySQL8.0, MySQL5.7, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]
@@ -149,8 +149,8 @@ jobs:
       - name: Checkout V8Go
         uses: actions/checkout@v3
         with:
-          repository: yaoapp/v8go
-          ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
+          repository: rogchap/v8go
+          # ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
           path: v8go
 
       - name: Checkout Demo App
