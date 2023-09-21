@@ -18,11 +18,18 @@ jobs:
     steps:
       - name: Arm Build
         run: |
+          sudo sh -c 'echo "deb http://cz.archive.ubuntu.com/ubuntu mantic main universe" >> /etc/apt/sources.list'
           sudo apt-get update
           sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
           sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
           sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
+          sudo apt-get install -y gcc-13-aarch64-linux-gnu
+          sudo apt-get install -y g++-13-aarch64-linux-gnu
+
+      - name: Inspect Tools
+        run: |
+          ls -l /usr/lib/gcc-cross/aarch64-linux-gnu/
 
       - name: Install coscmd
         run: sudo pip3 install coscmd
