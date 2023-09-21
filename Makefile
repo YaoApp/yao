@@ -171,7 +171,7 @@ artifacts-linux: clean
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-dev-linux-amd64
 #	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ go build -v -o dist/yao-${VERSION}-dev-linux-arm64
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ go build -v -o dist/yao-${VERSION}-dev-linux-arm64
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/12 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-12 CXX=aarch64-linux-gnu-g++-12 go build -v -o dist/yao-${VERSION}-dev-linux-arm64
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
