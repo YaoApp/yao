@@ -170,7 +170,8 @@ artifacts-linux: clean
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-dev-linux-amd64
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ go build -v -o dist/yao-${VERSION}-dev-linux-arm64
+#	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++ go build -v -o dist/yao-${VERSION}-dev-linux-arm64
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=arm64 CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ go build -v -o dist/yao-${VERSION}-dev-linux-arm64
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
