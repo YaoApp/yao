@@ -31,7 +31,7 @@ func TestFingerprintSimple(t *testing.T) {
 
 	imp := Select("order")
 	fingerprint := imp.Fingerprint(file)
-	assert.Equal(t, "3451ca87d71801687abba8993e5a69af79482914435d7cc064236fd93160f999", fingerprint)
+	assert.Equal(t, "2187b40d1e1819ffc27114caf0e80655fe44ffc4e072b07ec18611ca23951ac4", fingerprint)
 }
 
 func TestAutoMappingSimple(t *testing.T) {

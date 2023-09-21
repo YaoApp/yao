@@ -9,7 +9,7 @@ import (
 )
 
 func TestProcessTreeFlatten(t *testing.T) {
-
+	testPrepare()
 	bytes := []byte(`[
 		{
 		  "id": 1,

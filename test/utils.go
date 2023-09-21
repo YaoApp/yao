@@ -24,6 +24,7 @@ import (
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/utils"
 )
 
 var testServer *http.Server = nil
@@ -73,6 +74,7 @@ func Prepare(t *testing.T, cfg config.Config) {
 		cfg.DataRoot = filepath.Join(root, "data")
 	}
 
+	utils.Init()
 	dbconnect(t, cfg)
 	load(t, cfg)
 	startRuntime(t, cfg)

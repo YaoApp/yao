@@ -16,10 +16,6 @@ func Init() {
 	// * Migrate Processes Version 0.10.2+
 	// ****************************************
 
-	// Application
-	process.Alias("xiang.main.Ping", "utils.app.Ping")
-	process.Alias("xiang.main.Inspect", "utils.app.Inspect")
-
 	// FMT
 	process.Alias("xiang.helper.Print", "utils.fmt.Print")
 
