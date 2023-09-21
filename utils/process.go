@@ -7,7 +7,8 @@ import (
 	"github.com/yaoapp/yao/utils/tree"
 )
 
-func init() {
+// Init the utils
+func Init() {
 	process.Alias("xiang.helper.Captcha", "yao.utils.Captcha")                 // deprecated
 	process.Alias("xiang.helper.CaptchaValidate", "yao.utils.CaptchaValidate") // deprecated
 

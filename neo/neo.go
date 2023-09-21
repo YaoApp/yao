@@ -25,17 +25,23 @@ import (
 // API is a method on the Neo type
 func (neo *DSL) API(router *gin.Engine, path string) error {
 
-	// set the guard
-	err := neo.setGuard(router)
+	// get the guards
+	middlewares, err := neo.getGuardHandlers()
 	if err != nil {
 		return err
 	}
 
 	// Cross-Domain
-	neo.crossDomain(router, path)
+	cors, err := neo.getCorsHandlers(router, path)
+	if err != nil {
+		return err
+	}
+
+	// append the cors
+	middlewares = append(middlewares, cors...)
 
 	// api router chat
-	router.GET(path, func(c *gin.Context) {
+	handlers := append(middlewares, func(c *gin.Context) {
 
 		sid := c.GetString("__sid")
 		if sid == "" {
@@ -59,9 +65,10 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		}
 
 	})
+	router.GET(path, handlers...)
 
 	// api router chat history
-	router.GET(path+"/history", func(c *gin.Context) {
+	handlers = append(middlewares, func(c *gin.Context) {
 		sid := c.GetString("__sid")
 		if sid == "" {
 			c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -79,10 +86,10 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		c.JSON(200, history)
 		c.Done()
 	})
+	router.GET(path+"/history", handlers...)
 
 	// api router chat commands
-	router.GET(path+"/commands", func(c *gin.Context) {
-
+	handlers = append(middlewares, func(c *gin.Context) {
 		commands, err := command.GetCommands()
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
@@ -93,9 +100,10 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		c.JSON(200, commands)
 		c.Done()
 	})
+	router.GET(path+"/commands", handlers...)
 
 	// api router exit command mode
-	router.POST(path, func(c *gin.Context) {
+	handlers = append(middlewares, func(c *gin.Context) {
 		sid := c.GetString("__sid")
 		if sid == "" {
 			c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -133,6 +141,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 			c.JSON(400, gin.H{"message": "command is not supported", "code": 400})
 		}
 	})
+	router.POST(path, handlers...)
 
 	return nil
 }
@@ -398,10 +407,10 @@ func (neo *DSL) saveHistory(sid string, content []byte, messages []map[string]in
 	}
 }
 
-func (neo *DSL) crossDomain(router *gin.Engine, path string) {
+func (neo *DSL) getCorsHandlers(router *gin.Engine, path string) ([]gin.HandlerFunc, error) {
 
 	if len(neo.Allows) == 0 {
-		return
+		return []gin.HandlerFunc{}, nil
 	}
 
 	allowsMap := map[string]bool{}
@@ -411,58 +420,59 @@ func (neo *DSL) crossDomain(router *gin.Engine, path string) {
 		allowsMap[allow] = true
 	}
 
-	router.Use(func(c *gin.Context) {
-		referer := c.Request.Referer()
-		if referer != "" {
-
-			if !api.IsAllowed(c, allowsMap) {
-				c.JSON(403, gin.H{"message": referer + " not allowed", "code": 403})
-				c.Abort()
-				return
-			}
-
-			url, _ := url.Parse(referer)
-			referer = fmt.Sprintf("%s://%s", url.Scheme, url.Host)
-			c.Writer.Header().Set("Access-Control-Allow-Origin", referer)
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
-			c.Next()
-		}
-	})
-
 	router.OPTIONS(path, func(c *gin.Context) { c.AbortWithStatus(204) })
 	router.OPTIONS(path+"/commands", func(c *gin.Context) { c.AbortWithStatus(204) })
 	router.OPTIONS(path+"/history", func(c *gin.Context) { c.AbortWithStatus(204) })
+	return []gin.HandlerFunc{
+		func(c *gin.Context) {
+			referer := c.Request.Referer()
+			if referer != "" {
+
+				if !api.IsAllowed(c, allowsMap) {
+					c.JSON(403, gin.H{"message": referer + " not allowed", "code": 403})
+					c.Abort()
+					return
+				}
+
+				url, _ := url.Parse(referer)
+				referer = fmt.Sprintf("%s://%s", url.Scheme, url.Host)
+				c.Writer.Header().Set("Access-Control-Allow-Origin", referer)
+				c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+				c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+				c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT")
+				c.Next()
+			}
+		},
+	}, nil
 }
 
-func (neo *DSL) setGuard(router *gin.Engine) error {
+func (neo *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
 
 	if neo.Guard == "" {
-		router.Use(func(c *gin.Context) {
-			token := strings.TrimSpace(strings.TrimPrefix(c.Query("token"), "Bearer "))
-			if token == "" {
-				c.JSON(403, gin.H{"message": "token is required", "code": 403})
-				c.Abort()
-				return
-			}
+		return []gin.HandlerFunc{
+			func(c *gin.Context) {
+				token := strings.TrimSpace(strings.TrimPrefix(c.Query("token"), "Bearer "))
+				if token == "" {
+					c.JSON(403, gin.H{"message": "token is required", "code": 403})
+					c.Abort()
+					return
+				}
 
-			user := helper.JwtValidate(token)
-			c.Set("__sid", user.SID)
-			c.Next()
-		})
-		return nil
+				user := helper.JwtValidate(token)
+				c.Set("__sid", user.SID)
+				c.Next()
+			},
+		}, nil
 	}
 
 	// validate the custom guard
 	_, err := process.Of(neo.Guard)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// custom guard
-	router.Use(api.ProcessGuard(neo.Guard))
-	return nil
+	return []gin.HandlerFunc{api.ProcessGuard(neo.Guard)}, nil
 }
 
 // NewAI create a new AI

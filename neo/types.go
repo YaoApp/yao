@@ -3,6 +3,7 @@ package neo
 import (
 	"io"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/neo/conversation"
 )
@@ -22,6 +23,7 @@ type DSL struct {
 	Command             Command                   `json:"command,omitempty"`
 	AI                  aigc.AI                   `json:"-" yaml:"-"`
 	Conversation        conversation.Conversation `json:"-" yaml:"-"`
+	GuardHandlers       []gin.HandlerFunc         `json:"-" yaml:"-"`
 }
 
 // Answer the answer interface
