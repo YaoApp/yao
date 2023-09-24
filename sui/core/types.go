@@ -7,21 +7,20 @@ type SUI interface {
 	UploadTemplate(src string, dst string) (ITemplate, error)
 }
 
-// Page is the struct for the page
-type Page struct {
-	Route string    `json:"route"`
-	Root  string    `json:"root"`
-	Files PageFiles `json:"files"`
+// DSL the struct for the DSL
+type DSL struct {
+	ID      string   `json:"-"`
+	Name    string   `json:"name,omitempty"`
+	Storage *Storage `json:"storage,omitempty"`
+	Public  *Public  `json:"public,omitempty"`
 }
 
-// PageFiles is the struct for the page files
-type PageFiles struct {
-	HTML string `json:"html"`
-	CSS  string `json:"css"`
-	JS   string `json:"js"`
-	TS   string `json:"ts"`
-	LESS string `json:"less"`
-	DATA string `json:"data"`
+// Page is the struct for the page
+type Page struct {
+	Route string      `json:"route"`
+	Name  string      `json:"name,omitempty"`
+	Root  string      `json:"-"`
+	Codes SourceCodes `json:"-"`
 }
 
 // Component is the struct for the component
@@ -32,8 +31,10 @@ type Component struct {
 
 // Block is the struct for the block
 type Block struct {
-	template *Template
-	name     string
+	ID       string      `json:"id"`
+	Name     string      `json:"name,omitempty"`
+	Compiled string      `json:"-"`
+	Codes    SourceCodes `json:"-"`
 }
 
 // Template is the struct for the template
@@ -45,12 +46,20 @@ type Template struct {
 	Screenshots []string `json:"screenshots"`
 }
 
-// DSL the struct for the DSL
-type DSL struct {
-	ID      string   `json:"-"`
-	Name    string   `json:"name,omitempty"`
-	Storage *Storage `json:"storage,omitempty"`
-	Public  *Public  `json:"public,omitempty"`
+// SourceCodes is the struct for the page codes
+type SourceCodes struct {
+	HTML Source `json:"-"`
+	CSS  Source `json:"-"`
+	JS   Source `json:"-"`
+	TS   Source `json:"-"`
+	LESS Source `json:"-"`
+	DATA Source `json:"-"`
+}
+
+// Source is the struct for the source
+type Source struct {
+	File string `json:"-"`
+	Code string `json:"-"`
 }
 
 // Public is the struct for the static

@@ -101,6 +101,10 @@ func (local *Local) getTemplateFrom(path string) (*Template, error) {
 // getTemplate get the template
 func (local *Local) getTemplate(id string, path string) (*Template, error) {
 
+	if !local.fs.IsDir(path) {
+		return nil, fmt.Errorf("Template %s not found", id)
+	}
+
 	tmpl := Template{
 		local: local,
 		Root:  path,

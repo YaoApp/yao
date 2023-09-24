@@ -36,12 +36,12 @@ type IPage interface {
 
 // IBlock is the interface for the block
 type IBlock interface {
-	Get() error
-	Save() error
+	Compile() (string, error)
+	Load() error
 }
 
 // IComponent is the interface for the component
 type IComponent interface {
-	Get() error
-	Save() error
+	Compile() (string, error)
+	Load() error
 }

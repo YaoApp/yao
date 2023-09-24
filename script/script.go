@@ -11,7 +11,7 @@ import (
 
 // Load 加载共享库
 func Load(cfg config.Config) error {
-	exts := []string{"*.js"}
+	exts := []string{"*.js", "*.ts"}
 	err := application.App.Walk("scripts", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
