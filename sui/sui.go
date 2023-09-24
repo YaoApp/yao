@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/sui/core"
@@ -37,7 +38,7 @@ func New(dsl *core.DSL) (core.SUI, error) {
 
 // Load load the sui
 func Load(cfg config.Config) error {
-	exts := []string{"*.core.yao", "*.core.jsonc", "*.core.json"}
+	exts := []string{"*.sui.yao", "*.sui.jsonc", "*.sui.json"}
 	return application.App.Walk("suis", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
@@ -46,6 +47,7 @@ func Load(cfg config.Config) error {
 		id := share.ID(root, file)
 		_, err := loadFile(file, id)
 		if err != nil {
+			log.Error("[sui] Load sui %s error: %s", id, err.Error())
 			return err
 		}
 		return nil

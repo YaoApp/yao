@@ -36,6 +36,22 @@ func TestGetTemplates(t *testing.T) {
 
 }
 
+func TestGetTemplate(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	websiteAI, err := tests.Demo.GetTemplate("website-ai")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	assert.Equal(t, "website-ai", websiteAI.(*Template).ID)
+	assert.Equal(t, "Website DEMO", websiteAI.(*Template).Name)
+	assert.Equal(t, true, len(websiteAI.(*Template).Screenshots) > 0)
+	assert.Equal(t, 2, websiteAI.(*Template).Version)
+	assert.Equal(t, "AI Website DEMO", websiteAI.(*Template).Descrption)
+}
+
 func prepare(t *testing.T) struct {
 	Demo   *Local
 	Screen *Local

@@ -16,6 +16,8 @@ func TestLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	check(t)
 }
 
 func check(t *testing.T) {

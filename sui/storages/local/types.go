@@ -14,12 +14,14 @@ type Local struct {
 
 // Template is the struct for the local sui template
 type Template struct {
-	Path string `json:"-"`
+	Root  string `json:"-"`
+	local *Local
 	*core.Template
 }
 
 // Page is the struct for the local sui page
 type Page struct {
+	tmpl *Template
 	*core.Page
 }
 

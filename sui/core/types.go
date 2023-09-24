@@ -9,9 +9,19 @@ type SUI interface {
 
 // Page is the struct for the page
 type Page struct {
-	template *Template
-	route    string
-	file     string
+	Route string    `json:"route"`
+	Root  string    `json:"root"`
+	Files PageFiles `json:"files"`
+}
+
+// PageFiles is the struct for the page files
+type PageFiles struct {
+	HTML string `json:"html"`
+	CSS  string `json:"css"`
+	JS   string `json:"js"`
+	TS   string `json:"ts"`
+	LESS string `json:"less"`
+	DATA string `json:"data"`
 }
 
 // Component is the struct for the component
