@@ -52,6 +52,7 @@ env:
   ## Path
   YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
   YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+  YAO_TEST_BUILDER_APPLICATION: ${{ github.WORKSPACE }}/../page-builder-app
 
   ## Runtime
   YAO_RUNTIME_MIN: 3
@@ -159,6 +160,13 @@ jobs:
           repository: yaoapp/yao-dev-app
           path: app
 
+      - name: Checkout Page Builder App
+        uses: actions/checkout@v3
+        with:
+          repository: yaoapp/page-builder-app
+          token: ${{ secrets.YAO_TEST_TOKEN }}
+          path: page-builder-app 
+
       - name: Checkout Extension
         uses: actions/checkout@v3
         with:
@@ -173,6 +181,7 @@ jobs:
           mv v8go ../
           mv app ../
           mv extension ../
+          mv page-builder-app ../
           ls -l .
           ls -l ../
 
