@@ -30,8 +30,14 @@ import (
 var testServer *http.Server = nil
 
 // Prepare test environment
-func Prepare(t *testing.T, cfg config.Config) {
-	root := os.Getenv("YAO_TEST_APPLICATION")
+func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
+
+	appRootEnv := "YAO_TEST_APPLICATION"
+	if len(rootEnv) > 0 {
+		appRootEnv = rootEnv[0]
+	}
+
+	root := os.Getenv(appRootEnv)
 	var app application.Application
 	var err error
 
@@ -70,9 +76,11 @@ func Prepare(t *testing.T, cfg config.Config) {
 	}
 	application.Load(app)
 
-	if cfg.DataRoot == "" {
-		cfg.DataRoot = filepath.Join(root, "data")
-	}
+	cfg.DataRoot = filepath.Join(root, "data")
+
+	// if cfg.DataRoot == "" {
+	// 	cfg.DataRoot = filepath.Join(root, "data")
+	// }
 
 	utils.Init()
 	dbconnect(t, cfg)
