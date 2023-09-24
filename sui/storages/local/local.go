@@ -1,8 +1,15 @@
 package local
 
 import (
+	"fmt"
+	"path"
+	"path/filepath"
+	"strings"
+
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/sui/core"
 	sui "github.com/yaoapp/yao/sui/core"
 )
 
@@ -63,7 +70,7 @@ func (local *Local) GetTemplates() ([]sui.ITemplate, error) {
 			continue
 		}
 
-		tmpl, err := local.NewTemplate(dir)
+		tmpl, err := local.getTemplateFrom(dir)
 		if err != nil {
 			log.Error("GetTemplates %s error: %s", dir, err.Error())
 			continue
@@ -75,11 +82,53 @@ func (local *Local) GetTemplates() ([]sui.ITemplate, error) {
 }
 
 // GetTemplate get the template
-func (local *Local) GetTemplate(name string) (sui.ITemplate, error) {
-	return nil, nil
+func (local *Local) GetTemplate(id string) (sui.ITemplate, error) {
+	path := path.Join(local.root, id)
+	return local.getTemplate(id, path)
 }
 
 // UploadTemplate upload the template
 func (local *Local) UploadTemplate(src string, dst string) (sui.ITemplate, error) {
 	return nil, nil
+}
+
+// GetTemplateFrom get the template from the path
+func (local *Local) getTemplateFrom(path string) (*Template, error) {
+	id := local.getTemplateID(path)
+	return local.getTemplate(id, path)
+}
+
+// getTemplate get the template
+func (local *Local) getTemplate(id string, path string) (*Template, error) {
+
+	tmpl := Template{
+		local: local,
+		Root:  path,
+		Template: &core.Template{
+			ID:          id,
+			Name:        strings.ToUpper(id),
+			Version:     1,
+			Screenshots: []string{},
+		}}
+
+	// load the template.json
+	configFile := filepath.Join(path, fmt.Sprintf("%s.json", id))
+	if local.fs.IsFile(configFile) {
+		configBytes, err := local.fs.ReadFile(configFile)
+		if err != nil {
+			return nil, err
+		}
+
+		err = jsoniter.Unmarshal(configBytes, &tmpl.Template)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &tmpl, nil
+}
+
+// GetTemplateID get the template ID
+func (local *Local) getTemplateID(path string) string {
+	return filepath.Base(path)
 }
