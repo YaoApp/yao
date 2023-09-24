@@ -27,6 +27,7 @@ type Page struct {
 
 // Block is the struct for the local sui block
 type Block struct {
+	tmpl *Template
 	*core.Block
 }
 
