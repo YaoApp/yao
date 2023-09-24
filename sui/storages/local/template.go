@@ -160,6 +160,7 @@ func (tmpl *Template) getBlock(id string) (core.IBlock, error) {
 	}
 
 	jsFile := filepath.Join("/", id, "main.js")
+	tsFile := filepath.Join("/", id, "main.ts")
 	htmlFile := filepath.Join("/", id, "main.html")
 	block := &Block{
 		tmpl: tmpl,
@@ -168,6 +169,7 @@ func (tmpl *Template) getBlock(id string) (core.IBlock, error) {
 			Codes: core.SourceCodes{
 				HTML: core.Source{File: htmlFile},
 				JS:   core.Source{File: jsFile},
+				TS:   core.Source{File: tsFile},
 			},
 		},
 	}
