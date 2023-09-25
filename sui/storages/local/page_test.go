@@ -1,6 +1,7 @@
 package local
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ func TestTemplatePages(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("website-ai")
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -20,42 +21,94 @@ func TestTemplatePages(t *testing.T) {
 		t.Fatalf("Pages error: %v", err)
 	}
 
-	if len(pages) < 1 {
+	if len(pages) < 8 {
 		t.Fatalf("Pages error: %v", len(pages))
 	}
 
-	assert.Equal(t, "/index", pages[0].(*Page).Route)
-	assert.Equal(t, "/templates/website-ai", pages[0].(*Page).Root)
-	assert.Equal(t, "/index.css", pages[0].(*Page).Codes.CSS.File)
-	assert.Equal(t, "/index.html", pages[0].(*Page).Codes.HTML.File)
-	assert.Equal(t, "/index.js", pages[0].(*Page).Codes.JS.File)
-	assert.Equal(t, "/index.less", pages[0].(*Page).Codes.LESS.File)
-	assert.Equal(t, "/index.ts", pages[0].(*Page).Codes.TS.File)
-	assert.Equal(t, "/index.json", pages[0].(*Page).Codes.DATA.File)
+	for _, page := range pages {
+
+		page := page.(*Page)
+		name := filepath.Base(page.Path)
+		dir := page.Path[len(tmpl.(*Template).Root):]
+		path := filepath.Join(tmpl.(*Template).Root, dir)
+
+		assert.Equal(t, dir, page.Route)
+		assert.Equal(t, path, page.Path)
+		assert.Equal(t, name+".css", page.Codes.CSS.File)
+		assert.Equal(t, name+".html", page.Codes.HTML.File)
+		assert.Equal(t, name+".js", page.Codes.JS.File)
+		assert.Equal(t, name+".less", page.Codes.LESS.File)
+		assert.Equal(t, name+".ts", page.Codes.TS.File)
+		assert.Equal(t, name+".json", page.Codes.DATA.File)
+	}
 }
 
-func TestTemplatePage(t *testing.T) {
+func TestTemplatePageTS(t *testing.T) {
 
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("website-ai")
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	page, err := tmpl.Page("/index")
+	ipage, err := tmpl.Page("/page/[id]")
 	if err != nil {
 		t.Fatalf("Page error: %v", err)
 	}
-	assert.Equal(t, "/index", page.(*Page).Route)
-	assert.Equal(t, "/templates/website-ai", page.(*Page).Root)
-	assert.Equal(t, "/index.css", page.(*Page).Codes.CSS.File)
-	assert.Equal(t, "/index.html", page.(*Page).Codes.HTML.File)
-	assert.Equal(t, "/index.js", page.(*Page).Codes.JS.File)
-	assert.Equal(t, "/index.less", page.(*Page).Codes.LESS.File)
-	assert.Equal(t, "/index.ts", page.(*Page).Codes.TS.File)
-	assert.Equal(t, "/index.json", page.(*Page).Codes.DATA.File)
+
+	page := ipage.(*Page)
+
+	assert.Equal(t, "/page/[id]", page.Route)
+	assert.Equal(t, "/templates/tech-blue/page/[id]", page.Path)
+	assert.Equal(t, "[id].css", page.Codes.CSS.File)
+	assert.Equal(t, "[id].html", page.Codes.HTML.File)
+	assert.Equal(t, "[id].js", page.Codes.JS.File)
+	assert.Equal(t, "[id].less", page.Codes.LESS.File)
+	assert.Equal(t, "[id].ts", page.Codes.TS.File)
+	assert.Equal(t, "[id].json", page.Codes.DATA.File)
+
+	assert.NotEmpty(t, page.Codes.TS.Code)
+	assert.Empty(t, page.Codes.JS.Code)
+	assert.NotEmpty(t, page.Codes.HTML.Code)
+	assert.NotEmpty(t, page.Codes.CSS.Code)
+	assert.NotEmpty(t, page.Codes.DATA.Code)
+
+	_, err = tmpl.Page("/the/page/could/not/be/found")
+	assert.Contains(t, err.Error(), "Page /the/page/could/not/be/found not found")
+}
+
+func TestTemplatePageJS(t *testing.T) {
+
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	ipage, err := tmpl.Page("/page/404")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	page := ipage.(*Page)
+	assert.Equal(t, "/page/404", page.Route)
+	assert.Equal(t, "/templates/tech-blue/page/404", page.Path)
+	assert.Equal(t, "404.css", page.Codes.CSS.File)
+	assert.Equal(t, "404.html", page.Codes.HTML.File)
+	assert.Equal(t, "404.js", page.Codes.JS.File)
+	assert.Equal(t, "404.less", page.Codes.LESS.File)
+	assert.Equal(t, "404.ts", page.Codes.TS.File)
+	assert.Equal(t, "404.json", page.Codes.DATA.File)
+
+	assert.NotEmpty(t, page.Codes.JS.Code)
+	assert.Empty(t, page.Codes.TS.Code)
+	assert.NotEmpty(t, page.Codes.HTML.Code)
+	assert.Empty(t, page.Codes.CSS.Code)
+	assert.NotEmpty(t, page.Codes.DATA.Code)
 
 	_, err = tmpl.Page("/the/page/could/not/be/found")
 	assert.Contains(t, err.Error(), "Page /the/page/could/not/be/found not found")

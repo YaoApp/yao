@@ -19,7 +19,7 @@ type DSL struct {
 type Page struct {
 	Route string      `json:"route"`
 	Name  string      `json:"name,omitempty"`
-	Root  string      `json:"-"`
+	Path  string      `json:"-"`
 	Codes SourceCodes `json:"-"`
 }
 

@@ -20,8 +20,7 @@ type ITemplate interface {
 
 // IPage is the interface for the page
 type IPage interface {
-	Get() error
-	Save() error
+	Load() error
 
 	// Render()
 

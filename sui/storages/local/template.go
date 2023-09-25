@@ -1,10 +1,5 @@
 package local
 
-import (
-	"path/filepath"
-	"strings"
-)
-
 // Get get the template
 func (tmpl *Template) Get() error {
 	return nil
@@ -13,10 +8,6 @@ func (tmpl *Template) Get() error {
 // Save save the template
 func (tmpl *Template) Save() error {
 	return nil
-}
-
-func (tmpl *Template) getPageRoute(path string) string {
-	return strings.TrimSuffix(path[len(tmpl.Root):], filepath.Ext(path))
 }
 
 // Styles get the global styles
