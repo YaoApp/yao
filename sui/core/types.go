@@ -25,8 +25,10 @@ type Page struct {
 
 // Component is the struct for the component
 type Component struct {
-	templage *Template
-	name     string
+	ID       string      `json:"id"`
+	Name     string      `json:"name,omitempty"`
+	Compiled string      `json:"-"`
+	Codes    SourceCodes `json:"-"`
 }
 
 // Block is the struct for the block
