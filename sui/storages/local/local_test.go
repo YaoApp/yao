@@ -18,21 +18,27 @@ func TestGetTemplates(t *testing.T) {
 		t.Fatalf("GetTemplates error: %v", err)
 	}
 
-	if len(dempTmpls) < 2 {
+	if len(dempTmpls) < 3 {
 		t.Fatalf("The demo templates less than %v", len(dempTmpls))
 	}
 
 	assert.Equal(t, "tech-blue", dempTmpls[0].(*Template).ID)
-	assert.Equal(t, "TECH-BLUE", dempTmpls[0].(*Template).Name)
-	assert.Equal(t, []string{}, dempTmpls[0].(*Template).Screenshots)
+	assert.Equal(t, "Tech Blue DEMO", dempTmpls[0].(*Template).Name)
+	assert.Equal(t, true, len(dempTmpls[1].(*Template).Screenshots) > 0)
 	assert.Equal(t, 1, dempTmpls[0].(*Template).Version)
-	assert.Equal(t, "", dempTmpls[0].(*Template).Descrption)
+	assert.Equal(t, "Tech Blue DEMO", dempTmpls[0].(*Template).Descrption)
 
 	assert.Equal(t, "website-ai", dempTmpls[1].(*Template).ID)
 	assert.Equal(t, "Website DEMO", dempTmpls[1].(*Template).Name)
 	assert.Equal(t, true, len(dempTmpls[1].(*Template).Screenshots) > 0)
 	assert.Equal(t, 2, dempTmpls[1].(*Template).Version)
 	assert.Equal(t, "AI Website DEMO", dempTmpls[1].(*Template).Descrption)
+
+	assert.Equal(t, "wechat-web", dempTmpls[2].(*Template).ID)
+	assert.Equal(t, "WECHAT-WEB", dempTmpls[2].(*Template).Name)
+	assert.Equal(t, []string{}, dempTmpls[2].(*Template).Screenshots)
+	assert.Equal(t, 1, dempTmpls[2].(*Template).Version)
+	assert.Equal(t, "", dempTmpls[2].(*Template).Descrption)
 
 }
 

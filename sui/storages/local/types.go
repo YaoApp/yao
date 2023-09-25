@@ -33,5 +33,6 @@ type Block struct {
 
 // Component is the struct for the local sui component
 type Component struct {
+	tmpl *Template
 	*core.Component
 }
