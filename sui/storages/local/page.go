@@ -42,47 +42,118 @@ func (tmpl *Template) Pages() ([]core.IPage, error) {
 
 // Page get the page
 func (tmpl *Template) Page(route string) (core.IPage, error) {
-	path := filepath.Join(tmpl.Root, route)
+	path := tmpl.getPagePath(route)
 	exts := []string{".sui", ".html", ".htm", ".page"}
 	for _, ext := range exts {
 		file := fmt.Sprintf("%s%s", path, ext)
 		if exist, _ := tmpl.local.fs.Exists(file); exist {
-			return tmpl.getPageFrom(file)
+			page, err := tmpl.getPageFrom(file)
+			if err != nil {
+				return nil, err
+			}
+
+			// Load the page source code
+			err = page.Load()
+			if err != nil {
+				return nil, err
+			}
+
+			return page, nil
 		}
 	}
 	return nil, fmt.Errorf("Page %s not found", route)
 }
 
-func (tmpl *Template) getPageFrom(path string) (core.IPage, error) {
-	route := tmpl.getPageRoute(path)
-	return tmpl.getPage(route, path)
+func (tmpl *Template) getPageFrom(file string) (core.IPage, error) {
+	route := tmpl.getPageRoute(file)
+	return tmpl.getPage(route, file)
 }
 
 func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
-	root := filepath.Dir(file)
+	path := filepath.Dir(file)
+	name := tmpl.getPageBase(route)
 	return &Page{
 		tmpl: tmpl,
 		Page: &core.Page{
 			Route: route,
-			Root:  root,
+			Path:  path,
 			Codes: core.SourceCodes{
-				HTML: core.Source{File: fmt.Sprintf("%s%s", route, filepath.Ext(file))},
-				CSS:  core.Source{File: fmt.Sprintf("%s.css", route)},
-				JS:   core.Source{File: fmt.Sprintf("%s.js", route)},
-				DATA: core.Source{File: fmt.Sprintf("%s.json", route)},
-				TS:   core.Source{File: fmt.Sprintf("%s.ts", route)},
-				LESS: core.Source{File: fmt.Sprintf("%s.less", route)},
+				HTML: core.Source{File: fmt.Sprintf("%s%s", name, filepath.Ext(file))},
+				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
+				JS:   core.Source{File: fmt.Sprintf("%s.js", name)},
+				DATA: core.Source{File: fmt.Sprintf("%s.json", name)},
+				TS:   core.Source{File: fmt.Sprintf("%s.ts", name)},
+				LESS: core.Source{File: fmt.Sprintf("%s.less", name)},
 			},
 		},
 	}, nil
 }
 
-// Get get the page
-func (page *Page) Get() error {
-	return nil
+func (tmpl *Template) getPageRoute(file string) string {
+	return filepath.Dir(file[len(tmpl.Root):])
 }
 
-// Save save the page
-func (page *Page) Save() error {
+func (tmpl *Template) getPagePath(route string) string {
+	name := tmpl.getPageBase(route)
+	return filepath.Join(tmpl.Root, route, name)
+}
+
+func (tmpl *Template) getPageBase(route string) string {
+	return filepath.Base(route)
+}
+
+// Load get the page from the storage
+func (page *Page) Load() error {
+
+	// Read the Script code
+	// Type script is the default language
+	tsFile := filepath.Join(page.Path, page.Codes.TS.File)
+	if exist, _ := page.tmpl.local.fs.Exists(tsFile); exist {
+		tsCode, err := page.tmpl.local.fs.ReadFile(tsFile)
+		if err != nil {
+			return err
+		}
+		page.Codes.TS.Code = string(tsCode)
+
+	} else {
+		jsFile := filepath.Join(page.Path, page.Codes.JS.File)
+		jsCode, err := page.tmpl.local.fs.ReadFile(jsFile)
+		if err != nil {
+			return err
+		}
+		page.Codes.JS.Code = string(jsCode)
+	}
+
+	// Read the HTML code
+	htmlFile := filepath.Join(page.Path, page.Codes.HTML.File)
+	if exist, _ := page.tmpl.local.fs.Exists(htmlFile); exist {
+		htmlCode, err := page.tmpl.local.fs.ReadFile(htmlFile)
+		if err != nil {
+			return err
+		}
+		page.Codes.HTML.Code = string(htmlCode)
+	}
+
+	// Read the CSS code
+	// @todo: Less support
+	cssFile := filepath.Join(page.Path, page.Codes.CSS.File)
+	if exist, _ := page.tmpl.local.fs.Exists(cssFile); exist {
+		cssCode, err := page.tmpl.local.fs.ReadFile(cssFile)
+		if err != nil {
+			return err
+		}
+		page.Codes.CSS.Code = string(cssCode)
+	}
+
+	// Read the JSON code
+	dataFile := filepath.Join(page.Path, page.Codes.DATA.File)
+	if exist, _ := page.tmpl.local.fs.Exists(dataFile); exist {
+		dataCode, err := page.tmpl.local.fs.ReadFile(dataFile)
+		if err != nil {
+			return err
+		}
+		page.Codes.DATA.Code = string(dataCode)
+	}
+
 	return nil
 }
