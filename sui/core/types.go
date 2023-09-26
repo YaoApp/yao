@@ -41,11 +41,24 @@ type Block struct {
 
 // Template is the struct for the template
 type Template struct {
-	Version     int      `json:"version"` // Yao Builder version
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Descrption  string   `json:"description"`
-	Screenshots []string `json:"screenshots"`
+	Version     int            `json:"version"` // Yao Builder version
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Descrption  string         `json:"description"`
+	Screenshots []string       `json:"screenshots"`
+	Themes      []SelectOption `json:"themes"`
+}
+
+// Theme is the struct for the theme
+type Theme struct {
+	ID   string `json:"id"`
+	Name string `json:"name,omitempty"`
+}
+
+// SelectOption is the struct for the select option
+type SelectOption struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
 // SourceCodes is the struct for the page codes

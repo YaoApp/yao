@@ -2,20 +2,18 @@ package core
 
 // ITemplate is the interface for the ITemplate
 type ITemplate interface {
-	Get() error
-	Save() error
-
 	Pages() ([]IPage, error)
-	Blocks() ([]IBlock, error)
-	Components() ([]IComponent, error)
-
 	Page(route string) (IPage, error)
+
+	Blocks() ([]IBlock, error)
 	Block(name string) (IBlock, error)
+
+	Components() ([]IComponent, error)
 	Component(name string) (IComponent, error)
 
-	Styles() []string
-	Locales() []string
-	Themes() []string
+	Assets() []string
+	Locales() []SelectOption
+	Themes() []SelectOption
 }
 
 // IPage is the interface for the page

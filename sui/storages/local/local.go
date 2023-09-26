@@ -113,6 +113,7 @@ func (local *Local) getTemplate(id string, path string) (*Template, error) {
 			Name:        strings.ToUpper(id),
 			Version:     1,
 			Screenshots: []string{},
+			Themes:      []core.SelectOption{},
 		}}
 
 	// load the template.json
