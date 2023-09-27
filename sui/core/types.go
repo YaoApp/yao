@@ -1,12 +1,5 @@
 package core
 
-// SUI is the interface for the SUI
-type SUI interface {
-	GetTemplates() ([]ITemplate, error)
-	GetTemplate(name string) (ITemplate, error)
-	UploadTemplate(src string, dst string) (ITemplate, error)
-}
-
 // DSL the struct for the DSL
 type DSL struct {
 	ID      string   `json:"-"`
@@ -17,10 +10,11 @@ type DSL struct {
 
 // Page is the struct for the page
 type Page struct {
-	Route string      `json:"route"`
-	Name  string      `json:"name,omitempty"`
-	Path  string      `json:"-"`
-	Codes SourceCodes `json:"-"`
+	Route    string      `json:"route"`
+	Name     string      `json:"name,omitempty"`
+	Path     string      `json:"-"`
+	Codes    SourceCodes `json:"-"`
+	Document []byte      `json:"-"`
 }
 
 // Component is the struct for the component
@@ -47,6 +41,7 @@ type Template struct {
 	Descrption  string         `json:"description"`
 	Screenshots []string       `json:"screenshots"`
 	Themes      []SelectOption `json:"themes"`
+	Document    []byte         `json:"-"`
 }
 
 // Theme is the struct for the theme
@@ -59,6 +54,27 @@ type Theme struct {
 type SelectOption struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
+}
+
+// Request is the struct for the request
+type Request struct {
+	Method  string                 `json:"method"`
+	Payload map[string]interface{} `json:"payload,omitempty"`
+	Query   map[string][]string    `json:"query,omitempty"`
+	Params  map[string]string      `json:"params,omitempty"`
+	Headers []string               `json:"headers,omitempty"`
+	Body    []byte                 `json:"body,omitempty"`
+	Theme   string                 `json:"theme,omitempty"`
+	Locale  string                 `json:"locale,omitempty"`
+}
+
+// ResponseEditor is the struct for the response
+type ResponseEditor struct {
+	HTML     string   `json:"html,omitempty"`
+	CSS      string   `json:"css,omitempty"`
+	Scripts  []string `json:"scripts,omitempty"`
+	Styles   []string `json:"styles,omitempty"`
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // SourceCodes is the struct for the page codes
@@ -89,3 +105,34 @@ type Storage struct {
 	Driver string                 `json:"driver"`
 	Option map[string]interface{} `json:"option,omitempty"`
 }
+
+// DocumentDefault is the default document
+var DocumentDefault = []byte(`
+<!DOCTYPE html>
+<html lang="{{ $REQ.locale || 'en' }}">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ $DATA.head.title || '' }}</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta
+      name="description"
+      content="{{ $DATA.head.description || '' }}"
+    />
+    <meta
+      name="keywords"
+      content="{{ $DATA.head.keywords || '' }}"
+    />
+    <meta name="author" content="Yao" />
+    <meta name="website" content="https://yaoapps.com" />
+    <meta name="email" content="friends@iqka.com" />
+    <meta name="version" content="2.0.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  </head>
+  <body>
+  	{{ __page }}
+  </body>
+</html>
+`)

@@ -1,4 +1,4 @@
-package sui
+package api
 
 import (
 	"fmt"
@@ -12,9 +12,6 @@ import (
 	"github.com/yaoapp/yao/sui/storages/azure"
 	"github.com/yaoapp/yao/sui/storages/local"
 )
-
-// SUIs the loaded SUI instances
-var SUIs = map[string]core.SUI{}
 
 // New create a new sui
 func New(dsl *core.DSL) (core.SUI, error) {
@@ -39,7 +36,7 @@ func New(dsl *core.DSL) (core.SUI, error) {
 // Load load the sui
 func Load(cfg config.Config) error {
 	exts := []string{"*.sui.yao", "*.sui.jsonc", "*.sui.json"}
-	return application.App.Walk("suis", func(root, file string, isdir bool) error {
+	err := application.App.Walk("suis", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
@@ -52,6 +49,12 @@ func Load(cfg config.Config) error {
 		}
 		return nil
 	}, exts...)
+
+	if err != nil {
+		return err
+	}
+
+	return registerAPI()
 }
 
 func loadFile(file string, id string) (core.SUI, error) {
@@ -66,6 +69,6 @@ func loadFile(file string, id string) (core.SUI, error) {
 		return nil, err
 	}
 
-	SUIs[id] = sui
-	return SUIs[id], nil
+	core.SUIs[id] = sui
+	return core.SUIs[id], nil
 }

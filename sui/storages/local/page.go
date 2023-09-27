@@ -77,6 +77,7 @@ func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
 		Page: &core.Page{
 			Route: route,
 			Path:  path,
+			Name:  name,
 			Codes: core.SourceCodes{
 				HTML: core.Source{File: fmt.Sprintf("%s%s", name, filepath.Ext(file))},
 				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
@@ -117,11 +118,13 @@ func (page *Page) Load() error {
 
 	} else {
 		jsFile := filepath.Join(page.Path, page.Codes.JS.File)
-		jsCode, err := page.tmpl.local.fs.ReadFile(jsFile)
-		if err != nil {
-			return err
+		if exist, _ := page.tmpl.local.fs.Exists(jsFile); exist {
+			jsCode, err := page.tmpl.local.fs.ReadFile(jsFile)
+			if err != nil {
+				return err
+			}
+			page.Codes.JS.Code = string(jsCode)
 		}
-		page.Codes.JS.Code = string(jsCode)
 	}
 
 	// Read the HTML code
@@ -155,5 +158,7 @@ func (page *Page) Load() error {
 		page.Codes.DATA.Code = string(dataCode)
 	}
 
+	// Set the page document
+	page.Document = page.tmpl.Document
 	return nil
 }

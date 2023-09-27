@@ -29,6 +29,7 @@ import (
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
+	sui "github.com/yaoapp/yao/sui/api"
 	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/websocket"
 	"github.com/yaoapp/yao/widget"
@@ -194,6 +195,12 @@ func Load(cfg config.Config) (err error) {
 	err = widget.LoadInstances()
 	if err != nil {
 		printErr(cfg.Mode, "Widget", err)
+	}
+
+	// Load SUI
+	err = sui.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "SUI", err)
 	}
 
 	return nil
