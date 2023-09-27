@@ -11,13 +11,13 @@ var dsl = []byte(`
 	"group": "__yao/sui/v1",
 	"paths": [
 		{
-			"path": "/:id/template/find/:template_id",
+			"path": "/:id/template/:template_id",
 			"method": "GET",
 			"process": "sui.Template.Find",
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
-			"path": "/:id/template/get",
+			"path": "/:id/template",
 			"method": "GET",
 			"process": "sui.Template.Get",
 			"in": ["$param.id"],
