@@ -19,7 +19,7 @@ func TestGetTemplates(t *testing.T) {
 	}
 
 	if len(dempTmpls) < 3 {
-		t.Fatalf("The demo templates less than %v", len(dempTmpls))
+		t.Fatalf("The demo templates less than 3 (%v<3)", len(dempTmpls))
 	}
 
 	assert.Equal(t, "tech-blue", dempTmpls[0].(*Template).ID)

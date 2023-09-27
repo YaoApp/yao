@@ -130,6 +130,16 @@ func (local *Local) getTemplate(id string, path string) (*Template, error) {
 		}
 	}
 
+	// load the __document.html
+	documentFile := filepath.Join(path, "__document.html")
+	if local.fs.IsFile(documentFile) {
+		documentBytes, err := local.fs.ReadFile(documentFile)
+		if err != nil {
+			return nil, err
+		}
+		tmpl.Document = documentBytes
+	}
+
 	return &tmpl, nil
 }
 
