@@ -1,5 +1,15 @@
 package core
 
+// SUIs the loaded SUI instances
+var SUIs = map[string]SUI{}
+
+// SUI is the interface for the SUI
+type SUI interface {
+	GetTemplates() ([]ITemplate, error)
+	GetTemplate(name string) (ITemplate, error)
+	UploadTemplate(src string, dst string) (ITemplate, error)
+}
+
 // ITemplate is the interface for the ITemplate
 type ITemplate interface {
 	Pages() ([]IPage, error)

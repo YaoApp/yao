@@ -1,12 +1,5 @@
 package core
 
-// SUI is the interface for the SUI
-type SUI interface {
-	GetTemplates() ([]ITemplate, error)
-	GetTemplate(name string) (ITemplate, error)
-	UploadTemplate(src string, dst string) (ITemplate, error)
-}
-
 // DSL the struct for the DSL
 type DSL struct {
 	ID      string   `json:"-"`

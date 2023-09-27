@@ -1,10 +1,11 @@
-package sui
+package api
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/sui/core"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -22,7 +23,7 @@ func TestLoad(t *testing.T) {
 
 func check(t *testing.T) {
 	ids := map[string]bool{}
-	for id := range SUIs {
+	for id := range core.SUIs {
 		ids[id] = true
 	}
 	assert.True(t, ids["azure"])
