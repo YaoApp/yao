@@ -6,11 +6,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Render render the page
-func (page *Page) Render() {}
-
-// RenderEditor render for the editor
-func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
+// EditorRender render HTML for the editor
+func (page *Page) EditorRender(request *Request) (*ResponseEditor, error) {
 
 	html := page.Codes.HTML.Code
 	res := &ResponseEditor{
@@ -19,6 +16,7 @@ func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
 		Scripts:  []string{},
 		Styles:   []string{},
 		Warnings: []string{},
+		Setting:  map[string]interface{}{},
 	}
 
 	// Get The scripts and styles
@@ -50,11 +48,12 @@ func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
 		res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".ts"))
 	}
 
-	data, err := page.Data(request)
+	data, setting, err := page.Data(request)
 	if err != nil {
 		res.Warnings = append(res.Warnings, err.Error())
 	}
 
+	res.Setting = setting
 	if data == nil {
 		res.HTML = html
 		return res, nil
@@ -71,8 +70,44 @@ func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
 	return res, nil
 }
 
-// RenderPreview render for the preview
-func (page *Page) RenderPreview() {}
+// EditorPageSource get the editor page source code
+func (page *Page) EditorPageSource() ResponseSource {
+	return ResponseSource{
+		Source:   page.Codes.HTML.Code,
+		Language: "html",
+	}
+}
+
+// EditorScriptSource get the editor script source code
+func (page *Page) EditorScriptSource() ResponseSource {
+	if page.Codes.TS.Code != "" {
+		return ResponseSource{
+			Source:   page.Codes.TS.Code,
+			Language: "typescript",
+		}
+	}
+
+	return ResponseSource{
+		Source:   page.Codes.JS.Code,
+		Language: "javascript",
+	}
+}
+
+// EditorStyleSource get the editor style source code
+func (page *Page) EditorStyleSource() ResponseSource {
+	return ResponseSource{
+		Source:   page.Codes.CSS.Code,
+		Language: "css",
+	}
+}
+
+// EditorDataSource get the editor data source code
+func (page *Page) EditorDataSource() ResponseSource {
+	return ResponseSource{
+		Source:   page.Codes.DATA.Code,
+		Language: "json",
+	}
+}
 
 // GlobalScripts get the global scripts
 func (page *Page) GlobalScripts() ([]string, error) {

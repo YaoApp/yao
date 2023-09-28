@@ -1,8 +1,25 @@
 package core
 
+import (
+	"strings"
+
+	jsoniter "github.com/json-iterator/go"
+)
+
 // Data get the data
-func (page *Page) Data(request *Request) (map[string]interface{}, error) {
-	return nil, nil
+func (page *Page) Data(request *Request) (map[string]interface{}, map[string]interface{}, error) {
+
+	setting := map[string]interface{}{
+		"title": strings.ToUpper(page.Name),
+	}
+
+	if page.Codes.DATA.Code != "" {
+		err := jsoniter.UnmarshalFromString(page.Codes.DATA.Code, &setting)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return nil, setting, nil
 }
 
 // RenderHTML render for the html

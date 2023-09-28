@@ -70,11 +70,18 @@ type Request struct {
 
 // ResponseEditor is the struct for the response
 type ResponseEditor struct {
-	HTML     string   `json:"html,omitempty"`
-	CSS      string   `json:"css,omitempty"`
-	Scripts  []string `json:"scripts,omitempty"`
-	Styles   []string `json:"styles,omitempty"`
-	Warnings []string `json:"warnings,omitempty"`
+	HTML     string                 `json:"html,omitempty"`
+	CSS      string                 `json:"css,omitempty"`
+	Scripts  []string               `json:"scripts,omitempty"`
+	Styles   []string               `json:"styles,omitempty"`
+	Setting  map[string]interface{} `json:"setting,omitempty"`
+	Warnings []string               `json:"warnings,omitempty"`
+}
+
+// ResponseSource is the struct for the response
+type ResponseSource struct {
+	Source   string `json:"source,omitempty"`
+	Language string `json:"lang,omitempty"`
 }
 
 // SourceCodes is the struct for the page codes

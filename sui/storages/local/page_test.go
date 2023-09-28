@@ -131,7 +131,7 @@ func TestPageRenderEditor(t *testing.T) {
 	}
 
 	r := &core.Request{Method: "GET"}
-	res, err := page.RenderEditor(r)
+	res, err := page.EditorRender(r)
 	if err != nil {
 		t.Fatalf("RenderEditor error: %v", err)
 	}

@@ -29,7 +29,11 @@ type ITemplate interface {
 // IPage is the interface for the page
 type IPage interface {
 	Load() error
-	RenderEditor(request *Request) (*ResponseEditor, error)
+	EditorRender(request *Request) (*ResponseEditor, error)
+	EditorPageSource() ResponseSource
+	EditorScriptSource() ResponseSource
+	EditorStyleSource() ResponseSource
+	EditorDataSource() ResponseSource
 
 	// Render()
 
