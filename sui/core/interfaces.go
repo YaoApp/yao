@@ -50,10 +50,12 @@ type IPage interface {
 type IBlock interface {
 	Compile() (string, error)
 	Load() error
+	Source() string
 }
 
 // IComponent is the interface for the component
 type IComponent interface {
 	Compile() (string, error)
 	Load() error
+	Source() string
 }

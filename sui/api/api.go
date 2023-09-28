@@ -23,7 +23,7 @@ var dsl = []byte(`
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},
-		
+
 		{
 			"path": "/:id/template/:template_id/locale",
 			"method": "GET",
@@ -37,6 +37,35 @@ var dsl = []byte(`
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},
+
+		{
+			"path": "/:id/template/:template_id/block",
+			"method": "GET",
+			"process": "sui.Template.Block.Get",
+			"in": ["$param.id", "$param.template_id"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/template/:template_id/block/:block_id",
+			"method": "GET",
+			"process": "sui.Template.Block.Find",
+			"in": ["$param.id", "$param.template_id", "$param.block_id"],
+			"out": { "status": 200, "type": "text/javascript" }
+		},
+
+		{
+			"path": "/:id/template/:template_id/component",
+			"method": "GET",
+			"process": "sui.Template.Component.Get",
+			"in": ["$param.id", "$param.template_id"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/template/:template_id/component/:component_id",
+			"method": "GET",
+			"process": "sui.Template.Component.Find",
+			"in": ["$param.id", "$param.template_id", "$param.component_id"],
+			"out": { "status": 200, "type": "text/javascript" }
+		},
+		
 		
 		{
 			"path": "/:id/editor/render/:template_id/*route",
