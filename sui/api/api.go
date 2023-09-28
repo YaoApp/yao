@@ -11,16 +11,30 @@ var dsl = []byte(`
 	"group": "__yao/sui/v1",
 	"paths": [
 		{
+			"path": "/:id/template",
+			"method": "GET",
+			"process": "sui.Template.Get",
+			"in": ["$param.id"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
 			"path": "/:id/template/:template_id",
 			"method": "GET",
 			"process": "sui.Template.Find",
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
-		},{
-			"path": "/:id/template",
+		},
+		
+		{
+			"path": "/:id/template/:template_id/locale",
 			"method": "GET",
-			"process": "sui.Template.Get",
-			"in": ["$param.id"],
+			"process": "sui.Template.Locale.Get",
+			"in": ["$param.id", "$param.template_id"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/template/:template_id/theme",
+			"method": "GET",
+			"process": "sui.Template.Theme.Get",
+			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},
 		

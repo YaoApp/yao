@@ -8,8 +8,10 @@ import (
 
 func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
-		"template.get":  TemplateGet,
-		"template.find": TemplateFind,
+		"template.get":        TemplateGet,
+		"template.find":       TemplateFind,
+		"template.locale.get": TemplateLocaleGet,
+		"template.theme.get":  TemplateThemeGet,
 
 		"editor.render": EditorRender,
 		"editor.source": EditorSource,
@@ -40,6 +42,32 @@ func TemplateFind(process *process.Process) interface{} {
 	}
 
 	return template
+}
+
+// TemplateLocaleGet handle the find Template request
+func TemplateLocaleGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	template, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return template.Locales()
+}
+
+// TemplateThemeGet handle the find Template request
+func TemplateThemeGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	template, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return template.Themes()
 }
 
 // EditorRender handle the render page request

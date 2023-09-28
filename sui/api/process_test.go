@@ -48,6 +48,49 @@ func TestTemplateFind(t *testing.T) {
 	assert.Equal(t, "tech-blue", res.(*local.Template).ID)
 }
 
+func TestTemplateLocaleGet(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.template.locale.get", "demo", "tech-blue")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.IsType(t, []core.SelectOption{}, res)
+	assert.Equal(t, 3, len(res.([]core.SelectOption)))
+	assert.Equal(t, "ar", res.([]core.SelectOption)[0].Value)
+	assert.Equal(t, "zh-cn", res.([]core.SelectOption)[1].Value)
+	assert.Equal(t, "zh-tw", res.([]core.SelectOption)[2].Value)
+}
+
+func TestTemplateThemeGet(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.template.theme.get", "demo", "tech-blue")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.IsType(t, []core.SelectOption{}, res)
+	assert.Equal(t, 2, len(res.([]core.SelectOption)))
+	assert.Equal(t, "dark", res.([]core.SelectOption)[0].Value)
+	assert.Equal(t, "light", res.([]core.SelectOption)[1].Value)
+}
+
 func TestEditorRender(t *testing.T) {
 	load(t)
 	defer clean()
