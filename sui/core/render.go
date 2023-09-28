@@ -9,8 +9,8 @@ import (
 // Render render the page
 func (page *Page) Render() {}
 
-// RenderEditor render for the editor
-func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
+// EditorRender render HTML for the editor
+func (page *Page) EditorRender(request *Request) (*ResponseEditor, error) {
 
 	html := page.Codes.HTML.Code
 	res := &ResponseEditor{
@@ -19,6 +19,7 @@ func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
 		Scripts:  []string{},
 		Styles:   []string{},
 		Warnings: []string{},
+		Setting:  map[string]interface{}{},
 	}
 
 	// Get The scripts and styles
@@ -50,11 +51,12 @@ func (page *Page) RenderEditor(request *Request) (*ResponseEditor, error) {
 		res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".ts"))
 	}
 
-	data, err := page.Data(request)
+	data, setting, err := page.Data(request)
 	if err != nil {
 		res.Warnings = append(res.Warnings, err.Error())
 	}
 
+	res.Setting = setting
 	if data == nil {
 		res.HTML = html
 		return res, nil

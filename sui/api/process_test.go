@@ -48,6 +48,25 @@ func TestTemplateFind(t *testing.T) {
 	assert.Equal(t, "tech-blue", res.(*local.Template).ID)
 }
 
+func TestEditorRender(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.editor.render", "demo", "tech-blue", "/index")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.IsType(t, &core.ResponseEditor{}, res)
+	assert.NotEmpty(t, res.(*core.ResponseEditor).HTML)
+}
+
 func load(t *testing.T) {
 	prepare(t)
 	err := Load(config.Conf)
