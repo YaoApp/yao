@@ -56,3 +56,8 @@ func (component *Component) Compile() (string, error) {
 	component.Compiled = minified
 	return minified, nil
 }
+
+// Source get the compiled code
+func (component *Component) Source() string {
+	return component.Compiled
+}

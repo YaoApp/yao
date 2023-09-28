@@ -55,3 +55,8 @@ func (block *Block) Compile() (string, error) {
 	block.Compiled = minified
 	return minified, nil
 }
+
+// Source get the compiled code
+func (block *Block) Source() string {
+	return block.Compiled
+}

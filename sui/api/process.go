@@ -8,8 +8,14 @@ import (
 
 func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
-		"template.get":  TemplateGet,
-		"template.find": TemplateFind,
+		"template.get":            TemplateGet,
+		"template.find":           TemplateFind,
+		"template.locale.get":     TemplateLocaleGet,
+		"template.theme.get":      TemplateThemeGet,
+		"template.block.get":      TemplateBlockGet,
+		"template.block.find":     TemplateBlockFind,
+		"template.component.get":  TemplateComponentGet,
+		"template.component.find": TemplateComponentFind,
 
 		"editor.render": EditorRender,
 		"editor.source": EditorSource,
@@ -40,6 +46,111 @@ func TemplateFind(process *process.Process) interface{} {
 	}
 
 	return template
+}
+
+// TemplateLocaleGet handle the find Template request
+func TemplateLocaleGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	template, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return template.Locales()
+}
+
+// TemplateThemeGet handle the find Template request
+func TemplateThemeGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	template, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return template.Themes()
+}
+
+// TemplateBlockGet handle the find Template request
+func TemplateBlockGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	blocks, err := tmpl.Blocks()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return blocks
+}
+
+// TemplateBlockFind handle the find Template request
+func TemplateBlockFind(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	blockID := process.ArgsString(2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	block, err := tmpl.Block(blockID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return block.Source()
+}
+
+// TemplateComponentGet handle the find Template request
+func TemplateComponentGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	components, err := tmpl.Components()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return components
+}
+
+// TemplateComponentFind handle the find Template request
+func TemplateComponentFind(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	componentID := process.ArgsString(2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	component, err := tmpl.Component(componentID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return component.Source()
 }
 
 // EditorRender handle the render page request
