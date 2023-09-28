@@ -30,6 +30,10 @@ type ITemplate interface {
 type IPage interface {
 	Load() error
 	EditorRender(request *Request) (*ResponseEditor, error)
+	EditorPageSource() ResponseSource
+	EditorScriptSource() ResponseSource
+	EditorStyleSource() ResponseSource
+	EditorDataSource() ResponseSource
 
 	// Render()
 

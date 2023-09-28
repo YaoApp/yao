@@ -67,6 +67,48 @@ func TestEditorRender(t *testing.T) {
 	assert.NotEmpty(t, res.(*core.ResponseEditor).HTML)
 }
 
+func TestEditorRenderWithQuery(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.editor.render", "demo", "tech-blue", "/index", map[string]interface{}{
+		"method": "POST",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.IsType(t, &core.ResponseEditor{}, res)
+	assert.NotEmpty(t, res.(*core.ResponseEditor).HTML)
+}
+
+func TestEditorPageSource(t *testing.T) {
+	load(t)
+	defer clean()
+
+	sources := []string{"page", "script", "style", "data"}
+	for _, source := range sources {
+		p, err := process.Of("sui.editor.source", "demo", "tech-blue", "/index", source)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := p.Exec()
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.IsType(t, core.ResponseSource{}, res)
+		assert.NotEmpty(t, res.(core.ResponseSource).Source)
+		assert.NotEmpty(t, res.(core.ResponseSource).Language)
+	}
+}
+
 func load(t *testing.T) {
 	prepare(t)
 	err := Load(config.Conf)

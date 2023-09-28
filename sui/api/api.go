@@ -30,6 +30,12 @@ var dsl = []byte(`
 			"process": "sui.Editor.Render",
 			"in": ["$param.id", "$param.template_id", "$param.route"],
 			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/editor/:kind/source/:template_id/*route",
+			"method": "GET",
+			"process": "sui.Editor.Source",
+			"in": ["$param.id", "$param.template_id", "$param.route", "$param.kind"],
+			"out": { "status": 200, "type": "application/json" }
 		}
 	],
 }

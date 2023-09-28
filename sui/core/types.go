@@ -78,6 +78,12 @@ type ResponseEditor struct {
 	Warnings []string               `json:"warnings,omitempty"`
 }
 
+// ResponseSource is the struct for the response
+type ResponseSource struct {
+	Source   string `json:"source,omitempty"`
+	Language string `json:"lang,omitempty"`
+}
+
 // SourceCodes is the struct for the page codes
 type SourceCodes struct {
 	HTML Source `json:"-"`

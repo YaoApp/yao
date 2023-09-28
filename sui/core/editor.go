@@ -6,9 +6,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Render render the page
-func (page *Page) Render() {}
-
 // EditorRender render HTML for the editor
 func (page *Page) EditorRender(request *Request) (*ResponseEditor, error) {
 
@@ -73,8 +70,44 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditor, error) {
 	return res, nil
 }
 
-// RenderPreview render for the preview
-func (page *Page) RenderPreview() {}
+// EditorPageSource get the editor page source code
+func (page *Page) EditorPageSource() ResponseSource {
+	return ResponseSource{
+		Source:   page.Codes.HTML.Code,
+		Language: "html",
+	}
+}
+
+// EditorScriptSource get the editor script source code
+func (page *Page) EditorScriptSource() ResponseSource {
+	if page.Codes.TS.Code != "" {
+		return ResponseSource{
+			Source:   page.Codes.TS.Code,
+			Language: "typescript",
+		}
+	}
+
+	return ResponseSource{
+		Source:   page.Codes.JS.Code,
+		Language: "javascript",
+	}
+}
+
+// EditorStyleSource get the editor style source code
+func (page *Page) EditorStyleSource() ResponseSource {
+	return ResponseSource{
+		Source:   page.Codes.CSS.Code,
+		Language: "css",
+	}
+}
+
+// EditorDataSource get the editor data source code
+func (page *Page) EditorDataSource() ResponseSource {
+	return ResponseSource{
+		Source:   page.Codes.DATA.Code,
+		Language: "json",
+	}
+}
 
 // GlobalScripts get the global scripts
 func (page *Page) GlobalScripts() ([]string, error) {
