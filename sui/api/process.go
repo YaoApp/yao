@@ -1,6 +1,8 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/sui/core"
@@ -105,7 +107,7 @@ func BlockFind(process *process.Process) interface{} {
 
 	sui := get(process)
 	templateID := process.ArgsString(1)
-	blockID := process.ArgsString(2)
+	blockID := strings.TrimRight(process.ArgsString(2), ".js")
 
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
@@ -145,7 +147,7 @@ func ComponentFind(process *process.Process) interface{} {
 
 	sui := get(process)
 	templateID := process.ArgsString(1)
-	componentID := process.ArgsString(2)
+	componentID := strings.TrimRight(process.ArgsString(2), ".js")
 
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
