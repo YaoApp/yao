@@ -44,6 +44,38 @@ func TestTemplatePages(t *testing.T) {
 	}
 }
 
+func TestTemplatePageTree(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	pages, err := tmpl.PageTree()
+	if err != nil {
+		t.Fatalf("Pages error: %v", err)
+	}
+
+	assert.Equal(t, 5, len(pages))
+	assert.Equal(t, "error", pages[0].Name)
+	assert.Equal(t, true, pages[0].IsDir)
+	assert.Equal(t, "error", pages[0].Children[0].Name)
+	assert.Equal(t, "/error", pages[0].Children[0].IPage.(*Page).Route)
+	assert.Equal(t, "error", pages[0].Children[0].IPage.(*Page).Name)
+
+	assert.Equal(t, "index", pages[1].Name)
+	assert.Equal(t, true, pages[1].IsDir)
+	assert.Equal(t, "[invite]", pages[1].Children[0].Name)
+	assert.Equal(t, true, pages[1].Children[0].IsDir)
+	assert.Equal(t, "/index/[invite]", pages[1].Children[0].Children[0].IPage.(*Page).Route)
+	assert.Equal(t, "[invite]", pages[1].Children[0].Children[0].IPage.(*Page).Name)
+	assert.Equal(t, "/index", pages[1].Children[1].IPage.(*Page).Route)
+	assert.Equal(t, "index", pages[1].Children[1].IPage.(*Page).Name)
+
+}
+
 func TestTemplatePageTS(t *testing.T) {
 
 	tests := prepare(t)

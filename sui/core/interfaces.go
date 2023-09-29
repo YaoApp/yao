@@ -13,6 +13,7 @@ type SUI interface {
 // ITemplate is the interface for the ITemplate
 type ITemplate interface {
 	Pages() ([]IPage, error)
+	PageTree() ([]*PageTreeNode, error)
 	Page(route string) (IPage, error)
 
 	Blocks() ([]IBlock, error)
