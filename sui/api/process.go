@@ -171,7 +171,8 @@ func PageTree(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	tree, err := tmpl.PageTree()
+	route := route(process, 2)
+	tree, err := tmpl.PageTree(route)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

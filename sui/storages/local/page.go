@@ -41,11 +41,13 @@ func (tmpl *Template) Pages() ([]core.IPage, error) {
 }
 
 // PageTree gets the page tree.
-func (tmpl *Template) PageTree() ([]*core.PageTreeNode, error) {
+func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
+
 	exts := []string{"*.sui", "*.html", "*.htm", "*.page"}
 	rootNode := &core.PageTreeNode{
 		Name:     tmpl.Name,
 		IsDir:    true,
+		Expand:   true,
 		Children: []*core.PageTreeNode{}, // 初始为空的切片
 	}
 
@@ -82,6 +84,7 @@ func (tmpl *Template) PageTree() ([]*core.PageTreeNode, error) {
 						Name:     dir,
 						IsDir:    true,
 						Children: []*core.PageTreeNode{},
+						Expand:   true,
 					}
 					currentDir.Children = append(currentDir.Children, newDir)
 					currentDir = newDir
@@ -100,6 +103,9 @@ func (tmpl *Template) PageTree() ([]*core.PageTreeNode, error) {
 			return err
 		}
 
+		pageInfo := page.Get()
+		active := route == pageInfo.Route
+
 		// Attach the page to the appropriate directory node.
 		dirs := strings.Split(relPath, string(filepath.Separator))
 		currentDir := rootNode
@@ -112,10 +118,12 @@ func (tmpl *Template) PageTree() ([]*core.PageTreeNode, error) {
 			}
 		}
 
+		currentDir.Expand = active
 		currentDir.Children = append(currentDir.Children, &core.PageTreeNode{
-			Name:  tmpl.getPageBase(currentDir.Name),
-			IsDir: false,
-			IPage: page,
+			Name:   tmpl.getPageBase(currentDir.Name),
+			IsDir:  false,
+			IPage:  page,
+			Active: active,
 		})
 
 		return nil

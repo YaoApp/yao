@@ -23,6 +23,8 @@ type PageTreeNode struct {
 	IsDir    bool            `json:"is_dir,omitempty"`
 	Children []*PageTreeNode `json:"children,omitempty"`
 	IPage    IPage           `json:"page,omitempty"`
+	Expand   bool            `json:"expand,omitempty"`
+	Active   bool            `json:"active,omitempty"`
 }
 
 // Component is the struct for the component

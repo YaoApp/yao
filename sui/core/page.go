@@ -1,5 +1,10 @@
 package core
 
+// Get get the base info
+func (page *Page) Get() *Page {
+	return page
+}
+
 // GetHTML get the html
 func (page *Page) GetHTML() {}
 

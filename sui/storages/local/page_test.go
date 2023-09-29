@@ -53,7 +53,7 @@ func TestTemplatePageTree(t *testing.T) {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	pages, err := tmpl.PageTree()
+	pages, err := tmpl.PageTree("/page/[id]")
 	if err != nil {
 		t.Fatalf("Pages error: %v", err)
 	}
