@@ -8,14 +8,20 @@ import (
 
 func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
-		"template.get":            TemplateGet,
-		"template.find":           TemplateFind,
-		"template.locale.get":     TemplateLocaleGet,
-		"template.theme.get":      TemplateThemeGet,
-		"template.block.get":      TemplateBlockGet,
-		"template.block.find":     TemplateBlockFind,
-		"template.component.get":  TemplateComponentGet,
-		"template.component.find": TemplateComponentFind,
+		"template.get":  TemplateGet,
+		"template.find": TemplateFind,
+
+		"locale.get": LocaleGet,
+		"theme.get":  ThemeGet,
+
+		"block.get":  BlockGet,
+		"block.find": BlockFind,
+
+		"component.get":  ComponentGet,
+		"component.find": ComponentFind,
+
+		"page.tree": PageTree,
+		"page.get":  PageGet,
 
 		"editor.render": EditorRender,
 		"editor.source": EditorSource,
@@ -48,8 +54,8 @@ func TemplateFind(process *process.Process) interface{} {
 	return template
 }
 
-// TemplateLocaleGet handle the find Template request
-func TemplateLocaleGet(process *process.Process) interface{} {
+// LocaleGet handle the find Template request
+func LocaleGet(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	sui := get(process)
@@ -61,8 +67,8 @@ func TemplateLocaleGet(process *process.Process) interface{} {
 	return template.Locales()
 }
 
-// TemplateThemeGet handle the find Template request
-func TemplateThemeGet(process *process.Process) interface{} {
+// ThemeGet handle the find Template request
+func ThemeGet(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	sui := get(process)
@@ -74,8 +80,8 @@ func TemplateThemeGet(process *process.Process) interface{} {
 	return template.Themes()
 }
 
-// TemplateBlockGet handle the find Template request
-func TemplateBlockGet(process *process.Process) interface{} {
+// BlockGet handle the find Template request
+func BlockGet(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	sui := get(process)
@@ -93,8 +99,8 @@ func TemplateBlockGet(process *process.Process) interface{} {
 	return blocks
 }
 
-// TemplateBlockFind handle the find Template request
-func TemplateBlockFind(process *process.Process) interface{} {
+// BlockFind handle the find Template request
+func BlockFind(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
 
 	sui := get(process)
@@ -114,8 +120,8 @@ func TemplateBlockFind(process *process.Process) interface{} {
 	return block.Source()
 }
 
-// TemplateComponentGet handle the find Template request
-func TemplateComponentGet(process *process.Process) interface{} {
+// ComponentGet handle the find Template request
+func ComponentGet(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	sui := get(process)
@@ -133,8 +139,8 @@ func TemplateComponentGet(process *process.Process) interface{} {
 	return components
 }
 
-// TemplateComponentFind handle the find Template request
-func TemplateComponentFind(process *process.Process) interface{} {
+// ComponentFind handle the find Template request
+func ComponentFind(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
 
 	sui := get(process)
@@ -151,6 +157,45 @@ func TemplateComponentFind(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 	return component.Source()
+}
+
+// PageTree handle the find Template request
+func PageTree(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	route := route(process, 2)
+	tree, err := tmpl.PageTree(route)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return tree
+}
+
+// PageGet handle the find Template request
+func PageGet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	tree, err := tmpl.Pages()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return tree
 }
 
 // EditorRender handle the render page request

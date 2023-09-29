@@ -53,7 +53,7 @@ func TestTemplateLocaleGet(t *testing.T) {
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.locale.get", "demo", "tech-blue")
+	p, err := process.Of("sui.locale.get", "demo", "tech-blue")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestTemplateThemeGet(t *testing.T) {
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.theme.get", "demo", "tech-blue")
+	p, err := process.Of("sui.theme.get", "demo", "tech-blue")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestTemplateBlockGet(t *testing.T) {
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.block.get", "demo", "tech-blue")
+	p, err := process.Of("sui.block.get", "demo", "tech-blue")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestTemplateBlockFind(t *testing.T) {
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.block.find", "demo", "tech-blue", "ColumnsTwo")
+	p, err := process.Of("sui.block.find", "demo", "tech-blue", "ColumnsTwo")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestTemplateComponentGet(t *testing.T) {
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.component.get", "demo", "tech-blue")
+	p, err := process.Of("sui.component.get", "demo", "tech-blue")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestTemplateComponentFind(t *testing.T) {
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.component.find", "demo", "tech-blue", "Box")
+	p, err := process.Of("sui.component.find", "demo", "tech-blue", "Box")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,6 +172,50 @@ func TestTemplateComponentFind(t *testing.T) {
 
 	assert.IsType(t, "", res)
 	assert.Contains(t, res.(string), "window.component__Box=")
+}
+
+func TestTemplatePageTree(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.tree", "demo", "tech-blue")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.IsType(t, []*core.PageTreeNode{}, res)
+	assert.Equal(t, 5, len(res.([]*core.PageTreeNode)))
+	assert.Equal(t, "error", res.([]*core.PageTreeNode)[0].Name)
+	assert.Equal(t, "index", res.([]*core.PageTreeNode)[1].Name)
+}
+
+func TestTemplatePageGet(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.get", "demo", "tech-blue", "/index/[invite]")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pages := res.([]core.IPage)
+	assert.IsType(t, []core.IPage{}, pages)
+	assert.Equal(t, 8, len(pages))
+	for _, page := range pages {
+		assert.IsType(t, &local.Page{}, page)
+	}
 }
 
 func TestEditorRender(t *testing.T) {

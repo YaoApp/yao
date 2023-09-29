@@ -40,6 +40,98 @@ func (tmpl *Template) Pages() ([]core.IPage, error) {
 	return pages, nil
 }
 
+// PageTree gets the page tree.
+func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
+
+	exts := []string{"*.sui", "*.html", "*.htm", "*.page"}
+	rootNode := &core.PageTreeNode{
+		Name:     tmpl.Name,
+		IsDir:    true,
+		Expand:   true,
+		Children: []*core.PageTreeNode{}, // 初始为空的切片
+	}
+
+	tmpl.local.fs.Walk(tmpl.Root, func(root, file string, isdir bool) error {
+		name := filepath.Base(file)
+		relPath := file
+
+		if isdir {
+			if strings.HasPrefix(name, "__") {
+				return filepath.SkipDir
+			}
+
+			// Create directory nodes in the tree structure.
+			currentDir := rootNode
+			dirs := strings.Split(relPath, string(filepath.Separator))
+
+			for _, dir := range dirs {
+				if dir == "" {
+					continue
+				}
+
+				// Check if the directory node already exists.
+				var found bool
+				for _, child := range currentDir.Children {
+					if child.Name == dir {
+						currentDir = child
+						found = true
+						break
+					}
+				}
+				// If not found, create a new directory node.
+				if !found {
+					newDir := &core.PageTreeNode{
+						Name:     dir,
+						IsDir:    true,
+						Children: []*core.PageTreeNode{},
+						Expand:   true,
+					}
+					currentDir.Children = append(currentDir.Children, newDir)
+					currentDir = newDir
+				}
+			}
+			return nil
+		}
+
+		if strings.HasPrefix(name, "__") {
+			return nil
+		}
+
+		page, err := tmpl.getPageFrom(file)
+		if err != nil {
+			log.Error("Get page error: %v", err)
+			return err
+		}
+
+		pageInfo := page.Get()
+		active := route == pageInfo.Route
+
+		// Attach the page to the appropriate directory node.
+		dirs := strings.Split(relPath, string(filepath.Separator))
+		currentDir := rootNode
+		for _, dir := range dirs {
+			for _, child := range currentDir.Children {
+				if child.Name == dir {
+					currentDir = child
+					break
+				}
+			}
+		}
+
+		currentDir.Expand = active
+		currentDir.Children = append(currentDir.Children, &core.PageTreeNode{
+			Name:   tmpl.getPageBase(currentDir.Name),
+			IsDir:  false,
+			IPage:  page,
+			Active: active,
+		})
+
+		return nil
+	}, exts...)
+
+	return rootNode.Children, nil
+}
+
 // Page get the page
 func (tmpl *Template) Page(route string) (core.IPage, error) {
 	path := tmpl.getPagePath(route)

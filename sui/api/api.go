@@ -25,47 +25,60 @@ var dsl = []byte(`
 		},
 
 		{
-			"path": "/:id/template/:template_id/locale",
+			"path": "/:id/locale/:template_id",
 			"method": "GET",
-			"process": "sui.Template.Locale.Get",
+			"process": "sui.Locale.Get",
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
-			"path": "/:id/template/:template_id/theme",
+			"path": "/:id/theme/:template_id",
 			"method": "GET",
-			"process": "sui.Template.Theme.Get",
+			"process": "sui.Theme.Get",
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},
 
 		{
-			"path": "/:id/template/:template_id/block",
+			"path": "/:id/block/:template_id",
 			"method": "GET",
-			"process": "sui.Template.Block.Get",
+			"process": "sui.Block.Get",
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
-			"path": "/:id/template/:template_id/block/:block_id",
+			"path": "/:id/block/:template_id/:block_id",
 			"method": "GET",
-			"process": "sui.Template.Block.Find",
+			"process": "sui.Block.Find",
 			"in": ["$param.id", "$param.template_id", "$param.block_id"],
 			"out": { "status": 200, "type": "text/javascript" }
 		},
 
 		{
-			"path": "/:id/template/:template_id/component",
+			"path": "/:id/component/:template_id",
 			"method": "GET",
-			"process": "sui.Template.Component.Get",
+			"process": "sui.Component.Get",
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
-			"path": "/:id/template/:template_id/component/:component_id",
+			"path": "/:id/component/:template_id/:component_id",
 			"method": "GET",
-			"process": "sui.Template.Component.Find",
+			"process": "sui.Component.Find",
 			"in": ["$param.id", "$param.template_id", "$param.component_id"],
 			"out": { "status": 200, "type": "text/javascript" }
 		},
 		
+		{
+			"path": "/:id/page/:template_id/*route",
+			"method": "GET",
+			"process": "sui.Page.Get",
+			"in": ["$param.id", "$param.template_id", "$param.route"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/page/tree/:template_id/*route",
+			"method": "GET",
+			"process": "sui.Page.Tree",
+			"in": ["$param.id", "$param.template_id", "$param.route"],
+			"out": { "status": 200, "type": "application/json" }
+		},
 		
 		{
 			"path": "/:id/editor/render/:template_id/*route",

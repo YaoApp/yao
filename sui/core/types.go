@@ -17,6 +17,16 @@ type Page struct {
 	Document []byte      `json:"-"`
 }
 
+// PageTreeNode is the struct for the page tree node
+type PageTreeNode struct {
+	Name     string          `json:"name,omitempty"`
+	IsDir    bool            `json:"is_dir,omitempty"`
+	Children []*PageTreeNode `json:"children,omitempty"`
+	IPage    IPage           `json:"page,omitempty"`
+	Expand   bool            `json:"expand,omitempty"`
+	Active   bool            `json:"active,omitempty"`
+}
+
 // Component is the struct for the component
 type Component struct {
 	ID       string      `json:"id"`
