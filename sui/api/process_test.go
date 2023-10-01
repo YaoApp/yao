@@ -48,6 +48,26 @@ func TestTemplateFind(t *testing.T) {
 	assert.Equal(t, "tech-blue", res.(*local.Template).ID)
 }
 
+func TestTemplateAsset(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.template.asset", "demo", "tech-blue", "/css/tailwind.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotEmpty(t, res)
+	assert.Equal(t, "text/css; charset=utf-8", res.(map[string]interface{})["type"])
+	assert.NotEmpty(t, res.(map[string]interface{})["content"])
+}
+
 func TestTemplateLocaleGet(t *testing.T) {
 	load(t)
 	defer clean()
@@ -174,7 +194,7 @@ func TestTemplateComponentFind(t *testing.T) {
 	assert.Contains(t, res.(string), "window.component__Box=")
 }
 
-func TestTemplatePageTree(t *testing.T) {
+func TestPageTree(t *testing.T) {
 	load(t)
 	defer clean()
 
@@ -195,7 +215,7 @@ func TestTemplatePageTree(t *testing.T) {
 	assert.Equal(t, "index", res.([]*core.PageTreeNode)[1].Name)
 }
 
-func TestTemplatePageGet(t *testing.T) {
+func TestPageGet(t *testing.T) {
 	load(t)
 	defer clean()
 
@@ -216,6 +236,64 @@ func TestTemplatePageGet(t *testing.T) {
 	for _, page := range pages {
 		assert.IsType(t, &local.Page{}, page)
 	}
+}
+
+func TestPageAssetJS(t *testing.T) {
+
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.asset", "demo", "tech-blue", "/page/404/404.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, map[string]interface{}{}, res)
+	assert.Equal(t, "text/javascript; charset=utf-8", res.(map[string]interface{})["type"])
+	assert.NotEmpty(t, res.(map[string]interface{})["content"])
+}
+
+func TestPageAssetTS(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.asset", "demo", "tech-blue", "/page/404/404.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, map[string]interface{}{}, res)
+	assert.Equal(t, "text/javascript; charset=utf-8", res.(map[string]interface{})["type"])
+	assert.NotEmpty(t, res.(map[string]interface{})["content"])
+}
+
+func TestPageAssetCSS(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.asset", "demo", "tech-blue", "/page/[id]/[id].css")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, map[string]interface{}{}, res)
+	assert.Equal(t, "text/css; charset=utf-8", res.(map[string]interface{})["type"])
+	assert.NotEmpty(t, res.(map[string]interface{})["content"])
 }
 
 func TestEditorRender(t *testing.T) {

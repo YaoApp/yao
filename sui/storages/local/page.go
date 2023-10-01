@@ -254,3 +254,89 @@ func (page *Page) Load() error {
 	page.Document = page.tmpl.Document
 	return nil
 }
+
+// GetPageFromAsset get the page from the asset
+func (tmpl *Template) GetPageFromAsset(file string) (core.IPage, error) {
+	route := filepath.Dir(file)
+	name := tmpl.getPageBase(route)
+	return &Page{
+		tmpl: tmpl,
+		Page: &core.Page{
+			Route: route,
+			Path:  filepath.Join(tmpl.Root, route),
+			Name:  name,
+			Codes: core.SourceCodes{
+				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
+				JS:   core.Source{File: fmt.Sprintf("%s.js", name)},
+				TS:   core.Source{File: fmt.Sprintf("%s.ts", name)},
+				LESS: core.Source{File: fmt.Sprintf("%s.less", name)},
+			},
+		},
+	}, nil
+}
+
+// AssetScript get the script
+func (page *Page) AssetScript() (*core.Asset, error) {
+
+	// Read the Script code
+	// Type script is the default language
+	tsFile := filepath.Join(page.Path, page.Codes.TS.File)
+	if exist, _ := page.tmpl.local.fs.Exists(tsFile); exist {
+		tsCode, err := page.tmpl.local.fs.ReadFile(tsFile)
+		if err != nil {
+			return nil, err
+		}
+
+		jsCode, err := page.CompileTS(tsCode, false)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.Asset{
+			Type:    "text/javascript; charset=utf-8",
+			Content: []byte(jsCode),
+		}, nil
+	}
+
+	jsFile := filepath.Join(page.Path, page.Codes.JS.File)
+	if exist, _ := page.tmpl.local.fs.Exists(jsFile); exist {
+		jsCode, err := page.tmpl.local.fs.ReadFile(jsFile)
+		if err != nil {
+			return nil, err
+		}
+
+		jsCode, err = page.CompileJS(jsCode, false)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.Asset{
+			Type:    "text/javascript; charset=utf-8",
+			Content: jsCode,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("Page %s script not found", page.Route)
+}
+
+// AssetStyle get the style
+func (page *Page) AssetStyle() (*core.Asset, error) {
+	cssFile := filepath.Join(page.Path, page.Codes.CSS.File)
+	if exist, _ := page.tmpl.local.fs.Exists(cssFile); exist {
+		cssCode, err := page.tmpl.local.fs.ReadFile(cssFile)
+		if err != nil {
+			return nil, err
+		}
+
+		cssCode, err = page.CompileCSS(cssCode, false)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.Asset{
+			Type:    "text/css; charset=utf-8",
+			Content: cssCode,
+		}, nil
+	}
+	return nil, fmt.Errorf("Page %s style not found", page.Route)
+}

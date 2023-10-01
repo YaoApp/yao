@@ -92,6 +92,28 @@ var dsl = []byte(`
 			"process": "sui.Editor.Source",
 			"in": ["$param.id", "$param.template_id", "$param.route", "$param.kind"],
 			"out": { "status": 200, "type": "application/json" }
+		},
+
+		{
+			"path": "/:id/assets/:template_id/@assets/*path",
+			"method": "GET",
+			"process": "sui.Template.Asset",
+			"in": ["$param.id", "$param.template_id", "$param.path"],
+			"out": {
+				"status": 200,
+				"body": "?:content",
+				"headers": { "Content-Type": "?:type"}
+			}
+		},{
+			"path": "/:id/assets/:template_id/@pages/*path",
+			"method": "GET",
+			"process": "sui.Page.Asset",
+			"in": ["$param.id", "$param.template_id", "$param.path"],
+			"out": {
+				"status": 200,
+				"body": "?:content",
+				"headers": { "Content-Type": "?:type"}
+			}
 		}
 	],
 }
