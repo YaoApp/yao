@@ -95,7 +95,7 @@ var dsl = []byte(`
 		},
 
 		{
-			"path": "/:id/assets/:template_id/@assets/*path",
+			"path": "/:id/asset/:template_id/@assets/*path",
 			"method": "GET",
 			"process": "sui.Template.Asset",
 			"in": ["$param.id", "$param.template_id", "$param.path"],
@@ -105,7 +105,7 @@ var dsl = []byte(`
 				"headers": { "Content-Type": "?:type"}
 			}
 		},{
-			"path": "/:id/assets/:template_id/@pages/*path",
+			"path": "/:id/asset/:template_id/@pages/*path",
 			"method": "GET",
 			"process": "sui.Page.Asset",
 			"in": ["$param.id", "$param.template_id", "$param.path"],
