@@ -49,3 +49,22 @@ func TestTemplateLocales(t *testing.T) {
 	assert.Equal(t, "zh-TW", locales[2].Label)
 	assert.Equal(t, "zh-tw", locales[2].Value)
 }
+
+func TestTemplateAsset(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	asset, err := tmpl.Asset("/css/tailwind.css")
+	if err != nil {
+		t.Fatalf("Asset error: %v", err)
+	}
+
+	assert.Equal(t, "text/css; charset=utf-8", asset.Type)
+	assert.NotEmpty(t, asset.Content)
+
+}

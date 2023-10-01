@@ -15,6 +15,7 @@ type ITemplate interface {
 	Pages() ([]IPage, error)
 	PageTree(route string) ([]*PageTreeNode, error)
 	Page(route string) (IPage, error)
+	GetPageFromAsset(asset string) (IPage, error)
 
 	Blocks() ([]IBlock, error)
 	Block(name string) (IBlock, error)
@@ -25,6 +26,8 @@ type ITemplate interface {
 	Assets() []string
 	Locales() []SelectOption
 	Themes() []SelectOption
+
+	Asset(file string) (*Asset, error)
 }
 
 // IPage is the interface for the page
@@ -38,6 +41,9 @@ type IPage interface {
 	EditorScriptSource() ResponseSource
 	EditorStyleSource() ResponseSource
 	EditorDataSource() ResponseSource
+
+	AssetScript() (*Asset, error)
+	AssetStyle() (*Asset, error)
 
 	// Render()
 

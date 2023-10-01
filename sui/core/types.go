@@ -66,6 +66,13 @@ type SelectOption struct {
 	Value string `json:"value"`
 }
 
+// Asset is the struct for the asset
+type Asset struct {
+	file    string
+	Type    string `json:"type"`
+	Content []byte `json:"content"`
+}
+
 // Request is the struct for the request
 type Request struct {
 	Method  string                 `json:"method"`

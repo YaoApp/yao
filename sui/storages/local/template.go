@@ -1,6 +1,7 @@
 package local
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"github.com/yaoapp/yao/sui/core"
@@ -41,4 +42,50 @@ func (tmpl *Template) Locales() []core.SelectOption {
 // Themes get the global themes
 func (tmpl *Template) Themes() []core.SelectOption {
 	return tmpl.Template.Themes
+}
+
+// Asset get the asset
+func (tmpl *Template) Asset(file string) (*core.Asset, error) {
+
+	file = filepath.Join(tmpl.Root, "__assets", file)
+	if exist, _ := tmpl.local.fs.Exists(file); exist {
+
+		content, err := tmpl.local.fs.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+
+		typ := "text/plain"
+		switch filepath.Ext(file) {
+		case ".css":
+			typ = "text/css; charset=utf-8"
+			break
+
+		case ".js":
+			typ = "application/javascript; charset=utf-8"
+			break
+
+		case ".ts":
+			typ = "application/javascript; charset=utf-8"
+			break
+
+		case ".json":
+			typ = "application/json; charset=utf-8"
+			break
+
+		case ".html":
+			typ = "text/html; charset=utf-8"
+			break
+
+		default:
+			typ, err = tmpl.local.fs.MimeType(file)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return &core.Asset{Type: typ, Content: content}, nil
+	}
+
+	return nil, fmt.Errorf("Asset %s not found", file)
 }

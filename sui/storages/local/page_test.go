@@ -186,3 +186,106 @@ func TestPageRenderEditor(t *testing.T) {
 	assert.Equal(t, "@assets/css/tailwind.css", res.Styles[3])
 	assert.Equal(t, "@pages/index/index.css", res.Styles[4])
 }
+
+func TestPageGetPageFromAsset(t *testing.T) {
+
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	file := "/index/index.css"
+	page, err := tmpl.GetPageFromAsset(file)
+	if err != nil {
+		t.Fatalf("GetPageFromAsset error: %v", err)
+	}
+
+	assert.Equal(t, "/index", page.Get().Route)
+	assert.Equal(t, "/templates/tech-blue/index", page.Get().Path)
+	assert.Equal(t, "index", page.Get().Name)
+
+	file = "/page/404/404.js"
+	page, err = tmpl.GetPageFromAsset(file)
+	if err != nil {
+		t.Fatalf("GetPageFromAsset error: %v", err)
+	}
+
+	assert.Equal(t, "/page/404", page.Get().Route)
+	assert.Equal(t, "/templates/tech-blue/page/404", page.Get().Path)
+	assert.Equal(t, "404", page.Get().Name)
+}
+
+func TestPageAssetScriptJS(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	file := "/page/404/404.js"
+	page, err := tmpl.GetPageFromAsset(file)
+	if err != nil {
+		t.Fatalf("GetPageFromAsset error: %v", err)
+	}
+
+	asset, err := page.AssetScript()
+	if err != nil {
+		t.Fatalf("AssetScript error: %v", err)
+	}
+
+	assert.NotEmpty(t, asset.Content)
+	assert.Equal(t, "text/javascript; charset=utf-8", asset.Type)
+}
+
+func TestPageAssetScriptTS(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	file := "/page/[id]/[id].ts"
+	page, err := tmpl.GetPageFromAsset(file)
+	if err != nil {
+		t.Fatalf("GetPageFromAsset error: %v", err)
+	}
+
+	asset, err := page.AssetScript()
+	if err != nil {
+		t.Fatalf("AssetScript error: %v", err)
+	}
+
+	assert.NotEmpty(t, asset.Content)
+	assert.Equal(t, "text/javascript; charset=utf-8", asset.Type)
+}
+
+func TestPageAssetStyle(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	file := "/page/[id]/[id].css"
+	page, err := tmpl.GetPageFromAsset(file)
+	if err != nil {
+		t.Fatalf("GetPageFromAsset error: %v", err)
+	}
+
+	asset, err := page.AssetStyle()
+	if err != nil {
+		t.Fatalf("AssetStyle error: %v", err)
+	}
+
+	assert.NotEmpty(t, asset.Content)
+	assert.Equal(t, "text/css; charset=utf-8", asset.Type)
+}

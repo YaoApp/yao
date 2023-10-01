@@ -1,6 +1,7 @@
 package api
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/yaoapp/gou/process"
@@ -10,8 +11,9 @@ import (
 
 func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
-		"template.get":  TemplateGet,
-		"template.find": TemplateFind,
+		"template.get":   TemplateGet,
+		"template.find":  TemplateFind,
+		"template.asset": TemplateAsset,
 
 		"locale.get": LocaleGet,
 		"theme.get":  ThemeGet,
@@ -22,8 +24,9 @@ func init() {
 		"component.get":  ComponentGet,
 		"component.find": ComponentFind,
 
-		"page.tree": PageTree,
-		"page.get":  PageGet,
+		"page.tree":  PageTree,
+		"page.get":   PageGet,
+		"page.asset": PageAsset,
 
 		"editor.render": EditorRender,
 		"editor.source": EditorSource,
@@ -48,12 +51,32 @@ func TemplateFind(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	sui := get(process)
-	template, err := sui.GetTemplate(process.ArgsString(1))
+	tmpl, err := sui.GetTemplate(process.ArgsString(1))
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	return template
+	return tmpl
+}
+
+// TemplateAsset handle the find Template request
+func TemplateAsset(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	sui := get(process)
+	tmpl, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	asset, err := tmpl.Asset(process.ArgsString(2))
+	if err != nil {
+		exception.New(err.Error(), 404).Throw()
+	}
+
+	return map[string]interface{}{
+		"content": asset.Content,
+		"type":    asset.Type,
+	}
 }
 
 // LocaleGet handle the find Template request
@@ -198,6 +221,51 @@ func PageGet(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 	return tree
+}
+
+// PageAsset handle the find Template request
+func PageAsset(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+
+	sui := get(process)
+	templateID := process.ArgsString(1)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	file := process.ArgsString(2)
+	page, err := tmpl.GetPageFromAsset(file)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	var asset *core.Asset
+
+	switch filepath.Ext(file) {
+	case ".css":
+		asset, err = page.AssetStyle()
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+		break
+
+	case ".js", ".ts":
+		asset, err = page.AssetScript()
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+		break
+
+	default:
+		exception.New("does not support the %s file", 400, filepath.Ext(file)).Throw()
+	}
+
+	return map[string]interface{}{
+		"content": asset.Content,
+		"type":    asset.Type,
+	}
 }
 
 // EditorRender handle the render page request
