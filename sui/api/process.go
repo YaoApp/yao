@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/sui/core"
@@ -24,9 +26,14 @@ func init() {
 		"component.get":  ComponentGet,
 		"component.find": ComponentFind,
 
-		"page.tree":  PageTree,
-		"page.get":   PageGet,
-		"page.asset": PageAsset,
+		"page.tree":     PageTree,
+		"page.get":      PageGet,
+		"page.save":     PageSave,
+		"page.savetemp": PageSaveTemp,
+		"page.create":   PageCreate,
+		"page.remove":   PageRemove,
+		"page.exist":    PageExist,
+		"page.asset":    PageAsset,
 
 		"editor.render": EditorRender,
 		"editor.source": EditorSource,
@@ -34,7 +41,6 @@ func init() {
 }
 
 // TemplateGet handle the get Template request
-// Process sui.<ID>.templates
 func TemplateGet(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 
@@ -223,6 +229,164 @@ func PageGet(process *process.Process) interface{} {
 	return tree
 }
 
+// PageSave handle the find Template request
+func PageSave(process *process.Process) interface{} {
+	process.ValidateArgNums(4)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	route := route(process, 2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	var page core.IPage
+	if tmpl.PageExist(route) {
+		page, err = tmpl.Page(route)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+	} else {
+		page, err = tmpl.CreatePage(route)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+	}
+
+	source, err := getSource(process)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	if source == nil {
+		exception.New("the source is required", 400).Throw()
+	}
+
+	err = page.Save(source)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return nil
+}
+
+// PageSaveTemp handle the find Template request
+func PageSaveTemp(process *process.Process) interface{} {
+	process.ValidateArgNums(4)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	route := route(process, 2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	var page core.IPage
+	if tmpl.PageExist(route) {
+		page, err = tmpl.Page(route)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+	} else {
+		page, err = tmpl.CreatePage(route)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+	}
+
+	source, err := getSource(process)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	if source == nil {
+		exception.New("the source is required", 400).Throw()
+	}
+
+	if source.UID == "" {
+		exception.New("the source.uid is required", 400).Throw()
+	}
+
+	err = page.SaveTemp(source)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return nil
+}
+
+// PageCreate handle the find Template request
+func PageCreate(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	route := route(process, 2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	page, err := tmpl.CreatePage(route)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	if len(process.Args) <= 3 {
+		return nil
+	}
+
+	source, err := getSource(process)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	if source == nil {
+		return nil
+	}
+
+	err = page.Save(source)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return nil
+}
+
+// PageRemove handle the find Template request
+func PageRemove(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	route := route(process, 2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	err = tmpl.RemovePage(route)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return nil
+}
+
+// PageExist handle the find Template request
+func PageExist(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	route := route(process, 2)
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return tmpl.PageExist(route)
+}
+
 // PageAsset handle the find Template request
 func PageAsset(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
@@ -356,4 +520,60 @@ func route(process *process.Process, i int) string {
 		route = "/" + route
 	}
 	return route
+}
+
+func getSource(process *process.Process) (*core.RequestSource, error) {
+
+	if process.NumOfArgs() < 4 {
+		return nil, nil
+	}
+
+	switch v := process.Args[3].(type) {
+	case *core.RequestSource:
+		return v, nil
+
+	case *gin.Context:
+		source := core.RequestSource{UID: v.GetHeader("Yao-Builder-Uid")}
+		err := v.Bind(&source)
+		if err != nil {
+			return nil, err
+		}
+		return &source, nil
+
+	case string:
+		if process.NumOfArgs() > 4 {
+			uid := process.ArgsString(3)
+			payload, err := jsoniter.Marshal(process.Args[4])
+			if err != nil {
+				return nil, err
+			}
+			source := core.RequestSource{UID: uid}
+			err = jsoniter.Unmarshal(payload, &source)
+			if err != nil {
+				return nil, err
+			}
+			return &source, nil
+		}
+
+		source := core.RequestSource{}
+		err := jsoniter.UnmarshalFromString(process.ArgsString(3), &source)
+		if err != nil {
+			return nil, err
+		}
+		return &source, nil
+
+	default:
+
+		payload, err := jsoniter.Marshal(process.Args[3])
+		if err != nil {
+			return nil, err
+		}
+
+		source := core.RequestSource{}
+		err = jsoniter.Unmarshal(payload, &source)
+		if err != nil {
+			return nil, err
+		}
+		return &source, nil
+	}
 }

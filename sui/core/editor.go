@@ -71,39 +71,39 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditor, error) {
 }
 
 // EditorPageSource get the editor page source code
-func (page *Page) EditorPageSource() ResponseSource {
-	return ResponseSource{
+func (page *Page) EditorPageSource() SourceData {
+	return SourceData{
 		Source:   page.Codes.HTML.Code,
 		Language: "html",
 	}
 }
 
 // EditorScriptSource get the editor script source code
-func (page *Page) EditorScriptSource() ResponseSource {
+func (page *Page) EditorScriptSource() SourceData {
 	if page.Codes.TS.Code != "" {
-		return ResponseSource{
+		return SourceData{
 			Source:   page.Codes.TS.Code,
 			Language: "typescript",
 		}
 	}
 
-	return ResponseSource{
+	return SourceData{
 		Source:   page.Codes.JS.Code,
 		Language: "javascript",
 	}
 }
 
 // EditorStyleSource get the editor style source code
-func (page *Page) EditorStyleSource() ResponseSource {
-	return ResponseSource{
+func (page *Page) EditorStyleSource() SourceData {
+	return SourceData{
 		Source:   page.Codes.CSS.Code,
 		Language: "css",
 	}
 }
 
 // EditorDataSource get the editor data source code
-func (page *Page) EditorDataSource() ResponseSource {
-	return ResponseSource{
+func (page *Page) EditorDataSource() SourceData {
+	return SourceData{
 		Source:   page.Codes.DATA.Code,
 		Language: "json",
 	}

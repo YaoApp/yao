@@ -1,8 +1,12 @@
 package api
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/config"
@@ -238,6 +242,233 @@ func TestPageGet(t *testing.T) {
 	}
 }
 
+func TestPageExist(t *testing.T) {
+
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.exist", "demo", "tech-blue", "/index/[invite]")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, true, res)
+	assert.Equal(t, true, res.(bool))
+
+	p, err = process.Of("sui.page.exist", "demo", "tech-blue", "/index/[invite]/[invite]")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, false, res)
+	assert.Equal(t, false, res.(bool))
+}
+
+func TestPageCreate(t *testing.T) {
+
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+}
+
+func TestPageCreateSaveThenRemove(t *testing.T) {
+
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+
+	// test demo
+	p, err = process.Of("sui.page.remove", "demo", "tech-blue", "/unit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+}
+
+func TestPageSaveThenRemove(t *testing.T) {
+
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+
+	// test demo
+	p, err = process.Of("sui.page.SaveTemp", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+
+	// test demo
+	p, err = process.Of("sui.page.Save", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+
+	// test demo
+	p, err = process.Of("sui.page.remove", "demo", "tech-blue", "/unit-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+}
+
+func TestGetSource(t *testing.T) {
+
+	// *core.RequestSource
+	var payload interface{} = &core.RequestSource{UID: "unit-test"}
+	args := []interface{}{"demo", "tech-blue", "/index/[invite]", payload}
+	p, err := process.Of("sui.page.Save", args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	src, err := getSource(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "unit-test", src.UID)
+
+	// String
+	args[3] = `{"uid":"unit-test-string"}`
+	p, err = process.Of("sui.page.Save", args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err = getSource(p)
+	assert.Equal(t, "unit-test-string", src.UID)
+
+	// String & Payload
+	args[3] = "unit-test-string2"
+	newArgs := append(args, map[string]interface{}{
+		"page": map[string]interface{}{
+			"source":   "<div>1</div>",
+			"language": "html",
+		}})
+
+	p, err = process.Of("sui.page.Save", newArgs...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err = getSource(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "unit-test-string2", src.UID)
+
+	// Default
+	args[3] = map[string]interface{}{
+		"uid": "unit-test-map",
+		"page": map[string]interface{}{
+			"source":   "<div>1</div>",
+			"language": "html",
+		}}
+	p, err = process.Of("sui.page.Save", args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err = getSource(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "unit-test-map", src.UID)
+
+	// Gin Context
+	requestBody := []byte(`{"page": {"source":"gin-context Test", "language":"html"} }`)
+	router := gin.Default()
+	router.POST("/unit-test", func(ctx *gin.Context) {
+		args[3] = ctx
+		p, err = process.Of("sui.page.Save", args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		src, err = getSource(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if src.Page == nil {
+			t.Fatalf("Page is nil")
+		}
+
+		assert.Equal(t, "unit-test-gin-context", src.UID)
+		assert.Equal(t, "html", src.Page.Language)
+		assert.Equal(t, "gin-context Test", src.Page.Source)
+	})
+
+	req, err := http.NewRequest("POST", "/unit-test", bytes.NewBuffer(requestBody))
+	if err != nil {
+		t.Fatalf("Couldn't create request: %v\n", err)
+		return
+	}
+	req.Header.Set("Yao-Builder-Uid", "unit-test-gin-context")
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(httptest.NewRecorder(), req)
+}
+
 func TestPageAssetJS(t *testing.T) {
 
 	load(t)
@@ -351,9 +582,9 @@ func TestEditorPageSource(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.IsType(t, core.ResponseSource{}, res)
-		assert.NotEmpty(t, res.(core.ResponseSource).Source)
-		assert.NotEmpty(t, res.(core.ResponseSource).Language)
+		assert.IsType(t, core.SourceData{}, res)
+		assert.NotEmpty(t, res.(core.SourceData).Source)
+		assert.NotEmpty(t, res.(core.SourceData).Language)
 	}
 }
 

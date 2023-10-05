@@ -85,6 +85,25 @@ type Request struct {
 	Locale  string                 `json:"locale,omitempty"`
 }
 
+// RequestSource is the struct for the request
+type RequestSource struct {
+	UID        string           `json:"uid"`
+	User       string           `json:"user,omitempty"`
+	Page       *SourceData      `json:"page,omitempty"`
+	Style      *SourceData      `json:"style,omitempty"`
+	Script     *SourceData      `json:"script,omitempty"`
+	Data       *SourceData      `json:"data,omitempty"`
+	Board      *BoardSourceData `json:"board,omitempty"`
+	NeedToSave struct {
+		Page     bool `json:"page,omitempty"`
+		Style    bool `json:"style,omitempty"`
+		Script   bool `json:"script,omitempty"`
+		Data     bool `json:"data,omitempty"`
+		Board    bool `json:"board,omitempty"`
+		Validate bool `json:"validate,omitempty"`
+	} `json:"needToSave,omitempty"`
+}
+
 // ResponseEditor is the struct for the response
 type ResponseEditor struct {
 	HTML     string                 `json:"html,omitempty"`
@@ -95,10 +114,16 @@ type ResponseEditor struct {
 	Warnings []string               `json:"warnings,omitempty"`
 }
 
-// ResponseSource is the struct for the response
-type ResponseSource struct {
+// SourceData is the struct for the response
+type SourceData struct {
 	Source   string `json:"source,omitempty"`
-	Language string `json:"lang,omitempty"`
+	Language string `json:"language,omitempty"`
+}
+
+// BoardSourceData is the struct for the response
+type BoardSourceData struct {
+	HTML  string `json:"html,omitempty"`
+	Style string `json:"style,omitempty"`
 }
 
 // SourceCodes is the struct for the page codes

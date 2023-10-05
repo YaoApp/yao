@@ -15,6 +15,9 @@ type ITemplate interface {
 	Pages() ([]IPage, error)
 	PageTree(route string) ([]*PageTreeNode, error)
 	Page(route string) (IPage, error)
+	PageExist(route string) bool
+	CreatePage(route string) (IPage, error)
+	RemovePage(route string) error
 	GetPageFromAsset(asset string) (IPage, error)
 
 	Blocks() ([]IBlock, error)
@@ -35,25 +38,18 @@ type IPage interface {
 	Load() error
 
 	Get() *Page
+	Save(request *RequestSource) error
+	SaveTemp(request *RequestSource) error
+	Remove() error
 
 	EditorRender(request *Request) (*ResponseEditor, error)
-	EditorPageSource() ResponseSource
-	EditorScriptSource() ResponseSource
-	EditorStyleSource() ResponseSource
-	EditorDataSource() ResponseSource
+	EditorPageSource() SourceData
+	EditorScriptSource() SourceData
+	EditorStyleSource() SourceData
+	EditorDataSource() SourceData
 
 	AssetScript() (*Asset, error)
 	AssetStyle() (*Asset, error)
-
-	// Render()
-
-	// Html()
-	// Script()
-	// Style()
-	// Data()
-
-	// Compile()
-	// Locale()
 }
 
 // IBlock is the interface for the block

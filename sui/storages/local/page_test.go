@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/sui/core"
 )
@@ -185,6 +186,309 @@ func TestPageRenderEditor(t *testing.T) {
 	assert.Equal(t, "@assets/libs/@mdi/font/css/materialdesignicons.min.css", res.Styles[2])
 	assert.Equal(t, "@assets/css/tailwind.css", res.Styles[3])
 	assert.Equal(t, "@pages/index/index.css", res.Styles[4])
+}
+
+func TestPageSaveTempBoard(t *testing.T) {
+
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": null,
+		"script": null,
+		"data": null,
+		"board": {
+		  "html": "<div class=\"bg-purple-700 p-4 text-base\"><span class=\"text-white mr-2\">Home</span><a href=\"/index/{{user.id}}\" class=\"text-white\">Invite</a></div>\n<div id=\"i2j7\" cui:type=\"Card\">\n    <h1>Card Instance</h1>\n    <p>Card xx</p>\n    <div> Table </div>\n</div>",
+		  "style": "#i2j7 {\n    color: #2c3e50;\n    width: 100%;\n    height: 300px;\n    background: #d1c2d3;\n    padding: .5em;\n}"
+		},
+		"needToSave": {
+		  "page": false,
+		  "style": false,
+		  "script": false,
+		  "data": false,
+		  "board": true,
+		  "validate": true
+		}
+	  }`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSaveTempPage(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": {
+		  "source": "<div class=\"bg-purple-700 p-4 text-base\">\n  <span class=\"text-white mr-2\">Home</span>\n  <a href=\"/index/{{user.id}}\" class=\"text-white\">Invite</a>\n</div>\n\n<div cui:type=\"Card\">\n  <h1>Card Instance</h1>\n  <p>Card XYZ</p>\n</div>\n",
+		  "language": "html"
+		},
+		"style": null,
+		"script": null,
+		"data": null,
+		"board": {
+		  "html": "<body service=\"Index\" data-gjs-type=\"wrapper\" data-gjs-stylable=\"[&quot;background&quot;,&quot;background-color&quot;,&quot;background-image&quot;,&quot;background-repeat&quot;,&quot;background-attachment&quot;,&quot;background-position&quot;,&quot;background-size&quot;]\"><div class=\"bg-purple-700 p-4 text-base\"><span class=\"text-white mr-2\" data-gjs-tagName=\"span\" data-gjs-type=\"text\">Home</span><a href=\"/index/{{user.id}}\" class=\"text-white\" data-gjs-type=\"link\">Invite</a></div><div id=\"izaw\" data-gjs-type=\"Card\" data-gjs-style=\"\"><h1 data-gjs-tagName=\"h1\" data-gjs-type=\"text\">Card Instance</h1><p data-gjs-tagName=\"p\" data-gjs-type=\"text\">Card xx</p></div></body>",
+		  "style": "#izaw{color:#2c3e50;width:100%;height:300px;background:#d1c2d3;padding:.5em;}"
+		},
+		"needToSave": {
+		  "page": true,
+		  "style": false,
+		  "script": false,
+		  "data": false,
+		  "board": false,
+		  "validate": true
+		}
+	  }`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSaveTempStyle(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": {
+		  "source": "* { box-sizing: border-box; }\nbody { margin: 0; }\n#ihjf { color:#ffffff;width:100%;height:100px;background:#1c0d1a;padding:.5em;display:flex; }\n\n",
+		  "language": "css"
+		},
+		"script": null,
+		"data": null,
+		"board": {
+		  "html": "<body service=\"Index\" data-gjs-type=\"wrapper\" data-gjs-stylable=\"[&quot;background&quot;,&quot;background-color&quot;,&quot;background-image&quot;,&quot;background-repeat&quot;,&quot;background-attachment&quot;,&quot;background-position&quot;,&quot;background-size&quot;]\"><div class=\"bg-purple-700 p-4 text-base\"><span class=\"text-white mr-2\" data-gjs-tagName=\"span\" data-gjs-type=\"text\">Home</span><a href=\"/index/{{user.id}}\" class=\"text-white\" data-gjs-type=\"link\">Invite</a></div><div id=\"inhy\" data-gjs-type=\"Card\" data-gjs-style=\"\"><h1 data-gjs-tagName=\"h1\" data-gjs-type=\"text\">Card Instance</h1><p data-gjs-tagName=\"p\" data-gjs-type=\"text\">Card xx</p></div></body>",
+		  "style": "#inhy{color:#2c3e50;width:100%;height:300px;background:#d1c2d3;padding:.5em;}"
+		},
+		"needToSave": {
+		  "page": false,
+		  "style": true,
+		  "script": false,
+		  "data": false,
+		  "board": false,
+		  "validate": true
+		}
+	  }`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSaveTempScriptJS(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": null,
+		"script": {
+		  "source": "function Hello() {\n  console.log(\"Hello World!\");\n}\n\nfunction Index() {\n  return {\n    title: \"Customers\",\n    hello: \"world\",\n    rows: [\n      { name: \"John\", age: 30, city: \"New York\" },\n      { name: \"Mary\", age: 20, city: \"Paris\" },\n      { name: \"Peter\", age: 40, city: \"London\" },\n    ],\n  };\n}\n",
+		  "language": "javascript"
+		},
+		"data": null,
+		"board": {
+		  "html": "<body service=\"Index\" data-gjs-type=\"wrapper\" data-gjs-stylable=\"[&quot;background&quot;,&quot;background-color&quot;,&quot;background-image&quot;,&quot;background-repeat&quot;,&quot;background-attachment&quot;,&quot;background-position&quot;,&quot;background-size&quot;]\"><div class=\"bg-purple-700 p-4 text-base\"><span class=\"text-white mr-2\" data-gjs-tagName=\"span\" data-gjs-type=\"text\">Home</span><a href=\"/index/{{user.id}}\" class=\"text-white\" data-gjs-type=\"link\">Invite</a></div><div id=\"icqh\" data-gjs-type=\"Card\" data-gjs-style=\"\"><h1 data-gjs-tagName=\"h1\" data-gjs-type=\"text\">Card Instance</h1><p data-gjs-tagName=\"p\" data-gjs-type=\"text\">Card xx</p></div></body>",
+		  "style": "#icqh{color:#2c3e50;width:100%;height:300px;background:#d1c2d3;padding:.5em;}"
+		},
+		"needToSave": {
+		  "page": false,
+		  "style": false,
+		  "script": true,
+		  "data": false,
+		  "board": false,
+		  "validate": true
+		}
+	  }`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSaveTempScriptTS(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": null,
+		"script": {
+			"source": "import \"@assets/dark/dark.css\";\nimport \"@assets/light/light.css\";\n\nimport { Hello } from \"@assets/main.js\";\n\nconst onPageLoad = (event: Event) => {\n  console.log(\"Page Loaded 103\");\n};\n\nconst onPageReady = (event: Event) => {\n  Hello(\"world\");\n  Foo(\"Bar\");\n  console.log(\"Page Ready\");\n  return;\n};\n\nconst onData = (\n  params: { [key: string]: string[] },\n  query: { [key: string]: string[] }\n) => {\n  console.log(\"Page Send Data Request\");\n};\n\nconst onDataSuccess = (data: { [key: string]: any }) => {\n  console.log(\"Page Data Ready\");\n};\n\nconst onDataError = (data: { code: number; message: string }) => {\n  console.log(\"Page Data Ready\");\n};\n\nconst onResize = (event: Event) => {\n  console.log(\"Page Resize\");\n};\n\nconst onPageScroll = (event: Event) => {\n  console.log(\"Page Scroll\");\n};\n\nfunction Foo(bar: string) {\n  console.log(` + "`Foo ${bar}`" + `);\n}\n",
+			"language": "typescript"
+		},
+		"data": null,
+		"board": {
+		  "html": "<body service=\"Index\" data-gjs-type=\"wrapper\" data-gjs-stylable=\"[&quot;background&quot;,&quot;background-color&quot;,&quot;background-image&quot;,&quot;background-repeat&quot;,&quot;background-attachment&quot;,&quot;background-position&quot;,&quot;background-size&quot;]\"><div class=\"bg-purple-700 p-4 text-base\"><span class=\"text-white mr-2\" data-gjs-tagName=\"span\" data-gjs-type=\"text\">Home</span><a href=\"/index/{{user.id}}\" class=\"text-white\" data-gjs-type=\"link\">Invite</a></div><div id=\"icqh\" data-gjs-type=\"Card\" data-gjs-style=\"\"><h1 data-gjs-tagName=\"h1\" data-gjs-type=\"text\">Card Instance</h1><p data-gjs-tagName=\"p\" data-gjs-type=\"text\">Card xx</p></div></body>",
+		  "style": "#icqh{color:#2c3e50;width:100%;height:300px;background:#d1c2d3;padding:.5em;}"
+		},
+		"needToSave": {
+		  "page": false,
+		  "style": false,
+		  "script": true,
+		  "data": false,
+		  "board": false,
+		  "validate": true
+		}
+	  }`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSaveTempData(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": null,
+		"script": null,
+		"data": {
+		  "source": "{\n  \"title\": \"Home Page\",\n  \"data\": { \"service\": \"Index\" },\n  \"foo\": \"bar\",\n  \"preview\": { \"params\": { \"id\": \"1\" } }\n}\n",
+		  "language": "json"
+		},
+		"board": {
+		  "html": "<body service=\"Index\" data-gjs-type=\"wrapper\" data-gjs-stylable=\"[&quot;background&quot;,&quot;background-color&quot;,&quot;background-image&quot;,&quot;background-repeat&quot;,&quot;background-attachment&quot;,&quot;background-position&quot;,&quot;background-size&quot;]\"><div class=\"bg-purple-700 p-4 text-base\"><span class=\"text-white mr-2\" data-gjs-tagName=\"span\" data-gjs-type=\"text\">Home</span><a href=\"/index/{{user.id}}\" class=\"text-white\" data-gjs-type=\"link\">Invite</a></div><div id=\"ipxs\" data-gjs-type=\"Card\" data-gjs-style=\"\"><h1 data-gjs-tagName=\"h1\" data-gjs-type=\"text\">Card Instance</h1><p data-gjs-tagName=\"p\" data-gjs-type=\"text\">Card xx</p></div></body>",
+		  "style": "#ipxs{color:#2c3e50;width:100%;height:300px;background:#d1c2d3;padding:.5em;}"
+		},
+		"needToSave": {
+		  "page": false,
+		  "style": false,
+		  "script": false,
+		  "data": true,
+		  "board": false,
+		  "validate": true
+		}
+	}`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSave(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": null,
+		"script": null,
+		"data": null,
+		"board": {
+		  "html": "<div id=\"io71\">404 {{ $query.message || $post.message }}<br>Add IT</div>",
+		  "style": ""
+		},
+		"needToSave": {
+		  "page": false,
+		  "style": false,
+		  "script": false,
+		  "data": false,
+		  "board": true,
+		  "validate": true
+		}
+	}`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.CreatePage("/unit-test")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+	defer page.Remove()
+
+	err = page.SaveTemp(req)
+	if err != nil {
+		t.Fatalf("SaveTemp error: %v", err)
+	}
+
+	err = page.Save(req)
+	assert.Nil(t, err)
+
 }
 
 func TestPageGetPageFromAsset(t *testing.T) {
