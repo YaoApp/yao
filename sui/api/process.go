@@ -1,6 +1,8 @@
 package api
 
 import (
+	"fmt"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -35,8 +37,10 @@ func init() {
 		"page.exist":    PageExist,
 		"page.asset":    PageAsset,
 
-		"editor.render": EditorRender,
-		"editor.source": EditorSource,
+		"editor.render":              EditorRender,
+		"editor.source":              EditorSource,
+		"editor.renderaftersavetemp": EditorRenderAfterSaveTemp,
+		"editor.sourceaftersavetemp": EditorSourceAfterSaveTemp,
 	})
 }
 
@@ -439,7 +443,6 @@ func EditorRender(process *process.Process) interface{} {
 	sui := get(process)
 	templateID := process.ArgsString(1)
 	route := route(process, 2)
-	query := process.ArgsMap(3, map[string]interface{}{"method": "GET"})
 
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
@@ -452,14 +455,30 @@ func EditorRender(process *process.Process) interface{} {
 	}
 
 	// Request data
-	req := &core.Request{Method: query["method"].(string)}
+	urlQuery := url.Values{}
+	if process.NumOfArgs() > 3 {
+		if v, ok := process.Args[3].(url.Values); ok {
+			urlQuery = v
+		}
+	}
 
+	req := &core.Request{Method: "GET", Query: urlQuery}
 	res, err := page.EditorRender(req)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
 	return res
+}
+
+// EditorRenderAfterSaveTemp handle the render page request
+func EditorRenderAfterSaveTemp(process *process.Process) interface{} {
+	process.ValidateArgNums(5)
+	PageSaveTemp(process)
+	args := append([]interface{}{}, process.Args[:3]...)
+	args = append(args, process.Args[4:]...)
+	process.Args = args
+	return EditorRender(process)
 }
 
 // EditorSource handle the render page request
@@ -501,6 +520,17 @@ func EditorSource(process *process.Process) interface{} {
 	}
 }
 
+// EditorSourceAfterSaveTemp handle the render page request
+func EditorSourceAfterSaveTemp(process *process.Process) interface{} {
+	process.ValidateArgNums(5)
+	PageSaveTemp(process)
+
+	args := append([]interface{}{}, process.Args[:3]...)
+	args = append(args, process.Args[4:]...)
+	process.Args = args
+	return EditorSource(process)
+}
+
 // get the sui
 func get(process *process.Process) core.SUI {
 	sui, has := core.SUIs[process.ArgsString(0)]
@@ -534,9 +564,9 @@ func getSource(process *process.Process) (*core.RequestSource, error) {
 
 	case *gin.Context:
 		source := core.RequestSource{UID: v.GetHeader("Yao-Builder-Uid")}
-		err := v.Bind(&source)
+		err := v.ShouldBind(&source)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Bind: %s", err.Error())
 		}
 		return &source, nil
 
