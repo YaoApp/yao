@@ -114,13 +114,25 @@ var dsl = []byte(`
 			"path": "/:id/editor/render/:template_id/*route",
 			"method": "GET",
 			"process": "sui.Editor.Render",
-			"in": ["$param.id", "$param.template_id", "$param.route"],
+			"in": ["$param.id", "$param.template_id", "$param.route", ":query"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/editor/render/:template_id/*route",
+			"method": "POST",
+			"process": "sui.Editor.RenderAfterSaveTemp",
+			"in": ["$param.id", "$param.template_id", "$param.route", ":context", ":query"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
 			"path": "/:id/editor/:kind/source/:template_id/*route",
 			"method": "GET",
 			"process": "sui.Editor.Source",
-			"in": ["$param.id", "$param.template_id", "$param.route", "$param.kind"],
+			"in": ["$param.id", "$param.template_id", "$param.route", "$param.kind", ":query"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
+			"path": "/:id/editor/:kind/source/:template_id/*route",
+			"method": "POST",
+			"process": "sui.Editor.SourceAfterSaveTemp",
+			"in": ["$param.id", "$param.template_id", "$param.route", ":context", "$param.kind", ":query"],
 			"out": { "status": 200, "type": "application/json" }
 		},
 
