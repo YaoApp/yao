@@ -103,7 +103,7 @@ func (page *Page) BuildScript(assetRoot string) (string, error) {
 	}
 
 	code := strings.ReplaceAll(page.Codes.JS.Code, "@assets", assetRoot)
-	res, err := page.CompileCSS([]byte(code), false)
+	res, err := page.CompileJS([]byte(code), false)
 	if err != nil {
 		return "", err
 	}
