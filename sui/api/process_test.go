@@ -542,8 +542,9 @@ func TestEditorRender(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.IsType(t, &core.ResponseEditor{}, res)
-	assert.NotEmpty(t, res.(*core.ResponseEditor).HTML)
+	assert.IsType(t, &core.ResponseEditorRender{}, res)
+	assert.NotEmpty(t, res.(*core.ResponseEditorRender).HTML)
+	assert.NotEmpty(t, res.(*core.ResponseEditorRender).Config)
 }
 
 func TestEditorRenderWithQuery(t *testing.T) {
@@ -563,8 +564,8 @@ func TestEditorRenderWithQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.IsType(t, &core.ResponseEditor{}, res)
-	assert.NotEmpty(t, res.(*core.ResponseEditor).HTML)
+	assert.IsType(t, &core.ResponseEditorRender{}, res)
+	assert.NotEmpty(t, res.(*core.ResponseEditorRender).HTML)
 }
 
 func TestEditorPageSource(t *testing.T) {

@@ -38,11 +38,12 @@ type IPage interface {
 	Load() error
 
 	Get() *Page
+	GetConfig() *PageConfig
 	Save(request *RequestSource) error
 	SaveTemp(request *RequestSource) error
 	Remove() error
 
-	EditorRender(request *Request) (*ResponseEditor, error)
+	EditorRender(request *Request) (*ResponseEditorRender, error)
 	EditorPageSource() SourceData
 	EditorScriptSource() SourceData
 	EditorStyleSource() SourceData
