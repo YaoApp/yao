@@ -10,12 +10,14 @@ type DSL struct {
 
 // Page is the struct for the page
 type Page struct {
-	Route    string      `json:"route"`
-	Name     string      `json:"name,omitempty"`
-	Config   *PageConfig `json:"-"`
-	Path     string      `json:"-"`
-	Codes    SourceCodes `json:"-"`
-	Document []byte      `json:"-"`
+	Route      string      `json:"route"`
+	Name       string      `json:"name,omitempty"`
+	TemplateID string      `json:"-"`
+	SuiID      string      `json:"-"`
+	Config     *PageConfig `json:"-"`
+	Path       string      `json:"-"`
+	Codes      SourceCodes `json:"-"`
+	Document   []byte      `json:"-"`
 }
 
 // PageTreeNode is the struct for the page tree node
@@ -76,14 +78,16 @@ type Asset struct {
 
 // Request is the struct for the request
 type Request struct {
-	Method  string                 `json:"method"`
-	Payload map[string]interface{} `json:"payload,omitempty"`
-	Query   map[string][]string    `json:"query,omitempty"`
-	Params  map[string]string      `json:"params,omitempty"`
-	Headers map[string][]string    `json:"headers,omitempty"`
-	Body    interface{}            `json:"body,omitempty"`
-	Theme   string                 `json:"theme,omitempty"`
-	Locale  string                 `json:"locale,omitempty"`
+	Method    string                 `json:"method"`
+	AssetRoot string                 `json:"asset_root,omitempty"`
+	Referer   string                 `json:"referer,omitempty"`
+	Payload   map[string]interface{} `json:"payload,omitempty"`
+	Query     map[string][]string    `json:"query,omitempty"`
+	Params    map[string]string      `json:"params,omitempty"`
+	Headers   map[string][]string    `json:"headers,omitempty"`
+	Body      interface{}            `json:"body,omitempty"`
+	Theme     string                 `json:"theme,omitempty"`
+	Locale    string                 `json:"locale,omitempty"`
 }
 
 // RequestSource is the struct for the request

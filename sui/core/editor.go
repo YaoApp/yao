@@ -61,7 +61,7 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 	}
 
 	if html != "" {
-		html, err := page.renderData(html, data, res.Warnings)
+		html, err := page.Render(html, data, res.Warnings)
 		if err != nil {
 			res.Warnings = append(res.Warnings, err.Error())
 		}
