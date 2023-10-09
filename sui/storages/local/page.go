@@ -508,16 +508,9 @@ func (page *Page) saveData(path string, src *core.SourceData) error {
 
 func (page *Page) saveSetting(path string, setting *core.PageSetting, mock *core.PageMock) error {
 
-	config := map[string]interface{}{}
+	config := core.PageConfig{Mock: mock}
 	if setting != nil {
-		err := jsoniter.Unmarshal([]byte(page.Codes.CONF.Code), &config)
-		if err != nil {
-			return err
-		}
-	}
-
-	if mock != nil {
-		config["mock"] = mock
+		config.PageSetting = *setting
 	}
 
 	configBytes, err := jsoniter.MarshalIndent(config, "", "  ")
@@ -525,7 +518,7 @@ func (page *Page) saveSetting(path string, setting *core.PageSetting, mock *core
 		return err
 	}
 
-	if len(config) > 0 {
+	if setting != nil || mock != nil {
 		dataFile := filepath.Join(path, page.Codes.CONF.File)
 		_, err = page.tmpl.local.fs.WriteFile(dataFile, configBytes, 0644)
 		return err
