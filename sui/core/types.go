@@ -12,6 +12,7 @@ type DSL struct {
 type Page struct {
 	Route    string      `json:"route"`
 	Name     string      `json:"name,omitempty"`
+	Config   *PageConfig `json:"-"`
 	Path     string      `json:"-"`
 	Codes    SourceCodes `json:"-"`
 	Document []byte      `json:"-"`
@@ -79,8 +80,8 @@ type Request struct {
 	Payload map[string]interface{} `json:"payload,omitempty"`
 	Query   map[string][]string    `json:"query,omitempty"`
 	Params  map[string]string      `json:"params,omitempty"`
-	Headers []string               `json:"headers,omitempty"`
-	Body    []byte                 `json:"body,omitempty"`
+	Headers map[string][]string    `json:"headers,omitempty"`
+	Body    interface{}            `json:"body,omitempty"`
 	Theme   string                 `json:"theme,omitempty"`
 	Locale  string                 `json:"locale,omitempty"`
 }
@@ -94,23 +95,28 @@ type RequestSource struct {
 	Script     *SourceData      `json:"script,omitempty"`
 	Data       *SourceData      `json:"data,omitempty"`
 	Board      *BoardSourceData `json:"board,omitempty"`
+	Mock       *PageMock        `json:"mock,omitempty"`
+	Setting    *PageSetting     `json:"setting,omitempty"`
 	NeedToSave struct {
 		Page     bool `json:"page,omitempty"`
 		Style    bool `json:"style,omitempty"`
 		Script   bool `json:"script,omitempty"`
 		Data     bool `json:"data,omitempty"`
 		Board    bool `json:"board,omitempty"`
+		Mock     bool `json:"mock,omitempty"`
+		Setting  bool `json:"setting,omitempty"`
 		Validate bool `json:"validate,omitempty"`
 	} `json:"needToSave,omitempty"`
 }
 
-// ResponseEditor is the struct for the response
-type ResponseEditor struct {
+// ResponseEditorRender is the struct for the response
+type ResponseEditorRender struct {
 	HTML     string                 `json:"html,omitempty"`
 	CSS      string                 `json:"css,omitempty"`
 	Scripts  []string               `json:"scripts,omitempty"`
 	Styles   []string               `json:"styles,omitempty"`
 	Setting  map[string]interface{} `json:"setting,omitempty"`
+	Config   *PageConfig            `json:"config,omitempty"`
 	Warnings []string               `json:"warnings,omitempty"`
 }
 
@@ -126,6 +132,37 @@ type BoardSourceData struct {
 	Style string `json:"style,omitempty"`
 }
 
+// PageMock is the struct for the request
+type PageMock struct {
+	Method  string              `json:"method,omitempty"`
+	Params  map[string]string   `json:"params,omitempty"`
+	Query   map[string][]string `json:"query,omitempty"`
+	Headers map[string][]string `json:"headers,omitempty"`
+	Body    interface{}         `json:"body,omitempty"`
+}
+
+// PageConfig is the struct for the page config
+type PageConfig struct {
+	PageSetting `json:",omitempty"`
+	Mock        *PageMock `json:"mock,omitempty"`
+}
+
+// PageSetting is the struct for the page setting
+type PageSetting struct {
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	SEO         *PageSEO `json:"seo,omitempty"`
+}
+
+// PageSEO is the struct for the page seo
+type PageSEO struct {
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	Keywords    string `json:"keywords,omitempty"`
+	Image       string `json:"image,omitempty"`
+	URL         string `json:"url,omitempty"`
+}
+
 // SourceCodes is the struct for the page codes
 type SourceCodes struct {
 	HTML Source `json:"-"`
@@ -134,6 +171,7 @@ type SourceCodes struct {
 	TS   Source `json:"-"`
 	LESS Source `json:"-"`
 	DATA Source `json:"-"`
+	CONF Source `json:"-"`
 }
 
 // Source is the struct for the source

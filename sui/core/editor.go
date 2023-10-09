@@ -7,15 +7,16 @@ import (
 )
 
 // EditorRender render HTML for the editor
-func (page *Page) EditorRender(request *Request) (*ResponseEditor, error) {
+func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) {
 
 	html := page.Codes.HTML.Code
-	res := &ResponseEditor{
+	res := &ResponseEditorRender{
 		HTML:     "",
 		CSS:      page.Codes.CSS.Code,
 		Scripts:  []string{},
 		Styles:   []string{},
 		Warnings: []string{},
+		Config:   page.GetConfig(),
 		Setting:  map[string]interface{}{},
 	}
 

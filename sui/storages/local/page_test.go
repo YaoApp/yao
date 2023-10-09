@@ -42,6 +42,7 @@ func TestTemplatePages(t *testing.T) {
 		assert.Equal(t, name+".less", page.Codes.LESS.File)
 		assert.Equal(t, name+".ts", page.Codes.TS.File)
 		assert.Equal(t, name+".json", page.Codes.DATA.File)
+		assert.Equal(t, name+".config", page.Codes.CONF.File)
 	}
 }
 
@@ -427,6 +428,44 @@ func TestPageSaveTempData(t *testing.T) {
 		  "style": false,
 		  "script": false,
 		  "data": true,
+		  "board": false,
+		  "validate": true
+		}
+	}`
+
+	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
+	jsoniter.Unmarshal([]byte(payload), &req)
+
+	page, err := tmpl.Page("/index")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	err = page.SaveTemp(req)
+	assert.Nil(t, err)
+}
+
+func TestPageSaveTempSetting(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	const payload = `{
+		"page": null,
+		"style": null,
+		"script": null,
+		"setting": { "title": "Home Page | {{ $global.title }}" },
+		"mock": { "params": { "id": "1" } },
+		"needToSave": {
+		  "page": false,
+		  "style": false,
+		  "script": false,
+		  "mock": true,
+		  "setting": true,
 		  "board": false,
 		  "validate": true
 		}
