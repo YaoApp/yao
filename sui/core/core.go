@@ -12,7 +12,7 @@ func Load(file string, id string) (*DSL, error) {
 		return nil, err
 	}
 
-	dsl := DSL{}
+	dsl := DSL{ID: id}
 	err = application.Parse(file, data, &dsl)
 	if err != nil {
 		return nil, err

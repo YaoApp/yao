@@ -49,6 +49,8 @@ type IPage interface {
 	EditorStyleSource() SourceData
 	EditorDataSource() SourceData
 
+	PreviewRender(request *Request) (string, error)
+
 	AssetScript() (*Asset, error)
 	AssetStyle() (*Asset, error)
 }

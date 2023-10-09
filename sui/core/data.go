@@ -22,7 +22,7 @@ func (page *Page) Data(request *Request) (map[string]interface{}, map[string]int
 	return nil, setting, nil
 }
 
-// RenderHTML render for the html
-func (page *Page) renderData(html string, data map[string]interface{}, warnings []string) (string, error) {
+// Render render for the html
+func (page *Page) Render(html string, data map[string]interface{}, warnings []string) (string, error) {
 	return html, nil
 }

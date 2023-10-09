@@ -568,6 +568,25 @@ func TestEditorRenderWithQuery(t *testing.T) {
 	assert.NotEmpty(t, res.(*core.ResponseEditorRender).HTML)
 }
 
+func TestPreviewRender(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.preview.render", "demo", "tech-blue", "/index")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.IsType(t, "", res)
+	assert.NotEmpty(t, res)
+}
+
 func TestEditorPageSource(t *testing.T) {
 	load(t)
 	defer clean()

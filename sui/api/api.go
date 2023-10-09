@@ -156,6 +156,14 @@ var dsl = []byte(`
 				"body": "?:content",
 				"headers": { "Content-Type": "?:type"}
 			}
+		},
+
+		{
+			"path": "/:id/preview/:template_id/*route",
+			"method": "GET",
+			"process": "sui.Preview.Render",
+			"in": ["$param.id", "$param.template_id", "$param.path", "$header.Referer", "$query.r", "$query.t"],
+			"out": {"status": 200, "type": "text/html; charset=utf-8"}
 		}
 	],
 }
