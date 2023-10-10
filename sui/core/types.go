@@ -76,6 +76,14 @@ type Asset struct {
 	Content []byte `json:"content"`
 }
 
+// BuildOption is the struct for the option option
+type BuildOption struct {
+	SSR       bool   `json:"ssr"`
+	CDN       bool   `json:"cdn"`
+	UpdateAll bool   `json:"update_all"`
+	AssetRoot string `json:"asset_root,omitempty"`
+}
+
 // Request is the struct for the request
 type Request struct {
 	Method    string                 `json:"method"`

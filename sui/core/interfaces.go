@@ -31,6 +31,9 @@ type ITemplate interface {
 	Themes() []SelectOption
 
 	Asset(file string) (*Asset, error)
+
+	Build(option *BuildOption) error
+	SyncAssets(option *BuildOption) error
 }
 
 // IPage is the interface for the page
@@ -53,6 +56,8 @@ type IPage interface {
 
 	AssetScript() (*Asset, error)
 	AssetStyle() (*Asset, error)
+
+	Build(option *BuildOption) error
 }
 
 // IBlock is the interface for the block

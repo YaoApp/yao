@@ -37,6 +37,8 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/google/go-github/v30 v30.1.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/hashicorp/errwrap v1.0.0 // indirect
+	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect

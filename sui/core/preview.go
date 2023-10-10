@@ -8,40 +8,15 @@ import (
 func (page *Page) PreviewRender(request *Request) (string, error) {
 
 	warnings := []string{}
-	html, err := page.BuildHTML(request.AssetRoot)
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
+	doc, warnings, err := page.Build(&BuildOption{
+		SSR:       true,
+		AssetRoot: request.AssetRoot,
+	})
 
 	data, _, err := page.Data(request)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
-
-	html, err = page.Render(html, data, warnings)
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-
-	// Add Style & Script & Warning
-	doc, err := NewDocument([]byte(html))
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-
-	// Add Style
-	style, err := page.BuildStyle(request.AssetRoot)
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-	doc.Selection.Find("head").AppendHtml(style)
-
-	// Add Script
-	script, err := page.BuildScript(request.AssetRoot)
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-	doc.Selection.Find("body").AppendHtml(script)
 
 	// Add Frame Height
 	if request.Referer != "" {
@@ -78,6 +53,16 @@ func (page *Page) PreviewRender(request *Request) (string, error) {
 		}
 		warningHTML += "</div>"
 		doc.Selection.Find("body").AppendHtml(warningHTML)
+	}
+
+	html, err := doc.Html()
+	if err != nil {
+		return "", err
+	}
+
+	html, err = page.Render(html, data, warnings)
+	if err != nil {
+		warnings = append(warnings, err.Error())
 	}
 
 	return doc.Html()
