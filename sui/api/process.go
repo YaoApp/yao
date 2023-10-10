@@ -43,6 +43,9 @@ func init() {
 		"editor.sourceaftersavetemp": EditorSourceAfterSaveTemp,
 
 		"preview.render": PreviewRender,
+
+		"build.all":  BuildAll,
+		"build.page": BuildPage,
 	})
 }
 
@@ -569,6 +572,77 @@ func PreviewRender(process *process.Process) interface{} {
 	}
 
 	return html
+}
+
+// BuildAll handle the render page request
+func BuildAll(process *process.Process) interface{} {
+
+	process.ValidateArgNums(3)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+
+	option := process.ArgsMap(2, map[string]interface{}{})
+	ssr := true
+	if v, ok := option["ssr"].(bool); ok {
+		ssr = v
+	}
+
+	assetRoot := ""
+	if v, ok := option["asset_root"].(string); ok {
+		assetRoot = v
+	}
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	err = tmpl.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot})
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return nil
+}
+
+// BuildPage handle the render page request
+func BuildPage(process *process.Process) interface{} {
+	process.ValidateArgNums(4)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	route := route(process, 2)
+	option := process.ArgsMap(3, map[string]interface{}{})
+	ssr := true
+	if v, ok := option["ssr"].(bool); ok {
+		ssr = v
+	}
+
+	assetRoot := ""
+	if v, ok := option["asset_root"].(string); ok {
+		assetRoot = v
+	}
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	page, err := tmpl.Page(route)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	err = page.Load()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	err = page.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot})
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return nil
 }
 
 // get the sui
