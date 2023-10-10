@@ -68,6 +68,10 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 // Build is the struct for the public
 func (page *Page) Build(option *core.BuildOption) error {
 
+	if option.AssetRoot == "" {
+		option.AssetRoot = filepath.Join(page.tmpl.local.DSL.Public.Root, "assets")
+	}
+
 	doc, _, err := page.Page.Build(option)
 	if err != nil {
 		return err

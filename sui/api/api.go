@@ -162,8 +162,22 @@ var dsl = []byte(`
 			"path": "/:id/preview/:template_id/*route",
 			"method": "GET",
 			"process": "sui.Preview.Render",
-			"in": ["$param.id", "$param.template_id", "$param.path", "$header.Referer", "$query.r", "$query.t"],
+			"in": ["$param.id", "$param.template_id", "$param.route", "$header.Referer", "$query.r", "$query.t"],
 			"out": {"status": 200, "type": "text/html; charset=utf-8"}
+		},
+
+		{
+			"path": "/:id/build/:template_id",
+			"method": "POST",
+			"process": "sui.Build.All",
+			"in": ["$param.id", "$param.template_id", ":payload"],
+			"out": {"status": 200}
+		},{
+			"path": "/:id/build/:template_id/*route",
+			"method": "POST",
+			"process": "sui.Build.Page",
+			"in": ["$param.id", "$param.template_id", "$param.route", ":payload"],
+			"out": {"status": 200}
 		}
 	],
 }

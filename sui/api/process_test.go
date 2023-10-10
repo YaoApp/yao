@@ -547,6 +547,27 @@ func TestEditorRender(t *testing.T) {
 	assert.NotEmpty(t, res.(*core.ResponseEditorRender).Config)
 }
 
+func TestEditorPageSource(t *testing.T) {
+	load(t)
+	defer clean()
+
+	sources := []string{"page", "script", "style", "data"}
+	for _, source := range sources {
+		p, err := process.Of("sui.editor.source", "demo", "tech-blue", "/index", source)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		res, err := p.Exec()
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.IsType(t, core.SourceData{}, res)
+		assert.NotEmpty(t, res.(core.SourceData).Source)
+		assert.NotEmpty(t, res.(core.SourceData).Language)
+	}
+}
+
 func TestEditorRenderWithQuery(t *testing.T) {
 	load(t)
 	defer clean()
@@ -587,25 +608,40 @@ func TestPreviewRender(t *testing.T) {
 	assert.NotEmpty(t, res)
 }
 
-func TestEditorPageSource(t *testing.T) {
+func TestBuildAll(t *testing.T) {
 	load(t)
 	defer clean()
 
-	sources := []string{"page", "script", "style", "data"}
-	for _, source := range sources {
-		p, err := process.Of("sui.editor.source", "demo", "tech-blue", "/index", source)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		res, err := p.Exec()
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.IsType(t, core.SourceData{}, res)
-		assert.NotEmpty(t, res.(core.SourceData).Source)
-		assert.NotEmpty(t, res.(core.SourceData).Language)
+	// test demo
+	p, err := process.Of("sui.build.all", "demo", "tech-blue", map[string]interface{}{"ssr": true})
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Nil(t, res)
+}
+
+func TestBuildPage(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.build.page", "demo", "tech-blue", "/index", map[string]interface{}{"ssr": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Nil(t, res)
 }
 
 func load(t *testing.T) {
