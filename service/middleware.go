@@ -38,9 +38,9 @@ func withStaticFileServer(c *gin.Context) {
 		return
 	}
 
-	// PWA app static file server
+	// SPA app static file server
 	for root, rootLength := range SpaRoots {
-		if rootLength >= length && c.Request.URL.Path[0:length] == root {
+		if length >= rootLength && c.Request.URL.Path[0:rootLength] == root {
 			c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, root)
 			spaFileServers[root].ServeHTTP(c.Writer, c.Request)
 			c.Abort()
