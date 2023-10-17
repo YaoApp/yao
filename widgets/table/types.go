@@ -80,10 +80,11 @@ type BindActionDSL struct {
 
 // LayoutDSL the table layout
 type LayoutDSL struct {
-	Primary string           `json:"primary,omitempty"`
-	Header  *HeaderLayoutDSL `json:"header,omitempty"`
-	Filter  *FilterLayoutDSL `json:"filter,omitempty"`
-	Table   *ViewLayoutDSL   `json:"table,omitempty"`
+	Primary string                 `json:"primary,omitempty"`
+	Header  *HeaderLayoutDSL       `json:"header,omitempty"`
+	Filter  *FilterLayoutDSL       `json:"filter,omitempty"`
+	Table   *ViewLayoutDSL         `json:"table,omitempty"`
+	Config  map[string]interface{} `json:"config,omitempty"`
 }
 
 // HeaderLayoutDSL layout.header

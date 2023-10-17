@@ -277,6 +277,13 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 		dsl.Config["full"] = true
 	}
 
+	// Merge the layout config
+	if layout.Config != nil {
+		for key, value := range layout.Config {
+			dsl.Config[key] = value
+		}
+	}
+
 	setting := map[string]interface{}{}
 	bytes, err := jsoniter.Marshal(layout)
 	if err != nil {

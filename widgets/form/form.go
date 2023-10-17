@@ -218,10 +218,6 @@ func MustGet(form interface{}) *DSL {
 // Xgen trans to xgen setting
 func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
 
-	if dsl.Config == nil {
-		dsl.Config = map[string]interface{}{}
-	}
-
 	if dsl.Layout == nil {
 		dsl.Layout = &LayoutDSL{Form: &ViewLayoutDSL{}}
 	}
@@ -243,6 +239,13 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 	// full width default value
 	if _, has := dsl.Config["full"]; !has {
 		dsl.Config["full"] = true
+	}
+
+	// Merge the layout config
+	if layout.Config != nil {
+		for key, value := range layout.Config {
+			dsl.Config[key] = value
+		}
 	}
 
 	setting := map[string]interface{}{}
