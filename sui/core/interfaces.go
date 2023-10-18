@@ -21,6 +21,8 @@ type ITemplate interface {
 	GetPageFromAsset(asset string) (IPage, error)
 
 	Blocks() ([]IBlock, error)
+	BlockLayoutItems() (*BlockLayoutItems, error)
+	BlockMedia(id string) (*Asset, error)
 	Block(name string) (IBlock, error)
 
 	Components() ([]IComponent, error)
@@ -65,6 +67,7 @@ type IBlock interface {
 	Compile() (string, error)
 	Load() error
 	Source() string
+	Get() *Block
 }
 
 // IComponent is the interface for the component
