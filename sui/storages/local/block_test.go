@@ -81,3 +81,49 @@ func TestTemplateBlockTS(t *testing.T) {
 	assert.Contains(t, block.(*Block).Compiled, "window.block__Hero")
 	assert.Contains(t, block.(*Block).Compiled, `<div data-gjs-type='Nav'></div>`)
 }
+
+func TestBlockLayoutItems(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	items, err := tmpl.BlockLayoutItems()
+	if err != nil {
+		t.Fatalf("BlockLayoutItems error: %v", err)
+	}
+
+	assert.Equal(t, 2, len(items.Categories))
+
+	tmpl, err = tests.Demo.GetTemplate("website-ai")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	items, err = tmpl.BlockLayoutItems()
+	if err != nil {
+		t.Fatalf("BlockLayoutItems error: %v", err)
+	}
+
+	assert.Equal(t, 1, len(items.Categories))
+}
+
+func TestBlockMedia(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	media, err := tmpl.BlockMedia("ColumnsTwo")
+	if err != nil {
+		t.Fatalf("BlockMedia error: %v", err)
+	}
+
+	assert.Equal(t, "image/png", media.Type)
+}

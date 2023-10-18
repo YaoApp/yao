@@ -46,6 +46,20 @@ type Block struct {
 	Codes    SourceCodes `json:"-"`
 }
 
+// BlockLayoutItems is the struct for the block layout items
+type BlockLayoutItems struct {
+	Categories []LayoutItem                 `json:"categories"`
+	Locals     map[string]map[string]string `json:"locals,omitempty"`
+}
+
+// LayoutItem is the struct for the layout it
+type LayoutItem struct {
+	ID     string       `json:"id"`
+	Label  string       `json:"label,omitempty"`
+	Width  int          `json:"width,omitempty"`
+	Blocks []LayoutItem `json:"blocks,omitempty"`
+}
+
 // Template is the struct for the template
 type Template struct {
 	Version     int            `json:"version"` // Yao Builder version

@@ -45,11 +45,27 @@ var dsl = []byte(`
 			"in": ["$param.id", "$param.template_id"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
+			"path": "/:id/block/export/:template_id",
+			"method": "GET",
+			"process": "sui.Block.Export",
+			"in": ["$param.id", "$param.template_id"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
 			"path": "/:id/block/:template_id/:block_id",
 			"method": "GET",
 			"process": "sui.Block.Find",
 			"in": ["$param.id", "$param.template_id", "$param.block_id"],
 			"out": { "status": 200, "type": "text/javascript" }
+		},{
+			"path": "/:id/block/:template_id/:block_id/media",
+			"method": "GET",
+			"process": "sui.Block.Media",
+			"in": ["$param.id", "$param.template_id", "$param.block_id"],
+			"out": {
+				"status": 200,
+				"body": "?:content",
+				"headers": { "Content-Type": "?:type"}
+			}
 		},
 
 		{

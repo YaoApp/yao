@@ -60,3 +60,8 @@ func (block *Block) Compile() (string, error) {
 func (block *Block) Source() string {
 	return block.Compiled
 }
+
+// Get get the block
+func (block *Block) Get() *Block {
+	return block
+}

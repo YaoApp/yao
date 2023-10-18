@@ -115,7 +115,7 @@ func TestTemplateThemeGet(t *testing.T) {
 	assert.Equal(t, "light", res.([]core.SelectOption)[1].Value)
 }
 
-func TestTemplateBlockGet(t *testing.T) {
+func TestBlockGet(t *testing.T) {
 	load(t)
 	defer clean()
 
@@ -138,7 +138,7 @@ func TestTemplateBlockGet(t *testing.T) {
 	assert.Equal(t, "Table", res.([]core.IBlock)[3].(*local.Block).ID)
 }
 
-func TestTemplateBlockFind(t *testing.T) {
+func TestBlockFind(t *testing.T) {
 	load(t)
 	defer clean()
 
@@ -155,6 +155,43 @@ func TestTemplateBlockFind(t *testing.T) {
 
 	assert.IsType(t, "", res)
 	assert.Contains(t, res.(string), "window.block__ColumnsTwo=")
+}
+
+func TestBlockExport(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.block.export", "demo", "tech-blue")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, &core.BlockLayoutItems{}, res)
+	assert.Equal(t, 2, len(res.(*core.BlockLayoutItems).Categories))
+}
+
+func TestBlockMedia(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.block.media", "demo", "tech-blue", "ColumnsTwo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.IsType(t, map[string]interface{}{}, res)
+	assert.Equal(t, "image/png", res.(map[string]interface{})["type"])
+	assert.NotEmpty(t, res.(map[string]interface{})["content"])
 }
 
 func TestTemplateComponentGet(t *testing.T) {

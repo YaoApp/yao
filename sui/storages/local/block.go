@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
 )
@@ -62,6 +63,86 @@ func (tmpl *Template) Block(id string) (core.IBlock, error) {
 	}
 
 	return block, nil
+}
+
+// BlockMedia get the block media
+func (tmpl *Template) BlockMedia(id string) (*core.Asset, error) {
+	path := filepath.Join(tmpl.Root, "__blocks", id, "media.png")
+	if exist, _ := tmpl.local.fs.Exists(path); exist {
+
+		content, err := tmpl.local.fs.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+
+		return &core.Asset{
+			Type:    "image/png",
+			Content: content,
+		}, nil
+	}
+
+	path = filepath.Join(tmpl.Root, "__blocks", id, "media.svg")
+	if exist, _ := tmpl.local.fs.Exists(path); !exist {
+		return nil, fmt.Errorf("Block %s media not found (media.png / media.png )", id)
+	}
+
+	content, err := tmpl.local.fs.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &core.Asset{
+		Type:    "image/svg+xml",
+		Content: content,
+	}, nil
+}
+
+// BlockLayoutItems export the blocks
+func (tmpl *Template) BlockLayoutItems() (*core.BlockLayoutItems, error) {
+
+	path := filepath.Join(tmpl.Root, "__blocks", "export.json")
+	if exist, _ := tmpl.local.fs.Exists(path); !exist {
+
+		blocks, err := tmpl.Blocks()
+		if err != nil {
+			return nil, err
+		}
+
+		// Default layout items
+		layoutItems := &core.BlockLayoutItems{
+			Categories: []core.LayoutItem{{
+				ID:     "Basic",
+				Label:  "Basic",
+				Blocks: []core.LayoutItem{},
+			}},
+			Locals: map[string]map[string]string{
+				"zh-CN": {"Basic": "基础"},
+				"zh-TW": {"Basic": "基礎"},
+			},
+		}
+
+		for _, block := range blocks {
+			layoutItems.Categories[0].Blocks = append(
+				layoutItems.Categories[0].Blocks, core.LayoutItem{
+					ID:    block.Get().ID,
+					Label: block.Get().Name,
+				})
+		}
+		return layoutItems, nil
+	}
+
+	data, err := tmpl.local.fs.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	layoutItems := core.BlockLayoutItems{}
+	err = application.Parse(path, data, &layoutItems)
+	if err != nil {
+		return nil, err
+	}
+
+	return &layoutItems, nil
 }
 
 // Load get the block from the storage
