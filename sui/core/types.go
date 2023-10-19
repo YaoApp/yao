@@ -4,8 +4,16 @@ package core
 type DSL struct {
 	ID      string   `json:"-"`
 	Name    string   `json:"name,omitempty"`
+	Guard   string   `json:"guard,omitempty"`
 	Storage *Storage `json:"storage,omitempty"`
 	Public  *Public  `json:"public,omitempty"`
+}
+
+// Setting is the struct for the setting
+type Setting struct {
+	ID     string                 `json:"id,omitempty"`
+	Guard  string                 `json:"guard,omitempty"`
+	Option map[string]interface{} `json:"option,omitempty"`
 }
 
 // Page is the struct for the page
@@ -54,10 +62,12 @@ type BlockLayoutItems struct {
 
 // LayoutItem is the struct for the layout it
 type LayoutItem struct {
-	ID     string       `json:"id"`
-	Label  string       `json:"label,omitempty"`
-	Width  int          `json:"width,omitempty"`
-	Blocks []LayoutItem `json:"blocks,omitempty"`
+	ID       string       `json:"id"`
+	Label    string       `json:"label,omitempty"`
+	Width    int          `json:"width,omitempty"`
+	Height   int          `json:"height,omitempty"`
+	Keywords []string     `json:"keywords,omitempty"`
+	Blocks   []LayoutItem `json:"blocks,omitempty"`
 }
 
 // Template is the struct for the template
