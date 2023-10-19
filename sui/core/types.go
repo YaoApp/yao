@@ -4,8 +4,16 @@ package core
 type DSL struct {
 	ID      string   `json:"-"`
 	Name    string   `json:"name,omitempty"`
+	Guard   string   `json:"guard,omitempty"`
 	Storage *Storage `json:"storage,omitempty"`
 	Public  *Public  `json:"public,omitempty"`
+}
+
+// Setting is the struct for the setting
+type Setting struct {
+	ID     string                 `json:"id,omitempty"`
+	Guard  string                 `json:"guard,omitempty"`
+	Option map[string]interface{} `json:"option,omitempty"`
 }
 
 // Page is the struct for the page

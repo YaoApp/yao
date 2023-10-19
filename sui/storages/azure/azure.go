@@ -7,7 +7,10 @@ import (
 )
 
 // Azure is the struct for the azure sui
-type Azure struct{ url url.URL }
+type Azure struct {
+	url url.URL
+	*core.DSL
+}
 
 // new create a new azure sui
 func new() (*Azure, error) {

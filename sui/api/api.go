@@ -11,6 +11,14 @@ var dsl = []byte(`
 	"group": "__yao/sui/v1",
 	"paths": [
 		{
+			"path": "/:id/setting",
+			"method": "GET",
+			"process": "sui.Setting",
+			"in": ["$param.id"],
+			"out": { "status": 200, "type": "application/json" }
+		},
+		
+		{
 			"path": "/:id/template",
 			"method": "GET",
 			"process": "sui.Template.Get",

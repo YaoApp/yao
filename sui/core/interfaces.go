@@ -5,6 +5,7 @@ var SUIs = map[string]SUI{}
 
 // SUI is the interface for the SUI
 type SUI interface {
+	Setting() (*Setting, error)
 	GetTemplates() ([]ITemplate, error)
 	GetTemplate(name string) (ITemplate, error)
 	UploadTemplate(src string, dst string) (ITemplate, error)

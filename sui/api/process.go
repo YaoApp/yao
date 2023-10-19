@@ -15,6 +15,8 @@ import (
 
 func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
+		"setting": Setting,
+
 		"template.get":   TemplateGet,
 		"template.find":  TemplateFind,
 		"template.asset": TemplateAsset,
@@ -49,6 +51,16 @@ func init() {
 		"build.all":  BuildAll,
 		"build.page": BuildPage,
 	})
+}
+
+// Setting handle the get Template request
+func Setting(process *process.Process) interface{} {
+	sui := get(process)
+	setting, err := sui.Setting()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return setting
 }
 
 // TemplateGet handle the get Template request
