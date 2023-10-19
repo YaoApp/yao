@@ -65,6 +65,7 @@ type LayoutItem struct {
 	ID     string       `json:"id"`
 	Label  string       `json:"label,omitempty"`
 	Width  int          `json:"width,omitempty"`
+	Height int          `json:"height,omitempty"`
 	Blocks []LayoutItem `json:"blocks,omitempty"`
 }
 
