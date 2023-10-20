@@ -83,7 +83,10 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 			return
 		}
 
-		c.JSON(200, history)
+		c.JSON(200, map[string]interface{}{
+			"data":    history,
+			"command": nil,
+		})
 		c.Done()
 	})
 	router.GET(path+"/history", handlers...)
