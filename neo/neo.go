@@ -248,13 +248,13 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 				return true
 			}
 
-			err := neo.write(msg, w, ctx, messages)
+			content = msg.Append(content)
+			err := neo.write(msg, w, ctx, messages, content)
 			if err != nil {
 				log.Warn("Neo write process msg: %v error: %s", msg, err.Error())
 				msg.Write(w)
 			}
 
-			content = msg.Append(content)
 			return !msg.IsDone()
 
 		case <-ctx.Done():
@@ -310,14 +310,19 @@ func (neo *DSL) prompts() []map[string]interface{} {
 }
 
 // after the after hook
-func (neo *DSL) write(msg *message.JSON, w io.Writer, ctx command.Context, messages []map[string]interface{}) error {
+func (neo *DSL) write(msg *message.JSON, w io.Writer, ctx command.Context, messages []map[string]interface{}, content []byte) error {
 
 	if neo.Write == "" {
 		msg.Write(w)
 		return nil
 	}
 
-	p, err := process.Of(neo.Write, ctx, messages, msg)
+	args := []interface{}{ctx, messages, msg}
+	if msg.IsDone() {
+		args = append(args, string(content))
+	}
+
+	p, err := process.Of(neo.Write, args...)
 	if err != nil {
 		return err
 	}
