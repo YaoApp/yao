@@ -18,6 +18,7 @@ type DSL struct {
 	ConversationSetting conversation.Setting      `json:"conversation" yaml:"conversation"`
 	Option              map[string]interface{}    `json:"option"`
 	Prepare             string                    `json:"prepare,omitempty"`
+	Write               string                    `json:"write,omitempty"`
 	Prompts             []aigc.Prompt             `json:"prompts,omitempty"`
 	Allows              []string                  `json:"allows,omitempty"`
 	Command             Command                   `json:"command,omitempty"`
