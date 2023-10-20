@@ -75,6 +75,66 @@ func (json *JSON) Text(text string) *JSON {
 	return json
 }
 
+// Map set from map
+func (json *JSON) Map(msg map[string]interface{}) *JSON {
+	if msg == nil {
+		return json
+	}
+
+	if text, ok := msg["text"].(string); ok {
+		json.Message.Text = text
+	}
+
+	if done, ok := msg["done"].(bool); ok {
+		json.Message.Done = done
+	}
+
+	if confirm, ok := msg["confirm"].(bool); ok {
+		json.Message.Confirm = confirm
+	}
+
+	if command, ok := msg["command"].(map[string]interface{}); ok {
+		json.Message.Command = &Command{}
+		if id, ok := command["id"].(string); ok {
+			json.Message.Command.ID = id
+		}
+		if name, ok := command["name"].(string); ok {
+			json.Message.Command.Name = name
+		}
+		if request, ok := command["request"].(string); ok {
+			json.Message.Command.Reqeust = request
+		}
+	}
+
+	if actions, ok := msg["actions"].([]interface{}); ok {
+		for _, action := range actions {
+			if v, ok := action.(map[string]interface{}); ok {
+				action := Action{}
+				if name, ok := v["name"].(string); ok {
+					action.Name = name
+				}
+				if t, ok := v["type"].(string); ok {
+					action.Type = t
+				}
+				if payload, ok := v["payload"].(map[string]interface{}); ok {
+					action.Payload = payload
+				}
+
+				if next, ok := v["next"].(string); ok {
+					action.Next = next
+				}
+				json.Message.Actions = append(json.Message.Actions, action)
+			}
+		}
+	}
+
+	if data, ok := msg["data"].(map[string]interface{}); ok {
+		json.Message.Data = data
+	}
+
+	return json
+}
+
 // Done set the done
 func (json *JSON) Done() *JSON {
 	json.Message.Done = true
