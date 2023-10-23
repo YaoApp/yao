@@ -708,6 +708,7 @@ func get(process *process.Process) core.SUI {
 	if !has {
 		exception.New("the sui %s does not exist", 404, process.ID).Throw()
 	}
+	sui.WithSid(process.Sid)
 	return sui
 }
 

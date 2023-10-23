@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
 )
 
@@ -14,8 +15,14 @@ import (
 func (tmpl *Template) Build(option *core.BuildOption) error {
 	var err error
 
+	root, err := tmpl.local.DSL.PublicRoot()
+	if err != nil {
+		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
+		root = tmpl.local.DSL.Public.Root
+	}
+
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(tmpl.local.DSL.Public.Root, "assets")
+		option.AssetRoot = filepath.Join(root, "assets")
 	}
 
 	// Sync the assets
@@ -55,8 +62,13 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 	}
 
 	//get target abs path
-	root := tmpl.local.DSL.Public.Root
+	root, err := tmpl.local.DSL.PublicRoot()
+	if err != nil {
+		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
+		root = tmpl.local.DSL.Public.Root
+	}
 	targetRoot := filepath.Join(application.App.Root(), "public", root, "assets")
+
 	if exist, _ := os.Stat(targetRoot); exist == nil {
 		os.MkdirAll(targetRoot, os.ModePerm)
 	}
@@ -93,7 +105,11 @@ func (page *Page) Build(option *core.BuildOption) error {
 }
 
 func (page *Page) publicFile() string {
-	root := page.tmpl.local.DSL.Public.Root
+	root, err := page.tmpl.local.DSL.PublicRoot()
+	if err != nil {
+		log.Error("publicFile: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
+		root = page.tmpl.local.DSL.Public.Root
+	}
 	return filepath.Join(application.App.Root(), "public", root, page.Route)
 }
 
