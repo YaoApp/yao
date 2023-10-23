@@ -2,11 +2,13 @@ package core
 
 // DSL the struct for the DSL
 type DSL struct {
-	ID      string   `json:"-"`
-	Name    string   `json:"name,omitempty"`
-	Guard   string   `json:"guard,omitempty"`
-	Storage *Storage `json:"storage,omitempty"`
-	Public  *Public  `json:"public,omitempty"`
+	ID         string   `json:"-"`
+	Name       string   `json:"name,omitempty"`
+	Guard      string   `json:"guard,omitempty"`
+	Storage    *Storage `json:"storage,omitempty"`
+	Public     *Public  `json:"public,omitempty"`
+	Sid        string   `json:"-"`
+	publicRoot string   `json:"-"`
 }
 
 // Setting is the struct for the setting

@@ -9,6 +9,7 @@ type SUI interface {
 	GetTemplates() ([]ITemplate, error)
 	GetTemplate(name string) (ITemplate, error)
 	UploadTemplate(src string, dst string) (ITemplate, error)
+	WithSid(sid string)
 }
 
 // ITemplate is the interface for the ITemplate

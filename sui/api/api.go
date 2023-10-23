@@ -7,11 +7,12 @@ var dsl = []byte(`
 	"name": "SUI API",
 	"description": "The API for SUI",
 	"version": "1.0.0",
-	"guard": "-",
+	"guard": "bearer-jwt",
 	"group": "__yao/sui/v1",
 	"paths": [
 		{
 			"path": "/:id/setting",
+			"guard": "-",
 			"method": "GET",
 			"process": "sui.Setting",
 			"in": ["$param.id"],
@@ -60,12 +61,14 @@ var dsl = []byte(`
 			"out": { "status": 200, "type": "application/json" }
 		},{
 			"path": "/:id/block/:template_id/:block_id",
+			"guard": "query-jwt",
 			"method": "GET",
 			"process": "sui.Block.Find",
 			"in": ["$param.id", "$param.template_id", "$param.block_id"],
 			"out": { "status": 200, "type": "text/javascript" }
 		},{
 			"path": "/:id/block/:template_id/:block_id/media",
+			"guard": "query-jwt",
 			"method": "GET",
 			"process": "sui.Block.Media",
 			"in": ["$param.id", "$param.template_id", "$param.block_id"],
@@ -84,6 +87,7 @@ var dsl = []byte(`
 			"out": { "status": 200, "type": "application/json" }
 		},{
 			"path": "/:id/component/:template_id/:component_id",
+			"guard": "query-jwt",
 			"method": "GET",
 			"process": "sui.Component.Find",
 			"in": ["$param.id", "$param.template_id", "$param.component_id"],
@@ -163,6 +167,7 @@ var dsl = []byte(`
 		{
 			"path": "/:id/asset/:template_id/@assets/*path",
 			"method": "GET",
+			"guard": "-",
 			"process": "sui.Template.Asset",
 			"in": ["$param.id", "$param.template_id", "$param.path"],
 			"out": {
@@ -172,7 +177,8 @@ var dsl = []byte(`
 			}
 		},{
 			"path": "/:id/asset/:template_id/@pages/*path",
-			"method": "GET",
+			"guard": "query-jwt",
+			"method": "-",
 			"process": "sui.Page.Asset",
 			"in": ["$param.id", "$param.template_id", "$param.path"],
 			"out": {
@@ -184,6 +190,7 @@ var dsl = []byte(`
 
 		{
 			"path": "/:id/preview/:template_id/*route",
+			"guard": "query-jwt",
 			"method": "GET",
 			"process": "sui.Preview.Render",
 			"in": ["$param.id", "$param.template_id", "$param.route", "$header.Referer", "$query.r", "$query.t"],
