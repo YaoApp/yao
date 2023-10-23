@@ -178,7 +178,7 @@ var dsl = []byte(`
 		},{
 			"path": "/:id/asset/:template_id/@pages/*path",
 			"guard": "query-jwt",
-			"method": "-",
+			"method": "GET",
 			"process": "sui.Page.Asset",
 			"in": ["$param.id", "$param.template_id", "$param.path"],
 			"out": {
