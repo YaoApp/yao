@@ -317,11 +317,7 @@ func (neo *DSL) write(msg *message.JSON, w io.Writer, ctx command.Context, messa
 		return nil
 	}
 
-	args := []interface{}{ctx, messages, msg}
-	if msg.IsDone() {
-		args = append(args, string(content))
-	}
-
+	args := []interface{}{ctx, messages, msg, string(content)}
 	p, err := process.Of(neo.Write, args...)
 	if err != nil {
 		return err
