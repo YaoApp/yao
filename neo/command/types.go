@@ -74,6 +74,8 @@ type Context struct {
 	Path            string                 `json:"pathname,omitempty"`
 	FormData        map[string]interface{} `json:"formdata,omitempty"`
 	Field           *ContextField          `json:"field,omitempty"`
+	Namespace       string                 `json:"namespace,omitempty"`
+	Config          map[string]interface{} `json:"config,omitempty"`
 	context.Context `json:"-" yaml:"-"`
 }
 
