@@ -76,6 +76,7 @@ type Context struct {
 	Field           *ContextField          `json:"field,omitempty"`
 	Namespace       string                 `json:"namespace,omitempty"`
 	Config          map[string]interface{} `json:"config,omitempty"`
+	Signal          interface{}            `json:"signal,omitempty"`
 	context.Context `json:"-" yaml:"-"`
 }
 
