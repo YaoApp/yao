@@ -55,6 +55,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 	tmpl.local.fs.Walk(tmpl.Root, func(root, file string, isdir bool) error {
 		name := filepath.Base(file)
 		relPath := file
+		log.Debug("[PageTree] file: %s isdir: %v", relPath, isdir)
 
 		if isdir {
 			if strings.HasPrefix(name, "__") || name == ".tmp" {
@@ -79,6 +80,8 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 						break
 					}
 				}
+
+				log.Debug("[PageTree] dirs: %s found: %v", dir, found)
 				// If not found, create a new directory node.
 				if !found {
 					newDir := &core.PageTreeNode{
