@@ -99,7 +99,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		exception.New("登录密码错误 (%v)", 403, value).Throw()
 	}
 
-	expiresAt := time.Now().Unix() + 3600
+	expiresAt := time.Now().Unix() + 3600*8
 
 	// token := MakeToken(row, expiresAt)
 	id := any.Of(row.Get("id")).CInt()

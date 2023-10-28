@@ -67,25 +67,34 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 	timeout := int64(3600)
 	uid := fmt.Sprintf("%d", id)
 	subject := "User Token"
-	audience := "Xiang Metadata Admin Panel"
+	audience := "Yao Process utils.jwt.Make"
 	issuer := fmt.Sprintf("xiang:%d", id)
+
 	if v, has := option["subject"]; has {
 		subject = fmt.Sprintf("%v", v)
 	}
+
 	if v, has := option["audience"]; has {
 		audience = fmt.Sprintf("%v", v)
 	}
+
 	if v, has := option["issuer"]; has {
 		issuer = fmt.Sprintf("%v", v)
 	}
+
 	if v, has := option["sid"]; has {
 		sid = fmt.Sprintf("%v", v)
 	}
+
 	if v, has := option["timeout"]; has {
 		timeout = int64(any.Of(v).CInt())
 	}
 
 	expiresAt := now + timeout
+	if v, has := option["expires_at"]; has {
+		expiresAt = int64(any.Of(v).CInt())
+	}
+
 	if sid == "" {
 		sid = session.ID()
 	}
@@ -107,11 +116,13 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 			Issuer:    issuer,    // 签发人
 		},
 	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
-		exception.New("生成令牌失败", 500).Ctx(err).Throw()
+		exception.New("JWT Make Error: %s", 500, err.Error()).Throw()
 	}
+
 	return JwtToken{
 		Token:     tokenString,
 		ExpiresAt: expiresAt,
