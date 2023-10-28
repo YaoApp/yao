@@ -55,7 +55,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 	tmpl.local.fs.Walk(tmpl.Root, func(root, file string, isdir bool) error {
 		name := filepath.Base(file)
 		relPath := file
-		log.Debug("[PageTree] file: %s isdir: %v", relPath, isdir)
+		log.Debug("[PageTree] Walk | file: %s isdir: %v name: %v", relPath, isdir, name)
 
 		if isdir {
 			if strings.HasPrefix(name, "__") || name == ".tmp" {
@@ -81,7 +81,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 					}
 				}
 
-				log.Debug("[PageTree] dirs: %s found: %v", dir, found)
+				log.Debug("[PageTree] Walk | dirs: %s found: %v", dir, found)
 				// If not found, create a new directory node.
 				if !found {
 					newDir := &core.PageTreeNode{
@@ -101,6 +101,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 			return nil
 		}
 
+		log.Debug("[PageTree] getPageFrom | file: %s", file)
 		page, err := tmpl.getPageFrom(file)
 		if err != nil {
 			log.Error("Get page error: %v", err)
@@ -109,12 +110,16 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 
 		pageInfo := page.Get()
 		active := route == pageInfo.Route
+		log.Debug("[PageTree] getPageFrom |\t pageInfo.Name: %s", pageInfo.Name)
 
 		// Attach the page to the appropriate directory node.
 		dirs := strings.Split(relPath, string(filepath.Separator))
 		currentDir := rootNode
+		log.Debug("[PageTree] currentDir | name: %s Children: %d", currentDir.Name, len(currentDir.Children))
+
 		for _, dir := range dirs {
 			for _, child := range currentDir.Children {
+				log.Debug("[PageTree] currentDir.Children | child.Name: %s dir:%s", child.Name, dir)
 				if child.Name == dir {
 					currentDir = child
 					break
