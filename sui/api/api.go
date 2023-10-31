@@ -12,7 +12,6 @@ var dsl = []byte(`
 	"paths": [
 		{
 			"path": "/:id/setting",
-			"guard": "-",
 			"method": "GET",
 			"process": "sui.Setting",
 			"in": ["$param.id"],
@@ -175,6 +174,12 @@ var dsl = []byte(`
 				"body": "?:content",
 				"headers": { "Content-Type": "?:type"}
 			}
+		},{
+			"path": "/:id/asset/:template_id/upload",
+			"method": "POST",
+			"process": "sui.Template.AssetUpload",
+			"in": ["$param.id", "$param.template_id", ":context"],
+			"out": { "status": 200, "type": "application/json" }
 		},{
 			"path": "/:id/asset/:template_id/@pages/*path",
 			"guard": "query-jwt",

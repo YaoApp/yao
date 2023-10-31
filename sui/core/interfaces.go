@@ -1,5 +1,7 @@
 package core
 
+import "io"
+
 // SUIs the loaded SUI instances
 var SUIs = map[string]SUI{}
 
@@ -35,6 +37,7 @@ type ITemplate interface {
 	Themes() []SelectOption
 
 	Asset(file string) (*Asset, error)
+	AssetUpload(reader io.Reader, name string) (string, error)
 
 	Build(option *BuildOption) error
 	SyncAssets(option *BuildOption) error

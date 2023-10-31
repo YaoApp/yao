@@ -2,8 +2,13 @@ package local
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/yao/sui/core"
 	"golang.org/x/text/language"
 )
@@ -42,6 +47,20 @@ func (tmpl *Template) Locales() []core.SelectOption {
 // Themes get the global themes
 func (tmpl *Template) Themes() []core.SelectOption {
 	return tmpl.Template.Themes
+}
+
+// AssetUpload upload the asset
+func (tmpl *Template) AssetUpload(reader io.Reader, name string) (string, error) {
+
+	fingerprint := strings.ToUpper(uuid.NewString())
+	dir := strings.Join([]string{string(os.PathSeparator), time.Now().Format("20060102")}, "")
+	ext := filepath.Ext(name)
+	file := filepath.Join(tmpl.Root, "__assets", "upload", dir, fmt.Sprintf("%s%s", fingerprint, ext))
+	_, err := tmpl.local.fs.Write(file, reader, 0644)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join("upload", dir, fmt.Sprintf("%s%s", fingerprint, ext)), nil
 }
 
 // Asset get the asset

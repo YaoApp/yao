@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"path/filepath"
@@ -17,9 +18,10 @@ func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
 		"setting": Setting,
 
-		"template.get":   TemplateGet,
-		"template.find":  TemplateFind,
-		"template.asset": TemplateAsset,
+		"template.get":         TemplateGet,
+		"template.find":        TemplateFind,
+		"template.asset":       TemplateAsset,
+		"template.assetupload": TemplateAssetUpload,
 
 		"locale.get": LocaleGet,
 		"theme.get":  ThemeGet,
@@ -105,6 +107,61 @@ func TemplateAsset(process *process.Process) interface{} {
 	return map[string]interface{}{
 		"content": asset.Content,
 		"type":    asset.Type,
+	}
+}
+
+// TemplateAssetUpload handle the find Template request
+func TemplateAssetUpload(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	sui := get(process)
+	tmpl, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	switch v := process.Args[2].(type) {
+	case *gin.Context:
+		file, err := v.FormFile("file")
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		reader, err := file.Open()
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+		defer reader.Close()
+
+		path, err := tmpl.AssetUpload(reader, file.Filename)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		url := v.PostForm("url")
+		fileurl := fmt.Sprintf("%s/%s", url, path)
+		// time.Sleep(10 * time.Second)
+		return map[string]interface{}{
+			"data":   []interface{}{fileurl},
+			"header": file.Header,
+		}
+
+	case string:
+		data, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		name := process.ArgsString(3, "file.png")
+		path, err := tmpl.AssetUpload(strings.NewReader(string(data)), name)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		return path
+
+	default:
+		exception.New("the file is required", 400).Throw()
+		return nil
 	}
 }
 
