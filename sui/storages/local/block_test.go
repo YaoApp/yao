@@ -34,10 +34,10 @@ func TestTemplateBlocks(t *testing.T) {
 	assert.Equal(t, "/Hero/Hero.js", blocks[1].(*Block).Codes.JS.File)
 	assert.Equal(t, "/Hero/Hero.ts", blocks[1].(*Block).Codes.TS.File)
 
-	assert.Equal(t, "Section", blocks[2].(*Block).ID)
-	assert.Equal(t, "/Section/Section.html", blocks[2].(*Block).Codes.HTML.File)
-	assert.Equal(t, "/Section/Section.js", blocks[2].(*Block).Codes.JS.File)
-	assert.Equal(t, "/Section/Section.ts", blocks[2].(*Block).Codes.TS.File)
+	assert.Equal(t, "Image", blocks[2].(*Block).ID)
+	assert.Equal(t, "/Image/Image.html", blocks[2].(*Block).Codes.HTML.File)
+	assert.Equal(t, "/Image/Image.js", blocks[2].(*Block).Codes.JS.File)
+	assert.Equal(t, "/Image/Image.ts", blocks[2].(*Block).Codes.TS.File)
 }
 
 func TestTemplateBlockJS(t *testing.T) {
