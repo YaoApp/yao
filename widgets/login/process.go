@@ -110,8 +110,8 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	})
 	log.Debug("[login] auth sid=%s", sid)
 	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user_id", id)
-	session.Global().ID(sid).Set("user", row)
-	session.Global().ID(sid).Set("issuer", "yao")
+	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user", row)
+	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("issuer", "yao")
 
 	studio := map[string]interface{}{}
 	if config.Conf.Mode == "development" {
