@@ -50,7 +50,8 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 	}
 
 	// Render tools
-	// res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
+	res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
+	res.Styles = append(res.Styles, filepath.Join("@assets", "__render.css"))
 
 	// doc, _, err := page.Build(&BuildOption{
 	// 	SSR:       true,
