@@ -102,6 +102,30 @@ type Asset struct {
 	Content []byte `json:"content"`
 }
 
+// Media is the struct for the media
+type Media struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Content []byte `json:"content,omitempty"`
+	Width   int    `json:"width,omitempty"`
+	Height  int    `json:"height,omitempty"`
+	Size    int    `json:"size,omitempty"`
+	Length  int    `json:"length,omitempty"`
+	Thumb   string `json:"thumb,omitempty"`
+	URL     string `json:"url,omitempty"`
+}
+
+// MediaSearchResult is the struct for the media search result
+type MediaSearchResult struct {
+	Data      []Media `json:"data"`
+	Total     int     `json:"total"`
+	Page      int     `json:"page"`
+	PageCount int     `json:"pagecnt"`
+	PageSize  int     `json:"pagesize"`
+	Next      int     `json:"next"`
+	Prev      int     `json:"prev"`
+}
+
 // BuildOption is the struct for the option option
 type BuildOption struct {
 	SSR       bool   `json:"ssr"`

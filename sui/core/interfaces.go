@@ -1,6 +1,9 @@
 package core
 
-import "io"
+import (
+	"io"
+	"net/url"
+)
 
 // SUIs the loaded SUI instances
 var SUIs = map[string]SUI{}
@@ -38,6 +41,8 @@ type ITemplate interface {
 
 	Asset(file string) (*Asset, error)
 	AssetUpload(reader io.Reader, name string) (string, error)
+
+	MediaSearch(query url.Values, page int, pageSize int) (MediaSearchResult, error)
 
 	Build(option *BuildOption) error
 	SyncAssets(option *BuildOption) error
