@@ -59,10 +59,11 @@ func (tmpl *Template) MediaSearch(query url.Values, page int, pageSize int) (cor
 	pagecnt := int(math.Ceil(float64(total) / float64(pageSize)))
 	for i := 0; i < pageSize; i++ {
 		test := fmt.Sprintf("https://plus.unsplash.com/premium_photo-1671641797903-fd39ec702b16?auto=format&fit=crop&q=80&w=2334&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%%3D%%3D&id=%d", (page-1)*pageSize+i)
+		thumb := fmt.Sprintf("https://plus.unsplash.com/premium_photo-1671641797903-fd39ec702b16?auto=format&fit=crop&q=80&w=100&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%%3D%%3D&id=%d", (page-1)*pageSize+i)
 		res.Data = append(res.Data, core.Media{
 			ID:     test,
 			URL:    test,
-			Thumb:  test,
+			Thumb:  thumb,
 			Type:   "image",
 			Width:  100,
 			Height: 100,
