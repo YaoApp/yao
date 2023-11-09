@@ -81,8 +81,17 @@ type AppInfo struct {
 	Option      map[string]interface{} `json:"option,omitempty"`
 	XGen        string                 `json:"xgen,omitempty"`
 	AdminRoot   string                 `json:"adminRoot,omitempty"`
-	Static      *Static                `json:"public,omitempty"`
+	Static      Static                 `json:"public,omitempty"`
 	Optional    map[string]interface{} `json:"optional,omitempty"`
+	Moapi       Moapi                  `json:"moapi"`
+}
+
+// Moapi AIGC App Store API
+type Moapi struct {
+	Channel      string   `json:"channel,omitempty"`
+	Mirrors      []string `json:"mirrors,omitempty"`
+	Secret       string   `json:"secret,omitempty"`
+	Organization string   `json:"organization,omitempty"`
 }
 
 // Static setting

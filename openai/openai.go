@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
 
 	"github.com/pkoukk/tiktoken-go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/yao/share"
 )
 
 // Tiktoken get number of tokens
@@ -23,10 +26,11 @@ func Tiktoken(model string, input string) (int, error) {
 
 // OpenAI struct
 type OpenAI struct {
-	key      string
-	model    string
-	host     string
-	maxToken int
+	key          string
+	model        string
+	host         string
+	organization string
+	maxToken     int
 }
 
 // New create a new OpenAI instance by connector id
@@ -42,10 +46,44 @@ func New(id string) (*OpenAI, error) {
 
 	setting := c.Setting()
 	return &OpenAI{
-		key:      setting["key"].(string),
-		model:    setting["model"].(string),
-		host:     setting["host"].(string),
-		maxToken: 2048,
+		key:          setting["key"].(string),
+		model:        setting["model"].(string),
+		host:         setting["host"].(string),
+		organization: "",
+		maxToken:     2048,
+	}, nil
+}
+
+// NewMoapi create a new OpenAI instance by model
+// Temporarily: change after the moapi is open source
+func NewMoapi(model string) (*OpenAI, error) {
+
+	if model == "" {
+		model = "gpt-3.5-turbo"
+	}
+
+	url := share.MoapiHosts[0]
+
+	if share.App.Moapi.Mirrors != nil {
+		url = share.App.Moapi.Mirrors[0]
+	}
+	key := share.App.Moapi.Secret
+	organization := share.App.Moapi.Organization
+
+	if !strings.HasPrefix(url, "http") {
+		url = "https://" + url
+	}
+
+	if key == "" {
+		return nil, fmt.Errorf("The moapi secret is empty")
+	}
+
+	return &OpenAI{
+		key:          key,
+		model:        model,
+		host:         url,
+		organization: organization,
+		maxToken:     16384,
 	}, nil
 }
 
@@ -163,6 +201,8 @@ func (openai OpenAI) ImagesGenerations(prompt string, option map[string]interfac
 	}
 
 	option["prompt"] = prompt
+	utils.Dump(option)
+
 	return openai.postWithoutModel("/v1/images/generations", option)
 }
 
@@ -361,6 +401,9 @@ func (openai OpenAI) isError(res *http.Response) *exception.Exception {
 
 	if res.Status != 200 {
 		message := "OpenAI Error"
+		if v, ok := res.Data.(string); ok {
+			message = v
+		}
 		if data, ok := res.Data.(map[string]interface{}); ok {
 			if err, has := data["error"]; has {
 				if err, ok := err.(map[string]interface{}); ok {
