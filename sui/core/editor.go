@@ -49,6 +49,48 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 		res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".ts"))
 	}
 
+	// Render tools
+	res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
+	res.Styles = append(res.Styles, filepath.Join("@assets", "__render.css"))
+
+	// doc, _, err := page.Build(&BuildOption{
+	// 	SSR:       true,
+	// 	AssetRoot: request.AssetRoot,
+	// })
+
+	// doc.Selection.Find("body").AppendHtml(`
+	// 	<script>
+	// 	console.log("setIframeHeight window.onload: setIframeHeight");
+	// 		function setIframeHeight(height) {
+	// 			window.parent.postMessage(
+	// 				{
+	// 				messageType: "setIframeHeight",
+	// 				iframeHeight: height,
+	// 				},
+	// 				"` + request.Referer + `"
+	// 			);
+	// 		}
+
+	// 		window.onload = function () {
+	// 			console.log("window.onload: setIframeHeight");
+	// 			const contentHeight = document.documentElement.scrollHeight;
+	// 			console.log("window.onload: setIframeHeight", contentHeight);
+	// 			try {
+	// 				setIframeHeight(contentHeight + "px");
+	// 			} catch (err) {
+	// 				console.log(` + "`" + `setIframeHeight error: ${err}` + "`" + `);
+	// 			}
+	// 		};
+	// 	</script>
+	// `)
+
+	// html, err = doc.Html()
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// fmt.Println(html)
+
 	data, setting, err := page.Data(request)
 	if err != nil {
 		res.Warnings = append(res.Warnings, err.Error())

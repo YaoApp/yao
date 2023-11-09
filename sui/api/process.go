@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,8 @@ func init() {
 		"editor.source":              EditorSource,
 		"editor.renderaftersavetemp": EditorRenderAfterSaveTemp,
 		"editor.sourceaftersavetemp": EditorSourceAfterSaveTemp,
+
+		"media.search": MediaSearch,
 
 		"preview.render": PreviewRender,
 
@@ -162,6 +165,83 @@ func TemplateAssetUpload(process *process.Process) interface{} {
 	default:
 		exception.New("the file is required", 400).Throw()
 		return nil
+	}
+}
+
+// MediaSearch handle the find Template request
+func MediaSearch(process *process.Process) interface{} {
+
+	process.ValidateArgNums(2)
+	sui := get(process)
+	driver := process.ArgsString(1)
+
+	query := url.Values{}
+	if process.NumOfArgs() > 2 {
+		switch v := process.Args[2].(type) {
+		case map[string]string:
+			for key, value := range v {
+				query.Set(key, value)
+			}
+			break
+
+		case map[string]interface{}:
+			for key, value := range v {
+				query.Set(key, fmt.Sprintf("%v", value))
+			}
+			break
+
+		case map[string][]string:
+			query = v
+			break
+
+		case url.Values:
+			query = v
+			break
+		}
+	}
+
+	var err error
+	page := 1
+	if v := query.Get("page"); v != "" {
+		page, err = strconv.Atoi(v)
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+		query.Del("page")
+	}
+
+	pageSize := 20
+	if v := query.Get("pagesize"); v != "" {
+		pageSize, err = strconv.Atoi(v)
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+		query.Del("pagesize")
+	}
+
+	switch driver {
+	case "local":
+		templateID := query.Get("template")
+		if templateID == "" {
+			exception.New("the template is required", 400).Throw()
+		}
+
+		tmpl, err := sui.GetTemplate(templateID)
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+
+		res, err := tmpl.MediaSearch(query, page, pageSize)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		return res
+
+	default:
+		exception.New("the driver %s does not exist", 404, driver).Throw()
+		return nil
+
 	}
 }
 

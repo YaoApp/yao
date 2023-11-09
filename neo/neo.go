@@ -525,7 +525,12 @@ func (neo *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
 func (neo *DSL) newAI() error {
 
 	if neo.Connector == "" {
-		return fmt.Errorf("%s connector is required", neo.ID)
+		ai, err := openai.NewMoapi("gpt-3.5-turbo")
+		if err != nil {
+			return err
+		}
+		neo.AI = ai
+		return nil
 	}
 
 	conn, err := connector.Select(neo.Connector)

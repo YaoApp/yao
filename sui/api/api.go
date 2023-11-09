@@ -194,6 +194,14 @@ var dsl = []byte(`
 		},
 
 		{
+			"path": "/:id/media/:driver/search",
+			"method": "GET",
+			"process": "sui.Media.Search",
+			"in": ["$param.id", "$param.driver", ":query"],
+			"out": { "status": 200, "type": "application/json" }
+		},
+
+		{
 			"path": "/:id/preview/:template_id/*route",
 			"guard": "query-jwt",
 			"method": "GET",

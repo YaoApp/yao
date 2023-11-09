@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/importer"
+	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/pack"
@@ -201,6 +202,12 @@ func Load(cfg config.Config) (err error) {
 	err = sui.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "SUI", err)
+	}
+
+	// Load Moapi
+	err = moapi.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Moapi", err)
 	}
 
 	return nil
@@ -445,6 +452,7 @@ func loadApp(root string) error {
 
 	var appData []byte
 	var appFile string
+
 	// Read app setting
 	if has, _ := application.App.Exists("app.yao"); has {
 		appFile = "app.yao"

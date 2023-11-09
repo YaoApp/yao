@@ -3,6 +3,8 @@ package local
 import (
 	"fmt"
 	"io"
+	"math"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,6 +49,41 @@ func (tmpl *Template) Locales() []core.SelectOption {
 // Themes get the global themes
 func (tmpl *Template) Themes() []core.SelectOption {
 	return tmpl.Template.Themes
+}
+
+// MediaSearch search the asset
+func (tmpl *Template) MediaSearch(query url.Values, page int, pageSize int) (core.MediaSearchResult, error) {
+	res := core.MediaSearchResult{Data: []core.Media{}, Page: page, PageSize: pageSize}
+
+	total := 124
+	pagecnt := int(math.Ceil(float64(total) / float64(pageSize)))
+	for i := 0; i < pageSize; i++ {
+		test := fmt.Sprintf("https://plus.unsplash.com/premium_photo-1671641797903-fd39ec702b16?auto=format&fit=crop&q=80&w=2334&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%%3D%%3D&id=%d", (page-1)*pageSize+i)
+		thumb := fmt.Sprintf("https://plus.unsplash.com/premium_photo-1671641797903-fd39ec702b16?auto=format&fit=crop&q=80&w=100&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%%3D%%3D&id=%d", (page-1)*pageSize+i)
+		res.Data = append(res.Data, core.Media{
+			ID:     test,
+			URL:    test,
+			Thumb:  thumb,
+			Type:   "image",
+			Width:  100,
+			Height: 100,
+		})
+	}
+
+	res.Next = page + 1
+	if (page+1)*pageSize >= total {
+		res.Next = 0
+	}
+
+	res.Prev = page - 1
+	if page == 1 {
+		res.Prev = 0
+	}
+
+	res.Total = total
+	res.PageCount = pagecnt
+
+	return res, nil
 }
 
 // AssetUpload upload the asset

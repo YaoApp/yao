@@ -51,15 +51,13 @@ func SetupStatic() error {
 
 // rewrite path
 func isPWA() bool {
-	if share.App.Static == nil {
-		return false
-	}
+
 	return share.App.Static.PWA
 }
 
 // rewrite path
 func spaApps() []string {
-	if share.App.Static == nil {
+	if share.App.Static.Apps == nil {
 		return []string{}
 	}
 	return share.App.Static.Apps
