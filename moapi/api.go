@@ -16,6 +16,15 @@ var dsl = []byte(`
 			"process": "moapi.images.Generations",
 			"in": ["$payload.model", "$payload.prompt", ":payload"],
 			"out": { "status": 200, "type": "application/json" }
+		},
+		
+		{
+			"path": "/chat/completions",
+			"guard": "query-jwt",
+			"method": "GET",
+			"process": "moapi.chat.Completions",
+			"processHandler": true,
+			"out": { "status": 200, "type": "text/event-stream" }
 		}
 	]
 }
