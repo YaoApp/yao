@@ -131,7 +131,7 @@ func TestBlockGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.IBlock{}, res)
-	assert.Equal(t, 6, len(res.([]core.IBlock)))
+	assert.Equal(t, 7, len(res.([]core.IBlock)))
 	assert.Equal(t, "ColumnsTwo", res.([]core.IBlock)[0].(*local.Block).ID)
 	assert.Equal(t, "Hero", res.([]core.IBlock)[1].(*local.Block).ID)
 	assert.Equal(t, "Image", res.([]core.IBlock)[2].(*local.Block).ID)
@@ -172,7 +172,7 @@ func TestBlockExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.IsType(t, &core.BlockLayoutItems{}, res)
-	assert.Equal(t, 2, len(res.(*core.BlockLayoutItems).Categories))
+	assert.Equal(t, 3, len(res.(*core.BlockLayoutItems).Categories))
 }
 
 func TestBlockMedia(t *testing.T) {
@@ -210,7 +210,7 @@ func TestTemplateComponentGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.IComponent{}, res)
-	assert.Equal(t, 5, len(res.([]core.IComponent)))
+	assert.Equal(t, 6, len(res.([]core.IComponent)))
 	assert.Equal(t, "Box", res.([]core.IComponent)[0].(*local.Component).ID)
 	assert.Equal(t, "Card", res.([]core.IComponent)[1].(*local.Component).ID)
 	assert.Equal(t, "Nav", res.([]core.IComponent)[2].(*local.Component).ID)

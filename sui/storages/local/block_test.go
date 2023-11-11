@@ -96,7 +96,7 @@ func TestBlockLayoutItems(t *testing.T) {
 		t.Fatalf("BlockLayoutItems error: %v", err)
 	}
 
-	assert.Equal(t, 2, len(items.Categories))
+	assert.Equal(t, 3, len(items.Categories))
 
 	tmpl, err = tests.Demo.GetTemplate("website-ai")
 	if err != nil {

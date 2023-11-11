@@ -298,6 +298,16 @@ func (openai OpenAI) GetContent(response interface{}) (string, *exception.Except
 	return "", exception.New("response format error, %#v", 500, response)
 }
 
+// Post post request
+func (openai OpenAI) Post(path string, payload map[string]interface{}) (interface{}, *exception.Exception) {
+	return openai.post(path, payload)
+}
+
+// Stream post request
+func (openai OpenAI) Stream(ctx context.Context, path string, payload map[string]interface{}, cb func(data []byte) int) *exception.Exception {
+	return openai.stream(ctx, path, payload, cb)
+}
+
 // post post request
 func (openai OpenAI) post(path string, payload map[string]interface{}) (interface{}, *exception.Exception) {
 
