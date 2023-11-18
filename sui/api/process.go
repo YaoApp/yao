@@ -102,7 +102,9 @@ func TemplateAsset(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	asset, err := tmpl.Asset(process.ArgsString(2))
+	w := process.ArgsInt(3, 0)
+	h := process.ArgsInt(4, 0)
+	asset, err := tmpl.Asset(process.ArgsString(2), uint(w), uint(h))
 	if err != nil {
 		exception.New(err.Error(), 404).Throw()
 	}

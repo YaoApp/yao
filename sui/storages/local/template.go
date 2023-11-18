@@ -3,7 +3,6 @@ package local
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -54,17 +53,32 @@ func (tmpl *Template) Themes() []core.SelectOption {
 // MediaSearch search the asset
 func (tmpl *Template) MediaSearch(query url.Values, page int, pageSize int) (core.MediaSearchResult, error) {
 	res := core.MediaSearchResult{Data: []core.Media{}, Page: page, PageSize: pageSize}
+	keyword := query.Get("keyword")
+	types := query["types"]
+	if types == nil {
+		types = []string{"image", "video", "audio"}
+	}
+	exts := tmpl.mediaExts(types)
+	path := filepath.Join(tmpl.Root, "__assets", "upload")
+	files, total, pagecnt, err := tmpl.local.fs.List(path, exts, page, pageSize, func(s string) bool {
+		if keyword == "" {
+			return true
+		}
+		return strings.Contains(s, keyword)
+	})
 
-	total := 124
-	pagecnt := int(math.Ceil(float64(total) / float64(pageSize)))
-	for i := 0; i < pageSize; i++ {
-		test := fmt.Sprintf("https://plus.unsplash.com/premium_photo-1671641797903-fd39ec702b16?auto=format&fit=crop&q=80&w=2334&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%%3D%%3D&id=%d", (page-1)*pageSize+i)
-		thumb := fmt.Sprintf("https://plus.unsplash.com/premium_photo-1671641797903-fd39ec702b16?auto=format&fit=crop&q=80&w=100&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%%3D%%3D&id=%d", (page-1)*pageSize+i)
+	if err != nil {
+		return res, err
+	}
+
+	for _, file := range files {
+
+		file = strings.TrimPrefix(file, filepath.Join(tmpl.Root, "__assets", "upload"))
 		res.Data = append(res.Data, core.Media{
-			ID:     test,
-			URL:    test,
-			Thumb:  thumb,
-			Type:   "image",
+			ID:     file,
+			URL:    filepath.Join("@assets", "upload", file),
+			Thumb:  filepath.Join("@assets", "upload", file),
+			Type:   tmpl.mediaType(file),
 			Width:  100,
 			Height: 100,
 		})
@@ -86,6 +100,57 @@ func (tmpl *Template) MediaSearch(query url.Values, page int, pageSize int) (cor
 	return res, nil
 }
 
+func (tmpl *Template) mediaExts(types []string) []string {
+	exts := []string{}
+	for _, typ := range types {
+		switch typ {
+
+		case "image":
+			exts = append(exts, []string{".jpg", ".jpeg", ".png"}...)
+			break
+
+		case "video":
+			exts = append(exts, []string{".mp4"}...)
+			break
+
+		case "audio":
+			exts = append(exts, []string{".mp3"}...)
+			break
+		}
+	}
+
+	return exts
+}
+
+func (tmpl *Template) mediaType(file string) string {
+	ext := strings.ToLower(filepath.Ext(file))
+	switch ext {
+
+	case ".jpg":
+		return "image"
+
+	case ".jpeg":
+		return "image"
+
+	case ".png":
+		return "image"
+
+	case ".gif":
+		return "image"
+
+	case ".bmp":
+		return "image"
+
+	case ".mp4":
+		return "video"
+
+	case ".mp3":
+		return "audio"
+	}
+
+	return "file"
+}
+
 // AssetUpload upload the asset
 func (tmpl *Template) AssetUpload(reader io.Reader, name string) (string, error) {
 
@@ -101,10 +166,14 @@ func (tmpl *Template) AssetUpload(reader io.Reader, name string) (string, error)
 }
 
 // Asset get the asset
-func (tmpl *Template) Asset(file string) (*core.Asset, error) {
+func (tmpl *Template) Asset(file string, width, height uint) (*core.Asset, error) {
 
 	file = filepath.Join(tmpl.Root, "__assets", file)
 	if exist, _ := tmpl.local.fs.Exists(file); exist {
+
+		if width > 0 || height > 0 {
+			return tmpl.assetThumb(file, width, height)
+		}
 
 		content, err := tmpl.local.fs.ReadFile(file)
 		if err != nil {
@@ -144,4 +213,27 @@ func (tmpl *Template) Asset(file string) (*core.Asset, error) {
 	}
 
 	return nil, fmt.Errorf("Asset %s not found", file)
+}
+
+func (tmpl *Template) assetThumb(file string, width, height uint) (*core.Asset, error) {
+
+	cacheFile := filepath.Join(tmpl.Root, "__assets", ".cache", fmt.Sprintf("%dx%d", width, height), file)
+	exist, _ := tmpl.local.fs.Exists(cacheFile)
+	if !exist {
+		err := tmpl.local.fs.Resize(file, cacheFile, width, height)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	typ, err := tmpl.local.fs.MimeType(file)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := tmpl.local.fs.ReadFile(cacheFile)
+	if err != nil {
+		return nil, err
+	}
+	return &core.Asset{Type: typ, Content: content}, nil
 }

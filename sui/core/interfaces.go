@@ -39,7 +39,7 @@ type ITemplate interface {
 	Locales() []SelectOption
 	Themes() []SelectOption
 
-	Asset(file string) (*Asset, error)
+	Asset(file string, width, height uint) (*Asset, error)
 	AssetUpload(reader io.Reader, name string) (string, error)
 
 	MediaSearch(query url.Values, page int, pageSize int) (MediaSearchResult, error)
