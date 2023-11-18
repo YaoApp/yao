@@ -59,7 +59,7 @@ func TestTemplateAsset(t *testing.T) {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	asset, err := tmpl.Asset("/css/tailwind.css")
+	asset, err := tmpl.Asset("/css/tailwind.css", 0, 0)
 	if err != nil {
 		t.Fatalf("Asset error: %v", err)
 	}

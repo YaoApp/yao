@@ -168,7 +168,7 @@ var dsl = []byte(`
 			"method": "GET",
 			"guard": "-",
 			"process": "sui.Template.Asset",
-			"in": ["$param.id", "$param.template_id", "$param.path"],
+			"in": ["$param.id", "$param.template_id", "$param.path", "$query.w", "$query.h"],
 			"out": {
 				"status": 200,
 				"body": "?:content",
@@ -185,7 +185,7 @@ var dsl = []byte(`
 			"guard": "query-jwt",
 			"method": "GET",
 			"process": "sui.Page.Asset",
-			"in": ["$param.id", "$param.template_id", "$param.path"],
+			"in": ["$param.id", "$param.template_id", "$param.path", "$query.w", "$query.h"],
 			"out": {
 				"status": 200,
 				"body": "?:content",
