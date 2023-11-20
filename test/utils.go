@@ -196,7 +196,7 @@ func loadConnector(t *testing.T, cfg config.Config) {
 }
 
 func loadScript(t *testing.T, cfg config.Config) {
-	exts := []string{"*.js"}
+	exts := []string{"*.js", "*.ts"}
 	err := application.App.Walk("scripts", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
