@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
+	github.com/antonmedv/expr v1.15.4
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/dchest/captcha v1.0.0
@@ -26,6 +27,7 @@ require (
 	github.com/yaoapp/kun v0.9.0
 	github.com/yaoapp/xun v0.9.0
 	golang.org/x/crypto v0.15.0
+	golang.org/x/net v0.18.0
 	golang.org/x/text v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 	rogchap.com/v8go v0.9.0
@@ -107,7 +109,6 @@ require (
 	golang.org/x/arch v0.6.0 // indirect
 	golang.org/x/image v0.14.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/oauth2 v0.14.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
