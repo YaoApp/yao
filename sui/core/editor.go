@@ -113,6 +113,11 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 	return res, nil
 }
 
+// Render render for the html
+func (page *Page) Render(html string, data map[string]interface{}, warnings []string) (string, error) {
+	return html, nil
+}
+
 // EditorPageSource get the editor page source code
 func (page *Page) EditorPageSource() SourceData {
 	return SourceData{

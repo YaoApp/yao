@@ -50,40 +50,38 @@ func testPage(t *testing.T) *Page {
 				File: "test.html",
 				Code: `<div class="p-10">
 				<div>For</div>
-				<div s:for="articles" s:for-item="article" s:for-index="idx">
+				<div s:for="articles.data" s:for-item="article" s:for-index="idx">
 				  <div>{{ idx }} {{ article.title }}</div>
 				  <div>{{ article.desc }}</div>
 				  <div>{{ article.type == "article" ? "article" : "others"}}</div>
 				  <div s:if="article.type == 'article'">article</div>
 				  <div s:elif="article.type == 'image'">image</div>
-				  <div s:else="">others</div>
+				  <div s:else>others</div>
 				</div>
 				<div class="mt-10">IF</div>
-				<div s:if="articles.length > 0">
-				  <div>{{ articles.length > 0 }} articles.length 大于 0</div>
+				<div s:if="len(articles) > 0" :name="input.data">
+				  <div>{{ len(articles) > 0 }} articles.length &gt; 0</div>
+				</div>
+				<div s:if="length > 0" :name="input.data">
+				  <div>{{ length > 0 }} len &gt; 0</div>
+				</div>
+				<div s:if="P_('scripts.article.Space', 'hello') == 'hello space'" >
+				   hello space  {{ P_('scripts.article.Space', 'hello') }}
 				</div>
 				<div s:if="showImage == 'yes'">showImage</div>
 				<div s:elif="showImage == 'no'">noImage</div>
-				<div s:else="">others</div>
-			  
+				<div s:elif="showImage == 'auto'">autoImage</div>
+				<div s:else>otherImage</div>
 				<div class="mt-10">Bind</div>
 				<div>
 				  <div class="w-200">{{ input.data }}</div>
 				  <div class="mt-5">
-					<input
-					  class="w-200 p-2 bg-purple-900 text-white"
-					  type="text"
-					  s:bind="input.data"
-					  placeholder="数据双向绑定"
-					/>
+					<input type="text" s:bind="input.data" placeholder="Bind Input Data"
+					  class="w-200 p-2 bg-purple-900 text-white" />
 				  </div>
 				  <div class="mt-5">
-					<input
-					  type="button"
-					  value="修改"
-					  class="text-blue-600 p-2"
-					  s:click="changeInput"
-					/>
+					<input type="button" value="Change" s:click="changeInput"
+					  class="text-blue-600 p-2" />
 				  </div>
 				</div>
 			  </div>`,
@@ -96,6 +94,7 @@ func testPage(t *testing.T) *Page {
 					  "process": "scripts.article.ShowImage",
 					  "args": ["$query.show"]
 					},
+					"length": 20,
 					"array": [ 
 						"item-1", 
 						"$scripts.article.Setting", 
