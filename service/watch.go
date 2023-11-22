@@ -38,7 +38,7 @@ func Watch(srv *http.Server, interrupt chan uint8) (err error) {
 
 		// Restart
 		if strings.HasPrefix(name, "/apis") {
-			err = srv.Restart()
+			err = Restart(srv, config.Conf)
 			if err != nil {
 				fmt.Println(color.RedString("[Watch] Restart: %s", err.Error()))
 				return

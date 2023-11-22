@@ -3,9 +3,10 @@ package service
 import (
 	"fmt"
 	"net/http"
-	"path/filepath"
+	"regexp"
 	"strings"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/service/fs"
 	"github.com/yaoapp/yao/share"
@@ -13,12 +14,6 @@ import (
 
 // AppFileServer static file server
 var AppFileServer http.Handler
-
-// spaFileServers spa static file server
-var spaFileServers map[string]http.Handler = map[string]http.Handler{}
-
-// SpaRoots SPA static file server
-var SpaRoots map[string]int = map[string]int{}
 
 // XGenFileServerV1 XGen v1.0
 var XGenFileServerV1 http.Handler = http.FileServer(data.XgenV1())
@@ -29,42 +24,49 @@ var AdminRoot = ""
 // AdminRootLen cache
 var AdminRootLen = 0
 
+var rewriteRules = []rewriteRule{}
+
+type rewriteRule struct {
+	Pattern     *regexp.Regexp
+	Replacement string
+}
+
 // SetupStatic setup static file server
 func SetupStatic() error {
-
-	// SetAdmin Root
-	adminRoot()
-
-	if isPWA() {
-		AppFileServer = http.FileServer(fs.DirPWA("public"))
-		return nil
-	}
-
-	for _, root := range spaApps() {
-		spaFileServers[root] = http.FileServer(fs.DirPWA(filepath.Join("public", root)))
-		SpaRoots[root] = len(root)
-	}
-
+	setupAdminRoot()
+	setupRewrite()
 	AppFileServer = http.FileServer(fs.Dir("public"))
 	return nil
 }
 
-// rewrite path
-func isPWA() bool {
+func setupRewrite() {
+	if share.App.Static.Rewrite != nil {
+		for _, rule := range share.App.Static.Rewrite {
 
-	return share.App.Static.PWA
-}
+			pattern := ""
+			replacement := ""
+			for key, value := range rule {
+				pattern = key
+				replacement = value
+				break
+			}
 
-// rewrite path
-func spaApps() []string {
-	if share.App.Static.Apps == nil {
-		return []string{}
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				log.Error("Invalid rewrite rule: %s", pattern)
+				continue
+			}
+
+			rewriteRules = append(rewriteRules, rewriteRule{
+				Pattern:     re,
+				Replacement: replacement,
+			})
+		}
 	}
-	return share.App.Static.Apps
 }
 
-// SetupAdmin setup admin static root
-func adminRoot() (string, int) {
+// rewrite path
+func setupAdminRoot() (string, int) {
 	if AdminRoot != "" {
 		return AdminRoot, AdminRootLen
 	}

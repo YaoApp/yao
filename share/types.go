@@ -96,8 +96,7 @@ type Moapi struct {
 
 // Static setting
 type Static struct {
-	PWA  bool     `json:"pwa,omitempty"`
-	Apps []string `json:"apps,omitempty"`
+	Rewrite []map[string]string `json:"rewrite,omitempty"`
 }
 
 // AppStorage 应用存储
