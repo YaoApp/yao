@@ -1,15 +1,12 @@
 package core
 
 import (
-	"path/filepath"
-
 	"github.com/PuerkitoBio/goquery"
 )
 
 // EditorRender render HTML for the editor
 func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) {
 
-	html := page.Codes.HTML.Code
 	res := &ResponseEditorRender{
 		HTML:     "",
 		CSS:      page.Codes.CSS.Code,
@@ -35,87 +32,77 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 	}
 	res.Styles = append(res.Styles, styles...)
 
-	// Page Styles
-	if page.Codes.CSS.Code != "" {
-		res.Styles = append(res.Styles, filepath.Join("@pages", page.Route, page.Name+".css"))
-	}
-
-	// Render the HTML with the data
-	// Page Scripts
-	if page.Codes.JS.Code != "" {
-		res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".js"))
-	}
-	if page.Codes.TS.Code != "" {
-		res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".ts"))
-	}
-
-	// Render tools
-	res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
-	res.Styles = append(res.Styles, filepath.Join("@assets", "__render.css"))
-
-	// doc, _, err := page.Build(&BuildOption{
-	// 	SSR:       true,
-	// 	AssetRoot: request.AssetRoot,
-	// })
-
-	// doc.Selection.Find("body").AppendHtml(`
-	// 	<script>
-	// 	console.log("setIframeHeight window.onload: setIframeHeight");
-	// 		function setIframeHeight(height) {
-	// 			window.parent.postMessage(
-	// 				{
-	// 				messageType: "setIframeHeight",
-	// 				iframeHeight: height,
-	// 				},
-	// 				"` + request.Referer + `"
-	// 			);
-	// 		}
-
-	// 		window.onload = function () {
-	// 			console.log("window.onload: setIframeHeight");
-	// 			const contentHeight = document.documentElement.scrollHeight;
-	// 			console.log("window.onload: setIframeHeight", contentHeight);
-	// 			try {
-	// 				setIframeHeight(contentHeight + "px");
-	// 			} catch (err) {
-	// 				console.log(` + "`" + `setIframeHeight error: ${err}` + "`" + `);
-	// 			}
-	// 		};
-	// 	</script>
-	// `)
-
-	// html, err = doc.Html()
-	// if err != nil {
-	// 	return nil, err
+	// // Page Styles
+	// if page.Codes.CSS.Code != "" {
+	// 	res.Styles = append(res.Styles, filepath.Join("@pages", page.Route, page.Name+".css"))
 	// }
 
-	// fmt.Println(html)
+	// // Render the HTML with the data
+	// // Page Scripts
+	// if page.Codes.JS.Code != "" {
+	// 	res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".js"))
+	// }
+	// if page.Codes.TS.Code != "" {
+	// 	res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".ts"))
+	// }
 
-	data, setting, err := page.Data(request)
+	// Render tools
+	// res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
+	// res.Styles = append(res.Styles, filepath.Join("@assets", "__render.css"))
+
+	doc, warnings, err := page.Build(&BuildOption{
+		SSR:       true,
+		AssetRoot: request.AssetRoot,
+	})
+
 	if err != nil {
 		res.Warnings = append(res.Warnings, err.Error())
 	}
 
-	res.Setting = setting
-	if data == nil {
-		res.HTML = html
-		return res, nil
+	if warnings != nil {
+		res.Warnings = append(res.Warnings, warnings...)
 	}
 
-	if html != "" {
-		html, err := page.Render(html, data, res.Warnings)
+	res.HTML, err = doc.Html()
+	if err != nil {
+		return nil, err
+	}
+
+	var data Data = nil
+	if page.Codes.DATA.Code != "" {
+		data, err = page.Exec(request)
 		if err != nil {
 			res.Warnings = append(res.Warnings, err.Error())
 		}
-		res.HTML = html
 	}
 
+	res.Render(data)
 	return res, nil
 }
 
 // Render render for the html
-func (page *Page) Render(html string, data map[string]interface{}, warnings []string) (string, error) {
-	return html, nil
+func (res *ResponseEditorRender) Render(data map[string]interface{}) error {
+	if res.HTML == "" {
+		return nil
+	}
+
+	if data == nil || len(data) == 0 {
+		return nil
+	}
+
+	var err error
+	parser := NewTemplateParser(data, nil)
+	res.HTML, err = parser.Render(res.HTML)
+	if err != nil {
+		return err
+	}
+
+	if len(parser.errors) > 0 {
+		for _, err := range parser.errors {
+			res.Warnings = append(res.Warnings, err.Error())
+		}
+	}
+	return nil
 }
 
 // EditorPageSource get the editor page source code

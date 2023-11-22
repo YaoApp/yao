@@ -23,7 +23,7 @@ func TestRender(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, data)
-	parser := NewTemplateParser(data)
+	parser := NewTemplateParser(data, nil)
 	html, err := parser.Render(page.Codes.HTML.Code)
 	if err != nil {
 		t.Fatalf("Render error: %v", err)

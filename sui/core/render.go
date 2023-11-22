@@ -25,8 +25,11 @@ type Mapping struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
+// ParserOption parser option
+type ParserOption struct{}
+
 // NewTemplateParser create a new template parser
-func NewTemplateParser(data Data) *TemplateParser {
+func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 	return &TemplateParser{
 		data:     data,
 		mapping:  map[string]Mapping{},
