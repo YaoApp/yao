@@ -84,24 +84,13 @@ func (page *Page) Build(option *core.BuildOption) error {
 		option.AssetRoot = filepath.Join(page.tmpl.local.DSL.Public.Root, "assets")
 	}
 
-	doc, _, err := page.Page.Build(option)
-	if err != nil {
-		return err
-	}
-
-	html, err := doc.Html()
+	html, err := page.Page.Compile(option)
 	if err != nil {
 		return err
 	}
 
 	// Save the html
-	err = page.writeHTML([]byte(html))
-	if err != nil {
-		return err
-	}
-
-	// Save the data
-	return page.writeData()
+	return page.writeHTML([]byte(html))
 }
 
 func (page *Page) publicFile() string {

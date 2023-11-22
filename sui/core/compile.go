@@ -1,14 +1,43 @@
 package core
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/yaoapp/gou/runtime/transform"
+	"github.com/yaoapp/kun/log"
 )
 
 // Compile the page
-func (page *Page) Compile() {}
+func (page *Page) Compile(option *BuildOption) (string, error) {
+
+	doc, warnings, err := page.Build(option)
+	if err != nil {
+		return "", err
+	}
+
+	if warnings != nil && len(warnings) > 0 {
+		for _, warning := range warnings {
+			log.Warn("Compile page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, warning)
+		}
+	}
+
+	if page.Codes.DATA.Code != "" {
+		doc.Find("body").AppendHtml(`<script name="data" type="json">` +
+			fmt.Sprintf("\n%s\n", page.Codes.DATA.Code) +
+			"</script>\n",
+		)
+	}
+
+	html, err := doc.Html()
+	if err != nil {
+		return "", err
+	}
+
+	// @todo: Minify the html
+	return html, nil
+}
 
 // CompileJS compile the javascript
 func (page *Page) CompileJS(source []byte, minify bool) ([]byte, error) {
