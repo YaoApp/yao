@@ -24,11 +24,19 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 	}
 
 	if page.Codes.DATA.Code != "" {
-		doc.Find("body").AppendHtml(`<script name="data" type="json">` +
-			fmt.Sprintf("\n%s\n", page.Codes.DATA.Code) +
-			"</script>\n",
+		doc.Find("body").AppendHtml("\n\n" + `<script name="data" type="json">` + "\n" +
+			page.Codes.DATA.Code +
+			"\n</script>\n\n",
 		)
 	}
+
+	// add the route data
+	doc.Find("body").AppendHtml(`<script name="route" type="json">` + "\n" +
+		fmt.Sprintf(
+			`{"sui": "%s", "template": "%s", "route": "%s"}`,
+			page.SuiID, page.TemplateID, page.Route,
+		) +
+		"\n</script>\n")
 
 	html, err := doc.Html()
 	if err != nil {

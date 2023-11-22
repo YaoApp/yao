@@ -47,6 +47,14 @@ func withStaticFileServer(c *gin.Context) {
 		}
 	}
 
+	// Sui file server
+	if strings.HasSuffix(c.Request.URL.Path, ".sui") {
+		data := []byte(`SUI Server: ` + c.Request.URL.Path)
+		c.Data(200, "text/html; charset=utf-8", data)
+		c.Done()
+		return
+	}
+
 	// static file server
 	AppFileServer.ServeHTTP(c.Writer, c.Request)
 	c.Abort()
