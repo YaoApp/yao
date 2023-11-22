@@ -104,7 +104,7 @@ func (page *Page) publicFile() string {
 
 // writeHTMLTo write the html to file
 func (page *Page) writeHTML(html []byte) error {
-	htmlFile := fmt.Sprintf("%s.html", page.publicFile())
+	htmlFile := fmt.Sprintf("%s.sui", page.publicFile())
 	dir := filepath.Dir(htmlFile)
 	if exist, _ := os.Stat(dir); exist == nil {
 		os.MkdirAll(dir, os.ModePerm)
