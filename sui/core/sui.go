@@ -9,6 +9,8 @@ import (
 	"github.com/yaoapp/kun/maps"
 )
 
+var varRe = regexp.MustCompile(`{{\s*([^{}]+)\s*}}`)
+
 // Setting the struct for the DSL
 func (sui *DSL) Setting() (*Setting, error) {
 	return &Setting{
@@ -42,13 +44,12 @@ func (sui *DSL) PublicRoot() (string, error) {
 	var root = sui.Public.Root
 	dot := maps.Of(vars).Dot()
 
-	re := regexp.MustCompile(`{{\s*([^{}]+)\s*}}`)
-	output := re.ReplaceAllStringFunc(root, func(matched string) string {
+	output := varRe.ReplaceAllStringFunc(root, func(matched string) string {
 		varName := strings.TrimSpace(matched[2 : len(matched)-2])
 		if value, ok := dot[varName]; ok {
 			return fmt.Sprint(value)
 		}
-		return matched
+		return "__undefined"
 	})
 
 	sui.publicRoot = output
