@@ -60,10 +60,17 @@ func (page *Page) PreviewRender(request *Request) (string, error) {
 		return "", err
 	}
 
-	html, err = page.Render(html, data, warnings)
+	parser := NewTemplateParser(data, nil)
+	html, err = parser.Render(html)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		return "", err
 	}
 
-	return doc.Html()
+	// Warnings should be added after rendering
+	if len(parser.errors) > 0 {
+		for _, err := range parser.errors {
+			warnings = append(warnings, err.Error())
+		}
+	}
+	return html, nil
 }
