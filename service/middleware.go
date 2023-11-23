@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/sui/api"
 )
 
 // Middlewares the middlewares
@@ -49,8 +50,21 @@ func withStaticFileServer(c *gin.Context) {
 
 	// Sui file server
 	if strings.HasSuffix(c.Request.URL.Path, ".sui") {
-		data := []byte(`SUI Server: ` + c.Request.URL.Path)
-		c.Data(200, "text/html; charset=utf-8", data)
+
+		r, code, err := api.NewRequestContext(c)
+		if err != nil {
+			c.AbortWithError(code, err)
+			return
+		}
+
+		html, code, err := r.Render()
+		if err != nil {
+			c.AbortWithError(code, err)
+			return
+		}
+
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(200, html)
 		c.Done()
 		return
 	}

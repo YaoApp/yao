@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/yaoapp/yao/sui/core"
@@ -14,7 +15,7 @@ type Azure struct {
 
 // new create a new azure sui
 func new() (*Azure, error) {
-	return &Azure{}, nil
+	return nil, fmt.Errorf("Azure does not support yet")
 }
 
 // New create a new azure sui

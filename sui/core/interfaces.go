@@ -3,10 +3,20 @@ package core
 import (
 	"io"
 	"net/url"
+	"regexp"
 )
 
 // SUIs the loaded SUI instances
 var SUIs = map[string]SUI{}
+
+// RouteMatchers the route matchers for the SUI instance
+var RouteMatchers = map[*regexp.Regexp][][]*Matcher{}
+
+// RouteExactMatchers the route exact matchers for the SUI instance
+var RouteExactMatchers = map[string][][]*Matcher{}
+
+// RouteRegexp the regexp for the route
+var RouteRegexp = regexp.MustCompile(`([a-z0-9A-Z_\-]+)`)
 
 // SUI is the interface for the SUI
 type SUI interface {
@@ -15,6 +25,8 @@ type SUI interface {
 	GetTemplate(name string) (ITemplate, error)
 	UploadTemplate(src string, dst string) (ITemplate, error)
 	WithSid(sid string)
+	PublicRootMatcher() *Matcher
+	GetPublic() *Public
 }
 
 // ITemplate is the interface for the ITemplate

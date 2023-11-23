@@ -1,5 +1,10 @@
 package core
 
+import (
+	"net/url"
+	"regexp"
+)
+
 // DSL the struct for the DSL
 type DSL struct {
 	ID         string   `json:"-"`
@@ -140,7 +145,7 @@ type Request struct {
 	AssetRoot string                 `json:"asset_root,omitempty"`
 	Referer   string                 `json:"referer,omitempty"`
 	Payload   map[string]interface{} `json:"payload,omitempty"`
-	Query     map[string][]string    `json:"query,omitempty"`
+	Query     url.Values             `json:"query,omitempty"`
 	Params    map[string]string      `json:"params,omitempty"`
 	Headers   map[string][]string    `json:"headers,omitempty"`
 	Body      interface{}            `json:"body,omitempty"`
@@ -244,15 +249,24 @@ type Source struct {
 
 // Public is the struct for the static
 type Public struct {
-	Host  string `json:"host,omitempty"`
-	Root  string `json:"root,omitempty"`
-	Index string `json:"index,omitempty"`
+	Host    string `json:"host,omitempty"`
+	Root    string `json:"root,omitempty"`
+	Index   string `json:"index,omitempty"`
+	Matcher string `json:"matcher,omitempty"`
 }
 
 // Storage is the struct for the storage
 type Storage struct {
 	Driver string                 `json:"driver"`
 	Option map[string]interface{} `json:"option,omitempty"`
+}
+
+// Matcher the struct for the matcher
+type Matcher struct {
+	Regex  *regexp.Regexp `json:"regex,omitempty"`
+	Exact  string         `json:"exact,omitempty"`
+	Parent string         `json:"-"`
+	Ref    interface{}    `json:"-"`
 }
 
 // DocumentDefault is the default document
