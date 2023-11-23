@@ -30,7 +30,6 @@ func (sui *DSL) WithSid(sid string) {
 
 // PublicRootMatcher returns the public root matcher
 func (sui *DSL) PublicRootMatcher() *Matcher {
-	var ref SUI = sui
 	pub := sui.GetPublic()
 	if varRe.MatchString(pub.Root) {
 		if pub.Matcher != "" {
@@ -41,9 +40,9 @@ func (sui *DSL) PublicRootMatcher() *Matcher {
 			}
 			return &Matcher{Regex: re}
 		}
-		return &Matcher{Regex: RouteRegexp, Ref: ref}
+		return &Matcher{Regex: RouteRegexp}
 	}
-	return &Matcher{Exact: pub.Root, Ref: ref}
+	return &Matcher{Exact: pub.Root}
 }
 
 // PublicRoot returns the public root path

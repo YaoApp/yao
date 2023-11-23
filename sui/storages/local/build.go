@@ -99,28 +99,23 @@ func (page *Page) publicFile() string {
 		log.Error("publicFile: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
 		root = page.tmpl.local.DSL.Public.Root
 	}
-	return filepath.Join(application.App.Root(), "public", root, page.Route)
+	return filepath.Join("/", "public", root, page.Route)
 }
 
 // writeHTMLTo write the html to file
 func (page *Page) writeHTML(html []byte) error {
 	htmlFile := fmt.Sprintf("%s.sui", page.publicFile())
-	dir := filepath.Dir(htmlFile)
+	htmlFileAbs := filepath.Join(application.App.Root(), htmlFile)
+	dir := filepath.Dir(htmlFileAbs)
 	if exist, _ := os.Stat(dir); exist == nil {
 		os.MkdirAll(dir, os.ModePerm)
 	}
-	return os.WriteFile(htmlFile, html, 0644)
-}
+	err := os.WriteFile(htmlFileAbs, html, 0644)
+	if err != nil {
+		return err
+	}
 
-// writeHTMLTo write the html to file
-func (page *Page) writeData() error {
-	if page.Codes.DATA.Code == "" {
-		return nil
-	}
-	dataFile := fmt.Sprintf("%s.json", page.publicFile())
-	dir := filepath.Dir(dataFile)
-	if exist, _ := os.Stat(dir); exist == nil {
-		os.MkdirAll(dir, os.ModePerm)
-	}
-	return os.WriteFile(dataFile, []byte(page.Codes.DATA.Code), 0644)
+	core.RemoveCache(htmlFile)
+	log.Trace("The page %s is removed", htmlFile)
+	return nil
 }

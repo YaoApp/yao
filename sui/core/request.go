@@ -9,6 +9,15 @@ import (
 	"github.com/yaoapp/kun/any"
 )
 
+// Cache the cache
+type Cache struct {
+	Data string
+	HTML string
+}
+
+// Caches the caches
+var Caches = map[string]*Cache{}
+
 // ExecString get the data
 func (r *Request) ExecString(data string) (Data, error) {
 	var res Data
@@ -50,6 +59,39 @@ func (r *Request) Exec(m Data) error {
 func (r *Request) execValue(value interface{}) (interface{}, error) {
 	switch v := value.(type) {
 	case string:
+
+		if strings.HasPrefix(v, "$query.") {
+			key := strings.TrimLeft(v, "$query.")
+			if r.Query.Has(key) {
+				return r.Query.Get(key), nil
+			}
+			return "", nil
+		}
+
+		if strings.HasPrefix(v, "$header.") {
+			key := strings.TrimLeft(v, "$header.")
+			if r.Headers.Has(key) {
+				return r.Headers.Get(key), nil
+			}
+			return "", nil
+		}
+
+		if strings.HasPrefix(v, "$param.") {
+			key := strings.TrimLeft(v, "$param.")
+			if value, has := r.Params[key]; has {
+				return value, nil
+			}
+			return "", nil
+		}
+
+		if strings.HasPrefix(v, "$payload.") {
+			key := strings.TrimLeft(v, "$payload.")
+			if value, has := r.Payload[key]; has {
+				return value, nil
+			}
+			return "", nil
+		}
+
 		if strings.HasPrefix(v, "$") {
 			return r.call(strings.TrimLeft(v, "$"))
 		}
@@ -127,6 +169,10 @@ func (r *Request) call(p interface{}) (interface{}, error) {
 		return nil, err
 	}
 
+	if r.Sid != "" {
+		process.WithSID(r.Sid)
+	}
+
 	return process.Exec()
 }
 
@@ -182,4 +228,31 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 	}
 
 	return args, nil
+}
+
+// SetCache set the cache
+func SetCache(file string, html string, data string) *Cache {
+	Caches[file] = &Cache{
+		Data: data,
+		HTML: html,
+	}
+	return Caches[file]
+}
+
+// GetCache get the cache
+func GetCache(file string) *Cache {
+	if cache, has := Caches[file]; has {
+		return cache
+	}
+	return nil
+}
+
+// RemoveCache remove the cache
+func RemoveCache(file string) {
+	delete(Caches, file)
+}
+
+// CleanCache clean the cache
+func CleanCache() {
+	Caches = map[string]*Cache{}
 }
