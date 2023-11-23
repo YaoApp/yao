@@ -147,8 +147,9 @@ type Request struct {
 	Payload   map[string]interface{} `json:"payload,omitempty"`
 	Query     url.Values             `json:"query,omitempty"`
 	Params    map[string]string      `json:"params,omitempty"`
-	Headers   map[string][]string    `json:"headers,omitempty"`
+	Headers   url.Values             `json:"headers,omitempty"`
 	Body      interface{}            `json:"body,omitempty"`
+	Sid       string                 `json:"sid,omitempty"`
 	Theme     string                 `json:"theme,omitempty"`
 	Locale    string                 `json:"locale,omitempty"`
 }
@@ -266,7 +267,7 @@ type Matcher struct {
 	Regex  *regexp.Regexp `json:"regex,omitempty"`
 	Exact  string         `json:"exact,omitempty"`
 	Parent string         `json:"-"`
-	Ref    interface{}    `json:"-"`
+	Ref    string         `json:"-"`
 }
 
 // DocumentDefault is the default document

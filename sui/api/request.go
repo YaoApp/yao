@@ -2,11 +2,14 @@ package api
 
 import (
 	"fmt"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
 )
 
@@ -37,7 +40,7 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 			Body:    body,
 			Payload: payload,
 			Referer: c.Request.Referer(),
-			Headers: c.Request.Header,
+			Headers: url.Values(c.Request.Header),
 			Params:  params,
 		},
 	}, 200, nil
@@ -45,7 +48,53 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 
 // Render is the response for the page API.
 func (r *Request) Render() (string, int, error) {
-	return r.File, 200, nil
+
+	c := core.GetCache(r.File)
+	if c == nil {
+		// Read the file
+		content, err := application.App.Read(r.File)
+		if err != nil {
+			return "", 404, err
+		}
+
+		doc, err := core.NewDocument(content)
+		if err != nil {
+			return "", 500, err
+		}
+
+		dataText := ""
+		dataSel := doc.Find("script[name=data]")
+		if dataSel != nil && dataSel.Length() > 0 {
+			dataText = dataSel.Text()
+			dataSel.Remove()
+		}
+
+		html, err := doc.Html()
+		if err != nil {
+			return "", 500, fmt.Errorf("parse error, please re-complie the page %s", err.Error())
+		}
+
+		// Save to The Cache
+		c = core.SetCache(r.File, html, dataText)
+		log.Trace("The page %s is cached", r.File)
+	}
+
+	var err error
+	data := core.Data{}
+	if c.Data != "" {
+		data, err = r.Request.ExecString(c.Data)
+		if err != nil {
+			return "", 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
+		}
+	}
+
+	parser := core.NewTemplateParser(data, nil)
+	html, err := parser.Render(c.HTML)
+	if err != nil {
+		return "", 500, fmt.Errorf("render error, please re-complie the page %s", err.Error())
+	}
+
+	return html, 200, nil
 }
 
 func parserPath(c *gin.Context) (string, map[string]string, error) {
@@ -57,7 +106,7 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 		return "", nil, fmt.Errorf("no route matchers")
 	}
 
-	fileParts := []string{application.App.Root(), "public"}
+	fileParts := []string{string(os.PathSeparator), "public"}
 
 	// Match the sui
 	matchers := core.RouteExactMatchers[parts[0]]
@@ -101,7 +150,7 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 
 			} else if matcher.Regex != nil {
 				if matcher.Regex.MatchString(part) {
-					file := matcher.Ref.(string)
+					file := matcher.Ref
 					key := strings.TrimRight(strings.TrimLeft(file, "["), "]")
 					params[key] = part
 					fileParts = append(fileParts, file)
