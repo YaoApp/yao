@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou/session"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 )
 
@@ -25,6 +26,24 @@ func (sui *DSL) Setting() (*Setting, error) {
 // WithSid set the sid
 func (sui *DSL) WithSid(sid string) {
 	sui.Sid = sid
+}
+
+// PublicRootMatcher returns the public root matcher
+func (sui *DSL) PublicRootMatcher() *Matcher {
+	var ref SUI = sui
+	pub := sui.GetPublic()
+	if varRe.MatchString(pub.Root) {
+		if pub.Matcher != "" {
+			re, err := regexp.Compile(pub.Matcher)
+			if err != nil {
+				log.Error("[sui] %s matcher error %s, use the default matcher", sui.ID, err.Error())
+				return &Matcher{Regex: RouteRegexp}
+			}
+			return &Matcher{Regex: re}
+		}
+		return &Matcher{Regex: RouteRegexp, Ref: ref}
+	}
+	return &Matcher{Exact: pub.Root, Ref: ref}
 }
 
 // PublicRoot returns the public root path
@@ -54,4 +73,24 @@ func (sui *DSL) PublicRoot() (string, error) {
 
 	sui.publicRoot = output
 	return output, nil
+}
+
+// GetTemplate returns the template
+func (sui *DSL) GetTemplate(name string) (ITemplate, error) {
+	return nil, nil
+}
+
+// GetTemplates returns the templates
+func (sui *DSL) GetTemplates() ([]ITemplate, error) {
+	return nil, nil
+}
+
+// UploadTemplate upload the template
+func (sui *DSL) UploadTemplate(src string, dst string) (ITemplate, error) {
+	return nil, nil
+}
+
+// GetPublic returns the public
+func (sui *DSL) GetPublic() *Public {
+	return sui.Public
 }

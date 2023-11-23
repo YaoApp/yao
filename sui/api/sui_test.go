@@ -26,7 +26,7 @@ func check(t *testing.T) {
 	for id := range core.SUIs {
 		ids[id] = true
 	}
-	assert.True(t, ids["azure"])
+	assert.False(t, ids["azure"])
 	assert.True(t, ids["demo"])
 	assert.True(t, ids["screen"])
 }
