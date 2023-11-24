@@ -131,10 +131,12 @@ func (page *Page) Link(r *Request) string {
 
 			value, has := r.Params[name]
 			if !has {
+				paths = append(paths, name)
 				continue
 			}
 
 			paths = append(paths, value)
+			continue
 		}
 		paths = append(paths, part)
 	}
