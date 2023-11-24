@@ -112,17 +112,7 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) parseTextNode(node *html.Node) {
 	parser.sequence = parser.sequence + 1
-	hasStmt := false
-	res := stmtRe.ReplaceAllFunc([]byte(node.Data), func(stmt []byte) []byte {
-		hasStmt = true
-		res, err := parser.data.ExecString(string(stmt))
-		if err != nil {
-			parser.errors = append(parser.errors, err)
-			return []byte(``)
-		}
-		return []byte(res)
-	})
-
+	res, hasStmt := parser.data.Replace(node.Data)
 	// Bind the variable to the parent node
 	if node.Parent != nil && hasStmt {
 		bindings := strings.TrimSpace(node.Data)
@@ -134,8 +124,7 @@ func (parser *TemplateParser) parseTextNode(node *html.Node) {
 			}...)
 		}
 	}
-
-	node.Data = string(res)
+	node.Data = res
 }
 
 func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {

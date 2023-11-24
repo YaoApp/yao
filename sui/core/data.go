@@ -9,6 +9,7 @@ import (
 	"github.com/antonmedv/expr/ast"
 	"github.com/antonmedv/expr/vm"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/kun/log"
 )
 
 var stmtRe = regexp.MustCompile(`\{\{([^}]+)\}\}`)
@@ -54,6 +55,20 @@ func (data Data) ExecString(stmt string) (string, error) {
 		return v, nil
 	}
 	return fmt.Sprintf("%v", res), nil
+}
+
+// Replace replace the statement
+func (data Data) Replace(value string) (string, bool) {
+	hasStmt := false
+	res := stmtRe.ReplaceAllStringFunc(value, func(stmt string) string {
+		hasStmt = true
+		res, err := data.ExecString(stmt)
+		if err != nil {
+			log.Warn("Replace %s: %s", stmt, err)
+		}
+		return res
+	})
+	return res, hasStmt
 }
 
 func _process(args ...any) (interface{}, error) {

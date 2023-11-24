@@ -69,13 +69,20 @@ func (r *Request) Render() (string, int, error) {
 			dataSel.Remove()
 		}
 
+		globalDataText := ""
+		globalDataSel := doc.Find("script[name=global]")
+		if globalDataSel != nil && globalDataSel.Length() > 0 {
+			globalDataText = globalDataSel.Text()
+			globalDataSel.Remove()
+		}
+
 		html, err := doc.Html()
 		if err != nil {
 			return "", 500, fmt.Errorf("parse error, please re-complie the page %s", err.Error())
 		}
 
 		// Save to The Cache
-		c = core.SetCache(r.File, html, dataText)
+		c = core.SetCache(r.File, html, dataText, globalDataText)
 		log.Trace("The page %s is cached", r.File)
 	}
 
@@ -86,6 +93,14 @@ func (r *Request) Render() (string, int, error) {
 		if err != nil {
 			return "", 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
 		}
+	}
+
+	if c.Global != "" {
+		global, err := r.Request.ExecString(c.Global)
+		if err != nil {
+			return "", 500, fmt.Errorf("global data error, please re-complie the page %s", err.Error())
+		}
+		data["$global"] = global
 	}
 
 	parser := core.NewTemplateParser(data, nil)

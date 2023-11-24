@@ -33,6 +33,7 @@ type Page struct {
 	Path       string      `json:"-"`
 	Codes      SourceCodes `json:"-"`
 	Document   []byte      `json:"-"`
+	GlobalData []byte      `json:"-"`
 }
 
 // PageTreeNode is the struct for the page tree node
@@ -86,6 +87,7 @@ type Template struct {
 	Screenshots []string       `json:"screenshots"`
 	Themes      []SelectOption `json:"themes"`
 	Document    []byte         `json:"-"`
+	GlobalData  []byte         `json:"-"`
 }
 
 // Theme is the struct for the theme
@@ -216,7 +218,8 @@ type PageMock struct {
 // PageConfig is the struct for the page config
 type PageConfig struct {
 	PageSetting `json:",omitempty"`
-	Mock        *PageMock `json:"mock,omitempty"`
+	Mock        *PageMock           `json:"mock,omitempty"`
+	Rendered    *PageConfigRendered `json:"rendered,omitempty"`
 }
 
 // PageSetting is the struct for the page setting
@@ -224,6 +227,12 @@ type PageSetting struct {
 	Title       string   `json:"title,omitempty"`
 	Description string   `json:"description,omitempty"`
 	SEO         *PageSEO `json:"seo,omitempty"`
+}
+
+// PageConfigRendered is the struct for the page config rendered
+type PageConfigRendered struct {
+	Title string `json:"title,omitempty"`
+	Link  string `json:"link,omitempty"`
 }
 
 // PageSEO is the struct for the page seo

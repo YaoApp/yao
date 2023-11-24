@@ -374,6 +374,9 @@ func (page *Page) Load() error {
 
 	// Set the page document
 	page.Document = page.tmpl.Document
+
+	// Set the page global data
+	page.GlobalData = page.tmpl.GlobalData
 	return nil
 }
 

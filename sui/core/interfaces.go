@@ -27,6 +27,7 @@ type SUI interface {
 	WithSid(sid string)
 	PublicRootMatcher() *Matcher
 	GetPublic() *Public
+	PublicRootWithSid(sid string) (string, error)
 }
 
 // ITemplate is the interface for the ITemplate

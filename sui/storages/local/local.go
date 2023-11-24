@@ -146,6 +146,16 @@ func (local *Local) getTemplate(id string, path string) (*Template, error) {
 		tmpl.Document = documentBytes
 	}
 
+	// load the __data.json
+	dataFile := filepath.Join(path, "__data.json")
+	if local.fs.IsFile(dataFile) {
+		dataBytes, err := local.fs.ReadFile(dataFile)
+		if err != nil {
+			return nil, err
+		}
+		tmpl.GlobalData = dataBytes
+	}
+
 	return &tmpl, nil
 }
 

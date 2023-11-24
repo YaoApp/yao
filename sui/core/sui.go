@@ -45,6 +45,28 @@ func (sui *DSL) PublicRootMatcher() *Matcher {
 	return &Matcher{Exact: pub.Root}
 }
 
+// PublicRootWithSid returns the public root path with sid
+func (sui *DSL) PublicRootWithSid(sid string) (string, error) {
+	ss := session.Global().ID(sid)
+	data, err := ss.Dump()
+	if err != nil {
+		return "", err
+	}
+
+	vars := map[string]interface{}{"$session": data}
+	var root = sui.Public.Root
+	dot := maps.Of(vars).Dot()
+	output := varRe.ReplaceAllStringFunc(root, func(matched string) string {
+		varName := strings.TrimSpace(matched[2 : len(matched)-2])
+		if value, ok := dot[varName]; ok {
+			return fmt.Sprint(value)
+		}
+		return "__undefined"
+	})
+
+	return output, nil
+}
+
 // PublicRoot returns the public root path
 func (sui *DSL) PublicRoot() (string, error) {
 	// Cache the public root

@@ -66,6 +66,13 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 	}
 
 	res.Render(data)
+
+	// Set the title
+	res.Config.Rendered = &PageConfigRendered{
+		Title: page.RenderTitle(data),
+		Link:  page.Link(request),
+	}
+
 	return res, nil
 }
 
@@ -92,6 +99,7 @@ func (res *ResponseEditorRender) Render(data map[string]interface{}) error {
 			res.Warnings = append(res.Warnings, err.Error())
 		}
 	}
+
 	return nil
 }
 

@@ -11,8 +11,9 @@ import (
 
 // Cache the cache
 type Cache struct {
-	Data string
-	HTML string
+	Data   string
+	Global string
+	HTML   string
 }
 
 // Caches the caches
@@ -247,10 +248,11 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 }
 
 // SetCache set the cache
-func SetCache(file string, html string, data string) *Cache {
+func SetCache(file string, html string, data string, global string) *Cache {
 	Caches[file] = &Cache{
-		Data: data,
-		HTML: html,
+		Data:   data,
+		HTML:   html,
+		Global: global,
 	}
 	return Caches[file]
 }
