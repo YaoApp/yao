@@ -5,7 +5,7 @@ import (
 )
 
 // EditorRender render HTML for the editor
-func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) {
+func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 
 	res := &ResponseEditorRender{
 		HTML:     "",
@@ -32,27 +32,16 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 	}
 	res.Styles = append(res.Styles, styles...)
 
-	// // Page Styles
-	// if page.Codes.CSS.Code != "" {
-	// 	res.Styles = append(res.Styles, filepath.Join("@pages", page.Route, page.Name+".css"))
-	// }
-
-	// // Render the HTML with the data
-	// // Page Scripts
-	// if page.Codes.JS.Code != "" {
-	// 	res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".js"))
-	// }
-	// if page.Codes.TS.Code != "" {
-	// 	res.Scripts = append(res.Scripts, filepath.Join("@pages", page.Route, page.Name+".ts"))
-	// }
+	// Render the page
+	request := NewRequestMock(page.Config.Mock)
 
 	// Render tools
 	// res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
 	// res.Styles = append(res.Styles, filepath.Join("@assets", "__render.css"))
 
 	doc, warnings, err := page.Build(&BuildOption{
-		SSR:       true,
-		AssetRoot: request.AssetRoot,
+		SSR:             true,
+		IgnoreAssetRoot: true,
 	})
 
 	if err != nil {
@@ -77,6 +66,13 @@ func (page *Page) EditorRender(request *Request) (*ResponseEditorRender, error) 
 	}
 
 	res.Render(data)
+
+	// Set the title
+	res.Config.Rendered = &PageConfigRendered{
+		Title: page.RenderTitle(data),
+		Link:  page.Link(request),
+	}
+
 	return res, nil
 }
 
@@ -91,7 +87,8 @@ func (res *ResponseEditorRender) Render(data map[string]interface{}) error {
 	}
 
 	var err error
-	parser := NewTemplateParser(data, nil)
+	parser := NewTemplateParser(data, &ParserOption{Editor: true})
+
 	res.HTML, err = parser.Render(res.HTML)
 	if err != nil {
 		return err
@@ -102,6 +99,7 @@ func (res *ResponseEditorRender) Render(data map[string]interface{}) error {
 			res.Warnings = append(res.Warnings, err.Error())
 		}
 	}
+
 	return nil
 }
 

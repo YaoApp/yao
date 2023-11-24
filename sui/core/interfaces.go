@@ -27,6 +27,7 @@ type SUI interface {
 	WithSid(sid string)
 	PublicRootMatcher() *Matcher
 	GetPublic() *Public
+	PublicRootWithSid(sid string) (string, error)
 }
 
 // ITemplate is the interface for the ITemplate
@@ -70,7 +71,7 @@ type IPage interface {
 	SaveTemp(request *RequestSource) error
 	Remove() error
 
-	EditorRender(request *Request) (*ResponseEditorRender, error)
+	EditorRender() (*ResponseEditorRender, error)
 	EditorPageSource() SourceData
 	EditorScriptSource() SourceData
 	EditorStyleSource() SourceData

@@ -22,6 +22,7 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 		}
 	}
 
+	// Page Data
 	if page.Codes.DATA.Code != "" {
 		doc.Find("body").AppendHtml("\n\n" + `<script name="data" type="json">` + "\n" +
 			page.Codes.DATA.Code +
@@ -29,13 +30,17 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 		)
 	}
 
-	// // add the route data
-	// doc.Find("body").AppendHtml(`<script name="route" type="json">` + "\n" +
-	// 	fmt.Sprintf(
-	// 		`{"sui": "%s", "template": "%s", "route": "%s"}`,
-	// 		page.SuiID, page.TemplateID, page.Route,
-	// 	) +
-	// 	"\n</script>\n")
+	// Page Global Data
+	if page.GlobalData != nil && len(page.GlobalData) > 0 {
+		doc.Find("body").AppendHtml("\n\n" + `<script name="global" type="json">` + "\n" +
+			string(page.GlobalData) +
+			"\n</script>\n\n",
+		)
+	}
+
+	// Replace the document
+	page.Config = page.GetConfig()
+	page.ReplaceDocument(doc)
 
 	html, err := doc.Html()
 	if err != nil {

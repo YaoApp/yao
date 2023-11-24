@@ -16,6 +16,7 @@ type TemplateParser struct {
 	sequence int                                 // sequence for the rendering
 	errors   []error                             // errors
 	replace  map[*goquery.Selection][]*html.Node // replace nodes
+	option   *ParserOption                       // parser option
 }
 
 // Mapping mapping for the template
@@ -26,16 +27,24 @@ type Mapping struct {
 }
 
 // ParserOption parser option
-type ParserOption struct{}
+type ParserOption struct {
+	Editor  bool `json:"editor,omitempty"`
+	Preview bool `json:"preview,omitempty"`
+}
 
 // NewTemplateParser create a new template parser
 func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
+	if option == nil {
+		option = &ParserOption{}
+	}
+
 	return &TemplateParser{
 		data:     data,
 		mapping:  map[string]Mapping{},
 		sequence: 0,
 		errors:   []error{},
 		replace:  map[*goquery.Selection][]*html.Node{},
+		option:   option,
 	}
 }
 
@@ -103,17 +112,7 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) parseTextNode(node *html.Node) {
 	parser.sequence = parser.sequence + 1
-	hasStmt := false
-	res := stmtRe.ReplaceAllFunc([]byte(node.Data), func(stmt []byte) []byte {
-		hasStmt = true
-		res, err := parser.data.ExecString(string(stmt))
-		if err != nil {
-			parser.errors = append(parser.errors, err)
-			return []byte(``)
-		}
-		return []byte(res)
-	})
-
+	res, hasStmt := parser.data.Replace(node.Data)
 	// Bind the variable to the parent node
 	if node.Parent != nil && hasStmt {
 		bindings := strings.TrimSpace(node.Data)
@@ -125,8 +124,7 @@ func (parser *TemplateParser) parseTextNode(node *html.Node) {
 			}...)
 		}
 	}
-
-	node.Data = string(res)
+	node.Data = res
 }
 
 func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {
@@ -153,6 +151,12 @@ func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {
 	indexVarName := sel.AttrOr("s:for-index", "index")
 	itemNodes := []*html.Node{}
 
+	// Keep the node if the editor is enabled
+	if parser.option.Editor {
+		clone := sel.Clone()
+		itemNodes = append(itemNodes, clone.Nodes...)
+	}
+
 	for idx, item := range items {
 
 		// Create a new node
@@ -167,6 +171,10 @@ func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {
 		parser.show(new)
 		parser.data[itemVarName] = item
 		parser.data[indexVarName] = idx
+
+		if parser.option.Editor {
+			parser.setSuiAttr(new, "generate", "true")
+		}
 
 		// Process the new node
 		for i := range new.Nodes {
@@ -259,7 +267,23 @@ func (parser *TemplateParser) elseStatementNode(sel *goquery.Selection) ([]*goqu
 	return elifNodes, elseNode
 }
 
+func (parser *TemplateParser) setSuiAttr(sel *goquery.Selection, key, value string) *goquery.Selection {
+	key = fmt.Sprintf("data-sui-%s", key)
+	return sel.SetAttr(key, value)
+}
+
+func (parser *TemplateParser) removeSuiAttr(sel *goquery.Selection, key string) *goquery.Selection {
+	key = fmt.Sprintf("data-sui-%s", key)
+	return sel.RemoveAttr(key)
+}
+
 func (parser *TemplateParser) hide(sel *goquery.Selection) {
+
+	if parser.option.Editor {
+		parser.setSuiAttr(sel, "hide", "true")
+		return
+	}
+
 	style := sel.AttrOr("style", "")
 	if strings.Contains(style, "display: none") {
 		return
@@ -274,6 +298,12 @@ func (parser *TemplateParser) hide(sel *goquery.Selection) {
 }
 
 func (parser *TemplateParser) show(sel *goquery.Selection) {
+
+	if parser.option.Editor {
+		parser.removeSuiAttr(sel, "hide")
+		return
+	}
+
 	style := sel.AttrOr("style", "")
 	if !strings.Contains(style, "display: none") {
 		return

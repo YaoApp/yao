@@ -23,8 +23,7 @@ func TestPageEditorRender(t *testing.T) {
 		t.Fatalf("Page error: %v", err)
 	}
 
-	r := &core.Request{Method: "GET"}
-	res, err := page.EditorRender(r)
+	res, err := page.EditorRender()
 	if err != nil {
 		t.Fatalf("EditorRender error: %v", err)
 	}

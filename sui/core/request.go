@@ -11,12 +11,29 @@ import (
 
 // Cache the cache
 type Cache struct {
-	Data string
-	HTML string
+	Data   string
+	Global string
+	HTML   string
 }
 
 // Caches the caches
 var Caches = map[string]*Cache{}
+
+// NewRequestMock is the constructor for Request.
+func NewRequestMock(mock *PageMock) *Request {
+	if mock == nil {
+		mock = &PageMock{Method: "GET"}
+	}
+	return &Request{
+		Method:  mock.Method,
+		Query:   mock.Query,
+		Body:    mock.Body,
+		Payload: mock.Payload,
+		Referer: mock.Referer,
+		Headers: mock.Headers,
+		Params:  mock.Params,
+	}
+}
 
 // ExecString get the data
 func (r *Request) ExecString(data string) (Data, error) {
@@ -231,10 +248,11 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 }
 
 // SetCache set the cache
-func SetCache(file string, html string, data string) *Cache {
+func SetCache(file string, html string, data string, global string) *Cache {
 	Caches[file] = &Cache{
-		Data: data,
-		HTML: html,
+		Data:   data,
+		HTML:   html,
+		Global: global,
 	}
 	return Caches[file]
 }
