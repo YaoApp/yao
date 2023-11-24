@@ -70,7 +70,7 @@ type IPage interface {
 	SaveTemp(request *RequestSource) error
 	Remove() error
 
-	EditorRender(request *Request) (*ResponseEditorRender, error)
+	EditorRender() (*ResponseEditorRender, error)
 	EditorPageSource() SourceData
 	EditorScriptSource() SourceData
 	EditorStyleSource() SourceData

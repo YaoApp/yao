@@ -655,16 +655,7 @@ func EditorRender(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	// Request data
-	urlQuery := url.Values{}
-	if process.NumOfArgs() > 3 {
-		if v, ok := process.Args[3].(url.Values); ok {
-			urlQuery = v
-		}
-	}
-
-	req := &core.Request{Method: "GET", Query: urlQuery}
-	res, err := page.EditorRender(req)
+	res, err := page.EditorRender()
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

@@ -11,7 +11,7 @@ import (
 func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error) {
 
 	warnings := []string{}
-	html, err := page.BuildHTML(option.AssetRoot)
+	html, err := page.BuildHTML(option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -23,14 +23,14 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 	}
 
 	// Add Style
-	style, err := page.BuildStyle(option.AssetRoot)
+	style, err := page.BuildStyle(option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
 	doc.Selection.Find("head").AppendHtml(style)
 
 	// Add Script
-	script, err := page.BuildScript(option.AssetRoot)
+	script, err := page.BuildScript(option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -39,15 +39,18 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 }
 
 // BuildHTML build the html
-func (page *Page) BuildHTML(assetRoot string) (string, error) {
+func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 
 	html := string(page.Document)
 	if page.Codes.HTML.Code != "" {
 		html = strings.Replace(html, "{{ __page }}", page.Codes.HTML.Code, 1)
 	}
 
-	code := strings.ReplaceAll(html, "@assets", assetRoot)
-	res, err := page.CompileHTML([]byte(code), false)
+	if !option.IgnoreAssetRoot {
+		html = strings.ReplaceAll(html, "@assets", option.AssetRoot)
+	}
+
+	res, err := page.CompileHTML([]byte(html), false)
 	if err != nil {
 		return "", err
 	}
@@ -56,12 +59,16 @@ func (page *Page) BuildHTML(assetRoot string) (string, error) {
 }
 
 // BuildStyle build the style
-func (page *Page) BuildStyle(assetRoot string) (string, error) {
+func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 	if page.Codes.CSS.Code == "" {
 		return "", nil
 	}
 
-	code := strings.ReplaceAll(page.Codes.CSS.Code, "@assets", assetRoot)
+	code := page.Codes.CSS.Code
+	if !option.IgnoreAssetRoot {
+		code = strings.ReplaceAll(page.Codes.CSS.Code, "@assets", option.AssetRoot)
+	}
+
 	res, err := page.CompileCSS([]byte(code), false)
 	if err != nil {
 		return "", err
@@ -71,7 +78,7 @@ func (page *Page) BuildStyle(assetRoot string) (string, error) {
 }
 
 // BuildScript build the script
-func (page *Page) BuildScript(assetRoot string) (string, error) {
+func (page *Page) BuildScript(option *BuildOption) (string, error) {
 
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
 		return "", nil
@@ -86,7 +93,11 @@ func (page *Page) BuildScript(assetRoot string) (string, error) {
 		return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
 	}
 
-	code := strings.ReplaceAll(page.Codes.JS.Code, "@assets", assetRoot)
+	code := page.Codes.JS.Code
+	if !option.IgnoreAssetRoot {
+		code = strings.ReplaceAll(page.Codes.JS.Code, "@assets", option.AssetRoot)
+	}
+
 	res, err := page.CompileJS([]byte(code), false)
 	if err != nil {
 		return "", err

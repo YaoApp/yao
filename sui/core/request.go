@@ -18,6 +18,22 @@ type Cache struct {
 // Caches the caches
 var Caches = map[string]*Cache{}
 
+// NewRequestMock is the constructor for Request.
+func NewRequestMock(mock *PageMock) *Request {
+	if mock == nil {
+		mock = &PageMock{Method: "GET"}
+	}
+	return &Request{
+		Method:  mock.Method,
+		Query:   mock.Query,
+		Body:    mock.Body,
+		Payload: mock.Payload,
+		Referer: mock.Referer,
+		Headers: mock.Headers,
+		Params:  mock.Params,
+	}
+}
+
 // ExecString get the data
 func (r *Request) ExecString(data string) (Data, error) {
 	var res Data

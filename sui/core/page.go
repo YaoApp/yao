@@ -13,13 +13,25 @@ func (page *Page) Get() *Page {
 
 // GetConfig get the config
 func (page *Page) GetConfig() *PageConfig {
-	if page.Config == nil && page.Codes.CONF.Code != "" {
+
+	if page.Config == nil {
+		page.Config = &PageConfig{
+			Mock: &PageMock{Method: "GET"},
+		}
+	}
+
+	if page.Codes.CONF.Code != "" {
 		var config PageConfig
 		err := jsoniter.Unmarshal([]byte(page.Codes.CONF.Code), &config)
 		if err == nil {
 			page.Config = &config
 		}
 	}
+
+	if page.Config.Mock == nil {
+		page.Config.Mock = &PageMock{Method: "GET"}
+	}
+
 	return page.Config
 }
 

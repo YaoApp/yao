@@ -133,10 +133,11 @@ type MediaSearchResult struct {
 
 // BuildOption is the struct for the option option
 type BuildOption struct {
-	SSR       bool   `json:"ssr"`
-	CDN       bool   `json:"cdn"`
-	UpdateAll bool   `json:"update_all"`
-	AssetRoot string `json:"asset_root,omitempty"`
+	SSR             bool   `json:"ssr"`
+	CDN             bool   `json:"cdn"`
+	UpdateAll       bool   `json:"update_all"`
+	AssetRoot       string `json:"asset_root,omitempty"`
+	IgnoreAssetRoot bool   `json:"ignore_asset_root,omitempty"`
 }
 
 // Request is the struct for the request
@@ -202,11 +203,14 @@ type BoardSourceData struct {
 
 // PageMock is the struct for the request
 type PageMock struct {
-	Method  string              `json:"method,omitempty"`
-	Params  map[string]string   `json:"params,omitempty"`
-	Query   map[string][]string `json:"query,omitempty"`
-	Headers map[string][]string `json:"headers,omitempty"`
-	Body    interface{}         `json:"body,omitempty"`
+	Method  string                 `json:"method,omitempty"`
+	Referer string                 `json:"referer,omitempty"`
+	Payload map[string]interface{} `json:"payload,omitempty"`
+	Query   url.Values             `json:"query,omitempty"`
+	Params  map[string]string      `json:"params,omitempty"`
+	Headers url.Values             `json:"headers,omitempty"`
+	Body    interface{}            `json:"body,omitempty"`
+	Sid     string                 `json:"sid,omitempty"`
 }
 
 // PageConfig is the struct for the page config
