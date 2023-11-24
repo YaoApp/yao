@@ -141,7 +141,15 @@ func (page *Page) Link(r *Request) string {
 		paths = append(paths, part)
 	}
 
-	return filepath.Join(paths...)
+	url := filepath.Join(paths...)
+	if r.Query != nil {
+		query := r.Query.Encode()
+		if query != "" {
+			url = url + "?" + query
+		}
+	}
+
+	return url
 }
 
 // ReplaceDocument replace the document
