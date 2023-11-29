@@ -42,6 +42,7 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 	doc, warnings, err := page.Build(&BuildOption{
 		SSR:             true,
 		IgnoreAssetRoot: true,
+		IgnoreDocument:  true,
 	})
 
 	if err != nil {
