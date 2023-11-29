@@ -72,9 +72,27 @@ func testPage(t *testing.T) *Page {
 				  <div>{{ idx }} {{ article.title }}</div>
 				  <div>{{ article.desc }}</div>
 				  <div>{{ article.type == "article" ? "article" : "others"}}</div>
-				  <div s:if="article.type == 'article'">article</div>
-				  <div s:elif="article.type == 'image'">image</div>
-				  <div s:else>others</div>
+
+				  <div class="mt-10">IF</div>
+				  <div class="p-5">
+					<div s:if="article.type == 'article'">article</div>
+					<div s:elif="article.type == 'image'">image</div>
+					<div s:else>others</div>
+				  </div>
+			  
+				  <div class="mt-10">Nested</div>
+				  <div
+					s:for="article.images"
+					s:for-item="image"
+					s:for-index="imgIndex"
+					class="p-5"
+				  >
+					<div s:if="imgIndex == 1 || imgIndex == 2" class="p-5">
+					  {{ imgIndex }} {{ image }}
+					</div>
+				  </div>
+				</div>
+				
 				</div>
 				<div class="mt-10">IF</div>
 				<div s:if="len(articles) > 0" :name="input.data">
