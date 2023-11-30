@@ -257,32 +257,32 @@ func (neo *DSL) Answer(ctx command.Context, question string, answer Answer) erro
 
 			return !msg.IsDone()
 
-		case <-ctx.Done():
-			if err := ctx.Err(); err != nil {
-				message.New().Text(err.Error()).Write(w)
-			}
+			// case <-ctx.Done():
+			// 	if err := ctx.Err(); err != nil {
+			// 		message.New().Text(err.Error()).Write(w)
+			// 	}
 
-			if len(errorMsg) > 0 {
+			// 	if len(errorMsg) > 0 {
 
-				var errData openai.ErrorMessage
-				err := jsoniter.Unmarshal(errorMsg, &errData)
-				if err == nil {
-					msg := errData.Error.Message
-					if msg == "" {
-						msg = fmt.Sprintf("OpenAI error: %s", errData.Error.Code)
-					}
-					message.New().Text(msg).Write(w)
-					message.New().Done().Write(w)
-					return false
-				}
+			// 		var errData openai.ErrorMessage
+			// 		err := jsoniter.Unmarshal(errorMsg, &errData)
+			// 		if err == nil {
+			// 			msg := errData.Error.Message
+			// 			if msg == "" {
+			// 				msg = fmt.Sprintf("OpenAI error: %s", errData.Error.Code)
+			// 			}
+			// 			message.New().Text(msg).Write(w)
+			// 			message.New().Done().Write(w)
+			// 			return false
+			// 		}
 
-				message.New().Text(string(errorMsg)).Write(w)
-				message.New().Done().Write(w)
-				return false
-			}
+			// 		message.New().Text(string(errorMsg)).Write(w)
+			// 		message.New().Done().Write(w)
+			// 		return false
+			// 	}
 
-			message.New().Done().Write(w)
-			return false
+			// 	message.New().Done().Write(w)
+			// 	return false
 		}
 	})
 

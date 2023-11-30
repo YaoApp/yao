@@ -27,10 +27,10 @@ func NewOpenAI(data []byte) *JSON {
 	}
 
 	msg := makeMessage()
-	data = []byte(strings.TrimPrefix(string(data), "data: "))
+	text := string(data)
+	data = []byte(strings.TrimPrefix(text, "data: "))
 	switch {
-
-	case strings.Contains(string(data), `"delta":{"content"`):
+	case strings.Contains(text, `"delta":{`) && strings.Contains(text, `"content":`):
 		var message openai.Message
 		err := jsoniter.Unmarshal(data, &message)
 		if err != nil {
@@ -43,12 +43,12 @@ func NewOpenAI(data []byte) *JSON {
 		}
 		break
 
-	case strings.Contains(string(data), `[DONE]`):
+	case strings.Contains(text, `[DONE]`):
 		msg.Done = true
 		break
 
 	default:
-		msg.Error = string(data)
+		msg.Error = text
 	}
 
 	return &JSON{msg}
