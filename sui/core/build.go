@@ -41,9 +41,13 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 // BuildHTML build the html
 func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 
-	html := string(page.Document)
-	if page.Codes.HTML.Code != "" {
-		html = strings.Replace(html, "{{ __page }}", page.Codes.HTML.Code, 1)
+	html := string(page.Codes.HTML.Code)
+
+	if !option.IgnoreDocument {
+		html = string(page.Document)
+		if page.Codes.HTML.Code != "" {
+			html = strings.Replace(html, "{{ __page }}", page.Codes.HTML.Code, 1)
+		}
 	}
 
 	if !option.IgnoreAssetRoot {

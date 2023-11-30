@@ -140,6 +140,7 @@ type BuildOption struct {
 	UpdateAll       bool   `json:"update_all"`
 	AssetRoot       string `json:"asset_root,omitempty"`
 	IgnoreAssetRoot bool   `json:"ignore_asset_root,omitempty"`
+	IgnoreDocument  bool   `json:"ignore_document,omitempty"`
 }
 
 // Request is the struct for the request

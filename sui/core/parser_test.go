@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/kun/utils"
 )
 
 func TestRender(t *testing.T) {
@@ -28,6 +29,8 @@ func TestRender(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Render error: %v", err)
 	}
+
+	utils.Dump(html)
 
 	assert.NotEmpty(t, html)
 	assert.Contains(t, html, "hello space")
