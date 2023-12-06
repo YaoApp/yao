@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -12,6 +13,24 @@ import (
 // Get get the base info
 func (page *Page) Get() *Page {
 	return page
+}
+
+// SUI get the sui
+func (page *Page) SUI() (SUI, error) {
+	sui, has := SUIs[page.SuiID]
+	if !has {
+		return nil, fmt.Errorf("[sui] get page sui %s not found", page.SuiID)
+	}
+	return sui, nil
+}
+
+// Sid get the sid
+func (page *Page) Sid() (string, error) {
+	sui, err := page.SUI()
+	if err != nil {
+		return "", err
+	}
+	return sui.GetSid(), nil
 }
 
 // GetConfig get the config

@@ -84,6 +84,7 @@ func (page *Page) Build(option *core.BuildOption) error {
 		option.AssetRoot = filepath.Join(page.tmpl.local.DSL.Public.Root, "assets")
 	}
 
+	log.Trace("Build the page %s AssetRoot: %s", page.Route, option.AssetRoot)
 	html, err := page.Page.Compile(option)
 	if err != nil {
 		return err
