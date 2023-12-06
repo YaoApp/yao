@@ -28,6 +28,11 @@ func (sui *DSL) WithSid(sid string) {
 	sui.Sid = sid
 }
 
+// GetSid returns the sid
+func (sui *DSL) GetSid() string {
+	return sui.Sid
+}
+
 // PublicRootMatcher returns the public root matcher
 func (sui *DSL) PublicRootMatcher() *Matcher {
 	pub := sui.GetPublic()
