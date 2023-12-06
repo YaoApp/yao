@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/api"
 )
 
@@ -42,7 +43,9 @@ func withStaticFileServer(c *gin.Context) {
 
 	// Rewrite
 	for _, rewrite := range rewriteRules {
+		log.Debug("Rewrite: %s => %s", c.Request.URL.Path, rewrite.Replacement)
 		if matches := rewrite.Pattern.FindStringSubmatch(c.Request.URL.Path); matches != nil {
+			log.Debug("Rewrite FindStringSubmatch: %s => %s", c.Request.URL.Path, rewrite.Replacement)
 			c.Request.URL.Path = rewrite.Pattern.ReplaceAllString(c.Request.URL.Path, rewrite.Replacement)
 			break
 		}
