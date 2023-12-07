@@ -19,6 +19,11 @@ func (tmpl *Template) Assets() []string {
 	return nil
 }
 
+// GetRoot get the root path
+func (tmpl *Template) GetRoot() string {
+	return tmpl.Root
+}
+
 // Locales get the global locales
 func (tmpl *Template) Locales() []core.SelectOption {
 

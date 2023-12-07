@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/cmd/studio"
+	"github.com/yaoapp/yao/cmd/sui"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/share"
@@ -62,6 +63,7 @@ var langs = map[string]string{
 	"Error occurred while updating binary: %s":   "更新二进制文件时出错: %s",
 	"🎉Successfully updated to version: %s🎉":      "🎉成功更新到版本: %s🎉",
 	"Print all version information":              "显示详细版本信息",
+	"SUI Template Engine":                        "SUI 模板引擎命令",
 }
 
 // L 多语言切换
@@ -110,9 +112,26 @@ var studioCmd = &cobra.Command{
 	},
 }
 
+var suiCmd = &cobra.Command{
+	Use:   "sui",
+	Short: L("SUI Template Engine"),
+	Long:  L("SUI Template Engine"),
+	Args:  cobra.MinimumNArgs(1),
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
+		os.Exit(1)
+	},
+}
+
 // 加载命令
 func init() {
+
 	studioCmd.AddCommand(studio.RunCmd)
+	suiCmd.AddCommand(sui.WatchCmd)
+
 	rootCmd.AddCommand(
 		versionCmd,
 		migrateCmd,
@@ -126,6 +145,7 @@ func init() {
 		// websocketCmd,
 		packCmd,
 		studioCmd,
+		suiCmd,
 		upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
