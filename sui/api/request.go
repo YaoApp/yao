@@ -50,6 +50,7 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 func (r *Request) Render() (string, int, error) {
 
 	c := core.GetCache(r.File)
+	c = nil // disable cache @todo disable cache on development
 	if c == nil {
 		// Read the file
 		content, err := application.App.Read(r.File)
