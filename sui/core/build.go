@@ -1,11 +1,17 @@
 package core
 
 import (
+	"bufio"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/yaoapp/kun/log"
 )
+
+var slotRe = regexp.MustCompile(`\[\{([^\}]+)\}\]`)
+var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z# ]+)\{`)
 
 // Build is the struct for the public
 func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error) {
@@ -18,6 +24,12 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 
 	// Add Style & Script & Warning
 	doc, err := NewDocument([]byte(html))
+	if err != nil {
+		warnings = append(warnings, err.Error())
+	}
+
+	// Append the nested html
+	err = page.parse(doc, option, warnings)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -36,6 +48,138 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 	}
 	doc.Selection.Find("body").AppendHtml(script)
 	return doc, warnings, nil
+}
+
+// BuildForImport build the page for import
+func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface{}) (string, string, string, []string, error) {
+	warnings := []string{}
+	html, err := page.BuildHTML(option)
+	if err != nil {
+		warnings = append(warnings, err.Error())
+	}
+
+	// Add Style & Script & Warning
+	doc, err := NewDocument([]byte(html))
+	if err != nil {
+		warnings = append(warnings, err.Error())
+	}
+
+	// Append the nested html
+	err = page.parse(doc, option, warnings)
+	if err != nil {
+		warnings = append(warnings, err.Error())
+	}
+
+	// Add Style
+	style, err := page.BuildStyle(option)
+	if err != nil {
+		warnings = append(warnings, err.Error())
+	}
+
+	script, err := page.BuildScript(option)
+	if err != nil {
+		warnings = append(warnings, err.Error())
+	}
+
+	body := doc.Selection.Find("body")
+
+	if body.Length() > 1 {
+		body.SetHtml("<div>" + html + "</div>")
+	}
+
+	body.Children().First().SetAttr("s:ns", option.Namespace)
+	body.Children().First().SetAttr("s:ready", option.Namespace+"()")
+	html, err = body.Html()
+	if err != nil {
+		return "", "", "", warnings, err
+	}
+
+	// Replace the slots
+	html, _ = Data(slots).ReplaceUse(slotRe, html)
+	return html, style, script, warnings, nil
+}
+
+func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []string) error {
+	pages := doc.Find("page")
+	sui := SUIs[page.SuiID]
+	if sui == nil {
+		return fmt.Errorf("SUI %s not found", page.SuiID)
+	}
+
+	tmpl, err := sui.GetTemplate(page.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	for idx, node := range pages.Nodes {
+		sel := goquery.NewDocumentFromNode(node)
+		name, has := sel.Attr("is")
+		if !has {
+			msg := fmt.Sprintf("Page %s/%s/%s: page tag must have an is attribute", page.SuiID, page.TemplateID, page.Route)
+			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", msg))
+			log.Warn(msg)
+			continue
+		}
+
+		ipage, err := tmpl.Page(name)
+		if err != nil {
+			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
+			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
+			continue
+		}
+
+		err = ipage.Load()
+		if err != nil {
+			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
+			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
+			continue
+		}
+
+		slots := map[string]interface{}{}
+		for _, slot := range sel.Find("slot").Nodes {
+			slotSel := goquery.NewDocumentFromNode(slot)
+			slotName, has := slotSel.Attr("is")
+			if !has {
+				continue
+			}
+			slotHTML, err := slotSel.Html()
+			if err != nil {
+				continue
+			}
+			slots[slotName] = strings.TrimSpace(slotHTML)
+		}
+
+		namespace := fmt.Sprintf("__page_%s_%d", strings.ReplaceAll(name, "/", "_"), idx)
+		html, style, script, warns, err := ipage.Get().BuildForImport(&BuildOption{
+			SSR:             option.SSR,
+			AssetRoot:       option.AssetRoot,
+			IgnoreAssetRoot: option.IgnoreAssetRoot,
+			KeepPageTag:     option.KeepPageTag,
+			IgnoreDocument:  true,
+			Namespace:       namespace,
+		}, slots)
+
+		if err != nil {
+			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
+			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
+			continue
+		}
+
+		if warns != nil {
+			warnings = append(warnings, warns...)
+		}
+
+		sel.SetAttr("s:ns", namespace)
+		sel.SetAttr("s:ready", namespace+"()")
+
+		if option.KeepPageTag {
+			sel.SetHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, addTabToEachLine(html), script))
+			continue
+		}
+		sel.ReplaceWithHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, html, script))
+
+	}
+	return nil
 }
 
 // BuildHTML build the html
@@ -73,6 +217,12 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 		code = strings.ReplaceAll(page.Codes.CSS.Code, "@assets", option.AssetRoot)
 	}
 
+	if option.Namespace != "" {
+		code = cssRe.ReplaceAllStringFunc(code, func(css string) string {
+			return fmt.Sprintf("[s:ns=%s] %s", option.Namespace, css)
+		})
+	}
+
 	res, err := page.CompileCSS([]byte(code), false)
 	if err != nil {
 		return "", err
@@ -94,7 +244,11 @@ func (page *Page) BuildScript(option *BuildOption) (string, error) {
 			return "", err
 		}
 
-		return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
+		if option.Namespace == "" {
+			return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
+		}
+
+		return fmt.Sprintf("<script>\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(res))), nil
 	}
 
 	code := page.Codes.JS.Code
@@ -107,5 +261,26 @@ func (page *Page) BuildScript(option *BuildOption) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
+	if option.Namespace == "" {
+		return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
+	}
+	return fmt.Sprintf("<script>\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(res))), nil
+}
+
+func addTabToEachLine(input string, prefix ...string) string {
+	var lines []string
+
+	space := "  "
+	if len(prefix) > 0 {
+		space = prefix[0]
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineWithTab := space + line
+		lines = append(lines, lineWithTab)
+	}
+
+	return strings.Join(lines, "\n")
 }
