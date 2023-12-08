@@ -27,6 +27,7 @@ var options = []expr.Option{
 // New create a new expression
 func (data Data) New(stmt string) (*vm.Program, error) {
 	stmt = strings.TrimSpace(strings.TrimRight(strings.TrimLeft(stmt, "{{ "), "}}"))
+	stmt = strings.TrimSpace(strings.TrimRight(strings.TrimLeft(stmt, "[{ "), "}]"))
 	return expr.Compile(stmt, append([]expr.Option{expr.Env(data)}, options...)...)
 }
 
@@ -61,6 +62,20 @@ func (data Data) ExecString(stmt string) (string, error) {
 func (data Data) Replace(value string) (string, bool) {
 	hasStmt := false
 	res := stmtRe.ReplaceAllStringFunc(value, func(stmt string) string {
+		hasStmt = true
+		res, err := data.ExecString(stmt)
+		if err != nil {
+			log.Warn("Replace %s: %s", stmt, err)
+		}
+		return res
+	})
+	return res, hasStmt
+}
+
+// ReplaceUse replace the statement use the regexp
+func (data Data) ReplaceUse(re *regexp.Regexp, value string) (string, bool) {
+	hasStmt := false
+	res := re.ReplaceAllStringFunc(value, func(stmt string) string {
 		hasStmt = true
 		res, err := data.ExecString(stmt)
 		if err != nil {

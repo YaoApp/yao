@@ -120,6 +120,18 @@ func testPage(t *testing.T) *Page {
 					  class="text-blue-600 p-2" />
 				  </div>
 				</div>
+
+				<div class="mt-10">Import Page</div>
+				<page is="/footer">
+				  <slot is="link"> Link </slot>
+				  <slot is="item"> Item </slot>
+				</page>
+			  
+				<page is="/footer" no-style>
+				  <slot is="link"> Link2 </slot>
+				  <slot is="item"> Item2 </slot>
+				</page>
+				
 			  </div>`,
 			},
 			DATA: Source{
