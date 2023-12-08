@@ -219,7 +219,7 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 
 	if option.Namespace != "" {
 		code = cssRe.ReplaceAllStringFunc(code, func(css string) string {
-			return fmt.Sprintf("[s:ns=%s] %s", option.Namespace, css)
+			return fmt.Sprintf("[s\\:ns=%s] %s", option.Namespace, css)
 		})
 	}
 
