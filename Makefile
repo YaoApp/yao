@@ -156,8 +156,8 @@ artifacts-linux: clean
 #	cd ../yao-init rm -rf README.md
 
 #   Yao Builder
-	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
 	mkdir -p .tmp/data/builder
+	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
 	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
 	rm -rf .tmp/yao-builder-latest.tar.gz
 
@@ -212,8 +212,8 @@ artifacts-macos: clean
 #	 cd ../yao-init && rm -rf README.md
 
 #   Yao Builder
-	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
 	mkdir -p .tmp/data/builder
+	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
 	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
 	rm -rf .tmp/yao-builder-latest.tar.gz
 
@@ -297,8 +297,8 @@ release: clean
 	rm -rf .tmp/yao-init/README.md
 
 #   Yao Builder
-	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
 	mkdir -p .tmp/data/builder
+	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
 	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
 	rm -rf .tmp/yao-builder-latest.tar.gz
 
@@ -357,8 +357,8 @@ linux-release: clean
 	rm -rf .tmp/yao-init/README.md
 
 #   Yao Builder
-	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
 	mkdir -p .tmp/data/builder
+	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
 	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
 	rm -rf .tmp/yao-builder-latest.tar.gz
 
