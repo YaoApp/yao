@@ -137,8 +137,14 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 		}
 	}
 
+	// No matchers
 	if matchers == nil {
-		return "", nil, fmt.Errorf("no route matchers")
+		if len(parts) < 1 {
+			return "", nil, fmt.Errorf("no route matchers")
+		}
+
+		fileParts = append(fileParts, parts...)
+		return filepath.Join(fileParts...) + ".sui", params, nil
 	}
 
 	// Match the page parts

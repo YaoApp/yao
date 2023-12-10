@@ -1,6 +1,7 @@
 package service
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,7 @@ func withStaticFileServer(c *gin.Context) {
 		if matches := rewrite.Pattern.FindStringSubmatch(c.Request.URL.Path); matches != nil {
 			log.Debug("Rewrite FindStringSubmatch: %s => %s", c.Request.URL.Path, rewrite.Replacement)
 			c.Request.URL.Path = rewrite.Pattern.ReplaceAllString(c.Request.URL.Path, rewrite.Replacement)
+			log.Debug("Rewrite FindStringSubmatch After: %s", c.Request.URL.Path)
 			break
 		}
 	}
@@ -54,14 +56,23 @@ func withStaticFileServer(c *gin.Context) {
 	// Sui file server
 	if strings.HasSuffix(c.Request.URL.Path, ".sui") {
 
+		log.Debug("Sui File: %s", c.Request.URL.Path)
+
+		// Default index.sui
+		if filepath.Base(c.Request.URL.Path) == ".sui" {
+			c.Request.URL.Path = strings.TrimSuffix(c.Request.URL.Path, ".sui") + "index.sui"
+		}
+
 		r, code, err := api.NewRequestContext(c)
 		if err != nil {
+			log.Error("Sui Reqeust Error: %s", err.Error())
 			c.AbortWithError(code, err)
 			return
 		}
 
 		html, code, err := r.Render()
 		if err != nil {
+			log.Error("Sui Render Error: %s", err.Error())
 			c.AbortWithError(code, err)
 			return
 		}
