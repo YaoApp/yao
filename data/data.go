@@ -46,6 +46,18 @@ func Setup() *assetfs.AssetFS {
 	panic("unreachable")
 }
 
+// Builder Builder ui
+func Builder() *assetfs.AssetFS {
+	assetInfo := func(path string) (os.FileInfo, error) {
+		return os.Stat(path)
+	}
+	for k := range _bintree.Children {
+		k = "builder"
+		return &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: assetInfo, Prefix: k, Fallback: "index.html"}
+	}
+	panic("unreachable")
+}
+
 // ReplaceXGen bindata file
 func ReplaceXGen(search, replace string) error {
 	err := replaceXGenIndex(search, replace)

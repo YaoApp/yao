@@ -42,6 +42,15 @@ func withStaticFileServer(c *gin.Context) {
 		return
 	}
 
+	// Yao Builder
+	// URL /yao/builder
+	if length >= 12 && c.Request.URL.Path[0:12] == "/yao/builder" {
+		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/yao/builder")
+		BuilderFileServer.ServeHTTP(c.Writer, c.Request)
+		c.Abort()
+		return
+	}
+
 	// Rewrite
 	for _, rewrite := range rewriteRules {
 		log.Debug("Rewrite: %s => %s", c.Request.URL.Path, rewrite.Replacement)

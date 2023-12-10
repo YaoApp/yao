@@ -18,6 +18,9 @@ var AppFileServer http.Handler
 // XGenFileServerV1 XGen v1.0
 var XGenFileServerV1 http.Handler = http.FileServer(data.XgenV1())
 
+// BuilderFileServer Builder ui
+var BuilderFileServer http.Handler = http.FileServer(data.Builder())
+
 // AdminRoot cache
 var AdminRoot = ""
 

@@ -130,6 +130,7 @@ bindata:
 	cp -r ui .tmp/data/public
 	cp -r xgen .tmp/data/
 	cp -r yao .tmp/data/
+	cp -r builder .tmp/data/
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/yao-init
