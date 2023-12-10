@@ -16,12 +16,6 @@ jobs:
         go: [1.21.1]
     runs-on: "macos-12"
     steps:
-      - name: Install coscmd
-        run: |
-          sudo /Library/Frameworks/Python.framework/Versions/3.12/bin/python -m pip install --upgrade pip
-          sudo pip3 install coscmd 
-          echo "/Library/Frameworks/Python.framework/Versions/3.12/bin" >> $GITHUB_PATH
-
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -114,18 +108,27 @@ jobs:
           mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
           mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
 
-      - name: Configure COS For Silicon Valley
-        env:
-          SECRET_ID: ${{ secrets.COS_ID }}
-          SECRET_KEY: ${{ secrets.COS_KEY }}
-          BUCKET: release-sv-1252011659
-          REGION: na-siliconvalley
-        run: |
-          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+      - name: Push arm64 To Silicon Valley
+        uses: TencentCloud/cos-action@v1
+        with:
+          secret_id: ${{ secrets.COS_ID }}
+          secret_key: ${{ secrets.COS_KEY }}
+          cos_bucket: release-sv-1252011659
+          cos_region: na-siliconvalley
+          local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-arm64
+          remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-arm64
+          clean: false
 
-      - name: Push To Silicon Valley
-        run: |
-          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+      - name: Push amd64 To Silicon Valley
+        uses: TencentCloud/cos-action@v1
+        with:
+          secret_id: ${{ secrets.COS_ID }}
+          secret_key: ${{ secrets.COS_KEY }}
+          cos_bucket: release-sv-1252011659
+          cos_region: na-siliconvalley
+          local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-amd64
+          remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-amd64
+          clean: false
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
@@ -144,5 +147,18 @@ jobs:
       #     coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
 
       # - name: Push To Beijing
+      #   run: |
+      #     for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+
+      # - name: Configure COS For Silicon Valley
+      #   env:
+      #     SECRET_ID: ${{ secrets.COS_ID }}
+      #     SECRET_KEY: ${{ secrets.COS_KEY }}
+      #     BUCKET: release-sv-1252011659
+      #     REGION: na-siliconvalley
+      #   run: |
+      #     coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+
+      # - name: Push To Silicon Valley
       #   run: |
       #     for file in ./dist/release/*; do coscmd upload $file /archives/; done;
