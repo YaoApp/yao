@@ -155,6 +155,12 @@ artifacts-linux: clean
 	cd ../yao-init && rm -rf LICENSE
 #	cd ../yao-init rm -rf README.md
 
+#   Yao Builder
+	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
+	mkdir -p .tmp/data/builder
+	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+	rm -rf .tmp/yao-builder-latest.tar.gz
+
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
@@ -204,6 +210,12 @@ artifacts-macos: clean
 	cd ../yao-init && rm -rf .gitignore
 	cd ../yao-init && rm -rf LICENSE
 #	 cd ../yao-init && rm -rf README.md
+
+#   Yao Builder
+	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
+	mkdir -p .tmp/data/builder
+	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
 	mkdir -p .tmp/data/xgen
@@ -284,6 +296,12 @@ release: clean
 	rm -rf .tmp/yao-init/LICENSE
 	rm -rf .tmp/yao-init/README.md
 
+#   Yao Builder
+	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
+	mkdir -p .tmp/data/builder
+	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+	rm -rf .tmp/yao-builder-latest.tar.gz
+
 #	Packing
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
@@ -337,6 +355,12 @@ linux-release: clean
 	rm -rf .tmp/yao-init/.gitignore
 	rm -rf .tmp/yao-init/LICENSE
 	rm -rf .tmp/yao-init/README.md
+
+#   Yao Builder
+	wget https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz -O .tmp/yao-builder-latest.tar.gz
+	mkdir -p .tmp/data/builder
+	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
 	mkdir -p .tmp/data/xgen

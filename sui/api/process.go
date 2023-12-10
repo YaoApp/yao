@@ -257,7 +257,11 @@ func LocaleGet(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	return template.Locales()
+	locals := template.Locales()
+	if locals == nil {
+		return []core.SelectOption{}
+	}
+	return locals
 }
 
 // ThemeGet handle the find Template request

@@ -18,9 +18,9 @@ jobs:
     steps:
       - name: Install coscmd
         run: |
-          sudo /Library/Frameworks/Python.framework/Versions/3.11/bin/python -m pip install --upgrade pip
+          sudo /Library/Frameworks/Python.framework/Versions/3.12/bin/python -m pip install --upgrade pip
           sudo pip3 install coscmd 
-          echo "/Library/Frameworks/Python.framework/Versions/3.11/bin" >> $GITHUB_PATH
+          echo "/Library/Frameworks/Python.framework/Versions/3.12/bin" >> $GITHUB_PATH
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
