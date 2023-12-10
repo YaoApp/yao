@@ -26,6 +26,7 @@ jobs:
           sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
           sudo apt-get install -y gcc-13-aarch64-linux-gnu
           sudo apt-get install -y g++-13-aarch64-linux-gnu
+          sudo apt-get install -y wget
 
       - name: Inspect Tools
         run: |
