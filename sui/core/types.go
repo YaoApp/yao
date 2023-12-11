@@ -155,6 +155,7 @@ type Request struct {
 	Params    map[string]string      `json:"params,omitempty"`
 	Headers   url.Values             `json:"headers,omitempty"`
 	Body      interface{}            `json:"body,omitempty"`
+	URL       ReqeustURL             `json:"url,omitempty"`
 	Sid       string                 `json:"sid,omitempty"`
 	Theme     string                 `json:"theme,omitempty"`
 	Locale    string                 `json:"locale,omitempty"`
@@ -215,7 +216,16 @@ type PageMock struct {
 	Params  map[string]string      `json:"params,omitempty"`
 	Headers url.Values             `json:"headers,omitempty"`
 	Body    interface{}            `json:"body,omitempty"`
+	URL     ReqeustURL             `json:"url,omitempty"`
 	Sid     string                 `json:"sid,omitempty"`
+}
+
+// ReqeustURL is the struct for the request
+type ReqeustURL struct {
+	Host   string `json:"host,omitempty"`
+	Domain string `json:"domain,omitempty"`
+	Path   string `json:"path,omitempty"`
+	Scheme string `json:"scheme,omitempty"`
 }
 
 // PageConfig is the struct for the page config

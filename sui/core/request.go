@@ -32,6 +32,7 @@ func NewRequestMock(mock *PageMock) *Request {
 		Referer: mock.Referer,
 		Headers: mock.Headers,
 		Params:  mock.Params,
+		URL:     mock.URL,
 	}
 }
 
@@ -81,6 +82,24 @@ func (r *Request) execValue(value interface{}) (interface{}, error) {
 			key := strings.TrimLeft(v, "$query.")
 			if r.Query.Has(key) {
 				return r.Query.Get(key), nil
+			}
+			return "", nil
+		}
+
+		if strings.HasPrefix(v, "$url.") {
+			key := strings.TrimLeft(v, "$url.")
+			switch key {
+			case "path":
+				return r.URL.Path, nil
+
+			case "host":
+				return r.URL.Host, nil
+
+			case "domain":
+				return r.URL.Domain, nil
+
+			case "scheme":
+				return r.URL.Scheme, nil
 			}
 			return "", nil
 		}
