@@ -210,15 +210,15 @@ func (tmpl *Template) RemovePage(route string) error {
 
 }
 
-// CreatePage create a new page
-func (tmpl *Template) CreatePage(route string) (core.IPage, error) {
+// CreateEmptyPage create a new empty
+func (tmpl *Template) CreateEmptyPage(route string, setting *core.PageSetting) (core.IPage, error) {
 	if tmpl.PageExist(route) {
 		return nil, fmt.Errorf("Page %s already exist", route)
 	}
 
 	// Create the page directory
 	name := tmpl.getPageBase(route)
-	return &Page{
+	page := &Page{
 		tmpl: tmpl,
 		Page: &core.Page{
 			Route:      route,
@@ -235,7 +235,22 @@ func (tmpl *Template) CreatePage(route string) (core.IPage, error) {
 				CONF: core.Source{File: fmt.Sprintf("%s.config", name)},
 			},
 		},
-	}, nil
+	}
+
+	title := route
+	if setting != nil {
+		title = setting.Title
+	}
+
+	err := page.Save(&core.RequestSource{
+		Page:       &core.SourceData{Source: fmt.Sprintf("<div>%s</div>", title), Language: "html"},
+		Setting:    setting,
+		NeedToSave: core.ReqeustSourceNeedToSave{Page: true, Setting: true},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return page, nil
 }
 
 // Remove remove the page
