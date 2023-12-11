@@ -42,6 +42,12 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 			Referer: c.Request.Referer(),
 			Headers: url.Values(c.Request.Header),
 			Params:  params,
+			URL: core.ReqeustURL{
+				Host:   c.Request.Host,
+				Path:   c.Request.URL.Path,
+				Domain: c.Request.URL.Hostname(),
+				Scheme: c.Request.URL.Scheme,
+			},
 		},
 	}, 200, nil
 }

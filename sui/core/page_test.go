@@ -15,6 +15,7 @@ func TestPageExec(t *testing.T) {
 
 	page := testPage(t)
 	request := &Request{
+		URL:    ReqeustURL{Path: "/test/path"},
 		Query:  map[string][]string{"show": {"yes"}},
 		Locale: "zh-CN",
 		Theme:  "dark",
@@ -30,6 +31,7 @@ func TestPageExec(t *testing.T) {
 	res := any.Of(data).Map().Dot()
 	assert.Equal(t, "yes", res.Get("array[3][0].query"))
 	assert.Equal(t, "Article Search", res.Get("articles.data[0].description"))
+	assert.Equal(t, "/test/path", res.Get("url.path"))
 }
 
 func prepare(t *testing.T) {
@@ -149,7 +151,8 @@ func testPage(t *testing.T) *Page {
 						{"$images": "scripts.article.Images"},
 						{"process": "scripts.article.Thumbs", "args": ["$query.show"], "__exec": true }
 					],
-					"input": { "data": "hello world" }
+					"input": { "data": "hello world" },
+					"url": {"path":"$url.path"}
 				  }
 				`,
 			},
