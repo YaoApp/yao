@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
 )
 
@@ -174,6 +175,15 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 
 		if option.KeepPageTag {
 			sel.SetHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, addTabToEachLine(html), script))
+
+			// Set Slot HTML
+			slotsAttr, err := jsoniter.MarshalToString(slots)
+			if err != nil {
+				warns = append(warns, err.Error())
+				continue
+			}
+
+			sel.SetAttr("s:slots", slotsAttr)
 			continue
 		}
 		sel.ReplaceWithHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, html, script))
