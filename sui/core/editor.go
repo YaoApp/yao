@@ -48,6 +48,7 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 		SSR:             true,
 		IgnoreAssetRoot: true,
 		IgnoreDocument:  true,
+		KeepPageTag:     true,
 	})
 
 	if err != nil {
