@@ -124,6 +124,12 @@ var dsl = []byte(`
 			"in": ["$param.id", "$param.template_id", "$param.route", ":context", ":payload"],
 			"out": { "status": 200, "type": "application/json" }
 		},{
+			"path": "/:id/page/duplicate/:template_id/*route",
+			"method": "POST",
+			"process": "sui.Page.Duplicate",
+			"in": ["$param.id", "$param.template_id", "$param.route", ":payload"],
+			"out": { "status": 200, "type": "application/json" }
+		},{
 			"path": "/:id/page/exist/:template_id/*route",
 			"method": "GET",
 			"process": "sui.Page.Exist",

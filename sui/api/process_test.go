@@ -333,6 +333,30 @@ func TestPageCreate(t *testing.T) {
 	assert.Nil(t, res)
 }
 
+func TestPageDuplicate(t *testing.T) {
+
+	load(t)
+	defer clean()
+	defer func() {
+		_, err := process.New("sui.page.remove", "demo", "tech-blue", "/unit-test").Exec()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// test demo
+	p, err := process.Of("sui.page.duplicate", "demo", "tech-blue", "/page/[id]", map[string]interface{}{"title": "hello", "route": "/unit-test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Nil(t, res)
+}
+
 func TestPageCreateSaveThenRemove(t *testing.T) {
 
 	load(t)

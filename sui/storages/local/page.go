@@ -208,8 +208,15 @@ func (tmpl *Template) removeEmptyPath(path string) error {
 		return err
 	}
 
-	if len(dirs) == 0 {
-		err = tmpl.local.fs.Remove(path)
+	skipTempDirs := []string{}
+	for _, dir := range dirs {
+		if !strings.HasPrefix(dir, ".tmp") {
+			skipTempDirs = append(skipTempDirs, dir)
+		}
+	}
+
+	if len(skipTempDirs) == 0 {
+		err = tmpl.local.fs.RemoveAll(path)
 		if err != nil {
 			return err
 		}
@@ -220,6 +227,43 @@ func (tmpl *Template) removeEmptyPath(path string) error {
 		return tmpl.removeEmptyPath(parent)
 	}
 	return nil
+}
+
+// SaveAs save the page as
+func (page *Page) SaveAs(route string, setting *core.PageSetting) (core.IPage, error) {
+
+	if page.tmpl.PageExist(route) {
+		return nil, fmt.Errorf("Page %s already exist", route)
+	}
+
+	root := page.tmpl.Root
+	target := filepath.Join(root, route)
+	targetBaseName := filepath.Base(target)
+	baseName := filepath.Base(page.Path)
+	patterns := []string{"*.js", "*.ts", "*.html", "*.css", "*.config", "*.json"}
+	err := page.tmpl.local.fs.Walk(page.Path, func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		if filepath.Base(filepath.Dir(file)) != baseName {
+			return nil
+		}
+
+		fileName := filepath.Base(file)
+		targetFileName := strings.Replace(fileName, baseName, targetBaseName, 1)
+		targetFile := filepath.Join(target, targetFileName)
+
+		// Copy the file
+		return page.tmpl.local.fs.Copy(file, targetFile)
+
+	}, patterns...)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return page.tmpl.Page(route)
 }
 
 // CreateEmptyPage create a new empty

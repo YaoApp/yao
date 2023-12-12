@@ -73,6 +73,7 @@ type IPage interface {
 
 	Get() *Page
 	GetConfig() *PageConfig
+	SaveAs(route string, setting *PageSetting) (IPage, error)
 	Save(request *RequestSource) error
 	SaveTemp(request *RequestSource) error
 	Remove() error
