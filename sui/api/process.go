@@ -457,7 +457,7 @@ func PageSave(process *process.Process) interface{} {
 			exception.New(err.Error(), 500).Throw()
 		}
 	} else {
-		page, err = tmpl.CreatePage(route)
+		page, err = tmpl.CreateEmptyPage(route, nil)
 		if err != nil {
 			exception.New(err.Error(), 500).Throw()
 		}
@@ -499,7 +499,7 @@ func PageSaveTemp(process *process.Process) interface{} {
 			exception.New(err.Error(), 500).Throw()
 		}
 	} else {
-		page, err = tmpl.CreatePage(route)
+		page, err = tmpl.CreateEmptyPage(route, nil)
 		if err != nil {
 			exception.New(err.Error(), 500).Throw()
 		}
@@ -530,14 +530,23 @@ func PageCreate(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
 	sui := get(process)
 	templateID := process.ArgsString(1)
-	route := route(process, 2)
+	payload := process.ArgsMap(2, map[string]interface{}{})
 
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	page, err := tmpl.CreatePage(route)
+	route, ok := payload["route"].(string)
+	if !ok {
+		exception.New("the route is required", 400).Throw()
+	}
+	title := route
+	if v, ok := payload["title"].(string); ok {
+		title = v
+	}
+	setting := &core.PageSetting{Title: title}
+	page, err := tmpl.CreateEmptyPage(route, setting)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -548,7 +557,7 @@ func PageCreate(process *process.Process) interface{} {
 
 	source, err := getSource(process)
 	if err != nil {
-		exception.New(err.Error(), 500).Throw()
+		return nil
 	}
 
 	if source == nil {
@@ -572,6 +581,10 @@ func PageRemove(process *process.Process) interface{} {
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
+	}
+
+	if !tmpl.PageExist(route) {
+		exception.New("page does not exists!", 400).Throw()
 	}
 
 	err = tmpl.RemovePage(route)

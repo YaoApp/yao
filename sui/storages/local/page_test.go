@@ -474,7 +474,7 @@ func TestPageSave(t *testing.T) {
 	req := &core.RequestSource{UID: "19e09e7e-9e19-44c1-bbab-2a55c51c9df3"}
 	jsoniter.Unmarshal([]byte(payload), &req)
 
-	page, err := tmpl.CreatePage("/unit-test")
+	page, err := tmpl.CreateEmptyPage("/unit-test", nil)
 	if err != nil {
 		t.Fatalf("Page error: %v", err)
 	}

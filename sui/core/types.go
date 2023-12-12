@@ -163,25 +163,28 @@ type Request struct {
 
 // RequestSource is the struct for the request
 type RequestSource struct {
-	UID        string           `json:"uid"`
-	User       string           `json:"user,omitempty"`
-	Page       *SourceData      `json:"page,omitempty"`
-	Style      *SourceData      `json:"style,omitempty"`
-	Script     *SourceData      `json:"script,omitempty"`
-	Data       *SourceData      `json:"data,omitempty"`
-	Board      *BoardSourceData `json:"board,omitempty"`
-	Mock       *PageMock        `json:"mock,omitempty"`
-	Setting    *PageSetting     `json:"setting,omitempty"`
-	NeedToSave struct {
-		Page     bool `json:"page,omitempty"`
-		Style    bool `json:"style,omitempty"`
-		Script   bool `json:"script,omitempty"`
-		Data     bool `json:"data,omitempty"`
-		Board    bool `json:"board,omitempty"`
-		Mock     bool `json:"mock,omitempty"`
-		Setting  bool `json:"setting,omitempty"`
-		Validate bool `json:"validate,omitempty"`
-	} `json:"needToSave,omitempty"`
+	UID        string                  `json:"uid"`
+	User       string                  `json:"user,omitempty"`
+	Page       *SourceData             `json:"page,omitempty"`
+	Style      *SourceData             `json:"style,omitempty"`
+	Script     *SourceData             `json:"script,omitempty"`
+	Data       *SourceData             `json:"data,omitempty"`
+	Board      *BoardSourceData        `json:"board,omitempty"`
+	Mock       *PageMock               `json:"mock,omitempty"`
+	Setting    *PageSetting            `json:"setting,omitempty"`
+	NeedToSave ReqeustSourceNeedToSave `json:"needToSave,omitempty"`
+}
+
+// ReqeustSourceNeedToSave is the struct for the request
+type ReqeustSourceNeedToSave struct {
+	Page     bool `json:"page,omitempty"`
+	Style    bool `json:"style,omitempty"`
+	Script   bool `json:"script,omitempty"`
+	Data     bool `json:"data,omitempty"`
+	Board    bool `json:"board,omitempty"`
+	Mock     bool `json:"mock,omitempty"`
+	Setting  bool `json:"setting,omitempty"`
+	Validate bool `json:"validate,omitempty"`
 }
 
 // ResponseEditorRender is the struct for the response
