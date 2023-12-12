@@ -530,17 +530,19 @@ func PageCreate(process *process.Process) interface{} {
 	process.ValidateArgNums(3)
 	sui := get(process)
 	templateID := process.ArgsString(1)
-	payload := process.ArgsMap(2, map[string]interface{}{})
+	route := process.ArgsString(2)
+	payload := process.ArgsMap(4, map[string]interface{}{})
 
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	route, ok := payload["route"].(string)
-	if !ok {
-		exception.New("the route is required", 400).Throw()
+	// Get the route from payload
+	if v, ok := payload["route"].(string); ok {
+		route = v
 	}
+
 	title := route
 	if v, ok := payload["title"].(string); ok {
 		title = v

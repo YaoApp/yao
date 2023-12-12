@@ -314,7 +314,12 @@ func TestPageCreate(t *testing.T) {
 
 	load(t)
 	defer clean()
-
+	defer func() {
+		_, err := process.New("sui.page.remove", "demo", "tech-blue", "/unit-test").Exec()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 	// test demo
 	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test")
 	if err != nil {
