@@ -199,17 +199,27 @@ func (tmpl *Template) RemovePage(route string) error {
 		return err
 	}
 
+	return tmpl.removeEmptyPath(path)
+}
+
+func (tmpl *Template) removeEmptyPath(path string) error {
 	dirs, err := tmpl.local.fs.ReadDir(path, false)
 	if err != nil {
 		return err
 	}
 
 	if len(dirs) == 0 {
-		return tmpl.local.fs.Remove(path)
+		err = tmpl.local.fs.Remove(path)
+		if err != nil {
+			return err
+		}
+		parent := filepath.Dir(path)
+		if parent == tmpl.Root {
+			return nil
+		}
+		return tmpl.removeEmptyPath(parent)
 	}
-
 	return nil
-
 }
 
 // CreateEmptyPage create a new empty
