@@ -583,6 +583,10 @@ func PageRemove(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	if !tmpl.PageExist(route) {
+		exception.New("page does not exists!", 400).Throw()
+	}
+
 	err = tmpl.RemovePage(route)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
