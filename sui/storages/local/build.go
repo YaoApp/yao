@@ -81,7 +81,12 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 func (page *Page) Build(option *core.BuildOption) error {
 
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(page.tmpl.local.DSL.Public.Root, "assets")
+		root, err := page.tmpl.local.DSL.PublicRoot()
+		if err != nil {
+			log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
+			root = page.tmpl.local.DSL.Public.Root
+		}
+		option.AssetRoot = filepath.Join(root, "assets")
 	}
 
 	log.Trace("Build the page %s AssetRoot: %s", page.Route, option.AssetRoot)

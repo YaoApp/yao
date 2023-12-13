@@ -833,19 +833,9 @@ func PreviewRender(process *process.Process) interface{} {
 
 	process.ValidateArgNums(3)
 	sui := get(process)
-	id := process.ArgsString(0)
 	templateID := process.ArgsString(1)
 	route := route(process, 2)
 	referer := process.ArgsString(3, "")
-
-	// reqData := process.ArgsString(4)
-	// timestamp := process.Args[4].(*timestamp.Timestamp)
-
-	req := &core.Request{
-		Method:    "GET",
-		AssetRoot: fmt.Sprintf("/api/__yao/sui/v1/%s/asset/%s/@assets", id, templateID),
-		Referer:   referer,
-	}
 
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
@@ -858,7 +848,7 @@ func PreviewRender(process *process.Process) interface{} {
 	}
 
 	// Request data
-	html, err := page.PreviewRender(req)
+	html, err := page.PreviewRender(referer)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
