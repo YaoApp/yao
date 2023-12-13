@@ -197,6 +197,10 @@ func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 
 	html := string(page.Codes.HTML.Code)
 
+	if option.WithWrapper {
+		html = fmt.Sprintf("<body>%s</body>", html)
+	}
+
 	if !option.IgnoreDocument {
 		html = string(page.Document)
 		if page.Codes.HTML.Code != "" {
