@@ -41,6 +41,7 @@ func init() {
 		"page.savetemp":  PageSaveTemp,
 		"page.create":    PageCreate,
 		"page.duplicate": PageDuplicate,
+		"page.rename":    PageRename,
 		"page.remove":    PageRemove,
 		"page.exist":     PageExist,
 		"page.asset":     PageAsset,
@@ -571,6 +572,45 @@ func PageCreate(process *process.Process) interface{} {
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
+	return nil
+}
+
+// PageRename handle the find Template request
+func PageRename(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	copyfrom := process.ArgsString(2)
+	payload := process.ArgsMap(3, map[string]interface{}{})
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	page, err := tmpl.Page(copyfrom)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	// Get the route from payload
+	route, ok := payload["route"].(string)
+	if !ok {
+		exception.New("the route is required", 400).Throw()
+	}
+
+	// Rename
+	_, err = page.SaveAs(route, nil)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	// delete the old page
+	err = tmpl.RemovePage(copyfrom)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
 	return nil
 }
 

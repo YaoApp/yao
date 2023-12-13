@@ -199,6 +199,15 @@ func (tmpl *Template) RemovePage(route string) error {
 		return err
 	}
 
+	// Remove .tmp directory
+	tmpPath := filepath.Join(tmpl.Root, route, ".tmp")
+	if exist, _ := tmpl.local.fs.Exists(tmpPath); exist {
+		err = tmpl.local.fs.RemoveAll(tmpPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	return tmpl.removeEmptyPath(path)
 }
 
@@ -208,14 +217,7 @@ func (tmpl *Template) removeEmptyPath(path string) error {
 		return err
 	}
 
-	skipTempDirs := []string{}
-	for _, dir := range dirs {
-		if !strings.HasPrefix(dir, ".tmp") {
-			skipTempDirs = append(skipTempDirs, dir)
-		}
-	}
-
-	if len(skipTempDirs) == 0 {
+	if len(dirs) == 0 {
 		err = tmpl.local.fs.RemoveAll(path)
 		if err != nil {
 			return err
