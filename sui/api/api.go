@@ -218,7 +218,7 @@ var dsl = []byte(`
 			"guard": "query-jwt",
 			"method": "GET",
 			"process": "sui.Preview.Render",
-			"in": ["$param.id", "$param.template_id", "$param.route", "$header.Referer", "$query.r", "$query.t"],
+			"in": ["$param.id", "$param.template_id", "$param.route", "$header.Referer"],
 			"out": {"status": 200, "type": "text/html; charset=utf-8"}
 		},
 

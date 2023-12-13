@@ -1,11 +1,9 @@
 package local
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/yao/sui/core"
 )
 
 func TestPageEditorRender(t *testing.T) {
@@ -60,12 +58,7 @@ func TestPagePreviewRender(t *testing.T) {
 		t.Fatalf("Page error: %v", err)
 	}
 
-	r := &core.Request{
-		Method:    "GET",
-		AssetRoot: fmt.Sprintf("/api/__yao/sui/v1/%s/asset/%s/@assets", page.Get().SuiID, page.Get().TemplateID),
-	}
-
-	html, err := page.PreviewRender(r)
+	html, err := page.PreviewRender("")
 	if err != nil {
 		t.Fatalf("PreviewRender error: %v", err)
 	}

@@ -5,17 +5,31 @@ import (
 )
 
 // PreviewRender render HTML for the preview
-func (page *Page) PreviewRender(request *Request) (string, error) {
+func (page *Page) PreviewRender(referer string) (string, error) {
+
+	// get the page config
+	page.GetConfig()
+
+	// Render the page
+	request := NewRequestMock(page.Config.Mock)
+	if referer != "" {
+		request.Referer = referer
+	}
 
 	warnings := []string{}
 	doc, warnings, err := page.Build(&BuildOption{
-		SSR:       true,
-		AssetRoot: request.AssetRoot,
+		SSR:         true,
+		AssetRoot:   fmt.Sprintf("/api/__yao/sui/v1/%s/asset/%s/@assets", page.SuiID, page.TemplateID),
+		KeepPageTag: false,
 	})
 
-	data, _, err := page.Data(request)
-	if err != nil {
-		warnings = append(warnings, err.Error())
+	// Get the data
+	var data Data = nil
+	if page.Codes.DATA.Code != "" {
+		data, err = page.Exec(request)
+		if err != nil {
+			warnings = append(warnings, err.Error())
+		}
 	}
 
 	// Add Frame Height
@@ -60,7 +74,8 @@ func (page *Page) PreviewRender(request *Request) (string, error) {
 		return "", err
 	}
 
-	parser := NewTemplateParser(data, nil)
+	// Parser and render
+	parser := NewTemplateParser(data, &ParserOption{Preview: true})
 	html, err = parser.Render(html)
 	if err != nil {
 		return "", err
