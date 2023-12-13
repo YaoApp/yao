@@ -75,6 +75,11 @@ func loadFile(file string, id string) (core.SUI, error) {
 	return core.SUIs[id], nil
 }
 
+// Reload reload the route matchers
+func Reload() {
+	buildRouteMatchers()
+}
+
 func buildRouteMatchers() (map[*regexp.Regexp][][]*core.Matcher, map[string][][]*core.Matcher) {
 	matchers := map[*regexp.Regexp][][]*core.Matcher{}
 	exactMatchers := map[string][][]*core.Matcher{}

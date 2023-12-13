@@ -125,7 +125,7 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 
 	parts := strings.Split(strings.TrimSuffix(c.Request.URL.Path, ".sui"), "/")[1:]
 	if len(parts) < 1 {
-		return "", nil, fmt.Errorf("no route matchers")
+		return "", nil, fmt.Errorf("path parts error: %s", strings.Join(parts, "/"))
 	}
 
 	fileParts := []string{string(os.PathSeparator), "public"}
@@ -146,7 +146,7 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 	// No matchers
 	if matchers == nil {
 		if len(parts) < 1 {
-			return "", nil, fmt.Errorf("no route matchers")
+			return "", nil, fmt.Errorf("path parts error: %s", strings.Join(parts, "/"))
 		}
 
 		fileParts = append(fileParts, parts...)
@@ -156,7 +156,7 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 	// Match the page parts
 	for i, part := range parts[1:] {
 		if len(matchers) < i+1 {
-			return "", nil, fmt.Errorf("no route matchers")
+			return "", nil, fmt.Errorf("matchers length error %d < %d", len(matchers), i+1)
 		}
 
 		parent := ""
@@ -189,7 +189,7 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 		}
 
 		if !matched {
-			return "", nil, fmt.Errorf("no route matchers")
+			return "", nil, fmt.Errorf("route does not match")
 		}
 	}
 	return filepath.Join(fileParts...) + ".sui", params, nil

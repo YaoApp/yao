@@ -572,6 +572,8 @@ func PageCreate(process *process.Process) interface{} {
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
+
+	Reload()
 	return nil
 }
 
@@ -611,6 +613,7 @@ func PageRename(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	Reload()
 	return nil
 }
 
@@ -650,6 +653,7 @@ func PageDuplicate(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	Reload()
 	return nil
 }
 
@@ -673,6 +677,8 @@ func PageRemove(process *process.Process) interface{} {
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
+
+	Reload()
 	return nil
 }
 
