@@ -61,24 +61,21 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 	}
 
 	// Block save event
-	// jsCode := `
-	// console.log("hello ifrme")
-	// document.addEventListener('keydown', function (event) {
-	// 	const isCtrlOrCmdPressed = event.ctrlKey || event.metaKey;
-	// 	const isSPressed = event.key === 's';
-	// 	if (isCtrlOrCmdPressed && isSPressed) {
-	// 	event.preventDefault();
-	// 	console.log('Control/Command + S pressed in iframe! Default save behavior prevented.');
-	// 	}
-	// });
-	// `
-	// jsCode := ` console.log("hello ifrme")`
-	// doc.Find("body").AppendHtml(`<script language="javascript">` + jsCode + `</script>`)
-	res.HTML, err = doc.Find("body").Html()
+	jsCode := `
+	document.addEventListener('keydown', function (event) {
+		const isCtrlOrCmdPressed = event.ctrlKey || event.metaKey;
+		const isSPressed = event.key === 's';
+		if (isCtrlOrCmdPressed && isSPressed) {
+		event.preventDefault();
+		console.log('Control/Command + S pressed in iframe! Default save behavior prevented.');
+		}
+	});
+	`
+	doc.Find("body").AppendHtml(`<script type="text/javascript">` + jsCode + `</script>`)
+	res.HTML, err = doc.Html()
 	if err != nil {
 		return nil, err
 	}
-	// fmt.Println(res.HTML)
 
 	var data Data = nil
 	if page.Codes.DATA.Code != "" {
