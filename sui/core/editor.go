@@ -62,7 +62,6 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 
 	// Block save event
 	jsCode := `
-	console.log("hello ifrme")
 	document.addEventListener('keydown', function (event) {
 		const isCtrlOrCmdPressed = event.ctrlKey || event.metaKey;
 		const isSPressed = event.key === 's';
