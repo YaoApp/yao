@@ -221,6 +221,7 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 		"header":  r.Headers,
 		"theme":   r.Theme,
 		"locale":  r.Locale,
+		"url":     r.URL.Map(),
 	}).Dot()
 
 	for i, arg := range args {
@@ -232,6 +233,7 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 				args[i] = key
 				if data.Has(key) {
 					v := data.Get(key)
+					args[i] = v
 					if strings.HasPrefix(key, "query.") || strings.HasPrefix(key, "header.") {
 						switch arg := v.(type) {
 						case []interface{}:
@@ -246,6 +248,7 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 					}
 				}
 			}
+			break
 
 		case []interface{}:
 			res, err := r.parseArgs(v)
@@ -253,6 +256,7 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 				return nil, err
 			}
 			args[i] = res
+			break
 
 		case map[string]interface{}:
 			res, err := r.parseArgs([]interface{}{v})
@@ -260,10 +264,22 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 				return nil, err
 			}
 			args[i] = res[0]
+			break
 		}
 	}
 
 	return args, nil
+}
+
+// Map URL to map
+func (url ReqeustURL) Map() Data {
+	return map[string]interface{}{
+		"url":    url.URL,
+		"scheme": url.Scheme,
+		"domain": url.Domain,
+		"host":   url.Host,
+		"path":   url.Path,
+	}
 }
 
 // SetCache set the cache

@@ -230,6 +230,7 @@ type ReqeustURL struct {
 	Domain string `json:"domain,omitempty"`
 	Path   string `json:"path,omitempty"`
 	Scheme string `json:"scheme,omitempty"`
+	URL    string `json:"url,omitempty"`
 }
 
 // PageConfig is the struct for the page config
