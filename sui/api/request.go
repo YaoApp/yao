@@ -32,6 +32,18 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 		return nil, 500, err
 	}
 
+	schema := c.Request.URL.Scheme
+	if schema == "" {
+		schema = "http"
+	}
+
+	domain := c.Request.URL.Hostname()
+	if domain == "" {
+		domain = strings.Split(c.Request.Host, ":")[0]
+	}
+
+	path := strings.TrimSuffix(c.Request.URL.Path, ".sui")
+
 	return &Request{
 		File: file,
 		Request: &core.Request{
@@ -43,10 +55,11 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 			Headers: url.Values(c.Request.Header),
 			Params:  params,
 			URL: core.ReqeustURL{
+				URL:    fmt.Sprintf("%s://%s%s", schema, c.Request.Host, path),
 				Host:   c.Request.Host,
-				Path:   c.Request.URL.Path,
-				Domain: c.Request.URL.Hostname(),
-				Scheme: c.Request.URL.Scheme,
+				Path:   path,
+				Domain: domain,
+				Scheme: schema,
 			},
 		},
 	}, 200, nil
