@@ -25,7 +25,7 @@ func (page *Page) PreviewRender(referer string) (string, error) {
 
 	// Get the data
 	var data Data = nil
-	if page.Codes.DATA.Code != "" {
+	if page.Codes.DATA.Code != "" || page.GlobalData != nil {
 		data, err = page.Exec(request)
 		if err != nil {
 			warnings = append(warnings, err.Error())
