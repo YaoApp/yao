@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/net/html"
 )
 
@@ -28,8 +29,9 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
-	Editor  bool `json:"editor,omitempty"`
-	Preview bool `json:"preview,omitempty"`
+	Editor    bool `json:"editor,omitempty"`
+	Preview   bool `json:"preview,omitempty"`
+	PrintData bool `json:"print_data,omitempty"`
 }
 
 // NewTemplateParser create a new template parser
@@ -50,12 +52,18 @@ func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 
 // Render parses and renders the HTML template
 func (parser *TemplateParser) Render(html string) (string, error) {
-	reader := bytes.NewReader([]byte(fmt.Sprintf("<root>%s</root>", html)))
+
+	if !strings.Contains(html, "<html") {
+		html = fmt.Sprintf(`<!DOCTYPE html><html lang="en">%s</html>`, html)
+	}
+
+	reader := bytes.NewReader([]byte(html))
 	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		return "", err
 	}
-	root := doc.Selection.Find("root")
+
+	root := doc.Selection.Find("html")
 	parser.parseNode(root.Nodes[0])
 
 	// Replace the nodes
@@ -64,9 +72,36 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		delete(parser.replace, sel)
 	}
 
-	// fmt.Println(root.Html())
+	// Print the data
+	jsPrintData := ""
+	if parser.option != nil && parser.option.PrintData {
+		jsPrintData = "console.log(__sui_data);\n"
+	}
+
+	// Append the data to the body
+	body := doc.Find("body")
+	if body.Length() > 0 {
+		data, err := jsoniter.MarshalToString(parser.data)
+		if err != nil {
+			data, _ = jsoniter.MarshalToString(map[string]string{"error": err.Error()})
+		}
+		body.AppendHtml("<script>\n" +
+			"try { " +
+			`var __sui_data = ` + data + ";\n" +
+			"} catch (e) { console.log('init data error:', e); }\n" +
+			jsPrintData +
+			"</script>\n",
+		)
+	}
+
+	// For editor
+	if parser.option != nil && parser.option.Editor {
+		return doc.Find("body").Html()
+	}
+
+	// fmt.Println(doc.Html())
 	// fmt.Println(parser.errors)
-	return root.Html()
+	return doc.Html()
 }
 
 // Parse  parses and renders the HTML template
@@ -107,6 +142,37 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 	if _, exist := sel.Attr("s:for"); exist {
 		parser.forStatementNode(sel)
+	}
+
+	// Parse the attributes
+	parser.parseElementAttrs(sel)
+}
+
+func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
+	if len(sel.Nodes) < 0 {
+		return
+	}
+
+	if sel.AttrOr("parsed", "false") == "true" {
+		return
+	}
+
+	attrs := sel.Nodes[0].Attr
+	for _, attr := range attrs {
+		parser.sequence = parser.sequence + 1
+		res, hasStmt := parser.data.Replace(attr.Val)
+		if hasStmt {
+			bindings := strings.TrimSpace(attr.Val)
+			key := fmt.Sprintf("%v", parser.sequence)
+			parser.mapping[attr.Key] = Mapping{
+				Key:   key,
+				Type:  "attr",
+				Value: bindings,
+			}
+			sel.SetAttr(attr.Key, res)
+			bindname := fmt.Sprintf("s:bind:%s", attr.Key)
+			sel.SetAttr(bindname, bindings)
+		}
 	}
 }
 

@@ -52,11 +52,23 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 }
 
 // BuildForImport build the page for import
-func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface{}) (string, string, string, []string, error) {
+func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface{}, attrs map[string]string) (string, string, string, []string, error) {
 	warnings := []string{}
 	html, err := page.BuildHTML(option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
+	}
+
+	data := map[string]interface{}{}
+	if slots != nil {
+		for k, v := range slots {
+			data[k] = v
+		}
+	}
+
+	if attrs != nil {
+		data["$prop"] = attrs
+		page.Attrs = attrs
 	}
 
 	// Add Style & Script & Warning
@@ -83,7 +95,6 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 	}
 
 	body := doc.Selection.Find("body")
-
 	if body.Length() > 1 {
 		body.SetHtml("<div>" + html + "</div>")
 	}
@@ -96,7 +107,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 	}
 
 	// Replace the slots
-	html, _ = Data(slots).ReplaceUse(slotRe, html)
+	html, _ = Data(data).ReplaceUse(slotRe, html)
 	return html, style, script, warnings, nil
 }
 
@@ -122,6 +133,7 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 			continue
 		}
 
+		sel.SetAttr("parsed", "true")
 		ipage, err := tmpl.Page(name)
 		if err != nil {
 			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
@@ -136,6 +148,7 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 			continue
 		}
 
+		// Set the parent
 		slots := map[string]interface{}{}
 		for _, slot := range sel.Find("slot").Nodes {
 			slotSel := goquery.NewDocumentFromNode(slot)
@@ -150,15 +163,37 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 			slots[slotName] = strings.TrimSpace(slotHTML)
 		}
 
+		// Set Attrs
+		attrs := map[string]string{}
+		if sel.Length() > 0 {
+			if page.Attrs != nil {
+				parentProps := Data{"$prop": page.Attrs}
+				for k, v := range page.Attrs {
+					if k == "is" {
+						continue
+					}
+					attrs[k], _ = parentProps.ReplaceUse(slotRe, v)
+				}
+			} else {
+				for _, attr := range sel.Nodes[0].Attr {
+					if attr.Key == "is" {
+						continue
+					}
+					attrs[attr.Key] = attr.Val
+				}
+			}
+		}
+
+		p := ipage.Get()
 		namespace := fmt.Sprintf("__page_%s_%d", strings.ReplaceAll(name, "/", "_"), idx)
-		html, style, script, warns, err := ipage.Get().BuildForImport(&BuildOption{
+		html, style, script, warns, err := p.BuildForImport(&BuildOption{
 			SSR:             option.SSR,
 			AssetRoot:       option.AssetRoot,
 			IgnoreAssetRoot: option.IgnoreAssetRoot,
 			KeepPageTag:     option.KeepPageTag,
 			IgnoreDocument:  true,
 			Namespace:       namespace,
-		}, slots)
+		}, slots, attrs)
 
 		if err != nil {
 			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
@@ -184,6 +219,11 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 			}
 
 			sel.SetAttr("s:slots", slotsAttr)
+
+			// Set Attrs
+			for k, v := range attrs {
+				sel.SetAttr(k, v)
+			}
 			continue
 		}
 		sel.ReplaceWithHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, html, script))

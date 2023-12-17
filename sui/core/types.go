@@ -25,15 +25,16 @@ type Setting struct {
 
 // Page is the struct for the page
 type Page struct {
-	Route      string      `json:"route"`
-	Name       string      `json:"name,omitempty"`
-	TemplateID string      `json:"-"`
-	SuiID      string      `json:"-"`
-	Config     *PageConfig `json:"-"`
-	Path       string      `json:"-"`
-	Codes      SourceCodes `json:"-"`
-	Document   []byte      `json:"-"`
-	GlobalData []byte      `json:"-"`
+	Route      string            `json:"route"`
+	Name       string            `json:"name,omitempty"`
+	TemplateID string            `json:"-"`
+	SuiID      string            `json:"-"`
+	Config     *PageConfig       `json:"-"`
+	Path       string            `json:"-"`
+	Codes      SourceCodes       `json:"-"`
+	Document   []byte            `json:"-"`
+	GlobalData []byte            `json:"-"`
+	Attrs      map[string]string `json:"-"`
 }
 
 // PageTreeNode is the struct for the page tree node
