@@ -76,24 +76,28 @@ func (page *Page) Data(request *Request) (Data, map[string]interface{}, error) {
 // Exec get the data
 func (page *Page) Exec(request *Request) (Data, error) {
 
-	if page.Codes.DATA.Code == "" {
-		return map[string]interface{}{}, nil
+	// Global data
+	data := map[string]interface{}{}
+	global := map[string]interface{}{}
+	var err error
+	if page.GlobalData != nil {
+		global, err = request.ExecString(string(page.GlobalData))
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	data, err := request.ExecString(page.Codes.DATA.Code)
+	if page.Codes.DATA.Code == "" {
+		data["$global"] = global
+		return data, nil
+	}
+
+	data, err = request.ExecString(page.Codes.DATA.Code)
 	if err != nil {
 		return nil, err
 	}
 
-	// Global data
-	if page.GlobalData != nil {
-		global, err := request.ExecString(string(page.GlobalData))
-		if err != nil {
-			return nil, err
-		}
-		data["$global"] = global
-	}
-
+	data["$global"] = global
 	return data, nil
 }
 
