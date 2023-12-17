@@ -123,7 +123,12 @@ func (r *Request) Render() (string, int, error) {
 		data["$global"] = global
 	}
 
-	parser := core.NewTemplateParser(data, nil)
+	printData := false
+	if r.Query != nil && r.Query.Has("__sui_print_data") {
+		printData = true
+	}
+
+	parser := core.NewTemplateParser(data, &core.ParserOption{PrintData: printData})
 	html, err := parser.Render(c.HTML)
 	if err != nil {
 		return "", 500, fmt.Errorf("render error, please re-complie the page %s", err.Error())
