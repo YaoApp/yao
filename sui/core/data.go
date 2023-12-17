@@ -28,6 +28,9 @@ var options = []expr.Option{
 func (data Data) New(stmt string) (*vm.Program, error) {
 	stmt = strings.TrimSpace(strings.TrimRight(strings.TrimLeft(stmt, "{{ "), "}}"))
 	stmt = strings.TrimSpace(strings.TrimRight(strings.TrimLeft(stmt, "[{ "), "}]"))
+	// &#39; => ' &#34; => "
+	stmt = strings.ReplaceAll(stmt, "&#39;", "'")
+	stmt = strings.ReplaceAll(stmt, "&#34;", "\"")
 	return expr.Compile(stmt, append([]expr.Option{expr.Env(data)}, options...)...)
 }
 
