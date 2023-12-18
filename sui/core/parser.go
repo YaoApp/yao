@@ -176,7 +176,8 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 	}
 }
 
-// check if element attributes has the s:raw command, if true,ouput the raw data.
+// Check if the element attributes have the s:raw command.
+// If true, the sub-node will output the raw data instead of the escaped value.
 func checkIsRawElement(node *html.Node) bool {
 	if node.Parent != nil && len(node.Parent.Attr) > 0 {
 		for _, attr := range node.Parent.Attr {
