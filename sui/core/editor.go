@@ -34,6 +34,10 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 
 	// Render the page
 	request := NewRequestMock(page.Config.Mock)
+	link := page.Link(request)
+	if request.URL.Path == "" {
+		request.URL.Path = link
+	}
 
 	// Set Default Sid
 	if request.Sid == "" {
@@ -84,13 +88,12 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 			res.Warnings = append(res.Warnings, err.Error())
 		}
 	}
-
 	res.Render(data)
 
 	// Set the title
 	res.Config.Rendered = &PageConfigRendered{
 		Title: page.RenderTitle(data),
-		Link:  page.Link(request),
+		Link:  link,
 	}
 
 	return res, nil
@@ -107,7 +110,7 @@ func (res *ResponseEditorRender) Render(data map[string]interface{}) error {
 	}
 
 	var err error
-	parser := NewTemplateParser(data, &ParserOption{Editor: true})
+	parser := NewTemplateParser(data, &ParserOption{Editor: true, PrintData: true})
 
 	res.HTML, err = parser.Render(res.HTML)
 	if err != nil {
