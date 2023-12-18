@@ -34,14 +34,15 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 
 	// Render the page
 	request := NewRequestMock(page.Config.Mock)
-	link := page.Link(request)
-	if request.URL.Path == "" {
-		request.URL.Path = link
-	}
 
 	// Set Default Sid
 	if request.Sid == "" {
 		request.Sid, _ = page.Sid()
+	}
+
+	link := page.Link(request)
+	if request.URL.Path == "" {
+		request.URL.Path = link
 	}
 
 	// Render tools
