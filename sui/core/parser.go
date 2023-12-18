@@ -176,6 +176,18 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 	}
 }
 
+// Check if the element attributes have the s:raw command.
+// If true, the sub-node will output the raw data instead of the escaped value.
+func checkIsRawElement(node *html.Node) bool {
+	if node.Parent != nil && len(node.Parent.Attr) > 0 {
+		for _, attr := range node.Parent.Attr {
+			if attr.Key == "s:raw" && attr.Val == "true" {
+				return true
+			}
+		}
+	}
+	return false
+}
 func (parser *TemplateParser) parseTextNode(node *html.Node) {
 	parser.sequence = parser.sequence + 1
 	res, hasStmt := parser.data.Replace(node.Data)
@@ -184,6 +196,9 @@ func (parser *TemplateParser) parseTextNode(node *html.Node) {
 		bindings := strings.TrimSpace(node.Data)
 		key := fmt.Sprintf("%v", parser.sequence)
 		if bindings != "" {
+			if checkIsRawElement(node) {
+				node.Type = html.RawNode
+			}
 			node.Parent.Attr = append(node.Parent.Attr, []html.Attribute{
 				{Key: "s:bind", Val: bindings},
 				{Key: "s:key-text", Val: key},
