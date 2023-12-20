@@ -16,6 +16,9 @@ func Start(cfg config.Config) error {
 		HeapSizeRelease:   cfg.Runtime.HeapSizeRelease,
 		Precompile:        cfg.Runtime.Precompile,
 		DataRoot:          cfg.DataRoot,
+		Mode:              cfg.Runtime.Mode,
+		DefaultTimeout:    cfg.Runtime.DefaultTimeout,
+		ContextTimeout:    cfg.Runtime.ContextTimeout,
 	}
 
 	err := v8.Start(option)
