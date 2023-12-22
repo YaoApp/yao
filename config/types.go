@@ -52,7 +52,7 @@ type Session struct {
 
 // Runtime Config
 type Runtime struct {
-	Mode              string `json:"mode,omitempty"  env:"YAO_RUNTIME_MODE" envDefault:"normal"`                          // the mode of the runtime, the default value is "normal" and the other value is "performance". "performance" mode need more memory but will run faster
+	Mode              string `json:"mode,omitempty"  env:"YAO_RUNTIME_MODE" envDefault:"standard"`                        // the mode of the runtime, the default value is "standard" and the other value is "performance". "performance" mode need more memory but will run faster
 	MinSize           int    `json:"minSize,omitempty" env:"YAO_RUNTIME_MIN" envDefault:"10"`                             // the number of V8 VM when runtime start. max value is 100, the default value is 2
 	MaxSize           int    `json:"maxSize,omitempty" env:"YAO_RUNTIME_MAX" envDefault:"100"`                            // the maximum of V8 VM should be smaller than minSize, the default value is 10
 	DefaultTimeout    int    `json:"defaultTimeout,omitempty" env:"YAO_RUNTIME_TIMEOUT" envDefault:"200"`                 // the default timeout for the script, the default value is 200ms
