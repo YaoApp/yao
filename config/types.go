@@ -1,5 +1,7 @@
 package config
 
+//go:generate go run github.com/g4s8/envdoc@v0.0.6 -output ../env.md -all
+
 // Config 象传应用引擎配置
 type Config struct {
 	Mode          string   `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
