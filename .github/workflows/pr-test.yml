@@ -150,8 +150,8 @@ jobs:
       - name: Checkout V8Go
         uses: actions/checkout@v3
         with:
-          repository: rogchap/v8go
-          # ref: aac4923ed74083e58ae7b42b1acb0fa0d11a26cb
+          repository: yaoapp/v8go
+          lfs: true
           path: v8go
 
       - name: Checkout Demo App

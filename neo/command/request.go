@@ -376,20 +376,18 @@ func (req *Request) runScript(id string, args []interface{}, cb func(msg *messag
 	}
 	defer v8ctx.Close()
 
-	// make a new bridge function ssWrite
-	ssWriteT := v8go.NewFunctionTemplate(v8ctx.Isolate(), func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	v8ctx.WithFunction("ssWrite", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		args := info.Args()
 		if len(args) != 1 {
-			return v8go.Null(v8ctx.Isolate())
+			return v8go.Null(info.Context().Isolate())
 		}
 
 		text := args[0].String()
 		cb(req.msg().Text(text))
-		return v8go.Null(v8ctx.Isolate())
+		return v8go.Null(info.Context().Isolate())
 	})
 
-	// make a new bridge function done
-	doneT := v8go.NewFunctionTemplate(v8ctx.Isolate(), func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	v8ctx.WithFunction("done", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		args := info.Args()
 		if len(args) == 1 {
 			text := args[0].String()
@@ -398,11 +396,8 @@ func (req *Request) runScript(id string, args []interface{}, cb func(msg *messag
 
 		cb(req.msg().Done())
 		// req.Done()
-		return v8go.Null(v8ctx.Isolate())
+		return v8go.Null(v8ctx.Context.Isolate())
 	})
-
-	v8ctx.Global().Set("ssWrite", ssWriteT.GetFunction(v8ctx.Context))
-	v8ctx.Global().Set("done", doneT.GetFunction(v8ctx.Context))
 
 	res, err := v8ctx.CallWith(req.ctx, method, args...)
 	if err != nil {

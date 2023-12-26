@@ -102,7 +102,12 @@ func (r *Request) Render() (string, int, error) {
 		}
 
 		// Save to The Cache
-		c = core.SetCache(r.File, html, dataText, globalDataText)
+		// c = core.SetCache(r.File, html, dataText, globalDataText)
+		c = &core.Cache{
+			Data:   dataText,
+			Global: globalDataText,
+			HTML:   html,
+		}
 		log.Trace("The page %s is cached", r.File)
 	}
 
