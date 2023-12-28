@@ -41,6 +41,9 @@ var runCmd = &cobra.Command{
 
 		Boot()
 
+		// Set Runtime Mode
+		config.Conf.Runtime.Mode = "standard"
+
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
 		if len(args) < 1 {
