@@ -38,7 +38,7 @@ func (page *Page) GetConfig() *PageConfig {
 
 	if page.Codes.CONF.Code != "" {
 		var config PageConfig
-		err := jsoniter.Unmarshal([]byte(page.Codes.CONF.Code), &config)
+		err := jsoniter.UnmarshalFromString(page.Codes.CONF.Code, &config)
 		if err == nil {
 			page.Config = &config
 		}
@@ -55,6 +55,24 @@ func (page *Page) GetConfig() *PageConfig {
 	}
 
 	return page.Config
+}
+
+// ExportConfig export the config
+func (page *Page) ExportConfig() string {
+	if page.Config == nil {
+		return ""
+	}
+
+	config, err := jsoniter.MarshalToString(map[string]interface{}{
+		"title": page.Config.Title,
+		"guard": page.Config.Guard,
+	})
+
+	if err != nil {
+		log.Error("[sui] export page config error %s", err.Error())
+		return ""
+	}
+	return config
 }
 
 // Data get the data （deprecated）

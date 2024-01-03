@@ -29,6 +29,17 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 		}
 	}
 
+	// Page Config
+	page.Config = page.GetConfig()
+
+	// Config Data
+	if page.Config != nil {
+		doc.Find("body").AppendHtml("\n\n" + `<script name="config" type="json">` + "\n" +
+			page.ExportConfig() +
+			"\n</script>\n\n",
+		)
+	}
+
 	// Page Data
 	if page.Codes.DATA.Code != "" {
 		doc.Find("body").AppendHtml("\n\n" + `<script name="data" type="json">` + "\n" +
@@ -45,10 +56,7 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 		)
 	}
 
-	// Replace the document
-	page.Config = page.GetConfig()
 	page.ReplaceDocument(doc)
-
 	html, err := doc.Html()
 	if err != nil {
 		return "", err

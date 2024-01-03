@@ -13,6 +13,7 @@ import (
 )
 
 var stmtRe = regexp.MustCompile(`\{\{([^}]+)\}\}`)
+var propRe = regexp.MustCompile(`\[\{([^}]+)\}\]`)
 
 // Data data for the template
 type Data map[string]interface{}
@@ -26,8 +27,24 @@ var options = []expr.Option{
 
 // New create a new expression
 func (data Data) New(stmt string) (*vm.Program, error) {
-	stmt = strings.TrimSpace(strings.TrimRight(strings.TrimLeft(stmt, "{{ "), "}}"))
-	stmt = strings.TrimSpace(strings.TrimRight(strings.TrimLeft(stmt, "[{ "), "}]"))
+
+	stmt = stmtRe.ReplaceAllStringFunc(stmt, func(stmt string) string {
+		matches := stmtRe.FindStringSubmatch(stmt)
+		if len(matches) > 0 {
+			stmt = strings.ReplaceAll(stmt, matches[0], matches[1])
+		}
+		return stmt
+	})
+
+	stmt = propRe.ReplaceAllStringFunc(stmt, func(stmt string) string {
+		matches := propRe.FindStringSubmatch(stmt)
+		if len(matches) > 0 {
+			stmt = strings.ReplaceAll(stmt, matches[0], matches[1])
+		}
+		return stmt
+	})
+
+	stmt = strings.TrimSpace(stmt)
 	// &#39; => ' &#34; => "
 	stmt = strings.ReplaceAll(stmt, "&#39;", "'")
 	stmt = strings.ReplaceAll(stmt, "&#34;", "\"")

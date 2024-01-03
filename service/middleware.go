@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -81,6 +82,13 @@ func withStaticFileServer(c *gin.Context) {
 
 		html, code, err := r.Render()
 		if err != nil {
+			if code == 301 || code == 302 {
+				fmt.Println(err.Error())
+				c.Redirect(code, err.Error())
+				c.Done()
+				return
+			}
+
 			log.Error("Sui Render Error: %s", err.Error())
 			c.AbortWithError(code, err)
 			return
