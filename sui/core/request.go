@@ -13,6 +13,8 @@ import (
 type Cache struct {
 	Data   string
 	Global string
+	Config string
+	Guard  string
 	HTML   string
 }
 

@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
 )
@@ -17,6 +19,7 @@ import (
 type Request struct {
 	File string
 	*core.Request
+	context *gin.Context
 }
 
 // NewRequestContext is the constructor for Request.
@@ -45,7 +48,8 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 	path := strings.TrimSuffix(c.Request.URL.Path, ".sui")
 
 	return &Request{
-		File: file,
+		File:    file,
+		context: c,
 		Request: &core.Request{
 			Method:  c.Request.Method,
 			Query:   c.Request.URL.Query(),
@@ -82,6 +86,21 @@ func (r *Request) Render() (string, int, error) {
 			return "", 500, err
 		}
 
+		guard := ""
+		configText := ""
+		configSel := doc.Find("script[name=config]")
+		if configSel != nil && configSel.Length() > 0 {
+			configText = configSel.Text()
+			configSel.Remove()
+
+			var conf core.PageConfig
+			err := jsoniter.UnmarshalFromString(configText, &conf)
+			if err != nil {
+				return "", 500, fmt.Errorf("config error, please re-complie the page %s", err.Error())
+			}
+			guard = conf.Guard
+		}
+
 		dataText := ""
 		dataSel := doc.Find("script[name=data]")
 		if dataSel != nil && dataSel.Length() > 0 {
@@ -107,8 +126,29 @@ func (r *Request) Render() (string, int, error) {
 			Data:   dataText,
 			Global: globalDataText,
 			HTML:   html,
+			Guard:  guard,
+			Config: configText,
 		}
 		log.Trace("The page %s is cached", r.File)
+	}
+
+	// Guard the page
+	if c.Guard != "" && r.context != nil {
+
+		if guard, has := Guards[c.Guard]; has {
+			err := guard(r.context)
+			if err != nil {
+				ex := exception.Err(err, 403)
+				return "", ex.Code, fmt.Errorf("%s", ex.Message)
+			}
+		} else {
+			// Process the guard
+			err := r.processGuard(c.Guard)
+			if err != nil {
+				ex := exception.Err(err, 403)
+				return "", ex.Code, fmt.Errorf("%s", ex.Message)
+			}
+		}
 	}
 
 	var err error
@@ -127,6 +167,12 @@ func (r *Request) Render() (string, int, error) {
 		}
 		data["$global"] = global
 	}
+
+	// Set the page request data
+	data["$payload"] = r.Request.Payload
+	data["$query"] = r.Request.Query
+	data["$param"] = r.Request.Params
+	data["$url"] = r.Request.URL
 
 	printData := false
 	if r.Query != nil && r.Query.Has("__sui_print_data") {

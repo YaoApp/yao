@@ -8,6 +8,13 @@ import (
 	"github.com/yaoapp/kun/log"
 )
 
+var quoteRe = "'\"`"
+var importRe = regexp.MustCompile(`import\s*\t*\n*[^;]*;`)                              // import { foo, bar } from 'hello'; ...
+var importAssetsRe = regexp.MustCompile(`import\s*\t*\n*\s*['"]@assets\/([^'"]+)['"];`) // import '@assets/foo.js'; or import "@assets/foo.js";
+
+// AssetsRe is the regexp for assets
+var AssetsRe = regexp.MustCompile(`[` + quoteRe + `]@assets\/([^` + quoteRe + `]+)[` + quoteRe + `]`) // '@assets/foo.js' or "@assets/foo.js" or `@assets/foo`
+
 // Compile the page
 func (page *Page) Compile(option *BuildOption) (string, error) {
 
@@ -20,6 +27,17 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 		for _, warning := range warnings {
 			log.Warn("Compile page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, warning)
 		}
+	}
+
+	// Page Config
+	page.Config = page.GetConfig()
+
+	// Config Data
+	if page.Config != nil {
+		doc.Find("body").AppendHtml("\n\n" + `<script name="config" type="json">` + "\n" +
+			page.ExportConfig() +
+			"\n</script>\n\n",
+		)
 	}
 
 	// Page Data
@@ -38,10 +56,7 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 		)
 	}
 
-	// Replace the document
-	page.Config = page.GetConfig()
 	page.ReplaceDocument(doc)
-
 	html, err := doc.Html()
 	if err != nil {
 		return "", err
@@ -52,18 +67,36 @@ func (page *Page) Compile(option *BuildOption) (string, error) {
 }
 
 // CompileJS compile the javascript
-func (page *Page) CompileJS(source []byte, minify bool) ([]byte, error) {
-	jsCode := regexp.MustCompile(`import\s+.*;`).ReplaceAllString(string(source), "")
+func (page *Page) CompileJS(source []byte, minify bool) ([]byte, []string, error) {
+	scripts := []string{}
+	matches := importAssetsRe.FindAll(source, -1)
+	for _, match := range matches {
+		assets := AssetsRe.FindStringSubmatch(string(match))
+		if len(assets) > 1 {
+			scripts = append(scripts, assets[1])
+		}
+	}
+	jsCode := importRe.ReplaceAllString(string(source), "")
 	if minify {
 		minified, err := transform.MinifyJS(jsCode)
-		return []byte(minified), err
+		return []byte(minified), scripts, err
 	}
-	return []byte(jsCode), nil
+	return []byte(jsCode), scripts, nil
 }
 
 // CompileTS compile the typescript
-func (page *Page) CompileTS(source []byte, minify bool) ([]byte, error) {
-	tsCode := regexp.MustCompile(`import\s+.*;`).ReplaceAllString(string(source), "")
+func (page *Page) CompileTS(source []byte, minify bool) ([]byte, []string, error) {
+
+	scripts := []string{}
+	matches := importAssetsRe.FindAll(source, -1)
+	for _, match := range matches {
+		assets := AssetsRe.FindStringSubmatch(string(match))
+		if len(assets) > 1 {
+			scripts = append(scripts, assets[1])
+		}
+	}
+
+	tsCode := importRe.ReplaceAllString(string(source), "")
 	if minify {
 		jsCode, err := transform.TypeScript(string(tsCode), api.TransformOptions{
 			Target:            api.ESNext,
@@ -71,12 +104,11 @@ func (page *Page) CompileTS(source []byte, minify bool) ([]byte, error) {
 			MinifyIdentifiers: true,
 			MinifySyntax:      true,
 		})
-
-		return []byte(jsCode), err
+		return []byte(jsCode), scripts, err
 	}
 
 	jsCode, err := transform.TypeScript(string(tsCode), api.TransformOptions{Target: api.ESNext})
-	return []byte(jsCode), err
+	return []byte(jsCode), scripts, err
 }
 
 // CompileCSS compile the css

@@ -3,6 +3,7 @@ package core
 import (
 	"bufio"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -43,11 +44,17 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 	doc.Selection.Find("head").AppendHtml(style)
 
 	// Add Script
-	script, err := page.BuildScript(option)
+	code, scripts, err := page.BuildScript(option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
-	doc.Selection.Find("body").AppendHtml(script)
+	if scripts != nil {
+		for _, script := range scripts {
+			doc.Selection.Find("body").AppendHtml("\n" + `<script src="` + script + `"></script>` + "\n")
+		}
+	}
+	doc.Selection.Find("body").AppendHtml(code)
+
 	return doc, warnings, nil
 }
 
@@ -89,7 +96,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 		warnings = append(warnings, err.Error())
 	}
 
-	script, err := page.BuildScript(option)
+	code, _, err := page.BuildScript(option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -108,7 +115,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 
 	// Replace the slots
 	html, _ = Data(data).ReplaceUse(slotRe, html)
-	return html, style, script, warnings, nil
+	return html, style, code, warnings, nil
 }
 
 func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []string) error {
@@ -267,8 +274,12 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 	}
 
 	code := page.Codes.CSS.Code
+
+	// Replace the assets
 	if !option.IgnoreAssetRoot {
-		code = strings.ReplaceAll(page.Codes.CSS.Code, "@assets", option.AssetRoot)
+		code = AssetsRe.ReplaceAllStringFunc(code, func(match string) string {
+			return strings.ReplaceAll(match, "@assets", option.AssetRoot)
+		})
 	}
 
 	if option.Namespace != "" {
@@ -282,43 +293,65 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("<style>\n%s\n</style>\n", res), nil
+	return fmt.Sprintf("<style type=\"text/css\">\n%s\n</style>\n", res), nil
 }
 
 // BuildScript build the script
-func (page *Page) BuildScript(option *BuildOption) (string, error) {
+func (page *Page) BuildScript(option *BuildOption) (string, []string, error) {
 
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
-		return "", nil
+		return "", nil, nil
 	}
 
 	if page.Codes.TS.Code != "" {
-		res, err := page.CompileTS([]byte(page.Codes.TS.Code), false)
+		code, scripts, err := page.CompileTS([]byte(page.Codes.TS.Code), false)
 		if err != nil {
-			return "", err
+			return "", nil, err
+		}
+
+		// Replace the assets
+		if !option.IgnoreAssetRoot {
+			code = AssetsRe.ReplaceAllFunc(code, func(match []byte) []byte {
+				return []byte(strings.ReplaceAll(string(match), "@assets", option.AssetRoot))
+			})
+
+			if scripts != nil {
+				for i, script := range scripts {
+					scripts[i] = filepath.Join(option.AssetRoot, script)
+				}
+			}
 		}
 
 		if option.Namespace == "" {
-			return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
+			return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
 		}
 
-		return fmt.Sprintf("<script>\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(res))), nil
+		return fmt.Sprintf("<script type=\"text/javascript\">\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(code))), scripts, nil
 	}
 
-	code := page.Codes.JS.Code
-	if !option.IgnoreAssetRoot {
-		code = strings.ReplaceAll(page.Codes.JS.Code, "@assets", option.AssetRoot)
-	}
-
-	res, err := page.CompileJS([]byte(code), false)
+	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), false)
 	if err != nil {
-		return "", err
+		return "", nil, err
+	}
+
+	// Replace the assets
+	if !option.IgnoreAssetRoot {
+		code = AssetsRe.ReplaceAllFunc(code, func(match []byte) []byte {
+			return []byte(strings.ReplaceAll(string(match), "@assets", option.AssetRoot))
+		})
+
+		if scripts != nil {
+			for i, script := range scripts {
+				scripts[i] = filepath.Join(option.AssetRoot, script)
+			}
+		}
 	}
 
 	if option.Namespace == "" {
-		return fmt.Sprintf("<script>\n%s\n</script>\n", res), nil
+		return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
 	}
-	return fmt.Sprintf("<script>\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(res))), nil
+
+	return fmt.Sprintf("<script type=\"text/javascript\">\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(code))), scripts, nil
 }
 
 func addTabToEachLine(input string, prefix ...string) string {
