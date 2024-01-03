@@ -136,7 +136,7 @@ func (r *Request) Render() (string, int, error) {
 	if c.Guard != "" && r.context != nil {
 
 		if guard, has := Guards[c.Guard]; has {
-			err := guard(r.context)
+			err := guard(r)
 			if err != nil {
 				ex := exception.Err(err, 403)
 				return "", ex.Code, fmt.Errorf("%s", ex.Message)

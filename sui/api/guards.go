@@ -13,7 +13,7 @@ import (
 )
 
 // Guards middlewares
-var Guards = map[string]func(c *gin.Context) error{
+var Guards = map[string]func(c *Request) error{
 	"bearer-jwt": guardBearerJWT, // Bearer JWT
 	"query-jwt":  guardQueryJWT,  // Get JWT Token from query string  "__tk"
 	"cookie-jwt": guardCookieJWT, // Get JWT Token from cookie "__tk"
@@ -21,8 +21,11 @@ var Guards = map[string]func(c *gin.Context) error{
 }
 
 // JWT Bearer JWT
-func guardBearerJWT(c *gin.Context) error {
-
+func guardBearerJWT(r *Request) error {
+	if r.context == nil {
+		return fmt.Errorf("No permission")
+	}
+	c := r.context
 	tokenString := c.Request.Header.Get("Authorization")
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	if tokenString == "" {
@@ -33,11 +36,17 @@ func guardBearerJWT(c *gin.Context) error {
 
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
+	r.Sid = claims.SID
 	return nil
 }
 
 // JWT Bearer JWT
-func guardCookieJWT(c *gin.Context) error {
+func guardCookieJWT(r *Request) error {
+	if r.context == nil {
+		return fmt.Errorf("No permission")
+	}
+	c := r.context
+
 	tokenString, err := c.Cookie("__tk")
 	if err != nil {
 		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
@@ -53,11 +62,17 @@ func guardCookieJWT(c *gin.Context) error {
 
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
+	r.Sid = claims.SID
 	return nil
 }
 
 // JWT Bearer JWT
-func guardQueryJWT(c *gin.Context) error {
+func guardQueryJWT(r *Request) error {
+	if r.context == nil {
+		return fmt.Errorf("No permission")
+	}
+	c := r.context
+
 	tokenString := c.Query("__tk")
 	if tokenString == "" {
 		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
@@ -67,6 +82,7 @@ func guardQueryJWT(c *gin.Context) error {
 
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
+	r.Sid = claims.SID
 	return nil
 }
 
@@ -130,6 +146,7 @@ func (r *Request) processGuard(name string) error {
 	if data, ok := v.(map[string]interface{}); ok {
 		if sid, ok := data["__sid"].(string); ok {
 			c.Set("__sid", sid)
+			r.Sid = sid
 		}
 
 		if global, ok := data["__global"].(map[string]interface{}); ok {
