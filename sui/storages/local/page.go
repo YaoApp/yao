@@ -629,7 +629,7 @@ func (page *Page) AssetScript() (*core.Asset, error) {
 			return nil, err
 		}
 
-		jsCode, err := page.CompileTS(tsCode, false)
+		jsCode, _, err := page.CompileTS(tsCode, false)
 		if err != nil {
 			return nil, err
 		}
@@ -647,7 +647,7 @@ func (page *Page) AssetScript() (*core.Asset, error) {
 			return nil, err
 		}
 
-		jsCode, err = page.CompileJS(jsCode, false)
+		jsCode, _, err = page.CompileJS(jsCode, false)
 		if err != nil {
 			return nil, err
 		}

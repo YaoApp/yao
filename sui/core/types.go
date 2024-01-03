@@ -244,6 +244,7 @@ type PageConfig struct {
 // PageSetting is the struct for the page setting
 type PageSetting struct {
 	Title       string   `json:"title,omitempty"`
+	Guard       string   `json:"guard,omitempty"`
 	Description string   `json:"description,omitempty"`
 	SEO         *PageSEO `json:"seo,omitempty"`
 }
