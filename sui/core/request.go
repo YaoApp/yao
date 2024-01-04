@@ -7,6 +7,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/kun/log"
 )
 
 // Cache the cache
@@ -211,7 +212,11 @@ func (r *Request) call(p interface{}) (interface{}, error) {
 		process.WithSID(r.Sid)
 	}
 
-	return process.Exec()
+	v, err := process.Exec()
+	if err != nil {
+		log.Error("[Request] process %s %s", processName, err.Error())
+	}
+	return v, err
 }
 
 func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
@@ -230,26 +235,33 @@ func (r *Request) parseArgs(args []interface{}) ([]interface{}, error) {
 		switch v := arg.(type) {
 
 		case string:
-			if strings.HasPrefix(v, "$") {
-				key := strings.TrimLeft(v, "$")
-				args[i] = key
-				if data.Has(key) {
-					v := data.Get(key)
-					args[i] = v
-					if strings.HasPrefix(key, "query.") || strings.HasPrefix(key, "header.") {
-						switch arg := v.(type) {
-						case []interface{}:
-							if len(arg) == 1 {
-								args[i] = arg[0]
-							}
-						case []string:
-							if len(arg) == 1 {
-								args[i] = arg[0]
-							}
+			if !strings.HasPrefix(v, "$") {
+				args[i] = v
+				break
+			}
+
+			key := strings.TrimLeft(v, "$")
+			args[i] = key
+			if data.Has(key) {
+				v := data.Get(key)
+				args[i] = v
+				if strings.HasPrefix(key, "query.") || strings.HasPrefix(key, "header.") {
+					switch arg := v.(type) {
+					case []interface{}:
+						if len(arg) == 1 {
+							args[i] = arg[0]
+						}
+					case []string:
+						if len(arg) == 1 {
+							args[i] = arg[0]
 						}
 					}
 				}
 			}
+			break
+
+		case int, int8, int16, int32, int64, float32, float64, bool, []string, []int, []int8, []int16, []int32, []int64, []float32, []float64, []bool:
+			args[i] = v
 			break
 
 		case []interface{}:
