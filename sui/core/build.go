@@ -68,9 +68,11 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 
 	data := map[string]interface{}{}
 	if slots != nil {
+		slotvars := map[string]interface{}{}
 		for k, v := range slots {
-			data[k] = v
+			slotvars[k] = v
 		}
+		data["$slot"] = slotvars
 	}
 
 	if attrs != nil {
