@@ -51,23 +51,25 @@ func (r *Request) ExecString(data string) (Data, error) {
 }
 
 // Exec get the data
-func (r *Request) Exec(m Data) error {
-
+func (r *Request) Exec(m map[string]interface{}) error {
+	ignores := map[string]bool{}
 	for key, value := range m {
-
-		if strings.HasPrefix(key, "$") {
+		if strings.HasPrefix(key, "$") && !ignores[key] {
 			res, err := r.call(value)
 			if err != nil {
+				log.Error("[Request] Exec key:%s, value:%s, %s", key, value, err.Error())
 				return err
 			}
 			newKey := key[1:]
 			m[newKey] = res
+			ignores[newKey] = true
 			delete(m, key)
 			continue
 		}
 
 		res, err := r.execValue(value)
 		if err != nil {
+			log.Error("[Request] Exec key:%s, value:%s, %s", key, value, err.Error())
 			return err
 		}
 		m[key] = res
