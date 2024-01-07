@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/types"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/sui/core"
 )
@@ -57,7 +58,46 @@ func init() {
 
 		"build.all":  BuildAll,
 		"build.page": BuildPage,
+
+		// Will be deprecated or change in the future
+		"types.QueryParam": TypesQueryParam,
 	})
+}
+
+// TypesQueryParam handle the get Template request
+func TypesQueryParam(process *process.Process) interface{} {
+	process.ValidateArgNums(1)
+	switch v := process.Args[0].(type) {
+
+	case url.Values:
+		return types.URLToQueryParam(v)
+
+	case map[string][]string:
+		return types.URLToQueryParam(v)
+
+	case map[string]interface{}:
+		values := url.Values{}
+		for key, value := range v {
+			switch val := value.(type) {
+			case []string:
+				for _, v := range val {
+					values.Add(key, v)
+				}
+
+			case []interface{}:
+				for _, v := range val {
+					values.Add(key, fmt.Sprintf("%v", v))
+				}
+
+			default:
+				values.Set(key, fmt.Sprintf("%v", value))
+			}
+		}
+		return types.URLToQueryParam(values)
+	}
+
+	v, _ := types.AnyToQueryParam(process.Args[0])
+	return v
 }
 
 // Setting handle the get Template request
