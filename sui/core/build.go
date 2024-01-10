@@ -25,7 +25,7 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 	}
 
 	// Add Style & Script & Warning
-	doc, err := NewDocument([]byte(html))
+	doc, err := NewDocumentString(html)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -81,7 +81,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 	}
 
 	// Add Style & Script & Warning
-	doc, err := NewDocument([]byte(html))
+	doc, err := NewDocumentString(html)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -121,7 +121,21 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 }
 
 func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []string) error {
-	pages := doc.Find("page")
+
+	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
+		tagName := sel.Get(0).Data
+		if tagName == "page" {
+			return true
+		}
+
+		if tagName == "slot" {
+			return false
+		}
+
+		_, has := sel.Attr("is")
+		return has
+	})
+
 	sui := SUIs[page.SuiID]
 	if sui == nil {
 		return fmt.Errorf("SUI %s not found", page.SuiID)
