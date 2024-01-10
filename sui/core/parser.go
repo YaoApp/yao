@@ -153,6 +153,8 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 
+	sel.SetAttr("parsed", "true")
+
 	name := sel.AttrOr("name", "")
 	if name == "" {
 		return
