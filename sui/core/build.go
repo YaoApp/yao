@@ -189,21 +189,16 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 		// Set Attrs
 		attrs := map[string]string{}
 		if sel.Length() > 0 {
-			if page.Attrs != nil {
-				parentProps := Data{"$prop": page.Attrs}
-				for k, v := range page.Attrs {
-					if k == "is" {
-						continue
-					}
-					attrs[k], _ = parentProps.ReplaceUse(slotRe, v)
+			for _, attr := range sel.Nodes[0].Attr {
+				if attr.Key == "is" || attr.Key == "parsed" {
+					continue
 				}
-			} else {
-				for _, attr := range sel.Nodes[0].Attr {
-					if attr.Key == "is" {
-						continue
-					}
-					attrs[attr.Key] = attr.Val
+				val := attr.Val
+				if page.Attrs != nil {
+					parentProps := Data{"$prop": page.Attrs}
+					val, _ = parentProps.ReplaceUse(slotRe, val)
 				}
+				attrs[attr.Key] = val
 			}
 		}
 

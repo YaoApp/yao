@@ -159,14 +159,18 @@ func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 	}
 
 	valueExp := sel.AttrOr("value", "")
-	val, err := parser.data.Exec(valueExp)
-	if err != nil {
-		log.Warn("Set %s: %s", valueExp, err)
-		parser.data[name] = nil
+	if stmtRe.MatchString(valueExp) {
+		val, err := parser.data.Exec(valueExp)
+		if err != nil {
+			log.Warn("Set %s: %s", valueExp, err)
+			parser.data[name] = valueExp
+			return
+		}
+		parser.data[name] = val
 		return
 	}
 
-	parser.data[name] = val
+	parser.data[name] = valueExp
 }
 
 func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
