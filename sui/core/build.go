@@ -25,7 +25,7 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 	}
 
 	// Add Style & Script & Warning
-	doc, err := NewDocument([]byte(html))
+	doc, err := NewDocumentString(html)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -81,7 +81,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 	}
 
 	// Add Style & Script & Warning
-	doc, err := NewDocument([]byte(html))
+	doc, err := NewDocumentString(html)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -121,7 +121,21 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 }
 
 func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []string) error {
-	pages := doc.Find("page")
+
+	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
+		tagName := sel.Get(0).Data
+		if tagName == "page" {
+			return true
+		}
+
+		if tagName == "slot" {
+			return false
+		}
+
+		_, has := sel.Attr("is")
+		return has
+	})
+
 	sui := SUIs[page.SuiID]
 	if sui == nil {
 		return fmt.Errorf("SUI %s not found", page.SuiID)
@@ -175,21 +189,16 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 		// Set Attrs
 		attrs := map[string]string{}
 		if sel.Length() > 0 {
-			if page.Attrs != nil {
-				parentProps := Data{"$prop": page.Attrs}
-				for k, v := range page.Attrs {
-					if k == "is" {
-						continue
-					}
-					attrs[k], _ = parentProps.ReplaceUse(slotRe, v)
+			for _, attr := range sel.Nodes[0].Attr {
+				if attr.Key == "is" || attr.Key == "parsed" {
+					continue
 				}
-			} else {
-				for _, attr := range sel.Nodes[0].Attr {
-					if attr.Key == "is" {
-						continue
-					}
-					attrs[attr.Key] = attr.Val
+				val := attr.Val
+				if page.Attrs != nil {
+					parentProps := Data{"$prop": page.Attrs}
+					val, _ = parentProps.ReplaceUse(slotRe, val)
 				}
+				attrs[attr.Key] = val
 			}
 		}
 

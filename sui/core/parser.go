@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
@@ -58,8 +57,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		html = fmt.Sprintf(`<!DOCTYPE html><html lang="en">%s</html>`, html)
 	}
 
-	reader := bytes.NewReader([]byte(html))
-	doc, err := goquery.NewDocumentFromReader(reader)
+	doc, err := NewDocumentString(html)
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +143,7 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.forStatementNode(sel)
 	}
 
-	if sel.Get(0).Data == "s:set" {
+	if _, exist := sel.Attr("s:set"); exist || sel.Get(0).Data == "s:set" {
 		parser.setStatementNode(sel)
 	}
 
@@ -161,14 +159,18 @@ func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 	}
 
 	valueExp := sel.AttrOr("value", "")
-	val, err := parser.data.Exec(valueExp)
-	if err != nil {
-		log.Warn("Set %s: %s", valueExp, err)
-		parser.data[name] = nil
+	if stmtRe.MatchString(valueExp) {
+		val, err := parser.data.Exec(valueExp)
+		if err != nil {
+			log.Warn("Set %s: %s", valueExp, err)
+			parser.data[name] = valueExp
+			return
+		}
+		parser.data[name] = val
 		return
 	}
 
-	parser.data[name] = val
+	parser.data[name] = valueExp
 }
 
 func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
