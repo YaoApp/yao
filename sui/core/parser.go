@@ -7,6 +7,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
 )
 
@@ -144,8 +145,30 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.forStatementNode(sel)
 	}
 
+	if sel.Get(0).Data == "s:set" {
+		parser.setStatementNode(sel)
+	}
+
 	// Parse the attributes
 	parser.parseElementAttrs(sel)
+}
+
+func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
+
+	name := sel.AttrOr("name", "")
+	if name == "" {
+		return
+	}
+
+	valueExp := sel.AttrOr("value", "")
+	val, err := parser.data.Exec(valueExp)
+	if err != nil {
+		log.Warn("Set %s: %s", valueExp, err)
+		parser.data[name] = nil
+		return
+	}
+
+	parser.data[name] = val
 }
 
 func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
