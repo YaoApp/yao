@@ -66,7 +66,7 @@ var langs = map[string]string{
 	"SUI Template Engine":                        "SUI 模板引擎命令",
 }
 
-// L 多语言切换
+// L Language switch
 func L(words string) string {
 	if lang == "" {
 		return words
@@ -126,11 +126,14 @@ var suiCmd = &cobra.Command{
 	},
 }
 
-// 加载命令
+// Command initialize
 func init() {
 
 	studioCmd.AddCommand(studio.RunCmd)
+
+	// Sui
 	suiCmd.AddCommand(sui.WatchCmd)
+	suiCmd.AddCommand(sui.BuildCmd)
 
 	rootCmd.AddCommand(
 		versionCmd,
@@ -154,7 +157,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&licenseKey, "key", "k", "", L("Application license key"))
 }
 
-// Execute 运行Root
+// Execute Command
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -162,7 +165,7 @@ func Execute() {
 	}
 }
 
-// Boot 设定配置
+// Boot Setting
 func Boot() {
 
 	root := config.Conf.Root
