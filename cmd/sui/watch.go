@@ -33,7 +33,7 @@ var WatchCmd = &cobra.Command{
 	Long:  L("Auto-build when the template file changes"),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, color.RedString(L("yao cui watch <sui> <template>")))
+			fmt.Fprintln(os.Stderr, color.RedString(L("yao cui watch <sui> <template> [data]")))
 			return
 		}
 
@@ -119,10 +119,6 @@ var WatchCmd = &cobra.Command{
 			return
 		}
 	},
-}
-
-func init() {
-	WatchCmd.PersistentFlags().StringVarP(&data, "data", "d", "::{}", L("Session Data"))
 }
 
 func watch(root string, handler func(event string, name string), interrupt chan uint8) error {
