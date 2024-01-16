@@ -5,9 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/antonmedv/expr"
-	"github.com/antonmedv/expr/ast"
-	"github.com/antonmedv/expr/vm"
+	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/vm"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 )
@@ -17,8 +16,6 @@ var propRe = regexp.MustCompile(`\[\{([^}]+)\}\]`)
 
 // Data data for the template
 type Data map[string]interface{}
-
-var functions = map[string]*ast.Function{}
 
 var options = []expr.Option{
 	expr.Function("P_", _process),
