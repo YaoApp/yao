@@ -4,12 +4,12 @@ go 1.20
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/antonmedv/expr v1.15.4
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/dchest/captcha v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/evanw/esbuild v0.19.5
+	github.com/expr-lang/expr v1.15.8
 	github.com/fatih/color v1.16.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-gonic/gin v1.9.1

@@ -23,7 +23,7 @@ var BuildCmd = &cobra.Command{
 	Long:  L("Build the template"),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, color.RedString(L("yao cui watch <sui> <template> [data]")))
+			fmt.Fprintln(os.Stderr, color.RedString(L("yao cui build <sui> <template> [data]")))
 			return
 		}
 
