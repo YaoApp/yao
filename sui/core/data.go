@@ -12,8 +12,8 @@ import (
 )
 
 // If set the map value, should keep the space at the end of the statement
-var stmtRe = regexp.MustCompile(`\{\{(.*?)\}\}`)
-var propRe = regexp.MustCompile(`\[\{(.*?)\}\]`)
+var stmtRe = regexp.MustCompile(`\{\{([\s\S]*?)\}\}`)
+var propRe = regexp.MustCompile(`\[\{([\s\S]*?)\}\]`)
 
 // Data data for the template
 type Data map[string]interface{}
