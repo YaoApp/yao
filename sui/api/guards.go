@@ -164,6 +164,8 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 	}
 	defer ctx.Close()
 
+	// Should be refector after the runtime refector
+	// Add the context object
 	ctx.WithFunction("SetSid", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		if len(info.Args()) < 1 {
 			log.Error("SetSid no sid")
@@ -240,6 +242,37 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 		c.Abort()
 
 		return nil
+	})
+
+	ctx.WithFunction("Cookie", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if len(info.Args()) < 1 {
+			log.Error("SetGlobal no global")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		name, err := bridge.GoValue(info.Args()[0], info.Context())
+		if err != nil {
+			log.Error("Cookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if name, ok := name.(string); ok {
+			value, err := c.Cookie(name)
+			if err != nil {
+				log.Error("Cookie %s", err.Error())
+				return v8go.Undefined(info.Context().Isolate())
+			}
+
+			jsValue, err := bridge.JsValue(info.Context(), value)
+			if err != nil {
+				log.Error("Cookie %s", err.Error())
+				return v8go.Undefined(info.Context().Isolate())
+			}
+			return jsValue
+		}
+
+		return v8go.Undefined(info.Context().Isolate())
+
 	})
 
 	// This function should be refector after the next version
