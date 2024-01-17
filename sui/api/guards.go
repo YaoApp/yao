@@ -9,7 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
+	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
+	"rogchap.com/v8go"
 )
 
 // Guards middlewares
@@ -119,6 +123,135 @@ func (r *Request) processGuard(name string) error {
 		r.Headers, // Request headers
 	}
 
+	if strings.HasPrefix(name, "scripts.") {
+		return r.scriptGuardExec(c, name, args)
+	}
+	return r.processGuardExec(c, name, args)
+}
+
+func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{}) error {
+
+	namer := strings.Split(strings.TrimPrefix(name, "scripts."), ".")
+	id := strings.Join(namer[:len(namer)-1], ".")
+	method := namer[len(namer)-1]
+
+	script, err := v8.Select(id)
+	if err != nil {
+		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("Guard: %s %s", name, err.Error())})
+		c.Abort()
+		return err
+	}
+
+	sid := ""
+	global := map[string]interface{}{}
+	if v, has := c.Get("__sid"); has { // 设定会话ID
+		if v, ok := v.(string); ok {
+			sid = v
+		}
+	}
+
+	if v, has := c.Get("__global"); has { // 设定全局变量
+		if v, ok := v.(map[string]interface{}); ok {
+			global = v
+		}
+	}
+
+	ctx, err := script.NewContext(sid, global)
+	if err != nil {
+		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("Guard: %s %s", name, err.Error())})
+		c.Abort()
+		return err
+	}
+	defer ctx.Close()
+
+	ctx.WithFunction("SetSid", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if len(info.Args()) < 1 {
+			log.Error("SetSid no sid")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		sid, err := bridge.GoValue(info.Args()[0], info.Context())
+		if err != nil {
+			log.Error("SetSid %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		c.Set("__sid", sid)
+		return v8go.Undefined(info.Context().Isolate())
+	})
+
+	ctx.WithFunction("SetGlobal", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if len(info.Args()) < 1 {
+			log.Error("SetGlobal no global")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		global, err := bridge.GoValue(info.Args()[0], info.Context())
+		if err != nil {
+			log.Error("SetGlobal %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if global, ok := global.(map[string]interface{}); ok {
+			c.Set("__global", global)
+		}
+
+		return v8go.Undefined(info.Context().Isolate())
+	})
+
+	ctx.WithFunction("Redirect", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+
+		if len(info.Args()) < 2 {
+			log.Error("Redirect no url")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		var ok = false
+		var code = 0
+		var url = ""
+		v, err := bridge.GoValue(info.Args()[0], info.Context())
+		if err != nil {
+			log.Error("Redirect %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if code, ok = v.(int); !ok {
+			log.Error("Redirect code error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[1], info.Context())
+		if err != nil {
+			log.Error("Redirect %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if url, ok = v.(string); !ok {
+			log.Error("Redirect url error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		c.Redirect(code, url)
+		c.Abort()
+		return nil
+	})
+
+	ctx.WithFunction("Abort", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		c.Abort()
+		return nil
+	})
+
+	_, err = ctx.Call(method, args...)
+	if err != nil {
+		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("Guard: %s %s", name, err.Error())})
+		c.Abort()
+		return err
+	}
+
+	return nil
+}
+
+func (r *Request) processGuardExec(c *gin.Context, name string, args []interface{}) error {
 	process, err := process.Of(name, args...)
 	if err != nil {
 		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("Guard: %s %s", name, err.Error())})
