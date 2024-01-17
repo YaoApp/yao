@@ -238,6 +238,104 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 
 	ctx.WithFunction("Abort", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		c.Abort()
+
+		return nil
+	})
+
+	// This function should be refector after the next version
+	ctx.WithFunction("SetCookie", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+
+		if len(info.Args()) < 7 {
+			log.Error("SetCookie no enough params")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		var ok = false
+		var name = ""
+		var value = ""
+		var maxAge = 0
+		var path = ""
+		var domain = ""
+		var secure = false
+		var httpOnly = false
+
+		v, err := bridge.GoValue(info.Args()[0], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if name, ok = v.(string); !ok {
+			log.Error("SetCookie name error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[1], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if value, ok = v.(string); !ok {
+			log.Error("SetCookie value error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[2], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if maxAge, ok = v.(int); !ok {
+			log.Error("SetCookie maxAge error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[3], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+		if path, ok = v.(string); !ok {
+			log.Error("SetCookie path error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[4], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if domain, ok = v.(string); !ok {
+			log.Error("SetCookie domain error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[5], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if secure, ok = v.(bool); !ok {
+			log.Error("SetCookie secure error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		v, err = bridge.GoValue(info.Args()[6], info.Context())
+		if err != nil {
+			log.Error("SetCookie %s", err.Error())
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		if httpOnly, ok = v.(bool); !ok {
+			log.Error("SetCookie httpOnly error")
+			return v8go.Undefined(info.Context().Isolate())
+		}
+
+		c.SetCookie(name, value, maxAge, path, domain, secure, httpOnly)
 		return nil
 	})
 
@@ -247,7 +345,6 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 		c.Abort()
 		return err
 	}
-
 	return nil
 }
 
