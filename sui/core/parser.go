@@ -331,6 +331,9 @@ func (parser *TemplateParser) ifStatementNode(sel *goquery.Selection) {
 	}
 
 	if res == true {
+		parser.removeParsed(sel)
+		parser.parseElementAttrs(sel)
+		parser.parsed(sel)
 		parser.show(sel)
 		return
 	}
@@ -345,6 +348,9 @@ func (parser *TemplateParser) ifStatementNode(sel *goquery.Selection) {
 		}
 
 		if res == true {
+			parser.removeParsed(elifNode)
+			parser.parseElementAttrs(elifNode)
+			parser.parsed(elifNode)
 			parser.show(elifNode)
 			return
 		}
@@ -352,6 +358,9 @@ func (parser *TemplateParser) ifStatementNode(sel *goquery.Selection) {
 
 	// else
 	if elseNode != nil {
+		parser.removeParsed(elseNode)
+		parser.parseElementAttrs(elseNode)
+		parser.parsed(elseNode)
 		parser.show(elseNode)
 	}
 }
