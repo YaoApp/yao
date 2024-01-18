@@ -6,125 +6,22 @@ on:
       tags:
         description: "Version tags"
 
-env:
-  VERSION: 0.9.0
-
 jobs:
   build:
-    strategy:
-      matrix:
-        go: [1.21.1]
     runs-on: "ubuntu-22.04"
+    container:
+      # DockerFile
+      # https://github.com/YaoApp/yao/blob/main/docker/build/Dockerfile
+      image: yaoapp/yao-build:0.10.4 
+
     steps:
-      - name: Arm Build
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
-          sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
-          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-          sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
-          sudo sh -c 'echo "deb http://cz.archive.ubuntu.com/ubuntu mantic main universe" >> /etc/apt/sources.list'
-          sudo apt-get update
-          sudo apt-get install -y gcc-13-aarch64-linux-gnu
-          sudo apt-get install -y g++-13-aarch64-linux-gnu
-          sudo apt-get install -y wget
 
-      - name: Inspect Tools
-        run: |
-          ls -l /usr/lib/gcc-cross/aarch64-linux-gnu/
-
-      - name: Install coscmd
-        run: sudo pip3 install coscmd
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Setup Cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
-      - name: Checkout Kun
-        uses: actions/checkout@v3
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v3
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v3
-        with:
-          repository: yaoapp/gou
-          # ref: dc3d98411f61e21cf775e4c82d92d5ac2acfc03c
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v3
-        with:
-          repository: yaoapp/v8go
-          lfs: true
-          path: v8go
-
-      - name: Checkout XGen v1.0
-        uses: actions/checkout@v3
-        with:
-          repository: yaoapp/xgen
-          #ref: 408470b84c9d6bb8ed988b545b6e46ffc2872014
-          path: xgen-v1.0
-
-      - name: Checkout Yao-Init
-        uses: actions/checkout@v3
-        with:
-          repository: yaoapp/yao-init
-          path: yao-init
-
-      - name: Move Kun, Xun, Gou, UI, V8Go
-        run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
-          mv xgen-v1.0 ../
-          mv yao-init ../
-          ls -l .
-          ls -l ../
-
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Setup Go Tools
-        run: |
-          make tools
-
-      - name: Get Version
-        run: |
-          echo VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g")  >> $GITHUB_ENV
-
-      - name: Make Artifacts Linux
-        run: |
-          make artifacts-linux
-          mv dist/release/yao-$VERSION-dev-linux-arm64 dist/release/yao-$VERSION-unstable-linux-arm64
-          mv dist/release/yao-$VERSION-dev-linux-amd64 dist/release/yao-$VERSION-unstable-linux-amd64
+      - name: Install Coscmd
+        run:  |
+          apt-get install -y python3-venv
+          python3 -m venv /python3/venv
+          /python3/venv/bin/python -m pip install coscmd
+          /python3/venv/bin/coscmd -v
 
       - name: Configure COS For Silicon Valley
         env:
@@ -133,28 +30,22 @@ jobs:
           BUCKET: release-sv-1252011659
           REGION: na-siliconvalley
         run: |
-          coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+          /python3/venv/bin/coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+          echo "hello world" > /data/hello.txt
 
-      - name: Push To Silicon Valley
+      - name: Build
         run: |
-          for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+          export PATH=$PATH:/github/home/go/bin
+          /app/build.sh
+          ls -l /data
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
         with:
           name: yao-linux
           path: |
-            dist/release/*
+            /data/*
 
-      # - name: Configure COS For Beijing
-      #   env:
-      #     SECRET_ID: ${{ secrets.COS_ID }}
-      #     SECRET_KEY: ${{ secrets.COS_KEY }}
-      #     BUCKET: release-bj-1252011659
-      #     REGION: ap-beijing
-      #   run: |
-      #     coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
-
-      # - name: Push To Beijing
-      #   run: |
-      #     for file in ./dist/release/*; do coscmd upload $file /archives/; done;
+      - name: Push To Silicon Valley
+        run: |
+          for file in /data/*; do /python3/venv/bin/coscmd upload $file /archives/; done;
