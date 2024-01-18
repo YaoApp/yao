@@ -38,3 +38,4 @@ xgen/v1.0/*
 !xgen/v1.0/umi.js
 !xgen/v1.0/layouts__index.async.js
 *-unit-test
+docker/build/test
