@@ -120,8 +120,8 @@ func processUpload(process *gouProcess.Process) interface{} {
 
 	process.ValidateArgNums(4)
 	form := MustGet(process)
-	xpath := process.ArgsString(1)
-	method := process.ArgsString(2)
+	xpath, _ := url.QueryUnescape(process.ArgsString(1))
+	method, _ := url.QueryUnescape(process.ArgsString(2))
 	key := fmt.Sprintf("%s.$%s", xpath, method)
 
 	// get cloud props
