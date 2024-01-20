@@ -179,7 +179,7 @@ func (r *Request) Render() (string, int, error) {
 		printData = true
 	}
 
-	parser := core.NewTemplateParser(data, &core.ParserOption{PrintData: printData})
+	parser := core.NewTemplateParser(data, &core.ParserOption{PrintData: printData, Request: true})
 	html, err := parser.Render(c.HTML)
 	if err != nil {
 		return "", 500, fmt.Errorf("render error, please re-complie the page %s", err.Error())
