@@ -32,6 +32,18 @@ type ParserOption struct {
 	Editor    bool `json:"editor,omitempty"`
 	Preview   bool `json:"preview,omitempty"`
 	PrintData bool `json:"print_data,omitempty"`
+	Request   bool `json:"request,omitempty"`
+}
+
+var keepWords = map[string]bool{
+	"s:if":        true,
+	"s:for":       true,
+	"s:for-item":  true,
+	"s:for-index": true,
+	"s:elif":      true,
+	"s:else":      true,
+	"s:set":       true,
+	"s:bind":      true,
 }
 
 // NewTemplateParser create a new template parser
@@ -96,6 +108,15 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	// For editor
 	if parser.option != nil && parser.option.Editor {
 		return doc.Find("body").Html()
+	}
+
+	// For Request
+	if parser.option != nil && (parser.option.Request || parser.option.Preview) {
+		// Remove the sui-hide attribute
+		doc.Find("[sui-hide]").Remove()
+
+		// Remove All comments
+		parser.tidy(doc.Selection)
 	}
 
 	// fmt.Println(doc.Html())
@@ -406,17 +427,19 @@ func (parser *TemplateParser) hide(sel *goquery.Selection) {
 		return
 	}
 
-	style := sel.AttrOr("style", "")
-	if strings.Contains(style, "display: none") {
-		return
-	}
+	sel.SetAttr("sui-hide", "true")
 
-	if style != "" {
-		style = fmt.Sprintf("%s; display: none", style)
-	} else {
-		style = "display: none"
-	}
-	sel.SetAttr("style", style)
+	// style := sel.AttrOr("style", "")
+	// if strings.Contains(style, "display: none") {
+	// 	return
+	// }
+
+	// if style != "" {
+	// 	style = fmt.Sprintf("%s; display: none", style)
+	// } else {
+	// 	style = "display: none"
+	// }
+	// sel.SetAttr("style", style)
 }
 
 func (parser *TemplateParser) show(sel *goquery.Selection) {
@@ -426,18 +449,46 @@ func (parser *TemplateParser) show(sel *goquery.Selection) {
 		return
 	}
 
-	style := sel.AttrOr("style", "")
-	if !strings.Contains(style, "display: none") {
-		return
-	}
+	sel.RemoveAttr("sui-hide")
 
-	style = strings.ReplaceAll(style, "display: none", "")
-	if style == "" {
-		sel.RemoveAttr("style")
-		return
-	}
+	// style := sel.AttrOr("style", "")
+	// if !strings.Contains(style, "display: none") {
+	// 	return
+	// }
 
-	sel.SetAttr("style", style)
+	// style = strings.ReplaceAll(style, "display: none", "")
+	// if style == "" {
+	// 	sel.RemoveAttr("style")
+	// 	return
+	// }
+
+	// sel.SetAttr("style", style)
+}
+
+func (parser *TemplateParser) tidy(selection *goquery.Selection) {
+	selection.Contents().Each(func(i int, s *goquery.Selection) {
+
+		if s.Nodes[0].Type == html.CommentNode {
+			s.Remove()
+			return
+		}
+
+		// Remove the s:key-* attributes
+		if s.Nodes[0].Type == html.ElementNode {
+			for _, attr := range s.Nodes[0].Attr {
+				if attr.Key == "parsed" || keepWords[attr.Key] || strings.HasPrefix(attr.Key, "s:key") || strings.HasPrefix(attr.Key, "s:bind") {
+					s.RemoveAttr(attr.Key)
+				}
+			}
+
+			if s.Nodes[0].Data == "s:set" {
+				s.Remove()
+				return
+			}
+		}
+
+		parser.tidy(s)
+	})
 }
 
 func (parser *TemplateParser) key(prefix string, sel *goquery.Selection) string {
