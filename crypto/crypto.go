@@ -12,17 +12,11 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"golang.org/x/crypto/md4"
 )
-
-func init() {
-	crypto.RegisterHash(crypto.MD4, md4.New)
-}
 
 // HashTypes string
 var HashTypes = map[string]crypto.Hash{
-	"MD4":         crypto.MD4,
+	"MD4":         crypto.MD5, // MD4 is not supported | replaced with MD5
 	"MD5":         crypto.MD5,
 	"SHA1":        crypto.SHA1,
 	"SHA224":      crypto.SHA224,
