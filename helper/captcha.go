@@ -113,7 +113,7 @@ func ProcessCaptcha(process *process.Process) interface{} {
 	option := CaptchaOption{
 		Width:      any.Of(process.ArgsURLValue(0, "width", "240")).CInt(),
 		Height:     any.Of(process.ArgsURLValue(0, "height", "80")).CInt(),
-		Length:     any.Of(process.ArgsURLValue(0, "height", "6")).CInt(),
+		Length:     any.Of(process.ArgsURLValue(0, "length", "6")).CInt(),
 		Type:       process.ArgsURLValue(0, "type", "math"),
 		Background: process.ArgsURLValue(0, "background", "#FFFFFF"),
 		Lang:       process.ArgsURLValue(0, "lang", "zh"),
