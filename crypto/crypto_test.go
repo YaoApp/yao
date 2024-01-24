@@ -11,12 +11,12 @@ func TestMD4(t *testing.T) {
 	// Hash
 	args := []interface{}{"MD4", "123456"}
 	res := process.New("crypto.Hash", args...).Run()
-	assert.Equal(t, "585028aa0f794af812ee3be8804eb14a", res)
+	assert.Equal(t, "e10adc3949ba59abbe56e057f20f883e", res)
 
 	// HMac
 	args = append(args, "123456")
 	res = process.New("crypto.Hmac", args...).Run()
-	assert.Equal(t, "356f45727db95d65843b2794474d741c", res)
+	assert.Equal(t, "30ce71a73bdd908c3955a90e8f7429ef", res)
 }
 
 func TestMD5(t *testing.T) {
