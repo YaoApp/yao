@@ -76,7 +76,7 @@ func RSA2Sign(prikey string, hash crypto.Hash, value string, encoding ...string)
 		return "", err
 	}
 
-	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, h.Sum(nil))
+	signature, err := rsa.SignPKCS1v15(rand.Reader, privateKey, hash, h.Sum(nil))
 	if err != nil {
 		return "", err
 	}
@@ -115,7 +115,7 @@ func RSA2Verify(pubkey string, hash crypto.Hash, value string, signatureString s
 		}
 	}
 
-	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, h.Sum(nil), []byte(signature))
+	err = rsa.VerifyPKCS1v15(publicKey, hash, h.Sum(nil), []byte(signature))
 	return err == nil, nil
 }
 
