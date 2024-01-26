@@ -1,6 +1,9 @@
 package crypto
 
 import (
+	"crypto"
+	"encoding/base64"
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -149,4 +152,73 @@ func TestRSA2SignProcessBase64(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, true, valid)
+}
+
+// ProcessHmacWith tests
+
+func TestHmacWith(t *testing.T) {
+	keyhex := hex.EncodeToString([]byte("key"))
+	valuehex := hex.EncodeToString([]byte("value"))
+	keybase64 := base64.StdEncoding.EncodeToString([]byte("key"))
+	valuebase64 := base64.StdEncoding.EncodeToString([]byte("value"))
+
+	tests := []struct {
+		name    string
+		option  *hmacOption
+		hash    crypto.Hash
+		value   string
+		key     string
+		wantErr bool
+	}{
+		{
+			name: "Test with hex encoding",
+			option: &hmacOption{
+				keyEncoding:    "hex",
+				valueEncoding:  "hex",
+				outputEncoding: "hex",
+			},
+			hash:    crypto.SHA256,
+			value:   valuehex,
+			key:     keyhex,
+			wantErr: false,
+		},
+		{
+			name: "Test with base64 encoding",
+			option: &hmacOption{
+				keyEncoding:    "base64",
+				valueEncoding:  "base64",
+				outputEncoding: "base64",
+			},
+			hash:    crypto.SHA256,
+			value:   valuebase64,
+			key:     keybase64,
+			wantErr: false,
+		},
+		{
+			name:    "Test with default encoding",
+			option:  &hmacOption{},
+			hash:    crypto.SHA256,
+			value:   "value",
+			key:     "key",
+			wantErr: false,
+		},
+		{
+			name:    "Test with nil option",
+			option:  nil,
+			hash:    crypto.SHA256,
+			value:   "value",
+			key:     "key",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := HmacWith(tt.option, tt.hash, tt.value, tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HmacWith() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
 }
