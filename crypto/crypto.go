@@ -37,6 +37,12 @@ var HashTypes = map[string]crypto.Hash{
 	"BLAKE2b_512": crypto.BLAKE2b_512,
 }
 
+type hmacOption struct {
+	keyEncoding    string // base64 | hex
+	valueEncoding  string // base64 | hex
+	outputEncoding string // base64 | hex
+}
+
 // Hash string
 func Hash(hash crypto.Hash, value string) (string, error) {
 	h := hash.New()
@@ -60,6 +66,67 @@ func Hmac(hash crypto.Hash, value string, key string, encoding ...string) (strin
 	}
 
 	return fmt.Sprintf("%x", mac.Sum(nil)), nil
+}
+
+// HmacWith the Keyed-Hash Message Authentication Code (HMAC)
+func HmacWith(option *hmacOption, hash crypto.Hash, value string, key string) (string, error) {
+	var k []byte
+	var v []byte
+	var err error
+	if option == nil {
+		option = &hmacOption{}
+	}
+
+	switch option.keyEncoding {
+	case "base64":
+		k, err = base64.StdEncoding.DecodeString(key)
+		if err != nil {
+			return "", err
+		}
+		break
+
+	case "hex":
+		k, err = hex.DecodeString(key)
+		if err != nil {
+			return "", err
+		}
+		break
+
+	default:
+		k = []byte(key)
+	}
+
+	switch option.valueEncoding {
+	case "base64":
+		v, err = base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			return "", err
+		}
+		break
+	case "hex":
+		v, err = hex.DecodeString(value)
+		if err != nil {
+			return "", err
+		}
+
+	default:
+		v = []byte(value)
+	}
+
+	mac := hmac.New(hash.New, k)
+	_, err = mac.Write(v)
+	if err != nil {
+		return "", err
+	}
+
+	switch option.outputEncoding {
+	case "base64":
+		return base64.StdEncoding.EncodeToString(mac.Sum(nil)), nil
+	case "hex":
+		return fmt.Sprintf("%x", mac.Sum(nil)), nil
+	default:
+		return fmt.Sprintf("%x", mac.Sum(nil)), nil
+	}
 }
 
 // RSA2Sign RSA2 Sign
