@@ -166,6 +166,7 @@ func TestHmacWith(t *testing.T) {
 		name    string
 		option  *hmacOption
 		hash    crypto.Hash
+		algo    string
 		value   string
 		key     string
 		wantErr bool
@@ -178,6 +179,7 @@ func TestHmacWith(t *testing.T) {
 				outputEncoding: "hex",
 			},
 			hash:    crypto.SHA256,
+			algo:    "SHA256",
 			value:   valuehex,
 			key:     keyhex,
 			wantErr: false,
@@ -192,6 +194,7 @@ func TestHmacWith(t *testing.T) {
 			hash:    crypto.SHA256,
 			value:   valuebase64,
 			key:     keybase64,
+			algo:    "SHA1",
 			wantErr: false,
 		},
 		{
@@ -215,6 +218,27 @@ func TestHmacWith(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := HmacWith(tt.option, tt.hash, tt.value, tt.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("HmacWith() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			option := map[string]interface{}{}
+			if tt.option != nil {
+				option = map[string]interface{}{
+					"key":    tt.option.keyEncoding,
+					"value":  tt.option.valueEncoding,
+					"output": tt.option.outputEncoding,
+					"algo":   tt.algo,
+				}
+			}
+			args := []interface{}{option, tt.value, tt.key}
+			_, err := process.New("crypto.HmacWith", args...).Exec()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("HmacWith() error = %v, wantErr %v", err, tt.wantErr)
 				return
