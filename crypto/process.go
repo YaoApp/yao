@@ -75,7 +75,7 @@ func ProcessHmac(process *process.Process) interface{} {
 }
 
 // ProcessHmacWith yao.crypto.hmac Crypto the Keyed-Hash Message Authentication Code (HMAC) Hash
-// Args[0] map: option {"key": "base64", "value": "base64", "output": "base64"} // hex/base64
+// Args[0] map: option {"key": "base64", "value": "base64", "output": "base64", "algo": "SHA256"} // hex/base64
 // Args[1] string: value
 // Args[2] string: key
 func ProcessHmacWith(process *process.Process) interface{} {
@@ -94,7 +94,7 @@ func ProcessHmacWith(process *process.Process) interface{} {
 	if v, has := option["output"].(string); has {
 		o.outputEncoding = v
 	}
-	if v, has := option["type"].(string); has {
+	if v, has := option["algo"].(string); has && v != "" {
 		typ = v
 	}
 	h, has := HashTypes[typ]
