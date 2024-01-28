@@ -44,13 +44,12 @@ var migrateCmd = &cobra.Command{
 
 		if name != "" {
 			mod, has := model.Models[name]
-			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
-
 			if !has {
 				fmt.Println(color.RedString(L("Model: %s does not exits"), name))
 				return
 			}
 
+			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
 			if resetModel {
 				err := mod.DropTable()
 				if err != nil {
