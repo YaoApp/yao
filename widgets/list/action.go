@@ -13,7 +13,7 @@ var processActionDefaults = map[string]*action.Process{
 		Name:    "yao.list.Setting",
 		Guard:   "bearer-jwt",
 		Process: "yao.list.Xgen",
-		Default: []interface{}{nil},
+		Default: []interface{}{nil, nil},
 	},
 	"Component": {
 		Name:    "yao.list.Component",
