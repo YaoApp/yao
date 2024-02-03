@@ -96,7 +96,7 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL, query map[string]interface{}) (
 	messages := []string{}
 	replacements := maps.Map{}
 	if query != nil {
-		replacements = maps.Of(map[string]interface{}{"$parent": query}).Dot()
+		replacements = maps.Of(map[string]interface{}{"$props": query}).Dot()
 	}
 
 	if layout.List != nil && layout.List.Columns != nil {
