@@ -7,9 +7,11 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/component"
@@ -197,7 +199,7 @@ func MustGet(list interface{}) *DSL {
 }
 
 // Xgen trans to xgen setting
-func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map[string]interface{}, error) {
+func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool, query map[string]interface{}) (map[string]interface{}, error) {
 
 	if dsl.Layout == nil {
 		dsl.Layout = &LayoutDSL{List: &ViewLayoutDSL{}}
@@ -212,7 +214,7 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 		return nil, err
 	}
 
-	fields, err := dsl.Fields.Xgen(layout)
+	fields, err := dsl.Fields.Xgen(layout, query)
 	if err != nil {
 		return nil, err
 	}
@@ -236,8 +238,19 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 	onChange := map[string]interface{}{} // Hooks
 	setting["fields"] = fields
 	setting["config"] = dsl.Config
+
+	replacements := maps.Map{}
+	if query != nil {
+		replacements = maps.Of(map[string]interface{}{"$parent": query}).Dot()
+	}
+
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
+
+			if query != nil { // Replace Query
+				newQuery := helper.Bind(cProp.Query, replacements)
+				cProp.Query = newQuery.(map[string]interface{})
+			}
 
 			if cProp.Type == "Upload" {
 				return fmt.Sprintf("/api/__yao/list/%s%s", dsl.ID, cProp.UploadPath())

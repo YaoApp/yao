@@ -81,7 +81,7 @@ func exportAPI() error {
 		Path:        "/:id/setting",
 		Method:      "GET",
 		Process:     "yao.list.Setting",
-		In:          []interface{}{"$param.id"},
+		In:          []interface{}{"$param.id", ":query"},
 		Out:         api.Out{Status: 200, Type: "application/json"},
 	}
 	http.Paths = append(http.Paths, path)

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/widgets/table"
 )
 
@@ -88,10 +90,15 @@ func (fields *FieldsDSL) BindTable(tab *table.DSL) error {
 }
 
 // Xgen trans to xgen setting
-func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error) {
+func (fields *FieldsDSL) Xgen(layout *LayoutDSL, query map[string]interface{}) (map[string]interface{}, error) {
 	res := map[string]interface{}{}
 	lists := map[string]interface{}{}
 	messages := []string{}
+	replacements := maps.Map{}
+	if query != nil {
+		replacements = maps.Of(map[string]interface{}{"$parent": query}).Dot()
+	}
+
 	if layout.List != nil && layout.List.Columns != nil {
 
 		for i, f := range layout.List.Columns {
@@ -114,9 +121,20 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 				if _, has := field.Edit.Props["$on:change"]; has {
 					delete(field.Edit.Props, "$on:change")
 				}
+
 			}
 
 			lists[name] = field.Map()
+
+			// Bind Parent Data
+			if query != nil {
+				if field.Edit != nil && field.Edit.Props != nil {
+					lists[name] = helper.Bind(lists[name], replacements)
+				}
+				if field.View != nil && field.View.Props != nil {
+					lists[name] = helper.Bind(lists[name], replacements)
+				}
+			}
 		}
 	}
 

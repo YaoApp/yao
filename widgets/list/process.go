@@ -25,15 +25,14 @@ func exportProcess() {
 }
 
 func processXgen(process *gouProcess.Process) interface{} {
-
 	list := MustGet(process)
-	data := process.ArgsMap(1, map[string]interface{}{})
+	query := process.ArgsMap(1, map[string]interface{}{})
+	data := process.ArgsMap(2, map[string]interface{}{})
 	excludes := app.Permissions(process, "lists", list.ID)
-	setting, err := list.Xgen(data, excludes)
+	setting, err := list.Xgen(data, excludes, query)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
-
 	return setting
 }
 
@@ -147,7 +146,21 @@ func processUpload(process *gouProcess.Process) interface{} {
 
 func processSetting(process *gouProcess.Process) interface{} {
 	list := MustGet(process)
-	process.Args = append(process.Args, process.Args[0]) // list name
+	name := process.ArgsString(0)
+	params := process.ArgsMap(1, map[string]interface{}{})
+	query := map[string]string{}
+	for key, value := range params {
+		switch v := value.(type) {
+		case string:
+			query[key] = v
+		case []string:
+			query[key] = strings.Join(v, ",")
+		default:
+			query[key] = fmt.Sprintf("%v", value)
+		}
+	}
+
+	process.Args = []interface{}{name, name, query} // list name
 	return list.Action.Setting.MustExec(process)
 }
 
