@@ -241,7 +241,7 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool, quer
 
 	replacements := maps.Map{}
 	if query != nil {
-		replacements = maps.Of(map[string]interface{}{"$parent": query}).Dot()
+		replacements = maps.Of(map[string]interface{}{"$props": query}).Dot()
 	}
 
 	for _, cProp := range dsl.CProps {
