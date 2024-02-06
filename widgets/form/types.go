@@ -75,6 +75,13 @@ type FieldsDSL struct {
 type ViewLayoutDSL struct {
 	Props    component.PropsDSL `json:"props,omitempty"`
 	Sections []SectionDSL       `json:"sections,omitempty"`
+	Frame    FrameDSL           `json:"frame,omitempty"`
+}
+
+// FrameDSL layout.form.frame
+type FrameDSL struct {
+	URL    string            `json:"url,omitempty"`
+	Params map[string]string `json:"params,omitempty"`
 }
 
 // SectionDSL layout.form.sections[*]
