@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	v8 "github.com/yaoapp/gou/runtime/v8"
@@ -18,10 +19,10 @@ import (
 
 // Guards middlewares
 var Guards = map[string]func(c *Request) error{
-	"bearer-jwt": guardBearerJWT, // Bearer JWT
-	"query-jwt":  guardQueryJWT,  // Get JWT Token from query string  "__tk"
-	"cookie-jwt": guardCookieJWT, // Get JWT Token from cookie "__tk"
-
+	"bearer-jwt":   guardBearerJWT,   // Bearer JWT
+	"query-jwt":    guardQueryJWT,    // Get JWT Token from query string  "__tk"
+	"cookie-jwt":   guardCookieJWT,   // Get JWT Token from cookie "__tk"
+	"cookie-trace": guardCookieTrace, // Set sid cookie
 }
 
 // JWT Bearer JWT
@@ -47,7 +48,7 @@ func guardBearerJWT(r *Request) error {
 // JWT Bearer JWT
 func guardCookieJWT(r *Request) error {
 	if r.context == nil {
-		return fmt.Errorf("No permission")
+		return fmt.Errorf("Context is nil")
 	}
 	c := r.context
 
@@ -67,6 +68,25 @@ func guardCookieJWT(r *Request) error {
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
 	r.Sid = claims.SID
+	return nil
+}
+
+func guardCookieTrace(r *Request) error {
+	if r.context == nil {
+		return fmt.Errorf("Context is nil")
+	}
+
+	c := r.context
+	sid, err := c.Cookie("sid")
+	if err != nil {
+		sid = uuid.New().String()
+		c.SetCookie("sid", sid, 0, "/", "", false, true)
+		c.Set("__sid", sid)
+		r.Sid = sid
+		return nil
+	}
+	c.Set("__sid", sid)
+	r.Sid = sid
 	return nil
 }
 
