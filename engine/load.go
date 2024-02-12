@@ -22,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/pack"
+	"github.com/yaoapp/yao/pipe"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/runtime"
@@ -208,6 +209,12 @@ func Load(cfg config.Config) (err error) {
 	err = moapi.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Moapi", err)
+	}
+
+	// Load Pipe
+	err = pipe.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Pipe", err)
 	}
 
 	return nil
