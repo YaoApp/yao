@@ -101,5 +101,31 @@ func (args Args) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// UnmarshalJSON Custom JSON unmarshal function
+func (autoFill *AutoFill) UnmarshalJSON(data []byte) error {
+
+	var res any
+	err := jsoniter.Unmarshal(data, &res)
+	if err != nil {
+		return err
+	}
+
+	switch v := res.(type) {
+
+	case map[string]interface{}:
+		if value, has := v["value"]; has {
+			autoFill.Value = fmt.Sprint(value)
+		}
+		if action, has := v["action"]; has {
+			autoFill.Action = fmt.Sprint(action)
+		}
+
+	default:
+		autoFill.Value = v
+	}
+
+	return nil
 
 }

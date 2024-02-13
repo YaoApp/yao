@@ -22,15 +22,15 @@ func TestRun(t *testing.T) {
 	sid := session.ID()
 	context, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
 	ctx := translator.
 		Create().
 		With(context).
 		WithGlobal(map[string]interface{}{"foo": "bar"}).
 		WithSid(sid)
 	defer Close(ctx.ID())
-
-	assert.NotPanics(t, func() { ctx.Run() })
+	assert.NotPanics(t, func() {
+		ctx.Run(map[string]interface{}{"placeholder": "translate\nhello world"})
+	})
 }
 
 func prepare(t *testing.T) {
