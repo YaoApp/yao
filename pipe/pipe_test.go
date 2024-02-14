@@ -2,6 +2,7 @@ package pipe
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -51,6 +52,7 @@ func TestRun(t *testing.T) {
 func prepare(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	mirror := os.Getenv("TEST_MOAPI_MIRROR")
+	fmt.Println(mirror)
 	secret := os.Getenv("TEST_MOAPI_SECRET")
 	share.App = share.AppInfo{
 		Moapi: share.Moapi{Channel: "stable", Mirrors: []string{mirror}, Secret: secret},

@@ -8,8 +8,11 @@ import (
 // **Warning** This process under developing, do not use it
 func ProcessValidate(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
-	data := process.ArgsMap(0, map[string]interface{}{}).Dot()
+	if _, ok := process.Args[0].(map[string]interface{}); !ok {
+		return false
+	}
 
+	data := process.ArgsMap(0, map[string]interface{}{}).Dot()
 	rules := process.ArgsRecords(1)
 	for _, rule := range rules {
 		for method, value := range rule {
