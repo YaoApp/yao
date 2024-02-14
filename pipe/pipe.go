@@ -100,43 +100,42 @@ func Get(id string) (*Pipe, error) {
 
 // Build the pipe
 func (pipe *Pipe) build() error {
-	pipe.mapping = map[string]*Node{}
+
 	if pipe.Nodes == nil || len(pipe.Nodes) == 0 {
 		return fmt.Errorf("pipe: %s nodes is required", pipe.Name)
 	}
 
-	return pipe._build("", pipe.Nodes)
+	return pipe._build()
 }
 
-func (pipe *Pipe) _build(namespace string, nodes []Node) error {
+// HasNodes check if the pipe has nodes
+func (pipe *Pipe) HasNodes() bool {
+	return pipe.Nodes != nil && len(pipe.Nodes) > 0
+}
 
-	for i, node := range nodes {
+func (pipe *Pipe) _build() error {
+
+	pipe.mapping = map[string]*Node{}
+	if pipe.Nodes == nil {
+		return nil
+	}
+
+	for i, node := range pipe.Nodes {
 		if node.Name == "" {
 			return fmt.Errorf("pipe: %s nodes[%d] name is required", pipe.Name, i)
 		}
 
-		name := node.Name
-		if namespace != "" {
-			name = namespace + "." + name
-		}
-
-		// Set the index of the node
-		if nodes[i].index == nil {
-			nodes[i].index = []int{}
-		}
-
-		nodes[i].index = append(nodes[i].index, i)
-		nodes[i].namespace = namespace
-		pipe.mapping[name] = &nodes[i]
+		pipe.Nodes[i].index = i
+		pipe.mapping[node.Name] = &pipe.Nodes[i]
 
 		// Set the label of the node
 		if node.Label == "" {
-			nodes[i].Label = strings.ToUpper(node.Name)
+			pipe.Nodes[i].Label = strings.ToUpper(node.Name)
 		}
 
 		// Set the type of the node
 		if node.Process != nil {
-			nodes[i].Type = "process"
+			pipe.Nodes[i].Type = "process"
 
 			// Validate the process
 			if node.Process.Name == "" {
@@ -149,38 +148,42 @@ func (pipe *Pipe) _build(namespace string, nodes []Node) error {
 					return fmt.Errorf("pipe: %s nodes[%d] process %s is not in the whitelist", pipe.Name, i, node.Process.Name)
 				}
 			}
+			continue
 
 		} else if node.Request != nil {
-			nodes[i].Type = "request"
+			pipe.Nodes[i].Type = "request"
+			continue
 
 		} else if node.Prompts != nil {
-			nodes[i].Type = "ai"
-
-		} else if node.Case != nil {
-			nodes[i].Type = "switch"
-			for _, sub := range node.Case {
-				// Copy the whitelist to the sub pipe
-				sub.Name = fmt.Sprintf("%s.%s", pipe.Name, node.Name)
-				sub.Whitelist = pipe.Whitelist
-				sub.mapping = map[string]*Node{}
-				sub.namespace = node.Name
-				if sub.Nodes != nil && len(sub.Nodes) > 0 {
-					err := sub._build("", sub.Nodes)
-					if err != nil {
-						return err
-					}
-				}
-			}
+			pipe.Nodes[i].Type = "ai"
+			continue
 
 		} else if node.UI != "" {
-			nodes[i].Type = "user-input"
+			pipe.Nodes[i].Type = "user-input"
 			if node.UI != "cli" && node.UI != "web" && node.UI != "app" && node.UI != "wxapp" { // Vaildate the UI type
 				return fmt.Errorf("pipe: %s nodes[%d] the type of the UI must be cli, web, app, wxapp", pipe.Name, i)
 			}
+			continue
 
-		} else {
-			return fmt.Errorf("pipe: %s nodes[%d] process, request, case, prompts or ui is required at least one", pipe.Name, i)
+		} else if node.Switch != nil {
+			pipe.Nodes[i].Type = "switch"
+			for key, pip := range node.Switch {
+				key = ref(key)
+				pip.Whitelist = pipe.Whitelist // Copy the whitelist
+				pip.namespace = node.Name
+				pip.parent = pipe
+				if pip.ID == "" {
+					pip.ID = fmt.Sprintf("%s.%s#%s", pipe.ID, node.Name, key)
+				}
+				if pip.Name == "" {
+					pip.Name = fmt.Sprintf("%s(%s#%s)", pipe.Name, node.Name, key)
+				}
+				pip._build()
+			}
+			continue
 		}
+
+		return fmt.Errorf("pipe: %s nodes[%d] process, request, case, prompts or ui is required at least one", pipe.Name, i)
 	}
 
 	return nil

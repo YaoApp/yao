@@ -15,17 +15,22 @@ var contexts = sync.Map{}
 func (pipe *Pipe) Create() *Context {
 	id := uuid.NewString()
 	ctx := &Context{
-		id:     id,
-		Pipe:   pipe,
-		in:     map[string][]any{},
-		out:    map[string]any{},
-		input:  map[string][]any{},
-		output: map[string]any{},
+		id:      id,
+		Pipe:    pipe,
+		in:      map[*Node][]any{},
+		out:     map[*Node]any{},
+		history: map[*Node][]Prompt{},
+		current: nil,
+
+		input:  []any{},
+		output: nil,
 	}
 
-	if pipe.Nodes != nil {
-		ctx.current = pipe.Nodes[0].Namespace()
+	// Set the current node
+	if pipe.HasNodes() {
+		ctx.current = &pipe.Nodes[0]
 	}
+
 	contexts.Store(id, ctx)
 	return ctx
 }
@@ -58,42 +63,41 @@ func (ctx *Context) ID() string {
 	return ctx.id
 }
 
-// Current the current node
-func (ctx *Context) Current() (*Node, error) {
-	node, has := ctx.mapping[ctx.current]
-	if !has {
-		return nil, fmt.Errorf("pipe: %s %s", ctx.Name, "node not found")
-	}
-	return node, nil
-}
-
 // Next the next node
-func (ctx *Context) Next() (*Node, error) {
-	node, err := ctx.Current()
-	if err != nil {
-		return nil, err
+func (ctx *Context) Next() (*Node, bool, error) {
+
+	if ctx.current == nil {
+		return nil, true, nil
 	}
 
-	if node.Goto != "" {
-		next, err := ctx.replaceString(node.Goto)
+	// if the goto is not empty, then goto the node
+	if ctx.current.Goto != "" {
+		data := ctx.data(ctx.current)
+		next, err := data.replaceString(ctx.current.Goto)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		if next == "EOF" {
-			return nil, fmt.Errorf("EOF")
+			return nil, true, nil
 		}
 
-		ctx.current = next
-		return ctx.Current()
+		var has = false
+		ctx.current, has = ctx.mapping[next]
+		if !has {
+			return nil, false, ctx.Errorf("node %s not found", next)
+		}
+		return ctx.current, false, nil
 	}
 
-	next := node.index[len(node.index)-1] + 1
-	if next < len(ctx.Nodes) {
-		ctx.current = ctx.Nodes[next].Namespace()
-		return ctx.Current()
+	// continue to the next node
+	next := ctx.current.index + 1
+	if next >= len(ctx.Nodes) {
+		return nil, true, nil
 	}
-	return nil, fmt.Errorf("EOF")
+
+	ctx.current = &ctx.Nodes[next]
+	return ctx.current, false, nil
 }
 
 // IsEOF check if the error is EOF
@@ -101,165 +105,176 @@ func IsEOF(err error) bool {
 	return err != nil && err.Error() == "EOF"
 }
 
-// Exec the pipe
+// Exec this is the entry point of the pipe
 func (ctx *Context) Exec(args ...any) (any, error) {
-	node, err := ctx.Current()
+	if ctx.current == nil {
+		return nil, ctx.Errorf("pipe %s has no nodes", ctx.Name)
+	}
+
+	input, err := ctx.parseInput(args)
 	if err != nil {
 		return nil, err
 	}
-	return ctx.exec(node, args...)
+
+	return ctx.exec(ctx.current, input)
 }
 
 // Exec and return error
-func (ctx *Context) exec(node *Node, args ...any) (any, error) {
+func (ctx *Context) exec(node *Node, input Input) (output any, err error) {
 
+	var out any
 	switch node.Type {
 
 	case "process":
-		err := node.ExecProcess(ctx, args)
+		out, err = node.YaoProcess(ctx, input)
 		if err != nil {
 			return nil, err
 		}
 
-	case "request":
-		err := node.ExecRequest(ctx, args)
-		if err != nil {
-			return nil, err
-		}
+	// case "request":
+	// 	err := node.ExecRequest(ctx, args)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
 
 	case "ai":
-		err := node.ExecAI(ctx, args)
+		out, err = node.AI(ctx, input)
 		if err != nil {
 			return nil, err
 		}
 
 	case "switch":
-		err := node.ExecSwitch(ctx, args)
+		out, err = node.Case(ctx, input)
 		if err != nil {
 			return nil, err
 		}
 
 	case "user-input":
-		err := node.Render(ctx, args)
+		out, err = node.Render(ctx, input)
 		if err != nil {
 			return nil, err
 		}
 
 	default:
-		return nil, fmt.Errorf("pipe: %s %s", ctx.Name, "node type error")
+		return nil, node.Errorf(ctx, "type '%s' not support", node.Type)
+	}
+
+	// Execute the next node
+	next, eof, err := ctx.Next()
+	if err != nil {
+		return nil, err
+	}
+
+	// End of the pipe
+	if eof {
+		defer Close(ctx.id)
+		output, err := ctx.parseOutput()
+		if err != nil {
+			return nil, err
+		}
+
+		return output, nil
+	}
+
+	// Execute the next node
+	return ctx.exec(next, anyToInput(out))
+}
+
+// ParseNodeInput parse the node input
+func (ctx *Context) parseNodeInput(node *Node, input Input) (Input, error) {
+	ctx.in[node] = input
+	if node.Input != nil && len(node.Input) > 0 {
+		data := ctx.data(node)
+		input, err := data.replaceArray(node.Input)
+		if err != nil {
+			return nil, err
+		}
+		ctx.in[node] = input
+		return input, nil
+	}
+
+	return input, nil
+}
+
+// ParseNodeOutput parse the node output
+func (ctx *Context) parseNodeOutput(node *Node, output any) (any, error) {
+	ctx.out[node] = output
+	if node.Output != nil {
+		data := ctx.data(node)
+		output, err := data.replace(node.Output)
+		if err != nil {
+			return nil, err
+		}
+		ctx.out[node] = output
+		return output, nil
+	}
+
+	return output, nil
+}
+
+// ParseInput parse the pipe input
+func (ctx *Context) parseInput(input Input) (Input, error) {
+	ctx.input = input
+	if ctx.Input != nil && len(ctx.Input) > 0 {
+		data := ctx.data(nil)
+		input, err := data.replaceArray(ctx.Input)
+		if err != nil {
+			return nil, err
+		}
+		ctx.input = input
+		return input, nil
+	}
+	return input, nil
+}
+
+// ParseOutput parse the pipe output
+func (ctx *Context) parseOutput() (any, error) {
+
+	if ctx.Output != nil {
+		data := ctx.data(nil)
+		output, err := data.replace(ctx.Output)
+		if err != nil {
+			return nil, err
+		}
+		ctx.output = output
+		return output, nil
+	}
+
+	if ctx.current != nil {
+		return ctx.out[ctx.current], nil
 	}
 
 	return nil, nil
 }
 
-func (ctx *Context) replace(value any) (any, error) {
+func (ctx *Context) data(node *Node) Data {
 
-	switch v := value.(type) {
-	case string:
-		return ctx.replaceAny(v)
-
-	case []any:
-		return ctx.replaceArray(v)
-
-	case map[string]any:
-		return ctx.replaceMap(v)
-
-	case Input:
-		return ctx.replaceArray(v)
-	}
-
-	return value, nil
-}
-
-func (ctx *Context) replaceAny(value string) (any, error) {
-
-	if !IsExpression(value) {
-		return value, nil
-	}
-
-	data, err := ctx.data()
-	if err != nil {
-		return "", err
-	}
-
-	v, err := data.Exec(value)
-	if err != nil {
-		return "", err
-	}
-	return v, nil
-}
-
-// replaceString replace the string
-func (ctx *Context) replaceString(value string) (string, error) {
-
-	if !IsExpression(value) {
-		return value, nil
-	}
-
-	data, err := ctx.data()
-	if err != nil {
-		return "", err
-	}
-
-	v, err := data.ExecString(value)
-	if err != nil {
-		return "", err
-	}
-	return v, nil
-}
-
-func (ctx *Context) replaceMap(value map[string]any) (map[string]any, error) {
-	newValue := map[string]any{}
-	for k, v := range value {
-		res, err := ctx.replace(v)
-		if err != nil {
-			return nil, err
-		}
-		newValue[k] = res
-	}
-	return newValue, nil
-}
-
-func (ctx *Context) replaceArray(value []any) ([]any, error) {
-	newValue := []any{}
-	for _, v := range value {
-		res, err := ctx.replace(v)
-		if err != nil {
-			return nil, err
-		}
-		newValue = append(newValue, res)
-	}
-
-	return newValue, nil
-}
-
-func (ctx *Context) replaceInput(value Input) (Input, error) {
-	return ctx.replaceArray(value)
-}
-
-func (ctx *Context) data() (Data, error) {
-	node, err := ctx.Current()
-	if err != nil {
-		return Data{}, err
-	}
-
-	name := node.Namespace()
 	data := map[string]any{
 		"$sid":    ctx.sid,
 		"$global": ctx.global,
-		"$in":     ctx.in[name],
-		"$out":    ctx.out[name],
 		"$input":  ctx.input,
 		"$output": ctx.output,
 	}
 
-	if ctx.output != nil {
-		for k, v := range ctx.output {
-			data[k] = v
+	if ctx.in != nil {
+		for k, v := range ctx.in {
+			key := fmt.Sprintf("$node.%s.in", k.Name)
+			data[key] = v
 		}
 	}
-	return data, nil
 
+	if ctx.out != nil {
+		for k, v := range ctx.out {
+			data[k.Name] = v
+		}
+	}
+
+	if node != nil {
+		data["$in"] = ctx.in[node]
+		data["$out"] = ctx.out[node]
+	}
+
+	return data
 }
 
 // With with the context
@@ -278,4 +293,20 @@ func (ctx *Context) WithGlobal(data map[string]interface{}) *Context {
 func (ctx *Context) WithSid(sid string) *Context {
 	ctx.sid = sid
 	return ctx
+}
+
+func (ctx *Context) inheritance(parent *Context) *Context {
+	ctx.in = parent.in
+	ctx.out = parent.out
+	ctx.history = parent.history
+	ctx.global = parent.global
+	ctx.sid = parent.sid
+	ctx.parent = parent
+	return ctx
+}
+
+// Errorf format the error message
+func (ctx *Context) Errorf(format string, a ...any) error {
+	message := fmt.Sprintf(format, a...)
+	return fmt.Errorf("pipe: %s(%s) %s %s", ctx.Name, ctx.Pipe.ID, ctx.id, message)
 }

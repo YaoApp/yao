@@ -39,6 +39,8 @@ env:
   MONGO_TEST_PASS: "123456"
 
   OPENAI_TEST_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_MIRROR: https://api.openai.com/v1
 
   TAB_NAME: "::PET ADMIN"
   PAGE_SIZE: "20"

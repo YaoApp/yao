@@ -43,7 +43,7 @@ func (cli *Cli) Render(args []any) ([]string, error) {
 
 	scanner := bufio.NewScanner(cli.option.Reader)
 	var lines []string
-	color.Green("%s", cli.option.Label)
+	color.Blue("%s", cli.option.Label)
 	fmt.Printf("%s", color.WhiteString("> "))
 	for scanner.Scan() {
 		line := scanner.Text()

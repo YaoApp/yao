@@ -45,7 +45,7 @@ func (whitelist *Whitelist) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON Custom JSON unmarshal function
-func (input Input) UnmarshalJSON(data []byte) error {
+func (input *Input) UnmarshalJSON(data []byte) error {
 
 	var res any
 	err := jsoniter.Unmarshal(data, &res)
@@ -55,16 +55,19 @@ func (input Input) UnmarshalJSON(data []byte) error {
 
 	switch v := res.(type) {
 	case []string:
-		input = []any{}
+		value := []any{}
 		for _, name := range v {
-			input = append(input, name)
+			value = append(value, name)
 		}
+		*input = value
 
 	case []interface{}:
-		input = v
+		value := []any{}
+		*input = value
 
 	case string:
-		input = []any{v}
+		value := []any{v}
+		*input = value
 
 	default:
 		return fmt.Errorf("input type error: %#v", v)
@@ -75,7 +78,7 @@ func (input Input) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalJSON Custom JSON unmarshal function
-func (args Args) UnmarshalJSON(data []byte) error {
+func (args *Args) UnmarshalJSON(data []byte) error {
 
 	var res any
 	err := jsoniter.Unmarshal(data, &res)
@@ -85,16 +88,17 @@ func (args Args) UnmarshalJSON(data []byte) error {
 
 	switch v := res.(type) {
 	case []string:
-		args = []any{}
+		values := []any{}
 		for _, name := range v {
-			args = append(args, name)
+			values = append(values, name)
 		}
+		*args = values
 
 	case []interface{}:
-		args = v
+		*args = v
 
 	case string:
-		args = []any{v}
+		*args = []any{v}
 
 	default:
 		return fmt.Errorf("input type error: %#v", v)

@@ -72,3 +72,124 @@ func (data Data) ExecString(stmt string) (string, error) {
 func IsExpression(stmt string) bool {
 	return stmtRe.MatchString(stmt)
 }
+
+func (data Data) replace(value any) (any, error) {
+
+	switch v := value.(type) {
+	case string:
+		return data.replaceAny(v)
+
+	case []any:
+		return data.replaceArray(v)
+
+	case map[string]any:
+		return data.replaceMap(v)
+
+	case Input:
+		return data.replaceArray(v)
+	}
+
+	return value, nil
+}
+
+func (data Data) replacePrompts(prompts []Prompt) ([]Prompt, error) {
+	newPrompts := []Prompt{}
+	for _, prompt := range prompts {
+		content, err := data.replaceString(prompt.Content)
+		if err != nil {
+			return nil, err
+		}
+		role, err := data.replaceString(prompt.Role)
+		if err != nil {
+			return nil, err
+		}
+		prompt.Role = role
+		prompt.Content = content
+		newPrompts = append(newPrompts, prompt)
+	}
+	return newPrompts, nil
+}
+
+func (data Data) replaceAny(value string) (any, error) {
+
+	if !IsExpression(value) {
+		return value, nil
+	}
+
+	v, err := data.Exec(value)
+	if err != nil {
+		return "", err
+	}
+	return v, nil
+}
+
+// replaceString replace the string
+func (data Data) replaceString(value string) (string, error) {
+
+	if !IsExpression(value) {
+		return value, nil
+	}
+
+	v, err := data.ExecString(value)
+	if err != nil {
+		return "", err
+	}
+	return v, nil
+}
+
+func (data Data) replaceMap(value map[string]any) (map[string]any, error) {
+	newValue := map[string]any{}
+	if value == nil {
+		return newValue, nil
+	}
+
+	for k, v := range value {
+		res, err := data.replace(v)
+		if err != nil {
+			return nil, err
+		}
+		newValue[k] = res
+	}
+	return newValue, nil
+}
+
+func (data Data) replaceArray(value []any) ([]any, error) {
+	newValue := []any{}
+	if value == nil {
+		return newValue, nil
+	}
+
+	for _, v := range value {
+		res, err := data.replace(v)
+		if err != nil {
+			return nil, err
+		}
+		newValue = append(newValue, res)
+	}
+
+	return newValue, nil
+}
+
+func (data Data) replaceInput(value Input) (Input, error) {
+	return data.replaceArray(value)
+}
+
+func anyToInput(v any) Input {
+	switch v := v.(type) {
+	case Input:
+		return v
+
+	case []any:
+		return v
+
+	case []string:
+		input := Input{}
+		for _, s := range v {
+			input = append(input, s)
+		}
+		return input
+
+	default:
+		return Input{v}
+	}
+}

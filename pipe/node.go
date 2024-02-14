@@ -4,235 +4,246 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/utils"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/openai"
 	"github.com/yaoapp/yao/pipe/ui/cli"
 )
 
-// ExecProcess Execute the process
-func (node Node) ExecProcess(ctx *Context, args []any) error {
-	var err error
-	name := node.Namespace()
-	ctx.in[name] = args
-	if node.Input != nil {
-		ctx.in[name], err = ctx.replaceInput(node.Input)
-		if err != nil {
-			return err
-		}
+// Case Execute the user input
+func (node *Node) Case(ctx *Context, input Input) (any, error) {
+
+	if node.Switch == nil || len(node.Switch) == 0 {
+		return nil, node.Errorf(ctx, "switch case not found")
 	}
 
-	ctx.input[name] = ctx.in[name]
-	res := true
-
-	ctx.out[name] = res
-	ctx.output[name] = res
-	if node.Output != nil {
-		ctx.output[name], err = ctx.replace(node.Output)
-		if err != nil {
-			return err
-		}
-	}
-
-	next, err := ctx.Next()
+	input, err := ctx.parseNodeInput(node, input)
 	if err != nil {
-		if IsEOF(err) {
-			return nil
-		}
-		return err
+		return nil, err
 	}
 
-	// Execute the next node
-	_, err = ctx.exec(next, ctx.output[name])
-	if err != nil {
-		return err
+	// Find the case
+	var child *Pipe = node.Switch["default"]
+	data := ctx.data(node)
+
+	for expr, pip := range node.Switch {
+
+		expr, err := data.replaceString(expr)
+		if err != nil {
+			return nil, err
+		}
+
+		v, err := data.Exec(expr)
+		if err != nil {
+			return nil, err
+		}
+
+		if v == true {
+			child = pip
+		}
 	}
-	return nil
+
+	if child == nil {
+		return nil, node.Errorf(ctx, "switch case not found")
+	}
+
+	// Execute the child pipe
+	var res any = nil
+	subctx := child.Create().inheritance(ctx)
+	if subctx.current != nil {
+		res, err = subctx.Exec(input...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	output, err := ctx.parseNodeOutput(node, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
-// ExecRequest Execute the request
-func (node Node) ExecRequest(ctx *Context, args []any) error {
-	return nil
+// YaoProcess Execute the Yao Process
+func (node *Node) YaoProcess(ctx *Context, input Input) (any, error) {
+
+	if node.Process == nil {
+		return nil, node.Errorf(ctx, "process not set")
+	}
+
+	input, err := ctx.parseNodeInput(node, input)
+	if err != nil {
+		return nil, err
+	}
+
+	data := ctx.data(node)
+	args, err := data.replaceArray(node.Process.Args)
+
+	// Execute the process
+	process, err := process.Of(node.Process.Name, args...)
+	if err != nil {
+		return nil, node.Errorf(ctx, err.Error())
+	}
+
+	res, err := process.WithGlobal(ctx.global).WithSID(ctx.sid).Exec()
+	if err != nil {
+		return nil, node.Errorf(ctx, err.Error())
+	}
+
+	output, err := ctx.parseNodeOutput(node, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
-// ExecAI Execute the AI
-func (node Node) ExecAI(ctx *Context, args []any) error {
-	var err error
-	name := node.Namespace()
-	ctx.in[name] = args
-	if node.Input != nil {
-		ctx.in[name], err = ctx.replaceInput(node.Input)
-		if err != nil {
-			return err
-		}
-	}
-	ctx.input[name] = ctx.in[name]
+// AI Execute the AI input
+func (node *Node) AI(ctx *Context, input Input) (any, error) {
 
-	res := map[string]any{"args": args, "Chinese": "你好", "Arabic": "مرحبا"}
-	ctx.out[name] = res
-	ctx.output[name] = res
-	if node.Output != nil {
-		ctx.output[name], err = ctx.replace(node.Output)
-		if err != nil {
-			return err
-		}
+	if node.Prompts == nil || len(node.Prompts) == 0 {
+		return nil, node.Errorf(ctx, "prompts not found")
 	}
 
-	next, err := ctx.Next()
+	input, err := ctx.parseNodeInput(node, input)
 	if err != nil {
-		if IsEOF(err) {
-			return nil
-		}
-		return err
+		return nil, err
 	}
 
-	// Execute the next node
-	_, err = ctx.exec(next, ctx.output[name])
+	data := ctx.data(node)
+	prompts, err := data.replacePrompts(node.Prompts)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	prompts = node.aiMergeHistory(ctx, prompts)
+
+	res, err := node.chatCompletions(ctx, prompts, node.Options)
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := ctx.parseNodeOutput(node, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }
 
-// ExecSwitch Execute the switch
-func (node Node) ExecSwitch(ctx *Context, args []any) error {
-	var err error
-	name := node.Namespace()
-
-	ctx.in[name] = args
-	if node.Input != nil {
-		ctx.in[name], err = ctx.replaceInput(node.Input)
-		if err != nil {
-			return err
-		}
-	}
-	ctx.input[name] = ctx.in[name]
-
-	data, err := ctx.data()
+func (node *Node) chatCompletions(ctx *Context, prompts []Prompt, options map[string]interface{}) (any, error) {
+	// moapi call
+	ai, err := openai.NewMoapi(node.Model)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	section, _ := node.Case["default"]
-	for stmt := range node.Case {
-		if stmt == "default" {
+	response := []string{}
+	content := []string{}
+	_, ex := ai.ChatCompletions(promptsToMap(prompts), node.Options, func(data []byte) int {
+
+		// Prograss Hook
+
+		if len(data) > 5 && string(data[:5]) == "data:" {
+			var res ChatCompletionChunk
+			err := jsoniter.Unmarshal(data[5:], &res)
+			if err != nil {
+				return 0
+			}
+			if len(res.Choices) > 0 {
+				response = append(response, res.Choices[0].Delta.Content)
+			}
+		} else {
+			content = append(content, string(data))
+		}
+
+		return 1
+	})
+
+	if ex != nil {
+		return nil, node.Errorf(ctx, "AI error: %s", ex.Message)
+	}
+
+	if (len(response) == 0) && (len(content) > 0) {
+		return nil, node.Errorf(ctx, "AI error: %s", strings.Join(content, ""))
+	}
+
+	raw := strings.Join(response, "")
+
+	// try to parse the response
+	var res any
+	err = jsoniter.UnmarshalFromString(raw, &res)
+	if err != nil {
+		return raw, nil
+	}
+
+	return res, nil
+}
+
+func (node *Node) aiMergeHistory(ctx *Context, prompts []Prompt) []Prompt {
+	if ctx.history == nil {
+		ctx.history = map[*Node][]Prompt{}
+	}
+	if ctx.history[node] == nil {
+		ctx.history = map[*Node][]Prompt{}
+	}
+	new := []Prompt{}
+	saved := map[string]bool{}
+
+	// filter the prompts
+	for _, prompt := range ctx.history[node] {
+		saved[prompt.finger()] = true
+		new = append(new, prompt)
+	}
+
+	for _, prompt := range prompts {
+		if saved[prompt.finger()] {
 			continue
 		}
-
-		v, err := data.Exec(stmt)
-		if err != nil {
-			log.Warn("pipe: %s %s", ctx.Name, err)
-			continue
-		}
-
-		// If the result is true, then break the loop
-		if match, ok := v.(bool); ok && match {
-			section = node.Case[stmt]
-			break
-		}
+		new = append(new, prompt)
 	}
 
-	// Execute the next node
-	if section == nil {
-		return fmt.Errorf("pipe: %s %s", ctx.Name, "node case not matched")
-	}
-
-	// Execute The Pipe
-	subCtx := section.Create().
-		With(ctx.context).
-		WithGlobal(ctx.global).
-		WithSid(ctx.sid)
-
-	// Copy the input and output
-	for k, v := range ctx.in {
-		subCtx.in[k] = v
-	}
-
-	for k, v := range ctx.input {
-		subCtx.input[k] = v
-	}
-
-	for k, v := range ctx.out {
-		subCtx.out[k] = v
-	}
-
-	for k, v := range ctx.output {
-		subCtx.output[k] = v
-	}
-
-	_, err = subCtx.Exec(ctx.in[name])
-	if err != nil {
-		return err
-	}
-
-	// Merge the output
-	for k, v := range subCtx.out {
-		ctx.out[k] = v
-	}
-
-	for k, v := range subCtx.output {
-		ctx.output[k] = v
-	}
-
-	utils.Dump(name, ctx.output)
-
-	return nil
+	// update the history
+	ctx.history[node] = new
+	return new
 }
 
 // Render Execute the user input
-func (node Node) Render(ctx *Context, args []any) error {
+func (node *Node) Render(ctx *Context, input Input) (any, error) {
 
 	switch node.UI {
 
 	case "cli":
-		return node.renderCli(ctx, args)
+		return node.renderCli(ctx, input)
 
 	case "web":
 
-	default:
-		return fmt.Errorf("pipe: %s %s", ctx.Name, "node ui not supported")
 	}
 
-	return nil
+	return nil, fmt.Errorf("pipe: %s %s", ctx.Name, "node type error")
 }
 
-// Namespace the node namespace
-func (node Node) Namespace() string {
-	name := node.Name
-	if node.namespace != "" {
-		name = fmt.Sprintf("%s.%s", node.namespace, name)
+func (node *Node) renderCli(ctx *Context, input Input) (any, error) {
+	input, err := ctx.parseNodeInput(node, input)
+	if err != nil {
+		return nil, err
 	}
-	return name
-}
-
-func (node Node) renderCli(ctx *Context, args []any) error {
-
-	var err error
-	name := node.Namespace()
-
-	ctx.in[name] = args
-	if node.Input != nil {
-		ctx.in[name], err = ctx.replaceInput(node.Input)
-		if err != nil {
-			return err
-		}
-	}
-	ctx.input[name] = ctx.in[name]
 
 	// Set option
-	label, err := ctx.replaceString(node.Label)
+	data := ctx.data(node)
+	label, err := data.replaceString(node.Label)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	option := &cli.Option{Label: label}
 	if node.AutoFill != nil {
 
 		value := fmt.Sprintf("%v", node.AutoFill.Value)
-		value, err = ctx.replaceString(value)
+		value, err = data.replaceString(value)
 		if value != "" {
 			if err != nil {
-				fmt.Println("cmd", err)
-				return err
+				return nil, err
 			}
 
 			if node.AutoFill.Action == "exit" {
@@ -242,35 +253,21 @@ func (node Node) renderCli(ctx *Context, args []any) error {
 		}
 	}
 
-	userDataLines, err := cli.New(option).Render(args)
+	lines, err := cli.New(option).Render(input)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	ctx.out[name] = userDataLines
-	ctx.output[name] = userDataLines
-	if node.Output != nil {
-		ctx.output[name], err = ctx.replace(node.Output)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Execute the next node
-	next, err := ctx.Next()
+	output, err := ctx.parseNodeOutput(node, lines)
 	if err != nil {
-		if IsEOF(err) {
-			return nil
-		}
-		return err
+		return nil, err
 	}
+	return output, nil
+}
 
-	// Execute the next node
-	_, err = ctx.exec(next, ctx.output[name])
-	if err != nil {
-		return err
-	}
-
-	// Next node
-	return nil
+// Errorf format the error message
+func (node *Node) Errorf(ctx *Context, format string, a ...any) error {
+	message := fmt.Sprintf(format, a...)
+	pid := ctx.Pipe.ID
+	return fmt.Errorf("pipe: %s nodes[%d](%s) %s (%s)", pid, node.index, node.Name, message, ctx.id)
 }
