@@ -3,6 +3,7 @@ package pipe
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
@@ -46,6 +47,12 @@ func New(source []byte) (*Pipe, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	err = (&pipe).build()
+	if err != nil {
+		return nil, err
+	}
+
 	return &pipe, nil
 }
 
@@ -59,6 +66,11 @@ func NewFile(file string, root string) (*Pipe, error) {
 	id := share.ID(root, file)
 	pipe := Pipe{ID: id}
 	err = application.Parse(file, source, &pipe)
+	if err != nil {
+		return nil, err
+	}
+
+	err = (&pipe).build()
 	if err != nil {
 		return nil, err
 	}
@@ -84,4 +96,95 @@ func Get(id string) (*Pipe, error) {
 		return pipe, nil
 	}
 	return nil, fmt.Errorf("pipe %s not found", id)
+}
+
+// Build the pipe
+func (pipe *Pipe) build() error {
+
+	if pipe.Nodes == nil || len(pipe.Nodes) == 0 {
+		return fmt.Errorf("pipe: %s nodes is required", pipe.Name)
+	}
+
+	return pipe._build()
+}
+
+// HasNodes check if the pipe has nodes
+func (pipe *Pipe) HasNodes() bool {
+	return pipe.Nodes != nil && len(pipe.Nodes) > 0
+}
+
+func (pipe *Pipe) _build() error {
+
+	pipe.mapping = map[string]*Node{}
+	if pipe.Nodes == nil {
+		return nil
+	}
+
+	for i, node := range pipe.Nodes {
+		if node.Name == "" {
+			return fmt.Errorf("pipe: %s nodes[%d] name is required", pipe.Name, i)
+		}
+
+		pipe.Nodes[i].index = i
+		pipe.mapping[node.Name] = &pipe.Nodes[i]
+
+		// Set the label of the node
+		if node.Label == "" {
+			pipe.Nodes[i].Label = strings.ToUpper(node.Name)
+		}
+
+		// Set the type of the node
+		if node.Process != nil {
+			pipe.Nodes[i].Type = "process"
+
+			// Validate the process
+			if node.Process.Name == "" {
+				return fmt.Errorf("pipe: %s nodes[%d] process name is required", pipe.Name, i)
+			}
+
+			// Security check
+			if pipe.Whitelist != nil {
+				if _, has := pipe.Whitelist[node.Process.Name]; !has {
+					return fmt.Errorf("pipe: %s nodes[%d] process %s is not in the whitelist", pipe.Name, i, node.Process.Name)
+				}
+			}
+			continue
+
+		} else if node.Request != nil {
+			pipe.Nodes[i].Type = "request"
+			continue
+
+		} else if node.Prompts != nil {
+			pipe.Nodes[i].Type = "ai"
+			continue
+
+		} else if node.UI != "" {
+			pipe.Nodes[i].Type = "user-input"
+			if node.UI != "cli" && node.UI != "web" && node.UI != "app" && node.UI != "wxapp" { // Vaildate the UI type
+				return fmt.Errorf("pipe: %s nodes[%d] the type of the UI must be cli, web, app, wxapp", pipe.Name, i)
+			}
+			continue
+
+		} else if node.Switch != nil {
+			pipe.Nodes[i].Type = "switch"
+			for key, pip := range node.Switch {
+				key = ref(key)
+				pip.Whitelist = pipe.Whitelist // Copy the whitelist
+				pip.namespace = node.Name
+				pip.parent = pipe
+				if pip.ID == "" {
+					pip.ID = fmt.Sprintf("%s.%s#%s", pipe.ID, node.Name, key)
+				}
+				if pip.Name == "" {
+					pip.Name = fmt.Sprintf("%s(%s#%s)", pipe.Name, node.Name, key)
+				}
+				pip._build()
+			}
+			continue
+		}
+
+		return fmt.Errorf("pipe: %s nodes[%d] process, request, case, prompts or ui is required at least one", pipe.Name, i)
+	}
+
+	return nil
 }

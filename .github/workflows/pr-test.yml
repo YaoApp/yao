@@ -39,6 +39,8 @@ env:
   MONGO_TEST_PASS: "123456"
 
   OPENAI_TEST_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_MIRROR: https://api.openai.com
 
   TAB_NAME: "::PET ADMIN"
   PAGE_SIZE: "20"
@@ -165,7 +167,7 @@ jobs:
         with:
           repository: yaoapp/page-builder-app
           token: ${{ secrets.YAO_TEST_TOKEN }}
-          path: page-builder-app 
+          path: page-builder-app
 
       - name: Checkout Extension
         uses: actions/checkout@v3

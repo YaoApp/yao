@@ -37,5 +37,6 @@ xgen/v1.0/*
 !xgen/v1.0/index.html
 !xgen/v1.0/umi.js
 !xgen/v1.0/layouts__index.async.js
+!pipe/ui
 *-unit-test
 docker/build/test

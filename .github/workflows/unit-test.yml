@@ -43,6 +43,8 @@ env:
   MONGO_TEST_PASS: "123456"
 
   OPENAI_TEST_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_MIRROR: https://api.openai.com
 
   TAB_NAME: "::PET ADMIN"
   PAGE_SIZE: "20"
@@ -57,7 +59,7 @@ env:
   YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
   YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
   YAO_TEST_BUILDER_APPLICATION: ${{ github.WORKSPACE }}/../page-builder-app
-  
+
   ## Runtime
   YAO_RUNTIME_MIN: 3
   YAO_RUNTIME_MAX: 6
