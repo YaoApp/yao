@@ -32,6 +32,9 @@ func TestRun(t *testing.T) {
 		WithSid(sid)
 	defer Close(ctx.ID())
 	output, err := ctx.Exec(map[string]interface{}{"placeholder": "translate\nhello world"})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	res := any.Of(output).Map().MapStrAny.Dot()
 	assert.True(t, res.Has("global"))
