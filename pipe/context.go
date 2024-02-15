@@ -36,17 +36,57 @@ func (pipe *Pipe) Create() *Context {
 }
 
 // Open the context
-func Open(id string) *Context {
+func Open(id string) (*Context, error) {
 	ctx, ok := contexts.Load(id)
 	if !ok {
-		exception.New("pipe: %s not found", 404, id).Throw()
+		return nil, fmt.Errorf("context %s not found", id)
 	}
-	return ctx.(*Context)
+	return ctx.(*Context), nil
 }
 
 // Close the context
 func Close(id string) {
 	contexts.Delete(id)
+}
+
+// Resume the context by id
+func (ctx *Context) Resume(id string, args ...any) any {
+	v, err := ctx.resume(args...)
+	if err != nil {
+		exception.New("pipe: %s %s", 500, ctx.Name, err).Throw()
+	}
+	return v
+}
+
+// resume the context by id
+func (ctx *Context) resume(args ...any) (any, error) {
+	if ctx.current == nil {
+		return nil, ctx.Errorf("pipe %s has no nodes", ctx.Name)
+	}
+
+	node := ctx.current
+	output, err := ctx.parseNodeOutput(node, args)
+	if err != nil {
+		return nil, node.Errorf(ctx, err.Error())
+	}
+
+	// Next node
+	next, eof, err := ctx.next()
+	if err != nil {
+		return nil, err
+	}
+
+	// End of the pipe
+	if eof {
+		defer Close(ctx.id)
+		output, err := ctx.parseOutput()
+		if err != nil {
+			return nil, err
+		}
+		return output, nil
+	}
+
+	return ctx.exec(next, anyToInput(output))
 }
 
 // Run the pipe
@@ -56,53 +96,6 @@ func (ctx *Context) Run(args ...any) any {
 		exception.New("pipe: %s %s", 500, ctx.Name, err).Throw()
 	}
 	return v
-}
-
-// ID the context id
-func (ctx *Context) ID() string {
-	return ctx.id
-}
-
-// Next the next node
-func (ctx *Context) Next() (*Node, bool, error) {
-
-	if ctx.current == nil {
-		return nil, true, nil
-	}
-
-	// if the goto is not empty, then goto the node
-	if ctx.current.Goto != "" {
-		data := ctx.data(ctx.current)
-		next, err := data.replaceString(ctx.current.Goto)
-		if err != nil {
-			return nil, false, err
-		}
-
-		if next == "EOF" {
-			return nil, true, nil
-		}
-
-		var has = false
-		ctx.current, has = ctx.mapping[next]
-		if !has {
-			return nil, false, ctx.Errorf("node %s not found", next)
-		}
-		return ctx.current, false, nil
-	}
-
-	// continue to the next node
-	next := ctx.current.index + 1
-	if next >= len(ctx.Nodes) {
-		return nil, true, nil
-	}
-
-	ctx.current = &ctx.Nodes[next]
-	return ctx.current, false, nil
-}
-
-// IsEOF check if the error is EOF
-func IsEOF(err error) bool {
-	return err != nil && err.Error() == "EOF"
 }
 
 // Exec this is the entry point of the pipe
@@ -150,9 +143,15 @@ func (ctx *Context) exec(node *Node, input Input) (output any, err error) {
 		}
 
 	case "user-input":
-		out, err = node.Render(ctx, input)
+		var pause bool = false
+		out, pause, err = node.Render(ctx, input)
 		if err != nil {
 			return nil, err
+		}
+
+		// Pause the pipe waiting for user input
+		if pause {
+			return out, nil
 		}
 
 	default:
@@ -160,7 +159,7 @@ func (ctx *Context) exec(node *Node, input Input) (output any, err error) {
 	}
 
 	// Execute the next node
-	next, eof, err := ctx.Next()
+	next, eof, err := ctx.next()
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +177,43 @@ func (ctx *Context) exec(node *Node, input Input) (output any, err error) {
 
 	// Execute the next node
 	return ctx.exec(next, anyToInput(out))
+}
+
+// Next the next node
+func (ctx *Context) next() (*Node, bool, error) {
+
+	if ctx.current == nil {
+		return nil, true, nil
+	}
+
+	// if the goto is not empty, then goto the node
+	if ctx.current.Goto != "" {
+		data := ctx.data(ctx.current)
+		next, err := data.replaceString(ctx.current.Goto)
+		if err != nil {
+			return nil, false, err
+		}
+
+		if next == "EOF" {
+			return nil, true, nil
+		}
+
+		var has = false
+		ctx.current, has = ctx.mapping[next]
+		if !has {
+			return nil, false, ctx.Errorf("node %s not found", next)
+		}
+		return ctx.current, false, nil
+	}
+
+	// continue to the next node
+	next := ctx.current.index + 1
+	if next >= len(ctx.Nodes) {
+		return nil, true, nil
+	}
+
+	ctx.current = &ctx.Nodes[next]
+	return ctx.current, false, nil
 }
 
 // ParseNodeInput parse the node input

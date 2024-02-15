@@ -209,18 +209,33 @@ func (node *Node) aiMergeHistory(ctx *Context, prompts []Prompt) []Prompt {
 }
 
 // Render Execute the user input
-func (node *Node) Render(ctx *Context, input Input) (any, error) {
+func (node *Node) Render(ctx *Context, input Input) (any, bool, error) {
 
 	switch node.UI {
 
 	case "cli":
-		return node.renderCli(ctx, input)
+		output, err := node.renderCli(ctx, input)
+		if err != nil {
+			return nil, false, err
+		}
+		return output, false, nil
 
-	case "web":
+	default:
+		input, err := ctx.parseNodeInput(node, input)
+		if err != nil {
+			return nil, true, err
+		}
+
+		return ResumeContext{
+			ID:    ctx.id,
+			Input: input,
+			Node:  node,
+			Data:  ctx.data(node),
+			Type:  node.Type,
+			UI:    node.UI,
+		}, true, nil
 
 	}
-
-	return nil, fmt.Errorf("pipe: %s %s", ctx.Name, "node type error")
 }
 
 func (node *Node) renderCli(ctx *Context, input Input) (any, error) {
@@ -255,12 +270,12 @@ func (node *Node) renderCli(ctx *Context, input Input) (any, error) {
 
 	lines, err := cli.New(option).Render(input)
 	if err != nil {
-		return nil, err
+		return nil, node.Errorf(ctx, err.Error())
 	}
 
 	output, err := ctx.parseNodeOutput(node, lines)
 	if err != nil {
-		return nil, err
+		return nil, node.Errorf(ctx, err.Error())
 	}
 	return output, nil
 }

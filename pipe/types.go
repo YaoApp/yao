@@ -77,6 +77,16 @@ type Args []any
 // Data data for the template
 type Data map[string]interface{}
 
+// ResumeContext the resume context
+type ResumeContext struct {
+	ID    string `json:"__id"`
+	Type  string `json:"__type"`
+	UI    string `json:"__ui"`
+	Input Input  `json:"input"`
+	Node  *Node  `json:"node"`
+	Data  Data   `json:"data"`
+}
+
 // AutoFill the autofill
 type AutoFill struct {
 	Value  any    `json:"value"`

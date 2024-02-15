@@ -43,14 +43,14 @@ func Load(cfg config.Config) error {
 // New create Pipe
 func New(source []byte) (*Pipe, error) {
 	pipe := Pipe{}
-	err := application.Parse("<source>", source, &pipe)
+	err := application.Parse("<source>.yao", source, &pipe)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse pipe: %s", err)
 	}
 
 	err = (&pipe).build()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build pipe: %s", err)
 	}
 
 	return &pipe, nil
