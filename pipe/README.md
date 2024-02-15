@@ -42,7 +42,7 @@ yao run pipes.<Widget.ID> [args...]
 
 If interrupted by user input interface, it returns a context ID for resuming execution.
 
-### pipe.run
+### pipe.Run
 
 Run Pipe, equivalent to `pipes.<Widget.ID>`
 
@@ -50,7 +50,7 @@ Run Pipe, equivalent to `pipes.<Widget.ID>`
 yao run pipe.run <Widget.ID> [args...]
 ```
 
-### pipe.create
+### pipe.Create
 
 Pass DSL text to create and run Pipe
 
