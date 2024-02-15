@@ -70,7 +70,11 @@ func TestRunWeb(t *testing.T) {
 	resume := web.(ResumeContext)
 	assert.Equal(t, Input{"hello web world"}, resume.Input)
 
-	output := Resume(resume.ID, "translate", "hello web world")
+	ctx, err = Open(resume.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := ctx.Resume(resume.ID, "translate", "hello web world")
 
 	res := any.Of(output).Map().MapStrAny.Dot()
 	assert.True(t, res.Has("global"))

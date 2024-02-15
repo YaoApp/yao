@@ -36,12 +36,12 @@ func (pipe *Pipe) Create() *Context {
 }
 
 // Open the context
-func Open(id string) *Context {
+func Open(id string) (*Context, error) {
 	ctx, ok := contexts.Load(id)
 	if !ok {
-		exception.New("pipe: %s not found", 404, id).Throw()
+		return nil, fmt.Errorf("context %s not found", id)
 	}
-	return ctx.(*Context)
+	return ctx.(*Context), nil
 }
 
 // Close the context
@@ -50,8 +50,7 @@ func Close(id string) {
 }
 
 // Resume the context by id
-func Resume(id string, args ...any) any {
-	ctx := Open(id)
+func (ctx *Context) Resume(id string, args ...any) any {
 	v, err := ctx.resume(args...)
 	if err != nil {
 		exception.New("pipe: %s %s", 500, ctx.Name, err).Throw()
