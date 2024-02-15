@@ -20,8 +20,11 @@ func TestProcessPipes(t *testing.T) {
 	}
 
 	output, err := p.Exec()
-	utils.Dump(output)
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	utils.Dump(output)
 	res := any.Of(output).Map().MapStrAny.Dot()
 	assert.True(t, res.Has("global"))
 	assert.True(t, res.Has("input"))
