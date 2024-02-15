@@ -53,6 +53,39 @@ func TestProcessRun(t *testing.T) {
 	assert.Len(t, res.Get("switch"), 2)
 }
 
+func TestProcessCreate(t *testing.T) {
+
+	prepare(t)
+	defer test.Clean()
+
+	dsl := `{
+		"whitelist": ["utils.fmt.Print"],
+		"name": "test",
+		"label": "Test",
+		"nodes": [
+			{
+				"name": "print",
+				"process": {"name":"utils.fmt.Print", "args": "{{ $in }}"},
+				"output": "print"
+			}
+		],
+		"output": {"input": "{{ $input }}" }
+	}`
+
+	p, err := process.Of("pipe.Create", dsl, "hello world")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res := any.Of(output).Map().MapStrAny.Dot()
+	assert.Equal(t, "hello world", res.Get("input[0]"))
+}
+
 func TestProcessResume(t *testing.T) {
 	prepare(t)
 	defer test.Clean()

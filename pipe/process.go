@@ -9,6 +9,7 @@ func init() {
 	process.Register("pipes", processPipes)
 	process.RegisterGroup("pipe", map[string]process.Handler{
 		"run":    processRun,
+		"create": processCreate,
 		"resume": processResume,
 		"close":  processClose,
 	})
@@ -22,14 +23,26 @@ func processPipes(process *process.Process) interface{} {
 		exception.New("pipes.%s not loaded", 404, process.ID).Throw()
 		return nil
 	}
-
 	ctx := pipe.Create().WithGlobal(process.Global).WithSid(process.Sid)
-	res, err := ctx.Exec(process.Args...)
+	return ctx.Run(process.Args...)
+}
+
+// processCreate process the create pipe.create <pipe.id> [...args]
+func processCreate(process *process.Process) interface{} {
+	process.ValidateArgNums(1)
+	dsl := process.ArgsString(0)
+	args := []any{}
+	if len(process.Args) > 1 {
+		args = process.Args[1:]
+	}
+
+	pipe, err := New([]byte(dsl))
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	return res
+	ctx := pipe.Create().WithGlobal(process.Global).WithSid(process.Sid)
+	return ctx.Run(args...)
 }
 
 // processRun process the resume pipe.run <pipe.id> [...args]
