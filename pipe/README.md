@@ -74,7 +74,11 @@ Close Pipe
 yao run pipe.Close <Context.ID>
 ```
 
-## Todo
+## Features
 
-[] Progress report for hook integration
-[] Support for Http Request Node
+- [x] **Yao Process Node** Support for running yao process
+- [x] **Switch Node** Conditional branch
+- [x] **AI Node** AI interface
+- [x] **User Input Node** User input interface
+- [ ] **Request Node** Support for Http Request
+- [ ] **Hooks** Progress report for hook integration
