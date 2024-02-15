@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -19,6 +20,8 @@ func TestProcessPipes(t *testing.T) {
 	}
 
 	output, err := p.Exec()
+	utils.Dump(output)
+
 	res := any.Of(output).Map().MapStrAny.Dot()
 	assert.True(t, res.Has("global"))
 	assert.True(t, res.Has("input"))
