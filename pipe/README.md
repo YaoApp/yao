@@ -47,7 +47,7 @@ If interrupted by user input interface, it returns a context ID for resuming exe
 Run Pipe, equivalent to `pipes.<Widget.ID>`
 
 ```bash
-yao run pipe.run <Widget.ID> [args...]
+yao run pipe.Run <Widget.ID> [args...]
 ```
 
 ### pipe.Create
@@ -55,7 +55,15 @@ yao run pipe.run <Widget.ID> [args...]
 Pass DSL text to create and run Pipe
 
 ```bash
-yao run pipe.create <DSL> [args...]
+yao run pipe.Create <DSL> [args...]
+```
+
+### pipe.CreateWith
+
+Pass DSL text to create and run Pipe
+
+```bash
+yao run pipe.CreateWith <DSL> '::{"foo":"bar"}' [args...]
 ```
 
 ### pipe.Resume
@@ -64,6 +72,14 @@ Resume execution, used for context restoration
 
 ```bash
 yao run pipe.Resume <Context.ID> [args...]
+```
+
+### pipe.ResumeWith
+
+Resume execution, used for context restoration
+
+```bash
+yao run pipe.ResumeWith <Context.ID> '::{"foo":"bar"}' [args...]
 ```
 
 ### pipe.Close
