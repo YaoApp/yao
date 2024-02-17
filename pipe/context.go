@@ -321,7 +321,14 @@ func (ctx *Context) With(context context.Context) *Context {
 
 // WithGlobal with the global data
 func (ctx *Context) WithGlobal(data map[string]interface{}) *Context {
-	ctx.global = data
+	if data != nil {
+		if ctx.global == nil {
+			ctx.global = map[string]interface{}{}
+		}
+		for k, v := range data {
+			ctx.global[k] = v
+		}
+	}
 	return ctx
 }
 
