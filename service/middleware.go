@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -76,21 +75,22 @@ func withStaticFileServer(c *gin.Context) {
 		r, code, err := api.NewRequestContext(c)
 		if err != nil {
 			log.Error("Sui Reqeust Error: %s", err.Error())
-			c.AbortWithError(code, err)
+			c.AbortWithStatusJSON(code, gin.H{"code": code, "message": err.Error()})
 			return
 		}
 
 		html, code, err := r.Render()
 		if err != nil {
 			if code == 301 || code == 302 {
-				fmt.Println(err.Error())
-				c.Redirect(code, err.Error())
+				url := err.Error()
+				// fmt.Println("Redirect to: ", url)
+				c.Redirect(code, url)
 				c.Done()
 				return
 			}
 
 			log.Error("Sui Render Error: %s", err.Error())
-			c.AbortWithError(code, err)
+			c.AbortWithStatusJSON(code, gin.H{"code": code, "message": err.Error()})
 			return
 		}
 
