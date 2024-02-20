@@ -87,6 +87,7 @@ func (r *Request) Render() (string, int, error) {
 		}
 
 		guard := ""
+		guardRedirect := ""
 		configText := ""
 		configSel := doc.Find("script[name=config]")
 		if configSel != nil && configSel.Length() > 0 {
@@ -98,7 +99,16 @@ func (r *Request) Render() (string, int, error) {
 			if err != nil {
 				return "", 500, fmt.Errorf("config error, please re-complie the page %s", err.Error())
 			}
+
+			// Redirect the page (should refector before release)
+			// guard=cookie-jwt:redirect-url redirect to the url if not authorized
+			// guard=cookie-jwt return {code: 403, message: "Not Authorized"}
 			guard = conf.Guard
+			if strings.Contains(conf.Guard, ":") {
+				parts := strings.Split(conf.Guard, ":")
+				guard = parts[0]
+				guardRedirect = parts[1]
+			}
 		}
 
 		dataText := ""
@@ -123,11 +133,12 @@ func (r *Request) Render() (string, int, error) {
 		// Save to The Cache
 		// c = core.SetCache(r.File, html, dataText, globalDataText)
 		c = &core.Cache{
-			Data:   dataText,
-			Global: globalDataText,
-			HTML:   html,
-			Guard:  guard,
-			Config: configText,
+			Data:          dataText,
+			Global:        globalDataText,
+			HTML:          html,
+			Guard:         guard,
+			GuardRedirect: guardRedirect,
+			Config:        configText,
 		}
 		log.Trace("The page %s is cached", r.File)
 	}
@@ -138,6 +149,31 @@ func (r *Request) Render() (string, int, error) {
 		if guard, has := Guards[c.Guard]; has {
 			err := guard(r)
 			if err != nil {
+
+				// Redirect the page (should refector before release)
+				if c.GuardRedirect != "" {
+					redirect := c.GuardRedirect
+					data := core.Data{}
+					if c.Data != "" {
+						data, err = r.Request.ExecString(c.Data)
+						if err != nil {
+							return "", 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
+						}
+					}
+
+					if c.Global != "" {
+						global, err := r.Request.ExecString(c.Global)
+						if err != nil {
+							return "", 500, fmt.Errorf("global data error, please re-complie the page %s", err.Error())
+						}
+						data["$global"] = global
+					}
+
+					redirect, _ = data.Replace(redirect)
+					return "", 302, fmt.Errorf("%s", redirect)
+				}
+
+				// Return the error
 				ex := exception.Err(err, 403)
 				return "", ex.Code, fmt.Errorf("%s", ex.Message)
 			}

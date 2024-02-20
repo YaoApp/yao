@@ -54,15 +54,15 @@ func guardCookieJWT(r *Request) error {
 
 	tokenString, err := c.Cookie("__tk")
 	if err != nil {
-		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
-		c.Abort()
-		return fmt.Errorf("No permission")
+		// c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+		// c.Abort()
+		return fmt.Errorf("Not Authorized")
 	}
 
 	if tokenString == "" {
-		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
-		c.Abort()
-		return fmt.Errorf("No permission")
+		// c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+		// c.Abort()
+		return fmt.Errorf("Not Authorized")
 	}
 
 	claims := helper.JwtValidate(tokenString)

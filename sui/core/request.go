@@ -12,11 +12,12 @@ import (
 
 // Cache the cache
 type Cache struct {
-	Data   string
-	Global string
-	Config string
-	Guard  string
-	HTML   string
+	Data          string
+	Global        string
+	Config        string
+	Guard         string
+	GuardRedirect string
+	HTML          string
 }
 
 // Caches the caches
