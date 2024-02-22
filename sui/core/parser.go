@@ -100,7 +100,13 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 			"try { " +
 			`var __sui_data = ` + data + ";\n" +
 			"} catch (e) { console.log('init data error:', e); }\n" +
-			jsPrintData +
+
+			`document.addEventListener("DOMContentLoaded", function () {` + "\n" +
+			`	try {` + "\n" +
+			`		__sui_data_ready( __sui_data );` + "\n" +
+			`	} catch(e) {}` + "\n" +
+			`});` + "\n" + jsPrintData +
+
 			"</script>\n",
 		)
 	}
