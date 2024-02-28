@@ -73,16 +73,30 @@ func (sui *DSL) PublicRootWithSid(sid string) (string, error) {
 }
 
 // PublicRoot returns the public root path
-func (sui *DSL) PublicRoot() (string, error) {
+func (sui *DSL) PublicRoot(data map[string]interface{}) (string, error) {
 	// Cache the public root
 	if sui.publicRoot != "" {
 		return sui.publicRoot, nil
 	}
 
+	if data == nil {
+		data = map[string]interface{}{}
+	}
+
 	ss := session.Global().ID(sui.Sid)
-	data, err := ss.Dump()
+	sessionData, err := ss.Dump()
 	if err != nil {
 		return "", err
+	}
+
+	// Merge the session data
+	if sessionData == nil {
+		sessionData = map[string]interface{}{}
+	}
+
+	// Merge the data
+	for k, v := range sessionData {
+		data[k] = v
 	}
 
 	vars := map[string]interface{}{"$session": data}
