@@ -136,15 +136,16 @@ type MediaSearchResult struct {
 
 // BuildOption is the struct for the option option
 type BuildOption struct {
-	SSR             bool   `json:"ssr"`
-	CDN             bool   `json:"cdn"`
-	UpdateAll       bool   `json:"update_all"`
-	AssetRoot       string `json:"asset_root,omitempty"`
-	IgnoreAssetRoot bool   `json:"ignore_asset_root,omitempty"`
-	IgnoreDocument  bool   `json:"ignore_document,omitempty"`
-	WithWrapper     bool   `json:"with_wrapper,omitempty"`
-	KeepPageTag     bool   `json:"keep_page_tag,omitempty"`
-	Namespace       string `json:"namespace,omitempty"`
+	SSR             bool                   `json:"ssr"`
+	CDN             bool                   `json:"cdn"`
+	UpdateAll       bool                   `json:"update_all"`
+	AssetRoot       string                 `json:"asset_root,omitempty"`
+	IgnoreAssetRoot bool                   `json:"ignore_asset_root,omitempty"`
+	IgnoreDocument  bool                   `json:"ignore_document,omitempty"`
+	WithWrapper     bool                   `json:"with_wrapper,omitempty"`
+	KeepPageTag     bool                   `json:"keep_page_tag,omitempty"`
+	Namespace       string                 `json:"namespace,omitempty"`
+	Data            map[string]interface{} `json:"data,omitempty"`
 }
 
 // Request is the struct for the request

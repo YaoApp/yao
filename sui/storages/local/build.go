@@ -15,7 +15,7 @@ import (
 func (tmpl *Template) Build(option *core.BuildOption) error {
 	var err error
 
-	root, err := tmpl.local.DSL.PublicRoot()
+	root, err := tmpl.local.DSL.PublicRoot(option.Data)
 	if err != nil {
 		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
 		root = tmpl.local.DSL.Public.Root
@@ -62,7 +62,7 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 	}
 
 	//get target abs path
-	root, err := tmpl.local.DSL.PublicRoot()
+	root, err := tmpl.local.DSL.PublicRoot(option.Data)
 	if err != nil {
 		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
 		root = tmpl.local.DSL.Public.Root
@@ -81,7 +81,7 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 func (page *Page) Build(option *core.BuildOption) error {
 
 	if option.AssetRoot == "" {
-		root, err := page.tmpl.local.DSL.PublicRoot()
+		root, err := page.tmpl.local.DSL.PublicRoot(option.Data)
 		if err != nil {
 			log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
 			root = page.tmpl.local.DSL.Public.Root
@@ -96,11 +96,11 @@ func (page *Page) Build(option *core.BuildOption) error {
 	}
 
 	// Save the html
-	return page.writeHTML([]byte(html))
+	return page.writeHTML([]byte(html), option.Data)
 }
 
-func (page *Page) publicFile() string {
-	root, err := page.tmpl.local.DSL.PublicRoot()
+func (page *Page) publicFile(data map[string]interface{}) string {
+	root, err := page.tmpl.local.DSL.PublicRoot(data)
 	if err != nil {
 		log.Error("publicFile: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
 		root = page.tmpl.local.DSL.Public.Root
@@ -109,8 +109,8 @@ func (page *Page) publicFile() string {
 }
 
 // writeHTMLTo write the html to file
-func (page *Page) writeHTML(html []byte) error {
-	htmlFile := fmt.Sprintf("%s.sui", page.publicFile())
+func (page *Page) writeHTML(html []byte, data map[string]interface{}) error {
+	htmlFile := fmt.Sprintf("%s.sui", page.publicFile(data))
 	htmlFileAbs := filepath.Join(application.App.Root(), htmlFile)
 	dir := filepath.Dir(htmlFileAbs)
 	if exist, _ := os.Stat(dir); exist == nil {

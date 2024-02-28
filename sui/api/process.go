@@ -914,12 +914,17 @@ func BuildAll(process *process.Process) interface{} {
 		assetRoot = v
 	}
 
+	data := map[string]interface{}{}
+	if v, ok := option["data"].(map[string]interface{}); ok {
+		data = v
+	}
+
 	tmpl, err := sui.GetTemplate(templateID)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	err = tmpl.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot})
+	err = tmpl.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -959,7 +964,8 @@ func BuildPage(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	err = page.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot})
+	data := process.ArgsMap(5, map[string]interface{}{})
+	err = page.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
