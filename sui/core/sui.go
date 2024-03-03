@@ -74,10 +74,10 @@ func (sui *DSL) PublicRootWithSid(sid string) (string, error) {
 
 // PublicRoot returns the public root path
 func (sui *DSL) PublicRoot(data map[string]interface{}) (string, error) {
-	// Cache the public root
-	if sui.publicRoot != "" {
-		return sui.publicRoot, nil
-	}
+	// Cache the public root (Close the cache)
+	// if sui.publicRoot != "" {
+	// 	return sui.publicRoot, nil
+	// }
 
 	if data == nil {
 		data = map[string]interface{}{}
