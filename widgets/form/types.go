@@ -82,6 +82,8 @@ type ViewLayoutDSL struct {
 type FrameDSL struct {
 	URL    string            `json:"url,omitempty"`
 	Params map[string]string `json:"params,omitempty"`
+	Height string            `json:"height,omitempty"`
+	Width  string            `json:"width,omitempty"`
 }
 
 // SectionDSL layout.form.sections[*]
