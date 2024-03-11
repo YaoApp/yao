@@ -566,6 +566,7 @@ func processXgen(process *process.Process) interface{} {
 	xgenSetting := map[string]interface{}{
 		"name":        Setting.Name,
 		"description": Setting.Description,
+		"version":     Setting.Version,
 		"theme":       Setting.Theme,
 		"lang":        Setting.Lang,
 		"mode":        mode,
