@@ -40,8 +40,6 @@
 
 https://github.com/YaoApp/yao/assets/1842210/6b23ac89-ef6e-4c24-874f-753a98370dec
 
-(English version coming soon)
-
 [中文介绍](README.zh-CN.md)
 
 YAO is an open-source application engine, written in Golang, in the form of a command-line tool that can be downloaded and used immediately. It is suitable for developing business systems, website/APP API, admin panel, self-built low-code platforms, etc.
@@ -55,6 +53,10 @@ YAO adopts a flow-based programming model to implement various functions by writ
 3. Use the visual editor to create by "drag and drop"
 
 **Documentation:** https://yaoapps.com/en-US/doc
+
+## Latest Version download and installation
+
+https://github.com/YaoApp/xgen-dev-app
 
 ## Demo
 
