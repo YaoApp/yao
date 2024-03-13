@@ -747,6 +747,24 @@ func TestBuildPage(t *testing.T) {
 	assert.Nil(t, res)
 }
 
+func TestSyncAssetFile(t *testing.T) {
+	load(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.sync.assetfile", "demo", "tech-blue", "/images/about/ab01.jpg", map[string]interface{}{"ssr": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Nil(t, res)
+}
+
 func load(t *testing.T) {
 	prepare(t)
 	err := Load(config.Conf)

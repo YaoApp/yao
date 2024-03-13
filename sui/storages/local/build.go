@@ -52,6 +52,39 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 	return err
 }
 
+// SyncAssetFile sync the assets
+func (tmpl *Template) SyncAssetFile(file string, option *core.BuildOption) error {
+
+	// get source abs path
+	sourceRoot := filepath.Join(tmpl.local.fs.Root(), tmpl.Root, "__assets")
+	if exist, _ := os.Stat(sourceRoot); exist == nil {
+		return nil
+	}
+
+	//get target abs path
+	root, err := tmpl.local.DSL.PublicRoot(option.Data)
+	if err != nil {
+		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
+		root = tmpl.local.DSL.Public.Root
+	}
+	targetRoot := filepath.Join(application.App.Root(), "public", root, "assets")
+
+	if exist, _ := os.Stat(targetRoot); exist == nil {
+		os.MkdirAll(targetRoot, os.ModePerm)
+	}
+	os.RemoveAll(targetRoot)
+
+	sourceFile := filepath.Join(sourceRoot, file)
+	targetFile := filepath.Join(targetRoot, file)
+
+	// create the target directory
+	if exist, _ := os.Stat(targetFile); exist == nil {
+		os.MkdirAll(filepath.Dir(targetFile), os.ModePerm)
+	}
+
+	return copy(sourceFile, targetFile)
+}
+
 // SyncAssets sync the assets
 func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 
