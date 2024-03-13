@@ -59,6 +59,8 @@ func init() {
 		"build.all":  BuildAll,
 		"build.page": BuildPage,
 
+		"sync.assetfile": SyncAssetFile, // Will be deprecated or change in the future
+
 		// Will be deprecated or change in the future
 		"types.QueryParam": TypesQueryParam,
 	})
@@ -894,6 +896,43 @@ func PreviewRender(process *process.Process) interface{} {
 	}
 
 	return html
+}
+
+// SyncAssetFile  handle the render page request
+func SyncAssetFile(process *process.Process) interface{} {
+
+	process.ValidateArgNums(4)
+	sui := get(process)
+	templateID := process.ArgsString(1)
+	filename := process.ArgsString(2)
+
+	option := process.ArgsMap(3, map[string]interface{}{})
+	ssr := true
+	if v, ok := option["ssr"].(bool); ok {
+		ssr = v
+	}
+
+	assetRoot := ""
+	if v, ok := option["asset_root"].(string); ok {
+		assetRoot = v
+	}
+
+	data := map[string]interface{}{}
+	if v, ok := option["data"].(map[string]interface{}); ok {
+		data = v
+	}
+
+	tmpl, err := sui.GetTemplate(templateID)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	err = tmpl.SyncAssetFile(filename, &core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return nil
 }
 
 // BuildAll handle the render page request
