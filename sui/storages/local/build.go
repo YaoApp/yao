@@ -67,13 +67,8 @@ func (tmpl *Template) SyncAssetFile(file string, option *core.BuildOption) error
 		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
 		root = tmpl.local.DSL.Public.Root
 	}
+
 	targetRoot := filepath.Join(application.App.Root(), "public", root, "assets")
-
-	if exist, _ := os.Stat(targetRoot); exist == nil {
-		os.MkdirAll(targetRoot, os.ModePerm)
-	}
-	os.RemoveAll(targetRoot)
-
 	sourceFile := filepath.Join(sourceRoot, file)
 	targetFile := filepath.Join(targetRoot, file)
 
