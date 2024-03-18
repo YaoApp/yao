@@ -22,7 +22,7 @@ func Init() {
 	process.Alias("xiang.helper.Print", "utils.fmt.Print")
 
 	// ENV
-	process.Alias("xiang.helper.EnvSet", "utils.env.Get")
+	process.Alias("xiang.helper.EnvSet", "utils.env.Set")
 	process.Alias("xiang.helper.EnvGet", "utils.env.Get")
 	process.Alias("xiang.helper.EnvMultiSet", "utils.env.SetMany")
 	process.Alias("xiang.helper.EnvMultiGet", "utils.env.GetMany")
