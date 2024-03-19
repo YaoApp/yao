@@ -53,11 +53,13 @@ func withStaticFileServer(c *gin.Context) {
 
 	// Rewrite
 	for _, rewrite := range rewriteRules {
-		log.Debug("Rewrite: %s => %s", c.Request.URL.Path, rewrite.Replacement)
+		// log.Debug("Rewrite: %s => %s", c.Request.URL.Path, rewrite.Replacement)
 		if matches := rewrite.Pattern.FindStringSubmatch(c.Request.URL.Path); matches != nil {
-			log.Debug("Rewrite FindStringSubmatch: %s => %s", c.Request.URL.Path, rewrite.Replacement)
+			rewriteOriginalPath := c.Request.URL.Path
+			c.Set("rewrite", true)
+			c.Set("matches", matches)
 			c.Request.URL.Path = rewrite.Pattern.ReplaceAllString(c.Request.URL.Path, rewrite.Replacement)
-			log.Debug("Rewrite FindStringSubmatch After: %s", c.Request.URL.Path)
+			log.Trace("Rewrite FindStringSubmatch Matched: %s => %s", rewriteOriginalPath, rewrite.Replacement)
 			break
 		}
 	}
