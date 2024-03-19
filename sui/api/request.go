@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +23,8 @@ type Request struct {
 	context *gin.Context
 }
 
+var reRouteVar = regexp.MustCompile(`\[([0-9a-z_]+)\]`)
+
 // NewRequestContext is the constructor for Request.
 func NewRequestContext(c *gin.Context) (*Request, int, error) {
 
@@ -30,6 +33,7 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 		return nil, 404, err
 	}
 
+	log.Trace("[Request] %s params:%v", file, params)
 	payload, body, err := payload(c)
 	if err != nil {
 		return nil, 500, err
@@ -74,7 +78,8 @@ func (r *Request) Render() (string, int, error) {
 
 	c := core.GetCache(r.File)
 	c = nil // disable cache @todo disable cache on development
-	if c == nil {
+	// if c == nil {
+	if true {
 		// Read the file
 		content, err := application.App.Read(r.File)
 		if err != nil {
@@ -227,77 +232,102 @@ func (r *Request) Render() (string, int, error) {
 func parserPath(c *gin.Context) (string, map[string]string, error) {
 
 	params := map[string]string{}
-
 	parts := strings.Split(strings.TrimSuffix(c.Request.URL.Path, ".sui"), "/")[1:]
 	if len(parts) < 1 {
 		return "", nil, fmt.Errorf("path parts error: %s", strings.Join(parts, "/"))
 	}
 
 	fileParts := []string{string(os.PathSeparator), "public"}
+	fileParts = append(fileParts, parts...)
+	filename := filepath.Join(fileParts...) + ".sui"
 
-	// Match the sui
-	matchers := core.RouteExactMatchers[parts[0]]
-	if matchers == nil {
-		for matcher, reMatchers := range core.RouteMatchers {
-			matched := matcher.FindStringSubmatch(parts[0])
-			if len(matched) > 0 {
-				matchers = reMatchers
-				fileParts = append(fileParts, matched[0])
-				break
-			}
-		}
+	v, _ := c.Get("rewrite")
+	if v != true {
+		return filename, params, nil
 	}
 
-	// No matchers
-	if matchers == nil {
-		if len(parts) < 1 {
-			return "", nil, fmt.Errorf("path parts error: %s", strings.Join(parts, "/"))
-		}
-
-		fileParts = append(fileParts, parts...)
-		return filepath.Join(fileParts...) + ".sui", params, nil
+	// Find the [xxx] in the path
+	matchesValues, has := c.Get("matches")
+	if !has {
+		return filename, params, nil
 	}
 
-	// Match the page parts
-	for i, part := range parts[1:] {
-		if len(matchers) < i+1 {
-			return "", nil, fmt.Errorf("matchers length error %d < %d", len(matchers), i+1)
-		}
-
-		parent := ""
-		if i > 0 {
-			parent = parts[i]
-		}
-		matched := false
-		for _, matcher := range matchers[i] {
-
-			// Filter the parent
-			if matcher.Parent != "" && matcher.Parent != parent {
-				continue
-			}
-
-			if matcher.Exact == part {
-				fileParts = append(fileParts, matcher.Exact)
-				matched = true
-				break
-
-			} else if matcher.Regex != nil {
-				if matcher.Regex.MatchString(part) {
-					file := matcher.Ref
-					key := strings.TrimRight(strings.TrimLeft(file, "["), "]")
-					params[key] = part
-					fileParts = append(fileParts, file)
-					matched = true
-					break
-				}
-			}
-		}
-
-		if !matched {
-			return "", nil, fmt.Errorf("route does not match")
+	values := matchesValues.([]string)
+	matches := reRouteVar.FindAllStringSubmatch(c.Request.URL.Path, -1)
+	valuesCnt := len(values)
+	matchesCnt := len(matches)
+	start := valuesCnt - matchesCnt
+	if matchesCnt > 0 && start > 0 {
+		for i, match := range matches {
+			name := match[1]
+			params[name] = values[start+i]
 		}
 	}
-	return filepath.Join(fileParts...) + ".sui", params, nil
+	return filename, params, nil
+
+	// // Match the sui
+	// matchers := core.RouteExactMatchers[parts[0]]
+	// if matchers == nil {
+	// 	for matcher, reMatchers := range core.RouteMatchers {
+	// 		matched := matcher.FindStringSubmatch(parts[0])
+	// 		if len(matched) > 0 {
+	// 			matchers = reMatchers
+	// 			fileParts = append(fileParts, matched[0])
+	// 			break
+	// 		}
+	// 	}
+	// }
+
+	// // No matchers
+	// if matchers == nil {
+	// 	if len(parts) < 1 {
+	// 		return "", nil, fmt.Errorf("path parts error: %s", strings.Join(parts, "/"))
+	// 	}
+
+	// 	fileParts = append(fileParts, parts...)
+	// 	return filepath.Join(fileParts...) + ".sui", params, nil
+	// }
+
+	// // Match the page parts
+	// for i, part := range parts[1:] {
+	// 	if len(matchers) < i+1 {
+	// 		return "", nil, fmt.Errorf("matchers length error %d < %d", len(matchers), i+1)
+	// 	}
+
+	// 	parent := ""
+	// 	if i > 0 {
+	// 		parent = parts[i]
+	// 	}
+	// 	matched := false
+	// 	for _, matcher := range matchers[i] {
+
+	// 		// Filter the parent
+	// 		if matcher.Parent != "" && matcher.Parent != parent {
+	// 			continue
+	// 		}
+
+	// 		if matcher.Exact == part {
+	// 			fileParts = append(fileParts, matcher.Exact)
+	// 			matched = true
+	// 			break
+
+	// 		} else if matcher.Regex != nil {
+	// 			if matcher.Regex.MatchString(part) {
+	// 				file := matcher.Ref
+	// 				key := strings.TrimRight(strings.TrimLeft(file, "["), "]")
+	// 				params[key] = part
+	// 				fileParts = append(fileParts, file)
+	// 				matched = true
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+
+	// 	if !matched {
+	// 		return "", nil, fmt.Errorf("route does not match")
+	// 	}
+	// }
+	// return filepath.Join(fileParts...) + ".sui", params, nil
 }
 
 func params(c *gin.Context) map[string]string {
