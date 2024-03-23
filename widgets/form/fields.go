@@ -76,6 +76,9 @@ func (fields *FieldsDSL) BindTable(tab *table.DSL) error {
 	// Bind tab
 	if fields.Form == nil || len(fields.Form) == 0 {
 		fields.Form = field.Columns{}
+	}
+
+	if fields.formMap == nil {
 		fields.formMap = map[string]field.ColumnDSL{}
 	}
 
