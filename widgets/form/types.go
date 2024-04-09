@@ -88,9 +88,12 @@ type FrameDSL struct {
 
 // SectionDSL layout.form.sections[*]
 type SectionDSL struct {
-	Title   string   `json:"title,omitempty"`
-	Desc    string   `json:"desc,omitempty"`
-	Columns []Column `json:"columns,omitempty"`
+	Title   string      `json:"title,omitempty"`
+	Desc    string      `json:"desc,omitempty"`
+	Icon    interface{} `json:"icon,omitempty"`
+	Color   string      `json:"color,omitempty"`
+	Weight  interface{} `json:"weight,omitempty"`
+	Columns []Column    `json:"columns,omitempty"`
 }
 
 // Column table columns

@@ -38,7 +38,7 @@ func TestLoadID(t *testing.T) {
 	}
 }
 
-func prepare(t *testing.T, language ...string) {
+func prepare(t *testing.T) {
 
 	// load flows
 	err := flow.Load(config.Conf)
