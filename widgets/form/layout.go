@@ -264,7 +264,7 @@ func (layout *LayoutDSL) Xgen(data map[string]interface{}, excludes map[string]b
 
 // Filter exclude filter
 func (section SectionDSL) Filter(excludes map[string]bool, mapping *mapping.Mapping) (SectionDSL, error) {
-	new := SectionDSL{Columns: []Column{}, Title: section.Title, Desc: section.Desc}
+	new := SectionDSL{Columns: []Column{}, Title: section.Title, Desc: section.Desc, Icon: section.Icon, Weight: section.Weight, Color: section.Color}
 	columns, err := section.filterColumns(section.Columns, excludes, mapping)
 	if err != nil {
 		return new, err
