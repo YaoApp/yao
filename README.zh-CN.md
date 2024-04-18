@@ -21,7 +21,7 @@ YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑�
 
 文档: [https://yaoapps.com/doc](https://yaoapps.com/doc)
 
-## 最新版本下载安装
+## 最新版本下载安装 (推荐)
 
 https://github.com/YaoApp/xgen-dev-app
 

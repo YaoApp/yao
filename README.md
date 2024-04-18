@@ -54,7 +54,7 @@ YAO adopts a flow-based programming model to implement various functions by writ
 
 **Documentation:** https://yaoapps.com/en-US/doc
 
-## Latest Version download and installation
+## Latest Version download and installation (Recommended)
 
 https://github.com/YaoApp/xgen-dev-app
 
