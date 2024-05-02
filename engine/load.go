@@ -7,6 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/api"
@@ -184,7 +185,7 @@ func Load(cfg config.Config) (err error) {
 	// Load Neo
 	err = neo.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "AIGC", err)
+		printErr(cfg.Mode, "Neo", err)
 	}
 
 	// Load Custom Widget
@@ -215,6 +216,21 @@ func Load(cfg config.Config) (err error) {
 	err = pipe.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Pipe", err)
+	}
+
+	// Execute AfterLoad Process if exists
+	if share.App.AfterLoad != "" {
+		p, err := process.Of(share.App.AfterLoad, false)
+		if err != nil {
+			printErr(cfg.Mode, "AfterLoad", err)
+			return err
+		}
+
+		_, err = p.Exec()
+		if err != nil {
+			printErr(cfg.Mode, "AfterLoad", err)
+			return err
+		}
 	}
 
 	return nil
@@ -392,7 +408,22 @@ func Reload(cfg config.Config) (err error) {
 	// Load Neo
 	err = neo.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "AIGC", err)
+		printErr(cfg.Mode, "Neo", err)
+	}
+
+	// Execute AfterLoad Process if exists
+	if share.App.AfterLoad != "" {
+		p, err := process.Of(share.App.AfterLoad, true)
+		if err != nil {
+			printErr(cfg.Mode, "AfterLoad", err)
+			return err
+		}
+
+		_, err = p.Exec()
+		if err != nil {
+			printErr(cfg.Mode, "AfterLoad", err)
+			return err
+		}
 	}
 
 	return err
