@@ -83,7 +83,8 @@ type AppInfo struct {
 	AdminRoot   string                 `json:"adminRoot,omitempty"`
 	Static      Static                 `json:"public,omitempty"`
 	Optional    map[string]interface{} `json:"optional,omitempty"`
-	Moapi       Moapi                  `json:"moapi"`
+	Moapi       Moapi                  `json:"moapi,omitempty"`
+	AfterLoad   string                 `json:"afterLoad,omitempty"` // Process executed after the app is loaded
 }
 
 // Moapi AIGC App Store API
