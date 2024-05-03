@@ -55,7 +55,7 @@ func (dsl *DSL) bindForm() error {
 
 	// Load form
 	if _, has := Forms[id]; !has {
-		if err := LoadID(id, dsl.Root); err != nil {
+		if err := LoadID(id); err != nil {
 			return err
 		}
 	}

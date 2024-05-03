@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
 	gouProcess "github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/types"
@@ -28,6 +29,10 @@ func exportProcess() {
 	gouProcess.Register("yao.form.update", processUpdate)
 	gouProcess.Register("yao.form.delete", processDelete)
 	gouProcess.Register("yao.form.load", processLoad)
+	gouProcess.Register("yao.form.reload", processReload)
+	gouProcess.Register("yao.form.unload", processUnload)
+	gouProcess.Register("yao.form.read", processRead)
+	gouProcess.Register("yao.form.exists", processExists)
 }
 
 func processXgen(process *gouProcess.Process) interface{} {
@@ -182,9 +187,22 @@ func processDelete(process *gouProcess.Process) interface{} {
 	return form.Action.Delete.MustExec(process)
 }
 
-// processLoad yao.table.Load (:file)
+// processLoad yao.form.Load form_name file <source>
 func processLoad(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
+
+	// Load from source
+	if process.NumOfArgs() >= 3 {
+		id := process.ArgsString(0)
+		source := process.ArgsString(2)
+		_, err := LoadSourceSync([]byte(source), id)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+		return nil
+	}
+
+	// Load from file
 	file := process.ArgsString(0)
 	if file == "" {
 		exception.New("file is required", 400).Throw()
@@ -192,4 +210,40 @@ func processLoad(process *gouProcess.Process) interface{} {
 
 	file = strings.TrimPrefix(file, string(os.PathSeparator))
 	return LoadFileSync("forms", file)
+}
+
+// processReload yao.form.Reload form_name
+func processReload(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	tab := MustGet(process) // 0
+	_, err := tab.Reload()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return nil
+}
+
+// processUnload yao.form.Unload form_name
+func processUnload(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	Unload(process.ArgsString(0))
+	return nil
+}
+
+// processRead yao.form.Read form_name
+func processRead(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	tab := MustGet(process) // 0
+	source := map[string]interface{}{}
+	err := application.Parse(tab.file, tab.Read(), &source)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return source
+}
+
+// processExists yao.form.Exists form_name
+func processExists(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	return Exists(process.ArgsString(0))
 }

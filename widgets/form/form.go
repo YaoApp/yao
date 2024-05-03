@@ -55,9 +55,11 @@ var Forms map[string]*DSL = map[string]*DSL{}
 var lock sync.Mutex
 
 // New create a new DSL
-func New(id string) *DSL {
+func New(id string, file string, source []byte) *DSL {
 	return &DSL{
 		ID:     id,
+		file:   file,
+		source: source,
 		Fields: &FieldsDSL{Form: field.Columns{}},
 		Layout: &LayoutDSL{},
 		CProps: field.CloudProps{},
@@ -96,6 +98,11 @@ func Load(cfg config.Config) error {
 	return err
 }
 
+// Unload unload the form
+func Unload(id string) {
+	delete(Forms, id)
+}
+
 // LoadFileSync load form dsl by file
 func LoadFileSync(root string, file string) error {
 	lock.Lock()
@@ -112,23 +119,15 @@ func LoadFile(root string, file string) error {
 		return err
 	}
 
-	dsl := New(id)
-	err = application.Parse(file, data, dsl)
-	if err != nil {
-		return fmt.Errorf("[%s] %s", id, err.Error())
-	}
-
-	err = dsl.parse(id, root)
+	_, err = load(data, id, file)
 	if err != nil {
 		return err
 	}
-
-	Forms[id] = dsl
 	return nil
 }
 
 // LoadID load via id
-func LoadID(id string, root string) error {
+func LoadID(id string) error {
 
 	file := filepath.Join("forms", share.File(id, ".form.yao"))
 	if exists, _ := application.App.Exists(file); exists {
@@ -148,10 +147,39 @@ func LoadID(id string, root string) error {
 	return fmt.Errorf("form %s not found", id)
 }
 
-// LoadData load via data
-func (dsl *DSL) parse(id string, root string) error {
+// LoadSourceSync load form dsl by source
+func LoadSourceSync(source []byte, id string) (*DSL, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	return LoadSource(source, id)
+}
 
-	dsl.Root = root
+// LoadSource load form dsl by source
+func LoadSource(source []byte, id string) (*DSL, error) {
+	file := filepath.Join("forms", share.File(id, ".form.yao"))
+	return load(source, id, file)
+}
+
+// LoadSource load form dsl by source
+func load(source []byte, id string, file string) (*DSL, error) {
+	dsl := New(id, file, source)
+	err := application.Parse(file, source, dsl)
+	if err != nil {
+		return nil, fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	err = dsl.parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	Forms[id] = dsl
+	return dsl, nil
+}
+
+// LoadData load via data
+func (dsl *DSL) parse(id string) error {
+
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
 	}
@@ -311,4 +339,20 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 		})
 	}
 	return res
+}
+
+// Reload reload the form
+func (dsl *DSL) Reload() (*DSL, error) {
+	return LoadSourceSync(dsl.source, dsl.ID)
+}
+
+// Read read the source
+func (dsl *DSL) Read() []byte {
+	return dsl.source
+}
+
+// Exists check the form exists
+func Exists(id string) bool {
+	_, has := Forms[id]
+	return has
 }
