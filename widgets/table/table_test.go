@@ -1,7 +1,6 @@
 package table
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,18 +28,76 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLoadID(t *testing.T) {
-
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 	prepare(t)
-
-	err := LoadID("pet", filepath.Join(config.Conf.Root))
+	err := LoadID("pet")
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func prepare(t *testing.T, language ...string) {
+func TestLoadSourceSync(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+	source := []byte(`{
+		"name": "Pet Admin Bind Model And Form",
+		"action": {
+		  "bind": { "model": "pet", "option": { "form": "pet" } },
+		  "search": {
+			"guard": "-",
+			"process": "scripts.pet.Search",
+			"default": [null, 1, 5]
+		  }
+		}
+	  }
+	`)
+
+	tab, err := LoadSourceSync(source, `dynamic.pet`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "Pet Admin Bind Model And Form", tab.Name)
+	assert.Equal(t, "pet", tab.Action.Bind.Model)
+	assert.True(t, Exists("dynamic.pet"))
+
+	// Reload
+	tab, err = tab.Reload()
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "Pet Admin Bind Model And Form", tab.Name)
+	assert.Equal(t, "pet", tab.Action.Bind.Model)
+	assert.True(t, Exists("dynamic.pet"))
+
+	// Unload
+	Unload("dynamic.pet")
+	assert.False(t, Exists("dynamic.pet"))
+}
+
+func TestRead(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+	tab := MustGet("pet")
+	assert.NotNil(t, tab)
+
+	// Read
+	source := tab.Read()
+	if source == nil {
+		t.Fatal("Read Error")
+	}
+
+	tab, err := LoadSourceSync(source, `dynamic.pet`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "::Pet Admin", tab.Name)
+}
+
+func prepare(t *testing.T) {
 
 	// test.Prepare(t, config.Conf)
 	// defer test.Clean()

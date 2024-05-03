@@ -125,8 +125,13 @@ func Load(cfg config.Config) error {
 	return err
 }
 
+// Unload unload the table
+func Unload(id string) {
+	delete(Tables, id)
+}
+
 // LoadID load table dsl by id
-func LoadID(id string, root string) error {
+func LoadID(id string) error {
 
 	file := filepath.Join("tables", share.File(id, ".tab.yao"))
 	if exists, _ := application.App.Exists(file); exists {
@@ -162,31 +167,51 @@ func LoadFile(root string, file string) error {
 		return err
 	}
 
-	dsl := &DSL{ID: id}
-	err = application.Parse(file, data, dsl)
-	if err != nil {
-		return fmt.Errorf("[%s] %s", id, err.Error())
-	}
-
-	err = dsl.parse(id, root)
+	_, err = load(data, id, file)
 	if err != nil {
 		return err
 	}
-
-	Tables[id] = dsl
 	return nil
 }
 
-// parse parse table dsl source
-func (dsl *DSL) parse(id string, root string) error {
+// LoadSourceSync load table dsl by source
+func LoadSourceSync(source []byte, id string) (*DSL, error) {
+	lock.Lock()
+	defer lock.Unlock()
+	return LoadSource(source, id)
+}
 
-	dsl.Root = root // remove next version
+// LoadSource load table dsl by source
+func LoadSource(source []byte, id string) (*DSL, error) {
+	file := filepath.Join("tables", share.File(id, ".tab.yao"))
+	return load(source, id, file)
+}
+
+// LoadSource load table dsl by source
+func load(source []byte, id string, file string) (*DSL, error) {
+	dsl := &DSL{ID: id, source: source, file: file}
+	err := application.Parse(file, source, dsl)
+	if err != nil {
+		return nil, fmt.Errorf("[%s] %s", id, err.Error())
+	}
+
+	err = dsl.parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	Tables[id] = dsl
+	return dsl, nil
+}
+
+// parse parse table dsl source
+func (dsl *DSL) parse(id string) error {
+
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
 	}
 
 	dsl.Action.SetDefaultProcess()
-
 	if dsl.Layout == nil {
 		dsl.Layout = &LayoutDSL{
 			Header: &HeaderLayoutDSL{
@@ -381,4 +406,20 @@ func (dsl *DSL) Actions() []component.ActionsExport {
 	}
 
 	return res
+}
+
+// Reload reload the table
+func (dsl *DSL) Reload() (*DSL, error) {
+	return LoadSourceSync(dsl.source, dsl.ID)
+}
+
+// Read read the source
+func (dsl *DSL) Read() []byte {
+	return dsl.source
+}
+
+// Exists check the table exists
+func Exists(id string) bool {
+	_, has := Tables[id]
+	return has
 }

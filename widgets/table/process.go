@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/model"
 	gouProcess "github.com/yaoapp/gou/process"
@@ -43,6 +44,10 @@ func exportProcess() {
 	gouProcess.Register("yao.table.deletein", processDeleteIn)
 	gouProcess.Register("yao.table.export", processExport)
 	gouProcess.Register("yao.table.load", processLoad)
+	gouProcess.Register("yao.table.reload", processReload)
+	gouProcess.Register("yao.table.unload", processUnload)
+	gouProcess.Register("yao.table.read", processRead)
+	gouProcess.Register("yao.table.exists", processExists)
 }
 
 func processXgen(process *gouProcess.Process) interface{} {
@@ -307,9 +312,21 @@ func processExport(process *gouProcess.Process) interface{} {
 	return filename
 }
 
-// processLoad yao.table.Load (:file)
+// processLoad yao.table.Load table_name file <source>
 func processLoad(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
+	// Load from source
+	if process.NumOfArgs() >= 3 {
+		id := process.ArgsString(0)
+		source := process.ArgsString(2)
+		_, err := LoadSourceSync([]byte(source), id)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+		return nil
+	}
+
+	// Load from file
 	file := process.ArgsString(0)
 	if file == "" {
 		exception.New("file is required", 400).Throw()
@@ -317,4 +334,39 @@ func processLoad(process *gouProcess.Process) interface{} {
 
 	file = strings.TrimPrefix(file, string(os.PathSeparator))
 	return LoadFileSync("tables", file)
+}
+
+// processReload yao.table.Reload table_name
+func processReload(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	tab := MustGet(process) // 0
+	_, err := tab.Reload()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return nil
+}
+
+func processUnload(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	Unload(process.ArgsString(0))
+	return nil
+}
+
+// processRead yao.table.Read table_name
+func processRead(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	tab := MustGet(process) // 0
+	source := map[string]interface{}{}
+	err := application.Parse(tab.file, tab.Read(), &source)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	return source
+}
+
+// processExists yao.table.Exists table_name
+func processExists(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	return Exists(process.ArgsString(0))
 }

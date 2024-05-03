@@ -11,7 +11,7 @@ import (
 
 // DSL the table DSL
 type DSL struct {
-	Root   string                 `json:"-"`
+	// Root   string                 `json:"-"`
 	ID     string                 `json:"id,omitempty"`
 	Name   string                 `json:"name,omitempty"`
 	Action *ActionDSL             `json:"action"`
@@ -19,6 +19,8 @@ type DSL struct {
 	Fields *FieldsDSL             `json:"fields"`
 	Config map[string]interface{} `json:"config,omitempty"`
 	CProps field.CloudProps       `json:"-"`
+	file   string                 `json:"-"`
+	source []byte                 `json:"-"`
 	compute.Computable
 	*mapping.Mapping
 }
