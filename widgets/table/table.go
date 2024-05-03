@@ -85,9 +85,11 @@ var Tables map[string]*DSL = map[string]*DSL{}
 var lock sync.Mutex
 
 // New create a new DSL
-func New(id string) *DSL {
+func New(id string, file string, source []byte) *DSL {
 	return &DSL{
 		ID:     id,
+		file:   file,
+		source: source,
 		Fields: &FieldsDSL{Filter: field.Filters{}, Table: field.Columns{}},
 		CProps: field.CloudProps{},
 		Config: map[string]interface{}{},
@@ -189,7 +191,7 @@ func LoadSource(source []byte, id string) (*DSL, error) {
 
 // LoadSource load table dsl by source
 func load(source []byte, id string, file string) (*DSL, error) {
-	dsl := &DSL{ID: id, source: source, file: file}
+	dsl := New(id, file, source)
 	err := application.Parse(file, source, dsl)
 	if err != nil {
 		return nil, fmt.Errorf("[%s] %s", id, err.Error())

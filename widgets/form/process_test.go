@@ -342,6 +342,59 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 
 }
 
+func TestProcessLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
+	source := `{
+		"name": "Pet Admin Form Bind Model",
+		"action": {
+		  "bind": { "model": "pet" }
+		}
+	  }
+	`
+	args := []interface{}{"dynamic.pet", "/forms/dynamic/pet.form.yao", source}
+
+	// Load
+	assert.NotPanics(t, func() {
+		process.New("yao.form.Load", args...).Run()
+	})
+	form := MustGet("dynamic.pet")
+	assert.Equal(t, "Pet Admin Form Bind Model", form.Name)
+	assert.Equal(t, "pet", form.Action.Bind.Model)
+
+	// Exist
+	res := process.New("yao.form.Exists", "dynamic.pet").Run()
+	assert.True(t, res.(bool))
+
+	// Reload
+	assert.NotPanics(t, func() {
+		process.New("yao.form.Reload", "dynamic.pet").Run()
+	})
+	form = MustGet("dynamic.pet")
+	assert.Equal(t, "Pet Admin Form Bind Model", form.Name)
+	assert.Equal(t, "pet", form.Action.Bind.Model)
+
+	// Unload
+	assert.NotPanics(t, func() {
+		process.New("yao.form.Unload", "dynamic.pet").Run()
+	})
+	res = process.New("yao.form.Exists", "dynamic.pet").Run()
+	assert.False(t, res.(bool))
+}
+
+func TestProcessRead(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
+	res := process.New("yao.form.Read", "pet").Run()
+	assert.NotNil(t, res)
+	assert.Equal(t, "::Pet Admin", res.(map[string]interface{})["name"])
+}
+
 func testData(t *testing.T) {
 	pet := model.Select("pet")
 	err := pet.Insert(

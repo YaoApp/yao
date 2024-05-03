@@ -12,13 +12,14 @@ import (
 // DSL the form DSL
 type DSL struct {
 	ID     string                 `json:"id,omitempty"`
-	Root   string                 `json:"-"`
 	Name   string                 `json:"name,omitempty"`
 	Action *ActionDSL             `json:"action"`
 	Layout *LayoutDSL             `json:"layout"`
 	Fields *FieldsDSL             `json:"fields"`
 	Config map[string]interface{} `json:"config,omitempty"`
 	CProps field.CloudProps       `json:"-"`
+	file   string                 `json:"-"`
+	source []byte                 `json:"-"`
 	compute.Computable
 	*mapping.Mapping
 }

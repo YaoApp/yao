@@ -18,7 +18,7 @@ func TestFiledsBindModel(t *testing.T) {
 	testData(t)
 
 	m := model.Select("pet")
-	tab := New("unit-test")
+	tab := New("unit-test", "unit-test.tab.yao", nil)
 	err := tab.Fields.BindModel(m)
 	if err != nil {
 		t.Fatal(err)

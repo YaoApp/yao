@@ -347,6 +347,7 @@ func processReload(process *gouProcess.Process) interface{} {
 	return nil
 }
 
+// processUnload yao.table.Unload table_name
 func processUnload(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
 	Unload(process.ArgsString(0))
