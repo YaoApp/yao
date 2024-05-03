@@ -15,7 +15,6 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
-	q "github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -578,13 +577,62 @@ func TestProcessExport(t *testing.T) {
 	assert.Greater(t, size, 1000)
 }
 
-func load(t *testing.T) {
+func TestProcessLoad(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 	prepare(t)
-	err := Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	q.Load(config.Conf)
+
+	source := `{
+		"name": "Pet Admin Bind Model And Form",
+		"action": {
+		  "bind": { "model": "pet", "option": { "form": "pet" } },
+		  "search": {
+			"guard": "-",
+			"process": "scripts.pet.Search",
+			"default": [null, 1, 5]
+		  }
+		}
+	  }
+	`
+	args := []interface{}{"dynamic.pet", "/tables/dynamic/pet.tab.yao", source}
+
+	// Load
+	assert.NotPanics(t, func() {
+		process.New("yao.table.Load", args...).Run()
+	})
+	tab := MustGet("dynamic.pet")
+	assert.Equal(t, "Pet Admin Bind Model And Form", tab.Name)
+	assert.Equal(t, "pet", tab.Action.Bind.Model)
+
+	// Exist
+	res := process.New("yao.table.Exists", "dynamic.pet").Run()
+	assert.True(t, res.(bool))
+
+	// Reload
+	assert.NotPanics(t, func() {
+		process.New("yao.table.Reload", "dynamic.pet").Run()
+	})
+	tab = MustGet("dynamic.pet")
+	assert.Equal(t, "Pet Admin Bind Model And Form", tab.Name)
+	assert.Equal(t, "pet", tab.Action.Bind.Model)
+
+	// Unload
+	assert.NotPanics(t, func() {
+		process.New("yao.table.Unload", "dynamic.pet").Run()
+	})
+	res = process.New("yao.table.Exists", "dynamic.pet").Run()
+	assert.False(t, res.(bool))
+}
+
+func TestProcessRead(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	prepare(t)
+
+	res := process.New("yao.table.Read", "pet").Run()
+	assert.NotNil(t, res)
+	assert.Equal(t, "::Pet Admin", res.(map[string]interface{})["name"])
 }
 
 func testData(t *testing.T) {

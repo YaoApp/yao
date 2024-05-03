@@ -52,7 +52,7 @@ func (dsl *DSL) bindTable() error {
 
 	// Load table
 	if _, has := table.Tables[id]; !has {
-		if err := table.LoadID(id, dsl.Root); err != nil {
+		if err := table.LoadID(id); err != nil {
 			return err
 		}
 	}
