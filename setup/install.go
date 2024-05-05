@@ -109,7 +109,10 @@ func Install(payload map[string]map[string]string) error {
 	}
 
 	// Load engine
-	err = engine.Load(cfg)
+	err = engine.Load(cfg, engine.LoadOption{
+		Action: "install",
+	})
+
 	if err != nil {
 		return err
 	}

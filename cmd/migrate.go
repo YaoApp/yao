@@ -36,7 +36,7 @@ var migrateCmd = &cobra.Command{
 		}
 
 		// 加载数据模型
-		err := engine.Load(config.Conf)
+		err := engine.Load(config.Conf, engine.LoadOption{Action: "migrate"})
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)

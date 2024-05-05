@@ -68,7 +68,7 @@ var startCmd = &cobra.Command{
 		}
 
 		// load the application engine
-		err := engine.Load(config.Conf)
+		err := engine.Load(config.Conf, engine.LoadOption{Action: "start"})
 		if err != nil {
 			fmt.Println(color.RedString(L("Load: %s"), err.Error()))
 			os.Exit(1)

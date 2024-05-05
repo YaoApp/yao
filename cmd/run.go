@@ -56,7 +56,7 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		err := engine.Load(cfg)
+		err := engine.Load(cfg, engine.LoadOption{Action: "run"})
 		if err != nil {
 			if !runSilent {
 				color.Red(L("Engine: %s\n"), err.Error())

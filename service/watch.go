@@ -24,7 +24,7 @@ func Watch(srv *http.Server, interrupt chan uint8) (err error) {
 		}
 
 		// Reload
-		err = engine.Reload(config.Conf)
+		err = engine.Reload(config.Conf, engine.LoadOption{Action: "watch"})
 		if err != nil {
 			fmt.Println(color.RedString("[Watch] Reload: %s", err.Error()))
 			return

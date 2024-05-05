@@ -86,7 +86,7 @@ func runSetup(c *gin.Context) {
 		return
 	}
 
-	err = engine.Load(cfg)
+	err = engine.Load(cfg, engine.LoadOption{})
 	if err != nil {
 		c.JSON(500, gin.H{"code": 500, "message": err.Error()})
 		return

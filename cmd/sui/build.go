@@ -30,7 +30,7 @@ var BuildCmd = &cobra.Command{
 		Boot()
 
 		cfg := config.Conf
-		err := engine.Load(cfg)
+		err := engine.Load(cfg, engine.LoadOption{Action: "sui.build"})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
 			return

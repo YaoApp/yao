@@ -57,7 +57,7 @@ var dumpCmd = &cobra.Command{
 		}
 
 		// Load model
-		err = engine.Load(config.Conf)
+		err = engine.Load(config.Conf, engine.LoadOption{Action: "dump"})
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
