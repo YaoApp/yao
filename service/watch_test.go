@@ -9,7 +9,7 @@ import (
 )
 
 func TestWatch(t *testing.T) {
-	err := engine.Load(config.Conf)
+	err := engine.Load(config.Conf, engine.LoadOption{})
 	if err != nil {
 		t.Fatal(err)
 	}

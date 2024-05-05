@@ -43,7 +43,7 @@ var RunCmd = &cobra.Command{
 			return
 		}
 
-		err := engine.Load(cfg)
+		err := engine.Load(cfg, engine.LoadOption{Action: "studio.run"})
 		if err != nil {
 			fmt.Println(color.RedString(L("Engine: %s"), err.Error()))
 		}

@@ -13,17 +13,17 @@ import (
 
 func TestLoad(t *testing.T) {
 	defer Unload()
-	err := Load(config.Conf)
+	err := Load(config.Conf, LoadOption{})
 	assert.Nil(t, err)
 	assert.Greater(t, len(api.APIs), 0)
 }
 
 func TestReload(t *testing.T) {
 	defer Unload()
-	err := Load(config.Conf)
+	err := Load(config.Conf, LoadOption{})
 	assert.Nil(t, err)
 
-	Reload(config.Conf)
+	Reload(config.Conf, LoadOption{})
 	assert.Nil(t, err)
 	assert.Greater(t, len(api.APIs), 0)
 }
@@ -41,7 +41,7 @@ func TestLoadYaz(t *testing.T) {
 
 	cfg := config.Conf
 	cfg.AppSource = file
-	err = Load(cfg)
+	err = Load(cfg, LoadOption{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,13 +62,13 @@ func TestReoadYaz(t *testing.T) {
 
 	cfg := config.Conf
 	cfg.AppSource = file
-	err = Load(cfg)
+	err = Load(cfg, LoadOption{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Greater(t, len(api.APIs), 0)
 
-	Reload(cfg)
+	Reload(cfg, LoadOption{})
 	assert.Nil(t, err)
 	assert.Greater(t, len(api.APIs), 0)
 }

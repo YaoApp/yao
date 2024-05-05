@@ -32,7 +32,7 @@ var socketCmd = &cobra.Command{
 		Boot()
 		cfg := config.Conf
 		cfg.Session.IsCLI = true
-		engine.Load(cfg)
+		engine.Load(cfg, engine.LoadOption{Action: "socket"})
 		if len(args) < 1 {
 			fmt.Println(color.RedString(L("Not enough arguments")))
 			fmt.Println(color.WhiteString(share.BUILDNAME + " help"))

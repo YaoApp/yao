@@ -59,7 +59,7 @@ var restoreCmd = &cobra.Command{
 		})
 
 		// 加载数据模型
-		err = engine.Load(config.Conf)
+		err = engine.Load(config.Conf, engine.LoadOption{Action: "restore"})
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
