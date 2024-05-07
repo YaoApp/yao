@@ -39,6 +39,18 @@ import (
 	"github.com/yaoapp/yao/widgets"
 )
 
+// LoadHooks used to load custom widgets/processes
+var LoadHooks = map[string]func(config.Config) error{}
+
+// RegisterLoadHook register custom load hook
+func RegisterLoadHook(name string, hook func(config.Config) error) error {
+	if _, ok := LoadHooks[name]; ok {
+		return fmt.Errorf("load hook %s already exists", name)
+	}
+	LoadHooks[name] = hook
+	return nil
+}
+
 // LoadOption the load option
 type LoadOption struct {
 	Action           string `json:"action"`
@@ -223,6 +235,13 @@ func Load(cfg config.Config, options LoadOption) (err error) {
 	err = pipe.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Pipe", err)
+	}
+
+	for name, hook := range LoadHooks {
+		err = hook(cfg)
+		if err != nil {
+			printErr(cfg.Mode, name, err)
+		}
 	}
 
 	// Execute AfterLoad Process if exists
