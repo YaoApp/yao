@@ -15,12 +15,16 @@ type Config struct {
 	Key           string   `json:"key,omitempty" env:"YAO_KEY"`                                     // The HTTPS certificate key path
 	Log           string   `json:"log,omitempty" env:"YAO_LOG"`                                     // The log file path
 	LogMode       string   `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // The log mode TEXT|JSON
-	JWTSecret     string   `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                       // The JWT Secret
-	DB            Database `json:"db,omitempty"`                                                    // The database config
-	AllowFrom     []string `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`       // Domain list the separator is |
-	Session       Session  `json:"session,omitempty"`                                               // Session Config
-	Studio        Studio   `json:"studio,omitempty"`                                                // Studio config
-	Runtime       Runtime  `json:"runtime,omitempty"`                                               // Runtime config
+	LogMaxSize    int      `json:"log_max_size,omitempty" env:"YAO_LOG_MAX_SIZE" envDefault:"100"`  // The max log size in MB, the default is 100
+	LogMaxAage    int      `json:"log_max_age,omitempty" env:"YAO_LOG_MAX_AGE" envDefault:"7"`      // The max log age in day, the default is 7
+	LogMaxBackups int      `json:"log_max_backups" env:"YAO_LOG_MAX_BACKUPS" envDefault:"3"`        // The max log backups, the default is 3
+	LogLocalTime  bool     `json:"log_local_time" env:"YAO_LOG_LOCAL_TIME" envDefault:"true"`
+	JWTSecret     string   `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                 // The JWT Secret
+	DB            Database `json:"db,omitempty"`                                              // The database config
+	AllowFrom     []string `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"` // Domain list the separator is |
+	Session       Session  `json:"session,omitempty"`                                         // Session Config
+	Studio        Studio   `json:"studio,omitempty"`                                          // Studio config
+	Runtime       Runtime  `json:"runtime,omitempty"`                                         // Runtime config
 }
 
 // Studio the studio config

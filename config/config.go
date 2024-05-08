@@ -14,13 +14,14 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/crypto"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Conf 配置参数
 var Conf Config
 
 // LogOutput 日志输出
-var LogOutput *os.File // 日志文件
+var LogOutput io.WriteCloser // 日志文件
 
 // DSLExtensions the dsl file Extensions
 var DSLExtensions = []string{"*.yao", "*.json", "*.jsonc"}
@@ -160,10 +161,12 @@ func OpenLog() {
 			return
 		}
 	}
-	LogOutput, err = os.OpenFile(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.With(log.F{"file": logfile}).Error(err.Error())
-		return
+	LogOutput = &lumberjack.Logger{
+		Filename:   logfile,
+		MaxSize:    Conf.LogMaxSize, // megabytes
+		MaxBackups: Conf.LogMaxBackups,
+		MaxAge:     Conf.LogMaxAage, //days
+		LocalTime:  Conf.LogLocalTime,
 	}
 
 	log.SetOutput(LogOutput)
