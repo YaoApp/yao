@@ -27,6 +27,11 @@ func (dsl DSL) Map() map[string]interface{} {
 		"type":  dsl.Type,
 		"props": map[string]interface{}(dsl.Props),
 	}
+
+	if dsl.HideLabel {
+		res["hideLabel"] = true
+	}
+
 	if dsl.Bind != "" {
 		res["bind"] = dsl.Bind
 	}

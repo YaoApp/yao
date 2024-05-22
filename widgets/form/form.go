@@ -264,15 +264,24 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 		return nil, err
 	}
 
-	// full width default value
-	if _, has := dsl.Config["full"]; !has {
-		dsl.Config["full"] = true
+	// ** WARNING **
+	// set the full configuration by default
+	// Temporary solution, Will be removed in the future
+	// should be set when the list is created
+	config := map[string]interface{}{}
+	if dsl.Config != nil {
+		for key, value := range dsl.Config {
+			config[key] = value
+		}
+	}
+	if _, has := config["full"]; !has {
+		config["full"] = true
 	}
 
 	// Merge the layout config
 	if layout.Config != nil {
 		for key, value := range layout.Config {
-			dsl.Config[key] = value
+			config[key] = value
 		}
 	}
 
@@ -289,7 +298,7 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 
 	onChange := map[string]interface{}{} // Hooks
 	setting["fields"] = fields
-	setting["config"] = dsl.Config
+	setting["config"] = config
 
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {

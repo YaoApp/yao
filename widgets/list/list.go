@@ -230,7 +230,7 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool, quer
 		}
 	}
 	if _, has := config["full"]; !has {
-		dsl.Config["full"] = true
+		config["full"] = true
 	}
 
 	setting := map[string]interface{}{}
