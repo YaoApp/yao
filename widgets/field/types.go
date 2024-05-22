@@ -18,13 +18,14 @@ type CloudProps map[string]component.CloudPropsDSL
 
 // ColumnDSL the field column dsl
 type ColumnDSL struct {
-	ID   string                   `json:"id,omitempty"`
-	Data *component.CloudPropsDSL `json:"$data,omitempty"`
-	Key  string                   `json:"key,omitempty"`
-	Bind string                   `json:"bind,omitempty"`
-	Link string                   `json:"link,omitempty"`
-	View *component.DSL           `json:"view,omitempty"`
-	Edit *component.DSL           `json:"edit,omitempty"`
+	ID        string                   `json:"id,omitempty"`
+	Data      *component.CloudPropsDSL `json:"$data,omitempty"`
+	Key       string                   `json:"key,omitempty"`
+	Bind      string                   `json:"bind,omitempty"`
+	Link      string                   `json:"link,omitempty"`
+	HideLabel bool                     `json:"hideLabel,omitempty"`
+	View      *component.DSL           `json:"view,omitempty"`
+	Edit      *component.DSL           `json:"edit,omitempty"`
 }
 
 type aliasColumnDSL ColumnDSL
