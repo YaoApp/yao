@@ -81,13 +81,9 @@ Yao has a built-in data management system. By writing **JSON** to describe the i
 
 ## Install
 
-Run the script under terminal: (MacOS/Linux)
+Latest Version download and installation:
 
-```bash
-curl -fsSL https://website.yaoapps.com/install.sh | bash
-```
-
-For Windows users, please refer to the Installation and Debugging chapter: [Installation and debugging](https://yaoapps.com/en-US/doc/Introduction/Install)
+https://github.com/YaoApp/xgen-dev-app/blob/main/README.md
 
 ## Getting Started
 
@@ -100,23 +96,6 @@ Create a new application directory, enter the application directory, run the `ya
 ```bash
 mkdir -p /data/app # create project directory
 cd /data/app # Enter the project directory
-yao start # Start installation
-```
-
-**Default Account**
-
-- User: **xiang@iqka.com**
-
-- Password: **A123456p+**
-
-### Download a project
-
-Create a new project directory, enter the project directory, run the `yao get` command, and download the application code.
-
-```bash
-mkdir -p /data/app # create project directory
-cd /data/app # Enter the project directory
-yao get yaoapp/demo-plm # download demo-plm
 yao start # Start installation
 ```
 
