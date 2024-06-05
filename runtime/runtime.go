@@ -19,6 +19,7 @@ func Start(cfg config.Config) error {
 		Mode:              cfg.Runtime.Mode,
 		DefaultTimeout:    cfg.Runtime.DefaultTimeout,
 		ContextTimeout:    cfg.Runtime.ContextTimeout,
+		Import:            cfg.Runtime.Import,
 	}
 
 	err := v8.Start(option)
