@@ -72,11 +72,13 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 		for k, v := range slots {
 			slotvars[k] = v
 		}
-		data["$slot"] = slotvars
+		data["$slot"] = slotvars // Will be deprecated use $slots instead
+		data["$slots"] = slotvars
 	}
 
 	if attrs != nil {
-		data["$prop"] = attrs
+		data["$prop"] = attrs // Will be deprecated use $props instead
+		data["$props"] = attrs
 		page.Attrs = attrs
 	}
 
@@ -195,7 +197,10 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 				}
 				val := attr.Val
 				if page.Attrs != nil {
-					parentProps := Data{"$prop": page.Attrs}
+					parentProps := Data{
+						"$prop":  page.Attrs, // Will be deprecated use $props instead
+						"$props": page.Attrs,
+					}
 					val, _ = parentProps.ReplaceUse(slotRe, val)
 				}
 				attrs[attr.Key] = val
