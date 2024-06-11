@@ -13,7 +13,7 @@ import (
 )
 
 var slotRe = regexp.MustCompile(`\[\{([^\}]+)\}\]`)
-var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z# ]+)\{`)
+var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
 
 // Build is the struct for the public
 func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error) {
