@@ -112,6 +112,10 @@ func (column ColumnDSL) Map() map[string]interface{} {
 		"bind": column.Bind,
 	}
 
+	if column.HideLabel {
+		res["hideLabel"] = true
+	}
+
 	if column.Data != nil {
 		res["data"] = map[string]interface{}{"process": column.Data.Process, "query": column.Data.Query}
 	}

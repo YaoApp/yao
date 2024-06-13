@@ -22,6 +22,7 @@ type DSL struct {
 	Prompts             []aigc.Prompt             `json:"prompts,omitempty"`
 	Allows              []string                  `json:"allows,omitempty"`
 	Command             Command                   `json:"command,omitempty"`
+	Models              []string                  `json:"models,omitempty"`
 	AI                  aigc.AI                   `json:"-" yaml:"-"`
 	Conversation        conversation.Conversation `json:"-" yaml:"-"`
 	GuardHandlers       []gin.HandlerFunc         `json:"-" yaml:"-"`

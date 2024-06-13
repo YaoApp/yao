@@ -50,13 +50,9 @@ Yao 内置了一套数据管理系统，通过编写 **JSON** 描述界面布局
 
 ## 安装
 
-在终端下运行脚本: ( MacOS / Linux )
+Yao v0.10.4 使用说明
 
-```bash
-curl -fsSL https://website.yaoapps.com/install.sh | bash
-```
-
-Windows 用户请参考安装调试章节: [安装调试](https://yaoapps.com/doc/%E4%BB%8B%E7%BB%8D/%E5%AE%89%E8%A3%85%E8%B0%83%E8%AF%95)
+https://github.com/YaoApp/xgen-dev-app/blob/main/README.zh-CN.md
 
 ## 入门指南
 
@@ -81,23 +77,6 @@ yao start # 启动安装界面
 - 密码: **A123456p+**
 
 ![安装界面](docs/yao-setup-step2.jpg)
-
-#### 下载已上架应用
-
-新建一个项目目录，进入项目目录，运行 `yao get` 命令, 下载应用代码。
-
-```bash
-mkdir -p /data/app  # 创建应用目录
-cd /data/app  # 进入应用目录
-yao get yaoapp/demo-plm # 下载 demo-plm
-yao start # 启动安装界面
-```
-
-**默认账号**
-
-- 用户名: **xiang@iqka.com**
-
-- 密码: **A123456p+**
 
 ## 关于 Yao
 

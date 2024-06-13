@@ -130,6 +130,29 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		}
 
 		switch cmd {
+
+		case "ModelList":
+			c.JSON(200, gin.H{"data": neo.Models, "code": 200})
+			c.Done()
+
+		case "SelectModel":
+			model, ok := payload["model"].(string)
+			if !ok {
+				c.JSON(400, gin.H{"message": "model is required", "code": 400})
+				c.Done()
+				return
+			}
+
+			err := neo.Select(model)
+			if err != nil {
+				c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+				c.Done()
+				return
+			}
+
+			c.JSON(200, gin.H{"message": "success", "code": 200})
+			c.Done()
+
 		case "ExitCommandMode":
 			err := command.Exit(sid)
 			if err != nil {
@@ -524,11 +547,17 @@ func (neo *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
 // NewAI create a new AI
 func (neo *DSL) newAI() error {
 
-	if neo.Connector == "" {
-		ai, err := openai.NewMoapi("gpt-3.5-turbo")
+	if neo.Connector == "" || strings.HasPrefix(neo.Connector, "moapi") {
+		model := "gpt-3.5-turbo"
+		if neo.Connector != "" {
+			model = strings.TrimPrefix(neo.Connector, "moapi:")
+		}
+
+		ai, err := openai.NewMoapi(model)
 		if err != nil {
 			return err
 		}
+
 		neo.AI = ai
 		return nil
 	}
@@ -548,6 +577,16 @@ func (neo *DSL) newAI() error {
 	}
 
 	return fmt.Errorf("%s connector %s not support, should be a openai", neo.ID, neo.Connector)
+}
+
+// Select select the model
+func (neo *DSL) Select(model string) error {
+	ai, err := openai.NewMoapi(model)
+	if err != nil {
+		return err
+	}
+	neo.AI = ai
+	return nil
 }
 
 // newConversation create a new conversation

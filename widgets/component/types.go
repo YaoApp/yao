@@ -2,10 +2,11 @@ package component
 
 // DSL the component DSL
 type DSL struct {
-	Bind    string   `json:"bind,omitempty"`
-	Type    string   `json:"type,omitempty"`
-	Compute *Compute `json:"compute,omitempty"`
-	Props   PropsDSL `json:"props,omitempty"`
+	Bind      string   `json:"bind,omitempty"`
+	HideLabel bool     `json:"hideLabel,omitempty"`
+	Type      string   `json:"type,omitempty"`
+	Compute   *Compute `json:"compute,omitempty"`
+	Props     PropsDSL `json:"props,omitempty"`
 }
 
 // Actions the actions

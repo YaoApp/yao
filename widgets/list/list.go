@@ -219,9 +219,18 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool, quer
 		return nil, err
 	}
 
-	// full width default value
-	if _, has := dsl.Config["full"]; !has {
-		dsl.Config["full"] = true
+	// ** WARNING **
+	// set the full configuration by default
+	// Temporary solution, Will be removed in the future
+	// should be set when the list is created
+	config := map[string]interface{}{}
+	if dsl.Config != nil {
+		for key, value := range dsl.Config {
+			config[key] = value
+		}
+	}
+	if _, has := config["full"]; !has {
+		config["full"] = true
 	}
 
 	setting := map[string]interface{}{}
@@ -237,7 +246,7 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool, quer
 
 	onChange := map[string]interface{}{} // Hooks
 	setting["fields"] = fields
-	setting["config"] = dsl.Config
+	setting["config"] = config
 
 	replacements := maps.Map{}
 	if query != nil {
