@@ -21,6 +21,7 @@ import (
 )
 
 var restoreForce bool = false
+var migrateNoInsert bool = false
 var restoreCmd = &cobra.Command{
 	Use:   "restore",
 	Short: L("Restore the application data"),
@@ -66,7 +67,9 @@ var restoreCmd = &cobra.Command{
 		}
 
 		// Restore models
-		restoreModels(filepath.Join(dst, "model"))
+		restoreModels(filepath.Join(dst, "model"), []model.MigrateOption{
+			model.WithDonotInsertValues(migrateNoInsert),
+		})
 
 		// Restore Data
 		restoreData(filepath.Join(dst, "data"))
@@ -80,6 +83,7 @@ var restoreCmd = &cobra.Command{
 
 func init() {
 	restoreCmd.PersistentFlags().BoolVarP(&restoreForce, "force", "", false, L("Force restore"))
+	restoreCmd.PersistentFlags().BoolVarP(&migrateNoInsert, "migrate-no-insert", "", false, L("Do not insert values when migrating"))
 }
 
 func restoreData(basePath string) {
@@ -104,7 +108,7 @@ func restoreData(basePath string) {
 	}
 }
 
-func restoreModels(basePath string) {
+func restoreModels(basePath string, migOpts []model.MigrateOption) {
 
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
@@ -116,7 +120,7 @@ func restoreModels(basePath string) {
 	for _, mod := range model.Models {
 		fmt.Printf("\r%s", strings.Repeat(" ", 80))
 		fmt.Printf(color.GreenString(L("\rUpdate schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
-		err := mod.Migrate(true)
+		err := mod.Migrate(true, migOpts...)
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
