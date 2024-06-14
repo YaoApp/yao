@@ -208,7 +208,7 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 		}
 
 		p := ipage.Get()
-		namespace := fmt.Sprintf("__page_%s_%d", strings.ReplaceAll(name, "/", "_"), idx)
+		namespace := Namespace(name, idx)
 		html, style, script, warns, err := p.BuildForImport(&BuildOption{
 			SSR:             option.SSR,
 			AssetRoot:       option.AssetRoot,
