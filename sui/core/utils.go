@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -24,4 +25,13 @@ func NewDocumentString(htmlContent string) (*goquery.Document, error) {
 		return nil, err
 	}
 	return goquery.NewDocumentFromNode(docNode), nil
+}
+
+// Namespace convert the name to namespace
+func Namespace(name string, idx int) string {
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "[", "_")
+	name = strings.ReplaceAll(name, "]", "_")
+	namespace := fmt.Sprintf("__page_%s_%d", name, idx)
+	return namespace
 }
