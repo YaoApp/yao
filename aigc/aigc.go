@@ -2,6 +2,7 @@ package aigc
 
 import (
 	"fmt"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
@@ -96,8 +97,17 @@ func (ai *DSL) Call(content string, user string, option map[string]interface{}) 
 // NewAI create a new AI
 func (ai *DSL) newAI() (AI, error) {
 
-	if ai.Connector == "" {
-		return nil, fmt.Errorf("%s connector is required", ai.ID)
+	if ai.Connector == "" || strings.HasPrefix(ai.Connector, "moapi") {
+		model := "gpt-3.5-turbo"
+		if ai.Connector != "" {
+			model = strings.TrimPrefix(ai.Connector, "moapi:")
+		}
+
+		mo, err := openai.NewMoapi(model)
+		if err != nil {
+			return nil, err
+		}
+		return mo, nil
 	}
 
 	conn, err := connector.Select(ai.Connector)
