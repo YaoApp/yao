@@ -10,7 +10,7 @@ import (
 type DSL struct {
 	ID        string   `json:"-" yaml:"-"`
 	Name      string   `json:"name,omitempty"`
-	Connector string   `json:"connector"`
+	Connector string   `json:"connector,omitempty"`
 	Process   string   `json:"process,omitempty"`
 	Prompts   []Prompt `json:"prompts"`
 	Optional  Optional `json:"optional,omitempty"`
