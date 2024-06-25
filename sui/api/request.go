@@ -213,6 +213,7 @@ func (r *Request) Render() (string, int, error) {
 	data["$payload"] = r.Request.Payload
 	data["$query"] = r.Request.Query
 	data["$param"] = r.Request.Params
+	data["$cookie"] = r.Request.Cookies()
 	data["$url"] = r.Request.URL
 
 	printData := false

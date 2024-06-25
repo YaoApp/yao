@@ -40,3 +40,4 @@ xgen/v1.0/*
 !pipe/ui
 *-unit-test
 docker/build/test
+db
