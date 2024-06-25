@@ -40,6 +40,20 @@ func NewRequestMock(mock *PageMock) *Request {
 	}
 }
 
+// Cookies get the cookies
+func (r *Request) Cookies() map[string]string {
+	cookies := map[string]string{}
+	cookie := r.Headers.Get("Cookie")
+	parts := strings.Split(cookie, ";")
+	for _, part := range parts {
+		kv := strings.Split(strings.TrimSpace(part), "=")
+		if len(kv) == 2 {
+			cookies[kv[0]] = kv[1]
+		}
+	}
+	return cookies
+}
+
 // ExecString get the data
 func (r *Request) ExecString(data string) (Data, error) {
 	var res Data
