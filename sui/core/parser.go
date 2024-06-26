@@ -123,7 +123,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		// Remove the sui-hide attribute
 		doc.Find("[sui-hide]").Remove()
 
-		// Remove All comments and unsed nodes
+		// Remove All comments and used nodes
 		parser.tidy(doc.Selection)
 	}
 
