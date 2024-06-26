@@ -111,7 +111,7 @@ func (res *ResponseEditorRender) Render(data map[string]interface{}) error {
 	}
 
 	var err error
-	parser := NewTemplateParser(data, &ParserOption{Editor: true, PrintData: true})
+	parser := NewTemplateParser(data, &ParserOption{Editor: true, Debug: true})
 
 	res.HTML, err = parser.Render(res.HTML)
 	if err != nil {

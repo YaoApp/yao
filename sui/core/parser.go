@@ -29,10 +29,12 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
-	Editor    bool `json:"editor,omitempty"`
-	Preview   bool `json:"preview,omitempty"`
-	PrintData bool `json:"print_data,omitempty"`
-	Request   bool `json:"request,omitempty"`
+	Editor  bool   `json:"editor,omitempty"`
+	Preview bool   `json:"preview,omitempty"`
+	Debug   bool   `json:"debug,omitempty"`
+	Request bool   `json:"request,omitempty"`
+	Theme   string `json:"theme,omitempty"`
+	Lang    string `json:"lang,omitempty"`
 }
 
 var keepWords = map[string]bool{
@@ -66,7 +68,7 @@ func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 func (parser *TemplateParser) Render(html string) (string, error) {
 
 	if !strings.Contains(html, "<html") {
-		html = fmt.Sprintf(`<!DOCTYPE html><html lang="en">%s</html>`, html)
+		html = fmt.Sprintf(`<!DOCTYPE html><html lang="en-us">%s</html>`, html)
 	}
 
 	doc, err := NewDocumentString(html)
@@ -85,7 +87,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 
 	// Print the data
 	jsPrintData := ""
-	if parser.option != nil && parser.option.PrintData {
+	if parser.option != nil && parser.option.Debug {
 		jsPrintData = "console.log(__sui_data);\n"
 	}
 
@@ -121,7 +123,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		// Remove the sui-hide attribute
 		doc.Find("[sui-hide]").Remove()
 
-		// Remove All comments
+		// Remove All comments and unsed nodes
 		parser.tidy(doc.Selection)
 	}
 
