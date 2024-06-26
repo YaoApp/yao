@@ -72,33 +72,54 @@ func (r *Request) DisableCache() bool {
 	return disable
 }
 
-// WithData set the data
-func (r *Request) WithData(data Data) *Request {
+// NewData create the new data
+func (r *Request) NewData() Data {
 	cookies := r.Cookies()
+	theme := GetTheme(cookies)
+	locale := GetLocale(cookies)
+	r.Theme = theme
+	r.Locale = locale
+
+	data := Data{}
 	data["$payload"] = r.Payload
 	data["$query"] = r.Query
 	data["$param"] = r.Params
 	data["$cookie"] = cookies
 	data["$url"] = r.URL
-	data["$theme"] = GetTheme(cookies)
-	data["$lang"] = GetLang(cookies)
-	return r
+	data["$theme"] = r.Theme
+	data["$locale"] = r.Locale
+	return data
 }
 
-// GetLang get the lang
-func GetLang(cookies map[string]string) string {
-	if lang, has := cookies["lang"]; has {
+// GetLocale get the locale
+func GetLocale(cookies map[string]string) interface{} {
+	if lang, has := cookies["locale"]; has {
 		return lang
 	}
-	return ""
+	return nil
 }
 
 // GetTheme get the theme
-func GetTheme(cookies map[string]string) string {
+func GetTheme(cookies map[string]string) interface{} {
 	if theme, has := cookies["color-theme"]; has {
 		return theme
 	}
-	return ""
+	return nil
+}
+
+// ExecStringMerge exec the string and merge the data
+func (r *Request) ExecStringMerge(data Data, raw string) error {
+
+	res, err := r.ExecString(raw)
+	if err != nil {
+		return err
+	}
+
+	// Merge the data
+	for key, value := range res {
+		data[key] = value
+	}
+	return nil
 }
 
 // ExecString get the data

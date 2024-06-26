@@ -164,9 +164,9 @@ func (r *Request) Render() (string, int, error) {
 		return "", code, err
 	}
 
-	data := core.Data{}
+	data := r.Request.NewData()
 	if c.Data != "" {
-		data, err = r.Request.ExecString(c.Data)
+		err = r.Request.ExecStringMerge(data, c.Data)
 		if err != nil {
 			return "", 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
 		}
@@ -181,10 +181,9 @@ func (r *Request) Render() (string, int, error) {
 	}
 
 	// Set the page request data
-	r.Request.WithData(data)
 	option := core.ParserOption{
-		Theme:   data["$theme"].(string),
-		Lang:    data["$lang"].(string),
+		Theme:   r.Request.Theme,
+		Locale:  r.Request.Locale,
 		Debug:   r.Request.DebugMode(),
 		Request: true,
 	}

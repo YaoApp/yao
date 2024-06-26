@@ -29,12 +29,12 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
-	Editor  bool   `json:"editor,omitempty"`
-	Preview bool   `json:"preview,omitempty"`
-	Debug   bool   `json:"debug,omitempty"`
-	Request bool   `json:"request,omitempty"`
-	Theme   string `json:"theme,omitempty"`
-	Lang    string `json:"lang,omitempty"`
+	Editor  bool `json:"editor,omitempty"`
+	Preview bool `json:"preview,omitempty"`
+	Debug   bool `json:"debug,omitempty"`
+	Request bool `json:"request,omitempty"`
+	Theme   any  `json:"theme,omitempty"`
+	Locale  any  `json:"locale,omitempty"`
 }
 
 var keepWords = map[string]bool{

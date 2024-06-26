@@ -160,8 +160,8 @@ type Request struct {
 	Body      interface{}            `json:"body,omitempty"`
 	URL       ReqeustURL             `json:"url,omitempty"`
 	Sid       string                 `json:"sid,omitempty"`
-	Theme     string                 `json:"theme,omitempty"`
-	Locale    string                 `json:"locale,omitempty"`
+	Theme     any                    `json:"theme,omitempty"`
+	Locale    any                    `json:"locale,omitempty"`
 }
 
 // RequestSource is the struct for the request
@@ -307,21 +307,21 @@ type Matcher struct {
 // DocumentDefault is the default document
 var DocumentDefault = []byte(`
 <!DOCTYPE html>
-<html lang="{{ $REQ.locale || 'en' }}">
+<html locale="{{ $locale ?? 'en-us' }}" class="{{ $theme }}" >
   <head>
     <meta charset="UTF-8" />
-    <title>{{ $DATA.head.title || '' }}</title>
+    <title>{{ $global.title ?? 'Untitled' }}</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
     <meta
       name="description"
-      content="{{ $DATA.head.description || '' }}"
+      content="{{ $global.description ?? '' }}"
     />
     <meta
       name="keywords"
-      content="{{ $DATA.head.keywords || '' }}"
+      content="{{ $global.keywords ?? '' }}"
     />
     <meta name="author" content="Yao" />
     <meta name="website" content="https://yaoapps.com" />
