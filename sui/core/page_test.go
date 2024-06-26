@@ -17,7 +17,7 @@ func TestPageExec(t *testing.T) {
 	request := &Request{
 		URL:    ReqeustURL{Path: "/test/path"},
 		Query:  map[string][]string{"show": {"yes"}},
-		Locale: "zh-CN",
+		Locale: "zh-cn",
 		Theme:  "dark",
 	}
 
