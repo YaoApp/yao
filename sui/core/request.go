@@ -54,6 +54,53 @@ func (r *Request) Cookies() map[string]string {
 	return cookies
 }
 
+// DebugMode get the debug mode
+func (r *Request) DebugMode() bool {
+	debug := false
+	if r.Query != nil && (r.Query.Has("__sui_print_data") || r.Query.Has("__debug")) {
+		debug = true
+	}
+	return debug
+}
+
+// DisableCache get the disable cache
+func (r *Request) DisableCache() bool {
+	disable := false
+	if (r.Query != nil && r.Query.Has("__debug") || r.Query.Has("__sui_disable_cache")) || (r.Headers != nil && r.Headers.Get("Cache-Control") == "no-cache") {
+		disable = true
+	}
+	return disable
+}
+
+// WithData set the data
+func (r *Request) WithData(data Data) *Request {
+	cookies := r.Cookies()
+	data["$payload"] = r.Payload
+	data["$query"] = r.Query
+	data["$param"] = r.Params
+	data["$cookie"] = cookies
+	data["$url"] = r.URL
+	data["$theme"] = GetTheme(cookies)
+	data["$lang"] = GetLang(cookies)
+	return r
+}
+
+// GetLang get the lang
+func GetLang(cookies map[string]string) string {
+	if lang, has := cookies["lang"]; has {
+		return lang
+	}
+	return ""
+}
+
+// GetTheme get the theme
+func GetTheme(cookies map[string]string) string {
+	if theme, has := cookies["color-theme"]; has {
+		return theme
+	}
+	return ""
+}
+
 // ExecString get the data
 func (r *Request) ExecString(data string) (Data, error) {
 	var res Data
@@ -314,13 +361,8 @@ func (url ReqeustURL) Map() Data {
 }
 
 // SetCache set the cache
-func SetCache(file string, html string, data string, global string) *Cache {
-	Caches[file] = &Cache{
-		Data:   data,
-		HTML:   html,
-		Global: global,
-	}
-	return Caches[file]
+func SetCache(file string, cache *Cache) {
+	Caches[file] = cache
 }
 
 // GetCache get the cache
