@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"strings"
 
@@ -21,6 +22,13 @@ type Data map[string]interface{}
 var options = []expr.Option{
 	expr.Function("P_", _process),
 	expr.AllowUndefinedVariables(),
+}
+
+// Hash get the hash of the data
+func (data Data) Hash() string {
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("%v", data)))
+	return fmt.Sprintf("%x", h.Sum64())
 }
 
 // New create a new expression

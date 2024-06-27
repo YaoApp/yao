@@ -447,6 +447,9 @@ func (page *Page) Load() error {
 		page.Codes.CONF.Code = string(confCode)
 	}
 
+	// Set the page CacheStore
+	page.CacheStore = page.tmpl.local.DSL.CacheStore
+
 	// Set the page document
 	page.Document = page.tmpl.Document
 
