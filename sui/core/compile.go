@@ -78,7 +78,7 @@ func (page *Page) CompileJS(source []byte, minify bool) ([]byte, []string, error
 	}
 	jsCode := importRe.ReplaceAllString(string(source), "")
 	if minify {
-		minified, err := transform.MinifyJS(jsCode)
+		minified, err := transform.MinifyJS(jsCode, api.ES2015)
 		return []byte(minified), scripts, err
 	}
 	return []byte(jsCode), scripts, nil
@@ -99,7 +99,7 @@ func (page *Page) CompileTS(source []byte, minify bool) ([]byte, []string, error
 	tsCode := importRe.ReplaceAllString(string(source), "")
 	if minify {
 		jsCode, err := transform.TypeScript(string(tsCode), api.TransformOptions{
-			Target:            api.ESNext,
+			Target:            api.ES2015,
 			MinifyWhitespace:  true,
 			MinifyIdentifiers: true,
 			MinifySyntax:      true,

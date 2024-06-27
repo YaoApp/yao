@@ -10,10 +10,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
+	"golang.org/x/net/html"
 )
 
 var slotRe = regexp.MustCompile(`\[\{([^\}]+)\}\]`)
 var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
+var langFuncRe = regexp.MustCompile(`L\s*\(\s*["'](.*?)["']\s*\)`)
+var langAttrRe = regexp.MustCompile(`'::(.*?)'`)
 
 // Build is the struct for the public
 func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error) {
@@ -44,7 +47,7 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 	doc.Selection.Find("head").AppendHtml(style)
 
 	// Add Script
-	code, scripts, err := page.BuildScript(option)
+	code, scripts, err := page.BuildScript(option, option.Namespace)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -100,7 +103,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 		warnings = append(warnings, err.Error())
 	}
 
-	code, _, err := page.BuildScript(option)
+	code, _, err := page.BuildScript(option, option.Namespace)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -125,6 +128,12 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []string) error {
 
 	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
+
+		// Get the translation
+		if translations := getNodeTranslation(sel, i, option.Namespace); len(translations) > 0 {
+			page.Translations = append(page.Translations, translations...)
+		}
+
 		tagName := sel.Get(0).Data
 		if tagName == "page" {
 			return true
@@ -217,6 +226,9 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 			IgnoreDocument:  true,
 			Namespace:       namespace,
 		}, slots, attrs)
+
+		// append translations
+		page.Translations = append(page.Translations, p.Translations...)
 
 		if err != nil {
 			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
@@ -313,7 +325,7 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 }
 
 // BuildScript build the script
-func (page *Page) BuildScript(option *BuildOption) (string, []string, error) {
+func (page *Page) BuildScript(option *BuildOption, namespace string) (string, []string, error) {
 
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
 		return "", nil, nil
@@ -345,7 +357,7 @@ func (page *Page) BuildScript(option *BuildOption) (string, []string, error) {
 		return fmt.Sprintf("<script type=\"text/javascript\">\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(code))), scripts, nil
 	}
 
-	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), false)
+	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), true)
 	if err != nil {
 		return "", nil, err
 	}
@@ -367,6 +379,11 @@ func (page *Page) BuildScript(option *BuildOption) (string, []string, error) {
 		return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
 	}
 
+	// Get the translation
+	if translations := getScriptTranslation(string(code), namespace); len(translations) > 0 {
+		page.Translations = append(page.Translations, translations...)
+	}
+
 	return fmt.Sprintf("<script type=\"text/javascript\">\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(code))), scripts, nil
 }
 
@@ -386,4 +403,78 @@ func addTabToEachLine(input string, prefix ...string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+func getScriptTranslation(code string, namespace string) []Translation {
+	translations := []Translation{}
+	matches := langFuncRe.FindAllStringSubmatch(code, -1)
+	for i, match := range matches {
+		translations = append(translations, Translation{
+			Key:     fmt.Sprintf("%s_script_%d", namespace, i),
+			Message: match[1],
+			Type:    "script",
+		})
+	}
+	return translations
+}
+
+func getNodeTranslation(sel *goquery.Selection, index int, namespace string) []Translation {
+
+	translations := []Translation{}
+	nodeType := sel.Get(0).Type
+	switch nodeType {
+	case html.ElementNode:
+
+		// Get the translation
+		if typ, has := sel.Attr("s:trans"); has {
+			typ = strings.TrimSpace(typ)
+			if typ == "" {
+				typ = "html"
+			}
+			translations = append(translations, Translation{
+				Key:     fmt.Sprintf("%s_index_%d", namespace, index),
+				Message: strings.TrimSpace(sel.Text()),
+				Type:    typ,
+			})
+		}
+
+		// Attributes
+		for i, attr := range sel.Get(0).Attr {
+
+			// value="::attr"
+			if strings.HasPrefix(attr.Val, "::") {
+				translations = append(translations, Translation{
+					Key:     fmt.Sprintf("%s_index_attr_%d_%d", namespace, index, i),
+					Message: attr.Val[2:],
+					Name:    attr.Key,
+					Type:    "attr",
+				})
+			}
+
+			// value="{{ 'key': '::value' }}"
+			matches := langAttrRe.FindAllStringSubmatch(attr.Val, -1)
+			if len(matches) > 0 {
+				for j, match := range matches {
+					translations = append(translations, Translation{
+						Key:     fmt.Sprintf("%s_index_attr_%d_%d_%d", namespace, index, i, j),
+						Message: match[1],
+						Name:    attr.Key,
+						Type:    "attr",
+					})
+				}
+			}
+		}
+
+	case html.TextNode:
+		if strings.HasPrefix(sel.Text(), "::") {
+			translations = append(translations, Translation{
+				Key:     fmt.Sprintf("%s_index_%d", namespace, index),
+				Message: strings.TrimSpace(sel.Text()[2:]),
+				Type:    "text",
+			})
+		}
+	}
+
+	return translations
+
 }
