@@ -107,6 +107,7 @@ func (r *Request) Render() (string, int, error) {
 		configText := ""
 		cacheStore := ""
 		cacheTime := 0
+		dateCacheTime := 0
 
 		configSel := doc.Find("script[name=config]")
 		if configSel != nil && configSel.Length() > 0 {
@@ -132,6 +133,7 @@ func (r *Request) Render() (string, int, error) {
 			// Cache store
 			cacheStore = conf.CacheStore
 			cacheTime = conf.Cache
+			dateCacheTime = conf.DataCache
 		}
 
 		dataText := ""
@@ -163,6 +165,7 @@ func (r *Request) Render() (string, int, error) {
 			Config:        configText,
 			CacheStore:    cacheStore,
 			CacheTime:     time.Duration(cacheTime) * time.Second,
+			DataCacheTime: time.Duration(dateCacheTime) * time.Second,
 		}
 		go core.SetCache(r.File, c)
 		go log.Trace("[SUI] The page %s is cached file=%s", r.Request.URL.Path, r.File)
@@ -174,28 +177,49 @@ func (r *Request) Render() (string, int, error) {
 		return "", code, err
 	}
 
-	data := r.Request.NewData()
-	if c.Data != "" {
-		err = r.Request.ExecStringMerge(data, c.Data)
-		if err != nil {
-			return "", 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
+	requestHash := r.Hash()
+	data := core.Data{}
+	dataCacheKey := fmt.Sprintf("data:%s", requestHash)
+	dataHitCache := false
+
+	// Read from data cache directly
+	if !r.Request.DisableCache() && c.DataCacheTime > 0 && c.CacheStore != "" {
+		data, dataHitCache = c.GetData(dataCacheKey)
+		if dataHitCache {
+			log.Trace("[SUI] The page %s data is cached %v file=%s key=%s", r.Request.URL.Path, c.DataCacheTime, r.File, dataCacheKey)
 		}
 	}
 
-	if c.Global != "" {
-		global, err := r.Request.ExecString(c.Global)
-		if err != nil {
-			return "", 500, fmt.Errorf("global data error, please re-complie the page %s", err.Error())
+	if !dataHitCache {
+		// Request the data
+		data = r.Request.NewData()
+		if c.Data != "" {
+			err = r.Request.ExecStringMerge(data, c.Data)
+			if err != nil {
+				return "", 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
+			}
 		}
-		data["$global"] = global
+
+		if c.Global != "" {
+			global, err := r.Request.ExecString(c.Global)
+			if err != nil {
+				return "", 500, fmt.Errorf("global data error, please re-complie the page %s", err.Error())
+			}
+			data["$global"] = global
+		}
+
+		// Save to The Cache
+		if c.DataCacheTime > 0 && c.CacheStore != "" {
+			go c.SetData(dataCacheKey, data, c.DataCacheTime)
+		}
 	}
 
 	// Read from cache directly
-	key := fmt.Sprintf("page:%s:%s", r.Hash(), data.Hash())
+	key := fmt.Sprintf("page:%s:%s", requestHash, data.Hash())
 	if !r.Request.DisableCache() && c.CacheTime > 0 && c.CacheStore != "" {
 		html, exists := c.GetHTML(key)
 		if exists {
-			log.Trace("[SUI] The page %s is cached %v file=%s", r.Request.URL.Path, c.CacheTime, r.File)
+			log.Trace("[SUI] The page %s is cached %v file=%s key=%s", r.Request.URL.Path, c.CacheTime, r.File, key)
 			return html, 200, nil
 		}
 	}

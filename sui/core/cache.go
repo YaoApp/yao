@@ -3,6 +3,7 @@ package core
 import (
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
 )
@@ -17,6 +18,7 @@ type Cache struct {
 	HTML          string
 	CacheStore    string
 	CacheTime     time.Duration
+	DataCacheTime time.Duration
 }
 
 const (
@@ -90,6 +92,46 @@ func (c *Cache) GetHTML(hash string) (string, bool) {
 	}
 
 	return v.(string), true
+}
+
+// GetData get the data
+func (c *Cache) GetData(hash string) (Data, bool) {
+	store, has := store.Pools[c.CacheStore]
+	if !has {
+		log.Warn(`[SUI] The cache store "%s" is not found`, c.CacheStore)
+		return Data{}, false
+	}
+
+	v, has := store.Get(hash)
+	if !has {
+		return Data{}, false
+	}
+
+	data := Data{}
+	err := jsoniter.Unmarshal(v.([]byte), &data)
+	if err != nil {
+		log.Error(`[SUI] The data is not a valid json: %s`, err.Error())
+		return Data{}, false
+	}
+
+	return data, true
+}
+
+// SetData set the data
+func (c *Cache) SetData(hash string, data Data, ttl time.Duration) {
+	store, has := store.Pools[c.CacheStore]
+	if !has {
+		log.Warn(`[SUI] The cache store "%s" is not found`, c.CacheStore)
+		return
+	}
+
+	raw, err := jsoniter.Marshal(data)
+	if err != nil {
+		log.Error(`[SUI] The data is not a valid json: %s`, err.Error())
+		return
+	}
+
+	store.Set(hash, raw, ttl)
 }
 
 // SetHTML set the html

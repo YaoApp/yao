@@ -68,6 +68,7 @@ func (page *Page) ExportConfig() string {
 		"guard":       page.Config.Guard,
 		"cache_store": page.CacheStore,
 		"cache":       page.Config.Cache,
+		"data_cache":  page.Config.DataCache,
 	})
 
 	if err != nil {
