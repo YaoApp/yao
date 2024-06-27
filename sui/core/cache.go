@@ -1,0 +1,113 @@
+package core
+
+import (
+	"time"
+
+	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/kun/log"
+)
+
+// Cache the cache
+type Cache struct {
+	Data          string
+	Global        string
+	Config        string
+	Guard         string
+	GuardRedirect string
+	HTML          string
+	CacheStore    string
+	CacheTime     time.Duration
+}
+
+const (
+	saveCache uint8 = iota
+	removeCache
+)
+
+type cacheData struct {
+	file  string
+	cache *Cache
+	cmd   uint8
+}
+
+// Caches the caches
+var Caches = map[string]*Cache{}
+var ch = make(chan *cacheData, 1)
+
+func init() {
+	go cacheWriter()
+}
+
+func cacheWriter() {
+	for {
+		select {
+		case data := <-ch:
+			switch data.cmd {
+			case saveCache:
+				Caches[data.file] = data.cache
+			case removeCache:
+				delete(Caches, data.file)
+			}
+		}
+	}
+}
+
+// SetCache set the cache
+func SetCache(file string, cache *Cache) {
+	ch <- &cacheData{file, cache, saveCache}
+}
+
+// GetCache get the cache
+func GetCache(file string) *Cache {
+	if cache, has := Caches[file]; has {
+		return cache
+	}
+	return nil
+}
+
+// RemoveCache remove the cache
+func RemoveCache(file string) {
+	ch <- &cacheData{file, nil, removeCache}
+}
+
+// CleanCache clean the cache
+func CleanCache() {
+	Caches = map[string]*Cache{}
+}
+
+// GetHTML get the html
+func (c *Cache) GetHTML(hash string) (string, bool) {
+
+	store, has := store.Pools[c.CacheStore]
+	if !has {
+		log.Warn(`[SUI] The cache store "%s" is not found`, c.CacheStore)
+		return "", false
+	}
+
+	v, has := store.Get(hash)
+	if !has {
+		return "", false
+	}
+
+	return v.(string), true
+}
+
+// SetHTML set the html
+func (c *Cache) SetHTML(hash, html string, ttl time.Duration) {
+	store, has := store.Pools[c.CacheStore]
+	if !has {
+		log.Warn(`[SUI] The cache store "%s" is not found`, c.CacheStore)
+		return
+	}
+	store.Set(hash, html, ttl)
+}
+
+// DelHTML del the html
+func (c *Cache) DelHTML(hash string) {
+	store, has := store.Pools[c.CacheStore]
+	if !has {
+		log.Warn(`[SUI] The cache store "%s" is not found`, c.CacheStore)
+		return
+	}
+	store.Del(hash)
+}

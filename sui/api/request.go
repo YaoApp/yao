@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -87,8 +88,8 @@ func (r *Request) Render() (string, int, error) {
 
 		// The page is not cached
 		message := fmt.Sprintf("[SUI] The page %s is not cached. file=%s DisableCache=%v", r.Request.URL.Path, r.File, r.Request.DisableCache())
-		fmt.Println(color.YellowString(message))
-		log.Warn(message)
+		go fmt.Println(color.YellowString(message))
+		go log.Warn(message)
 
 		// Read the file
 		content, err := application.App.Read(r.File)
@@ -104,6 +105,9 @@ func (r *Request) Render() (string, int, error) {
 		guard := ""
 		guardRedirect := ""
 		configText := ""
+		cacheStore := ""
+		cacheTime := 0
+
 		configSel := doc.Find("script[name=config]")
 		if configSel != nil && configSel.Length() > 0 {
 			configText = configSel.Text()
@@ -124,6 +128,10 @@ func (r *Request) Render() (string, int, error) {
 				guard = parts[0]
 				guardRedirect = parts[1]
 			}
+
+			// Cache store
+			cacheStore = conf.CacheStore
+			cacheTime = conf.Cache
 		}
 
 		dataText := ""
@@ -153,9 +161,11 @@ func (r *Request) Render() (string, int, error) {
 			Guard:         guard,
 			GuardRedirect: guardRedirect,
 			Config:        configText,
+			CacheStore:    cacheStore,
+			CacheTime:     time.Duration(cacheTime) * time.Second,
 		}
-		core.SetCache(r.File, c)
-		log.Trace("[SUI] The page %s is cached file=%s", r.Request.URL.Path, r.File)
+		go core.SetCache(r.File, c)
+		go log.Trace("[SUI] The page %s is cached file=%s", r.Request.URL.Path, r.File)
 	}
 
 	// Guard the page
@@ -180,6 +190,16 @@ func (r *Request) Render() (string, int, error) {
 		data["$global"] = global
 	}
 
+	// Read from cache directly
+	key := fmt.Sprintf("page:%s:%s", r.Hash(), data.Hash())
+	if !r.Request.DisableCache() && c.CacheTime > 0 && c.CacheStore != "" {
+		html, exists := c.GetHTML(key)
+		if exists {
+			log.Trace("[SUI] The page %s is cached %v file=%s", r.Request.URL.Path, c.CacheTime, r.File)
+			return html, 200, nil
+		}
+	}
+
 	// Set the page request data
 	option := core.ParserOption{
 		Theme:   r.Request.Theme,
@@ -193,6 +213,11 @@ func (r *Request) Render() (string, int, error) {
 	html, err := parser.Render(c.HTML)
 	if err != nil {
 		return "", 500, fmt.Errorf("render error, please re-complie the page %s", err.Error())
+	}
+
+	// Save to The Cache
+	if c.CacheTime > 0 && c.CacheStore != "" {
+		go c.SetHTML(key, html, c.CacheTime)
 	}
 
 	return html, 200, nil

@@ -12,6 +12,7 @@ type DSL struct {
 	Guard      string   `json:"guard,omitempty"`
 	Storage    *Storage `json:"storage,omitempty"`
 	Public     *Public  `json:"public,omitempty"`
+	CacheStore string   `json:"cache_store,omitempty"` // The cache store
 	Sid        string   `json:"-"`
 	publicRoot string   `json:"-"`
 }
@@ -27,6 +28,7 @@ type Setting struct {
 type Page struct {
 	Route        string            `json:"route"`
 	Name         string            `json:"name,omitempty"`
+	CacheStore   string            `json:"-"`
 	TemplateID   string            `json:"-"`
 	SuiID        string            `json:"-"`
 	Config       *PageConfig       `json:"-"`
@@ -294,6 +296,8 @@ type PageConfig struct {
 type PageSetting struct {
 	Title       string   `json:"title,omitempty"`
 	Guard       string   `json:"guard,omitempty"`
+	CacheStore  string   `json:"cache_store,omitempty"`
+	Cache       int      `json:"cache,omitempty"`
 	Description string   `json:"description,omitempty"`
 	SEO         *PageSEO `json:"seo,omitempty"`
 }

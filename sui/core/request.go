@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
@@ -9,19 +10,6 @@ import (
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/log"
 )
-
-// Cache the cache
-type Cache struct {
-	Data          string
-	Global        string
-	Config        string
-	Guard         string
-	GuardRedirect string
-	HTML          string
-}
-
-// Caches the caches
-var Caches = map[string]*Cache{}
 
 // NewRequestMock is the constructor for Request.
 func NewRequestMock(mock *PageMock) *Request {
@@ -105,6 +93,13 @@ func GetTheme(cookies map[string]string) interface{} {
 		return theme
 	}
 	return nil
+}
+
+// Hash get the hash
+func (r *Request) Hash() string {
+	h := fnv.New64a()
+	h.Write([]byte(fmt.Sprintf("%v", r)))
+	return fmt.Sprintf("%x", h.Sum64())
 }
 
 // ExecStringMerge exec the string and merge the data
@@ -379,27 +374,4 @@ func (url ReqeustURL) Map() Data {
 		"host":   url.Host,
 		"path":   url.Path,
 	}
-}
-
-// SetCache set the cache
-func SetCache(file string, cache *Cache) {
-	Caches[file] = cache
-}
-
-// GetCache get the cache
-func GetCache(file string) *Cache {
-	if cache, has := Caches[file]; has {
-		return cache
-	}
-	return nil
-}
-
-// RemoveCache remove the cache
-func RemoveCache(file string) {
-	delete(Caches, file)
-}
-
-// CleanCache clean the cache
-func CleanCache() {
-	Caches = map[string]*Cache{}
 }
