@@ -298,6 +298,7 @@ type PageSetting struct {
 	Guard       string   `json:"guard,omitempty"`
 	CacheStore  string   `json:"cache_store,omitempty"`
 	Cache       int      `json:"cache,omitempty"`
+	DataCache   int      `json:"data_cache,omitempty"`
 	Description string   `json:"description,omitempty"`
 	SEO         *PageSEO `json:"seo,omitempty"`
 }
