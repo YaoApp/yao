@@ -25,16 +25,63 @@ type Setting struct {
 
 // Page is the struct for the page
 type Page struct {
-	Route      string            `json:"route"`
-	Name       string            `json:"name,omitempty"`
-	TemplateID string            `json:"-"`
-	SuiID      string            `json:"-"`
-	Config     *PageConfig       `json:"-"`
-	Path       string            `json:"-"`
-	Codes      SourceCodes       `json:"-"`
-	Document   []byte            `json:"-"`
-	GlobalData []byte            `json:"-"`
-	Attrs      map[string]string `json:"-"`
+	Route        string            `json:"route"`
+	Name         string            `json:"name,omitempty"`
+	TemplateID   string            `json:"-"`
+	SuiID        string            `json:"-"`
+	Config       *PageConfig       `json:"-"`
+	Path         string            `json:"-"`
+	Codes        SourceCodes       `json:"-"`
+	Document     []byte            `json:"-"`
+	GlobalData   []byte            `json:"-"`
+	Attrs        map[string]string `json:"-"`
+	Translations []Translation     `json:"-"`
+}
+
+// Translation is the struct for the translation
+type Translation struct {
+	Key     string `json:"key,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Message string `json:"message,omitempty"`
+	Type    string `json:"type,omitempty"` // ENUM: 'text', 'html', 'attr', 'script'
+}
+
+// Locale is the struct for the locale
+type Locale struct {
+	Keys     map[string]string `json:"keys,omitempty"`
+	Messages map[string]string `json:"messages,omitempty"`
+	Date     LocaleDate        `json:"date,omitempty"`
+	Currency LocaleCurrency    `json:"currency,omitempty"`
+	Number   LocaleNumber      `json:"number,omitempty"`
+}
+
+// LocaleDate the struct for the locale date format
+type LocaleDate struct {
+	Short string `json:"short,omitempty"`
+	Long  string `json:"long,omitempty"`
+	Full  string `json:"full,omitempty"`
+	Month string `json:"month,omitempty"`
+	Week  string `json:"week,omitempty"`
+	Year  string `json:"year,omitempty"`
+	Day   string `json:"day,omitempty"`
+	Human string `json:"human,omitempty"`
+}
+
+// LocaleCurrency the struct for the locale currency
+type LocaleCurrency struct {
+	Format    string `json:"format,omitempty"`
+	Unit      string `json:"unit,omitempty"`
+	Separator string `json:"separator,omitempty"`
+	Delimiter string `json:"delimiter,omitempty"`
+	Precision int    `json:"precision,omitempty"`
+}
+
+// LocaleNumber the struct for the locale number
+type LocaleNumber struct {
+	Format    string `json:"format,omitempty"`
+	Separator string `json:"separator,omitempty"`
+	Delimiter string `json:"delimiter,omitempty"`
+	Precision int    `json:"precision,omitempty"`
 }
 
 // PageTreeNode is the struct for the page tree node
@@ -87,6 +134,7 @@ type Template struct {
 	Descrption  string         `json:"description"`
 	Screenshots []string       `json:"screenshots"`
 	Themes      []SelectOption `json:"themes"`
+	Locales     []SelectOption `json:"locales"`
 	Document    []byte         `json:"-"`
 	GlobalData  []byte         `json:"-"`
 }

@@ -26,6 +26,9 @@ func (tmpl *Template) GetRoot() string {
 
 // Locales get the global locales
 func (tmpl *Template) Locales() []core.SelectOption {
+	if tmpl.locales != nil {
+		return tmpl.locales
+	}
 
 	supportLocales := []core.SelectOption{}
 	path := filepath.Join(tmpl.Root, "__locales")
@@ -47,7 +50,8 @@ func (tmpl *Template) Locales() []core.SelectOption {
 		})
 	}
 
-	return supportLocales
+	tmpl.locales = supportLocales
+	return tmpl.locales
 }
 
 // Themes get the global themes
