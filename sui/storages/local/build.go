@@ -247,19 +247,25 @@ func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
 		return nil
 	}
 
-	keys := map[string]string{}
-	messages := map[string]string{}
-	for _, t := range page.Page.Translations {
-		keys[t.Key] = t.Message
-		messages[t.Message] = t.Message
-	}
-
 	files := page.localeFiles(data)
 	for name, file := range files {
+
+		// Init Data
+		keys := map[string]string{}
+		messages := map[string]string{}
+		for _, t := range page.Page.Translations {
+			keys[t.Key] = t.Message
+			messages[t.Message] = t.Message
+		}
+
 		locale := page.locale(name)
 		for key := range keys {
 			if _, has := locale.Keys[key]; has {
 				keys[key] = locale.Keys[key]
+			}
+
+			if msgValue, has := locale.Messages[keys[key]]; has {
+				keys[key] = msgValue
 			}
 		}
 

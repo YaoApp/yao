@@ -285,13 +285,19 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 		return
 	}
 
-	if _, exist := sel.Attr("s:trans"); !exist {
+	key, exist := sel.Attr("s:trans-node")
+	if !exist {
 		return
 	}
 
 	text := sel.Text()
 	message := strings.TrimSpace(text)
 	if message == "" {
+		return
+	}
+
+	if lcMessage, has := parser.locale.Keys[key]; has && lcMessage != message {
+		sel.SetText(strings.Replace(text, message, lcMessage, 1))
 		return
 	}
 
