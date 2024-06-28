@@ -226,10 +226,12 @@ func (r *Request) Render() (string, int, error) {
 
 	// Set the page request data
 	option := core.ParserOption{
-		Theme:   r.Request.Theme,
-		Locale:  r.Request.Locale,
-		Debug:   r.Request.DebugMode(),
-		Request: true,
+		Theme:        r.Request.Theme,
+		Locale:       r.Request.Locale,
+		Debug:        r.Request.DebugMode(),
+		DisableCache: r.Request.DisableCache(),
+		Route:        r.Request.URL.Path,
+		Request:      true,
 	}
 
 	// Parse the template

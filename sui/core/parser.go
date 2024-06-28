@@ -2,12 +2,15 @@ package core
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
+	"gopkg.in/yaml.v3"
 )
 
 // TemplateParser parser for the template
@@ -18,6 +21,7 @@ type TemplateParser struct {
 	errors   []error                             // errors
 	replace  map[*goquery.Selection][]*html.Node // replace nodes
 	option   *ParserOption                       // parser option
+	locale   *Locale                             // locale
 }
 
 // Mapping mapping for the template
@@ -29,12 +33,14 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
-	Editor  bool `json:"editor,omitempty"`
-	Preview bool `json:"preview,omitempty"`
-	Debug   bool `json:"debug,omitempty"`
-	Request bool `json:"request,omitempty"`
-	Theme   any  `json:"theme,omitempty"`
-	Locale  any  `json:"locale,omitempty"`
+	Editor       bool   `json:"editor,omitempty"`
+	Preview      bool   `json:"preview,omitempty"`
+	Debug        bool   `json:"debug,omitempty"`
+	DisableCache bool   `json:"disableCache,omitempty"`
+	Request      bool   `json:"request,omitempty"`
+	Route        string `json:"route,omitempty"`
+	Theme        any    `json:"theme,omitempty"`
+	Locale       any    `json:"locale,omitempty"`
 }
 
 var keepWords = map[string]bool{
@@ -46,6 +52,94 @@ var keepWords = map[string]bool{
 	"s:else":      true,
 	"s:set":       true,
 	"s:bind":      true,
+}
+
+// Locales the locales
+var Locales = map[string]map[string]*Locale{}
+
+type localeData struct {
+	name   string
+	path   string
+	locale *Locale
+	cmd    uint8
+}
+
+var chLocale = make(chan *localeData, 1)
+
+const (
+	saveLocale uint8 = iota
+	removeLocale
+)
+
+func init() {
+	go localeWriter()
+}
+
+func localeWriter() {
+	for {
+		select {
+		case data := <-chLocale:
+			switch data.cmd {
+			case saveLocale:
+				if _, ok := Locales[data.name]; !ok {
+					Locales[data.name] = map[string]*Locale{}
+				}
+				Locales[data.name][data.path] = data.locale
+
+			case removeLocale:
+				if _, ok := Locales[data.name]; ok {
+					delete(Locales[data.name], data.path)
+				}
+			}
+		}
+	}
+}
+
+// Locale get the locale
+func (parser *TemplateParser) Locale() *Locale {
+	var locales map[string]*Locale = nil
+	name, ok := parser.option.Locale.(string)
+	if !ok {
+		return nil
+	}
+
+	route := parser.option.Route
+	disableCache := parser.option.Preview || parser.option.Debug || parser.option.Editor || parser.option.DisableCache
+
+	locales, ok = Locales[name]
+	if !ok {
+		locales = map[string]*Locale{}
+	}
+
+	locale, ok := locales[route]
+	if ok && !disableCache {
+		return locale
+	}
+
+	path := filepath.Join("public", ".locales", name, route+".yml")
+	if exists, err := application.App.Exists(path); !exists {
+		if err != nil {
+			log.Error("[parser] %s Locale %s", route, err.Error())
+		}
+		return nil
+	}
+
+	// Load the locale
+	locale = &Locale{}
+	raw, err := application.App.Read(path)
+	if err != nil {
+		log.Error("[parser] %s Locale %s", route, err.Error())
+		return nil
+	}
+
+	err = yaml.Unmarshal(raw, locale)
+	if err != nil {
+		log.Error("[parser] %s Locale %s", route, err.Error())
+		return nil
+	}
+
+	chLocale <- &localeData{name, route, locale, saveLocale}
+	return locale
 }
 
 // NewTemplateParser create a new template parser
@@ -66,6 +160,9 @@ func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 
 // Render parses and renders the HTML template
 func (parser *TemplateParser) Render(html string) (string, error) {
+
+	// Set the locale
+	parser.locale = parser.Locale()
 
 	if !strings.Contains(html, "<html") {
 		html = fmt.Sprintf(`<!DOCTYPE html><html lang="en-us">%s</html>`, html)
@@ -178,6 +275,30 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 	// Parse the attributes
 	parser.parseElementAttrs(sel)
+
+	// Translations
+	parser.transElementNode(sel)
+}
+
+func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
+	if parser.locale == nil {
+		return
+	}
+
+	if _, exist := sel.Attr("s:trans"); !exist {
+		return
+	}
+
+	text := sel.Text()
+	message := strings.TrimSpace(text)
+	if message == "" {
+		return
+	}
+
+	if lcMessage, has := parser.locale.Messages[message]; has {
+		sel.SetText(strings.Replace(text, message, lcMessage, 1))
+		return
+	}
 }
 
 func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
