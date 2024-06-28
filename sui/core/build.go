@@ -54,14 +54,14 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 
 	// Add Style
-	_, err = page.BuildStyle(ctx, option)
+	style, err := page.BuildStyle(ctx, option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
-	doc.Selection.Find("head").AppendHtml(fmt.Sprintf("\n"+`<style type="text/css">`+"\n%s\n"+`</style>`+"\n", strings.Join(ctx.styles, "\n")))
+	doc.Selection.Find("head").AppendHtml(fmt.Sprintf("\n"+`<style type="text/css">`+"\n%s\n"+`</style>`+"\n%s\n", strings.Join(ctx.styles, "\n"), style))
 
 	// Add Script
-	_, scripts, err := page.BuildScript(ctx, option, option.Namespace)
+	code, scripts, err := page.BuildScript(ctx, option, option.Namespace)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -70,8 +70,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 			doc.Selection.Find("body").AppendHtml("\n" + `<script src="` + script + `"></script>` + "\n")
 		}
 	}
-	doc.Selection.Find("body").AppendHtml(fmt.Sprintf("\n"+`<script type="text/javascript">`+"\n%s\n"+`</script>`+"\n", strings.Join(ctx.scripts, "\n")))
-
+	doc.Selection.Find("body").AppendHtml(fmt.Sprintf("\n"+`<script type="text/javascript">`+"\n%s\n"+`</script>`+"\n%s\n", strings.Join(ctx.scripts, "\n"), code))
 	return doc, warnings, nil
 }
 
@@ -249,6 +248,8 @@ func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildO
 			IgnoreDocument:  true,
 			Namespace:       namespace,
 			ComponentName:   componentName,
+			ScriptMinify:    true,
+			StyleMinify:     true,
 		}, slots, attrs)
 
 		// append translations
@@ -365,7 +366,7 @@ func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace 
 
 	// TypeScript
 	if page.Codes.TS.Code != "" {
-		code, scripts, err := page.CompileTS([]byte(page.Codes.TS.Code), false)
+		code, scripts, err := page.CompileTS([]byte(page.Codes.TS.Code), option.ScriptMinify)
 		if err != nil {
 			return "", nil, err
 		}
@@ -398,7 +399,7 @@ func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace 
 	}
 
 	// JavaScript
-	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), true)
+	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), option.ScriptMinify)
 	if err != nil {
 		return "", nil, err
 	}

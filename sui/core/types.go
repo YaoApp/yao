@@ -208,6 +208,8 @@ type BuildOption struct {
 	Namespace       string                 `json:"namespace,omitempty"`
 	Data            map[string]interface{} `json:"data,omitempty"`
 	ComponentName   string                 `json:"component_name,omitempty"`
+	ScriptMinify    bool                   `json:"scriptminify,omitempty"`
+	StyleMinify     bool                   `json:"styleminify,omitempty"`
 }
 
 // Request is the struct for the request
