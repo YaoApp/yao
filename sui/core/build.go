@@ -19,8 +19,18 @@ var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
 var langFuncRe = regexp.MustCompile(`L\s*\(\s*["'](.*?)["']\s*\)`)
 var langAttrRe = regexp.MustCompile(`'::(.*?)'`)
 
+// NewBuildContext create a new build context
+func NewBuildContext() *BuildContext {
+	return &BuildContext{
+		components: map[string]bool{},
+		sequence:   1,
+		scripts:    []string{},
+		styles:     []string{},
+	}
+}
+
 // Build is the struct for the public
-func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error) {
+func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
 
 	warnings := []string{}
 	html, err := page.BuildHTML(option)
@@ -34,21 +44,24 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 		warnings = append(warnings, err.Error())
 	}
 
+	// Add components scripts and styles
+	ctx.doc = doc
+
 	// Append the nested html
-	err = page.parse(doc, option, warnings)
+	err = page.parse(ctx, doc, option, warnings)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
 
 	// Add Style
-	style, err := page.BuildStyle(option)
+	_, err = page.BuildStyle(ctx, option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
-	doc.Selection.Find("head").AppendHtml(style)
+	doc.Selection.Find("head").AppendHtml(fmt.Sprintf("\n"+`<style type="text/css">`+"\n%s\n"+`</style>`+"\n", strings.Join(ctx.styles, "\n")))
 
 	// Add Script
-	code, scripts, err := page.BuildScript(option, option.Namespace)
+	_, scripts, err := page.BuildScript(ctx, option, option.Namespace)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -57,13 +70,20 @@ func (page *Page) Build(option *BuildOption) (*goquery.Document, []string, error
 			doc.Selection.Find("body").AppendHtml("\n" + `<script src="` + script + `"></script>` + "\n")
 		}
 	}
-	doc.Selection.Find("body").AppendHtml(code)
+	doc.Selection.Find("body").AppendHtml(fmt.Sprintf("\n"+`<script type="text/javascript">`+"\n%s\n"+`</script>`+"\n", strings.Join(ctx.scripts, "\n")))
 
 	return doc, warnings, nil
 }
 
 // BuildForImport build the page for import
-func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface{}, attrs map[string]string) (string, string, string, []string, error) {
+func (page *Page) BuildForImport(ctx *BuildContext, option *BuildOption, slots map[string]interface{}, attrs map[string]string) (string, string, string, []string, error) {
+
+	defer func() {
+		if option.ComponentName != "" {
+			ctx.components[option.ComponentName] = true
+		}
+	}()
+
 	warnings := []string{}
 	html, err := page.BuildHTML(option)
 	if err != nil {
@@ -87,24 +107,24 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 	}
 
 	// Add Style & Script & Warning
-	doc, err := NewDocumentString(html)
+	doc, err := NewDocumentStringWithWrapper(html)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
 
 	// Append the nested html
-	err = page.parse(doc, option, warnings)
+	err = page.parse(ctx, doc, option, warnings)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
 
 	// Add Style
-	style, err := page.BuildStyle(option)
+	style, err := page.BuildStyle(ctx, option)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
 
-	code, _, err := page.BuildScript(option, option.Namespace)
+	code, _, err := page.BuildScript(ctx, option, option.Namespace)
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
@@ -114,6 +134,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 		body.SetHtml("<div>" + html + "</div>")
 	}
 
+	body.Children().First().SetAttr("s:cn", option.ComponentName)
 	body.Children().First().SetAttr("s:ns", option.Namespace)
 	body.Children().First().SetAttr("s:ready", option.Namespace+"()")
 	html, err = body.Html()
@@ -126,7 +147,7 @@ func (page *Page) BuildForImport(option *BuildOption, slots map[string]interface
 	return html, style, code, warnings, nil
 }
 
-func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []string) error {
+func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildOption, warnings []string) error {
 
 	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
 
@@ -158,7 +179,7 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 		return err
 	}
 
-	for idx, node := range pages.Nodes {
+	for _, node := range pages.Nodes {
 		sel := goquery.NewDocumentFromNode(node)
 		name, has := sel.Attr("is")
 		if !has {
@@ -218,14 +239,16 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 		}
 
 		p := ipage.Get()
-		namespace := Namespace(name, idx)
-		html, style, script, warns, err := p.BuildForImport(&BuildOption{
+		namespace := Namespace(name, ctx.sequence+1)
+		componentName := ComponentName(name)
+		html, _, _, warns, err := p.BuildForImport(ctx, &BuildOption{
 			SSR:             option.SSR,
 			AssetRoot:       option.AssetRoot,
 			IgnoreAssetRoot: option.IgnoreAssetRoot,
 			KeepPageTag:     option.KeepPageTag,
 			IgnoreDocument:  true,
 			Namespace:       namespace,
+			ComponentName:   componentName,
 		}, slots, attrs)
 
 		// append translations
@@ -243,9 +266,8 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 
 		sel.SetAttr("s:ns", namespace)
 		sel.SetAttr("s:ready", namespace+"()")
-
 		if option.KeepPageTag {
-			sel.SetHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, addTabToEachLine(html), script))
+			sel.SetHtml(fmt.Sprintf("\n%s\n", addTabToEachLine(html)))
 
 			// Set Slot HTML
 			slotsAttr, err := jsoniter.MarshalToString(slots)
@@ -262,8 +284,8 @@ func (page *Page) parse(doc *goquery.Document, option *BuildOption, warnings []s
 			}
 			continue
 		}
-		sel.ReplaceWithHtml(fmt.Sprintf("\n%s\n%s\n%s\n", style, html, script))
-
+		sel.ReplaceWithHtml(fmt.Sprintf("\n%s\n", addTabToEachLine(html)))
+		ctx.sequence++
 	}
 	return nil
 }
@@ -297,7 +319,7 @@ func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 }
 
 // BuildStyle build the style
-func (page *Page) BuildStyle(option *BuildOption) (string, error) {
+func (page *Page) BuildStyle(ctx *BuildContext, option *BuildOption) (string, error) {
 	if page.Codes.CSS.Code == "" {
 		return "", nil
 	}
@@ -311,9 +333,9 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 		})
 	}
 
-	if option.Namespace != "" {
+	if option.ComponentName != "" {
 		code = cssRe.ReplaceAllStringFunc(code, func(css string) string {
-			return fmt.Sprintf("[s\\:ns=%s] %s", option.Namespace, css)
+			return fmt.Sprintf("[s\\:cn=%s] %s", option.ComponentName, css)
 		})
 	}
 
@@ -322,20 +344,35 @@ func (page *Page) BuildStyle(option *BuildOption) (string, error) {
 		return "", err
 	}
 
+	ctx.styles = append(ctx.styles, string(res))
 	return fmt.Sprintf("<style type=\"text/css\">\n%s\n</style>\n", res), nil
 }
 
 // BuildScript build the script
-func (page *Page) BuildScript(option *BuildOption, namespace string) (string, []string, error) {
+func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace string) (string, []string, error) {
 
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
 		return "", nil, nil
 	}
 
+	instanceCode := fmt.Sprintf("function %s(){ %s(...arguments);}", option.Namespace, option.ComponentName)
+
+	// if the script is a component and not the first import
+	if option.ComponentName != "" && ctx.components[option.ComponentName] {
+		ctx.scripts = append(ctx.scripts, instanceCode)
+		return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", instanceCode), []string{}, nil
+	}
+
+	// TypeScript
 	if page.Codes.TS.Code != "" {
 		code, scripts, err := page.CompileTS([]byte(page.Codes.TS.Code), false)
 		if err != nil {
 			return "", nil, err
+		}
+
+		// Get the translation
+		if translations := getScriptTranslation(string(code), namespace); len(translations) > 0 {
+			page.Translations = append(page.Translations, translations...)
 		}
 
 		// Replace the assets
@@ -355,12 +392,20 @@ func (page *Page) BuildScript(option *BuildOption, namespace string) (string, []
 			return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
 		}
 
-		return fmt.Sprintf("<script type=\"text/javascript\">\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(code))), scripts, nil
+		componentCode := fmt.Sprintf("function %s(){\n%s\n}\n%s\n", option.ComponentName, addTabToEachLine(string(code)), instanceCode)
+		ctx.scripts = append(ctx.scripts, componentCode)
+		return fmt.Sprintf("<script type=\"text/javascript\">%s</script>\n", componentCode), scripts, nil
 	}
 
+	// JavaScript
 	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), true)
 	if err != nil {
 		return "", nil, err
+	}
+
+	// Get the translation
+	if translations := getScriptTranslation(string(code), namespace); len(translations) > 0 {
+		page.Translations = append(page.Translations, translations...)
 	}
 
 	// Replace the assets
@@ -368,7 +413,6 @@ func (page *Page) BuildScript(option *BuildOption, namespace string) (string, []
 		code = AssetsRe.ReplaceAllFunc(code, func(match []byte) []byte {
 			return []byte(strings.ReplaceAll(string(match), "@assets", option.AssetRoot))
 		})
-
 		if scripts != nil {
 			for i, script := range scripts {
 				scripts[i] = filepath.Join(option.AssetRoot, script)
@@ -380,12 +424,9 @@ func (page *Page) BuildScript(option *BuildOption, namespace string) (string, []
 		return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
 	}
 
-	// Get the translation
-	if translations := getScriptTranslation(string(code), namespace); len(translations) > 0 {
-		page.Translations = append(page.Translations, translations...)
-	}
-
-	return fmt.Sprintf("<script type=\"text/javascript\">\nfunction %s(){\n%s\n}\n</script>\n", option.Namespace, addTabToEachLine(string(code))), scripts, nil
+	componentCode := fmt.Sprintf("function %s(){\n%s\n}\n%s\n", option.ComponentName, addTabToEachLine(string(code)), instanceCode)
+	ctx.scripts = append(ctx.scripts, componentCode)
+	return fmt.Sprintf("<script type=\"text/javascript\">%s</script>\n", componentCode), scripts, nil
 }
 
 func addTabToEachLine(input string, prefix ...string) string {

@@ -18,7 +18,8 @@ var AssetsRe = regexp.MustCompile(`[` + quoteRe + `]@assets\/([^` + quoteRe + `]
 // Compile the page
 func (page *Page) Compile(option *BuildOption) (string, error) {
 
-	doc, warnings, err := page.Build(option)
+	ctx := NewBuildContext()
+	doc, warnings, err := page.Build(ctx, option)
 	if err != nil {
 		return "", err
 	}

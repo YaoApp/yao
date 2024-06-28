@@ -48,8 +48,8 @@ func (page *Page) EditorRender() (*ResponseEditorRender, error) {
 	// Render tools
 	// res.Scripts = append(res.Scripts, filepath.Join("@assets", "__render.js"))
 	// res.Styles = append(res.Styles, filepath.Join("@assets", "__render.css"))
-
-	doc, warnings, err := page.Build(&BuildOption{
+	ctx := NewBuildContext()
+	doc, warnings, err := page.Build(ctx, &BuildOption{
 		SSR:             true,
 		IgnoreAssetRoot: true,
 		IgnoreDocument:  true,
