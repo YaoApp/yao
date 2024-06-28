@@ -3,6 +3,8 @@ package core
 import (
 	"net/url"
 	"regexp"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 // DSL the struct for the DSL
@@ -38,6 +40,15 @@ type Page struct {
 	GlobalData   []byte            `json:"-"`
 	Attrs        map[string]string `json:"-"`
 	Translations []Translation     `json:"-"`
+}
+
+// BuildContext is the struct for the build context
+type BuildContext struct {
+	components map[string]bool
+	sequence   int
+	doc        *goquery.Document
+	scripts    []string
+	styles     []string
 }
 
 // Translation is the struct for the translation
@@ -196,6 +207,7 @@ type BuildOption struct {
 	KeepPageTag     bool                   `json:"keep_page_tag,omitempty"`
 	Namespace       string                 `json:"namespace,omitempty"`
 	Data            map[string]interface{} `json:"data,omitempty"`
+	ComponentName   string                 `json:"component_name,omitempty"`
 }
 
 // Request is the struct for the request
