@@ -338,14 +338,20 @@ func (page *Page) BuildStyle(ctx *BuildContext, option *BuildOption) (string, er
 		code = cssRe.ReplaceAllStringFunc(code, func(css string) string {
 			return fmt.Sprintf("[s\\:cn=%s] %s", option.ComponentName, css)
 		})
+		res, err := page.CompileCSS([]byte(code), option.StyleMinify)
+		if err != nil {
+			return "", err
+		}
+
+		ctx.styles = append(ctx.styles, string(res))
+		return fmt.Sprintf("<style type=\"text/css\">\n%s\n</style>\n", res), nil
 	}
 
-	res, err := page.CompileCSS([]byte(code), false)
+	res, err := page.CompileCSS([]byte(code), option.StyleMinify)
 	if err != nil {
 		return "", err
 	}
 
-	ctx.styles = append(ctx.styles, string(res))
 	return fmt.Sprintf("<style type=\"text/css\">\n%s\n</style>\n", res), nil
 }
 
