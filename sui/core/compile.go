@@ -82,7 +82,9 @@ func (page *Page) CompileJS(source []byte, minify bool) ([]byte, []string, error
 		minified, err := transform.MinifyJS(jsCode, api.ES2015)
 		return []byte(minified), scripts, err
 	}
-	return []byte(jsCode), scripts, nil
+
+	jsCode, err := transform.JavaScript(string(jsCode), api.TransformOptions{Target: api.ES2015})
+	return []byte(jsCode), scripts, err
 }
 
 // CompileTS compile the typescript
@@ -108,7 +110,7 @@ func (page *Page) CompileTS(source []byte, minify bool) ([]byte, []string, error
 		return []byte(jsCode), scripts, err
 	}
 
-	jsCode, err := transform.TypeScript(string(tsCode), api.TransformOptions{Target: api.ESNext})
+	jsCode, err := transform.TypeScript(string(tsCode), api.TransformOptions{Target: api.ES2015})
 	return []byte(jsCode), scripts, err
 }
 
