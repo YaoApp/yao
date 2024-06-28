@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
@@ -431,47 +432,74 @@ func getNodeTranslation(sel *goquery.Selection, index int, namespace string) []T
 			if typ == "" {
 				typ = "html"
 			}
+
+			key := fmt.Sprintf("%s_index_%d", namespace, index)
 			translations = append(translations, Translation{
-				Key:     fmt.Sprintf("%s_index_%d", namespace, index),
+				Key:     key,
 				Message: strings.TrimSpace(sel.Text()),
 				Type:    typ,
 			})
+			sel.SetAttr("s:trans-node", key)
+			sel.RemoveAttr("s:trans")
 		}
 
 		// Attributes
+		keys := map[string][]string{}
+		has := false
 		for i, attr := range sel.Get(0).Attr {
+
+			keys[attr.Key] = []string{}
 
 			// value="::attr"
 			if strings.HasPrefix(attr.Val, "::") {
+				key := fmt.Sprintf("%s_index_attr_%d_%d", namespace, index, i)
 				translations = append(translations, Translation{
 					Key:     fmt.Sprintf("%s_index_attr_%d_%d", namespace, index, i),
 					Message: attr.Val[2:],
 					Name:    attr.Key,
 					Type:    "attr",
 				})
+				keys[attr.Key] = append(keys[attr.Key], key)
+				has = true
 			}
 
 			// value="{{ 'key': '::value' }}"
 			matches := langAttrRe.FindAllStringSubmatch(attr.Val, -1)
 			if len(matches) > 0 {
 				for j, match := range matches {
+					key := fmt.Sprintf("%s_index_attr_%d_%d_%d", namespace, index, i, j)
 					translations = append(translations, Translation{
 						Key:     fmt.Sprintf("%s_index_attr_%d_%d_%d", namespace, index, i, j),
 						Message: match[1],
 						Name:    attr.Key,
 						Type:    "attr",
 					})
+					keys[attr.Key] = append(keys[attr.Key], key)
+					has = true
 				}
 			}
 		}
 
+		if has {
+			raw, err := jsoniter.Marshal(keys)
+			if err != nil {
+				fmt.Println(color.RedString(err.Error()))
+				break
+			}
+			sel.SetAttr("s:trans-attrs", string(raw))
+			sel.RemoveAttr("s:trans")
+		}
+
 	case html.TextNode:
 		if strings.HasPrefix(sel.Text(), "::") {
+			key := fmt.Sprintf("%s_index_%d", namespace, index)
 			translations = append(translations, Translation{
 				Key:     fmt.Sprintf("%s_index_%d", namespace, index),
 				Message: strings.TrimSpace(sel.Text()[2:]),
 				Type:    "text",
 			})
+			sel.SetAttr("s:trans-node", key)
+			sel.RemoveAttr("s:trans")
 		}
 	}
 
