@@ -63,7 +63,8 @@ type ITemplate interface {
 	SyncAssetFile(file string, option *BuildOption) error
 	GetRoot() string
 
-	ExecBuildScripts() []TemplateScirptResult
+	ExecBeforeBuildScripts() []TemplateScirptResult
+	ExecAfterBuildScripts() []TemplateScirptResult
 }
 
 // IPage is the interface for the page

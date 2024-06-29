@@ -17,9 +17,9 @@ import (
 func (tmpl *Template) Build(option *core.BuildOption) error {
 	var err error
 
-	// Execute the build hook
+	// Execute the build before hook
 	if option.ExecScripts {
-		res := tmpl.ExecBuildScripts()
+		res := tmpl.ExecBeforeBuildScripts()
 		scriptsErrorMessages := []string{}
 		for _, r := range res {
 			if r.Error != nil {
@@ -28,6 +28,11 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 		}
 		if len(scriptsErrorMessages) > 0 {
 			return fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
+		}
+
+		err = tmpl.Reload()
+		if err != nil {
+			return err
 		}
 	}
 
@@ -62,6 +67,24 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 		perr = page.Build(option)
 		if perr != nil {
 			err = multierror.Append(perr)
+		}
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Execute the build after hook
+	if option.ExecScripts {
+		res := tmpl.ExecAfterBuildScripts()
+		scriptsErrorMessages := []string{}
+		for _, r := range res {
+			if r.Error != nil {
+				scriptsErrorMessages = append(scriptsErrorMessages, fmt.Sprintf("%s: %s", r.Script.Content, r.Error.Error()))
+			}
+		}
+		if len(scriptsErrorMessages) > 0 {
+			return fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
 		}
 	}
 

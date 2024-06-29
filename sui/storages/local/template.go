@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/sui/core"
 	"golang.org/x/text/language"
 )
@@ -25,25 +26,63 @@ func (tmpl *Template) GetRoot() string {
 	return tmpl.Root
 }
 
-// ExecBuildScripts execute the build scripts
-func (tmpl *Template) ExecBuildScripts() []core.TemplateScirptResult {
-	if tmpl.Scripts == nil || len(tmpl.Scripts.Build) == 0 {
+// Reload the template
+func (tmpl *Template) Reload() error {
+	newTmpl, err := tmpl.local.getTemplateFrom(tmpl.Root)
+	if err != nil {
+		return err
+	}
+	*tmpl = *newTmpl
+	return nil
+}
+
+// ExecBeforeBuildScripts execute the before build scripts
+func (tmpl *Template) ExecBeforeBuildScripts() []core.TemplateScirptResult {
+	if tmpl.Scripts == nil || len(tmpl.Scripts.BeforeBuild) == 0 {
 		return nil
 	}
+	return tmpl.ExecScripts(tmpl.Scripts.BeforeBuild)
+}
+
+// ExecAfterBuildScripts execute the after build scripts
+func (tmpl *Template) ExecAfterBuildScripts() []core.TemplateScirptResult {
+	if tmpl.Scripts == nil || len(tmpl.Scripts.AfterBuild) == 0 {
+		return nil
+	}
+	return tmpl.ExecScripts(tmpl.Scripts.AfterBuild)
+}
+
+// ExecScripts execute the scripts
+func (tmpl *Template) ExecScripts(scripts []*core.TemplateScript) []core.TemplateScirptResult {
 	results := []core.TemplateScirptResult{}
-	for _, script := range tmpl.Scripts.Build {
+	for _, script := range scripts {
 		switch script.Type {
 		case "command":
 			results = append(results, tmpl.execCommand(script))
+		case "process":
+			results = append(results, tmpl.execProcess(script))
 		}
 	}
 	return results
 }
 
+func (tmpl *Template) execProcess(script *core.TemplateScript) core.TemplateScirptResult {
+	result := core.TemplateScirptResult{Script: script, Message: "", Error: nil}
+	name := script.Content
+	p, err := process.Of(name, tmpl.Root)
+	if err != nil {
+		result.Error = err
+		return result
+	}
+
+	output, err := p.Exec()
+	result.Error = err
+	result.Message = fmt.Sprintf("%v", output)
+	return result
+}
+
 func (tmpl *Template) execCommand(script *core.TemplateScript) core.TemplateScirptResult {
 	result := core.TemplateScirptResult{Script: script, Message: "", Error: nil}
-
-	// Set the current working directory to the template root
 	root := filepath.Join(tmpl.local.fs.Root(), tmpl.Root)
 
 	// Parse the command

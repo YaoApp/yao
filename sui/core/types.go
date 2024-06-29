@@ -155,7 +155,8 @@ type Template struct {
 
 // TemplateScirpts is the struct for the template scripts
 type TemplateScirpts struct {
-	Build []*TemplateScript `json:"build,omitempty"` // Run before build
+	BeforeBuild []*TemplateScript `json:"before:build,omitempty"` // Run before build
+	AfterBuild  []*TemplateScript `json:"after:build,omitempty"`  // Run after build
 }
 
 // TemplateScript is the struct for the template script
