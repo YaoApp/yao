@@ -141,15 +141,35 @@ type LayoutItem struct {
 
 // Template is the struct for the template
 type Template struct {
-	Version     int            `json:"version"` // Yao Builder version
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Descrption  string         `json:"description"`
-	Screenshots []string       `json:"screenshots"`
-	Themes      []SelectOption `json:"themes"`
-	Locales     []SelectOption `json:"locales"`
-	Document    []byte         `json:"-"`
-	GlobalData  []byte         `json:"-"`
+	Version     int              `json:"version"` // Yao Builder version
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	Descrption  string           `json:"description"`
+	Screenshots []string         `json:"screenshots"`
+	Themes      []SelectOption   `json:"themes"`
+	Locales     []SelectOption   `json:"locales"`
+	Document    []byte           `json:"-"`
+	GlobalData  []byte           `json:"-"`
+	Scripts     *TemplateScirpts `json:"scripts,omitempty"`
+}
+
+// TemplateScirpts is the struct for the template scripts
+type TemplateScirpts struct {
+	Build []*TemplateScript `json:"build,omitempty"` // Run before build
+}
+
+// TemplateScript is the struct for the template script
+type TemplateScript struct {
+	Type    string `json:"type"`
+	Content string `json:"content"`
+}
+
+// TemplateScirptResult is the struct for the template script result
+type TemplateScirptResult struct {
+	Message string          `json:"message,omitempty"`
+	Error   error           `json:"error,omitempty"`
+	Pid     int             `json:"pid,omitempty"`
+	Script  *TemplateScript `json:"script,omitempty"`
 }
 
 // Theme is the struct for the theme
@@ -210,6 +230,7 @@ type BuildOption struct {
 	ComponentName   string                 `json:"component_name,omitempty"`
 	ScriptMinify    bool                   `json:"scriptminify,omitempty"`
 	StyleMinify     bool                   `json:"styleminify,omitempty"`
+	ExecScripts     bool                   `json:"exec_scripts,omitempty"`
 }
 
 // Request is the struct for the request

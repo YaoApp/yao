@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -22,6 +23,42 @@ func (tmpl *Template) Assets() []string {
 // GetRoot get the root path
 func (tmpl *Template) GetRoot() string {
 	return tmpl.Root
+}
+
+// ExecBuildScripts execute the build scripts
+func (tmpl *Template) ExecBuildScripts() []core.TemplateScirptResult {
+	if tmpl.Scripts == nil || len(tmpl.Scripts.Build) == 0 {
+		return nil
+	}
+	results := []core.TemplateScirptResult{}
+	for _, script := range tmpl.Scripts.Build {
+		switch script.Type {
+		case "command":
+			results = append(results, tmpl.execCommand(script))
+		}
+	}
+	return results
+}
+
+func (tmpl *Template) execCommand(script *core.TemplateScript) core.TemplateScirptResult {
+	result := core.TemplateScirptResult{Script: script, Message: "", Error: nil}
+
+	// Set the current working directory to the template root
+	root := filepath.Join(tmpl.local.fs.Root(), tmpl.Root)
+
+	// Parse the command
+	cmd := strings.Split(script.Content, " ")
+	if len(cmd) == 0 {
+		result.Error = fmt.Errorf("Command is empty")
+		return result
+	}
+
+	execCmd := exec.Command(cmd[0], cmd[1:]...)
+	execCmd.Dir = root
+	output, err := execCmd.CombinedOutput()
+	result.Error = err
+	result.Message = string(output)
+	return result
 }
 
 // Locales get the global locales

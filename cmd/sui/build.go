@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
@@ -78,12 +79,15 @@ var BuildCmd = &cobra.Command{
 		fmt.Println(color.WhiteString("    Session: %s", strings.TrimLeft(data, "::")))
 		fmt.Println(color.WhiteString("-----------------------"))
 
-		err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot})
+		// Timecost
+		start := time.Now()
+		err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot, ExecScripts: true})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
 			return
 		}
-
-		fmt.Print(color.GreenString("Build Success\n"))
+		end := time.Now()
+		timecost := end.Sub(start).Truncate(time.Millisecond)
+		fmt.Println(color.GreenString("Build success in %s", timecost))
 	},
 }
