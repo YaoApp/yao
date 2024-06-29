@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/fsnotify/fsnotify"
@@ -97,12 +98,16 @@ var WatchCmd = &cobra.Command{
 					return
 				}
 
+				// Timecost
+				start := time.Now()
 				err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot})
 				if err != nil {
 					fmt.Fprint(os.Stderr, color.RedString(fmt.Sprintf("Failed: %s\n", err.Error())))
 					return
 				}
-				fmt.Print(color.GreenString("Success\n"))
+				end := time.Now()
+				timecost := end.Sub(start).Truncate(time.Millisecond)
+				fmt.Printf(color.GreenString("Success (%s)\n"), timecost.String())
 			}
 		}, watchDone)
 

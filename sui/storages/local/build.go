@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/yaoapp/gou/application"
@@ -15,6 +16,20 @@ import (
 // Build the template
 func (tmpl *Template) Build(option *core.BuildOption) error {
 	var err error
+
+	// Execute the build hook
+	if option.ExecScripts {
+		res := tmpl.ExecBuildScripts()
+		scriptsErrorMessages := []string{}
+		for _, r := range res {
+			if r.Error != nil {
+				scriptsErrorMessages = append(scriptsErrorMessages, fmt.Sprintf("%s: %s", r.Script.Content, r.Error.Error()))
+			}
+		}
+		if len(scriptsErrorMessages) > 0 {
+			return fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
+		}
+	}
 
 	root, err := tmpl.local.DSL.PublicRoot(option.Data)
 	if err != nil {
