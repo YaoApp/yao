@@ -1004,7 +1004,7 @@ func BuildPage(process *process.Process) interface{} {
 	}
 
 	data := process.ArgsMap(5, map[string]interface{}{})
-	err = page.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
+	err = page.Build(nil, &core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

@@ -92,7 +92,8 @@ type IPage interface {
 	AssetScript() (*Asset, error)
 	AssetStyle() (*Asset, error)
 
-	Build(option *BuildOption) error
+	Build(globalCtx *GlobalBuildContext, option *BuildOption) error
+	BuildAsComponent(globalCtx *GlobalBuildContext, option *BuildOption) error
 }
 
 // IBlock is the interface for the block

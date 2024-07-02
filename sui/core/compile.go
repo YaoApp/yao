@@ -16,9 +16,8 @@ var importAssetsRe = regexp.MustCompile(`import\s*\t*\n*\s*['"]@assets\/([^'"]+)
 var AssetsRe = regexp.MustCompile(`[` + quoteRe + `]@assets\/([^` + quoteRe + `]+)[` + quoteRe + `]`) // '@assets/foo.js' or "@assets/foo.js" or `@assets/foo`
 
 // Compile the page
-func (page *Page) Compile(option *BuildOption) (string, error) {
+func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error) {
 
-	ctx := NewBuildContext()
 	doc, warnings, err := page.Build(ctx, option)
 	if err != nil {
 		return "", err

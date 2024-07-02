@@ -17,6 +17,7 @@ type Template struct {
 	Root    string `json:"-"`
 	local   *Local
 	locales []core.SelectOption
+	loaded  map[string]core.IPage
 	*core.Template
 }
 

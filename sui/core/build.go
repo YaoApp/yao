@@ -19,16 +19,6 @@ var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
 var langFuncRe = regexp.MustCompile(`L\s*\(\s*["'](.*?)["']\s*\)`)
 var langAttrRe = regexp.MustCompile(`'::(.*?)'`)
 
-// NewBuildContext create a new build context
-func NewBuildContext() *BuildContext {
-	return &BuildContext{
-		components: map[string]bool{},
-		sequence:   1,
-		scripts:    []string{},
-		styles:     []string{},
-	}
-}
-
 // Build is the struct for the public
 func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
 
@@ -148,6 +138,7 @@ func (page *Page) BuildForImport(ctx *BuildContext, option *BuildOption, slots m
 
 func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildOption, warnings []string) error {
 
+	// Find the import pages
 	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
 
 		// Get the translation
@@ -164,8 +155,12 @@ func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildO
 			return false
 		}
 
-		_, has := sel.Attr("is")
-		return has
+		name, has := sel.Attr("is")
+		_, jit := sel.Attr("s:jit") // Just in time rendering
+		if has && jit {
+			ctx.addJitComponent(name)
+		}
+		return has && !jit
 	})
 
 	sui := SUIs[page.SuiID]

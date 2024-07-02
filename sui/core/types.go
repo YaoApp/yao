@@ -39,16 +39,25 @@ type Page struct {
 	Document     []byte            `json:"-"`
 	GlobalData   []byte            `json:"-"`
 	Attrs        map[string]string `json:"-"`
-	Translations []Translation     `json:"-"`
+	Translations []Translation     `json:"-"` // will be deprecated
 }
 
 // BuildContext is the struct for the build context
 type BuildContext struct {
-	components map[string]bool
-	sequence   int
-	doc        *goquery.Document
-	scripts    []string
-	styles     []string
+	components    map[string]bool
+	jitComponents map[string]bool
+	sequence      int
+	doc           *goquery.Document
+	scripts       []string
+	styles        []string
+	global        *GlobalBuildContext
+	translations  []Translation
+}
+
+// GlobalBuildContext is the struct for the global build context
+type GlobalBuildContext struct {
+	jitComponents map[string]bool
+	tmpl          ITemplate
 }
 
 // Translation is the struct for the translation
