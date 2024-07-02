@@ -26,6 +26,49 @@ func (tmpl *Template) GetRoot() string {
 	return tmpl.Root
 }
 
+// Glob the files
+func (tmpl *Template) Glob(pattern string) ([]string, error) {
+	path := filepath.Join(tmpl.Root, pattern)
+	paths, err := tmpl.local.fs.Glob(path)
+	if err != nil {
+		return nil, err
+	}
+
+	routes := []string{}
+	for _, p := range paths {
+		routes = append(routes, strings.TrimPrefix(p, tmpl.Root))
+	}
+	return routes, nil
+}
+
+// GlobRoutes the files
+func (tmpl *Template) GlobRoutes(patterns []string, unique ...bool) ([]string, error) {
+	routes := []string{}
+	for _, pattern := range patterns {
+		paths, err := tmpl.Glob(pattern)
+		if err != nil {
+			return nil, err
+		}
+		routes = append(routes, paths...)
+	}
+
+	// Unique
+	if len(unique) > 0 && unique[0] {
+		mapRoutes := map[string]bool{}
+		for _, route := range routes {
+			mapRoutes[route] = true
+		}
+
+		routes = []string{}
+		for route := range mapRoutes {
+			routes = append(routes, route)
+		}
+		return routes, nil
+	}
+
+	return routes, nil
+}
+
 // Reload the template
 func (tmpl *Template) Reload() error {
 	newTmpl, err := tmpl.local.getTemplateFrom(tmpl.Root)

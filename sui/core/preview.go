@@ -17,7 +17,7 @@ func (page *Page) PreviewRender(referer string) (string, error) {
 	}
 
 	warnings := []string{}
-	ctx := NewBuildContext()
+	ctx := NewBuildContext(nil)
 	doc, warnings, err := page.Build(ctx, &BuildOption{
 		SSR:         true,
 		AssetRoot:   fmt.Sprintf("/api/__yao/sui/v1/%s/asset/%s/@assets", page.SuiID, page.TemplateID),

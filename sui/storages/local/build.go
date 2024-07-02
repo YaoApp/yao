@@ -52,11 +52,14 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 	}
 
 	// Build all pages
+	ctx := core.NewGlobalBuildContext()
 	pages, err := tmpl.Pages()
 	if err != nil {
 		return err
 	}
 
+	// loaed pages
+	tmpl.loaded = map[string]core.IPage{}
 	for _, page := range pages {
 		perr := page.Load()
 		if err != nil {
@@ -64,9 +67,29 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 			continue
 		}
 
-		perr = page.Build(option)
+		perr = page.Build(ctx, option)
 		if perr != nil {
 			err = multierror.Append(perr)
+			continue
+		}
+		tmpl.loaded[page.Get().Route] = page
+	}
+
+	// Build jit components for the global <route> -> <name>.sui.lib
+	jitComponents, err := tmpl.GlobRoutes(ctx.GetJitComponents(), true)
+	if err != nil {
+		return err
+	}
+
+	for _, route := range jitComponents {
+		page, has := tmpl.loaded[route]
+		if !has {
+			err = multierror.Append(fmt.Errorf("The page %s is not loaded", route))
+			continue
+		}
+		err = page.BuildAsComponent(ctx, option)
+		if err != nil {
+			err = multierror.Append(err)
 		}
 	}
 
@@ -145,8 +168,9 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 }
 
 // Build is the struct for the public
-func (page *Page) Build(option *core.BuildOption) error {
+func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOption) error {
 
+	ctx := core.NewBuildContext(globalCtx)
 	if option.AssetRoot == "" {
 		root, err := page.tmpl.local.DSL.PublicRoot(option.Data)
 		if err != nil {
@@ -157,7 +181,7 @@ func (page *Page) Build(option *core.BuildOption) error {
 	}
 
 	log.Trace("Build the page %s AssetRoot: %s", page.Route, option.AssetRoot)
-	html, err := page.Page.Compile(option)
+	html, err := page.Page.Compile(ctx, option)
 	if err != nil {
 		return err
 	}
@@ -169,7 +193,43 @@ func (page *Page) Build(option *core.BuildOption) error {
 	}
 
 	// Save the locale files
-	return page.writeLocaleFiles(option.Data)
+	err = page.writeLocaleFiles(option.Data)
+	if err != nil {
+		return err
+	}
+
+	// Jit Components
+	if globalCtx == nil {
+		jitComponents, err := page.tmpl.GlobRoutes(ctx.GetJitComponents(), true)
+		if err != nil {
+			return err
+		}
+
+		for _, route := range jitComponents {
+			var err error
+			p := page.tmpl.loaded[route]
+			if p == nil {
+				p, err = page.tmpl.Page(route)
+				if err != nil {
+					err = multierror.Append(err)
+					continue
+				}
+			}
+
+			err = p.BuildAsComponent(globalCtx, option)
+			if err != nil {
+				err = multierror.Append(err)
+			}
+		}
+	}
+
+	return err
+
+}
+
+// BuildAsComponent build the page as component
+func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *core.BuildOption) error {
+	return page.writeJitHTML([]byte("<div>"+page.Route+"<div>"), option.Data)
 }
 
 func (page *Page) publicFile(data map[string]interface{}) string {
@@ -350,6 +410,23 @@ func (page *Page) writeHTML(html []byte, data map[string]interface{}) error {
 		return err
 	}
 
+	core.RemoveCache(htmlFile)
+	log.Trace("The page %s is removed", htmlFile)
+	return nil
+}
+
+// writeHTMLTo write the html to file
+func (page *Page) writeJitHTML(html []byte, data map[string]interface{}) error {
+	htmlFile := fmt.Sprintf("%s.jit", page.publicFile(data))
+	htmlFileAbs := filepath.Join(application.App.Root(), htmlFile)
+	dir := filepath.Dir(htmlFileAbs)
+	if exist, _ := os.Stat(dir); exist == nil {
+		os.MkdirAll(dir, os.ModePerm)
+	}
+	err := os.WriteFile(htmlFileAbs, html, 0644)
+	if err != nil {
+		return err
+	}
 	core.RemoveCache(htmlFile)
 	log.Trace("The page %s is removed", htmlFile)
 	return nil

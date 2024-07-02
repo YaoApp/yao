@@ -13,7 +13,7 @@ func TestCompile(t *testing.T) {
 	loadTestSui(t)
 
 	page := testPage(t)
-	html, err := page.Compile(&core.BuildOption{KeepPageTag: false})
+	html, err := page.Compile(nil, &core.BuildOption{KeepPageTag: false})
 	if err != nil {
 		t.Fatalf("Compile error: %v", err)
 	}
