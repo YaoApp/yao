@@ -22,6 +22,11 @@ var langAttrRe = regexp.MustCompile(`'::(.*?)'`)
 // Build is the struct for the public
 func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
 
+	// Create the context if not exists
+	if ctx == nil {
+		ctx = NewBuildContext(nil)
+	}
+
 	warnings := []string{}
 	html, err := page.BuildHTML(option)
 	if err != nil {
@@ -33,9 +38,6 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	if err != nil {
 		warnings = append(warnings, err.Error())
 	}
-
-	// Add components scripts and styles
-	ctx.doc = doc
 
 	// Append the nested html
 	err = page.parse(ctx, doc, option, warnings)
