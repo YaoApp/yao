@@ -229,7 +229,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 
 // BuildAsComponent build the page as component
 func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *core.BuildOption) error {
-	return page.writeJitHTML([]byte("<div>"+page.Route+"<div>"), option.Data)
+	return page.writeJitHTML([]byte("<div>"+page.Route+" {{ type }} {{ bind }} </div>"), option.Data)
 }
 
 func (page *Page) publicFile(data map[string]interface{}) string {

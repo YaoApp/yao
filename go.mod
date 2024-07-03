@@ -9,7 +9,7 @@ require (
 	github.com/dchest/captcha v1.0.0
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/evanw/esbuild v0.19.5
-	github.com/expr-lang/expr v1.15.8
+	github.com/expr-lang/expr v1.16.9
 	github.com/fatih/color v1.16.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-gonic/gin v1.9.1
