@@ -52,3 +52,9 @@ func (ctx *BuildContext) addJitComponent(name string) {
 		ctx.global.jitComponents[name] = true
 	}
 }
+
+func (ctx *BuildContext) isJitComponent(name string) bool {
+	hasStmt := stmtRe.MatchString(name)
+	hasProp := propRe.MatchString(name)
+	return hasStmt || hasProp
+}

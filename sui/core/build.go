@@ -140,6 +140,18 @@ func (page *Page) BuildForImport(ctx *BuildContext, option *BuildOption, slots m
 
 func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildOption, warnings []string) error {
 
+	sui := SUIs[page.SuiID]
+	if sui == nil {
+		return fmt.Errorf("SUI %s not found", page.SuiID)
+	}
+
+	tmpl, err := sui.GetTemplate(page.TemplateID)
+	if err != nil {
+		return err
+	}
+
+	public := sui.GetPublic()
+
 	// Find the import pages
 	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
 
@@ -158,22 +170,17 @@ func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildO
 		}
 
 		name, has := sel.Attr("is")
-		_, jit := sel.Attr("s:jit") // Just in time rendering
-		if has && jit {
-			ctx.addJitComponent(name)
+		if has {
+			// Just in time component
+			if ctx.isJitComponent(name) {
+				sel.SetAttr("s:jit", "true")
+				sel.SetAttr("s:root", public.Root)
+				ctx.addJitComponent(name)
+				return false
+			}
 		}
-		return has && !jit
+		return has
 	})
-
-	sui := SUIs[page.SuiID]
-	if sui == nil {
-		return fmt.Errorf("SUI %s not found", page.SuiID)
-	}
-
-	tmpl, err := sui.GetTemplate(page.TemplateID)
-	if err != nil {
-		return err
-	}
 
 	for _, node := range pages.Nodes {
 		sel := goquery.NewDocumentFromNode(node)

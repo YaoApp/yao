@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -13,6 +14,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Load the jit components
+var components = map[string]string{}
+
 // TemplateParser parser for the template
 type TemplateParser struct {
 	data     Data
@@ -22,6 +26,11 @@ type TemplateParser struct {
 	replace  map[*goquery.Selection][]*html.Node // replace nodes
 	option   *ParserOption                       // parser option
 	locale   *Locale                             // locale
+	context  *ParserContext                      // parser context
+}
+
+// ParserContext parser context for the template
+type ParserContext struct {
 }
 
 // Mapping mapping for the template
@@ -33,6 +42,7 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
+	Component    bool   `json:"component,omitempty"`
 	Editor       bool   `json:"editor,omitempty"`
 	Preview      bool   `json:"preview,omitempty"`
 	Debug        bool   `json:"debug,omitempty"`
@@ -190,7 +200,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 
 	// Append the data to the body
 	body := doc.Find("body")
-	if body.Length() > 0 {
+	if body.Length() > 0 && !parser.option.Component {
 		data, err := jsoniter.MarshalToString(parser.data)
 		if err != nil {
 			data, _ = jsoniter.MarshalToString(map[string]string{"error": err.Error()})
@@ -273,11 +283,52 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.setStatementNode(sel)
 	}
 
+	// JIT Compile the element
+	if _, exist := sel.Attr("s:jit"); exist {
+		parser.parseJitElementNode(sel)
+	}
+
 	// Parse the attributes
 	parser.parseElementAttrs(sel)
 
 	// Translations
 	parser.transElementNode(sel)
+}
+
+func (parser *TemplateParser) parseJitElementNode(sel *goquery.Selection) {
+
+	is := sel.AttrOr("is", "")
+	if is == "" {
+		sel.Remove()
+		return
+	}
+
+	// Render the JIT component Data
+	is, _ = parser.data.Replace(is)
+	root := sel.AttrOr("s:root", "/")
+	file := filepath.Join(string(os.PathSeparator), "public", root, is+".jit")
+
+	// Should be cached to reduce the file read and unnecessary parsing
+	content, err := application.App.Read(file)
+	if err != nil {
+		log.Error("[parser] %s JIT %s", file, err.Error())
+		return
+	}
+
+	// With Properties
+
+	// copy options
+	option := *parser.option
+	option.Component = true
+	p := NewTemplateParser(parser.data, &option)
+	html, err := p.Render(string(content))
+	if err != nil {
+		log.Error("[parser] %s JIT %s", file, err.Error())
+		return
+	}
+
+	// Replace the node
+	sel.ReplaceWithHtml(html)
 }
 
 func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
