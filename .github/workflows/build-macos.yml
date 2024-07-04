@@ -108,27 +108,27 @@ jobs:
           mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
           mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
 
-      - name: Push arm64 To Silicon Valley
-        uses: TencentCloud/cos-action@v1
-        with:
-          secret_id: ${{ secrets.COS_ID }}
-          secret_key: ${{ secrets.COS_KEY }}
-          cos_bucket: release-sv-1252011659
-          cos_region: na-siliconvalley
-          local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-arm64
-          remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-arm64
-          clean: false
+      # - name: Push arm64 To Silicon Valley
+      #   uses: TencentCloud/cos-action@v1
+      #   with:
+      #     secret_id: ${{ secrets.COS_ID }}
+      #     secret_key: ${{ secrets.COS_KEY }}
+      #     cos_bucket: release-sv-1252011659
+      #     cos_region: na-siliconvalley
+      #     local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-arm64
+      #     remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-arm64
+      #     clean: false
 
-      - name: Push amd64 To Silicon Valley
-        uses: TencentCloud/cos-action@v1
-        with:
-          secret_id: ${{ secrets.COS_ID }}
-          secret_key: ${{ secrets.COS_KEY }}
-          cos_bucket: release-sv-1252011659
-          cos_region: na-siliconvalley
-          local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-amd64
-          remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-amd64
-          clean: false
+      # - name: Push amd64 To Silicon Valley
+      #   uses: TencentCloud/cos-action@v1
+      #   with:
+      #     secret_id: ${{ secrets.COS_ID }}
+      #     secret_key: ${{ secrets.COS_KEY }}
+      #     cos_bucket: release-sv-1252011659
+      #     cos_region: na-siliconvalley
+      #     local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-amd64
+      #     remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-amd64
+      #     clean: false
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4

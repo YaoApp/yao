@@ -30,7 +30,6 @@ jobs:
           REGION: na-siliconvalley
         run: |
           /python3/venv/bin/coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
-          echo "hello world" > /data/hello.txt
 
       - name: Build
         run: |
