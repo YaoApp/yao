@@ -1,4 +1,4 @@
-name: Build Linux Dev
+name: Build Linux Artifacts
 
 on:
   workflow_dispatch:

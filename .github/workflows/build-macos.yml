@@ -1,4 +1,4 @@
-name: Build MacOS Dev
+name: Build MacOS Artifacts
 
 on:
   workflow_dispatch:

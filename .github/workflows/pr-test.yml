@@ -1,4 +1,4 @@
-name: Comment on the pull request
+name: PR Unit Test
 
 # read-write repo token
 # access to secrets
