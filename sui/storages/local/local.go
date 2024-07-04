@@ -123,7 +123,7 @@ func (local *Local) getTemplate(id string, path string) (*Template, error) {
 		}}
 
 	// load the template.json
-	configFile := filepath.Join(path, fmt.Sprintf("%s.json", id))
+	configFile := filepath.Join(path, "template.json")
 	if local.fs.IsFile(configFile) {
 		configBytes, err := local.fs.ReadFile(configFile)
 		if err != nil {

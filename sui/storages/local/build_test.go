@@ -10,7 +10,7 @@ func TestTemplateBuild(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
