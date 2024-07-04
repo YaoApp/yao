@@ -58,7 +58,7 @@ env:
   ## Path
   YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
   YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
-  YAO_SUI_TEST_APPLICATION: ${{ github.WORKSPACE }}/../yao-yao-startup-webapp
+  YAO_SUI_TEST_APPLICATION: ${{ github.WORKSPACE }}/../yao-startup-webapp
   YAO_TEST_BUILDER_APPLICATION: ${{ github.WORKSPACE }}/../page-builder-app
 
   ## Runtime
@@ -187,7 +187,7 @@ jobs:
           password: ${{ secrets.UNIT_PASS }}
 
       - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
