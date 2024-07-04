@@ -56,8 +56,9 @@ env:
   # Application Setting
 
   ## Path
-  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
   YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+  YAO_SUI_TEST_APPLICATION: ${{ github.WORKSPACE }}/../yao-yao-startup-webapp
   YAO_TEST_BUILDER_APPLICATION: ${{ github.WORKSPACE }}/../page-builder-app
 
   ## Runtime
@@ -79,7 +80,7 @@ jobs:
         mongo: ["6.0"]
     steps:
       - name: Setup Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -89,45 +90,52 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ env.REPO_KUN }}
           path: kun
 
       - name: Checkout Xun
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ env.REPO_XUN }}
           path: xun
 
       - name: Checkout Gou
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ env.REPO_GOU }}
           path: gou
 
       - name: Checkout V8Go
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/v8go
           lfs: true
           path: v8go
 
       - name: Checkout Demo App
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/yao-dev-app
           path: app
 
+      - name: Checkout Yao Startup Webapp
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-startup-webapp
+          token: ${{ secrets.YAO_TEST_TOKEN }}
+          path: yao-startup-webapp
+
       - name: Checkout Page Builder App
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/page-builder-app
           token: ${{ secrets.YAO_TEST_TOKEN }}
           path: page-builder-app
 
       - name: Checkout Extension
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/yao-extensions-dev
           path: extension
@@ -141,11 +149,12 @@ jobs:
           mv app ../
           mv extension ../
           mv page-builder-app ../
+          mv yao-startup-webapp ../
           ls -l .
           ls -l ../
 
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Start Redis
         uses: supercharge/redis-github-action@1.4.0
