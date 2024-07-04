@@ -122,16 +122,6 @@ jobs:
               body: 'Thank you for the PR! The db: ${{ matrix.db }}  redis: ${{ matrix.redis }}  mongo: ${{ matrix.mongo }} test workflow is running, the results of the run will be commented later.'
             });
 
-      - name: Setup Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Checkout Kun
         uses: actions/checkout@v4
         with:
@@ -206,6 +196,29 @@ jobs:
         with:
           redis-version: ${{ matrix.redis }}
 
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Setup Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+              
+      - name: Install dependencies
+        run: |
+          go mod download
+          cd ../kun && go mod download
+          cd ../xun && go mod download
+          cd ../gou && go mod download
+          cd ../v8go && go mod download
+          
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.8.0
         with:
@@ -230,11 +243,6 @@ jobs:
           db: "xiang"
           user: "xiang"
           password: ${{ secrets.UNIT_PASS }}
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
 
       - name: Setup Go Tools
         run: |
