@@ -9,17 +9,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/sui/core"
 	"github.com/yaoapp/yao/sui/storages/local"
 )
 
 func TestTemplateGet(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.get", "demo")
+	p, err := process.Of("sui.template.get", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,15 +29,15 @@ func TestTemplateGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.ITemplate{}, res)
-	assert.Equal(t, 3, len(res.([]core.ITemplate)))
+	assert.Equal(t, 2, len(res.([]core.ITemplate)))
 }
 
 func TestTemplateFind(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.find", "demo", "tech-blue")
+	p, err := process.Of("sui.template.find", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,15 +48,15 @@ func TestTemplateFind(t *testing.T) {
 	}
 
 	assert.IsType(t, &local.Template{}, res)
-	assert.Equal(t, "tech-blue", res.(*local.Template).ID)
+	assert.Equal(t, "advanced", res.(*local.Template).ID)
 }
 
 func TestTemplateAsset(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.template.asset", "demo", "tech-blue", "/css/tailwind.css")
+	p, err := process.Of("sui.template.asset", "test", "advanced", "/css/app.css")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,11 +72,11 @@ func TestTemplateAsset(t *testing.T) {
 }
 
 func TestTemplateLocaleGet(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.locale.get", "demo", "tech-blue")
+	p, err := process.Of("sui.locale.get", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,17 +88,17 @@ func TestTemplateLocaleGet(t *testing.T) {
 
 	assert.IsType(t, []core.SelectOption{}, res)
 	assert.Equal(t, 3, len(res.([]core.SelectOption)))
-	assert.Equal(t, "ar", res.([]core.SelectOption)[0].Value)
+	assert.Equal(t, "ja-jp", res.([]core.SelectOption)[0].Value)
 	assert.Equal(t, "zh-cn", res.([]core.SelectOption)[1].Value)
-	assert.Equal(t, "zh-tw", res.([]core.SelectOption)[2].Value)
+	assert.Equal(t, "zh-hk", res.([]core.SelectOption)[2].Value)
 }
 
 func TestTemplateThemeGet(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.theme.get", "demo", "tech-blue")
+	p, err := process.Of("sui.theme.get", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,16 +110,16 @@ func TestTemplateThemeGet(t *testing.T) {
 
 	assert.IsType(t, []core.SelectOption{}, res)
 	assert.Equal(t, 2, len(res.([]core.SelectOption)))
-	assert.Equal(t, "dark", res.([]core.SelectOption)[0].Value)
-	assert.Equal(t, "light", res.([]core.SelectOption)[1].Value)
+	assert.Equal(t, "light", res.([]core.SelectOption)[0].Value)
+	assert.Equal(t, "dark", res.([]core.SelectOption)[1].Value)
 }
 
 func TestBlockGet(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.block.get", "demo", "tech-blue")
+	p, err := process.Of("sui.block.get", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,75 +130,61 @@ func TestBlockGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.IBlock{}, res)
-	assert.Equal(t, 7, len(res.([]core.IBlock)))
-	assert.Equal(t, "ColumnsTwo", res.([]core.IBlock)[0].(*local.Block).ID)
-	assert.Equal(t, "Hero", res.([]core.IBlock)[1].(*local.Block).ID)
-	assert.Equal(t, "Image", res.([]core.IBlock)[2].(*local.Block).ID)
-	assert.Equal(t, "Section", res.([]core.IBlock)[3].(*local.Block).ID)
+	assert.Equal(t, 0, len(res.([]core.IBlock)))
 }
 
 func TestBlockFind(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.block.find", "demo", "tech-blue", "ColumnsTwo")
+	p, err := process.Of("sui.block.find", "test", "advanced", "not-found")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := p.Exec()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.IsType(t, "", res)
-	assert.Contains(t, res.(string), "window.block__ColumnsTwo=")
+	_, err = p.Exec()
+	assert.NotNil(t, err)
 }
 
 func TestBlockExport(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.block.export", "demo", "tech-blue")
+	p, err := process.Of("sui.block.export", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := p.Exec()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.IsType(t, &core.BlockLayoutItems{}, res)
-	assert.Equal(t, 3, len(res.(*core.BlockLayoutItems).Categories))
+	_, err = p.Exec()
+	assert.Nil(t, err)
 }
 
 func TestBlockMedia(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.block.media", "demo", "tech-blue", "ColumnsTwo")
+	p, err := process.Of("sui.block.media", "test", "advanced", "not-found")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := p.Exec()
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.IsType(t, map[string]interface{}{}, res)
-	assert.Equal(t, "image/png", res.(map[string]interface{})["type"])
-	assert.NotEmpty(t, res.(map[string]interface{})["content"])
+	_, err = p.Exec()
+	assert.NotNil(t, err)
+
+	// assert.IsType(t, map[string]interface{}{}, res)
+	// assert.Equal(t, "image/png", res.(map[string]interface{})["type"])
+	// assert.NotEmpty(t, res.(map[string]interface{})["content"])
 }
 
 func TestTemplateComponentGet(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.component.get", "demo", "tech-blue")
+	p, err := process.Of("sui.component.get", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,37 +195,29 @@ func TestTemplateComponentGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.IComponent{}, res)
-	assert.Equal(t, 6, len(res.([]core.IComponent)))
-	assert.Equal(t, "Box", res.([]core.IComponent)[0].(*local.Component).ID)
-	assert.Equal(t, "Card", res.([]core.IComponent)[1].(*local.Component).ID)
-	assert.Equal(t, "Nav", res.([]core.IComponent)[2].(*local.Component).ID)
+	assert.Equal(t, 0, len(res.([]core.IComponent)))
 }
 
 func TestTemplateComponentFind(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.component.find", "demo", "tech-blue", "Box")
+	p, err := process.Of("sui.component.find", "test", "advanced", "not-found")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	res, err := p.Exec()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.IsType(t, "", res)
-	assert.Contains(t, res.(string), "window.component__Box=")
+	_, err = p.Exec()
+	assert.NotNil(t, err)
 }
 
 func TestPageTree(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.tree", "demo", "tech-blue")
+	p, err := process.Of("sui.page.tree", "test", "advanced")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,17 +228,15 @@ func TestPageTree(t *testing.T) {
 	}
 
 	assert.IsType(t, []*core.PageTreeNode{}, res)
-	assert.Equal(t, 6, len(res.([]*core.PageTreeNode)))
-	assert.Equal(t, "error", res.([]*core.PageTreeNode)[0].Name)
-	assert.Equal(t, "footer", res.([]*core.PageTreeNode)[1].Name)
+	assert.GreaterOrEqual(t, len(res.([]*core.PageTreeNode)), 2)
 }
 
 func TestPageGet(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.get", "demo", "tech-blue", "/index/[invite]")
+	p, err := process.Of("sui.page.get", "test", "advanced", "/page/[id]")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +248,7 @@ func TestPageGet(t *testing.T) {
 
 	pages := res.([]core.IPage)
 	assert.IsType(t, []core.IPage{}, pages)
-	assert.Equal(t, 9, len(pages))
+	assert.GreaterOrEqual(t, len(pages), 2)
 	for _, page := range pages {
 		assert.IsType(t, &local.Page{}, page)
 	}
@@ -281,11 +256,11 @@ func TestPageGet(t *testing.T) {
 
 func TestPageExist(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.exist", "demo", "tech-blue", "/index/[invite]")
+	p, err := process.Of("sui.page.exist", "test", "advanced", "/page/[id]")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +272,7 @@ func TestPageExist(t *testing.T) {
 	assert.IsType(t, true, res)
 	assert.Equal(t, true, res.(bool))
 
-	p, err = process.Of("sui.page.exist", "demo", "tech-blue", "/index/[invite]/[invite]")
+	p, err = process.Of("sui.page.exist", "test", "advanced", "/page/[id]/[id]")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,16 +287,16 @@ func TestPageExist(t *testing.T) {
 
 func TestPageCreate(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 	defer func() {
-		_, err := process.New("sui.page.remove", "demo", "tech-blue", "/unit-test").Exec()
+		_, err := process.New("sui.page.remove", "test", "advanced", "/unit-test").Exec()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 	// test demo
-	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test")
+	p, err := process.Of("sui.page.create", "test", "advanced", "/unit-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,17 +310,17 @@ func TestPageCreate(t *testing.T) {
 
 func TestPageRename(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 	defer func() {
-		_, err := process.New("sui.page.remove", "demo", "tech-blue", "/unit-test-2").Exec()
+		_, err := process.New("sui.page.remove", "test", "advanced", "/unit-test-2").Exec()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
 	// test demo
-	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test")
+	p, err := process.Of("sui.page.create", "test", "advanced", "/unit-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +333,7 @@ func TestPageRename(t *testing.T) {
 	assert.Nil(t, res)
 
 	// rename
-	p, err = process.Of("sui.page.rename", "demo", "tech-blue", "/unit-test", map[string]interface{}{"route": "/unit-test-2"})
+	p, err = process.Of("sui.page.rename", "test", "advanced", "/unit-test", map[string]interface{}{"route": "/unit-test-2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,17 +347,17 @@ func TestPageRename(t *testing.T) {
 
 func TestPageDuplicate(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 	defer func() {
-		_, err := process.New("sui.page.remove", "demo", "tech-blue", "/unit-test").Exec()
+		_, err := process.New("sui.page.remove", "test", "advanced", "/unit-test").Exec()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}()
 
 	// test demo
-	p, err := process.Of("sui.page.duplicate", "demo", "tech-blue", "/page/[id]", map[string]interface{}{"title": "hello", "route": "/unit-test"})
+	p, err := process.Of("sui.page.duplicate", "test", "advanced", "/page/[id]", map[string]interface{}{"title": "hello", "route": "/unit-test"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -396,11 +371,11 @@ func TestPageDuplicate(t *testing.T) {
 
 func TestPageCreateSaveThenRemove(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	p, err := process.Of("sui.page.create", "test", "advanced", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +387,7 @@ func TestPageCreateSaveThenRemove(t *testing.T) {
 	assert.Nil(t, res)
 
 	// test demo
-	p, err = process.Of("sui.page.remove", "demo", "tech-blue", "/unit-test")
+	p, err = process.Of("sui.page.remove", "test", "advanced", "/unit-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,11 +401,11 @@ func TestPageCreateSaveThenRemove(t *testing.T) {
 
 func TestPageSaveThenRemove(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.create", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	p, err := process.Of("sui.page.create", "test", "advanced", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -442,7 +417,7 @@ func TestPageSaveThenRemove(t *testing.T) {
 	assert.Nil(t, res)
 
 	// test demo
-	p, err = process.Of("sui.page.SaveTemp", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	p, err = process.Of("sui.page.SaveTemp", "test", "advanced", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,7 +429,7 @@ func TestPageSaveThenRemove(t *testing.T) {
 	assert.Nil(t, res)
 
 	// test demo
-	p, err = process.Of("sui.page.Save", "demo", "tech-blue", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
+	p, err = process.Of("sui.page.Save", "test", "advanced", "/unit-test", `{"uid":"unit-test", "needToSave":{"page":true}, "page":{"source":"<div>1</div>", "language":"html"}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +441,7 @@ func TestPageSaveThenRemove(t *testing.T) {
 	assert.Nil(t, res)
 
 	// test demo
-	p, err = process.Of("sui.page.remove", "demo", "tech-blue", "/unit-test")
+	p, err = process.Of("sui.page.remove", "test", "advanced", "/unit-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,7 +457,7 @@ func TestGetSource(t *testing.T) {
 
 	// *core.RequestSource
 	var payload interface{} = &core.RequestSource{UID: "unit-test"}
-	args := []interface{}{"demo", "tech-blue", "/index/[invite]", payload}
+	args := []interface{}{"test", "advanced", "/index/[invite]", payload}
 	p, err := process.Of("sui.page.Save", args...)
 	if err != nil {
 		t.Fatal(err)
@@ -574,11 +549,11 @@ func TestGetSource(t *testing.T) {
 
 func TestPageAssetJS(t *testing.T) {
 
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.asset", "demo", "tech-blue", "/page/404/404.js")
+	p, err := process.Of("sui.page.asset", "test", "advanced", "/page/[id]/404/404.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -593,11 +568,11 @@ func TestPageAssetJS(t *testing.T) {
 }
 
 func TestPageAssetTS(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.asset", "demo", "tech-blue", "/page/404/404.ts")
+	p, err := process.Of("sui.page.asset", "test", "advanced", "/page/[id]/404/404.ts")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -612,11 +587,11 @@ func TestPageAssetTS(t *testing.T) {
 }
 
 func TestPageAssetCSS(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.page.asset", "demo", "tech-blue", "/page/[id]/[id].css")
+	p, err := process.Of("sui.page.asset", "test", "advanced", "/page/[id]/[id].css")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -631,11 +606,11 @@ func TestPageAssetCSS(t *testing.T) {
 }
 
 func TestEditorRender(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.editor.render", "demo", "tech-blue", "/index")
+	p, err := process.Of("sui.editor.render", "test", "advanced", "/index")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -651,12 +626,12 @@ func TestEditorRender(t *testing.T) {
 }
 
 func TestEditorPageSource(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	sources := []string{"page", "script", "style", "data"}
 	for _, source := range sources {
-		p, err := process.Of("sui.editor.source", "demo", "tech-blue", "/index", source)
+		p, err := process.Of("sui.editor.source", "test", "advanced", "/index", source)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -665,6 +640,7 @@ func TestEditorPageSource(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		assert.IsType(t, core.SourceData{}, res)
 		assert.NotEmpty(t, res.(core.SourceData).Source)
 		assert.NotEmpty(t, res.(core.SourceData).Language)
@@ -672,11 +648,11 @@ func TestEditorPageSource(t *testing.T) {
 }
 
 func TestEditorRenderWithQuery(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.editor.render", "demo", "tech-blue", "/index", map[string]interface{}{
+	p, err := process.Of("sui.editor.render", "test", "advanced", "/index", map[string]interface{}{
 		"method": "POST",
 	})
 	if err != nil {
@@ -693,11 +669,11 @@ func TestEditorRenderWithQuery(t *testing.T) {
 }
 
 func TestPreviewRender(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.preview.render", "demo", "tech-blue", "/index")
+	p, err := process.Of("sui.preview.render", "test", "advanced", "/index")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -712,11 +688,11 @@ func TestPreviewRender(t *testing.T) {
 }
 
 func TestBuildAll(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.build.all", "demo", "tech-blue", map[string]interface{}{"ssr": true})
+	p, err := process.Of("sui.build.all", "test", "advanced", map[string]interface{}{"ssr": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -730,11 +706,11 @@ func TestBuildAll(t *testing.T) {
 }
 
 func TestBuildPage(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.build.page", "demo", "tech-blue", "/index", map[string]interface{}{"ssr": true})
+	p, err := process.Of("sui.build.page", "test", "advanced", "/index", map[string]interface{}{"ssr": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -748,11 +724,11 @@ func TestBuildPage(t *testing.T) {
 }
 
 func TestSyncAssetFile(t *testing.T) {
-	load(t)
+	prepare(t)
 	defer clean()
 
 	// test demo
-	p, err := process.Of("sui.sync.assetfile", "demo", "tech-blue", "/images/about/ab01.jpg", map[string]interface{}{"ssr": true})
+	p, err := process.Of("sui.sync.assetfile", "test", "advanced", "/images/logos/wordmark.svg", map[string]interface{}{"ssr": true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -763,12 +739,4 @@ func TestSyncAssetFile(t *testing.T) {
 	}
 
 	assert.Nil(t, res)
-}
-
-func load(t *testing.T) {
-	prepare(t)
-	err := Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
 }

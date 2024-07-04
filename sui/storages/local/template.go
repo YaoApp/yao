@@ -298,8 +298,8 @@ func (tmpl *Template) Asset(file string, width, height uint) (*core.Asset, error
 
 	file = filepath.Join(tmpl.Root, "__assets", file)
 	if exist, _ := tmpl.local.fs.Exists(file); exist {
-
-		if width > 0 || height > 0 {
+		ext := strings.ToLower(filepath.Ext(file))
+		if (width > 0 || height > 0) && (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".bmp") {
 			return tmpl.assetThumb(file, width, height)
 		}
 
@@ -309,7 +309,7 @@ func (tmpl *Template) Asset(file string, width, height uint) (*core.Asset, error
 		}
 
 		typ := "text/plain"
-		switch filepath.Ext(file) {
+		switch ext {
 		case ".css":
 			typ = "text/css; charset=utf-8"
 			break

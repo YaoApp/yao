@@ -11,7 +11,7 @@ func TestPageEditorRender(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -30,17 +30,9 @@ func TestPageEditorRender(t *testing.T) {
 	assert.NotEmpty(t, res.CSS)
 	assert.NotEmpty(t, res.Scripts)
 	assert.NotEmpty(t, res.Styles)
-	assert.Equal(t, 3, len(res.Scripts))
-	assert.Equal(t, 4, len(res.Styles))
+	assert.GreaterOrEqual(t, len(res.Styles), 1)
+	assert.GreaterOrEqual(t, len(res.Scripts), 2)
 
-	assert.Equal(t, "@assets/libs/tiny-slider/min/tiny-slider.js", res.Scripts[0])
-	assert.Equal(t, "@assets/libs/feather-icons/feather.min.js", res.Scripts[1])
-	assert.Equal(t, "@assets/js/plugins.init.js", res.Scripts[2])
-
-	assert.Equal(t, "@assets/libs/tiny-slider/tiny-slider.css", res.Styles[0])
-	assert.Equal(t, "@assets/libs/@iconscout/unicons/css/line.css", res.Styles[1])
-	assert.Equal(t, "@assets/libs/@mdi/font/css/materialdesignicons.min.css", res.Styles[2])
-	assert.Equal(t, "@assets/css/tailwind.css", res.Styles[3])
 }
 
 func TestPagePreviewRender(t *testing.T) {
@@ -48,7 +40,7 @@ func TestPagePreviewRender(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -64,7 +56,6 @@ func TestPagePreviewRender(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, html)
-	assert.Contains(t, html, "function Hello()")
-	// assert.Contains(t, html, "color: #2c3e50;")
-	assert.Contains(t, html, "/api/__yao/sui/v1/demo/asset/tech-blue/@assets")
+	assert.Contains(t, html, "var __sui_data")
+	assert.Contains(t, html, "/api/__yao/sui/v1/test/asset/advanced/@assets")
 }

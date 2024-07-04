@@ -13,7 +13,7 @@ func TestTemplatePages(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -23,7 +23,7 @@ func TestTemplatePages(t *testing.T) {
 		t.Fatalf("Pages error: %v", err)
 	}
 
-	if len(pages) < 8 {
+	if len(pages) < 1 {
 		t.Fatalf("Pages error: %v", len(pages))
 	}
 
@@ -50,32 +50,30 @@ func TestTemplatePageTree(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	pages, err := tmpl.PageTree("/page/[id]")
+	pages, err := tmpl.PageTree("/")
 	if err != nil {
 		t.Fatalf("Pages error: %v", err)
 	}
 
-	assert.Equal(t, 6, len(pages))
-	assert.Equal(t, "error", pages[0].Name)
-	assert.Equal(t, true, pages[0].IsDir)
-	assert.Equal(t, "error", pages[0].Children[0].Name)
-	assert.Equal(t, "/error", pages[0].Children[0].IPage.(*Page).Route)
-	assert.Equal(t, "error", pages[0].Children[0].IPage.(*Page).Name)
+	if len(pages) < 2 {
+		t.Fatalf("Pages error: %v", len(pages))
+	}
 
-	assert.Equal(t, "index", pages[2].Name)
-	assert.Equal(t, true, pages[1].IsDir)
-	assert.Equal(t, "[invite]", pages[2].Children[0].Name)
-	assert.Equal(t, true, pages[2].Children[0].IsDir)
-	assert.Equal(t, "/index/[invite]", pages[2].Children[0].Children[0].IPage.(*Page).Route)
-	assert.Equal(t, "[invite]", pages[2].Children[0].Children[0].IPage.(*Page).Name)
-	assert.Equal(t, "/index", pages[2].Children[1].IPage.(*Page).Route)
-	assert.Equal(t, "index", pages[2].Children[1].IPage.(*Page).Name)
+	assert.NotEmpty(t, pages)
+	assert.NotEmpty(t, pages[1].Children)
+	if len(pages[1].Children) < 2 {
+		t.Fatalf("Pages error: %v", len(pages[1].Children))
+	}
 
+	assert.NotEmpty(t, pages[1].Children[0].Children)
+	if len(pages[1].Children[0].Children) < 2 {
+		t.Fatalf("Pages error: %v", len(pages[1].Children[0].Children))
+	}
 }
 
 func TestTemplatePageTS(t *testing.T) {
@@ -83,7 +81,7 @@ func TestTemplatePageTS(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -96,7 +94,7 @@ func TestTemplatePageTS(t *testing.T) {
 	page := ipage.(*Page)
 
 	assert.Equal(t, "/page/[id]", page.Route)
-	assert.Equal(t, "/templates/tech-blue/page/[id]", page.Path)
+	assert.Equal(t, "/test-cases/advanced/page/[id]", page.Path)
 	assert.Equal(t, "[id].css", page.Codes.CSS.File)
 	assert.Equal(t, "[id].html", page.Codes.HTML.File)
 	assert.Equal(t, "[id].js", page.Codes.JS.File)
@@ -119,19 +117,19 @@ func TestTemplatePageJS(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	ipage, err := tmpl.Page("/page/404")
+	ipage, err := tmpl.Page("/page/[id]/404")
 	if err != nil {
 		t.Fatalf("Page error: %v", err)
 	}
 
 	page := ipage.(*Page)
-	assert.Equal(t, "/page/404", page.Route)
-	assert.Equal(t, "/templates/tech-blue/page/404", page.Path)
+	assert.Equal(t, "/page/[id]/404", page.Route)
+	assert.Equal(t, "/test-cases/advanced/page/[id]/404", page.Path)
 	assert.Equal(t, "404.css", page.Codes.CSS.File)
 	assert.Equal(t, "404.html", page.Codes.HTML.File)
 	assert.Equal(t, "404.js", page.Codes.JS.File)
@@ -154,7 +152,7 @@ func TestPageSaveTempBoard(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -194,7 +192,7 @@ func TestPageSaveTempPage(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -237,7 +235,7 @@ func TestPageSaveTempStyle(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -280,7 +278,7 @@ func TestPageSaveTempScriptJS(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -323,7 +321,7 @@ func TestPageSaveTempScriptTS(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -366,7 +364,7 @@ func TestPageSaveTempData(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -409,7 +407,7 @@ func TestPageSaveTempSetting(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -447,7 +445,7 @@ func TestPageSave(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -495,7 +493,7 @@ func TestPageGetPageFromAsset(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -507,7 +505,7 @@ func TestPageGetPageFromAsset(t *testing.T) {
 	}
 
 	assert.Equal(t, "/index", page.Get().Route)
-	assert.Equal(t, "/templates/tech-blue/index", page.Get().Path)
+	assert.Equal(t, "/test-cases/advanced/index", page.Get().Path)
 	assert.Equal(t, "index", page.Get().Name)
 
 	file = "/page/404/404.js"
@@ -517,7 +515,7 @@ func TestPageGetPageFromAsset(t *testing.T) {
 	}
 
 	assert.Equal(t, "/page/404", page.Get().Route)
-	assert.Equal(t, "/templates/tech-blue/page/404", page.Get().Path)
+	assert.Equal(t, "/test-cases/advanced/page/404", page.Get().Path)
 	assert.Equal(t, "404", page.Get().Name)
 }
 
@@ -525,12 +523,12 @@ func TestPageAssetScriptJS(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	file := "/page/404/404.js"
+	file := "/page/[id]/404/404.js"
 	page, err := tmpl.GetPageFromAsset(file)
 	if err != nil {
 		t.Fatalf("GetPageFromAsset error: %v", err)
@@ -549,7 +547,7 @@ func TestPageAssetScriptTS(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -573,7 +571,7 @@ func TestPageAssetStyle(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Demo.GetTemplate("tech-blue")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}

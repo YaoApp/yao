@@ -9,86 +9,108 @@ import (
 	"github.com/yaoapp/yao/test"
 )
 
+type TestCase struct {
+	Test *Local
+	Web  *Local
+}
+
 func TestGetTemplates(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	dempTmpls, err := tests.Demo.GetTemplates()
+	testTmpls, err := tests.Test.GetTemplates()
 	if err != nil {
 		t.Fatalf("GetTemplates error: %v", err)
 	}
 
-	if len(dempTmpls) < 3 {
-		t.Fatalf("The demo templates less than 3 (%v<3)", len(dempTmpls))
+	if len(testTmpls) != 2 {
+		t.Fatalf("The test templates not equal 2 (%v!=2)", len(testTmpls))
 	}
 
-	assert.Equal(t, "tech-blue", dempTmpls[0].(*Template).ID)
-	assert.Equal(t, "Tech Blue DEMO", dempTmpls[0].(*Template).Name)
-	assert.Equal(t, true, len(dempTmpls[1].(*Template).Screenshots) > 0)
-	assert.Equal(t, 1, dempTmpls[0].(*Template).Version)
-	assert.Equal(t, "Tech Blue DEMO", dempTmpls[0].(*Template).Descrption)
+	// Advanced Template
+	assert.Equal(t, "advanced", testTmpls[0].(*Template).ID)
+	assert.Equal(t, "The advanced template", testTmpls[0].(*Template).Name)
+	assert.Len(t, testTmpls[0].Themes(), 2)
+	assert.Len(t, testTmpls[0].Locales(), 3)
+	assert.Len(t, testTmpls[0].(*Template).Template.Themes, 2)
+	assert.Len(t, testTmpls[0].(*Template).Template.Locales, 4)
 
-	assert.Equal(t, "website-ai", dempTmpls[1].(*Template).ID)
-	assert.Equal(t, "Website DEMO", dempTmpls[1].(*Template).Name)
-	assert.Equal(t, true, len(dempTmpls[1].(*Template).Screenshots) > 0)
-	assert.Equal(t, 2, dempTmpls[1].(*Template).Version)
-	assert.Equal(t, "AI Website DEMO", dempTmpls[1].(*Template).Descrption)
+	// Basic Template
+	assert.Equal(t, "basic", testTmpls[1].(*Template).ID)
+	assert.Equal(t, "The basic template", testTmpls[1].(*Template).Name)
+	assert.Len(t, testTmpls[1].Themes(), 0)
+	assert.Len(t, testTmpls[1].Locales(), 0)
+	assert.Len(t, testTmpls[1].(*Template).Template.Themes, 0)
+	assert.Len(t, testTmpls[1].(*Template).Template.Locales, 0)
 
-	assert.Equal(t, "wechat-web", dempTmpls[2].(*Template).ID)
-	assert.Equal(t, "WECHAT-WEB", dempTmpls[2].(*Template).Name)
-	assert.Equal(t, []string{}, dempTmpls[2].(*Template).Screenshots)
-	assert.Equal(t, 1, dempTmpls[2].(*Template).Version)
-	assert.Equal(t, "", dempTmpls[2].(*Template).Descrption)
+	// Default Template ( Application )
+	webTmpls, err := tests.Web.GetTemplates()
+	if err != nil {
+		t.Fatalf("GetTemplates error: %v", err)
+	}
 
+	if len(webTmpls) != 1 {
+		t.Fatalf("The web templates not equal 1 (%v!=1)", len(webTmpls))
+	}
+
+	// Default Template
+	assert.Equal(t, "default", webTmpls[0].(*Template).ID)
+	assert.Equal(t, "Yao Startup Webapp", webTmpls[0].(*Template).Name)
+	assert.Len(t, webTmpls[0].Themes(), 2)
+	assert.Len(t, webTmpls[0].Locales(), 3)
+	assert.Len(t, webTmpls[0].(*Template).Template.Themes, 2)
+	assert.Len(t, webTmpls[0].(*Template).Template.Locales, 2)
 }
 
 func TestGetTemplate(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	websiteAI, err := tests.Demo.GetTemplate("website-ai")
+	basicTmpl, err := tests.Test.GetTemplate("basic")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
 
-	assert.Equal(t, "website-ai", websiteAI.(*Template).ID)
-	assert.Equal(t, "Website DEMO", websiteAI.(*Template).Name)
-	assert.Equal(t, true, len(websiteAI.(*Template).Screenshots) > 0)
-	assert.Equal(t, 2, websiteAI.(*Template).Version)
-	assert.Equal(t, "AI Website DEMO", websiteAI.(*Template).Descrption)
+	assert.Equal(t, "basic", basicTmpl.(*Template).ID)
+
+	advancedTmpl, err := tests.Test.GetTemplate("advanced")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+	assert.Equal(t, "advanced", advancedTmpl.(*Template).ID)
+
+	defaultTmpl, err := tests.Web.GetTemplate("default")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+	assert.Equal(t, "default", defaultTmpl.(*Template).ID)
 }
 
-func prepare(t *testing.T) struct {
-	Demo   *Local
-	Screen *Local
-} {
+func prepare(t *testing.T) TestCase {
 
-	test.Prepare(t, config.Conf, "YAO_TEST_BUILDER_APPLICATION")
-	demoDSL, err := core.Load("/suis/demo.sui.yao", "demo")
+	test.Prepare(t, config.Conf, "YAO_SUI_TEST_APPLICATION")
+	webDSL, err := core.Load("/suis/web.sui.yao", "web")
 	if err != nil {
 		t.Fatalf("Load error: %v", err)
 	}
 
-	demo, err := New(demoDSL)
+	web, err := New(webDSL)
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
 
-	screenDSL, err := core.Load("/suis/screen.sui.yao", "screen")
+	testDSL, err := core.Load("/suis/test.sui.yao", "test")
 	if err != nil {
 		t.Fatalf("Load error: %v", err)
 	}
 
-	screen, err := New(screenDSL)
+	test, err := New(testDSL)
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
-	return struct {
-		Demo   *Local
-		Screen *Local
-	}{
-		Demo:   demo,
-		Screen: screen,
+	return TestCase{
+		Test: test,
+		Web:  web,
 	}
 }
 

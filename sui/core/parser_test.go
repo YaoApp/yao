@@ -1,20 +1,20 @@
 package core
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/kun/utils"
 )
 
 func TestRender(t *testing.T) {
 	prepare(t)
 	defer clean()
 
-	page := testPage(t)
+	page := testDataPage(t)
 	request := &Request{
 		Query:  map[string][]string{"show": {"no"}},
-		Locale: "zh-CN",
+		Locale: "zh-cn",
 		Theme:  "dark",
 	}
 
@@ -30,7 +30,9 @@ func TestRender(t *testing.T) {
 		t.Fatalf("Render error: %v", err)
 	}
 
-	utils.Dump(html)
+	for i, err := range parser.errors {
+		fmt.Println(i, err)
+	}
 
 	assert.NotEmpty(t, html)
 	assert.Contains(t, html, "hello space")
