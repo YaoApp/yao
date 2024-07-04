@@ -156,12 +156,15 @@ artifacts-linux: clean
 #	cd ../yao-init rm -rf README.md
 
 #   Yao Builder
-	mkdir -p .tmp/data/builder
-	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
-	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
-	rm -rf .tmp/yao-builder-latest.tar.gz
+#   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
+#	mkdir -p .tmp/data/builder
+#	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
+#	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+#	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
+#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/dui.git **
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
 	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
@@ -211,12 +214,15 @@ artifacts-macos: clean
 #	 cd ../yao-init && rm -rf README.md
 
 #   Yao Builder
-	mkdir -p .tmp/data/builder
-	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
-	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
-	rm -rf .tmp/yao-builder-latest.tar.gz
+#   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
+#	mkdir -p .tmp/data/builder
+#	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
+#	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+#	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
+#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/dui.git **
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
 	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
@@ -278,6 +284,8 @@ release: clean
 	echo "XGEN v0.9" > .tmp/xgen/v0.9/dist/index.html
 
 #	Building XGEN v1.0
+#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/dui.git **
 	export NODE_ENV=production
 	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
 # 	cd .tmp/xgen/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
@@ -296,10 +304,11 @@ release: clean
 	rm -rf .tmp/yao-init/README.md
 
 #   Yao Builder
-	mkdir -p .tmp/data/builder
-	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
-	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
-	rm -rf .tmp/yao-builder-latest.tar.gz
+#   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
+#	mkdir -p .tmp/data/builder
+#	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
+#	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+#	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
 	mkdir -p .tmp/data/xgen
@@ -338,6 +347,8 @@ linux-release: clean
 	cp -r xgen/v0.9 .tmp/xgen/v0.9/dist
 
 #	Building XGEN v1.0
+#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/dui.git **
 	export NODE_ENV=production
 	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
 	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
@@ -356,10 +367,11 @@ linux-release: clean
 	rm -rf .tmp/yao-init/README.md
 
 #   Yao Builder
-	mkdir -p .tmp/data/builder
-	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
-	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
-	rm -rf .tmp/yao-builder-latest.tar.gz
+#   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
+# 	mkdir -p .tmp/data/builder
+# 	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
+# 	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
+# 	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
 	mkdir -p .tmp/data/xgen

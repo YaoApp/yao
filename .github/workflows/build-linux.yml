@@ -12,12 +12,11 @@ jobs:
     container:
       # DockerFile
       # https://github.com/YaoApp/yao/blob/main/docker/build/Dockerfile
-      image: yaoapp/yao-build:0.10.4 
+      image: yaoapp/yao-build:0.10.4
 
     steps:
-
       - name: Install Coscmd
-        run:  |
+        run: |
           apt-get install -y python3-venv
           python3 -m venv /python3/venv
           /python3/venv/bin/python -m pip install coscmd
@@ -40,7 +39,7 @@ jobs:
           ls -l /data
 
       - name: Archive production artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: yao-linux
           path: |
