@@ -79,7 +79,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: "Download artifact"
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -108,7 +108,7 @@ jobs:
           echo NR=$(cat NR) >> $GITHUB_ENV
 
       - name: "Comment on PR"
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -271,12 +271,12 @@ jobs:
           make test
 
       - name: Codecov Report
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
 
       - name: "Comment on PR"
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
