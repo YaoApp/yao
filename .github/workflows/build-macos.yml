@@ -17,7 +17,7 @@ jobs:
     runs-on: "macos-12"
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
@@ -25,7 +25,7 @@ jobs:
         run: npm install -g pnpm
 
       - name: Setup Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cache/go-build
@@ -35,25 +35,25 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Checkout Kun
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/kun
           path: kun
 
       - name: Checkout Xun
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/xun
           path: xun
 
       - name: Checkout Gou
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/gou
           path: gou
 
       - name: Checkout V8Go
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/v8go
           lfs: true
@@ -62,13 +62,13 @@ jobs:
       - name: Checkout XGen v1.0
         #  ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
         #  ** new repository: https://github.com/YaoApp/dui.git **
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/xgen
           path: xgen-v1.0
 
       - name: Checkout Yao-Init
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: yaoapp/yao-init
           path: yao-init
@@ -87,7 +87,7 @@ jobs:
           ls -l ../xgen-v1.0/packages/setup/
 
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v3
