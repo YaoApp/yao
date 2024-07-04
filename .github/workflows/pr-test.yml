@@ -200,24 +200,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-
-      - name: Setup Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-              
-      - name: Install dependencies
-        run: |
-          go mod download
-          cd ../kun && go mod download
-          cd ../xun && go mod download
-          cd ../gou && go mod download
-          cd ../v8go && go mod download
           
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.8.0
