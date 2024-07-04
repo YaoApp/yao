@@ -79,15 +79,6 @@ jobs:
         redis: [4, 5, 6]
         mongo: ["6.0"]
     steps:
-      - name: Setup Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
 
       - name: Checkout Kun
         uses: actions/checkout@v4
@@ -156,6 +147,29 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Setup Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+              
+      - name: Install dependencies
+        run: |
+          go mod download
+          cd ../kun && go mod download
+          cd ../xun && go mod download
+          cd ../gou && go mod download
+          cd ../v8go && go mod download
+
       - name: Start Redis
         uses: supercharge/redis-github-action@1.4.0
         with:
@@ -185,11 +199,6 @@ jobs:
           db: "xiang"
           user: "xiang"
           password: ${{ secrets.UNIT_PASS }}
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
 
       - name: Setup Go Tools
         run: |
