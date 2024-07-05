@@ -160,6 +160,18 @@ func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildO
 			page.Translations = append(page.Translations, translations...)
 		}
 
+		name, has := sel.Attr("is")
+		if has {
+			// Check if Just-In-Time Component ( "is" has variable )
+			if ctx.isJitComponent(name) {
+				sel.SetAttr("s:jit", "true")
+				sel.SetAttr("s:root", public.Root)
+				ctx.addJitComponent(name)
+				return false
+			}
+			return true
+		}
+
 		tagName := sel.Get(0).Data
 		if tagName == "page" {
 			return true
@@ -169,16 +181,6 @@ func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildO
 			return false
 		}
 
-		name, has := sel.Attr("is")
-		if has {
-			// Just in time component
-			if ctx.isJitComponent(name) {
-				sel.SetAttr("s:jit", "true")
-				sel.SetAttr("s:root", public.Root)
-				ctx.addJitComponent(name)
-				return false
-			}
-		}
 		return has
 	})
 

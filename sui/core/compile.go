@@ -66,6 +66,27 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 	return html, nil
 }
 
+// CompileAsComponent compile the page as component
+func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (string, error) {
+
+	opt := *option
+	opt.IgnoreDocument = true
+	opt.WithWrapper = true
+	doc, warnings, err := page.Build(ctx, &opt)
+	if err != nil {
+		return "", err
+	}
+
+	if warnings != nil && len(warnings) > 0 {
+		for _, warning := range warnings {
+			log.Warn("Compile page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, warning)
+		}
+	}
+
+	page.ReplaceDocument(doc)
+	return doc.Find("body").Html()
+}
+
 // CompileJS compile the javascript
 func (page *Page) CompileJS(source []byte, minify bool) ([]byte, []string, error) {
 	scripts := []string{}
