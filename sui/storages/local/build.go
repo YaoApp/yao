@@ -61,16 +61,14 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 	// loaed pages
 	tmpl.loaded = map[string]core.IPage{}
 	for _, page := range pages {
-		perr := page.Load()
+		err := page.Load()
 		if err != nil {
-			err = multierror.Append(perr)
-			continue
+			return err
 		}
 
-		perr = page.Build(ctx, option)
-		if perr != nil {
-			err = multierror.Append(perr)
-			continue
+		err = page.Build(ctx, option)
+		if err != nil {
+			return err
 		}
 		tmpl.loaded[page.Get().Route] = page
 	}
@@ -180,7 +178,6 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 		option.AssetRoot = filepath.Join(root, "assets")
 	}
 
-	log.Trace("Build the page %s AssetRoot: %s", page.Route, option.AssetRoot)
 	html, err := page.Page.Compile(ctx, option)
 	if err != nil {
 		return err
@@ -229,7 +226,60 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 
 // BuildAsComponent build the page as component
 func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *core.BuildOption) error {
-	return page.writeJitHTML([]byte("<div>"+page.Route+" {{ type }} {{ bind }} </div>"), option.Data)
+
+	ctx := core.NewBuildContext(globalCtx)
+	if option.AssetRoot == "" {
+		root, err := page.tmpl.local.DSL.PublicRoot(option.Data)
+		if err != nil {
+			log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
+			root = page.tmpl.local.DSL.Public.Root
+		}
+		option.AssetRoot = filepath.Join(root, "assets")
+	}
+
+	html, err := page.Page.CompileAsComponent(ctx, option)
+	if err != nil {
+		return err
+	}
+
+	// Save the html
+	err = page.writeJitHTML([]byte(html), option.Data)
+	if err != nil {
+		return err
+	}
+
+	// Save the locale files
+	err = page.writeLocaleFiles(option.Data)
+	if err != nil {
+		return err
+	}
+
+	// Jit Components
+	if globalCtx == nil {
+		jitComponents, err := page.tmpl.GlobRoutes(ctx.GetJitComponents(), true)
+		if err != nil {
+			return err
+		}
+
+		for _, route := range jitComponents {
+			var err error
+			p := page.tmpl.loaded[route]
+			if p == nil {
+				p, err = page.tmpl.Page(route)
+				if err != nil {
+					err = multierror.Append(err)
+					continue
+				}
+			}
+
+			err = p.BuildAsComponent(globalCtx, option)
+			if err != nil {
+				err = multierror.Append(err)
+			}
+		}
+	}
+
+	return err
 }
 
 func (page *Page) publicFile(data map[string]interface{}) string {

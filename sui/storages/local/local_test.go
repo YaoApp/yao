@@ -98,6 +98,7 @@ func prepare(t *testing.T) TestCase {
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
+	core.SUIs["web"] = web
 
 	testDSL, err := core.Load("/suis/test.sui.yao", "test")
 	if err != nil {
@@ -108,6 +109,7 @@ func prepare(t *testing.T) TestCase {
 	if err != nil {
 		t.Fatalf("New error: %v", err)
 	}
+	core.SUIs["test"] = test
 	return TestCase{
 		Test: test,
 		Web:  web,
