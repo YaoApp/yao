@@ -156,6 +156,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: yaoapp/yao-startup-webapp
+          submodules: true
           token: ${{ secrets.YAO_TEST_TOKEN }}
           path: yao-startup-webapp
 
