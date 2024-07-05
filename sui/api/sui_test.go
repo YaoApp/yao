@@ -31,6 +31,16 @@ func prepare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	advanced, err := core.SUIs["test"].GetTemplate("advanced")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = advanced.Build(&core.BuildOption{SSR: true})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func clean() {

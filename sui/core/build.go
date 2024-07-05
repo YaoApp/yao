@@ -62,7 +62,11 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 			doc.Selection.Find("body").AppendHtml("\n" + `<script src="` + script + `"></script>` + "\n")
 		}
 	}
-	doc.Selection.Find("body").AppendHtml(fmt.Sprintf("\n"+`<script type="text/javascript">`+"\n%s\n"+`</script>`+"\n%s\n", strings.Join(ctx.scripts, "\n"), code))
+	componentScripts := ""
+	if len(ctx.scripts) > 0 {
+		componentScripts = fmt.Sprintf("\n"+`<script type="text/javascript" name="components">`+"\n%s\n"+`</script>`+"\n", strings.Join(ctx.scripts, "\n"))
+	}
+	doc.Selection.Find("body").AppendHtml(fmt.Sprintf("\n%s\n%s\n", componentScripts, code))
 	return doc, warnings, nil
 }
 
@@ -373,7 +377,7 @@ func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace 
 	// if the script is a component and not the first import
 	if option.ComponentName != "" && ctx.components[option.ComponentName] {
 		ctx.scripts = append(ctx.scripts, instanceCode)
-		return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", instanceCode), []string{}, nil
+		return fmt.Sprintf("<script type=\"text/javascript\" name=\"%s\">\n%s\n</script>\n", option.ComponentName, instanceCode), []string{}, nil
 	}
 
 	// TypeScript
@@ -402,12 +406,15 @@ func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace 
 		}
 
 		if option.Namespace == "" {
-			return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
+			if strings.TrimSpace(string(code)) == "" {
+				return "", scripts, nil
+			}
+			return fmt.Sprintf("<script type=\"text/javascript\" name=\"page\">\n%s\n</script>\n", code), scripts, nil
 		}
 
 		componentCode := fmt.Sprintf("function %s(){\n%s\n}\n%s\n", option.ComponentName, addTabToEachLine(string(code)), instanceCode)
 		ctx.scripts = append(ctx.scripts, componentCode)
-		return fmt.Sprintf("<script type=\"text/javascript\">%s</script>\n", componentCode), scripts, nil
+		return fmt.Sprintf("<script type=\"text/javascript\" name=\"%s\">%s</script>\n", option.ComponentName, componentCode), scripts, nil
 	}
 
 	// JavaScript
@@ -434,12 +441,15 @@ func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace 
 	}
 
 	if option.Namespace == "" {
-		return fmt.Sprintf("<script type=\"text/javascript\">\n%s\n</script>\n", code), scripts, nil
+		if strings.TrimSpace(string(code)) == "" {
+			return "", scripts, nil
+		}
+		return fmt.Sprintf("<script type=\"text/javascript\" name=\"page\">\n%s\n</script>\n", code), scripts, nil
 	}
 
 	componentCode := fmt.Sprintf("function %s(){\n%s\n}\n%s\n", option.ComponentName, addTabToEachLine(string(code)), instanceCode)
 	ctx.scripts = append(ctx.scripts, componentCode)
-	return fmt.Sprintf("<script type=\"text/javascript\">%s</script>\n", componentCode), scripts, nil
+	return fmt.Sprintf("<script type=\"text/javascript\" name=\"%s\" >%s</script>\n", option.ComponentName, componentCode), scripts, nil
 }
 
 func addTabToEachLine(input string, prefix ...string) string {

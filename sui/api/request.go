@@ -86,88 +86,16 @@ func (r *Request) Render() (string, int, error) {
 
 	if c == nil {
 
-		// The page is not cached
 		message := fmt.Sprintf("[SUI] The page %s is not cached. file=%s DisableCache=%v", r.Request.URL.Path, r.File, r.Request.DisableCache())
 		go fmt.Println(color.YellowString(message))
 		go log.Warn(message)
 
-		// Read the file
-		content, err := application.App.Read(r.File)
+		var status int
+		var err error
+		c, status, err = r.MakeCache()
 		if err != nil {
-			return "", 404, err
+			return "", status, err
 		}
-
-		doc, err := core.NewDocument(content)
-		if err != nil {
-			return "", 500, err
-		}
-
-		guard := ""
-		guardRedirect := ""
-		configText := ""
-		cacheStore := ""
-		cacheTime := 0
-		dateCacheTime := 0
-
-		configSel := doc.Find("script[name=config]")
-		if configSel != nil && configSel.Length() > 0 {
-			configText = configSel.Text()
-			configSel.Remove()
-
-			var conf core.PageConfig
-			err := jsoniter.UnmarshalFromString(configText, &conf)
-			if err != nil {
-				return "", 500, fmt.Errorf("config error, please re-complie the page %s", err.Error())
-			}
-
-			// Redirect the page (should refector before release)
-			// guard=cookie-jwt:redirect-url redirect to the url if not authorized
-			// guard=cookie-jwt return {code: 403, message: "Not Authorized"}
-			guard = conf.Guard
-			if strings.Contains(conf.Guard, ":") {
-				parts := strings.Split(conf.Guard, ":")
-				guard = parts[0]
-				guardRedirect = parts[1]
-			}
-
-			// Cache store
-			cacheStore = conf.CacheStore
-			cacheTime = conf.Cache
-			dateCacheTime = conf.DataCache
-		}
-
-		dataText := ""
-		dataSel := doc.Find("script[name=data]")
-		if dataSel != nil && dataSel.Length() > 0 {
-			dataText = dataSel.Text()
-			dataSel.Remove()
-		}
-
-		globalDataText := ""
-		globalDataSel := doc.Find("script[name=global]")
-		if globalDataSel != nil && globalDataSel.Length() > 0 {
-			globalDataText = globalDataSel.Text()
-			globalDataSel.Remove()
-		}
-
-		html, err := doc.Html()
-		if err != nil {
-			return "", 500, fmt.Errorf("parse error, please re-complie the page %s", err.Error())
-		}
-
-		// Save to The Cache
-		c = &core.Cache{
-			Data:          dataText,
-			Global:        globalDataText,
-			HTML:          html,
-			Guard:         guard,
-			GuardRedirect: guardRedirect,
-			Config:        configText,
-			CacheStore:    cacheStore,
-			CacheTime:     time.Duration(cacheTime) * time.Second,
-			DataCacheTime: time.Duration(dateCacheTime) * time.Second,
-		}
-		go core.SetCache(r.File, c)
 		go log.Trace("[SUI] The page %s is cached file=%s", r.Request.URL.Path, r.File)
 	}
 
@@ -247,6 +175,90 @@ func (r *Request) Render() (string, int, error) {
 	}
 
 	return html, 200, nil
+}
+
+// MakeCache is the cache for the page API.
+func (r *Request) MakeCache() (*core.Cache, int, error) {
+
+	// Read the file
+	content, err := application.App.Read(r.File)
+	if err != nil {
+		return nil, 404, err
+	}
+
+	doc, err := core.NewDocument(content)
+	if err != nil {
+		return nil, 500, err
+	}
+
+	guard := ""
+	guardRedirect := ""
+	configText := ""
+	cacheStore := ""
+	cacheTime := 0
+	dateCacheTime := 0
+
+	configSel := doc.Find("script[name=config]")
+	if configSel != nil && configSel.Length() > 0 {
+		configText = configSel.Text()
+		configSel.Remove()
+
+		var conf core.PageConfig
+		err := jsoniter.UnmarshalFromString(configText, &conf)
+		if err != nil {
+			return nil, 500, fmt.Errorf("config error, please re-complie the page %s", err.Error())
+		}
+
+		// Redirect the page (should refector before release)
+		// guard=cookie-jwt:redirect-url redirect to the url if not authorized
+		// guard=cookie-jwt return {code: 403, message: "Not Authorized"}
+		guard = conf.Guard
+		if strings.Contains(conf.Guard, ":") {
+			parts := strings.Split(conf.Guard, ":")
+			guard = parts[0]
+			guardRedirect = parts[1]
+		}
+
+		// Cache store
+		cacheStore = conf.CacheStore
+		cacheTime = conf.Cache
+		dateCacheTime = conf.DataCache
+	}
+
+	dataText := ""
+	dataSel := doc.Find("script[name=data]")
+	if dataSel != nil && dataSel.Length() > 0 {
+		dataText = dataSel.Text()
+		dataSel.Remove()
+	}
+
+	globalDataText := ""
+	globalDataSel := doc.Find("script[name=global]")
+	if globalDataSel != nil && globalDataSel.Length() > 0 {
+		globalDataText = globalDataSel.Text()
+		globalDataSel.Remove()
+	}
+
+	html, err := doc.Html()
+	if err != nil {
+		return nil, 500, fmt.Errorf("parse error, please re-complie the page %s", err.Error())
+	}
+
+	// Save to The Cache
+	cache := &core.Cache{
+		Data:          dataText,
+		Global:        globalDataText,
+		HTML:          html,
+		Guard:         guard,
+		GuardRedirect: guardRedirect,
+		Config:        configText,
+		CacheStore:    cacheStore,
+		CacheTime:     time.Duration(cacheTime) * time.Second,
+		DataCacheTime: time.Duration(dateCacheTime) * time.Second,
+	}
+
+	go core.SetCache(r.File, cache)
+	return cache, 200, nil
 }
 
 // Guard the page
