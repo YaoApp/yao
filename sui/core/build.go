@@ -3,7 +3,6 @@ package core
 import (
 	"bufio"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -19,109 +18,79 @@ var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
 var langFuncRe = regexp.MustCompile(`L\s*\(\s*["'](.*?)["']\s*\)`)
 var langAttrRe = regexp.MustCompile(`'::(.*?)'`)
 
-// Build is the struct for the public
+// Build build the page
 func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
-
 	// Create the context if not exists
 	if ctx == nil {
 		ctx = NewBuildContext(nil)
 	}
 
-	warnings := []string{}
+	ctx.sequence++
 	html, err := page.BuildHTML(option)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		ctx.warnings = append(ctx.warnings, err.Error())
 	}
 
-	// Add Style & Script & Warning
 	doc, err := NewDocumentString(html)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		return nil, ctx.warnings, err
 	}
 
-	// Append the nested html
-	err = page.parse(ctx, doc, option, warnings)
+	err = page.buildComponents(doc, ctx, option)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		return nil, ctx.warnings, err
 	}
 
-	// Add Style
-	style, err := page.BuildStyle(ctx, option)
+	// Scripts
+	namespace := Namespace(page.Name, ctx.sequence)
+	scripts, err := page.BuildScripts(ctx, option, "__page", namespace)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		return nil, ctx.warnings, err
 	}
-	doc.Selection.Find("head").AppendHtml(fmt.Sprintf("\n"+`<style type="text/css">`+"\n%s\n"+`</style>`+"\n%s\n", strings.Join(ctx.styles, "\n"), style))
 
-	// Add Script
-	code, scripts, err := page.BuildScript(ctx, option, option.Namespace)
+	// Styles
+	styles, err := page.BuildStyles(ctx, option, "__page", namespace)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		return nil, ctx.warnings, err
 	}
-	if scripts != nil {
-		for _, script := range scripts {
-			doc.Selection.Find("body").AppendHtml("\n" + `<script src="` + script + `"></script>` + "\n")
-		}
-	}
-	componentScripts := ""
-	if len(ctx.scripts) > 0 {
-		componentScripts = fmt.Sprintf("\n"+`<script type="text/javascript" name="components">`+"\n%s\n"+`</script>`+"\n", strings.Join(ctx.scripts, "\n"))
-	}
-	doc.Selection.Find("body").AppendHtml(fmt.Sprintf("\n%s\n%s\n", componentScripts, code))
-	return doc, warnings, nil
+
+	// Append the scripts and styles
+	ctx.scripts = append(ctx.scripts, scripts...)
+	ctx.styles = append(ctx.styles, styles...)
+
+	return doc, ctx.warnings, err
 }
 
-// BuildForImport build the page for import
-func (page *Page) BuildForImport(ctx *BuildContext, option *BuildOption, slots map[string]interface{}, attrs map[string]string) (string, string, string, []string, error) {
+// BuildAsComponent build the page as component
+func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, option *BuildOption) (string, error) {
+	if page.parent == nil {
+		return "", fmt.Errorf("The parent page is not set")
+	}
 
-	defer func() {
-		if option.ComponentName != "" {
-			ctx.components[option.ComponentName] = true
-		}
-	}()
+	name, exists := sel.Attr("is")
+	if !exists {
+		return "", fmt.Errorf("The component tag must have an is attribute")
+	}
 
-	warnings := []string{}
-	html, err := page.BuildHTML(option)
+	namespace := Namespace(name, ctx.sequence)
+	component := ComponentName(name)
+	attrs := []html.Attribute{
+		{Key: "s:ns", Val: namespace},
+		{Key: "s:cn", Val: component},
+		{Key: "s:ready", Val: component + "()"},
+	}
+
+	ctx.sequence++
+	var opt = *option
+	opt.IgnoreDocument = true
+	html, err := page.BuildHTML(&opt)
 	if err != nil {
-		warnings = append(warnings, err.Error())
+		return "", err
 	}
 
-	data := map[string]interface{}{}
-	if slots != nil {
-		slotvars := map[string]interface{}{}
-		for k, v := range slots {
-			slotvars[k] = v
-		}
-		data["$slot"] = slotvars // Will be deprecated use $slots instead
-		data["$slots"] = slotvars
-	}
-
-	if attrs != nil {
-		data["$prop"] = attrs // Will be deprecated use $props instead
-		data["$props"] = attrs
-		page.Attrs = attrs
-	}
-
-	// Add Style & Script & Warning
 	doc, err := NewDocumentStringWithWrapper(html)
 	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-
-	// Append the nested html
-	err = page.parse(ctx, doc, option, warnings)
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-
-	// Add Style
-	style, err := page.BuildStyle(ctx, option)
-	if err != nil {
-		warnings = append(warnings, err.Error())
-	}
-
-	code, _, err := page.BuildScript(ctx, option, option.Namespace)
-	if err != nil {
-		warnings = append(warnings, err.Error())
+		return "", err
 	}
 
 	body := doc.Selection.Find("body")
@@ -129,176 +98,263 @@ func (page *Page) BuildForImport(ctx *BuildContext, option *BuildOption, slots m
 		body.SetHtml("<div>" + html + "</div>")
 	}
 
-	body.Children().First().SetAttr("s:cn", option.ComponentName)
-	body.Children().First().SetAttr("s:ns", option.Namespace)
-	body.Children().First().SetAttr("s:ready", option.Namespace+"()")
-	html, err = body.Html()
+	// Scripts
+	scripts, err := page.BuildScripts(ctx, &opt, component, namespace)
 	if err != nil {
-		return "", "", "", warnings, err
+		return "", err
 	}
 
-	// Replace the slots
-	html, _ = Data(data).ReplaceUse(slotRe, html)
-	return html, style, code, warnings, nil
+	// Append the scripts
+	ctx.scripts = append(ctx.scripts, scripts...)
+
+	// Pass the component props
+	first := body.Children().First()
+
+	page.copyProps(ctx, sel, first, attrs...)
+	page.buildComponents(doc, ctx, &opt)
+	html, err = body.Html()
+	if err != nil {
+		return "", err
+	}
+
+	// Update the component
+	data := Data{"$props": page.Attrs}
+	html, _ = data.ReplaceUse(slotRe, html)
+	sel.ReplaceWithHtml(html)
+	return html, nil
 }
 
-func (page *Page) parse(ctx *BuildContext, doc *goquery.Document, option *BuildOption, warnings []string) error {
+func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goquery.Selection, extra ...html.Attribute) error {
+	attrs := from.Get(0).Attr
+	prefix := "s:prop"
+	if page.Attrs == nil {
+		page.Attrs = map[string]string{}
+	}
+	for _, attr := range attrs {
+		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" || attr.Key == "parsed" {
+			continue
+		}
 
+		if strings.HasPrefix(attr.Key, "...[{") {
+			data := Data{"$props": page.parent.Attrs}
+
+			val, err := data.Exec(attr.Key[3:])
+			if err != nil {
+				ctx.warnings = append(ctx.warnings, err.Error())
+				continue
+			}
+
+			switch value := val.(type) {
+			case map[string]string:
+				for key, value := range value {
+					page.Attrs[key] = value
+					key = fmt.Sprintf("%s:%s", prefix, key)
+					to.SetAttr(key, value)
+
+				}
+			}
+			continue
+		}
+
+		val := attr.Val
+		if strings.HasPrefix(attr.Key, "...") {
+			val = attr.Key[3:]
+		}
+		page.Attrs[attr.Key] = val
+		key := fmt.Sprintf("%s:%s", prefix, attr.Key)
+		to.SetAttr(key, val)
+	}
+
+	if len(extra) > 0 {
+		for _, attr := range extra {
+			to.SetAttr(attr.Key, attr.Val)
+		}
+	}
+
+	return nil
+}
+
+func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, option *BuildOption) error {
 	sui := SUIs[page.SuiID]
 	if sui == nil {
 		return fmt.Errorf("SUI %s not found", page.SuiID)
 	}
 
+	public := sui.GetPublic()
 	tmpl, err := sui.GetTemplate(page.TemplateID)
 	if err != nil {
 		return err
 	}
 
-	public := sui.GetPublic()
-
-	// Find the import pages
-	pages := doc.Find("*").FilterFunction(func(i int, sel *goquery.Selection) bool {
-
+	doc.Find("*").Each(func(i int, sel *goquery.Selection) {
 		// Get the translation
-		if translations := getNodeTranslation(sel, i, option.Namespace); len(translations) > 0 {
-			page.Translations = append(page.Translations, translations...)
-		}
 
-		name, has := sel.Attr("is")
-		if has {
-			// Check if Just-In-Time Component ( "is" has variable )
-			if ctx.isJitComponent(name) {
-				sel.SetAttr("s:jit", "true")
-				sel.SetAttr("s:root", public.Root)
-				ctx.addJitComponent(name)
-				return false
-			}
-			return true
-		}
-
-		tagName := sel.Get(0).Data
-		if tagName == "page" {
-			return true
-		}
-
-		if tagName == "slot" {
-			return false
-		}
-
-		return has
-	})
-
-	for _, node := range pages.Nodes {
-		sel := goquery.NewDocumentFromNode(node)
 		name, has := sel.Attr("is")
 		if !has {
-			msg := fmt.Sprintf("Page %s/%s/%s: page tag must have an is attribute", page.SuiID, page.TemplateID, page.Route)
-			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", msg))
-			log.Warn(msg)
-			continue
+			return
 		}
 
 		sel.SetAttr("parsed", "true")
+
+		// Check if Just-In-Time Component ( "is" has variable )
+		if ctx.isJitComponent(name) {
+			sel.SetAttr("s:jit", "true")
+			sel.SetAttr("s:root", public.Root)
+			ctx.addJitComponent(name)
+			return
+		}
+
 		ipage, err := tmpl.Page(name)
 		if err != nil {
 			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
 			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
-			continue
+			return
 		}
 
 		err = ipage.Load()
 		if err != nil {
 			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
 			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
-			continue
+			return
 		}
 
-		// Set the parent
-		slots := map[string]interface{}{}
-		for _, slot := range sel.Find("slot").Nodes {
-			slotSel := goquery.NewDocumentFromNode(slot)
-			slotName, has := slotSel.Attr("is")
-			if !has {
-				continue
-			}
-			slotHTML, err := slotSel.Html()
-			if err != nil {
-				continue
-			}
-			slots[slotName] = strings.TrimSpace(slotHTML)
-		}
+		component := ipage.Get()
+		component.parent = page
+		component.BuildAsComponent(sel, ctx, option)
+		return
+	})
 
-		// Set Attrs
-		attrs := map[string]string{}
-		if sel.Length() > 0 {
-			for _, attr := range sel.Nodes[0].Attr {
-				if attr.Key == "is" || attr.Key == "parsed" {
-					continue
-				}
-				val := attr.Val
-				if page.Attrs != nil {
-					parentProps := Data{
-						"$prop":  page.Attrs, // Will be deprecated use $props instead
-						"$props": page.Attrs,
-					}
-					val, _ = parentProps.ReplaceUse(slotRe, val)
-				}
-				attrs[attr.Key] = val
-			}
-		}
+	return err
+}
 
-		p := ipage.Get()
-		namespace := Namespace(name, ctx.sequence+1)
-		componentName := ComponentName(name)
-		html, _, _, warns, err := p.BuildForImport(ctx, &BuildOption{
-			SSR:             option.SSR,
-			AssetRoot:       option.AssetRoot,
-			IgnoreAssetRoot: option.IgnoreAssetRoot,
-			KeepPageTag:     option.KeepPageTag,
-			IgnoreDocument:  true,
-			Namespace:       namespace,
-			ComponentName:   componentName,
-			ScriptMinify:    true,
-			StyleMinify:     true,
-		}, slots, attrs)
-
-		// append translations
-		page.Translations = append(page.Translations, p.Translations...)
-
-		if err != nil {
-			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
-			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
-			continue
-		}
-
-		if warns != nil {
-			warnings = append(warnings, warns...)
-		}
-
-		sel.SetAttr("s:ns", namespace)
-		sel.SetAttr("s:ready", namespace+"()")
-		if option.KeepPageTag {
-			sel.SetHtml(fmt.Sprintf("\n%s\n", addTabToEachLine(html)))
-
-			// Set Slot HTML
-			slotsAttr, err := jsoniter.MarshalToString(slots)
-			if err != nil {
-				warns = append(warns, err.Error())
-				continue
-			}
-
-			sel.SetAttr("s:slots", slotsAttr)
-
-			// Set Attrs
-			for k, v := range attrs {
-				sel.SetAttr(k, v)
-			}
-			continue
-		}
-		sel.ReplaceWithHtml(fmt.Sprintf("\n%s\n", addTabToEachLine(html)))
-		ctx.sequence++
+// BuildStyles build the styles for the page
+func (page *Page) BuildStyles(ctx *BuildContext, option *BuildOption, component string, namespace string) ([]StyleNode, error) {
+	styles := []StyleNode{}
+	if page.Codes.CSS.Code == "" {
+		return styles, nil
 	}
-	return nil
+
+	if _, has := ctx.styleUnique[component]; has {
+		return styles, nil
+	}
+	ctx.styleUnique[component] = true
+
+	code := page.Codes.CSS.Code
+	// Replace the assets
+	if !option.IgnoreAssetRoot {
+		code = AssetsRe.ReplaceAllStringFunc(code, func(match string) string {
+			return strings.ReplaceAll(match, "@assets", option.AssetRoot)
+		})
+	}
+
+	if option.ComponentName != "" {
+		code = cssRe.ReplaceAllStringFunc(code, func(css string) string {
+			return fmt.Sprintf("[s\\:cn=%s] %s", option.ComponentName, css)
+		})
+		res, err := page.CompileCSS([]byte(code), option.StyleMinify)
+		if err != nil {
+			return styles, err
+		}
+		styles = append(styles, StyleNode{
+			Namespace: namespace,
+			Component: component,
+			Source:    string(res),
+			Parent:    "head",
+			Attrs: []html.Attribute{
+				{Key: "rel", Val: "stylesheet"},
+				{Key: "type", Val: "text/css"},
+			},
+		})
+		return styles, nil
+	}
+
+	res, err := page.CompileCSS([]byte(code), option.StyleMinify)
+	if err != nil {
+		return styles, err
+	}
+	styles = append(styles, StyleNode{
+		Namespace: namespace,
+		Component: component,
+		Parent:    "head",
+		Source:    string(res),
+		Attrs: []html.Attribute{
+			{Key: "rel", Val: "stylesheet"},
+			{Key: "type", Val: "text/css"},
+		},
+	})
+
+	return styles, nil
+}
+
+// BuildScripts build the scripts for the page
+func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component string, namespace string) ([]ScriptNode, error) {
+
+	scripts := []ScriptNode{}
+	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
+		return scripts, nil
+	}
+	if _, has := ctx.scriptUnique[component]; has {
+		return scripts, nil
+	}
+
+	ctx.scriptUnique[component] = true
+	var err error = nil
+	var imports []string = nil
+	var source []byte = nil
+	if page.Codes.TS.Code != "" {
+		source, imports, err = page.CompileTS([]byte(page.Codes.TS.Code), option.ScriptMinify)
+		if err != nil {
+			return nil, err
+		}
+
+	} else if page.Codes.JS.Code != "" {
+		source, imports, err = page.CompileJS([]byte(page.Codes.JS.Code), option.ScriptMinify)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	// Add the script
+	if imports != nil {
+		for _, src := range imports {
+			scripts = append(scripts, ScriptNode{
+				Namespace: namespace,
+				Component: component,
+				Parent:    "head",
+				Attrs: []html.Attribute{
+					{Key: "src", Val: fmt.Sprintf("%s/%s", option.AssetRoot, src)},
+					{Key: "type", Val: "text/javascript"},
+				}},
+			)
+		}
+	}
+
+	// Replace the assets
+	if !option.IgnoreAssetRoot && source != nil {
+		source = AssetsRe.ReplaceAllFunc(source, func(match []byte) []byte {
+			return []byte(strings.ReplaceAll(string(match), "@assets", option.AssetRoot))
+		})
+
+		code := string(source)
+		parent := "body"
+		if component != "__page" {
+			parent = "head"
+			code = fmt.Sprintf("function %s(){\n%s\n}\n", component, addTabToEachLine(code))
+		}
+
+		scripts = append(scripts, ScriptNode{
+			Namespace: namespace,
+			Component: component,
+			Source:    code,
+			Parent:    parent,
+			Attrs: []html.Attribute{
+				{Key: "type", Val: "text/javascript"},
+			},
+		})
+	}
+
+	return scripts, nil
 }
 
 // BuildHTML build the html
@@ -327,129 +383,6 @@ func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 	}
 
 	return string(res), nil
-}
-
-// BuildStyle build the style
-func (page *Page) BuildStyle(ctx *BuildContext, option *BuildOption) (string, error) {
-	if page.Codes.CSS.Code == "" {
-		return "", nil
-	}
-
-	code := page.Codes.CSS.Code
-
-	// Replace the assets
-	if !option.IgnoreAssetRoot {
-		code = AssetsRe.ReplaceAllStringFunc(code, func(match string) string {
-			return strings.ReplaceAll(match, "@assets", option.AssetRoot)
-		})
-	}
-
-	if option.ComponentName != "" {
-		code = cssRe.ReplaceAllStringFunc(code, func(css string) string {
-			return fmt.Sprintf("[s\\:cn=%s] %s", option.ComponentName, css)
-		})
-		res, err := page.CompileCSS([]byte(code), option.StyleMinify)
-		if err != nil {
-			return "", err
-		}
-
-		ctx.styles = append(ctx.styles, string(res))
-		return fmt.Sprintf("<style type=\"text/css\">\n%s\n</style>\n", res), nil
-	}
-
-	res, err := page.CompileCSS([]byte(code), option.StyleMinify)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("<style type=\"text/css\">\n%s\n</style>\n", res), nil
-}
-
-// BuildScript build the script
-func (page *Page) BuildScript(ctx *BuildContext, option *BuildOption, namespace string) (string, []string, error) {
-
-	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
-		return "", nil, nil
-	}
-
-	instanceCode := fmt.Sprintf("function %s(){ %s(...arguments);}", option.Namespace, option.ComponentName)
-
-	// if the script is a component and not the first import
-	if option.ComponentName != "" && ctx.components[option.ComponentName] {
-		ctx.scripts = append(ctx.scripts, instanceCode)
-		return fmt.Sprintf("<script type=\"text/javascript\" name=\"%s\">\n%s\n</script>\n", option.ComponentName, instanceCode), []string{}, nil
-	}
-
-	// TypeScript
-	if page.Codes.TS.Code != "" {
-		code, scripts, err := page.CompileTS([]byte(page.Codes.TS.Code), option.ScriptMinify)
-		if err != nil {
-			return "", nil, err
-		}
-
-		// Get the translation
-		if translations := getScriptTranslation(string(code), namespace); len(translations) > 0 {
-			page.Translations = append(page.Translations, translations...)
-		}
-
-		// Replace the assets
-		if !option.IgnoreAssetRoot {
-			code = AssetsRe.ReplaceAllFunc(code, func(match []byte) []byte {
-				return []byte(strings.ReplaceAll(string(match), "@assets", option.AssetRoot))
-			})
-
-			if scripts != nil {
-				for i, script := range scripts {
-					scripts[i] = filepath.Join(option.AssetRoot, script)
-				}
-			}
-		}
-
-		if option.Namespace == "" {
-			if strings.TrimSpace(string(code)) == "" {
-				return "", scripts, nil
-			}
-			return fmt.Sprintf("<script type=\"text/javascript\" name=\"page\">\n%s\n</script>\n", code), scripts, nil
-		}
-
-		componentCode := fmt.Sprintf("function %s(){\n%s\n}\n%s\n", option.ComponentName, addTabToEachLine(string(code)), instanceCode)
-		ctx.scripts = append(ctx.scripts, componentCode)
-		return fmt.Sprintf("<script type=\"text/javascript\" name=\"%s\">%s</script>\n", option.ComponentName, componentCode), scripts, nil
-	}
-
-	// JavaScript
-	code, scripts, err := page.CompileJS([]byte(page.Codes.JS.Code), option.ScriptMinify)
-	if err != nil {
-		return "", nil, err
-	}
-
-	// Get the translation
-	if translations := getScriptTranslation(string(code), namespace); len(translations) > 0 {
-		page.Translations = append(page.Translations, translations...)
-	}
-
-	// Replace the assets
-	if !option.IgnoreAssetRoot {
-		code = AssetsRe.ReplaceAllFunc(code, func(match []byte) []byte {
-			return []byte(strings.ReplaceAll(string(match), "@assets", option.AssetRoot))
-		})
-		if scripts != nil {
-			for i, script := range scripts {
-				scripts[i] = filepath.Join(option.AssetRoot, script)
-			}
-		}
-	}
-
-	if option.Namespace == "" {
-		if strings.TrimSpace(string(code)) == "" {
-			return "", scripts, nil
-		}
-		return fmt.Sprintf("<script type=\"text/javascript\" name=\"page\">\n%s\n</script>\n", code), scripts, nil
-	}
-
-	componentCode := fmt.Sprintf("function %s(){\n%s\n}\n%s\n", option.ComponentName, addTabToEachLine(string(code)), instanceCode)
-	ctx.scripts = append(ctx.scripts, componentCode)
-	return fmt.Sprintf("<script type=\"text/javascript\" name=\"%s\" >%s</script>\n", option.ComponentName, componentCode), scripts, nil
 }
 
 func addTabToEachLine(input string, prefix ...string) string {

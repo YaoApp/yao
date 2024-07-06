@@ -37,7 +37,7 @@ func prepare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = advanced.Build(&core.BuildOption{SSR: true})
+	err = advanced.Build(&core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"})
 	if err != nil {
 		t.Fatal(err)
 	}
