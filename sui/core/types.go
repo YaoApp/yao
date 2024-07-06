@@ -58,6 +58,8 @@ type BuildContext struct {
 	global        *GlobalBuildContext
 	translations  []Translation
 	warnings      []string
+	visited       map[string]int // Keep a counter for each page
+	stack         []string       // Stack to manage build states
 }
 
 // ScriptNode is the struct for the script node
