@@ -271,12 +271,12 @@ func (parser *TemplateParser) parseNode(node *html.Node) {
 
 func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
-	if _, exist := sel.Attr("s:if"); exist {
-		parser.ifStatementNode(sel)
-	}
-
 	if _, exist := sel.Attr("s:for"); exist {
 		parser.forStatementNode(sel)
+	}
+
+	if _, exist := sel.Attr("s:if"); exist {
+		parser.ifStatementNode(sel)
 	}
 
 	if _, exist := sel.Attr("s:set"); exist || sel.Get(0).Data == "s:set" {
@@ -303,6 +303,7 @@ func (parser *TemplateParser) parseJitElementNode(sel *goquery.Selection) {
 		return
 	}
 
+	parser.parsed(sel)
 	// Render the JIT component Data
 	is, _ = parser.data.Replace(is)
 	root := sel.AttrOr("s:root", "/")
@@ -312,23 +313,25 @@ func (parser *TemplateParser) parseJitElementNode(sel *goquery.Selection) {
 	content, err := application.App.Read(file)
 	if err != nil {
 		log.Error("[parser] %s JIT %s", file, err.Error())
+		setError(sel, err)
 		return
 	}
+	sel.ReplaceWith(string(content))
 
 	// With Properties
 
-	// copy options
-	option := *parser.option
-	option.Component = true
-	p := NewTemplateParser(parser.data, &option)
-	html, err := p.Render(string(content))
-	if err != nil {
-		log.Error("[parser] %s JIT %s", file, err.Error())
-		return
-	}
+	// // copy options
+	// option := *parser.option
+	// option.Component = true
+	// p := NewTemplateParser(parser.data, &option)
+	// html, err := p.Render(string(content))
+	// if err != nil {
+	// 	log.Error("[parser] %s JIT %s", file, err.Error())
+	// 	return
+	// }
 
-	// Replace the node
-	sel.ReplaceWithHtml(html)
+	// // Replace the node
+	// sel.ReplaceWithHtml(html)
 }
 
 func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {

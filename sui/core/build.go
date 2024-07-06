@@ -261,8 +261,6 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 			return
 		}
 
-		sel.SetAttr("parsed", "true")
-
 		// Check if Just-In-Time Component ( "is" has variable )
 		if ctx.isJitComponent(name) {
 			sel.SetAttr("s:jit", "true")
@@ -271,6 +269,7 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 			return
 		}
 
+		sel.SetAttr("parsed", "true")
 		ipage, err := tmpl.Page(name)
 		if err != nil {
 			setError(sel, err)
