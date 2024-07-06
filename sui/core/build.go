@@ -63,6 +63,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 
 // BuildAsComponent build the page as component
 func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, option *BuildOption) (string, error) {
+
 	if page.parent == nil {
 		return "", fmt.Errorf("The parent page is not set")
 	}
@@ -111,17 +112,48 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	first := body.Children().First()
 
 	page.copyProps(ctx, sel, first, attrs...)
+	page.copySlots(ctx, sel, first)
 	page.buildComponents(doc, ctx, &opt)
+	data := Data{"$props": page.Attrs}
+	data.ReplaceSelectionUse(slotRe, first)
 	html, err = body.Html()
 	if err != nil {
 		return "", err
 	}
-
-	// Update the component
-	data := Data{"$props": page.Attrs}
-	html, _ = data.ReplaceUse(slotRe, html)
 	sel.ReplaceWithHtml(html)
 	return html, nil
+}
+
+func (page *Page) copySlots(ctx *BuildContext, from *goquery.Selection, to *goquery.Selection) error {
+	slots := from.Find("slot")
+	if slots.Length() == 0 {
+		return nil
+	}
+
+	for i := 0; i < slots.Length(); i++ {
+		slot := slots.Eq(i)
+		name, has := slot.Attr("name")
+		if !has {
+			continue
+		}
+
+		// Get the slot
+		slotSel := to.Find(fmt.Sprintf("slot[name='%s']", name))
+
+		if slotSel.Length() == 0 {
+			continue
+		}
+
+		// Copy the slot
+		html, err := slot.Html()
+		if err != nil {
+			ctx.warnings = append(ctx.warnings, err.Error())
+			continue
+		}
+		slotSel.SetHtml(html)
+	}
+
+	return nil
 }
 
 func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goquery.Selection, extra ...html.Attribute) error {
@@ -135,28 +167,29 @@ func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goqu
 			continue
 		}
 
-		if strings.HasPrefix(attr.Key, "...[{") {
+		if strings.HasPrefix(attr.Key, "...$props") {
 			data := Data{"$props": page.parent.Attrs}
-
-			val, err := data.Exec(attr.Key[3:])
+			val, err := data.Exec(fmt.Sprintf("{{ %s }}", attr.Key[3:]))
 			if err != nil {
 				ctx.warnings = append(ctx.warnings, err.Error())
 				continue
 			}
-
 			switch value := val.(type) {
 			case map[string]string:
 				for key, value := range value {
 					page.Attrs[key] = value
 					key = fmt.Sprintf("%s:%s", prefix, key)
 					to.SetAttr(key, value)
-
 				}
 			}
 			continue
 		}
 
 		val := attr.Val
+		if strings.HasPrefix(attr.Key, `...\$props`) {
+			val = fmt.Sprintf("{{ $props.%s }}", attr.Key[9:])
+		}
+
 		if strings.HasPrefix(attr.Key, "...") {
 			val = attr.Key[3:]
 		}
@@ -191,6 +224,12 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 
 		name, has := sel.Attr("is")
 		if !has {
+			return
+		}
+
+		// Slot tag
+		tagName := sel.Get(0).Data
+		if tagName == "slot" {
 			return
 		}
 
