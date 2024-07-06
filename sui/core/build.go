@@ -25,6 +25,19 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 		ctx = NewBuildContext(nil)
 	}
 
+	// Push the current page onto the stack and increment the visit counter
+	ctx.stack = append(ctx.stack, page.Route)
+	ctx.visited[page.Route]++
+	defer func() {
+		ctx.stack = ctx.stack[:len(ctx.stack)-1] // Pop the stack
+		ctx.visited[page.Route]--
+	}()
+
+	// Check for recursive calls
+	if ctx.visited[page.Route] > 1 {
+		return nil, ctx.warnings, fmt.Errorf("recursive build detected for page %s", page.Route)
+	}
+
 	ctx.sequence++
 	html, err := page.BuildHTML(option)
 	if err != nil {
@@ -66,6 +79,19 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	if page.parent == nil {
 		return "", fmt.Errorf("The parent page is not set")
+	}
+
+	// Push the current page onto the stack and increment the visit counter
+	ctx.stack = append(ctx.stack, page.Route)
+	ctx.visited[page.Route]++
+	defer func() {
+		ctx.stack = ctx.stack[:len(ctx.stack)-1] // Pop the stack
+		ctx.visited[page.Route]--
+	}()
+
+	// Check for recursive calls
+	if ctx.visited[page.Route] > 1 {
+		return "", fmt.Errorf("recursive build detected for page %s", page.Route)
 	}
 
 	name, exists := sel.Attr("is")
@@ -148,6 +174,7 @@ func (page *Page) copySlots(ctx *BuildContext, from *goquery.Selection, to *goqu
 		html, err := slot.Html()
 		if err != nil {
 			ctx.warnings = append(ctx.warnings, err.Error())
+			setError(slotSel, err)
 			continue
 		}
 		slotSel.SetHtml(html)
@@ -172,6 +199,7 @@ func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goqu
 			val, err := data.Exec(fmt.Sprintf("{{ %s }}", attr.Key[3:]))
 			if err != nil {
 				ctx.warnings = append(ctx.warnings, err.Error())
+				setError(to, err)
 				continue
 			}
 			switch value := val.(type) {
@@ -245,21 +273,26 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 
 		ipage, err := tmpl.Page(name)
 		if err != nil {
-			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
+			setError(sel, err)
 			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
 			return
 		}
 
 		err = ipage.Load()
 		if err != nil {
-			sel.ReplaceWith(fmt.Sprintf("<!-- %s -->", err.Error()))
+			setError(sel, err)
 			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
 			return
 		}
 
 		component := ipage.Get()
 		component.parent = page
-		component.BuildAsComponent(sel, ctx, option)
+		_, err = component.BuildAsComponent(sel, ctx, option)
+		if err != nil {
+			setError(sel, err)
+			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
+			return
+		}
 		return
 	})
 
@@ -422,6 +455,11 @@ func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 	}
 
 	return string(res), nil
+}
+
+func setError(sel *goquery.Selection, err error) {
+	html := `<div style="color:red; margin:10px 0px; font-size: 12px; font-family: monospace; padding: 10px; border: 1px solid red; background-color: #f8d7da;">%s</div>`
+	sel.SetHtml(fmt.Sprintf(html, err.Error()))
 }
 
 func addTabToEachLine(input string, prefix ...string) string {

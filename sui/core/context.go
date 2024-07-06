@@ -12,6 +12,8 @@ func NewBuildContext(global *GlobalBuildContext) *BuildContext {
 		jitComponents: map[string]bool{},
 		global:        global,
 		warnings:      []string{},
+		visited:       map[string]int{},
+		stack:         []string{},
 	}
 }
 
