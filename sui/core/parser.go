@@ -481,6 +481,24 @@ func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {
 		parser.data[indexVarName] = idx
 
 		// parser attributes
+		// Copy the if Attr from the parent node
+		if ifAttr, exists := new.Attr("s:if"); exists {
+
+			res, err := parser.data.Exec(ifAttr)
+			if err != nil {
+				parser.errors = append(parser.errors, fmt.Errorf("if statement %v error: %v", parser.sequence, err))
+				setError(new, err)
+				parser.show(new)
+				itemNodes = append(itemNodes, new.Nodes...)
+				continue
+			}
+
+			if res == true {
+				parser.hide(new)
+				continue
+			}
+		}
+
 		parser.parseElementAttrs(new)
 		parser.parsed(new)
 
