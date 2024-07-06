@@ -5,10 +5,13 @@ func NewBuildContext(global *GlobalBuildContext) *BuildContext {
 	return &BuildContext{
 		components:    map[string]bool{},
 		sequence:      1,
-		scripts:       []string{},
-		styles:        []string{},
+		scripts:       []ScriptNode{},
+		scriptUnique:  map[string]bool{},
+		styles:        []StyleNode{},
+		styleUnique:   map[string]bool{},
 		jitComponents: map[string]bool{},
 		global:        global,
+		warnings:      []string{},
 	}
 }
 

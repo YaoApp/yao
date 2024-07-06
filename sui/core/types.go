@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
 
 // DSL the struct for the DSL
@@ -39,7 +40,9 @@ type Page struct {
 	Document     []byte            `json:"-"`
 	GlobalData   []byte            `json:"-"`
 	Attrs        map[string]string `json:"-"`
+	Attributes   []html.Attribute  `json:"-"`
 	Translations []Translation     `json:"-"` // will be deprecated
+	parent       *Page             `json:"-"`
 }
 
 // BuildContext is the struct for the build context
@@ -48,10 +51,31 @@ type BuildContext struct {
 	jitComponents map[string]bool
 	sequence      int
 	doc           *goquery.Document
-	scripts       []string
-	styles        []string
+	scripts       []ScriptNode
+	scriptUnique  map[string]bool
+	styles        []StyleNode
+	styleUnique   map[string]bool
 	global        *GlobalBuildContext
 	translations  []Translation
+	warnings      []string
+}
+
+// ScriptNode is the struct for the script node
+type ScriptNode struct {
+	Source    string           `json:"source"`
+	Attrs     []html.Attribute `json:"attrs"`
+	Parent    string           `json:"parent"`
+	Namespace string           `json:"namespace"`
+	Component string           `json:"component"`
+}
+
+// StyleNode is the struct for the style node
+type StyleNode struct {
+	Source    string           `json:"source"`
+	Attrs     []html.Attribute `json:"attrs"`
+	Parent    string           `json:"parent"`
+	Namespace string           `json:"namespace"`
+	Component string           `json:"component"`
 }
 
 // GlobalBuildContext is the struct for the global build context

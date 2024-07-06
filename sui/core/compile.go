@@ -2,6 +2,7 @@ package core
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/yaoapp/gou/runtime/transform"
@@ -29,12 +30,38 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 		}
 	}
 
+	body := doc.Find("body")
+	head := doc.Find("head")
+
+	// Scripts
+	if ctx != nil && ctx.scripts != nil {
+		for _, script := range ctx.scripts {
+			if script.Parent == "head" {
+				head.AppendHtml(script.HTML() + "\n")
+				continue
+			}
+			body.AppendHtml(script.HTML() + "\n")
+		}
+	}
+
+	// Styles
+	if ctx != nil && ctx.styles != nil {
+		for _, style := range ctx.styles {
+			if style.Parent == "head" {
+				head.AppendHtml(style.HTML() + "\n")
+				continue
+			}
+			body.AppendHtml(style.HTML() + "\n")
+		}
+
+	}
+
 	// Page Config
 	page.Config = page.GetConfig()
 
 	// Config Data
 	if page.Config != nil {
-		doc.Find("body").AppendHtml("\n\n" + `<script name="config" type="json">` + "\n" +
+		body.AppendHtml("\n\n" + `<script name="config" type="json">` + "\n" +
 			page.ExportConfig() +
 			"\n</script>\n\n",
 		)
@@ -42,7 +69,7 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 
 	// Page Data
 	if page.Codes.DATA.Code != "" {
-		doc.Find("body").AppendHtml("\n\n" + `<script name="data" type="json">` + "\n" +
+		body.AppendHtml("\n\n" + `<script name="data" type="json">` + "\n" +
 			page.Codes.DATA.Code +
 			"\n</script>\n\n",
 		)
@@ -50,7 +77,7 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 
 	// Page Global Data
 	if page.GlobalData != nil && len(page.GlobalData) > 0 {
-		doc.Find("body").AppendHtml("\n\n" + `<script name="global" type="json">` + "\n" +
+		body.AppendHtml("\n\n" + `<script name="global" type="json">` + "\n" +
 			string(page.GlobalData) +
 			"\n</script>\n\n",
 		)
@@ -64,6 +91,44 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 
 	// @todo: Minify the html
 	return html, nil
+}
+
+// HTML return the html of the script
+func (script ScriptNode) HTML() string {
+
+	attrs := []string{
+		"s:ns=\"" + script.Namespace + "\"",
+		"s:cn=\"" + script.Component + "\"",
+	}
+	if script.Attrs != nil {
+		for _, attr := range script.Attrs {
+			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
+		}
+	}
+	// Inline Script
+	if script.Source == "" {
+		return "<script " + strings.Join(attrs, " ") + "></script>"
+	}
+	return "<script " + strings.Join(attrs, " ") + ">\n" + script.Source + "\n</script>"
+}
+
+// HTML return the html of the style node
+func (style StyleNode) HTML() string {
+	attrs := []string{
+		"s:ns=\"" + style.Namespace + "\"",
+		"s:cn=\"" + style.Component + "\"",
+	}
+	if style.Attrs != nil {
+		for _, attr := range style.Attrs {
+			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
+		}
+	}
+	// Inline Style
+	if style.Source == "" {
+		return "<link " + strings.Join(attrs, " ") + "></link>"
+	}
+	return "<style " + strings.Join(attrs, " ") + ">\n" + style.Source + "\n</style>"
+
 }
 
 // CompileAsComponent compile the page as component
