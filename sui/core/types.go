@@ -47,7 +47,7 @@ type Page struct {
 
 // BuildContext is the struct for the build context
 type BuildContext struct {
-	components    map[string]bool
+	components    map[string]string
 	jitComponents map[string]bool
 	sequence      int
 	doc           *goquery.Document
