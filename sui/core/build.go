@@ -39,6 +39,10 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 
 	ctx.sequence++
+
+	namespace := Namespace(page.Name, ctx.sequence, option.ScriptMinify)
+	page.namespace = namespace
+
 	html, err := page.BuildHTML(option)
 	if err != nil {
 		ctx.warnings = append(ctx.warnings, err.Error())
@@ -48,6 +52,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	if err != nil {
 		return nil, ctx.warnings, err
 	}
+	doc.Find("body").SetAttr("s:ns", namespace)
 
 	err = page.buildComponents(doc, ctx, option)
 	if err != nil {
@@ -55,7 +60,6 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 
 	// Scripts
-	namespace := Namespace(page.Name, ctx.sequence, option.ScriptMinify)
 	scripts, err := page.BuildScripts(ctx, option, "__page", namespace)
 	if err != nil {
 		return nil, ctx.warnings, err
@@ -101,10 +105,12 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	namespace := Namespace(name, ctx.sequence, option.ScriptMinify)
 	component := ComponentName(name, option.ScriptMinify)
+	page.namespace = namespace
 	attrs := []html.Attribute{
 		{Key: "s:ns", Val: namespace},
 		{Key: "s:cn", Val: component},
 		{Key: "s:ready", Val: component + "()"},
+		{Key: "s:parent", Val: page.parent.namespace},
 	}
 
 	ctx.sequence++
@@ -264,6 +270,7 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 		// Check if Just-In-Time Component ( "is" has variable )
 		if ctx.isJitComponent(name) {
 			sel.SetAttr("s:jit", "true")
+			sel.SetAttr("s:parent", page.namespace)
 			sel.SetAttr("s:root", public.Root)
 			ctx.addJitComponent(name)
 			return

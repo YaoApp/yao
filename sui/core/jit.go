@@ -143,18 +143,47 @@ func (parser *TemplateParser) isComponent(sel *goquery.Selection) bool {
 }
 
 func (parser *TemplateParser) componentProps(sel *goquery.Selection) (map[string]interface{}, error) {
+
+	parentProps := map[string]string{}
 	props := map[string]string{}
-	parentSel := sel.Parent()
-	if parentSel == nil {
-		return map[string]interface{}{}, nil
+	parent := sel.AttrOr("s:parent", "")
+	parentSel := sel.Parents().Find(fmt.Sprintf(`[s\:ns="%s"]`, parent))
+
+	if parentSel != nil && parentSel.Length() > 0 {
+		for _, attr := range parentSel.Nodes[0].Attr {
+
+			if !strings.HasPrefix(attr.Key, "s:prop") {
+				continue
+			}
+			key := strings.TrimPrefix(attr.Key, "s:prop:")
+			parentProps[key] = attr.Val
+		}
 	}
 
-	for _, attr := range parentSel.Nodes[0].Attr {
-		if !strings.HasPrefix(attr.Key, "s:prop") {
+	for _, attr := range sel.Nodes[0].Attr {
+		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" {
 			continue
 		}
-		key := strings.TrimPrefix(attr.Key, "s:prop:")
-		props[key] = attr.Val
+
+		if strings.HasPrefix(attr.Key, "...$props") {
+			data := Data{"$props": parentProps}
+			values, err := data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(attr.Key, "...")))
+			if err != nil {
+				return map[string]interface{}{}, err
+			}
+			if values == nil {
+				continue
+			}
+
+			if _, ok := values.(map[string]string); ok {
+				for key, val := range values.(map[string]string) {
+					props[key] = val
+				}
+			}
+			continue
+		}
+
+		props[attr.Key] = attr.Val
 	}
 
 	return parser.parseComponentProps(props)
@@ -164,7 +193,7 @@ func (parser *TemplateParser) parseComponentProps(props map[string]string) (map[
 	result := map[string]interface{}{}
 	for key, val := range props {
 		if strings.HasPrefix(key, "...") {
-			values, err := parser.data.Exec(fmt.Sprintf("{{ %s }}", val))
+			values, err := parser.data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(key, "...")))
 			if err != nil {
 				return nil, err
 			}
@@ -173,17 +202,24 @@ func (parser *TemplateParser) parseComponentProps(props map[string]string) (map[
 				continue
 			}
 
-			for k, v := range values.(map[string]interface{}) {
-				result[k] = v
+			if _, ok := values.(map[string]interface{}); ok {
+				for k, v := range values.(map[string]interface{}) {
+					result[k] = v
+				}
 			}
-
 			continue
 		}
-		value, err := parser.data.Exec(val)
-		if err != nil {
-			return nil, err
+
+		if strings.HasPrefix(val, "{{") && strings.HasSuffix(val, "}}") {
+			value, err := parser.data.Exec(val)
+			if err != nil {
+				return map[string]interface{}{}, err
+			}
+			result[key] = value
+			continue
 		}
-		result[key] = value
+
+		result[key] = val
 	}
 	return result, nil
 }
