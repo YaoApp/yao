@@ -39,6 +39,7 @@ func init() {
 
 // parseComponent parse the component
 func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
+	parser.parsed(sel)
 	comp, props, slots, err := parser.getComponent(sel)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
