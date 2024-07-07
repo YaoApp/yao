@@ -295,11 +295,6 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.parseJitElementNode(sel)
 	}
 
-	// Slot Node
-	if node.Data == "slot" {
-		parser.slotNode(sel)
-	}
-
 	// Parse the attributes
 	parser.parseElementAttrs(sel)
 
@@ -374,7 +369,7 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 }
 
 // Remove the slot tag and replace it with the children
-func (parser *TemplateParser) slotNode(sel *goquery.Selection) {
+func (parser *TemplateParser) removeSlotWrapper(sel *goquery.Selection) {
 	children := sel.Children()
 	if children.Length() == 0 {
 		sel.Remove()
@@ -705,8 +700,14 @@ func (parser *TemplateParser) tidy(s *goquery.Selection) {
 	s.Contents().Each(func(i int, child *goquery.Selection) {
 
 		node := child.Get(0)
+		if node.Data == "slot" {
+			parser.tidy(child)
+			parser.removeSlotWrapper(child)
+			return
+		}
+
 		if node.Type == html.CommentNode {
-			child = child.Remove()
+			child.Remove()
 			return
 		}
 
