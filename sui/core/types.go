@@ -42,6 +42,7 @@ type Page struct {
 	Attrs        map[string]string `json:"-"`
 	Attributes   []html.Attribute  `json:"-"`
 	Translations []Translation     `json:"-"` // will be deprecated
+	namespace    string            `json:"-"`
 	parent       *Page             `json:"-"`
 }
 
