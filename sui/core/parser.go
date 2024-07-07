@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -279,8 +278,8 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 	}
 
 	// JIT Compile the element
-	if _, exist := sel.Attr("s:jit"); exist {
-		parser.parseJitElementNode(sel)
+	if parser.isComponent(sel) {
+		parser.parseComponent(sel)
 	}
 
 	// Parse the attributes
@@ -288,45 +287,6 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 	// Translations
 	parser.transElementNode(sel)
-}
-
-func (parser *TemplateParser) parseJitElementNode(sel *goquery.Selection) {
-
-	is := sel.AttrOr("is", "")
-	if is == "" {
-		sel.Remove()
-		return
-	}
-
-	parser.parsed(sel)
-	// Render the JIT component Data
-	is, _ = parser.data.Replace(is)
-	root := sel.AttrOr("s:root", "/")
-	file := filepath.Join(string(os.PathSeparator), "public", root, is+".jit")
-
-	// Should be cached to reduce the file read and unnecessary parsing
-	content, err := application.App.Read(file)
-	if err != nil {
-		log.Error("[parser] %s JIT %s", file, err.Error())
-		setError(sel, err)
-		return
-	}
-	sel.ReplaceWith(string(content))
-
-	// With Properties
-
-	// // copy options
-	// option := *parser.option
-	// option.Component = true
-	// p := NewTemplateParser(parser.data, &option)
-	// html, err := p.Render(string(content))
-	// if err != nil {
-	// 	log.Error("[parser] %s JIT %s", file, err.Error())
-	// 	return
-	// }
-
-	// // Replace the node
-	// sel.ReplaceWithHtml(html)
 }
 
 func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
@@ -694,6 +654,11 @@ func (parser *TemplateParser) tidy(s *goquery.Selection) {
 			return
 		}
 
+		if node.Data == "s:set" {
+			child.Remove()
+			return
+		}
+
 		if node.Type == html.CommentNode {
 			child.Remove()
 			return
@@ -746,6 +711,10 @@ func (parser *TemplateParser) hasParsed(sel *goquery.Selection) bool {
 
 func (parser *TemplateParser) debug() bool {
 	return parser.option != nil && parser.option.Debug
+}
+
+func (parser *TemplateParser) disableCache() bool {
+	return (parser.option != nil && parser.option.DisableCache) || parser.debug()
 }
 
 func (parser *TemplateParser) toArray(value interface{}) ([]interface{}, error) {
