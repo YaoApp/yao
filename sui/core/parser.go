@@ -199,10 +199,10 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		delete(parser.replace, sel)
 	}
 
-	// Print the data
-	jsPrintData := ""
-	if parser.option != nil && parser.option.Debug {
-		jsPrintData = "console.log(__sui_data);\n"
+	// Append the head
+	head := doc.Find("head")
+	if head.Length() > 0 {
+		head.AppendHtml(headInjectionScript())
 	}
 
 	// Append the data to the body
@@ -212,19 +212,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		if err != nil {
 			data, _ = jsoniter.MarshalToString(map[string]string{"error": err.Error()})
 		}
-		body.AppendHtml("<script>\n" +
-			"try { " +
-			`var __sui_data = ` + data + ";\n" +
-			"} catch (e) { console.log('init data error:', e); }\n" +
-
-			`document.addEventListener("DOMContentLoaded", function () {` + "\n" +
-			`	try {` + "\n" +
-			`		__sui_data_ready( __sui_data );` + "\n" +
-			`	} catch(e) {}` + "\n" +
-			`});` + "\n" + jsPrintData +
-
-			"</script>\n",
-		)
+		body.AppendHtml(bodyInjectionScript(data, parser.debug()))
 	}
 
 	// For editor
@@ -754,6 +742,10 @@ func (parser *TemplateParser) hasParsed(sel *goquery.Selection) bool {
 		return true
 	}
 	return false
+}
+
+func (parser *TemplateParser) debug() bool {
+	return parser.option != nil && parser.option.Debug
 }
 
 func (parser *TemplateParser) toArray(value interface{}) ([]interface{}, error) {
