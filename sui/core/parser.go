@@ -316,8 +316,8 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 	}
 }
 
-// Remove the slot tag and replace it with the children
-func (parser *TemplateParser) removeSlotWrapper(sel *goquery.Selection) {
+// Remove the tag and replace it with the children
+func (parser *TemplateParser) removeWrapper(sel *goquery.Selection) {
 	children := sel.Children()
 	if children.Length() == 0 {
 		sel.Remove()
@@ -648,9 +648,9 @@ func (parser *TemplateParser) tidy(s *goquery.Selection) {
 	s.Contents().Each(func(i int, child *goquery.Selection) {
 
 		node := child.Get(0)
-		if node.Data == "slot" {
+		if _, exist := child.Attr("s:jit"); node.Data == "slot" || exist {
 			parser.tidy(child)
-			parser.removeSlotWrapper(child)
+			parser.removeWrapper(child)
 			return
 		}
 
