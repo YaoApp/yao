@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -50,17 +51,29 @@ func NewDocumentStringWithWrapper(htmlContent string) (*goquery.Document, error)
 }
 
 // Namespace convert the name to namespace
-func Namespace(name string, idx int) string {
+func Namespace(name string, idx int, hash ...bool) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
+	ns := fmt.Sprintf("__namespace_%s", name)
+	if len(hash) > 0 && hash[0] {
+		h := fnv.New64a()
+		h.Write([]byte(ns))
+		return fmt.Sprintf("ns_%x", h.Sum64())
+	}
 	return fmt.Sprintf("__page_%s_%d", name, idx)
 }
 
 // ComponentName convert the name to component name
-func ComponentName(name string) string {
+func ComponentName(name string, hash ...bool) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
-	return fmt.Sprintf("__component_%s", name)
+	cn := fmt.Sprintf("__component_%s", name)
+	if len(hash) > 0 && hash[0] {
+		h := fnv.New64a()
+		h.Write([]byte(cn))
+		return fmt.Sprintf("cn_%x", h.Sum64())
+	}
+	return cn
 }

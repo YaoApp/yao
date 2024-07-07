@@ -23,8 +23,6 @@ import (
 	"github.com/yaoapp/yao/sui/core"
 )
 
-var data string
-
 var watched sync.Map
 
 // WatchCmd command

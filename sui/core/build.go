@@ -55,7 +55,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 
 	// Scripts
-	namespace := Namespace(page.Name, ctx.sequence)
+	namespace := Namespace(page.Name, ctx.sequence, option.ScriptMinify)
 	scripts, err := page.BuildScripts(ctx, option, "__page", namespace)
 	if err != nil {
 		return nil, ctx.warnings, err
@@ -99,8 +99,8 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 		return "", fmt.Errorf("The component tag must have an is attribute")
 	}
 
-	namespace := Namespace(name, ctx.sequence)
-	component := ComponentName(name)
+	namespace := Namespace(name, ctx.sequence, option.ScriptMinify)
+	component := ComponentName(name, option.ScriptMinify)
 	attrs := []html.Attribute{
 		{Key: "s:ns", Val: namespace},
 		{Key: "s:cn", Val: component},

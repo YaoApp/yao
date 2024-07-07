@@ -38,7 +38,7 @@ type rewriteRule struct {
 func SetupStatic() error {
 	setupAdminRoot()
 	setupRewrite()
-	AppFileServer = http.FileServer(fs.Dir("public"))
+	AppFileServer = gzipHandler(http.FileServer(fs.Dir("public")))
 	return nil
 }
 

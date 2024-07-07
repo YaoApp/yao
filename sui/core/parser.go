@@ -64,6 +64,13 @@ var keepWords = map[string]bool{
 	"s:bind":      true,
 }
 
+var keepAttrs = map[string]bool{
+	"s:ns":    true,
+	"s:cn":    true,
+	"s:ready": true,
+	"s:click": true,
+}
+
 // Locales the locales
 var Locales = map[string]map[string]*Locale{}
 
@@ -229,8 +236,6 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	if parser.option != nil && (parser.option.Request || parser.option.Preview) {
 		// Remove the sui-hide attribute
 		doc.Find("[sui-hide]").Remove()
-
-		// Remove All comments and used nodes
 		parser.tidy(doc.Selection)
 	}
 
@@ -271,6 +276,8 @@ func (parser *TemplateParser) parseNode(node *html.Node) {
 
 func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
+	node := sel.Get(0)
+
 	if _, exist := sel.Attr("s:for"); exist {
 		parser.forStatementNode(sel)
 	}
@@ -279,13 +286,18 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.ifStatementNode(sel)
 	}
 
-	if _, exist := sel.Attr("s:set"); exist || sel.Get(0).Data == "s:set" {
+	if _, exist := sel.Attr("s:set"); exist || node.Data == "s:set" {
 		parser.setStatementNode(sel)
 	}
 
 	// JIT Compile the element
 	if _, exist := sel.Attr("s:jit"); exist {
 		parser.parseJitElementNode(sel)
+	}
+
+	// Slot Node
+	if node.Data == "slot" {
+		parser.slotNode(sel)
 	}
 
 	// Parse the attributes
@@ -361,6 +373,16 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 	}
 }
 
+// Remove the slot tag and replace it with the children
+func (parser *TemplateParser) slotNode(sel *goquery.Selection) {
+	children := sel.Children()
+	if children.Length() == 0 {
+		sel.Remove()
+		return
+	}
+	sel.ReplaceWithSelection(children)
+}
+
 func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 
 	sel.SetAttr("parsed", "true")
@@ -396,6 +418,12 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 
 	attrs := sel.Nodes[0].Attr
 	for _, attr := range attrs {
+
+		// Ignore the s: attributes
+		if strings.HasPrefix(attr.Key, "s:") {
+			continue
+		}
+
 		parser.sequence = parser.sequence + 1
 		res, hasStmt := parser.data.Replace(attr.Val)
 		if hasStmt {
@@ -672,30 +700,33 @@ func (parser *TemplateParser) show(sel *goquery.Selection) {
 	// sel.SetAttr("style", style)
 }
 
-func (parser *TemplateParser) tidy(selection *goquery.Selection) {
-	selection.Contents().Each(func(i int, s *goquery.Selection) {
+func (parser *TemplateParser) tidy(s *goquery.Selection) {
 
-		if s.Nodes[0].Type == html.CommentNode {
-			s.Remove()
+	s.Contents().Each(func(i int, child *goquery.Selection) {
+
+		node := child.Get(0)
+		if node.Type == html.CommentNode {
+			child = child.Remove()
 			return
 		}
 
-		// Remove the s:key-* attributes
-		if s.Nodes[0].Type == html.ElementNode {
-			for _, attr := range s.Nodes[0].Attr {
-				if attr.Key == "parsed" || keepWords[attr.Key] || strings.HasPrefix(attr.Key, "s:key") || strings.HasPrefix(attr.Key, "s:bind") {
-					s.RemoveAttr(attr.Key)
-				}
+		// Remove the parsed attribute
+		attrs := []html.Attribute{}
+		for _, attr := range node.Attr {
+			if strings.HasPrefix(attr.Key, "s:") && !keepAttrs[attr.Key] {
+				continue
 			}
 
-			if s.Nodes[0].Data == "s:set" {
-				s.Remove()
-				return
+			if attr.Key == "parsed" || attr.Key == "is" || strings.HasPrefix(attr.Key, "...") {
+				continue
 			}
+			attrs = append(attrs, attr)
 		}
 
-		parser.tidy(s)
+		node.Attr = attrs
+		parser.tidy(child)
 	})
+
 }
 
 func (parser *TemplateParser) key(prefix string, sel *goquery.Selection) string {
