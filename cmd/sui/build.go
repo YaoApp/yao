@@ -81,13 +81,25 @@ var BuildCmd = &cobra.Command{
 
 		// Timecost
 		start := time.Now()
-		err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot, ExecScripts: true})
+		minify := true
+		mode := "production"
+		if debug {
+			minify = false
+			mode = "development"
+		}
+
+		err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot, ExecScripts: true, ScriptMinify: minify, StyleMinify: minify})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
 			return
 		}
 		end := time.Now()
 		timecost := end.Sub(start).Truncate(time.Millisecond)
-		fmt.Println(color.GreenString("Build success in %s", timecost))
+		if debug {
+			fmt.Println(color.YellowString("Build succeeded for %s in %s", mode, timecost))
+			return
+		}
+
+		fmt.Println(color.GreenString("Build succeeded for %s in %s", mode, timecost))
 	},
 }
