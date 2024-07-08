@@ -37,10 +37,11 @@ func prepare(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = advanced.Build(&core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"})
+	warnings, err := advanced.Build(&core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	assert.Len(t, warnings, 0)
 }
 
 func clean() {

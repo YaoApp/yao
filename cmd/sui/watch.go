@@ -98,10 +98,16 @@ var WatchCmd = &cobra.Command{
 
 				// Timecost
 				start := time.Now()
-				err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot})
+				warnings, err := tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot})
 				if err != nil {
 					fmt.Fprint(os.Stderr, color.RedString(fmt.Sprintf("Failed: %s\n", err.Error())))
 					return
+				}
+
+				if len(warnings) > 0 {
+					for _, warning := range warnings {
+						fmt.Fprintln(os.Stderr, color.YellowString(warning))
+					}
 				}
 				end := time.Now()
 				timecost := end.Sub(start).Truncate(time.Millisecond)

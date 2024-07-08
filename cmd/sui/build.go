@@ -88,7 +88,7 @@ var BuildCmd = &cobra.Command{
 			mode = "development"
 		}
 
-		err = tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot, ExecScripts: true, ScriptMinify: minify, StyleMinify: minify})
+		warnings, err := tmpl.Build(&core.BuildOption{SSR: true, AssetRoot: assetRoot, ExecScripts: true, ScriptMinify: minify, StyleMinify: minify})
 		if err != nil {
 			fmt.Fprintln(os.Stderr, color.RedString(err.Error()))
 			return
@@ -98,6 +98,11 @@ var BuildCmd = &cobra.Command{
 		if debug {
 			fmt.Println(color.YellowString("Build succeeded for %s in %s", mode, timecost))
 			return
+		}
+		if len(warnings) > 0 {
+			for _, warning := range warnings {
+				fmt.Println(color.YellowString("Warning: %s", warning))
+			}
 		}
 
 		fmt.Println(color.GreenString("Build succeeded for %s in %s", mode, timecost))
