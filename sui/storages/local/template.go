@@ -79,6 +79,14 @@ func (tmpl *Template) Reload() error {
 	return nil
 }
 
+// ExecBuildCompleteScripts execute the build complete scripts
+func (tmpl *Template) ExecBuildCompleteScripts() []core.TemplateScirptResult {
+	if tmpl.Scripts == nil || len(tmpl.Scripts.BuildComplete) == 0 {
+		return nil
+	}
+	return tmpl.ExecScripts(tmpl.Scripts.BuildComplete)
+}
+
 // ExecBeforeBuildScripts execute the before build scripts
 func (tmpl *Template) ExecBeforeBuildScripts() []core.TemplateScirptResult {
 	if tmpl.Scripts == nil || len(tmpl.Scripts.BeforeBuild) == 0 {
@@ -97,7 +105,12 @@ func (tmpl *Template) ExecAfterBuildScripts() []core.TemplateScirptResult {
 
 // ExecScripts execute the scripts
 func (tmpl *Template) ExecScripts(scripts []*core.TemplateScript) []core.TemplateScirptResult {
+
 	results := []core.TemplateScirptResult{}
+	if scripts == nil {
+		return results
+	}
+
 	for _, script := range scripts {
 		switch script.Type {
 		case "command":

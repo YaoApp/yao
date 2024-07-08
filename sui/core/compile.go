@@ -1,10 +1,12 @@
 package core
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/evanw/esbuild/pkg/api"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/runtime/transform"
 	"github.com/yaoapp/kun/log"
 )
@@ -93,44 +95,6 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 	return html, nil
 }
 
-// HTML return the html of the script
-func (script ScriptNode) HTML() string {
-
-	attrs := []string{
-		"s:ns=\"" + script.Namespace + "\"",
-		"s:cn=\"" + script.Component + "\"",
-	}
-	if script.Attrs != nil {
-		for _, attr := range script.Attrs {
-			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
-		}
-	}
-	// Inline Script
-	if script.Source == "" {
-		return "<script " + strings.Join(attrs, " ") + "></script>"
-	}
-	return "<script " + strings.Join(attrs, " ") + ">\n" + script.Source + "\n</script>"
-}
-
-// HTML return the html of the style node
-func (style StyleNode) HTML() string {
-	attrs := []string{
-		"s:ns=\"" + style.Namespace + "\"",
-		"s:cn=\"" + style.Component + "\"",
-	}
-	if style.Attrs != nil {
-		for _, attr := range style.Attrs {
-			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
-		}
-	}
-	// Inline Style
-	if style.Source == "" {
-		return "<link " + strings.Join(attrs, " ") + "></link>"
-	}
-	return "<style " + strings.Join(attrs, " ") + ">\n" + style.Source + "\n</style>"
-
-}
-
 // CompileAsComponent compile the page as component
 func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (string, error) {
 
@@ -148,8 +112,34 @@ func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (st
 		}
 	}
 
-	page.ReplaceDocument(doc)
-	return doc.Find("body").Html()
+	body := doc.Find("body")
+	rawScripts, err := jsoniter.MarshalToString(ctx.scripts)
+	if err != nil {
+		return "", err
+	}
+
+	rawStyles, err := jsoniter.MarshalToString(ctx.styles)
+	if err != nil {
+		return "", err
+	}
+
+	rawOption, err := jsoniter.MarshalToString(option)
+	if err != nil {
+		return "", err
+	}
+
+	if body.Children().Length() == 0 {
+		return "", fmt.Errorf("page %s as component should have one root element", page.Route)
+	}
+
+	if body.Children().Length() > 1 {
+		return "", fmt.Errorf("page %s as component should have only one root element", page.Route)
+	}
+
+	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="scripts" type="json">%s</script>`+"\n", rawScripts))
+	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="styles" type="json">%s</script>`+"\n", rawStyles))
+	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="option" type="json">%s</script>`+"\n", rawOption))
+	return body.Html()
 }
 
 // CompileJS compile the javascript
@@ -211,4 +201,63 @@ func (page *Page) CompileCSS(source []byte, minify bool) ([]byte, error) {
 // CompileHTML compile the html
 func (page *Page) CompileHTML(source []byte, minify bool) ([]byte, error) {
 	return source, nil
+}
+
+// HTML return the html of the script
+func (script ScriptNode) HTML() string {
+
+	attrs := []string{
+		"s:ns=\"" + script.Namespace + "\"",
+		"s:cn=\"" + script.Component + "\"",
+	}
+	if script.Attrs != nil {
+		for _, attr := range script.Attrs {
+			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
+		}
+	}
+	// Inline Script
+	if script.Source == "" {
+		return "<script " + strings.Join(attrs, " ") + "></script>"
+	}
+	return "<script " + strings.Join(attrs, " ") + ">\n" + script.Source + "\n</script>"
+}
+
+// ComponentHTML return the html of the script
+func (script ScriptNode) ComponentHTML(ns string) string {
+
+	attrs := []string{
+		"s:ns=\"" + ns + "\"",
+		"s:cn=\"" + script.Component + "\"",
+	}
+	if script.Attrs != nil {
+		for _, attr := range script.Attrs {
+			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
+		}
+	}
+	// Inline Script
+	if script.Source == "" {
+		return "<script " + strings.Join(attrs, " ") + "></script>"
+	}
+
+	source := fmt.Sprintf(`function %s(){%s};`, script.Component, script.Source)
+	return "<script " + strings.Join(attrs, " ") + ">\n" + source + "\n</script>"
+}
+
+// HTML return the html of the style node
+func (style StyleNode) HTML() string {
+	attrs := []string{
+		"s:ns=\"" + style.Namespace + "\"",
+		"s:cn=\"" + style.Component + "\"",
+	}
+	if style.Attrs != nil {
+		for _, attr := range style.Attrs {
+			attrs = append(attrs, attr.Key+"=\""+attr.Val+"\"")
+		}
+	}
+	// Inline Style
+	if style.Source == "" {
+		return "<link " + strings.Join(attrs, " ") + "></link>"
+	}
+	return "<style " + strings.Join(attrs, " ") + ">\n" + style.Source + "\n</style>"
+
 }
