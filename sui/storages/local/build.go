@@ -16,6 +16,11 @@ import (
 // Build the template
 func (tmpl *Template) Build(option *core.BuildOption) error {
 	var err error
+	defer func() {
+		if option.ExecScripts {
+			tmpl.ExecBuildCompleteScripts()
+		}
+	}()
 
 	// Execute the build before hook
 	if option.ExecScripts {

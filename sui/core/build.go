@@ -40,7 +40,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 
 	ctx.sequence++
 
-	namespace := Namespace(page.Name, ctx.sequence, option.ScriptMinify)
+	namespace := Namespace(page.Route, ctx.sequence, option.ScriptMinify)
 	page.namespace = namespace
 
 	html, err := page.BuildHTML(option)
@@ -367,6 +367,11 @@ func (page *Page) BuildStyles(ctx *BuildContext, option *BuildOption, component 
 // BuildScripts build the scripts for the page
 func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component string, namespace string) ([]ScriptNode, error) {
 
+	ispage := component == "__page"
+	if ispage {
+		component = ComponentName(page.Route, option.ScriptMinify)
+	}
+
 	scripts := []ScriptNode{}
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
 		return scripts, nil
@@ -416,7 +421,7 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 
 		code := string(source)
 		parent := "body"
-		if component != "__page" {
+		if !ispage {
 			parent = "head"
 			code = fmt.Sprintf("function %s(){\n%s\n}\n", component, addTabToEachLine(code))
 		}

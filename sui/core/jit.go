@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
 )
 
 // JitComponent component
 type JitComponent struct {
-	html    string
-	scripts []ScriptNode
-	styles  []StyleNode
+	file        string
+	route       string
+	html        string
+	scripts     []ScriptNode
+	styles      []StyleNode
+	buildOption *BuildOption
 }
 
 const (
@@ -32,6 +37,9 @@ type componentData struct {
 // Components loaded JIT components
 var Components = map[string]*JitComponent{}
 var chComp = make(chan *componentData, 1)
+var reScripts = regexp.MustCompile(`<script[^>]*name="scripts"[^>]*>(.*?)</script>`)
+var reStyles = regexp.MustCompile(`<script[^>]*name="styles"[^>]*>(.*?)</script>`)
+var reOption = regexp.MustCompile(`<script[^>]*name="option"[^>]*>(.*?)</script>`)
 
 func init() {
 	go componentWriter()
@@ -47,17 +55,18 @@ func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
 		return
 	}
 
-	html, err := parser.RenderComponent(comp, props, slots)
+	html, _, err := parser.RenderComponent(comp, props, slots)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
 		setError(sel, err)
 		return
 	}
+
 	sel.SetHtml(html)
 }
 
 // RenderComponent render the component
-func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection) (string, error) {
+func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection) (string, string, error) {
 	html := comp.html
 	randvar := fmt.Sprintf("__%s_$props", time.Now().Format("20060102150405"))
 	html = slotRe.ReplaceAllStringFunc(html, func(exp string) string {
@@ -77,7 +86,7 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 
 	sel, err := NewDocumentString(`<body>` + html + `</body>`)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	root := sel.Find("body")
@@ -103,15 +112,65 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 	compParser := NewTemplateParser(data, &option)
 
 	// Parse the node
+	ns := Namespace(comp.route, compParser.sequence, comp.buildOption.ScriptMinify)
+	cn := ComponentName(comp.route, comp.buildOption.ScriptMinify)
 	compParser.parseNode(root.Get(0))
 	for sel, nodes := range compParser.replace {
 		sel.ReplaceWithNodes(nodes...)
 		delete(parser.replace, sel)
 	}
 
+	if comp.scripts != nil {
+		for _, script := range comp.scripts {
+			script.Namespace = ns
+			parser.scripts = append(parser.scripts, script)
+		}
+	}
+
+	if comp.styles != nil {
+		for _, style := range comp.styles {
+			style.Namespace = ns
+			parser.styles = append(parser.styles, style)
+		}
+	}
+
 	// Update sequence
 	parser.sequence = compParser.sequence + parser.sequence
-	return root.Html()
+	first := root.Children().First()
+	first.SetAttr("s:ns", ns)
+	first.SetAttr("s:cn", cn)
+	first.SetAttr("s:ready", cn+"()")
+	html, err = root.Html()
+	if err != nil {
+		return "", "", err
+	}
+	return html, ns, nil
+}
+
+func (parser *TemplateParser) addScripts(sel *goquery.Selection, scripts []ScriptNode) {
+	if scripts == nil {
+		return
+	}
+	for _, script := range scripts {
+		query := fmt.Sprintf(`script[s\:cn="%s"]`, script.Component)
+		if sel.Find(query).Length() > 0 {
+			continue
+		}
+		sel.AppendHtml(script.ComponentHTML(script.Namespace))
+	}
+}
+
+func (parser *TemplateParser) addStyles(sel *goquery.Selection, styles []StyleNode) {
+	if styles == nil {
+		return
+	}
+	for _, style := range styles {
+		query := fmt.Sprintf(`style[s\:cn="%s"]`, style.Component)
+		if sel.Find(query).Length() > 0 {
+			continue
+		}
+		sel.Append(style.HTML())
+	}
 }
 
 func (parser *TemplateParser) getComponent(sel *goquery.Selection) (*JitComponent, map[string]interface{}, *goquery.Selection, error) {
@@ -123,12 +182,12 @@ func (parser *TemplateParser) getComponent(sel *goquery.Selection) (*JitComponen
 		return nil, nil, slots, err
 	}
 
-	file, err := parser.componentFile(sel, props)
+	file, route, err := parser.componentFile(sel, props)
 	if err != nil {
 		return nil, props, slots, err
 	}
 
-	comp, err := getComponent(file, parser.disableCache())
+	comp, err := getComponent(route, file, parser.disableCache())
 	if err != nil {
 		return nil, props, slots, err
 	}
@@ -225,10 +284,10 @@ func (parser *TemplateParser) parseComponentProps(props map[string]string) (map[
 	return result, nil
 }
 
-func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[string]interface{}) (string, error) {
+func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[string]interface{}) (string, string, error) {
 	route := sel.AttrOr("is", "")
 	if route == "" {
-		return "", fmt.Errorf("Component route is required")
+		return "", "", fmt.Errorf("Component route is required")
 	}
 
 	data := Data{"$props": props}
@@ -236,7 +295,7 @@ func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[st
 	route, _ = parser.data.Replace(route)
 	root := sel.AttrOr("s:root", "/")
 	file := filepath.Join(string(os.PathSeparator), "public", root, route+".jit")
-	return file, nil
+	return file, route, nil
 }
 
 func componentWriter() {
@@ -253,7 +312,7 @@ func componentWriter() {
 	}
 }
 
-func getComponent(file string, disableCache ...bool) (*JitComponent, error) {
+func getComponent(route string, file string, disableCache ...bool) (*JitComponent, error) {
 
 	noCache := false
 	if len(disableCache) > 0 && disableCache[0] {
@@ -264,7 +323,7 @@ func getComponent(file string, disableCache ...bool) (*JitComponent, error) {
 		return comp, nil
 	}
 
-	comp, err := readComponent(file)
+	comp, err := readComponent(route, file)
 	if err != nil {
 		return nil, err
 	}
@@ -275,10 +334,63 @@ func getComponent(file string, disableCache ...bool) (*JitComponent, error) {
 }
 
 // readComponent read the JIT component
-func readComponent(file string) (*JitComponent, error) {
+func readComponent(route string, file string) (*JitComponent, error) {
 	content, err := application.App.Read(file)
 	if err != nil {
 		return nil, err
 	}
-	return &JitComponent{html: string(content)}, nil
+
+	// Get the scripts
+	html := string(content)
+	rawScripts := ""
+	rawStyles := ""
+	rawOption := ""
+	html = reScripts.ReplaceAllStringFunc(html, func(exp string) string {
+		rawScripts = reScripts.ReplaceAllString(exp, "$1")
+		return ""
+	})
+
+	html = reStyles.ReplaceAllStringFunc(html, func(exp string) string {
+		rawStyles = reStyles.ReplaceAllString(exp, "$1")
+		return ""
+	})
+
+	html = reOption.ReplaceAllStringFunc(html, func(exp string) string {
+		rawOption = reOption.ReplaceAllString(exp, "$1")
+		return ""
+	})
+
+	scripts := []ScriptNode{}
+	styles := []StyleNode{}
+	buildOption := BuildOption{}
+
+	if rawScripts != "" {
+		err := jsoniter.UnmarshalFromString(rawScripts, &scripts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if rawStyles != "" {
+		err := jsoniter.UnmarshalFromString(rawStyles, &styles)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if rawOption != "" {
+		err := jsoniter.UnmarshalFromString(rawOption, &buildOption)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &JitComponent{
+		file:        file,
+		route:       route,
+		html:        html,
+		scripts:     scripts,
+		styles:      styles,
+		buildOption: &buildOption,
+	}, nil
 }

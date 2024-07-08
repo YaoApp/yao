@@ -26,6 +26,8 @@ type TemplateParser struct {
 	option   *ParserOption                       // parser option
 	locale   *Locale                             // locale
 	context  *ParserContext                      // parser context
+	scripts  []ScriptNode                        // scripts
+	styles   []StyleNode                         // styles
 }
 
 // ParserContext parser context for the template
@@ -171,6 +173,8 @@ func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 		errors:   []error{},
 		replace:  map[*goquery.Selection][]*html.Node{},
 		option:   option,
+		scripts:  []ScriptNode{},
+		styles:   []StyleNode{},
 	}
 }
 
@@ -202,6 +206,8 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	head := doc.Find("head")
 	if head.Length() > 0 {
 		head.AppendHtml(headInjectionScript())
+		parser.addScripts(head, parser.scripts)
+		parser.addStyles(head, parser.styles)
 	}
 
 	// Append the data to the body
