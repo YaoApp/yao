@@ -87,12 +87,15 @@ func TestTemplateBuildAsComponent(t *testing.T) {
 		t.Fatalf("ReadFile error: %v", err)
 	}
 
-	assert.NotContains(t, string(content), "body")
+	assert.NotContains(t, string(content), `<body`)
 	assert.NotContains(t, string(content), `<script name="config" type="json">`)
 	assert.NotContains(t, string(content), `<script name="data" type="json">`)
 	assert.NotContains(t, string(content), `<script name="global" type="json">`)
-	// assert.Contains(t, string(content), "function Init()")
-	// assert.Contains(t, string(content), `type="flowbite-edit-select"`)
+	assert.Contains(t, string(content), `<script name="scripts" type="json">`)
+	assert.Contains(t, string(content), `<script name="styles" type="json">`)
+	assert.Contains(t, string(content), `<script name="option" type="json">`)
+	assert.Contains(t, string(content), "function Init()")
+	assert.Contains(t, string(content), `type="flowbite-edit-select"`)
 }
 
 func TestPageBuild(t *testing.T) {
@@ -181,10 +184,13 @@ func TestPageBuildAsComponent(t *testing.T) {
 		t.Fatalf("ReadFile error: %v", err)
 	}
 
-	assert.NotContains(t, string(content), "body")
+	assert.NotContains(t, string(content), `<body`)
 	assert.NotContains(t, string(content), `<script name="config" type="json">`)
 	assert.NotContains(t, string(content), `<script name="data" type="json">`)
 	assert.NotContains(t, string(content), `<script name="global" type="json">`)
-	// assert.Contains(t, string(content), "function Init()")
-	// assert.Contains(t, string(content), `type="flowbite-edit-select"`)
+	assert.Contains(t, string(content), `<script name="scripts" type="json">`)
+	assert.Contains(t, string(content), `<script name="styles" type="json">`)
+	assert.Contains(t, string(content), `<script name="option" type="json">`)
+	assert.Contains(t, string(content), "function Init()")
+	assert.Contains(t, string(content), `type="flowbite-edit-select"`)
 }
