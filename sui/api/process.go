@@ -963,11 +963,14 @@ func BuildAll(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	err = tmpl.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
+	warnings, err := tmpl.Build(&core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	if warnings != nil && len(warnings) > 0 {
+		return warnings
+	}
 	return nil
 }
 
@@ -1004,9 +1007,12 @@ func BuildPage(process *process.Process) interface{} {
 	}
 
 	data := process.ArgsMap(5, map[string]interface{}{})
-	err = page.Build(nil, &core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
+	warnings, err := page.Build(nil, &core.BuildOption{SSR: ssr, AssetRoot: assetRoot, Data: data})
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
+	}
+	if warnings != nil && len(warnings) > 0 {
+		return warnings
 	}
 
 	return nil

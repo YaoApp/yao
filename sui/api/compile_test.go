@@ -12,11 +12,12 @@ func TestCompile(t *testing.T) {
 	defer clean()
 
 	page := testPage(t)
-	html, err := page.Compile(nil, &core.BuildOption{KeepPageTag: false})
+	html, warnings, err := page.Compile(nil, &core.BuildOption{KeepPageTag: false})
 	if err != nil {
 		t.Fatalf("Compile error: %v", err)
 	}
 	assert.Contains(t, html, `The basic test cases`)
+	assert.Len(t, warnings, 0)
 }
 
 func testPage(t *testing.T) *core.Page {

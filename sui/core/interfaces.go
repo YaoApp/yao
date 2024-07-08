@@ -58,7 +58,7 @@ type ITemplate interface {
 
 	MediaSearch(query url.Values, page int, pageSize int) (MediaSearchResult, error)
 
-	Build(option *BuildOption) error
+	Build(option *BuildOption) ([]string, error)
 	SyncAssets(option *BuildOption) error
 	SyncAssetFile(file string, option *BuildOption) error
 	GetRoot() string
@@ -92,8 +92,8 @@ type IPage interface {
 	AssetScript() (*Asset, error)
 	AssetStyle() (*Asset, error)
 
-	Build(globalCtx *GlobalBuildContext, option *BuildOption) error
-	BuildAsComponent(globalCtx *GlobalBuildContext, option *BuildOption) error
+	Build(globalCtx *GlobalBuildContext, option *BuildOption) ([]string, error)
+	BuildAsComponent(globalCtx *GlobalBuildContext, option *BuildOption) ([]string, error)
 }
 
 // IBlock is the interface for the block

@@ -9,7 +9,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
 )
 
@@ -54,9 +53,12 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 	doc.Find("body").SetAttr("s:ns", namespace)
 
-	err = page.buildComponents(doc, ctx, option)
+	warnings, err := page.buildComponents(doc, ctx, option)
 	if err != nil {
 		return nil, ctx.warnings, err
+	}
+	if warnings != nil && len(warnings) > 0 {
+		ctx.warnings = append(ctx.warnings, warnings...)
 	}
 
 	// Scripts
@@ -127,8 +129,13 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	}
 
 	body := doc.Selection.Find("body")
-	if body.Length() > 1 {
-		body.SetHtml("<div>" + html + "</div>")
+
+	if body.Children().Length() == 0 {
+		return "", fmt.Errorf("page %s as component should have one root element", page.Route)
+	}
+
+	if body.Children().Length() > 1 {
+		return "", fmt.Errorf("page %s as component should have only one root element", page.Route)
 	}
 
 	// Scripts
@@ -241,16 +248,17 @@ func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goqu
 	return nil
 }
 
-func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, option *BuildOption) error {
+func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, option *BuildOption) ([]string, error) {
+	warnings := []string{}
 	sui := SUIs[page.SuiID]
 	if sui == nil {
-		return fmt.Errorf("SUI %s not found", page.SuiID)
+		return warnings, fmt.Errorf("SUI %s not found", page.SuiID)
 	}
 
 	public := sui.GetPublic()
 	tmpl, err := sui.GetTemplate(page.TemplateID)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	doc.Find("*").Each(func(i int, sel *goquery.Selection) {
@@ -279,15 +287,17 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 		sel.SetAttr("parsed", "true")
 		ipage, err := tmpl.Page(name)
 		if err != nil {
+			message := err.Error()
+			warnings = append(warnings, message)
 			setError(sel, err)
-			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
 			return
 		}
 
 		err = ipage.Load()
 		if err != nil {
+			message := err.Error()
+			warnings = append(warnings, message)
 			setError(sel, err)
-			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
 			return
 		}
 
@@ -295,14 +305,14 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 		component.parent = page
 		_, err = component.BuildAsComponent(sel, ctx, option)
 		if err != nil {
+			message := err.Error()
+			warnings = append(warnings, message)
 			setError(sel, err)
-			log.Warn("Page %s/%s/%s: %s", page.SuiID, page.TemplateID, page.Route, err.Error())
 			return
 		}
-		return
 	})
 
-	return err
+	return warnings, nil
 }
 
 // BuildStyles build the styles for the page

@@ -14,8 +14,9 @@ import (
 )
 
 // Build the template
-func (tmpl *Template) Build(option *core.BuildOption) error {
+func (tmpl *Template) Build(option *core.BuildOption) ([]string, error) {
 	var err error
+	warnings := []string{}
 	defer func() {
 		if option.ExecScripts {
 			tmpl.ExecBuildCompleteScripts()
@@ -32,12 +33,12 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 			}
 		}
 		if len(scriptsErrorMessages) > 0 {
-			return fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
+			return warnings, fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
 		}
 
 		err = tmpl.Reload()
 		if err != nil {
-			return err
+			return warnings, err
 		}
 	}
 
@@ -53,14 +54,14 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 
 	// Sync the assets
 	if err = tmpl.SyncAssets(option); err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Build all pages
 	ctx := core.NewGlobalBuildContext()
 	pages, err := tmpl.Pages()
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// loaed pages
@@ -68,20 +69,25 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 	for _, page := range pages {
 		err := page.Load()
 		if err != nil {
-			return err
+			return warnings, err
 		}
 
-		err = page.Build(ctx, option)
+		messages, err := page.Build(ctx, option)
 		if err != nil {
-			return err
+			return warnings, err
 		}
+
+		if len(messages) > 0 {
+			warnings = append(warnings, messages...)
+		}
+
 		tmpl.loaded[page.Get().Route] = page
 	}
 
 	// Build jit components for the global <route> -> <name>.sui.lib
 	jitComponents, err := tmpl.GlobRoutes(ctx.GetJitComponents(), true)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	for _, route := range jitComponents {
@@ -90,14 +96,18 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 			err = multierror.Append(fmt.Errorf("The page %s is not loaded", route))
 			continue
 		}
-		err = page.BuildAsComponent(ctx, option)
+
+		messages, err := page.BuildAsComponent(ctx, option)
 		if err != nil {
 			err = multierror.Append(err)
+		}
+		if len(messages) > 0 {
+			warnings = append(warnings, messages...)
 		}
 	}
 
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Execute the build after hook
@@ -110,11 +120,11 @@ func (tmpl *Template) Build(option *core.BuildOption) error {
 			}
 		}
 		if len(scriptsErrorMessages) > 0 {
-			return fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
+			return warnings, fmt.Errorf("Build scripts error: %s", strings.Join(scriptsErrorMessages, ";\n"))
 		}
 	}
 
-	return err
+	return warnings, err
 }
 
 // SyncAssetFile sync the assets
@@ -171,7 +181,7 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 }
 
 // Build is the struct for the public
-func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOption) error {
+func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOption) ([]string, error) {
 
 	ctx := core.NewBuildContext(globalCtx)
 	if option.AssetRoot == "" {
@@ -183,28 +193,28 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 		option.AssetRoot = filepath.Join(root, "assets")
 	}
 
-	html, err := page.Page.Compile(ctx, option)
+	html, warnings, err := page.Page.Compile(ctx, option)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Save the html
 	err = page.writeHTML([]byte(html), option.Data)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Save the locale files
 	err = page.writeLocaleFiles(option.Data)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Jit Components
 	if globalCtx == nil {
 		jitComponents, err := page.tmpl.GlobRoutes(ctx.GetJitComponents(), true)
 		if err != nil {
-			return err
+			return warnings, err
 		}
 
 		for _, route := range jitComponents {
@@ -218,20 +228,24 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 				}
 			}
 
-			err = p.BuildAsComponent(globalCtx, option)
+			messages, err := p.BuildAsComponent(globalCtx, option)
 			if err != nil {
 				err = multierror.Append(err)
+			}
+			if len(messages) > 0 {
+				warnings = append(warnings, messages...)
 			}
 		}
 	}
 
-	return err
+	return warnings, err
 
 }
 
 // BuildAsComponent build the page as component
-func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *core.BuildOption) error {
+func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *core.BuildOption) ([]string, error) {
 
+	warnings := []string{}
 	ctx := core.NewBuildContext(globalCtx)
 	if option.AssetRoot == "" {
 		root, err := page.tmpl.local.DSL.PublicRoot(option.Data)
@@ -242,28 +256,32 @@ func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *c
 		option.AssetRoot = filepath.Join(root, "assets")
 	}
 
-	html, err := page.Page.CompileAsComponent(ctx, option)
+	html, messages, err := page.Page.CompileAsComponent(ctx, option)
 	if err != nil {
-		return err
+		return warnings, err
+	}
+
+	if len(messages) > 0 {
+		warnings = append(warnings, messages...)
 	}
 
 	// Save the html
 	err = page.writeJitHTML([]byte(html), option.Data)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Save the locale files
 	err = page.writeLocaleFiles(option.Data)
 	if err != nil {
-		return err
+		return warnings, err
 	}
 
 	// Jit Components
 	if globalCtx == nil {
 		jitComponents, err := page.tmpl.GlobRoutes(ctx.GetJitComponents(), true)
 		if err != nil {
-			return err
+			return warnings, err
 		}
 
 		for _, route := range jitComponents {
@@ -277,14 +295,18 @@ func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *c
 				}
 			}
 
-			err = p.BuildAsComponent(globalCtx, option)
+			messages, err := p.BuildAsComponent(globalCtx, option)
 			if err != nil {
 				err = multierror.Append(err)
+			}
+
+			if len(messages) > 0 {
+				warnings = append(warnings, messages...)
 			}
 		}
 	}
 
-	return err
+	return warnings, err
 }
 
 func (page *Page) publicFile(data map[string]interface{}) string {

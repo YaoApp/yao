@@ -19,11 +19,11 @@ var importAssetsRe = regexp.MustCompile(`import\s*\t*\n*\s*['"]@assets\/([^'"]+)
 var AssetsRe = regexp.MustCompile(`[` + quoteRe + `]@assets\/([^` + quoteRe + `]+)[` + quoteRe + `]`) // '@assets/foo.js' or "@assets/foo.js" or `@assets/foo`
 
 // Compile the page
-func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error) {
+func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []string, error) {
 
 	doc, warnings, err := page.Build(ctx, option)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 
 	if warnings != nil && len(warnings) > 0 {
@@ -88,22 +88,22 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, error
 	page.ReplaceDocument(doc)
 	html, err := doc.Html()
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 
 	// @todo: Minify the html
-	return html, nil
+	return html, warnings, nil
 }
 
 // CompileAsComponent compile the page as component
-func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (string, error) {
+func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (string, []string, error) {
 
 	opt := *option
 	opt.IgnoreDocument = true
 	opt.WithWrapper = true
 	doc, warnings, err := page.Build(ctx, &opt)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 
 	if warnings != nil && len(warnings) > 0 {
@@ -115,31 +115,33 @@ func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (st
 	body := doc.Find("body")
 	rawScripts, err := jsoniter.MarshalToString(ctx.scripts)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 
 	rawStyles, err := jsoniter.MarshalToString(ctx.styles)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 
 	rawOption, err := jsoniter.MarshalToString(option)
 	if err != nil {
-		return "", err
+		return "", warnings, err
 	}
 
 	if body.Children().Length() == 0 {
-		return "", fmt.Errorf("page %s as component should have one root element", page.Route)
+		return "", warnings, fmt.Errorf("page %s as component should have one root element", page.Route)
 	}
 
 	if body.Children().Length() > 1 {
-		return "", fmt.Errorf("page %s as component should have only one root element", page.Route)
+		return "", warnings, fmt.Errorf("page %s as component should have only one root element", page.Route)
 	}
 
 	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="scripts" type="json">%s</script>`+"\n", rawScripts))
 	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="styles" type="json">%s</script>`+"\n", rawStyles))
 	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="option" type="json">%s</script>`+"\n", rawOption))
-	return body.Html()
+
+	html, err := body.Html()
+	return html, warnings, err
 }
 
 // CompileJS compile the javascript

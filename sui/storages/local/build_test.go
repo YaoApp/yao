@@ -29,7 +29,7 @@ func TestTemplateBuild(t *testing.T) {
 		t.Fatalf("RemoveAll error: %v", err)
 	}
 
-	err = tmpl.Build(&core.BuildOption{SSR: true, ExecScripts: true})
+	warnings, err := tmpl.Build(&core.BuildOption{SSR: true, ExecScripts: true})
 	if err != nil {
 		t.Fatalf("Components error: %v", err)
 	}
@@ -48,6 +48,7 @@ func TestTemplateBuild(t *testing.T) {
 	assert.Contains(t, string(content), `<script name="config" type="json">`)
 	assert.Contains(t, string(content), `<script name="data" type="json">`)
 	assert.Contains(t, string(content), `<script name="global" type="json">`)
+	assert.Len(t, warnings, 0)
 
 }
 
@@ -70,7 +71,7 @@ func TestTemplateBuildAsComponent(t *testing.T) {
 		t.Fatalf("RemoveAll error: %v", err)
 	}
 
-	err = tmpl.Build(&core.BuildOption{SSR: true})
+	warnings, err := tmpl.Build(&core.BuildOption{SSR: true})
 	if err != nil {
 		t.Fatalf("Components error: %v", err)
 	}
@@ -81,6 +82,7 @@ func TestTemplateBuildAsComponent(t *testing.T) {
 	// Check JIT
 	assert.FileExists(t, filepath.Join(path, cselect))
 	assert.FileExists(t, filepath.Join(path, cinput))
+	assert.Len(t, warnings, 0)
 
 	content, err := os.ReadFile(filepath.Join(path, cselect))
 	if err != nil {
@@ -122,7 +124,7 @@ func TestPageBuild(t *testing.T) {
 		t.Fatalf("Page error: %v", err)
 	}
 
-	err = page.Build(nil, &core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"})
+	warnings, err := page.Build(nil, &core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"})
 	if err != nil {
 		t.Fatalf("Page Build error: %v", err)
 	}
@@ -141,6 +143,7 @@ func TestPageBuild(t *testing.T) {
 	assert.Contains(t, string(content), `<script name="config" type="json">`)
 	assert.Contains(t, string(content), `<script name="data" type="json">`)
 	assert.Contains(t, string(content), `<script name="global" type="json">`)
+	assert.Len(t, warnings, 0)
 }
 
 func TestPageBuildAsComponent(t *testing.T) {
@@ -167,10 +170,11 @@ func TestPageBuildAsComponent(t *testing.T) {
 		t.Fatalf("Page error: %v", err)
 	}
 
-	err = page.Build(nil, &core.BuildOption{SSR: true})
+	warnings, err := page.Build(nil, &core.BuildOption{SSR: true})
 	if err != nil {
 		t.Fatalf("Components error: %v", err)
 	}
+	assert.Len(t, warnings, 0)
 
 	cselect := "/flowbite/components/edit/select.jit"
 	cinput := "/flowbite/components/edit/input.jit"
