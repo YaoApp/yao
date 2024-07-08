@@ -65,6 +65,13 @@ var keepWords = map[string]bool{
 	"s:bind":      true,
 }
 
+var allowUsePropAttrs = map[string]bool{
+	"s:if":    true,
+	"s:elif":  true,
+	"s:for":   true,
+	"s:click": true,
+}
+
 var keepAttrs = map[string]bool{
 	"s:ns":    true,
 	"s:cn":    true,

@@ -135,8 +135,8 @@ func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) bool {
 
 	case html.ElementNode:
 		for i := range node.Attr {
-			// Keepwords
-			if strings.HasPrefix(node.Attr[i].Key, "s:") || node.Attr[i].Key == "is" {
+
+			if (strings.HasPrefix(node.Attr[i].Key, "s:") || node.Attr[i].Key == "is") && !allowUsePropAttrs[node.Attr[i].Key] {
 				continue
 			}
 
