@@ -7,15 +7,11 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/fatih/color"
-	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/net/html"
 )
 
 var slotRe = regexp.MustCompile(`\[\{([^\}]+)\}\]`)
 var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
-var langFuncRe = regexp.MustCompile(`L\s*\(\s*["'](.*?)["']\s*\)`)
-var langAttrRe = regexp.MustCompile(`'::(.*?)'`)
 
 // Build build the page
 func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
@@ -499,105 +495,4 @@ func addTabToEachLine(input string, prefix ...string) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-func getScriptTranslation(code string, namespace string) []Translation {
-	translations := []Translation{}
-	matches := langFuncRe.FindAllStringSubmatch(code, -1)
-	for i, match := range matches {
-		translations = append(translations, Translation{
-			Key:     fmt.Sprintf("%s_script_%d", namespace, i),
-			Message: match[1],
-			Type:    "script",
-		})
-	}
-	return translations
-}
-
-func getNodeTranslation(sel *goquery.Selection, index int, namespace string) []Translation {
-
-	translations := []Translation{}
-	nodeType := sel.Get(0).Type
-	switch nodeType {
-	case html.ElementNode:
-
-		// Get the translation
-		if typ, has := sel.Attr("s:trans"); has {
-			typ = strings.TrimSpace(typ)
-			if typ == "" {
-				typ = "html"
-			}
-
-			key := fmt.Sprintf("%s_index_%d", namespace, index)
-			translations = append(translations, Translation{
-				Key:     key,
-				Message: strings.TrimSpace(sel.Text()),
-				Type:    typ,
-			})
-			sel.SetAttr("s:trans-node", key)
-			sel.RemoveAttr("s:trans")
-		}
-
-		// Attributes
-		keys := map[string][]string{}
-		has := false
-		for i, attr := range sel.Get(0).Attr {
-
-			keys[attr.Key] = []string{}
-
-			// value="::attr"
-			if strings.HasPrefix(attr.Val, "::") {
-				key := fmt.Sprintf("%s_index_attr_%d_%d", namespace, index, i)
-				translations = append(translations, Translation{
-					Key:     fmt.Sprintf("%s_index_attr_%d_%d", namespace, index, i),
-					Message: attr.Val[2:],
-					Name:    attr.Key,
-					Type:    "attr",
-				})
-				keys[attr.Key] = append(keys[attr.Key], key)
-				has = true
-			}
-
-			// value="{{ 'key': '::value' }}"
-			matches := langAttrRe.FindAllStringSubmatch(attr.Val, -1)
-			if len(matches) > 0 {
-				for j, match := range matches {
-					key := fmt.Sprintf("%s_index_attr_%d_%d_%d", namespace, index, i, j)
-					translations = append(translations, Translation{
-						Key:     fmt.Sprintf("%s_index_attr_%d_%d_%d", namespace, index, i, j),
-						Message: match[1],
-						Name:    attr.Key,
-						Type:    "attr",
-					})
-					keys[attr.Key] = append(keys[attr.Key], key)
-					has = true
-				}
-			}
-		}
-
-		if has {
-			raw, err := jsoniter.Marshal(keys)
-			if err != nil {
-				fmt.Println(color.RedString(err.Error()))
-				break
-			}
-			sel.SetAttr("s:trans-attrs", string(raw))
-			sel.RemoveAttr("s:trans")
-		}
-
-	case html.TextNode:
-		if strings.HasPrefix(sel.Text(), "::") {
-			key := fmt.Sprintf("%s_index_%d", namespace, index)
-			translations = append(translations, Translation{
-				Key:     fmt.Sprintf("%s_index_%d", namespace, index),
-				Message: strings.TrimSpace(sel.Text()[2:]),
-				Type:    "text",
-			})
-			sel.SetAttr("s:trans-node", key)
-			sel.RemoveAttr("s:trans")
-		}
-	}
-
-	return translations
-
 }

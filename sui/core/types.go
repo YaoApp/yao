@@ -29,21 +29,20 @@ type Setting struct {
 
 // Page is the struct for the page
 type Page struct {
-	Route        string            `json:"route"`
-	Name         string            `json:"name,omitempty"`
-	CacheStore   string            `json:"-"`
-	TemplateID   string            `json:"-"`
-	SuiID        string            `json:"-"`
-	Config       *PageConfig       `json:"-"`
-	Path         string            `json:"-"`
-	Codes        SourceCodes       `json:"-"`
-	Document     []byte            `json:"-"`
-	GlobalData   []byte            `json:"-"`
-	Attrs        map[string]string `json:"-"`
-	Attributes   []html.Attribute  `json:"-"`
-	Translations []Translation     `json:"-"` // will be deprecated
-	namespace    string            `json:"-"`
-	parent       *Page             `json:"-"`
+	Route      string            `json:"route"`
+	Name       string            `json:"name,omitempty"`
+	CacheStore string            `json:"-"`
+	TemplateID string            `json:"-"`
+	SuiID      string            `json:"-"`
+	Config     *PageConfig       `json:"-"`
+	Path       string            `json:"-"`
+	Codes      SourceCodes       `json:"-"`
+	Document   []byte            `json:"-"`
+	GlobalData []byte            `json:"-"`
+	Attrs      map[string]string `json:"-"`
+	Attributes []html.Attribute  `json:"-"`
+	namespace  string            `json:"-"`
+	parent     *Page             `json:"-"`
 }
 
 // BuildContext is the struct for the build context
