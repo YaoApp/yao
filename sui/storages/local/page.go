@@ -279,12 +279,11 @@ func (tmpl *Template) CreateEmptyPage(route string, setting *core.PageSetting) (
 	page := &Page{
 		tmpl: tmpl,
 		Page: &core.Page{
-			Route:        route,
-			TemplateID:   tmpl.ID,
-			SuiID:        tmpl.local.ID,
-			Path:         filepath.Join(tmpl.Root, route),
-			Name:         name,
-			Translations: []core.Translation{},
+			Route:      route,
+			TemplateID: tmpl.ID,
+			SuiID:      tmpl.local.ID,
+			Path:       filepath.Join(tmpl.Root, route),
+			Name:       name,
 			Codes: core.SourceCodes{
 				HTML: core.Source{File: fmt.Sprintf("%s.html", name)},
 				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
@@ -350,12 +349,11 @@ func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
 	return &Page{
 		tmpl: tmpl,
 		Page: &core.Page{
-			Route:        route,
-			Path:         path,
-			Name:         name,
-			TemplateID:   tmpl.ID,
-			SuiID:        tmpl.local.ID,
-			Translations: []core.Translation{},
+			Route:      route,
+			Path:       path,
+			Name:       name,
+			TemplateID: tmpl.ID,
+			SuiID:      tmpl.local.ID,
 			Codes: core.SourceCodes{
 				HTML: core.Source{File: fmt.Sprintf("%s%s", name, filepath.Ext(file))},
 				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},

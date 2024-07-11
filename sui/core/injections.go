@@ -70,8 +70,8 @@ const initScriptTmpl = `
 `
 
 const i118nScriptTmpl = `
-	function L(key) {
-		return key;
+	function __m(message) {
+		return message;
 	}
 `
 

@@ -5,15 +5,20 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/evanw/esbuild/pkg/api"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/runtime/transform"
 	"github.com/yaoapp/kun/log"
+	"golang.org/x/net/html"
 )
 
 var quoteRe = "'\"`"
 var importRe = regexp.MustCompile(`import\s*\t*\n*[^;]*;`)                              // import { foo, bar } from 'hello'; ...
 var importAssetsRe = regexp.MustCompile(`import\s*\t*\n*\s*['"]@assets\/([^'"]+)['"];`) // import '@assets/foo.js'; or import "@assets/foo.js";
+var transStmtReSingle = regexp.MustCompile(`'::([^:']+)'`)
+var transStmtReDouble = regexp.MustCompile(`"::([^:"]+)"`)
+var transFuncRe = regexp.MustCompile(`__m\s*\(\s*["'](.*?)["']\s*\)`)
 
 // AssetsRe is the regexp for assets
 var AssetsRe = regexp.MustCompile(`[` + quoteRe + `]@assets\/([^` + quoteRe + `]+)[` + quoteRe + `]`) // '@assets/foo.js' or "@assets/foo.js" or `@assets/foo`
@@ -85,6 +90,13 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []str
 		)
 	}
 
+	// Add the translation marks
+	sequence := 0
+	err = page.TranslateMarks(ctx, option, doc, &sequence)
+	if err != nil {
+		return "", warnings, err
+	}
+
 	page.ReplaceDocument(doc)
 	html, err := doc.Html()
 	if err != nil {
@@ -139,6 +151,13 @@ func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (st
 	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="scripts" type="json">%s</script>`+"\n", rawScripts))
 	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="styles" type="json">%s</script>`+"\n", rawStyles))
 	body.Children().First().AppendHtml(fmt.Sprintf(`<script name="option" type="json">%s</script>`+"\n", rawOption))
+
+	// Add the translation marks
+	sequence := 0
+	err = page.TranslateMarks(ctx, option, doc, &sequence)
+	if err != nil {
+		return "", warnings, err
+	}
 
 	html, err := body.Html()
 	return html, warnings, err
@@ -262,4 +281,147 @@ func (style StyleNode) HTML() string {
 	}
 	return "<style " + strings.Join(attrs, " ") + ">\n" + style.Source + "\n</style>"
 
+}
+
+// TranslateMarks add the translation marks to the document
+func (page *Page) TranslateMarks(ctx *BuildContext, option *BuildOption, doc *goquery.Document, sequence *int) error {
+
+	if doc.Length() == 0 {
+		return nil
+	}
+
+	if ctx.translations == nil {
+		ctx.translations = []Translation{}
+	}
+
+	root := doc.First()
+	translations, err := page.translateNode(root.Nodes[0], sequence)
+	if err != nil {
+		return err
+	}
+
+	if translations != nil {
+		ctx.translations = append(ctx.translations, translations...)
+	}
+	return nil
+}
+
+func (page *Page) translateNode(node *html.Node, sequence *int) ([]Translation, error) {
+
+	translations := []Translation{}
+	*sequence = *sequence + 1
+
+	switch node.Type {
+	case html.DocumentNode:
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			trans, err := page.translateNode(child, sequence)
+			if err != nil {
+				return nil, err
+			}
+			translations = append(translations, trans...)
+		}
+		break
+
+	case html.ElementNode:
+
+		// Script
+		if node.Data == "script" {
+			code := goquery.NewDocumentFromNode(node).Text()
+			if code != "" {
+				translations := []Translation{}
+				matches := transFuncRe.FindAllStringSubmatch(code, -1)
+				for _, match := range matches {
+					key := Namespace(page.Route, *sequence)
+					translations = append(translations, Translation{
+						Key:     key,
+						Message: match[1],
+						Type:    "script",
+					})
+					*sequence = *sequence + 1
+				}
+			}
+			break
+		}
+
+		sel := goquery.NewDocumentFromNode(node)
+		for _, attr := range node.Attr {
+
+			trans, keys, err := page.translateText(attr.Val, sequence, "attr")
+			if err != nil {
+				return nil, err
+			}
+			if len(keys) > 0 {
+				raw := strings.Join(keys, ",")
+				sel.SetAttr("s:trans-attr-"+attr.Key, raw)
+				translations = append(translations, trans...)
+			}
+
+		}
+
+		// Node Attributes
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			trans, err := page.translateNode(child, sequence)
+			if err != nil {
+				return nil, err
+			}
+			translations = append(translations, trans...)
+		}
+		break
+
+	case html.TextNode:
+		parentSel := goquery.NewDocumentFromNode(node.Parent)
+		if _, has := parentSel.Attr("s:trans"); has {
+			key := Namespace(page.Route, *sequence)
+			message := strings.TrimSpace(node.Data)
+			if message != "" {
+				translations = append(translations, Translation{
+					Key:     key,
+					Message: message,
+					Type:    "text",
+				})
+				parentSel.SetAttr("s:trans-node", key)
+				*sequence = *sequence + 1
+			}
+			parentSel.RemoveAttr("s:trans")
+		}
+
+		trans, keys, err := page.translateText(node.Data, sequence, "text")
+		if err != nil {
+			return nil, err
+		}
+		if len(keys) > 0 {
+			raw := strings.Join(keys, ",")
+			parentSel.SetAttr("s:trans-text", raw)
+			parentSel.RemoveAttr("s:trans")
+			translations = append(translations, trans...)
+		}
+		break
+	}
+
+	return translations, nil
+}
+
+func (page *Page) translateText(text string, sequence *int, typ string) ([]Translation, []string, error) {
+	translations := []Translation{}
+	matches := stmtRe.FindAllStringSubmatch(text, -1)
+	keys := []string{}
+	for _, match := range matches {
+		text := strings.TrimSpace(match[1])
+		transMatches := transStmtReSingle.FindAllStringSubmatch(text, -1)
+		if len(transMatches) == 0 {
+			transMatches = transStmtReDouble.FindAllStringSubmatch(text, -1)
+		}
+		for _, transMatch := range transMatches {
+			message := strings.TrimSpace(transMatch[1])
+			key := Namespace(page.Route, *sequence)
+			keys = append(keys, key)
+			translations = append(translations, Translation{
+				Key:     key,
+				Message: message,
+				Type:    typ,
+			})
+			*sequence = *sequence + 1
+		}
+	}
+	return translations, keys, nil
 }

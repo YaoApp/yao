@@ -36,6 +36,14 @@ func (ctx *BuildContext) GetJitComponents() []string {
 	return jitComponents
 }
 
+// GetTranslations get the translations
+func (ctx *BuildContext) GetTranslations() []Translation {
+	if ctx.translations == nil {
+		return []Translation{}
+	}
+	return ctx.translations
+}
+
 // GetJitComponents get the just in time components
 func (globalCtx *GlobalBuildContext) GetJitComponents() []string {
 	if globalCtx.jitComponents == nil {

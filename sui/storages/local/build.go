@@ -205,7 +205,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 
 	// Save the locale files
-	err = page.writeLocaleFiles(option.Data)
+	err = page.writeLocaleFiles(ctx, option.Data)
 	if err != nil {
 		return warnings, err
 	}
@@ -272,7 +272,7 @@ func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *c
 	}
 
 	// Save the locale files
-	err = page.writeLocaleFiles(option.Data)
+	err = page.writeLocaleFiles(ctx, option.Data)
 	if err != nil {
 		return warnings, err
 	}
@@ -415,10 +415,14 @@ func (page *Page) locale(name string) core.Locale {
 	return locale
 }
 
-func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
+func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]interface{}) error {
 
-	//  No translations
-	if len(page.Page.Translations) == 0 {
+	if ctx == nil {
+		return nil
+	}
+
+	translations := ctx.GetTranslations()
+	if len(translations) == 0 {
 		return nil
 	}
 
@@ -428,7 +432,7 @@ func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
 		// Init Data
 		keys := map[string]string{}
 		messages := map[string]string{}
-		for _, t := range page.Page.Translations {
+		for _, t := range translations {
 			keys[t.Key] = t.Message
 			messages[t.Message] = t.Message
 		}
