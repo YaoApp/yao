@@ -49,7 +49,13 @@ func (tmpl *Template) GlobRoutes(patterns []string, unique ...bool) ([]string, e
 		if err != nil {
 			return nil, err
 		}
-		routes = append(routes, paths...)
+
+		for _, path := range paths {
+			if !tmpl.local.fs.IsDir(filepath.Join(tmpl.Root, path)) {
+				continue
+			}
+			routes = append(routes, path)
+		}
 	}
 
 	// Unique

@@ -7,6 +7,16 @@ const initScriptTmpl = `
 		var __sui_data = %s;
 	} catch (e) { console.log('init data error:', e); }
 
+	function __sui_findParentWithAttribute(element, attributeName) {
+		while (element && element !== document) {
+			if (element.hasAttribute(attributeName)) {
+				return element.getAttribute(attributeName);
+			}
+			element = element.parentElement;
+		}
+		return null;
+	}
+
 	document.addEventListener("DOMContentLoaded", function () {
 		try {
 			document.querySelectorAll("[s\\:ready]").forEach(function (element) {
@@ -20,6 +30,39 @@ const initScriptTmpl = `
 						console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
 					}
 				}
+			});
+
+			document.querySelectorAll("[s\\:click]").forEach(function (element) {
+				const method = element.getAttribute("s:click");
+				const cn = __sui_findParentWithAttribute(element, "s:cn");
+				if (method && cn && typeof window[cn] === "function") {
+					const obj = new window[cn]();
+					if (typeof obj[method] === "function") {
+						element.addEventListener("click", function (event) {
+							try {
+								obj[method](element, event);
+							} catch (e) {
+								const message = e.message || e || "An error occurred";
+								console.error(` + "`[SUI] ${cn}.${method} Error: ${message}`" + `);
+							}
+						});
+						return
+					}
+					console.error(` + "`[SUI] ${cn}.${method} Error: Method not found`" + `);
+					return
+				}
+
+				if (method && typeof window[method] === "function") {
+					element.addEventListener("click", function (event) {
+						try {
+							window[method](element, event);
+						} catch (e) {
+							const message = e.message || e || "An error occurred";
+							console.error(` + "`[SUI] ${method} Error: ${message}`" + `);
+						}
+					});
+				}
+
 			});
 		} catch (e) {}
 	});
