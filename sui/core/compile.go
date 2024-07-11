@@ -290,6 +290,10 @@ func (page *Page) TranslateMarks(ctx *BuildContext, option *BuildOption, doc *go
 		return nil
 	}
 
+	if ctx == nil {
+		ctx = NewBuildContext(nil)
+	}
+
 	if ctx.translations == nil {
 		ctx.translations = []Translation{}
 	}
