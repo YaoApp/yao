@@ -3,7 +3,7 @@ package core
 // NewBuildContext create a new build context
 func NewBuildContext(global *GlobalBuildContext) *BuildContext {
 	return &BuildContext{
-		components:    map[string]string{},
+		components:    map[string]bool{},
 		sequence:      1,
 		scripts:       []ScriptNode{},
 		scriptUnique:  map[string]bool{},
