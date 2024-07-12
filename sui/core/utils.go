@@ -55,13 +55,13 @@ func Namespace(name string, idx int, hash ...bool) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
-	ns := fmt.Sprintf("__namespace_%s", name)
+	ns := fmt.Sprintf("page_%s_%d", name, idx)
 	if len(hash) > 0 && hash[0] {
 		h := fnv.New64a()
 		h.Write([]byte(ns))
 		return fmt.Sprintf("ns_%x", h.Sum64())
 	}
-	return fmt.Sprintf("__page_%s_%d", name, idx)
+	return ns
 }
 
 // ComponentName convert the name to component name
@@ -69,11 +69,19 @@ func ComponentName(name string, hash ...bool) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
-	cn := fmt.Sprintf("__component_%s", name)
+	cn := fmt.Sprintf("comp_%s", name)
 	if len(hash) > 0 && hash[0] {
 		h := fnv.New64a()
 		h.Write([]byte(cn))
 		return fmt.Sprintf("cn_%x", h.Sum64())
 	}
 	return cn
+}
+
+// TranslationKey convert the name to translation key
+func TranslationKey(name string, sequence int) string {
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "[", "_")
+	name = strings.ReplaceAll(name, "]", "_")
+	return fmt.Sprintf("trans_%s_%d", name, sequence)
 }

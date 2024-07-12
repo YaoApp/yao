@@ -12,6 +12,9 @@ import (
 
 var slotRe = regexp.MustCompile(`\[\{([^\}]+)\}\]`)
 var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
+var transStmtReSingle = regexp.MustCompile(`'::([^:']+)'`)
+var transStmtReDouble = regexp.MustCompile(`"::([^:"]+)"`)
+var transFuncRe = regexp.MustCompile(`__m\s*\(\s*["'](.*?)["']\s*\)`)
 
 // Build build the page
 func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
@@ -73,6 +76,27 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	ctx.scripts = append(ctx.scripts, scripts...)
 	ctx.styles = append(ctx.styles, styles...)
 
+	// Add the translation marks
+	sequence := 0
+	err = page.TranslateMarks(ctx, doc, &sequence)
+	if err != nil {
+		return nil, warnings, err
+	}
+
+	// Translate the scripts
+	if (scripts != nil) && len(scripts) > 0 {
+		for _, script := range scripts {
+			if script.Source == "" {
+				continue
+			}
+			trans, _, err := page.translateScript(script.Source, &sequence)
+			if err != nil {
+				return nil, ctx.warnings, err
+			}
+			ctx.translations = append(ctx.translations, trans...)
+		}
+	}
+
 	return doc, ctx.warnings, err
 }
 
@@ -81,6 +105,10 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	if page.parent == nil {
 		return "", fmt.Errorf("The parent page is not set")
+	}
+
+	if ctx == nil {
+		ctx = NewBuildContext(nil)
 	}
 
 	// Push the current page onto the stack and increment the visit counter
@@ -151,11 +179,34 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	page.buildComponents(doc, ctx, &opt)
 	data := Data{"$props": page.Attrs}
 	data.ReplaceSelectionUse(slotRe, first)
+
+	// Add the translation marks
+	sequence := 0
+	err = page.TranslateMarks(ctx, doc, &sequence)
+	if err != nil {
+		return "", err
+	}
+
+	// Translate the scripts
+	if (scripts != nil) && len(scripts) > 0 {
+		for _, script := range scripts {
+			if script.Source == "" {
+				continue
+			}
+			trans, _, err := page.translateScript(script.Source, &sequence)
+			if err != nil {
+				return "", err
+			}
+			ctx.translations = append(ctx.translations, trans...)
+		}
+	}
+
 	html, err = body.Html()
 	if err != nil {
 		return "", err
 	}
 	sel.ReplaceWithHtml(html)
+	ctx.components[page.Route] = true
 	return html, nil
 }
 
@@ -495,4 +546,163 @@ func addTabToEachLine(input string, prefix ...string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// TranslateMarks add the translation marks to the document
+func (page *Page) TranslateMarks(ctx *BuildContext, doc *goquery.Document, sequence *int) error {
+
+	if doc.Length() == 0 {
+		return nil
+	}
+
+	if ctx == nil {
+		ctx = NewBuildContext(nil)
+	}
+
+	if ctx.translations == nil {
+		ctx.translations = []Translation{}
+	}
+
+	root := doc.First()
+	translations, err := page.translateNode(root.Nodes[0], sequence)
+	if err != nil {
+		return err
+	}
+
+	if translations != nil {
+		ctx.translations = append(ctx.translations, translations...)
+	}
+	return nil
+}
+
+func (page *Page) translateNode(node *html.Node, sequence *int) ([]Translation, error) {
+
+	translations := []Translation{}
+	*sequence = *sequence + 1
+
+	switch node.Type {
+	case html.DocumentNode:
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			trans, err := page.translateNode(child, sequence)
+			if err != nil {
+				return nil, err
+			}
+			translations = append(translations, trans...)
+		}
+		break
+
+	case html.ElementNode:
+
+		// Script
+		if node.Data == "script" {
+			code := goquery.NewDocumentFromNode(node).Text()
+			trans, _, err := page.translateScript(code, sequence)
+			if err != nil {
+				return nil, err
+			}
+			translations = append(translations, trans...)
+			break
+		}
+
+		sel := goquery.NewDocumentFromNode(node)
+		for _, attr := range node.Attr {
+
+			trans, keys, err := page.translateText(attr.Val, sequence, "attr")
+			if err != nil {
+				return nil, err
+			}
+			if len(keys) > 0 {
+				raw := strings.Join(keys, ",")
+				sel.SetAttr("s:trans-attr-"+attr.Key, raw)
+				translations = append(translations, trans...)
+			}
+
+		}
+
+		// Node Attributes
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			trans, err := page.translateNode(child, sequence)
+			if err != nil {
+				return nil, err
+			}
+			translations = append(translations, trans...)
+		}
+		break
+
+	case html.TextNode:
+		parentSel := goquery.NewDocumentFromNode(node.Parent)
+		if _, has := parentSel.Attr("s:trans"); has {
+			key := TranslationKey(page.Route, *sequence)
+			message := strings.TrimSpace(node.Data)
+			if message != "" {
+				translations = append(translations, Translation{
+					Key:     key,
+					Message: message,
+					Type:    "text",
+				})
+				parentSel.SetAttr("s:trans-node", key)
+				*sequence = *sequence + 1
+			}
+			parentSel.RemoveAttr("s:trans")
+		}
+
+		trans, keys, err := page.translateText(node.Data, sequence, "text")
+		if err != nil {
+			return nil, err
+		}
+		if len(keys) > 0 {
+			raw := strings.Join(keys, ",")
+			parentSel.SetAttr("s:trans-text", raw)
+			parentSel.RemoveAttr("s:trans")
+			translations = append(translations, trans...)
+		}
+		break
+	}
+
+	return translations, nil
+}
+
+func (page *Page) translateText(text string, sequence *int, transType string) ([]Translation, []string, error) {
+	translations := []Translation{}
+	matches := stmtRe.FindAllStringSubmatch(text, -1)
+	keys := []string{}
+	for _, match := range matches {
+		text := strings.TrimSpace(match[1])
+		transMatches := transStmtReSingle.FindAllStringSubmatch(text, -1)
+		if len(transMatches) == 0 {
+			transMatches = transStmtReDouble.FindAllStringSubmatch(text, -1)
+		}
+		for _, transMatch := range transMatches {
+			message := strings.TrimSpace(transMatch[1])
+			key := TranslationKey(page.Route, *sequence)
+			keys = append(keys, key)
+			translations = append(translations, Translation{
+				Key:     key,
+				Message: message,
+				Type:    transType,
+			})
+			*sequence = *sequence + 1
+		}
+	}
+	return translations, keys, nil
+}
+
+func (page *Page) translateScript(code string, sequence *int) ([]Translation, []string, error) {
+
+	translations := []Translation{}
+	keys := []string{}
+	if code == "" {
+		return translations, keys, nil
+	}
+	matches := transFuncRe.FindAllStringSubmatch(code, -1)
+	for _, match := range matches {
+		key := TranslationKey(page.Route, *sequence)
+		translations = append(translations, Translation{
+			Key:     key,
+			Message: match[1],
+			Type:    "script",
+		})
+		*sequence = *sequence + 1
+	}
+	return translations, keys, nil
 }
