@@ -73,7 +73,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 
 	// Add the translation marks
-	sequence := 0
+	sequence := 1
 	err = page.TranslateMarks(ctx, doc, &sequence)
 	if err != nil {
 		return nil, warnings, err
@@ -186,7 +186,7 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	data.ReplaceSelectionUse(slotRe, first)
 
 	// Add the translation marks
-	sequence := 0
+	sequence := 1
 	err = page.TranslateMarks(ctx, doc, &sequence)
 	if err != nil {
 		return "", err
@@ -590,7 +590,6 @@ func (page *Page) TranslateMarks(ctx *BuildContext, doc *goquery.Document, seque
 func (page *Page) translateNode(node *html.Node, sequence *int) ([]Translation, error) {
 
 	translations := []Translation{}
-	*sequence = *sequence + 1
 
 	switch node.Type {
 	case html.DocumentNode:
