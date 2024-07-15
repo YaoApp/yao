@@ -59,7 +59,7 @@ func TestGetTemplates(t *testing.T) {
 	assert.Len(t, webTmpls[0].Themes(), 2)
 	assert.Len(t, webTmpls[0].Locales(), 4)
 	assert.Len(t, webTmpls[0].(*Template).Template.Themes, 2)
-	assert.Len(t, webTmpls[0].(*Template).Template.Locales, 2)
+	assert.Len(t, webTmpls[0].(*Template).Template.Locales, 4)
 }
 
 func TestGetTemplate(t *testing.T) {

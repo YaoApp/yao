@@ -270,6 +270,7 @@ type BuildOption struct {
 	ScriptMinify    bool                   `json:"scriptminify,omitempty"`
 	StyleMinify     bool                   `json:"styleminify,omitempty"`
 	ExecScripts     bool                   `json:"exec_scripts,omitempty"`
+	Locales         []string               `json:"locales,omitempty"`
 }
 
 // Request is the struct for the request

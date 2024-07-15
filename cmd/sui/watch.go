@@ -32,7 +32,7 @@ var WatchCmd = &cobra.Command{
 	Long:  L("Auto-build when the template file changes"),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, color.RedString(L("yao cui watch <sui> <template> [data]")))
+			fmt.Fprintln(os.Stderr, color.RedString(L("yao sui watch <sui> <template> [data]")))
 			return
 		}
 

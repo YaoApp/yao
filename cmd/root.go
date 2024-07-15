@@ -137,6 +137,7 @@ func init() {
 	// Sui
 	suiCmd.AddCommand(sui.WatchCmd)
 	suiCmd.AddCommand(sui.BuildCmd)
+	suiCmd.AddCommand(sui.TransCmd)
 
 	rootCmd.AddCommand(
 		versionCmd,
