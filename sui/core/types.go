@@ -36,6 +36,7 @@ type Page struct {
 	SuiID      string            `json:"-"`
 	Config     *PageConfig       `json:"-"`
 	Path       string            `json:"-"`
+	Root       string            `json:"-"`
 	Codes      SourceCodes       `json:"-"`
 	Document   []byte            `json:"-"`
 	GlobalData []byte            `json:"-"`
@@ -259,6 +260,7 @@ type BuildOption struct {
 	SSR             bool                   `json:"ssr"`
 	CDN             bool                   `json:"cdn"`
 	UpdateAll       bool                   `json:"update_all"`
+	PublicRoot      string                 `json:"public_root,omitempty"`
 	AssetRoot       string                 `json:"asset_root,omitempty"`
 	IgnoreAssetRoot bool                   `json:"ignore_asset_root,omitempty"`
 	IgnoreDocument  bool                   `json:"ignore_document,omitempty"`
@@ -373,6 +375,7 @@ type PageSetting struct {
 	Guard       string   `json:"guard,omitempty"`
 	CacheStore  string   `json:"cache_store,omitempty"`
 	Cache       int      `json:"cache,omitempty"`
+	Root        string   `json:"root,omitempty"`
 	DataCache   int      `json:"data_cache,omitempty"`
 	Description string   `json:"description,omitempty"`
 	SEO         *PageSEO `json:"seo,omitempty"`
