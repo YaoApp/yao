@@ -65,6 +65,8 @@ type ITemplate interface {
 
 	ExecBeforeBuildScripts() []TemplateScirptResult
 	ExecAfterBuildScripts() []TemplateScirptResult
+
+	Trans(option *BuildOption) ([]string, error)
 }
 
 // IPage is the interface for the page
@@ -94,6 +96,8 @@ type IPage interface {
 
 	Build(globalCtx *GlobalBuildContext, option *BuildOption) ([]string, error)
 	BuildAsComponent(globalCtx *GlobalBuildContext, option *BuildOption) ([]string, error)
+
+	Trans(globalCtx *GlobalBuildContext, option *BuildOption) ([]string, error)
 }
 
 // IBlock is the interface for the block
