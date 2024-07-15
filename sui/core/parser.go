@@ -130,7 +130,7 @@ func (parser *TemplateParser) Locale() *Locale {
 	}
 
 	root := parser.option.Root
-	route := strings.TrimPrefix(parser.option.Route, root)
+	route := parser.option.Route
 	disableCache := parser.option.Preview || parser.option.Debug || parser.option.Editor || parser.option.DisableCache
 	locales, ok = Locales[name]
 	if !ok {
@@ -142,7 +142,7 @@ func (parser *TemplateParser) Locale() *Locale {
 		return locale
 	}
 
-	path := filepath.Join("public", parser.option.Root, ".locales", name, route+".yml")
+	path := filepath.Join("public", parser.option.Root, ".locales", name, strings.TrimPrefix(route, root)+".yml")
 	if exists, err := application.App.Exists(path); !exists {
 		if err != nil {
 			log.Error("[parser] %s Locale %s", route, err.Error())
@@ -279,6 +279,9 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 	node := sel.Get(0)
 
+	// Translations
+	parser.transElementNode(sel)
+
 	if _, exist := sel.Attr("s:for"); exist {
 		parser.forStatementNode(sel)
 	}
@@ -298,20 +301,42 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 	// Parse the attributes
 	parser.parseElementAttrs(sel)
-
-	// Translations
-	parser.transElementNode(sel)
 }
 
 func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
-	if parser.locale == nil {
-		return
+	if parser.locale != nil {
+		if v, exists := sel.Attr("s:trans-node"); exists {
+			parser.transNode(v, sel)
+		}
 	}
 
-	key, exist := sel.Attr("s:trans-node")
-	if !exist {
-		return
+	// Transalte the attributes
+	for _, attr := range sel.Nodes[0].Attr {
+		if strings.HasPrefix(attr.Key, "s:trans-attr-") {
+			keys := strings.Split(attr.Val, ",")
+			name := strings.TrimPrefix(attr.Key, "s:trans-attr-")
+			value := sel.AttrOr(name, "")
+			if value == "" {
+				continue
+			}
+			newValue := parser.transText(value, keys)
+			sel.SetAttr(name, newValue)
+		}
 	}
+
+	// Translate the text
+	if v, exists := sel.Attr("s:trans-text"); exists {
+		keys := strings.Split(v, ",")
+		content := strings.TrimSpace(sel.Text())
+		if content == "" {
+			return
+		}
+		content = parser.transText(content, keys)
+		sel.SetText(content)
+	}
+}
+
+func (parser *TemplateParser) transNode(key string, sel *goquery.Selection) {
 
 	text := sel.Text()
 	message := strings.TrimSpace(text)
@@ -328,6 +353,45 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 		sel.SetText(strings.Replace(text, message, lcMessage, 1))
 		return
 	}
+}
+
+func (parser *TemplateParser) transText(content string, keys []string) string {
+
+	matches := stmtRe.FindAllStringSubmatch(content, -1)
+	newContent := content
+	for _, match := range matches {
+		text := strings.TrimSpace(match[1])
+		transMatches := transStmtReSingle.FindAllStringSubmatch(text, -1)
+		if len(transMatches) == 0 {
+			transMatches = transStmtReDouble.FindAllStringSubmatch(text, -1)
+		}
+		if len(transMatches) > len(keys) {
+			return content
+		}
+
+		for i, transMatch := range transMatches {
+			message := strings.TrimSpace(transMatch[1])
+			if parser.locale == nil {
+				newContent = strings.Replace(newContent, "::"+message, message, 1)
+				continue
+			}
+
+			key := keys[i]
+			if lcMessage, has := parser.locale.Keys[key]; has && lcMessage != message {
+				newContent = strings.Replace(newContent, "::"+message, lcMessage, 1)
+
+				continue
+			}
+
+			if lcMessage, has := parser.locale.Messages[message]; has {
+				newContent = strings.Replace(newContent, "::"+message, lcMessage, 1)
+				continue
+			}
+
+			newContent = strings.Replace(newContent, "::"+message, message, 1)
+		}
+	}
+	return newContent
 }
 
 // Remove the tag and replace it with the children
