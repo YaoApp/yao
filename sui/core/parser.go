@@ -310,7 +310,7 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 		}
 	}
 
-	// Transalte the attributes
+	// Translate the attributes
 	for _, attr := range sel.Nodes[0].Attr {
 		if strings.HasPrefix(attr.Key, "s:trans-attr-") {
 			keys := strings.Split(attr.Val, ",")
