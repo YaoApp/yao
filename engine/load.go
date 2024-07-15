@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
@@ -41,6 +42,7 @@ import (
 
 // LoadHooks used to load custom widgets/processes
 var LoadHooks = map[string]func(config.Config) error{}
+var envRe = regexp.MustCompile(`\$ENV\.([0-9a-zA-Z_-]+)`)
 
 // RegisterLoadHook register custom load hook
 func RegisterLoadHook(name string, hook func(config.Config) error) error {
@@ -543,6 +545,15 @@ func loadApp(root string) error {
 		return fmt.Errorf("app.yao or app.jsonc or app.json does not exists")
 	}
 
+	// Replace $ENV with os.Getenv
+	appData = envRe.ReplaceAllFunc(appData, func(s []byte) []byte {
+		key := string(s[5:])
+		val := os.Getenv(key)
+		if val == "" {
+			return s
+		}
+		return []byte(val)
+	})
 	share.App = share.AppInfo{}
 	return application.Parse(appFile, appData, &share.App)
 }
