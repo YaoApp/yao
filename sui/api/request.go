@@ -114,6 +114,13 @@ func (r *Request) Render() (string, int, error) {
 	if !r.Request.DisableCache() && c.DataCacheTime > 0 && c.CacheStore != "" {
 		data, dataHitCache = c.GetData(dataCacheKey)
 		if dataHitCache {
+			if locale, ok := data["$locale"].(string); ok {
+				r.Request.Locale = locale
+			}
+
+			if theme, ok := data["$theme"].(string); ok {
+				r.Request.Theme = theme
+			}
 			log.Trace("[SUI] The page %s data is cached %v file=%s key=%s", r.Request.URL.Path, c.DataCacheTime, r.File, dataCacheKey)
 		}
 	}
