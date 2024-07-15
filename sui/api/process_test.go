@@ -87,10 +87,13 @@ func TestTemplateLocaleGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.SelectOption{}, res)
-	assert.Equal(t, 3, len(res.([]core.SelectOption)))
-	assert.Equal(t, "ja-jp", res.([]core.SelectOption)[0].Value)
+	assert.Equal(t, 4, len(res.([]core.SelectOption)))
+	assert.Equal(t, "en-us", res.([]core.SelectOption)[0].Value)
+	assert.True(t, res.([]core.SelectOption)[0].Default)
+
 	assert.Equal(t, "zh-cn", res.([]core.SelectOption)[1].Value)
 	assert.Equal(t, "zh-hk", res.([]core.SelectOption)[2].Value)
+	assert.Equal(t, "ja-jp", res.([]core.SelectOption)[3].Value)
 }
 
 func TestTemplateThemeGet(t *testing.T) {
@@ -711,6 +714,42 @@ func TestBuildPage(t *testing.T) {
 
 	// test demo
 	p, err := process.Of("sui.build.page", "test", "advanced", "/index", map[string]interface{}{"ssr": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Nil(t, res)
+}
+
+func TestTransAll(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.trans.all", "test", "advanced", map[string]interface{}{"ssr": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Nil(t, res)
+}
+
+func TestTransPage(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	// test demo
+	p, err := process.Of("sui.trans.page", "test", "advanced", "/i18n", map[string]interface{}{"ssr": true})
 	if err != nil {
 		t.Fatal(err)
 	}

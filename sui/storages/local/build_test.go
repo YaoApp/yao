@@ -198,3 +198,74 @@ func TestPageBuildAsComponent(t *testing.T) {
 	assert.Contains(t, string(content), "function Init()")
 	assert.Contains(t, string(content), `type="flowbite-edit-select"`)
 }
+
+func TestPageTrans(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Test.GetTemplate("advanced")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	root := application.App.Root()
+	path := filepath.Join(root, "data", tmpl.GetRoot(), "__locales")
+
+	// Remove files and directories in Public directory if exists
+	err = os.RemoveAll(path)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("RemoveAll error: %v", err)
+	}
+
+	page, err := tmpl.Page("/i18n")
+	if err != nil {
+		t.Fatalf("Page error: %v", err)
+	}
+
+	warnings, err := page.Trans(nil, &core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"})
+	if err != nil {
+		t.Fatalf("Page Build error: %v", err)
+	}
+
+	assert.DirExists(t, path)
+	assert.DirExists(t, filepath.Join(path, "zh-cn"))
+	assert.DirExists(t, filepath.Join(path, "zh-hk"))
+	assert.DirExists(t, filepath.Join(path, "ja-jp"))
+	assert.FileExists(t, filepath.Join(path, "zh-cn", "i18n.yml"))
+	assert.FileExists(t, filepath.Join(path, "zh-hk", "i18n.yml"))
+	assert.FileExists(t, filepath.Join(path, "ja-jp", "i18n.yml"))
+	assert.Len(t, warnings, 0)
+}
+
+func TestTemplateTrans(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Test.GetTemplate("advanced")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	root := application.App.Root()
+	path := filepath.Join(root, "data", tmpl.GetRoot(), "__locales")
+
+	// Remove files and directories in Public directory if exists
+	err = os.RemoveAll(path)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("RemoveAll error: %v", err)
+	}
+
+	warnings, err := tmpl.Trans(&core.BuildOption{SSR: true})
+	if err != nil {
+		t.Fatalf("Components error: %v", err)
+	}
+
+	assert.DirExists(t, path)
+	assert.DirExists(t, filepath.Join(path, "zh-cn"))
+	assert.DirExists(t, filepath.Join(path, "zh-hk"))
+	assert.DirExists(t, filepath.Join(path, "ja-jp"))
+	assert.FileExists(t, filepath.Join(path, "zh-cn", "i18n.yml"))
+	assert.FileExists(t, filepath.Join(path, "zh-hk", "i18n.yml"))
+	assert.FileExists(t, filepath.Join(path, "ja-jp", "i18n.yml"))
+	assert.Len(t, warnings, 0)
+}

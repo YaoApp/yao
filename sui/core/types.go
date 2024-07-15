@@ -186,6 +186,7 @@ type Template struct {
 	Document    []byte           `json:"-"`
 	GlobalData  []byte           `json:"-"`
 	Scripts     *TemplateScirpts `json:"scripts,omitempty"`
+	Translator  string           `json:"translator,omitempty"`
 }
 
 // TemplateScirpts is the struct for the template scripts
@@ -217,8 +218,9 @@ type Theme struct {
 
 // SelectOption is the struct for the select option
 type SelectOption struct {
-	Label string `json:"label"`
-	Value string `json:"value"`
+	Label   string `json:"label"`
+	Value   string `json:"value"`
+	Default bool   `json:"default"`
 }
 
 // Asset is the struct for the asset

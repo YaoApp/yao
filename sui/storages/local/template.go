@@ -168,20 +168,36 @@ func (tmpl *Template) Locales() []core.SelectOption {
 		return tmpl.locales
 	}
 
+	// Defined the support locales
 	supportLocales := []core.SelectOption{}
+	localeMap := map[string]bool{}
+	locales := tmpl.Template.Locales
+	for _, locale := range locales {
+		if localeMap[locale.Value] {
+			continue
+		}
+		localeMap[locale.Value] = true
+		supportLocales = append(supportLocales, locale)
+	}
+
 	path := filepath.Join(tmpl.Root, "__locales")
 	if !tmpl.local.fs.IsDir(path) {
-		return nil
+		return supportLocales
 	}
 
 	dirs, err := tmpl.local.fs.ReadDir(path, false)
 	if err != nil {
-		return nil
+		return supportLocales
 	}
 
+	// Get the support locales
 	for _, dir := range dirs {
 		locale := filepath.Base(dir)
+		if localeMap[locale] {
+			continue
+		}
 		label := language.Make(locale).String()
+		localeMap[locale] = true
 		supportLocales = append(supportLocales, core.SelectOption{
 			Value: locale,
 			Label: label,

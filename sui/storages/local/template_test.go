@@ -41,14 +41,17 @@ func TestTemplateLocales(t *testing.T) {
 		t.Fatalf("Locales error: %v", len(locales))
 	}
 
-	assert.Equal(t, "ja-JP", locales[0].Label)
-	assert.Equal(t, "ja-jp", locales[0].Value)
+	assert.Equal(t, "English", locales[0].Label)
+	assert.Equal(t, "en-us", locales[0].Value)
 
-	assert.Equal(t, "zh-CN", locales[1].Label)
+	assert.Equal(t, "简体中文", locales[1].Label)
 	assert.Equal(t, "zh-cn", locales[1].Value)
 
-	assert.Equal(t, "zh-HK", locales[2].Label)
+	assert.Equal(t, "繁體中文", locales[2].Label)
 	assert.Equal(t, "zh-hk", locales[2].Value)
+
+	assert.Equal(t, "日本語", locales[3].Label)
+	assert.Equal(t, "ja-jp", locales[3].Value)
 }
 
 func TestTemplateAsset(t *testing.T) {
