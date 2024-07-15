@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
+	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 )
 
@@ -346,7 +347,7 @@ func (page *Page) Trans(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	warnings := []string{}
 	ctx := core.NewBuildContext(globalCtx)
 
-	_, messages, err := page.Page.CompileAsComponent(ctx, option)
+	_, messages, err := page.Page.Compile(ctx, option)
 	if err != nil {
 		return warnings, err
 	}
@@ -356,7 +357,7 @@ func (page *Page) Trans(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 
 	// Tranlate the locale files
-	err = page.writeLocaleSource(ctx)
+	err = page.writeLocaleSource(ctx, option)
 	return warnings, err
 }
 
@@ -471,10 +472,19 @@ func (page *Page) locale(name string, pageOnly ...bool) core.Locale {
 	return locale
 }
 
-func (page *Page) writeLocaleSource(ctx *core.BuildContext) error {
+func (page *Page) writeLocaleSource(ctx *core.BuildContext, option *core.BuildOption) error {
 
 	locales := page.tmpl.Locales()
 	translations := ctx.GetTranslations()
+
+	if option.Locales != nil && len(option.Locales) > 0 {
+		locales = []core.SelectOption{}
+		for _, lc := range option.Locales {
+			label := language.Make(lc).String()
+			locales = append(locales, core.SelectOption{Value: lc, Label: label})
+		}
+	}
+
 	for _, lc := range locales {
 		if lc.Default {
 			continue
