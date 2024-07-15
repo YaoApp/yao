@@ -54,6 +54,7 @@ func (page *Page) GetConfig() *PageConfig {
 		page.Config.Mock = &PageMock{Method: "GET"}
 	}
 
+	page.Config.Root = page.Root
 	return page.Config
 }
 
@@ -69,6 +70,7 @@ func (page *Page) ExportConfig() string {
 		"cache_store": page.CacheStore,
 		"cache":       page.Config.Cache,
 		"data_cache":  page.Config.DataCache,
+		"root":        page.Root,
 	})
 
 	if err != nil {

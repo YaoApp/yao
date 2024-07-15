@@ -16,6 +16,7 @@ type Cache struct {
 	Guard         string
 	GuardRedirect string
 	HTML          string
+	Root          string
 	CacheStore    string
 	CacheTime     time.Duration
 	DataCacheTime time.Duration

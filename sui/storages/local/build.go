@@ -68,12 +68,16 @@ func (tmpl *Template) Build(option *core.BuildOption) ([]string, error) {
 
 	// loaed pages
 	tmpl.loaded = map[string]core.IPage{}
+	publicRoot, err := tmpl.local.DSL.PublicRoot(option.Data)
+	if err != nil {
+		log.Error("Get the public root error: %s. use %s", err.Error(), publicRoot)
+	}
+	option.PublicRoot = publicRoot
 	for _, page := range pages {
 		err := page.Load()
 		if err != nil {
 			return warnings, err
 		}
-
 		messages, err := page.Build(ctx, option)
 		if err != nil {
 			return warnings, err
@@ -217,14 +221,20 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOption) ([]string, error) {
 
 	ctx := core.NewBuildContext(globalCtx)
-	if option.AssetRoot == "" {
-		root, err := page.tmpl.local.DSL.PublicRoot(option.Data)
+
+	var err error = nil
+	root := option.PublicRoot
+	if root == "" {
+		root, err = page.tmpl.local.DSL.PublicRoot(option.Data)
 		if err != nil {
-			log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
-			root = page.tmpl.local.DSL.Public.Root
+			log.Error("Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
 		}
+	}
+
+	if option.AssetRoot == "" {
 		option.AssetRoot = filepath.Join(root, "assets")
 	}
+	page.Root = root
 
 	html, warnings, err := page.Page.Compile(ctx, option)
 	if err != nil {

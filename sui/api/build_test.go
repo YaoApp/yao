@@ -20,6 +20,38 @@ func TestCompile(t *testing.T) {
 	assert.Len(t, warnings, 0)
 }
 
+func TestTrans(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	tmpl := testTmpl(t)
+	option := &core.BuildOption{SSR: true, AssetRoot: "/unit-test/assets"}
+	warnings, err := tmpl.Trans(option)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Len(t, warnings, 0)
+	warnings, err = tmpl.Build(option)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Len(t, warnings, 0)
+}
+
+func testTmpl(t *testing.T) core.ITemplate {
+	sui := core.SUIs["test"]
+	if sui == nil {
+		t.Fatal("SUI test not found")
+	}
+
+	tmpl, err := sui.GetTemplate("advanced")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return tmpl
+}
+
 func testPage(t *testing.T) *core.Page {
 
 	sui := core.SUIs["test"]

@@ -52,6 +52,7 @@ type ParserOption struct {
 	Route        string `json:"route,omitempty"`
 	Theme        any    `json:"theme,omitempty"`
 	Locale       any    `json:"locale,omitempty"`
+	Root         string `json:"root,omitempty"`
 }
 
 var keepWords = map[string]bool{
@@ -128,9 +129,9 @@ func (parser *TemplateParser) Locale() *Locale {
 		return nil
 	}
 
-	route := parser.option.Route
+	root := parser.option.Root
+	route := strings.TrimPrefix(parser.option.Route, root)
 	disableCache := parser.option.Preview || parser.option.Debug || parser.option.Editor || parser.option.DisableCache
-
 	locales, ok = Locales[name]
 	if !ok {
 		locales = map[string]*Locale{}
@@ -141,7 +142,7 @@ func (parser *TemplateParser) Locale() *Locale {
 		return locale
 	}
 
-	path := filepath.Join("public", ".locales", name, route+".yml")
+	path := filepath.Join("public", parser.option.Root, ".locales", name, route+".yml")
 	if exists, err := application.App.Exists(path); !exists {
 		if err != nil {
 			log.Error("[parser] %s Locale %s", route, err.Error())
