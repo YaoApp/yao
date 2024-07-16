@@ -277,10 +277,9 @@ func (parser *TemplateParser) parseNode(node *html.Node) {
 
 func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
-	node := sel.Get(0)
+	parser.transElementNode(sel) // Translations
 
-	// Translations
-	parser.transElementNode(sel)
+	node := sel.Get(0)
 
 	if _, exist := sel.Attr("s:for"); exist {
 		parser.forStatementNode(sel)
@@ -303,20 +302,35 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 	parser.parseElementAttrs(sel)
 }
 
-func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
-	if parser.locale != nil {
-		if v, exists := sel.Attr("s:trans-node"); exists {
-			parser.transNode(v, sel)
-		}
+func (parser *TemplateParser) transTextNode(node *html.Node) {
+
+	parentSel := goquery.NewDocumentFromNode(node.Parent).Selection
+	text := strings.TrimSpace(node.Data)
+	if text == "" {
+		return
+	}
+
+	// Translate the node
+	if key, exists := parentSel.Attr("s:trans-node"); exists {
+		text = parser.transNode(key, text)
 	}
 
 	// Escape the text
-	if _, exists := sel.Attr("s:trans-node"); exists {
-		content := parser.escapeText(strings.TrimSpace(sel.Text()))
-		sel.SetText(content)
+	if _, exists := parentSel.Attr("s:trans-escape"); exists {
+		text = parser.escapeText(text)
 	}
 
-	// Translate the attributes
+	// Translate the text
+	if v, exists := parentSel.Attr("s:trans-text"); exists {
+		keys := strings.Split(v, ",")
+		text = parser.transText(text, keys)
+	}
+
+	node.Data = text
+}
+
+func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
+
 	for _, attr := range sel.Nodes[0].Attr {
 		if strings.HasPrefix(attr.Key, "s:trans-attr-") {
 			keys := strings.Split(attr.Val, ",")
@@ -328,38 +342,6 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 			newValue := parser.transText(value, keys)
 			sel.SetAttr(name, newValue)
 		}
-	}
-
-	// Translate the text
-	if v, exists := sel.Attr("s:trans-text"); exists {
-		keys := strings.Split(v, ",")
-		content := strings.TrimSpace(sel.Text())
-		if content == "" {
-			return
-		}
-		content = parser.transText(content, keys)
-		sel.SetText(content)
-	}
-}
-
-func (parser *TemplateParser) transNode(key string, sel *goquery.Selection) {
-
-	content := sel.Text()
-	message := strings.TrimSpace(content)
-	if message == "" {
-		return
-	}
-
-	if lcMessage, has := parser.locale.Keys[key]; has && lcMessage != message {
-		content = strings.Replace(content, message, lcMessage, 1)
-		sel.SetText(content)
-		return
-	}
-
-	if lcMessage, has := parser.locale.Messages[message]; has {
-		content = strings.Replace(content, message, lcMessage, 1)
-		sel.SetText(content)
-		return
 	}
 }
 
@@ -378,10 +360,37 @@ func (parser *TemplateParser) escape(value string) string {
 	if strings.HasPrefix(value, "':::") {
 		return "'::" + strings.TrimPrefix(value, "':::")
 	}
+
+	if strings.HasPrefix(value, "&#39;:::") {
+		return "&#39;::" + strings.TrimPrefix(value, "&#39;:::")
+	}
+
 	if strings.HasPrefix(value, "\":::") {
 		return "\"::" + strings.TrimPrefix(value, "\":::")
 	}
+
+	if strings.HasPrefix(value, "&#34;:::") {
+		return "&#34;::" + strings.TrimPrefix(value, "&#34;:::")
+	}
+
 	return value
+}
+
+func (parser *TemplateParser) transNode(key string, message string) string {
+
+	if parser.locale == nil {
+		return message
+	}
+
+	if lcMessage, has := parser.locale.Keys[key]; has && lcMessage != message {
+		return lcMessage
+	}
+
+	if lcMessage, has := parser.locale.Messages[message]; has {
+		return lcMessage
+	}
+
+	return message
 }
 
 func (parser *TemplateParser) transText(content string, keys []string) string {
@@ -390,7 +399,7 @@ func (parser *TemplateParser) transText(content string, keys []string) string {
 	newContent := content
 	for _, match := range matches {
 		text := strings.TrimSpace(match[1])
-		if strings.HasPrefix(text, "':::") || strings.HasPrefix(text, "\":::") {
+		if strings.HasPrefix(text, "':::") || strings.HasPrefix(text, "\":::") || strings.HasPrefix(text, "&#39;:::") || strings.HasPrefix(text, "&#34;:::") {
 			escaped := parser.escape(text)
 			newContent = strings.Replace(newContent, text, escaped, 1)
 			continue
@@ -511,6 +520,7 @@ func checkIsRawElement(node *html.Node) bool {
 	return false
 }
 func (parser *TemplateParser) parseTextNode(node *html.Node) {
+	parser.transTextNode(node) // Translations
 	parser.sequence = parser.sequence + 1
 	res, hasStmt := parser.data.Replace(node.Data)
 	// Bind the variable to the parent node

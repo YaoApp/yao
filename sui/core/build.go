@@ -669,7 +669,7 @@ func (page *Page) translateNode(node *html.Node, sequence *int) ([]Translation, 
 				parentSel.SetAttr("s:trans-node", key)
 				*sequence = *sequence + 1
 			}
-			parentSel.RemoveAttr("s:trans")
+			parentSel.SetAttr("s:trans-escape", "true")
 		}
 
 		if _, has := parentSel.Attr("s:trans-text"); has {
@@ -682,7 +682,6 @@ func (page *Page) translateNode(node *html.Node, sequence *int) ([]Translation, 
 		if len(keys) > 0 {
 			raw := strings.Join(keys, ",")
 			parentSel.SetAttr("s:trans-text", raw)
-			parentSel.RemoveAttr("s:trans")
 			translations = append(translations, trans...)
 		}
 		break
