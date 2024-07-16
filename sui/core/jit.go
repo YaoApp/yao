@@ -69,13 +69,7 @@ func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
 func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection) (string, string, error) {
 	html := comp.html
 	randvar := fmt.Sprintf("__%s_$props", time.Now().Format("20060102150405"))
-	html = slotRe.ReplaceAllStringFunc(html, func(exp string) string {
-		exp = strings.ReplaceAll(exp, "[{", "{{")
-		exp = strings.ReplaceAll(exp, "}]", "}}")
-		exp = strings.ReplaceAll(exp, "$props", randvar)
-		return exp
-	})
-
+	html = replaceRandVar(html, randvar)
 	data := Data{}
 	data[randvar] = props
 	if parser.data != nil {
@@ -109,7 +103,13 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 	})
 
 	option := *parser.option
+	option.Route = comp.route
 	compParser := NewTemplateParser(data, &option)
+	locale := compParser.Locale()
+	if locale != nil {
+		locale.replaceVars(randvar)
+	}
+	compParser.locale = locale
 
 	// Parse the node
 	ns := Namespace(comp.route, compParser.sequence, comp.buildOption.ScriptMinify)
@@ -298,6 +298,20 @@ func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[st
 	return file, route, nil
 }
 
+func (locale *Locale) replaceVars(randvar string) {
+	if locale.Keys != nil {
+		for key, val := range locale.Keys {
+			locale.Keys[key] = replaceRandVar(val, randvar)
+		}
+	}
+
+	if locale.Messages != nil {
+		for key, val := range locale.Messages {
+			locale.Messages[key] = replaceRandVar(val, randvar)
+		}
+	}
+}
+
 func componentWriter() {
 	for {
 		select {
@@ -393,4 +407,13 @@ func readComponent(route string, file string) (*JitComponent, error) {
 		styles:      styles,
 		buildOption: &buildOption,
 	}, nil
+}
+
+func replaceRandVar(html string, randvar string) string {
+	return slotRe.ReplaceAllStringFunc(html, func(exp string) string {
+		exp = strings.ReplaceAll(exp, "[{", "{{")
+		exp = strings.ReplaceAll(exp, "}]", "}}")
+		exp = strings.ReplaceAll(exp, "$props", randvar)
+		return exp
+	})
 }

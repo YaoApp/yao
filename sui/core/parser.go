@@ -326,7 +326,7 @@ func (parser *TemplateParser) transTextNode(node *html.Node) {
 		text = parser.transText(text, keys)
 	}
 
-	node.Data = text
+	node.Data = strings.Replace(node.Data, strings.TrimSpace(node.Data), text, 1)
 }
 
 func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
