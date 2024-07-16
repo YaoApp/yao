@@ -345,21 +345,21 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) transNode(key string, sel *goquery.Selection) {
 
-	content := sel.Text()
-	message := strings.TrimSpace(content)
+	content, _ := sel.Html()
+	message := strings.TrimSpace(sel.Text())
 	if message == "" {
 		return
 	}
 
 	if lcMessage, has := parser.locale.Keys[key]; has && lcMessage != message {
 		content = strings.Replace(content, message, lcMessage, 1)
-		sel.SetText(content)
+		sel.SetHtml(content)
 		return
 	}
 
 	if lcMessage, has := parser.locale.Messages[message]; has {
 		content = strings.Replace(content, message, lcMessage, 1)
-		sel.SetText(content)
+		sel.SetHtml(content)
 		return
 	}
 }
