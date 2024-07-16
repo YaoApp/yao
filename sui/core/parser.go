@@ -311,9 +311,10 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 	}
 
 	// Escape the text
-	if _, exists := sel.Attr("s:trans-node"); exists {
-		content := parser.escapeText(strings.TrimSpace(sel.Text()))
-		sel.SetText(content)
+	if _, exists := sel.Attr("s:trans-escape"); exists {
+		html, _ := sel.Html()
+		html = parser.escapeText(html)
+		sel.SetHtml(html)
 	}
 
 	// Translate the attributes
@@ -378,9 +379,19 @@ func (parser *TemplateParser) escape(value string) string {
 	if strings.HasPrefix(value, "':::") {
 		return "'::" + strings.TrimPrefix(value, "':::")
 	}
+
+	if strings.HasPrefix(value, "&#39;:::") {
+		return "&#39;::" + strings.TrimPrefix(value, "&#39;:::")
+	}
+
 	if strings.HasPrefix(value, "\":::") {
 		return "\"::" + strings.TrimPrefix(value, "\":::")
 	}
+
+	if strings.HasPrefix(value, "&#34;:::") {
+		return "&#34;::" + strings.TrimPrefix(value, "&#34;:::")
+	}
+
 	return value
 }
 
@@ -390,7 +401,7 @@ func (parser *TemplateParser) transText(content string, keys []string) string {
 	newContent := content
 	for _, match := range matches {
 		text := strings.TrimSpace(match[1])
-		if strings.HasPrefix(text, "':::") || strings.HasPrefix(text, "\":::") {
+		if strings.HasPrefix(text, "':::") || strings.HasPrefix(text, "\":::") || strings.HasPrefix(text, "&#39;:::") || strings.HasPrefix(text, "&#34;:::") {
 			escaped := parser.escape(text)
 			newContent = strings.Replace(newContent, text, escaped, 1)
 			continue
