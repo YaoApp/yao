@@ -310,6 +310,12 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 		}
 	}
 
+	// Escape the text
+	if _, exists := sel.Attr("s:trans-node"); exists {
+		content := parser.escapeText(strings.TrimSpace(sel.Text()))
+		sel.SetText(content)
+	}
+
 	// Translate the attributes
 	for _, attr := range sel.Nodes[0].Attr {
 		if strings.HasPrefix(attr.Key, "s:trans-attr-") {
@@ -338,21 +344,44 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) transNode(key string, sel *goquery.Selection) {
 
-	text := sel.Text()
-	message := strings.TrimSpace(text)
+	content := sel.Text()
+	message := strings.TrimSpace(content)
 	if message == "" {
 		return
 	}
 
 	if lcMessage, has := parser.locale.Keys[key]; has && lcMessage != message {
-		sel.SetText(strings.Replace(text, message, lcMessage, 1))
+		content = strings.Replace(content, message, lcMessage, 1)
+		sel.SetText(content)
 		return
 	}
 
 	if lcMessage, has := parser.locale.Messages[message]; has {
-		sel.SetText(strings.Replace(text, message, lcMessage, 1))
+		content = strings.Replace(content, message, lcMessage, 1)
+		sel.SetText(content)
 		return
 	}
+}
+
+// 替换转义字符
+func (parser *TemplateParser) escapeText(content string) string {
+	matches := stmtRe.FindAllStringSubmatch(content, -1)
+	newContent := content
+	for _, match := range matches {
+		text := strings.TrimSpace(match[1])
+		newContent = strings.Replace(newContent, text, parser.escape(text), 1)
+	}
+	return newContent
+}
+
+func (parser *TemplateParser) escape(value string) string {
+	if strings.HasPrefix(value, "':::") {
+		return "'::" + strings.TrimPrefix(value, "':::")
+	}
+	if strings.HasPrefix(value, "\":::") {
+		return "\"::" + strings.TrimPrefix(value, "\":::")
+	}
+	return value
 }
 
 func (parser *TemplateParser) transText(content string, keys []string) string {
@@ -361,6 +390,12 @@ func (parser *TemplateParser) transText(content string, keys []string) string {
 	newContent := content
 	for _, match := range matches {
 		text := strings.TrimSpace(match[1])
+		if strings.HasPrefix(text, "':::") || strings.HasPrefix(text, "\":::") {
+			escaped := parser.escape(text)
+			newContent = strings.Replace(newContent, text, escaped, 1)
+			continue
+		}
+
 		transMatches := transStmtReSingle.FindAllStringSubmatch(text, -1)
 		if len(transMatches) == 0 {
 			transMatches = transStmtReDouble.FindAllStringSubmatch(text, -1)
@@ -371,6 +406,7 @@ func (parser *TemplateParser) transText(content string, keys []string) string {
 
 		for i, transMatch := range transMatches {
 			message := strings.TrimSpace(transMatch[1])
+
 			if parser.locale == nil {
 				newContent = strings.Replace(newContent, "::"+message, message, 1)
 				continue
