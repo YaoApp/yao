@@ -28,6 +28,6 @@ func TestPageExec(t *testing.T) {
 
 	res := any.Of(data).Map().Dot()
 	assert.Equal(t, "yes", res.Get("array[3][0].query"))
-	assert.Equal(t, "Article Search 1", res.Get("articles.data[0].description"))
+	assert.Equal(t, "文章搜索 1", res.Get("articles.data[0].description"))
 	assert.Equal(t, "/test/path", res.Get("url.path"))
 }
