@@ -495,25 +495,14 @@ func (page *Page) writeLocaleSource(ctx *core.BuildContext, option *core.BuildOp
 		}
 	}
 
+	prefix := core.TranslationKeyPrefix(page.Route)
 	for _, lc := range locales {
 		if lc.Default {
 			continue
 		}
 
 		locale := page.locale(lc.Value, true)
-		for _, t := range translations {
-			message := t.Message
-			// Match the key
-			if _, has := locale.Messages[message]; has {
-				message = locale.Messages[message]
-			}
-			locale.Keys[t.Key] = message
-			msg, has := locale.Messages[t.Message]
-			if has && msg != t.Message {
-				continue
-			}
-			locale.Messages[t.Message] = t.Message
-		}
+		locale.MergeTranslations(translations, prefix)
 
 		// Call the hook
 		var keys any = locale.Keys
@@ -573,35 +562,19 @@ func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]inter
 	}
 
 	files := page.localeFiles(data)
+	components := ctx.GetComponents()
 	for name, file := range files {
-
-		// Init Data
-		keys := map[string]string{}
-		messages := map[string]string{}
-		for _, t := range translations {
-			keys[t.Key] = t.Message
-			messages[t.Message] = t.Message
-		}
-
 		locale := page.locale(name)
-		for key := range keys {
-			if _, has := locale.Keys[key]; has {
-				keys[key] = locale.Keys[key]
-			}
+		locale.MergeTranslations(translations)
 
-			if msgValue, has := locale.Messages[keys[key]]; has {
-				keys[key] = msgValue
-			}
+		// Merge the components locale
+		for _, component := range components {
+			compLocale := page.locale(component, true)
+			locale.Merge(compLocale)
 		}
 
-		for message := range messages {
-			if _, has := locale.Messages[message]; has {
-				messages[message] = locale.Messages[message]
-			}
-		}
-
-		locale.Keys = keys
-		locale.Messages = messages
+		// Remove messages
+		locale.Messages = map[string]string{}
 		raw, err := yaml.Marshal(locale)
 		if err != nil {
 			log.Error(`[SUI] Marshal the locale file error: %s`, err.Error())

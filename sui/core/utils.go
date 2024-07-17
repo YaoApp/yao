@@ -80,8 +80,14 @@ func ComponentName(name string, hash ...bool) string {
 
 // TranslationKey convert the name to translation key
 func TranslationKey(name string, sequence int) string {
+	prefix := TranslationKeyPrefix(name)
+	return fmt.Sprintf("%s_%d", prefix, sequence)
+}
+
+// TranslationKeyPrefix convert the name to translation key prefix
+func TranslationKeyPrefix(name string) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
-	return fmt.Sprintf("trans_%s_%d", name, sequence)
+	return fmt.Sprintf("trans_%s", name)
 }
