@@ -67,3 +67,21 @@ func (locale *Locale) Merge(locale2 Locale) {
 		}
 	}
 }
+
+// ParseKeys match
+func (locale *Locale) ParseKeys() {
+	if locale.Keys == nil {
+		locale.Keys = map[string]string{}
+	}
+
+	if locale.Messages == nil {
+		locale.Messages = map[string]string{}
+	}
+
+	for key, msgKey := range locale.Keys {
+		if message, has := locale.Messages[msgKey]; has {
+			locale.Keys[key] = message
+		}
+	}
+	return
+}
