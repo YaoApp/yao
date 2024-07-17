@@ -87,7 +87,7 @@ func TestTemplateLocaleGet(t *testing.T) {
 	}
 
 	assert.IsType(t, []core.SelectOption{}, res)
-	assert.Equal(t, 4, len(res.([]core.SelectOption)))
+	assert.Equal(t, 5, len(res.([]core.SelectOption)))
 	assert.Equal(t, "en-us", res.([]core.SelectOption)[0].Value)
 	assert.True(t, res.([]core.SelectOption)[0].Default)
 
