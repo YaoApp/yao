@@ -36,6 +36,18 @@ func (ctx *BuildContext) GetJitComponents() []string {
 	return jitComponents
 }
 
+// GetComponents get the components
+func (ctx *BuildContext) GetComponents() []string {
+	if ctx.components == nil {
+		return []string{}
+	}
+	components := []string{}
+	for name := range ctx.components {
+		components = append(components, name)
+	}
+	return components
+}
+
 // GetTranslations get the translations
 func (ctx *BuildContext) GetTranslations() []Translation {
 	if ctx.translations == nil {

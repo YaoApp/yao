@@ -217,6 +217,89 @@ func (tmpl *Template) SyncAssets(option *core.BuildOption) error {
 	return copyDirectory(sourceRoot, targetRoot)
 }
 
+func (tmpl *Template) getLocaleGlobal(name string) core.Locale {
+	global := core.Locale{
+		Keys:     map[string]string{},
+		Messages: map[string]string{},
+	}
+	file := filepath.Join(tmpl.Root, "__locales", name, "__global.yml")
+	exist, err := tmpl.local.fs.Exists(file)
+	if err != nil {
+		log.Error(`[SUI] Check the global locale file error: %s`, err.Error())
+		return global
+	}
+
+	if !exist {
+		return global
+	}
+
+	raw, err := tmpl.local.fs.ReadFile(file)
+	if err != nil {
+		log.Error(`[SUI] Read the global locale file error: %s`, err.Error())
+		return global
+	}
+
+	err = yaml.Unmarshal(raw, &global)
+	if err != nil {
+		log.Error(`[SUI] Parse the global locale file error: %s`, err.Error())
+		return global
+	}
+
+	return global
+}
+
+func (tmpl *Template) getLocale(name string, route string, pageOnly ...bool) core.Locale {
+	file := filepath.Join(tmpl.Root, "__locales", name, fmt.Sprintf("%s.yml", route))
+	global := tmpl.getLocaleGlobal(name)
+
+	// Check the locale file
+	exist, err := tmpl.local.fs.Exists(file)
+	if err != nil {
+		return global
+	}
+
+	if !exist {
+		return global
+	}
+
+	locale := core.Locale{
+		Keys:     map[string]string{},
+		Messages: map[string]string{},
+		Date:     global.Date,
+		Currency: global.Currency,
+		Number:   global.Number,
+	}
+	raw, err := tmpl.local.fs.ReadFile(file)
+	if err != nil {
+		log.Error(`[SUI] Read the locale file error: %s`, err.Error())
+		return global
+	}
+
+	err = yaml.Unmarshal(raw, &locale)
+	if err != nil {
+		log.Error(`[SUI] Parse the locale file error: %s`, err.Error())
+		return global
+	}
+
+	if len(pageOnly) == 0 || !pageOnly[0] {
+
+		// Merge the global
+		for key, message := range global.Keys {
+			if _, ok := locale.Keys[key]; !ok {
+				locale.Keys[key] = message
+			}
+		}
+
+		for key, message := range global.Messages {
+			if _, ok := locale.Messages[key]; !ok {
+				locale.Messages[key] = message
+			}
+		}
+	}
+
+	return locale
+}
+
 // Build is the struct for the public
 func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOption) ([]string, error) {
 
@@ -399,89 +482,6 @@ func (page *Page) localeFiles(data map[string]interface{}) map[string]string {
 	return roots
 }
 
-func (page *Page) localeGlobal(name string) core.Locale {
-	global := core.Locale{
-		Keys:     map[string]string{},
-		Messages: map[string]string{},
-	}
-	file := filepath.Join(page.tmpl.Root, "__locales", name, "__global.yml")
-	exist, err := page.tmpl.local.fs.Exists(file)
-	if err != nil {
-		log.Error(`[SUI] Check the global locale file error: %s`, err.Error())
-		return global
-	}
-
-	if !exist {
-		return global
-	}
-
-	raw, err := page.tmpl.local.fs.ReadFile(file)
-	if err != nil {
-		log.Error(`[SUI] Read the global locale file error: %s`, err.Error())
-		return global
-	}
-
-	err = yaml.Unmarshal(raw, &global)
-	if err != nil {
-		log.Error(`[SUI] Parse the global locale file error: %s`, err.Error())
-		return global
-	}
-
-	return global
-}
-
-func (page *Page) locale(name string, pageOnly ...bool) core.Locale {
-	file := filepath.Join(page.tmpl.Root, "__locales", name, fmt.Sprintf("%s.yml", page.Route))
-	global := page.localeGlobal(name)
-
-	// Check the locale file
-	exist, err := page.tmpl.local.fs.Exists(file)
-	if err != nil {
-		return global
-	}
-
-	if !exist {
-		return global
-	}
-
-	locale := core.Locale{
-		Keys:     map[string]string{},
-		Messages: map[string]string{},
-		Date:     global.Date,
-		Currency: global.Currency,
-		Number:   global.Number,
-	}
-	raw, err := page.tmpl.local.fs.ReadFile(file)
-	if err != nil {
-		log.Error(`[SUI] Read the locale file error: %s`, err.Error())
-		return global
-	}
-
-	err = yaml.Unmarshal(raw, &locale)
-	if err != nil {
-		log.Error(`[SUI] Parse the locale file error: %s`, err.Error())
-		return global
-	}
-
-	if len(pageOnly) == 0 || !pageOnly[0] {
-
-		// Merge the global
-		for key, message := range global.Keys {
-			if _, ok := locale.Keys[key]; !ok {
-				locale.Keys[key] = message
-			}
-		}
-
-		for key, message := range global.Messages {
-			if _, ok := locale.Messages[key]; !ok {
-				locale.Messages[key] = message
-			}
-		}
-	}
-
-	return locale
-}
-
 func (page *Page) writeLocaleSource(ctx *core.BuildContext, option *core.BuildOption) error {
 
 	locales := page.tmpl.Locales()
@@ -495,25 +495,14 @@ func (page *Page) writeLocaleSource(ctx *core.BuildContext, option *core.BuildOp
 		}
 	}
 
+	prefix := core.TranslationKeyPrefix(page.Route)
 	for _, lc := range locales {
 		if lc.Default {
 			continue
 		}
 
-		locale := page.locale(lc.Value, true)
-		for _, t := range translations {
-			message := t.Message
-			// Match the key
-			if _, has := locale.Messages[message]; has {
-				message = locale.Messages[message]
-			}
-			locale.Keys[t.Key] = message
-			msg, has := locale.Messages[t.Message]
-			if has && msg != t.Message {
-				continue
-			}
-			locale.Messages[t.Message] = t.Message
-		}
+		locale := page.tmpl.getLocale(lc.Value, page.Route, true)
+		locale.MergeTranslations(translations, prefix)
 
 		// Call the hook
 		var keys any = locale.Keys
@@ -571,37 +560,22 @@ func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]inter
 	if len(translations) == 0 {
 		return nil
 	}
-
+	prefix := core.TranslationKeyPrefix(page.Route)
 	files := page.localeFiles(data)
+	components := ctx.GetComponents()
 	for name, file := range files {
+		locale := page.tmpl.getLocale(name, page.Route)
+		locale.MergeTranslations(translations, prefix)
 
-		// Init Data
-		keys := map[string]string{}
-		messages := map[string]string{}
-		for _, t := range translations {
-			keys[t.Key] = t.Message
-			messages[t.Message] = t.Message
+		// Merge the components locale
+		for _, route := range components {
+			compLocale := page.tmpl.getLocale(name, route, true)
+			compLocale.ParseKeys()
+			locale.Merge(compLocale)
 		}
 
-		locale := page.locale(name)
-		for key := range keys {
-			if _, has := locale.Keys[key]; has {
-				keys[key] = locale.Keys[key]
-			}
-
-			if msgValue, has := locale.Messages[keys[key]]; has {
-				keys[key] = msgValue
-			}
-		}
-
-		for message := range messages {
-			if _, has := locale.Messages[message]; has {
-				messages[message] = locale.Messages[message]
-			}
-		}
-
-		locale.Keys = keys
-		locale.Messages = messages
+		// Remove messages
+		locale.Messages = map[string]string{}
 		raw, err := yaml.Marshal(locale)
 		if err != nil {
 			log.Error(`[SUI] Marshal the locale file error: %s`, err.Error())
