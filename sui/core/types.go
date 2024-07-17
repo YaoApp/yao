@@ -97,40 +97,12 @@ type Translation struct {
 
 // Locale is the struct for the locale
 type Locale struct {
-	Keys     map[string]string `json:"keys,omitempty"`
-	Messages map[string]string `json:"messages,omitempty"`
-	Date     LocaleDate        `json:"date,omitempty"`
-	Currency LocaleCurrency    `json:"currency,omitempty"`
-	Number   LocaleNumber      `json:"number,omitempty"`
-}
-
-// LocaleDate the struct for the locale date format
-type LocaleDate struct {
-	Short string `json:"short,omitempty"`
-	Long  string `json:"long,omitempty"`
-	Full  string `json:"full,omitempty"`
-	Month string `json:"month,omitempty"`
-	Week  string `json:"week,omitempty"`
-	Year  string `json:"year,omitempty"`
-	Day   string `json:"day,omitempty"`
-	Human string `json:"human,omitempty"`
-}
-
-// LocaleCurrency the struct for the locale currency
-type LocaleCurrency struct {
-	Format    string `json:"format,omitempty"`
-	Unit      string `json:"unit,omitempty"`
-	Separator string `json:"separator,omitempty"`
-	Delimiter string `json:"delimiter,omitempty"`
-	Precision int    `json:"precision,omitempty"`
-}
-
-// LocaleNumber the struct for the locale number
-type LocaleNumber struct {
-	Format    string `json:"format,omitempty"`
-	Separator string `json:"separator,omitempty"`
-	Delimiter string `json:"delimiter,omitempty"`
-	Precision int    `json:"precision,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	Formatter string            `json:"formatter,omitempty"`
+	Keys      map[string]string `json:"keys,omitempty"`
+	Messages  map[string]string `json:"messages,omitempty"`
+	Direction string            `json:"direction,omitempty"`
+	Timezone  string            `json:"timezone,omitempty"`
 }
 
 // PageTreeNode is the struct for the page tree node

@@ -2,15 +2,12 @@ package core
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
-	"gopkg.in/yaml.v3"
 )
 
 // Load the jit components
@@ -80,94 +77,6 @@ var keepAttrs = map[string]bool{
 	"s:click": true,
 }
 
-// Locales the locales
-var Locales = map[string]map[string]*Locale{}
-
-type localeData struct {
-	name   string
-	path   string
-	locale *Locale
-	cmd    uint8
-}
-
-var chLocale = make(chan *localeData, 1)
-
-const (
-	saveLocale uint8 = iota
-	removeLocale
-)
-
-func init() {
-	go localeWriter()
-}
-
-func localeWriter() {
-	for {
-		select {
-		case data := <-chLocale:
-			switch data.cmd {
-			case saveLocale:
-				if _, ok := Locales[data.name]; !ok {
-					Locales[data.name] = map[string]*Locale{}
-				}
-				Locales[data.name][data.path] = data.locale
-
-			case removeLocale:
-				if _, ok := Locales[data.name]; ok {
-					delete(Locales[data.name], data.path)
-				}
-			}
-		}
-	}
-}
-
-// Locale get the locale
-func (parser *TemplateParser) Locale() *Locale {
-	var locales map[string]*Locale = nil
-	name, ok := parser.option.Locale.(string)
-	if !ok {
-		return nil
-	}
-
-	root := parser.option.Root
-	route := parser.option.Route
-	disableCache := parser.option.Preview || parser.option.Debug || parser.option.Editor || parser.option.DisableCache
-	locales, ok = Locales[name]
-	if !ok {
-		locales = map[string]*Locale{}
-	}
-
-	locale, ok := locales[route]
-	if ok && !disableCache {
-		return locale
-	}
-
-	path := filepath.Join("public", parser.option.Root, ".locales", name, strings.TrimPrefix(route, root)+".yml")
-	if exists, err := application.App.Exists(path); !exists {
-		if err != nil {
-			log.Error("[parser] %s Locale %s", route, err.Error())
-		}
-		return nil
-	}
-
-	// Load the locale
-	locale = &Locale{}
-	raw, err := application.App.Read(path)
-	if err != nil {
-		log.Error("[parser] %s Locale %s", route, err.Error())
-		return nil
-	}
-
-	err = yaml.Unmarshal(raw, locale)
-	if err != nil {
-		log.Error("[parser] %s Locale %s", route, err.Error())
-		return nil
-	}
-
-	chLocale <- &localeData{name, route, locale, saveLocale}
-	return locale
-}
-
 // NewTemplateParser create a new template parser
 func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 	if option == nil {
@@ -228,6 +137,9 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		body.AppendHtml(bodyInjectionScript(data, parser.debug()))
 	}
 
+	// Fmt
+	parser.Fmt(doc)
+
 	// For editor
 	if parser.option != nil && parser.option.Editor {
 		return doc.Find("body").Html()
@@ -243,6 +155,17 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	// fmt.Println(doc.Html())
 	// fmt.Println(parser.errors)
 	return doc.Html()
+}
+
+// Fmt formats the HTML template
+func (parser *TemplateParser) Fmt(doc *goquery.Document) {
+	if parser.locale != nil {
+		sels := doc.Find(`[s\:trans-fmt]`)
+		sels.Each(func(i int, sel *goquery.Selection) {
+			name := sel.AttrOr("s:trans-fmt", "")
+			sel.SetText(parser.locale.Fmt(name, sel.Text()))
+		})
+	}
 }
 
 // Parse  parses and renders the HTML template
