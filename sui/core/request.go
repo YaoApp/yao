@@ -76,6 +76,8 @@ func (r *Request) NewData() Data {
 	data["$url"] = r.URL
 	data["$theme"] = r.Theme
 	data["$locale"] = r.Locale
+	data["$timezone"] = GetSystemTimezone()
+	data["$direction"] = "ltr"
 	return data
 }
 
