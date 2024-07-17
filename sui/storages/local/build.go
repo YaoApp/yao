@@ -263,12 +263,13 @@ func (tmpl *Template) getLocale(name string, route string, pageOnly ...bool) cor
 	}
 
 	locale := core.Locale{
-		Name:      name,
-		Keys:      map[string]string{},
-		Messages:  map[string]string{},
-		Direction: global.Direction,
-		Timezone:  global.Timezone,
-		Formatter: global.Formatter,
+		Name:           name,
+		Keys:           map[string]string{},
+		Messages:       map[string]string{},
+		ScriptMessages: map[string]string{},
+		Direction:      global.Direction,
+		Timezone:       global.Timezone,
+		Formatter:      global.Formatter,
 	}
 
 	raw, err := tmpl.local.fs.ReadFile(file)

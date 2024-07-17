@@ -70,8 +70,16 @@ const initScriptTmpl = `
 `
 
 const i118nScriptTmpl = `
-	function __m(message) {
-		return message;
+	let __sui_locale = {};
+	try {
+		__sui_locale = %s;
+	} catch (e) { __sui_locale = {}  }
+
+	function __m(message, fmt) {
+		if (fmt && typeof fmt === "function") {
+			return fmt(message, __sui_locale);
+		}
+		return __sui_locale[message] || message;
 	}
 `
 
@@ -83,6 +91,6 @@ func bodyInjectionScript(jsonRaw string, debug bool) string {
 	return fmt.Sprintf(`<script type="text/javascript">`+initScriptTmpl+`</script>`, jsonRaw, jsPrintData)
 }
 
-func headInjectionScript() string {
-	return fmt.Sprintf(`<script type="text/javascript">` + i118nScriptTmpl + `</script>`)
+func headInjectionScript(jsonRaw string) string {
+	return fmt.Sprintf(`<script type="text/javascript">`+i118nScriptTmpl+`</script>`, jsonRaw)
 }

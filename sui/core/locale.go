@@ -125,6 +125,10 @@ func (locale *Locale) MergeTranslations(translations []Translation, prefix ...st
 		locale.Messages = map[string]string{}
 	}
 
+	if locale.ScriptMessages == nil {
+		locale.ScriptMessages = map[string]string{}
+	}
+
 	var reg *regexp.Regexp = nil
 	if len(prefix) > 0 && prefix[0] != "" {
 		reg = regexp.MustCompile(fmt.Sprintf(`^%s_([0-9]+)$`, prefix[0]))
@@ -142,6 +146,13 @@ func (locale *Locale) MergeTranslations(translations []Translation, prefix ...st
 			message = locale.Messages[message]
 		}
 		locale.Keys[t.Key] = message
+
+		// Script messages
+		if t.Type == "script" {
+			locale.ScriptMessages[t.Message] = locale.Keys[t.Key]
+			continue
+		}
+
 		msg, has := locale.Messages[t.Message]
 		if has && msg != t.Message {
 			continue

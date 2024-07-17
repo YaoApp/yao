@@ -122,7 +122,18 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	// Append the head
 	head := doc.Find("head")
 	if head.Length() > 0 {
-		head.AppendHtml(headInjectionScript())
+
+		scriptMessages := map[string]string{}
+		if parser.locale != nil && parser.locale.ScriptMessages != nil {
+			scriptMessages = parser.locale.ScriptMessages
+		}
+
+		data, err := jsoniter.MarshalToString(scriptMessages)
+		if err != nil {
+			data = "{}"
+		}
+
+		head.AppendHtml(headInjectionScript(data))
 		parser.addScripts(head, parser.scripts)
 		parser.addStyles(head, parser.styles)
 	}

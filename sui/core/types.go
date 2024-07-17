@@ -97,12 +97,13 @@ type Translation struct {
 
 // Locale is the struct for the locale
 type Locale struct {
-	Name      string            `json:"name,omitempty"`
-	Formatter string            `json:"formatter,omitempty"`
-	Keys      map[string]string `json:"keys,omitempty"`
-	Messages  map[string]string `json:"messages,omitempty"`
-	Direction string            `json:"direction,omitempty"`
-	Timezone  string            `json:"timezone,omitempty"`
+	Name           string            `json:"name,omitempty" yaml:"name,omitempty"`
+	Formatter      string            `json:"formatter,omitempty" yaml:"formatter,omitempty"`
+	Keys           map[string]string `json:"keys,omitempty" yaml:"keys,omitempty"`
+	Messages       map[string]string `json:"messages,omitempty" yaml:"messages,omitempty"`
+	ScriptMessages map[string]string `json:"script_messages,omitempty" yaml:"script_messages,omitempty"`
+	Direction      string            `json:"direction,omitempty" yaml:"direction,omitempty"`
+	Timezone       string            `json:"timezone,omitempty" yaml:"timezone,omitempty"`
 }
 
 // PageTreeNode is the struct for the page tree node
