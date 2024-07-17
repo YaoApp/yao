@@ -142,6 +142,13 @@ func (locale *Locale) MergeTranslations(translations []Translation, prefix ...st
 			message = locale.Messages[message]
 		}
 		locale.Keys[t.Key] = message
+
+		// Script messages
+		if t.Type == "script" {
+			locale.ScriptMessages[t.Message] = locale.Keys[t.Key]
+			continue
+		}
+
 		msg, has := locale.Messages[t.Message]
 		if has && msg != t.Message {
 			continue
