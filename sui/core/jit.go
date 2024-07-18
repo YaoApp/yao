@@ -93,7 +93,7 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 		}
 
 		// Find the slot
-		slotSel := root.Find(fmt.Sprintf("slot[name='%s']", name))
+		slotSel := root.Find(name)
 		if slotSel.Length() == 0 {
 			return
 		}

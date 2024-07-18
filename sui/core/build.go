@@ -180,7 +180,8 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	first := body.Children().First()
 
 	page.copyProps(ctx, sel, first, attrs...)
-	page.copySlots(ctx, sel, first)
+	page.copySlots(sel, first)
+	page.copyChildren(sel, first)
 	page.buildComponents(doc, ctx, &opt)
 	data := Data{"$props": page.Attrs}
 	data.ReplaceSelectionUse(slotRe, first)
@@ -222,7 +223,7 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	return source, nil
 }
 
-func (page *Page) copySlots(ctx *BuildContext, from *goquery.Selection, to *goquery.Selection) error {
+func (page *Page) copySlots(from *goquery.Selection, to *goquery.Selection) error {
 	slots := from.Find("slot")
 	if slots.Length() == 0 {
 		return nil
@@ -236,22 +237,24 @@ func (page *Page) copySlots(ctx *BuildContext, from *goquery.Selection, to *goqu
 		}
 
 		// Get the slot
-		slotSel := to.Find(fmt.Sprintf("slot[name='%s']", name))
-
+		slotSel := to.Find(name)
 		if slotSel.Length() == 0 {
 			continue
 		}
 
-		// Copy the slot
-		html, err := slot.Html()
-		if err != nil {
-			ctx.warnings = append(ctx.warnings, err.Error())
-			setError(slotSel, err)
-			continue
-		}
-		slotSel.SetHtml(html)
+		slotSel.ReplaceWithSelection(slot.Children())
 	}
 
+	return nil
+}
+
+func (page *Page) copyChildren(from *goquery.Selection, to *goquery.Selection) error {
+	children := from.Children()
+	if children.Length() == 0 {
+		return nil
+	}
+	children.Find("slot").Remove()
+	to.Find("children").ReplaceWithSelection(children)
 	return nil
 }
 
