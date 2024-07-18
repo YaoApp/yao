@@ -99,7 +99,7 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 		}
 
 		// Replace the slot
-		slotSel.ReplaceWithNodes(s.Contents().Nodes...)
+		slotSel.ReplaceWithSelection(s.Contents())
 	})
 
 	option := *parser.option

@@ -242,7 +242,7 @@ func (page *Page) copySlots(from *goquery.Selection, to *goquery.Selection) erro
 			continue
 		}
 
-		slotSel.ReplaceWithSelection(slot.Children())
+		slotSel.ReplaceWithSelection(slot.Contents())
 	}
 
 	return nil
