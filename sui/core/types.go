@@ -43,6 +43,7 @@ type Page struct {
 	Attrs      map[string]string `json:"-"`
 	Attributes []html.Attribute  `json:"-"`
 	namespace  string            `json:"-"`
+	transCtx   *TranslateContext `json:"-"`
 	parent     *Page             `json:"-"`
 }
 
@@ -61,6 +62,12 @@ type BuildContext struct {
 	warnings      []string
 	visited       map[string]int // Keep a counter for each page
 	stack         []string       // Stack to manage build states
+}
+
+// TranslateContext is the struct for the translate context
+type TranslateContext struct {
+	sequence     int
+	translations []Translation
 }
 
 // ScriptNode is the struct for the script node
