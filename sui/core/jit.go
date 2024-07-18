@@ -48,14 +48,14 @@ func init() {
 // parseComponent parse the component
 func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
 	parser.parsed(sel)
-	comp, props, slots, err := parser.getComponent(sel)
+	comp, props, slots, children, err := parser.getComponent(sel)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
 		setError(sel, err)
 		return
 	}
 
-	html, _, err := parser.RenderComponent(comp, props, slots)
+	html, _, err := parser.RenderComponent(comp, props, slots, children)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
 		setError(sel, err)
@@ -66,7 +66,7 @@ func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
 }
 
 // RenderComponent render the component
-func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection) (string, string, error) {
+func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection, children *goquery.Selection) (string, string, error) {
 	html := comp.html
 	randvar := fmt.Sprintf("__%s_$props", time.Now().Format("20060102150405"))
 	html = replaceRandVar(html, randvar)
@@ -101,6 +101,10 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 		// Replace the slot
 		slotSel.ReplaceWithSelection(s.Contents())
 	})
+
+	// Replace the children
+	children.Find("slot").Remove()
+	root.Find("children").ReplaceWithSelection(children)
 
 	option := *parser.option
 	option.Route = comp.route
@@ -173,26 +177,27 @@ func (parser *TemplateParser) addStyles(sel *goquery.Selection, styles []StyleNo
 	}
 }
 
-func (parser *TemplateParser) getComponent(sel *goquery.Selection) (*JitComponent, map[string]interface{}, *goquery.Selection, error) {
+func (parser *TemplateParser) getComponent(sel *goquery.Selection) (*JitComponent, map[string]interface{}, *goquery.Selection, *goquery.Selection, error) {
 
 	slots := sel.Find("slot")
+	children := sel.Contents()
 
 	props, err := parser.componentProps(sel)
 	if err != nil {
-		return nil, nil, slots, err
+		return nil, nil, slots, children, err
 	}
 
 	file, route, err := parser.componentFile(sel, props)
 	if err != nil {
-		return nil, props, slots, err
+		return nil, props, slots, children, err
 	}
 
 	comp, err := getComponent(route, file, parser.disableCache())
 	if err != nil {
-		return nil, props, slots, err
+		return nil, props, slots, children, err
 	}
 
-	return comp, props, slots, nil
+	return comp, props, slots, children, nil
 }
 
 // isComponent check if the selection is a component

@@ -249,7 +249,7 @@ func (page *Page) copySlots(from *goquery.Selection, to *goquery.Selection) erro
 }
 
 func (page *Page) copyChildren(from *goquery.Selection, to *goquery.Selection) error {
-	children := from.Children()
+	children := from.Contents()
 	if children.Length() == 0 {
 		return nil
 	}
