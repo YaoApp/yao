@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
 )
 
@@ -188,12 +189,15 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	// Pass the component props
 	first := body.Children().First()
-	page.copyProps(ctx, sel, first, attrs...)
+	// page.copyProps(ctx, sel, first, attrs...)
+	page.parseProps(sel, first, attrs...)
 	page.copySlots(sel, first)
 	page.copyChildren(sel, first)
 	page.buildComponents(doc, ctx, &opt)
-	data := Data{"$props": page.Attrs}
-	data.ReplaceSelectionUse(slotRe, first)
+	page.replaceProps(first)
+
+	// data := Data{"$props": page.Attrs}
+	// data.ReplaceSelectionUse(slotRe, first)
 
 	// Add the translation marks
 	err = page.TranslateDocument(doc)
@@ -262,53 +266,144 @@ func (page *Page) copyChildren(from *goquery.Selection, to *goquery.Selection) e
 	return nil
 }
 
-func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goquery.Selection, extra ...html.Attribute) error {
+func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, extra ...html.Attribute) {
 	attrs := from.Get(0).Attr
-	prefix := "s:prop"
-	if page.Attrs == nil {
-		page.Attrs = map[string]string{}
+	if page.props == nil {
+		page.props = map[string]PageProp{}
 	}
+
+	if attrs == nil {
+		attrs = []html.Attribute{}
+	}
+
 	for _, attr := range attrs {
+
 		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" || attr.Key == "parsed" {
 			continue
 		}
 
-		if strings.HasPrefix(attr.Key, "...$props") {
-			data := Data{"$props": page.parent.Attrs}
-			val, err := data.Exec(fmt.Sprintf("{{ %s }}", attr.Key[3:]))
-			if err != nil {
-				ctx.warnings = append(ctx.warnings, err.Error())
-				setError(to, err)
-				continue
-			}
-			switch value := val.(type) {
-			case map[string]string:
-				for key, value := range value {
-					page.Attrs[key] = value
-					key = fmt.Sprintf("%s:%s", prefix, key)
-					to.SetAttr(key, value)
+		if attr.Key == "...$props" && page.parent != nil {
+			if page.parent.props != nil {
+				for key, prop := range page.parent.props {
+					page.props[key] = prop
 				}
 			}
 			continue
 		}
 
-		val := attr.Val
-		if strings.HasPrefix(attr.Key, `...\$props`) {
-			val = fmt.Sprintf("{{ $props.%s }}", attr.Key[9:])
+		if strings.HasPrefix(attr.Key, "...") && page.parent != nil {
+			val := attr.Key[3:]
+			key := fmt.Sprintf("s:prop:%s", attr.Key)
+			to.SetAttr(key, val)
+			continue
 		}
 
-		if strings.HasPrefix(attr.Key, "...") {
-			val = attr.Key[3:]
-		}
-		page.Attrs[attr.Key] = val
-		key := fmt.Sprintf("%s:%s", prefix, attr.Key)
-		to.SetAttr(key, val)
+		trans := from.AttrOr(fmt.Sprintf("s:trans-attr-%s", attr.Key), "")
+		exp := stmtRe.Match([]byte(attr.Val))
+		prop := PageProp{Key: attr.Key, Val: attr.Val, Trans: trans, Exp: exp}
+		page.props[attr.Key] = prop
 	}
 
-	if len(extra) > 0 {
+	if extra != nil && len(extra) > 0 {
 		for _, attr := range extra {
+			attrs = append(attrs, attr)
 			to.SetAttr(attr.Key, attr.Val)
 		}
+	}
+}
+
+func (page *Page) replaceProps(sel *goquery.Selection) error {
+	if page.props == nil || len(page.props) == 0 {
+		return nil
+	}
+	data := Data{}
+	for key, prop := range page.props {
+		data[key] = prop.Val
+	}
+	data["$props"] = data
+	return page.replacePropsNode(data, sel.Nodes[0])
+}
+
+func (page *Page) replacePropsText(text string, data Data) (string, []string) {
+	trans := []string{}
+	matched := PropFindAllStringSubmatch(text)
+	for _, match := range matched {
+		stmt := match[1]
+		val, err := data.ExecString(stmt)
+		if err != nil {
+			log.Error("[replaceProps] Replace %s: %s", stmt, err)
+			continue
+		}
+
+		text = strings.ReplaceAll(text, match[0], val)
+		vars := PropGetVarNames(stmt)
+		for _, v := range vars {
+			if v == "" {
+				continue
+			}
+
+			if prop, has := page.props[v]; has {
+				if prop.Trans == "" {
+					continue
+				}
+				trans = append(trans, prop.Trans)
+			}
+		}
+	}
+
+	return text, trans
+}
+
+func (page *Page) replacePropsNode(data Data, node *html.Node) error {
+	switch node.Type {
+	case html.TextNode:
+		text := node.Data
+		if strings.TrimSpace(text) == "" {
+			break
+		}
+
+		text, trans := page.replacePropsText(text, data)
+		if len(trans) > 0 && node.Parent != nil {
+			node.Parent.Attr = append(node.Parent.Attr, html.Attribute{
+				Key: "s:trans-text",
+				Val: strings.Join(trans, ","),
+			})
+		}
+
+		node.Data = text
+		break
+
+	case html.ElementNode:
+
+		// Attrs
+		attrs := []html.Attribute{}
+		for i, attr := range node.Attr {
+
+			if (strings.HasPrefix(attr.Key, "s:") || attr.Key == "is") && !allowUsePropAttrs[attr.Key] {
+				continue
+			}
+
+			val, trans := page.replacePropsText(attr.Val, data)
+			node.Attr[i] = html.Attribute{Key: attr.Key, Val: val}
+			if len(trans) > 0 {
+				key := fmt.Sprintf("s:trans-attr-%s", attr.Key)
+				attrs = append(attrs, html.Attribute{Key: key, Val: strings.Join(trans, ",")})
+			}
+		}
+
+		for _, attr := range attrs {
+			node.Attr = append(node.Attr, attr)
+		}
+
+		// Children
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			err := page.replacePropsNode(data, c)
+			if err != nil {
+				return err
+			}
+		}
+
+		break
 	}
 
 	return nil

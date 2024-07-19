@@ -29,22 +29,31 @@ type Setting struct {
 
 // Page is the struct for the page
 type Page struct {
-	Route      string            `json:"route"`
-	Name       string            `json:"name,omitempty"`
-	CacheStore string            `json:"-"`
-	TemplateID string            `json:"-"`
-	SuiID      string            `json:"-"`
-	Config     *PageConfig       `json:"-"`
-	Path       string            `json:"-"`
-	Root       string            `json:"-"`
-	Codes      SourceCodes       `json:"-"`
-	Document   []byte            `json:"-"`
-	GlobalData []byte            `json:"-"`
-	Attrs      map[string]string `json:"-"`
-	Attributes []html.Attribute  `json:"-"`
-	namespace  string            `json:"-"`
-	transCtx   *TranslateContext `json:"-"`
-	parent     *Page             `json:"-"`
+	Route      string              `json:"route"`
+	Name       string              `json:"name,omitempty"`
+	CacheStore string              `json:"-"`
+	TemplateID string              `json:"-"`
+	SuiID      string              `json:"-"`
+	Config     *PageConfig         `json:"-"`
+	Path       string              `json:"-"`
+	Root       string              `json:"-"`
+	Codes      SourceCodes         `json:"-"`
+	Document   []byte              `json:"-"`
+	GlobalData []byte              `json:"-"`
+	Attrs      map[string]string   `json:"-"`
+	Attributes []html.Attribute    `json:"-"`
+	namespace  string              `json:"-"`
+	transCtx   *TranslateContext   `json:"-"`
+	parent     *Page               `json:"-"`
+	props      map[string]PageProp `json:"-"`
+}
+
+// PageProp is the struct for the page prop
+type PageProp struct {
+	Key   string `json:"key"`
+	Val   string `json:"val"`
+	Exp   bool   `json:"exp"`
+	Trans string `json:"trans"`
 }
 
 // BuildContext is the struct for the build context
