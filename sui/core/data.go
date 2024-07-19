@@ -16,7 +16,9 @@ import (
 
 // If set the map value, should keep the space at the end of the statement
 var stmtRe = regexp.MustCompile(`\{\{([\s\S]*?)\}\}`)
-var propRe = regexp.MustCompile(`\[\{([\s\S]*?)\}\]`)
+var propRe = regexp.MustCompile(`\[\{([\s\S]*?)\}\]`)  // [{ xxx }] will be deprecated
+var propNewRe = regexp.MustCompile(`\{%([\s\S]*)?%\}`) // {% xxx %}
+var propVarNameRe = regexp.MustCompile(`(?:\$props\.)?(?:$begin:math:display$'([^']+)'$end:math:display$|(\w+))`)
 
 // Data data for the template
 type Data map[string]interface{}
@@ -183,4 +185,30 @@ func _process(args ...any) (interface{}, error) {
 	}
 
 	return res, nil
+}
+
+// PropFindAllStringSubmatch find all string submatch
+func PropFindAllStringSubmatch(value string) [][]string {
+	matched := propNewRe.FindAllStringSubmatch(value, -1)
+	oldVersion := propRe.FindAllStringSubmatch(value, -1) // will be deprecated
+	if len(oldVersion) > 0 {
+		matched = append(matched, oldVersion...)
+	}
+	return matched
+}
+
+// PropGetVarNames get the variable names
+func PropGetVarNames(value string) []string {
+	matched := propVarNameRe.FindAllStringSubmatch(value, -1)
+	varNames := []string{}
+	for _, m := range matched {
+		m1 := strings.TrimSpace(m[1])
+		m2 := strings.TrimSpace(m[2])
+		if m1 != "" {
+			varNames = append(varNames, m1)
+		} else {
+			varNames = append(varNames, m2)
+		}
+	}
+	return varNames
 }

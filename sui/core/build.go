@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
 )
 
@@ -38,6 +39,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 
 	ctx.sequence++
 
+	page.transCtx = NewTranslateContext()
 	namespace := Namespace(page.Route, ctx.sequence, option.ScriptMinify)
 	page.namespace = namespace
 
@@ -73,8 +75,7 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 
 	// Add the translation marks
-	sequence := 1
-	err = page.TranslateMarks(ctx, doc, &sequence)
+	err = page.TranslateDocument(doc)
 	if err != nil {
 		return nil, warnings, err
 	}
@@ -85,21 +86,25 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 			if script.Source == "" {
 				continue
 			}
-			trans, keys, err := page.translateScript(script.Source, &sequence)
+			trans, keys, err := page.translateScript(script.Source)
 			if err != nil {
 				return nil, ctx.warnings, err
 			}
 			if len(keys) > 0 {
-				ctx.translations = append(ctx.translations, trans...)
+				page.transCtx.translations = append(page.transCtx.translations, trans...)
 				scripts[i].Attrs = append(script.Attrs, html.Attribute{Key: "s:trans-script", Val: strings.Join(keys, ",")})
 			}
 		}
 	}
 
+	if ctx.translations == nil {
+		ctx.translations = []Translation{}
+	}
+	ctx.translations = append(ctx.translations, page.transCtx.translations...)
+
 	// Append the scripts and styles
 	ctx.scripts = append(ctx.scripts, scripts...)
 	ctx.styles = append(ctx.styles, styles...)
-
 	return doc, ctx.warnings, err
 }
 
@@ -134,12 +139,18 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	namespace := Namespace(name, ctx.sequence, option.ScriptMinify)
 	component := ComponentName(name, option.ScriptMinify)
+	page.transCtx = NewTranslateContext()
 	page.namespace = namespace
 	attrs := []html.Attribute{
 		{Key: "s:ns", Val: namespace},
 		{Key: "s:cn", Val: component},
 		{Key: "s:ready", Val: component + "()"},
 		{Key: "s:parent", Val: page.parent.namespace},
+	}
+
+	err := page.parent.TranslateSelection(sel) // Translate the component instance
+	if err != nil {
+		return "", err
 	}
 
 	ctx.sequence++
@@ -178,17 +189,18 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	// Pass the component props
 	first := body.Children().First()
-
-	page.copyProps(ctx, sel, first, attrs...)
+	// page.copyProps(ctx, sel, first, attrs...)
+	page.parseProps(sel, first, attrs...)
 	page.copySlots(sel, first)
 	page.copyChildren(sel, first)
 	page.buildComponents(doc, ctx, &opt)
-	data := Data{"$props": page.Attrs}
-	data.ReplaceSelectionUse(slotRe, first)
+	page.replaceProps(first)
+
+	// data := Data{"$props": page.Attrs}
+	// data.ReplaceSelectionUse(slotRe, first)
 
 	// Add the translation marks
-	sequence := 1
-	err = page.TranslateMarks(ctx, doc, &sequence)
+	err = page.TranslateDocument(doc)
 	if err != nil {
 		return "", err
 	}
@@ -199,12 +211,12 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 			if script.Source == "" {
 				continue
 			}
-			trans, keys, err := page.translateScript(script.Source, &sequence)
+			trans, keys, err := page.translateScript(script.Source)
 			if err != nil {
 				return "", err
 			}
 			if len(keys) > 0 {
-				ctx.translations = append(ctx.translations, trans...)
+				page.transCtx.translations = append(page.transCtx.translations, trans...)
 				scripts[i].Attrs = append(script.Attrs, html.Attribute{Key: "s:trans-script", Val: strings.Join(keys, ",")})
 			}
 		}
@@ -214,11 +226,7 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	ctx.scripts = append(ctx.scripts, scripts...)
 	ctx.styles = append(ctx.styles, styles...)
 
-	source, err = body.Html()
-	if err != nil {
-		return "", err
-	}
-	sel.ReplaceWithHtml(source)
+	sel.ReplaceWithSelection(body.Contents())
 	ctx.components[page.Route] = true
 	return source, nil
 }
@@ -258,53 +266,144 @@ func (page *Page) copyChildren(from *goquery.Selection, to *goquery.Selection) e
 	return nil
 }
 
-func (page *Page) copyProps(ctx *BuildContext, from *goquery.Selection, to *goquery.Selection, extra ...html.Attribute) error {
+func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, extra ...html.Attribute) {
 	attrs := from.Get(0).Attr
-	prefix := "s:prop"
-	if page.Attrs == nil {
-		page.Attrs = map[string]string{}
+	if page.props == nil {
+		page.props = map[string]PageProp{}
 	}
+
+	if attrs == nil {
+		attrs = []html.Attribute{}
+	}
+
 	for _, attr := range attrs {
+
 		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" || attr.Key == "parsed" {
 			continue
 		}
 
-		if strings.HasPrefix(attr.Key, "...$props") {
-			data := Data{"$props": page.parent.Attrs}
-			val, err := data.Exec(fmt.Sprintf("{{ %s }}", attr.Key[3:]))
-			if err != nil {
-				ctx.warnings = append(ctx.warnings, err.Error())
-				setError(to, err)
-				continue
-			}
-			switch value := val.(type) {
-			case map[string]string:
-				for key, value := range value {
-					page.Attrs[key] = value
-					key = fmt.Sprintf("%s:%s", prefix, key)
-					to.SetAttr(key, value)
+		if attr.Key == "...$props" && page.parent != nil {
+			if page.parent.props != nil {
+				for key, prop := range page.parent.props {
+					page.props[key] = prop
 				}
 			}
 			continue
 		}
 
-		val := attr.Val
-		if strings.HasPrefix(attr.Key, `...\$props`) {
-			val = fmt.Sprintf("{{ $props.%s }}", attr.Key[9:])
+		if strings.HasPrefix(attr.Key, "...") && page.parent != nil {
+			val := attr.Key[3:]
+			key := fmt.Sprintf("s:prop:%s", attr.Key)
+			to.SetAttr(key, val)
+			continue
 		}
 
-		if strings.HasPrefix(attr.Key, "...") {
-			val = attr.Key[3:]
-		}
-		page.Attrs[attr.Key] = val
-		key := fmt.Sprintf("%s:%s", prefix, attr.Key)
-		to.SetAttr(key, val)
+		trans := from.AttrOr(fmt.Sprintf("s:trans-attr-%s", attr.Key), "")
+		exp := stmtRe.Match([]byte(attr.Val))
+		prop := PageProp{Key: attr.Key, Val: attr.Val, Trans: trans, Exp: exp}
+		page.props[attr.Key] = prop
 	}
 
-	if len(extra) > 0 {
+	if extra != nil && len(extra) > 0 {
 		for _, attr := range extra {
+			attrs = append(attrs, attr)
 			to.SetAttr(attr.Key, attr.Val)
 		}
+	}
+}
+
+func (page *Page) replaceProps(sel *goquery.Selection) error {
+	if page.props == nil || len(page.props) == 0 {
+		return nil
+	}
+	data := Data{}
+	for key, prop := range page.props {
+		data[key] = prop.Val
+	}
+	data["$props"] = data
+	return page.replacePropsNode(data, sel.Nodes[0])
+}
+
+func (page *Page) replacePropsText(text string, data Data) (string, []string) {
+	trans := []string{}
+	matched := PropFindAllStringSubmatch(text)
+	for _, match := range matched {
+		stmt := match[1]
+		val, err := data.ExecString(stmt)
+		if err != nil {
+			log.Error("[replaceProps] Replace %s: %s", stmt, err)
+			continue
+		}
+
+		text = strings.ReplaceAll(text, match[0], val)
+		vars := PropGetVarNames(stmt)
+		for _, v := range vars {
+			if v == "" {
+				continue
+			}
+
+			if prop, has := page.props[v]; has {
+				if prop.Trans == "" {
+					continue
+				}
+				trans = append(trans, prop.Trans)
+			}
+		}
+	}
+
+	return text, trans
+}
+
+func (page *Page) replacePropsNode(data Data, node *html.Node) error {
+	switch node.Type {
+	case html.TextNode:
+		text := node.Data
+		if strings.TrimSpace(text) == "" {
+			break
+		}
+
+		text, trans := page.replacePropsText(text, data)
+		if len(trans) > 0 && node.Parent != nil {
+			node.Parent.Attr = append(node.Parent.Attr, html.Attribute{
+				Key: "s:trans-text",
+				Val: strings.Join(trans, ","),
+			})
+		}
+
+		node.Data = text
+		break
+
+	case html.ElementNode:
+
+		// Attrs
+		attrs := []html.Attribute{}
+		for i, attr := range node.Attr {
+
+			if (strings.HasPrefix(attr.Key, "s:") || attr.Key == "is") && !allowUsePropAttrs[attr.Key] {
+				continue
+			}
+
+			val, trans := page.replacePropsText(attr.Val, data)
+			node.Attr[i] = html.Attribute{Key: attr.Key, Val: val}
+			if len(trans) > 0 {
+				key := fmt.Sprintf("s:trans-attr-%s", attr.Key)
+				attrs = append(attrs, html.Attribute{Key: key, Val: strings.Join(trans, ",")})
+			}
+		}
+
+		for _, attr := range attrs {
+			node.Attr = append(node.Attr, attr)
+		}
+
+		// Children
+		for c := node.FirstChild; c != nil; c = c.NextSibling {
+			err := page.replacePropsNode(data, c)
+			if err != nil {
+				return err
+			}
+		}
+
+		break
 	}
 
 	return nil
@@ -561,180 +660,4 @@ func addTabToEachLine(input string, prefix ...string) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-// TranslateMarks add the translation marks to the document
-func (page *Page) TranslateMarks(ctx *BuildContext, doc *goquery.Document, sequence *int) error {
-
-	if doc.Length() == 0 {
-		return nil
-	}
-
-	if ctx == nil {
-		ctx = NewBuildContext(nil)
-	}
-
-	if ctx.translations == nil {
-		ctx.translations = []Translation{}
-	}
-
-	root := doc.First()
-	translations, err := page.translateNode(root.Nodes[0], sequence)
-	if err != nil {
-		return err
-	}
-
-	if translations != nil {
-		ctx.translations = append(ctx.translations, translations...)
-	}
-	return nil
-}
-
-func (page *Page) translateNode(node *html.Node, sequence *int) ([]Translation, error) {
-
-	translations := []Translation{}
-
-	switch node.Type {
-	case html.DocumentNode:
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			trans, err := page.translateNode(child, sequence)
-			if err != nil {
-				return nil, err
-			}
-			translations = append(translations, trans...)
-		}
-		break
-
-	case html.ElementNode:
-
-		sel := goquery.NewDocumentFromNode(node)
-		// Script
-		if node.Data == "script" {
-			if _, has := sel.Attr("s:trans-script"); has {
-				break
-			}
-			code := goquery.NewDocumentFromNode(node).Text()
-			trans, keys, err := page.translateScript(code, sequence)
-			if err != nil {
-				return nil, err
-			}
-			if len(keys) > 0 {
-				raw := strings.Join(keys, ",")
-				sel.SetAttr("s:trans-script", raw)
-				translations = append(translations, trans...)
-			}
-			break
-		}
-
-		for _, attr := range node.Attr {
-
-			if _, has := sel.Attr("s:trans-attr-" + attr.Key); has {
-				continue
-			}
-
-			trans, keys, err := page.translateText(attr.Val, sequence, "attr")
-			if err != nil {
-				return nil, err
-			}
-			if len(keys) > 0 {
-				raw := strings.Join(keys, ",")
-				sel.SetAttr("s:trans-attr-"+attr.Key, raw)
-				translations = append(translations, trans...)
-			}
-
-		}
-
-		// Node Attributes
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			trans, err := page.translateNode(child, sequence)
-			if err != nil {
-				return nil, err
-			}
-			translations = append(translations, trans...)
-		}
-		break
-
-	case html.TextNode:
-		parentSel := goquery.NewDocumentFromNode(node.Parent)
-		if _, has := parentSel.Attr("s:trans"); has {
-			if _, has := parentSel.Attr("s:trans-node"); has {
-				break
-			}
-
-			key := TranslationKey(page.Route, *sequence)
-			message := strings.TrimSpace(node.Data)
-			if message != "" {
-				translations = append(translations, Translation{
-					Key:     key,
-					Message: message,
-					Type:    "text",
-				})
-				parentSel.SetAttr("s:trans-node", key)
-				*sequence = *sequence + 1
-			}
-			parentSel.SetAttr("s:trans-escape", "true")
-		}
-
-		if _, has := parentSel.Attr("s:trans-text"); has {
-			break
-		}
-		trans, keys, err := page.translateText(node.Data, sequence, "text")
-		if err != nil {
-			return nil, err
-		}
-		if len(keys) > 0 {
-			raw := strings.Join(keys, ",")
-			parentSel.SetAttr("s:trans-text", raw)
-			translations = append(translations, trans...)
-		}
-		break
-	}
-
-	return translations, nil
-}
-
-func (page *Page) translateText(text string, sequence *int, transType string) ([]Translation, []string, error) {
-	translations := []Translation{}
-	matches := stmtRe.FindAllStringSubmatch(text, -1)
-	keys := []string{}
-	for _, match := range matches {
-		text := strings.TrimSpace(match[1])
-		transMatches := transStmtReSingle.FindAllStringSubmatch(text, -1)
-		if len(transMatches) == 0 {
-			transMatches = transStmtReDouble.FindAllStringSubmatch(text, -1)
-		}
-		for _, transMatch := range transMatches {
-			message := strings.TrimSpace(transMatch[1])
-			key := TranslationKey(page.Route, *sequence)
-			keys = append(keys, key)
-			translations = append(translations, Translation{
-				Key:     key,
-				Message: message,
-				Type:    transType,
-			})
-			*sequence = *sequence + 1
-		}
-	}
-	return translations, keys, nil
-}
-
-func (page *Page) translateScript(code string, sequence *int) ([]Translation, []string, error) {
-
-	translations := []Translation{}
-	keys := []string{}
-	if code == "" {
-		return translations, keys, nil
-	}
-	matches := transFuncRe.FindAllStringSubmatch(code, -1)
-	for _, match := range matches {
-		key := TranslationKey(page.Route, *sequence)
-		translations = append(translations, Translation{
-			Key:     key,
-			Message: match[1],
-			Type:    "script",
-		})
-		*sequence = *sequence + 1
-		keys = append(keys, key)
-	}
-	return translations, keys, nil
 }

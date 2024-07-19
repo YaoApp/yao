@@ -17,6 +17,14 @@ func NewBuildContext(global *GlobalBuildContext) *BuildContext {
 	}
 }
 
+// NewTranslateContext create a new translate context
+func NewTranslateContext() *TranslateContext {
+	return &TranslateContext{
+		sequence:     1,
+		translations: []Translation{},
+	}
+}
+
 // NewGlobalBuildContext create a new global build context
 func NewGlobalBuildContext() *GlobalBuildContext {
 	return &GlobalBuildContext{
