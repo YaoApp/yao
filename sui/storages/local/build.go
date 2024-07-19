@@ -559,13 +559,13 @@ func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]inter
 		return nil
 	}
 
+	components := ctx.GetComponents()
 	translations := ctx.GetTranslations()
-	if len(translations) == 0 {
+	if len(translations) == 0 && len(components) == 0 {
 		return nil
 	}
 	prefix := core.TranslationKeyPrefix(page.Route)
 	files := page.localeFiles(data)
-	components := ctx.GetComponents()
 	for name, file := range files {
 		locale := page.tmpl.getLocale(name, page.Route)
 		locale.MergeTranslations(translations, prefix)
