@@ -7,6 +7,29 @@ const initScriptTmpl = `
 		var __sui_data = %s;
 	} catch (e) { console.log('init data error:', e); }
 
+
+	function __sui_event_handler(event, dataKeys, jsonKeys, elm, handler) {
+		const data = {};
+		dataKeys.forEach(function (key) {
+			const value = elm.getAttribute("data:" + key);
+			data[key] = value;
+		})
+		jsonKeys.forEach(function (key) {
+			const value = elm.getAttribute("json:" + key);
+			data[key] = null;
+			if (value && value != "") {
+				try {
+					data[key] = JSON.parse(value);
+				} catch (e) {
+				 	const message = e.message || e || "An error occurred";
+					console.error(` + "`[SUI] Event Handler Error: ${message}`" + `, elm);
+				}
+			}
+		})
+			
+		handler && handler(event, data, elm);
+	};
+
 	document.addEventListener("DOMContentLoaded", function () {
 		try {
 			document.querySelectorAll("[s\\:ready]").forEach(function (element) {
@@ -42,25 +65,9 @@ const i118nScriptTmpl = `
 
 const pageEventScriptTmpl = `
 	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
-		let data = {};
 		const dataKeys = %s;
 		const jsonKeys = %s;
-
-		const elm = this;
-		dataKeys.forEach(function (key) {
-			const value = elm.getAttribute("data:" + key);
-			data[key] = value;
-		})
-
-		jsonKeys.forEach(function (key) {
-			const value = elm.getAttribute("json:" + key);
-			data[key] = null;
-			if (value && value != "") {
-				data[key] = JSON.parse(value);
-			}
-		})
-
-		%s && %s(event, data, this);
+		__sui_event_handler(event, dataKeys, jsonKeys, this, %s);
 	});
 `
 
@@ -77,5 +84,5 @@ func headInjectionScript(jsonRaw string) string {
 }
 
 func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler string) string {
-	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, handler, handler)
+	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, handler)
 }

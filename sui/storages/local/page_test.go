@@ -66,13 +66,13 @@ func TestTemplatePageTree(t *testing.T) {
 
 	assert.NotEmpty(t, pages)
 	assert.NotEmpty(t, pages[1].Children)
-	if len(pages[1].Children) < 2 {
+	if len(pages[1].Children) < 3 {
 		t.Fatalf("Pages error: %v", len(pages[1].Children))
 	}
 
-	assert.NotEmpty(t, pages[1].Children[0].Children)
-	if len(pages[1].Children[0].Children) < 2 {
-		t.Fatalf("Pages error: %v", len(pages[1].Children[0].Children))
+	assert.NotEmpty(t, pages[2].Children[0].Children)
+	if len(pages[2].Children[0].Children) < 2 {
+		t.Fatalf("Pages error: %v", len(pages[2].Children[0].Children))
 	}
 }
 

@@ -54,6 +54,9 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	}
 	doc.Find("body").SetAttr("s:ns", namespace)
 
+	// Bind the Page events
+	page.BindEvent(ctx, doc.Selection)
+
 	warnings, err := page.buildComponents(doc, ctx, option)
 	if err != nil {
 		return nil, ctx.warnings, err
@@ -105,9 +108,6 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	// Append the scripts and styles
 	ctx.scripts = append(ctx.scripts, scripts...)
 	ctx.styles = append(ctx.styles, styles...)
-
-	// Bind the events
-	page.BindEvent(ctx, doc.Selection)
 
 	return doc, ctx.warnings, err
 }
@@ -281,6 +281,12 @@ func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, ext
 	}
 
 	for _, attr := range attrs {
+
+		// Copy Event
+		if strings.HasPrefix(attr.Key, "s:event") || strings.HasPrefix(attr.Key, "data:") || strings.HasPrefix(attr.Key, "json:") {
+			to.SetAttr(attr.Key, attr.Val)
+			continue
+		}
 
 		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" || attr.Key == "parsed" {
 			continue

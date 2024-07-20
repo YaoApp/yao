@@ -18,9 +18,6 @@ func (page *Page) BindEvent(ctx *BuildContext, sel *goquery.Selection) {
 }
 
 func (page *Page) appendEventScript(ctx *BuildContext, sel *goquery.Selection) {
-	if page.parent != nil {
-		return
-	}
 
 	if len(sel.Nodes) == 0 {
 		return
@@ -34,34 +31,39 @@ func (page *Page) appendEventScript(ctx *BuildContext, sel *goquery.Selection) {
 	ctx.sequence++
 
 	for _, attr := range sel.Nodes[0].Attr {
+
 		if strings.HasPrefix(attr.Key, "s:on-") {
 			name := strings.TrimPrefix(attr.Key, "s:on-")
 			handler := attr.Val
 			events[name] = handler
+			continue
 		}
+
 		if strings.HasPrefix(attr.Key, "s:data-") {
 			name := strings.TrimPrefix(attr.Key, "s:data-")
 			dataUnique[name] = attr.Val
-			sel.RemoveAttr(attr.Key)
-			sel.RemoveAttr(attr.Key)
 			sel.SetAttr(fmt.Sprintf("data:%s", name), attr.Val)
+			continue
 		}
+
 		if strings.HasPrefix(attr.Key, "s:json-") {
 			name := strings.TrimPrefix(attr.Key, "s:json-")
 			jsonUnique[name] = attr.Val
-			sel.RemoveAttr(attr.Key)
 			sel.SetAttr(fmt.Sprintf("json:%s", name), attr.Val)
+			continue
 		}
 	}
 
 	data := []string{}
 	for name := range dataUnique {
 		data = append(data, name)
+		sel.RemoveAttr(fmt.Sprintf("s:data-%s", name))
 	}
 
 	json := []string{}
 	for name := range jsonUnique {
 		json = append(json, name)
+		sel.RemoveAttr(fmt.Sprintf("s:json-%s", name))
 	}
 
 	dataRaw, _ := jsoniter.MarshalToString(data)
