@@ -134,7 +134,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		}
 
 		head.AppendHtml(headInjectionScript(data))
-		parser.addScripts(head, parser.scripts)
+		parser.addScripts(head, parser.filterScripts("head", parser.scripts))
 		parser.addStyles(head, parser.styles)
 	}
 
@@ -146,6 +146,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 			data, _ = jsoniter.MarshalToString(map[string]string{"error": err.Error()})
 		}
 		body.AppendHtml(bodyInjectionScript(data, parser.debug()))
+		parser.addScripts(body, parser.filterScripts("body", parser.scripts))
 	}
 
 	// Fmt

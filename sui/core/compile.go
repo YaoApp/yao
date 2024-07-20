@@ -58,6 +58,9 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []str
 
 	}
 
+	// SUI lib
+	head.AppendHtml("\n\n" + `<script name="sui" type="text/javascript">` + suiLibScript + `</script>` + "\n\n")
+
 	// Page Config
 	page.Config = page.GetConfig()
 
@@ -111,6 +114,7 @@ func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (st
 	opt := *option
 	opt.IgnoreDocument = true
 	opt.WithWrapper = true
+	opt.JitMode = true
 	doc, warnings, err := page.Build(ctx, &opt)
 	if err != nil {
 		return "", warnings, err
@@ -262,6 +266,9 @@ func (script ScriptNode) ComponentHTML(ns string) string {
 	}
 
 	source := fmt.Sprintf(`function %s(){%s};`, script.Component, script.Source)
+	if script.Component == "" {
+		return "<script " + strings.Join(attrs, " ") + ">\n" + script.Source + "\n</script>"
+	}
 	return "<script " + strings.Join(attrs, " ") + ">\n" + source + "\n</script>"
 }
 

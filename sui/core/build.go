@@ -55,7 +55,9 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	doc.Find("body").SetAttr("s:ns", namespace)
 
 	// Bind the Page events
-	page.BindEvent(ctx, doc.Selection)
+	if !option.JitMode {
+		page.BindEvent(ctx, doc.Selection, "__page", true)
+	}
 
 	warnings, err := page.buildComponents(doc, ctx, option)
 	if err != nil {
@@ -169,6 +171,9 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	if err != nil {
 		return "", err
 	}
+
+	// Bind the component events
+	page.BindEvent(ctx, doc.Selection, component, false)
 
 	body := doc.Selection.Find("body")
 
@@ -553,6 +558,11 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 		component = ComponentName(page.Route, option.ScriptMinify)
 	}
 
+	arguments := ""
+	if !ispage {
+		arguments = "arguments[0]"
+	}
+
 	scripts := []ScriptNode{}
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
 		return scripts, nil
@@ -566,17 +576,18 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 	var imports []string = nil
 	var source []byte = nil
 	if page.Codes.TS.Code != "" {
-		source, imports, err = page.CompileTS([]byte(page.Codes.TS.Code), option.ScriptMinify)
+		code := fmt.Sprintf("this.store = new __sui_store(%s);\n%s", arguments, page.Codes.TS.Code)
+		source, imports, err = page.CompileTS([]byte(code), option.ScriptMinify)
 		if err != nil {
 			return nil, err
 		}
 
 	} else if page.Codes.JS.Code != "" {
-		source, imports, err = page.CompileJS([]byte(page.Codes.JS.Code), option.ScriptMinify)
+		code := fmt.Sprintf("this.store = new __sui_store(%s);\n%s", arguments, page.Codes.JS.Code)
+		source, imports, err = page.CompileJS([]byte(code), option.ScriptMinify)
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
 	// Add the script

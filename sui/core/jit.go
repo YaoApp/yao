@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	jsoniter "github.com/json-iterator/go"
@@ -62,21 +61,24 @@ func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
 		return
 	}
 
+	// fmt.Println(sel.Nodes[0].Attr)
 	sel.SetHtml(html)
 }
 
 // RenderComponent render the component
 func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection, children *goquery.Selection) (string, string, error) {
 	html := comp.html
-	randvar := fmt.Sprintf("__%s_$props", time.Now().Format("20060102150405"))
-	html = replaceRandVar(html, randvar)
-	data := Data{}
-	data[randvar] = props
-	if parser.data != nil {
-		for key, val := range parser.data {
-			data[key] = val
-		}
-	}
+
+	html = replaceRandVar(html, Data(props))
+	option := *parser.option
+	option.Route = comp.route
+	compParser := NewTemplateParser(parser.data, &option)
+	compParser.sequence = parser.sequence + 1
+	locale := compParser.Locale()
+
+	// Parse the node
+	ns := Namespace(comp.route, compParser.sequence, comp.buildOption.ScriptMinify)
+	cn := ComponentName(comp.route, comp.buildOption.ScriptMinify)
 
 	sel, err := NewDocumentString(`<body>` + html + `</body>`)
 	if err != nil {
@@ -106,22 +108,24 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 	children.Find("slot").Remove()
 	root.Find("children").ReplaceWithSelection(children)
 
-	option := *parser.option
-	option.Route = comp.route
-	compParser := NewTemplateParser(data, &option)
-	locale := compParser.Locale()
+	// Replace the props
 	if locale != nil {
-		locale.replaceVars(randvar)
+		locale.replaceVars(Data(props))
 	}
-	compParser.locale = locale
 
-	// Parse the node
-	ns := Namespace(comp.route, compParser.sequence, comp.buildOption.ScriptMinify)
-	cn := ComponentName(comp.route, comp.buildOption.ScriptMinify)
+	compParser.locale = locale
+	compParser.BindEvent(root, ns, cn)
 	compParser.parseNode(root.Get(0))
 	for sel, nodes := range compParser.replace {
 		sel.ReplaceWithNodes(nodes...)
 		delete(parser.replace, sel)
+	}
+
+	if compParser.scripts != nil {
+		for _, script := range compParser.scripts {
+			script.Namespace = ns
+			parser.scripts = append(parser.scripts, script)
+		}
 	}
 
 	if comp.scripts != nil {
@@ -144,6 +148,7 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 	first.SetAttr("s:ns", ns)
 	first.SetAttr("s:cn", cn)
 	first.SetAttr("s:ready", cn+"()")
+
 	html, err = root.Html()
 	if err != nil {
 		return "", "", err
@@ -151,14 +156,27 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 	return html, ns, nil
 }
 
-func (parser *TemplateParser) addScripts(sel *goquery.Selection, scripts []ScriptNode) {
+func (parser *TemplateParser) filterScripts(parent string, scripts []ScriptNode) []ScriptNode {
 	if scripts == nil {
-		return
+		return []ScriptNode{}
 	}
+	filtered := []ScriptNode{}
 	for _, script := range scripts {
-		query := fmt.Sprintf(`script[s\:cn="%s"]`, script.Component)
-		if sel.Find(query).Length() > 0 {
+		if script.Parent != parent {
 			continue
+		}
+		filtered = append(filtered, script)
+	}
+	return filtered
+}
+
+func (parser *TemplateParser) addScripts(sel *goquery.Selection, scripts []ScriptNode) {
+	for _, script := range scripts {
+		if script.Component != "" {
+			query := fmt.Sprintf(`script[s\:cn="%s"]`, script.Component)
+			if sel.Find(query).Length() > 0 {
+				continue
+			}
 		}
 		sel.AppendHtml(script.ComponentHTML(script.Namespace))
 	}
@@ -226,6 +244,13 @@ func (parser *TemplateParser) componentProps(sel *goquery.Selection) (map[string
 	}
 
 	for _, attr := range sel.Nodes[0].Attr {
+
+		// s:on , s:data , s:json
+		if strings.HasPrefix(attr.Key, "s:on") || strings.HasPrefix(attr.Key, "s:data") || strings.HasPrefix(attr.Key, "s:json") {
+			props[attr.Key] = attr.Val
+			continue
+		}
+
 		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" {
 			continue
 		}
@@ -268,19 +293,10 @@ func (parser *TemplateParser) parseComponentProps(props map[string]string) (map[
 			}
 
 			if _, ok := values.(map[string]interface{}); ok {
-				for k, v := range values.(map[string]interface{}) {
-					result[k] = v
+				for k := range values.(map[string]interface{}) {
+					result[k] = k
 				}
 			}
-			continue
-		}
-
-		if strings.HasPrefix(val, "{{") && strings.HasSuffix(val, "}}") {
-			value, err := parser.data.Exec(val)
-			if err != nil {
-				return map[string]interface{}{}, err
-			}
-			result[key] = value
 			continue
 		}
 
@@ -303,16 +319,16 @@ func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[st
 	return file, route, nil
 }
 
-func (locale *Locale) replaceVars(randvar string) {
+func (locale *Locale) replaceVars(data Data) {
 	if locale.Keys != nil {
 		for key, val := range locale.Keys {
-			locale.Keys[key] = replaceRandVar(val, randvar)
+			locale.Keys[key] = replaceRandVar(val, data)
 		}
 	}
 
 	if locale.Messages != nil {
 		for key, val := range locale.Messages {
-			locale.Messages[key] = replaceRandVar(val, randvar)
+			locale.Messages[key] = replaceRandVar(val, data)
 		}
 	}
 }
@@ -414,11 +430,18 @@ func readComponent(route string, file string) (*JitComponent, error) {
 	}, nil
 }
 
-func replaceRandVar(html string, randvar string) string {
-	return slotRe.ReplaceAllStringFunc(html, func(exp string) string {
-		exp = strings.ReplaceAll(exp, "[{", "{{")
-		exp = strings.ReplaceAll(exp, "}]", "}}")
-		exp = strings.ReplaceAll(exp, "$props", randvar)
-		return exp
+func replaceRandVar(value string, data Data) string {
+
+	value = propNewRe.ReplaceAllStringFunc(value, func(exp string) string {
+		exp = strings.TrimPrefix(exp, "{%")
+		exp = strings.TrimSuffix(exp, "%}")
+		res, _ := data.ExecString(fmt.Sprintf("{{ %s }}", exp))
+		return res
+	})
+
+	data = Data{"$props": data}
+	return slotRe.ReplaceAllStringFunc(value, func(exp string) string {
+		res, _ := data.ExecString(exp)
+		return res
 	})
 }
