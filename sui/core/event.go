@@ -9,22 +9,38 @@ import (
 	"golang.org/x/net/html"
 )
 
+var eventMatcher = NewAttrPrefixMatcher(`s:on-`)
+
 // BindEvent is a method that binds events to the page.
-func (page *Page) BindEvent(ctx *BuildContext, sel *goquery.Selection, component string, ispage bool) {
-	matcher := NewAttrPrefixMatcher(`s:on-`)
-	sel.FindMatcher(matcher).Each(func(i int, s *goquery.Selection) {
+func (page *Page) BindEvent(ctx *BuildContext, sel *goquery.Selection, cn string, ispage bool) {
+
+	sel.FindMatcher(eventMatcher).Each(func(i int, s *goquery.Selection) {
 		if comp, has := s.Attr("is"); has && ctx.isJitComponent(comp) {
 			return
 		}
-		script := GetEventScript(&ctx.sequence, s, page.namespace, component, ispage)
+		script := GetEventScript(ctx.sequence, s, page.namespace, cn, "event", ispage)
 		if script != nil {
 			ctx.scripts = append(ctx.scripts, *script)
+			ctx.sequence++
+		}
+	})
+}
+
+// BindEvent is a method that binds events to the component in just-in-time mode.
+func (parser *TemplateParser) BindEvent(sel *goquery.Selection, ns string, cn string) {
+	sel.FindMatcher(eventMatcher).Each(func(i int, s *goquery.Selection) {
+		script := GetEventScript(parser.sequence, s, ns, cn, "event-jit", false)
+		if script != nil {
+			script.Component = ""
+			script.Parent = "body"
+			parser.scripts = append(parser.scripts, *script)
+			parser.sequence++
 		}
 	})
 }
 
 // GetEventScript the event script
-func GetEventScript(sequence *int, sel *goquery.Selection, ns string, cn string, ispage bool) *ScriptNode {
+func GetEventScript(sequence int, sel *goquery.Selection, ns string, cn string, prefix string, ispage bool) *ScriptNode {
 
 	if len(sel.Nodes) == 0 {
 		return nil
@@ -34,9 +50,7 @@ func GetEventScript(sequence *int, sel *goquery.Selection, ns string, cn string,
 	events := map[string]string{}
 	dataUnique := map[string]string{}
 	jsonUnique := map[string]string{}
-	id := fmt.Sprintf("event-%d", *sequence)
-	*sequence = *sequence + 1
-
+	id := fmt.Sprintf("%s-%d", prefix, sequence)
 	for _, attr := range sel.Nodes[0].Attr {
 
 		if strings.HasPrefix(attr.Key, "s:on-") {

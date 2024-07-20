@@ -266,6 +266,9 @@ func (script ScriptNode) ComponentHTML(ns string) string {
 	}
 
 	source := fmt.Sprintf(`function %s(){%s};`, script.Component, script.Source)
+	if script.Component == "" {
+		return "<script " + strings.Join(attrs, " ") + ">\n" + script.Source + "\n</script>"
+	}
 	return "<script " + strings.Join(attrs, " ") + ">\n" + source + "\n</script>"
 }
 
