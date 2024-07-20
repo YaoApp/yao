@@ -58,6 +58,9 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []str
 
 	}
 
+	// SUI lib
+	head.AppendHtml("\n\n" + `<script name="sui" type="text/javascript">` + suiLibScript + `</script>` + "\n\n")
+
 	// Page Config
 	page.Config = page.GetConfig()
 

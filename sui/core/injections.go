@@ -2,11 +2,7 @@ package core
 
 import "fmt"
 
-const initScriptTmpl = `
-	try {
-		var __sui_data = %s;
-	} catch (e) { console.log('init data error:', e); }
-
+const suiLibScript = `
 
 	function __sui_event_handler(event, dataKeys, jsonKeys, elm, handler) {
 		const data = {};
@@ -26,9 +22,46 @@ const initScriptTmpl = `
 				}
 			}
 		})
-			
+
 		handler && handler(event, data, elm);
 	};
+
+	function __sui_store(elm) {
+		elm = elm || document.body;
+
+		this.Get = function (key) {
+			return elm.getAttribute("data:" + key);
+		}
+
+		this.Set = function (key, value) {
+			elm.setAttribute("data:" + key, value);
+		}
+
+		this.GetJSON = function (key) {
+			const value = elm.getAttribute("json:" + key);
+			if (value && value != "") {
+				try {
+					const res = JSON.parse(value);
+					return res;
+				} catch (e) {
+					const message = e.message || e || "An error occurred";
+					console.error(` + "`[SUI] Event Handler Error: ${message}`" + `, elm);
+					return null;
+				}
+			}
+			return null;
+		}
+
+		this.SetJSON = function (key, value) {
+			elm.setAttribute("json:" + key, JSON.stringify(value));
+		}
+	}
+`
+
+const initScriptTmpl = `
+	try {
+		var __sui_data = %s;
+	} catch (e) { console.log('init data error:', e); }
 
 	document.addEventListener("DOMContentLoaded", function () {
 		try {
@@ -71,6 +104,15 @@ const pageEventScriptTmpl = `
 	});
 `
 
+const compEventScriptTmpl = `
+	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
+		const dataKeys = %s;
+		const jsonKeys = %s;
+		const handler = new %s(this).%s;
+		__sui_event_handler(event, dataKeys, jsonKeys, this, handler);
+	});
+`
+
 func bodyInjectionScript(jsonRaw string, debug bool) string {
 	jsPrintData := ""
 	if debug {
@@ -85,4 +127,8 @@ func headInjectionScript(jsonRaw string) string {
 
 func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler string) string {
 	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, handler)
+}
+
+func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, handler string) string {
+	return fmt.Sprintf(compEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, component, handler)
 }
