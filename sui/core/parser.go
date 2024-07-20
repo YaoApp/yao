@@ -67,14 +67,14 @@ var allowUsePropAttrs = map[string]bool{
 	"s:if":    true,
 	"s:elif":  true,
 	"s:for":   true,
-	"s:click": true,
+	"s:event": true,
 }
 
 var keepAttrs = map[string]bool{
 	"s:ns":    true,
 	"s:cn":    true,
 	"s:ready": true,
-	"s:click": true,
+	"s:event": true,
 }
 
 // NewTemplateParser create a new template parser

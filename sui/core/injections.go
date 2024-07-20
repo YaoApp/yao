@@ -7,15 +7,28 @@ const initScriptTmpl = `
 		var __sui_data = %s;
 	} catch (e) { console.log('init data error:', e); }
 
-	function __sui_findParentWithAttribute(element, attributeName) {
-		while (element && element !== document) {
-			if (element.hasAttribute(attributeName)) {
-				return element.getAttribute(attributeName);
+
+	function __sui_event_handler(event, dataKeys, jsonKeys, elm, handler) {
+		const data = {};
+		dataKeys.forEach(function (key) {
+			const value = elm.getAttribute("data:" + key);
+			data[key] = value;
+		})
+		jsonKeys.forEach(function (key) {
+			const value = elm.getAttribute("json:" + key);
+			data[key] = null;
+			if (value && value != "") {
+				try {
+					data[key] = JSON.parse(value);
+				} catch (e) {
+				 	const message = e.message || e || "An error occurred";
+					console.error(` + "`[SUI] Event Handler Error: ${message}`" + `, elm);
+				}
 			}
-			element = element.parentElement;
-		}
-		return null;
-	}
+		})
+			
+		handler && handler(event, data, elm);
+	};
 
 	document.addEventListener("DOMContentLoaded", function () {
 		try {
@@ -30,39 +43,6 @@ const initScriptTmpl = `
 						console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
 					}
 				}
-			});
-
-			document.querySelectorAll("[s\\:click]").forEach(function (element) {
-				const method = element.getAttribute("s:click");
-				const cn = __sui_findParentWithAttribute(element, "s:cn");
-				if (method && cn && typeof window[cn] === "function") {
-					const obj = new window[cn]();
-					if (typeof obj[method] === "function") {
-						element.addEventListener("click", function (event) {
-							try {
-								obj[method](element, event);
-							} catch (e) {
-								const message = e.message || e || "An error occurred";
-								console.error(` + "`[SUI] ${cn}.${method} Error: ${message}`" + `);
-							}
-						});
-						return
-					}
-					console.error(` + "`[SUI] ${cn}.${method} Error: Method not found`" + `);
-					return
-				}
-
-				if (method && typeof window[method] === "function") {
-					element.addEventListener("click", function (event) {
-						try {
-							window[method](element, event);
-						} catch (e) {
-							const message = e.message || e || "An error occurred";
-							console.error(` + "`[SUI] ${method} Error: ${message}`" + `);
-						}
-					});
-				}
-
 			});
 		} catch (e) {}
 	});
@@ -83,6 +63,14 @@ const i118nScriptTmpl = `
 	}
 `
 
+const pageEventScriptTmpl = `
+	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
+		const dataKeys = %s;
+		const jsonKeys = %s;
+		__sui_event_handler(event, dataKeys, jsonKeys, this, %s);
+	});
+`
+
 func bodyInjectionScript(jsonRaw string, debug bool) string {
 	jsPrintData := ""
 	if debug {
@@ -93,4 +81,8 @@ func bodyInjectionScript(jsonRaw string, debug bool) string {
 
 func headInjectionScript(jsonRaw string) string {
 	return fmt.Sprintf(`<script type="text/javascript">`+i118nScriptTmpl+`</script>`, jsonRaw)
+}
+
+func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler string) string {
+	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, handler)
 }
