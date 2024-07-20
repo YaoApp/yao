@@ -55,7 +55,9 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	doc.Find("body").SetAttr("s:ns", namespace)
 
 	// Bind the Page events
-	page.BindEvent(ctx, doc.Selection)
+	if !option.JitMode {
+		page.BindEvent(ctx, doc.Selection, "__page", true)
+	}
 
 	warnings, err := page.buildComponents(doc, ctx, option)
 	if err != nil {
@@ -171,7 +173,7 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	}
 
 	// Bind the component events
-	page.BindEvent(ctx, doc.Selection, component)
+	page.BindEvent(ctx, doc.Selection, component, false)
 
 	body := doc.Selection.Find("body")
 

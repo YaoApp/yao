@@ -253,6 +253,7 @@ type BuildOption struct {
 	AssetRoot       string                 `json:"asset_root,omitempty"`
 	IgnoreAssetRoot bool                   `json:"ignore_asset_root,omitempty"`
 	IgnoreDocument  bool                   `json:"ignore_document,omitempty"`
+	JitMode         bool                   `json:"jit_mode,omitempty"`
 	WithWrapper     bool                   `json:"with_wrapper,omitempty"`
 	KeepPageTag     bool                   `json:"keep_page_tag,omitempty"`
 	Namespace       string                 `json:"namespace,omitempty"`

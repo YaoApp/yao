@@ -62,6 +62,7 @@ func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
 		return
 	}
 
+	// fmt.Println(sel.Nodes[0].Attr)
 	sel.SetHtml(html)
 }
 

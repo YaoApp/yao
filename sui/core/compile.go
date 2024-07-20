@@ -114,6 +114,7 @@ func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (st
 	opt := *option
 	opt.IgnoreDocument = true
 	opt.WithWrapper = true
+	opt.JitMode = true
 	doc, warnings, err := page.Build(ctx, &opt)
 	if err != nil {
 		return "", warnings, err
