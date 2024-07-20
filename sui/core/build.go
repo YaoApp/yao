@@ -105,6 +105,10 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	// Append the scripts and styles
 	ctx.scripts = append(ctx.scripts, scripts...)
 	ctx.styles = append(ctx.styles, styles...)
+
+	// Bind the events
+	page.BindEvent(ctx, doc.Selection)
+
 	return doc, ctx.warnings, err
 }
 
