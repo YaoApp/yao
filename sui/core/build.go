@@ -271,6 +271,20 @@ func (page *Page) copyChildren(from *goquery.Selection, to *goquery.Selection) e
 		return nil
 	}
 	children.Find("slot").Remove()
+
+	// copy trans-node and trans-text properties
+	transNode, hasTransNode := from.Attr("s:trans-node")
+	transText, hasTransText := from.Attr("s:trans-text")
+	if hasTransNode || hasTransText {
+		parent := to.Find("children").Parent()
+		if hasTransNode {
+			parent.SetAttr("s:trans-node", transNode)
+		}
+		if hasTransText {
+			parent.SetAttr("s:trans-text", transText)
+		}
+	}
+
 	to.Find("children").ReplaceWithSelection(children)
 	return nil
 }
