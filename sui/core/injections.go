@@ -1,8 +1,34 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+)
 
 const suiLibScript = `
+
+	function __sui_state(component) {
+		this.handlers = component.watch || {};
+		this.Set = async function (key, value) {
+			const handler = this.handlers[key];
+			if (handler && typeof handler === "function") {
+				await handler(value);
+			}
+		}
+	}
+
+	function __sui_props(elm) {
+		this.Get = function (key) {
+			return elm && elm.getAttribute(key);
+		}
+	}
+
+	function __sui_component(elm, component) {
+		console.log('elm', component);
+		this.root = elm;
+		this.store = new __sui_store(elm);
+		this.props = new __sui_props(elm);
+		this.state = component ? new __sui_state(component) : {};
+	}
 
 	function __sui_event_handler(event, dataKeys, jsonKeys, elm, handler) {
 		const data = {};
@@ -23,7 +49,12 @@ const suiLibScript = `
 			}
 		})
 
-		handler && handler(event, data, elm);
+		const cn = elm.getAttribute("s:cn");
+		let component = null
+		if (cn != "") {
+			component = new window[cn](elm);
+		}
+		handler && handler(event, data, new __sui_component(elm, component));
 	};
 
 	function __sui_store(elm) {
@@ -108,9 +139,14 @@ const compEventScriptTmpl = `
 	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
 		const dataKeys = %s;
 		const jsonKeys = %s;
-		const handler = new %s(this).%s;
+		component = new %s(this).%s;
 		__sui_event_handler(event, dataKeys, jsonKeys, this, handler);
 	});
+`
+
+const componentInitScriptTmpl = `
+	this.root = %s;
+	this.store = new __sui_store(this.root);
 `
 
 func bodyInjectionScript(jsonRaw string, debug bool) string {
@@ -131,4 +167,8 @@ func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler strin
 
 func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, handler string) string {
 	return fmt.Sprintf(compEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, component, handler)
+}
+
+func componentInitScript(root string) string {
+	return fmt.Sprintf(componentInitScriptTmpl, root)
 }
