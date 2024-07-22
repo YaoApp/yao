@@ -25,6 +25,8 @@ type Data map[string]interface{}
 
 var options = []expr.Option{
 	expr.Function("P_", _process),
+	expr.Function("True", _true),
+	expr.Function("False", _false),
 	expr.AllowUndefinedVariables(),
 }
 
@@ -160,6 +162,36 @@ func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) bool {
 
 	return hasStmt
 
+}
+
+func _false(args ...any) (interface{}, error) {
+	v, err := _true(args...)
+	if err != nil {
+		return false, err
+	}
+	return !v.(bool), nil
+}
+
+func _true(args ...any) (interface{}, error) {
+
+	if len(args) < 1 {
+		return false, nil
+	}
+
+	if v, ok := args[0].(bool); ok {
+		return v, nil
+	}
+
+	if v, ok := args[0].(string); ok {
+		v = strings.ToLower(v)
+		return v != "false" && v != "0", nil
+	}
+
+	if v, ok := args[0].(int); ok {
+		return v != 0, nil
+	}
+
+	return false, nil
 }
 
 func _process(args ...any) (interface{}, error) {

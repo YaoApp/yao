@@ -583,10 +583,11 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 		component = ComponentName(page.Route, option.ScriptMinify)
 	}
 
-	arguments := ""
+	arguments := "document.body"
 	if !ispage {
 		arguments = "arguments[0]"
 	}
+	injectScript := componentInitScript(arguments)
 
 	scripts := []ScriptNode{}
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
@@ -597,18 +598,19 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 	}
 
 	ctx.scriptUnique[component] = true
+
 	var err error = nil
 	var imports []string = nil
 	var source []byte = nil
 	if page.Codes.TS.Code != "" {
-		code := fmt.Sprintf("this.store = new __sui_store(%s);\n%s", arguments, page.Codes.TS.Code)
+		code := fmt.Sprintf("%s\n%s", injectScript, page.Codes.TS.Code)
 		source, imports, err = page.CompileTS([]byte(code), option.ScriptMinify)
 		if err != nil {
 			return nil, err
 		}
 
 	} else if page.Codes.JS.Code != "" {
-		code := fmt.Sprintf("this.store = new __sui_store(%s);\n%s", arguments, page.Codes.JS.Code)
+		code := fmt.Sprintf("%s\n%s", injectScript, page.Codes.JS.Code)
 		source, imports, err = page.CompileJS([]byte(code), option.ScriptMinify)
 		if err != nil {
 			return nil, err

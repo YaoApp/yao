@@ -420,6 +420,17 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 	attrs := sel.Nodes[0].Attr
 	for _, attr := range attrs {
 
+		if strings.HasPrefix(attr.Key, "s:attr-") {
+			parser.sequence = parser.sequence + 1
+			val, _ := parser.data.Exec(attr.Val)
+			if v, ok := val.(bool); ok {
+				if v {
+					sel.SetAttr(strings.TrimPrefix(attr.Key, "s:attr-"), "")
+				}
+			}
+			continue
+		}
+
 		// Ignore the s: attributes
 		if strings.HasPrefix(attr.Key, "s:") {
 			continue
