@@ -357,6 +357,7 @@ func (page *Page) replaceProps(sel *goquery.Selection) error {
 	}
 	data := Data{}
 	for key, prop := range page.props {
+		key = ToCamelCase(key)
 		data[key] = prop.Val
 	}
 	data["$props"] = data

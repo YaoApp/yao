@@ -91,3 +91,22 @@ func TranslationKeyPrefix(name string) string {
 	name = strings.ReplaceAll(name, "]", "_")
 	return fmt.Sprintf("trans_%s", name)
 }
+
+// ToCamelCase convert the string to camel case
+func ToCamelCase(s string, split ...string) string {
+	splitter := "-"
+	if len(split) > 0 {
+		splitter = split[0]
+	}
+
+	s = strings.ToLower(s)
+	parts := strings.Split(s, splitter)
+	for i, part := range parts {
+		if i == 0 {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+
+	return strings.Join(parts, "")
+}
