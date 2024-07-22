@@ -307,6 +307,16 @@ func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, ext
 			continue
 		}
 
+		// Copy for and if statements
+		if strings.HasPrefix(attr.Key, "s:for") || attr.Key == "s:if" || attr.Key == "s:else" || attr.Key == "s:elif" {
+			to.SetAttr(attr.Key, attr.Val)
+			transKey := fmt.Sprintf("s:trans-attr-%s", attr.Key)
+			if trans, has := from.Attr(transKey); has {
+				to.SetAttr(transKey, trans)
+			}
+			continue
+		}
+
 		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" || attr.Key == "parsed" {
 			continue
 		}
