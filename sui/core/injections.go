@@ -2,9 +2,33 @@ package core
 
 import (
 	"fmt"
+
+	"github.com/evanw/esbuild/pkg/api"
+	"github.com/yaoapp/gou/runtime/transform"
 )
 
-const suiLibScript = `
+var libsuicode = ""
+
+func libsui(minify bool) (string, error) {
+	if libsuicode != "" {
+		return libsuicode, nil
+	}
+
+	option := api.TransformOptions{Target: api.ES2015}
+	if minify {
+		option.MinifyIdentifiers = true
+		option.MinifySyntax = true
+		option.MinifyWhitespace = true
+	}
+	var err error
+	libsuicode, err = transform.JavaScript(libsuisource, option)
+	if err != nil {
+		return "", fmt.Errorf("libsui error: %w", err)
+	}
+	return libsuicode, nil
+}
+
+const libsuisource = `
 
 	function __sui_state(component) {
 		this.handlers = component.watch || {};
@@ -23,11 +47,30 @@ const suiLibScript = `
 	}
 
 	function __sui_component(elm, component) {
-		console.log('elm', component);
 		this.root = elm;
 		this.store = new __sui_store(elm);
 		this.props = new __sui_props(elm);
 		this.state = component ? new __sui_state(component) : {};
+	}
+
+	function $$(selector) {
+		elm = null;
+		if (typeof selector === "string" ){
+			 elm = document.querySelector(selector);
+		}
+
+		if (selector instanceof HTMLElement) {
+			elm = selector;
+		}
+		
+		if (elm) {
+			cn = elm.getAttribute("s:cn");
+			if (cn != "" && typeof window[cn] === "function") {
+				const component = new window[cn](elm);
+				return new __sui_component(elm, component);
+			}
+		}
+		return null;
 	}
 
 	function __sui_event_handler(event, dataKeys, jsonKeys, elm, handler) {
@@ -48,13 +91,7 @@ const suiLibScript = `
 				}
 			}
 		})
-
-		const cn = elm.getAttribute("s:cn");
-		let component = null
-		if (cn != "") {
-			component = new window[cn](elm);
-		}
-		handler && handler(event, data, new __sui_component(elm, component));
+		handler && handler(event, data, elm);
 	};
 
 	function __sui_store(elm) {
