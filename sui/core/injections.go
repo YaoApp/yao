@@ -176,7 +176,7 @@ const compEventScriptTmpl = `
 	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
 		const dataKeys = %s;
 		const jsonKeys = %s;
-		component = new %s(this).%s;
+		handler = new %s(this).%s;
 		__sui_event_handler(event, dataKeys, jsonKeys, this, handler);
 	});
 `
