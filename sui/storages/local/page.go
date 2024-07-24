@@ -162,7 +162,7 @@ func (tmpl *Template) Page(route string) (core.IPage, error) {
 			return page, nil
 		}
 	}
-	return nil, fmt.Errorf("Page %s not found", route)
+	return nil, fmt.Errorf("%s not found", route)
 }
 
 // PageExist check if the page exist
@@ -661,7 +661,7 @@ func (page *Page) AssetScript() (*core.Asset, error) {
 		}, nil
 	}
 
-	return nil, fmt.Errorf("Page %s script not found", page.Route)
+	return nil, fmt.Errorf("%s script not found", page.Route)
 }
 
 // AssetStyle get the style
@@ -683,5 +683,5 @@ func (page *Page) AssetStyle() (*core.Asset, error) {
 			Content: cssCode,
 		}, nil
 	}
-	return nil, fmt.Errorf("Page %s style not found", page.Route)
+	return nil, fmt.Errorf("%s style not found", page.Route)
 }

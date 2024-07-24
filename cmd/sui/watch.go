@@ -105,6 +105,7 @@ var WatchCmd = &cobra.Command{
 				}
 
 				if len(warnings) > 0 {
+					fmt.Fprintln(os.Stderr, color.YellowString("\nWarnings:"))
 					for _, warning := range warnings {
 						fmt.Fprintln(os.Stderr, color.YellowString(warning))
 					}

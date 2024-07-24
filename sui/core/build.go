@@ -140,7 +140,7 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	name, exists := sel.Attr("is")
 	if !exists {
-		return "", fmt.Errorf("The component tag must have an is attribute")
+		return "", fmt.Errorf("The component %s tag must have an is attribute", page.Route)
 	}
 
 	namespace := Namespace(name, ctx.sequence, option.ScriptMinify)
@@ -488,7 +488,7 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 		sel.SetAttr("parsed", "true")
 		ipage, err := tmpl.Page(name)
 		if err != nil {
-			message := err.Error()
+			message := fmt.Sprintf("%s on page %s", err.Error(), page.Route)
 			warnings = append(warnings, message)
 			setError(sel, err)
 			return
@@ -496,7 +496,7 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 
 		err = ipage.Load()
 		if err != nil {
-			message := err.Error()
+			message := fmt.Sprintf("%s on page %s", err.Error(), page.Route)
 			warnings = append(warnings, message)
 			setError(sel, err)
 			return
@@ -690,6 +690,9 @@ func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 func setError(sel *goquery.Selection, err error) {
 	html := `<div style="color:red; margin:10px 0px; font-size: 12px; font-family: monospace; padding: 10px; border: 1px solid red; background-color: #f8d7da;">%s</div>`
 	sel.SetHtml(fmt.Sprintf(html, err.Error()))
+	if sel.Nodes != nil || len(sel.Nodes) > 0 {
+		sel.Nodes[0].Data = "Error"
+	}
 }
 
 func addTabToEachLine(input string, prefix ...string) string {

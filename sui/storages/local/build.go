@@ -324,13 +324,13 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 
 	html, warnings, err := page.Page.Compile(ctx, option)
 	if err != nil {
-		return warnings, err
+		return warnings, fmt.Errorf("Compile the page %s error: %s", page.Route, err.Error())
 	}
 
 	// Save the html
 	err = page.writeHTML([]byte(html), option.Data)
 	if err != nil {
-		return warnings, err
+		return warnings, fmt.Errorf("Write the page %s error: %s", page.Route, err.Error())
 	}
 
 	// Save the locale files
@@ -343,11 +343,10 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	if globalCtx == nil {
 		jitComponents, err := page.tmpl.GlobRoutes(ctx.GetJitComponents(), true)
 		if err != nil {
-			return warnings, err
+			return warnings, fmt.Errorf("Glob the jit components error: %s", err.Error())
 		}
 
 		for _, route := range jitComponents {
-			var err error
 			p := page.tmpl.loaded[route]
 			if p == nil {
 				p, err = page.tmpl.Page(route)
@@ -365,9 +364,13 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 				warnings = append(warnings, messages...)
 			}
 		}
+
+		if err != nil {
+			return warnings, fmt.Errorf("Build the page %s error: %s", page.Route, err.Error())
+		}
 	}
 
-	return warnings, err
+	return warnings, nil
 
 }
 

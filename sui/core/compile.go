@@ -23,7 +23,7 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []str
 
 	doc, warnings, err := page.Build(ctx, option)
 	if err != nil {
-		return "", warnings, err
+		return "", warnings, fmt.Errorf("Page build error: %s", err.Error())
 	}
 
 	if warnings != nil && len(warnings) > 0 {
@@ -105,7 +105,7 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []str
 	page.ReplaceDocument(doc)
 	html, err := doc.Html()
 	if err != nil {
-		return "", warnings, err
+		return "", warnings, fmt.Errorf("Generate html error: %s", err.Error())
 	}
 
 	// @todo: Minify the html
