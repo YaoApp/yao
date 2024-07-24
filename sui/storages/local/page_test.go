@@ -109,7 +109,7 @@ func TestTemplatePageTS(t *testing.T) {
 	assert.NotEmpty(t, page.Codes.DATA.Code)
 
 	_, err = tmpl.Page("/the/page/could/not/be/found")
-	assert.Contains(t, err.Error(), "Page /the/page/could/not/be/found not found")
+	assert.Contains(t, err.Error(), "/the/page/could/not/be/found not found")
 }
 
 func TestTemplatePageJS(t *testing.T) {
@@ -144,7 +144,7 @@ func TestTemplatePageJS(t *testing.T) {
 	assert.NotEmpty(t, page.Codes.DATA.Code)
 
 	_, err = tmpl.Page("/the/page/could/not/be/found")
-	assert.Contains(t, err.Error(), "Page /the/page/could/not/be/found not found")
+	assert.Contains(t, err.Error(), "/the/page/could/not/be/found not found")
 }
 
 func TestPageSaveTempBoard(t *testing.T) {
