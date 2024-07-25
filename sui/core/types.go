@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"golang.org/x/net/html"
 )
 
@@ -38,6 +39,7 @@ type Page struct {
 	Path       string              `json:"-"`
 	Root       string              `json:"-"`
 	Codes      SourceCodes         `json:"-"`
+	Script     *v8.Script          `json:"-"` // The backend script  name.backend.ts / name.backend.js
 	Document   []byte              `json:"-"`
 	GlobalData []byte              `json:"-"`
 	Attrs      map[string]string   `json:"-"`
@@ -166,17 +168,19 @@ type LayoutItem struct {
 
 // Template is the struct for the template
 type Template struct {
-	Version     int              `json:"version"` // Yao Builder version
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Descrption  string           `json:"description"`
-	Screenshots []string         `json:"screenshots"`
-	Themes      []SelectOption   `json:"themes"`
-	Locales     []SelectOption   `json:"locales"`
-	Document    []byte           `json:"-"`
-	GlobalData  []byte           `json:"-"`
-	Scripts     *TemplateScirpts `json:"scripts,omitempty"`
-	Translator  string           `json:"translator,omitempty"`
+	Version      int              `json:"version"` // Yao Builder version
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	Descrption   string           `json:"description"`
+	Screenshots  []string         `json:"screenshots"`
+	Themes       []SelectOption   `json:"themes"`
+	Locales      []SelectOption   `json:"locales"`
+	Document     []byte           `json:"-"`
+	GlobalData   []byte           `json:"-"`
+	Scripts      *TemplateScirpts `json:"scripts,omitempty"`
+	Translator   string           `json:"translator,omitempty"`
+	BuildScript  *v8.Script       `json:"-"` // __build.backend.ts / __build.backend.js
+	GlobalScript *v8.Script       `json:"-"` // __global.backend.ts / __global.backend.js
 }
 
 // TemplateScirpts is the struct for the template scripts

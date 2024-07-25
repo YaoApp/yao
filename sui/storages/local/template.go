@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/process"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/sui/core"
 	"golang.org/x/text/language"
 )
@@ -83,6 +84,44 @@ func (tmpl *Template) Reload() error {
 	}
 	*tmpl = *newTmpl
 	return nil
+}
+
+// LoadBuildScript load the build script
+func (tmpl *Template) loadBuildScript() error {
+	file, source, err := tmpl.backendScriptSource("__build.backend")
+	if err != nil {
+		return err
+	}
+
+	if file == "" {
+		return nil
+	}
+
+	approot := tmpl.local.AppRoot()
+	file = filepath.Join(approot, file)
+	script, err := v8.MakeScript(source, file, 5*time.Second)
+	if err != nil {
+		return err
+	}
+	tmpl.BuildScript = script
+	return nil
+}
+
+func (tmpl *Template) backendScriptSource(name string) (string, []byte, error) {
+	path := filepath.Join(tmpl.Root, fmt.Sprintf("%s.ts", name))
+	if !tmpl.local.fs.IsFile(path) {
+		path = filepath.Join(tmpl.Root, fmt.Sprintf("%s.js", name))
+	}
+
+	if !tmpl.local.fs.IsFile(path) {
+		return "", nil, nil
+	}
+
+	content, err := tmpl.local.fs.ReadFile(path)
+	if err != nil {
+		return "", nil, err
+	}
+	return path, content, nil
 }
 
 // ExecBuildCompleteScripts execute the build complete scripts
