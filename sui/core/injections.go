@@ -186,6 +186,21 @@ const componentInitScriptTmpl = `
 	this.store = new __sui_store(this.root);
 `
 
+// Inject code
+const backendScriptTmpl = `
+this.__sui_page = '%s';
+this.__sui_constants = {};
+this.__sui_helpers = [];
+
+if (typeof Helpers === 'object') {
+	this.__sui_helpers = Object.keys(Helpers);
+}
+
+if (typeof Constants === 'object') {
+	this.__sui_constants = Constants;
+}
+`
+
 func bodyInjectionScript(jsonRaw string, debug bool) string {
 	jsPrintData := ""
 	if debug {
@@ -208,4 +223,9 @@ func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, ha
 
 func componentInitScript(root string) string {
 	return fmt.Sprintf(componentInitScriptTmpl, root)
+}
+
+// BackendScript inject the backend script
+func BackendScript(route string) string {
+	return fmt.Sprintf(backendScriptTmpl, route)
 }

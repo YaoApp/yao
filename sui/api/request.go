@@ -167,7 +167,9 @@ func (r *Request) Render() (string, int, error) {
 		DisableCache: r.Request.DisableCache(),
 		Route:        r.Request.URL.Path,
 		Root:         c.Root,
-		Request:      true,
+		Script:       c.Script,
+		Imports:      c.Imports,
+		Request:      r.Request,
 	}
 
 	// Parse the template
@@ -249,9 +251,26 @@ func (r *Request) MakeCache() (*core.Cache, int, error) {
 		globalDataSel.Remove()
 	}
 
+	var imports map[string]string
+	importsSel := doc.Find("script[name=imports]")
+	if importsSel != nil && importsSel.Length() > 0 {
+		importsRaw := importsSel.Text()
+		importsSel.Remove()
+		err := jsoniter.UnmarshalFromString(importsRaw, &imports)
+		if err != nil {
+			return nil, 500, fmt.Errorf("imports error, please re-complie the page %s", err.Error())
+		}
+	}
+
 	html, err := doc.Html()
 	if err != nil {
 		return nil, 500, fmt.Errorf("parse error, please re-complie the page %s", err.Error())
+	}
+
+	// Backend script
+	script, err := core.LoadScript(r.File)
+	if err != nil {
+		return nil, 500, fmt.Errorf("script error, please re-complie the page %s", err.Error())
 	}
 
 	// Save to The Cache
@@ -266,6 +285,8 @@ func (r *Request) MakeCache() (*core.Cache, int, error) {
 		Root:          root,
 		CacheTime:     time.Duration(cacheTime) * time.Second,
 		DataCacheTime: time.Duration(dataCacheTime) * time.Second,
+		Script:        script,
+		Imports:       imports,
 	}
 
 	go core.SetCache(r.File, cache)

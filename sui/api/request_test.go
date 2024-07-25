@@ -71,7 +71,7 @@ func makeParser(route string, t *testing.T) (*core.TemplateParser, string, core.
 		Debug:        r.Request.DebugMode(),
 		DisableCache: r.Request.DisableCache(),
 		Route:        r.Request.URL.Path,
-		Request:      true,
+		Request:      r.Request,
 	}
 
 	// Parse the template

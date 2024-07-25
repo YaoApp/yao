@@ -4,7 +4,6 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
 )
@@ -21,7 +20,8 @@ type Cache struct {
 	CacheStore    string
 	CacheTime     time.Duration
 	DataCacheTime time.Duration
-	Script        *v8.Script // the backend script
+	Script        *Script
+	Imports       map[string]string
 }
 
 const (
@@ -73,6 +73,7 @@ func GetCache(file string) *Cache {
 // RemoveCache remove the cache
 func RemoveCache(file string) {
 	ch <- &cacheData{file, nil, removeCache}
+	chScript <- &scriptData{file, nil, removeScript}
 }
 
 // CleanCache clean the cache

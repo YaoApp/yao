@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -40,16 +42,18 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
-	Component    bool   `json:"component,omitempty"`
-	Editor       bool   `json:"editor,omitempty"`
-	Preview      bool   `json:"preview,omitempty"`
-	Debug        bool   `json:"debug,omitempty"`
-	DisableCache bool   `json:"disableCache,omitempty"`
-	Request      bool   `json:"request,omitempty"`
-	Route        string `json:"route,omitempty"`
-	Theme        any    `json:"theme,omitempty"`
-	Locale       any    `json:"locale,omitempty"`
-	Root         string `json:"root,omitempty"`
+	Component    bool              `json:"component,omitempty"`
+	Editor       bool              `json:"editor,omitempty"`
+	Preview      bool              `json:"preview,omitempty"`
+	Debug        bool              `json:"debug,omitempty"`
+	DisableCache bool              `json:"disableCache,omitempty"`
+	Route        string            `json:"route,omitempty"`
+	Theme        any               `json:"theme,omitempty"`
+	Locale       any               `json:"locale,omitempty"`
+	Root         string            `json:"root,omitempty"`
+	Imports      map[string]string `json:"imports,omitempty"`
+	Script       *Script           `json:"-"` // backend script
+	Request      *Request          `json:"request,omitempty"`
 }
 
 var keepWords = map[string]bool{
@@ -98,9 +102,6 @@ func NewTemplateParser(data Data, option *ParserOption) *TemplateParser {
 // Render parses and renders the HTML template
 func (parser *TemplateParser) Render(html string) (string, error) {
 
-	// Set the locale
-	parser.locale = parser.Locale()
-
 	if !strings.Contains(html, "<html") {
 		html = fmt.Sprintf(`<!DOCTYPE html><html lang="en-us">%s</html>`, html)
 	}
@@ -110,13 +111,11 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		return "", err
 	}
 
-	root := doc.Selection.Find("html")
-	parser.parseNode(root.Nodes[0])
-
-	// Replace the nodes
-	for sel, nodes := range parser.replace {
-		sel.ReplaceWithNodes(nodes...)
-		delete(parser.replace, sel)
+	// Set the locale
+	parser.locale = parser.Locale()
+	err = parser.RenderSelection(doc.Selection)
+	if err != nil {
+		return "", err
 	}
 
 	// Append the head
@@ -149,16 +148,13 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		parser.addScripts(body, parser.filterScripts("body", parser.scripts))
 	}
 
-	// Fmt
-	parser.Fmt(doc)
-
 	// For editor
 	if parser.option != nil && parser.option.Editor {
 		return doc.Find("body").Html()
 	}
 
 	// For Request
-	if parser.option != nil && (parser.option.Request || parser.option.Preview) {
+	if parser.option != nil && (parser.option.Request != nil || parser.option.Preview) {
 		// Remove the sui-hide attribute
 		doc.Find("[sui-hide]").Remove()
 		parser.tidy(doc.Selection)
@@ -169,8 +165,26 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	return doc.Html()
 }
 
+// RenderSelection parses and renders the HTML template
+func (parser *TemplateParser) RenderSelection(section *goquery.Selection) error {
+
+	if len(section.Nodes) == 0 {
+		return fmt.Errorf("No nodes found")
+	}
+
+	parser.parseNode(section.Nodes[0])
+	// Replace the nodes
+	for sel, nodes := range parser.replace {
+		sel.ReplaceWithNodes(nodes...)
+		delete(parser.replace, sel)
+	}
+
+	parser.Fmt(section)
+	return nil
+}
+
 // Fmt formats the HTML template
-func (parser *TemplateParser) Fmt(doc *goquery.Document) {
+func (parser *TemplateParser) Fmt(doc *goquery.Selection) {
 	if parser.locale != nil {
 		sels := doc.Find(`[s\:trans-fmt]`)
 		sels.Each(func(i int, sel *goquery.Selection) {
@@ -193,10 +207,8 @@ func (parser *TemplateParser) parseNode(node *html.Node) {
 		}
 		parser.parseElementNode(sel)
 
-		// Skip children if the node is a loop node
-		if _, exist := sel.Attr("s:for"); exist {
-			skipChildren = true
-		}
+		// Skip children if the node is a loop node、element component or JIT component
+		skipChildren = parser.hasForStatement(sel) || parser.isElementComponent(sel) || parser.isJitComponent(sel)
 
 	case html.TextNode:
 		parser.parseTextNode(node)
@@ -228,13 +240,86 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.setStatementNode(sel)
 	}
 
-	// JIT Compile the element
-	if parser.isComponent(sel) {
-		parser.parseComponent(sel)
-	}
-
 	// Parse the attributes
 	parser.parseElementAttrs(sel)
+
+	// if the element is a component
+	if parser.isElementComponent(sel) {
+		parser.parseElementComponent(sel)
+	}
+
+	// JIT Compile the element
+	if parser.isJitComponent(sel) {
+		parser.parseJitComponent(sel)
+	}
+}
+
+func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
+
+	sel.SetAttr("parsed", "true")
+	com := sel.AttrOr("s:cn", "")
+	props := map[string]string{}
+	for _, attr := range sel.Nodes[0].Attr {
+		if !strings.HasPrefix(attr.Key, "s:") && attr.Key != "parsed" {
+			props[attr.Key] = attr.Val
+		}
+	}
+
+	// load the component based on the route
+	var script *Script
+	var err error
+	if parser.option.Imports != nil {
+		if route, has := parser.option.Imports[com]; has {
+			file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, route)
+			script, err = LoadScript(file)
+			if err != nil {
+				parser.errors = append(parser.errors, err)
+				setError(sel, err)
+				return
+			}
+		}
+	}
+
+	compParser := parser.clone(script)
+
+	// Call the BeforeRender Hook
+	if script != nil {
+		data, err := script.BeforeRender(parser.option.Request, props)
+		if err != nil {
+			parser.errors = append(parser.errors, err)
+			setError(sel, err)
+			return
+		}
+		if data != nil {
+			for k, v := range data {
+				compParser.data[k] = v
+			}
+		}
+	}
+
+	err = compParser.RenderSelection(sel)
+	if err != nil {
+		parser.errors = append(parser.errors, err)
+		setError(sel, err)
+	}
+	parser.sequence = parser.sequence + 1
+}
+
+func (parser *TemplateParser) clone(script *Script) *TemplateParser {
+	var new = *parser
+	new.data = Data{}
+	for k, v := range parser.data {
+		new.data[k] = v
+	}
+	new.option.Script = script
+	return &new
+}
+
+func (parser *TemplateParser) isElementComponent(sel *goquery.Selection) bool {
+	if comp, exist := sel.Attr("s:cn"); exist && comp != "" && sel.Nodes[0].Data != "script" {
+		return true
+	}
+	return false
 }
 
 func (parser *TemplateParser) transTextNode(node *html.Node) {
@@ -484,6 +569,12 @@ func (parser *TemplateParser) parseTextNode(node *html.Node) {
 		}
 	}
 	node.Data = res
+}
+func (parser *TemplateParser) hasForStatement(sel *goquery.Selection) bool {
+	if _, exist := sel.Attr("s:for"); exist {
+		return true
+	}
+	return false
 }
 
 func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {

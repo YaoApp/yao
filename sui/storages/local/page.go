@@ -453,6 +453,13 @@ func (page *Page) Load() error {
 
 	// Set the page global data
 	page.GlobalData = page.tmpl.GlobalData
+
+	// Load the backend script
+	err := page.loadBackendScript()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

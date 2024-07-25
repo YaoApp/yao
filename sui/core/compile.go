@@ -93,14 +93,10 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, []str
 	}
 
 	// Page Components
-	components := []string{}
 	if ctx != nil && ctx.components != nil && len(ctx.components) > 0 {
-		for route := range ctx.components {
-			components = append(components, route)
-		}
+		rawComponents, _ := jsoniter.MarshalToString(ctx.components)
+		body.AppendHtml("\n\n" + `<script name="imports" type="json">` + "\n" + rawComponents + "\n</script>\n\n")
 	}
-	rawComponents, _ := jsoniter.MarshalToString(components)
-	body.AppendHtml("\n\n" + `<script name="imports" type="json">` + "\n" + rawComponents + "\n</script>\n\n")
 
 	page.ReplaceDocument(doc)
 	html, err := doc.Html()
