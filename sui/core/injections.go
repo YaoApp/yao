@@ -191,14 +191,9 @@ const backendScriptTmpl = `
 this.__sui_page = '%s';
 this.__sui_constants = {};
 this.__sui_helpers = [];
-this.__sui_hooks = null;
 
 if (typeof Helpers === 'object') {
 	this.__sui_helpers = Object.keys(Helpers);
-}
-
-if (typeof Hooks === 'function') {
-	this.__sui_hooks = new Hooks();
 }
 
 if (typeof Constants === 'object') {

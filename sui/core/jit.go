@@ -45,7 +45,7 @@ func init() {
 }
 
 // parseComponent parse the component
-func (parser *TemplateParser) parseComponent(sel *goquery.Selection) {
+func (parser *TemplateParser) parseJitComponent(sel *goquery.Selection) {
 	parser.parsed(sel)
 	comp, props, slots, children, err := parser.getComponent(sel)
 	if err != nil {
@@ -218,8 +218,8 @@ func (parser *TemplateParser) getComponent(sel *goquery.Selection) (*JitComponen
 	return comp, props, slots, children, nil
 }
 
-// isComponent check if the selection is a component
-func (parser *TemplateParser) isComponent(sel *goquery.Selection) bool {
+// isJitComponent check if the selection is a component
+func (parser *TemplateParser) isJitComponent(sel *goquery.Selection) bool {
 	_, exist := sel.Attr("s:jit")
 	is := sel.AttrOr("is", "")
 	return exist && is != ""
@@ -314,8 +314,7 @@ func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[st
 	data := Data{"$props": props}
 	route, _ = data.ReplaceUse(slotRe, route)
 	route, _ = parser.data.Replace(route)
-	root := sel.AttrOr("s:root", "/")
-	file := filepath.Join(string(os.PathSeparator), "public", root, route+".jit")
+	file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, route+".jit")
 	return file, route, nil
 }
 

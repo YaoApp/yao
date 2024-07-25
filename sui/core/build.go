@@ -236,7 +236,7 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	ctx.styles = append(ctx.styles, styles...)
 
 	sel.ReplaceWithSelection(body.Contents())
-	ctx.components[page.Route] = true
+	ctx.components[component] = page.Route
 	return source, nil
 }
 
@@ -456,7 +456,6 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 		return warnings, fmt.Errorf("SUI %s not found", page.SuiID)
 	}
 
-	public := sui.GetPublic()
 	tmpl, err := sui.GetTemplate(page.TemplateID)
 	if err != nil {
 		return warnings, err
@@ -480,7 +479,6 @@ func (page *Page) buildComponents(doc *goquery.Document, ctx *BuildContext, opti
 		if ctx.isJitComponent(name) {
 			sel.SetAttr("s:jit", "true")
 			sel.SetAttr("s:parent", page.namespace)
-			sel.SetAttr("s:root", public.Root)
 			ctx.addJitComponent(name)
 			return
 		}

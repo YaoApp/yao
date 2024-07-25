@@ -99,6 +99,31 @@ func (script *Script) Call(r *Request, method string, args ...any) (interface{},
 	return res, nil
 }
 
+// BeforeRender the script method
+func (script *Script) BeforeRender(r *Request, props map[string]string) (Data, error) {
+
+	ctx, err := script.NewContext(r.Sid, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer ctx.Close()
+
+	if !ctx.Global().Has("BeforeRender") {
+		return nil, nil
+	}
+
+	res, err := ctx.Call("BeforeRender", r, props)
+	if err != nil {
+		return nil, err
+	}
+
+	if data, ok := res.(map[string]interface{}); ok {
+		return data, nil
+	}
+
+	return nil, fmt.Errorf("BeforeRender return %v should be Record<string, any>", res)
+}
+
 // ConstantsToString get the constants from the script
 func (script *Script) ConstantsToString() (string, error) {
 	constants, err := script.Constants()

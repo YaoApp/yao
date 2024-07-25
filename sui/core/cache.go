@@ -21,6 +21,7 @@ type Cache struct {
 	CacheTime     time.Duration
 	DataCacheTime time.Duration
 	Script        *Script
+	Imports       map[string]string
 }
 
 const (
