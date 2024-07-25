@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
@@ -156,10 +157,23 @@ func (local *Local) getTemplate(id string, path string) (*Template, error) {
 		tmpl.GlobalData = dataBytes
 	}
 
+	// load the __build.backend.ts / __build.backend.js
+	err := tmpl.loadBuildScript()
+	if err != nil {
+		return nil, err
+	}
+
 	return &tmpl, nil
 }
 
 // GetTemplateID get the template ID
 func (local *Local) getTemplateID(path string) string {
 	return filepath.Base(path)
+}
+
+// AppRoot get the app root
+func (local *Local) AppRoot() string {
+	approot := application.App.Root()
+	localroot := local.fs.Root()
+	return strings.TrimPrefix(localroot, approot)
 }

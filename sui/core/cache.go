@@ -4,6 +4,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
 )
@@ -20,6 +21,7 @@ type Cache struct {
 	CacheStore    string
 	CacheTime     time.Duration
 	DataCacheTime time.Duration
+	Script        *v8.Script // the backend script
 }
 
 const (
