@@ -650,12 +650,16 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 		code := string(source)
 		if constants != "" {
 			code = fmt.Sprintf("this.Constants = %s\n%s", constants, code)
+
 		}
 
 		parent := "body"
 		if !ispage {
 			parent = "head"
 			code = fmt.Sprintf("function %s(){\n%s\n}\n", component, addTabToEachLine(code))
+			if constants != "" {
+				fmt.Println("page.Script.ConstantsToString", page.Route)
+			}
 		}
 
 		scripts = append(scripts, ScriptNode{

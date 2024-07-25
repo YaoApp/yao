@@ -354,11 +354,6 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 	page.Root = root
 
-	err = page.loadBackendScript()
-	if err != nil {
-		return nil, err
-	}
-
 	html, warnings, err := page.Page.Compile(ctx, option)
 	if err != nil {
 		return warnings, fmt.Errorf("Compile the page %s error: %s", page.Route, err.Error())
@@ -429,11 +424,6 @@ func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *c
 			root = page.tmpl.local.DSL.Public.Root
 		}
 		option.AssetRoot = filepath.Join(root, "assets")
-	}
-
-	err := page.loadBackendScript()
-	if err != nil {
-		return nil, err
 	}
 
 	html, messages, err := page.Page.CompileAsComponent(ctx, option)
