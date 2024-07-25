@@ -127,6 +127,8 @@ func (r *Request) Render() (string, int, error) {
 
 	if !dataHitCache {
 		// Request the data
+		// Copy the script pointer to the request For page backend script execution
+		r.Request.Script = c.Script
 		data = r.Request.NewData()
 		if c.Data != "" {
 			err = r.Request.ExecStringMerge(data, c.Data)

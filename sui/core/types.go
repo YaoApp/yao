@@ -282,6 +282,7 @@ type Request struct {
 	Sid       string                 `json:"sid,omitempty"`
 	Theme     any                    `json:"theme,omitempty"`
 	Locale    any                    `json:"locale,omitempty"`
+	Script    *Script                `json:"-"`
 }
 
 // RequestSource is the struct for the request
