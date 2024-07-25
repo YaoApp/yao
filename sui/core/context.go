@@ -50,7 +50,7 @@ func (ctx *BuildContext) GetComponents() []string {
 		return []string{}
 	}
 	components := []string{}
-	for name := range ctx.components {
+	for _, name := range ctx.components {
 		components = append(components, name)
 	}
 	return components

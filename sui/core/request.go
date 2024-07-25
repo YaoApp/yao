@@ -285,6 +285,12 @@ func (r *Request) call(p interface{}) (interface{}, error) {
 		return nil, fmt.Errorf("process name is empty")
 	}
 
+	// Call the backend script
+	if r.Script != nil && strings.HasPrefix(processName, "@") {
+		method := processName[1:]
+		return r.Script.Call(r, method, processArgs...)
+	}
+
 	process, err := process.Of(processName, processArgs...)
 	if err != nil {
 		return nil, err

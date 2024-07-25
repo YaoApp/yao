@@ -302,7 +302,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 		parser.errors = append(parser.errors, err)
 		setError(sel, err)
 	}
-	parser.sequence = parser.sequence + 1
+	parser.sequence = compParser.sequence + 1
 }
 
 func (parser *TemplateParser) clone(script *Script) *TemplateParser {
@@ -365,7 +365,7 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 	}
 }
 
-// 替换转义字符
+// Escape the text
 func (parser *TemplateParser) escapeText(content string) string {
 	matches := stmtRe.FindAllStringSubmatch(content, -1)
 	newContent := content
