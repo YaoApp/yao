@@ -40,16 +40,17 @@ type Mapping struct {
 
 // ParserOption parser option
 type ParserOption struct {
-	Component    bool   `json:"component,omitempty"`
-	Editor       bool   `json:"editor,omitempty"`
-	Preview      bool   `json:"preview,omitempty"`
-	Debug        bool   `json:"debug,omitempty"`
-	DisableCache bool   `json:"disableCache,omitempty"`
-	Request      bool   `json:"request,omitempty"`
-	Route        string `json:"route,omitempty"`
-	Theme        any    `json:"theme,omitempty"`
-	Locale       any    `json:"locale,omitempty"`
-	Root         string `json:"root,omitempty"`
+	Component    bool    `json:"component,omitempty"`
+	Editor       bool    `json:"editor,omitempty"`
+	Preview      bool    `json:"preview,omitempty"`
+	Debug        bool    `json:"debug,omitempty"`
+	DisableCache bool    `json:"disableCache,omitempty"`
+	Request      bool    `json:"request,omitempty"`
+	Route        string  `json:"route,omitempty"`
+	Theme        any     `json:"theme,omitempty"`
+	Locale       any     `json:"locale,omitempty"`
+	Root         string  `json:"root,omitempty"`
+	Script       *Script `json:"-"` // backend script
 }
 
 var keepWords = map[string]bool{

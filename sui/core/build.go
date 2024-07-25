@@ -589,6 +589,16 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 	}
 	injectScript := componentInitScript(arguments)
 
+	// Get the Constants and Helpers
+	var err error = nil
+	constants := ""
+	if page.Script != nil {
+		constants, err = page.Script.ConstantsToString()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	scripts := []ScriptNode{}
 	if page.Codes.JS.Code == "" && page.Codes.TS.Code == "" {
 		return scripts, nil
@@ -599,7 +609,6 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 
 	ctx.scriptUnique[component] = true
 
-	var err error = nil
 	var imports []string = nil
 	var source []byte = nil
 	if page.Codes.TS.Code != "" {
@@ -639,6 +648,10 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 		})
 
 		code := string(source)
+		if constants != "" {
+			code = fmt.Sprintf("this.Constants = %s\n%s", constants, code)
+		}
+
 		parent := "body"
 		if !ispage {
 			parent = "head"

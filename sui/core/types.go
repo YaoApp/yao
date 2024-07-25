@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
-	v8 "github.com/yaoapp/gou/runtime/v8"
 	"golang.org/x/net/html"
 )
 
@@ -39,7 +38,7 @@ type Page struct {
 	Path       string              `json:"-"`
 	Root       string              `json:"-"`
 	Codes      SourceCodes         `json:"-"`
-	Script     *v8.Script          `json:"-"` // The backend script  name.backend.ts / name.backend.js
+	Script     *Script             `json:"-"` // The backend script  name.backend.ts / name.backend.js
 	Document   []byte              `json:"-"`
 	GlobalData []byte              `json:"-"`
 	Attrs      map[string]string   `json:"-"`
@@ -179,8 +178,8 @@ type Template struct {
 	GlobalData   []byte           `json:"-"`
 	Scripts      *TemplateScirpts `json:"scripts,omitempty"`
 	Translator   string           `json:"translator,omitempty"`
-	BuildScript  *v8.Script       `json:"-"` // __build.backend.ts / __build.backend.js
-	GlobalScript *v8.Script       `json:"-"` // __global.backend.ts / __global.backend.js
+	BuildScript  *Script          `json:"-"` // __build.backend.ts / __build.backend.js
+	GlobalScript *Script          `json:"-"` // __global.backend.ts / __global.backend.js
 }
 
 // TemplateScirpts is the struct for the template scripts

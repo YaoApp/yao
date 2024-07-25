@@ -5,10 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/process"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
 	"golang.org/x/text/language"
@@ -338,7 +340,6 @@ func (tmpl *Template) getLocale(name string, route string, pageOnly ...bool) cor
 func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOption) ([]string, error) {
 
 	ctx := core.NewBuildContext(globalCtx)
-
 	var err error = nil
 	root := option.PublicRoot
 	if root == "" {
@@ -352,6 +353,11 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 		option.AssetRoot = filepath.Join(root, "assets")
 	}
 	page.Root = root
+
+	err = page.loadBackendScript()
+	if err != nil {
+		return nil, err
+	}
 
 	html, warnings, err := page.Page.Compile(ctx, option)
 	if err != nil {
@@ -423,6 +429,11 @@ func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *c
 			root = page.tmpl.local.DSL.Public.Root
 		}
 		option.AssetRoot = filepath.Join(root, "assets")
+	}
+
+	err := page.loadBackendScript()
+	if err != nil {
+		return nil, err
 	}
 
 	html, messages, err := page.Page.CompileAsComponent(ctx, option)
@@ -656,7 +667,27 @@ func (page *Page) backendScriptSource() (string, []byte, error) {
 		return "", nil, err
 	}
 
+	source = []byte(fmt.Sprintf("%s\n%s", source, core.BackendScript(page.Route)))
 	return backendFile, source, nil
+}
+
+func (page *Page) loadBackendScript() error {
+	file, source, err := page.backendScriptSource()
+	if err != nil {
+		return err
+	}
+
+	if source == nil {
+		return nil
+	}
+	approot := page.tmpl.local.AppRoot()
+	file = filepath.Join(approot, file)
+	script, err := v8.MakeScript(source, file, 5*time.Second)
+	if err != nil {
+		return err
+	}
+	page.Script = &core.Script{Script: script}
+	return nil
 }
 
 func (page *Page) writeBackendScript(data map[string]interface{}) error {

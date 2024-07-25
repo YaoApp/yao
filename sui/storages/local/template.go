@@ -103,7 +103,7 @@ func (tmpl *Template) loadBuildScript() error {
 	if err != nil {
 		return err
 	}
-	tmpl.BuildScript = script
+	tmpl.BuildScript = &core.Script{Script: script}
 	return nil
 }
 
