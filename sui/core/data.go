@@ -16,9 +16,9 @@ import (
 )
 
 // If set the map value, should keep the space at the end of the statement
-var stmtRe = regexp.MustCompile(`\{\{([\s\S]*?)\}\}`)
-var propRe = regexp.MustCompile(`\[\{([\s\S]*?)\}\]`)  // [{ xxx }] will be deprecated
-var propNewRe = regexp.MustCompile(`\{%([\s\S]*)?%\}`) // {% xxx %}
+// var stmtRe = regexp.MustCompile(`\{\{([\s\S]*?)\}\}`)
+// var propRe = regexp.MustCompile(`\[\{([\s\S]*?)\}\]`)  // [{ xxx }] will be deprecated
+// var propNewRe = regexp.MustCompile(`\{%([\s\S]*)?%\}`) // {% xxx %}
 var propVarNameRe = regexp.MustCompile(`(?:\$props\.)?(?:$begin:math:display$'([^']+)'$end:math:display$|(\w+))`)
 
 // Data data for the template
@@ -80,18 +80,18 @@ func (data Data) Hash() string {
 // New create a new expression
 func (data Data) New(stmt string) (*vm.Program, error) {
 
-	stmt = stmtRe.ReplaceAllStringFunc(stmt, func(stmt string) string {
-		matches := stmtRe.FindStringSubmatch(stmt)
+	stmt = dataTokens.ReplaceAllStringFunc(stmt, func(stmt string) string {
+		matches := dataTokens.FindAllStringSubmatch(stmt, -1)
 		if len(matches) > 0 {
-			stmt = strings.ReplaceAll(stmt, matches[0], matches[1])
+			stmt = strings.ReplaceAll(stmt, matches[0][0], matches[0][1])
 		}
 		return stmt
 	})
 
-	stmt = propRe.ReplaceAllStringFunc(stmt, func(stmt string) string {
-		matches := propRe.FindStringSubmatch(stmt)
+	stmt = propTokens.ReplaceAllStringFunc(stmt, func(stmt string) string {
+		matches := propTokens.FindAllStringSubmatch(stmt, -1)
 		if len(matches) > 0 {
-			stmt = strings.ReplaceAll(stmt, matches[0], matches[1])
+			stmt = strings.ReplaceAll(stmt, matches[0][0], matches[0][1])
 		}
 		return stmt
 	})
@@ -120,6 +120,18 @@ func (data Data) Exec(stmt string) (interface{}, []Identifier, error) {
 	}
 
 	return res, v.Identifiers, nil
+}
+
+// Identifiers get the identifiers for the statement
+func (data Data) Identifiers(stmt string) ([]Identifier, error) {
+	program, err := data.New(stmt)
+	if err != nil {
+		return nil, err
+	}
+	node := program.Node()
+	v := &Visitor{}
+	ast.Walk(&node, v)
+	return v.Identifiers, nil
 }
 
 // ExecString exec statement for the template
@@ -163,13 +175,13 @@ func (data Data) ExecString(stmt string) StringValue {
 
 // Replace replace the statement
 func (data Data) Replace(value string) (string, []StringValue) {
-	return data.ReplaceUse(stmtRe, value)
+	return data.ReplaceUse(dataTokens, value)
 }
 
 // ReplaceUse replace the statement use the regexp
-func (data Data) ReplaceUse(re *regexp.Regexp, value string) (string, []StringValue) {
+func (data Data) ReplaceUse(tokens Tokens, value string) (string, []StringValue) {
 	values := []StringValue{}
-	res := re.ReplaceAllStringFunc(value, func(stmt string) string {
+	res := tokens.ReplaceAllStringFunc(value, func(stmt string) string {
 		v := data.ExecString(stmt)
 		values = append(values, v)
 		return v.Value
@@ -179,14 +191,14 @@ func (data Data) ReplaceUse(re *regexp.Regexp, value string) (string, []StringVa
 
 // ReplaceSelection replace the statement in the selection
 func (data Data) ReplaceSelection(sel *goquery.Selection) []StringValue {
-	return data.ReplaceSelectionUse(stmtRe, sel)
+	return data.ReplaceSelectionUse(dataTokens, sel)
 }
 
 // ReplaceSelectionUse replace the statement in the selection use the regexp
-func (data Data) ReplaceSelectionUse(re *regexp.Regexp, sel *goquery.Selection) []StringValue {
+func (data Data) ReplaceSelectionUse(tokens Tokens, sel *goquery.Selection) []StringValue {
 	res := []StringValue{}
 	for _, node := range sel.Nodes {
-		values := data.replaceNodeUse(re, node)
+		values := data.replaceNodeUse(tokens, node)
 		if len(values) > 0 {
 			res = append(res, values...)
 		}
@@ -194,11 +206,11 @@ func (data Data) ReplaceSelectionUse(re *regexp.Regexp, sel *goquery.Selection) 
 	return res
 }
 
-func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) []StringValue {
+func (data Data) replaceNodeUse(tokens Tokens, node *html.Node) []StringValue {
 	res := []StringValue{}
 	switch node.Type {
 	case html.TextNode:
-		v, values := data.ReplaceUse(re, node.Data)
+		v, values := data.ReplaceUse(tokens, node.Data)
 		node.Data = v
 		if len(values) > 0 {
 			res = append(res, values...)
@@ -212,7 +224,7 @@ func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) []StringValu
 				continue
 			}
 
-			v, values := data.ReplaceUse(re, node.Attr[i].Val)
+			v, values := data.ReplaceUse(tokens, node.Attr[i].Val)
 			node.Attr[i].Val = v
 			if len(values) > 0 {
 				res = append(res, values...)
@@ -220,7 +232,7 @@ func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) []StringValu
 		}
 
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			values := data.replaceNodeUse(re, c)
+			values := data.replaceNodeUse(tokens, c)
 			if len(values) > 0 {
 				res = append(res, values...)
 			}
@@ -288,11 +300,7 @@ func _process(args ...any) (interface{}, error) {
 
 // PropFindAllStringSubmatch find all string submatch
 func PropFindAllStringSubmatch(value string) [][]string {
-	matched := propNewRe.FindAllStringSubmatch(value, -1)
-	oldVersion := propRe.FindAllStringSubmatch(value, -1) // will be deprecated
-	if len(oldVersion) > 0 {
-		matched = append(matched, oldVersion...)
-	}
+	matched := propTokens.FindAllStringSubmatch(value, -1)
 	return matched
 }
 

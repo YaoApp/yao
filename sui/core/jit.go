@@ -69,7 +69,17 @@ func (parser *TemplateParser) parseJitComponent(sel *goquery.Selection) {
 func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection, children *goquery.Selection) (string, string, error) {
 	html := comp.html
 
+	fmt.Println("---", comp.route, "----------------")
+	fmt.Println(html)
+	fmt.Println("-------------------------------")
+	fmt.Println()
 	html = replaceRandVar(html, Data(props))
+	fmt.Println("---- after replaceRandVar ----------------")
+	fmt.Println()
+	fmt.Println(html)
+	fmt.Println("-------------------------------")
+	fmt.Println()
+
 	option := *parser.option
 	option.Route = comp.route
 	compParser := NewTemplateParser(parser.data, &option)
@@ -115,11 +125,7 @@ func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[stri
 
 	compParser.locale = locale
 	compParser.BindEvent(root, ns, cn)
-	compParser.parseNode(root.Get(0))
-	for sel, nodes := range compParser.replace {
-		sel.ReplaceWithNodes(nodes...)
-		delete(parser.replace, sel)
-	}
+	compParser.RenderSelection(root)
 
 	if compParser.scripts != nil {
 		for _, script := range compParser.scripts {
@@ -312,7 +318,7 @@ func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[st
 	}
 
 	data := Data{"$props": props}
-	route, _ = data.ReplaceUse(slotRe, route)
+	route, _ = data.ReplaceUse(dataTokens, route)
 	route, _ = parser.data.Replace(route)
 	file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, route+".jit")
 	return file, route, nil
@@ -431,16 +437,24 @@ func readComponent(route string, file string) (*JitComponent, error) {
 
 func replaceRandVar(value string, data Data) string {
 
-	value = propNewRe.ReplaceAllStringFunc(value, func(exp string) string {
-		exp = strings.TrimPrefix(exp, "{%")
-		exp = strings.TrimSuffix(exp, "%}")
-		res := data.ExecString(fmt.Sprintf("{{ %s }}", exp))
-		return res.Value
-	})
+	return propTokens.ReplaceAllStringFunc(value, func(exp string) string {
+		if strings.HasPrefix(exp, "[{") && strings.HasSuffix(exp, "}]") {
+			matches := propTokens.FindAllStringSubmatch(exp, -1)
+			if len(matches) > 0 {
+				identifiers, err := data.Identifiers(matches[0][1])
+				if err != nil {
+					return err.Error()
+				}
+				for _, identifier := range identifiers {
+					exp = strings.ReplaceAll(exp, identifier.Value, strings.ReplaceAll(identifier.Value, "$props.", ""))
+				}
+			}
 
-	data = Data{"$props": data}
-	return slotRe.ReplaceAllStringFunc(value, func(exp string) string {
+		}
 		res := data.ExecString(exp)
+		if res.Error != nil {
+			return res.Error.Error()
+		}
 		return res.Value
 	})
 }
