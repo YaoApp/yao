@@ -126,7 +126,11 @@ func (r *Request) ExecString(data string) (Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.Exec(res)
+	err = r.Exec(res)
+	if err != nil {
+		return nil, err
+	}
+
 	return res, nil
 }
 
@@ -288,7 +292,11 @@ func (r *Request) call(p interface{}) (interface{}, error) {
 	// Call the backend script
 	if r.Script != nil && strings.HasPrefix(processName, "@") {
 		method := processName[1:]
-		return r.Script.Call(r, method, processArgs...)
+		v, err := r.Script.Call(r, method, processArgs...)
+		if err != nil {
+			return nil, fmt.Errorf("backend script %s %s, please check the script", method, err.Error())
+		}
+		return v, nil
 	}
 
 	process, err := process.Of(processName, processArgs...)
