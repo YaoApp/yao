@@ -258,10 +258,14 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 
 	sel.SetAttr("parsed", "true")
 	com := sel.AttrOr("s:cn", "")
-	props := map[string]string{}
+	props := map[string]interface{}{}
 	for _, attr := range sel.Nodes[0].Attr {
 		if !strings.HasPrefix(attr.Key, "s:") && attr.Key != "parsed" {
-			props[attr.Key] = attr.Val
+			var val any = attr.Val
+			if _, exist := sel.Attr("json-attr-" + attr.Key); exist {
+				val = ValueJSON(attr.Val)
+			}
+			props[attr.Key] = val
 		}
 	}
 
@@ -480,7 +484,7 @@ func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 
 	valueExp := sel.AttrOr("value", "")
 	if stmtRe.MatchString(valueExp) {
-		val, err := parser.data.Exec(valueExp)
+		val, _, err := parser.data.Exec(valueExp)
 		if err != nil {
 			log.Warn("Set %s: %s", valueExp, err)
 			parser.data[name] = valueExp
@@ -507,7 +511,7 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 
 		if strings.HasPrefix(attr.Key, "s:attr-") {
 			parser.sequence = parser.sequence + 1
-			val, _ := parser.data.Exec(attr.Val)
+			val, _, _ := parser.data.Exec(attr.Val)
 			if v, ok := val.(bool); ok {
 				if v {
 					sel.SetAttr(strings.TrimPrefix(attr.Key, "s:attr-"), "")
@@ -522,8 +526,8 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 		}
 
 		parser.sequence = parser.sequence + 1
-		res, hasStmt := parser.data.Replace(attr.Val)
-		if hasStmt {
+		res, values := parser.data.Replace(attr.Val)
+		if values != nil && len(values) > 0 {
 			bindings := strings.TrimSpace(attr.Val)
 			key := fmt.Sprintf("%v", parser.sequence)
 			parser.mapping[attr.Key] = Mapping{
@@ -534,6 +538,9 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
 			sel.SetAttr(attr.Key, res)
 			bindname := fmt.Sprintf("s:bind:%s", attr.Key)
 			sel.SetAttr(bindname, bindings)
+			if HasJSON(values) {
+				sel.SetAttr(fmt.Sprintf("json-attr-%s", attr.Key), "true")
+			}
 		}
 	}
 }
@@ -553,9 +560,9 @@ func checkIsRawElement(node *html.Node) bool {
 func (parser *TemplateParser) parseTextNode(node *html.Node) {
 	parser.transTextNode(node) // Translations
 	parser.sequence = parser.sequence + 1
-	res, hasStmt := parser.data.Replace(node.Data)
+	res, values := parser.data.Replace(node.Data)
 	// Bind the variable to the parent node
-	if node.Parent != nil && hasStmt {
+	if node.Parent != nil && values != nil && len(values) > 0 {
 		bindings := strings.TrimSpace(node.Data)
 		key := fmt.Sprintf("%v", parser.sequence)
 		if bindings != "" {
@@ -585,7 +592,7 @@ func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {
 	parser.hide(sel) // Hide loop node
 
 	forAttr, _ := sel.Attr("s:for")
-	forItems, err := parser.data.Exec(forAttr)
+	forItems, _, err := parser.data.Exec(forAttr)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
 		return
@@ -619,7 +626,7 @@ func (parser *TemplateParser) forStatementNode(sel *goquery.Selection) {
 		// Copy the if Attr from the parent node
 		if ifAttr, exists := new.Attr("s:if"); exists {
 
-			res, err := parser.data.Exec(ifAttr)
+			res, _, err := parser.data.Exec(ifAttr)
 			if err != nil {
 				parser.errors = append(parser.errors, fmt.Errorf("if statement %v error: %v", parser.sequence, err))
 				setError(new, err)
@@ -684,7 +691,7 @@ func (parser *TemplateParser) ifStatementNode(sel *goquery.Selection) {
 	}
 
 	// show the node if the condition is true
-	res, err := parser.data.Exec(ifAttr)
+	res, _, err := parser.data.Exec(ifAttr)
 	if err != nil {
 		parser.errors = append(parser.errors, fmt.Errorf("if statement %v error: %v", parser.sequence, err))
 		return
@@ -701,7 +708,7 @@ func (parser *TemplateParser) ifStatementNode(sel *goquery.Selection) {
 	// else if
 	for _, elifNode := range elifNodes {
 		elifAttr := elifNode.AttrOr("s:elif", "")
-		res, err := parser.data.Exec(elifAttr)
+		res, _, err := parser.data.Exec(elifAttr)
 		if err != nil {
 			parser.errors = append(parser.errors, err)
 			return

@@ -257,7 +257,7 @@ func (parser *TemplateParser) componentProps(sel *goquery.Selection) (map[string
 
 		if strings.HasPrefix(attr.Key, "...$props") {
 			data := Data{"$props": parentProps}
-			values, err := data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(attr.Key, "...")))
+			values, _, err := data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(attr.Key, "...")))
 			if err != nil {
 				return map[string]interface{}{}, err
 			}
@@ -283,7 +283,7 @@ func (parser *TemplateParser) parseComponentProps(props map[string]string) (map[
 	result := map[string]interface{}{}
 	for key, val := range props {
 		if strings.HasPrefix(key, "...") {
-			values, err := parser.data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(key, "...")))
+			values, _, err := parser.data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(key, "...")))
 			if err != nil {
 				return nil, err
 			}
@@ -434,13 +434,13 @@ func replaceRandVar(value string, data Data) string {
 	value = propNewRe.ReplaceAllStringFunc(value, func(exp string) string {
 		exp = strings.TrimPrefix(exp, "{%")
 		exp = strings.TrimSuffix(exp, "%}")
-		res, _ := data.ExecString(fmt.Sprintf("{{ %s }}", exp))
-		return res
+		res := data.ExecString(fmt.Sprintf("{{ %s }}", exp))
+		return res.Value
 	})
 
 	data = Data{"$props": data}
 	return slotRe.ReplaceAllStringFunc(value, func(exp string) string {
-		res, _ := data.ExecString(exp)
-		return res
+		res := data.ExecString(exp)
+		return res.Value
 	})
 }

@@ -341,6 +341,7 @@ func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, ext
 		exp := stmtRe.Match([]byte(attr.Val))
 		prop := PageProp{Key: attr.Key, Val: attr.Val, Trans: trans, Exp: exp}
 		page.props[attr.Key] = prop
+		to.SetAttr(attr.Key, attr.Val)
 	}
 
 	if extra != nil && len(extra) > 0 {
@@ -369,13 +370,13 @@ func (page *Page) replacePropsText(text string, data Data) (string, []string) {
 	matched := PropFindAllStringSubmatch(text)
 	for _, match := range matched {
 		stmt := match[1]
-		val, err := data.ExecString(stmt)
-		if err != nil {
-			log.Error("[replaceProps] Replace %s: %s", stmt, err)
+		val := data.ExecString(stmt)
+		if val.Error != nil {
+			log.Error("[replaceProps] Replace %s: %s", stmt, val.Error)
 			continue
 		}
 
-		text = strings.ReplaceAll(text, match[0], val)
+		text = strings.ReplaceAll(text, match[0], val.Value)
 		vars := PropGetVarNames(stmt)
 		for _, v := range vars {
 			if v == "" {

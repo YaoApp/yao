@@ -100,7 +100,7 @@ func (script *Script) Call(r *Request, method string, args ...any) (interface{},
 }
 
 // BeforeRender the script method
-func (script *Script) BeforeRender(r *Request, props map[string]string) (Data, error) {
+func (script *Script) BeforeRender(r *Request, props map[string]interface{}) (Data, error) {
 
 	ctx, err := script.NewContext(r.Sid, nil)
 	if err != nil {
