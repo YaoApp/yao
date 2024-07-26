@@ -142,14 +142,10 @@ func (page *Page) CompileAsComponent(ctx *BuildContext, option *BuildOption) (st
 		return "", warnings, err
 	}
 
-	// Page Components
-	components := []string{}
+	rawComponents := "{}"
 	if ctx != nil && ctx.components != nil && len(ctx.components) > 0 {
-		for route := range ctx.components {
-			components = append(components, route)
-		}
+		rawComponents, _ = jsoniter.MarshalToString(ctx.components)
 	}
-	rawComponents, _ := jsoniter.MarshalToString(components)
 
 	if body.Children().Length() == 0 {
 		return "", warnings, fmt.Errorf("page %s as component should have one root element", page.Route)

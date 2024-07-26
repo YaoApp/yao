@@ -256,7 +256,7 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 
-	sel.SetAttr("parsed", "true")
+	parser.parsed(sel)
 	com := sel.AttrOr("s:cn", "")
 	props := map[string]interface{}{}
 	for _, attr := range sel.Nodes[0].Attr {
@@ -313,6 +313,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 		setError(sel, err)
 	}
 	parser.sequence = compParser.sequence + 1
+
 }
 
 func (parser *TemplateParser) clone(script *Script) *TemplateParser {

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/hashicorp/go-multierror"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
 )
@@ -19,6 +20,7 @@ type JitComponent struct {
 	html        string
 	scripts     []ScriptNode
 	styles      []StyleNode
+	imports     map[string]string
 	buildOption *BuildOption
 }
 
@@ -39,6 +41,7 @@ var chComp = make(chan *componentData, 1)
 var reScripts = regexp.MustCompile(`<script[^>]*name="scripts"[^>]*>(.*?)</script>`)
 var reStyles = regexp.MustCompile(`<script[^>]*name="styles"[^>]*>(.*?)</script>`)
 var reOption = regexp.MustCompile(`<script[^>]*name="option"[^>]*>(.*?)</script>`)
+var reImports = regexp.MustCompile(`<script[^>]*name="imports"[^>]*>(.*?)</script>`)
 
 func init() {
 	go componentWriter()
@@ -47,119 +50,222 @@ func init() {
 // parseComponent parse the component
 func (parser *TemplateParser) parseJitComponent(sel *goquery.Selection) {
 	parser.parsed(sel)
-	comp, props, slots, children, err := parser.getComponent(sel)
+	comp, err := parser.getJitComponent(sel)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
 		setError(sel, err)
 		return
 	}
 
-	html, _, err := parser.RenderComponent(comp, props, slots, children)
+	comsel, err := parser.newJitComponentSel(sel, comp)
 	if err != nil {
 		parser.errors = append(parser.errors, err)
 		setError(sel, err)
 		return
 	}
-
-	// fmt.Println(sel.Nodes[0].Attr)
-	sel.SetHtml(html)
+	parser.parseElementComponent(comsel)
+	sel.ReplaceWithSelection(comsel)
 }
 
-// RenderComponent render the component
-func (parser *TemplateParser) RenderComponent(comp *JitComponent, props map[string]interface{}, slots *goquery.Selection, children *goquery.Selection) (string, string, error) {
-	html := comp.html
+func (parser *TemplateParser) newJitComponentSel(sel *goquery.Selection, comp *JitComponent) (*goquery.Selection, error) {
 
-	fmt.Println("---", comp.route, "----------------")
-	fmt.Println(html)
-	fmt.Println("-------------------------------")
-	fmt.Println()
-	html = replaceRandVar(html, Data(props))
-	fmt.Println("---- after replaceRandVar ----------------")
-	fmt.Println()
-	fmt.Println(html)
-	fmt.Println("-------------------------------")
-	fmt.Println()
-
-	option := *parser.option
-	option.Route = comp.route
-	compParser := NewTemplateParser(parser.data, &option)
-	compParser.sequence = parser.sequence + 1
-	locale := compParser.Locale()
-
-	// Parse the node
-	ns := Namespace(comp.route, compParser.sequence, comp.buildOption.ScriptMinify)
+	ns := Namespace(comp.route, parser.sequence+1, comp.buildOption.ScriptMinify)
 	cn := ComponentName(comp.route, comp.buildOption.ScriptMinify)
-
-	sel, err := NewDocumentString(`<body>` + html + `</body>`)
-	if err != nil {
-		return "", "", err
+	props := map[string]string{
+		"s:ns":    ns,
+		"s:cn":    cn,
+		"s:ready": cn + "()",
+	}
+	data := Data{}
+	for _, attr := range sel.Nodes[0].Attr {
+		if attr.Key == "is" || attr.Key == "s:jit" {
+			continue
+		}
+		props[attr.Key] = attr.Val
 	}
 
-	root := sel.Find("body")
+	// JSON props
+	for key, val := range props {
+		var v interface{} = val
+		if props[fmt.Sprintf("json-attr-%s", key)] == "true" {
+			fmt.Println("json-attr-", key)
+			err := jsoniter.UnmarshalFromString(val, &v)
+			if err != nil {
+				v = fmt.Sprintf(`"%s"`, val)
+			}
+		}
+		data[key] = v
+	}
+
+	doc, err := NewDocumentString(comp.html)
+	if err != nil {
+		return nil, fmt.Errorf("Component %s failed to load, please recompile the component. %s", comp.route, err.Error())
+	}
+	compSel := doc.Find("body").Children().First()
+	data.replaceNodeUse(propTokens, compSel.Nodes[0])
+	for key, val := range props {
+		if strings.HasPrefix(key, "s:") || strings.HasPrefix(key, "json-attr-") || key == "parsed" {
+			compSel.SetAttr(key, val)
+			continue
+		}
+		compSel.SetAttr(fmt.Sprintf("prop:%s", key), val)
+	}
 
 	// Replace the slots
-	slots.Each(func(i int, s *goquery.Selection) {
-		name := s.AttrOr("name", "")
-		if name == "" {
-			return
-		}
+	slots := sel.Find("slot")
+	if slots.Length() > 0 {
+		for i := 0; i < slots.Length(); i++ {
+			name := slots.Eq(i).AttrOr("name", "")
+			if name == "" {
+				continue
+			}
 
-		// Find the slot
-		slotSel := root.Find(name)
-		if slotSel.Length() == 0 {
-			return
+			slots.Eq(i).Remove()
+			slotSel := compSel.Find(name)
+			if slotSel.Length() == 0 {
+				continue
+			}
+			slotSel.ReplaceWithSelection(slots.Eq(i).Contents())
 		}
-
-		// Replace the slot
-		slotSel.ReplaceWithSelection(s.Contents())
-	})
+	}
 
 	// Replace the children
-	children.Find("slot").Remove()
-	root.Find("children").ReplaceWithSelection(children)
+	children := sel.Contents()
+	compSel.Find("children").ReplaceWithSelection(children)
+	return compSel, nil
+}
 
-	// Replace the props
-	if locale != nil {
-		locale.replaceVars(Data(props))
+func (parser *TemplateParser) getJitComponent(sel *goquery.Selection) (*JitComponent, error) {
+	is := sel.AttrOr("is", "")
+	if is == "" {
+		return nil, fmt.Errorf("Component route is required")
+
 	}
 
-	compParser.locale = locale
-	compParser.BindEvent(root, ns, cn)
-	compParser.RenderSelection(root)
-
-	if compParser.scripts != nil {
-		for _, script := range compParser.scripts {
-			script.Namespace = ns
-			parser.scripts = append(parser.scripts, script)
-		}
+	if parser.option == nil {
+		parser.option = &ParserOption{Debug: true, DisableCache: false}
 	}
 
-	if comp.scripts != nil {
-		for _, script := range comp.scripts {
-			script.Namespace = ns
-			parser.scripts = append(parser.scripts, script)
-		}
+	// Load the component
+	if comp, has := Components[is]; has && parser.option.Debug == false && parser.option.DisableCache == false {
+		return comp, nil
 	}
 
-	if comp.styles != nil {
-		for _, style := range comp.styles {
-			style.Namespace = ns
-			parser.styles = append(parser.styles, style)
-		}
+	file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, is+".jit")
+	if exist, _ := application.App.Exists(file); !exist {
+		return nil, fmt.Errorf("Component %s file not found, please recompile the component", is)
 	}
 
-	// Update sequence
-	parser.sequence = compParser.sequence + parser.sequence
-	first := root.Children().First()
-	first.SetAttr("s:ns", ns)
-	first.SetAttr("s:cn", cn)
-	first.SetAttr("s:ready", cn+"()")
-
-	html, err = root.Html()
+	source, err := application.App.Read(file)
 	if err != nil {
-		return "", "", err
+		return nil, fmt.Errorf("Component %s failed to load, please recompile the component", is)
 	}
-	return html, ns, nil
+
+	// Get the scripts
+	var scriptnodes []ScriptNode = []ScriptNode{}
+	var stylenodes []StyleNode = []StyleNode{}
+	var imports map[string]string = map[string]string{}
+	var buildOption *BuildOption = &BuildOption{}
+
+	source, scriptnodes, err = parser.getScriptNodes(source)
+	if err != nil {
+		return nil, fmt.Errorf("Component %s failed to load, please recompile the component. %s", is, err.Error())
+	}
+
+	source, stylenodes, err = parser.getStyleNodes(source)
+	if err != nil {
+		return nil, fmt.Errorf("Component %s failed to load, please recompile the component. %s", is, err.Error())
+	}
+
+	source, imports, err = parser.getImports(source)
+	if err != nil {
+		return nil, fmt.Errorf("Component %s failed to load, please recompile the component. %s", is, err.Error())
+	}
+
+	source, buildOption, err = parser.getBuildOption(source)
+	if err != nil {
+		return nil, fmt.Errorf("Component %s failed to load, please recompile the component. %s", is, err.Error())
+	}
+
+	comp := &JitComponent{
+		file:        file,
+		route:       is,
+		html:        string(source),
+		scripts:     scriptnodes,
+		styles:      stylenodes,
+		imports:     imports,
+		buildOption: buildOption,
+	}
+
+	// Save the component to the cache
+	chComp <- &componentData{is, comp, saveComponent}
+	return comp, nil
+}
+
+func (parser *TemplateParser) getImports(source []byte) ([]byte, map[string]string, error) {
+	imports := map[string]string{}
+	source = reImports.ReplaceAllFunc(source, func(raw []byte) []byte {
+		raw = reImports.ReplaceAll(raw, []byte("$1"))
+		err := jsoniter.Unmarshal(raw, &imports)
+		if err != nil {
+			return nil
+		}
+		return []byte{}
+	})
+	return source, imports, nil
+}
+
+func (parser *TemplateParser) getBuildOption(source []byte) ([]byte, *BuildOption, error) {
+	var buildOption BuildOption
+	rawOption := []byte{}
+	source = reOption.ReplaceAllFunc(source, func(raw []byte) []byte {
+		rawOption = reOption.ReplaceAll(raw, []byte("$1"))
+		return []byte{}
+	})
+
+	if rawOption != nil {
+		err := jsoniter.Unmarshal(rawOption, &buildOption)
+		if err != nil {
+			return source, nil, err
+		}
+	}
+	return source, &buildOption, nil
+}
+
+func (parser *TemplateParser) getStyleNodes(source []byte) ([]byte, []StyleNode, error) {
+	var errs error
+	nodes := []StyleNode{}
+	source = reStyles.ReplaceAllFunc(source, func(raw []byte) []byte {
+		raw = reStyles.ReplaceAll(raw, []byte("$1"))
+		var stylenodes []StyleNode
+		err := jsoniter.Unmarshal(raw, &stylenodes)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+			return nil
+		}
+		nodes = append(nodes, stylenodes...)
+		return []byte{}
+	})
+	return source, nodes, errs
+}
+
+func (parser *TemplateParser) getScriptNodes(source []byte) ([]byte, []ScriptNode, error) {
+	var errs error
+	nodes := []ScriptNode{}
+
+	// Get the scripts
+	source = reScripts.ReplaceAllFunc(source, func(raw []byte) []byte {
+		raw = reScripts.ReplaceAll(raw, []byte("$1"))
+		var scripts []ScriptNode
+		err := jsoniter.Unmarshal(raw, &scripts)
+		if err != nil {
+			errs = multierror.Append(errs, err)
+			return nil
+		}
+		nodes = append(nodes, scripts...)
+		return []byte{}
+	})
+	return source, nodes, errs
 }
 
 func (parser *TemplateParser) filterScripts(parent string, scripts []ScriptNode) []ScriptNode {
@@ -201,141 +307,11 @@ func (parser *TemplateParser) addStyles(sel *goquery.Selection, styles []StyleNo
 	}
 }
 
-func (parser *TemplateParser) getComponent(sel *goquery.Selection) (*JitComponent, map[string]interface{}, *goquery.Selection, *goquery.Selection, error) {
-
-	slots := sel.Find("slot")
-	children := sel.Contents()
-
-	props, err := parser.componentProps(sel)
-	if err != nil {
-		return nil, nil, slots, children, err
-	}
-
-	file, route, err := parser.componentFile(sel, props)
-	if err != nil {
-		return nil, props, slots, children, err
-	}
-
-	comp, err := getComponent(route, file, parser.disableCache())
-	if err != nil {
-		return nil, props, slots, children, err
-	}
-
-	return comp, props, slots, children, nil
-}
-
 // isJitComponent check if the selection is a component
 func (parser *TemplateParser) isJitComponent(sel *goquery.Selection) bool {
 	_, exist := sel.Attr("s:jit")
 	is := sel.AttrOr("is", "")
 	return exist && is != ""
-}
-
-func (parser *TemplateParser) componentProps(sel *goquery.Selection) (map[string]interface{}, error) {
-
-	parentProps := map[string]string{}
-	props := map[string]string{}
-	parent := sel.AttrOr("s:parent", "")
-	parentSel := sel.Parents().Find(fmt.Sprintf(`[s\:ns="%s"]`, parent))
-
-	if parentSel != nil && parentSel.Length() > 0 {
-		for _, attr := range parentSel.Nodes[0].Attr {
-
-			if !strings.HasPrefix(attr.Key, "s:prop") {
-				continue
-			}
-			key := strings.TrimPrefix(attr.Key, "s:prop:")
-			parentProps[key] = attr.Val
-		}
-	}
-
-	for _, attr := range sel.Nodes[0].Attr {
-
-		// s:on , s:data , s:json
-		if strings.HasPrefix(attr.Key, "s:on") || strings.HasPrefix(attr.Key, "s:data") || strings.HasPrefix(attr.Key, "s:json") {
-			props[attr.Key] = attr.Val
-			continue
-		}
-
-		if strings.HasPrefix(attr.Key, "s:") || attr.Key == "is" {
-			continue
-		}
-
-		if strings.HasPrefix(attr.Key, "...$props") {
-			data := Data{"$props": parentProps}
-			values, _, err := data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(attr.Key, "...")))
-			if err != nil {
-				return map[string]interface{}{}, err
-			}
-			if values == nil {
-				continue
-			}
-
-			if _, ok := values.(map[string]string); ok {
-				for key, val := range values.(map[string]string) {
-					props[key] = val
-				}
-			}
-			continue
-		}
-
-		props[attr.Key] = attr.Val
-	}
-
-	return parser.parseComponentProps(props)
-}
-
-func (parser *TemplateParser) parseComponentProps(props map[string]string) (map[string]interface{}, error) {
-	result := map[string]interface{}{}
-	for key, val := range props {
-		if strings.HasPrefix(key, "...") {
-			values, _, err := parser.data.Exec(fmt.Sprintf("{{ %s }}", strings.TrimPrefix(key, "...")))
-			if err != nil {
-				return nil, err
-			}
-
-			if values == nil {
-				continue
-			}
-
-			if _, ok := values.(map[string]interface{}); ok {
-				for k := range values.(map[string]interface{}) {
-					result[k] = k
-				}
-			}
-			continue
-		}
-
-		result[key] = val
-	}
-	return result, nil
-}
-
-func (parser *TemplateParser) componentFile(sel *goquery.Selection, props map[string]interface{}) (string, string, error) {
-	route := sel.AttrOr("is", "")
-	if route == "" {
-		return "", "", fmt.Errorf("Component route is required")
-	}
-
-	data := Data{"$props": props}
-	route, _ = data.ReplaceUse(dataTokens, route)
-	route, _ = parser.data.Replace(route)
-	file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, route+".jit")
-	return file, route, nil
-}
-
-func (locale *Locale) replaceVars(data Data) {
-	if locale.Keys != nil {
-		for key, val := range locale.Keys {
-			locale.Keys[key] = replaceRandVar(val, data)
-		}
-	}
-
-	if locale.Messages != nil {
-		for key, val := range locale.Messages {
-			locale.Messages[key] = replaceRandVar(val, data)
-		}
-	}
 }
 
 func componentWriter() {
@@ -350,111 +326,4 @@ func componentWriter() {
 			}
 		}
 	}
-}
-
-func getComponent(route string, file string, disableCache ...bool) (*JitComponent, error) {
-
-	noCache := false
-	if len(disableCache) > 0 && disableCache[0] {
-		noCache = true
-	}
-
-	if comp, ok := Components[file]; ok && !noCache {
-		return comp, nil
-	}
-
-	comp, err := readComponent(route, file)
-	if err != nil {
-		return nil, err
-	}
-
-	// Save the component to the cache
-	chComp <- &componentData{file, comp, saveComponent}
-	return comp, nil
-}
-
-// readComponent read the JIT component
-func readComponent(route string, file string) (*JitComponent, error) {
-	content, err := application.App.Read(file)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get the scripts
-	html := string(content)
-	rawScripts := ""
-	rawStyles := ""
-	rawOption := ""
-	html = reScripts.ReplaceAllStringFunc(html, func(exp string) string {
-		rawScripts = reScripts.ReplaceAllString(exp, "$1")
-		return ""
-	})
-
-	html = reStyles.ReplaceAllStringFunc(html, func(exp string) string {
-		rawStyles = reStyles.ReplaceAllString(exp, "$1")
-		return ""
-	})
-
-	html = reOption.ReplaceAllStringFunc(html, func(exp string) string {
-		rawOption = reOption.ReplaceAllString(exp, "$1")
-		return ""
-	})
-
-	scripts := []ScriptNode{}
-	styles := []StyleNode{}
-	buildOption := BuildOption{}
-
-	if rawScripts != "" {
-		err := jsoniter.UnmarshalFromString(rawScripts, &scripts)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if rawStyles != "" {
-		err := jsoniter.UnmarshalFromString(rawStyles, &styles)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if rawOption != "" {
-		err := jsoniter.UnmarshalFromString(rawOption, &buildOption)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &JitComponent{
-		file:        file,
-		route:       route,
-		html:        html,
-		scripts:     scripts,
-		styles:      styles,
-		buildOption: &buildOption,
-	}, nil
-}
-
-func replaceRandVar(value string, data Data) string {
-
-	return propTokens.ReplaceAllStringFunc(value, func(exp string) string {
-		if strings.HasPrefix(exp, "[{") && strings.HasSuffix(exp, "}]") {
-			matches := propTokens.FindAllStringSubmatch(exp, -1)
-			if len(matches) > 0 {
-				identifiers, err := data.Identifiers(matches[0][1])
-				if err != nil {
-					return err.Error()
-				}
-				for _, identifier := range identifiers {
-					exp = strings.ReplaceAll(exp, identifier.Value, strings.ReplaceAll(identifier.Value, "$props.", ""))
-				}
-			}
-
-		}
-		res := data.ExecString(exp)
-		if res.Error != nil {
-			return res.Error.Error()
-		}
-		return res.Value
-	})
 }
