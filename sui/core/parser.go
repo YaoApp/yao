@@ -256,16 +256,17 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 
 func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 
-	sel.SetAttr("parsed", "true")
+	parser.parsed(sel)
 	com := sel.AttrOr("s:cn", "")
 	props := map[string]interface{}{}
 	for _, attr := range sel.Nodes[0].Attr {
-		if !strings.HasPrefix(attr.Key, "s:") && attr.Key != "parsed" {
+		if strings.HasPrefix(attr.Key, "prop:") {
 			var val any = attr.Val
+			var key = strings.TrimPrefix(attr.Key, "prop:")
 			if _, exist := sel.Attr("json-attr-" + attr.Key); exist {
 				val = ValueJSON(attr.Val)
 			}
-			props[attr.Key] = val
+			props[key] = val
 		}
 	}
 
@@ -299,6 +300,11 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 				compParser.data[k] = v
 			}
 		}
+		raw, err := jsoniter.MarshalToString(data)
+		if err != nil {
+			raw = fmt.Sprintf(`"%s"`, err.Error())
+		}
+		sel.SetAttr("json:__component_data", raw)
 	}
 
 	err = compParser.RenderSelection(sel)
@@ -307,6 +313,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 		setError(sel, err)
 	}
 	parser.sequence = compParser.sequence + 1
+
 }
 
 func (parser *TemplateParser) clone(script *Script) *TemplateParser {

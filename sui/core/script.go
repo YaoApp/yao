@@ -54,11 +54,11 @@ func scriptWriter() {
 // LoadScript load the script
 func LoadScript(file string) (*Script, error) {
 
-	if script, has := Scripts[file]; has {
+	base := strings.TrimSuffix(strings.TrimSuffix(file, ".sui"), ".jit")
+	if script, has := Scripts[base]; has {
 		return script, nil
 	}
 
-	base := strings.TrimSuffix(file, ".sui")
 	file = base + ".ts"
 	if exist, _ := application.App.Exists(file); !exist {
 		file = base + ".js"
@@ -79,7 +79,7 @@ func LoadScript(file string) (*Script, error) {
 	}
 
 	script := &Script{Script: v8script}
-	chScript <- &scriptData{file, script, saveScript}
+	chScript <- &scriptData{base, script, saveScript}
 	return script, nil
 }
 

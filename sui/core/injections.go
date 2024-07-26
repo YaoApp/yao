@@ -42,7 +42,46 @@ const libsuisource = `
 
 	function __sui_props(elm) {
 		this.Get = function (key) {
-			return elm && elm.getAttribute(key);
+			if (!elm || typeof elm.getAttribute !== "function") {
+				return null;
+			}
+			const k = "prop:" + key;
+			const v = elm.getAttribute(k);
+			const json = elm.getAttribute("json-attr-prop:" + key) === "true";
+			if (json) {
+				try {
+					return JSON.parse(v);
+				} catch (e) {
+					return null;
+				}
+			}
+			return v;
+		}
+
+		this.List = function () {
+			const props = {};
+			if (!elm || typeof elm.getAttribute !== "function") {
+				return props;
+			}
+
+			const attrs = elm.attributes;
+			for (let i = 0; i < attrs.length; i++) {
+				const attr = attrs[i];
+				if (attr.name.startsWith("prop:")) {
+					const k = attr.name.replace("prop:", "");
+					const json = elm.getAttribute("json-attr-prop:" + k) === "true";
+					if (json) {
+						try {
+							props[k] = JSON.parse(attr.value);
+						} catch (e) {
+							props[k] = null;
+						}
+						continue;
+					}
+					props[k] = attr.value;
+				}
+			}
+			return props;
 		}
 	}
 
@@ -123,6 +162,10 @@ const libsuisource = `
 		this.SetJSON = function (key, value) {
 			elm.setAttribute("json:" + key, JSON.stringify(value));
 		}
+
+		this.GetData = function () {
+			return this.GetJSON("__component_data") || {};
+		}
 	}
 `
 
@@ -184,6 +227,7 @@ const compEventScriptTmpl = `
 const componentInitScriptTmpl = `
 	this.root = %s;
 	this.store = new __sui_store(this.root);
+	this.props = new __sui_props(this.root);
 `
 
 // Inject code
