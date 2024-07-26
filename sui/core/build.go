@@ -341,6 +341,7 @@ func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, ext
 		exp := stmtRe.Match([]byte(attr.Val))
 		prop := PageProp{Key: attr.Key, Val: attr.Val, Trans: trans, Exp: exp}
 		page.props[attr.Key] = prop
+		to.SetAttr(attr.Key, attr.Val)
 	}
 
 	if extra != nil && len(extra) > 0 {
