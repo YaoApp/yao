@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	jsoniter "github.com/json-iterator/go"
 	"golang.org/x/net/html"
 )
 
@@ -109,4 +110,24 @@ func ToCamelCase(s string, split ...string) string {
 	}
 
 	return strings.Join(parts, "")
+}
+
+// ValueJSON parse the value to a json value
+func ValueJSON(value string) interface{} {
+	var v interface{}
+	err := jsoniter.UnmarshalFromString(value, &v)
+	if err != nil {
+		return fmt.Sprintf("json error: %s", err.Error())
+	}
+	return v
+}
+
+// HasJSON check if the values has json value
+func HasJSON(values []StringValue) bool {
+	for _, value := range values {
+		if value.JSON {
+			return true
+		}
+	}
+	return false
 }

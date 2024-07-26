@@ -8,9 +8,10 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/expr-lang/expr"
+	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/vm"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
-	"github.com/yaoapp/kun/log"
 	"golang.org/x/net/html"
 )
 
@@ -23,11 +24,50 @@ var propVarNameRe = regexp.MustCompile(`(?:\$props\.)?(?:$begin:math:display$'([
 // Data data for the template
 type Data map[string]interface{}
 
+// Identifier the identifier
+type Identifier struct {
+	Value string
+	Type  string
+}
+
+// Visitor the visitor
+type Visitor struct {
+	Identifiers []Identifier
+}
+
+// StringValue the string value
+type StringValue struct {
+	Value       string
+	Stmt        string
+	Data        interface{}
+	JSON        bool
+	Identifiers []Identifier
+	Error       error
+}
+
 var options = []expr.Option{
 	expr.Function("P_", _process),
 	expr.Function("True", _true),
 	expr.Function("False", _false),
 	expr.AllowUndefinedVariables(),
+}
+
+// Visit visit the node
+func (v *Visitor) Visit(node *ast.Node) {
+	if n, ok := (*node).(*ast.IdentifierNode); ok {
+		typ := "unknown"
+		t := n.Type()
+		if t != nil {
+			typ = t.Name()
+			if typ == "" {
+				typ = "json"
+			}
+		}
+		v.Identifiers = append(v.Identifiers, Identifier{
+			Value: n.Value,
+			Type:  typ,
+		})
+	}
 }
 
 // Hash get the hash of the data
@@ -64,76 +104,104 @@ func (data Data) New(stmt string) (*vm.Program, error) {
 }
 
 // Exec exec statement for the template
-func (data Data) Exec(stmt string) (interface{}, error) {
+func (data Data) Exec(stmt string) (interface{}, []Identifier, error) {
 	program, err := data.New(stmt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return expr.Run(program, data)
+
+	node := program.Node()
+	v := &Visitor{}
+	ast.Walk(&node, v)
+
+	res, err := expr.Run(program, data)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return res, v.Identifiers, nil
 }
 
 // ExecString exec statement for the template
-func (data Data) ExecString(stmt string) (string, error) {
+func (data Data) ExecString(stmt string) StringValue {
 
-	res, err := data.Exec(stmt)
+	str := StringValue{Stmt: stmt, Value: "", JSON: false, Identifiers: []Identifier{}, Error: nil}
+	res, identifiers, err := data.Exec(stmt)
 	if err != nil {
-		return "", err
+		str.Error = err
+		return str
 	}
 
 	if res == nil {
-		return "", nil
+		return str
 	}
 
-	if v, ok := res.(string); ok {
-		return v, nil
+	str.Data = res
+	switch v := res.(type) {
+	case string:
+		str.Value = v
+		break
+	case []byte:
+		str.Value = string(v)
+		break
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool:
+		str.Value = fmt.Sprintf("%v", v)
+		break
+	default:
+		res, err := jsoniter.MarshalToString(res)
+		if err != nil {
+			str.Error = err
+			break
+		}
+		str.Value = res
+		str.JSON = true
 	}
-	return fmt.Sprintf("%v", res), nil
+
+	str.Identifiers = identifiers
+	return str
 }
 
 // Replace replace the statement
-func (data Data) Replace(value string) (string, bool) {
+func (data Data) Replace(value string) (string, []StringValue) {
 	return data.ReplaceUse(stmtRe, value)
 }
 
 // ReplaceUse replace the statement use the regexp
-func (data Data) ReplaceUse(re *regexp.Regexp, value string) (string, bool) {
-	hasStmt := false
+func (data Data) ReplaceUse(re *regexp.Regexp, value string) (string, []StringValue) {
+	values := []StringValue{}
 	res := re.ReplaceAllStringFunc(value, func(stmt string) string {
-		hasStmt = true
-		res, err := data.ExecString(stmt)
-		if err != nil {
-			log.Warn("Replace %s: %s", stmt, err)
-		}
-		return res
+		v := data.ExecString(stmt)
+		values = append(values, v)
+		return v.Value
 	})
-	return res, hasStmt
+	return res, values
 }
 
 // ReplaceSelection replace the statement in the selection
-func (data Data) ReplaceSelection(sel *goquery.Selection) bool {
+func (data Data) ReplaceSelection(sel *goquery.Selection) []StringValue {
 	return data.ReplaceSelectionUse(stmtRe, sel)
 }
 
 // ReplaceSelectionUse replace the statement in the selection use the regexp
-func (data Data) ReplaceSelectionUse(re *regexp.Regexp, sel *goquery.Selection) bool {
-	hasStmt := false
+func (data Data) ReplaceSelectionUse(re *regexp.Regexp, sel *goquery.Selection) []StringValue {
+	res := []StringValue{}
 	for _, node := range sel.Nodes {
-		ok := data.replaceNodeUse(re, node)
-		if ok {
-			hasStmt = true
+		values := data.replaceNodeUse(re, node)
+		if len(values) > 0 {
+			res = append(res, values...)
 		}
 	}
-	return hasStmt
+	return res
 }
 
-func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) bool {
-	hasStmt := false
+func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) []StringValue {
+	res := []StringValue{}
 	switch node.Type {
 	case html.TextNode:
-		v, ok := data.ReplaceUse(re, node.Data)
+		v, values := data.ReplaceUse(re, node.Data)
 		node.Data = v
-		if ok {
-			hasStmt = true
+		if len(values) > 0 {
+			res = append(res, values...)
 		}
 		break
 
@@ -144,23 +212,22 @@ func (data Data) replaceNodeUse(re *regexp.Regexp, node *html.Node) bool {
 				continue
 			}
 
-			v, ok := data.ReplaceUse(re, node.Attr[i].Val)
+			v, values := data.ReplaceUse(re, node.Attr[i].Val)
 			node.Attr[i].Val = v
-			if ok {
-				hasStmt = true
+			if len(values) > 0 {
+				res = append(res, values...)
 			}
 		}
 
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
-			ok := data.replaceNodeUse(re, c)
-			if ok {
-				hasStmt = true
+			values := data.replaceNodeUse(re, c)
+			if len(values) > 0 {
+				res = append(res, values...)
 			}
 		}
 		break
 	}
-
-	return hasStmt
+	return res
 
 }
 
