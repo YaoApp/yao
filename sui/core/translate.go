@@ -160,7 +160,7 @@ func (page *Page) translateNode(node *html.Node) ([]Translation, error) {
 
 func (page *Page) translateText(text string, transType string) ([]Translation, []string, error) {
 	translations := []Translation{}
-	matches := stmtRe.FindAllStringSubmatch(text, -1)
+	matches := dataTokens.FindAllStringSubmatch(text, -1)
 	keys := []string{}
 	for _, match := range matches {
 		text := strings.TrimSpace(match[1])

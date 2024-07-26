@@ -78,8 +78,8 @@ func (globalCtx *GlobalBuildContext) GetJitComponents() []string {
 }
 
 func (ctx *BuildContext) addJitComponent(name string) {
-	name = stmtRe.ReplaceAllString(name, "*")
-	name = propRe.ReplaceAllString(name, "*")
+	name = dataTokens.ReplaceAllString(name, "*")
+	name = propTokens.ReplaceAllString(name, "*")
 	ctx.jitComponents[name] = true
 	if ctx.global != nil {
 		ctx.global.jitComponents[name] = true
@@ -87,7 +87,7 @@ func (ctx *BuildContext) addJitComponent(name string) {
 }
 
 func (ctx *BuildContext) isJitComponent(name string) bool {
-	hasStmt := stmtRe.MatchString(name)
-	hasProp := propRe.MatchString(name)
+	hasStmt := dataTokens.MatchString(name)
+	hasProp := propTokens.MatchString(name)
 	return hasStmt || hasProp
 }

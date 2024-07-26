@@ -371,7 +371,7 @@ func (parser *TemplateParser) transElementNode(sel *goquery.Selection) {
 
 // Escape the text
 func (parser *TemplateParser) escapeText(content string) string {
-	matches := stmtRe.FindAllStringSubmatch(content, -1)
+	matches := dataTokens.FindAllStringSubmatch(content, -1)
 	newContent := content
 	for _, match := range matches {
 		text := strings.TrimSpace(match[1])
@@ -419,7 +419,7 @@ func (parser *TemplateParser) transNode(key string, message string) string {
 
 func (parser *TemplateParser) transText(content string, keys []string) string {
 
-	matches := stmtRe.FindAllStringSubmatch(content, -1)
+	matches := dataTokens.FindAllStringSubmatch(content, -1)
 	newContent := content
 	for _, match := range matches {
 		text := strings.TrimSpace(match[1])
@@ -483,7 +483,7 @@ func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 	}
 
 	valueExp := sel.AttrOr("value", "")
-	if stmtRe.MatchString(valueExp) {
+	if dataTokens.MatchString(valueExp) {
 		val, _, err := parser.data.Exec(valueExp)
 		if err != nil {
 			log.Warn("Set %s: %s", valueExp, err)
