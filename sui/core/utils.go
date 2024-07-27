@@ -124,6 +124,10 @@ func ValueJSON(value string) interface{} {
 
 // HasJSON check if the values has json value
 func HasJSON(values []StringValue) bool {
+	if values == nil {
+		return false
+	}
+
 	for _, value := range values {
 		if value.JSON {
 			return true

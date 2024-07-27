@@ -240,9 +240,6 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.setStatementNode(sel)
 	}
 
-	// Parse the attributes
-	parser.parseElementAttrs(sel)
-
 	// if the element is a component
 	if parser.isElementComponent(sel) {
 		parser.parseElementComponent(sel)
@@ -252,6 +249,9 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 	if parser.isJitComponent(sel) {
 		parser.parseJitComponent(sel)
 	}
+
+	// Parse the attributes
+	parser.parseElementAttrs(sel)
 }
 
 func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
@@ -261,12 +261,20 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 	props := map[string]interface{}{}
 	for _, attr := range sel.Nodes[0].Attr {
 		if strings.HasPrefix(attr.Key, "prop:") {
-			var val any = attr.Val
-			var key = strings.TrimPrefix(attr.Key, "prop:")
-			if _, exist := sel.Attr("json-attr-" + attr.Key); exist {
-				val = ValueJSON(attr.Val)
+			key := ToCamelCase(strings.TrimPrefix(attr.Key, "prop:"))
+			if key == "" {
+				continue
 			}
-			key = ToCamelCase(key)
+
+			val, replaces := parser.data.Replace(attr.Val)
+			if HasJSON(replaces) {
+				sel.SetAttr(fmt.Sprintf("json-attr-prop:%s", key), "true")
+			}
+
+			if _, exist := sel.Attr(fmt.Sprintf("json-attr-prop:%s", key)); exist {
+				props[key] = ValueJSON(val)
+				continue
+			}
 			props[key] = val
 		}
 	}
@@ -287,6 +295,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 	}
 
 	compParser := parser.clone(script)
+	dataRaw := ""
 
 	// Call the BeforeRender Hook
 	if script != nil {
@@ -301,11 +310,16 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 				compParser.data[k] = v
 			}
 		}
-		raw, err := jsoniter.MarshalToString(data)
+		dataRaw, err = jsoniter.MarshalToString(data)
 		if err != nil {
-			raw = fmt.Sprintf(`"%s"`, err.Error())
+			dataRaw = fmt.Sprintf(`"%s"`, err.Error())
 		}
-		sel.SetAttr("json:__component_data", raw)
+	}
+
+	// Parse the component using the component parser
+	compParser.parseElementAttrs(sel, true)
+	if dataRaw != "" {
+		sel.SetAttr("json:__component_data", dataRaw)
 	}
 
 	err = compParser.RenderSelection(sel)
@@ -505,12 +519,16 @@ func (parser *TemplateParser) setStatementNode(sel *goquery.Selection) {
 	parser.data[name] = valueExp
 }
 
-func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection) {
+func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection, force ...bool) {
 	if len(sel.Nodes) < 0 {
 		return
 	}
 
-	if sel.AttrOr("parsed", "false") == "true" {
+	forceParse := false
+	if len(force) > 0 {
+		forceParse = force[0]
+	}
+	if sel.AttrOr("parsed", "false") == "true" && !forceParse {
 		return
 	}
 
