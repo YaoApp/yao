@@ -81,19 +81,13 @@ func (parser *TemplateParser) newJitComponentSel(sel *goquery.Selection, comp *J
 		if attr.Key == "is" || attr.Key == "s:jit" {
 			continue
 		}
-		props[attr.Key] = attr.Val
-	}
 
-	// JSON props
-	for key, val := range props {
-		var v interface{} = val
-		if props[fmt.Sprintf("json-attr-%s", key)] == "true" {
-			err := jsoniter.UnmarshalFromString(val, &v)
-			if err != nil {
-				v = fmt.Sprintf(`"%s"`, val)
-			}
+		val, values := parser.data.Replace(attr.Val)
+		if HasJSON(values) {
+			props[fmt.Sprintf("json-attr-%s", attr.Key)] = "true"
 		}
-		data[key] = v
+		props[attr.Key] = val
+		data[attr.Key] = val
 	}
 
 	doc, err := NewDocumentString(comp.html)
@@ -146,6 +140,7 @@ func (parser *TemplateParser) getJitComponent(sel *goquery.Selection) (*JitCompo
 
 	}
 
+	is, _ = parser.data.Replace(is)
 	if parser.option == nil {
 		parser.option = &ParserOption{Debug: true, DisableCache: false}
 	}
