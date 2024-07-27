@@ -266,6 +266,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 			if _, exist := sel.Attr("json-attr-" + attr.Key); exist {
 				val = ValueJSON(attr.Val)
 			}
+			key = ToCamelCase(key)
 			props[key] = val
 		}
 	}
@@ -276,7 +277,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 	if parser.option.Imports != nil {
 		if route, has := parser.option.Imports[com]; has {
 			file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, route)
-			script, err = LoadScript(file)
+			script, err = LoadScript(file, parser.disableCache())
 			if err != nil {
 				parser.errors = append(parser.errors, err)
 				setError(sel, err)

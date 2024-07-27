@@ -52,11 +52,14 @@ func scriptWriter() {
 }
 
 // LoadScript load the script
-func LoadScript(file string) (*Script, error) {
+func LoadScript(file string, disableCache ...bool) (*Script, error) {
 
 	base := strings.TrimSuffix(strings.TrimSuffix(file, ".sui"), ".jit")
-	if script, has := Scripts[base]; has {
-		return script, nil
+	// LOAD FROM CACHE
+	if disableCache == nil || !disableCache[0] {
+		if script, has := Scripts[base]; has {
+			return script, nil
+		}
 	}
 
 	file = base + ".ts"
