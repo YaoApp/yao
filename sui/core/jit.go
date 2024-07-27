@@ -88,7 +88,6 @@ func (parser *TemplateParser) newJitComponentSel(sel *goquery.Selection, comp *J
 	for key, val := range props {
 		var v interface{} = val
 		if props[fmt.Sprintf("json-attr-%s", key)] == "true" {
-			fmt.Println("json-attr-", key)
 			err := jsoniter.UnmarshalFromString(val, &v)
 			if err != nil {
 				v = fmt.Sprintf(`"%s"`, val)
@@ -104,8 +103,13 @@ func (parser *TemplateParser) newJitComponentSel(sel *goquery.Selection, comp *J
 	compSel := doc.Find("body").Children().First()
 	data.replaceNodeUse(propTokens, compSel.Nodes[0])
 	for key, val := range props {
-		if strings.HasPrefix(key, "s:") || strings.HasPrefix(key, "json-attr-") || key == "parsed" {
+		if strings.HasPrefix(key, "s:") || key == "parsed" {
 			compSel.SetAttr(key, val)
+			continue
+		}
+		// copy the json-attr- to the prop:
+		if strings.HasPrefix(key, "json-attr-") {
+			compSel.SetAttr(fmt.Sprintf("json-attr-prop:%s", key[10:]), val)
 			continue
 		}
 		compSel.SetAttr(fmt.Sprintf("prop:%s", key), val)
