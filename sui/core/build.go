@@ -52,8 +52,12 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	if err != nil {
 		return nil, ctx.warnings, err
 	}
-	doc.Find("body").SetAttr("s:ns", namespace)
 
+	// Parse the imports
+	page.parseImports(doc)
+
+	body := doc.Find("body")
+	body.SetAttr("s:ns", namespace)
 	// Bind the Page events
 	if !option.JitMode {
 		page.BindEvent(ctx, doc.Selection, "__page", true)
@@ -172,6 +176,9 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 		return "", err
 	}
 
+	// Parse the imports
+	page.parseImports(doc)
+
 	// Bind the component events
 	page.BindEvent(ctx, doc.Selection, component, false)
 
@@ -238,6 +245,95 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	sel.ReplaceWithSelection(body.Contents())
 	ctx.components[component] = page.Route
 	return source, nil
+}
+
+func (page *Page) parseImports(doc *goquery.Document) {
+	imports := doc.Find("import")
+	mapping := map[string]PageImport{}
+	for i := 0; i < imports.Length(); i++ {
+		name := imports.Eq(i).AttrOr("s:as", "")
+		from := imports.Eq(i).AttrOr("s:from", "")
+		if name == "" || from == "" {
+			continue
+		}
+		defer imports.Eq(i).Remove()
+		if _, has := mapping[name]; has {
+			continue
+		}
+		mapping[name] = PageImport{
+			is:        from,
+			selection: imports.Eq(i).Clone(),
+			slots:     map[string]*goquery.Selection{},
+		}
+		slots := mapping[name].selection.Find("slot")
+		if slots.Length() > 0 {
+			for j := 0; j < slots.Length(); j++ {
+				slot := slots.Eq(j)
+				slotName, has := slot.Attr("name")
+				if !has {
+					continue
+				}
+				mapping[name].slots[slotName] = slot.Contents().Clone()
+				slot.Remove()
+			}
+		}
+	}
+
+	// Merge the imports
+	for name, imp := range mapping {
+		selections := doc.Find(name)
+		if selections.Length() == 0 {
+			continue
+		}
+
+		for i := 0; i < selections.Length(); i++ {
+			selection := selections.Eq(i)
+			if _, has := selection.Attr("is"); has {
+				continue
+			}
+
+			// Copy the attributes
+			selection.SetAttr("is", imp.is)
+			for _, attr := range imp.selection.Get(0).Attr {
+				if attr.Key == "s:as" || attr.Key == "s:from" {
+					continue
+				}
+				if _, has := selection.Attr(attr.Key); !has {
+					selection.SetAttr(attr.Key, attr.Val)
+				}
+			}
+
+			// Copy the slots
+			slots := selection.Find("slot").Clone()
+			for i = 0; i < slots.Length(); i++ {
+				slot := slots.Eq(i)
+				slotName, has := slot.Attr("name")
+				if !has {
+					continue
+				}
+				if impSlot, has := imp.slots[slotName]; has {
+					impSlot.ReplaceWithSelection(slot)
+				}
+			}
+
+			// Copy the children
+			children := selection.Contents().Clone()
+			children.Find("slot").Remove()
+			if children.Length() == 0 {
+				children = imp.selection.Clone()
+			}
+
+			// Append the children
+			selection.Contents().Remove()
+			selection.AppendSelection(children)
+
+			// Append the slots
+			for _, slot := range imp.slots {
+				selection.AppendSelection(slot)
+			}
+		}
+	}
+
 }
 
 func (page *Page) copySlots(from *goquery.Selection, to *goquery.Selection) error {

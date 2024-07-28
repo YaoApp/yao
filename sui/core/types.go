@@ -74,6 +74,13 @@ type BuildContext struct {
 	stack         []string       // Stack to manage build states
 }
 
+// PageImport import instance
+type PageImport struct {
+	is        string
+	selection *goquery.Selection
+	slots     map[string]*goquery.Selection
+}
+
 // TranslateContext is the struct for the translate context
 type TranslateContext struct {
 	sequence     int
