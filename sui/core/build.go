@@ -52,8 +52,12 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	if err != nil {
 		return nil, ctx.warnings, err
 	}
-	doc.Find("body").SetAttr("s:ns", namespace)
 
+	// Parse the imports
+	page.parseImports(doc)
+
+	body := doc.Find("body")
+	body.SetAttr("s:ns", namespace)
 	// Bind the Page events
 	if !option.JitMode {
 		page.BindEvent(ctx, doc.Selection, "__page", true)
@@ -172,6 +176,9 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 		return "", err
 	}
 
+	// Parse the imports
+	page.parseImports(doc)
+
 	// Bind the component events
 	page.BindEvent(ctx, doc.Selection, component, false)
 
@@ -238,6 +245,30 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	sel.ReplaceWithSelection(body.Contents())
 	ctx.components[component] = page.Route
 	return source, nil
+}
+
+func (page *Page) parseImports(doc *goquery.Document) {
+	imports := doc.Find("s\\:import")
+	mapping := map[string]string{}
+	for i := 0; i < imports.Length(); i++ {
+		name := imports.Eq(i).AttrOr("name", "")
+		from := imports.Eq(i).AttrOr("from", "")
+		if name == "" || from == "" {
+			continue
+		}
+		mapping[name] = from
+		imports.Eq(i).Remove()
+	}
+
+	// Add the is attr to the import tag
+	for name, from := range mapping {
+		selectors := doc.Find(name)
+		for i := 0; i < selectors.Length(); i++ {
+			if _, has := selectors.Eq(i).Attr("is"); !has {
+				selectors.Eq(i).SetAttr("is", from)
+			}
+		}
+	}
 }
 
 func (page *Page) copySlots(from *goquery.Selection, to *goquery.Selection) error {
