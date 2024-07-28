@@ -248,15 +248,15 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 }
 
 func (page *Page) parseImports(doc *goquery.Document) {
-	imports := doc.Find("s\\:import")
+	imports := doc.Find("import")
 	mapping := map[string]PageImport{}
 	for i := 0; i < imports.Length(); i++ {
-		defer imports.Eq(i).Remove()
-		name := imports.Eq(i).AttrOr("s:name", "")
+		name := imports.Eq(i).AttrOr("s:as", "")
 		from := imports.Eq(i).AttrOr("s:from", "")
 		if name == "" || from == "" {
 			continue
 		}
+		defer imports.Eq(i).Remove()
 		if _, has := mapping[name]; has {
 			continue
 		}
@@ -295,10 +295,9 @@ func (page *Page) parseImports(doc *goquery.Document) {
 			// Copy the attributes
 			selection.SetAttr("is", imp.is)
 			for _, attr := range imp.selection.Get(0).Attr {
-				if strings.HasPrefix(attr.Key, "s:") {
+				if attr.Key == "s:as" || attr.Key == "s:from" {
 					continue
 				}
-
 				if _, has := selection.Attr(attr.Key); !has {
 					selection.SetAttr(attr.Key, attr.Val)
 				}
