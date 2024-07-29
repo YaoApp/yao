@@ -140,7 +140,10 @@ const libsuisource = `
 				}
 			})
 		}
-		handler && handler(event, data, root, target);
+		handler && handler(event, data, {
+			rootElement: root,
+			targetElement: target
+		});
 	};
 
 	function __sui_store(elm) {
