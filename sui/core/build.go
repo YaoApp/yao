@@ -684,7 +684,7 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 
 	arguments := "document.body"
 	if !ispage {
-		arguments = "arguments[0]"
+		arguments = "component"
 	}
 	injectScript := componentInitScript(arguments)
 
@@ -754,7 +754,7 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 		parent := "body"
 		if !ispage {
 			parent = "head"
-			code = fmt.Sprintf("function %s(){\n%s\n}\n", component, addTabToEachLine(code))
+			code = fmt.Sprintf("function %s( component ){\n%s\n}\n", component, addTabToEachLine(code))
 		}
 
 		scripts = append(scripts, ScriptNode{
