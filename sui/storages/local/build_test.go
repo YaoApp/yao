@@ -56,7 +56,7 @@ func TestTemplateBuildAsComponent(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Web.GetTemplate("default")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -76,15 +76,15 @@ func TestTemplateBuildAsComponent(t *testing.T) {
 		t.Fatalf("Components error: %v", err)
 	}
 
-	cselect := "/flowbite/components/edit/select.jit"
-	cinput := "/flowbite/components/edit/input.jit"
+	block := "/i18n/block.jit"
+	bar := "/backend/bar.jit"
 
 	// Check JIT
-	assert.FileExists(t, filepath.Join(path, cselect))
-	assert.FileExists(t, filepath.Join(path, cinput))
+	assert.FileExists(t, filepath.Join(path, block))
+	assert.FileExists(t, filepath.Join(path, bar))
 	assert.Len(t, warnings, 0)
 
-	content, err := os.ReadFile(filepath.Join(path, cselect))
+	content, err := os.ReadFile(filepath.Join(path, bar))
 	if err != nil {
 		t.Fatalf("ReadFile error: %v", err)
 	}
@@ -96,8 +96,8 @@ func TestTemplateBuildAsComponent(t *testing.T) {
 	assert.Contains(t, string(content), `<script name="scripts" type="json">`)
 	assert.Contains(t, string(content), `<script name="styles" type="json">`)
 	assert.Contains(t, string(content), `<script name="option" type="json">`)
-	assert.Contains(t, string(content), "function Init()")
-	assert.Contains(t, string(content), `type="flowbite-edit-select"`)
+	assert.Contains(t, string(content), "this.Constants")
+	assert.Contains(t, string(content), `type="hook-bar"`)
 }
 
 func TestPageBuild(t *testing.T) {
@@ -150,7 +150,7 @@ func TestPageBuildAsComponent(t *testing.T) {
 	tests := prepare(t)
 	defer clean()
 
-	tmpl, err := tests.Web.GetTemplate("default")
+	tmpl, err := tests.Test.GetTemplate("advanced")
 	if err != nil {
 		t.Fatalf("GetTemplate error: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestPageBuildAsComponent(t *testing.T) {
 		t.Fatalf("RemoveAll error: %v", err)
 	}
 
-	page, err := tmpl.Page("/[form]")
+	page, err := tmpl.Page("/backend")
 	if err != nil {
 		t.Fatalf("Page error: %v", err)
 	}
@@ -176,14 +176,14 @@ func TestPageBuildAsComponent(t *testing.T) {
 	}
 	assert.Len(t, warnings, 0)
 
-	cselect := "/flowbite/components/edit/select.jit"
-	cinput := "/flowbite/components/edit/input.jit"
+	foo := "/backend/foo.jit"
+	bar := "/backend/bar.jit"
 
 	// Check JIT
-	assert.FileExists(t, filepath.Join(path, cselect))
-	assert.FileExists(t, filepath.Join(path, cinput))
+	assert.FileExists(t, filepath.Join(path, foo))
+	assert.FileExists(t, filepath.Join(path, bar))
 
-	content, err := os.ReadFile(filepath.Join(path, cselect))
+	content, err := os.ReadFile(filepath.Join(path, bar))
 	if err != nil {
 		t.Fatalf("ReadFile error: %v", err)
 	}
@@ -195,8 +195,8 @@ func TestPageBuildAsComponent(t *testing.T) {
 	assert.Contains(t, string(content), `<script name="scripts" type="json">`)
 	assert.Contains(t, string(content), `<script name="styles" type="json">`)
 	assert.Contains(t, string(content), `<script name="option" type="json">`)
-	assert.Contains(t, string(content), "function Init()")
-	assert.Contains(t, string(content), `type="flowbite-edit-select"`)
+	assert.Contains(t, string(content), "this.Constants")
+	assert.Contains(t, string(content), `type="hook-bar"`)
 }
 
 func TestPageTrans(t *testing.T) {

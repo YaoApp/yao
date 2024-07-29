@@ -305,10 +305,11 @@ func (page *Page) parseImports(doc *goquery.Document) {
 
 			// Copy the slots
 			slots := selection.Find("slot").Clone()
-			for i = 0; i < slots.Length(); i++ {
-				slot := slots.Eq(i)
+			for j := 0; j < slots.Length(); j++ {
+				slot := slots.Eq(j)
 				slotName, has := slot.Attr("name")
 				if !has {
+					imp.slots[slotName] = slot
 					continue
 				}
 				if impSlot, has := imp.slots[slotName]; has {
@@ -799,10 +800,17 @@ func (page *Page) BuildHTML(option *BuildOption) (string, error) {
 }
 
 func setError(sel *goquery.Selection, err error) {
+
+	errSel := sel
+	// If sel is input or textarea, set the error to the parent
+	if sel.Get(0).Data == "input" || sel.Get(0).Data == "textarea" {
+		errSel = sel.Parent()
+	}
+
 	html := `<div style="color:red; margin:10px 0px; font-size: 12px; font-family: monospace; padding: 10px; border: 1px solid red; background-color: #f8d7da;">%s</div>`
-	sel.SetHtml(fmt.Sprintf(html, err.Error()))
-	if sel.Nodes != nil || len(sel.Nodes) > 0 {
-		sel.Nodes[0].Data = "Error"
+	errSel.SetHtml(fmt.Sprintf(html, err.Error()))
+	if errSel.Nodes != nil || len(errSel.Nodes) > 0 {
+		errSel.Nodes[0].Data = "Error"
 	}
 }
 
