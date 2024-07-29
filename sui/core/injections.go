@@ -216,12 +216,14 @@ const pageEventScriptTmpl = `
 `
 
 const compEventScriptTmpl = `
-	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
-		const dataKeys = %s;
-		const jsonKeys = %s;
-		handler = new %s(this).%s;
-		__sui_event_handler(event, dataKeys, jsonKeys, this, handler);
-	});
+	if (document.querySelector("[s\\:event=%s]")) {
+		document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
+			const dataKeys = %s;
+			const jsonKeys = %s;
+			handler = new %s(this).%s;
+			__sui_event_handler(event, dataKeys, jsonKeys, this, handler);
+		});
+	}
 `
 
 const componentInitScriptTmpl = `
@@ -262,7 +264,7 @@ func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler strin
 }
 
 func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, handler string) string {
-	return fmt.Sprintf(compEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, component, handler)
+	return fmt.Sprintf(compEventScriptTmpl, eventID, eventID, eventName, dataKeys, jsonKeys, component, handler)
 }
 
 func componentInitScript(root string) string {
