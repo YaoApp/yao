@@ -30,6 +30,47 @@ func libsui(minify bool) (string, error) {
 
 const libsuisource = `
 
+	function $$(selector) {
+		elm = null;
+		if (typeof selector === "string" ){
+			 elm = document.querySelector(selector);
+		}
+
+		if (selector instanceof HTMLElement) {
+			elm = selector;
+		}
+		
+		if (elm) {
+			cn = elm.getAttribute("s:cn");
+			if (cn != "" && typeof window[cn] === "function") {
+				const component = new window[cn](elm);
+				return new __sui_component(elm, component);
+			}
+		}
+		return null;
+	}
+
+	const $utils = {
+	
+		RemoveClass: (element, className) => {
+			const classes = Array.isArray(className) ? className : className.split(" ");
+			classes.forEach((c) => {
+				const v = c.replace(/[\n\r\s]/g, "");
+				if (v === "") return;
+				element.classList.remove(v);
+			});
+		},
+
+		AddClass: (element, className) => {
+			const classes = Array.isArray(className) ? className : className.split(" ");
+			classes.forEach((c) => {
+				const v = c.replace(/[\n\r\s]/g, "");
+				if (v === "") return;
+				element.classList.add(v);
+			});
+		},
+	}
+
 	function __sui_component_root(elm, name) {
 		while (elm && elm.getAttribute("s:cn") !== name) {
 			elm = elm.parentElement;
@@ -97,26 +138,6 @@ const libsuisource = `
 		this.store = new __sui_store(elm);
 		this.props = new __sui_props(elm);
 		this.state = component ? new __sui_state(component) : {};
-	}
-
-	function $$(selector) {
-		elm = null;
-		if (typeof selector === "string" ){
-			 elm = document.querySelector(selector);
-		}
-
-		if (selector instanceof HTMLElement) {
-			elm = selector;
-		}
-		
-		if (elm) {
-			cn = elm.getAttribute("s:cn");
-			if (cn != "" && typeof window[cn] === "function") {
-				const component = new window[cn](elm);
-				return new __sui_component(elm, component);
-			}
-		}
-		return null;
 	}
 
 	function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {
