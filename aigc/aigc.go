@@ -99,7 +99,7 @@ func (ai *DSL) newAI() (AI, error) {
 
 	if ai.Connector == "" || strings.HasPrefix(ai.Connector, "moapi") {
 		model := "gpt-3.5-turbo"
-		if ai.Connector != "" {
+		if strings.HasPrefix(ai.Connector, "moapi:") {
 			model = strings.TrimPrefix(ai.Connector, "moapi:")
 		}
 
