@@ -35,6 +35,16 @@ type OpenAI struct {
 
 // New create a new OpenAI instance by connector id
 func New(id string) (*OpenAI, error) {
+
+	// Moapi integration
+	if id == "" || strings.HasPrefix(id, "moapi") {
+		model := "gpt-3.5-turbo"
+		if strings.HasPrefix(id, "moapi:") {
+			model = strings.TrimPrefix(id, "moapi:")
+		}
+		return NewMoapi(model)
+	}
+
 	c, err := connector.Select(id)
 	if err != nil {
 		return nil, err

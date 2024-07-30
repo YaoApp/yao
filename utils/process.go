@@ -3,6 +3,7 @@ package utils
 import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/utils/datetime"
+	"github.com/yaoapp/yao/utils/fmt"
 	"github.com/yaoapp/yao/utils/json"
 	"github.com/yaoapp/yao/utils/str"
 	"github.com/yaoapp/yao/utils/tree"
@@ -20,6 +21,8 @@ func Init() {
 
 	// FMT
 	process.Alias("xiang.helper.Print", "utils.fmt.Print")
+	process.Register("utils.fmt.Printf", fmt.ProcessPrintf)
+	process.Register("utils.fmt.ColorPrintf", fmt.ProcessColorPrintf)
 
 	// ENV
 	process.Alias("xiang.helper.EnvSet", "utils.env.Set")
