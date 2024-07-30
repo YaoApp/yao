@@ -30,6 +30,47 @@ func libsui(minify bool) (string, error) {
 
 const libsuisource = `
 
+	function $$(selector) {
+		elm = null;
+		if (typeof selector === "string" ){
+			 elm = document.querySelector(selector);
+		}
+
+		if (selector instanceof HTMLElement) {
+			elm = selector;
+		}
+		
+		if (elm) {
+			cn = elm.getAttribute("s:cn");
+			if (cn != "" && typeof window[cn] === "function") {
+				const component = new window[cn](elm);
+				return new __sui_component(elm, component);
+			}
+		}
+		return null;
+	}
+
+	const $utils = {
+
+		RemoveClass: (element, className) => {
+			const classes = Array.isArray(className) ? className : className.split(" ");
+			classes.forEach((c) => {
+				const v = c.replace(/[\n\r\s]/g, "");
+				if (v === "") return;
+				element.classList.remove(v);
+			});
+		},
+
+		AddClass: (element, className) => {
+			const classes = Array.isArray(className) ? className : className.split(" ");
+			classes.forEach((c) => {
+				const v = c.replace(/[\n\r\s]/g, "");
+				if (v === "") return;
+				element.classList.add(v);
+			});
+		},
+	}
+
 	function __sui_component_root(elm, name) {
 		while (elm && elm.getAttribute("s:cn") !== name) {
 			elm = elm.parentElement;
@@ -39,10 +80,32 @@ const libsuisource = `
 
 	function __sui_state(component) {
 		this.handlers = component.watch || {};
-		this.Set = async function (key, value) {
+		this.Set = async function (key, value, target) {
 			const handler = this.handlers[key];
+			target = target || component.root;
 			if (handler && typeof handler === "function") {
-				await handler(value);
+				const stateObj = {
+					target: target,
+					stopPropagation: function () {
+						target.setAttribute("state-propagation", "true");
+					},
+				}
+				await handler(value, stateObj);
+				const isStopPropagation = target ? target.getAttribute("state-propagation") === "true" : false;
+				if (isStopPropagation) {
+					return;
+				}
+
+				let parent = component.root.parentElement;
+				while (parent && !parent.getAttribute("s:cn")) {
+					parent = parent.parentElement;
+				}
+				if ( parent == document.body || parent == null) {
+					return;
+				}
+				// Dispatch the state change custom event to parent component
+				const event = new CustomEvent("state:change", { detail: { key: key, value: value, target:component.root } });
+				parent.dispatchEvent(event);
 			}
 		}
 	}
@@ -97,26 +160,6 @@ const libsuisource = `
 		this.store = new __sui_store(elm);
 		this.props = new __sui_props(elm);
 		this.state = component ? new __sui_state(component) : {};
-	}
-
-	function $$(selector) {
-		elm = null;
-		if (typeof selector === "string" ){
-			 elm = document.querySelector(selector);
-		}
-
-		if (selector instanceof HTMLElement) {
-			elm = selector;
-		}
-		
-		if (elm) {
-			cn = elm.getAttribute("s:cn");
-			if (cn != "" && typeof window[cn] === "function") {
-				const component = new window[cn](elm);
-				return new __sui_component(elm, component);
-			}
-		}
-		return null;
 	}
 
 	function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {
@@ -247,6 +290,19 @@ const componentInitScriptTmpl = `
 	this.root = %s;
 	this.store = new __sui_store(this.root);
 	this.props = new __sui_props(this.root);
+
+	if (!this.root.getAttribute("initialized")) {
+		this.root.setAttribute("initialized", 'true');
+		this.root.addEventListener("state:change", function (event) {
+			const name = this.getAttribute("s:cn");
+			const target = event.detail.target;
+			const key = event.detail.key;
+			const value = event.detail.value;
+			const component = new window[name](this);
+			const state = new __sui_state(component);
+			state.Set(key, value, target)
+		});
+	}
 `
 
 // Inject code
