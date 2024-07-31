@@ -65,8 +65,5 @@ type Runtime struct {
 	HeapSizeRelease   uint64 `json:"heapSizeRelease,omitempty" env:"YAO_RUNTIME_HEAP_RELEASE" envDefault:"52428800"`      // the isolate will be re-created when reaching this value, and the default value is 52428800 (50M)
 	HeapAvailableSize uint64 `json:"heapAvailableSize,omitempty" env:"YAO_RUNTIME_HEAP_AVAILABLE" envDefault:"524288000"` // the isolate will be re-created when the available size is smaller than this value, and the default value is 524288000 (500M)
 	Precompile        bool   `json:"precompile,omitempty" env:"YAO_RUNTIME_PRECOMPILE" envDefault:"false"`                // if true compile scripts when the VM is created. this will increase the load time, but the script will run faster. the default value is false
-
-	// The following options are experimental features and not stable.
-	// They may be removed once the features become stable. Please do not use them in a production environment.
-	Import bool `json:"import,omitempty"  env:"YAO_RUNTIME_IMPORT" envDefault:"false"` // If true, TypeScript import will be enabled. Default value is false.
+	Import            bool   `json:"import,omitempty"  env:"YAO_RUNTIME_IMPORT" envDefault:"true"`                        // If false the import statement will be disabled, the default value is true.
 }
