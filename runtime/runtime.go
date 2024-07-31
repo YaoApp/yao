@@ -27,7 +27,7 @@ func Start(cfg config.Config) error {
 	}
 
 	// Read the tsconfig.json
-	if cfg.Runtime.Import {
+	if cfg.Runtime.Import && application.App != nil {
 		if exist, _ := application.App.Exists("tsconfig.json"); exist {
 			var tsconfig v8.TSConfig
 			raw, err := application.App.Read("tsconfig.json")
