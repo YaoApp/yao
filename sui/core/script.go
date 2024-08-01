@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -64,8 +65,6 @@ func LoadScript(file string, disableCache ...bool) (*Script, error) {
 	}
 
 	file = base + ".backend.ts"
-	fmt.Println(file)
-
 	if exist, _ := application.App.Exists(file); !exist {
 		file = base + ".backend.js"
 	}
@@ -84,8 +83,7 @@ func LoadScript(file string, disableCache ...bool) (*Script, error) {
 		return nil, err
 	}
 
-	v8script.SourceRoots = share.App.Static.SourceRoots
-
+	v8script.SourceRoots = getSourceRootReplaceFunc()
 	script := &Script{Script: v8script}
 	chScript <- &scriptData{base, script, saveScript}
 	return script, nil
@@ -221,4 +219,23 @@ func (script *Script) Helpers() ([]string, error) {
 	}
 
 	return nil, fmt.Errorf("helpers is %v should be []string", goValues)
+}
+
+func getSourceRootReplaceFunc() interface{} {
+	if share.App.Static.SourceRoots == nil {
+		return nil
+	}
+	roots := share.App.Static.SourceRoots
+	return func(file string) string {
+		for name, mapping := range roots {
+			if strings.HasPrefix(file, name) {
+				path := mapping + strings.TrimPrefix(file, name)
+				base := filepath.Base(path)
+				name := strings.TrimSuffix(base, ".backend.ts")
+				dir := filepath.Dir(path)
+				return filepath.Join(dir, name, base)
+			}
+		}
+		return file
+	}
 }
