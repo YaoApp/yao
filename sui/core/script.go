@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/yao/share"
 )
 
 // Scripts loaded scripts
@@ -80,6 +81,8 @@ func LoadScript(file string, disableCache ...bool) (*Script, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	v8script.SourceRoots = share.App.Static.SourceRoots
 
 	script := &Script{Script: v8script}
 	chScript <- &scriptData{base, script, saveScript}
