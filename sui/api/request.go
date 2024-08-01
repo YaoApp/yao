@@ -270,7 +270,7 @@ func (r *Request) MakeCache() (*core.Cache, int, error) {
 	}
 
 	// Backend script
-	script, err := core.LoadScript(r.File)
+	script, err := core.LoadScript(r.File, true)
 	if err != nil {
 		return nil, 500, fmt.Errorf("script error, please re-complie the page %s", err.Error())
 	}

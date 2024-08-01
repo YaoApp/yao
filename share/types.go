@@ -97,7 +97,8 @@ type Moapi struct {
 
 // Static setting
 type Static struct {
-	Rewrite []map[string]string `json:"rewrite,omitempty"`
+	Rewrite     []map[string]string `json:"rewrite,omitempty"`
+	SourceRoots map[string]string   `json:"sourceRoots,omitempty"`
 }
 
 // AppStorage 应用存储

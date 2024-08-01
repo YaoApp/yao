@@ -692,7 +692,7 @@ func (page *Page) writeBackendScript(data map[string]interface{}) error {
 	}
 
 	ext := filepath.Ext(file)
-	scriptFile := fmt.Sprintf("%s%s", page.publicFile(data), ext)
+	scriptFile := fmt.Sprintf("%s.backend%s", page.publicFile(data), ext)
 	scriptFileAbs := filepath.Join(application.App.Root(), scriptFile)
 	dir := filepath.Dir(scriptFileAbs)
 	if exist, _ := os.Stat(dir); exist == nil {
