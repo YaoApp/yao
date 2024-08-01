@@ -63,9 +63,11 @@ func LoadScript(file string, disableCache ...bool) (*Script, error) {
 		}
 	}
 
-	file = base + ".ts"
+	file = base + ".backend.ts"
+	fmt.Println(file)
+
 	if exist, _ := application.App.Exists(file); !exist {
-		file = base + ".js"
+		file = base + ".backend.js"
 	}
 
 	if exist, _ := application.App.Exists(file); !exist {
