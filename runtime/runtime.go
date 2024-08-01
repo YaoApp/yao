@@ -12,6 +12,11 @@ import (
 // Start v8 runtime
 func Start(cfg config.Config) error {
 
+	debug := false
+	if cfg.Mode == "development" {
+		debug = true
+	}
+
 	option := &v8.Option{
 		MinSize:           cfg.Runtime.MinSize,
 		MaxSize:           cfg.Runtime.MaxSize,
@@ -24,6 +29,7 @@ func Start(cfg config.Config) error {
 		DefaultTimeout:    cfg.Runtime.DefaultTimeout,
 		ContextTimeout:    cfg.Runtime.ContextTimeout,
 		Import:            cfg.Runtime.Import,
+		Debug:             debug,
 	}
 
 	// Read the tsconfig.json
