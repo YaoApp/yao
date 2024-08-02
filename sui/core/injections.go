@@ -284,13 +284,15 @@ const pageEventScriptTmpl = `
 
 const compEventScriptTmpl = `
 	if (document.querySelector("[s\\:event=%s]")) {
-		document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
-			const dataKeys = %s;
-			const jsonKeys = %s;
-			const root = __sui_component_root(this, "%s");
-			handler = new %s(root).%s;
-			const target = event.target || null;
-			__sui_event_handler(event, dataKeys, jsonKeys, target, root, handler);
+		let elms = document.querySelectorAll("[s\\:event=%s]");
+		elms.forEach(function (element) {
+			element.addEventListener("%s", function (event) {
+				const dataKeys = %s;
+				const jsonKeys = %s;
+				const root = __sui_component_root(element, "%s");
+				handler = new %s(root).%s;
+				__sui_event_handler(event, dataKeys, jsonKeys, element, root, handler);
+			});
 		});
 	}
 `

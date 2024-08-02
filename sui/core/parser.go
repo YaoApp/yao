@@ -68,17 +68,19 @@ var keepWords = map[string]bool{
 }
 
 var allowUsePropAttrs = map[string]bool{
-	"s:if":    true,
-	"s:elif":  true,
-	"s:for":   true,
-	"s:event": true,
+	"s:if":     true,
+	"s:elif":   true,
+	"s:for":    true,
+	"s:event":  true,
+	"s:render": true,
 }
 
 var keepAttrs = map[string]bool{
-	"s:ns":    true,
-	"s:cn":    true,
-	"s:ready": true,
-	"s:event": true,
+	"s:ns":     true,
+	"s:cn":     true,
+	"s:ready":  true,
+	"s:event":  true,
+	"s:render": true,
 }
 
 // NewTemplateParser create a new template parser
@@ -157,7 +159,7 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	if parser.option != nil && (parser.option.Request != nil || parser.option.Preview) {
 		// Remove the sui-hide attribute
 		doc.Find("[sui-hide]").Remove()
-		parser.tidy(doc.Selection)
+		parser.Tidy(doc.Selection)
 	}
 
 	// fmt.Println(doc.Html())
@@ -837,13 +839,13 @@ func (parser *TemplateParser) show(sel *goquery.Selection) {
 	// sel.SetAttr("style", style)
 }
 
-func (parser *TemplateParser) tidy(s *goquery.Selection) {
+func (parser *TemplateParser) Tidy(s *goquery.Selection) {
 
 	s.Contents().Each(func(i int, child *goquery.Selection) {
 
 		node := child.Get(0)
 		if _, exist := child.Attr("s:jit"); node.Data == "slot" || exist {
-			parser.tidy(child)
+			parser.Tidy(child)
 			parser.removeWrapper(child)
 			return
 		}
@@ -872,7 +874,7 @@ func (parser *TemplateParser) tidy(s *goquery.Selection) {
 		}
 
 		node.Attr = attrs
-		parser.tidy(child)
+		parser.Tidy(child)
 	})
 
 }
