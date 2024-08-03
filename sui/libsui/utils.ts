@@ -170,8 +170,25 @@ class __Render {
     this.comp = comp;
     this.option = option;
   }
-  async Render(name, data): Promise<string> {
+  async Exec(name, data): Promise<string> {
     // @ts-ignore
     return __sui_render(this.comp, name, data, this.option);
+  }
+}
+
+function $Backend(route?: string) {
+  route = route || window.location.pathname;
+  return new __Backend(route);
+}
+
+class __Backend {
+  route = "";
+  constructor(route) {
+    this.route = route;
+  }
+
+  async Call(method: string, ...args: any): Promise<any> {
+    // @ts-ignore
+    return await __sui_backend_call(this.route, method, ...args);
   }
 }
