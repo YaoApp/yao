@@ -68,19 +68,21 @@ var keepWords = map[string]bool{
 }
 
 var allowUsePropAttrs = map[string]bool{
-	"s:if":     true,
-	"s:elif":   true,
-	"s:for":    true,
-	"s:event":  true,
-	"s:render": true,
+	"s:if":       true,
+	"s:elif":     true,
+	"s:for":      true,
+	"s:event":    true,
+	"s:event-cn": true,
+	"s:render":   true,
 }
 
 var keepAttrs = map[string]bool{
-	"s:ns":     true,
-	"s:cn":     true,
-	"s:ready":  true,
-	"s:event":  true,
-	"s:render": true,
+	"s:ns":       true,
+	"s:cn":       true,
+	"s:ready":    true,
+	"s:event":    true,
+	"s:event-cn": true,
+	"s:render":   true,
 }
 
 // NewTemplateParser create a new template parser
@@ -863,7 +865,7 @@ func (parser *TemplateParser) Tidy(s *goquery.Selection) {
 		// Remove the parsed attribute
 		attrs := []html.Attribute{}
 		for _, attr := range node.Attr {
-			if strings.HasPrefix(attr.Key, "s:") && !keepAttrs[attr.Key] {
+			if strings.HasPrefix(attr.Key, "s:") && !keepAttrs[attr.Key] && !strings.HasPrefix(attr.Key, "s:on-") {
 				continue
 			}
 

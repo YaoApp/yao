@@ -55,7 +55,7 @@ const initScriptTmpl = `
 				const cn = element.getAttribute("s:cn");
 				if (method && typeof window[cn] === "function") {
 					try {
-						window[cn](element);
+						new window[cn](element);
 					} catch (e) {
 						const message = e.message || e || "An error occurred";
 						console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
@@ -82,13 +82,17 @@ const i118nScriptTmpl = `
 `
 
 const pageEventScriptTmpl = `
-	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
-		const dataKeys = %s;
-		const jsonKeys = %s;
-		const root = document.body;
-		const target = this;
-		__sui_event_handler(event, dataKeys, jsonKeys, target, root, %s);
-	});
+	if (document.querySelector("[s\\:event=%s]")) {
+		let elms = document.querySelectorAll("[s\\:event=%s]");
+		elms.forEach(function (element) {
+			element.addEventListener("%s", function (event) {
+				const dataKeys = %s;
+				const jsonKeys = %s;
+				const root = document.body;
+				__sui_event_handler(event, dataKeys, jsonKeys, element, root, window.%s);
+			});
+		});
+	}
 `
 
 const compEventScriptTmpl = `
@@ -153,7 +157,7 @@ func headInjectionScript(jsonRaw string) string {
 }
 
 func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler string) string {
-	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, handler)
+	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventID, eventName, dataKeys, jsonKeys, handler)
 }
 
 func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, handler string) string {
