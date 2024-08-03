@@ -130,7 +130,8 @@ bindata:
 	cp -r ui .tmp/data/public
 	cp -r xgen .tmp/data/
 	cp -r yao .tmp/data/
-	cp -r builder .tmp/data/
+	cp -r sui/libsui .tmp/data/
+	find .tmp/data -name ".DS_Store" -type f -delete
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
 	rm -rf .tmp/yao-init

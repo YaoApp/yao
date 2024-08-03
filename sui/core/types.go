@@ -262,6 +262,7 @@ type BuildOption struct {
 	PublicRoot      string                 `json:"public_root,omitempty"`
 	AssetRoot       string                 `json:"asset_root,omitempty"`
 	IgnoreAssetRoot bool                   `json:"ignore_asset_root,omitempty"`
+	IgnoreLibSUI    bool                   `json:"ignore_lib_sui,omitempty"`
 	IgnoreDocument  bool                   `json:"ignore_document,omitempty"`
 	JitMode         bool                   `json:"jit_mode,omitempty"`
 	WithWrapper     bool                   `json:"with_wrapper,omitempty"`

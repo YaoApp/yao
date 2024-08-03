@@ -124,6 +124,12 @@ func (tmpl *Template) Build(option *core.BuildOption) ([]string, error) {
 		return warnings, err
 	}
 
+	// Add sui lib to the global
+	err = tmpl.UpdateJSSDK(option)
+	if err != nil {
+		return warnings, err
+	}
+
 	// Execute the build after hook
 	if option.ExecScripts {
 		res := tmpl.ExecAfterBuildScripts()
@@ -198,6 +204,44 @@ func (tmpl *Template) SyncAssetFile(file string, option *core.BuildOption) error
 	}
 
 	return copy(sourceFile, targetFile)
+}
+
+// UpdateJSSDK update the js sdk
+func (tmpl *Template) UpdateJSSDK(option *core.BuildOption) error {
+
+	jsCode, sourceMap, err := core.LibSUI()
+	if err != nil {
+		return err
+	}
+
+	// get source abs path
+	root, err := tmpl.local.DSL.PublicRoot(option.Data)
+	if err != nil {
+		log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), tmpl.local.DSL.Public.Root)
+		root = tmpl.local.DSL.Public.Root
+	}
+
+	targetRoot := filepath.Join(application.App.Root(), "public", root, "assets")
+
+	file := filepath.Join(targetRoot, "libsui.min.js")
+	mapFile := filepath.Join(targetRoot, "libsui.min.js.map")
+
+	// create the target directory
+	if exist, _ := os.Stat(targetRoot); exist == nil {
+		os.MkdirAll(targetRoot, os.ModePerm)
+	}
+
+	// write the js sdk
+	// add source map url
+	jsCode = append(jsCode, []byte("\n//# sourceMappingURL=libsui.min.js.map")...)
+	err = os.WriteFile(file, jsCode, 0644)
+	if err != nil {
+		return err
+	}
+
+	// write the source map
+	err = os.WriteFile(mapFile, sourceMap, 0644)
+	return nil
 }
 
 func (tmpl *Template) writeGlobalScript(data map[string]interface{}) error {

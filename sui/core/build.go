@@ -71,6 +71,19 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 		ctx.warnings = append(ctx.warnings, warnings...)
 	}
 
+	// Prepend the libsui.min.js
+	if !option.IgnoreLibSUI {
+		script := ScriptNode{
+			Parent: "head",
+			Attrs: []html.Attribute{
+				{Key: "src", Val: fmt.Sprintf("%s/libsui.min.js", option.AssetRoot)},
+				{Key: "type", Val: "text/javascript"},
+				{Key: "name", Val: "libsui"},
+			},
+		}
+		ctx.scripts = append([]ScriptNode{script}, ctx.scripts...)
+	}
+
 	// Scripts
 	scripts, err := page.BuildScripts(ctx, option, "__page", namespace)
 	if err != nil {

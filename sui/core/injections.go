@@ -5,225 +5,44 @@ import (
 
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/yaoapp/gou/runtime/transform"
+	"github.com/yaoapp/yao/data"
 )
 
 var libsuicode = ""
 
-func libsui(minify bool) (string, error) {
-	if libsuicode != "" {
-		return libsuicode, nil
-	}
+// LibSUI return the libsui code
+func LibSUI() ([]byte, []byte, error) {
 
-	option := api.TransformOptions{Target: api.ES2015}
-	if minify {
-		option.MinifyIdentifiers = true
-		option.MinifySyntax = true
-		option.MinifyWhitespace = true
-	}
-	var err error
-	libsuicode, err = transform.JavaScript(libsuisource, option)
+	// Read source code from bindata
+	index, err := data.Read("libsui/index.ts")
 	if err != nil {
-		return "", fmt.Errorf("libsui error: %w", err)
+		return nil, nil, err
 	}
-	return libsuicode, nil
+
+	utils, err := data.Read("libsui/utils.ts")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	yao, err := data.Read("libsui/yao.ts")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Merge the source code
+	source := fmt.Sprintf("%s\n%s\n%s", index, utils, yao)
+
+	// Build the source code
+	js, sm, err := transform.TypeScriptWithSourceMap(string(source), api.TransformOptions{
+		Target:            api.ES2015,
+		MinifyIdentifiers: true,
+		MinifySyntax:      true,
+		MinifyWhitespace:  true,
+		Sourcefile:        "libsui.ts",
+	})
+
+	return js, sm, nil
 }
-
-const libsuisource = `
-
-	function $$(selector) {
-		elm = null;
-		if (typeof selector === "string" ){
-			 elm = document.querySelector(selector);
-		}
-
-		if (selector instanceof HTMLElement) {
-			elm = selector;
-		}
-		
-		if (elm) {
-			cn = elm.getAttribute("s:cn");
-			if (cn != "" && typeof window[cn] === "function") {
-				const component = new window[cn](elm);
-				return new __sui_component(elm, component);
-			}
-		}
-		return null;
-	}
-
-	const $utils = {
-
-		RemoveClass: (element, className) => {
-			const classes = Array.isArray(className) ? className : className.split(" ");
-			classes.forEach((c) => {
-				const v = c.replace(/[\n\r\s]/g, "");
-				if (v === "") return;
-				element.classList.remove(v);
-			});
-		},
-
-		AddClass: (element, className) => {
-			const classes = Array.isArray(className) ? className : className.split(" ");
-			classes.forEach((c) => {
-				const v = c.replace(/[\n\r\s]/g, "");
-				if (v === "") return;
-				element.classList.add(v);
-			});
-		},
-	}
-
-	function __sui_component_root(elm, name) {
-		while (elm && elm.getAttribute("s:cn") !== name) {
-			elm = elm.parentElement;
-		}
-		return elm;
-	}
-
-	function __sui_state(component) {
-		this.handlers = component.watch || {};
-		this.Set = async function (key, value, target) {
-			const handler = this.handlers[key];
-			target = target || component.root;
-			if (handler && typeof handler === "function") {
-				const stateObj = {
-					target: target,
-					stopPropagation: function () {
-						target.setAttribute("state-propagation", "true");
-					},
-				}
-				await handler(value, stateObj);
-				const isStopPropagation = target ? target.getAttribute("state-propagation") === "true" : false;
-				if (isStopPropagation) {
-					return;
-				}
-
-				let parent = component.root.parentElement;
-				while (parent && !parent.getAttribute("s:cn")) {
-					parent = parent.parentElement;
-				}
-				if ( parent == document.body || parent == null) {
-					return;
-				}
-				// Dispatch the state change custom event to parent component
-				const event = new CustomEvent("state:change", { detail: { key: key, value: value, target:component.root } });
-				parent.dispatchEvent(event);
-			}
-		}
-	}
-
-	function __sui_props(elm) {
-		this.Get = function (key) {
-			if (!elm || typeof elm.getAttribute !== "function") {
-				return null;
-			}
-			const k = "prop:" + key;
-			const v = elm.getAttribute(k);
-			const json = elm.getAttribute("json-attr-prop:" + key) === "true";
-			if (json) {
-				try {
-					return JSON.parse(v);
-				} catch (e) {
-					return null;
-				}
-			}
-			return v;
-		}
-
-		this.List = function () {
-			const props = {};
-			if (!elm || typeof elm.getAttribute !== "function") {
-				return props;
-			}
-
-			const attrs = elm.attributes;
-			for (let i = 0; i < attrs.length; i++) {
-				const attr = attrs[i];
-				if (attr.name.startsWith("prop:")) {
-					const k = attr.name.replace("prop:", "");
-					const json = elm.getAttribute("json-attr-prop:" + k) === "true";
-					if (json) {
-						try {
-							props[k] = JSON.parse(attr.value);
-						} catch (e) {
-							props[k] = null;
-						}
-						continue;
-					}
-					props[k] = attr.value;
-				}
-			}
-			return props;
-		}
-	}
-
-	function __sui_component(elm, component) {
-		this.root = elm;
-		this.store = new __sui_store(elm);
-		this.props = new __sui_props(elm);
-		this.state = component ? new __sui_state(component) : {};
-	}
-
-	function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {
-		const data = {};
-		target = target || null;
-		if (target) {
-			dataKeys.forEach(function (key) {
-				const value = target.getAttribute("data:" + key);
-				data[key] = value;
-			})
-			jsonKeys.forEach(function (key) {
-				const value = target.getAttribute("json:" + key);
-				data[key] = null;
-				if (value && value != "") {
-					try {
-						data[key] = JSON.parse(value);
-					} catch (e) {
-						const message = e.message || e || "An error occurred";
-						console.error(` + "`[SUI] Event Handler Error: ${message}`" + `, target);
-					}
-				}
-			})
-		}
-		handler && handler(event, data, {
-			rootElement: root,
-			targetElement: target
-		});
-	};
-
-	function __sui_store(elm) {
-		elm = elm || document.body;
-
-		this.Get = function (key) {
-			return elm.getAttribute("data:" + key);
-		}
-
-		this.Set = function (key, value) {
-			elm.setAttribute("data:" + key, value);
-		}
-
-		this.GetJSON = function (key) {
-			const value = elm.getAttribute("json:" + key);
-			if (value && value != "") {
-				try {
-					const res = JSON.parse(value);
-					return res;
-				} catch (e) {
-					const message = e.message || e || "An error occurred";
-					console.error(` + "`[SUI] Event Handler Error: ${message}`" + `, elm);
-					return null;
-				}
-			}
-			return null;
-		}
-
-		this.SetJSON = function (key, value) {
-			elm.setAttribute("json:" + key, JSON.stringify(value));
-		}
-
-		this.GetData = function () {
-			return this.GetJSON("__component_data") || {};
-		}
-	}
-`
 
 const initScriptTmpl = `
 	try {
@@ -237,7 +56,7 @@ const initScriptTmpl = `
 				const cn = element.getAttribute("s:cn");
 				if (method && typeof window[cn] === "function") {
 					try {
-						window[cn](element);
+						new window[cn](element);
 					} catch (e) {
 						const message = e.message || e || "An error occurred";
 						console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
@@ -264,24 +83,30 @@ const i118nScriptTmpl = `
 `
 
 const pageEventScriptTmpl = `
-	document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
-		const dataKeys = %s;
-		const jsonKeys = %s;
-		const root = document.body;
-		const target = this;
-		__sui_event_handler(event, dataKeys, jsonKeys, target, root, %s);
-	});
+	if (document.querySelector("[s\\:event=%s]")) {
+		let elms = document.querySelectorAll("[s\\:event=%s]");
+		elms.forEach(function (element) {
+			element.addEventListener("%s", function (event) {
+				const dataKeys = %s;
+				const jsonKeys = %s;
+				const root = document.body;
+				__sui_event_handler(event, dataKeys, jsonKeys, element, root, window.%s);
+			});
+		});
+	}
 `
 
 const compEventScriptTmpl = `
 	if (document.querySelector("[s\\:event=%s]")) {
-		document.querySelector("[s\\:event=%s]").addEventListener("%s", function (event) {
-			const dataKeys = %s;
-			const jsonKeys = %s;
-			const root = __sui_component_root(this, "%s");
-			handler = new %s(root).%s;
-			const target = event.target || null;
-			__sui_event_handler(event, dataKeys, jsonKeys, target, root, handler);
+		let elms = document.querySelectorAll("[s\\:event=%s]");
+		elms.forEach(function (element) {
+			element.addEventListener("%s", function (event) {
+				const dataKeys = %s;
+				const jsonKeys = %s;
+				const root = __sui_component_root(element, "%s");
+				handler = new %s(root).%s;
+				__sui_event_handler(event, dataKeys, jsonKeys, element, root, handler);
+			});
 		});
 	}
 `
@@ -333,7 +158,7 @@ func headInjectionScript(jsonRaw string) string {
 }
 
 func pageEventInjectScript(eventID, eventName, dataKeys, jsonKeys, handler string) string {
-	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventName, dataKeys, jsonKeys, handler)
+	return fmt.Sprintf(pageEventScriptTmpl, eventID, eventID, eventName, dataKeys, jsonKeys, handler)
 }
 
 func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, handler string) string {

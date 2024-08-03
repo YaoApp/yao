@@ -11,6 +11,26 @@ var dsl = []byte(`
 	"group": "__yao/sui/v1",
 	"paths": [
 		{
+			"label": "Render",
+			"description": "Render the frontend page",
+			"path": "/render/*route",
+			"method": "POST",
+			"guard": "-",
+			"process": "sui.Render",
+			"in": [":context", "$param.route", ":payload"],
+			"out": { "status": 200, "type": "text/html; charset=utf-8" }
+		},
+		{
+			"label": "Run",
+			"description": "Run the backend script, with Api prefix method",
+			"path": "/run/*route",
+			"guard": "-",
+			"method": "POST",
+			"process": "sui.Run",
+			"in": [":context", "$param.route", ":payload"],
+			"out": { "status": 200, "type": "application/json" }
+		},
+		{
 			"path": "/:id/setting",
 			"method": "GET",
 			"process": "sui.Setting",

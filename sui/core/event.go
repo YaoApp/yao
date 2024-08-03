@@ -94,10 +94,12 @@ func GetEventScript(sequence int, sel *goquery.Selection, ns string, cn string, 
 	for name, handler := range events {
 		if ispage {
 			source += pageEventInjectScript(id, name, dataRaw, jsonRaw, handler) + "\n"
+			sel.SetAttr("s:event-cn", "__page")
 		} else {
 			source += compEventInjectScript(id, name, cn, dataRaw, jsonRaw, handler) + "\n"
+			sel.SetAttr("s:event-cn", cn)
 		}
-		sel.RemoveAttr(fmt.Sprintf("s:on-%s", name))
+		// sel.RemoveAttr(fmt.Sprintf("s:on-%s", name))
 	}
 
 	sel.SetAttr("s:event", id)

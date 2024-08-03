@@ -20,6 +20,9 @@ func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
 		"setting": Setting,
 
+		"render": Render,
+		"run":    Run,
+
 		"template.get":         TemplateGet,
 		"template.find":        TemplateFind,
 		"template.asset":       TemplateAsset,
