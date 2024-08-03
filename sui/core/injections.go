@@ -38,6 +38,7 @@ func LibSUI() ([]byte, []byte, error) {
 		MinifyIdentifiers: true,
 		MinifySyntax:      true,
 		MinifyWhitespace:  true,
+		Sourcefile:        "libsui.ts",
 	})
 
 	return js, sm, nil

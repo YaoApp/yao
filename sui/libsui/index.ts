@@ -141,6 +141,52 @@ function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {
     });
 }
 
+function __sui_event_init(elm: Element) {
+  const eventElms = elm.querySelectorAll("[s\\:event]");
+  eventElms.forEach((eventElm) => {
+    const cn = eventElm.getAttribute("s:event-cn") || "";
+
+    // Data keys
+    const events: Record<string, string> = {};
+    const dataKeys: string[] = [];
+    const jsonKeys: string[] = [];
+    for (let i = 0; i < eventElm.attributes.length; i++) {
+      if (eventElm.attributes[i].name.startsWith("data:")) {
+        dataKeys.push(eventElm.attributes[i].name.replace("data:", ""));
+      }
+      if (eventElm.attributes[i].name.startsWith("json:")) {
+        jsonKeys.push(eventElm.attributes[i].name.replace("json:", ""));
+      }
+      if (eventElm.attributes[i].name.startsWith("s:on-")) {
+        const key = eventElm.attributes[i].name.replace("s:on-", "");
+        events[key] = eventElm.attributes[i].value;
+      }
+    }
+
+    // Bind the event
+    for (const name in events) {
+      const bind = events[name];
+      if (cn == "__page") {
+        const handler = window[bind];
+        const root = document.body;
+        const target = eventElm;
+        eventElm.addEventListener(name, (event) => {
+          __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler);
+        });
+        continue;
+      }
+
+      const comp = new window[cn](eventElm.closest(`[s\\:cn=${cn}]`));
+      const handler = comp[bind];
+      const root = comp.root;
+      const target = eventElm;
+      eventElm.addEventListener(name, (event) => {
+        __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler);
+      });
+    }
+  });
+}
+
 function __sui_store(elm) {
   elm = elm || document.body;
 
@@ -175,3 +221,123 @@ function __sui_store(elm) {
     return this.GetJSON("__component_data") || {};
   };
 }
+
+/**
+ * SUI Render
+ * @param component
+ * @param name
+ */
+async function __sui_render(
+  component: Component | string,
+  name: string,
+  data: Record<string, any>,
+  option?: RenderOption
+): Promise<string> {
+  const comp = (
+    typeof component === "object" ? component : $$(component)
+  ) as Component;
+
+  if (comp == null) {
+    console.error(`[SUI] Component not found: ${component}`);
+    return Promise.reject("Component not found");
+  }
+
+  const elms = comp.root.querySelectorAll(`[s\\:render=${name}]`);
+  if (!elms.length) {
+    console.error(`[SUI] No element found with s:render=${name}`);
+    return Promise.reject("No element found");
+  }
+
+  // Set default options
+  option = option || {};
+  option.replace = option.replace === undefined ? true : option.replace;
+  option.showLoader =
+    option.showLoader === undefined ? false : option.showLoader;
+  option.withPageData =
+    option.withPageData === undefined ? false : option.withPageData;
+
+  // Prepare loader
+  let loader = `<span class="sui-render-loading">Loading...</span>`;
+  if (option.showLoader) {
+    if (typeof option.showLoader === "string") {
+      loader = option.showLoader;
+    } else if (option.showLoader instanceof HTMLElement) {
+      loader = option.showLoader.outerHTML;
+    }
+    elms.forEach((elm) => (elm.innerHTML = loader));
+  }
+
+  // Prepare data
+  let _data = comp.store.GetData() || {};
+  if (option.withPageData) {
+    // @ts-ignore
+    _data = { ..._data, ...__sui_data };
+  }
+
+  const route = window.location.pathname;
+  const url = `/api/__yao/sui/v1/render${route}`;
+  const payload = { name, data: { ..._data, ...data }, option };
+  const headers = {
+    "Content-Type": "application/json",
+    Cookie: document.cookie,
+  };
+
+  // Native post request to the server
+  try {
+    const body = JSON.stringify(payload);
+    const response = await fetch(url, { method: "POST", headers, body: body });
+    const text = await response.text();
+    if (!option.replace) {
+      return Promise.resolve(text);
+    }
+
+    // Set the response text to the elements
+    elms.forEach((elm) => {
+      elm.innerHTML = text;
+      __sui_event_init(elm);
+    });
+
+    return Promise.resolve(text);
+  } catch (e) {
+    //Set the error message
+    elms.forEach((elm) => {
+      elm.innerHTML = `<span class="sui-render-error">Failed to render</span>`;
+      console.error("Failed to render", e);
+    });
+    return Promise.reject("Failed to render");
+  }
+}
+
+export type Component = {
+  root: HTMLElement;
+  state: ComponentState;
+  store: ComponentStore;
+  watch?: Record<string, (value: any, state?: State) => void>;
+  Constants?: Record<string, any>;
+
+  [key: string]: any;
+};
+
+export type RenderOption = {
+  target?: HTMLElement; // default is same with s:render target
+  showLoader?: HTMLElement | string | boolean; // default is false
+  replace?: boolean; // default is true
+  withPageData?: boolean; // default is false
+};
+
+export type ComponentState = {
+  Set: (key: string, value: any) => void;
+};
+
+export type ComponentStore = {
+  Get: (key: string) => string;
+  Set: (key: string, value: any) => void;
+  GetJSON: (key: string) => any;
+  SetJSON: (key: string, value: any) => void;
+  GetData: () => Record<string, any>;
+};
+
+export type State = {
+  target: HTMLElement;
+  stopPropagation();
+};

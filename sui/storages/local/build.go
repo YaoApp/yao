@@ -232,13 +232,15 @@ func (tmpl *Template) UpdateJSSDK(option *core.BuildOption) error {
 	}
 
 	// write the js sdk
-	err = os.WriteFile(file, []byte(jsCode), 0644)
+	// add source map url
+	jsCode = append(jsCode, []byte("\n//# sourceMappingURL=libsui.min.js.map")...)
+	err = os.WriteFile(file, jsCode, 0644)
 	if err != nil {
 		return err
 	}
 
 	// write the source map
-	err = os.WriteFile(mapFile, []byte(sourceMap), 0644)
+	err = os.WriteFile(mapFile, sourceMap, 0644)
 	return nil
 }
 
