@@ -18,11 +18,8 @@ function $$(selector) {
   return null;
 }
 
-function __sui_component_root(elm, name) {
-  while (elm && elm.getAttribute("s:cn") !== name) {
-    elm = elm.parentElement;
-  }
-  return elm;
+function __sui_component_root(elm: Element, name: string) {
+  return elm.closest(`[s\\:cn=${name}]`);
 }
 
 function __sui_state(component) {
@@ -258,7 +255,7 @@ async function __sui_render(
 
   // Prepare loader
   let loader = `<span class="sui-render-loading">Loading...</span>`;
-  if (option.showLoader) {
+  if (option.showLoader && option.replace) {
     if (typeof option.showLoader === "string") {
       loader = option.showLoader;
     } else if (option.showLoader instanceof HTMLElement) {

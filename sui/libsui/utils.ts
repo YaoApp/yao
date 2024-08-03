@@ -35,6 +35,27 @@ class __Query {
     this.selector = selector;
   }
 
+  elm(): Element | null {
+    return this.element;
+  }
+
+  elms(): NodeListOf<Element> | null {
+    return this.elements;
+  }
+
+  $$() {
+    if (!this.element) {
+      return null;
+    }
+    const root = this.element.closest("[s\\:cn]");
+    if (!root) {
+      return null;
+    }
+
+    // @ts-ignore
+    return $$(root);
+  }
+
   each(callback: (element: __Query, index: number) => void) {
     if (!this.elements) {
       return;

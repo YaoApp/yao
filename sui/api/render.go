@@ -34,9 +34,16 @@ func Render(process *process.Process) interface{} {
 		return fmt.Sprintf("<div class='text-danger'> %s </div>", err.Error())
 	}
 
-	c, _, err := r.MakeCache()
-	if err != nil {
-		return fmt.Sprintf("<div class='text-danger'> %s </div>", err.Error())
+	var c *core.Cache = nil
+	if !r.Request.DisableCache() {
+		c = core.GetCache(r.File)
+	}
+
+	if c == nil {
+		c, _, err = r.MakeCache()
+		if err != nil {
+			return fmt.Sprintf("<div class='text-danger'> %s </div>", err.Error())
+		}
 	}
 
 	if c == nil {
