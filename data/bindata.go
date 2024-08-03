@@ -237,7 +237,7 @@ func initReadmeMd() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/README.md", size: 2271, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/README.md", size: 2271, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -257,7 +257,7 @@ func initAigcsTranslateAiYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/aigcs/translate.ai.yml", size: 388, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/aigcs/translate.ai.yml", size: 388, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -277,7 +277,7 @@ func initApisAigcHttpYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/apis/aigc.http.yao", size: 564, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/apis/aigc.http.yao", size: 564, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -297,7 +297,7 @@ func initAppYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/app.yao", size: 603, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/app.yao", size: 603, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -317,7 +317,7 @@ func initChartsPetChartYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/charts/pet.chart.yao", size: 8250, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/charts/pet.chart.yao", size: 8250, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -337,7 +337,7 @@ func initConnectorsOpenaiGpt3_5TurboConnYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/connectors/openai/gpt-3_5-turbo.conn.yao", size: 177, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/connectors/openai/gpt-3_5-turbo.conn.yao", size: 177, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -357,7 +357,7 @@ func initConnectorsOpenaiTextEmbeddingAda002ConnYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/connectors/openai/text-embedding-ada-002.conn.yao", size: 189, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/connectors/openai/text-embedding-ada-002.conn.yao", size: 189, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -377,7 +377,7 @@ func initConnectorsOpenaiWhisper1ConnYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/connectors/openai/whisper-1.conn.yao", size: 163, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/connectors/openai/whisper-1.conn.yao", size: 163, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -397,7 +397,7 @@ func initDashboardsKanbanDashYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/dashboards/kanban.dash.yao", size: 2222, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/dashboards/kanban.dash.yao", size: 2222, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -417,7 +417,7 @@ func initFlowsAppMenuFlowYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/flows/app/menu.flow.yao", size: 1832, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/flows/app/menu.flow.yao", size: 1832, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -437,7 +437,7 @@ func initFlowsStatDataFlowYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/flows/stat/data.flow.yao", size: 1817, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/flows/stat/data.flow.yao", size: 1817, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -457,7 +457,7 @@ func initFormsAdminUserFormYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/forms/admin/user.form.yao", size: 97, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/forms/admin/user.form.yao", size: 97, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -477,7 +477,7 @@ func initFormsDemoPetFormYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/forms/demo/pet.form.yao", size: 6755, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/forms/demo/pet.form.yao", size: 6755, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -497,7 +497,7 @@ func initIconsAppIcns() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/icons/app.icns", size: 67465, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/icons/app.icns", size: 67465, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -517,7 +517,7 @@ func initIconsAppIco() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/icons/app.ico", size: 54993, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/icons/app.ico", size: 54993, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -537,7 +537,7 @@ func initIconsAppPng() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/icons/app.png", size: 34558, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/icons/app.png", size: 34558, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -557,7 +557,7 @@ func initLangsZhCnGlobalYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/langs/zh-cn/global.yml", size: 90, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/langs/zh-cn/global.yml", size: 90, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -577,7 +577,7 @@ func initLangsZhHkGlobalYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/langs/zh-hk/global.yml", size: 88, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/langs/zh-hk/global.yml", size: 88, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -597,7 +597,7 @@ func initLoginsAdminLoginYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/logins/admin.login.yao", size: 278, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/logins/admin.login.yao", size: 278, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -617,7 +617,7 @@ func initLoginsUserLoginYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/logins/user.login.yao", size: 278, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/logins/user.login.yao", size: 278, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -637,7 +637,7 @@ func initModelsAdminUserModYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/models/admin/user.mod.yao", size: 8052, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/models/admin/user.mod.yao", size: 8052, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -657,7 +657,7 @@ func initModelsPetModYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/models/pet.mod.yao", size: 1700, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/models/pet.mod.yao", size: 1700, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -677,7 +677,7 @@ func initNeoNeoYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/neo/neo.yml", size: 545, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/neo/neo.yml", size: 545, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -697,7 +697,7 @@ func initPublicDemoPetHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/public/demo/pet.html", size: 1376, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/public/demo/pet.html", size: 1376, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -717,7 +717,7 @@ func initPublicIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/public/index.html", size: 1404, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/public/index.html", size: 1404, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -737,7 +737,7 @@ func initScriptsDashJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/scripts/dash.js", size: 127, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/scripts/dash.js", size: 127, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -757,7 +757,7 @@ func initScriptsGuardJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/scripts/guard.js", size: 373, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/scripts/guard.js", size: 373, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -777,7 +777,7 @@ func initScriptsSetupJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/scripts/setup.js", size: 888, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/scripts/setup.js", size: 888, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -797,7 +797,7 @@ func initScriptsStatJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/scripts/stat.js", size: 1305, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/scripts/stat.js", size: 1305, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -817,7 +817,7 @@ func initServicesFooJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/services/foo.js", size: 122, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/services/foo.js", size: 122, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -837,7 +837,7 @@ func initStudioHelloJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/studio/hello.js", size: 101, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/studio/hello.js", size: 101, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -857,7 +857,7 @@ func initTablesAdminUserTabYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/tables/admin/user.tab.yao", size: 119, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/tables/admin/user.tab.yao", size: 119, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -877,7 +877,7 @@ func initTablesDemoPetTabYao() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "init/tables/demo/pet.tab.yao", size: 7111, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "init/tables/demo/pet.tab.yao", size: 7111, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -897,12 +897,12 @@ func libsuiIndexTs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "libsui/index.ts", size: 9446, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "libsui/index.ts", size: 9446, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var _libsuiUtilsTs = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xe4\x57\x5b\x6f\xdb\x36\x14\x7e\xf7\xaf\x38\x15\x8c\x42\xc2\x5c\xa5\xcf\x72\x95\x2c\x18\x02\x0c\x43\x97\x6e\xcd\xde\x9a\xc2\x65\xa4\x63\x9b\x33\x45\x7a\x24\xe5\xcd\x88\xfd\xdf\x07\x5e\x44\x51\x89\xe5\xe6\x69\xd7\x17\xcb\xa0\xce\xe5\x3b\x87\xdf\xb9\xa8\x12\x5c\x69\x98\xb6\x9a\x32\x05\x25\x3c\x4e\x00\xee\xb4\x90\x58\x40\x8a\xac\xc9\xa0\xbc\xb4\x67\x00\x74\x09\xa9\xde\x6f\x51\x2c\x01\x59\x03\x65\x59\x42\xa2\xb4\xa4\x7c\x95\x64\x5e\x04\xdc\x1b\xa8\x45\xd5\x36\xc8\x75\xfe\x5b\x8b\x72\x7f\x87\x0c\x2b\x2d\xa4\xb5\x37\xb7\x82\x47\xfb\x7b\x71\x01\xdf\x6a\xf5\x86\xae\xb8\x90\x68\x4f\x24\xea\x56\x72\xe0\xf8\x3b\x2c\x16\xaa\xa5\x0b\x65\xa0\x04\xc5\xe3\x6c\x32\x01\xf8\x88\x8d\xd8\xe1\x77\x8c\x28\x65\x41\xa2\x71\x35\x83\xca\x1c\xdc\x92\x06\x23\xcc\x2e\x38\xfb\x06\x4d\x74\xd7\x52\x92\x7d\x4e\x95\x7d\xa6\x91\xc6\x55\xaf\x0e\x45\xff\x3f\x57\x5b\x46\x75\x9a\x40\xe2\x81\x7b\x53\xf9\x52\xc8\x1b\x52\xad\xd3\xb4\x8a\xbc\x75\xfe\x76\x50\x42\x95\x4b\xdc\x32\x52\x61\x7a\xf1\xe9\x9e\xdf\xcb\x7b\xf5\xf9\x62\x35\x83\xa4\x33\xe4\xf2\xb9\x73\x69\x4c\x32\x1f\xf9\x3c\xa4\xd1\x06\x95\x5b\x77\xef\xa9\xd2\xb9\xb4\x41\xa7\xbb\x2e\x81\xfe\xe9\x13\xe6\xae\xaf\x4f\xd1\x75\x5d\xff\xcf\xf2\x43\xea\xfa\x45\xc9\x39\xce\x27\x93\x65\xcb\x2b\x4d\x05\x87\xe9\xcf\x86\x9f\xa9\xf2\x04\x2d\xc0\xf1\x39\x2b\x60\xb1\xb0\xaf\x2c\xf0\x01\x29\x87\x1a\xd9\x7c\x72\x9c\x4c\x2c\x8a\x81\xca\x53\x8b\x70\x80\x1b\x07\x19\x4c\x38\x06\x8b\x0f\x41\x15\x70\x2b\x6a\x34\x31\x7c\x58\xbe\xf3\x42\x97\x70\x00\xde\x32\x06\xa5\x7d\x44\xe2\x45\xb0\xf3\x4c\xc2\xe6\x56\xb6\xb6\xd2\xc6\xfd\x67\xcf\xab\xb9\x13\x1e\x29\x69\xbd\xa6\x2a\xef\x65\x82\xf8\x3c\x7e\xdf\x45\x33\x5a\xfc\xd7\x8c\xc5\x59\xeb\xaf\x78\xa0\x9e\x33\xe4\x2b\xbd\x86\x4b\x78\xdb\x03\x18\xba\x80\x72\xe8\xf1\xd3\xdb\xcf\x9d\x39\xd7\x55\x8e\x80\x4c\xe1\x10\x7e\xaf\x3b\x44\xef\x34\xce\x45\x78\x34\xe5\x84\x86\xca\x15\x61\xec\x81\x54\x9b\xbe\xa6\x02\x4d\x66\x40\x79\x8d\x7f\x14\xc0\xdb\xe6\x01\xa5\xa5\xfc\x4e\xd0\x3a\x4e\xf6\xab\x01\xea\x3e\xba\x98\xd8\x11\x9c\x90\x91\x50\x49\xa1\x90\xad\xaf\x61\x59\x79\x68\x69\xcc\x51\x2f\x9f\x75\x0a\xa7\x6a\x23\x44\x48\xb4\x96\xe9\x06\xf7\xa3\x88\xe1\x70\x00\xcf\x97\xf8\x38\x5f\xa1\xbe\xd6\x5a\xd2\x87\x56\x23\xbc\x32\x04\xea\xaa\x2b\x79\x1a\x63\x60\x6a\x17\xa8\x3f\x1e\xb5\x67\x01\x05\x88\x35\xd1\xe4\x9f\x07\x31\x31\xb0\x8a\x04\xbe\x81\x01\xd8\x5f\x95\xe0\x7f\x39\xd8\xbe\xbb\x9e\xc1\x6b\x90\x0d\xf0\x7a\x70\xbb\xaf\x9a\xd7\xbe\xb9\x45\x22\x3f\xdc\x7d\xb8\xcd\xb7\x44\xaa\x68\x32\x41\x45\x74\xb5\x86\x14\xb3\x41\xdb\x17\x0c\x73\x94\x52\xc8\xf4\xcb\x8d\x79\x80\x51\x33\xad\xc9\xd8\x80\xa5\x90\x06\x10\x4c\x1f\x37\xb8\x3f\x16\x30\x7d\xc4\xe3\x97\xd0\x27\x4e\x02\xb2\x79\x5e\x13\x65\x07\x5d\x3c\xab\x1e\xc7\x6e\xee\x2a\x9a\x17\x95\xe0\x9a\x50\x1e\x2b\x86\xcb\xdb\x4a\xb1\xfd\x9b\x2e\x6f\x63\xe6\x83\xf1\xdf\x5d\xd1\xfc\xc5\x37\xbb\xc9\x62\x59\x73\xcd\x5f\x27\xc2\x1b\x53\xf7\x6f\x62\x7f\x99\x9b\x02\x5a\xb6\x98\xf4\xec\xb0\xd6\x5e\xbf\x86\x88\x24\x31\x1b\xce\xf1\xe1\x34\x23\x5e\xca\x09\x03\x6d\x84\x14\x27\x32\x19\x46\x40\xcc\x80\x5d\xb8\x57\xd9\x2f\x8e\xcf\xf9\xf2\x6f\x5d\x85\xc6\x08\x7e\x7e\x61\x34\x5a\x7d\xf3\xf7\xdb\xe2\x7f\x3f\x29\x67\xb6\xc4\x41\x46\xd6\xba\x61\xa9\xf9\xb9\x3a\xb1\x13\x1e\xba\xa5\xaa\xef\x0e\x46\xd4\x42\x69\x79\x8d\x4b\xca\xb1\x7e\x56\xef\x43\x48\x94\x73\x94\xdf\xff\xf2\xe3\x7b\xd3\x4a\x92\x24\x6e\x04\x4f\x97\xa2\xec\xe4\x2a\x13\x59\x28\x2d\xdc\x91\xa9\xe5\x42\x0a\x4b\xea\xf4\x23\xf2\x1a\xa5\x35\x59\x89\x66\x1b\xed\x8f\x62\x6b\x77\xe2\xd3\x0b\xa5\x91\x9d\x79\x91\x0e\x90\x85\xe3\x8d\x98\xc7\xbc\x3f\x0d\xb6\xdc\x1f\x07\x02\x80\xa8\x3d\xaf\xc0\x41\x48\x39\x69\x70\x66\xa7\x7a\x56\xc0\x4f\x52\x34\x54\xe1\x3b\x97\xd9\x8e\x10\xa3\x1f\x88\xee\xe3\x50\x3a\x43\x01\xc7\x0c\x7a\x9b\xb3\x18\x48\xd6\x65\xe1\xcf\x00\x00\x00\xff\xff\xde\x0d\x27\x5b\xed\x0e\x00\x00")
+var _libsuiUtilsTs = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xe4\x57\xcd\x6e\xe3\x36\x10\xbe\xfb\x29\x26\x42\xb0\x90\x50\x47\xd9\xb3\xbc\x4a\x1a\x14\x01\x8a\x62\x9b\x6d\x9b\xde\x36\x0b\xaf\x22\x8d\x6d\xd5\x14\xa9\x92\x94\x5b\x23\xf6\xbb\x17\x24\x45\x91\xb4\x2d\x6f\x4e\x69\x81\x5e\x42\x9b\x9e\x9f\x6f\x66\xbe\xe1\x4c\x16\x1d\x2d\x65\xcd\x28\x5c\x3e\x4a\xc6\x31\x46\xd2\x24\xf0\x32\x01\xa8\x17\x10\x5f\x0c\xdf\x00\x38\xca\x8e\x53\xa0\x1d\x21\xb3\x09\xc0\x7e\xd2\xcb\xc8\x6d\x8b\x6c\x01\x48\x1a\xc8\xf3\x1c\x22\x21\x79\x4d\x97\x91\x55\xd3\xf7\x50\xb1\xb2\x6b\x90\xca\xf4\xcf\x0e\xf9\xf6\x11\x09\x96\x92\xf1\x3b\x42\xb4\xbf\x99\x96\x54\xc6\x90\x34\x29\x41\xba\x94\x2b\xc8\x73\x78\x6f\x8d\x1c\x79\x57\xfe\x9d\x75\x24\xcd\xe7\xf7\x5f\x0c\x2a\x80\xeb\x6b\xf8\x5e\x8a\xab\x7a\x49\x19\xc7\x89\x53\xc5\xbf\x60\x3e\x17\x5d\x3d\x17\x43\xa0\xb3\xc9\x7e\x32\x71\x19\xf8\x55\x81\x8b\x45\x8f\x2e\x03\x13\x4a\x92\xc1\x7c\xae\x7f\xd2\x68\x02\x73\xa1\x86\xb1\x57\x92\x42\x88\x40\xe5\xd0\x22\xec\xe0\x9e\xa0\xca\x07\xe4\x10\x45\x0a\x38\x9a\xef\x22\x83\x07\x56\xe1\xc7\x5a\xc8\x4f\x8b\x0f\xbd\xd0\x0d\xec\x74\xe0\x90\x0f\xf1\xf7\xe2\xd9\x60\xe7\x48\xa2\x64\x54\x48\xde\x29\xb7\x47\x11\x39\xff\x36\xc1\x5e\x21\xad\xf0\xc9\x6a\x02\xc8\x55\x2d\x52\x27\x33\x88\xcf\xfc\xdf\x6d\x34\x67\x2b\xef\x65\xcd\xa8\x6a\x10\xbe\xba\xa5\xc2\x8d\xcf\x84\xd0\x05\xe4\xa1\xc7\x9e\x07\x8e\x21\x7b\x40\x22\x30\x84\xef\x74\x43\xf4\x46\xe3\x5c\x84\x9a\xf5\x58\x94\xab\xb8\x2c\x08\x79\x2e\xca\x75\xa6\x48\xdb\x17\xa3\xaf\xf9\x14\x6a\x5a\xe1\xdf\x19\xd0\xae\x79\x46\x9e\x40\x7e\x03\x1b\x56\x57\x7e\xb2\x2f\x02\xd4\x87\x3c\x3f\x82\x33\x64\x64\xc1\xf8\xbd\x72\x6f\x9d\xf6\xbe\xb4\x0f\x6b\xc3\x42\x8b\x7d\x8e\xf6\xf2\x89\x55\xe8\x5d\xf4\xa7\x73\xab\x23\x34\x1d\x32\x8a\x17\x76\x3b\xe8\xd9\xe2\x5f\xa7\x4b\x94\x77\x52\xf2\xfa\xb9\x93\x08\x17\x8a\x3e\xb6\xb7\xa2\xb3\x9d\xac\x8f\xc3\xb6\x1d\x6d\x5c\xdf\x65\x32\x40\x2e\xa4\xe4\xf1\x1a\xb7\x6f\x06\xda\xbb\x1e\xb5\xa7\x01\x0d\x10\xab\x42\x16\xff\x3d\x88\x91\x82\x95\x45\xf0\x1d\x04\x60\xff\x10\x8c\xbe\x39\x58\xfd\x68\xc1\xe6\xa0\xa9\x0f\xf0\x2a\x64\x01\xde\x1e\xdc\xe6\x9b\xe6\x65\xff\x1e\x7b\x22\x3f\x3d\x7e\x7a\x48\xdb\x82\x0b\x8c\x37\xb6\x27\xa0\x2c\x64\xb9\x82\x18\x9d\x41\x05\x8c\x11\x4c\x91\x73\xc6\xe3\xaf\xf7\xea\x00\xa5\xa6\x5e\x53\x65\x03\x16\x8c\x2b\x40\x70\xf9\xb2\xc6\xed\x3e\x83\xcb\x17\xdc\x7f\x1d\x9e\xb6\x93\x80\x74\x9e\x57\x85\xf8\x41\x0d\x8c\x58\x8f\x8d\x87\xa2\xc1\x83\x81\xeb\x67\xe2\x36\xd5\x52\x6a\x3c\xa4\x25\xa3\xb2\xa8\xa9\xaf\x38\x14\xaf\xe5\xac\xfd\x97\x8a\xb7\x56\x23\x4d\xf9\xb7\x25\x9a\xbd\xba\xb2\xeb\xc4\x97\x55\x65\xfe\x36\x11\xae\x54\xdf\x5f\xf9\xfe\x12\x33\xb8\x24\xef\x30\x72\xec\xd0\xd6\xde\xbd\x03\x8f\x24\x3e\x1b\xce\xf1\xe1\x34\x23\x5e\xcb\x09\x05\x6d\x84\x14\x27\x32\x39\x4c\x2d\x9f\x01\x9b\xa1\xae\x1c\x1b\xb6\xc1\x11\xbe\x98\xb4\xe9\x6b\x54\x93\xf7\x8e\xf3\x62\x9b\xd6\x42\x9f\xbe\xf8\x2d\x0c\x5f\x20\x73\x9f\x53\xd1\x92\x5a\xc6\x11\x44\xb6\x0e\xc6\x94\x9b\x39\x65\x38\x66\x86\x92\x96\x29\xc7\x96\x14\x25\xc6\xd7\x9f\x9f\xe8\x13\x7f\x12\x5f\xae\x97\x53\x88\xa2\x60\xb4\x6f\x4c\x61\xa2\x24\x18\x72\x30\x4a\x70\x13\xac\x6b\xcb\x60\x54\x69\x2d\xf7\xf8\x57\xd5\xff\x24\x29\x45\x55\xbd\x2a\x23\x2b\xd9\x90\x58\xfd\xb9\x3d\xb1\xc6\xee\xec\x1e\xe8\x5e\x07\x25\xaa\xa1\x74\xb4\xc2\x45\x4d\xb1\x3a\xea\xf7\x10\x52\x4d\x29\xf2\x1f\x7f\xff\xf9\xa3\x7a\x4a\xa2\xc8\x7f\x08\x0e\xf7\xb8\xe4\xe4\xf6\xe5\x59\xc8\x35\xdc\x91\xa9\x65\x42\x0a\xf6\xf4\xdf\x90\x56\xc8\xe3\x92\x35\xed\x14\x58\xab\x2e\x75\x74\xe6\x5e\x7b\x33\x75\x50\xeb\x9b\x59\x1f\x4e\xa9\xcc\xdc\x36\xcf\x83\xcd\x3d\xb0\xd3\xb4\xde\x56\x6d\x34\x47\xd6\xec\xc0\x78\x1f\xb3\x8e\xb8\x37\xa2\x8e\x99\xbb\x1d\x6c\x99\x0f\xf6\xdf\x97\x42\x6c\x69\x09\x3d\x5e\x5a\x34\x38\xd5\x8b\x43\x92\xc1\x2f\x9c\x35\xb5\xc0\x0f\xa6\x78\x96\x73\xa3\x7b\x93\xd9\x99\xb8\x31\x34\xe0\x98\x82\xb3\x39\xf5\x81\x24\x36\xd1\xff\x04\x00\x00\xff\xff\xe7\x1e\x59\xde\x12\x0e\x00\x00")
 
 func libsuiUtilsTsBytes() ([]byte, error) {
 	return bindataRead(
@@ -917,7 +917,7 @@ func libsuiUtilsTs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "libsui/utils.ts", size: 3821, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "libsui/utils.ts", size: 3602, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -937,7 +937,7 @@ func libsuiYaoTs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "libsui/yao.ts", size: 4338, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "libsui/yao.ts", size: 4338, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -957,7 +957,7 @@ func publicIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "public/index.html", size: 11, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "public/index.html", size: 11, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -977,7 +977,7 @@ func uiIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "ui/index.html", size: 11, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "ui/index.html", size: 11, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -997,7 +997,7 @@ func xgenSetupIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xgen/setup/index.html", size: 11, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "xgen/setup/index.html", size: 11, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1017,7 +1017,7 @@ func xgenV09IndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xgen/v0.9/index.html", size: 14, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "xgen/v0.9/index.html", size: 14, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1037,7 +1037,7 @@ func xgenV10IndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xgen/v1.0/index.html", size: 50, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "xgen/v1.0/index.html", size: 50, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1057,7 +1057,7 @@ func xgenV10Layouts__indexAsyncJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xgen/v1.0/layouts__index.async.js", size: 71, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "xgen/v1.0/layouts__index.async.js", size: 71, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1077,7 +1077,7 @@ func xgenV10UmiJs() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "xgen/v1.0/umi.js", size: 71, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "xgen/v1.0/umi.js", size: 71, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1097,7 +1097,7 @@ func yaoApisImportHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/apis/import.http.json", size: 1696, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/apis/import.http.json", size: 1696, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1117,7 +1117,7 @@ func yaoApisStorageHttpJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/apis/storage.http.json", size: 1046, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/apis/storage.http.json", size: 1046, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1137,7 +1137,7 @@ func yaoDataIcons404Png() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/data/icons/404.png", size: 9342, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/data/icons/404.png", size: 9342, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1157,7 +1157,7 @@ func yaoDataIconsIconIcns() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/data/icons/icon.icns", size: 67465, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/data/icons/icon.icns", size: 67465, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1177,7 +1177,7 @@ func yaoDataIconsIconIco() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/data/icons/icon.ico", size: 54993, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/data/icons/icon.ico", size: 54993, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1197,7 +1197,7 @@ func yaoDataIconsIconPng() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/data/icons/icon.png", size: 34558, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/data/icons/icon.png", size: 34558, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1217,7 +1217,7 @@ func yaoDataIndexHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/data/index.html", size: 282, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/data/index.html", size: 282, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1237,7 +1237,7 @@ func yaoFieldsModelTransJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/fields/model.trans.json", size: 14938, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/fields/model.trans.json", size: 14938, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1257,7 +1257,7 @@ func yaoLangsEnUsJson() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/en-US.json", size: 66, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/en-US.json", size: 66, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1277,7 +1277,7 @@ func yaoLangsZhCnGlobalYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/zh-cn/global.yml", size: 1762, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/zh-cn/global.yml", size: 1762, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1297,7 +1297,7 @@ func yaoLangsZhCnLoginsAdminLoginYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/zh-cn/logins/admin.login.yml", size: 94, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/zh-cn/logins/admin.login.yml", size: 94, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1317,7 +1317,7 @@ func yaoLangsZhCnLoginsUserLoginYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/zh-cn/logins/user.login.yml", size: 90, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/zh-cn/logins/user.login.yml", size: 90, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1337,7 +1337,7 @@ func yaoLangsZhHkGlobalYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/zh-hk/global.yml", size: 1762, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/zh-hk/global.yml", size: 1762, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1357,7 +1357,7 @@ func yaoLangsZhHkLoginsAdminLoginYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/zh-hk/logins/admin.login.yml", size: 94, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/zh-hk/logins/admin.login.yml", size: 94, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1377,7 +1377,7 @@ func yaoLangsZhHkLoginsUserLoginYml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/langs/zh-hk/logins/user.login.yml", size: 90, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/langs/zh-hk/logins/user.login.yml", size: 90, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1397,7 +1397,7 @@ func yaoReleaseAppYaz() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "yao/release/app.yaz", size: 181682, mode: os.FileMode(420), modTime: time.Unix(1722675734, 0)}
+	info := bindataFileInfo{name: "yao/release/app.yaz", size: 181682, mode: os.FileMode(420), modTime: time.Unix(1722678296, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

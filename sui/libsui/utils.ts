@@ -1,32 +1,18 @@
-const $utils = {
-  Store: (elm) => {
-    if (typeof elm === "string") {
-      elm = document.querySelector(elm);
+function $Store(elm) {
+  if (!elm) {
+    return null;
+  }
+
+  if (typeof elm === "string") {
+    elm = document.querySelectorAll(elm);
+    if (elm.length == 0) {
+      return null;
     }
-    // @ts-ignore
-    return new __sui_store(elm);
-  },
-
-  RemoveClass: (element, className) => {
-    const classes = Array.isArray(className) ? className : className.split(" ");
-    classes.forEach((c) => {
-      const v = c.replace(/[\n\r\s]/g, "");
-      if (v === "") return;
-      element.classList.remove(v);
-    });
-    return $utils;
-  },
-
-  AddClass: (element, className) => {
-    const classes = Array.isArray(className) ? className : className.split(" ");
-    classes.forEach((c) => {
-      const v = c.replace(/[\n\r\s]/g, "");
-      if (v === "") return;
-      element.classList.add(v);
-    });
-    return $utils;
-  },
-};
+    elm = elm[0];
+  }
+  // @ts-ignore
+  return new __sui_store(elm);
+}
 
 function $Query(selector: string): __Query {
   return new __Query(selector);
@@ -57,6 +43,15 @@ class __Query {
       callback(new __Query(element), index);
     });
     return;
+  }
+
+  store() {
+    if (!this.element || typeof this.element.getAttribute !== "function") {
+      return null;
+    }
+
+    // @ts-ignore
+    return new __sui_store(this.element);
   }
 
   attr(key) {
@@ -142,7 +137,12 @@ class __Query {
   }
 }
 
-class $Render {
+function $Render(comp, option): __Render {
+  const r = new __Render(comp, option);
+  return r;
+}
+
+class __Render {
   comp = null;
   option = null;
   constructor(comp, option) {
