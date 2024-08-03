@@ -24,8 +24,13 @@ func LibSUI() ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
+	yao, err := data.Read("libsui/yao.ts")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Merge the source code
-	source := fmt.Sprintf("%s\n%s", index, utils)
+	source := fmt.Sprintf("%s\n%s\n%s", index, utils, yao)
 
 	// Build the source code
 	js, sm, err := transform.TypeScriptWithSourceMap(string(source), api.TransformOptions{
