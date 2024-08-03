@@ -31,7 +31,7 @@ func Render(process *process.Process) interface{} {
 	ctx.Request.URL.Path = route
 	r, _, err := NewRequestContext(ctx)
 	if err != nil {
-		return fmt.Sprintf("<div class='text-danger'> %s </div>", err.Error())
+		return fmt.Sprintf("<span class='sui-render-error'> %s </span>", err.Error())
 	}
 
 	var c *core.Cache = nil
@@ -42,27 +42,33 @@ func Render(process *process.Process) interface{} {
 	if c == nil {
 		c, _, err = r.MakeCache()
 		if err != nil {
-			return fmt.Sprintf("<div class='text-danger'> %s </div>", err.Error())
+			return fmt.Sprintf("<span class='sui-render-error'> %s </span>", err.Error())
 		}
 	}
 
 	if c == nil {
-		return fmt.Sprintf("<div class='text-danger'> Cache not found </div>")
+		return fmt.Sprintf("<span class='sui-render-error'> Cache not found </span>")
+	}
+
+	// Guard the page
+	code, err := r.Guard(c)
+	if err != nil {
+		return fmt.Sprintf("<span class='sui-render-error'> %v %s </span>", code, err.Error())
 	}
 
 	data, ok := payload["data"].(map[string]interface{})
 	if !ok {
-		return fmt.Sprintf("<div class='text-danger'> Data not found </div>")
+		return fmt.Sprintf("<span class='sui-render-error'> Data not found </span>")
 	}
 
 	name, ok := payload["name"].(string)
 	if !ok {
-		return fmt.Sprintf("<div class='text-danger'> Name not found </div>")
+		return fmt.Sprintf("<span class='sui-render-error'> Name not found </span>")
 	}
 
 	html, err := r.renderHTML(c, name, c.HTML, core.Data(data))
 	if err != nil {
-		return fmt.Sprintf("<div class='text-danger'> %s </div>", err.Error())
+		return fmt.Sprintf("<span class='sui-render-error'> %s </span>", err.Error())
 	}
 
 	return html

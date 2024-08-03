@@ -219,6 +219,43 @@ function __sui_store(elm) {
   };
 }
 
+async function __sui_backend_call(
+  route: string,
+  method: string,
+  ...args: any
+): Promise<any> {
+  const url = `/api/__yao/sui/v1/run${route}`;
+  const headers = {
+    "Content-Type": "application/json",
+    Cookie: document.cookie,
+  };
+  const payload = { method, args };
+  try {
+    const body = JSON.stringify(payload);
+    const response = await fetch(url, { method: "POST", headers, body: body });
+    const text = await response.text();
+    let data: any | null = null;
+    if (text && text != "") {
+      data = JSON.parse(text);
+    }
+
+    if (response.status >= 400) {
+      const message = data.message
+        ? data.message
+        : `Failed to call ${route} ${method}`;
+      const code = data.code ? data.code : 500;
+      return Promise.reject({ message, code });
+    }
+
+    return Promise.resolve(data);
+  } catch (e) {
+    const message = e.message ? e.message : `Failed to call ${route} ${method}`;
+    const code = e.code ? e.code : 500;
+    console.error(`[SUI] Failed to call ${route} ${method}:`, e);
+    return Promise.reject({ message, code });
+  }
+}
+
 /**
  * SUI Render
  * @param component
