@@ -58,6 +58,9 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 
 	body := doc.Find("body")
 	body.SetAttr("s:ns", namespace)
+	body.SetAttr("s:public", option.PublicRoot) // Save public root
+	body.SetAttr("s:assets", option.AssetRoot)
+
 	// Bind the Page events
 	if !option.JitMode {
 		page.BindEvent(ctx, doc.Selection, "__page", true)
@@ -218,6 +221,9 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 
 	// Pass the component props
 	first := body.Children().First()
+	first.SetAttr("s:public", option.PublicRoot) // Save public root
+	first.SetAttr("s:assets", option.AssetRoot)
+
 	// page.copyProps(ctx, sel, first, attrs...)
 	page.parseProps(sel, first, attrs...)
 	page.copySlots(sel, first)

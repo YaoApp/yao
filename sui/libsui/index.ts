@@ -221,6 +221,7 @@ function __sui_store(elm) {
 
 async function __sui_backend_call(
   route: string,
+  page: string,
   method: string,
   ...args: any
 ): Promise<any> {
@@ -229,7 +230,7 @@ async function __sui_backend_call(
     "Content-Type": "application/json",
     Cookie: document.cookie,
   };
-  const payload = { method, args };
+  const payload = { method, args, page };
   try {
     const body = JSON.stringify(payload);
     const response = await fetch(url, { method: "POST", headers, body: body });

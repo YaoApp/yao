@@ -1,6 +1,8 @@
 package api
 
 import (
+	"path/filepath"
+
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
@@ -36,6 +38,17 @@ func Run(process *process.Process) interface{} {
 		return nil
 	}
 
+	if payload["page"] == nil {
+		exception.New("The page is required", 400).Throw()
+		return nil
+	}
+
+	page, ok := payload["page"].(string)
+	if !ok {
+		exception.New("The page must be a string", 400).Throw()
+		return nil
+	}
+
 	args := []interface{}{}
 	if payload["args"] != nil {
 		args, ok = payload["args"].([]interface{})
@@ -45,7 +58,7 @@ func Run(process *process.Process) interface{} {
 		}
 	}
 
-	ctx.Request.URL.Path = route
+	ctx.Request.URL.Path = page
 	r, _, err := NewRequestContext(ctx)
 	if err != nil {
 		exception.Err(err, 500).Throw()
@@ -61,7 +74,7 @@ func Run(process *process.Process) interface{} {
 		c, _, err = r.MakeCache()
 		if err != nil {
 			log.Error("[SUI] Can't make cache, %s %s error: %s", route, method, err.Error())
-			exception.New("Can't make cache, please the route and method is correct, get more information from the log.", 500).Throw()
+			exception.New("Can't make cache, the route and method is correct, get more information from the log.", 500).Throw()
 			return nil
 		}
 	}
@@ -78,12 +91,20 @@ func Run(process *process.Process) interface{} {
 		return nil
 	}
 
-	if c.Script == nil {
-		exception.New("Script not found", 500).Throw()
+	// Load the script
+	file := filepath.Join("/public", route)
+	script, err := core.LoadScript(file, r.Request.DisableCache())
+	if err != nil {
+		exception.New("Can't load the script (%s), get more information from the log.", 500, route).Throw()
 		return nil
 	}
 
-	scriptCtx, err := c.Script.NewContext(process.Sid, nil)
+	if script == nil {
+		exception.New("Script not found (%s)", 404, route)
+		return nil
+	}
+
+	scriptCtx, err := script.NewContext(process.Sid, nil)
 	if err != nil {
 		exception.Err(err, 500).Throw()
 		return nil
