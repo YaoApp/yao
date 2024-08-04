@@ -41,7 +41,7 @@ func JwtValidate(tokenString string, secret ...[]byte) *JwtClaims {
 
 	if err != nil {
 		log.Error("JWT ParseWithClaims Error: %s", err)
-		exception.New("Invalid token", 403).Ctx(err.Error()).Throw()
+		exception.New("Invalid token", 401).Ctx(err.Error()).Throw()
 		return nil
 	}
 
@@ -49,7 +49,7 @@ func JwtValidate(tokenString string, secret ...[]byte) *JwtClaims {
 		return claims
 	}
 
-	exception.New("Invalid token", 403).Ctx(token.Claims).Throw()
+	exception.New("Invalid token", 401).Ctx(token.Claims).Throw()
 	return nil
 }
 

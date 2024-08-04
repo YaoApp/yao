@@ -72,7 +72,7 @@ func hdAuth(c *gin.Context) {
 	if strings.HasPrefix(tokenString, "Bearer") {
 		tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 		if tokenString == "" {
-			c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+			c.JSON(401, gin.H{"code": 401, "message": "Not authenticated"})
 			c.Abort()
 			return
 		}

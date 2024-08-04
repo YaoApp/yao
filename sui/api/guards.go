@@ -28,15 +28,15 @@ var Guards = map[string]func(c *Request) error{
 // JWT Bearer JWT
 func guardBearerJWT(r *Request) error {
 	if r.context == nil {
-		return fmt.Errorf("No permission")
+		return fmt.Errorf("Not authenticated")
 	}
 	c := r.context
 	tokenString := c.Request.Header.Get("Authorization")
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	if tokenString == "" {
-		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+		c.JSON(401, gin.H{"code": 401, "message": "Not authenticated"})
 		c.Abort()
-		return fmt.Errorf("No permission")
+		return fmt.Errorf("Not authenticated")
 	}
 
 	claims := helper.JwtValidate(tokenString)
@@ -56,13 +56,13 @@ func guardCookieJWT(r *Request) error {
 	if err != nil {
 		// c.JSON(403, gin.H{"code": 403, "message": "No permission"})
 		// c.Abort()
-		return fmt.Errorf("Not Authorized")
+		return fmt.Errorf("Not authenticated")
 	}
 
 	if tokenString == "" {
 		// c.JSON(403, gin.H{"code": 403, "message": "No permission"})
 		// c.Abort()
-		return fmt.Errorf("Not Authorized")
+		return fmt.Errorf("Not authenticated")
 	}
 
 	claims := helper.JwtValidate(tokenString)
@@ -93,15 +93,15 @@ func guardCookieTrace(r *Request) error {
 // JWT Bearer JWT
 func guardQueryJWT(r *Request) error {
 	if r.context == nil {
-		return fmt.Errorf("No permission")
+		return fmt.Errorf("Not authenticated")
 	}
 	c := r.context
 
 	tokenString := c.Query("__tk")
 	if tokenString == "" {
-		c.JSON(403, gin.H{"code": 403, "message": "No permission"})
+		c.JSON(401, gin.H{"code": 401, "message": "Not authenticated"})
 		c.Abort()
-		return fmt.Errorf("No permission")
+		return fmt.Errorf("Not authenticated")
 	}
 
 	claims := helper.JwtValidate(tokenString)
