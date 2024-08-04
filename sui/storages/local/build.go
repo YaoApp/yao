@@ -398,7 +398,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 	page.Root = root
 
-	html, warnings, err := page.Page.Compile(ctx, option)
+	html, config, warnings, err := page.Page.Compile(ctx, option)
 	if err != nil {
 		return warnings, fmt.Errorf("Compile the page %s error: %s", page.Route, err.Error())
 	}
@@ -417,6 +417,12 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 
 	// Save the locale files
 	err = page.writeLocaleFiles(ctx, option.Data)
+	if err != nil {
+		return warnings, err
+	}
+
+	// Save the config file
+	err = page.writeConfig([]byte(config), option.Data)
 	if err != nil {
 		return warnings, err
 	}
@@ -528,7 +534,7 @@ func (page *Page) Trans(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	warnings := []string{}
 	ctx := core.NewBuildContext(globalCtx)
 
-	_, messages, err := page.Page.Compile(ctx, option)
+	_, _, messages, err := page.Page.Compile(ctx, option)
 	if err != nil {
 		return warnings, err
 	}
@@ -765,6 +771,21 @@ func (page *Page) writeHTML(html []byte, data map[string]interface{}) error {
 	}
 
 	core.RemoveCache(htmlFile)
+	return nil
+}
+
+// writeHTMLTo write the html to file
+func (page *Page) writeConfig(config []byte, data map[string]interface{}) error {
+	configFile := fmt.Sprintf("%s.cfg", page.publicFile(data))
+	configFileAbs := filepath.Join(application.App.Root(), configFile)
+	dir := filepath.Dir(configFileAbs)
+	if exist, _ := os.Stat(dir); exist == nil {
+		os.MkdirAll(dir, os.ModePerm)
+	}
+	err := os.WriteFile(configFileAbs, config, 0644)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

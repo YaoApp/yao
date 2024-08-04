@@ -177,18 +177,24 @@ class __Render {
 }
 
 function $Backend(route?: string) {
-  route = route || window.location.pathname;
-  return new __Backend(route);
+  const page = window.location.pathname;
+  const root = document.body.getAttribute("s:public") || "/";
+  route = route || page;
+  const re = new RegExp("^" + root);
+  route = root + route.replace(re, "");
+  return new __Backend(route, page);
 }
 
 class __Backend {
   route = "";
-  constructor(route) {
+  page = "";
+  constructor(route: string, page: string) {
     this.route = route;
+    this.page = page;
   }
 
   async Call(method: string, ...args: any): Promise<any> {
     // @ts-ignore
-    return await __sui_backend_call(this.route, method, ...args);
+    return await __sui_backend_call(this.route, this.page, method, ...args);
   }
 }
