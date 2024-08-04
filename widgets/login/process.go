@@ -44,7 +44,7 @@ func processLoginAdmin(process *process.Process) interface{} {
 
 	if !helper.CaptchaValidate(id, value) {
 		log.With(log.F{"id": id, "code": value}).Debug("ProcessLogin")
-		exception.New("验证码不正确", 403).Ctx(maps.Map{"id": id, "code": value}).Throw()
+		exception.New("验证码不正确", 401).Ctx(maps.Map{"id": id, "code": value}).Throw()
 		return nil
 	}
 

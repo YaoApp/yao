@@ -94,7 +94,7 @@ func processDownload(process *gouProcess.Process) interface{} {
 	// Auth
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	if tokenString == "" {
-		exception.New("%s.%s No permission", 403, form.ID, field).Throw()
+		exception.New("%s.%s not authenticated", 401, form.ID, field).Throw()
 	}
 	claims := helper.JwtValidate(tokenString)
 
