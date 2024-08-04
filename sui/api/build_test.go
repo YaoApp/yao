@@ -12,7 +12,7 @@ func TestCompile(t *testing.T) {
 	defer clean()
 
 	page := testPage(t)
-	html, warnings, err := page.Compile(nil, &core.BuildOption{KeepPageTag: false})
+	html, _, warnings, err := page.Compile(nil, &core.BuildOption{KeepPageTag: false})
 	if err != nil {
 		t.Fatalf("Compile error: %v", err)
 	}

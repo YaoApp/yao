@@ -74,6 +74,8 @@ var allowUsePropAttrs = map[string]bool{
 	"s:event":    true,
 	"s:event-cn": true,
 	"s:render":   true,
+	"s:public":   true,
+	"s:assets":   true,
 }
 
 var keepAttrs = map[string]bool{
@@ -83,6 +85,8 @@ var keepAttrs = map[string]bool{
 	"s:event":    true,
 	"s:event-cn": true,
 	"s:render":   true,
+	"s:public":   true,
+	"s:assets":   true,
 }
 
 // NewTemplateParser create a new template parser
