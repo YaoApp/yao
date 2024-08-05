@@ -150,7 +150,7 @@ class __Query {
       if (v === "") return;
       this.element?.classList.toggle(v);
     });
-    return;
+    return this;
   }
 
   removeClass(className) {
