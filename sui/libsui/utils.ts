@@ -176,25 +176,30 @@ class __Render {
   }
 }
 
-function $Backend(route?: string) {
-  const page = window.location.pathname;
+function $Backend(
+  route?: string,
+  headers?: [string, string][] | Record<string, string> | Headers
+) {
   const root = document.body.getAttribute("s:public") || "/";
-  route = route || page;
+  route = route || window.location.pathname;
   const re = new RegExp("^" + root);
   route = root + route.replace(re, "");
-  return new __Backend(route, page);
+  return new __Backend(route, headers);
 }
 
 class __Backend {
   route = "";
-  page = "";
-  constructor(route: string, page: string) {
+  headers: [string, string][] | Record<string, string> | Headers = {};
+  constructor(
+    route: string,
+    headers: [string, string][] | Record<string, string> | Headers = {}
+  ) {
     this.route = route;
-    this.page = page;
+    this.headers = headers;
   }
 
   async Call(method: string, ...args: any): Promise<any> {
     // @ts-ignore
-    return await __sui_backend_call(this.route, this.page, method, ...args);
+    return await __sui_backend_call(this.route, this.headers, method, ...args);
   }
 }

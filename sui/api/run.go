@@ -2,13 +2,23 @@ package api
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
 )
+
+var configs = map[string]*core.PageConfig{}
+var chConfig = make(chan *core.PageConfig, 1)
+
+func init() {
+	go configWriter()
+}
 
 // Run the backend script, with Api prefix method
 func Run(process *process.Process) interface{} {
@@ -38,17 +48,6 @@ func Run(process *process.Process) interface{} {
 		return nil
 	}
 
-	if payload["page"] == nil {
-		exception.New("The page is required", 400).Throw()
-		return nil
-	}
-
-	page, ok := payload["page"].(string)
-	if !ok {
-		exception.New("The page must be a string", 400).Throw()
-		return nil
-	}
-
 	args := []interface{}{}
 	if payload["args"] != nil {
 		args, ok = payload["args"].([]interface{})
@@ -58,41 +57,39 @@ func Run(process *process.Process) interface{} {
 		}
 	}
 
-	ctx.Request.URL.Path = page
 	r, _, err := NewRequestContext(ctx)
 	if err != nil {
 		exception.Err(err, 500).Throw()
 		return nil
 	}
 
-	var c *core.Cache = nil
-	if !r.Request.DisableCache() {
-		c = core.GetCache(r.File)
+	// Load the script
+	file := filepath.Join("/public", route)
+
+	// Get the page config
+	cfg, err := getPageConfig(file, r.Request.DisableCache())
+	if err != nil {
+		log.Error("Can't load the page config (%s), %s", route, err.Error())
+		exception.New("Can't load the page config (%s), get more information from the log.", 500, route).Throw()
+		return nil
 	}
 
-	if c == nil {
-		c, _, err = r.MakeCache()
+	// Config and guard
+	prefix := "Api"
+	if cfg != nil {
+		_, err := r.apiGuard(method, cfg.API)
 		if err != nil {
-			log.Error("[SUI] Can't make cache, %s %s error: %s", route, method, err.Error())
-			exception.New("Can't make cache, the route and method is correct, get more information from the log.", 500).Throw()
+			log.Error("Guard error: %s", err.Error())
+			r.context.Done()
 			return nil
+		}
+
+		// Custom prefix
+		if cfg.API != nil && cfg.API.Prefix != "" {
+			prefix = cfg.API.Prefix
 		}
 	}
 
-	// Guard the page
-	code, err := r.Guard(c)
-	if err != nil {
-		exception.Err(err, code).Throw()
-		return nil
-	}
-
-	if c == nil {
-		exception.New("Cache not found", 500).Throw()
-		return nil
-	}
-
-	// Load the script
-	file := filepath.Join("/public", route)
 	script, err := core.LoadScript(file, r.Request.DisableCache())
 	if err != nil {
 		exception.New("Can't load the script (%s), get more information from the log.", 500, route).Throw()
@@ -106,22 +103,96 @@ func Run(process *process.Process) interface{} {
 
 	scriptCtx, err := script.NewContext(process.Sid, nil)
 	if err != nil {
-		exception.Err(err, 500).Throw()
 		return nil
 	}
 	defer scriptCtx.Close()
 
 	global := scriptCtx.Global()
-	if !global.Has("Api" + method) {
+	if !global.Has(prefix + method) {
 		exception.New("Method %s not found", 500, method).Throw()
 		return nil
 	}
 
-	res, err := scriptCtx.Call("Api"+method, args...)
+	res, err := scriptCtx.Call(prefix+method, args...)
 	if err != nil {
 		exception.Err(err, 500).Throw()
 		return nil
 	}
 
 	return res
+}
+
+// getPageConfig get the page config
+func getPageConfig(file string, disableCache ...bool) (*core.PageConfig, error) {
+
+	// LOAD FROM CACHE
+	base := strings.TrimSuffix(strings.TrimSuffix(file, ".sui"), ".jit")
+	if disableCache == nil || !disableCache[0] {
+		if cfg, has := configs[base]; has {
+			return cfg, nil
+		}
+	}
+
+	file = base + ".cfg"
+	if exist, _ := application.App.Exists(file); !exist {
+		return nil, nil
+	}
+
+	source, err := application.App.Read(file)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := core.PageConfig{}
+	err = jsoniter.Unmarshal(source, &cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save to cache
+	go func() { chConfig <- &cfg }()
+	return &cfg, nil
+}
+
+func (r *Request) apiGuard(method string, api *core.PageAPI) (int, error) {
+	if api == nil {
+		return 200, nil
+	}
+
+	guard := api.DefaultGuard
+	if api.Guards != nil {
+		if g, has := api.Guards[method]; has {
+			guard = g
+		}
+	}
+
+	if guard == "" || guard == "-" {
+		return 200, nil
+	}
+
+	// Build in guard
+	if guard, has := Guards[guard]; has {
+		err := guard(r)
+		if err != nil {
+			return 403, err
+		}
+		return 200, nil
+	}
+
+	// Developer custom guard
+	err := r.processGuard(guard)
+	if err != nil {
+		return 403, err
+	}
+
+	return 200, nil
+}
+
+func configWriter() {
+	for {
+		select {
+		case config := <-chConfig:
+			configs[config.Root] = config
+		}
+	}
 }

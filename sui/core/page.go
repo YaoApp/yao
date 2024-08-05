@@ -61,16 +61,17 @@ func (page *Page) GetConfig() *PageConfig {
 // ExportConfig export the config
 func (page *Page) ExportConfig() string {
 	if page.Config == nil {
-		return fmt.Sprintf(`{"cache_store": "%s"}`, page.CacheStore)
+		return fmt.Sprintf(`{"cacheStore": "%s"}`, page.CacheStore)
 	}
 
 	config, err := jsoniter.MarshalToString(map[string]interface{}{
-		"title":       page.Config.Title,
-		"guard":       page.Config.Guard,
-		"cache_store": page.CacheStore,
-		"cache":       page.Config.Cache,
-		"data_cache":  page.Config.DataCache,
-		"root":        page.Root,
+		"title":      page.Config.Title,
+		"guard":      page.Config.Guard,
+		"cacheStore": page.CacheStore,
+		"cache":      page.Config.Cache,
+		"dataCache":  page.Config.DataCache,
+		"api":        page.Config.API,
+		"root":       page.Root,
 	})
 
 	if err != nil {
