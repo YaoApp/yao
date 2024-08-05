@@ -221,16 +221,18 @@ function __sui_store(elm) {
 
 async function __sui_backend_call(
   route: string,
-  page: string,
+  headers: [string, string][] | Record<string, string> | Headers,
   method: string,
   ...args: any
 ): Promise<any> {
   const url = `/api/__yao/sui/v1/run${route}`;
-  const headers = {
+  headers = {
     "Content-Type": "application/json",
+    Referer: window.location.href,
     Cookie: document.cookie,
+    ...headers,
   };
-  const payload = { method, args, page };
+  const payload = { method, args };
   try {
     const body = JSON.stringify(payload);
     const response = await fetch(url, { method: "POST", headers, body: body });

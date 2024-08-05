@@ -378,15 +378,23 @@ type PageSetting struct {
 	CacheStore  string   `json:"cache_store,omitempty"`
 	Cache       int      `json:"cache,omitempty"`
 	Root        string   `json:"root,omitempty"`
-	DataCache   int      `json:"data_cache,omitempty"`
+	DataCache   int      `json:"dataCache,omitempty"`
 	Description string   `json:"description,omitempty"`
 	SEO         *PageSEO `json:"seo,omitempty"`
+	API         *PageAPI `json:"api,omitempty"`
 }
 
 // PageConfigRendered is the struct for the page config rendered
 type PageConfigRendered struct {
 	Title string `json:"title,omitempty"`
 	Link  string `json:"link,omitempty"`
+}
+
+// PageAPI is the struct for the page api
+type PageAPI struct {
+	Prefix       string            `json:"prefix,omitempty"`
+	DefaultGuard string            `json:"defaultGuard,omitempty"`
+	Guards       map[string]string `json:"guards,omitempty"`
 }
 
 // PageSEO is the struct for the page seo

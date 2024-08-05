@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -157,7 +158,7 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 
 	script, err := v8.Select(id)
 	if err != nil {
-		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("Guard: %s %s", name, err.Error())})
+		c.JSON(403, gin.H{"code": 403, "message": err.Error()})
 		c.Abort()
 		return err
 	}
@@ -394,7 +395,29 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 
 	_, err = ctx.Call(method, args...)
 	if err != nil {
-		c.JSON(403, gin.H{"code": 403, "message": fmt.Sprintf("Guard: %s %s", name, err.Error())})
+
+		message := err.Error()
+		if strings.HasPrefix(message, "Exception|") {
+			parts := strings.Split(message, ": ")
+
+			fmt.Println(parts)
+
+			if len(parts) > 1 {
+				codestr := strings.TrimPrefix(parts[0], "Exception|")
+				message := parts[1]
+				code := 403
+				if codestr != "" {
+					if v, err := strconv.Atoi(codestr); err == nil {
+						code = v
+					}
+				}
+				c.JSON(code, gin.H{"code": code, "message": message})
+				c.Abort()
+				return err
+			}
+		}
+
+		c.JSON(403, gin.H{"code": 403, "message": message})
 		c.Abort()
 		return err
 	}
