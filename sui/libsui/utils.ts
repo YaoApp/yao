@@ -14,12 +14,12 @@ function $Store(elm) {
   return new __sui_store(elm);
 }
 
-function $Query(selector: string): __Query {
+function $Query(selector: string | Element): __Query {
   return new __Query(selector);
 }
 
 class __Query {
-  selector: string | Element = "";
+  selector: string | Element | undefined = "";
   elements: NodeListOf<Element> | null = null;
   element: Element | null = null;
   constructor(selector: string | Element) {
@@ -41,6 +41,22 @@ class __Query {
 
   elms(): NodeListOf<Element> | null {
     return this.elements;
+  }
+
+  find(selector: string): __Query {
+    return new __Query(this.element?.querySelector(selector) || "");
+  }
+
+  closest(selector: string): __Query {
+    return new __Query(this.element?.closest(selector) || "");
+  }
+
+  on(event: string, callback: (event: Event) => void): __Query {
+    if (!this.element) {
+      return this;
+    }
+    this.element.addEventListener(event, callback);
+    return this;
   }
 
   $$() {
@@ -105,10 +121,6 @@ class __Query {
     }
   }
 
-  hasClass(className) {
-    return this.element?.classList.contains(className);
-  }
-
   prop(key) {
     if (!this.element || typeof this.element.getAttribute !== "function") {
       return null;
@@ -125,6 +137,20 @@ class __Query {
       }
     }
     return v;
+  }
+
+  hasClass(className) {
+    return this.element?.classList.contains(className);
+  }
+
+  toggleClass(className) {
+    const classes = Array.isArray(className) ? className : className.split(" ");
+    classes.forEach((c) => {
+      const v = c.replace(/[\n\r\s]/g, "");
+      if (v === "") return;
+      this.element?.classList.toggle(v);
+    });
+    return this;
   }
 
   removeClass(className) {
