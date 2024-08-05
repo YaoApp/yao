@@ -14,12 +14,12 @@ function $Store(elm) {
   return new __sui_store(elm);
 }
 
-function $Query(selector: string): __Query {
+function $Query(selector: string | Element): __Query {
   return new __Query(selector);
 }
 
 class __Query {
-  selector: string | Element = "";
+  selector: string | Element | undefined = "";
   elements: NodeListOf<Element> | null = null;
   element: Element | null = null;
   constructor(selector: string | Element) {
