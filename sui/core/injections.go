@@ -115,8 +115,7 @@ const componentInitScriptTmpl = `
 	this.root = %s;
 	this.store = new __sui_store(this.root);
 	this.props = new __sui_props(this.root);
-
-	if (!this.root.getAttribute("initialized")) {
+	if (this.root.getAttribute("initialized") != 'true') {
 		this.root.setAttribute("initialized", 'true');
 		this.root.addEventListener("state:change", function (event) {
 			const name = this.getAttribute("s:cn");
