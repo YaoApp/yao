@@ -43,12 +43,20 @@ class __Query {
     return this.elements;
   }
 
-  find(selector: string): __Query {
-    return new __Query(this.element?.querySelector(selector) || "");
+  find(selector: string): __Query | null {
+    const elm = this.element?.querySelector(selector);
+    if (elm) {
+      return new __Query(elm);
+    }
+    return null;
   }
 
-  closest(selector: string): __Query {
-    return new __Query(this.element?.closest(selector) || "");
+  closest(selector: string): __Query | null {
+    const elm = this.element?.closest(selector);
+    if (elm) {
+      return new __Query(elm);
+    }
+    return null;
   }
 
   on(event: string, callback: (event: Event) => void): __Query {
