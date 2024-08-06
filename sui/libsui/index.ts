@@ -42,13 +42,11 @@ function __sui_state(component) {
         return;
       }
 
-      let parent = component.root.parentElement;
-      while (parent && !parent.getAttribute("s:cn")) {
-        parent = parent.parentElement;
-      }
-      if (parent == document.body || parent == null) {
+      let parent = component.root.parentElement?.closest(`[s\\:cn]`);
+      if (parent == null) {
         return;
       }
+
       // Dispatch the state change custom event to parent component
       const event = new CustomEvent("state:change", {
         detail: { key: key, value: value, target: component.root },
