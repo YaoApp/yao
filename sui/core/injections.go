@@ -115,11 +115,17 @@ const componentInitScriptTmpl = `
 	this.root = %s;
 	const __self = this;
 	this.store = new __sui_store(this.root);
+	this.state = new __sui_state(this);
 	this.props = new __sui_props(this.root);
 	this.$root = new __Query(this.root);
+	
 	this.find = function (selector) {
 		return new __Query(__self.root).find(selector);
 	};
+
+	this.query = function (selector) {
+		return __self.root.querySelector(selector);
+	}
 
 	this.render = function(name, data, option) {
 		const r = new __Render(__self, option);
