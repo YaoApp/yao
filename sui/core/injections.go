@@ -113,8 +113,19 @@ const compEventScriptTmpl = `
 
 const componentInitScriptTmpl = `
 	this.root = %s;
+	const __self = this;
 	this.store = new __sui_store(this.root);
 	this.props = new __sui_props(this.root);
+	this.$root = new __Query(this.root);
+	this.find = function (selector) {
+		return new __Query(__self.root).find(selector);
+	};
+
+	this.render = function(name, data, option) {
+		const r = new __Render(__self, option);
+  		return r.Exec(name, data);
+	};
+
 	if (this.root.getAttribute("initialized") != 'true') {
 		this.root.setAttribute("initialized", 'true');
 		this.root.addEventListener("state:change", function (event) {
