@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -69,6 +70,12 @@ func Run(process *process.Process) interface{} {
 	// Get the page config
 	cfg, err := getPageConfig(file, r.Request.DisableCache())
 	if err != nil {
+
+		if err.Error() == "The config file not found" {
+			exception.New("The page not found (%s)", 404, route).Throw()
+			return nil
+		}
+
 		log.Error("Can't load the page config (%s), %s", route, err.Error())
 		exception.New("Can't load the page config (%s), get more information from the log.", 500, route).Throw()
 		return nil
@@ -135,7 +142,7 @@ func getPageConfig(file string, disableCache ...bool) (*core.PageConfig, error) 
 
 	file = base + ".cfg"
 	if exist, _ := application.App.Exists(file); !exist {
-		return nil, nil
+		return nil, fmt.Errorf("The config file not found")
 	}
 
 	source, err := application.App.Read(file)
