@@ -375,7 +375,7 @@ type PageConfig struct {
 type PageSetting struct {
 	Title       string   `json:"title,omitempty"`
 	Guard       string   `json:"guard,omitempty"`
-	CacheStore  string   `json:"cache_store,omitempty"`
+	CacheStore  string   `json:"cacheStore,omitempty"`
 	Cache       int      `json:"cache,omitempty"`
 	Root        string   `json:"root,omitempty"`
 	DataCache   int      `json:"dataCache,omitempty"`
