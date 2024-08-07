@@ -705,7 +705,6 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 	if !ispage {
 		arguments = "component"
 	}
-	injectScript := componentInitScript(arguments)
 
 	// Get the Constants and Helpers
 	var err error = nil
@@ -730,14 +729,14 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 	var imports []string = nil
 	var source []byte = nil
 	if page.Codes.TS.Code != "" {
-		code := fmt.Sprintf("%s\n%s", injectScript, page.Codes.TS.Code)
+		code := componentInitScript(arguments, page.Codes.TS.Code)
 		source, imports, err = page.CompileTS([]byte(code), option.ScriptMinify)
 		if err != nil {
 			return nil, err
 		}
 
 	} else if page.Codes.JS.Code != "" {
-		code := fmt.Sprintf("%s\n%s", injectScript, page.Codes.JS.Code)
+		code := componentInitScript(arguments, page.Codes.JS.Code)
 		source, imports, err = page.CompileJS([]byte(code), option.ScriptMinify)
 		if err != nil {
 			return nil, err

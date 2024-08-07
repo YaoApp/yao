@@ -49,6 +49,7 @@ var options = []expr.Option{
 	expr.Function("P_", _process),
 	expr.Function("True", _true),
 	expr.Function("False", _false),
+	expr.Function("Empty", _empty),
 	expr.AllowUndefinedVariables(),
 }
 
@@ -271,6 +272,55 @@ func _true(args ...any) (interface{}, error) {
 	}
 
 	return false, nil
+}
+
+func _empty(args ...any) (interface{}, error) {
+
+	if len(args) < 1 {
+		return true, nil
+	}
+
+	if args[0] == nil {
+		return true, nil
+	}
+
+	if v, ok := args[0].(string); ok {
+		return v == "", nil
+	}
+
+	if v, ok := args[0].(int); ok {
+		return v == 0, nil
+	}
+
+	if v, ok := args[0].(bool); ok {
+		return !v, nil
+	}
+
+	if v, ok := args[0].(map[string]interface{}); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].(map[string]string); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].([]interface{}); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].([]string); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].([]int); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].(Data); ok {
+		return len(v) == 0, nil
+	}
+
+	return true, nil
 }
 
 func _process(args ...any) (interface{}, error) {
