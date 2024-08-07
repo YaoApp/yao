@@ -132,9 +132,11 @@ const componentInitScriptTmpl = `
   		return r.Exec(name, data);
 	};
 
+	%s
+
 	if (this.root.getAttribute("initialized") != 'true') {
-		this.root.setAttribute("initialized", 'true');
-		this.root.addEventListener("state:change", function (event) {
+		__self.root.setAttribute("initialized", 'true');
+		__self.root.addEventListener("state:change", function (event) {
 			const name = this.getAttribute("s:cn");
 			const target = event.detail.target;
 			const key = event.detail.key;
@@ -143,6 +145,7 @@ const componentInitScriptTmpl = `
 			const state = new __sui_state(component);
 			state.Set(key, value, target)
 		});
+		__self.once && __self.once();
 	}
 `
 
@@ -181,8 +184,8 @@ func compEventInjectScript(eventID, eventName, component, dataKeys, jsonKeys, ha
 	return fmt.Sprintf(compEventScriptTmpl, eventID, eventID, eventName, dataKeys, jsonKeys, component, component, handler)
 }
 
-func componentInitScript(root string) string {
-	return fmt.Sprintf(componentInitScriptTmpl, root)
+func componentInitScript(root string, source string) string {
+	return fmt.Sprintf(componentInitScriptTmpl, root, source)
 }
 
 // BackendScript inject the backend script
