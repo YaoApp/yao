@@ -296,6 +296,30 @@ func _empty(args ...any) (interface{}, error) {
 		return !v, nil
 	}
 
+	if v, ok := args[0].(map[string]interface{}); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].(map[string]string); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].([]interface{}); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].([]string); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].([]int); ok {
+		return len(v) == 0, nil
+	}
+
+	if v, ok := args[0].(Data); ok {
+		return len(v) == 0, nil
+	}
+
 	return true, nil
 }
 
