@@ -108,8 +108,12 @@ function __sui_component(elm, component) {
   this.state = component ? new __sui_state(component) : {};
 
   const __self = this;
+
+  // @ts-ignore
   this.$root = new __Query(this.root);
+
   this.find = function (selector) {
+    // @ts-ignore
     return new __Query(__self.root).find(selector);
   };
 
@@ -117,7 +121,12 @@ function __sui_component(elm, component) {
     return __self.root.querySelector(selector);
   };
 
+  this.queryAll = function (selector) {
+    return __self.root.querySelectorAll(selector);
+  };
+
   this.render = function (name, data, option) {
+    // @ts-ignore
     const r = new __Render(__self, option);
     return r.Exec(name, data);
   };
