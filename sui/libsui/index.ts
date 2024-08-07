@@ -106,6 +106,30 @@ function __sui_component(elm, component) {
   this.store = new __sui_store(elm);
   this.props = new __sui_props(elm);
   this.state = component ? new __sui_state(component) : {};
+
+  const __self = this;
+
+  // @ts-ignore
+  this.$root = new __Query(this.root);
+
+  this.find = function (selector) {
+    // @ts-ignore
+    return new __Query(__self.root).find(selector);
+  };
+
+  this.query = function (selector) {
+    return __self.root.querySelector(selector);
+  };
+
+  this.queryAll = function (selector) {
+    return __self.root.querySelectorAll(selector);
+  };
+
+  this.render = function (name, data, option) {
+    // @ts-ignore
+    const r = new __Render(__self, option);
+    return r.Exec(name, data);
+  };
 }
 
 function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {

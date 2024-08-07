@@ -127,6 +127,10 @@ const componentInitScriptTmpl = `
 		return __self.root.querySelector(selector);
 	}
 
+	this.queryAll = function (selector) {
+		return __self.root.querySelectorAll(selector);
+	}
+
 	this.render = function(name, data, option) {
 		const r = new __Render(__self, option);
   		return r.Exec(name, data);
