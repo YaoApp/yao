@@ -64,6 +64,13 @@ const initScriptTmpl = `
 				}
 			});
 		} catch (e) {}
+
+		try {
+			__sui_event_init(document.body);
+		} catch (e) {
+		 	const message = e.message || e || "An error occurred";
+			console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
+		 }
 	});
 	%s
 `
@@ -134,6 +141,11 @@ const componentInitScriptTmpl = `
 	this.render = function(name, data, option) {
 		const r = new __Render(__self, option);
   		return r.Exec(name, data);
+	};
+
+	this.emit = function (name, data) {
+		const event = new CustomEvent(name, { detail: data });
+		__self.root.dispatchEvent(event);
 	};
 
 	%s

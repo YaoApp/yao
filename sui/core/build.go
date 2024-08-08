@@ -418,7 +418,7 @@ func (page *Page) parseProps(from *goquery.Selection, to *goquery.Selection, ext
 	for _, attr := range attrs {
 
 		// Copy Event
-		if strings.HasPrefix(attr.Key, "s:event") || strings.HasPrefix(attr.Key, "data:") || strings.HasPrefix(attr.Key, "json:") {
+		if strings.HasPrefix(attr.Key, "s:event") || strings.HasPrefix(attr.Key, "s:on-") || strings.HasPrefix(attr.Key, "data:") || strings.HasPrefix(attr.Key, "json:") {
 			to.SetAttr(attr.Key, attr.Val)
 			continue
 		}

@@ -125,6 +125,11 @@ function __sui_component(elm, component) {
     return __self.root.querySelectorAll(selector);
   };
 
+  this.emit = function (name, data) {
+    const event = new CustomEvent(name, { detail: data });
+    __self.root.dispatchEvent(event);
+  };
+
   this.render = function (name, data, option) {
     // @ts-ignore
     const r = new __Render(__self, option);
@@ -164,6 +169,10 @@ function __sui_event_init(elm: Element) {
   const eventElms = elm.querySelectorAll("[s\\:event]");
   eventElms.forEach((eventElm) => {
     const cn = eventElm.getAttribute("s:event-cn") || "";
+    if (cn == "") {
+      console.error("[SUI] Component name is required for event binding", elm);
+      return;
+    }
 
     // Data keys
     const events: Record<string, string> = {};
