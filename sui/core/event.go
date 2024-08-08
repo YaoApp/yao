@@ -18,11 +18,15 @@ func (page *Page) BindEvent(ctx *BuildContext, sel *goquery.Selection, cn string
 		if comp, has := s.Attr("is"); has && ctx.isJitComponent(comp) {
 			return
 		}
-		script := GetEventScript(ctx.sequence, s, page.namespace, cn, "event", ispage)
-		if script != nil {
-			ctx.scripts = append(ctx.scripts, *script)
-			ctx.sequence++
+		id := fmt.Sprintf("%s-%d", page.namespace, ctx.sequence)
+		s.SetAttr("s:event", id)
+		ReplaceEventData(s)
+		ctx.sequence++
+		if ispage {
+			s.SetAttr("s:event-cn", "__page")
+			return
 		}
+		s.SetAttr("s:event-cn", cn)
 	})
 }
 
@@ -109,5 +113,26 @@ func GetEventScript(sequence int, sel *goquery.Selection, ns string, cn string, 
 		Namespace: ns,
 		Component: cn,
 		Attrs:     []html.Attribute{{Key: "event", Val: id}},
+	}
+}
+
+// ReplaceEventData is a method that replaces the data- and json- attributes.
+func ReplaceEventData(sel *goquery.Selection) {
+	// Replace the data- and json- attributes
+	for _, attr := range sel.Nodes[0].Attr {
+
+		if strings.HasPrefix(attr.Key, "s:data-") {
+			name := strings.TrimPrefix(attr.Key, "s:data-")
+			sel.SetAttr(fmt.Sprintf("data:%s", name), attr.Val)
+			sel.RemoveAttr(fmt.Sprintf("s:data-%s", name))
+			continue
+		}
+
+		if strings.HasPrefix(attr.Key, "s:json-") {
+			name := strings.TrimPrefix(attr.Key, "s:json-")
+			sel.SetAttr(fmt.Sprintf("json:%s", name), attr.Val)
+			sel.RemoveAttr(fmt.Sprintf("s:json-%s", name))
+			continue
+		}
 	}
 }
