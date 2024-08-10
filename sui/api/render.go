@@ -126,7 +126,13 @@ func TemplateRender(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	root, err := sui.PublicRootWithSid(process.Sid)
+	opt := process.ArgsMap(4, map[string]interface{}{})
+	params, ok := opt["params"].(map[string]interface{})
+	if !ok {
+		params = map[string]interface{}{}
+	}
+
+	root, err := sui.PublicRoot(params)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -145,7 +151,6 @@ func TemplateRender(process *process.Process) interface{} {
 	}
 
 	data := process.ArgsMap(3)
-	opt := process.ArgsMap(4, map[string]interface{}{})
 	option := core.ParserOption{
 		Theme:        opt["theme"],
 		Locale:       opt["locale"],

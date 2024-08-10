@@ -98,6 +98,8 @@ func (script *Script) Call(r *Request, method string, args ...any) (interface{},
 	}
 	defer ctx.Close()
 
+	// Set the sid
+	ctx.Sid = r.Sid
 	res, err := ctx.Call(method, args...)
 	if err != nil {
 		return nil, err
@@ -118,6 +120,8 @@ func (script *Script) BeforeRender(r *Request, props map[string]interface{}) (Da
 		return nil, nil
 	}
 
+	// Set the sid
+	ctx.Sid = r.Sid
 	res, err := ctx.Call("BeforeRender", r, props)
 	if err != nil {
 		return nil, err
