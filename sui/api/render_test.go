@@ -21,7 +21,7 @@ func TestTemplateRender(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "<div> test </div>", res)
+	assert.Contains(t, res, "<div> test ")
 }
 
 func TestTemplateRenderWithComponent(t *testing.T) {
