@@ -20,13 +20,15 @@ func init() {
 	process.RegisterGroup("sui", map[string]process.Handler{
 		"setting": Setting,
 
-		"render": Render,
-		"run":    Run,
+		"render": Render, // do not use this in script or flow, this is an internal method. Use the template.render instead
+		"run":    Run,    // do not use this in script or flow, this is an internal method. Use the template.run instead
 
 		"template.get":         TemplateGet,
 		"template.find":        TemplateFind,
 		"template.asset":       TemplateAsset,
 		"template.assetupload": TemplateAssetUpload,
+		"template.render":      TemplateRender,
+		// "template.run":         TemplateRun,
 
 		"locale.get": LocaleGet,
 		"theme.get":  ThemeGet,

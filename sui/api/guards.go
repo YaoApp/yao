@@ -399,9 +399,6 @@ func (r *Request) scriptGuardExec(c *gin.Context, name string, args []interface{
 		message := err.Error()
 		if strings.HasPrefix(message, "Exception|") {
 			parts := strings.Split(message, ": ")
-
-			fmt.Println(parts)
-
 			if len(parts) > 1 {
 				codestr := strings.TrimPrefix(parts[0], "Exception|")
 				message := parts[1]

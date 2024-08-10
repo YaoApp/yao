@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
@@ -266,6 +267,30 @@ func (page *Page) SaveAs(route string, setting *core.PageSetting) (core.IPage, e
 	}
 
 	return page.tmpl.Page(route)
+}
+
+// CreatePage create a new page by the source
+func (tmpl *Template) CreatePage(source string) core.IPage {
+	name := uuid.New().String()
+	route := "/" + uuid.New().String()
+	return &Page{
+		tmpl: tmpl,
+		Page: &core.Page{
+			Route:      route,
+			TemplateID: tmpl.ID,
+			SuiID:      tmpl.local.ID,
+			Path:       filepath.Join(tmpl.Root, route),
+			Name:       name,
+			Codes: core.SourceCodes{
+				HTML: core.Source{File: fmt.Sprintf("%s.html", name), Code: source},
+				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
+				JS:   core.Source{File: fmt.Sprintf("%s.js", name)},
+				TS:   core.Source{File: fmt.Sprintf("%s.ts", name)},
+				LESS: core.Source{File: fmt.Sprintf("%s.less", name)},
+				CONF: core.Source{File: fmt.Sprintf("%s.config", name)},
+			},
+		},
+	}
 }
 
 // CreateEmptyPage create a new empty
