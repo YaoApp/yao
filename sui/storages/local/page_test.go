@@ -590,3 +590,35 @@ func TestPageAssetStyle(t *testing.T) {
 	assert.NotEmpty(t, asset.Content)
 	assert.Equal(t, "text/css; charset=utf-8", asset.Type)
 }
+
+func TestCreatePage(t *testing.T) {
+	tests := prepare(t)
+	defer clean()
+
+	tmpl, err := tests.Test.GetTemplate("advanced")
+	if err != nil {
+		t.Fatalf("GetTemplate error: %v", err)
+	}
+
+	page := tmpl.CreatePage("<div>Test</div>")
+	if page == nil {
+		t.Fatalf("CreatePage error")
+	}
+
+	doc, _, err := page.Get().Build(core.NewBuildContext(nil), &core.BuildOption{
+		PublicRoot:     tmpl.GetRoot(),
+		IgnoreDocument: true,
+		JitMode:        true,
+	})
+	if err != nil {
+		t.Fatalf("Compile error: %v", err)
+	}
+
+	sel := doc.Find("body")
+	html, err := sel.Html()
+	if err != nil {
+		t.Fatalf("Html error: %v", err)
+	}
+
+	assert.Equal(t, "<div>Test</div>", html)
+}

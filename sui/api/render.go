@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/sui/core"
 )
 
@@ -114,4 +115,62 @@ func (r *Request) renderHTML(c *core.Cache, name string, html string, data core.
 	}
 
 	return html, nil
+}
+
+// TemplateRender render the template asset
+func TemplateRender(process *process.Process) interface{} {
+	process.ValidateArgNums(4)
+	sui := get(process)
+	tmpl, err := sui.GetTemplate(process.ArgsString(1))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	root, err := sui.PublicRootWithSid(process.Sid)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	source := process.ArgsString(2)
+	page := tmpl.CreatePage(source)
+	route := page.Get().Route
+	doc, _, err := page.Get().Build(core.NewBuildContext(nil), &core.BuildOption{
+		PublicRoot:     root,
+		IgnoreDocument: true,
+		JitMode:        true,
+	})
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+		return nil
+	}
+
+	data := process.ArgsMap(3)
+	opt := process.ArgsMap(4, map[string]interface{}{})
+	option := core.ParserOption{
+		Theme:        opt["theme"],
+		Locale:       opt["locale"],
+		Debug:        false,
+		DisableCache: true,
+		Route:        route,
+		Root:         root,
+		Script:       nil,
+		Imports:      nil,
+		Request:      nil,
+	}
+
+	parser := core.NewTemplateParser(core.Data(data), &option)
+	sel := doc.Find("body")
+	err = parser.RenderSelection(sel)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	sel.Find("[sui-hide]").Remove()
+	parser.Tidy(sel)
+	html, err := sel.Html()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	return html
 }

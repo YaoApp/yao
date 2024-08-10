@@ -37,6 +37,7 @@ type ITemplate interface {
 	PageTree(route string) ([]*PageTreeNode, error)
 	Page(route string) (IPage, error)
 	PageExist(route string) bool
+	CreatePage(html string) IPage
 	CreateEmptyPage(route string, setting *PageSetting) (IPage, error)
 	RemovePage(route string) error
 	GetPageFromAsset(asset string) (IPage, error)
