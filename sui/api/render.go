@@ -2,8 +2,10 @@ package api
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/sui/core"
@@ -127,27 +129,48 @@ func TemplateRender(process *process.Process) interface{} {
 	}
 
 	opt := process.ArgsMap(4, map[string]interface{}{})
-	params, ok := opt["params"].(map[string]interface{})
+	buildOptionData, ok := opt["data"].(map[string]interface{})
 	if !ok {
-		params = map[string]interface{}{}
+		buildOptionData = map[string]interface{}{}
 	}
 
-	root, err := sui.PublicRoot(params)
+	root, err := sui.PublicRoot(buildOptionData)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
+	assetRoot := filepath.Join(root, "assets")
 
 	source := process.ArgsString(2)
 	page := tmpl.CreatePage(source)
 	route := page.Get().Route
-	doc, _, err := page.Get().Build(core.NewBuildContext(nil), &core.BuildOption{
+	globalCtx := core.NewGlobalBuildContext()
+	suicode, _, err := page.Get().CompileAsComponent(core.NewBuildContext(globalCtx), &core.BuildOption{
 		PublicRoot:     root,
+		AssetRoot:      assetRoot,
 		IgnoreDocument: true,
-		JitMode:        true,
+		Data:           buildOptionData,
 	})
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 		return nil
+	}
+
+	doc, err := core.NewDocument([]byte(suicode))
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+		return nil
+	}
+
+	var imports map[string]string
+	importsSel := doc.Find("script[name=imports]")
+	if importsSel != nil && importsSel.Length() > 0 {
+		importsRaw := importsSel.Text()
+		importsSel.Remove()
+		err := jsoniter.UnmarshalFromString(importsRaw, &imports)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+			return nil
+		}
 	}
 
 	data := process.ArgsMap(3)
@@ -159,8 +182,11 @@ func TemplateRender(process *process.Process) interface{} {
 		Route:        route,
 		Root:         root,
 		Script:       nil,
-		Imports:      nil,
-		Request:      nil,
+		Imports:      imports,
+		Request: &core.Request{
+			Theme:  opt["theme"],
+			Locale: opt["locale"],
+		},
 	}
 
 	parser := core.NewTemplateParser(core.Data(data), &option)
