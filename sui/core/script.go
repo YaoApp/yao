@@ -97,6 +97,10 @@ func (script *Script) Call(r *Request, method string, args ...any) (interface{},
 		return nil, err
 	}
 	defer ctx.Close()
+	if args == nil {
+		args = []any{}
+	}
+	args = append(args, r)
 
 	// Set the sid
 	ctx.Sid = r.Sid

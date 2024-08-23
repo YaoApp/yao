@@ -173,6 +173,28 @@ func TemplateRender(process *process.Process) interface{} {
 		}
 	}
 
+	r := core.Request{Theme: opt["theme"], Locale: opt["locale"]}
+	if process.NumOfArgs() > 5 {
+
+		raw, err := jsoniter.Marshal(process.Args[5])
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		err = jsoniter.Unmarshal(raw, &r)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		if r.Theme == "" {
+			r.Theme = opt["theme"]
+		}
+
+		if r.Locale == "" {
+			r.Locale = opt["locale"]
+		}
+	}
+
 	data := process.ArgsMap(3)
 	option := core.ParserOption{
 		Theme:        opt["theme"],
@@ -183,10 +205,7 @@ func TemplateRender(process *process.Process) interface{} {
 		Root:         root,
 		Script:       nil,
 		Imports:      imports,
-		Request: &core.Request{
-			Theme:  opt["theme"],
-			Locale: opt["locale"],
-		},
+		Request:      &r,
 	}
 
 	parser := core.NewTemplateParser(core.Data(data), &option)
