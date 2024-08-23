@@ -16,6 +16,7 @@ jobs:
   build:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,29 +41,8 @@ jobs:
           username: ${{ secrets.DOCKER_INTERNAL_USER }}
           password: ${{ secrets.DOCKER_INTERNAL_TOKEN }}
 
-      - name: Build Development
-        uses: docker/build-push-action@v6
-        with:
-          context: ./docker/development
-          platforms: linux/amd64
-          build-args: |
-            VERSION=${{ env.VERSION }}
-            ARCH=amd64
-          push: true
-          tags: hub.iqka.com/yaoapp/yao:${{ env.VERSION }}-amd64-dev
-
-      - name: Build Development Arm64
-        uses: docker/build-push-action@v6
-        with:
-          context: ./docker/development
-          platforms: linux/arm64
-          build-args: |
-            VERSION=${{ env.VERSION }} 
-            ARCH=arm64
-          push: true
-          tags: hub.iqka.com/yaoapp/yao:${{ env.VERSION }}-arm64-dev
-
       - name: Build Production
+        timeout-minutes: 60
         uses: docker/build-push-action@v6
         with:
           context: ./docker/production
@@ -74,6 +54,7 @@ jobs:
           tags: hub.iqka.com/yaoapp/yao:${{ env.VERSION }}-amd64
 
       - name: Build Production Arm64
+        timeout-minutes: 60
         uses: docker/build-push-action@v6
         with:
           context: ./docker/production
