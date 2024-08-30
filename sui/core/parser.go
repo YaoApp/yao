@@ -559,6 +559,35 @@ func (parser *TemplateParser) parseElementAttrs(sel *goquery.Selection, force ..
 			continue
 		}
 
+		// ...variable
+		if strings.HasPrefix(attr.Key, "...") {
+			key := attr.Key[3:]
+			if parser.data != nil {
+				if values, ok := parser.data[key].(map[string]any); ok {
+					for name, value := range values {
+						switch v := value.(type) {
+						case string:
+							sel.SetAttr(name, v)
+						case bool, int, float64:
+							sel.SetAttr(name, fmt.Sprintf("%v", v))
+
+						case nil:
+							sel.SetAttr(name, "")
+
+						default:
+							str, err := jsoniter.MarshalToString(value)
+							if err != nil {
+								continue
+							}
+							sel.SetAttr(name, str)
+							sel.SetAttr(fmt.Sprintf("json-attr-%s", name), "true")
+						}
+					}
+				}
+				continue
+			}
+		}
+
 		parser.sequence = parser.sequence + 1
 		res, values := parser.data.Replace(attr.Val)
 		if values != nil && len(values) > 0 {
