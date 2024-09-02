@@ -166,8 +166,7 @@ function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {
 }
 
 function __sui_event_init(elm: Element) {
-  const eventElms = elm.querySelectorAll("[s\\:event]");
-  eventElms.forEach((eventElm) => {
+  const bindEvent = (eventElm) => {
     const cn = eventElm.getAttribute("s:event-cn") || "";
     if (cn == "") {
       console.error("[SUI] Component name is required for event binding", elm);
@@ -204,7 +203,9 @@ function __sui_event_init(elm: Element) {
         continue;
       }
 
-      const comp = new window[cn](eventElm.closest(`[s\\:cn=${cn}]`));
+      const component = eventElm.closest(`[s\\:cn=${cn}]`);
+      // @ts-ignore
+      const comp = new window[cn](component);
       const handler = comp[bind];
       const root = comp.root;
       const target = eventElm;
@@ -212,7 +213,12 @@ function __sui_event_init(elm: Element) {
         __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler);
       });
     }
-  });
+  };
+
+  const eventElms = elm.querySelectorAll("[s\\:event]");
+  const jitEventElms = elm.querySelectorAll("[s\\:event-jit]");
+  eventElms.forEach((eventElm) => bindEvent(eventElm));
+  jitEventElms.forEach((eventElm) => bindEvent(eventElm));
 }
 
 function __sui_store(elm) {
