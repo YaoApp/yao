@@ -68,25 +68,27 @@ var keepWords = map[string]bool{
 }
 
 var allowUsePropAttrs = map[string]bool{
-	"s:if":       true,
-	"s:elif":     true,
-	"s:for":      true,
-	"s:event":    true,
-	"s:event-cn": true,
-	"s:render":   true,
-	"s:public":   true,
-	"s:assets":   true,
+	"s:if":        true,
+	"s:elif":      true,
+	"s:for":       true,
+	"s:event":     true,
+	"s:event-jit": true,
+	"s:event-cn":  true,
+	"s:render":    true,
+	"s:public":    true,
+	"s:assets":    true,
 }
 
 var keepAttrs = map[string]bool{
-	"s:ns":       true,
-	"s:cn":       true,
-	"s:ready":    true,
-	"s:event":    true,
-	"s:event-cn": true,
-	"s:render":   true,
-	"s:public":   true,
-	"s:assets":   true,
+	"s:ns":        true,
+	"s:cn":        true,
+	"s:ready":     true,
+	"s:event":     true,
+	"s:event-jit": true,
+	"s:event-cn":  true,
+	"s:render":    true,
+	"s:public":    true,
+	"s:assets":    true,
 }
 
 // NewTemplateParser create a new template parser

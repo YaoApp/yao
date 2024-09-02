@@ -65,6 +65,12 @@ func (parser *TemplateParser) parseJitComponent(sel *goquery.Selection) {
 	}
 	parser.parseElementComponent(comsel)
 	sel.ReplaceWithSelection(comsel)
+
+	// Bind the events (support for the page event only, full support is in the feature)
+	ns := comsel.AttrOr("s:ns", "")
+	if ns != "" {
+		parser.BindEvent(comsel, ns, "__page")
+	}
 }
 
 func (parser *TemplateParser) newJitComponentSel(sel *goquery.Selection, comp *JitComponent) (*goquery.Selection, error) {
