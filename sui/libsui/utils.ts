@@ -152,8 +152,10 @@ class __Query {
   }
 
   toggleClass(className) {
-    const classes = Array.isArray(className) ? className : className.split(" ");
-    classes.forEach((c) => {
+    const classes = Array.isArray(className)
+      ? className
+      : className?.split(" ");
+    classes?.forEach((c) => {
       const v = c.replace(/[\n\r\s]/g, "");
       if (v === "") return;
       this.element?.classList.toggle(v);
@@ -162,8 +164,10 @@ class __Query {
   }
 
   removeClass(className) {
-    const classes = Array.isArray(className) ? className : className.split(" ");
-    classes.forEach((c) => {
+    const classes = Array.isArray(className)
+      ? className
+      : className?.split(" ");
+    classes?.forEach((c) => {
       const v = c.replace(/[\n\r\s]/g, "");
       if (v === "") return;
       this.element?.classList.remove(v);
@@ -172,8 +176,10 @@ class __Query {
   }
 
   addClass(className) {
-    const classes = Array.isArray(className) ? className : className.split(" ");
-    classes.forEach((c) => {
+    const classes = Array.isArray(className)
+      ? className
+      : className?.split(" ");
+    classes?.forEach((c) => {
       const v = c.replace(/[\n\r\s]/g, "");
       if (v === "") return;
       this.element?.classList.add(v);
