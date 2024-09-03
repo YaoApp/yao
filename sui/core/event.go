@@ -34,13 +34,22 @@ func (page *Page) BindEvent(ctx *BuildContext, sel *goquery.Selection, cn string
 // This is temporarily used in the JIT mode. It will be refectored in the future.
 func (parser *TemplateParser) BindEvent(sel *goquery.Selection, ns string, cn string) {
 
+	hasEvent := false
 	sel.FindMatcher(eventMatcher).Each(func(i int, s *goquery.Selection) {
+		if _, has := s.Attr("s:event-cn"); has {
+			return
+		}
 		id := fmt.Sprintf("%s-%d-%d", ns, parser.sequence, i+1)
 		s.SetAttr("s:event", id)
 		ReplaceEventData(s)
 		s.SetAttr("s:event-cn", cn)
 		parser.sequence++
+		hasEvent = true
 	})
+
+	if !hasEvent {
+		return
+	}
 
 	// Bind page event
 	compSel := sel.Children().First()

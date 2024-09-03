@@ -77,6 +77,7 @@ var allowUsePropAttrs = map[string]bool{
 	"s:render":    true,
 	"s:public":    true,
 	"s:assets":    true,
+	"s:route":     true,
 }
 
 var keepAttrs = map[string]bool{
@@ -89,6 +90,7 @@ var keepAttrs = map[string]bool{
 	"s:render":    true,
 	"s:public":    true,
 	"s:assets":    true,
+	"s:route":     true,
 }
 
 // NewTemplateParser create a new template parser
