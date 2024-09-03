@@ -354,10 +354,15 @@ async function __sui_render(
   const root = document.body.getAttribute("s:public") || "";
   const route = routeAttr ? `${root}${routeAttr}` : window.location.pathname;
 
-  console.log("Route", route, elm, root);
-
   const url = `/api/__yao/sui/v1/render${route}`;
-  const payload = { name, data: { ..._data, ...data }, option };
+  const payload = { name, data: _data, option };
+
+  // merge the user data
+  if (data) {
+    for (const key in data) {
+      payload.data[key] = data[key];
+    }
+  }
   const headers = {
     "Content-Type": "application/json",
     Cookie: document.cookie,
