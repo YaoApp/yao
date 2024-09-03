@@ -348,7 +348,14 @@ async function __sui_render(
     _data = { ..._data, ...__sui_data };
   }
 
-  const route = window.location.pathname;
+  // get s:route attribute
+  const elm = comp.root.closest("[s\\:route]");
+  const routeAttr = elm ? elm.getAttribute("s:route") : false;
+  const root = document.body.getAttribute("s:public") || "";
+  const route = routeAttr ? `${root}${routeAttr}` : window.location.pathname;
+
+  console.log("Route", route, elm, root);
+
   const url = `/api/__yao/sui/v1/render${route}`;
   const payload = { name, data: { ..._data, ...data }, option };
   const headers = {

@@ -141,6 +141,9 @@ func (parser *TemplateParser) newJitComponentSel(sel *goquery.Selection, comp *J
 		compSel.SetAttr(fmt.Sprintf("prop:%s", key), val)
 	}
 
+	// Mark as jit component
+	compSel.SetAttr("s:route", comp.route)
+
 	// Replace the slots
 	slots := sel.Find("slot")
 	if slots.Length() > 0 {
