@@ -353,6 +353,7 @@ async function __sui_render(
   const routeAttr = elm ? elm.getAttribute("s:route") : false;
   const root = document.body.getAttribute("s:public") || "";
   const route = routeAttr ? `${root}${routeAttr}` : window.location.pathname;
+  option.component = (routeAttr && comp.root.getAttribute("s:cn")) || "";
 
   const url = `/api/__yao/sui/v1/render${route}`;
   const payload = { name, data: _data, option };
@@ -409,6 +410,7 @@ export type RenderOption = {
   showLoader?: HTMLElement | string | boolean; // default is false
   replace?: boolean; // default is true
   withPageData?: boolean; // default is false
+  component?: string; // default is empty
 };
 
 export type ComponentState = {
