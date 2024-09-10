@@ -256,11 +256,35 @@ func (script ScriptNode) ComponentHTML(ns string) string {
 		return "<script " + strings.Join(attrs, " ") + "></script>"
 	}
 
-	source := fmt.Sprintf(`function %s(){%s};`, script.Component, script.Source)
+	source := script.Source
+	if !strings.Contains(script.Source, "function "+script.Component) {
+		source = fmt.Sprintf(`function %s(){%s};`, script.Component, script.Source)
+	}
+
 	if script.Component == "" {
 		return "<script " + strings.Join(attrs, " ") + ">\n" + script.Source + "\n</script>"
 	}
 	return "<script " + strings.Join(attrs, " ") + ">\n" + source + "\n</script>"
+}
+
+// AttrOr return the attribute value or the default value
+func (script ScriptNode) AttrOr(key string, or string) string {
+	for _, attr := range script.Attrs {
+		if attr.Key == key {
+			return attr.Val
+		}
+	}
+	return or
+}
+
+// AttrOr return the attribute value or the default value
+func (style StyleNode) AttrOr(key string, or string) string {
+	for _, attr := range style.Attrs {
+		if attr.Key == key {
+			return attr.Val
+		}
+	}
+	return or
 }
 
 // HTML return the html of the style node

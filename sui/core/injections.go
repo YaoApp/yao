@@ -50,27 +50,19 @@ const initScriptTmpl = `
 	} catch (e) { console.log('init data error:', e); }
 
 	document.addEventListener("DOMContentLoaded", function () {
-		try {
-			document.querySelectorAll("[s\\:ready]").forEach(function (element) {
-				const method = element.getAttribute("s:ready");
-				const cn = element.getAttribute("s:cn");
-				if (method && typeof window[cn] === "function") {
-					try {
-						new window[cn](element);
-					} catch (e) {
-						const message = e.message || e || "An error occurred";
-						console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
-					}
+		document.querySelectorAll("[s\\:ready]").forEach(function (element) {
+			const method = element.getAttribute("s:ready");
+			const cn = element.getAttribute("s:cn");
+			if (method && typeof window[cn] === "function") {
+				try {
+					new window[cn](element);
+				} catch (e) {
+					const message = e.message || e || "An error occurred";
+					console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
 				}
-			});
-		} catch (e) {}
-
-		try {
-			__sui_event_init(document.body);
-		} catch (e) {
-		 	const message = e.message || e || "An error occurred";
-			console.error(` + "`[SUI] ${cn} Error: ${message}`" + `);
-		 }
+			}
+		});
+		__sui_event_init(document.body);
 	});
 	%s
 `

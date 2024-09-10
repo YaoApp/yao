@@ -71,11 +71,12 @@ func ComponentName(name string, hash ...bool) string {
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
 	cn := fmt.Sprintf("comp_%s", name)
-	if len(hash) > 0 && hash[0] {
-		h := fnv.New64a()
-		h.Write([]byte(cn))
-		return fmt.Sprintf("cn_%x", h.Sum64())
-	}
+	// Keep the component name | hash will be supported later
+	// if len(hash) > 0 && hash[0] {
+	// 	h := fnv.New64a()
+	// 	h.Write([]byte(cn))
+	// 	return fmt.Sprintf("cn_%x", h.Sum64())
+	// }
 	return cn
 }
 
