@@ -31,6 +31,10 @@ type TemplateParser struct {
 
 // ParserContext parser context for the template
 type ParserContext struct {
+	scriptMaps map[string]bool // parsed components
+	styleMaps  map[string]bool // parsed styles
+	scripts    []ScriptNode    // scripts
+	styles     []StyleNode     // styles
 }
 
 // Mapping mapping for the template
@@ -147,6 +151,17 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		head.AppendHtml(headInjectionScript(data))
 		parser.addScripts(head, parser.filterScripts("head", parser.scripts))
 		parser.addStyles(head, parser.styles)
+
+		// Append the just-in-time components
+		if parser.context != nil {
+			if parser.context.scripts != nil && len(parser.context.scripts) > 0 {
+				parser.addScripts(head, parser.filterScripts("head", parser.context.scripts))
+			}
+			if parser.context.scripts != nil && len(parser.context.styles) > 0 {
+				parser.addStyles(head, parser.context.styles)
+			}
+		}
+
 	}
 
 	// Append the data to the body
@@ -158,6 +173,11 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 		}
 		body.AppendHtml(bodyInjectionScript(data, parser.debug()))
 		parser.addScripts(body, parser.filterScripts("body", parser.scripts))
+
+		// Append the just-in-time components
+		if parser.context != nil && len(parser.context.scripts) > 0 {
+			parser.addScripts(body, parser.filterScripts("body", parser.context.scripts))
+		}
 	}
 
 	// For editor
@@ -340,6 +360,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 		setError(sel, err)
 	}
 	parser.sequence = compParser.sequence + 1
+	parser.context = compParser.context
 
 }
 

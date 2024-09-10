@@ -204,6 +204,11 @@ function __sui_event_init(elm: Element) {
       }
 
       const component = eventElm.closest(`[s\\:cn=${cn}]`);
+      if (typeof window[cn] !== "function") {
+        console.error(`[SUI] Component ${cn} not found`, eventElm);
+        return;
+      }
+
       // @ts-ignore
       const comp = new window[cn](component);
       const handler = comp[bind];
