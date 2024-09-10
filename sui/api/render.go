@@ -69,7 +69,19 @@ func Render(process *process.Process) interface{} {
 		return fmt.Sprintf("<span class='sui-render-error'> Name not found </span>")
 	}
 
-	html, err := r.renderHTML(c, name, c.HTML, core.Data(data))
+	// Get the render option
+	option := map[string]interface{}{}
+	if v, ok := payload["option"].(map[string]interface{}); ok {
+		option = v
+	}
+
+	// Get the component name (optional)
+	comp := ""
+	if v, ok := option["component"].(string); ok {
+		comp = v
+	}
+
+	html, err := r.renderHTML(c, name, comp, c.HTML, core.Data(data))
 	if err != nil {
 		return fmt.Sprintf("<span class='sui-render-error'> %s </span>", err.Error())
 	}
@@ -77,7 +89,7 @@ func Render(process *process.Process) interface{} {
 	return html
 }
 
-func (r *Request) renderHTML(c *core.Cache, name string, html string, data core.Data) (string, error) {
+func (r *Request) renderHTML(c *core.Cache, name string, comp string, html string, data core.Data) (string, error) {
 
 	doc, err := core.NewDocument([]byte(html))
 	if err != nil {
@@ -111,6 +123,15 @@ func (r *Request) renderHTML(c *core.Cache, name string, html string, data core.
 
 	sel.Find("[sui-hide]").Remove()
 	parser.Tidy(sel)
+
+	// **** warning ****
+	// Fix s:event-cn="__page" to s:event-cn="component" for component
+	// The following code is the temporary solution for the component event
+	// will be removed in the sui v2 release
+	if comp != "" {
+		sel.Find("[s\\:event-cn='__page']").SetAttr("s:event-cn", comp)
+	}
+
 	html, err = sel.Html()
 	if err != nil {
 		return "", fmt.Errorf("Html error: %w", err)
