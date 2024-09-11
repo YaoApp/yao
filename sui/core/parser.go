@@ -60,16 +60,17 @@ type ParserOption struct {
 	Request      *Request          `json:"request,omitempty"`
 }
 
-var keepWords = map[string]bool{
-	"s:if":        true,
-	"s:for":       true,
-	"s:for-item":  true,
-	"s:for-index": true,
-	"s:elif":      true,
-	"s:else":      true,
-	"s:set":       true,
-	"s:bind":      true,
-}
+// var keepWords = map[string]bool{
+// 	"s:if":        true,
+// 	"s:for":       true,
+// 	"s:for-item":  true,
+// 	"s:for-index": true,
+// 	"s:elif":      true,
+// 	"s:else":      true,
+// 	"s:set":       true,
+//  "set": 	   	   true,
+// 	"s:bind":      true,
+// }
 
 var allowUsePropAttrs = map[string]bool{
 	"s:if":        true,
@@ -268,7 +269,8 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 		parser.ifStatementNode(sel)
 	}
 
-	if _, exist := sel.Attr("s:set"); exist || node.Data == "s:set" {
+	// keep the node if the editor is enabled
+	if _, exist := sel.Attr("s:set"); exist || node.Data == "s:set" || node.Data == "set" {
 		parser.setStatementNode(sel)
 	}
 
