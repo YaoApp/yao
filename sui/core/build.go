@@ -56,6 +56,9 @@ func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Docume
 	// Parse the imports
 	page.parseImports(doc)
 
+	// Parse the dynamic components
+	page.parseDynamics(ctx, doc.Selection)
+
 	body := doc.Find("body")
 	body.SetAttr("s:ns", namespace)
 	body.SetAttr("s:public", option.PublicRoot) // Save public root
@@ -195,6 +198,9 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	// Parse the imports
 	page.parseImports(doc)
 
+	// Parse the dynamic components
+	page.parseDynamics(ctx, doc.Selection)
+
 	// Bind the component events
 	page.BindEvent(ctx, doc.Selection, component, false)
 
@@ -264,6 +270,21 @@ func (page *Page) BuildAsComponent(sel *goquery.Selection, ctx *BuildContext, op
 	sel.ReplaceWithSelection(body.Contents())
 	ctx.components[component] = page.Route
 	return source, nil
+}
+
+// Parse the dynamic components, which are the is attribute is variable
+func (page *Page) parseDynamics(ctx *BuildContext, sel *goquery.Selection) {
+	if ctx == nil {
+		ctx = NewBuildContext(nil)
+	}
+	sel.Find("dynamic").Each(func(i int, s *goquery.Selection) {
+		defer s.Remove()
+		route := s.AttrOr("route", "")
+		if route == "" {
+			return
+		}
+		ctx.addJitComponent(route)
+	})
 }
 
 func (page *Page) parseImports(doc *goquery.Document) {
