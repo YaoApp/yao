@@ -53,10 +53,18 @@ func NewRequestContext(c *gin.Context) (*Request, int, error) {
 
 	path := strings.TrimSuffix(c.Request.URL.Path, ".sui")
 
+	sid := ""
+	if v, has := c.Get("__sid"); has {
+		if s, ok := v.(string); ok {
+			sid = s
+		}
+	}
+
 	return &Request{
 		File:    file,
 		context: c,
 		Request: &core.Request{
+			Sid:     sid,
 			Method:  c.Request.Method,
 			Query:   c.Request.URL.Query(),
 			Body:    body,
