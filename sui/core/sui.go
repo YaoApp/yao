@@ -96,7 +96,9 @@ func (sui *DSL) PublicRoot(data map[string]interface{}) (string, error) {
 
 	// Merge the data
 	for k, v := range sessionData {
-		data[k] = v
+		if _, ok := data[k]; !ok {
+			data[k] = v
+		}
 	}
 
 	vars := map[string]interface{}{"$session": data}

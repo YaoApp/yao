@@ -194,7 +194,7 @@ func TemplateRender(process *process.Process) interface{} {
 		}
 	}
 
-	r := core.Request{Theme: opt["theme"], Locale: opt["locale"]}
+	r := core.Request{Theme: opt["theme"], Locale: opt["locale"], Sid: process.Sid}
 	if process.NumOfArgs() > 5 {
 
 		raw, err := jsoniter.Marshal(process.Args[5])
