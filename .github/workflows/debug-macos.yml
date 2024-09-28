@@ -42,7 +42,7 @@ jobs:
           security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
 
           # import private key to keychain
-          security import ./certs/private_key.p12 -k $KEYCHAIN_PATH -P '${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}' -T /usr/bin/codesign
+          security import ./certs/private_key.p12 -k $KEYCHAIN_PATH -P "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" -T /usr/bin/codesign
 
           security list-keychain -d user -s $KEYCHAIN_PATH
 
