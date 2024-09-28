@@ -29,6 +29,6 @@ jobs:
 
       - name: DEUBG
         run: |
+          security list-keychains -s ~/Library/Keychains/login.keychain-db  
           security find-identity -v -p codesigning
           security find-identity -p codesigning
-          security list-keychains -s ~/Library/Keychains/login.keychain-db
