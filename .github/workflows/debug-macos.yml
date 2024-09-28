@@ -1,0 +1,34 @@
+name: Apple Sign debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Version tags"
+
+env:
+  VERSION: 0.9.0
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        go: [1.21.1]
+    runs-on: "macos-12"
+    steps:
+      - name: Install Certificates
+        run: |
+          mkdir -p certs
+          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode  > certs/DeveloperIDG2CA.cer
+          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode  > certs/distribution.cer
+
+      - name: Import Certificates
+        run: |
+          security import ./certs/DeveloperIDG2CA.cer -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+          security import ./certs/distribution.cer -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+
+      - name: DEUBG
+        run: |
+          security find-identity -v -p codesigning
+          security find-identity -p codesigning
+          security list-keychains -s ~/Library/Keychains/login.keychain-db
