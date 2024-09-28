@@ -7,6 +7,7 @@ GOFILES := $(shell find . -name "*.go")
 VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
 COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
 NOW := $(shell date +"%FT%T%z")
+OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests|openai|aigc|neo|share*')
@@ -333,6 +334,11 @@ release: clean
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
+
+#   MacOS Application Signing
+	@if [ "$(OS)" = "Darwin" ]; then \
+	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
+	fi
 
 # 	Reset const 
 	cp -f share/const.goe share/const.go
