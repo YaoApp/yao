@@ -21,6 +21,8 @@ jobs:
           mkdir -p certs
           echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode  > certs/DeveloperIDG2CA.cer
           echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode  > certs/distribution.cer
+          security verify-cert -c certs/DeveloperIDG2CA.cer
+          security verify-cert -c certs/distribution.cer
 
       - name: Import Certificates
         run: |
@@ -29,6 +31,7 @@ jobs:
 
       - name: DEUBG
         run: |
-          security list-keychains -s ~/Library/Keychains/login.keychain-db  
+          security list-keychains -s ~/Library/Keychains/login.keychain-db
           security find-identity -v -p codesigning
           security find-identity -p codesigning
+          security dump-keychain -d -r ~/Library/Keychains/login.keychain-db
