@@ -108,27 +108,21 @@ jobs:
           mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
           mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
 
-      # - name: Push arm64 To Silicon Valley
-      #   uses: TencentCloud/cos-action@v1
-      #   with:
-      #     secret_id: ${{ secrets.COS_ID }}
-      #     secret_key: ${{ secrets.COS_KEY }}
-      #     cos_bucket: release-sv-1252011659
-      #     cos_region: na-siliconvalley
-      #     local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-arm64
-      #     remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-arm64
-      #     clean: false
+      - name: Install Certificates
+        run: |
+          mkdir -p certs
+          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode  > certs/DeveloperIDG2CA.cer
+          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode  > certs/distribution.cer
 
-      # - name: Push amd64 To Silicon Valley
-      #   uses: TencentCloud/cos-action@v1
-      #   with:
-      #     secret_id: ${{ secrets.COS_ID }}
-      #     secret_key: ${{ secrets.COS_KEY }}
-      #     cos_bucket: release-sv-1252011659
-      #     cos_region: na-siliconvalley
-      #     local_path: dist/release/yao-${{ env.VERSION }}-unstable-darwin-amd64
-      #     remote_path: /archives/yao-${{ env.VERSION }}-unstable-darwin-amd64
-      #     clean: false
+      - name: Import Certificates
+        run: |
+          security import ./certs/DeveloperIDG2CA.cer -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+          security import ./certs/distribution.cer -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+
+      - name: Sign Artifacts
+        run: |
+          codesign --deep --force --verify --verbose --sign "${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
+          codesign --deep --force --verify --verbose --sign "${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
