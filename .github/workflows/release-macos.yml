@@ -13,7 +13,9 @@ jobs:
         run: |
           echo "Downloading latest artifacts..."
           ARTIFACT_URL="https://api.github.com/repos/YaoApp/yao/actions/artifacts"
-          ARTIFACTS=$(curl -s -H "Accept: application/vnd.github.v3+json" $ARTIFACT_URL | jq -r '.artifacts[] | select(.name | contains("yao-macos")) | .id')
+          ARTIFACT_CONTENT=$(curl -s -H "Accept: application/vnd.github.v3+json" $ARTIFACT_URL)
+          echo $ARTIFACT_CONTENT
+          ARTIFACTS=$(echo $ARTIFACT_CONTENT | jq -r '.artifacts[] | select(.name | contains("yao-macos")) | .id')
           for id in $ARTIFACTS; do
               echo "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip"
               curl -L -H "Accept: application/vnd.github.v3+json" \
