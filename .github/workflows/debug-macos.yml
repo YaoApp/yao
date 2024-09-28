@@ -17,6 +17,9 @@ jobs:
     runs-on: "macos-12"
     steps:
       - name: Install Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+
         run: |
           mkdir -p certs
           echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode  > certs/DeveloperIDG2CA.cer
@@ -26,12 +29,19 @@ jobs:
 
       - name: Import Certificates
         run: |
-          security import ./certs/DeveloperIDG2CA.cer -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
-          security import ./certs/distribution.cer -k ~/Library/Keychains/login.keychain-db -T /usr/bin/codesign
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
+          security import ./certs/DeveloperIDG2CA.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security list-keychain -d user -s $KEYCHAIN_PATH
 
       - name: DEUBG
         run: |
-          security list-keychains -s ~/Library/Keychains/login.keychain-db
           security find-identity -v -p codesigning
           security find-identity -p codesigning
-          security dump-keychain -d -r ~/Library/Keychains/login.keychain-db
