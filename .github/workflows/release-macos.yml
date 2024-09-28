@@ -1,0 +1,62 @@
+name: Release MacOS Artifacts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: "macos-12"
+    timeout-minutes: 120
+
+    steps:
+      - name: Download latest artifacts
+        run: |
+          echo "Downloading latest artifacts..."
+          ARTIFACT_URL="https://api.github.com/repos/YaoApp/yao/actions/artifacts"
+          ARTIFACTS=$(curl -s -H "Accept: application/vnd.github.v3+json" $ARTIFACT_URL | jq -r '.artifacts[] | select(.name | contains("yao-macos")) | .id')
+          for id in $ARTIFACTS; do
+              echo "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip"
+              curl -L -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip" \
+              -o artifact.zip
+              unzip artifact.zip -d ./artifacts
+              rm artifact.zip
+              break
+          done
+          ls -l ./artifacts
+
+    #   - name: Submit notarization request
+    #     run: |
+    #       echo "Submitting notarization request..."
+    #       UUID=$(xcrun altool --notarize-app --primary-bundle-id "com.example.yourapp" \
+    #         --username "your-apple-id" --password "app-specific-password" \
+    #         --file ./artifacts/your-binary-file)
+
+    #       echo "Notarization UUID: $UUID"
+    #       echo "$UUID" > notarization_uuid.txt
+
+    #   - name: Check notarization status
+    #     id: check_notarization
+    #     timeout-minutes: 120
+    #     run: |
+    #       UUID=$(cat notarization_uuid.txt)
+    #       STATUS="in progress"
+    #       while [[ "$STATUS" == "in progress" ]]; do
+    #         STATUS=$(xcrun altool --notarization-info "$UUID" \
+    #           --username "your-apple-id" --password "app-specific-password")
+    #         echo "Notarization status: $STATUS"
+    #         if [[ "$STATUS" == *"success"* ]]; then
+    #           echo "::set-output name=status::success"
+    #           break
+    #         elif [[ "$STATUS" == *"invalid"* ]]; then
+    #           echo "::set-output name=status::failed"
+    #           break
+    #         fi
+    #       done
+
+    #   - name: Create Release
+    #     if: steps.check_notarization.outputs.status == 'success'
+    #     run: |
+    #       echo "Creating a release..."
+    #       VERSION=$(git rev-parse --short HEAD)
+    #       gh release create "v1.0.0-$VERSION" ./artifacts/* --title "Release v0.10.4-$VERSION" --notes "Notarization succeeded. This is the release for version v1.0.0-$VERSION."
