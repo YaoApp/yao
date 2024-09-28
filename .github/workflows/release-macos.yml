@@ -13,13 +13,15 @@ jobs:
         run: |
           echo "Downloading latest artifacts..."
           ARTIFACT_URL="https://api.github.com/repos/YaoApp/yao/actions/artifacts"
-          ARTIFACTS=$(curl -s -H "Accept: application/vnd.github.v3+json" $ARTIFACT_URL | jq -r '.artifacts[] | select(.name | contains("build-macos")) | .id')
+          ARTIFACTS=$(curl -s -H "Accept: application/vnd.github.v3+json" $ARTIFACT_URL | jq -r '.artifacts[] | select(.name | contains("yao-macos")) | .id')
           for id in $ARTIFACTS; do
-            curl -L -H "Accept: application/vnd.github.v3+json" \
+              echo "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip"
+              curl -L -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip" \
               -o artifact.zip
-            unzip artifact.zip -d ./artifacts
-            rm artifact.zip
+              unzip artifact.zip -d ./artifacts
+              rm artifact.zip
+              break
           done
           ls -l ./artifacts
 
