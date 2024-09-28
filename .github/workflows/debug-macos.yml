@@ -22,8 +22,9 @@ jobs:
 
         run: |
           mkdir -p certs
-          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode  > certs/DeveloperIDG2CA.cer
-          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode  > certs/distribution.cer
+          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode > certs/DeveloperIDG2CA.cer
+          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode > certs/distribution.cer
+          echo "${{ secrets.APPLE_PRIVATE_KEY }}" | base64 --decode > certs/private_key.pem
           security verify-cert -c certs/DeveloperIDG2CA.cer
           security verify-cert -c certs/distribution.cer
 
@@ -39,9 +40,13 @@ jobs:
           # import certificate to keychain
           security import ./certs/DeveloperIDG2CA.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
           security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+
+          # import private key to keychain
+          security import ./certs/private_key.pem -k $KEYCHAIN_PATH -T /usr/bin/codesign
+
           security list-keychain -d user -s $KEYCHAIN_PATH
 
-      - name: DEUBG
+      - name: Check Certificates
         run: |
           security find-identity -v -p codesigning
           security find-identity -p codesigning
