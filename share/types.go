@@ -71,20 +71,21 @@ type Page struct {
 
 // AppInfo 应用信息
 type AppInfo struct {
-	Name        string                 `json:"name,omitempty"`
-	L           map[string]string      `json:"-"`
-	Short       string                 `json:"short,omitempty"`
-	Version     string                 `json:"version,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Icons       maps.MapStrSync        `json:"icons,omitempty"`
-	Storage     AppStorage             `json:"storage,omitempty"`
-	Option      map[string]interface{} `json:"option,omitempty"`
-	XGen        string                 `json:"xgen,omitempty"`
-	AdminRoot   string                 `json:"adminRoot,omitempty"`
-	Static      Static                 `json:"public,omitempty"`
-	Optional    map[string]interface{} `json:"optional,omitempty"`
-	Moapi       Moapi                  `json:"moapi,omitempty"`
-	AfterLoad   string                 `json:"afterLoad,omitempty"` // Process executed after the app is loaded
+	Name         string                 `json:"name,omitempty"`
+	L            map[string]string      `json:"-"`
+	Short        string                 `json:"short,omitempty"`
+	Version      string                 `json:"version,omitempty"`
+	Description  string                 `json:"description,omitempty"`
+	Icons        maps.MapStrSync        `json:"icons,omitempty"`
+	Storage      AppStorage             `json:"storage,omitempty"`
+	Option       map[string]interface{} `json:"option,omitempty"`
+	XGen         string                 `json:"xgen,omitempty"`
+	AdminRoot    string                 `json:"adminRoot,omitempty"`
+	Static       Static                 `json:"public,omitempty"`
+	Optional     map[string]interface{} `json:"optional,omitempty"`
+	Moapi        Moapi                  `json:"moapi,omitempty"`
+	AfterLoad    string                 `json:"afterLoad,omitempty"`    // Process executed after the app is loaded
+	AfterMigrate string                 `json:"afterMigrate,omitempty"` // Process executed after the app is migrated
 }
 
 // Moapi AIGC App Store API
