@@ -7,6 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
@@ -86,6 +87,21 @@ var migrateCmd = &cobra.Command{
 				continue
 			}
 			fmt.Printf(color.GreenString(L("SUCCESS")) + "\n")
+		}
+
+		// After Migrate Hook
+		if share.App.AfterMigrate != "" {
+			option := map[string]any{"force": force, "reset": resetModel, "mode": config.Conf.Mode}
+			p, err := process.Of(share.App.AfterMigrate, option)
+			if err != nil {
+				fmt.Println(color.RedString(L("AfterMigrate: %s %v"), share.App.AfterMigrate, err))
+				return
+			}
+
+			_, err = p.Exec()
+			if err != nil {
+				fmt.Println(color.RedString(L("AfterMigrate: %s %v"), share.App.AfterMigrate, err))
+			}
 		}
 
 		// fmt.Println(color.GreenString(L("✨DONE✨")))
