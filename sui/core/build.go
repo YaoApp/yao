@@ -731,7 +731,7 @@ func (page *Page) BuildScripts(ctx *BuildContext, option *BuildOption, component
 	}
 
 	arguments := "document.body"
-	if !ispage {
+	if !ispage || option.JitMode {
 		arguments = "component"
 	}
 
