@@ -386,7 +386,12 @@ async function __sui_render(
     // Set the response text to the elements
     elms.forEach((elm) => {
       elm.innerHTML = text;
-      __sui_event_init(elm);
+      try {
+        __sui_event_init(elm);
+      } catch (e) {
+        const message = e.message || "Failed to init events";
+        Promise.reject(message);
+      }
     });
 
     return Promise.resolve(text);
