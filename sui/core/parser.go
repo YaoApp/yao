@@ -901,6 +901,7 @@ func (parser *TemplateParser) show(sel *goquery.Selection) {
 	// sel.SetAttr("style", style)
 }
 
+// Tidy the template by removing the parsed attributes
 func (parser *TemplateParser) Tidy(s *goquery.Selection) {
 
 	s.Contents().Each(func(i int, child *goquery.Selection) {
