@@ -82,11 +82,12 @@ func (parser *TemplateParser) parseJitComponent(sel *goquery.Selection) {
 	// Add the scripts
 	if comp.scripts != nil {
 		for _, script := range comp.scripts {
-			if parser.context.scriptMaps[script.Component] {
+			hash := script.Hash()
+			if parser.context.scriptMaps[hash] {
 				continue
 			}
 			script.Parent = "head"
-			parser.context.scriptMaps[script.Component] = true
+			parser.context.scriptMaps[hash] = true
 			parser.context.scripts = append(parser.context.scripts, script)
 		}
 	}
@@ -356,7 +357,7 @@ func (parser *TemplateParser) filterScripts(parent string, scripts []ScriptNode)
 func (parser *TemplateParser) addScripts(sel *goquery.Selection, scripts []ScriptNode) {
 	for _, script := range scripts {
 		if script.Component != "" {
-			query := fmt.Sprintf(`script[s\:cn="%s"]`, script.Component)
+			query := fmt.Sprintf(`script[s\:hash="%s"]`, script.Hash())
 			if sel.Find(query).Length() > 0 {
 				continue
 			}

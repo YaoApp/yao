@@ -88,6 +88,7 @@ var allowUsePropAttrs = map[string]bool{
 var keepAttrs = map[string]bool{
 	"s:ns":        true,
 	"s:cn":        true,
+	"s:hash":      true,
 	"s:ready":     true,
 	"s:event":     true,
 	"s:event-jit": true,
