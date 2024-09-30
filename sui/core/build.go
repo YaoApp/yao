@@ -285,7 +285,7 @@ func (page *Page) parseDynamics(ctx *BuildContext, sel *goquery.Selection) {
 		}
 		ctx.addJitComponent(route)
 
-		// This is a temprary solution, we will refactor this later
+		// This is a temporary solution, we will refactor this later
 		// Some components are not used in the page, but they are used in the script
 		// So we need to add them to the components
 		// But this solution is not perfect, it will cause import the unnecessary components, just ignore it.
