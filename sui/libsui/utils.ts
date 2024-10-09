@@ -19,19 +19,25 @@ function $Query(selector: string | Element): __Query {
 }
 
 class __Query {
-  selector: string | Element | undefined = "";
+  selector: string | Element | NodeListOf<Element> | undefined = "";
   elements: NodeListOf<Element> | null = null;
   element: Element | null = null;
-  constructor(selector: string | Element) {
+  constructor(selector: string | Element | NodeListOf<Element>) {
     if (typeof selector === "string") {
       this.selector = selector;
       this.elements = document.querySelectorAll(selector);
       if (this.elements.length > 0) {
         this.element = this.elements[0];
       }
+    } else if (selector instanceof NodeList) {
+      this.elements = selector;
+      if (this.elements.length > 0) {
+        this.element = this.elements[0];
+      }
     } else {
       this.element = selector;
     }
+
     this.selector = selector;
   }
 
@@ -47,6 +53,14 @@ class __Query {
     const elm = this.element?.querySelector(selector);
     if (elm) {
       return new __Query(elm);
+    }
+    return null;
+  }
+
+  findAll(selector: string): __Query | null {
+    const elms = this.element?.querySelectorAll(selector);
+    if (elms) {
+      return new __Query(elms);
     }
     return null;
   }
