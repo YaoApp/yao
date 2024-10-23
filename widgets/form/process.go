@@ -84,6 +84,7 @@ func processDownload(process *gouProcess.Process) interface{} {
 	field := process.ArgsString(1)
 	file := process.ArgsString(2)
 	tokenString := process.ArgsString(3)
+	isAppRoot := process.ArgsInt(4, 0)
 
 	// checking
 	ext := fs.ExtName(file)
@@ -102,6 +103,11 @@ func processDownload(process *gouProcess.Process) interface{} {
 	name := "fs.system.Download"
 	if form.Action.Download.Process != "" {
 		name = form.Action.Download.Process
+	}
+
+	// The root path of the application the Upload Component props.appRoot=true
+	if isAppRoot == 1 {
+		name = "fs.app.Download"
 	}
 
 	// Create process

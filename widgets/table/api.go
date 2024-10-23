@@ -187,7 +187,7 @@ func exportAPI() error {
 		Path:        "/:id/download/:field",
 		Method:      "GET",
 		Process:     "yao.table.Download",
-		In:          []interface{}{"$param.id", "$param.field", "$query.name", "$query.token"},
+		In:          []interface{}{"$param.id", "$param.field", "$query.name", "$query.token", "$query.app"},
 		Out: api.Out{
 			Status:  200,
 			Body:    "{{content}}",
