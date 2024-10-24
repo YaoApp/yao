@@ -179,6 +179,18 @@ func (p PropsDSL) parseCloudProps(xpath string, component string, props map[stri
 	return res, nil
 }
 
+// Has check if the prop exists in the props
+func (p PropsDSL) Has(name string) bool {
+	_, has := p[name]
+	if has {
+		return has
+	}
+
+	// check if the prop is a cloud prop
+	_, has = p[fmt.Sprintf("$%s", name)]
+	return has
+}
+
 // Parse parse cloud props
 func (cProp *CloudPropsDSL) Parse(v interface{}) error {
 
