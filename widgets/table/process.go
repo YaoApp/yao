@@ -164,7 +164,7 @@ func processComponent(process *gouProcess.Process) interface{} {
 	// :query
 	query := map[string]interface{}{}
 	if process.NumOfArgsIs(4) {
-		query = process.ArgsMap(3)
+		query = process.ArgsMap(3, map[string]interface{}{})
 	}
 
 	// execute query
