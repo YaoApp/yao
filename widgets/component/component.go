@@ -29,7 +29,7 @@ func (dsl DSL) Map() map[string]interface{} {
 	}
 
 	// Add Default Value for Upload api
-	if dsl.Type == "Upload" && dsl.Props != nil && !dsl.Props.Has("api") {
+	if (dsl.Type == "Upload" || dsl.Type == "Image") && dsl.Props != nil && !dsl.Props.Has("api") {
 		res["props"].(map[string]interface{})["$api"] = map[string]interface{}{"process": "fs.data.Upload"}
 	}
 
