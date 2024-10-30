@@ -63,11 +63,13 @@ func processHandler(p *action.Process, process *gouProcess.Process) (interface{}
 		return nil, fmt.Errorf("[list] %s %s -> %s %s", list.ID, p.Name, name, err.Error())
 	}
 
-	res, err := act.WithGlobal(process.Global).WithSID(process.Sid).Exec()
+	err = act.WithGlobal(process.Global).WithSID(process.Sid).Execute()
 	if err != nil {
 		log.Error("[list] %s %s -> %s %s", list.ID, p.Name, name, err.Error())
 		return nil, fmt.Errorf("[list] %s %s -> %s %s", list.ID, p.Name, name, err.Error())
 	}
+	defer act.Release()
+	res := act.Value()
 
 	// Compute View
 	err = list.ComputeView(p.Name, process, res, list.getField())

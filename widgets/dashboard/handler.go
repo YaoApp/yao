@@ -57,11 +57,13 @@ func processHandler(p *action.Process, process *gouProcess.Process) (interface{}
 		return nil, fmt.Errorf("[dashboard] %s %s -> %s %s", dashboard.ID, p.Name, name, err.Error())
 	}
 
-	res, err := act.WithGlobal(process.Global).WithSID(process.Sid).Exec()
+	err = act.WithGlobal(process.Global).WithSID(process.Sid).Execute()
 	if err != nil {
 		log.Error("[dashboard] %s %s -> %s %s", dashboard.ID, p.Name, name, err.Error())
 		return nil, fmt.Errorf("[dashboard] %s %s -> %s %s", dashboard.ID, p.Name, name, err.Error())
 	}
+	defer act.Release()
+	res := act.Value()
 
 	// Compute View
 	err = dashboard.ComputeView(p.Name, process, res, dashboard.getField())

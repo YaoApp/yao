@@ -100,13 +100,13 @@ func processDownload(process *gouProcess.Process) interface{} {
 	}
 
 	// Excute process
-	res, err := p.WithGlobal(process.Global).WithSID(claims.SID).Exec()
+	err = p.WithGlobal(process.Global).WithSID(claims.SID).Execute()
 	if err != nil {
 		log.Error("[downalod] %s.%s %s", list.ID, field, err.Error())
 		exception.New("[downalod] %s.%s %s", 500, list.ID, field, err.Error()).Throw()
 	}
-
-	return res
+	defer p.Release()
+	return p.Value()
 }
 
 func processUpload(process *gouProcess.Process) interface{} {
