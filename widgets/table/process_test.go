@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"testing"
@@ -451,8 +452,18 @@ func TestProcessDownload(t *testing.T) {
 	}
 
 	body, ok := res.(map[string]interface{})
+	reader, ok := body["content"].(io.ReadCloser)
+	if !ok {
+		t.Fatal("content not found")
+	}
+	defer reader.Close()
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assert.True(t, ok)
-	assert.Equal(t, []byte("Hello"), body["content"])
+	assert.Equal(t, []byte("Hello"), content)
 	assert.Equal(t, "text/plain; charset=utf-8", body["type"])
 }
 

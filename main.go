@@ -10,10 +10,13 @@ import (
 	_ "github.com/yaoapp/yao/helper"
 	_ "github.com/yaoapp/yao/openai"
 	_ "github.com/yaoapp/yao/wework"
+	// _ "net/http/pprof"
 )
 
-// 主程序
 func main() {
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
 	utils.Init()
 	cmd.Execute()
 }

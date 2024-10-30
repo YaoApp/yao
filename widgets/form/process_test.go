@@ -2,6 +2,7 @@ package form
 
 import (
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"testing"
@@ -152,7 +153,8 @@ func TestProcessDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = process.New("yao.form.find", "pet", 1).Exec()
+	res, err := process.New("yao.form.find", "pet", 1).Exec()
+	fmt.Println("err", res, err)
 	assert.Contains(t, err.Error(), "ID=1")
 }
 
@@ -251,8 +253,18 @@ func TestProcessDownload(t *testing.T) {
 	}
 
 	body, ok := res.(map[string]interface{})
+	reader, ok := body["content"].(io.ReadCloser)
+	if !ok {
+		t.Fatal("content not found")
+	}
+	defer reader.Close()
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	assert.True(t, ok)
-	assert.Equal(t, []byte("Hello"), body["content"])
+	assert.Equal(t, []byte("Hello"), content)
 	assert.Equal(t, "text/plain; charset=utf-8", body["type"])
 }
 

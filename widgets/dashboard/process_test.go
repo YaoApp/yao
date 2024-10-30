@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -44,6 +45,8 @@ func TestProcessComponent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	fmt.Println(res)
 
 	pets, ok := res.([]maps.MapStr)
 	assert.True(t, ok)
