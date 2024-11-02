@@ -261,7 +261,8 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool, quer
 				cProp.Query = newQuery.(map[string]interface{})
 			}
 
-			if cProp.Type == "Upload" || cProp.Type == "WangEditor" {
+			t := strings.ToLower(cProp.Type)
+			if component.UploadComponents[t] {
 				return fmt.Sprintf("/api/__yao/list/%s%s", dsl.ID, cProp.UploadPath())
 			}
 

@@ -50,6 +50,9 @@ func (dsl *DSL) mapping() error {
 
 			if field, has := dsl.Fields.List[inst.Name]; has {
 
+				// Add the default value, and parse the backend only props
+				field.Parse()
+
 				// Mapping ID
 				dsl.Mapping.Columns[field.ID] = inst.Name
 				dsl.Mapping.Columns[inst.Name] = field.ID

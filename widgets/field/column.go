@@ -87,6 +87,16 @@ func (column ColumnDSL) EditBind() string {
 	return column.Bind
 }
 
+// Parse the column dsl, add the default value, and parse the backend only props
+func (column ColumnDSL) Parse() {
+	if column.View != nil {
+		column.View.Parse()
+	}
+	if column.Edit != nil {
+		column.Edit.Parse()
+	}
+}
+
 // Clone column
 func (column *ColumnDSL) Clone() *ColumnDSL {
 	new := ColumnDSL{
