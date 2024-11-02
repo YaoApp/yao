@@ -105,7 +105,7 @@ func (dsl *DSL) Parse() {
 		for key, val := range BackendOnlyProps[t] {
 			if dsl.Props.Has(key) {
 				for k, v := range val {
-					dsl.Props[k] = v
+					dsl.Props[k] = dsl.copy(v)
 				}
 			}
 		}
@@ -126,4 +126,31 @@ func (dsl *DSL) Clone() *DSL {
 		}
 	}
 	return &new
+}
+
+// Copy the component properties
+func (dsl *DSL) copy(v interface{}) interface{} {
+	var res interface{} = nil
+	switch v.(type) {
+	case map[string]interface{}:
+		// Clone the map
+		new := map[string]interface{}{}
+		for k1, v1 := range v.(map[string]interface{}) {
+			new[k1] = v1
+		}
+		res = new
+
+	case []interface{}:
+		// Clone the array
+		new := []interface{}{}
+		for _, v1 := range v.([]interface{}) {
+			new = append(new, dsl.copy(v1))
+		}
+		res = new
+
+	default:
+		res = v
+	}
+
+	return res
 }
