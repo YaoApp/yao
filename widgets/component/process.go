@@ -9,11 +9,22 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/utils"
 )
 
 // Export process
 func exportProcess() {
+	process.Register("yao.component.getoptions", processGetOptions)
 	process.Register("yao.component.selectoptions", processSelectOptions)
+}
+
+// processGetOptions get options
+func processGetOptions(process *process.Process) interface{} {
+	utils.Dump(process.Args)
+	return []map[string]interface{}{
+		{"label": "Option 1", "value": "1"},
+		{"label": "Option 2", "value": "2"},
+	}
 }
 
 func processSelectOptions(process *process.Process) interface{} {

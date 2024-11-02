@@ -59,6 +59,8 @@ func (dsl *DSL) mapping() error {
 	if dsl.Fields.Filter != nil && dsl.Layout.Filter != nil && dsl.Layout.Filter.Columns != nil {
 		for _, inst := range dsl.Layout.Filter.Columns {
 			if filter, has := dsl.Fields.Filter[inst.Name]; has {
+				// Add the default value, and parse the backend only props
+				filter.Parse()
 
 				// Mapping ID
 				dsl.Mapping.Filters[filter.ID] = inst.Name
@@ -78,6 +80,9 @@ func (dsl *DSL) mapping() error {
 	if dsl.Fields.Chart != nil && dsl.Layout.Chart != nil && dsl.Layout.Chart.Columns != nil {
 		for _, inst := range dsl.Layout.Chart.Columns {
 			if field, has := dsl.Fields.Chart[inst.Name]; has {
+
+				// Add the default value, and parse the backend only props
+				field.Parse()
 
 				// Mapping ID
 				dsl.Mapping.Columns[field.ID] = inst.Name

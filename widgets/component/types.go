@@ -104,4 +104,5 @@ type CloudPropsDSL struct {
 	Name    string                 `json:"name,omitempty"`
 	Process string                 `json:"process,omitempty"`
 	Query   map[string]interface{} `json:"query,omitempty"`
+	Props   map[string]interface{} `json:"props,omitempty"` // The original props
 }

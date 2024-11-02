@@ -1,4 +1,4 @@
-package utils
+package utils_test
 
 import (
 	"net/url"
@@ -7,10 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/types"
+	"github.com/yaoapp/yao/utils"
 )
 
 func TestProcessParseQuery(t *testing.T) {
-	Init()
+	utils.Init()
 	args := []interface{}{"a=1&b=2&c=3&c=4"}
 	result, err := process.New("utils.url.ParseQuery", args...).Exec()
 	if err != nil {
@@ -23,7 +24,7 @@ func TestProcessParseQuery(t *testing.T) {
 }
 
 func TestProcessParseURL(t *testing.T) {
-	Init()
+	utils.Init()
 	args := []interface{}{"http://www.google.com:8080/search?q=dotnet"}
 	result, err := process.New("utils.url.ParseURL", args...).Exec()
 	if err != nil {
@@ -40,7 +41,7 @@ func TestProcessParseURL(t *testing.T) {
 }
 
 func TestProcessQueryParam(t *testing.T) {
-	Init()
+	utils.Init()
 	args := []interface{}{
 		map[string]interface{}{
 			"where.name.eq": "yao",

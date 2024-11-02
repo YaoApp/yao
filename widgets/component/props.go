@@ -13,7 +13,12 @@ import (
 
 // CloudProps parse CloudProps
 func (p PropsDSL) CloudProps(xpath, component string) (map[string]CloudPropsDSL, error) {
-	return p.parseCloudProps(xpath, component, p)
+
+	if p == nil {
+		return nil, fmt.Errorf("props is required")
+	}
+
+	return p.parseCloudProps(xpath, component, p, p)
 }
 
 // Path api path
@@ -42,18 +47,20 @@ func (cProp CloudPropsDSL) ExecUpload(process *gouProcess.Process, upload types.
 	}
 
 	// Create process
-	p, err := gouProcess.Of(name, upload)
+	p, err := gouProcess.Of(name, upload, cProp.Props)
 	if err != nil {
 		log.Error("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 		return nil, fmt.Errorf("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 	}
 
 	// Excute process
-	res, err := p.WithGlobal(process.Global).WithSID(process.Sid).Exec()
+	err = p.WithGlobal(process.Global).WithSID(process.Sid).Execute()
 	if err != nil {
 		log.Error("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 		return nil, fmt.Errorf("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 	}
+	defer p.Release()
+	res := p.Value()
 
 	return res, nil
 }
@@ -81,19 +88,21 @@ func (cProp CloudPropsDSL) ExecQuery(process *gouProcess.Process, query map[stri
 	}
 
 	// Create process
-	p, err := gouProcess.Of(name, query)
+	p, err := gouProcess.Of(name, query, cProp.Props)
 	if err != nil {
 		log.Error("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 		return nil, fmt.Errorf("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 	}
 
 	// Excute process
-	res, err := p.WithGlobal(process.Global).WithSID(process.Sid).Exec()
+	err = p.WithGlobal(process.Global).WithSID(process.Sid).Execute()
 	if err != nil {
 		log.Error("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 		return nil, fmt.Errorf("[component] %s.$%s %s", cProp.Xpath, cProp.Name, err.Error())
 	}
+	defer p.Release()
 
+	res := p.Value()
 	return res, nil
 }
 
@@ -140,7 +149,7 @@ func (cProp CloudPropsDSL) replaceMap(data map[string]interface{}, root string, 
 	return nil
 }
 
-func (p PropsDSL) parseCloudProps(xpath string, component string, props map[string]interface{}) (map[string]CloudPropsDSL, error) {
+func (p PropsDSL) parseCloudProps(xpath string, component string, props map[string]interface{}, root map[string]interface{}) (map[string]CloudPropsDSL, error) {
 
 	res := map[string]CloudPropsDSL{}
 
@@ -148,7 +157,7 @@ func (p PropsDSL) parseCloudProps(xpath string, component string, props map[stri
 
 		fullname := fmt.Sprintf("%s.%s", xpath, name)
 		if sub, ok := prop.(map[string]interface{}); ok {
-			cProps, err := p.parseCloudProps(fullname, component, sub)
+			cProps, err := p.parseCloudProps(fullname, component, sub, root)
 			if err != nil {
 				return nil, err
 			}
@@ -165,6 +174,7 @@ func (p PropsDSL) parseCloudProps(xpath string, component string, props map[stri
 			Name:  strings.TrimPrefix(name, "$"),
 			Type:  component,
 			Xpath: xpath,
+			Props: root,
 		}
 
 		err := cProp.Parse(prop)

@@ -303,7 +303,8 @@ func (dsl *DSL) Xgen(data map[string]interface{}, excludes map[string]bool) (map
 	for _, cProp := range dsl.CProps {
 		err := cProp.Replace(setting, func(cProp component.CloudPropsDSL) interface{} {
 
-			if cProp.Type == "Upload" || cProp.Type == "WangEditor" {
+			t := strings.ToLower(cProp.Type)
+			if component.UploadComponents[t] {
 				return fmt.Sprintf("/api/__yao/form/%s%s", dsl.ID, cProp.UploadPath())
 			}
 

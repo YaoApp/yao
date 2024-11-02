@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/yao/utils/fmt"
 	"github.com/yaoapp/yao/utils/json"
 	"github.com/yaoapp/yao/utils/str"
+	"github.com/yaoapp/yao/utils/throw"
 	"github.com/yaoapp/yao/utils/tree"
 	"github.com/yaoapp/yao/utils/url"
 )
@@ -14,6 +15,16 @@ import (
 func Init() {
 	process.Alias("xiang.helper.Captcha", "yao.utils.Captcha")                 // deprecated
 	process.Alias("xiang.helper.CaptchaValidate", "yao.utils.CaptchaValidate") // deprecated
+
+	// ****************************************
+	// * Processes Version 0.10.4+
+	// ****************************************
+	process.Register("utils.throw.Forbidden", throw.Forbidden)
+	process.Register("utils.throw.Unauthorized", throw.Unauthorized)
+	process.Register("utils.throw.NotFound", throw.NotFound)
+	process.Register("utils.throw.BadRequest", throw.BadRequest)
+	process.Register("utils.throw.InternalError", throw.InternalError)
+	process.Register("utils.throw.Exception", throw.Exception)
 
 	// ****************************************
 	// * Migrate Processes Version 0.10.2+

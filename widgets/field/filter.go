@@ -27,6 +27,13 @@ func (filter *FilterDSL) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Parse the column dsl, add the default value, and parse the backend only props
+func (filter FilterDSL) Parse() {
+	if filter.Edit != nil {
+		filter.Edit.Parse()
+	}
+}
+
 // Hash hash value
 func (filter FilterDSL) Hash() (string, error) {
 	h := md4.New()
