@@ -336,7 +336,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("住院天数")+".edit.props/"+url.QueryEscape("on:change"), data.Get("hooks.onChange.住院天数.api"))
 	assert.Equal(t, "开发者定义数据", data.Get("hooks.onChange.住院天数.params.extra"))
 	assert.Equal(t, "/api/__yao/form/pet/component/fields.form."+url.QueryEscape("状态")+".edit.props.xProps/remote", data.Get("fields.form.状态.edit.props.xProps.remote.api"))
-	assert.Equal(t, nil, data.Get("fields.form.相关图片"))
+	assert.Equal(t, "/api/__yao/form/pet/upload/fields.form."+url.QueryEscape("相关图片")+".edit.props/api", data.Get("fields.form.相关图片.edit.props.api"))
 	assert.NotEqual(t, "删除", data.Get("actions[0].title"))
 
 	session.Global().Set("__permissions", nil)
