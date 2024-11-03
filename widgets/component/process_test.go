@@ -46,7 +46,7 @@ func TestProcessGetOptions(t *testing.T) {
 		assert.Equal(t, "1", res[0].Value)
 		assert.Equal(t, "active-1", res[0].Icon)
 
-		// With KEYWORDS
+		// With keywords
 		args = []interface{}{
 			map[string]interface{}{"keywords": "dog"},
 			map[string]interface{}{"query": queryParam},
@@ -75,7 +75,7 @@ func TestProcessGetOptions(t *testing.T) {
 		assert.Equal(t, "7", res[0].Value)
 		assert.Equal(t, "active-7", res[0].Icon)
 
-		// With SELECTED
+		// With selected
 		args = []interface{}{
 			map[string]interface{}{"selected": []interface{}{1}},
 			map[string]interface{}{"query": queryParam},
@@ -103,7 +103,7 @@ func TestProcessGetOptions(t *testing.T) {
 		assert.Equal(t, "1", res[0].Value)
 		assert.Equal(t, "active-1", res[0].Icon)
 
-		// With KEYWORDS and SELECTED
+		// With keywords and selected
 		args = []interface{}{
 			map[string]interface{}{"keywords": "dog", "selected": []interface{}{1, 2}},
 			map[string]interface{}{"query": queryParam},
@@ -183,12 +183,12 @@ func prepare(t *testing.T) map[string]map[string]interface{} {
 		"iconField": "status",
 		"from": "category",
 		"wheres": [
-			{ "column": "name", "value": "[[ $KEYWORDS ]]", "op": "match" },
+			{ "column": "name", "value": "[[ $keywords ]]", "op": "match" },
 			{
 				"method": "orwhere",
 				"column": "id",
 				"op": "in",
-				"value": "[[ $SELECTED ]]"
+				"value": "[[ $selected ]]"
 			}
 		],
 		"limit": 20,
@@ -206,8 +206,8 @@ func prepare(t *testing.T) map[string]map[string]interface{} {
         "select": ["name as label", "id as value", "status as icon"],
         "from": "category",
         "wheres": [
-          { "field": "name", "match": "[[ $KEYWORDS ]]" },
-          { "or": true, "field":"id", "in":"[[ $SELECTED ]]" }
+          { "field": "name", "match": "[[ $keywords ]]" },
+          { "or": true, "field":"id", "in":"[[ $selected ]]" }
         ],
         "limit": 20,
        	"labelFormat": "[[ $label ]]-[[ $icon ]]", 

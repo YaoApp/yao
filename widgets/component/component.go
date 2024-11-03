@@ -106,6 +106,27 @@ func (dsl *DSL) Parse() {
 			if dsl.Props.Has(key) {
 				for k, v := range val {
 					dsl.Props[k] = dsl.copy(v)
+					dsl.setRemoteParams(dsl.Props[k], key)
+				}
+			}
+		}
+	}
+}
+
+// This function is used to set the query parameters for the remote request
+func (dsl *DSL) setRemoteParams(props interface{}, key string) {
+	if dsl.Props == nil {
+		return
+	}
+	if xProps, ok := dsl.Props["xProps"].(map[string]interface{}); ok {
+		if _, ok := xProps["$remote"].(map[string]interface{}); ok {
+			if keyProps, ok := dsl.Props[key].(map[string]interface{}); ok {
+				if params, ok := keyProps["params"]; ok {
+					if _, ok := props.(map[string]interface{}); ok {
+						if _, ok := props.(map[string]interface{})["$remote"].(map[string]interface{}); ok {
+							props.(map[string]interface{})["$remote"].(map[string]interface{})["query"] = params
+						}
+					}
 				}
 			}
 		}

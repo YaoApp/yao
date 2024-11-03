@@ -10,12 +10,14 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/query"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/utils"
 )
 
 var varRe = regexp.MustCompile(`\[\[\s*\$([A-Za-z0-9_\-]+)\s*\]\]`)
 
 // QueryProp query prop
 type QueryProp struct {
+	Debug       bool                     `json:"debug,omitempty"`
 	Engine      string                   `json:"engine"`
 	From        string                   `json:"from"`
 	LabelField  string                   `json:"labelField,omitempty"`
@@ -56,12 +58,22 @@ func processGetOptions(process *process.Process) interface{} {
 		exception.New(err.Error(), 400).Throw()
 	}
 
-	// Query the data
+	// Using the query DSL
 	options := []Option{}
 	if p.Engine != "" {
 		engine, err := query.Select(p.Engine)
 		if err != nil {
 			exception.New(err.Error(), 400).Throw()
+		}
+
+		if p.Debug {
+			fmt.Println("")
+			fmt.Println("-- yao.Component.GetOptions Debug ----------------------")
+			fmt.Println("Params: ")
+			utils.Dump(params)
+			fmt.Println("Engine: ", p.Engine)
+			fmt.Println("QueryDSL: ")
+			utils.Dump(p.dsl)
 		}
 
 		qb, err := engine.Load(p.dsl)
@@ -70,12 +82,34 @@ func processGetOptions(process *process.Process) interface{} {
 		}
 
 		// Query the data
-		data := qb.Get(nil)
+		data := qb.Get(params)
+		if p.Debug {
+			fmt.Println("Query Result: ")
+			utils.Dump(data)
+		}
+
 		for _, row := range data {
 			p.format(&options, row)
 		}
 
+		if p.Debug {
+			fmt.Println("Options: ")
+			utils.Dump(options)
+			fmt.Println("-------------------------------------------------------")
+		}
+
 		return options
+	}
+
+	// Using the QueryParam
+	if p.Debug {
+		fmt.Println("")
+		fmt.Println("-- yao.Component.GetOptions Debug ----------------------")
+		fmt.Println("Params: ")
+		utils.Dump(params)
+
+		fmt.Println("QueryParam: ")
+		utils.Dump(p.param)
 	}
 
 	// Query param
@@ -85,16 +119,27 @@ func processGetOptions(process *process.Process) interface{} {
 		exception.New(err.Error(), 500).Throw()
 	}
 
+	if p.Debug {
+		fmt.Println("Query Result: ")
+		utils.Dump(data)
+	}
+
 	// Format the data
 	for _, row := range data {
 		p.format(&options, row)
+	}
+
+	if p.Debug {
+		fmt.Println("Options: ")
+		utils.Dump(options)
+		fmt.Println("-------------------------------------------------------")
 	}
 
 	return options
 }
 
 // parseOptionsProps parse options props
-func parseOptionsProps(query, props map[string]interface{}) (*QueryProp, error) {
+func parseOptionsProps(params, props map[string]interface{}) (*QueryProp, error) {
 	if props["query"] == nil {
 		exception.New("props.query is required", 400).Throw()
 	}
@@ -102,16 +147,6 @@ func parseOptionsProps(query, props map[string]interface{}) (*QueryProp, error) 
 	// Read props
 	if v, ok := props["query"].(map[string]interface{}); ok {
 		props = v
-	}
-
-	// Read query condition
-	var keywords string = ""
-	var selected interface{} = nil
-	if v, ok := query["keywords"].(string); ok {
-		keywords = v
-	}
-	if v, ok := query["selected"]; ok {
-		selected = v
 	}
 
 	raw, err := jsoniter.Marshal(props)
@@ -126,7 +161,7 @@ func parseOptionsProps(query, props map[string]interface{}) (*QueryProp, error) 
 	}
 
 	qprops.props = props
-	err = qprops.parse(keywords, selected)
+	err = qprops.parse(params)
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +193,13 @@ func (q *QueryProp) format(options *[]Option, row map[string]interface{}) {
 	*options = append(*options, option)
 }
 
-func (q *QueryProp) parse(keywords string, selected interface{}) error {
+func (q *QueryProp) parse(query map[string]interface{}) error {
 	if q.Wheres == nil {
 		q.Wheres = []map[string]interface{}{}
+	}
+
+	if query == nil {
+		query = map[string]interface{}{}
 	}
 
 	// Validate the query param required fields
@@ -179,7 +218,7 @@ func (q *QueryProp) parse(keywords string, selected interface{}) error {
 	// Parse wheres
 	wheres := []map[string]interface{}{}
 	for _, where := range q.Wheres {
-		if q.replaceWhere(where, map[string]interface{}{"KEYWORDS": keywords, "SELECTED": selected}) {
+		if q.replaceWhere(where, query) {
 			wheres = append(wheres, where)
 		}
 	}
@@ -263,6 +302,7 @@ func (q *QueryProp) replaceWhere(where map[string]interface{}, data map[string]i
 		if v, ok := value.(string); ok {
 			matches := varRe.FindAllStringSubmatch(v, -1)
 			if len(matches) > 0 {
+				orignal := matches[0][0]
 				name := matches[0][1]
 				if val, ok := data[name]; ok {
 
@@ -271,8 +311,23 @@ func (q *QueryProp) replaceWhere(where map[string]interface{}, data map[string]i
 						return false
 					}
 
+					if q.Engine == "" {
+						where[key] = val
+						// Replace the value
+						if v, ok := val.(string); ok {
+							where[key] = strings.Replace(v, orignal, fmt.Sprintf("%v", val), 1)
+						}
+						return true
+					}
+
+					// Where in condition for the query dsl
+					if where["in"] != nil {
+						where[key] = val
+						return true
+					}
+
 					// Replace the value
-					where[key] = val
+					where[key] = strings.Replace(v, orignal, fmt.Sprintf("?:%v", name), 1) // SQL injection protection
 					return true
 				}
 				return false
