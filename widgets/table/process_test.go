@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/test"
+	"github.com/yaoapp/yao/widgets/component"
 )
 
 func TestProcessSearch(t *testing.T) {
@@ -364,13 +365,6 @@ func TestProcessComponent(t *testing.T) {
 		"pet",
 		"fields.filter.状态.edit.props.xProps",
 		"remote",
-		map[string]interface{}{
-			"model":    "pet",
-			"label":    "name",
-			"value":    "status",
-			"wheres[]": `{"column":"id","op":"ge","value":0}`,
-			"limit":    "2",
-		},
 	}
 
 	res, err := process.New("yao.table.Component", args...).Exec()
@@ -378,13 +372,13 @@ func TestProcessComponent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pets, ok := res.([]map[string]interface{})
+	pets, ok := res.([]component.Option)
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(pets))
-	assert.Equal(t, "Cookie", pets[0]["label"])
-	assert.Equal(t, "checked", pets[0]["value"])
-	assert.Equal(t, "Baby", pets[1]["label"])
-	assert.Equal(t, "checked", pets[1]["value"])
+	assert.Equal(t, "Cookie", pets[0].Label)
+	assert.Equal(t, "checked", pets[0].Value)
+	assert.Equal(t, "Baby", pets[1].Label)
+	assert.Equal(t, "checked", pets[1].Value)
 }
 
 func TestProcessComponentError(t *testing.T) {
@@ -525,7 +519,7 @@ func TestProcessXgenWithPermissions(t *testing.T) {
 	session.Global().Set("__permissions", map[string]interface{}{
 		"tables.pet": []string{
 			"8ca9bdf0fa2cbc8f1018f8566ed6ab5e", // fields.table.消费金额
-			"f03f1ae60c46dd6cdeda87b919a51d7e", // fields.filter.状态
+			"c5b1f06582e1dff3ac6d16822fdadd54", // fields.filter.状态
 			"b1483ade34cd51261817558114e74e3f", // filter.actions[0] 添加宠物
 			"e6a67850312980e8372e550c5b361097", // operation.actions[0] 查看
 		},

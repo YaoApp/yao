@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/test"
+	"github.com/yaoapp/yao/widgets/component"
 )
 
 func TestLoad(t *testing.T) {
@@ -40,4 +41,6 @@ func prepare(t *testing.T, language ...string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	component.Export()
 }

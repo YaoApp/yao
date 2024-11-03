@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"fmt"
 	"net/url"
 	"testing"
 
@@ -10,9 +9,9 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
+	"github.com/yaoapp/yao/widgets/component"
 )
 
 func TestProcessData(t *testing.T) {
@@ -33,12 +32,12 @@ func TestProcessComponent(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 	prepare(t)
+	testData(t)
 
 	args := []interface{}{
 		"workspace",
 		"fields.filter.状态.edit.props.xProps",
 		"remote",
-		map[string]interface{}{"select": []string{"name", "status"}, "limit": 2},
 	}
 
 	res, err := process.New("yao.dashboard.Component", args...).Exec()
@@ -46,15 +45,13 @@ func TestProcessComponent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(res)
-
-	pets, ok := res.([]maps.MapStr)
+	pets, ok := res.([]component.Option)
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(pets))
-	assert.Equal(t, "Cookie", pets[0]["name"])
-	assert.Equal(t, "checked", pets[0]["status"])
-	assert.Equal(t, "Baby", pets[1]["name"])
-	assert.Equal(t, "checked", pets[1]["status"])
+	assert.Equal(t, "Cookie", pets[0].Label)
+	assert.Equal(t, "checked", pets[0].Value)
+	assert.Equal(t, "Baby", pets[1].Label)
+	assert.Equal(t, "checked", pets[1].Value)
 
 	args = []interface{}{
 		"workspace",

@@ -2,120 +2,292 @@ package component
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/process"
-	"github.com/yaoapp/kun/any"
+	"github.com/yaoapp/gou/query"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/utils"
 )
+
+var varRe = regexp.MustCompile(`\[\[\s*\$([A-Za-z0-9_\-]+)\s*\]\]`)
+
+// QueryProp query prop
+type QueryProp struct {
+	Engine      string                   `json:"engine"`
+	From        string                   `json:"from"`
+	LabelField  string                   `json:"labelField,omitempty"`
+	ValueField  string                   `json:"valueField,omitempty"`
+	IconField   string                   `json:"iconField,omitempty"`
+	LabelFormat string                   `json:"labelFormat,omitempty"`
+	ValueFormat string                   `json:"valueFormat,omitempty"`
+	IconFormat  string                   `json:"iconFormat,omitempty"`
+	Wheres      []map[string]interface{} `json:"wheres,omitempty"`
+	param       model.QueryParam
+	dsl         map[string]interface{}
+	props       map[string]interface{}
+}
+
+// Option select option
+type Option struct {
+	Label string      `json:"label"`
+	Value interface{} `json:"value"`
+	Icon  string      `json:"icon,omitempty"`
+}
 
 // Export process
 func exportProcess() {
 	process.Register("yao.component.getoptions", processGetOptions)
-	process.Register("yao.component.selectoptions", processSelectOptions)
+	process.Register("yao.component.selectoptions", processSelectOptions) // Deprecated
 }
 
 // processGetOptions get options
 func processGetOptions(process *process.Process) interface{} {
-	utils.Dump(process.Args)
-	return []map[string]interface{}{
-		{"label": "Option 1", "value": "1"},
-		{"label": "Option 2", "value": "2"},
+
+	process.ValidateArgNums(2)
+	params := process.ArgsMap(0, map[string]interface{}{})
+	props := process.ArgsMap(1, map[string]interface{}{})
+
+	// Paser props
+	p, err := parseOptionsProps(params, props)
+	if err != nil {
+		exception.New(err.Error(), 400).Throw()
 	}
+
+	// Query the data
+	options := []Option{}
+	if p.Engine != "" {
+		engine, err := query.Select(p.Engine)
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+
+		qb, err := engine.Load(p.dsl)
+		if err != nil {
+			exception.New(err.Error(), 400).Throw()
+		}
+
+		// Query the data
+		data := qb.Get(nil)
+		for _, row := range data {
+			p.format(&options, row)
+		}
+
+		return options
+	}
+
+	// Query param
+	m := model.Select(p.From)
+	data, err := m.Get(p.param)
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+
+	// Format the data
+	for _, row := range data {
+		p.format(&options, row)
+	}
+
+	return options
 }
 
-func processSelectOptions(process *process.Process) interface{} {
-	process.ValidateArgNums(1)
-	query := process.ArgsMap(0, map[string]interface{}{})
-	if !query.Has("model") {
-		exception.New("query.model required", 400).Throw()
+// parseOptionsProps parse options props
+func parseOptionsProps(query, props map[string]interface{}) (*QueryProp, error) {
+	if props["query"] == nil {
+		exception.New("props.query is required", 400).Throw()
 	}
 
-	modelName, ok := query.Get("model").(string)
-	if !ok {
-		exception.New("query.model must be a string", 400).Throw()
+	// Read props
+	if v, ok := props["query"].(map[string]interface{}); ok {
+		props = v
 	}
 
-	m := model.Select(modelName)
-
-	valueField := query.Get("value")
-	if valueField == nil {
-		valueField = "id"
+	// Read query condition
+	var keywords string = ""
+	var selected interface{} = nil
+	if v, ok := query["keywords"].(string); ok {
+		keywords = v
 	}
-	value, ok := valueField.(string)
-	if !ok {
-		exception.New("query.value must be a string", 400).Throw()
-	}
-
-	labelField := query.Get("label")
-	if labelField == nil {
-		labelField = "name"
-	}
-	label, ok := labelField.(string)
-	if !ok {
-		exception.New("query.label must be a string", 400).Throw()
+	if v, ok := query["selected"]; ok {
+		selected = v
 	}
 
-	limit := 500
-	if query.Get("limit") != nil {
-		v := any.Of(query.Get("limit"))
-		if v.IsInt() || v.IsString() {
-			limit = v.CInt()
+	raw, err := jsoniter.Marshal(props)
+	if err != nil {
+		return nil, err
+	}
+
+	qprops := QueryProp{}
+	err = jsoniter.Unmarshal(raw, &qprops)
+	if err != nil {
+		return nil, err
+	}
+
+	qprops.props = props
+	err = qprops.parse(keywords, selected)
+	if err != nil {
+		return nil, err
+	}
+	return &qprops, nil
+}
+
+// format format the option
+func (q *QueryProp) format(options *[]Option, row map[string]interface{}) {
+	label := row[q.LabelField]
+	value := row[q.ValueField]
+	option := Option{Label: fmt.Sprintf("%v", label), Value: value}
+	if q.IconField != "" {
+		option.Icon = fmt.Sprintf("%v", row[q.IconField])
+	}
+
+	if q.LabelFormat != "" {
+		option.Label = q.replaceString(q.LabelFormat, row)
+	}
+
+	if q.ValueFormat != "" {
+		option.Value = q.replaceString(q.ValueFormat, row)
+	}
+
+	if q.IconField != "" && q.IconFormat != "" {
+		option.Icon = q.replaceString(q.IconFormat, row)
+	}
+
+	// Update the option
+	*options = append(*options, option)
+}
+
+func (q *QueryProp) parse(keywords string, selected interface{}) error {
+	if q.Wheres == nil {
+		q.Wheres = []map[string]interface{}{}
+	}
+
+	// Validate the query param required fields
+	if q.Engine == "" {
+		if q.From == "" {
+			return fmt.Errorf("props.from is required")
+		}
+		if q.LabelField == "" {
+			return fmt.Errorf("props.labelField is required")
+		}
+		if q.ValueField == "" {
+			return fmt.Errorf("props.valueField is required")
 		}
 	}
 
-	wheres := []model.QueryWhere{}
-	switch input := query.Get("wheres").(type) {
-	case string:
-		where := model.QueryWhere{}
-		err := jsoniter.Unmarshal([]byte(input), &where)
-		if err != nil {
-			exception.New("query.wheres error %s", 400, err.Error()).Throw()
-		}
-		wheres = append(wheres, where)
-		break
-
-	case []string:
-		for _, data := range input {
-			where := model.QueryWhere{}
-			err := jsoniter.Unmarshal([]byte(data), &where)
-			if err != nil {
-				exception.New("query.wheres error %s", 400, err.Error()).Throw()
-			}
+	// Parse wheres
+	wheres := []map[string]interface{}{}
+	for _, where := range q.Wheres {
+		if q.replaceWhere(where, map[string]interface{}{"KEYWORDS": keywords, "SELECTED": selected}) {
 			wheres = append(wheres, where)
 		}
-		break
 	}
 
-	if data, ok := query.Get("wheres").(string); ok {
-		data = strings.TrimSpace(data)
-		if strings.HasPrefix(data, "{") && strings.HasSuffix(data, "}") {
-			data = fmt.Sprintf("[%s]", data)
+	// Update the props
+	props := map[string]interface{}{}
+	for key, value := range q.props {
+		props[key] = value
+	}
+	props["wheres"] = wheres
+
+	// Return the query dsl, if the engine is set
+	if q.Engine != "" {
+
+		if q.LabelField == "" {
+			q.LabelField = "label"
 		}
-		err := jsoniter.Unmarshal([]byte(data), &wheres)
-		if err != nil {
-			exception.New("query.wheres error %s", 400, err.Error()).Throw()
+
+		if q.ValueField == "" {
+			q.ValueField = "value"
 		}
+
+		if q.IconField == "" {
+			q.IconField = "icon"
+		}
+
+		q.dsl = props
+		return nil
 	}
 
-	rows, err := m.Get(model.QueryParam{
-		Select: []interface{}{valueField, labelField},
-		Wheres: wheres,
-		Limit:  limit,
-	})
+	// Parse the query param from the props
+	q.param = model.QueryParam{
+		Model:  q.From,
+		Select: []interface{}{q.LabelField, q.ValueField},
+	}
+
+	if q.IconField != "" {
+		q.param.Select = append(q.param.Select, q.IconField)
+	}
+
+	raw, err := jsoniter.Marshal(props)
 	if err != nil {
-		exception.New("%s", 500, err.Error()).Throw()
+		return err
 	}
 
-	res := []map[string]interface{}{}
-	for _, row := range rows {
-		res = append(res, map[string]interface{}{
-			"label": row.Get(label),
-			"value": row.Get(value),
-		})
+	err = jsoniter.Unmarshal(raw, &q.param)
+	if err != nil {
+		return err
 	}
-	return res
+
+	return nil
+}
+
+func (q *QueryProp) replaceString(format string, data map[string]interface{}) string {
+	if data == nil {
+		return format
+	}
+
+	matches := varRe.FindAllStringSubmatch(format, -1)
+	if len(matches) > 0 {
+		for _, match := range matches {
+			name := match[1]
+			orignal := match[0]
+			if val, ok := data[name]; ok {
+				format = strings.ReplaceAll(format, orignal, fmt.Sprintf("%v", val))
+			}
+		}
+	}
+
+	return format
+}
+
+// Replace replace the query where condition
+// return true if the where condition is effective, otherwise return false
+func (q *QueryProp) replaceWhere(where map[string]interface{}, data map[string]interface{}) bool {
+	if where == nil {
+		return false
+	}
+
+	for key, value := range where {
+		if v, ok := value.(string); ok {
+			matches := varRe.FindAllStringSubmatch(v, -1)
+			if len(matches) > 0 {
+				name := matches[0][1]
+				if val, ok := data[name]; ok {
+
+					// Check if the value is empty
+					if val == nil || val == "" {
+						return false
+					}
+
+					// Replace the value
+					where[key] = val
+					return true
+				}
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// Deprecated: please use processGetOptions instead
+// This function may cause security issue, please use processGetOptions instead
+// It will be removed when the v0.10.4 released
+func processSelectOptions(process *process.Process) interface{} {
+	message := "process yao.component.SelectOptions is deprecated, please use yao.component.GetOptions instead"
+	exception.New(message, 400).Throw()
+	return nil
 }
