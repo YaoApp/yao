@@ -23,9 +23,11 @@ type QueryProp struct {
 	LabelField  string                   `json:"labelField,omitempty"`
 	ValueField  string                   `json:"valueField,omitempty"`
 	IconField   string                   `json:"iconField,omitempty"`
+	ColorField  string                   `json:"colorField,omitempty"`
 	LabelFormat string                   `json:"labelFormat,omitempty"`
 	ValueFormat string                   `json:"valueFormat,omitempty"`
 	IconFormat  string                   `json:"iconFormat,omitempty"`
+	ColorFormat string                   `json:"colorFormat,omitempty"`
 	Wheres      []map[string]interface{} `json:"wheres,omitempty"`
 	param       model.QueryParam
 	dsl         map[string]interface{}
@@ -37,6 +39,7 @@ type Option struct {
 	Label string      `json:"label"`
 	Value interface{} `json:"value"`
 	Icon  string      `json:"icon,omitempty"`
+	Color string      `json:"color,omitempty"`
 }
 
 // Export process
@@ -177,6 +180,10 @@ func (q *QueryProp) format(options *[]Option, row map[string]interface{}) {
 		option.Icon = fmt.Sprintf("%v", row[q.IconField])
 	}
 
+	if q.ColorField != "" {
+		option.Color = fmt.Sprintf("%v", row[q.ColorField])
+	}
+
 	if q.LabelFormat != "" {
 		option.Label = q.replaceString(q.LabelFormat, row)
 	}
@@ -187,6 +194,10 @@ func (q *QueryProp) format(options *[]Option, row map[string]interface{}) {
 
 	if q.IconField != "" && q.IconFormat != "" {
 		option.Icon = q.replaceString(q.IconFormat, row)
+	}
+
+	if q.ColorField != "" && q.ColorFormat != "" {
+		option.Color = q.replaceString(q.ColorFormat, row)
 	}
 
 	// Update the option
@@ -257,6 +268,10 @@ func (q *QueryProp) parse(query map[string]interface{}) error {
 
 	if q.IconField != "" {
 		q.param.Select = append(q.param.Select, q.IconField)
+	}
+
+	if q.ColorField != "" {
+		q.param.Select = append(q.param.Select, q.ColorField)
 	}
 
 	raw, err := jsoniter.Marshal(props)
