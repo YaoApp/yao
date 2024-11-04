@@ -21,6 +21,13 @@ var BackendOnlyProps = map[string]map[string]map[string]interface{}{
 			},
 		},
 	},
+	"tag": {
+		"query": {
+			"xProps": map[string]interface{}{
+				"$remote": map[string]interface{}{"process": "yao.component.GetOptions"},
+			},
+		},
+	},
 	"autocomplete": {"query": {
 		"xProps": map[string]interface{}{
 			"$remote": map[string]interface{}{"process": "yao.component.GetOptions"},
