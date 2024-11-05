@@ -198,8 +198,17 @@ func (driver *Memory) GetCommands() ([]Command, error) {
 // NewAI create a new AI
 func (driver *Memory) newAI() (aigc.AI, error) {
 
-	if driver.model == "" {
-		return nil, fmt.Errorf("%s connector is required", driver.model)
+	if driver.model == "" || strings.HasPrefix(driver.model, "moapi") {
+		model := "gpt-3.5-turbo"
+		if strings.HasPrefix(driver.model, "moapi:") {
+			model = strings.TrimPrefix(driver.model, "moapi:")
+		}
+
+		ai, err := openai.NewMoapi(model)
+		if err != nil {
+			return nil, err
+		}
+		return ai, nil
 	}
 
 	conn, err := connector.Select(driver.model)
