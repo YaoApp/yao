@@ -63,7 +63,8 @@ func Load(cfg config.Config) error {
 	if parser == "" || parser == "default" {
 		parser = setting.Connector
 	}
-	store, err := driver.NewMemory(setting.Command.Parser, nil)
+
+	store, err := driver.NewMemory(parser, nil)
 	if err != nil {
 		return err
 	}

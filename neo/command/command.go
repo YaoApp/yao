@@ -110,8 +110,19 @@ func (cmd *Command) save() error {
 // NewAI create a new AI
 func (cmd *Command) newAI() (aigc.AI, error) {
 
-	if cmd.Connector == "" {
-		return nil, fmt.Errorf("%s connector is required", cmd.ID)
+	if cmd.Connector == "" || strings.HasPrefix(cmd.Connector, "moapi") {
+		model := "gpt-3.5-turbo"
+		if strings.HasPrefix(cmd.Connector, "moapi:") {
+			model = strings.TrimPrefix(cmd.Connector, "moapi:")
+		}
+
+		ai, err := openai.NewMoapi(model)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd.AI = ai
+		return cmd.AI, nil
 	}
 
 	conn, err := connector.Select(cmd.Connector)
