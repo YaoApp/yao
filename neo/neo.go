@@ -348,13 +348,14 @@ func (neo *DSL) write(msg *message.JSON, w io.Writer, ctx command.Context, messa
 		return nil
 	}
 
-	res, err := p.WithSID(ctx.Sid).Exec()
+	err = p.WithSID(ctx.Sid).Execute()
 	if err != nil {
 		log.Error("Neo custom write error: %s", err.Error())
 		msg.Write(w)
 		return nil
 	}
-
+	defer p.Release()
+	res := p.Value()
 	if res == nil {
 		return fmt.Errorf("Neo custom write return null")
 	}
@@ -385,12 +386,14 @@ func (neo *DSL) prepare(ctx command.Context, messages []map[string]interface{}) 
 		return prompts
 	}
 
-	data, err := p.WithSID(ctx.Sid).Exec()
+	err = p.WithSID(ctx.Sid).Execute()
 	if err != nil {
 		color.Red("Neo prepare execute error: %s", err.Error())
 		return prompts
 	}
+	defer p.Release()
 
+	data := p.Value()
 	items, ok := data.([]interface{})
 	if !ok {
 		color.Red("Neo prepare response is not array")
@@ -433,10 +436,7 @@ func (neo *DSL) chatMessages(ctx command.Context, content string) ([]map[string]
 	// Add prepare messages witch is query from vector database
 	preparePrompts := neo.prepare(ctx, messages)
 	if len(preparePrompts) > 0 {
-		messages = append([]map[string]interface{}{}, neo.prompts()...)
-		messages = append(messages, preparePrompts...)
-		messages = append(messages, history...)
-		messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": ctx.Sid})
+		messages = preparePrompts
 	}
 
 	return messages, nil
