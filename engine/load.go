@@ -385,12 +385,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		printErr(cfg.Mode, "Widgets", err)
 	}
 
-	// Load Importers
-	err = importer.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Plugin", err)
-	}
-
 	// Load Apis
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
