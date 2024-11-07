@@ -3,6 +3,7 @@ package message
 import (
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/helper"
@@ -197,9 +198,15 @@ func (json *JSON) Write(w gin.ResponseWriter) bool {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error("Write JSON Message Error: %s", r)
+			message := "Write Response Exception: (if clinet close the connection, it's normal) \n  %s\n\n"
+			color.Red(message, r)
 		}
 	}()
+
+	if json.Error != "" {
+		json.writeError(w, json.Error)
+		return false
+	}
 
 	data, err := jsoniter.Marshal(json.Message)
 	if err != nil {
@@ -212,7 +219,7 @@ func (json *JSON) Write(w gin.ResponseWriter) bool {
 
 	_, err = w.Write(data)
 	if err != nil {
-		log.Error("%s", err.Error())
+		color.Red("Write JSON Message Error: %s", err.Error())
 		return false
 	}
 	w.Flush()
@@ -222,4 +229,15 @@ func (json *JSON) Write(w gin.ResponseWriter) bool {
 // Append the message
 func (json *JSON) Append(content []byte) []byte {
 	return append(content, []byte(json.Message.Text)...)
+}
+
+func (json *JSON) writeError(w gin.ResponseWriter, message string) {
+	data := []byte(`{"text":"` + strings.Trim(message, "\"") + `"}`)
+	data = append([]byte("data: "), data...)
+	data = append(data, []byte("\n\n")...)
+	_, err := w.Write(data)
+	if err != nil {
+		color.Red("Write JSON Message Error: %s", message)
+	}
+	w.Flush()
 }

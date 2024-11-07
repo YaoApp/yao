@@ -289,6 +289,11 @@ func (neo *DSL) send(ctx command.Context, msg *message.JSON, messages []map[stri
 
 	w := c.Writer
 
+	if msg.Error != "" {
+		msg.Write(w)
+		return nil
+	}
+
 	// Directly write the message
 	if neo.Write == "" {
 		ok := msg.Write(c.Writer)
@@ -303,6 +308,7 @@ func (neo *DSL) send(ctx command.Context, msg *message.JSON, messages []map[stri
 	p, err := process.Of(neo.Write, args...)
 	if err != nil {
 		msg.Write(w)
+		color.Red("Neo custom write error: %s", err.Error())
 		return fmt.Errorf("Stream write error: %s", err.Error())
 	}
 
@@ -316,6 +322,7 @@ func (neo *DSL) send(ctx command.Context, msg *message.JSON, messages []map[stri
 
 	res := p.Value()
 	if res == nil {
+		color.Red("Neo custom write return null")
 		return fmt.Errorf("Neo custom write return null")
 	}
 
@@ -330,6 +337,7 @@ func (neo *DSL) send(ctx command.Context, msg *message.JSON, messages []map[stri
 		return nil
 	}
 
+	color.Red("Neo custom write should return an array of response")
 	return fmt.Errorf("Neo should return an array of response")
 }
 
