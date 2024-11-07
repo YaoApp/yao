@@ -1,9 +1,9 @@
 package message
 
 import (
-	"io"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/kun/log"
@@ -44,6 +44,10 @@ func NewOpenAI(data []byte) *JSON {
 		break
 
 	case strings.Contains(text, `[DONE]`):
+		msg.Done = true
+		break
+
+	case strings.Contains(text, `"finish_reason":"stop"`):
 		msg.Done = true
 		break
 
@@ -189,7 +193,13 @@ func (json *JSON) IsDone() bool {
 }
 
 // Write the message
-func (json *JSON) Write(w io.Writer) bool {
+func (json *JSON) Write(w gin.ResponseWriter) bool {
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Write JSON Message Error: %s", r)
+		}
+	}()
 
 	data, err := jsoniter.Marshal(json.Message)
 	if err != nil {
@@ -205,7 +215,7 @@ func (json *JSON) Write(w io.Writer) bool {
 		log.Error("%s", err.Error())
 		return false
 	}
-
+	w.Flush()
 	return true
 }
 
