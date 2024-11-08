@@ -10,7 +10,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/openai"
 )
 
@@ -42,16 +41,11 @@ func ImagesGenerations(process *process.Process) interface{} {
 		exception.New("ImagesGenerations error: %s", 400, err).Throw()
 	}
 
-	option["prompt"] = prompt
 	option["model"] = model
-	option["response_format"] = "url"
-
 	res, ex := ai.ImagesGenerations(prompt, option)
 	if ex != nil {
-		utils.Dump(ex)
 		ex.Throw()
 	}
-
 	return res
 }
 

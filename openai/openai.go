@@ -10,7 +10,6 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -211,8 +210,6 @@ func (openai OpenAI) ImagesGenerations(prompt string, option map[string]interfac
 	}
 
 	option["prompt"] = prompt
-	utils.Dump(option)
-
 	return openai.postWithoutModel("/v1/images/generations", option)
 }
 
