@@ -9,6 +9,15 @@ git clone https://github.com/yaoapp/yao-init.git /app/yao-init && \
 git clone https://github.com/yaoapp/yao.git /app/yao
 
 
+files=$(find /app/v8go -name "libv8*.zip")
+for file in $files; do
+    dir=$(dirname "$file")  # Get the directory where the ZIP file is located
+    echo "Extracting $file to directory $dir"
+    unzip -o -d $dir $file
+    rm -rf $dir/__MACOSX
+done
+        
+
 cd /app/yao && \
 export VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g") 
 
