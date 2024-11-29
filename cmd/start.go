@@ -26,7 +26,6 @@ import (
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/studio"
 	itask "github.com/yaoapp/yao/task"
 )
 
@@ -123,29 +122,30 @@ var startCmd = &cobra.Command{
 		if mode == "development" {
 
 			// Start Studio Server
-			go func() {
+			// Yao Studio will be deprecated in the future
+			// go func() {
 
-				err = studio.Load(config.Conf)
-				if err != nil {
-					// fmt.Println(color.RedString(L("Studio Load: %s"), err.Error()))
-					log.Error("Studio Load: %s", err.Error())
-					return
-				}
+			// 	err = studio.Load(config.Conf)
+			// 	if err != nil {
+			// 		// fmt.Println(color.RedString(L("Studio Load: %s"), err.Error()))
+			// 		log.Error("Studio Load: %s", err.Error())
+			// 		return
+			// 	}
 
-				err := studio.Start(config.Conf)
-				if err != nil {
-					log.Error("Studio Start: %s", err.Error())
-					return
-				}
-			}()
-			defer studio.Stop()
+			// 	err := studio.Start(config.Conf)
+			// 	if err != nil {
+			// 		log.Error("Studio Start: %s", err.Error())
+			// 		return
+			// 	}
+			// }()
+			// defer studio.Stop()
 
 			printApis(false)
 			printTasks(false)
 			printSchedules(false)
 			printConnectors(false)
 			printStores(false)
-			printStudio(false, host)
+			// printStudio(false, host)
 
 		}
 
