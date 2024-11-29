@@ -14,13 +14,13 @@
 #  docker run -d -p 5099:5099 yaoapp/yao:0.9.1-amd64-dev
 #
 # ===========================================
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 ARG VERSION
 ARG ARCH
 RUN groupadd -r yao && useradd -r -g yao yao && \
     apt-get update && \
     apt-get install -y curl sudo procps net-tools
-RUN curl -fsSL "https://release-sv-1252011659.cos.na-siliconvalley.myqcloud.com/archives/yao-${VERSION}-linux-${ARCH}" > /usr/local/bin/yao && \
+RUN curl -fsSL "https://yao.moapi.ai/archives/yao-${VERSION}-linux-${ARCH}" > /usr/local/bin/yao && \
     chmod +x /usr/local/bin/yao && \
     mkdir -p /data/app
 

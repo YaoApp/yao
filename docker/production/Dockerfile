@@ -18,9 +18,13 @@ FROM alpine:latest
 ARG VERSION
 ARG ARCH
 RUN apk --no-cache add curl 
-RUN curl -fsSL "https://release-sv-1252011659.cos.na-siliconvalley.myqcloud.com/archives/yao-${VERSION}-linux-${ARCH}" > /usr/local/bin/yao && \
-    chmod +x /usr/local/bin/yao
-RUN mkdir -p /data/app
+RUN curl -fsSL "https://yao.moapi.ai/archives/yao-${VERSION}-linux-${ARCH}" > /usr/local/bin/yao && \
+    chmod +x /usr/local/bin/yao && \
+    addgroup -S yao && adduser -S -G yao yao && \
+    mkdir -p /data/app && \
+    chown -R yao:yao /data/app
+
+USER yao
 VOLUME /data/app
 WORKDIR /data/app
 EXPOSE 5099
