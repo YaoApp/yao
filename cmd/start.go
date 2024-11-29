@@ -276,7 +276,8 @@ func printWelcome() {
 	fmt.Println(color.CyanString("\n---------------------------------"))
 	fmt.Println(color.CyanString(L("🎉 Welcome to Yao 🎉 ")))
 	fmt.Println(color.CyanString("---------------------------------"))
-	fmt.Println(color.WhiteString("📚 Documentation:"), color.CyanString("https://yaoapps.com/docs"))
+	fmt.Println(color.WhiteString("📚 Documentation:     "), color.CyanString("https://yaoapps.com/docs"))
+	fmt.Println(color.WhiteString("🏡 Join the Community:"), color.CyanString("https://yaoapps.com/community"))
 	fmt.Println(color.WhiteString("💬 Build App via Chat:"), color.CyanString("https://moapi.ai"))
 	fmt.Println("")
 }
