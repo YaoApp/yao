@@ -224,27 +224,38 @@ func (page *Page) ReplaceDocument(doc *goquery.Document) {
 
 	if page.Config.SEO != nil {
 
-		if page.Config.SEO.Title != "" {
-			if doc.Find("meta[property=og:title]") != nil {
-				doc.Find("meta[property=og:title]").SetAttr("content", page.Config.SEO.Title)
-			}
-		}
-
 		if page.Config.SEO.Description != "" {
 			if doc.Find("meta[name=description]") != nil {
 				doc.Find("meta[name=description]").SetAttr("content", page.Config.SEO.Description)
 			}
 		}
 
+		if page.Config.SEO.Keywords != "" {
+			if doc.Find("meta[name=keywords]") != nil {
+				sel := doc.Find("meta[name=keywords]")
+				keywords := page.Config.SEO.Keywords
+				if sel.AttrOr("content", "") != "" {
+					keywords = keywords + "," + sel.AttrOr("content", "")
+				}
+				doc.Find("meta[name=keywords]").SetAttr("content", keywords)
+			}
+		}
+
+		if page.Config.SEO.Title != "" {
+			if doc.Find("meta[property='og:title']") != nil {
+				doc.Find("meta[property='og:title']").SetAttr("content", page.Config.SEO.Title)
+			}
+		}
+
 		if page.Config.SEO.Image != "" {
-			if doc.Find("meta[property=og:image]") != nil {
-				doc.Find("meta[property=og:image]").SetAttr("content", page.Config.SEO.Image)
+			if doc.Find("meta[property='og:image']") != nil {
+				doc.Find("meta[property='og:image']").SetAttr("content", page.Config.SEO.Image)
 			}
 		}
 
 		if page.Config.SEO.URL != "" {
-			if doc.Find("meta[property=og:url]") != nil {
-				doc.Find("meta[property=og:url]").SetAttr("content", page.Config.SEO.URL)
+			if doc.Find("meta[property='og:url']") != nil {
+				doc.Find("meta[property='og:url']").SetAttr("content", page.Config.SEO.URL)
 			}
 		}
 	}
