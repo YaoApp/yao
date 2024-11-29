@@ -19,11 +19,6 @@ jobs:
       R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
 
     steps:
-      - name: Install AWS CLI
-        run: |
-          apt-get update
-          apt-get install -y awscli
-
       - name: Configure R2 For Cloudflare
         run: |
           aws configure set aws_access_key_id $CF_ACCESS_KEY_ID

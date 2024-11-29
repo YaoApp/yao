@@ -1,5 +1,5 @@
 # ===========================================
-#  Yao Build Environment (Ubuntu 23.04 AMD64)
+#  Yao Build Environment (Ubuntu 24.04 AMD64)
 #
 #  Build:
 #  docker build --platform linux/amd64 -t yaoapp/yao-build:0.10.4 .
@@ -12,7 +12,7 @@
 #  docker run --rm -it -v ./test:/data yaoapp/yao-build:0.10.4 /bin/bash
 #
 # ===========================================
-FROM ubuntu:23.04
+FROM ubuntu:24.04
 WORKDIR /app
 ADD build.sh /app/build.sh
 ENV PATH=$PATH:/usr/local/go/bin:/root/go/bin
@@ -29,18 +29,24 @@ RUN apt-get update && \
     apt-get install -y git && \
     apt-get install -y unzip 
 
-RUN wget https://golang.org/dl/go1.21.1.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.21.1.linux-amd64.tar.gz && \
-    rm go1.21.1.linux-amd64.tar.gz
+# Install Go 1.23.3 
+RUN wget https://golang.org/dl/go1.23.3.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.23.3.linux-amd64.tar.gz && \
+    rm go1.23.3.linux-amd64.tar.gz
 
+# Install Node.js 18.x
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs 
 
 RUN npm install -g pnpm
 
-RUN curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash && \
-    apt-get install -y git-lfs && \
-    git lfs install
+# Install AWS CLI
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \ 
+    unzip awscliv2.zip && \ 
+    ./aws/install && \ 
+    rm -rf awscliv2.zip && \ 
+    rm -rf aws && \
+    aws --version
 
 # RUN npm install -g pnpm
 RUN chmod +x /app/build.sh
