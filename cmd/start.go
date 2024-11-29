@@ -116,12 +116,6 @@ var startCmd = &cobra.Command{
 		fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
 		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
 
-		root, _ := adminRoot()
-		urls := []string{fmt.Sprintf("http://%s:%s", host, port)}
-		if host == "0.0.0.0" {
-			urls, _ = setup.URLs(config.Conf)
-		}
-
 		// print the messages under the development mode
 		if mode == "development" {
 
@@ -153,12 +147,45 @@ var startCmd = &cobra.Command{
 
 		}
 
-		for _, url := range urls {
-			fmt.Println(color.CyanString("\n%s", url))
+		root, _ := adminRoot()
+		endpoints := []setup.Endpoint{{URL: fmt.Sprintf("http://%s:%s", "127.0.0.1", port), Interface: "localhost"}}
+		switch host {
+		case "0.0.0.0":
+			// All interfaces
+			if values, err := setup.Endpoints(config.Conf); err == nil {
+				endpoints = append(endpoints, values...)
+			}
+			break
+		case "127.0.0.1":
+			// Localhost only
+			break
+		default:
+			// Filter by the host IP
+			matched := false
+			endpoints = []setup.Endpoint{}
+			if values, err := setup.Endpoints(config.Conf); err == nil {
+				for _, value := range values {
+					if strings.HasPrefix(value.URL, fmt.Sprintf("http://%s:", host)) {
+						endpoints = append(endpoints, value)
+						matched = true
+					}
+				}
+			}
+			if !matched {
+				fmt.Println(color.RedString(L("Host %s not found"), host))
+				os.Exit(1)
+			}
+		}
+
+		fmt.Println(color.WhiteString("\n---------------------------------"))
+		fmt.Println(color.WhiteString(L("Access Points")))
+		fmt.Println(color.WhiteString("---------------------------------"))
+		for _, endpoint := range endpoints {
+			fmt.Println(color.CyanString("\n%s", endpoint.Interface))
 			fmt.Println(color.WhiteString("--------------------------"))
-			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", url))
-			fmt.Println(color.WhiteString(L("Admin")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
-			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
+			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", endpoint.URL))
+			fmt.Println(color.WhiteString(L("Admin")), color.GreenString(" %s/%s/login/admin", endpoint.URL, strings.Trim(root, "/")))
+			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", endpoint.URL))
 		}
 		fmt.Println("")
 
@@ -419,7 +446,7 @@ func printApis(silent bool) {
 	}
 
 	fmt.Println(color.WhiteString("\n---------------------------------"))
-	fmt.Println(color.WhiteString(L("API List")))
+	fmt.Println(color.WhiteString(L("APIs List")))
 	fmt.Println(color.WhiteString("---------------------------------"))
 
 	for _, api := range api.APIs { // API信息

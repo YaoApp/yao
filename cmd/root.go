@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/yao/cmd/studio"
 	"github.com/yaoapp/yao/cmd/sui"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/pack"
@@ -132,7 +131,7 @@ var suiCmd = &cobra.Command{
 // Command initialize
 func init() {
 
-	studioCmd.AddCommand(studio.RunCmd)
+	// studioCmd.AddCommand(studio.RunCmd)
 
 	// Sui
 	suiCmd.AddCommand(sui.WatchCmd)
@@ -145,15 +144,15 @@ func init() {
 		inspectCmd,
 		startCmd,
 		runCmd,
-		getCmd,
-		dumpCmd,
-		restoreCmd,
+		// getCmd,
+		// dumpCmd,
+		// restoreCmd,
 		// socketCmd,
 		// websocketCmd,
-		packCmd,
-		studioCmd,
+		// packCmd,
+		// studioCmd,
 		suiCmd,
-		upgradeCmd,
+		// upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
