@@ -112,6 +112,10 @@ var startCmd = &cobra.Command{
 			fmt.Println(color.WhiteString(L("Root")), color.GreenString(" %s", root))
 		}
 
+		fmt.Println(color.WhiteString(L("Runtime")), color.GreenString(" %s", runtimeMode))
+		fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
+		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
+
 		root, _ := adminRoot()
 		urls := []string{fmt.Sprintf("http://%s:%s", host, port)}
 		if host == "0.0.0.0" {
@@ -149,16 +153,14 @@ var startCmd = &cobra.Command{
 
 		}
 
-		fmt.Println(color.WhiteString(L("Runtime")), color.GreenString(" %s", runtimeMode))
-		fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
-		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
 		for _, url := range urls {
 			fmt.Println(color.CyanString("\n%s", url))
 			fmt.Println(color.WhiteString("--------------------------"))
-			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" %s", url))
-			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
+			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", url))
+			fmt.Println(color.WhiteString(L("Admin")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
 			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
 		}
+		fmt.Println("")
 
 		// Print welcome message for the new application
 		if isnew {
