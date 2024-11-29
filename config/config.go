@@ -150,17 +150,19 @@ func OpenLog() {
 
 	logfile, err := filepath.Abs(Conf.Log)
 	if err != nil {
-		log.With(log.F{"file": logfile}).Error(err.Error())
 		return
 	}
 
 	logpath := filepath.Dir(logfile)
-	if _, err := os.Stat(logpath); os.IsNotExist(err) {
-		if err := os.MkdirAll(logpath, os.ModePerm); err != nil {
-			log.With(log.F{"file": logfile}).Error(err.Error())
-			return
-		}
+
+	// Check if the log path exists
+	if _, err := os.Stat(logpath); errors.Is(err, os.ErrNotExist) {
+		LogOutput, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0666)
+		log.SetOutput(LogOutput)
+		gin.DefaultWriter = io.MultiWriter(LogOutput)
+		return
 	}
+
 	LogOutput = &lumberjack.Logger{
 		Filename:   logfile,
 		MaxSize:    Conf.LogMaxSize, // megabytes

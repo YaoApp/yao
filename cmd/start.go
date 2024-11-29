@@ -49,13 +49,27 @@ var startCmd = &cobra.Command{
 		Boot()
 
 		// Setup
-		isNewApp := false
-		if !setup.SourceExists() {
+		isnew := false
+		if setup.IsEmptyDir(config.Conf.Root) {
+
+			// In Yao App
+			if setup.InYaoApp(config.Conf.Root) {
+				fmt.Println(color.RedString(L("Please run the command in the root directory of project")))
+				os.Exit(1)
+			}
+
+			// Install the init app
 			if err := install(); err != nil {
 				fmt.Println(color.RedString(L("Install: %s"), err.Error()))
 				os.Exit(1)
 			}
-			isNewApp = true
+			isnew = true
+		}
+
+		// Is Yao App
+		if !setup.IsYaoApp(config.Conf.Root) {
+			fmt.Println(color.RedString(L("yao.app not found")))
+			os.Exit(1)
 		}
 
 		// force debug
@@ -105,17 +119,6 @@ var startCmd = &cobra.Command{
 			urls, _ = setup.URLs(config.Conf)
 		}
 
-		fmt.Println(color.WhiteString(L("Runtime")), color.GreenString(" %s", runtimeMode))
-		fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
-		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
-		for _, url := range urls {
-			fmt.Println(color.CyanString("\n%s", url))
-			fmt.Println(color.WhiteString("--------------------------"))
-			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" %s", url))
-			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
-			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
-		}
-
 		// print the messages under the development mode
 		if mode == "development" {
 
@@ -144,10 +147,22 @@ var startCmd = &cobra.Command{
 			printStores(false)
 			printStudio(false, host)
 
-			// Print welcome message for the new application
-			if isNewApp {
-				printWelcome()
-			}
+		}
+
+		fmt.Println(color.WhiteString(L("Runtime")), color.GreenString(" %s", runtimeMode))
+		fmt.Println(color.WhiteString(L("Data")), color.GreenString(" %s", dataRoot))
+		fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s:%d", config.Conf.Host, config.Conf.Port))
+		for _, url := range urls {
+			fmt.Println(color.CyanString("\n%s", url))
+			fmt.Println(color.WhiteString("--------------------------"))
+			fmt.Println(color.WhiteString(L("Frontend")), color.GreenString(" %s", url))
+			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/login/admin", url, strings.Trim(root, "/")))
+			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", url))
+		}
+
+		// Print welcome message for the new application
+		if isnew {
+			printWelcome()
 		}
 
 		// Start Tasks
@@ -195,7 +210,7 @@ var startCmd = &cobra.Command{
 				switch v {
 				case http.READY:
 					fmt.Println(color.GreenString(L("✨Server is up and running...")))
-					fmt.Println(color.BlackString("✨Ctrl+C to stop"))
+					fmt.Println(color.GreenString("✨Ctrl+C to stop"))
 					break
 
 				case http.CLOSED:
@@ -256,11 +271,11 @@ func adminRoot() (string, int) {
 }
 
 func printWelcome() {
-	fmt.Println(color.BlueString("\n---------------------------------"))
-	fmt.Println(color.BlueString(L("🎉 Welcome to Yao 🎉 ")))
-	fmt.Println(color.BlueString("---------------------------------"))
-	fmt.Println(color.WhiteString("📚 Documentation:"), color.BlueString("https://yaoapps.com/docs"))
-	fmt.Println(color.WhiteString("💬 Build App via Chat:"), color.BlueString("https://moapi.ai"))
+	fmt.Println(color.CyanString("\n---------------------------------"))
+	fmt.Println(color.CyanString(L("🎉 Welcome to Yao 🎉 ")))
+	fmt.Println(color.CyanString("---------------------------------"))
+	fmt.Println(color.WhiteString("📚 Documentation:"), color.CyanString("https://yaoapps.com/docs"))
+	fmt.Println(color.WhiteString("💬 Build App via Chat:"), color.CyanString("https://moapi.ai"))
 	fmt.Println("")
 }
 

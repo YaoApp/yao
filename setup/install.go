@@ -1,15 +1,12 @@
 package setup
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/process"
-	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
@@ -48,7 +45,7 @@ func Initialize(root string, cfg config.Config) error {
 
 func makeInit(root string) error {
 
-	if appSourceExists() {
+	if !IsEmptyDir(root) {
 		return nil
 	}
 
@@ -105,31 +102,6 @@ func makeMigrate() error {
 func makeSetup(cfg config.Config) error {
 
 	if app.Setting != nil && app.Setting.Setup != "" {
-
-		if strings.HasPrefix(app.Setting.Setup, "studio.") {
-			names := strings.Split(app.Setting.Setup, ".")
-			if len(names) < 3 {
-				return fmt.Errorf("setup studio script %s error", app.Setting.Setup)
-			}
-
-			service := strings.Join(names[1:len(names)-1], ".")
-			method := names[len(names)-1]
-
-			script, err := v8.SelectRoot(service)
-			if err != nil {
-				return err
-			}
-
-			sid := uuid.NewString()
-			ctx, err := script.NewContext(fmt.Sprintf("%v", sid), nil)
-			if err != nil {
-				return err
-			}
-			defer ctx.Close()
-
-			_, err = ctx.Call(method)
-			return err
-		}
 
 		p, err := process.Of(app.Setting.Setup, cfg)
 		if err != nil {

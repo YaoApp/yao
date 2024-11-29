@@ -1,41 +1,44 @@
 package setup
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/yaoapp/yao/config"
 )
 
-// SourceExists check if the app source exists
-func SourceExists() bool {
-	return appSourceExists()
+// InYaoApp Check if the current directory is a yao app
+func InYaoApp(root string) bool {
+	// Check current directory and parent directories
+	for root != "/" {
+		if IsYaoApp(root) {
+			return true
+		}
+		root = filepath.Dir(root)
+	}
+	return false
 }
 
-func appSourceExists() bool {
-
-	root := appRoot()
-	if isEmptyDir(root) {
-		return false
-	}
-
-	// check app.yao/app.json/app.jsonc
+// IsYaoApp Check if the directory is a yao app
+func IsYaoApp(root string) bool {
 	appfiles := []string{"app.yao", "app.json", "app.jsonc"}
-	exist := false
+	yaoapp := false
 	for _, appfile := range appfiles {
 		appfile = filepath.Join(root, appfile)
 		if _, err := os.Stat(appfile); err == nil {
-			exist = true
+			yaoapp = true
 			break
 		}
 	}
-
-	return exist
+	return yaoapp
 }
 
-func isEmptyDir(dir string) bool {
+// IsEmptyDir Check if the directory is empty
+func IsEmptyDir(dir string) bool {
 	f, err := os.Open(dir)
 	if err != nil {
+		fmt.Println("Can't open the directory: ", err)
 		return true
 	}
 	defer f.Close()
