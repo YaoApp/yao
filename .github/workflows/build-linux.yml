@@ -10,27 +10,27 @@ jobs:
   build:
     runs-on: "ubuntu-22.04"
     container:
-      # DockerFile
-      # https://github.com/YaoApp/yao/blob/main/docker/build/Dockerfile
       image: yaoapp/yao-build:0.10.4
 
+    env:
+      CF_ACCESS_KEY_ID: ${{ secrets.CF_ACCESS_KEY_ID }}
+      CF_SECRET_ACCESS_KEY: ${{ secrets.CF_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+
     steps:
-      - name: Install Coscmd
+      - name: Install AWS CLI
         run: |
           apt-get update
-          apt-get install -y python3-venv
-          python3 -m venv /python3/venv
-          /python3/venv/bin/python -m pip install coscmd
-          /python3/venv/bin/coscmd -v
+          apt-get install -y awscli
 
-      - name: Configure COS For Silicon Valley
-        env:
-          SECRET_ID: ${{ secrets.COS_ID }}
-          SECRET_KEY: ${{ secrets.COS_KEY }}
-          BUCKET: release-sv-1252011659
-          REGION: na-siliconvalley
+      - name: Configure R2 For Cloudflare
         run: |
-          /python3/venv/bin/coscmd config -a $SECRET_ID -s $SECRET_KEY -b $BUCKET -r $REGION
+          aws configure set aws_access_key_id $CF_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $CF_SECRET_ACCESS_KEY
+          aws configure set default.region us-east-1 # Update with your R2 region if different
+          aws configure set default.s3.signature_version s3v4
+          aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
 
       - name: Build
         run: |
@@ -45,6 +45,8 @@ jobs:
           path: |
             /data/*
 
-      - name: Push To Silicon Valley
+      - name: Push To R2 Cloudflare
         run: |
-          for file in /data/*; do /python3/venv/bin/coscmd upload $file /archives/; done;
+          for file in /data/*; do
+            aws s3 cp $file s3://$R2_BUCKET/archives/ --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+          done
