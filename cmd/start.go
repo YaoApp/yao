@@ -148,7 +148,7 @@ var startCmd = &cobra.Command{
 		}
 
 		root, _ := adminRoot()
-		endpoints := []setup.Endpoint{{URL: fmt.Sprintf("http://%s:%s", "127.0.0.1", port), Interface: "localhost"}}
+		endpoints := []setup.Endpoint{{URL: fmt.Sprintf("http://%s%s", "127.0.0.1", port), Interface: "localhost"}}
 		switch host {
 		case "0.0.0.0":
 			// All interfaces

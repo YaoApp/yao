@@ -18,8 +18,12 @@ func Endpoints(cfg config.Config) ([]Endpoint, error) {
 
 	var endpoints []Endpoint
 	for _, network := range networks {
+		port := fmt.Sprintf(":%d", cfg.Port)
+		if port == ":80" {
+			port = ""
+		}
 		endpoint := Endpoint{
-			URL:       fmt.Sprintf("http://%s:%d", network.IPv4, cfg.Port),
+			URL:       fmt.Sprintf("http://%s%s", network.IPv4, port),
 			Interface: network.Interface,
 		}
 		endpoints = append(endpoints, endpoint)
