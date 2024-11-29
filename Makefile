@@ -148,9 +148,6 @@ artifacts-linux: clean
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
-#   Setup UI
-	cd ../xgen-v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
-
 #	Init Application
 	cd ../yao-init && rm -rf .git
 	cd ../yao-init && rm -rf .gitignore
@@ -169,7 +166,6 @@ artifacts-linux: clean
 #   ** new repository: https://github.com/YaoApp/dui.git **
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
-	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
 	cp -r ../yao-init .tmp/data/init
 	cp -r yao .tmp/data/
@@ -207,9 +203,6 @@ artifacts-macos: clean
 	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
 	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
-#   Setup UI
-	cd ../xgen-v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
-
 #	Init Application
 	cd ../yao-init && rm -rf .git
 	cd ../yao-init && rm -rf .gitignore
@@ -228,7 +221,6 @@ artifacts-macos: clean
 #   ** new repository: https://github.com/YaoApp/dui.git **
 	mkdir -p .tmp/data/xgen
 	cp -r ./ui .tmp/data/ui
-	cp -r ../xgen-v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
 	cp -r ../yao-init .tmp/data/init
 	cp -r yao .tmp/data/
@@ -296,10 +288,6 @@ release: clean
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
-#   Setup UI
-	cd .tmp/xgen/v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
-
-
 #	Checkout init
 	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
 	rm -rf .tmp/yao-init/.git
@@ -320,7 +308,6 @@ release: clean
 	cp -r ./yao .tmp/data/yao
 	cp -r ./sui/libsui .tmp/data/libsui
 	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
-	cp -r .tmp/xgen/v1.0/packages/setup/build .tmp/data/xgen/setup
 	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
 	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...

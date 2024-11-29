@@ -49,17 +49,13 @@ var startCmd = &cobra.Command{
 		Boot()
 
 		// Setup
-		if setup.Check() {
-			go setup.Start()
-			select {
-			case <-setup.Done:
-				setup.Stop()
-				Boot()
-				break
-			case <-setup.Canceled:
+		isNewApp := false
+		if !setup.SourceExists() {
+			if err := install(); err != nil {
+				fmt.Println(color.RedString(L("Install: %s"), err.Error()))
 				os.Exit(1)
-				break
 			}
+			isNewApp = true
 		}
 
 		// force debug
@@ -147,6 +143,11 @@ var startCmd = &cobra.Command{
 			printConnectors(false)
 			printStores(false)
 			printStudio(false, host)
+
+			// Print welcome message for the new application
+			if isNewApp {
+				printWelcome()
+			}
 		}
 
 		// Start Tasks
@@ -161,7 +162,7 @@ var startCmd = &cobra.Command{
 		srv, err := service.Start(config.Conf)
 		defer func() {
 			service.Stop(srv)
-			fmt.Println(color.GreenString(L("✨EXITED✨")))
+			fmt.Println(color.GreenString(L("✨Exited successfully!")))
 		}()
 
 		if err != nil {
@@ -193,11 +194,12 @@ var startCmd = &cobra.Command{
 
 				switch v {
 				case http.READY:
-					fmt.Println(color.GreenString(L("✨LISTENING✨")))
+					fmt.Println(color.GreenString(L("✨Server is up and running...")))
+					fmt.Println(color.BlackString("✨Ctrl+C to stop"))
 					break
 
 				case http.CLOSED:
-					fmt.Println(color.GreenString(L("✨EXITED✨")))
+					fmt.Println(color.GreenString(L("✨Exited successfully!")))
 					watchDone <- 1
 					return
 
@@ -218,6 +220,30 @@ var startCmd = &cobra.Command{
 	},
 }
 
+func install() error {
+	// Copy the app source files from the binary
+	err := setup.Install(config.Conf.Root)
+	if err != nil {
+		return err
+	}
+
+	// Reload the application engine
+	Boot()
+
+	// load the application engine
+	err = engine.Load(config.Conf, engine.LoadOption{Action: "start"})
+	if err != nil {
+		return err
+	}
+
+	err = setup.Initialize(config.Conf.Root, config.Conf)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func adminRoot() (string, int) {
 	adminRoot := "/yao/"
 	if share.App.AdminRoot != "" {
@@ -227,6 +253,15 @@ func adminRoot() (string, int) {
 	}
 	adminRootLen := len(adminRoot)
 	return adminRoot, adminRootLen
+}
+
+func printWelcome() {
+	fmt.Println(color.BlueString("\n---------------------------------"))
+	fmt.Println(color.BlueString(L("🎉 Welcome to Yao 🎉 ")))
+	fmt.Println(color.BlueString("---------------------------------"))
+	fmt.Println(color.WhiteString("📚 Documentation:"), color.BlueString("https://yaoapps.com/docs"))
+	fmt.Println(color.WhiteString("💬 Build App via Chat:"), color.BlueString("https://moapi.ai"))
+	fmt.Println("")
 }
 
 func printConnectors(silent bool) {
@@ -246,8 +281,8 @@ func printConnectors(silent bool) {
 	fmt.Println(color.WhiteString(L("Connectors List (%d)"), len(connector.Connectors)))
 	fmt.Println(color.WhiteString("---------------------------------"))
 	for name := range connector.Connectors {
-		fmt.Printf(color.CyanString("[Connector]"))
-		fmt.Printf(color.WhiteString(" %s\t loaded\n", name))
+		fmt.Print(color.CyanString("[Connector]"))
+		fmt.Print(color.WhiteString(" %s\t loaded\n", name))
 	}
 }
 
@@ -267,8 +302,8 @@ func printStores(silent bool) {
 	fmt.Println(color.WhiteString(L("Stores List (%d)"), len(connector.Connectors)))
 	fmt.Println(color.WhiteString("---------------------------------"))
 	for name := range store.Pools {
-		fmt.Printf(color.CyanString("[Store]"))
-		fmt.Printf(color.WhiteString(" %s\t loaded\n", name))
+		fmt.Print(color.CyanString("[Store]"))
+		fmt.Print(color.WhiteString(" %s\t loaded\n", name))
 	}
 }
 
@@ -285,13 +320,13 @@ func printStudio(silent bool, host string) {
 	fmt.Println(color.WhiteString("\n---------------------------------"))
 	fmt.Println(color.WhiteString(L("Yao Studio Server")))
 	fmt.Println(color.WhiteString("---------------------------------"))
-	fmt.Printf(color.CyanString("HOST  : "))
-	fmt.Printf(color.WhiteString(" %s\n", config.Conf.Host))
-	fmt.Printf(color.CyanString("PORT  : "))
-	fmt.Printf(color.WhiteString(" %d\n", config.Conf.Studio.Port))
+	fmt.Print(color.CyanString("HOST  : "))
+	fmt.Print(color.WhiteString(" %s\n", config.Conf.Host))
+	fmt.Print(color.CyanString("PORT  : "))
+	fmt.Print(color.WhiteString(" %d\n", config.Conf.Studio.Port))
 	if config.Conf.Studio.Auto {
-		fmt.Printf(color.CyanString("SECRET: "))
-		fmt.Printf(color.WhiteString(" %s\n", config.Conf.Studio.Secret))
+		fmt.Print(color.CyanString("SECRET: "))
+		fmt.Print(color.WhiteString(" %s\n", config.Conf.Studio.Secret))
 	}
 }
 
@@ -320,8 +355,8 @@ func printSchedules(silent bool) {
 		if sch.TaskName != "" {
 			process = fmt.Sprintf("Task: %s", sch.TaskName)
 		}
-		fmt.Printf(color.CyanString("[Schedule] %s %s", sch.Schedule, name))
-		fmt.Printf(color.WhiteString("\t%s\t%s\n", sch.Name, process))
+		fmt.Print(color.CyanString("[Schedule] %s %s", sch.Schedule, name))
+		fmt.Print(color.WhiteString("\t%s\t%s\n", sch.Name, process))
 	}
 }
 
@@ -342,8 +377,8 @@ func printTasks(silent bool) {
 	fmt.Println(color.WhiteString(L("Tasks List (%d)"), len(task.Tasks)))
 	fmt.Println(color.WhiteString("---------------------------------"))
 	for _, t := range task.Tasks {
-		fmt.Printf(color.CyanString("[Task] %s", t.Option.Name))
-		fmt.Printf(color.WhiteString("\t workers: %d\n", t.Option.WorkerNums))
+		fmt.Print(color.CyanString("[Task] %s", t.Option.Name))
+		fmt.Print(color.WhiteString("\t workers: %d\n", t.Option.WorkerNums))
 	}
 }
 
