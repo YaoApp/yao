@@ -35,6 +35,13 @@ type rewriteRule struct {
 func SetupStatic() error {
 	setupAdminRoot()
 	setupRewrite()
+
+	// Disable gzip compression for static files
+	if share.App.Static.DisableGzip {
+		AppFileServer = http.FileServer(fs.Dir("public"))
+		return nil
+	}
+
 	AppFileServer = gzipHandler(http.FileServer(fs.Dir("public")))
 	return nil
 }
