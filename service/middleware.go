@@ -3,12 +3,14 @@ package service
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/sui/api"
 )
 
@@ -88,8 +90,8 @@ func withStaticFileServer(c *gin.Context) {
 			return
 		}
 
-		// Gzip Compression
-		if strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
+		// Gzip Compression option
+		if share.App.Static.DisableGzip == false && strings.Contains(c.GetHeader("Accept-Encoding"), "gzip") {
 			var buf bytes.Buffer
 			gz := gzip.NewWriter(&buf)
 			if _, err := gz.Write([]byte(html)); err != nil {
@@ -102,8 +104,9 @@ func withStaticFileServer(c *gin.Context) {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
-
+			c.Header("Content-Length", fmt.Sprintf("%d", buf.Len()))
 			c.Header("Content-Type", "text/html; charset=utf-8")
+			c.Header("Accept-Ranges", "bytes")
 			c.Header("Content-Encoding", "gzip")
 			c.Data(http.StatusOK, "text/html", buf.Bytes())
 			c.Done()

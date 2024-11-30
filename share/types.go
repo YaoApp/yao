@@ -98,6 +98,7 @@ type Moapi struct {
 
 // Static setting
 type Static struct {
+	DisableGzip bool                `json:"disableGzip,omitempty"`
 	Rewrite     []map[string]string `json:"rewrite,omitempty"`
 	SourceRoots map[string]string   `json:"sourceRoots,omitempty"`
 }
