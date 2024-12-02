@@ -6,11 +6,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// PasswordValidate 校验密码
+// PasswordValidate Validate the password
 func PasswordValidate(password string, passwordHash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
-		exception.New("密码不正确", 400).Throw()
+		exception.New("Invalid password.", 400).Throw()
 		return false
 	}
 	return true
