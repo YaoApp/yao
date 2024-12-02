@@ -86,28 +86,28 @@ func CaptchaMake(option CaptchaOption) (string, string) {
 
 }
 
-// CaptchaValidate 校验验证码
+// CaptchaValidate Validate the captcha
 func CaptchaValidate(id string, code string) bool {
 	return captcha.VerifyString(id, code)
 }
 
-// ProcessCaptchaValidate xiang.helper.CaptchaValidate 校验图形/音频验证码
+// ProcessCaptchaValidate xiang.helper.CaptchaValidate image/audio captcha
 func ProcessCaptchaValidate(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	id := process.ArgsString(0)
 	code := process.ArgsString(1)
 	if code == "" {
-		exception.New("请输入验证码", 400).Throw()
+		exception.New("Please enter the captcha.", 400).Throw()
 		return false
 	}
 	if !CaptchaValidate(id, code) {
-		exception.New("验证码不正确", 400).Throw()
+		exception.New("Invalid captcha.", 400).Throw()
 		return false
 	}
 	return true
 }
 
-// ProcessCaptcha xiang.helper.Captcha 校验图形/音频验证码
+// ProcessCaptcha xiang.helper.Captcha image/audio captcha
 func ProcessCaptcha(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	option := CaptchaOption{
