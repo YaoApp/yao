@@ -161,8 +161,8 @@ jobs:
         run: |
           zip -r dist/release/yao-$VERSION-unstable-darwin-arm64.zip dist/release/yao-$VERSION-unstable-darwin-arm64
           zip -r dist/release/yao-$VERSION-unstable-darwin-amd64.zip dist/release/yao-$VERSION-unstable-darwin-amd64
-          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-arm64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" --output-format json
-          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-amd64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" --output-format json
+          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-arm64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
+          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-amd64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
           rm -f dist/release/yao-$VERSION-unstable-darwin-arm64.zip
           rm -f dist/release/yao-$VERSION-unstable-darwin-amd64.zip
 
