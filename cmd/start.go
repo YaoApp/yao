@@ -67,7 +67,7 @@ var startCmd = &cobra.Command{
 
 		// Is Yao App
 		if !setup.IsYaoApp(config.Conf.Root) {
-			fmt.Println(color.RedString(L("yao.app not found")))
+			fmt.Println(color.RedString("The app.yao file is missing"))
 			os.Exit(1)
 		}
 
