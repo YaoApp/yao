@@ -57,7 +57,7 @@ jobs:
         with:
           repository: yaoapp/v8go
           path: v8go
-      
+
       - name: Unzip libv8
         run: |
           files=$(find ./v8go -name "libv8*.zip")
@@ -149,8 +149,22 @@ jobs:
 
       - name: Sign Artifacts
         run: |
-          codesign --deep --force --verify --verbose --sign "${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
-          codesign --deep --force --verify --verbose --sign "${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
+          codesign --deep --force --verbose --timestamp --options runtime --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
+          codesign --deep --force --verbose --timestamp --options runtime --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
+
+      - name: Verify Signature
+        run: |
+          codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-arm64
+          codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-amd64
+
+      - name: Send to Apple Notary Service
+        run: |
+          zip -r dist/release/yao-$VERSION-unstable-darwin-arm64.zip dist/release/yao-$VERSION-unstable-darwin-arm64
+          zip -r dist/release/yao-$VERSION-unstable-darwin-amd64.zip dist/release/yao-$VERSION-unstable-darwin-amd64
+          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-arm64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" --output-format json
+          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-amd64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" --output-format json
+          rm -f dist/release/yao-$VERSION-unstable-darwin-arm64.zip
+          rm -f dist/release/yao-$VERSION-unstable-darwin-amd64.zip
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
