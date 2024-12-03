@@ -73,7 +73,7 @@ func (r *Request) NewData() Data {
 	data["$query"] = r.Query
 	data["$param"] = r.Params
 	data["$cookie"] = cookies
-	data["$url"] = r.URL
+	data["$url"] = r.URL.Map()
 	data["$theme"] = r.Theme
 	data["$locale"] = r.Locale
 	data["$timezone"] = GetSystemTimezone()
