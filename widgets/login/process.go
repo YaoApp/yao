@@ -35,16 +35,16 @@ func processLoginAdmin(process *process.Process) interface{} {
 	id := any.Of(payload.Get("captcha.id")).CString()
 	value := any.Of(payload.Get("captcha.code")).CString()
 	if id == "" {
-		exception.New("请输入验证码ID", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
+		exception.New("Please enter the captcha ID", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
 	}
 
 	if value == "" {
-		exception.New("请输入验证码", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
+		exception.New("Please enter the captcha code", 400).Ctx(maps.Map{"id": id, "code": value}).Throw()
 	}
 
 	if !helper.CaptchaValidate(id, value) {
 		log.With(log.F{"id": id, "code": value}).Debug("ProcessLogin")
-		exception.New("验证码不正确", 401).Ctx(maps.Map{"id": id, "code": value}).Throw()
+		exception.New("Captcha error", 401).Ctx(maps.Map{"id": id, "code": value}).Throw()
 		return nil
 	}
 
@@ -62,14 +62,14 @@ func processLoginAdmin(process *process.Process) interface{} {
 		return auth("mobile", mobile, password, sid)
 	}
 
-	exception.New("参数错误", 400).Ctx(payload).Throw()
+	exception.New("Parameter error", 400).Ctx(payload).Throw()
 	return nil
 }
 
 func auth(field string, value string, password string, sid string) maps.Map {
 	column, has := loginTypes[field]
 	if !has {
-		exception.New("登录方式(%s)尚未支持", 400, field).Throw()
+		exception.New("Login type (%s) not supported", 400, field).Throw()
 	}
 
 	user := model.Select("admin.user")
@@ -83,11 +83,11 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	})
 
 	if err != nil {
-		exception.New("数据库查询错误", 500, field).Throw()
+		exception.New("Database query error", 500, field).Throw()
 	}
 
 	if len(rows) == 0 {
-		exception.New("用户不存在(%s)", 404, value).Throw()
+		exception.New("User not found (%s)", 404, value).Throw()
 	}
 
 	row := rows[0]
@@ -96,7 +96,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
 	if err != nil {
-		exception.New("登录密码错误 (%v)", 403, value).Throw()
+		exception.New("Login password error (%v)", 403, value).Throw()
 	}
 
 	expiresAt := time.Now().Unix() + 3600*8
@@ -127,7 +127,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		studio["expires_at"] = studioToken.ExpiresAt
 	}
 
-	// 读取菜单
+	// Get user menus
 	menus := process.New("yao.app.menu").WithSID(sid).Run()
 	return maps.Map{
 		"expires_at": token.ExpiresAt,
