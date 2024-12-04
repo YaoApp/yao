@@ -41,3 +41,4 @@ xgen/v1.0/*
 *-unit-test
 docker/build/test
 db
+*.sh
