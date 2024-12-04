@@ -1,110 +1,51 @@
-<p align="center">
-    <h1 align="center">YAO App Engine</h1>
-</p>
+## What is Yao?
 
-<p align="center">
-  <a aria-label="website" href="https://yaoapps.com" target="_blank">
-    Website
-  </a>
-  ·
-  <a aria-label="producthunt" href="https://www.producthunt.com/posts/yao-app-engine" target="_blank">
-    Producthunt
-  </a>
-  ·
-  <a aria-label="twitter" href="https://twitter.com/YaoApp" target="_blank">
-    Twitter
-  </a>
-  <!-- ·
-  <a aria-label="discord" href="https://discord.gg/nsKmCXwvxU" target="_blank">
-    Discord
-  </a> -->
-</p>
+Yao is an all-in-one application engine that enables developers to create web apps, REST APIs, business applications, and more, with AI as a development partner.
 
-<p align="center">
-  <a aria-label="UnitTest" href="https://github.com/YaoApp/yao/actions/workflows/unit-test.yml" target="_blank">
-    <img src="https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg">
-  </a>
-  <a aria-label="codecov" href="https://codecov.io/gh/YaoApp/yao" target="_blank">
-    <img src="https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J">
-  </a>
-  <a aria-label="Go Report Card" href="https://goreportcard.com/report/github.com/yaoapp/yao" target="_blank">
-    <img src="https://goreportcard.com/badge/github.com/yaoapp/yao">
-  </a>
-  <a aria-label="Go Reference" href="https://pkg.go.dev/github.com/yaoapp/yao" target="_blank">
-    <img src="https://pkg.go.dev/badge/github.com/yaoapp/yao.svg">
-  </a>
-  <a href="https://app.fossa.com/projects/git%2Bgithub.com%2FYaoApp%2Fyao?ref=badge_shield" alt="FOSSA Status">
-    <img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2FYaoApp%2Fyao.svg?type=shield"/>
-  </a>
-</p>
+Yao lets you create apps using AI, a visual interface, or by writing them yourself. Its DSL (Domain-Specific Language) is easy to read and write, and it works well with AI. With full programming capabilities and a single command-line tool to handle everything, you can switch smoothly between manual coding and AI assistance, making web app development fast and flexible.
 
-https://github.com/YaoApp/yao/assets/1842210/6b23ac89-ef6e-4c24-874f-753a98370dec
+**Quick Links:**
 
-[中文介绍](README.zh-CN.md)
+**🏠 Homepage:** [https://yaoapps.com](https://yaoapps.com)
 
-YAO is an open-source application engine, written in Golang, in the form of a command-line tool that can be downloaded and used immediately. It is suitable for developing business systems, website/APP API, admin panel, self-built low-code platforms, etc.
+**🚀 Quick Start:** [https://yaoapps.com/docs/documentation/en-us/getting-started](https://yaoapps.com/docs/documentation/en-us/getting-started#quickstart)
 
-YAO adopts a flow-based programming model to implement various functions by writing YAO DSL (Logical Description in JSON format) or using JavaScript to write processes. The YAO DSL can be written in several ways:
+**📚 Documentation:** [https://yaoapps.com/docs](https://yaoapps.com/docs)
 
-1. Purely hand-written
+**✨ Why Yao?** [https://yaoapps.com/docs/why-yao](https://yaoapps.com/docs/documentation/en-us/getting-started/why-yao)
 
-2. Use automated scripts to generate contextual logic
+## Features
 
-3. Use the visual editor to create by "drag and drop"
+Yao is effective in both human and machine programming, with each being independent, allowing for seamless switching between the two.
 
-**Documentation:** https://yaoapps.com/en-US/doc
+### 🔮 AI First
 
-## Latest Version download and installation (Recommended)
+We have designed a human-machine-friendly DSL (Domain-Specific Language) that makes both AI-generated and manually written code more efficient, enabling easy transitions between the two.
 
-https://github.com/YaoApp/xgen-dev-app
+Typically, AI generates the initial code, and developers make modifications, significantly boosting development efficiency. In practice, AI can handle 80% to 90% of the work, allowing developers to focus on the remaining 10% to 20%.
 
-## Demo
+### 🔮 All-in-One
 
-Applications developed with YAO
+Yao is an all-in-one solution for web development, requiring no additional packages or toolchain dependencies. It ships as a single executable file that includes everything you need to get started.
 
-| Application          | Description                                          | Repository                              |
-| -------------------- | ---------------------------------------------------- | --------------------------------------- |
-| yaoapp/yao-examples  | Yao Examples                                         | https://github.com/YaoApp/yao-examples  |
-| yaoapp/yao-knowledge | A knowledge base application                         | https://github.com/YaoApp/yao-knowledge |
-| yaoapp/xgen-dev-app  | A demo application                                   | https://github.com/YaoApp/xgen-dev-app  |
-| yaoapp/demo-project  | A demo application for project management            | https://github.com/yaoapp/demo-project  |
-| yaoapp/demo-finance  | A demo application for financial management          | https://github.com/yaoapp/demo-finance  |
-| yaoapp/demo-plm      | A demo application for production project management | https://github.com/yaoapp/demo-plm      |
+This greatly reduces the complexity of interacting with AI, significantly improving both the efficiency and quality of the generated code. It also eliminates many unnecessary tasks, allowing developers to focus on more important aspects.
 
-## Introduce
+### 🔮 Native TypeScript Support
 
-**Yao allows developers to create web services by processes.** Yao is a app engine that creates a database model, writes API services, and describes dashboard interface just by JSON for web & hardware, and 10x productivity.
+Yao includes a built-in V8 engine with TypeScript support, allowing direct code execution and providing hundreds of APIs for databases, files, caching, and more, with multiple ways to add extensions.
 
-Yao is based on the **flow-based** programming idea, developed in the **Go** language, and supports multiple ways to expand the data stream processor. This makes Yao extremely versatile, which can replace programming languages ​​in most scenarios, and is 10 times more efficient than traditional programming languages ​​in terms of reusability and coding efficiency; application performance and resource ratio Better than **PHP**, **JAVA** and other languages.
+Yao offers comprehensive programming capabilities, so you don’t have to worry about being unable to implement certain features.
 
-Yao has a built-in data management system. By writing **JSON** to describe the interface layout, 90% of the common interface interaction functions can be realized. It is especially suitable for quickly making various management background, CRM, ERP and other internal enterprise systems. Special interactive functions can also be implemented by writing extension components or HTML pages. The built-in management system is not coupled with Yao, and any front-end technologies such as **VUE** and **React** can be used to implement the management interface.
+### 🔮 Multiple Coding Approaches
 
-## Install
+Combine AI-generated code, visual editing, and manual coding within the same project, with generated code that is easy to read and manually modify.
 
-Latest Version download and installation:
+Once you understand how Yao works and its DSL, you can easily develop a code generator or AI agent tailored to your business needs.
 
-https://github.com/YaoApp/xgen-dev-app/blob/main/README.md
+### 🔮 Serverless
 
-## Getting Started
+Launch in seconds with built-in cloud functions and API gateways to easily create server-side apps. Integrate seamlessly with the DevOps ecosystem for one-click deployment.
 
-See [documentation](https://yaoapps.com/en-US/doc/Introduction/Getting%20Started) for more details.
+### 🔮 Edge Devices Support
 
-### Create a blank project
-
-Create a new application directory, enter the application directory, run the `yao start` command, and start the installation.
-
-```bash
-mkdir -p /data/app # create project directory
-cd /data/app # Enter the project directory
-yao start # Start installation
-```
-
-**Default Account**
-
-- User: **xiang@iqka.com**
-
-- Password: **A123456p+**
-
-## About Yao
-
-Yao's name is derived from the Chinese character **爻 (yáo)**, the basic symbol that makes up the Eight Trigrams. The Eight Trigrams is a symbol system created by the ancient god Fuxi after observing and summarizing the laws of nature, which can refer to everything. Yao has two states of yin and yang, like 0 and 1. The transformation of yin and yang of Yao drives the replacement of Eight Trigrams, so as to summarize and record the development law of things.
+Yao apps also support running on edge devices equipped with arm64 or x64 chips, suitable for various scenarios in IoT applications.
