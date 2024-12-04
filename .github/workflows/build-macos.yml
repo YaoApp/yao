@@ -149,7 +149,7 @@ jobs:
 
       - name: Sign Artifacts
         run: |
-          codesign --deep --force --verbose --timestamp --options runtime --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
+          codesign --deep --force --verbose --timestamp --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
           codesign --deep --force --verbose --timestamp --options runtime --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
 
       - name: Verify Signature
