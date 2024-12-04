@@ -2,7 +2,7 @@
 
 Yao is an all-in-one application engine that enables developers to create web apps, REST APIs, business applications, and more, with AI as a development partner.
 
-Yao lets you create app using AI, a visual interface, or by writing it yourself. Its DSL (Domain-Specific Language) is easy to read and write, and it works well with AI. You can switch smoothly between manual coding and AI help, making development fast and flexible.
+Yao lets you create apps using AI, a visual interface, or by writing them yourself. Its DSL (Domain-Specific Language) is easy to read and write, and it works well with AI. With full programming capabilities and a single command-line tool to handle everything, you can switch smoothly between manual coding and AI assistance, making web app development fast and flexible.
 
 **Quick Links:**
 
