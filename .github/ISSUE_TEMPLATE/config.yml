@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Ask a question（提问和讨论）
-    url: https://github.com/YaoApp/yao/discussions
+  - name: Ask a question or discuss a topic
+    url: https://discord.com/invite/BkMR2NUsjU
     about: Ask questions and discuss with other community members
+  - name: Join Yao community
+    url: https://yaoapps.com/community
+    about: Join the community to get updates and news
