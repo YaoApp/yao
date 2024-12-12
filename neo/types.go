@@ -1,6 +1,7 @@
 package neo
 
 import (
+	"context"
 	"io"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +22,6 @@ type DSL struct {
 	Write               string                    `json:"write,omitempty"`
 	Prompts             []aigc.Prompt             `json:"prompts,omitempty"`
 	Allows              []string                  `json:"allows,omitempty"`
-	Command             Command                   `json:"command,omitempty"`
 	Models              []string                  `json:"models,omitempty"`
 	AI                  aigc.AI                   `json:"-" yaml:"-"`
 	Conversation        conversation.Conversation `json:"-" yaml:"-"`
@@ -35,7 +35,22 @@ type Answer interface {
 	Header(key, value string)
 }
 
-// Command setting
-type Command struct {
-	Parser string `json:"parser,omitempty"`
+// Context the context
+type Context struct {
+	Sid             string                 `json:"sid" yaml:"-"`
+	ChatID          string                 `json:"chat_id,omitempty"`
+	Stack           string                 `json:"stack,omitempty"`
+	Path            string                 `json:"pathname,omitempty"`
+	FormData        map[string]interface{} `json:"formdata,omitempty"`
+	Field           *ContextField          `json:"field,omitempty"`
+	Namespace       string                 `json:"namespace,omitempty"`
+	Config          map[string]interface{} `json:"config,omitempty"`
+	Signal          interface{}            `json:"signal,omitempty"`
+	context.Context `json:"-" yaml:"-"`
+}
+
+// ContextField the context field
+type ContextField struct {
+	Name string `json:"name,omitempty"`
+	Bind string `json:"bind,omitempty"`
 }

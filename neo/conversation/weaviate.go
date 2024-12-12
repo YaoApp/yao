@@ -8,13 +8,23 @@ func NewWeaviate() *Weaviate {
 	return &Weaviate{}
 }
 
+// UpdateChatTitle update the chat title
+func (conv *Weaviate) UpdateChatTitle(sid string, cid string, title string) error {
+	return nil
+}
+
+// GetChats get the chat list
+func (conv *Weaviate) GetChats(sid string) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+
 // GetHistory get the history
-func (conv *Weaviate) GetHistory(sid string) ([]map[string]interface{}, error) {
+func (conv *Weaviate) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
 // SaveHistory save the history
-func (conv *Weaviate) SaveHistory(sid string, messages []map[string]interface{}) error {
+func (conv *Weaviate) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
 	return nil
 }
 

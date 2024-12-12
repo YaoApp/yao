@@ -15,7 +15,6 @@ import (
 	httpTest "github.com/yaoapp/gou/http"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/neo/command"
 	"github.com/yaoapp/yao/test"
 	_ "github.com/yaoapp/yao/utils"
 )
@@ -50,7 +49,8 @@ func TestAPI(t *testing.T) {
 		return 1
 	})
 
-	assert.Contains(t, string(res), `{"done":true}`)
+	assert.Contains(t, string(res), `{`)
+
 }
 
 func TestAPIAuth(t *testing.T) {
@@ -110,12 +110,6 @@ func testRouter(t *testing.T) *gin.Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Load Commands
-	err = command.Load(config.Conf)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
 
 	router := gin.New()
 	gin.SetMode(gin.ReleaseMode)

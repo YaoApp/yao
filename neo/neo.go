@@ -13,8 +13,6 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/neo/command"
-	"github.com/yaoapp/yao/neo/command/query"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/openai"
@@ -53,7 +51,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 		}
 
 		// set the context
-		ctx, cancel := command.NewContextWithCancel(sid, c.Query("context"))
+		ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), c.Query("context"))
 		defer cancel()
 
 		err = neo.Answer(ctx, content, c)
@@ -64,6 +62,28 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 
 	})
 	router.GET(path, handlers...)
+	router.POST(path, handlers...)
+
+	// api Get ChatList
+	handlers = append(middlewares, func(c *gin.Context) {
+		sid := c.GetString("__sid")
+		if sid == "" {
+			c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+			c.Done()
+			return
+		}
+
+		list, err := neo.Conversation.GetChats(sid)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+
+		c.JSON(200, map[string]interface{}{"data": list})
+		c.Done()
+	})
+	router.GET(path+"/chats", handlers...)
 
 	// api router chat history
 	handlers = append(middlewares, func(c *gin.Context) {
@@ -74,104 +94,24 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 			return
 		}
 
-		history, err := neo.Conversation.GetHistory(sid)
+		cid := c.Query("chat_id")
+		history, err := neo.Conversation.GetHistory(sid, cid)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
 			return
 		}
 
-		c.JSON(200, map[string]interface{}{
-			"data":    history,
-			"command": nil,
-		})
+		c.JSON(200, map[string]interface{}{"data": history})
 		c.Done()
 	})
 	router.GET(path+"/history", handlers...)
-
-	// api router chat commands
-	handlers = append(middlewares, func(c *gin.Context) {
-		commands, err := command.GetCommands()
-		if err != nil {
-			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-			c.Done()
-			return
-		}
-
-		c.JSON(200, commands)
-		c.Done()
-	})
-	router.GET(path+"/commands", handlers...)
-
-	// api router exit command mode
-	handlers = append(middlewares, func(c *gin.Context) {
-		sid := c.GetString("__sid")
-		if sid == "" {
-			c.JSON(400, gin.H{"message": "sid is required", "code": 400})
-			c.Done()
-			return
-		}
-
-		var payload map[string]interface{}
-		err := c.ShouldBindJSON(&payload)
-		if err != nil {
-			c.JSON(400, gin.H{"message": err.Error(), "code": 400})
-			c.Done()
-			return
-		}
-
-		cmd, ok := payload["cmd"].(string)
-		if !ok {
-			c.JSON(400, gin.H{"message": "command is required", "code": 400})
-			c.Done()
-			return
-		}
-
-		switch cmd {
-
-		case "ModelList":
-			c.JSON(200, gin.H{"data": neo.Models, "code": 200})
-			c.Done()
-
-		case "SelectModel":
-			model, ok := payload["model"].(string)
-			if !ok {
-				c.JSON(400, gin.H{"message": "model is required", "code": 400})
-				c.Done()
-				return
-			}
-
-			err := neo.Select(model)
-			if err != nil {
-				c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-				c.Done()
-				return
-			}
-
-			c.JSON(200, gin.H{"message": "success", "code": 200})
-			c.Done()
-
-		case "ExitCommandMode":
-			err := command.Exit(sid)
-			if err != nil {
-				c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-				c.Done()
-				return
-			}
-			c.JSON(200, gin.H{"message": "success", "code": 200})
-			c.Done()
-
-		default:
-			c.JSON(400, gin.H{"message": "command is not supported", "code": 400})
-		}
-	})
-	router.POST(path, handlers...)
 
 	return nil
 }
 
 // Answer reply the message
-func (neo *DSL) Answer(ctx command.Context, question string, c *gin.Context) error {
+func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
 	// get the chat messages
 	messages, err := neo.chatMessages(ctx, question)
 	if err != nil {
@@ -189,39 +129,6 @@ func (neo *DSL) Answer(ctx command.Context, question string, c *gin.Context) err
 		c.Header("Content-Type", "text/event-stream;charset=utf-8")
 		c.Header("Cache-Control", "no-cache")
 		c.Header("Connection", "keep-alive")
-
-		// check the command
-		cmd, isCommand := neo.matchCommand(ctx, messages)
-		if isCommand {
-			// execute the command
-			req, err := cmd.NewRequest(ctx, neo.Conversation)
-			if err != nil {
-				log.Error("Command with AI error: %s", err.Error())
-				done <- true
-				return
-			}
-
-			err = req.Run(messages, func(msg *message.JSON) int {
-				err := neo.send(ctx, msg, messages, content, c)
-				if err != nil {
-					c.Status(500)
-					return 0 // break
-				}
-
-				// Complete the stream
-				if msg.IsDone() {
-					return 0 // break
-				}
-				return 1
-			})
-
-			if err != nil {
-				c.Status(500)
-				log.Error("Command with AI error: %s", err.Error())
-			}
-
-			return
-		}
 
 		_, ex := neo.AI.ChatCompletionsWith(ctx, messages, neo.Option, func(data []byte) int {
 
@@ -266,7 +173,7 @@ func (neo *DSL) Answer(ctx command.Context, question string, c *gin.Context) err
 		}
 
 		// save the history
-		neo.saveHistory(ctx.Sid, content, messages)
+		neo.saveHistory(ctx.Sid, ctx.ChatID, content, messages)
 		c.Status(200)
 
 		// Complete the stream
@@ -285,7 +192,7 @@ func (neo *DSL) Answer(ctx command.Context, question string, c *gin.Context) err
 }
 
 // Send send the message to the stream
-func (neo *DSL) send(ctx command.Context, msg *message.JSON, messages []map[string]interface{}, content []byte, c *gin.Context) error {
+func (neo *DSL) send(ctx Context, msg *message.JSON, messages []map[string]interface{}, content []byte, c *gin.Context) error {
 
 	w := c.Writer
 
@@ -356,7 +263,7 @@ func (neo *DSL) prompts() []map[string]interface{} {
 }
 
 // prepare the messages
-func (neo *DSL) prepare(ctx command.Context, messages []map[string]interface{}) []map[string]interface{} {
+func (neo *DSL) prepare(ctx Context, messages []map[string]interface{}) []map[string]interface{} {
 	if neo.Prepare == "" {
 		return []map[string]interface{}{}
 	}
@@ -405,9 +312,9 @@ func (neo *DSL) prepare(ctx command.Context, messages []map[string]interface{}) 
 }
 
 // chatMessages get the chat messages
-func (neo *DSL) chatMessages(ctx command.Context, content string) ([]map[string]interface{}, error) {
+func (neo *DSL) chatMessages(ctx Context, content string) ([]map[string]interface{}, error) {
 
-	history, err := neo.Conversation.GetHistory(ctx.Sid)
+	history, err := neo.Conversation.GetHistory(ctx.Sid, ctx.ChatID)
 	if err != nil {
 		return nil, err
 	}
@@ -424,28 +331,8 @@ func (neo *DSL) chatMessages(ctx command.Context, content string) ([]map[string]
 	return messages, nil
 }
 
-// matchCommand match the command
-func (neo *DSL) matchCommand(ctx command.Context, messages []map[string]interface{}) (*command.Command, bool) {
-	if len(messages) < 1 {
-		return nil, false
-	}
-
-	input, ok := messages[len(messages)-1]["content"].(string)
-	if !ok {
-		return nil, false
-	}
-
-	id, err := command.Match(ctx.Sid, query.Param{Stack: ctx.Stack, Path: ctx.Path}, input)
-	if err == nil && id != "" {
-		cmd, isCommand := command.Commands[id]
-		return cmd, isCommand
-	}
-
-	return nil, false
-}
-
 // saveHistory save the history
-func (neo *DSL) saveHistory(sid string, content []byte, messages []map[string]interface{}) {
+func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages []map[string]interface{}) {
 
 	if len(content) > 0 && sid != "" && len(messages) > 0 {
 		err := neo.Conversation.SaveHistory(
@@ -454,6 +341,7 @@ func (neo *DSL) saveHistory(sid string, content []byte, messages []map[string]in
 				{"role": "user", "content": messages[len(messages)-1]["content"], "name": sid},
 				{"role": "assistant", "content": string(content), "name": sid},
 			},
+			chatID,
 		)
 
 		if err != nil {

@@ -4,11 +4,8 @@ import (
 	"path/filepath"
 
 	"github.com/yaoapp/gou/application"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/neo/command"
-	"github.com/yaoapp/yao/neo/command/driver"
 	"github.com/yaoapp/yao/neo/conversation"
 )
 
@@ -23,7 +20,6 @@ func Load(cfg config.Config) error {
 		Prompts: []aigc.Prompt{},
 		Option:  map[string]interface{}{},
 		Allows:  []string{},
-		Command: Command{Parser: ""},
 		ConversationSetting: conversation.Setting{
 			Table:     "yao_neo_conversation",
 			Connector: "default",
@@ -56,24 +52,6 @@ func Load(cfg config.Config) error {
 	err = Neo.newConversation()
 	if err != nil {
 		return err
-	}
-
-	// Command Setting
-	parser := setting.Command.Parser
-	if parser == "" || parser == "default" {
-		parser = setting.Connector
-	}
-
-	store, err := driver.NewMemory(parser, nil)
-	if err != nil {
-		return err
-	}
-	command.SetStore(store)
-
-	// Load the commands
-	err = command.Load(cfg)
-	if err != nil {
-		log.Error("Command Load Error: %s", err.Error())
 	}
 
 	return nil
