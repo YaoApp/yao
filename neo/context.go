@@ -1,4 +1,4 @@
-package command
+package neo
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 )
 
 // NewContext create a new context
-func NewContext(sid, payload string) Context {
-	ctx := Context{Context: context.Background(), Sid: sid}
+func NewContext(sid, cid, payload string) Context {
+	ctx := Context{Context: context.Background(), Sid: sid, ChatID: cid}
 	if payload == "" {
 		return ctx
 	}
@@ -23,14 +23,14 @@ func NewContext(sid, payload string) Context {
 }
 
 // NewContextWithCancel create a new context with cancel
-func NewContextWithCancel(sid, payload string) (Context, context.CancelFunc) {
-	ctx := NewContext(sid, payload)
+func NewContextWithCancel(sid, cid, payload string) (Context, context.CancelFunc) {
+	ctx := NewContext(sid, cid, payload)
 	return ContextWithCancel(ctx)
 }
 
 // NewContextWithTimeout create a new context with timeout
-func NewContextWithTimeout(sid, payload string, timeout time.Duration) (Context, context.CancelFunc) {
-	ctx := NewContext(sid, payload)
+func NewContextWithTimeout(sid, cid, payload string, timeout time.Duration) (Context, context.CancelFunc) {
+	ctx := NewContext(sid, cid, payload)
 	return ContextWithTimeout(ctx, timeout)
 }
 
