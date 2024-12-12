@@ -10,7 +10,7 @@ import (
 
 // NewContext create a new context
 func NewContext(sid, cid, payload string) Context {
-	ctx := Context{Context: context.Background(), Sid: sid}
+	ctx := Context{Context: context.Background(), Sid: sid, ChatID: cid}
 	if payload == "" {
 		return ctx
 	}
