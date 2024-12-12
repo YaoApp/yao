@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -117,7 +118,7 @@ var runCmd = &cobra.Command{
 		ischedule.Start()
 		defer ischedule.Stop()
 
-		process := process.New(name, pargs...)
+		process := process.NewWithContext(context.Background(), name, pargs...)
 		res, err := process.Exec()
 		if err != nil {
 			if !runSilent {
