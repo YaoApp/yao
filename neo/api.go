@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/neo/message"
 )
 
 // API registers the Neo API endpoints
@@ -45,6 +46,11 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 
 // handleChat handles the chat request
 func (neo *DSL) handleChat(c *gin.Context) {
+	// Set headers for SSE
+	c.Header("Content-Type", "text/event-stream;charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
 	sid := c.GetString("__sid")
 	if sid == "" {
 		sid = uuid.New().String()
@@ -52,7 +58,11 @@ func (neo *DSL) handleChat(c *gin.Context) {
 
 	content := c.Query("content")
 	if content == "" {
-		c.JSON(400, gin.H{"message": "content is required", "code": 400})
+		msg := message.New().Map(map[string]interface{}{
+			"error": "content is required",
+			"done":  true,
+		})
+		msg.Write(c.Writer)
 		return
 	}
 
@@ -60,11 +70,7 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), c.Query("context"))
 	defer cancel()
 
-	err := neo.Answer(ctx, content, c)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		c.Done()
-	}
+	neo.Answer(ctx, content, c)
 }
 
 // handleChatList handles the chat list request
