@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/helper"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openai"
@@ -80,6 +81,16 @@ func (json *JSON) Text(text string) *JSON {
 	return json
 }
 
+// Error set the error
+func (json *JSON) Error(message interface{}) *JSON {
+	if err, ok := message.(error); ok {
+		json.Message.Error = err.Error()
+	} else if msg, ok := message.(string); ok {
+		json.Message.Error = msg
+	}
+	return json
+}
+
 // Map set from map
 func (json *JSON) Map(msg map[string]interface{}) *JSON {
 	if msg == nil {
@@ -88,6 +99,14 @@ func (json *JSON) Map(msg map[string]interface{}) *JSON {
 
 	if text, ok := msg["text"].(string); ok {
 		json.Message.Text = text
+	}
+
+	if err, ok := msg["error"].(string); ok {
+		json.Message.Error = err
+	}
+
+	if err, ok := msg["error"].(error); ok {
+		json.Message.Error = err.Error()
 	}
 
 	if done, ok := msg["done"].(bool); ok {
@@ -203,8 +222,8 @@ func (json *JSON) Write(w gin.ResponseWriter) bool {
 		}
 	}()
 
-	if json.Error != "" {
-		json.writeError(w, json.Error)
+	if json.Message != nil && json.Message.Error != "" {
+		json.writeError(w, json.Message.Error)
 		return false
 	}
 
@@ -232,7 +251,10 @@ func (json *JSON) Append(content []byte) []byte {
 }
 
 func (json *JSON) writeError(w gin.ResponseWriter, message string) {
-	data := []byte(`{"text":"` + strings.Trim(message, "\"") + `"}`)
+	data := []byte(`{"text":"` + strings.Trim(exception.New(message, 500).Message, "\"") + `","type":"error"}`)
+	if json.Message.Done {
+		data = []byte(`{"text":"` + strings.Trim(exception.New(message, 500).Message, "\"") + `","type":"error", "done":true}`)
+	}
 	data = append([]byte("data: "), data...)
 	data = append(data, []byte("\n\n")...)
 	_, err := w.Write(data)

@@ -58,10 +58,7 @@ func (neo *DSL) handleChat(c *gin.Context) {
 
 	content := c.Query("content")
 	if content == "" {
-		msg := message.New().Map(map[string]interface{}{
-			"error": "content is required",
-			"done":  true,
-		})
+		msg := message.New().Error("content is required").Done()
 		msg.Write(c.Writer)
 		return
 	}

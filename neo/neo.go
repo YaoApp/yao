@@ -24,20 +24,14 @@ var lock sync.Mutex = sync.Mutex{}
 func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
 	messages, err := neo.chatMessages(ctx, question)
 	if err != nil {
-		msg := message.New().Map(map[string]interface{}{
-			"error": err.Error(),
-			"done":  true,
-		})
+		msg := message.New().Error(err).Done()
 		msg.Write(c.Writer)
 		return err
 	}
 
 	err = neo.HookCreate(ctx, messages, c)
 	if err != nil {
-		msg := message.New().Map(map[string]interface{}{
-			"error": err.Error(),
-			"done":  true,
-		})
+		msg := message.New().Error(err).Done()
 		msg.Write(c.Writer)
 		return err
 	}
@@ -201,7 +195,7 @@ func (neo *DSL) send(ctx Context, msg *message.JSON, messages []map[string]inter
 
 	w := c.Writer
 
-	if msg.Error != "" {
+	if msg.Message != nil && msg.Message.Error != "" {
 		msg.Write(w)
 		return nil
 	}
