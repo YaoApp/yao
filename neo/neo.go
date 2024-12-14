@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -35,6 +36,9 @@ func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
 		msg.Write(c.Writer)
 		return err
 	}
+
+	// Get the assistant_id, chat_id
+	time.Sleep(1 * time.Second)
 
 	// Send a text message to the client
 	msg := message.New().Map(map[string]interface{}{

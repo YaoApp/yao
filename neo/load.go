@@ -45,14 +45,14 @@ func Load(cfg config.Config) error {
 
 	Neo = &setting
 
-	// Create Default Assistant
-	Neo.Assistant, err = Neo.createDefaultAssistant()
+	// Conversation Setting
+	err = Neo.createConversation()
 	if err != nil {
 		return err
 	}
 
-	// Conversation Setting
-	err = Neo.createConversation()
+	// Create Default Assistant
+	Neo.Assistant, err = Neo.createDefaultAssistant()
 	if err != nil {
 		return err
 	}
