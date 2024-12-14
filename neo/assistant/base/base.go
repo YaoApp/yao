@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/openai"
 )
 
 // Base the base assistant
@@ -12,14 +13,22 @@ type Base struct {
 	ID        string              `json:"assistant_id"`
 	Prompts   []assistant.Prompt  `json:"prompts,omitempty"`
 	Connector connector.Connector `json:"-" yaml:"-"`
+	openai    *openai.OpenAI
 }
 
 // New create a new base assistant
 func New(connector connector.Connector, prompts []assistant.Prompt, id ...string) (*Base, error) {
-	if len(id) > 0 {
-		return &Base{Connector: connector, ID: id[0], Prompts: prompts}, nil
+
+	setting := connector.Setting()
+	api, err := openai.NewOpenAI(setting)
+	if err != nil {
+		return nil, err
 	}
-	return &Base{Connector: connector, Prompts: prompts}, nil
+
+	if len(id) > 0 {
+		return &Base{Connector: connector, ID: id[0], Prompts: prompts, openai: api}, nil
+	}
+	return &Base{Connector: connector, Prompts: prompts, openai: api}, nil
 }
 
 // List list all assistants

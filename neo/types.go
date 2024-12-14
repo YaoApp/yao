@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/conversation"
 )
@@ -57,15 +56,3 @@ type CreateResponse struct {
 	AssistantID string `json:"assistant_id,omitempty"`
 	ChatID      string `json:"chat_id,omitempty"`
 }
-
-// AI the AI interface
-type AI interface {
-	ChatCompletions(messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception)
-	ChatCompletionsWith(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception)
-	GetContent(response interface{}) (string, *exception.Exception)
-	Embeddings(input interface{}, user string) (interface{}, *exception.Exception)
-	Tiktoken(input string) (int, error)
-	MaxToken() int
-}
-
-// Prompt a prompt

@@ -6,7 +6,7 @@ import (
 
 // API the assistant API interface
 type API interface {
-	Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, error)
+	Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error
 	List(ctx context.Context, param QueryParam) ([]Assistant, error)
 }
 

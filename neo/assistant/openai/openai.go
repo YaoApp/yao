@@ -5,20 +5,29 @@ import (
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/neo/assistant"
+	api "github.com/yaoapp/yao/openai"
 )
 
 // OpenAI the openai assistant
 type OpenAI struct {
 	ID        string              `json:"assistant_id"` // the assistant id
 	Connector connector.Connector `json:"-" yaml:"-"`
+	openai    *api.OpenAI
 }
 
 // New create a new openai assistant
 func New(connector connector.Connector, id ...string) (*OpenAI, error) {
-	if len(id) > 0 {
-		return &OpenAI{ID: id[0], Connector: connector}, nil
+
+	setting := connector.Setting()
+	openai, err := api.NewOpenAI(setting)
+	if err != nil {
+		return nil, err
 	}
-	return &OpenAI{Connector: connector}, nil
+
+	if len(id) > 0 {
+		return &OpenAI{ID: id[0], Connector: connector, openai: openai}, nil
+	}
+	return &OpenAI{Connector: connector, openai: openai}, nil
 }
 
 // Current set the current assistant

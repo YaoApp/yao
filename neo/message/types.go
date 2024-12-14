@@ -3,7 +3,7 @@ package message
 // Message the message
 type Message struct {
 	Text    string                 `json:"text,omitempty"`
-	Error   string                 `json:"error,omitempty"`
+	Type    string                 `json:"type,omitempty"`
 	Done    bool                   `json:"done,omitempty"`
 	Confirm bool                   `json:"confirm,omitempty"`
 	Command *Command               `json:"command,omitempty"`

@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
@@ -54,7 +55,13 @@ func NewOpenAI(data []byte) *JSON {
 		break
 
 	default:
-		msg.Error = text
+
+		str := string(data)
+		// Remove "data: " and "
+		str = strings.TrimPrefix(str, "data: ")
+		str = strings.Trim(str, "\"")
+		msg.Type = "error"
+		msg.Text = str
 	}
 
 	return &JSON{msg}
@@ -83,10 +90,13 @@ func (json *JSON) Text(text string) *JSON {
 
 // Error set the error
 func (json *JSON) Error(message interface{}) *JSON {
+	json.Message.Type = "error"
 	if err, ok := message.(error); ok {
-		json.Message.Error = err.Error()
+		json.Message.Text = err.Error()
 	} else if msg, ok := message.(string); ok {
-		json.Message.Error = msg
+		json.Message.Text = msg
+	} else {
+		json.Message.Text = fmt.Sprintf("%v", message)
 	}
 	return json
 }
@@ -101,12 +111,8 @@ func (json *JSON) Map(msg map[string]interface{}) *JSON {
 		json.Message.Text = text
 	}
 
-	if err, ok := msg["error"].(string); ok {
-		json.Message.Error = err
-	}
-
-	if err, ok := msg["error"].(error); ok {
-		json.Message.Error = err.Error()
+	if typ, ok := msg["type"].(string); ok {
+		json.Message.Text = typ
 	}
 
 	if done, ok := msg["done"].(bool); ok {
@@ -221,11 +227,6 @@ func (json *JSON) Write(w gin.ResponseWriter) bool {
 			color.Red(message, r)
 		}
 	}()
-
-	if json.Message != nil && json.Message.Error != "" {
-		json.writeError(w, json.Message.Error)
-		return false
-	}
 
 	data, err := jsoniter.Marshal(json.Message)
 	if err != nil {
