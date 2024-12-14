@@ -2,6 +2,7 @@ package neo
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -37,18 +38,60 @@ func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
 	}
 
 	// Select Assistant
-	ast := neo.Assistant
-	if res.AssistantID != "" {
-		ast, err = neo.newAssistant(res.AssistantID)
-		if err != nil {
-			msg := message.New().Error(err).Done()
-			msg.Write(c.Writer)
-			return err
-		}
+	ast, err := neo.selectAssistant(res.AssistantID)
+	if err != nil {
+		return err
 	}
 
 	// Chat with AI
 	return neo.chat(ast, ctx, messages, c)
+}
+
+// Upload upload a file
+func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
+	// Get the file
+	tmpfile, err := c.FormFile("file")
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := tmpfile.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		reader.Close()
+		os.Remove(tmpfile.Filename)
+	}()
+
+	// Get option from form data option_xxx
+	option := map[string]interface{}{}
+	for key := range c.Request.Form {
+		if strings.HasPrefix(key, "option_") {
+			option[strings.TrimPrefix(key, "option_")] = c.PostForm(key)
+		}
+	}
+
+	// Get file info
+	ctx.Upload = &FileUpload{
+		Bytes:       int(tmpfile.Size),
+		Name:        tmpfile.Filename,
+		ContentType: tmpfile.Header.Get("Content-Type"),
+		Option:      option,
+	}
+
+	res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Select Assistant
+	ast, err := neo.selectAssistant(res.AssistantID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ast.Upload(ctx, tmpfile, reader, option)
 }
 
 // chat chat with AI
@@ -143,6 +186,19 @@ func (neo *DSL) updateAssistantList(list []assistant.Assistant) {
 	}
 }
 
+// selectAssistant select the assistant
+func (neo *DSL) selectAssistant(assistantID string) (assistant.API, error) {
+	ast := neo.Assistant
+	if assistantID != "" {
+		ast, err := neo.newAssistant(assistantID)
+		if err != nil {
+			return nil, err
+		}
+		return ast, nil
+	}
+	return ast, nil
+}
+
 // newAssistant create a new assistant
 func (neo *DSL) newAssistant(id string) (assistant.API, error) {
 	// Try to find assistant in AssistantList first
@@ -182,7 +238,7 @@ func (neo *DSL) newAssistantByConnector(id string) (assistant.API, error) {
 	}
 
 	if conn.Is(connector.OPENAI) {
-		api, err := openai.New(conn, neo.Use)
+		api, err := openai.New(conn, id)
 		if err != nil {
 			return nil, fmt.Errorf("Create openai assistant error: %s", err.Error())
 		}
@@ -190,7 +246,7 @@ func (neo *DSL) newAssistantByConnector(id string) (assistant.API, error) {
 	}
 
 	// Base on the assistant list hook
-	api, err := base.New(conn, neo.Prompts, neo.Use)
+	api, err := base.New(conn, neo.Prompts, id)
 	if err != nil {
 		return nil, fmt.Errorf("Create base assistant error: %s", err.Error())
 	}
@@ -226,7 +282,7 @@ func (neo *DSL) newMoapiAssistant(id string) (assistant.API, error) {
 		return nil, fmt.Errorf("Create moapi assistant error: %s", err.Error())
 	}
 
-	api, err := openai.New(conn, neo.Use)
+	api, err := openai.New(conn, strings.ReplaceAll(id, ":", "_"))
 	if err != nil {
 		return nil, fmt.Errorf("Create openai assistant error: %s", err.Error())
 	}
@@ -241,31 +297,22 @@ func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
 	return neo.newAssistant(neo.Connector)
 }
 
-// prompts get the prompts
-func (neo *DSL) prompts() []map[string]interface{} {
-	prompts := []map[string]interface{}{}
-	for _, prompt := range neo.Prompts {
-		message := map[string]interface{}{"role": prompt.Role, "content": prompt.Content}
-		if prompt.Name != "" {
-			message["name"] = prompt.Name
-		}
-		prompts = append(prompts, message)
-	}
-
-	return prompts
-}
-
 // chatMessages get the chat messages
-func (neo *DSL) chatMessages(ctx Context, content string) ([]map[string]interface{}, error) {
+func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]interface{}, error) {
 
 	history, err := neo.Conversation.GetHistory(ctx.Sid, ctx.ChatID)
 	if err != nil {
 		return nil, err
 	}
-	messages := append([]map[string]interface{}{}, neo.prompts()...)
-	messages = append(messages, history...)
-	messages = append(messages, map[string]interface{}{"role": "user", "content": content, "name": ctx.Sid})
 
+	messages := []map[string]interface{}{}
+	messages = append(messages, history...)
+	if len(content) == 0 {
+		return messages, nil
+	}
+
+	// Add user message
+	messages = append(messages, map[string]interface{}{"role": "user", "content": content[0], "name": ctx.Sid})
 	return messages, nil
 }
 

@@ -16,7 +16,7 @@ type OpenAI struct {
 }
 
 // New create a new openai assistant
-func New(connector connector.Connector, id ...string) (*OpenAI, error) {
+func New(connector connector.Connector, id string) (*OpenAI, error) {
 
 	setting := connector.Setting()
 	openai, err := api.NewOpenAI(setting)
@@ -24,10 +24,7 @@ func New(connector connector.Connector, id ...string) (*OpenAI, error) {
 		return nil, err
 	}
 
-	if len(id) > 0 {
-		return &OpenAI{ID: id[0], Connector: connector, openai: openai}, nil
-	}
-	return &OpenAI{Connector: connector, openai: openai}, nil
+	return &OpenAI{ID: id, Connector: connector, openai: openai}, nil
 }
 
 // Current set the current assistant

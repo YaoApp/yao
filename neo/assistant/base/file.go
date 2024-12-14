@@ -1,4 +1,4 @@
-package openai
+package base
 
 import (
 	"context"
@@ -30,7 +30,7 @@ var AllowedFileTypes = map[string]string{
 var MaxSize int64 = 20 * 1024 * 1024
 
 // Upload the file
-func (ast *OpenAI) Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*assistant.File, error) {
+func (ast *Base) Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*assistant.File, error) {
 
 	// check file size
 	if file.Size > MaxSize {
@@ -68,13 +68,13 @@ func (ast *OpenAI) Upload(ctx context.Context, file *multipart.FileHeader, reade
 	}, nil
 }
 
-func (ast *OpenAI) id(temp string) (string, error) {
+func (ast *Base) id(temp string) (string, error) {
 	date := time.Now().Format("20060102")
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(temp)))[:8]
 	return fmt.Sprintf("/__assistants/%s/%s/%s", ast.ID, date, hash), nil
 }
 
-func (ast *OpenAI) allowed(contentType string) bool {
+func (ast *Base) allowed(contentType string) bool {
 	if _, ok := AllowedFileTypes[contentType]; ok {
 		return true
 	}
@@ -84,15 +84,3 @@ func (ast *OpenAI) allowed(contentType string) bool {
 	}
 	return false
 }
-
-// FileLists list all files
-func (ast *OpenAI) FileLists() {}
-
-// FileDelete delete a file
-func (ast *OpenAI) FileDelete() {}
-
-// FileContent get the content of a file
-func (ast *OpenAI) FileContent() {}
-
-// FileInfo get the information of a file
-func (ast *OpenAI) FileInfo() {}

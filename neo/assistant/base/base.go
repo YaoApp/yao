@@ -17,7 +17,7 @@ type Base struct {
 }
 
 // New create a new base assistant
-func New(connector connector.Connector, prompts []assistant.Prompt, id ...string) (*Base, error) {
+func New(connector connector.Connector, prompts []assistant.Prompt, id string) (*Base, error) {
 
 	setting := connector.Setting()
 	api, err := openai.NewOpenAI(setting)
@@ -25,10 +25,7 @@ func New(connector connector.Connector, prompts []assistant.Prompt, id ...string
 		return nil, err
 	}
 
-	if len(id) > 0 {
-		return &Base{Connector: connector, ID: id[0], Prompts: prompts, openai: api}, nil
-	}
-	return &Base{Connector: connector, Prompts: prompts, openai: api}, nil
+	return &Base{Connector: connector, ID: id, Prompts: prompts, openai: api}, nil
 }
 
 // List list all assistants

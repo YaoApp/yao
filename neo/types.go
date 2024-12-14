@@ -42,6 +42,7 @@ type Context struct {
 	Namespace       string                 `json:"namespace,omitempty"`
 	Config          map[string]interface{} `json:"config,omitempty"`
 	Signal          interface{}            `json:"signal,omitempty"`
+	Upload          *FileUpload            `json:"upload,omitempty"`
 	context.Context `json:"-" yaml:"-"`
 }
 
@@ -49,6 +50,14 @@ type Context struct {
 type Field struct {
 	Name string `json:"name,omitempty"`
 	Bind string `json:"bind,omitempty"`
+}
+
+// FileUpload the file upload info
+type FileUpload struct {
+	Bytes       int                    `json:"bytes,omitempty"`        // If upload file, the file bytes
+	Name        string                 `json:"name,omitempty"`         // If upload
+	ContentType string                 `json:"content_type,omitempty"` // If upload file, the file content type
+	Option      map[string]interface{} `json:"option,omitempty"`       // If upload file, the upload option
 }
 
 // CreateResponse the response of the create hook

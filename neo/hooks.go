@@ -12,8 +12,16 @@ import (
 
 // HookCreate create the assistant
 func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gin.Context) (CreateResponse, error) {
+
+	// Default assistant
+	assistantID := neo.Use
+	if ctx.AssistantID != "" {
+		assistantID = ctx.AssistantID
+	}
+
+	// Empty hook
 	if neo.Create == "" {
-		return CreateResponse{AssistantID: neo.Use, ChatID: ctx.ChatID}, nil
+		return CreateResponse{AssistantID: assistantID, ChatID: ctx.ChatID}, nil
 	}
 
 	// Create a context with 10 second timeout
@@ -42,14 +50,10 @@ func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gi
 		return v, nil
 
 	case map[string]interface{}:
-		assistantID := ""
 		if id, ok := v["assistant_id"].(string); ok {
 			assistantID = id
 		}
 
-		if assistantID == "" && neo.Use != "" {
-			assistantID = neo.Use
-		}
 		chatID := ""
 		if id, ok := v["chat_id"].(string); ok {
 			chatID = id
@@ -62,8 +66,7 @@ func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gi
 		return CreateResponse{AssistantID: assistantID, ChatID: chatID}, nil
 	}
 
-	// Default assistant
-	return CreateResponse{AssistantID: neo.Use, ChatID: ctx.ChatID}, nil
+	return CreateResponse{AssistantID: assistantID, ChatID: ctx.ChatID}, nil
 }
 
 // HookAssistants query the assistant list from the assistant list hook

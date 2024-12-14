@@ -27,6 +27,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/status", neo.optionsHandler)
 	router.OPTIONS(path+"/chats", neo.optionsHandler)
 	router.OPTIONS(path+"/history", neo.optionsHandler)
+	router.OPTIONS(path+"/upload", neo.optionsHandler)
 
 	// Register endpoints with middlewares
 	router.GET(path, append(middlewares, neo.handleChat)...)
@@ -34,13 +35,36 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.GET(path+"/status", append(middlewares, neo.handleStatus)...)
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
 	router.GET(path+"/history", append(middlewares, neo.handleChatHistory)...)
-
+	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
 	return nil
 }
 
 // handleStatus handles the status request
 func (neo *DSL) handleStatus(c *gin.Context) {
 	c.Status(200)
+	c.Done()
+}
+
+// handleUpload handles the upload request
+func (neo *DSL) handleUpload(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		sid = uuid.New().String()
+	}
+
+	// Set the context
+	ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
+	defer cancel()
+
+	// Upload the file
+	file, err := neo.Upload(ctx, c)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, file)
 	c.Done()
 }
 

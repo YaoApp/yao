@@ -2,12 +2,14 @@ package assistant
 
 import (
 	"context"
+	"io"
+	"mime/multipart"
 )
 
 // API the assistant API interface
 type API interface {
 	Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error
-	List(ctx context.Context, param QueryParam) ([]Assistant, error)
+	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 }
 
 // Prompt a prompt
@@ -34,4 +36,13 @@ type Assistant struct {
 	Option      map[string]interface{} `json:"option,omitempty"`      // AI Option
 	Prompts     []Prompt               `json:"prompts,omitempty"`     // AI Prompts
 	API         API                    `json:"-" yaml:"-"`            // Assistant API
+}
+
+// File the file
+type File struct {
+	ID          string `json:"file_id"`
+	Bytes       int    `json:"bytes"`
+	CreatedAt   int    `json:"created_at"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
 }
