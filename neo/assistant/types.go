@@ -27,11 +27,11 @@ type QueryParam struct {
 
 // Assistant the assistant
 type Assistant struct {
-	ID          string                 `json:"assistant_id"`      // Assistant ID
-	Name        string                 `json:"name,omitempty"`    // Assistant Name
-	Description string                 `json:"description"`       // Assistant Description
-	Connector   string                 `json:"connector"`         // AI Connector
-	Option      map[string]interface{} `json:"option"`            // AI Option
-	Prompts     []Prompt               `json:"prompts,omitempty"` // AI Prompts
-	API         API                    `json:"-" yaml:"-"`        // Assistant API
+	ID          string                 `json:"assistant_id"`          // Assistant ID
+	Name        string                 `json:"name,omitempty"`        // Assistant Name
+	Connector   string                 `json:"connector"`             // AI Connector
+	Description string                 `json:"description,omitempty"` // Assistant Description
+	Option      map[string]interface{} `json:"option,omitempty"`      // AI Option
+	Prompts     []Prompt               `json:"prompts,omitempty"`     // AI Prompts
+	API         API                    `json:"-" yaml:"-"`            // Assistant API
 }

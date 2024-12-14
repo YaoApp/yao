@@ -51,12 +51,6 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Create Default Assistant
-	Neo.Assistant, err = Neo.createDefaultAssistant()
-	if err != nil {
-		return err
-	}
-
 	// Query Assistant List
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -73,6 +67,13 @@ func Load(cfg config.Config) error {
 		if err != nil {
 			return fmt.Errorf("Neo assistant list failed: %w", err)
 		}
+
+		// Create Default Assistant
+		Neo.Assistant, err = Neo.createDefaultAssistant()
+		if err != nil {
+			return err
+		}
+
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("Neo assistant list timeout: %w", ctx.Err())

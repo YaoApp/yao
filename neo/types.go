@@ -52,6 +52,12 @@ type Field struct {
 	Bind string `json:"bind,omitempty"`
 }
 
+// CreateResponse the response of the create hook
+type CreateResponse struct {
+	AssistantID string `json:"assistant_id,omitempty"`
+	ChatID      string `json:"chat_id,omitempty"`
+}
+
 // AI the AI interface
 type AI interface {
 	ChatCompletions(messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception)

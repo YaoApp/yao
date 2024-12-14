@@ -30,12 +30,28 @@ func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
 		return err
 	}
 
-	err = neo.HookCreate(ctx, messages, c)
+	// Get the assistant_id, chat_id
+	res, err := neo.HookCreate(ctx, messages, c)
 	if err != nil {
 		msg := message.New().Error(err).Done()
 		msg.Write(c.Writer)
 		return err
 	}
+
+	// Select Assistant
+	ast := neo.Assistant
+	if res.AssistantID != "" {
+		ast, err = neo.newAssistant(res.AssistantID)
+		if err != nil {
+			msg := message.New().Error(err).Done()
+			msg.Write(c.Writer)
+			return err
+		}
+	}
+
+	// Chat with AI
+
+	fmt.Println(ast)
 
 	// Get the assistant_id, chat_id
 	time.Sleep(1 * time.Second)
@@ -69,14 +85,38 @@ func (neo *DSL) updateAssistantList(list []assistant.Assistant) {
 	}
 }
 
-// createDefaultAssistant create a default assistant
-func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
+// newAssistant create a new assistant
+func (neo *DSL) newAssistant(id string) (assistant.API, error) {
+	// Try to find assistant in AssistantList first
+	if id != "" && neo.AssistantMaps != nil {
+		if ast, ok := neo.AssistantMaps[id]; ok {
 
-	// Moapi
-	if neo.Connector == "" || strings.HasPrefix(neo.Connector, "moapi") {
+			if ast.API != nil {
+				return ast.API, nil
+			}
+			api, err := neo.newAssistantByConfig(&ast)
+			if err != nil {
+				return nil, err
+			}
+			ast.API = api
+			return api, nil
+		}
+	}
+	return neo.newAssistantByConnector(id)
+}
+
+// newAssistantByConfig create a new assistant from assistant configuration
+func (neo *DSL) newAssistantByConfig(ast *assistant.Assistant) (assistant.API, error) {
+	return neo.newAssistantByConnector(ast.Connector)
+}
+
+// newAssistantByConnector create a new assistant from connector id
+func (neo *DSL) newAssistantByConnector(id string) (assistant.API, error) {
+	// Moapi connector
+	if id == "" || strings.HasPrefix(id, "moapi") {
 		model := "gpt-3.5-turbo"
-		if strings.HasPrefix(neo.Connector, "moapi:") {
-			model = strings.TrimPrefix(neo.Connector, "moapi:")
+		if strings.HasPrefix(id, "moapi:") {
+			model = strings.TrimPrefix(id, "moapi:")
 		}
 
 		conn, err := connector.New(`moapi`, `__yao.moapi`, []byte(`{"model": "`+model+`"}`))
@@ -92,9 +132,9 @@ func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
 	}
 
 	// Other connector
-	conn, err := connector.Select(neo.Connector)
+	conn, err := connector.Select(id)
 	if err != nil {
-		return nil, fmt.Errorf("Neo assistant connector %s not support", neo.Connector)
+		return nil, fmt.Errorf("Neo assistant connector %s not support", id)
 	}
 
 	if conn.Is(connector.OPENAI) {
@@ -111,6 +151,14 @@ func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
 		return nil, fmt.Errorf("Create base assistant error: %s", err.Error())
 	}
 	return api, nil
+}
+
+// createDefaultAssistant create a default assistant
+func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
+	if neo.Use != "" {
+		return neo.newAssistant(neo.Use)
+	}
+	return neo.newAssistant(neo.Connector)
 }
 
 // // AnswerOld reply the message

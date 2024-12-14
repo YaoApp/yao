@@ -11,9 +11,9 @@ import (
 )
 
 // HookCreate create the assistant
-func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gin.Context) error {
+func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gin.Context) (CreateResponse, error) {
 	if neo.Create == "" {
-		return nil
+		return CreateResponse{AssistantID: neo.Use, ChatID: ctx.ChatID}, nil
 	}
 
 	// Create a context with 10 second timeout
@@ -22,21 +22,48 @@ func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gi
 
 	p, err := process.Of(neo.Create, ctx, messages, c.Writer)
 	if err != nil {
-		return err
+		return CreateResponse{}, err
 	}
 
 	err = p.WithContext(timeoutCtx).Execute()
 	if err != nil {
-		return err
+		return CreateResponse{}, err
 	}
 	defer p.Release()
 
 	// Check if context was canceled
 	if timeoutCtx.Err() != nil {
-		return timeoutCtx.Err()
+		return CreateResponse{}, timeoutCtx.Err()
 	}
 
-	return nil
+	value := p.Value()
+	switch v := value.(type) {
+	case CreateResponse:
+		return v, nil
+
+	case map[string]interface{}:
+		assistantID := ""
+		if id, ok := v["assistant_id"].(string); ok {
+			assistantID = id
+		}
+
+		if assistantID == "" && neo.Use != "" {
+			assistantID = neo.Use
+		}
+		chatID := ""
+		if id, ok := v["chat_id"].(string); ok {
+			chatID = id
+		}
+
+		if chatID == "" {
+			chatID = ctx.ChatID
+		}
+
+		return CreateResponse{AssistantID: assistantID, ChatID: chatID}, nil
+	}
+
+	// Default assistant
+	return CreateResponse{AssistantID: neo.Use, ChatID: ctx.ChatID}, nil
 }
 
 // HookAssistants query the assistant list from the assistant list hook
