@@ -16,6 +16,7 @@ import (
 
 // AllowedFileTypes the allowed file types
 var AllowedFileTypes = map[string]string{
+	"application/json":   "json",
 	"application/pdf":    "pdf",
 	"application/msword": "doc",
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   "docx",
