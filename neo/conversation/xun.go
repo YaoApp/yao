@@ -63,9 +63,16 @@ func NewXun(setting Setting) (*Xun, error) {
 	return conv, nil
 }
 
+// NewQuery create a new query
+func (conv *Xun) NewQuery() query.Query {
+	qb := conv.query.New()
+	qb.Table(conv.setting.Table)
+	return qb
+}
+
 // UpdateChatTitle update the chat title
 func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
-	_, err := conv.query.Table(conv.setting.Table).
+	_, err := conv.NewQuery().
 		Where("sid", sid).Where("cid", cid).
 		Update(map[string]interface{}{"title": title})
 	return err
@@ -73,7 +80,7 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 
 // GetChats get the chat list
 func (conv *Xun) GetChats(sid string) ([]map[string]interface{}, error) {
-	qb := conv.query.Table(conv.setting.Table).
+	qb := conv.NewQuery().
 		Select("cid").
 		Where("sid", sid).
 		GroupBy("cid")
@@ -102,7 +109,7 @@ func (conv *Xun) GetChats(sid string) ([]map[string]interface{}, error) {
 // GetHistory get the history
 func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
 
-	qb := conv.query.Table(conv.setting.Table).
+	qb := conv.NewQuery().
 		Select("role", "name", "content").
 		Where("sid", sid).
 		Where("cid", cid).
@@ -160,13 +167,13 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		values = append(values, value)
 	}
 
-	return conv.query.Table(conv.setting.Table).Insert(values)
+	return conv.NewQuery().Insert(values)
 }
 
 // GetRequest get the request history
 func (conv *Xun) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
 
-	qb := conv.query.Table(conv.setting.Table).
+	qb := conv.NewQuery().
 		Select("role", "name", "content", "sid").
 		Where("rid", rid).
 		Where("sid", sid).
@@ -225,11 +232,11 @@ func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[
 		values = append(values, value)
 	}
 
-	return conv.query.Table(conv.setting.Table).Insert(values)
+	return conv.NewQuery().Insert(values)
 }
 
 func (conv *Xun) clean() {
-	nums, err := conv.query.Table(conv.setting.Table).Where("expired_at", "<=", time.Now()).Delete()
+	nums, err := conv.NewQuery().Where("expired_at", "<=", time.Now()).Delete()
 	if err != nil {
 		log.Error("Clean the conversation table error: %s", err.Error())
 		return
