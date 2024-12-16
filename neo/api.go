@@ -37,13 +37,25 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Register endpoints with middlewares
 	router.GET(path, append(middlewares, neo.handleChat)...)
 	router.POST(path, append(middlewares, neo.handleChat)...)
+
+	// Status check
 	router.GET(path+"/status", append(middlewares, neo.handleStatus)...)
+
+	// Chat api
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
 	router.GET(path+"/chats/:id", append(middlewares, neo.handleChatDetail)...)
+	router.POST(path+"/chats/:id", append(middlewares, neo.handleChatUpdate)...)
+
+	// History api
 	router.GET(path+"/history", append(middlewares, neo.handleChatHistory)...)
+
+	// File api
 	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
 	router.GET(path+"/download", append(middlewares, neo.handleDownload)...)
+
+	// Mention api
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
+
 	return nil
 }
 
@@ -349,5 +361,48 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 	}
 
 	c.JSON(200, map[string]interface{}{"data": mentions})
+	c.Done()
+}
+
+// handleChatUpdate handles updating a chat's details
+func (neo *DSL) handleChatUpdate(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	chatID := c.Param("id")
+	if chatID == "" {
+		c.JSON(400, gin.H{"message": "chat id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get title from request body
+	var body struct {
+		Title string `json:"title"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+		c.Done()
+		return
+	}
+
+	if body.Title == "" {
+		c.JSON(400, gin.H{"message": "title is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	err := neo.Conversation.UpdateChatTitle(sid, chatID, body.Title)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "success"})
 	c.Done()
 }
