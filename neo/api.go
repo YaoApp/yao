@@ -338,7 +338,7 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, chat)
+	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
 
@@ -382,12 +382,27 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 
 	// Get title from request body
 	var body struct {
-		Title string `json:"title"`
+		Title   string `json:"title"`
+		Content string `json:"content"`
 	}
 	if err := c.BindJSON(&body); err != nil {
 		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
 		c.Done()
 		return
+	}
+
+	// If content is not empty, Generate the chat title
+	if body.Content != "" {
+		ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
+		defer cancel()
+
+		title, err := neo.GenerateChatTitle(ctx, body.Content, c)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+		body.Title = title
 	}
 
 	if body.Title == "" {
@@ -403,6 +418,6 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"message": "success"})
+	c.JSON(200, gin.H{"message": "ok", "title": body.Title, "chat_id": chatID})
 	c.Done()
 }

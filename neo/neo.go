@@ -58,6 +58,102 @@ func (neo *DSL) GetMentions(keywords string) ([]Mention, error) {
 	return neo.HookMention(context.Background(), keywords)
 }
 
+// GenerateChatTitle generate the chat title
+func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (string, error) {
+
+	prompts := `
+	  Help me generate a title for the chat 
+	  1. The title should be a short and concise description of the chat.
+	  2. The title should be a single sentence.
+	  3. The title should be in same language as the chat.
+	  4. The title should be no more than 50 characters.
+	`
+
+	messages := []map[string]interface{}{
+		{"role": "system", "content": prompts},
+		{"role": "user", "content": input},
+	}
+
+	res, err := neo.HookCreate(ctx, messages, c)
+	if err != nil {
+		return "", err
+	}
+
+	// Select Assistant
+	ast, err := neo.selectAssistant(res.AssistantID)
+	if err != nil {
+		return "", err
+	}
+
+	if ast == nil {
+		msg := message.New().Error("assistant is not initialized").Done()
+		msg.Write(c.Writer)
+		return "", fmt.Errorf("assistant is not initialized")
+	}
+
+	clientBreak := make(chan bool, 1)
+	done := make(chan bool, 1)
+	fail := make(chan error, 1)
+
+	content := []byte{}
+
+	// Chat with AI in background
+	go func() {
+		err := ast.Chat(c.Request.Context(), messages, neo.Option, func(data []byte) int {
+			select {
+			case <-clientBreak:
+				return 0 // break
+
+			default:
+				msg := message.NewOpenAI(data)
+				if msg == nil {
+					return 1 // continue
+				}
+
+				// Handle error
+				if msg.Type == "error" {
+					fail <- fmt.Errorf("%s", msg.Message.Text)
+					return 0 // break
+				}
+
+				// Append content and send message
+				content = msg.Append(content)
+
+				// Complete the stream
+				if msg.Message.Done {
+					done <- true
+					return 0 // break
+				}
+
+				return 1 // continue
+			}
+		})
+
+		if err != nil {
+			log.Error("Chat error: %s", err.Error())
+			message.New().Error(err).Done().Write(c.Writer)
+		}
+
+		// Save chat history
+		if len(content) > 0 {
+			neo.saveHistory(ctx.Sid, ctx.ChatID, content, messages)
+		}
+
+		done <- true
+	}()
+
+	// Wait for completion or client disconnect
+	select {
+	case <-done:
+		return string(content), nil
+	case err := <-fail:
+		return "", err
+	case <-c.Writer.CloseNotify():
+		clientBreak <- true
+		return "", nil
+	}
+}
+
 // Upload upload a file
 func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
 	// Get the file
