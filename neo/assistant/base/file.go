@@ -49,7 +49,7 @@ func (ast *Base) Upload(ctx context.Context, file *multipart.FileHeader, reader 
 	}
 
 	ext := filepath.Ext(file.Filename)
-	id, err := ast.id(file.Filename)
+	id, err := ast.id(file.Filename, ext)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (ast *Base) Upload(ctx context.Context, file *multipart.FileHeader, reader 
 	}
 
 	return &assistant.File{
-		ID:          strings.ReplaceAll(id, "/", "_"),
+		ID:          filename,
 		Filename:    filename,
 		ContentType: contentType,
 		Bytes:       int(file.Size),
@@ -69,10 +69,10 @@ func (ast *Base) Upload(ctx context.Context, file *multipart.FileHeader, reader 
 	}, nil
 }
 
-func (ast *Base) id(temp string) (string, error) {
+func (ast *Base) id(temp string, ext string) (string, error) {
 	date := time.Now().Format("20060102")
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(temp)))[:8]
-	return fmt.Sprintf("/__assistants/%s/%s/%s", ast.ID, date, hash), nil
+	return fmt.Sprintf("/__assistants/%s/%s/%s%s", ast.ID, date, hash, ext), nil
 }
 
 func (ast *Base) allowed(contentType string) bool {
@@ -84,4 +84,51 @@ func (ast *Base) allowed(contentType string) bool {
 		return true
 	}
 	return false
+}
+
+// Download downloads a file
+func (ast *Base) Download(ctx context.Context, fileID string) (*assistant.FileResponse, error) {
+
+	// Get the data filesystem
+	data, err := fs.Get("data")
+	if err != nil {
+		return nil, fmt.Errorf("get filesystem error: %s", err.Error())
+	}
+
+	// Check if file exists
+	exists, err := data.Exists(fileID)
+	if err != nil {
+		return nil, fmt.Errorf("check file error: %s", err.Error())
+	}
+	if !exists {
+		return nil, fmt.Errorf("file %s not found", fileID)
+	}
+
+	// Open the file
+	reader, err := data.ReadCloser(fileID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get content type and extension
+	ext := filepath.Ext(fileID)
+
+	// Get content type from mime type
+	contentType := "application/octet-stream"
+	if v, err := data.MimeType(fileID); err == nil {
+		contentType = v
+	}
+
+	for mimeType, extension := range AllowedFileTypes {
+		if "."+extension == ext {
+			contentType = mimeType
+			break
+		}
+	}
+
+	return &assistant.FileResponse{
+		Reader:      reader,
+		ContentType: contentType,
+		Extension:   ext,
+	}, nil
 }

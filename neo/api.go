@@ -2,7 +2,9 @@ package neo
 
 import (
 	"fmt"
+	"io"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -28,6 +30,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/chats", neo.optionsHandler)
 	router.OPTIONS(path+"/history", neo.optionsHandler)
 	router.OPTIONS(path+"/upload", neo.optionsHandler)
+	router.OPTIONS(path+"/download", neo.optionsHandler)
 
 	// Register endpoints with middlewares
 	router.GET(path, append(middlewares, neo.handleChat)...)
@@ -36,6 +39,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
 	router.GET(path+"/history", append(middlewares, neo.handleChatHistory)...)
 	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
+	router.GET(path+"/download", append(middlewares, neo.handleDownload)...)
 	return nil
 }
 
@@ -133,6 +137,49 @@ func (neo *DSL) handleChatHistory(c *gin.Context) {
 
 	c.JSON(200, map[string]interface{}{"data": history})
 	c.Done()
+}
+
+// handleDownload handles the download request
+func (neo *DSL) handleDownload(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	fileID := c.Query("file_id")
+	if fileID == "" {
+		c.JSON(400, gin.H{"message": "file_id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Set the context
+	ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
+	defer cancel()
+
+	// Download the file
+	fileResponse, err := neo.Download(ctx, c)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+	defer fileResponse.Reader.Close()
+
+	// Set response headers
+	c.Header("Content-Type", fileResponse.ContentType)
+	if disposition := c.Query("disposition"); disposition == "attachment" {
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(fileID)+fileResponse.Extension))
+	}
+
+	// Copy the file content to response
+	_, err = io.Copy(c.Writer, fileResponse.Reader)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		return
+	}
 }
 
 // getCorsHandlers returns CORS middleware handlers

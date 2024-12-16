@@ -94,6 +94,30 @@ func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
 	return ast.Upload(ctx, tmpfile, reader, option)
 }
 
+// Download downloads a file
+func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, error) {
+	// Get file_id from query string
+	fileID := c.Query("file_id")
+	if fileID == "" {
+		return nil, fmt.Errorf("file_id is required")
+	}
+
+	// Get assistant_id from context or query
+	res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// Select Assistant
+	ast, err := neo.selectAssistant(res.AssistantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Download file using the assistant
+	return ast.Download(ctx.Context, fileID)
+}
+
 // chat chat with AI
 func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]interface{}, c *gin.Context) error {
 

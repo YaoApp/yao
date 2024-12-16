@@ -10,6 +10,7 @@ import (
 type API interface {
 	Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
+	Download(ctx context.Context, fileID string) (*FileResponse, error)
 }
 
 // Prompt a prompt
@@ -45,4 +46,11 @@ type File struct {
 	CreatedAt   int    `json:"created_at"`
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
+}
+
+// FileResponse represents a file download response
+type FileResponse struct {
+	Reader      io.ReadCloser
+	ContentType string
+	Extension   string
 }
