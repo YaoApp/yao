@@ -194,3 +194,60 @@ func (neo *DSL) HookWrite(ctx Context, messages []map[string]interface{}, respon
 
 	return result, nil
 }
+
+// HookMention query the mention list
+func (neo *DSL) HookMention(ctx context.Context, keywords string) ([]Mention, error) {
+
+	// Default Get the assistant list
+	if neo.MentionHook == "" {
+		var mentions []Mention
+		assistants := neo.GetAssistants()
+		for _, assistant := range assistants {
+			mentions = append(mentions, Mention{
+				ID:   assistant.ID,
+				Name: assistant.Name,
+				Type: "assistant",
+			})
+		}
+
+		return mentions, nil
+	}
+
+	// Create a context with 10 second timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	p, err := process.Of(neo.MentionHook, keywords)
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.WithContext(timeoutCtx).Execute()
+	if err != nil {
+		return nil, err
+	}
+	defer p.Release()
+
+	// Check if context was canceled
+	if timeoutCtx.Err() != nil {
+		return nil, timeoutCtx.Err()
+	}
+
+	value := p.Value()
+	if value == nil {
+		return nil, nil
+	}
+
+	var list []Mention
+	bytes, err := jsoniter.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+
+	err = jsoniter.Unmarshal(bytes, &list)
+	if err != nil {
+		return nil, err
+	}
+
+	return list, nil
+}

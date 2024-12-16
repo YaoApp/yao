@@ -14,7 +14,7 @@ func (conv *Weaviate) UpdateChatTitle(sid string, cid string, title string) erro
 }
 
 // GetChats get the chat list
-func (conv *Weaviate) GetChats(sid string) ([]map[string]interface{}, error) {
+func (conv *Weaviate) GetChats(sid string, keywords ...string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
@@ -36,4 +36,9 @@ func (conv *Weaviate) GetRequest(sid string, rid string) ([]map[string]interface
 // SaveRequest save the request
 func (conv *Weaviate) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
 	return nil
+}
+
+// GetChat get the chat info and its history
+func (conv *Weaviate) GetChat(sid string, cid string) (*ChatInfo, error) {
+	return nil, nil
 }

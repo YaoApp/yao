@@ -28,18 +28,22 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path, neo.optionsHandler)
 	router.OPTIONS(path+"/status", neo.optionsHandler)
 	router.OPTIONS(path+"/chats", neo.optionsHandler)
+	router.OPTIONS(path+"/chats/:id", neo.optionsHandler)
 	router.OPTIONS(path+"/history", neo.optionsHandler)
 	router.OPTIONS(path+"/upload", neo.optionsHandler)
 	router.OPTIONS(path+"/download", neo.optionsHandler)
+	router.OPTIONS(path+"/mentions", neo.optionsHandler)
 
 	// Register endpoints with middlewares
 	router.GET(path, append(middlewares, neo.handleChat)...)
 	router.POST(path, append(middlewares, neo.handleChat)...)
 	router.GET(path+"/status", append(middlewares, neo.handleStatus)...)
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
+	router.GET(path+"/chats/:id", append(middlewares, neo.handleChatDetail)...)
 	router.GET(path+"/history", append(middlewares, neo.handleChatHistory)...)
 	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
 	router.GET(path+"/download", append(middlewares, neo.handleDownload)...)
+	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
 	return nil
 }
 
@@ -107,7 +111,10 @@ func (neo *DSL) handleChatList(c *gin.Context) {
 		return
 	}
 
-	list, err := neo.Conversation.GetChats(sid)
+	// Get keywords from query parameter
+	keywords := c.Query("keywords")
+
+	list, err := neo.Conversation.GetChats(sid, keywords)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -294,4 +301,53 @@ func (neo *DSL) defaultGuard(c *gin.Context) {
 	user := helper.JwtValidate(token)
 	c.Set("__sid", user.SID)
 	c.Next()
+}
+
+// handleChatDetail handles getting a single chat's details
+func (neo *DSL) handleChatDetail(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	chatID := c.Param("id")
+	if chatID == "" {
+		c.JSON(400, gin.H{"message": "chat id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	chat, err := neo.Conversation.GetChat(sid, chatID)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, chat)
+	c.Done()
+}
+
+// handleMentions handles getting mentions for a chat
+func (neo *DSL) handleMentions(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get keywords from query parameter
+	keywords := c.Query("keywords")
+	mentions, err := neo.GetMentions(keywords)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, map[string]interface{}{"data": mentions})
+	c.Done()
 }

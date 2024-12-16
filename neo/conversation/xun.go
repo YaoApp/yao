@@ -2,6 +2,7 @@ package conversation
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/yaoapp/gou/connector"
@@ -29,16 +30,23 @@ type row struct {
 	ExpiredAt interface{} `json:"expired_at"`
 }
 
+// Public interface methods and constructor remain exported:
+// - NewXun
+// - UpdateChatTitle
+// - GetChats
+// - GetChat
+// - GetHistory
+// - SaveHistory
+// - GetRequest
+// - SaveRequest
+
 // NewXun create a new conversation
 func NewXun(setting Setting) (*Xun, error) {
-
 	conv := &Xun{setting: setting}
 	if setting.Connector == "default" {
 		conv.query = capsule.Global.Query()
 		conv.schema = capsule.Global.Schema()
-
 	} else {
-
 		conn, err := connector.Select(setting.Connector)
 		if err != nil {
 			return nil, err
@@ -55,7 +63,7 @@ func NewXun(setting Setting) (*Xun, error) {
 		}
 	}
 
-	err := conv.Init()
+	err := conv.initialize()
 	if err != nil {
 		return nil, err
 	}
@@ -63,43 +71,175 @@ func NewXun(setting Setting) (*Xun, error) {
 	return conv, nil
 }
 
-// NewQuery create a new query
-func (conv *Xun) NewQuery() query.Query {
+// Rename the following functions to start with lowercase letters to make them private:
+
+func (conv *Xun) newQuery() query.Query {
 	qb := conv.query.New()
-	qb.Table(conv.setting.Table)
+	qb.Table(conv.getHistoryTable())
 	return qb
+}
+
+func (conv *Xun) newQueryChat() query.Query {
+	qb := conv.query.New()
+	qb.Table(conv.getChatTable())
+	return qb
+}
+
+func (conv *Xun) clean() {
+	nums, err := conv.newQuery().Where("expired_at", "<=", time.Now()).Delete()
+	if err != nil {
+		log.Error("Clean the conversation table error: %s", err.Error())
+		return
+	}
+
+	if nums > 0 {
+		log.Trace("Clean the conversation table: %s %d", conv.setting.Table, nums)
+	}
+}
+
+// Rename Init to initialize to avoid conflicts
+func (conv *Xun) initialize() error {
+	// Initialize history table
+	if err := conv.initHistoryTable(); err != nil {
+		return err
+	}
+
+	// Initialize chat table
+	if err := conv.initChatTable(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (conv *Xun) initHistoryTable() error {
+	historyTable := conv.getHistoryTable()
+	has, err := conv.schema.HasTable(historyTable)
+	if err != nil {
+		return err
+	}
+
+	// Create the history table
+	if !has {
+		err = conv.schema.CreateTable(historyTable, func(table schema.Blueprint) {
+			table.ID("id")
+			table.String("sid", 255).Index()
+			table.String("rid", 255).Null().Index()
+			table.String("cid", 200).Null().Index()
+			table.String("role", 200).Null().Index()
+			table.String("name", 200).Null().Index()
+			table.Text("content").Null()
+			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("updated_at").Null().Index()
+			table.TimestampTz("expired_at").Null().Index()
+		})
+
+		if err != nil {
+			return err
+		}
+		log.Trace("Create the conversation history table: %s", historyTable)
+	}
+
+	// Validate the table
+	tab, err := conv.schema.GetTable(historyTable)
+	if err != nil {
+		return err
+	}
+
+	fields := []string{"id", "sid", "rid", "cid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	for _, field := range fields {
+		if !tab.HasColumn(field) {
+			return fmt.Errorf("%s is required", field)
+		}
+	}
+
+	return nil
+}
+
+func (conv *Xun) initChatTable() error {
+	chatTable := conv.getChatTable()
+	has, err := conv.schema.HasTable(chatTable)
+	if err != nil {
+		return err
+	}
+
+	// Create the chat table
+	if !has {
+		err = conv.schema.CreateTable(chatTable, func(table schema.Blueprint) {
+			table.ID("id")
+			table.String("chat_id", 200).Unique().Index()
+			table.String("title", 200).Null()
+			table.String("sid", 255).Index()
+			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("updated_at").Null().Index()
+		})
+
+		if err != nil {
+			return err
+		}
+		log.Trace("Create the chat table: %s", chatTable)
+	}
+
+	// Validate the table
+	tab, err := conv.schema.GetTable(chatTable)
+	if err != nil {
+		return err
+	}
+
+	fields := []string{"id", "chat_id", "title", "sid", "created_at", "updated_at"}
+	for _, field := range fields {
+		if !tab.HasColumn(field) {
+			return fmt.Errorf("%s is required", field)
+		}
+	}
+
+	return nil
+}
+
+func (conv *Xun) getHistoryTable() string {
+	return conv.setting.Table
+}
+
+func (conv *Xun) getChatTable() string {
+	return conv.setting.Table + "_chat"
 }
 
 // UpdateChatTitle update the chat title
 func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
-	_, err := conv.NewQuery().
-		Where("sid", sid).Where("cid", cid).
-		Update(map[string]interface{}{"title": title})
+	_, err := conv.newQueryChat().
+		Where("sid", sid).
+		Where("chat_id", cid).
+		Update(map[string]interface{}{
+			"title":      title,
+			"updated_at": time.Now(),
+		})
 	return err
 }
 
 // GetChats get the chat list
-func (conv *Xun) GetChats(sid string) ([]map[string]interface{}, error) {
-	qb := conv.NewQuery().
-		Select("cid").
-		Where("sid", sid).
-		GroupBy("cid")
+func (conv *Xun) GetChats(sid string, keywords ...string) ([]map[string]interface{}, error) {
+	qb := conv.newQueryChat().
+		Select("chat_id", "title").
+		Where("sid", sid)
 
-	if conv.setting.TTL > 0 {
-		qb.Where("expired_at", ">", time.Now())
+	// Add title search if keywords provided
+	if len(keywords) > 0 && keywords[0] != "" {
+		keyword := strings.TrimSpace(keywords[0]) // Trim whitespace from keyword
+		if keyword != "" {
+			qb.Where("title", "like", "%"+keyword+"%")
+		}
 	}
-
-	res := []map[string]interface{}{}
 
 	rows, err := qb.Get()
 	if err != nil {
 		return nil, err
 	}
 
+	res := []map[string]interface{}{}
 	for _, row := range rows {
 		res = append(res, map[string]interface{}{
-			"chat_id": row.Get("cid"),
-			"title":   row.Get("cid"),
+			"chat_id": row.Get("chat_id"),
+			"title":   row.Get("title"),
 		})
 	}
 
@@ -109,7 +249,7 @@ func (conv *Xun) GetChats(sid string) ([]map[string]interface{}, error) {
 // GetHistory get the history
 func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
 
-	qb := conv.NewQuery().
+	qb := conv.newQuery().
 		Select("role", "name", "content").
 		Where("sid", sid).
 		Where("cid", cid).
@@ -143,7 +283,31 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 
 // SaveHistory save the history
 func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
+	// First ensure chat record exists
+	exists, err := conv.newQueryChat().
+		Where("chat_id", cid).
+		Where("sid", sid).
+		Exists()
 
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		// Create new chat record
+		err = conv.newQueryChat().
+			Insert(map[string]interface{}{
+				"chat_id":    cid,
+				"sid":        sid,
+				"created_at": time.Now(),
+			})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// Save message history
 	defer conv.clean()
 	var expiredAt interface{} = nil
 	values := []row{}
@@ -167,13 +331,13 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		values = append(values, value)
 	}
 
-	return conv.NewQuery().Insert(values)
+	return conv.newQuery().Insert(values)
 }
 
 // GetRequest get the request history
 func (conv *Xun) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
 
-	qb := conv.NewQuery().
+	qb := conv.newQuery().
 		Select("role", "name", "content", "sid").
 		Where("rid", rid).
 		Where("sid", sid).
@@ -232,75 +396,35 @@ func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[
 		values = append(values, value)
 	}
 
-	return conv.NewQuery().Insert(values)
+	return conv.newQuery().Insert(values)
 }
 
-func (conv *Xun) clean() {
-	nums, err := conv.NewQuery().Where("expired_at", "<=", time.Now()).Delete()
+// GetChat get the chat info and its history
+func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
+	// Get chat info
+	qb := conv.newQueryChat().
+		Select("chat_id", "title").
+		Where("sid", sid).
+		Where("chat_id", cid)
+
+	row, err := qb.First()
 	if err != nil {
-		log.Error("Clean the conversation table error: %s", err.Error())
-		return
+		return nil, err
 	}
 
-	if nums > 0 {
-		log.Trace("Clean the conversation table: %s %d", conv.setting.Table, nums)
+	chat := map[string]interface{}{
+		"chat_id": row.Get("chat_id"),
+		"title":   row.Get("title"),
 	}
-}
 
-// Init init the conversation
-func (conv *Xun) Init() error {
-
-	has, err := conv.schema.HasTable(conv.setting.Table)
+	// Get chat history
+	history, err := conv.GetHistory(sid, cid)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// create the table
-	if !has {
-		err = conv.schema.CreateTable(conv.setting.Table, func(table schema.Blueprint) {
-
-			table.ID("id")                            // The ID field
-			table.String("sid", 255).Index()          // The Session ID
-			table.String("rid", 255).Null().Index()   // The request ID
-			table.String("cid", 200).Null().Index()   // The Chat ID
-			table.String("role", 200).Null().Index()  // The Message role
-			table.String("name", 200).Null().Index()  // The User name
-			table.String("title", 200).Null().Index() // The Chat title
-			table.Text("content").Null()
-
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
-			table.TimestampTz("updated_at").Null().Index()
-			table.TimestampTz("expired_at").Null().Index()
-		})
-
-		if err != nil {
-			return err
-		}
-		log.Trace("Create the conversation table: %s", conv.setting.Table)
-	}
-
-	// validate the table
-	tab, err := conv.schema.GetTable(conv.setting.Table)
-	if err != nil {
-		return err
-	}
-
-	fields := []string{"id", "sid", "rid", "cid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
-	for _, field := range fields {
-		if !tab.HasColumn(field) {
-			return fmt.Errorf("%s is required", field)
-		}
-	}
-
-	// Auto update the title
-	if !tab.HasColumn("title") {
-		err = conv.schema.AlterTable(conv.setting.Table, func(table schema.Blueprint) {
-			table.String("title", 200).Null().Index()
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return &ChatInfo{
+		Chat:    chat,
+		History: history,
+	}, nil
 }

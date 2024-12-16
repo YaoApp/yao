@@ -21,6 +21,7 @@ type DSL struct {
 	Create              string                         `json:"create,omitempty" yaml:"create,omitempty"`
 	Write               string                         `json:"write,omitempty" yaml:"write,omitempty"`
 	AssistantListHook   string                         `json:"assistants,omitempty" yaml:"assistants,omitempty"` // Get the assistant list from the hook
+	MentionHook         string                         `json:"mentions,omitempty"`                               // Get the mention list from the hook
 	Prompts             []assistant.Prompt             `json:"prompts,omitempty" yaml:"prompts,omitempty"`
 	Allows              []string                       `json:"allows,omitempty" yaml:"allows,omitempty"`
 	Assistant           assistant.API                  `json:"-" yaml:"-"` // The default assistant
@@ -28,6 +29,14 @@ type DSL struct {
 	GuardHandlers       []gin.HandlerFunc              `json:"-" yaml:"-"`
 	AssistantList       []assistant.Assistant          `json:"-" yaml:"-"`
 	AssistantMaps       map[string]assistant.Assistant `json:"-" yaml:"-"`
+}
+
+// Mention list
+type Mention struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar,omitempty"`
+	Type   string `json:"type,omitempty"`
 }
 
 // Context the context

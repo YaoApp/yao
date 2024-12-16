@@ -1,6 +1,7 @@
 package neo
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -45,6 +46,16 @@ func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
 
 	// Chat with AI
 	return neo.chat(ast, ctx, messages, c)
+}
+
+// GetAssistants returns the list of assistants
+func (neo *DSL) GetAssistants() []assistant.Assistant {
+	return neo.AssistantList
+}
+
+// GetMentions returns the mention list
+func (neo *DSL) GetMentions(keywords string) ([]Mention, error) {
+	return neo.HookMention(context.Background(), keywords)
 }
 
 // Upload upload a file
