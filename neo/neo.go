@@ -134,11 +134,6 @@ func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (st
 			message.New().Error(err).Done().Write(c.Writer)
 		}
 
-		// Save chat history
-		if len(content) > 0 {
-			neo.saveHistory(ctx.Sid, ctx.ChatID, content, messages)
-		}
-
 		done <- true
 	}()
 

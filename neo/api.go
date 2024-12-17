@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -114,8 +115,14 @@ func (neo *DSL) handleChat(c *gin.Context) {
 		return
 	}
 
-	// Set the context
-	ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), c.Query("context"))
+	chatID := c.Query("chat_id")
+	if chatID == "" {
+		// Only generate new chat_id if not provided
+		chatID = fmt.Sprintf("chat_%d", time.Now().UnixNano())
+	}
+
+	// Set the context with validated chat_id
+	ctx, cancel := NewContextWithCancel(sid, chatID, c.Query("context"))
 	defer cancel()
 
 	neo.Answer(ctx, content, c)
@@ -278,7 +285,7 @@ func (neo *DSL) optionsHandler(c *gin.Context) {
 	origin := neo.getOrigin(c)
 	if origin != "" {
 		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400") // 24 hours
