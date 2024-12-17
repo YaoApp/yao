@@ -35,6 +35,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/upload", neo.optionsHandler)
 	router.OPTIONS(path+"/download", neo.optionsHandler)
 	router.OPTIONS(path+"/mentions", neo.optionsHandler)
+	router.OPTIONS(path+"/dangerous/clear_chats", neo.optionsHandler)
 
 	// Register endpoints with middlewares
 	router.GET(path, append(middlewares, neo.handleChat)...)
@@ -47,6 +48,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
 	router.GET(path+"/chats/:id", append(middlewares, neo.handleChatDetail)...)
 	router.POST(path+"/chats/:id", append(middlewares, neo.handleChatUpdate)...)
+	router.DELETE(path+"/chats/:id", append(middlewares, neo.handleChatDelete)...)
 
 	// History api
 	router.GET(path+"/history", append(middlewares, neo.handleChatHistory)...)
@@ -57,6 +59,9 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 
 	// Mention api
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
+
+	// Dangerous operations
+	router.DELETE(path+"/dangerous/clear_chats", append(middlewares, neo.handleChatsDeleteAll)...)
 
 	return nil
 }
@@ -437,5 +442,52 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "ok", "title": body.Title, "chat_id": chatID})
+	c.Done()
+}
+
+// handleChatDelete handles deleting a single chat
+func (neo *DSL) handleChatDelete(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	chatID := c.Param("id")
+	if chatID == "" {
+		c.JSON(400, gin.H{"message": "chat id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	err := neo.Conversation.DeleteChat(sid, chatID)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "ok"})
+	c.Done()
+}
+
+// handleChatsDeleteAll handles deleting all chats for a user
+func (neo *DSL) handleChatsDeleteAll(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	err := neo.Conversation.DeleteAllChats(sid)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "ok"})
 	c.Done()
 }
