@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/xun/dbal/query"
@@ -21,8 +23,7 @@ type Xun struct {
 
 type row struct {
 	Role      string      `json:"role"`
-	Title     string      `json:"title"` // Chat title
-	Name      string      `json:"name"`  // User name
+	Name      string      `json:"name"` // User name
 	Content   string      `json:"content"`
 	Sid       string      `json:"sid"`
 	Rid       string      `json:"rid"`
@@ -196,6 +197,24 @@ func (conv *Xun) initChatTable() error {
 	return nil
 }
 
+func (conv *Xun) getUserID(sid string) (string, error) {
+	field := "user_id"
+	if conv.setting.UserField != "" {
+		field = conv.setting.UserField
+	}
+
+	id, err := session.Global().ID(sid).Get(field)
+	if err != nil {
+		return "", err
+	}
+
+	if id == nil || id == "" {
+		return sid, nil
+	}
+
+	return fmt.Sprintf("%v", id), nil
+}
+
 func (conv *Xun) getHistoryTable() string {
 	return conv.setting.Table
 }
@@ -206,8 +225,13 @@ func (conv *Xun) getChatTable() string {
 
 // UpdateChatTitle update the chat title
 func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
-	_, err := conv.newQueryChat().
-		Where("sid", sid).
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return err
+	}
+
+	_, err = conv.newQueryChat().
+		Where("sid", userID).
 		Where("chat_id", cid).
 		Update(map[string]interface{}{
 			"title":      title,
@@ -218,9 +242,14 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 
 // GetChats get the chat list
 func (conv *Xun) GetChats(sid string, keywords ...string) ([]map[string]interface{}, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
+
 	qb := conv.newQueryChat().
 		Select("chat_id", "title").
-		Where("sid", sid)
+		Where("sid", userID)
 
 	// Add title search if keywords provided
 	if len(keywords) > 0 && keywords[0] != "" {
@@ -248,10 +277,14 @@ func (conv *Xun) GetChats(sid string, keywords ...string) ([]map[string]interfac
 
 // GetHistory get the history
 func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
 
 	qb := conv.newQuery().
 		Select("role", "name", "content").
-		Where("sid", sid).
+		Where("sid", userID).
 		Where("cid", cid).
 		OrderBy("id", "desc")
 
@@ -283,10 +316,20 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 
 // SaveHistory save the history
 func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
+
+	if cid == "" {
+		cid = uuid.New().String() // Generate a new UUID if cid is empty
+	}
+
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return err
+	}
+
 	// First ensure chat record exists
 	exists, err := conv.newQueryChat().
 		Where("chat_id", cid).
-		Where("sid", sid).
+		Where("sid", userID).
 		Exists()
 
 	if err != nil {
@@ -298,7 +341,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		err = conv.newQueryChat().
 			Insert(map[string]interface{}{
 				"chat_id":    cid,
-				"sid":        sid,
+				"sid":        userID,
 				"created_at": time.Now(),
 			})
 
@@ -320,7 +363,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 			Role:      message["role"].(string),
 			Name:      "",
 			Content:   message["content"].(string),
-			Sid:       sid,
+			Sid:       userID,
 			Cid:       cid,
 			ExpiredAt: expiredAt,
 		}
@@ -331,16 +374,25 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		values = append(values, value)
 	}
 
-	return conv.newQuery().Insert(values)
+	err = conv.newQuery().Insert(values)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetRequest get the request history
 func (conv *Xun) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
 
 	qb := conv.newQuery().
 		Select("role", "name", "content", "sid").
 		Where("rid", rid).
-		Where("sid", sid).
+		Where("sid", userID).
 		OrderBy("id", "desc")
 
 	if conv.setting.TTL > 0 {
@@ -371,6 +423,10 @@ func (conv *Xun) GetRequest(sid string, rid string) ([]map[string]interface{}, e
 
 // SaveRequest save the request history
 func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return err
+	}
 
 	defer conv.clean()
 	var expiredAt interface{} = nil
@@ -384,7 +440,7 @@ func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[
 			Role:      message["role"].(string),
 			Name:      "",
 			Content:   message["content"].(string),
-			Sid:       sid,
+			Sid:       userID,
 			Cid:       cid,
 			Rid:       rid,
 			ExpiredAt: expiredAt,
@@ -401,10 +457,15 @@ func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[
 
 // GetChat get the chat info and its history
 func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
+
 	// Get chat info
 	qb := conv.newQueryChat().
 		Select("chat_id", "title").
-		Where("sid", sid).
+		Where("sid", userID).
 		Where("chat_id", cid)
 
 	row, err := qb.First()

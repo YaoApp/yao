@@ -3,6 +3,7 @@ package conversation
 // Setting the conversation config
 type Setting struct {
 	Connector string `json:"connector,omitempty"`
+	UserField string `json:"user_field,omitempty"` // the user id field name, default is user_id
 	Table     string `json:"table,omitempty"`
 	MaxSize   int    `json:"max_size,omitempty" yaml:"max_size,omitempty"`
 	TTL       int    `json:"ttl,omitempty" yaml:"ttl,omitempty"`
