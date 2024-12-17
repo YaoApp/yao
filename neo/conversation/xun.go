@@ -262,7 +262,8 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 	// Build base query
 	qb := conv.newQueryChat().
 		Select("chat_id", "title", "created_at").
-		Where("sid", userID)
+		Where("sid", userID).
+		Where("chat_id", "!=", "")
 
 	// Add keyword filter
 	if filter.Keywords != "" {
@@ -296,6 +297,7 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 	yesterday := today.AddDate(0, 0, -1)
 	thisWeekStart := today.AddDate(0, 0, -int(today.Weekday()))
 	lastWeekStart := thisWeekStart.AddDate(0, 0, -7)
+	lastWeekEnd := thisWeekStart.AddDate(0, 0, -1)
 
 	groups := map[string][]map[string]interface{}{
 		"Today":        {},
@@ -306,23 +308,32 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 	}
 
 	for _, row := range rows {
+		chatID := row.Get("chat_id")
+		if chatID == nil || chatID == "" {
+			continue
+		}
+
 		chat := map[string]interface{}{
-			"chat_id": row.Get("chat_id"),
+			"chat_id": chatID,
 			"title":   row.Get("title"),
 		}
 
-		createdAt, ok := row.Get("created_at").(time.Time)
-		if !ok {
-			// Try to parse string if it's not already time.Time
-			if timeStr, ok := row.Get("created_at").(string); ok {
-				var err error
-				createdAt, err = time.Parse(time.RFC3339, timeStr)
+		var createdAt time.Time
+		switch v := row.Get("created_at").(type) {
+		case time.Time:
+			createdAt = v
+		case string:
+			parsed, err := time.Parse("2006-01-02 15:04:05.999999-07:00", v)
+			if err != nil {
+				// Try alternative format
+				parsed, err = time.Parse(time.RFC3339, v)
 				if err != nil {
 					continue
 				}
-			} else {
-				continue
 			}
+			createdAt = parsed
+		default:
+			continue
 		}
 
 		createdDate := createdAt.Truncate(24 * time.Hour)
@@ -332,9 +343,9 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 			groups["Today"] = append(groups["Today"], chat)
 		case createdDate.Equal(yesterday):
 			groups["Yesterday"] = append(groups["Yesterday"], chat)
-		case createdDate.After(thisWeekStart) || createdDate.Equal(thisWeekStart):
+		case createdDate.After(thisWeekStart) && createdDate.Before(today):
 			groups["This Week"] = append(groups["This Week"], chat)
-		case createdDate.After(lastWeekStart) || createdDate.Equal(lastWeekStart):
+		case createdDate.After(lastWeekStart) && createdDate.Before(lastWeekEnd.AddDate(0, 0, 1)):
 			groups["Last Week"] = append(groups["Last Week"], chat)
 		default:
 			groups["Even Earlier"] = append(groups["Even Earlier"], chat)
