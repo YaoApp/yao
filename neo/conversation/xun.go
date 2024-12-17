@@ -2,6 +2,7 @@ package conversation
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -240,39 +241,124 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 	return err
 }
 
-// GetChats get the chat list
-func (conv *Xun) GetChats(sid string, keywords ...string) ([]map[string]interface{}, error) {
+// GetChats get the chat list with grouping by date
+func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
 	}
 
+	// Set defaults
+	if filter.PageSize <= 0 {
+		filter.PageSize = 100
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.Order == "" {
+		filter.Order = "desc"
+	}
+
+	// Build base query
 	qb := conv.newQueryChat().
-		Select("chat_id", "title").
+		Select("chat_id", "title", "created_at").
 		Where("sid", userID)
 
-	// Add title search if keywords provided
-	if len(keywords) > 0 && keywords[0] != "" {
-		keyword := strings.TrimSpace(keywords[0]) // Trim whitespace from keyword
+	// Add keyword filter
+	if filter.Keywords != "" {
+		keyword := strings.TrimSpace(filter.Keywords)
 		if keyword != "" {
 			qb.Where("title", "like", "%"+keyword+"%")
 		}
 	}
 
-	rows, err := qb.Get()
+	// Get total count
+	total, err := qb.Clone().Count()
 	if err != nil {
 		return nil, err
 	}
 
-	res := []map[string]interface{}{}
-	for _, row := range rows {
-		res = append(res, map[string]interface{}{
-			"chat_id": row.Get("chat_id"),
-			"title":   row.Get("title"),
-		})
+	// Calculate pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	lastPage := int(math.Ceil(float64(total) / float64(filter.PageSize)))
+
+	// Get paginated results
+	rows, err := qb.OrderBy("created_at", filter.Order).
+		Offset(offset).
+		Limit(filter.PageSize).
+		Get()
+	if err != nil {
+		return nil, err
 	}
 
-	return res, nil
+	// Group chats by date
+	today := time.Now().Truncate(24 * time.Hour)
+	yesterday := today.AddDate(0, 0, -1)
+	thisWeekStart := today.AddDate(0, 0, -int(today.Weekday()))
+	lastWeekStart := thisWeekStart.AddDate(0, 0, -7)
+
+	groups := map[string][]map[string]interface{}{
+		"Today":        {},
+		"Yesterday":    {},
+		"This Week":    {},
+		"Last Week":    {},
+		"Even Earlier": {},
+	}
+
+	for _, row := range rows {
+		chat := map[string]interface{}{
+			"chat_id": row.Get("chat_id"),
+			"title":   row.Get("title"),
+		}
+
+		createdAt, ok := row.Get("created_at").(time.Time)
+		if !ok {
+			// Try to parse string if it's not already time.Time
+			if timeStr, ok := row.Get("created_at").(string); ok {
+				var err error
+				createdAt, err = time.Parse(time.RFC3339, timeStr)
+				if err != nil {
+					continue
+				}
+			} else {
+				continue
+			}
+		}
+
+		createdDate := createdAt.Truncate(24 * time.Hour)
+
+		switch {
+		case createdDate.Equal(today):
+			groups["Today"] = append(groups["Today"], chat)
+		case createdDate.Equal(yesterday):
+			groups["Yesterday"] = append(groups["Yesterday"], chat)
+		case createdDate.After(thisWeekStart) || createdDate.Equal(thisWeekStart):
+			groups["This Week"] = append(groups["This Week"], chat)
+		case createdDate.After(lastWeekStart) || createdDate.Equal(lastWeekStart):
+			groups["Last Week"] = append(groups["Last Week"], chat)
+		default:
+			groups["Even Earlier"] = append(groups["Even Earlier"], chat)
+		}
+	}
+
+	// Convert to ordered slice
+	result := []ChatGroup{}
+	for _, label := range []string{"Today", "Yesterday", "This Week", "Last Week", "Even Earlier"} {
+		if len(groups[label]) > 0 {
+			result = append(result, ChatGroup{
+				Label: label,
+				Chats: groups[label],
+			})
+		}
+	}
+
+	return &ChatGroupResponse{
+		Groups:   result,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		Total:    total,
+		LastPage: lastPage,
+	}, nil
 }
 
 // GetHistory get the history

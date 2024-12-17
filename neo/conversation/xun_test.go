@@ -1,7 +1,9 @@
 package conversation
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/connector"
@@ -245,4 +247,77 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 2, len(allData))
+}
+
+func TestXunGetChats(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+
+	// Drop both tables before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conv, err := NewXun(Setting{
+		Connector: "default",
+		Table:     "__unit_test_conversation",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Save some test chats
+	sid := "test_user"
+	messages := []map[string]interface{}{
+		{"role": "user", "content": "test message"},
+	}
+
+	// Create chats with different dates
+	for i := 0; i < 5; i++ {
+		chatID := fmt.Sprintf("chat_%d", i)
+		// First create the chat with a title
+		err = conv.newQueryChat().Insert(map[string]interface{}{
+			"chat_id":    chatID,
+			"title":      fmt.Sprintf("Test Chat %d", i),
+			"sid":        sid,
+			"created_at": time.Now(),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Then save the history
+		err = conv.SaveHistory(sid, messages, chatID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Test getting chats with default filter
+	filter := ChatFilter{
+		PageSize: 10,
+		Order:    "desc",
+	}
+	groups, err := conv.GetChats(sid, filter)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Greater(t, len(groups.Groups), 0)
+
+	// Test with keywords
+	filter.Keywords = "test"
+	groups, err = conv.GetChats(sid, filter)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Greater(t, len(groups.Groups), 0)
 }

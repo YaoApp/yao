@@ -15,10 +15,33 @@ type ChatInfo struct {
 	History []map[string]interface{} `json:"history"`
 }
 
+// ChatFilter represents the filter parameters for GetChats
+type ChatFilter struct {
+	Keywords string `json:"keywords,omitempty"`
+	Page     int    `json:"page,omitempty"`     // 页码，从1开始
+	PageSize int    `json:"pagesize,omitempty"` // 每页数量
+	Order    string `json:"order,omitempty"`    // desc/asc
+}
+
+// ChatGroup represents a group of chats by date
+type ChatGroup struct {
+	Label string                   `json:"label"`
+	Chats []map[string]interface{} `json:"chats"`
+}
+
+// ChatGroupResponse represents paginated chat groups
+type ChatGroupResponse struct {
+	Groups   []ChatGroup `json:"groups"`
+	Page     int         `json:"page"`      // 当前页码
+	PageSize int         `json:"pagesize"`  // 每页数量
+	Total    int64       `json:"total"`     // 总记录数
+	LastPage int         `json:"last_page"` // 最后一页页码
+}
+
 // Conversation the store interface
 type Conversation interface {
 	UpdateChatTitle(sid string, cid string, title string) error
-	GetChats(sid string, keywords ...string) ([]map[string]interface{}, error)
+	GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error)
 	GetChat(sid string, cid string) (*ChatInfo, error)
 	GetHistory(sid string, cid string) ([]map[string]interface{}, error)
 	SaveHistory(sid string, messages []map[string]interface{}, cid string) error

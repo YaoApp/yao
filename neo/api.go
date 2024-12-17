@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
 )
 
@@ -123,17 +125,33 @@ func (neo *DSL) handleChatList(c *gin.Context) {
 		return
 	}
 
-	// Get keywords from query parameter
-	keywords := c.Query("keywords")
+	// Create filter from query parameters
+	filter := conversation.ChatFilter{
+		Keywords: c.Query("keywords"),
+		Order:    c.Query("order"),
+	}
 
-	list, err := neo.Conversation.GetChats(sid, keywords)
+	// Parse page and pagesize
+	if page := c.Query("page"); page != "" {
+		if n, err := strconv.Atoi(page); err == nil {
+			filter.Page = n
+		}
+	}
+
+	if pageSize := c.Query("pagesize"); pageSize != "" {
+		if n, err := strconv.Atoi(pageSize); err == nil {
+			filter.PageSize = n
+		}
+	}
+
+	response, err := neo.Conversation.GetChats(sid, filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
 
-	c.JSON(200, map[string]interface{}{"data": list})
+	c.JSON(200, map[string]interface{}{"data": response})
 	c.Done()
 }
 

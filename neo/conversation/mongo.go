@@ -14,8 +14,14 @@ func (conv *Mongo) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // GetChats get the chat list
-func (conv *Mongo) GetChats(sid string, keywords ...string) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
+func (conv *Mongo) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+	return &ChatGroupResponse{
+		Groups:   []ChatGroup{},
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		Total:    0,
+		LastPage: 1,
+	}, nil
 }
 
 // GetHistory get the history
