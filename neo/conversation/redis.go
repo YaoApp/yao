@@ -48,3 +48,13 @@ func (conv *Redis) SaveRequest(sid string, rid string, cid string, messages []ma
 func (conv *Redis) GetChat(sid string, cid string) (*ChatInfo, error) {
 	return nil, nil
 }
+
+// DeleteChat deletes a specific chat and its history
+func (conv *Redis) DeleteChat(sid string, cid string) error {
+	return nil
+}
+
+// DeleteAllChats deletes all chats and their histories for a user
+func (conv *Redis) DeleteAllChats(sid string) error {
+	return nil
+}

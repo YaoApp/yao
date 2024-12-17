@@ -559,6 +559,11 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 		return nil, err
 	}
 
+	// Return nil if chat_id is nil (means no chat found)
+	if row.Get("chat_id") == nil {
+		return nil, nil
+	}
+
 	chat := map[string]interface{}{
 		"chat_id": row.Get("chat_id"),
 		"title":   row.Get("title"),
@@ -574,4 +579,51 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 		Chat:    chat,
 		History: history,
 	}, nil
+}
+
+// DeleteChat deletes a specific chat and its history
+func (conv *Xun) DeleteChat(sid string, cid string) error {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return err
+	}
+
+	// Delete history records first
+	_, err = conv.newQuery().
+		Where("sid", userID).
+		Where("cid", cid).
+		Delete()
+	if err != nil {
+		return err
+	}
+
+	// Then delete the chat
+	_, err = conv.newQueryChat().
+		Where("sid", userID).
+		Where("chat_id", cid).
+		Limit(1).
+		Delete()
+	return err
+}
+
+// DeleteAllChats deletes all chats and their histories for a user
+func (conv *Xun) DeleteAllChats(sid string) error {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return err
+	}
+
+	// Delete history records first
+	_, err = conv.newQuery().
+		Where("sid", userID).
+		Delete()
+	if err != nil {
+		return err
+	}
+
+	// Then delete all chats
+	_, err = conv.newQueryChat().
+		Where("sid", userID).
+		Delete()
+	return err
 }

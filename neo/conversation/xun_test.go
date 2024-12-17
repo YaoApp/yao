@@ -321,3 +321,85 @@ func TestXunGetChats(t *testing.T) {
 
 	assert.Greater(t, len(groups.Groups), 0)
 }
+
+func TestXunDeleteChat(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+
+	conv, err := NewXun(Setting{
+		Connector: "default",
+		Table:     "__unit_test_conversation",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a test chat
+	sid := "test_user"
+	cid := "test_chat"
+	messages := []map[string]interface{}{
+		{"role": "user", "content": "test message"},
+	}
+
+	// Save the chat and history
+	err = conv.SaveHistory(sid, messages, cid)
+	assert.Nil(t, err)
+
+	// Verify chat exists
+	chat, err := conv.GetChat(sid, cid)
+	assert.Nil(t, err)
+	assert.NotNil(t, chat)
+
+	// Delete the chat
+	err = conv.DeleteChat(sid, cid)
+	assert.Nil(t, err)
+
+	// Verify chat is deleted
+	chat, err = conv.GetChat(sid, cid)
+	assert.Nil(t, err)
+	assert.Equal(t, (*ChatInfo)(nil), chat)
+}
+
+func TestXunDeleteAllChats(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+
+	conv, err := NewXun(Setting{
+		Connector: "default",
+		Table:     "__unit_test_conversation",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create multiple test chats
+	sid := "test_user"
+	messages := []map[string]interface{}{
+		{"role": "user", "content": "test message"},
+	}
+
+	// Save multiple chats
+	for i := 0; i < 3; i++ {
+		cid := fmt.Sprintf("test_chat_%d", i)
+		err = conv.SaveHistory(sid, messages, cid)
+		assert.Nil(t, err)
+	}
+
+	// Verify chats exist
+	response, err := conv.GetChats(sid, ChatFilter{})
+	assert.Nil(t, err)
+	assert.Greater(t, response.Total, int64(0))
+
+	// Delete all chats
+	err = conv.DeleteAllChats(sid)
+	assert.Nil(t, err)
+
+	// Verify all chats are deleted
+	response, err = conv.GetChats(sid, ChatFilter{})
+	assert.Nil(t, err)
+	assert.Equal(t, int64(0), response.Total)
+}
