@@ -382,13 +382,49 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 	}
 
 	// Get keywords from query parameter
-	keywords := c.Query("keywords")
+	keywords := strings.ToLower(c.Query("keywords"))
 	mentions, err := neo.GetMentions(keywords)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
+
+	// Add test data
+	testMentions := []Mention{
+		{
+			ID:     "assistant_1",
+			Name:   "Alice AI",
+			Type:   "assistant",
+			Avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alice",
+		},
+		{
+			ID:     "assistant_2",
+			Name:   "Bob Bot",
+			Type:   "assistant",
+			Avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob",
+		},
+		{
+			ID:     "assistant_3",
+			Name:   "Carol AI",
+			Type:   "assistant",
+			Avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Carol",
+		},
+	}
+
+	// Filter mentions by keywords
+	if keywords != "" {
+		filtered := []Mention{}
+		for _, m := range testMentions {
+			if strings.Contains(strings.ToLower(m.Name), keywords) {
+				filtered = append(filtered, m)
+			}
+		}
+		testMentions = filtered
+	}
+
+	// Append test data to actual mentions
+	mentions = append(mentions, testMentions...)
 
 	c.JSON(200, map[string]interface{}{"data": mentions})
 	c.Done()
