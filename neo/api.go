@@ -61,6 +61,11 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Mention api
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
 
+	// Generate api
+	router.POST(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
+	router.POST(path+"/generate/title", append(middlewares, neo.handleGenerateTitle)...)
+	router.POST(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
+
 	// Dangerous operations
 	router.DELETE(path+"/dangerous/clear_chats", append(middlewares, neo.handleChatsDeleteAll)...)
 
@@ -390,29 +395,8 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 		return
 	}
 
-	// Add test data
-	testMentions := []Mention{
-		{
-			ID:     "assistant_1",
-			Name:   "Alice AI",
-			Type:   "assistant",
-			Avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Alice",
-		},
-		{
-			ID:     "assistant_2",
-			Name:   "Bob Bot",
-			Type:   "assistant",
-			Avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Bob",
-		},
-		{
-			ID:     "assistant_3",
-			Name:   "Carol AI",
-			Type:   "assistant",
-			Avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Carol",
-		},
-	}
-
 	// Filter mentions by keywords
+	testMentions := TestMentions
 	if keywords != "" {
 		filtered := []Mention{}
 		for _, m := range testMentions {
@@ -533,4 +517,143 @@ func (neo *DSL) handleChatsDeleteAll(c *gin.Context) {
 
 	c.JSON(200, gin.H{"message": "ok"})
 	c.Done()
+}
+
+// generateResponse is a helper struct to handle both SSE and HTTP responses
+type generateResponse struct {
+	c       *gin.Context
+	sid     string
+	content string
+	result  interface{}
+	err     error
+}
+
+// validate checks common validation rules
+func (r *generateResponse) validate() bool {
+	if r.sid == "" {
+		r.c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		return false
+	}
+
+	if r.content == "" {
+		r.c.JSON(400, gin.H{"message": "content is required", "code": 400})
+		return false
+	}
+
+	return true
+}
+
+// send handles both SSE and HTTP responses
+func (r *generateResponse) send(key string) {
+	if r.err != nil {
+		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
+			msg := message.New().Error(r.err.Error()).Done()
+			msg.Write(r.c.Writer)
+		} else {
+			r.c.JSON(500, gin.H{"message": r.err.Error(), "code": 500})
+		}
+		return
+	}
+
+	if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
+		// Set headers for SSE
+		r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
+		r.c.Header("Cache-Control", "no-cache")
+		r.c.Header("Connection", "keep-alive")
+
+		msg := message.New().Map(gin.H{key: r.result}).Done()
+		msg.Write(r.c.Writer)
+	} else {
+		r.c.JSON(200, gin.H{key: r.result})
+	}
+}
+
+// handleGenerateTitle handles generating a chat title
+func (neo *DSL) handleGenerateTitle(c *gin.Context) {
+	var body struct {
+		Content string `json:"content"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+		return
+	}
+
+	resp := &generateResponse{
+		c:       c,
+		sid:     c.GetString("__sid"),
+		content: body.Content,
+	}
+	if !resp.validate() {
+		return
+	}
+
+	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
+	defer cancel()
+
+	resp.result, resp.err = neo.GenerateChatTitle(ctx, resp.content, c)
+	resp.send("result")
+}
+
+// handleGeneratePrompts handles generating prompts
+func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
+	var body struct {
+		Content string `json:"content"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+		return
+	}
+
+	resp := &generateResponse{
+		c:       c,
+		sid:     c.GetString("__sid"),
+		content: body.Content,
+	}
+	if !resp.validate() {
+		return
+	}
+
+	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
+	defer cancel()
+
+	resp.result, resp.err = neo.GeneratePrompts(ctx, resp.content, c)
+	resp.send("result")
+}
+
+// handleGenerateCustom handles generating custom content
+func (neo *DSL) handleGenerateCustom(c *gin.Context) {
+	var body struct {
+		Content      string `json:"content"`
+		Type         string `json:"type"`
+		SystemPrompt string `json:"system_prompt"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+		return
+	}
+
+	resp := &generateResponse{
+		c:       c,
+		sid:     c.GetString("__sid"),
+		content: body.Content,
+	}
+	if !resp.validate() {
+		return
+	}
+
+	// Additional validations for custom generation
+	if body.Type == "" {
+		c.JSON(400, gin.H{"message": "type is required", "code": 400})
+		return
+	}
+	if body.SystemPrompt == "" {
+		c.JSON(400, gin.H{"message": "system_prompt is required", "code": 400})
+		return
+	}
+
+	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
+	defer cancel()
+
+	resp.result, resp.err = neo.GenerateWithAI(ctx, resp.content, body.Type, body.SystemPrompt, c)
+	resp.send("result")
 }

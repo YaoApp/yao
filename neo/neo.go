@@ -58,20 +58,40 @@ func (neo *DSL) GetMentions(keywords string) ([]Mention, error) {
 	return neo.HookMention(context.Background(), keywords)
 }
 
+// GeneratePrompts generate prompts for the AI assistant
+func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context) (string, error) {
+	prompts := `
+	Help me generate prompts for the AI assistant
+	1. The prompts should guide the AI to better understand and respond to user questions
+	2. The prompts should be clear and specific
+	3. The prompts should be in the same language as the input
+	4. Keep the prompts concise but comprehensive
+	`
+	return neo.GenerateWithAI(ctx, input, "prompts", prompts, c)
+}
+
 // GenerateChatTitle generate the chat title
 func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (string, error) {
-
 	prompts := `
-	  Help me generate a title for the chat 
-	  1. The title should be a short and concise description of the chat.
-	  2. The title should be a single sentence.
-	  3. The title should be in same language as the chat.
-	  4. The title should be no more than 50 characters.
+	Help me generate a title for the chat 
+	1. The title should be a short and concise description of the chat.
+	2. The title should be a single sentence.
+	3. The title should be in same language as the chat.
+	4. The title should be no more than 50 characters.
 	`
+	return neo.GenerateWithAI(ctx, input, "title", prompts, c)
+}
 
+// GenerateWithAI generate content with AI, type can be "title", "prompts", etc.
+func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, systemPrompt string, c *gin.Context) (string, error) {
 	messages := []map[string]interface{}{
-		{"role": "system", "content": prompts},
-		{"role": "user", "content": input},
+		{"role": "system", "content": systemPrompt},
+		{
+			"role":    "user",
+			"content": input,
+			"type":    messageType,
+			"name":    ctx.Sid,
+		},
 	}
 
 	res, err := neo.HookCreate(ctx, messages, c)
