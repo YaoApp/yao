@@ -36,6 +36,9 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/upload", neo.optionsHandler)
 	router.OPTIONS(path+"/download", neo.optionsHandler)
 	router.OPTIONS(path+"/mentions", neo.optionsHandler)
+	router.OPTIONS(path+"/generate", neo.optionsHandler)
+	router.OPTIONS(path+"/generate/title", neo.optionsHandler)
+	router.OPTIONS(path+"/generate/prompts", neo.optionsHandler)
 	router.OPTIONS(path+"/dangerous/clear_chats", neo.optionsHandler)
 
 	// Register endpoints with middlewares
