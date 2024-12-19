@@ -452,7 +452,7 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 		ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
 		defer cancel()
 
-		title, err := neo.GenerateChatTitle(ctx, body.Content, c)
+		title, err := neo.GenerateChatTitle(ctx, body.Content, c, true)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
