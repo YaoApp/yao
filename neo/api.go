@@ -609,6 +609,15 @@ func (neo *DSL) handleGenerateTitle(c *gin.Context) {
 			Content string `json:"content"`
 		}
 		if err := c.BindJSON(&body); err != nil {
+			// For SSE requests, send error message in SSE format
+			if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
+				c.Header("Content-Type", "text/event-stream;charset=utf-8")
+				c.Header("Cache-Control", "no-cache")
+				c.Header("Connection", "keep-alive")
+				msg := message.New().Error("invalid request body").Done()
+				msg.Write(c.Writer)
+				return
+			}
 			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
 			return
 		}
@@ -620,6 +629,14 @@ func (neo *DSL) handleGenerateTitle(c *gin.Context) {
 		sid:     c.GetString("__sid"),
 		content: content,
 	}
+
+	// For SSE requests, set headers before validation
+	if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
+		c.Header("Content-Type", "text/event-stream;charset=utf-8")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+	}
+
 	if !resp.validate() {
 		return
 	}
