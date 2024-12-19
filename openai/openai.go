@@ -54,12 +54,43 @@ func New(id string) (*OpenAI, error) {
 	}
 
 	setting := c.Setting()
+	return NewOpenAI(setting)
+}
+
+// NewOpenAI create a new OpenAI instance by setting
+func NewOpenAI(setting map[string]interface{}) (*OpenAI, error) {
+
+	key := ""
+	if v, ok := setting["key"].(string); ok {
+		key = v
+	}
+
+	model := "gpt-3.5-turbo"
+	if v, ok := setting["model"].(string); ok {
+		model = v
+	}
+
+	host := "https://api.openai.com"
+	if v, ok := setting["host"].(string); ok {
+		host = v
+	}
+
+	organization := ""
+	if v, ok := setting["organization"].(string); ok {
+		organization = v
+	}
+
+	maxToken := 2048
+	if v, ok := setting["max_token"].(int); ok {
+		maxToken = v
+	}
+
 	return &OpenAI{
-		key:          setting["key"].(string),
-		model:        setting["model"].(string),
-		host:         setting["host"].(string),
-		organization: "",
-		maxToken:     2048,
+		key:          key,
+		model:        model,
+		host:         host,
+		organization: organization,
+		maxToken:     maxToken,
 	}, nil
 }
 

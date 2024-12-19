@@ -14,8 +14,14 @@ func (conv *Weaviate) UpdateChatTitle(sid string, cid string, title string) erro
 }
 
 // GetChats get the chat list
-func (conv *Weaviate) GetChats(sid string) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
+func (conv *Weaviate) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+	return &ChatGroupResponse{
+		Groups:   []ChatGroup{},
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		Total:    0,
+		LastPage: 1,
+	}, nil
 }
 
 // GetHistory get the history
@@ -35,5 +41,20 @@ func (conv *Weaviate) GetRequest(sid string, rid string) ([]map[string]interface
 
 // SaveRequest save the request
 func (conv *Weaviate) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
+	return nil
+}
+
+// GetChat get the chat info and its history
+func (conv *Weaviate) GetChat(sid string, cid string) (*ChatInfo, error) {
+	return nil, nil
+}
+
+// DeleteChat deletes a specific chat and its history
+func (conv *Weaviate) DeleteChat(sid string, cid string) error {
+	return nil
+}
+
+// DeleteAllChats deletes all chats and their histories for a user
+func (conv *Weaviate) DeleteAllChats(sid string) error {
 	return nil
 }

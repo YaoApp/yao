@@ -1,12 +1,14 @@
 package message
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/helper"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openai"
@@ -53,7 +55,13 @@ func NewOpenAI(data []byte) *JSON {
 		break
 
 	default:
-		msg.Error = text
+
+		str := string(data)
+		// Remove "data: " and "
+		str = strings.TrimPrefix(str, "data: ")
+		str = strings.Trim(str, "\"")
+		msg.Type = "error"
+		msg.Text = str
 	}
 
 	return &JSON{msg}
@@ -80,6 +88,19 @@ func (json *JSON) Text(text string) *JSON {
 	return json
 }
 
+// Error set the error
+func (json *JSON) Error(message interface{}) *JSON {
+	json.Message.Type = "error"
+	if err, ok := message.(error); ok {
+		json.Message.Text = err.Error()
+	} else if msg, ok := message.(string); ok {
+		json.Message.Text = msg
+	} else {
+		json.Message.Text = fmt.Sprintf("%v", message)
+	}
+	return json
+}
+
 // Map set from map
 func (json *JSON) Map(msg map[string]interface{}) *JSON {
 	if msg == nil {
@@ -88,6 +109,10 @@ func (json *JSON) Map(msg map[string]interface{}) *JSON {
 
 	if text, ok := msg["text"].(string); ok {
 		json.Message.Text = text
+	}
+
+	if typ, ok := msg["type"].(string); ok {
+		json.Message.Text = typ
 	}
 
 	if done, ok := msg["done"].(bool); ok {
@@ -203,11 +228,6 @@ func (json *JSON) Write(w gin.ResponseWriter) bool {
 		}
 	}()
 
-	if json.Error != "" {
-		json.writeError(w, json.Error)
-		return false
-	}
-
 	data, err := jsoniter.Marshal(json.Message)
 	if err != nil {
 		log.Error("%s", err.Error())
@@ -232,7 +252,10 @@ func (json *JSON) Append(content []byte) []byte {
 }
 
 func (json *JSON) writeError(w gin.ResponseWriter, message string) {
-	data := []byte(`{"text":"` + strings.Trim(message, "\"") + `"}`)
+	data := []byte(`{"text":"` + strings.Trim(exception.New(message, 500).Message, "\"") + `","type":"error"}`)
+	if json.Message.Done {
+		data = []byte(`{"text":"` + strings.Trim(exception.New(message, 500).Message, "\"") + `","type":"error", "done":true}`)
+	}
 	data = append([]byte("data: "), data...)
 	data = append(data, []byte("\n\n")...)
 	_, err := w.Write(data)

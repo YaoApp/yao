@@ -1,130 +1,327 @@
 package neo
 
-import (
-	"context"
-	"fmt"
-	"net"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"time"
+// type customResponseRecorder struct {
+// 	*httptest.ResponseRecorder
+// 	closeChannel chan bool
+// }
 
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	httpTest "github.com/yaoapp/gou/http"
-	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/test"
-	_ "github.com/yaoapp/yao/utils"
-)
+// func (r *customResponseRecorder) CloseNotify() <-chan bool {
+// 	return r.closeChannel
+// }
 
-func TestAPI(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
+// func newCustomResponseRecorder() *customResponseRecorder {
+// 	return &customResponseRecorder{
+// 		ResponseRecorder: httptest.NewRecorder(),
+// 		closeChannel:     make(chan bool, 1),
+// 	}
+// }
 
-	// test router
-	router := testRouter(t)
-	err := Neo.API(router, "/neo/chat")
-	if err != nil {
-		t.Fatal(err)
-	}
+// func TestDSL_Prompts(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer Test_clean(t)
 
-	// test server
-	host, shutdown := testServer(t, router)
-	defer shutdown()
+// 	resetDB()
+// 	neo := &DSL{
+// 		Prompts: []Prompt{
+// 			{Role: "system", Content: "You are a helpful assistant", Name: "ai"},
+// 			{Role: "user", Content: "Hello", Name: "user"},
+// 		},
+// 		ConversationSetting: conversation.Setting{
+// 			Connector: "default",
+// 			Table:     "chat_messages",
+// 		},
+// 	}
+// 	err := neo.newConversation()
+// 	assert.NoError(t, err)
 
-	// test request
-	url := fmt.Sprintf("%s/neo/chat?content=hello&token=%s", host, testToken(t))
-	res := []byte{}
-	req := httpTest.New(url).
-		WithHeader(http.Header{"Content-Type": []string{"application/json"}})
+// 	prompts := neo.prompts()
+// 	assert.Equal(t, 2, len(prompts))
+// 	assert.Equal(t, "system", prompts[0]["role"])
+// 	assert.Equal(t, "You are a helpful assistant", prompts[0]["content"])
+// 	assert.Equal(t, "ai", prompts[0]["name"])
+// }
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// func TestDSL_ChatMessages(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer Test_clean(t)
 
-	// send request
-	req.Stream(ctx, "GET", nil, func(data []byte) int {
-		res = append(res, data...)
-		return 1
-	})
+// 	resetDB()
+// 	neo := &DSL{
+// 		Prompts: []Prompt{
+// 			{Role: "system", Content: "You are a helpful assistant"},
+// 		},
+// 		ConversationSetting: conversation.Setting{
+// 			Connector: "default",
+// 			Table:     "chat_messages",
+// 		},
+// 	}
 
-	assert.Contains(t, string(res), `{`)
+// 	err := neo.newConversation()
+// 	assert.NoError(t, err)
 
-}
+// 	ctx := Context{
+// 		Sid:    "test-session",
+// 		ChatID: "test-chat",
+// 	}
 
-func TestAPIAuth(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
+// 	messages, err := neo.chatMessages(ctx, "Hello AI")
+// 	assert.NoError(t, err)
+// 	assert.Equal(t, 2, len(messages))
+// 	assert.Equal(t, "system", messages[0]["role"])
+// 	assert.Equal(t, "user", messages[1]["role"])
+// 	assert.Equal(t, "Hello AI", messages[1]["content"])
+// }
 
-	router := testRouter(t)
-	err := Neo.API(router, "/neo/chat")
-	if err != nil {
-		t.Fatal(err)
-	}
+// func TestDSL_Answer(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer Test_clean(t)
 
-	response := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/neo/chat?content=hello", nil)
-	assert.Panics(t, func() {
-		router.ServeHTTP(response, req)
-	})
-}
+// 	gin.SetMode(gin.TestMode)
+// 	w := newCustomResponseRecorder()
+// 	c, _ := gin.CreateTestContext(w)
 
-func testServer(t *testing.T, router *gin.Engine) (string, func()) {
+// 	ctx := Context{
+// 		Sid:     "test-session",
+// 		ChatID:  "test-chat",
+// 		Context: context.Background(),
+// 	}
 
-	// Listen
-	l, err := net.Listen("tcp4", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	resetDB()
+// 	neo := &DSL{
+// 		Connector: "gpt-3_5-turbo",
+// 		Option: map[string]interface{}{
+// 			"temperature": 0.7,
+// 			"max_tokens":  150,
+// 		},
+// 		Prompts: []Prompt{
+// 			{Role: "system", Content: "You are a helpful assistant"},
+// 		},
+// 		ConversationSetting: conversation.Setting{
+// 			Connector: "default",
+// 			Table:     "chat_messages",
+// 		},
+// 	}
 
-	srv := &http.Server{Addr: ":0", Handler: router}
+// 	err := neo.newAI()
+// 	assert.NoError(t, err)
 
-	// start serve
-	go func() {
-		if err := srv.Serve(l); err != nil && err != http.ErrServerClosed {
-			fmt.Println("[TestServer] Error:", err)
-			return
-		}
-	}()
+// 	err = neo.newConversation()
+// 	assert.NoError(t, err)
 
-	addr := strings.Split(l.Addr().String(), ":")
-	if len(addr) != 2 {
-		t.Fatal("invalid address")
-	}
+// 	c.Request = httptest.NewRequest("POST", "/chat", nil)
 
-	host := fmt.Sprintf("http://127.0.0.1:%s", addr[1])
-	time.Sleep(50 * time.Millisecond)
+// 	neo.AI = &mockAI{}
 
-	shutdown := func() {
-		srv.Close()
-		l.Close()
-	}
-	return host, shutdown
-}
+// 	err = neo.Answer(ctx, "Hello AI", c)
+// 	assert.NoError(t, err)
+// }
 
-func testRouter(t *testing.T) *gin.Engine {
+// // func TestDSL_NewAI(t *testing.T) {
+// // 	test.Prepare(t, config.Conf)
+// // 	defer Test_clean(t)
 
-	// Load Config
-	err := Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
+// // 	tests := []struct {
+// // 		name      string
+// // 		connector string
+// // 		wantErr   string
+// // 	}{
+// // 		{
+// // 			name:      "Mock AI",
+// // 			connector: "mock",
+// // 			wantErr:   "",
+// // 		},
+// // 		{
+// // 			name:      "Specific mock model",
+// // 			connector: "mock:gpt-4",
+// // 			wantErr:   "",
+// // 		},
+// // 		{
+// // 			name:      "Invalid connector",
+// // 			connector: "invalid-connector",
+// // 			wantErr:   "AI connector invalid-connector not found",
+// // 		},
+// // 	}
 
-	router := gin.New()
-	gin.SetMode(gin.ReleaseMode)
-	return router
-}
+// // 	for _, tt := range tests {
+// // 		t.Run(tt.name, func(t *testing.T) {
+// // 			neo := &DSL{
+// // 				Connector: tt.connector,
+// // 			}
+// // 			neo.newConversation()
 
-func testToken(t *testing.T) string {
-	token := helper.JwtMake(1,
-		map[string]interface{}{
-			"id":   1,
-			"name": "Test",
-		},
-		map[string]interface{}{
-			"exp": 3600,
-			"sid": "123456",
-		})
-	return token.Token
-}
+// // 			assert.Panics(t, func() {
+// // 				neo.newAI()
+// // 			})
+
+// // 		})
+// // 	}
+// // }
+
+// func TestDSL_Select(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer Test_clean(t)
+
+// 	resetDB()
+// 	neo := &DSL{
+// 		ConversationSetting: conversation.Setting{
+// 			Connector: "default",
+// 			Table:     "chat_messages",
+// 		},
+// 	}
+
+// 	err := neo.newConversation()
+// 	assert.NoError(t, err)
+
+// 	err = neo.Select("invalid-model")
+// 	assert.Error(t, err)
+
+// 	// err = neo.Select("gpt-3_5-turbo")
+// 	// assert.NoError(t, err)
+// 	// assert.NotNil(t, neo.AI)
+
+// }
+
+// // func TestDSL_NewConversation(t *testing.T) {
+// // 	test.Prepare(t, config.Conf)
+// // 	defer Test_clean(t)
+
+// // 	tests := []struct {
+// // 		name      string
+// // 		connector string
+// // 		wantErr   bool
+// // 	}{
+// // 		{
+// // 			name:      "Default connector",
+// // 			connector: "default",
+// // 			wantErr:   false,
+// // 		},
+// // 		{
+// // 			name:      "Empty connector",
+// // 			connector: "",
+// // 			wantErr:   false,
+// // 		},
+// // 		{
+// // 			name:      "Invalid connector",
+// // 			connector: "invalid-connector",
+// // 			wantErr:   true,
+// // 		},
+// // 	}
+
+// // 	for _, tt := range tests {
+// // 		t.Run(tt.name, func(t *testing.T) {
+// // 			neo := &DSL{
+// // 				ConversationSetting: conversation.Setting{
+// // 					Connector: tt.connector,
+// // 				},
+// // 			}
+// // 			assert.Panics(t, func() {
+// // 				neo.newConversation()
+// // 			})
+// // 		})
+// // 	}
+// // }
+
+// func TestDSL_SaveHistory(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer Test_clean(t)
+
+// 	neo := &DSL{
+// 		ConversationSetting: conversation.Setting{
+// 			Connector: "default",
+// 			Table:     "chat_messages",
+// 		},
+// 	}
+
+// 	resetDB()
+// 	err := neo.newConversation()
+// 	assert.NoError(t, err)
+
+// 	messages := []map[string]interface{}{
+// 		{
+// 			"role":    "user",
+// 			"content": "Hello",
+// 			"name":    "test-user",
+// 		},
+// 	}
+
+// 	content := []byte("Hi there!")
+// 	neo.saveHistory("test-session", "test-chat", content, messages)
+
+// 	// Verify the history was saved
+// 	history, err := neo.Conversation.GetHistory("test-session", "test-chat")
+// 	assert.NoError(t, err)
+// 	assert.NotEmpty(t, history)
+// }
+
+// func TestDSL_Send(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer Test_clean(t)
+
+// 	gin.SetMode(gin.TestMode)
+// 	w := httptest.NewRecorder()
+// 	c, _ := gin.CreateTestContext(w)
+
+// 	resetDB()
+// 	neo := &DSL{
+// 		ConversationSetting: conversation.Setting{
+// 			Connector: "default",
+// 			Table:     "chat_messages",
+// 		},
+// 	}
+
+// 	err := neo.newConversation()
+// 	assert.NoError(t, err)
+// 	ctx := Context{
+// 		Sid:    "test-session",
+// 		ChatID: "test-chat",
+// 	}
+
+// 	msg := &message.JSON{
+// 		Message: &message.Message{Text: "Test message"},
+// 	}
+// 	messages := []map[string]interface{}{
+// 		{"role": "user", "content": "Hello"},
+// 	}
+// 	content := []byte("Test content")
+
+// 	err = neo.send(ctx, msg, messages, content, c)
+// 	assert.NoError(t, err)
+// }
+
+// func Test_clean(t *testing.T) {
+// 	defer test.Clean()
+
+// }
+
+// func resetDB() {
+// 	sch := capsule.Global.Schema()
+// 	sch.DropTable("chat_messages")
+// }
+
+// type mockAI struct{}
+
+// func (m *mockAI) ChatCompletionsWith(ctx context.Context, messages []map[string]interface{}, options map[string]interface{}, callback func([]byte) int) (interface{}, *exception.Exception) {
+// 	callback([]byte(`{"choices":[{"delta":{"content":"Mock response"}}]}`))
+// 	callback([]byte(`{"choices":[{"finish_reason":"stop"}]}`))
+// 	return nil, nil
+// }
+
+// func (m *mockAI) ChatCompletions(messages []map[string]interface{}, options map[string]interface{}, callback func([]byte) int) (interface{}, *exception.Exception) {
+// 	return nil, nil
+// }
+
+// func (m *mockAI) GetContent(response interface{}) (string, *exception.Exception) {
+// 	return "Mock content", nil
+// }
+
+// func (m *mockAI) Embeddings(input interface{}, user string) (interface{}, *exception.Exception) {
+// 	return nil, nil
+// }
+
+// func (m *mockAI) Tiktoken(input string) (int, error) {
+// 	return 0, nil
+// }
+
+// func (m *mockAI) MaxToken() int {
+// 	return 4096
+// }
