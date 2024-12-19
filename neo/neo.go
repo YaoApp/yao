@@ -59,19 +59,25 @@ func (neo *DSL) GetMentions(keywords string) ([]Mention, error) {
 }
 
 // GeneratePrompts generate prompts for the AI assistant
-func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context) (string, error) {
+func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
-	Help me generate prompts for the AI assistant
-	1. The prompts should guide the AI to better understand and respond to user questions
+	Optimize the prompts for the AI assistant
+	1. Optimize prompts based on the user's input
 	2. The prompts should be clear and specific
 	3. The prompts should be in the same language as the input
 	4. Keep the prompts concise but comprehensive
+	5. DO NOT ASK USER FOR MORE INFORMATION, JUST GENERATE PROMPTS
+	6. DO NOT ANSWER THE QUESTION, JUST GENERATE PROMPTS
 	`
-	return neo.GenerateWithAI(ctx, input, "prompts", prompts, c)
+	isSilent := false
+	if len(silent) > 0 {
+		isSilent = silent[0]
+	}
+	return neo.GenerateWithAI(ctx, input, "prompts", prompts, c, isSilent)
 }
 
 // GenerateChatTitle generate the chat title
-func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (string, error) {
+func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
 	Help me generate a title for the chat 
 	1. The title should be a short and concise description of the chat.
@@ -79,11 +85,15 @@ func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (st
 	3. The title should be in same language as the chat.
 	4. The title should be no more than 50 characters.
 	`
-	return neo.GenerateWithAI(ctx, input, "title", prompts, c)
+	isSilent := false
+	if len(silent) > 0 {
+		isSilent = silent[0]
+	}
+	return neo.GenerateWithAI(ctx, input, "title", prompts, c, isSilent)
 }
 
 // GenerateWithAI generate content with AI, type can be "title", "prompts", etc.
-func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, systemPrompt string, c *gin.Context) (string, error) {
+func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, systemPrompt string, c *gin.Context, silent bool) (string, error) {
 	messages := []map[string]interface{}{
 		{"role": "system", "content": systemPrompt},
 		{
@@ -139,8 +149,21 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 				// Append content and send message
 				content = msg.Append(content)
 
+				// Only send real-time messages if not in silent mode
+				if !silent && msg.Message != nil && msg.Message.Text != "" {
+					message.New().
+						Map(map[string]interface{}{
+							"text": msg.Message.Text,
+							"done": msg.Message.Done,
+						}).
+						Write(c.Writer)
+				}
+
 				// Complete the stream
 				if msg.Message.Done {
+					if !silent && msg.Message.Text == "" {
+						msg.Write(c.Writer)
+					}
 					done <- true
 					return 0 // break
 				}
@@ -151,7 +174,9 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 
 		if err != nil {
 			log.Error("Chat error: %s", err.Error())
-			message.New().Error(err).Done().Write(c.Writer)
+			if !silent {
+				message.New().Error(err).Done().Write(c.Writer)
+			}
 		}
 
 		done <- true

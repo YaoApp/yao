@@ -65,8 +65,11 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
 
 	// Generate api
+	router.GET(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
 	router.POST(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
+	router.GET(path+"/generate/title", append(middlewares, neo.handleGenerateTitle)...)
 	router.POST(path+"/generate/title", append(middlewares, neo.handleGenerateTitle)...)
+	router.GET(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
 	router.POST(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
 
 	// Dangerous operations
@@ -534,12 +537,32 @@ type generateResponse struct {
 // validate checks common validation rules
 func (r *generateResponse) validate() bool {
 	if r.sid == "" {
-		r.c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
+			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
+			r.c.Header("Cache-Control", "no-cache")
+			r.c.Header("Connection", "keep-alive")
+			msg := message.New().
+				Error("sid is required").
+				Done()
+			msg.Write(r.c.Writer)
+		} else {
+			r.c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		}
 		return false
 	}
 
 	if r.content == "" {
-		r.c.JSON(400, gin.H{"message": "content is required", "code": 400})
+		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
+			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
+			r.c.Header("Cache-Control", "no-cache")
+			r.c.Header("Connection", "keep-alive")
+			msg := message.New().
+				Error("content is required").
+				Done()
+			msg.Write(r.c.Writer)
+		} else {
+			r.c.JSON(400, gin.H{"message": "content is required", "code": 400})
+		}
 		return false
 	}
 
@@ -550,7 +573,12 @@ func (r *generateResponse) validate() bool {
 func (r *generateResponse) send(key string) {
 	if r.err != nil {
 		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			msg := message.New().Error(r.err.Error()).Done()
+			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
+			r.c.Header("Cache-Control", "no-cache")
+			r.c.Header("Connection", "keep-alive")
+			msg := message.New().
+				Error(r.err.Error()).
+				Done()
 			msg.Write(r.c.Writer)
 		} else {
 			r.c.JSON(500, gin.H{"message": r.err.Error(), "code": 500})
@@ -559,12 +587,12 @@ func (r *generateResponse) send(key string) {
 	}
 
 	if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-		// Set headers for SSE
 		r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
 		r.c.Header("Cache-Control", "no-cache")
 		r.c.Header("Connection", "keep-alive")
-
-		msg := message.New().Map(gin.H{key: r.result}).Done()
+		msg := message.New().
+			Map(gin.H{key: r.result}).
+			Done()
 		msg.Write(r.c.Writer)
 	} else {
 		r.c.JSON(200, gin.H{key: r.result})
@@ -573,18 +601,24 @@ func (r *generateResponse) send(key string) {
 
 // handleGenerateTitle handles generating a chat title
 func (neo *DSL) handleGenerateTitle(c *gin.Context) {
-	var body struct {
-		Content string `json:"content"`
-	}
-	if err := c.BindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-		return
+	var content string
+	if c.Request.Method == "GET" {
+		content = c.Query("content")
+	} else {
+		var body struct {
+			Content string `json:"content"`
+		}
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+			return
+		}
+		content = body.Content
 	}
 
 	resp := &generateResponse{
 		c:       c,
 		sid:     c.GetString("__sid"),
-		content: body.Content,
+		content: content,
 	}
 	if !resp.validate() {
 		return
@@ -593,25 +627,50 @@ func (neo *DSL) handleGenerateTitle(c *gin.Context) {
 	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
 	defer cancel()
 
-	resp.result, resp.err = neo.GenerateChatTitle(ctx, resp.content, c)
+	// Use silent mode for regular HTTP requests, streaming for SSE
+	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
+	resp.result, resp.err = neo.GenerateChatTitle(ctx, resp.content, c, silent)
 	resp.send("result")
 }
 
 // handleGeneratePrompts handles generating prompts
 func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
-	var body struct {
-		Content string `json:"content"`
-	}
-	if err := c.BindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-		return
+	var content string
+	if c.Request.Method == "GET" {
+		content = c.Query("content")
+	} else {
+		var body struct {
+			Content string `json:"content"`
+		}
+		if err := c.BindJSON(&body); err != nil {
+			// For SSE requests, send error message in SSE format
+			if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
+				c.Header("Content-Type", "text/event-stream;charset=utf-8")
+				c.Header("Cache-Control", "no-cache")
+				c.Header("Connection", "keep-alive")
+				msg := message.New().Error("invalid request body").Done()
+				msg.Write(c.Writer)
+				return
+			}
+			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+			return
+		}
+		content = body.Content
 	}
 
 	resp := &generateResponse{
 		c:       c,
 		sid:     c.GetString("__sid"),
-		content: body.Content,
+		content: content,
 	}
+
+	// For SSE requests, set headers before validation
+	if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
+		c.Header("Content-Type", "text/event-stream;charset=utf-8")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+	}
+
 	if !resp.validate() {
 		return
 	}
@@ -619,37 +678,50 @@ func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
 	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
 	defer cancel()
 
-	resp.result, resp.err = neo.GeneratePrompts(ctx, resp.content, c)
+	// Use silent mode for regular HTTP requests, streaming for SSE
+	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
+	resp.result, resp.err = neo.GeneratePrompts(ctx, resp.content, c, silent)
 	resp.send("result")
 }
 
 // handleGenerateCustom handles generating custom content
 func (neo *DSL) handleGenerateCustom(c *gin.Context) {
-	var body struct {
-		Content      string `json:"content"`
-		Type         string `json:"type"`
-		SystemPrompt string `json:"system_prompt"`
-	}
-	if err := c.BindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-		return
+	var content, genType, systemPrompt string
+
+	if c.Request.Method == "GET" {
+		content = c.Query("content")
+		genType = c.Query("type")
+		systemPrompt = c.Query("system_prompt")
+	} else {
+		var body struct {
+			Content      string `json:"content"`
+			Type         string `json:"type"`
+			SystemPrompt string `json:"system_prompt"`
+		}
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+			return
+		}
+		content = body.Content
+		genType = body.Type
+		systemPrompt = body.SystemPrompt
 	}
 
 	resp := &generateResponse{
 		c:       c,
 		sid:     c.GetString("__sid"),
-		content: body.Content,
+		content: content,
 	}
 	if !resp.validate() {
 		return
 	}
 
 	// Additional validations for custom generation
-	if body.Type == "" {
+	if genType == "" {
 		c.JSON(400, gin.H{"message": "type is required", "code": 400})
 		return
 	}
-	if body.SystemPrompt == "" {
+	if systemPrompt == "" {
 		c.JSON(400, gin.H{"message": "system_prompt is required", "code": 400})
 		return
 	}
@@ -657,6 +729,8 @@ func (neo *DSL) handleGenerateCustom(c *gin.Context) {
 	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
 	defer cancel()
 
-	resp.result, resp.err = neo.GenerateWithAI(ctx, resp.content, body.Type, body.SystemPrompt, c)
+	// Use silent mode for regular HTTP requests, streaming for SSE
+	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
+	resp.result, resp.err = neo.GenerateWithAI(ctx, resp.content, genType, systemPrompt, c, silent)
 	resp.send("result")
 }
