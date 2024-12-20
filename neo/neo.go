@@ -498,6 +498,7 @@ func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages 
 				{"role": "assistant", "content": string(content), "name": sid},
 			},
 			chatID,
+			nil,
 		)
 
 		if err != nil {

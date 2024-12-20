@@ -30,7 +30,7 @@ func (conv *Mongo) GetHistory(sid string, cid string) ([]map[string]interface{},
 }
 
 // SaveHistory save the history
-func (conv *Mongo) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
+func (conv *Mongo) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
 	return nil
 }
 

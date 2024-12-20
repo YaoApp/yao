@@ -43,9 +43,7 @@ type Conversation interface {
 	GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error)
 	GetChat(sid string, cid string) (*ChatInfo, error)
 	GetHistory(sid string, cid string) ([]map[string]interface{}, error)
-	SaveHistory(sid string, messages []map[string]interface{}, cid string) error
-	GetRequest(sid string, rid string) ([]map[string]interface{}, error)
-	SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error
+	SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error
 	DeleteChat(sid string, cid string) error
 	DeleteAllChats(sid string) error
 	UpdateChatTitle(sid string, cid string, title string) error

@@ -45,7 +45,7 @@ func TestNewXunDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fields := []string{"id", "sid", "cid", "rid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		assert.Equal(t, true, tab.HasColumn(field))
 	}
@@ -103,7 +103,7 @@ func TestNewXunConnector(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fields := []string{"id", "sid", "cid", "rid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		assert.Equal(t, true, tab.HasColumn(field))
 	}
@@ -143,43 +143,11 @@ func TestXunSaveAndGetHistory(t *testing.T) {
 	err = conv.SaveHistory("123456", []map[string]interface{}{
 		{"role": "user", "name": "user1", "content": "hello"},
 		{"role": "assistant", "name": "user1", "content": "Hello there, how"},
-	}, cid)
+	}, cid, nil)
 	assert.Nil(t, err)
 
 	// get the history
 	data, err := conv.GetHistory("123456", cid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 2, len(data))
-}
-
-func TestXunSaveAndGetRequest(t *testing.T) {
-
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-	defer capsule.Schema().DropTableIfExists("__unit_test_conversation")
-
-	err := capsule.Schema().DropTableIfExists("__unit_test_conversation")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	conv, err := NewXun(Setting{
-		Connector: "default",
-		Table:     "__unit_test_conversation",
-		TTL:       3600,
-	})
-
-	// save the history
-	err = conv.SaveRequest("123456", "912836", "test.command", []map[string]interface{}{
-		{"role": "user", "name": "user1", "content": "hello"},
-		{"role": "assistant", "name": "user1", "content": "Hello there, how"},
-	})
-	assert.Nil(t, err)
-
-	// get the history
-	data, err := conv.GetRequest("123456", "912836")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +177,7 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 		{"role": "user", "name": "user1", "content": "hello"},
 		{"role": "assistant", "name": "assistant1", "content": "Hi! How can I help you?"},
 	}
-	err = conv.SaveHistory(sid, messages, cid)
+	err = conv.SaveHistory(sid, messages, cid, nil)
 	assert.Nil(t, err)
 
 	// get the history for specific cid
@@ -224,7 +192,7 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 	moreMessages := []map[string]interface{}{
 		{"role": "user", "name": "user1", "content": "another message"},
 	}
-	err = conv.SaveHistory(sid, moreMessages, anotherCID)
+	err = conv.SaveHistory(sid, moreMessages, anotherCID, nil)
 	assert.Nil(t, err)
 
 	// get history for the first cid - should still be 2 messages
@@ -294,7 +262,7 @@ func TestXunGetChats(t *testing.T) {
 		}
 
 		// Then save the history
-		err = conv.SaveHistory(sid, messages, chatID)
+		err = conv.SaveHistory(sid, messages, chatID, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -344,7 +312,7 @@ func TestXunDeleteChat(t *testing.T) {
 	}
 
 	// Save the chat and history
-	err = conv.SaveHistory(sid, messages, cid)
+	err = conv.SaveHistory(sid, messages, cid, nil)
 	assert.Nil(t, err)
 
 	// Verify chat exists
@@ -385,7 +353,7 @@ func TestXunDeleteAllChats(t *testing.T) {
 	// Save multiple chats
 	for i := 0; i < 3; i++ {
 		cid := fmt.Sprintf("test_chat_%d", i)
-		err = conv.SaveHistory(sid, messages, cid)
+		err = conv.SaveHistory(sid, messages, cid, nil)
 		assert.Nil(t, err)
 	}
 
