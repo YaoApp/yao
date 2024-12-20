@@ -1,4 +1,4 @@
-package base
+package local
 
 import (
 	"context"
@@ -31,7 +31,7 @@ var AllowedFileTypes = map[string]string{
 var MaxSize int64 = 20 * 1024 * 1024
 
 // Upload the file
-func (ast *Base) Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*assistant.File, error) {
+func (ast *Local) Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*assistant.File, error) {
 
 	// check file size
 	if file.Size > MaxSize {
@@ -69,13 +69,13 @@ func (ast *Base) Upload(ctx context.Context, file *multipart.FileHeader, reader 
 	}, nil
 }
 
-func (ast *Base) id(temp string, ext string) (string, error) {
+func (ast *Local) id(temp string, ext string) (string, error) {
 	date := time.Now().Format("20060102")
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(temp)))[:8]
 	return fmt.Sprintf("/__assistants/%s/%s/%s%s", ast.ID, date, hash, ext), nil
 }
 
-func (ast *Base) allowed(contentType string) bool {
+func (ast *Local) allowed(contentType string) bool {
 	if _, ok := AllowedFileTypes[contentType]; ok {
 		return true
 	}
@@ -87,7 +87,7 @@ func (ast *Base) allowed(contentType string) bool {
 }
 
 // Download downloads a file
-func (ast *Base) Download(ctx context.Context, fileID string) (*assistant.FileResponse, error) {
+func (ast *Local) Download(ctx context.Context, fileID string) (*assistant.FileResponse, error) {
 
 	// Get the data filesystem
 	data, err := fs.Get("data")

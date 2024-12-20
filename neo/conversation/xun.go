@@ -23,19 +23,6 @@ type Xun struct {
 	setting Setting
 }
 
-type row struct {
-	Role      string                 `json:"role"`       // Message role
-	Name      string                 `json:"name"`       // User name
-	Content   string                 `json:"content"`    // Message content
-	Sid       string                 `json:"sid"`        // Session ID
-	Cid       string                 `json:"cid"`        // Chat ID from chat history
-	UID       string                 `json:"uid"`        // User ID
-	Context   map[string]interface{} `json:"context"`    // Message context
-	CreatedAt time.Time              `json:"created_at"` // Created time
-	UpdatedAt *time.Time             `json:"updated_at"` // Updated time
-	ExpiredAt interface{}            `json:"expired_at"` // Expired time
-}
-
 // Public interface methods and constructor remain exported:
 // - NewXun
 // - UpdateChatTitle
@@ -228,6 +215,7 @@ func (conv *Xun) initAssistantTable() error {
 			table.JSON("option").Null()
 			table.JSON("prompts").Null()
 			table.JSON("flows").Null()
+			table.Boolean("mentionable").SetDefault(true).Index() // Whether this assistant can appear in @ mention list
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
@@ -244,7 +232,7 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "option", "prompts", "flows", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "option", "prompts", "flows", "mentionable", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)

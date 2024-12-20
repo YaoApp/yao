@@ -11,7 +11,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/assistant/base"
+	"github.com/yaoapp/yao/neo/assistant/local"
 	"github.com/yaoapp/yao/neo/assistant/openai"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
@@ -417,9 +417,9 @@ func (neo *DSL) newAssistantByConnector(id string) (assistant.API, error) {
 	}
 
 	// Base on the assistant list hook
-	api, err := base.New(conn, neo.Prompts, id)
+	api, err := local.New(conn, neo.Prompts, id)
 	if err != nil {
-		return nil, fmt.Errorf("Create base assistant error: %s", err.Error())
+		return nil, fmt.Errorf("Create local assistant error: %s", err.Error())
 	}
 	return api, nil
 }
