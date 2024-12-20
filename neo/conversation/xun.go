@@ -216,6 +216,7 @@ func (conv *Xun) initAssistantTable() error {
 			table.JSON("prompts").Null()
 			table.JSON("flows").Null()
 			table.JSON("files").Null()
+			table.JSON("functions").Null()
 			table.Boolean("mentionable").SetDefault(true).Index() // Whether this assistant can appear in @ mention list
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
@@ -233,7 +234,7 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "option", "prompts", "flows", "files", "mentionable", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "option", "prompts", "flows", "files", "functions", "mentionable", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
