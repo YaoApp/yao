@@ -208,16 +208,19 @@ func (conv *Xun) initAssistantTable() error {
 			table.ID("id")
 			table.String("assistant_id", 200).Unique().Index()
 			table.String("type", 200).SetDefault("assistant").Index() // default is assistant
-			table.String("name", 200).Null()
-			table.String("avatar", 200).Null()
-			table.String("connector", 200).NotNull()
-			table.Text("description").Null()
-			table.JSON("option").Null()
-			table.JSON("prompts").Null()
-			table.JSON("flows").Null()
-			table.JSON("files").Null()
-			table.JSON("functions").Null()
-			table.Boolean("mentionable").SetDefault(true).Index() // Whether this assistant can appear in @ mention list
+			table.String("name", 200).Null()                          // assistant name
+			table.String("avatar", 200).Null()                        // assistant avatar
+			table.String("connector", 200).NotNull()                  // assistant connector
+			table.Text("description").Null()                          // assistant description
+			table.JSON("options").Null()                              // assistant options
+			table.JSON("prompts").Null()                              // assistant prompts
+			table.JSON("flows").Null()                                // assistant flows
+			table.JSON("files").Null()                                // assistant files
+			table.JSON("functions").Null()                            // assistant functions
+			table.Boolean("readonly").SetDefault(false).Index()       // assistant readonly
+			table.JSON("permissions").Null()                          // assistant permissions
+			table.Boolean("automated").SetDefault(true).Index()       // assistant autoable
+			table.Boolean("mentionable").SetDefault(true).Index()     // Whether this assistant can appear in @ mention list
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
@@ -234,7 +237,7 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "option", "prompts", "flows", "files", "functions", "mentionable", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "mentionable", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
