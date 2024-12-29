@@ -22,10 +22,11 @@ func GetNeo() *DSL {
 func init() {
 	process.RegisterGroup("neo", map[string]process.Handler{
 		"write":            ProcessWrite,
-		"assistant.add":    processAssistantAdd,
+		"assistant.create": processAssistantCreate,
 		"assistant.save":   processAssistantSave,
 		"assistant.delete": processAssistantDelete,
 		"assistant.search": processAssistantSearch,
+		"assistant.find":   processAssistantFind,
 	})
 }
 
@@ -56,8 +57,8 @@ func ProcessWrite(process *process.Process) interface{} {
 	return nil
 }
 
-// processAssistantAdd process the assistant add request
-func processAssistantAdd(process *process.Process) interface{} {
+// processAssistantCreate process the assistant create request
+func processAssistantCreate(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	data := process.ArgsMap(0)
 
@@ -68,7 +69,7 @@ func processAssistantAdd(process *process.Process) interface{} {
 
 	id, err := neo.Conversation.SaveAssistant(data)
 	if err != nil {
-		exception.New("Failed to add assistant: %s", 500, err.Error()).Throw()
+		exception.New("Failed to create assistant: %s", 500, err.Error()).Throw()
 	}
 
 	return id
@@ -174,4 +175,32 @@ func processAssistantSearch(process *process.Process) interface{} {
 	}
 
 	return res
+}
+
+// processAssistantFind process the assistant find request
+func processAssistantFind(process *process.Process) interface{} {
+	process.ValidateArgNums(1)
+	assistantID := process.ArgsString(0)
+
+	neo := GetNeo()
+	if neo.Conversation == nil {
+		exception.New("Neo conversation is not initialized", 500).Throw()
+	}
+
+	filter := conversation.AssistantFilter{
+		AssistantID: assistantID,
+		Page:        1,
+		PageSize:    1,
+	}
+
+	res, err := neo.Conversation.GetAssistants(filter)
+	if err != nil {
+		exception.New("Failed to find assistant: %s", 500, err.Error()).Throw()
+	}
+
+	if len(res.Data) == 0 {
+		exception.New("Assistant not found: %s", 404, assistantID).Throw()
+	}
+
+	return res.Data[0]
 }

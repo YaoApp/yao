@@ -775,6 +775,46 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(resp.Data), 0)
 
+	// Test filtering by assistant_id
+	// First get an assistant_id from previous results
+	firstAssistantID := resp.Data[0]["assistant_id"].(string)
+
+	// Test exact match with assistant_id
+	resp, err = conv.GetAssistants(AssistantFilter{
+		AssistantID: firstAssistantID,
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.Data))
+	assert.Equal(t, firstAssistantID, resp.Data[0]["assistant_id"])
+
+	// Test assistant_id with other filters
+	resp, err = conv.GetAssistants(AssistantFilter{
+		AssistantID: firstAssistantID,
+		Select:      []string{"name", "assistant_id", "description"},
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.Data))
+	assert.Equal(t, firstAssistantID, resp.Data[0]["assistant_id"])
+	// Verify only selected fields are returned
+	assert.Contains(t, resp.Data[0], "name")
+	assert.Contains(t, resp.Data[0], "assistant_id")
+	assert.Contains(t, resp.Data[0], "description")
+	assert.NotContains(t, resp.Data[0], "tags")
+	assert.NotContains(t, resp.Data[0], "options")
+
+	// Test non-existent assistant_id
+	resp, err = conv.GetAssistants(AssistantFilter{
+		AssistantID: "non-existent-id",
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
 	// Test combined filters
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Tags:        []string{"tag0"},
@@ -786,4 +826,51 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize:    10,
 	})
 	assert.Nil(t, err)
+
+	// Test filtering with select fields
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Select:   []string{"name", "description", "tags"},
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 10, len(resp.Data))
+	// Verify only selected fields are returned
+	for _, item := range resp.Data {
+		// These fields should exist
+		assert.Contains(t, item, "name")
+		assert.Contains(t, item, "description")
+		assert.Contains(t, item, "tags")
+		// These fields should not exist
+		assert.NotContains(t, item, "options")
+		assert.NotContains(t, item, "prompts")
+		assert.NotContains(t, item, "flows")
+		assert.NotContains(t, item, "files")
+		assert.NotContains(t, item, "functions")
+		assert.NotContains(t, item, "permissions")
+	}
+
+	// Test filtering with select fields and other filters combined
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Tags:     []string{"tag0"},
+		Keywords: "Assistant",
+		Select:   []string{"name", "tags"},
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	// Verify only selected fields are returned
+	for _, item := range resp.Data {
+		// These fields should exist
+		assert.Contains(t, item, "name")
+		assert.Contains(t, item, "tags")
+		// These fields should not exist
+		assert.NotContains(t, item, "description")
+		assert.NotContains(t, item, "options")
+		assert.NotContains(t, item, "prompts")
+		assert.NotContains(t, item, "flows")
+		assert.NotContains(t, item, "files")
+		assert.NotContains(t, item, "functions")
+		assert.NotContains(t, item, "permissions")
+	}
 }

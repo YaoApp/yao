@@ -829,6 +829,11 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		qb.Where("connector", filter.Connector)
 	}
 
+	// Apply assistant_id filter if provided
+	if filter.AssistantID != "" {
+		qb.Where("assistant_id", filter.AssistantID)
+	}
+
 	// Apply mentionable filter if provided
 	if filter.Mentionable != nil {
 		qb.Where("mentionable", *filter.Mentionable)
@@ -865,6 +870,15 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		prevPage = 0
 	}
 
+	// Apply select fields if provided
+	if filter.Select != nil && len(filter.Select) > 0 {
+		selectFields := make([]interface{}, len(filter.Select))
+		for i, field := range filter.Select {
+			selectFields[i] = field
+		}
+		qb.Select(selectFields...)
+	}
+
 	// Get paginated results
 	rows, err := qb.OrderBy("created_at", "desc").
 		Offset(offset).
@@ -879,7 +893,24 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "functions", "permissions"}
 	for i, row := range rows {
 		data[i] = row
-		conv.parseJSONFields(data[i], jsonFields)
+		// Only parse JSON fields if they are selected or no select filter is provided
+		if filter.Select == nil || len(filter.Select) == 0 {
+			conv.parseJSONFields(data[i], jsonFields)
+		} else {
+			// Parse only selected JSON fields
+			selectedJSONFields := []string{}
+			for _, field := range jsonFields {
+				for _, selected := range filter.Select {
+					if selected == field {
+						selectedJSONFields = append(selectedJSONFields, field)
+						break
+					}
+				}
+			}
+			if len(selectedJSONFields) > 0 {
+				conv.parseJSONFields(data[i], selectedJSONFields)
+			}
+		}
 	}
 
 	return &AssistantResponse{

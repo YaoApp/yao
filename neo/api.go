@@ -863,6 +863,37 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		filter.Tags = strings.Split(tags, ",")
 	}
 
+	// Parse keywords
+	if keywords := c.Query("keywords"); keywords != "" {
+		filter.Keywords = keywords
+	}
+
+	// Parse connector
+	if connector := c.Query("connector"); connector != "" {
+		filter.Connector = connector
+	}
+
+	// Parse select fields
+	if selectFields := c.Query("select"); selectFields != "" {
+		filter.Select = strings.Split(selectFields, ",")
+	}
+
+	// Parse mentionable (support various boolean formats)
+	if mentionable := c.Query("mentionable"); mentionable != "" {
+		val := parseBoolValue(mentionable)
+		if val != nil {
+			filter.Mentionable = val
+		}
+	}
+
+	// Parse automated (support various boolean formats)
+	if automated := c.Query("automated"); automated != "" {
+		val := parseBoolValue(automated)
+		if val != nil {
+			filter.Automated = val
+		}
+	}
+
 	response, err := neo.Conversation.GetAssistants(filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
@@ -872,6 +903,22 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 
 	c.JSON(200, response)
 	c.Done()
+}
+
+// parseBoolValue parses various string formats into a boolean pointer
+// Supports: 1, 0, "1", "0", "true", "false", etc.
+func parseBoolValue(value string) *bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+	switch value {
+	case "1", "true", "yes", "on":
+		v := true
+		return &v
+	case "0", "false", "no", "off":
+		v := false
+		return &v
+	default:
+		return nil
+	}
 }
 
 // handleAssistantDetail handles getting a single assistant's details
@@ -884,8 +931,9 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 	}
 
 	filter := conversation.AssistantFilter{
-		Page:     1,
-		PageSize: 1,
+		AssistantID: assistantID,
+		Page:        1,
+		PageSize:    1,
 	}
 
 	response, err := neo.Conversation.GetAssistants(filter)
@@ -895,22 +943,13 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 		return
 	}
 
-	// Find the assistant by ID
-	var assistant map[string]interface{}
-	for _, item := range response.Data {
-		if id, ok := item["id"].(string); ok && id == assistantID {
-			assistant = item
-			break
-		}
-	}
-
-	if assistant == nil {
+	if len(response.Data) == 0 {
 		c.JSON(404, gin.H{"message": "assistant not found", "code": 404})
 		c.Done()
 		return
 	}
 
-	c.JSON(200, map[string]interface{}{"data": assistant})
+	c.JSON(200, map[string]interface{}{"data": response.Data[0]})
 	c.Done()
 }
 

@@ -83,8 +83,8 @@ func TestProcessAssistantCRUD(t *testing.T) {
 		"automated":   true,
 	}
 
-	// Test processAssistantAdd with string JSON
-	p, err := process.Of("neo.assistant.add", assistant)
+	// Test processAssistantCreate with string JSON
+	p, err := process.Of("neo.assistant.create", assistant)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,6 +96,33 @@ func TestProcessAssistantCRUD(t *testing.T) {
 
 	assistantID := output
 	assert.NotNil(t, assistantID)
+
+	// Test processAssistantFind
+	p, err = process.Of("neo.assistant.find", assistantID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foundAssistant := output.(map[string]interface{})
+	assert.Equal(t, assistantID, foundAssistant["assistant_id"])
+	assert.Equal(t, "Test Assistant", foundAssistant["name"])
+	assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, foundAssistant["tags"])
+	assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, foundAssistant["options"])
+
+	// Test processAssistantFind with non-existent ID
+	p, err = process.Of("neo.assistant.find", "non-existent-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Assistant not found")
 
 	// Test with native type JSON fields
 	assistant2 := map[string]interface{}{
@@ -115,8 +142,8 @@ func TestProcessAssistantCRUD(t *testing.T) {
 		"automated":   true,
 	}
 
-	// Test processAssistantAdd with native types
-	p, err = process.Of("neo.assistant.add", assistant2)
+	// Test processAssistantCreate with native types
+	p, err = process.Of("neo.assistant.create", assistant2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,8 +173,8 @@ func TestProcessAssistantCRUD(t *testing.T) {
 		"automated":   true,
 	}
 
-	// Test processAssistantAdd with nil fields
-	p, err = process.Of("neo.assistant.add", assistant3)
+	// Test processAssistantCreate with nil fields
+	p, err = process.Of("neo.assistant.create", assistant3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,7 +351,7 @@ func TestProcessAssistantSearchPagination(t *testing.T) {
 			"automated":   i%3 == 0,
 		}
 
-		p, err := process.Of("neo.assistant.add", assistant)
+		p, err := process.Of("neo.assistant.create", assistant)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -438,7 +465,7 @@ func TestProcessAssistantValidation(t *testing.T) {
 	defer test.Clean()
 
 	// Test missing required fields
-	p, err := process.Of("neo.assistant.add", map[string]interface{}{})
+	p, err := process.Of("neo.assistant.create", map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -454,6 +481,16 @@ func TestProcessAssistantValidation(t *testing.T) {
 
 	_, err = p.Exec()
 	assert.NotNil(t, err)
+
+	// Test invalid assistant ID for find
+	p, err = process.Of("neo.assistant.find", "non-existent-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Assistant not found")
 
 	// Test invalid page number
 	p, err = process.Of("neo.assistant.search", map[string]interface{}{
