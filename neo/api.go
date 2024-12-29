@@ -43,44 +43,107 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/assistants", neo.optionsHandler)
 	router.OPTIONS(path+"/assistants/:id", neo.optionsHandler)
 
-	// Register endpoints with middlewares
+	// Chat endpoint
+	// Example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo?content=Hello&chat_id=chat_123&context=previous_context&token=xxx'
+	// curl -X POST 'http://localhost:5099/api/__yao/neo' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"content": "Hello", "chat_id": "chat_123", "context": "previous_context", "token": "xxx"}'
 	router.GET(path, append(middlewares, neo.handleChat)...)
 	router.POST(path, append(middlewares, neo.handleChat)...)
 
-	// Status check
+	// Status check endpoint
+	// Example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/status?token=xxx'
 	router.GET(path+"/status", append(middlewares, neo.handleStatus)...)
 
-	// Assistant API
+	// Assistant API endpoints
+	// List assistants example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants?page=1&pagesize=20&tags=tag1,tag2&token=xxx'
 	router.GET(path+"/assistants", append(middlewares, neo.handleAssistantList)...)
+
+	// Get assistant details example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants/assistant_123?token=xxx'
 	router.GET(path+"/assistants/:id", append(middlewares, neo.handleAssistantDetail)...)
+
+	// Create/Update assistant example:
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/assistants' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"name": "My Assistant", "type": "chat", "tags": ["tag1", "tag2"], "mentionable": true, "avatar": "path/to/avatar.png", "token": "xxx"}'
 	router.POST(path+"/assistants", append(middlewares, neo.handleAssistantSave)...)
+
+	// Delete assistant example:
+	// curl -X DELETE 'http://localhost:5099/api/__yao/neo/assistants/assistant_123?token=xxx'
 	router.DELETE(path+"/assistants/:id", append(middlewares, neo.handleAssistantDelete)...)
 
-	// Chat api
+	// Chat management endpoints
+	// List chats example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/chats?page=1&pagesize=20&keywords=search+term&order=desc&token=xxx'
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
+
+	// Get chat details example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/chats/chat_123?token=xxx'
 	router.GET(path+"/chats/:id", append(middlewares, neo.handleChatDetail)...)
+
+	// Update chat example:
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/chats/chat_123' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"title": "New Title", "content": "Chat content for title generation", "token": "xxx"}'
 	router.POST(path+"/chats/:id", append(middlewares, neo.handleChatUpdate)...)
+
+	// Delete chat example:
+	// curl -X DELETE 'http://localhost:5099/api/__yao/neo/chats/chat_123?token=xxx'
 	router.DELETE(path+"/chats/:id", append(middlewares, neo.handleChatDelete)...)
 
-	// History api
+	// Chat history endpoint
+	// Example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/history?chat_id=chat_123&token=xxx'
 	router.GET(path+"/history", append(middlewares, neo.handleChatHistory)...)
 
-	// File api
+	// File management endpoints
+	// Upload file example:
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/upload?chat_id=chat_123&token=xxx' \
+	//   -F 'file=@/path/to/file.txt'
 	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
+
+	// Download file example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/download?file_id=file_123&disposition=attachment&token=xxx' \
+	//   -o downloaded_file.txt
 	router.GET(path+"/download", append(middlewares, neo.handleDownload)...)
 
-	// Mention api
+	// Mentions endpoint
+	// Example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/mentions?keywords=assistant&token=xxx'
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
 
-	// Generate api
+	// Generation endpoints
+	// Generate custom content example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate?content=Generate+something&type=custom&system_prompt=You+are+a+helpful+assistant&chat_id=chat_123&token=xxx'
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/generate' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"content": "Generate something", "type": "custom", "system_prompt": "You are a helpful assistant", "chat_id": "chat_123", "token": "xxx"}'
 	router.GET(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
 	router.POST(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
+
+	// Generate title example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate/title?content=Chat+content&chat_id=chat_123&token=xxx'
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/generate/title' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"content": "Chat content", "chat_id": "chat_123", "token": "xxx"}'
 	router.GET(path+"/generate/title", append(middlewares, neo.handleGenerateTitle)...)
 	router.POST(path+"/generate/title", append(middlewares, neo.handleGenerateTitle)...)
+
+	// Generate prompts example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate/prompts?content=Generate+prompts&chat_id=chat_123&token=xxx'
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/generate/prompts' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"content": "Generate prompts", "chat_id": "chat_123", "token": "xxx"}'
 	router.GET(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
 	router.POST(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
 
 	// Dangerous operations
+	// Clear all chats example:
+	// curl -X DELETE 'http://localhost:5099/api/__yao/neo/dangerous/clear_chats?token=xxx'
 	router.DELETE(path+"/dangerous/clear_chats", append(middlewares, neo.handleChatsDeleteAll)...)
 
 	return nil
