@@ -117,7 +117,7 @@ type Conversation interface {
 	// SaveAssistant saves assistant information
 	// assistant: Assistant information
 	// Returns: Potential error
-	SaveAssistant(assistant map[string]interface{}) error
+	SaveAssistant(assistant map[string]interface{}) (interface{}, error)
 
 	// DeleteAssistant deletes an assistant
 	// assistantID: Assistant ID

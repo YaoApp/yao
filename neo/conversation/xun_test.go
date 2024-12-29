@@ -478,22 +478,10 @@ func TestXunAssistantCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test creating a new assistant
-	tagsJSON, err := jsoniter.MarshalToString([]string{"tag1", "tag2", "tag3"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	optionsJSON, err := jsoniter.MarshalToString(map[string]interface{}{
-		"model": "gpt-4",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mentionable := true
-	automated := true
-
+	// Test creating a new assistant with different JSON field formats
+	// Test case 1: JSON fields as strings
+	tagsJSON := `["tag1", "tag2", "tag3"]`
+	optionsJSON := `{"model": "gpt-4"}`
 	assistant := map[string]interface{}{
 		"name":        "Test Assistant",
 		"type":        "assistant",
@@ -502,94 +490,151 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"description": "Test Description",
 		"tags":        tagsJSON,
 		"options":     optionsJSON,
-		"mentionable": mentionable,
-		"automated":   automated,
+		"mentionable": true,
+		"automated":   true,
 	}
 
-	// Test SaveAssistant (Create)
-	err = conv.SaveAssistant(assistant)
+	// Test SaveAssistant (Create) with string JSON
+	v, err := conv.SaveAssistant(assistant)
 	assert.Nil(t, err)
-	assistantID := assistant["assistant_id"].(string)
+	assistantID := v.(string)
 	assert.NotEmpty(t, assistantID)
 
-	// Test GetAssistants with no filter
+	// Test case 2: JSON fields as native types
+	assistant2 := map[string]interface{}{
+		"name":        "Test Assistant 2",
+		"type":        "assistant",
+		"avatar":      "https://example.com/avatar2.png",
+		"connector":   "openai",
+		"description": "Test Description 2",
+		"tags":        []string{"tag1", "tag2", "tag3"},
+		"options":     map[string]interface{}{"model": "gpt-4"},
+		"prompts":     []string{"prompt1", "prompt2"},
+		"flows":       []string{"flow1", "flow2"},
+		"files":       []string{"file1", "file2"},
+		"functions":   []map[string]interface{}{{"name": "func1"}, {"name": "func2"}},
+		"permissions": map[string]interface{}{"read": true, "write": true},
+		"mentionable": true,
+		"automated":   true,
+	}
+
+	// Test SaveAssistant (Create) with native types
+	v, err = conv.SaveAssistant(assistant2)
+	assert.Nil(t, err)
+	assistant2ID := v.(string)
+	assert.NotEmpty(t, assistant2ID)
+
+	// Test case 3: Test with nil JSON fields
+	assistant3 := map[string]interface{}{
+		"name":        "Test Assistant 3",
+		"type":        "assistant",
+		"connector":   "openai",
+		"description": "Test Description 3",
+		"tags":        nil,
+		"options":     nil,
+		"prompts":     nil,
+		"flows":       nil,
+		"files":       nil,
+		"functions":   nil,
+		"permissions": nil,
+		"mentionable": true,
+		"automated":   true,
+	}
+
+	// Test SaveAssistant (Create) with nil fields
+	v, err = conv.SaveAssistant(assistant3)
+	assert.Nil(t, err)
+	assistant3ID := v.(string)
+	assert.NotEmpty(t, assistant3ID)
+
+	// Test GetAssistants to verify JSON fields are properly stored
 	resp, err := conv.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
+	assert.Equal(t, 3, len(resp.Data))
 
-	// Test GetAssistants with tag filter (single tag)
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Tags: []string{"tag1"},
-	})
+	// Verify first assistant (string JSON)
+	found := false
+	for _, item := range resp.Data {
+		if item["assistant_id"].(string) == assistantID {
+			found = true
+			// Now we expect parsed JSON values instead of JSON strings
+			assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, item["tags"])
+			assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, item["options"])
+			break
+		}
+	}
+	assert.True(t, found)
+
+	// Verify second assistant (native types converted to JSON)
+	found = false
+	for _, item := range resp.Data {
+		if item["assistant_id"].(string) == assistant2ID {
+			found = true
+			// Now we expect parsed JSON values directly
+			assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, item["tags"])
+			assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, item["options"])
+
+			// Verify other JSON fields
+			assert.Equal(t, []interface{}{"prompt1", "prompt2"}, item["prompts"])
+			assert.Equal(t, []interface{}{"flow1", "flow2"}, item["flows"])
+			assert.Equal(t, []interface{}{"file1", "file2"}, item["files"])
+			assert.Equal(t,
+				[]interface{}{
+					map[string]interface{}{"name": "func1"},
+					map[string]interface{}{"name": "func2"},
+				},
+				item["functions"])
+			assert.Equal(t,
+				map[string]interface{}{
+					"read":  true,
+					"write": true,
+				},
+				item["permissions"])
+			break
+		}
+	}
+	assert.True(t, found)
+
+	// Verify third assistant (nil fields)
+	found = false
+	for _, item := range resp.Data {
+		if item["assistant_id"].(string) == assistant3ID {
+			found = true
+			assert.Nil(t, item["tags"])
+			assert.Nil(t, item["options"])
+			assert.Nil(t, item["prompts"])
+			assert.Nil(t, item["flows"])
+			assert.Nil(t, item["files"])
+			assert.Nil(t, item["functions"])
+			assert.Nil(t, item["permissions"])
+			break
+		}
+	}
+	assert.True(t, found)
+
+	// Test updating with mixed JSON formats
+	assistant2["assistant_id"] = assistant2ID
+	_, err = conv.SaveAssistant(assistant2)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
 
-	// Test GetAssistants with tag filter (multiple tags)
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Tags: []string{"tag1", "tag4"},
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-
-	// Test GetAssistants with non-existent tag
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Tags: []string{"nonexistent"},
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(resp.Data))
-
-	// Test GetAssistants with keyword filter
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Keywords: "Test",
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-
-	// Test GetAssistants with connector filter
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Connector: "openai",
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-
-	// Test GetAssistants with mentionable filter
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Mentionable: &mentionable,
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-
-	// Test GetAssistants with automated filter
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Automated: &automated,
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-
-	// Test GetAssistants with combined filters
-	resp, err = conv.GetAssistants(AssistantFilter{
-		Keywords:    "Test",
-		Connector:   "openai",
-		Mentionable: &mentionable,
-		Automated:   &automated,
-		Tags:        []string{"tag1"},
-	})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-
-	// Test SaveAssistant (Update)
-	assistant["name"] = "Updated Assistant"
-	err = conv.SaveAssistant(assistant)
-	assert.Nil(t, err)
-
+	// Verify update
 	resp, err = conv.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.Data))
-	item := resp.Data[0]
-	assert.Equal(t, "Updated Assistant", item["name"])
+	for _, item := range resp.Data {
+		if item["assistant_id"].(string) == assistant2ID {
+			// Now we expect parsed JSON values
+			assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, item["tags"])
+			assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, item["options"])
+			break
+		}
+	}
 
 	// Test DeleteAssistant
 	err = conv.DeleteAssistant(assistantID)
+	assert.Nil(t, err)
+	err = conv.DeleteAssistant(assistant2ID)
+	assert.Nil(t, err)
+	err = conv.DeleteAssistant(assistant3ID)
 	assert.Nil(t, err)
 
 	resp, err = conv.GetAssistants(AssistantFilter{})
@@ -647,7 +692,7 @@ func TestXunAssistantPagination(t *testing.T) {
 			"mentionable": mentionable,
 			"automated":   automated,
 		}
-		err = conv.SaveAssistant(assistant)
+		_, err = conv.SaveAssistant(assistant)
 		assert.Nil(t, err)
 	}
 

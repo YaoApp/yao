@@ -923,11 +923,16 @@ func (neo *DSL) handleAssistantSave(c *gin.Context) {
 		return
 	}
 
-	err := neo.Conversation.SaveAssistant(assistant)
+	id, err := neo.Conversation.SaveAssistant(assistant)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
+	}
+
+	// Update the assistant map with the returned ID if it's not already set
+	if _, ok := assistant["assistant_id"]; !ok {
+		assistant["assistant_id"] = id
 	}
 
 	c.JSON(200, gin.H{"message": "ok", "data": assistant})

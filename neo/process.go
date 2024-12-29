@@ -66,12 +66,12 @@ func processAssistantAdd(process *process.Process) interface{} {
 		exception.New("Neo conversation is not initialized", 500).Throw()
 	}
 
-	err := neo.Conversation.SaveAssistant(data)
+	id, err := neo.Conversation.SaveAssistant(data)
 	if err != nil {
 		exception.New("Failed to add assistant: %s", 500, err.Error()).Throw()
 	}
 
-	return data
+	return id
 }
 
 // processAssistantSave process the assistant save request
@@ -84,12 +84,12 @@ func processAssistantSave(process *process.Process) interface{} {
 		exception.New("Neo conversation is not initialized", 500).Throw()
 	}
 
-	err := neo.Conversation.SaveAssistant(data)
+	id, err := neo.Conversation.SaveAssistant(data)
 	if err != nil {
 		exception.New("Failed to save assistant: %s", 500, err.Error()).Throw()
 	}
 
-	return data
+	return id
 }
 
 // processAssistantDelete process the assistant delete request

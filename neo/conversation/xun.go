@@ -662,53 +662,115 @@ func (conv *Xun) DeleteAllChats(sid string) error {
 	return err
 }
 
+// processJSONField processes a field that should be stored as JSON string
+func (conv *Xun) processJSONField(field interface{}) (interface{}, error) {
+	if field == nil {
+		return nil, nil
+	}
+
+	switch v := field.(type) {
+	case string:
+		return v, nil
+	default:
+		jsonStr, err := jsoniter.MarshalToString(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal %v to JSON: %v", field, err)
+		}
+		return jsonStr, nil
+	}
+}
+
+// parseJSONFields parses JSON string fields into their corresponding Go types
+func (conv *Xun) parseJSONFields(data map[string]interface{}, fields []string) {
+	for _, field := range fields {
+		if val := data[field]; val != nil {
+			if strVal, ok := val.(string); ok && strVal != "" {
+				var parsed interface{}
+				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
+					data[field] = parsed
+				}
+			}
+		}
+	}
+}
+
 // SaveAssistant saves assistant information
-func (conv *Xun) SaveAssistant(assistant map[string]interface{}) error {
+func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
 	// Validate required fields
 	requiredFields := []string{"name", "type", "connector"}
 	for _, field := range requiredFields {
 		if _, ok := assistant[field]; !ok {
-			return fmt.Errorf("field %s is required", field)
+			return nil, fmt.Errorf("field %s is required", field)
 		}
 		if assistant[field] == nil || assistant[field] == "" {
-			return fmt.Errorf("field %s cannot be empty", field)
+			return nil, fmt.Errorf("field %s cannot be empty", field)
 		}
 	}
 
-	// Validate tags format
-	if tags, ok := assistant["tags"].(string); ok {
-		log.Trace("Saving assistant with tags: %s", tags)
+	// Create a copy of the assistant map to avoid modifying the original
+	assistantCopy := make(map[string]interface{})
+	for k, v := range assistant {
+		assistantCopy[k] = v
+	}
+
+	// Process JSON fields
+	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "functions", "permissions"}
+	for _, field := range jsonFields {
+		if val, ok := assistantCopy[field]; ok && val != nil {
+			// If it's a string, try to parse it first
+			if strVal, ok := val.(string); ok && strVal != "" {
+				var parsed interface{}
+				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
+					assistantCopy[field] = parsed
+				}
+			}
+		}
 	}
 
 	// Generate assistant_id if not provided
-	if _, ok := assistant["assistant_id"]; !ok {
-		assistant["assistant_id"] = uuid.New().String()
+	if _, ok := assistantCopy["assistant_id"]; !ok {
+		assistantCopy["assistant_id"] = uuid.New().String()
 	}
 
 	// Check if assistant exists
 	exists, err := conv.query.New().
 		Table(conv.getAssistantTable()).
-		Where("assistant_id", assistant["assistant_id"]).
+		Where("assistant_id", assistantCopy["assistant_id"]).
 		Exists()
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	// Convert JSON fields to strings for storage
+	for _, field := range jsonFields {
+		if val, ok := assistantCopy[field]; ok && val != nil {
+			jsonStr, err := jsoniter.MarshalToString(val)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal %s to JSON: %v", field, err)
+			}
+			assistantCopy[field] = jsonStr
+		}
 	}
 
 	// Update or insert
 	if exists {
-		assistant["updated_at"] = time.Now()
-		_, err = conv.query.New().
+		_, err := conv.query.New().
 			Table(conv.getAssistantTable()).
-			Where("assistant_id", assistant["assistant_id"]).
-			Update(assistant)
-	} else {
-		assistant["created_at"] = time.Now()
-		err = conv.query.New().
-			Table(conv.getAssistantTable()).
-			Insert(assistant)
+			Where("assistant_id", assistantCopy["assistant_id"]).
+			Update(assistantCopy)
+		if err != nil {
+			return nil, err
+		}
+		return assistantCopy["assistant_id"], nil
 	}
 
-	return err
+	err = conv.query.New().
+		Table(conv.getAssistantTable()).
+		Insert(assistantCopy)
+	if err != nil {
+		return nil, err
+	}
+	return assistantCopy["assistant_id"], nil
 }
 
 // DeleteAssistant deletes an assistant by assistant_id
@@ -812,10 +874,12 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		return nil, err
 	}
 
-	// Convert rows to map slice
+	// Convert rows to map slice and parse JSON fields
 	data := make([]map[string]interface{}, len(rows))
+	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "functions", "permissions"}
 	for i, row := range rows {
 		data[i] = row
+		conv.parseJSONFields(data[i], jsonFields)
 	}
 
 	return &AssistantResponse{

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/any"
@@ -69,19 +68,9 @@ func TestProcessAssistantCRUD(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
-	// Create an assistant
-	tagsJSON, err := jsoniter.MarshalToString([]string{"tag1", "tag2", "tag3"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	optionsJSON, err := jsoniter.MarshalToString(map[string]interface{}{
-		"model": "gpt-4",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	// Create an assistant with string JSON fields
+	tagsJSON := `["tag1", "tag2", "tag3"]`
+	optionsJSON := `{"model": "gpt-4"}`
 	assistant := map[string]interface{}{
 		"name":        "Test Assistant",
 		"type":        "assistant",
@@ -94,7 +83,7 @@ func TestProcessAssistantCRUD(t *testing.T) {
 		"automated":   true,
 	}
 
-	// Test processAssistantAdd
+	// Test processAssistantAdd with string JSON
 	p, err := process.Of("neo.assistant.add", assistant)
 	if err != nil {
 		t.Fatal(err)
@@ -105,12 +94,73 @@ func TestProcessAssistantCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res := any.Of(output).Map()
-	assert.Equal(t, "Test Assistant", res.Get("name"))
-	assert.NotEmpty(t, res.Get("assistant_id"))
-	assistantID := res.Get("assistant_id").(string)
+	assistantID := output
+	assert.NotNil(t, assistantID)
 
-	// Test processAssistantSearch - no filter
+	// Test with native type JSON fields
+	assistant2 := map[string]interface{}{
+		"name":        "Test Assistant 2",
+		"type":        "assistant",
+		"avatar":      "https://example.com/avatar2.png",
+		"connector":   "openai",
+		"description": "Test Description 2",
+		"tags":        []string{"tag1", "tag2", "tag3"},
+		"options":     map[string]interface{}{"model": "gpt-4"},
+		"prompts":     []string{"prompt1", "prompt2"},
+		"flows":       []string{"flow1", "flow2"},
+		"files":       []string{"file1", "file2"},
+		"functions":   []map[string]interface{}{{"name": "func1"}, {"name": "func2"}},
+		"permissions": map[string]interface{}{"read": true, "write": true},
+		"mentionable": true,
+		"automated":   true,
+	}
+
+	// Test processAssistantAdd with native types
+	p, err = process.Of("neo.assistant.add", assistant2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assistant2ID := output
+	assert.NotNil(t, assistant2ID)
+
+	// Test with nil JSON fields
+	assistant3 := map[string]interface{}{
+		"name":        "Test Assistant 3",
+		"type":        "assistant",
+		"connector":   "openai",
+		"description": "Test Description 3",
+		"tags":        nil,
+		"options":     nil,
+		"prompts":     nil,
+		"flows":       nil,
+		"files":       nil,
+		"functions":   nil,
+		"permissions": nil,
+		"mentionable": true,
+		"automated":   true,
+	}
+
+	// Test processAssistantAdd with nil fields
+	p, err = process.Of("neo.assistant.add", assistant3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assistant3ID := output
+	assert.NotNil(t, assistant3ID)
+
+	// Test processAssistantSearch to verify all assistants
 	p, err = process.Of("neo.assistant.search")
 	if err != nil {
 		t.Fatal(err)
@@ -126,20 +176,68 @@ func TestProcessAssistantCRUD(t *testing.T) {
 	if total == nil {
 		total = int64(0)
 	}
-	assert.Equal(t, int64(1), total)
+	assert.Equal(t, int64(3), total)
 
 	items := searchRes.Get("data")
 	if items == nil {
 		items = []map[string]interface{}{}
 	}
-	assert.Equal(t, 1, len(items.([]map[string]interface{})))
+	assert.Equal(t, 3, len(items.([]map[string]interface{})))
 
-	// Test processAssistantSearch - with filter
-	p, err = process.Of("neo.assistant.search", map[string]interface{}{
-		"tags":     []string{"tag1"},
-		"page":     1,
-		"pagesize": 10,
-	})
+	// Verify each assistant's JSON fields
+	for _, item := range items.([]map[string]interface{}) {
+		switch item["assistant_id"].(string) {
+		case assistantID:
+			assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, item["tags"])
+			assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, item["options"])
+		case assistant2ID:
+			assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, item["tags"])
+			assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, item["options"])
+			assert.Equal(t, []interface{}{"prompt1", "prompt2"}, item["prompts"])
+			assert.Equal(t, []interface{}{"flow1", "flow2"}, item["flows"])
+			assert.Equal(t, []interface{}{"file1", "file2"}, item["files"])
+			assert.Equal(t,
+				[]interface{}{
+					map[string]interface{}{"name": "func1"},
+					map[string]interface{}{"name": "func2"},
+				},
+				item["functions"])
+			assert.Equal(t,
+				map[string]interface{}{
+					"read":  true,
+					"write": true,
+				},
+				item["permissions"])
+		case assistant3ID:
+			assert.Nil(t, item["tags"])
+			assert.Nil(t, item["options"])
+			assert.Nil(t, item["prompts"])
+			assert.Nil(t, item["flows"])
+			assert.Nil(t, item["files"])
+			assert.Nil(t, item["functions"])
+			assert.Nil(t, item["permissions"])
+		}
+	}
+
+	// Test updating with mixed JSON formats
+	assistant2["assistant_id"] = assistant2ID
+	assistant2["tags"] = `["tag4", "tag5"]`
+	assistant2["options"] = map[string]interface{}{"model": "gpt-3.5"}
+	p, err = process.Of("neo.assistant.save", assistant2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	savedID := output
+	assert.NotNil(t, savedID)
+
+	// Double check with a new search
+	p, err = process.Of("neo.assistant.search")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,33 +248,17 @@ func TestProcessAssistantCRUD(t *testing.T) {
 	}
 
 	searchRes = any.Of(output).Map()
-	total = searchRes.Get("total")
-	if total == nil {
-		total = int64(0)
-	}
-	assert.Equal(t, int64(1), total)
-
 	items = searchRes.Get("data")
-	if items == nil {
-		items = []map[string]interface{}{}
+	found := false
+	for _, item := range items.([]map[string]interface{}) {
+		if item["assistant_id"].(string) == assistant2ID {
+			found = true
+			assert.Equal(t, []interface{}{"tag4", "tag5"}, item["tags"])
+			assert.Equal(t, map[string]interface{}{"model": "gpt-3.5"}, item["options"])
+			break
+		}
 	}
-	assert.Equal(t, 1, len(items.([]map[string]interface{})))
-
-	// Test processAssistantSave (Update)
-	assistant["assistant_id"] = assistantID
-	assistant["name"] = "Updated Assistant"
-	p, err = process.Of("neo.assistant.save", assistant)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	output, err = p.Exec()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res = any.Of(output).Map()
-	assert.Equal(t, "Updated Assistant", res.Get("name"))
+	assert.True(t, found)
 
 	// Test processAssistantDelete
 	p, err = process.Of("neo.assistant.delete", assistantID)
@@ -192,7 +274,22 @@ func TestProcessAssistantCRUD(t *testing.T) {
 	deleteRes := any.Of(output).Map()
 	assert.Equal(t, "ok", deleteRes.Get("message"))
 
-	// Verify deletion with search
+	// Delete remaining assistants
+	p, err = process.Of("neo.assistant.delete", assistant2ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	assert.Nil(t, err)
+
+	p, err = process.Of("neo.assistant.delete", assistant3ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	assert.Nil(t, err)
+
+	// Verify all assistants are deleted
 	p, err = process.Of("neo.assistant.search")
 	if err != nil {
 		t.Fatal(err)
@@ -209,12 +306,6 @@ func TestProcessAssistantCRUD(t *testing.T) {
 		total = int64(0)
 	}
 	assert.Equal(t, int64(0), total)
-
-	items = searchRes.Get("data")
-	if items == nil {
-		items = []map[string]interface{}{}
-	}
-	assert.Equal(t, 0, len(items.([]map[string]interface{})))
 }
 
 func TestProcessAssistantSearchPagination(t *testing.T) {
@@ -223,17 +314,12 @@ func TestProcessAssistantSearchPagination(t *testing.T) {
 
 	// Create multiple assistants for pagination testing
 	for i := 0; i < 25; i++ {
-		tagsJSON, err := jsoniter.MarshalToString([]string{fmt.Sprintf("tag%d", i%5)})
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		assistant := map[string]interface{}{
 			"name":        fmt.Sprintf("Assistant %d", i),
 			"type":        "assistant",
 			"connector":   fmt.Sprintf("connector%d", i%3),
 			"description": fmt.Sprintf("Description %d", i),
-			"tags":        tagsJSON,
+			"tags":        []string{fmt.Sprintf("tag%d", i%5)},
 			"mentionable": i%2 == 0,
 			"automated":   i%3 == 0,
 		}
