@@ -8,7 +8,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/connector"
-	"github.com/yaoapp/xun"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
@@ -35,6 +34,9 @@ func TestNewXunDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
 
 	conv, err := NewXun(Setting{
 		Connector: "default",
@@ -122,6 +124,9 @@ func TestNewXunConnector(t *testing.T) {
 	sch.DropTableIfExists("__unit_test_conversation_history")
 	sch.DropTableIfExists("__unit_test_conversation_chat")
 	sch.DropTableIfExists("__unit_test_conversation_assistant")
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
 
 	conv, err := NewXun(Setting{
 		Connector: "mysql",
@@ -462,6 +467,9 @@ func TestXunAssistantCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
 	conv, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
@@ -507,56 +515,56 @@ func TestXunAssistantCRUD(t *testing.T) {
 	// Test GetAssistants with no filter
 	resp, err := conv.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with tag filter (single tag)
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Tags: []string{"tag1"},
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with tag filter (multiple tags)
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Tags: []string{"tag1", "tag4"},
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with non-existent tag
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Tags: []string{"nonexistent"},
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(resp.P.Items))
+	assert.Equal(t, 0, len(resp.Data))
 
 	// Test GetAssistants with keyword filter
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Keywords: "Test",
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with connector filter
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Connector: "openai",
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with mentionable filter
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Mentionable: &mentionable,
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with automated filter
 	resp, err = conv.GetAssistants(AssistantFilter{
 		Automated: &automated,
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test GetAssistants with combined filters
 	resp, err = conv.GetAssistants(AssistantFilter{
@@ -567,7 +575,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 		Tags:        []string{"tag1"},
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
+	assert.Equal(t, 1, len(resp.Data))
 
 	// Test SaveAssistant (Update)
 	assistant["name"] = "Updated Assistant"
@@ -576,8 +584,8 @@ func TestXunAssistantCRUD(t *testing.T) {
 
 	resp, err = conv.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(resp.P.Items))
-	item := resp.P.Items[0].(xun.R)
+	assert.Equal(t, 1, len(resp.Data))
+	item := resp.Data[0]
 	assert.Equal(t, "Updated Assistant", item["name"])
 
 	// Test DeleteAssistant
@@ -586,13 +594,14 @@ func TestXunAssistantCRUD(t *testing.T) {
 
 	resp, err = conv.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(resp.P.Items))
+	assert.Equal(t, 0, len(resp.Data))
 }
 
 func TestXunAssistantPagination(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_assistant")
 
 	// Drop assistant table before test
@@ -600,6 +609,9 @@ func TestXunAssistantPagination(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
 
 	conv, err := NewXun(Setting{
 		Connector: "default",
@@ -645,9 +657,11 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize: 10,
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 10, len(resp.P.Items))
-	assert.Equal(t, 25, resp.P.Total)
-	assert.Equal(t, 3, resp.P.LastPage)
+	assert.Equal(t, 10, len(resp.Data))
+	assert.Equal(t, int64(25), resp.Total)
+	assert.Equal(t, 3, resp.PageCnt)
+	assert.Equal(t, 2, resp.Next)
+	assert.Equal(t, 0, resp.Prev)
 
 	// Test second page
 	resp, err = conv.GetAssistants(AssistantFilter{
@@ -655,7 +669,9 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize: 10,
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 10, len(resp.P.Items))
+	assert.Equal(t, 10, len(resp.Data))
+	assert.Equal(t, 3, resp.Next)
+	assert.Equal(t, 1, resp.Prev)
 
 	// Test last page
 	resp, err = conv.GetAssistants(AssistantFilter{
@@ -663,7 +679,9 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize: 10,
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(resp.P.Items))
+	assert.Equal(t, 5, len(resp.Data))
+	assert.Equal(t, 0, resp.Next)
+	assert.Equal(t, 2, resp.Prev)
 
 	// Test filtering with tags
 	resp, err = conv.GetAssistants(AssistantFilter{
@@ -672,7 +690,7 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize: 10,
 	})
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(resp.P.Items))
+	assert.Equal(t, 5, len(resp.Data))
 
 	// Test filtering with keywords
 	resp, err = conv.GetAssistants(AssistantFilter{
@@ -681,7 +699,7 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize: 10,
 	})
 	assert.Nil(t, err)
-	assert.Greater(t, len(resp.P.Items), 0)
+	assert.Greater(t, len(resp.Data), 0)
 
 	// Test filtering with connector
 	resp, err = conv.GetAssistants(AssistantFilter{
@@ -690,7 +708,7 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize:  10,
 	})
 	assert.Nil(t, err)
-	assert.Greater(t, len(resp.P.Items), 0)
+	assert.Greater(t, len(resp.Data), 0)
 
 	// Test filtering with mentionable
 	mentionableTrue := true
@@ -700,7 +718,7 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize:    10,
 	})
 	assert.Nil(t, err)
-	assert.Greater(t, len(resp.P.Items), 0)
+	assert.Greater(t, len(resp.Data), 0)
 
 	// Test filtering with automated
 	automatedTrue := true
@@ -710,7 +728,7 @@ func TestXunAssistantPagination(t *testing.T) {
 		PageSize:  10,
 	})
 	assert.Nil(t, err)
-	assert.Greater(t, len(resp.P.Items), 0)
+	assert.Greater(t, len(resp.Data), 0)
 
 	// Test combined filters
 	resp, err = conv.GetAssistants(AssistantFilter{

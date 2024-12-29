@@ -1,7 +1,5 @@
 package conversation
 
-import "github.com/yaoapp/xun"
-
 // Setting represents the conversation configuration structure
 // Used to configure basic conversation parameters including connector, user field, table name, etc.
 type Setting struct {
@@ -58,9 +56,15 @@ type AssistantFilter struct {
 }
 
 // AssistantResponse represents the assistant response structure
-// Inherits from xun.P, used for returning paginated assistant lists
+// Used for returning paginated assistant lists
 type AssistantResponse struct {
-	xun.P
+	Data     []map[string]interface{} `json:"data"`     // The paginated data
+	Page     int                      `json:"page"`     // Current page number
+	PageSize int                      `json:"pagesize"` // Number of items per page
+	PageCnt  int                      `json:"pagecnt"`  // Total number of pages
+	Next     int                      `json:"next"`     // Next page number
+	Prev     int                      `json:"prev"`     // Previous page number
+	Total    int64                    `json:"total"`    // Total number of items
 }
 
 // Conversation defines the conversation storage interface

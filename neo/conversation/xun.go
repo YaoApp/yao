@@ -662,35 +662,47 @@ func (conv *Xun) DeleteAllChats(sid string) error {
 	return err
 }
 
-// SaveAssistant creates or updates an assistant
+// SaveAssistant saves assistant information
 func (conv *Xun) SaveAssistant(assistant map[string]interface{}) error {
-	assistantID, ok := assistant["assistant_id"].(string)
-	if !ok || assistantID == "" {
-		assistantID = uuid.New().String()
-		assistant["assistant_id"] = assistantID
+	// Validate required fields
+	requiredFields := []string{"name", "type", "connector"}
+	for _, field := range requiredFields {
+		if _, ok := assistant[field]; !ok {
+			return fmt.Errorf("field %s is required", field)
+		}
+		if assistant[field] == nil || assistant[field] == "" {
+			return fmt.Errorf("field %s cannot be empty", field)
+		}
+	}
+
+	// Validate tags format
+	if tags, ok := assistant["tags"].(string); ok {
+		log.Trace("Saving assistant with tags: %s", tags)
+	}
+
+	// Generate assistant_id if not provided
+	if _, ok := assistant["assistant_id"]; !ok {
+		assistant["assistant_id"] = uuid.New().String()
 	}
 
 	// Check if assistant exists
 	exists, err := conv.query.New().
 		Table(conv.getAssistantTable()).
-		Where("assistant_id", assistantID).
+		Where("assistant_id", assistant["assistant_id"]).
 		Exists()
 	if err != nil {
 		return err
 	}
 
-	now := time.Now()
-	assistant["updated_at"] = now
-
+	// Update or insert
 	if exists {
-		// Update existing assistant
+		assistant["updated_at"] = time.Now()
 		_, err = conv.query.New().
 			Table(conv.getAssistantTable()).
-			Where("assistant_id", assistantID).
+			Where("assistant_id", assistant["assistant_id"]).
 			Update(assistant)
 	} else {
-		// Create new assistant
-		assistant["created_at"] = now
+		assistant["created_at"] = time.Now()
 		err = conv.query.New().
 			Table(conv.getAssistantTable()).
 			Insert(assistant)
@@ -701,7 +713,20 @@ func (conv *Xun) SaveAssistant(assistant map[string]interface{}) error {
 
 // DeleteAssistant deletes an assistant by assistant_id
 func (conv *Xun) DeleteAssistant(assistantID string) error {
-	_, err := conv.query.New().
+	// Check if assistant exists
+	exists, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Exists()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("assistant %s not found", assistantID)
+	}
+
+	_, err = conv.query.New().
 		Table(conv.getAssistantTable()).
 		Where("assistant_id", assistantID).
 		Delete()
@@ -717,10 +742,13 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 	if filter.Tags != nil && len(filter.Tags) > 0 {
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
+				// For each tag, we need to match it as part of a JSON array
+				// This will match both single tag arrays ["tag1"] and multi-tag arrays ["tag1","tag2"]
+				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
 				if i == 0 {
-					qb.Where("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+					qb.Where("tags", "like", pattern)
 				} else {
-					qb.OrWhere("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+					qb.OrWhere("tags", "like", pattern)
 				}
 			}
 		})
@@ -757,12 +785,46 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		filter.Page = 1
 	}
 
-	// Get paginated results
-	paginator, err := qb.OrderBy("created_at", "desc").
-		Paginate(filter.PageSize, filter.Page)
+	// Get total count
+	total, err := qb.Clone().Count()
 	if err != nil {
 		return nil, err
 	}
 
-	return &AssistantResponse{P: paginator}, nil
+	// Calculate pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	totalPages := int(math.Ceil(float64(total) / float64(filter.PageSize)))
+	nextPage := filter.Page + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+	prevPage := filter.Page - 1
+	if prevPage < 1 {
+		prevPage = 0
+	}
+
+	// Get paginated results
+	rows, err := qb.OrderBy("created_at", "desc").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Get()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert rows to map slice
+	data := make([]map[string]interface{}, len(rows))
+	for i, row := range rows {
+		data[i] = row
+	}
+
+	return &AssistantResponse{
+		Data:     data,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		PageCnt:  totalPages,
+		Next:     nextPage,
+		Prev:     prevPage,
+		Total:    total,
+	}, nil
 }

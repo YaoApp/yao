@@ -1,7 +1,5 @@
 package conversation
 
-import "github.com/yaoapp/xun"
-
 // Weaviate Database conversation
 type Weaviate struct{}
 
@@ -74,15 +72,13 @@ func (conv *Weaviate) DeleteAssistant(assistantID string) error {
 // GetAssistants retrieves assistants with pagination and tag filtering
 func (conv *Weaviate) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
 	return &AssistantResponse{
-		P: xun.P{
-			Items:        []interface{}{},
-			Total:        0,
-			TotalPages:   0,
-			PageSize:     filter.PageSize,
-			CurrentPage:  filter.Page,
-			NextPage:     0,
-			PreviousPage: 0,
-			LastPage:     0,
-		},
+
+		Data:     []map[string]interface{}{},
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		PageCnt:  0,
+		Next:     0,
+		Prev:     0,
+		Total:    0,
 	}, nil
 }

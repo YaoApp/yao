@@ -491,16 +491,14 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 
 	// Convert assistants to mentions
 	mentions := []Mention{}
-	for _, item := range response.Items {
-		if assistant, ok := item.(map[string]interface{}); ok {
-			mention := Mention{
-				ID:     assistant["assistant_id"].(string),
-				Name:   assistant["name"].(string),
-				Type:   assistant["type"].(string),
-				Avatar: assistant["avatar"].(string),
-			}
-			mentions = append(mentions, mention)
+	for _, item := range response.Data {
+		mention := Mention{
+			ID:     item["assistant_id"].(string),
+			Name:   item["name"].(string),
+			Type:   item["type"].(string),
+			Avatar: item["avatar"].(string),
 		}
+		mentions = append(mentions, mention)
 	}
 
 	c.JSON(200, map[string]interface{}{"data": mentions})
@@ -872,7 +870,7 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, map[string]interface{}{"data": response})
+	c.JSON(200, response)
 	c.Done()
 }
 
@@ -899,12 +897,10 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 
 	// Find the assistant by ID
 	var assistant map[string]interface{}
-	for _, item := range response.Items {
-		if a, ok := item.(map[string]interface{}); ok {
-			if id, ok := a["id"].(string); ok && id == assistantID {
-				assistant = a
-				break
-			}
+	for _, item := range response.Data {
+		if id, ok := item["id"].(string); ok && id == assistantID {
+			assistant = item
+			break
 		}
 	}
 
