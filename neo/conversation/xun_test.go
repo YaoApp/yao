@@ -483,6 +483,9 @@ func TestXunAssistantCRUD(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	mentionable := true
+	automated := true
+
 	assistant := map[string]interface{}{
 		"name":        "Test Assistant",
 		"type":        "assistant",
@@ -491,6 +494,8 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"description": "Test Description",
 		"tags":        tagsJSON,
 		"options":     optionsJSON,
+		"mentionable": mentionable,
+		"automated":   automated,
 	}
 
 	// Test SaveAssistant (Create)
@@ -524,6 +529,45 @@ func TestXunAssistantCRUD(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(resp.P.Items))
+
+	// Test GetAssistants with keyword filter
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Keywords: "Test",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.P.Items))
+
+	// Test GetAssistants with connector filter
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Connector: "openai",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.P.Items))
+
+	// Test GetAssistants with mentionable filter
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Mentionable: &mentionable,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.P.Items))
+
+	// Test GetAssistants with automated filter
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Automated: &automated,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.P.Items))
+
+	// Test GetAssistants with combined filters
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Keywords:    "Test",
+		Connector:   "openai",
+		Mentionable: &mentionable,
+		Automated:   &automated,
+		Tags:        []string{"tag1"},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.P.Items))
 
 	// Test SaveAssistant (Update)
 	assistant["name"] = "Updated Assistant"
@@ -566,18 +610,30 @@ func TestXunAssistantPagination(t *testing.T) {
 	}
 
 	// Create multiple assistants for pagination testing
+	mentionable := true
+	automated := true
 	for i := 0; i < 25; i++ {
 		tagsJSON, err := jsoniter.MarshalToString([]string{fmt.Sprintf("tag%d", i%5)})
 		if err != nil {
 			t.Fatal(err)
 		}
 
+		// Alternate mentionable and automated flags
+		if i%2 == 0 {
+			mentionable = !mentionable
+		}
+		if i%3 == 0 {
+			automated = !automated
+		}
+
 		assistant := map[string]interface{}{
 			"name":        fmt.Sprintf("Assistant %d", i),
 			"type":        "assistant",
-			"connector":   "openai",
+			"connector":   fmt.Sprintf("connector%d", i%3),
 			"description": fmt.Sprintf("Description %d", i),
 			"tags":        tagsJSON,
+			"mentionable": mentionable,
+			"automated":   automated,
 		}
 		err = conv.SaveAssistant(assistant)
 		assert.Nil(t, err)
@@ -617,4 +673,54 @@ func TestXunAssistantPagination(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(resp.P.Items))
+
+	// Test filtering with keywords
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Keywords: "Assistant 1",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.P.Items), 0)
+
+	// Test filtering with connector
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Connector: "connector0",
+		Page:      1,
+		PageSize:  10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.P.Items), 0)
+
+	// Test filtering with mentionable
+	mentionableTrue := true
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Mentionable: &mentionableTrue,
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.P.Items), 0)
+
+	// Test filtering with automated
+	automatedTrue := true
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Automated: &automatedTrue,
+		Page:      1,
+		PageSize:  10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.P.Items), 0)
+
+	// Test combined filters
+	resp, err = conv.GetAssistants(AssistantFilter{
+		Tags:        []string{"tag0"},
+		Keywords:    "Assistant",
+		Connector:   "connector0",
+		Mentionable: &mentionableTrue,
+		Automated:   &automatedTrue,
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
 }

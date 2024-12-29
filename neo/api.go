@@ -40,6 +40,8 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/generate/title", neo.optionsHandler)
 	router.OPTIONS(path+"/generate/prompts", neo.optionsHandler)
 	router.OPTIONS(path+"/dangerous/clear_chats", neo.optionsHandler)
+	router.OPTIONS(path+"/assistants", neo.optionsHandler)
+	router.OPTIONS(path+"/assistants/:id", neo.optionsHandler)
 
 	// Register endpoints with middlewares
 	router.GET(path, append(middlewares, neo.handleChat)...)
@@ -47,6 +49,12 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 
 	// Status check
 	router.GET(path+"/status", append(middlewares, neo.handleStatus)...)
+
+	// Assistant API
+	router.GET(path+"/assistants", append(middlewares, neo.handleAssistantList)...)
+	router.GET(path+"/assistants/:id", append(middlewares, neo.handleAssistantDetail)...)
+	router.POST(path+"/assistants", append(middlewares, neo.handleAssistantSave)...)
+	router.DELETE(path+"/assistants/:id", append(middlewares, neo.handleAssistantDelete)...)
 
 	// Chat api
 	router.GET(path+"/chats", append(middlewares, neo.handleChatList)...)
@@ -394,27 +402,36 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 
 	// Get keywords from query parameter
 	keywords := strings.ToLower(c.Query("keywords"))
-	mentions, err := neo.GetMentions(keywords)
+	mentionable := true
+
+	// Query mentionable assistants
+	filter := conversation.AssistantFilter{
+		Keywords:    keywords,
+		Mentionable: &mentionable,
+		Page:        1,
+		PageSize:    20,
+	}
+
+	response, err := neo.Conversation.GetAssistants(filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
 
-	// Filter mentions by keywords
-	testMentions := TestMentions
-	if keywords != "" {
-		filtered := []Mention{}
-		for _, m := range testMentions {
-			if strings.Contains(strings.ToLower(m.Name), keywords) {
-				filtered = append(filtered, m)
+	// Convert assistants to mentions
+	mentions := []Mention{}
+	for _, item := range response.Items {
+		if assistant, ok := item.(map[string]interface{}); ok {
+			mention := Mention{
+				ID:     assistant["assistant_id"].(string),
+				Name:   assistant["name"].(string),
+				Type:   assistant["type"].(string),
+				Avatar: assistant["avatar"].(string),
 			}
+			mentions = append(mentions, mention)
 		}
-		testMentions = filtered
 	}
-
-	// Append test data to actual mentions
-	mentions = append(mentions, testMentions...)
 
 	c.JSON(200, map[string]interface{}{"data": mentions})
 	c.Done()
@@ -750,4 +767,123 @@ func (neo *DSL) handleGenerateCustom(c *gin.Context) {
 	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
 	resp.result, resp.err = neo.GenerateWithAI(ctx, resp.content, genType, systemPrompt, c, silent)
 	resp.send("result")
+}
+
+// handleAssistantList handles listing assistants
+func (neo *DSL) handleAssistantList(c *gin.Context) {
+	// Parse filter parameters
+	filter := conversation.AssistantFilter{
+		Page:     1,
+		PageSize: 20,
+	}
+
+	// Parse page and pagesize
+	if page := c.Query("page"); page != "" {
+		if n, err := strconv.Atoi(page); err == nil {
+			filter.Page = n
+		}
+	}
+
+	if pageSize := c.Query("pagesize"); pageSize != "" {
+		if n, err := strconv.Atoi(pageSize); err == nil {
+			filter.PageSize = n
+		}
+	}
+
+	// Parse tags
+	if tags := c.Query("tags"); tags != "" {
+		filter.Tags = strings.Split(tags, ",")
+	}
+
+	response, err := neo.Conversation.GetAssistants(filter)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, map[string]interface{}{"data": response})
+	c.Done()
+}
+
+// handleAssistantDetail handles getting a single assistant's details
+func (neo *DSL) handleAssistantDetail(c *gin.Context) {
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	filter := conversation.AssistantFilter{
+		Page:     1,
+		PageSize: 1,
+	}
+
+	response, err := neo.Conversation.GetAssistants(filter)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	// Find the assistant by ID
+	var assistant map[string]interface{}
+	for _, item := range response.Items {
+		if a, ok := item.(map[string]interface{}); ok {
+			if id, ok := a["id"].(string); ok && id == assistantID {
+				assistant = a
+				break
+			}
+		}
+	}
+
+	if assistant == nil {
+		c.JSON(404, gin.H{"message": "assistant not found", "code": 404})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, map[string]interface{}{"data": assistant})
+	c.Done()
+}
+
+// handleAssistantSave handles creating or updating an assistant
+func (neo *DSL) handleAssistantSave(c *gin.Context) {
+	var assistant map[string]interface{}
+	if err := c.BindJSON(&assistant); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+		c.Done()
+		return
+	}
+
+	err := neo.Conversation.SaveAssistant(assistant)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "ok", "data": assistant})
+	c.Done()
+}
+
+// handleAssistantDelete handles deleting an assistant
+func (neo *DSL) handleAssistantDelete(c *gin.Context) {
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	err := neo.Conversation.DeleteAssistant(assistantID)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, gin.H{"message": "ok"})
+	c.Done()
 }

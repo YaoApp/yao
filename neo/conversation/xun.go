@@ -16,22 +16,34 @@ import (
 	"github.com/yaoapp/xun/dbal/schema"
 )
 
-// Xun Database conversation
+// Package conversation provides functionality for managing chat conversations and assistants.
+
+// Xun implements the Conversation interface using a database backend.
+// It provides functionality for:
+// - Managing chat conversations and their message histories
+// - Organizing chats with pagination and date-based grouping
+// - Handling chat metadata like titles and creation dates
+// - Managing AI assistants with their configurations and metadata
+// - Supporting data expiration through TTL settings
 type Xun struct {
 	query   query.Query
 	schema  schema.Schema
 	setting Setting
 }
 
-// Public interface methods and constructor remain exported:
-// - NewXun
-// - UpdateChatTitle
-// - GetChats
-// - GetChat
-// - GetHistory
-// - SaveHistory
-// - GetRequest
-// - SaveRequest
+// Public interface methods:
+//
+// NewXun creates a new conversation instance with the given settings
+// UpdateChatTitle updates the title of a specific chat
+// GetChats retrieves a paginated list of chats grouped by date
+// GetChat retrieves a specific chat and its message history
+// GetHistory retrieves the message history for a specific chat
+// SaveHistory saves new messages to a chat's history
+// DeleteChat deletes a specific chat and its history
+// DeleteAllChats deletes all chats and their histories for a user
+// SaveAssistant creates or updates an assistant
+// DeleteAssistant deletes an assistant by assistant_id
+// GetAssistants retrieves a paginated list of assistants with filtering
 
 // NewXun create a new conversation
 func NewXun(setting Setting) (*Xun, error) {
@@ -696,20 +708,45 @@ func (conv *Xun) DeleteAssistant(assistantID string) error {
 	return err
 }
 
-// GetAssistants retrieves assistants with pagination and tag filtering
+// GetAssistants retrieves assistants with pagination and filtering
 func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
 	qb := conv.query.New().
 		Table(conv.getAssistantTable())
 
 	// Apply tag filter if provided
 	if filter.Tags != nil && len(filter.Tags) > 0 {
-		for i, tag := range filter.Tags {
-			if i == 0 {
-				qb.Where("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
-			} else {
-				qb.OrWhere("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+		qb.Where(func(qb query.Query) {
+			for i, tag := range filter.Tags {
+				if i == 0 {
+					qb.Where("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+				} else {
+					qb.OrWhere("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+				}
 			}
-		}
+		})
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where(func(qb query.Query) {
+			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+		})
+	}
+
+	// Apply connector filter if provided
+	if filter.Connector != "" {
+		qb.Where("connector", filter.Connector)
+	}
+
+	// Apply mentionable filter if provided
+	if filter.Mentionable != nil {
+		qb.Where("mentionable", *filter.Mentionable)
+	}
+
+	// Apply automated filter if provided
+	if filter.Automated != nil {
+		qb.Where("automated", *filter.Automated)
 	}
 
 	// Set defaults for pagination
