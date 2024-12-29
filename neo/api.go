@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/conversation"
@@ -141,6 +142,12 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.GET(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
 	router.POST(path+"/generate/prompts", append(middlewares, neo.handleGeneratePrompts)...)
 
+	// Utility endpoints
+	// List connectors example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/utility/connectors?token=xxx'
+	router.GET(path+"/utility/connectors", append(middlewares, neo.handleConnectors)...)
+
+	// Dangerous operations
 	// Dangerous operations
 	// Clear all chats example:
 	// curl -X DELETE 'http://localhost:5099/api/__yao/neo/dangerous/clear_chats?token=xxx'
@@ -948,5 +955,31 @@ func (neo *DSL) handleAssistantDelete(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"message": "ok"})
+	c.Done()
+}
+
+// handleConnectors handles listing connectors
+func (neo *DSL) handleConnectors(c *gin.Context) {
+	options := []map[string]interface{}{}
+
+	// Filter and format connectors
+	for id, conn := range connector.Connectors {
+		if conn.Is(connector.OPENAI) || conn.Is(connector.MOAPI) {
+			setting := conn.Setting()
+			label := setting["label"]
+			if label == nil || label == "" {
+				label = setting["name"]
+			}
+			if label == nil || label == "" {
+				label = id
+			}
+			options = append(options, map[string]interface{}{
+				"label": label,
+				"value": id,
+			})
+		}
+	}
+
+	c.JSON(200, gin.H{"data": options})
 	c.Done()
 }
