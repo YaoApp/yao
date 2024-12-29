@@ -217,6 +217,7 @@ func (conv *Xun) initAssistantTable() error {
 			table.JSON("flows").Null()                                // assistant flows
 			table.JSON("files").Null()                                // assistant files
 			table.JSON("functions").Null()                            // assistant functions
+			table.JSON("tags").Null()                                 // assistant tags
 			table.Boolean("readonly").SetDefault(false).Index()       // assistant readonly
 			table.JSON("permissions").Null()                          // assistant permissions
 			table.Boolean("automated").SetDefault(true).Index()       // assistant autoable
@@ -237,7 +238,7 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "mentionable", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "tags", "mentionable", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -647,4 +648,84 @@ func (conv *Xun) DeleteAllChats(sid string) error {
 		Where("sid", userID).
 		Delete()
 	return err
+}
+
+// SaveAssistant creates or updates an assistant
+func (conv *Xun) SaveAssistant(assistant map[string]interface{}) error {
+	assistantID, ok := assistant["assistant_id"].(string)
+	if !ok || assistantID == "" {
+		assistantID = uuid.New().String()
+		assistant["assistant_id"] = assistantID
+	}
+
+	// Check if assistant exists
+	exists, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Exists()
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	assistant["updated_at"] = now
+
+	if exists {
+		// Update existing assistant
+		_, err = conv.query.New().
+			Table(conv.getAssistantTable()).
+			Where("assistant_id", assistantID).
+			Update(assistant)
+	} else {
+		// Create new assistant
+		assistant["created_at"] = now
+		err = conv.query.New().
+			Table(conv.getAssistantTable()).
+			Insert(assistant)
+	}
+
+	return err
+}
+
+// DeleteAssistant deletes an assistant by assistant_id
+func (conv *Xun) DeleteAssistant(assistantID string) error {
+	_, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Delete()
+	return err
+}
+
+// GetAssistants retrieves assistants with pagination and tag filtering
+func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+	qb := conv.query.New().
+		Table(conv.getAssistantTable())
+
+	// Apply tag filter if provided
+	if filter.Tags != nil && len(filter.Tags) > 0 {
+		for i, tag := range filter.Tags {
+			if i == 0 {
+				qb.Where("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+			} else {
+				qb.OrWhere("tags", "like", fmt.Sprintf("%%\"%s\"%%", tag))
+			}
+		}
+	}
+
+	// Set defaults for pagination
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+
+	// Get paginated results
+	paginator, err := qb.OrderBy("created_at", "desc").
+		Paginate(filter.PageSize, filter.Page)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AssistantResponse{P: paginator}, nil
 }

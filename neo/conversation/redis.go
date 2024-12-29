@@ -1,5 +1,7 @@
 package conversation
 
+import "github.com/yaoapp/xun"
+
 // Redis  conversation
 type Redis struct{}
 
@@ -57,4 +59,30 @@ func (conv *Redis) DeleteChat(sid string, cid string) error {
 // DeleteAllChats deletes all chats and their histories for a user
 func (conv *Redis) DeleteAllChats(sid string) error {
 	return nil
+}
+
+// SaveAssistant creates or updates an assistant
+func (conv *Redis) SaveAssistant(assistant map[string]interface{}) error {
+	return nil
+}
+
+// DeleteAssistant deletes an assistant by assistant_id
+func (conv *Redis) DeleteAssistant(assistantID string) error {
+	return nil
+}
+
+// GetAssistants retrieves assistants with pagination and tag filtering
+func (conv *Redis) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+	return &AssistantResponse{
+		P: xun.P{
+			Items:        []interface{}{},
+			Total:        0,
+			TotalPages:   0,
+			PageSize:     filter.PageSize,
+			CurrentPage:  filter.Page,
+			NextPage:     0,
+			PreviousPage: 0,
+			LastPage:     0,
+		},
+	}, nil
 }

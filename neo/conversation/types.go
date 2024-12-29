@@ -1,5 +1,7 @@
 package conversation
 
+import "github.com/yaoapp/xun"
+
 // Setting the conversation config
 type Setting struct {
 	Connector string `json:"connector,omitempty"`
@@ -38,6 +40,18 @@ type ChatGroupResponse struct {
 	LastPage int         `json:"last_page"` // 最后一页页码
 }
 
+// AssistantFilter represents the filter parameters for GetAssistants
+type AssistantFilter struct {
+	Tags     []string `json:"tags,omitempty"`
+	Page     int      `json:"page,omitempty"`     // Page number, starting from 1
+	PageSize int      `json:"pagesize,omitempty"` // Items per page
+}
+
+// AssistantResponse represents paginated assistant results
+type AssistantResponse struct {
+	xun.P
+}
+
 // Conversation the store interface
 type Conversation interface {
 	GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error)
@@ -47,4 +61,7 @@ type Conversation interface {
 	DeleteChat(sid string, cid string) error
 	DeleteAllChats(sid string) error
 	UpdateChatTitle(sid string, cid string, title string) error
+	SaveAssistant(assistant map[string]interface{}) error
+	DeleteAssistant(assistantID string) error
+	GetAssistants(filter AssistantFilter) (*AssistantResponse, error)
 }
