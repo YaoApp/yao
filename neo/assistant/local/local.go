@@ -1,4 +1,4 @@
-package base
+package local
 
 import (
 	"context"
@@ -8,16 +8,16 @@ import (
 	"github.com/yaoapp/yao/openai"
 )
 
-// Base the base assistant
-type Base struct {
+// Local the local assistant
+type Local struct {
 	ID        string              `json:"assistant_id"`
 	Prompts   []assistant.Prompt  `json:"prompts,omitempty"`
 	Connector connector.Connector `json:"-" yaml:"-"`
 	openai    *openai.OpenAI
 }
 
-// New create a new base assistant
-func New(connector connector.Connector, prompts []assistant.Prompt, id string) (*Base, error) {
+// New create a new local assistant
+func New(connector connector.Connector, prompts []assistant.Prompt, id string) (*Local, error) {
 
 	setting := connector.Setting()
 	api, err := openai.NewOpenAI(setting)
@@ -25,10 +25,10 @@ func New(connector connector.Connector, prompts []assistant.Prompt, id string) (
 		return nil, err
 	}
 
-	return &Base{Connector: connector, ID: id, Prompts: prompts, openai: api}, nil
+	return &Local{Connector: connector, ID: id, Prompts: prompts, openai: api}, nil
 }
 
 // List list all assistants
-func (ast *Base) List(ctx context.Context, param assistant.QueryParam) ([]assistant.Assistant, error) {
+func (ast *Local) List(ctx context.Context, param assistant.QueryParam) ([]assistant.Assistant, error) {
 	return nil, nil
 }

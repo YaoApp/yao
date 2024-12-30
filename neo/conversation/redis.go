@@ -1,60 +1,59 @@
 package conversation
 
-// Redis  conversation
+// Redis represents a Redis-based conversation storage
 type Redis struct{}
 
-// NewRedis create a new conversation
+// NewRedis creates a new Redis conversation storage
 func NewRedis() *Redis {
 	return &Redis{}
 }
 
-// UpdateChatTitle update the chat title
-func (conv *Redis) UpdateChatTitle(sid string, cid string, title string) error {
-	return nil
+// GetChats retrieves a list of chats
+func (r *Redis) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+	return &ChatGroupResponse{}, nil
 }
 
-// GetChats get the chat list
-func (conv *Redis) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
-	return &ChatGroupResponse{
-		Groups:   []ChatGroup{},
-		Page:     filter.Page,
-		PageSize: filter.PageSize,
-		Total:    0,
-		LastPage: 1,
-	}, nil
+// GetChat retrieves a single chat's information
+func (r *Redis) GetChat(sid string, cid string) (*ChatInfo, error) {
+	return &ChatInfo{}, nil
 }
 
-// GetHistory get the history
-func (conv *Redis) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+// GetHistory retrieves chat history
+func (r *Redis) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
-// SaveHistory save the history
-func (conv *Redis) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
+// SaveHistory saves chat history
+func (r *Redis) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
 	return nil
 }
 
-// GetRequest get the request
-func (conv *Redis) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
-	return nil, nil
-}
-
-// SaveRequest save the request
-func (conv *Redis) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
+// DeleteChat deletes a single chat
+func (r *Redis) DeleteChat(sid string, cid string) error {
 	return nil
 }
 
-// GetChat get the chat info and its history
-func (conv *Redis) GetChat(sid string, cid string) (*ChatInfo, error) {
-	return nil, nil
-}
-
-// DeleteChat deletes a specific chat and its history
-func (conv *Redis) DeleteChat(sid string, cid string) error {
+// DeleteAllChats deletes all chats
+func (r *Redis) DeleteAllChats(sid string) error {
 	return nil
 }
 
-// DeleteAllChats deletes all chats and their histories for a user
-func (conv *Redis) DeleteAllChats(sid string) error {
+// UpdateChatTitle updates chat title
+func (r *Redis) UpdateChatTitle(sid string, cid string, title string) error {
 	return nil
+}
+
+// SaveAssistant saves assistant information
+func (r *Redis) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
+	return assistant["assistant_id"], nil
+}
+
+// DeleteAssistant deletes an assistant
+func (r *Redis) DeleteAssistant(assistantID string) error {
+	return nil
+}
+
+// GetAssistants retrieves a list of assistants
+func (r *Redis) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+	return &AssistantResponse{}, nil
 }

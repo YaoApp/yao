@@ -11,7 +11,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/assistant/base"
+	"github.com/yaoapp/yao/neo/assistant/local"
 	"github.com/yaoapp/yao/neo/assistant/openai"
 	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
@@ -58,20 +58,50 @@ func (neo *DSL) GetMentions(keywords string) ([]Mention, error) {
 	return neo.HookMention(context.Background(), keywords)
 }
 
-// GenerateChatTitle generate the chat title
-func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (string, error) {
-
+// GeneratePrompts generate prompts for the AI assistant
+func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
-	  Help me generate a title for the chat 
-	  1. The title should be a short and concise description of the chat.
-	  2. The title should be a single sentence.
-	  3. The title should be in same language as the chat.
-	  4. The title should be no more than 50 characters.
+	Optimize the prompts for the AI assistant
+	1. Optimize prompts based on the user's input
+	2. The prompts should be clear and specific
+	3. The prompts should be in the same language as the input
+	4. Keep the prompts concise but comprehensive
+	5. DO NOT ASK USER FOR MORE INFORMATION, JUST GENERATE PROMPTS
+	6. DO NOT ANSWER THE QUESTION, JUST GENERATE PROMPTS
 	`
+	isSilent := false
+	if len(silent) > 0 {
+		isSilent = silent[0]
+	}
+	return neo.GenerateWithAI(ctx, input, "prompts", prompts, c, isSilent)
+}
 
+// GenerateChatTitle generate the chat title
+func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
+	prompts := `
+	Help me generate a title for the chat 
+	1. The title should be a short and concise description of the chat.
+	2. The title should be a single sentence.
+	3. The title should be in same language as the chat.
+	4. The title should be no more than 50 characters.
+	`
+	isSilent := false
+	if len(silent) > 0 {
+		isSilent = silent[0]
+	}
+	return neo.GenerateWithAI(ctx, input, "title", prompts, c, isSilent)
+}
+
+// GenerateWithAI generate content with AI, type can be "title", "prompts", etc.
+func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, systemPrompt string, c *gin.Context, silent bool) (string, error) {
 	messages := []map[string]interface{}{
-		{"role": "system", "content": prompts},
-		{"role": "user", "content": input},
+		{"role": "system", "content": systemPrompt},
+		{
+			"role":    "user",
+			"content": input,
+			"type":    messageType,
+			"name":    ctx.Sid,
+		},
 	}
 
 	res, err := neo.HookCreate(ctx, messages, c)
@@ -119,8 +149,21 @@ func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (st
 				// Append content and send message
 				content = msg.Append(content)
 
+				// Only send real-time messages if not in silent mode
+				if !silent && msg.Message != nil && msg.Message.Text != "" {
+					message.New().
+						Map(map[string]interface{}{
+							"text": msg.Message.Text,
+							"done": msg.Message.Done,
+						}).
+						Write(c.Writer)
+				}
+
 				// Complete the stream
 				if msg.Message.Done {
+					if !silent && msg.Message.Text == "" {
+						msg.Write(c.Writer)
+					}
 					done <- true
 					return 0 // break
 				}
@@ -131,7 +174,9 @@ func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context) (st
 
 		if err != nil {
 			log.Error("Chat error: %s", err.Error())
-			message.New().Error(err).Done().Write(c.Writer)
+			if !silent {
+				message.New().Error(err).Done().Write(c.Writer)
+			}
 		}
 
 		done <- true
@@ -372,9 +417,9 @@ func (neo *DSL) newAssistantByConnector(id string) (assistant.API, error) {
 	}
 
 	// Base on the assistant list hook
-	api, err := base.New(conn, neo.Prompts, id)
+	api, err := local.New(conn, neo.Prompts, id)
 	if err != nil {
-		return nil, fmt.Errorf("Create base assistant error: %s", err.Error())
+		return nil, fmt.Errorf("Create local assistant error: %s", err.Error())
 	}
 	return api, nil
 }
@@ -453,6 +498,7 @@ func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages 
 				{"role": "assistant", "content": string(content), "name": sid},
 			},
 			chatID,
+			nil,
 		)
 
 		if err != nil {

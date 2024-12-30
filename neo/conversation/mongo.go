@@ -1,60 +1,59 @@
 package conversation
 
-// Mongo conversation
+// Mongo represents a MongoDB-based conversation storage
 type Mongo struct{}
 
-// NewMongo create a new conversation
+// NewMongo creates a new MongoDB conversation storage
 func NewMongo() *Mongo {
 	return &Mongo{}
 }
 
-// UpdateChatTitle update the chat title
-func (conv *Mongo) UpdateChatTitle(sid string, cid string, title string) error {
-	return nil
+// GetChats retrieves a list of chats
+func (m *Mongo) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+	return &ChatGroupResponse{}, nil
 }
 
-// GetChats get the chat list
-func (conv *Mongo) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
-	return &ChatGroupResponse{
-		Groups:   []ChatGroup{},
-		Page:     filter.Page,
-		PageSize: filter.PageSize,
-		Total:    0,
-		LastPage: 1,
-	}, nil
+// GetChat retrieves a single chat's information
+func (m *Mongo) GetChat(sid string, cid string) (*ChatInfo, error) {
+	return &ChatInfo{}, nil
 }
 
-// GetHistory get the history
-func (conv *Mongo) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+// GetHistory retrieves chat history
+func (m *Mongo) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
-// SaveHistory save the history
-func (conv *Mongo) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
+// SaveHistory saves chat history
+func (m *Mongo) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
 	return nil
 }
 
-// GetRequest get the request
-func (conv *Mongo) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
-	return nil, nil
-}
-
-// SaveRequest save the request
-func (conv *Mongo) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
+// DeleteChat deletes a single chat
+func (m *Mongo) DeleteChat(sid string, cid string) error {
 	return nil
 }
 
-// GetChat get the chat info and its history
-func (conv *Mongo) GetChat(sid string, cid string) (*ChatInfo, error) {
-	return nil, nil
-}
-
-// DeleteChat deletes a specific chat and its history
-func (conv *Mongo) DeleteChat(sid string, cid string) error {
+// DeleteAllChats deletes all chats
+func (m *Mongo) DeleteAllChats(sid string) error {
 	return nil
 }
 
-// DeleteAllChats deletes all chats and their histories for a user
-func (conv *Mongo) DeleteAllChats(sid string) error {
+// UpdateChatTitle updates chat title
+func (m *Mongo) UpdateChatTitle(sid string, cid string, title string) error {
 	return nil
+}
+
+// SaveAssistant saves assistant information
+func (m *Mongo) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
+	return assistant["assistant_id"], nil
+}
+
+// DeleteAssistant deletes an assistant
+func (m *Mongo) DeleteAssistant(assistantID string) error {
+	return nil
+}
+
+// GetAssistants retrieves a list of assistants
+func (m *Mongo) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+	return &AssistantResponse{}, nil
 }

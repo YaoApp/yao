@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
@@ -15,32 +16,34 @@ import (
 	"github.com/yaoapp/xun/dbal/schema"
 )
 
-// Xun Database conversation
+// Package conversation provides functionality for managing chat conversations and assistants.
+
+// Xun implements the Conversation interface using a database backend.
+// It provides functionality for:
+// - Managing chat conversations and their message histories
+// - Organizing chats with pagination and date-based grouping
+// - Handling chat metadata like titles and creation dates
+// - Managing AI assistants with their configurations and metadata
+// - Supporting data expiration through TTL settings
 type Xun struct {
 	query   query.Query
 	schema  schema.Schema
 	setting Setting
 }
 
-type row struct {
-	Role      string      `json:"role"`
-	Name      string      `json:"name"` // User name
-	Content   string      `json:"content"`
-	Sid       string      `json:"sid"`
-	Rid       string      `json:"rid"`
-	Cid       string      `json:"cid"` // Chat ID from chat history
-	ExpiredAt interface{} `json:"expired_at"`
-}
-
-// Public interface methods and constructor remain exported:
-// - NewXun
-// - UpdateChatTitle
-// - GetChats
-// - GetChat
-// - GetHistory
-// - SaveHistory
-// - GetRequest
-// - SaveRequest
+// Public interface methods:
+//
+// NewXun creates a new conversation instance with the given settings
+// UpdateChatTitle updates the title of a specific chat
+// GetChats retrieves a paginated list of chats grouped by date
+// GetChat retrieves a specific chat and its message history
+// GetHistory retrieves the message history for a specific chat
+// SaveHistory saves new messages to a chat's history
+// DeleteChat deletes a specific chat and its history
+// DeleteAllChats deletes all chats and their histories for a user
+// SaveAssistant creates or updates an assistant
+// DeleteAssistant deletes an assistant by assistant_id
+// GetAssistants retrieves a paginated list of assistants with filtering
 
 // NewXun create a new conversation
 func NewXun(setting Setting) (*Xun, error) {
@@ -111,6 +114,11 @@ func (conv *Xun) initialize() error {
 		return err
 	}
 
+	// Initialize assistant table
+	if err := conv.initAssistantTable(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -126,11 +134,12 @@ func (conv *Xun) initHistoryTable() error {
 		err = conv.schema.CreateTable(historyTable, func(table schema.Blueprint) {
 			table.ID("id")
 			table.String("sid", 255).Index()
-			table.String("rid", 255).Null().Index()
 			table.String("cid", 200).Null().Index()
+			table.String("uid", 255).Null().Index()
 			table.String("role", 200).Null().Index()
 			table.String("name", 200).Null().Index()
 			table.Text("content").Null()
+			table.JSON("context").Null()
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
 			table.TimestampTz("expired_at").Null().Index()
@@ -148,7 +157,7 @@ func (conv *Xun) initHistoryTable() error {
 		return err
 	}
 
-	fields := []string{"id", "sid", "rid", "cid", "role", "name", "content", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -198,6 +207,59 @@ func (conv *Xun) initChatTable() error {
 	return nil
 }
 
+func (conv *Xun) initAssistantTable() error {
+	assistantTable := conv.getAssistantTable()
+	has, err := conv.schema.HasTable(assistantTable)
+	if err != nil {
+		return err
+	}
+
+	// Create the assistant table
+	if !has {
+		err = conv.schema.CreateTable(assistantTable, func(table schema.Blueprint) {
+			table.ID("id")
+			table.String("assistant_id", 200).Unique().Index()
+			table.String("type", 200).SetDefault("assistant").Index() // default is assistant
+			table.String("name", 200).Null()                          // assistant name
+			table.String("avatar", 200).Null()                        // assistant avatar
+			table.String("connector", 200).NotNull()                  // assistant connector
+			table.Text("description").Null()                          // assistant description
+			table.JSON("options").Null()                              // assistant options
+			table.JSON("prompts").Null()                              // assistant prompts
+			table.JSON("flows").Null()                                // assistant flows
+			table.JSON("files").Null()                                // assistant files
+			table.JSON("functions").Null()                            // assistant functions
+			table.JSON("tags").Null()                                 // assistant tags
+			table.Boolean("readonly").SetDefault(false).Index()       // assistant readonly
+			table.JSON("permissions").Null()                          // assistant permissions
+			table.Boolean("automated").SetDefault(true).Index()       // assistant autoable
+			table.Boolean("mentionable").SetDefault(true).Index()     // Whether this assistant can appear in @ mention list
+			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("updated_at").Null().Index()
+		})
+
+		if err != nil {
+			return err
+		}
+		log.Trace("Create the assistant table: %s", assistantTable)
+	}
+
+	// Validate the table
+	tab, err := conv.schema.GetTable(assistantTable)
+	if err != nil {
+		return err
+	}
+
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "tags", "mentionable", "created_at", "updated_at"}
+	for _, field := range fields {
+		if !tab.HasColumn(field) {
+			return fmt.Errorf("%s is required", field)
+		}
+	}
+
+	return nil
+}
+
 func (conv *Xun) getUserID(sid string) (string, error) {
 	field := "user_id"
 	if conv.setting.UserField != "" {
@@ -217,11 +279,15 @@ func (conv *Xun) getUserID(sid string) (string, error) {
 }
 
 func (conv *Xun) getHistoryTable() string {
-	return conv.setting.Table
+	return conv.setting.Table + "_history"
 }
 
 func (conv *Xun) getChatTable() string {
 	return conv.setting.Table + "_chat"
+}
+
+func (conv *Xun) getAssistantTable() string {
+	return conv.setting.Table + "_assistant"
 }
 
 // UpdateChatTitle update the chat title
@@ -380,7 +446,7 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 	}
 
 	qb := conv.newQuery().
-		Select("role", "name", "content").
+		Select("role", "name", "content", "context", "uid", "created_at", "updated_at").
 		Where("sid", userID).
 		Where("cid", cid).
 		OrderBy("id", "desc")
@@ -401,18 +467,23 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 
 	res := []map[string]interface{}{}
 	for _, row := range rows {
-		res = append([]map[string]interface{}{{
-			"role":    row.Get("role"),
-			"name":    row.Get("name"),
-			"content": row.Get("content"),
-		}}, res...)
+		message := map[string]interface{}{
+			"role":       row.Get("role"),
+			"name":       row.Get("name"),
+			"content":    row.Get("content"),
+			"context":    row.Get("context"),
+			"uid":        row.Get("uid"),
+			"created_at": row.Get("created_at"),
+			"updated_at": row.Get("updated_at"),
+		}
+		res = append([]map[string]interface{}{message}, res...)
 	}
 
 	return res, nil
 }
 
 // SaveHistory save the history
-func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid string) error {
+func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
 
 	if cid == "" {
 		cid = uuid.New().String() // Generate a new UUID if cid is empty
@@ -450,24 +521,49 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 	// Save message history
 	defer conv.clean()
 	var expiredAt interface{} = nil
-	values := []row{}
+	values := []map[string]interface{}{}
 	if conv.setting.TTL > 0 {
 		expiredAt = time.Now().Add(time.Duration(conv.setting.TTL) * time.Second)
 	}
 
+	now := time.Now()
 	for _, message := range messages {
-		value := row{
-			Role:      message["role"].(string),
-			Name:      "",
-			Content:   message["content"].(string),
-			Sid:       userID,
-			Cid:       cid,
-			ExpiredAt: expiredAt,
+		// Type assertion safety checks
+		role, ok := message["role"].(string)
+		if !ok {
+			return fmt.Errorf("invalid role type in message: %v", message["role"])
 		}
 
-		if message["name"] != nil {
-			value.Name = message["name"].(string)
+		content, ok := message["content"].(string)
+		if !ok {
+			return fmt.Errorf("invalid content type in message: %v", message["content"])
 		}
+
+		var contextRaw interface{} = nil
+		if context != nil {
+			contextRaw, err = jsoniter.MarshalToString(context)
+			if err != nil {
+				return err
+			}
+		}
+
+		value := map[string]interface{}{
+			"role":       role,
+			"name":       "",
+			"content":    content,
+			"sid":        userID,
+			"cid":        cid,
+			"uid":        userID,
+			"context":    contextRaw,
+			"created_at": now,
+			"updated_at": nil,
+			"expired_at": expiredAt,
+		}
+
+		if name, ok := message["name"].(string); ok {
+			value["name"] = name
+		}
+
 		values = append(values, value)
 	}
 
@@ -477,79 +573,6 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 	}
 
 	return nil
-}
-
-// GetRequest get the request history
-func (conv *Xun) GetRequest(sid string, rid string) ([]map[string]interface{}, error) {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return nil, err
-	}
-
-	qb := conv.newQuery().
-		Select("role", "name", "content", "sid").
-		Where("rid", rid).
-		Where("sid", userID).
-		OrderBy("id", "desc")
-
-	if conv.setting.TTL > 0 {
-		qb.Where("expired_at", ">", time.Now())
-	}
-
-	limit := 20
-	if conv.setting.MaxSize > 0 {
-		limit = conv.setting.MaxSize
-	}
-
-	rows, err := qb.Limit(limit).Get()
-	if err != nil {
-		return nil, err
-	}
-
-	res := []map[string]interface{}{}
-	for _, row := range rows {
-		res = append([]map[string]interface{}{{
-			"role":    row.Get("role"),
-			"name":    row.Get("name"),
-			"content": row.Get("content"),
-		}}, res...)
-	}
-
-	return res, nil
-}
-
-// SaveRequest save the request history
-func (conv *Xun) SaveRequest(sid string, rid string, cid string, messages []map[string]interface{}) error {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return err
-	}
-
-	defer conv.clean()
-	var expiredAt interface{} = nil
-	values := []row{}
-	if conv.setting.TTL > 0 {
-		expiredAt = time.Now().Add(time.Duration(conv.setting.TTL) * time.Second)
-	}
-
-	for _, message := range messages {
-		value := row{
-			Role:      message["role"].(string),
-			Name:      "",
-			Content:   message["content"].(string),
-			Sid:       userID,
-			Cid:       cid,
-			Rid:       rid,
-			ExpiredAt: expiredAt,
-		}
-
-		if message["name"] != nil {
-			value.Name = message["name"].(string)
-		}
-		values = append(values, value)
-	}
-
-	return conv.newQuery().Insert(values)
 }
 
 // GetChat get the chat info and its history
@@ -637,4 +660,266 @@ func (conv *Xun) DeleteAllChats(sid string) error {
 		Where("sid", userID).
 		Delete()
 	return err
+}
+
+// processJSONField processes a field that should be stored as JSON string
+func (conv *Xun) processJSONField(field interface{}) (interface{}, error) {
+	if field == nil {
+		return nil, nil
+	}
+
+	switch v := field.(type) {
+	case string:
+		return v, nil
+	default:
+		jsonStr, err := jsoniter.MarshalToString(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal %v to JSON: %v", field, err)
+		}
+		return jsonStr, nil
+	}
+}
+
+// parseJSONFields parses JSON string fields into their corresponding Go types
+func (conv *Xun) parseJSONFields(data map[string]interface{}, fields []string) {
+	for _, field := range fields {
+		if val := data[field]; val != nil {
+			if strVal, ok := val.(string); ok && strVal != "" {
+				var parsed interface{}
+				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
+					data[field] = parsed
+				}
+			}
+		}
+	}
+}
+
+// SaveAssistant saves assistant information
+func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
+	// Validate required fields
+	requiredFields := []string{"name", "type", "connector"}
+	for _, field := range requiredFields {
+		if _, ok := assistant[field]; !ok {
+			return nil, fmt.Errorf("field %s is required", field)
+		}
+		if assistant[field] == nil || assistant[field] == "" {
+			return nil, fmt.Errorf("field %s cannot be empty", field)
+		}
+	}
+
+	// Create a copy of the assistant map to avoid modifying the original
+	assistantCopy := make(map[string]interface{})
+	for k, v := range assistant {
+		assistantCopy[k] = v
+	}
+
+	// Process JSON fields
+	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "functions", "permissions"}
+	for _, field := range jsonFields {
+		if val, ok := assistantCopy[field]; ok && val != nil {
+			// If it's a string, try to parse it first
+			if strVal, ok := val.(string); ok && strVal != "" {
+				var parsed interface{}
+				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
+					assistantCopy[field] = parsed
+				}
+			}
+		}
+	}
+
+	// Generate assistant_id if not provided
+	if _, ok := assistantCopy["assistant_id"]; !ok {
+		assistantCopy["assistant_id"] = uuid.New().String()
+	}
+
+	// Check if assistant exists
+	exists, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantCopy["assistant_id"]).
+		Exists()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JSON fields to strings for storage
+	for _, field := range jsonFields {
+		if val, ok := assistantCopy[field]; ok && val != nil {
+			jsonStr, err := jsoniter.MarshalToString(val)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal %s to JSON: %v", field, err)
+			}
+			assistantCopy[field] = jsonStr
+		}
+	}
+
+	// Update or insert
+	if exists {
+		_, err := conv.query.New().
+			Table(conv.getAssistantTable()).
+			Where("assistant_id", assistantCopy["assistant_id"]).
+			Update(assistantCopy)
+		if err != nil {
+			return nil, err
+		}
+		return assistantCopy["assistant_id"], nil
+	}
+
+	err = conv.query.New().
+		Table(conv.getAssistantTable()).
+		Insert(assistantCopy)
+	if err != nil {
+		return nil, err
+	}
+	return assistantCopy["assistant_id"], nil
+}
+
+// DeleteAssistant deletes an assistant by assistant_id
+func (conv *Xun) DeleteAssistant(assistantID string) error {
+	// Check if assistant exists
+	exists, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Exists()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("assistant %s not found", assistantID)
+	}
+
+	_, err = conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Delete()
+	return err
+}
+
+// GetAssistants retrieves assistants with pagination and filtering
+func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+	qb := conv.query.New().
+		Table(conv.getAssistantTable())
+
+	// Apply tag filter if provided
+	if filter.Tags != nil && len(filter.Tags) > 0 {
+		qb.Where(func(qb query.Query) {
+			for i, tag := range filter.Tags {
+				// For each tag, we need to match it as part of a JSON array
+				// This will match both single tag arrays ["tag1"] and multi-tag arrays ["tag1","tag2"]
+				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
+				if i == 0 {
+					qb.Where("tags", "like", pattern)
+				} else {
+					qb.OrWhere("tags", "like", pattern)
+				}
+			}
+		})
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where(func(qb query.Query) {
+			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+		})
+	}
+
+	// Apply connector filter if provided
+	if filter.Connector != "" {
+		qb.Where("connector", filter.Connector)
+	}
+
+	// Apply assistant_id filter if provided
+	if filter.AssistantID != "" {
+		qb.Where("assistant_id", filter.AssistantID)
+	}
+
+	// Apply mentionable filter if provided
+	if filter.Mentionable != nil {
+		qb.Where("mentionable", *filter.Mentionable)
+	}
+
+	// Apply automated filter if provided
+	if filter.Automated != nil {
+		qb.Where("automated", *filter.Automated)
+	}
+
+	// Set defaults for pagination
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+
+	// Get total count
+	total, err := qb.Clone().Count()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	totalPages := int(math.Ceil(float64(total) / float64(filter.PageSize)))
+	nextPage := filter.Page + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+	prevPage := filter.Page - 1
+	if prevPage < 1 {
+		prevPage = 0
+	}
+
+	// Apply select fields if provided
+	if filter.Select != nil && len(filter.Select) > 0 {
+		selectFields := make([]interface{}, len(filter.Select))
+		for i, field := range filter.Select {
+			selectFields[i] = field
+		}
+		qb.Select(selectFields...)
+	}
+
+	// Get paginated results
+	rows, err := qb.OrderBy("created_at", "desc").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Get()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert rows to map slice and parse JSON fields
+	data := make([]map[string]interface{}, len(rows))
+	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "functions", "permissions"}
+	for i, row := range rows {
+		data[i] = row
+		// Only parse JSON fields if they are selected or no select filter is provided
+		if filter.Select == nil || len(filter.Select) == 0 {
+			conv.parseJSONFields(data[i], jsonFields)
+		} else {
+			// Parse only selected JSON fields
+			selectedJSONFields := []string{}
+			for _, field := range jsonFields {
+				for _, selected := range filter.Select {
+					if selected == field {
+						selectedJSONFields = append(selectedJSONFields, field)
+						break
+					}
+				}
+			}
+			if len(selectedJSONFields) > 0 {
+				conv.parseJSONFields(data[i], selectedJSONFields)
+			}
+		}
+	}
+
+	return &AssistantResponse{
+		Data:     data,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		PageCnt:  totalPages,
+		Next:     nextPage,
+		Prev:     prevPage,
+		Total:    total,
+	}, nil
 }

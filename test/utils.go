@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -81,6 +82,50 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 	// if cfg.DataRoot == "" {
 	// 	cfg.DataRoot = filepath.Join(root, "data")
 	// }
+
+	var appData []byte
+	var appFile string
+
+	// Read app setting
+	if has, _ := application.App.Exists("app.yao"); has {
+		appFile = "app.yao"
+		appData, err = application.App.Read("app.yao")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+	} else if has, _ := application.App.Exists("app.jsonc"); has {
+		appFile = "app.jsonc"
+		appData, err = application.App.Read("app.jsonc")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+	} else if has, _ := application.App.Exists("app.json"); has {
+		appFile = "app.json"
+		appData, err = application.App.Read("app.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		t.Fatal(fmt.Errorf("app.yao or app.jsonc or app.json does not exists"))
+	}
+
+	// Replace $ENV with os.Getenv
+	var envRe = regexp.MustCompile(`\$ENV\.([0-9a-zA-Z_-]+)`)
+	appData = envRe.ReplaceAllFunc(appData, func(s []byte) []byte {
+		key := string(s[5:])
+		val := os.Getenv(key)
+		if val == "" {
+			return s
+		}
+		return []byte(val)
+	})
+	share.App = share.AppInfo{}
+	err = application.Parse(appFile, appData, &share.App)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	utils.Init()
 	dbconnect(t, cfg)

@@ -1,4 +1,4 @@
-package base
+package local
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 )
 
 // Chat the chat
-func (ast *Base) Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error {
+func (ast *Local) Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error {
 
 	if ast.openai == nil {
 		return fmt.Errorf("api is not initialized")
