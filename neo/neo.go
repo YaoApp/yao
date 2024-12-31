@@ -124,7 +124,6 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
 	fail := make(chan error, 1)
-
 	content := []byte{}
 
 	// Chat with AI in background
@@ -142,26 +141,28 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 
 				// Handle error
 				if msg.Type == "error" {
-					fail <- fmt.Errorf("%s", msg.Message.Text)
+					fail <- fmt.Errorf("%s", msg.Text)
 					return 0 // break
 				}
 
 				// Append content and send message
 				content = msg.Append(content)
-
-				// Only send real-time messages if not in silent mode
-				if !silent && msg.Message != nil && msg.Message.Text != "" {
-					message.New().
-						Map(map[string]interface{}{
-							"text": msg.Message.Text,
-							"done": msg.Message.Done,
-						}).
-						Write(c.Writer)
+				if !silent {
+					value := msg.String()
+					if value != "" {
+						message.New().
+							Map(map[string]interface{}{
+								"text": value,
+								"done": msg.IsDone,
+							}).
+							Write(c.Writer)
+					}
 				}
 
 				// Complete the stream
-				if msg.Message.Done {
-					if !silent && msg.Message.Text == "" {
+				if msg.IsDone {
+					value := msg.String()
+					if value == "" {
 						msg.Write(c.Writer)
 					}
 					done <- true
@@ -267,7 +268,6 @@ func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, 
 
 // chat chat with AI
 func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]interface{}, c *gin.Context) error {
-
 	if ast == nil {
 		msg := message.New().Error("assistant is not initialized").Done()
 		msg.Write(c.Writer)
@@ -293,24 +293,26 @@ func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]inter
 
 				// Handle error
 				if msg.Type == "error" {
-					message.New().Error(msg.Message.Text).Done().Write(c.Writer)
+					value := msg.String()
+					message.New().Error(value).Done().Write(c.Writer)
 					return 0 // break
 				}
 
 				// Append content and send message
 				content = msg.Append(content)
-				if msg.Message != nil && msg.Message.Text != "" {
+				value := msg.String()
+				if value != "" {
 					message.New().
 						Map(map[string]interface{}{
-							"text": msg.Message.Text,
-							"done": msg.Message.Done,
+							"text": value,
+							"done": msg.IsDone,
 						}).
 						Write(c.Writer)
 				}
 
 				// Complete the stream
-				if msg.Message != nil && msg.Message.Done {
-					if msg.Message.Text == "" {
+				if msg.IsDone {
+					if value == "" {
 						msg.Write(c.Writer)
 					}
 					done <- true
@@ -544,9 +546,11 @@ func (neo *DSL) createConversation() error {
 
 // sendMessage sends a message to the client
 func (neo *DSL) sendMessage(w gin.ResponseWriter, data interface{}) error {
-	msg := message.New().Map(data.(map[string]interface{}))
-	if !msg.Write(w) {
-		return fmt.Errorf("failed to write message to stream")
+	if msg, ok := data.(map[string]interface{}); ok {
+		if !message.New().Map(msg).Write(w) {
+			return fmt.Errorf("failed to write message to stream")
+		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("invalid message data type")
 }
