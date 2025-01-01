@@ -5,30 +5,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/conversation"
+	"github.com/yaoapp/yao/neo/store"
 )
 
 // DSL AI assistant
 type DSL struct {
-	ID                  string                         `json:"-" yaml:"-"`
-	Name                string                         `json:"name,omitempty" yaml:"name,omitempty"`
-	Use                 string                         `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default
-	Guard               string                         `json:"guard,omitempty" yaml:"guard,omitempty"`
-	Connector           string                         `json:"connector" yaml:"connector"`
-	ConversationSetting conversation.Setting           `json:"conversation" yaml:"conversation"`
-	Option              map[string]interface{}         `json:"option" yaml:"option"`
-	Prepare             string                         `json:"prepare,omitempty" yaml:"prepare,omitempty"`
-	Create              string                         `json:"create,omitempty" yaml:"create,omitempty"`
-	Write               string                         `json:"write,omitempty" yaml:"write,omitempty"`
-	AssistantListHook   string                         `json:"assistants,omitempty" yaml:"assistants,omitempty"` // Get the assistant list from the hook
-	MentionHook         string                         `json:"mentions,omitempty"`                               // Get the mention list from the hook
-	Prompts             []assistant.Prompt             `json:"prompts,omitempty" yaml:"prompts,omitempty"`
-	Allows              []string                       `json:"allows,omitempty" yaml:"allows,omitempty"`
-	Assistant           assistant.API                  `json:"-" yaml:"-"` // The default assistant
-	Conversation        conversation.Conversation      `json:"-" yaml:"-"`
-	GuardHandlers       []gin.HandlerFunc              `json:"-" yaml:"-"`
-	AssistantList       []assistant.Assistant          `json:"-" yaml:"-"`
-	AssistantMaps       map[string]assistant.Assistant `json:"-" yaml:"-"`
+	ID                string                         `json:"-" yaml:"-"`
+	Name              string                         `json:"name,omitempty" yaml:"name,omitempty"`
+	Use               string                         `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default
+	Guard             string                         `json:"guard,omitempty" yaml:"guard,omitempty"`
+	Connector         string                         `json:"connector" yaml:"connector"`
+	StoreSetting      store.Setting                  `json:"store" yaml:"store"`
+	Option            map[string]interface{}         `json:"option" yaml:"option"`
+	Prepare           string                         `json:"prepare,omitempty" yaml:"prepare,omitempty"`
+	Create            string                         `json:"create,omitempty" yaml:"create,omitempty"`
+	Write             string                         `json:"write,omitempty" yaml:"write,omitempty"`
+	AssistantListHook string                         `json:"assistants,omitempty" yaml:"assistants,omitempty"` // Get the assistant list from the hook
+	MentionHook       string                         `json:"mentions,omitempty"`                               // Get the mention list from the hook
+	Prompts           []assistant.Prompt             `json:"prompts,omitempty" yaml:"prompts,omitempty"`
+	Allows            []string                       `json:"allows,omitempty" yaml:"allows,omitempty"`
+	Assistant         assistant.API                  `json:"-" yaml:"-"` // The default assistant
+	Store             store.Store                    `json:"-" yaml:"-"`
+	GuardHandlers     []gin.HandlerFunc              `json:"-" yaml:"-"`
+	AssistantList     []assistant.Assistant          `json:"-" yaml:"-"`
+	AssistantMaps     map[string]assistant.Assistant `json:"-" yaml:"-"`
 }
 
 // Mention list

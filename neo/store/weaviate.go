@@ -1,10 +1,10 @@
-package conversation
+package store
 
 // Weaviate represents a Weaviate-based conversation storage
 type Weaviate struct{}
 
-// NewWeaviate creates a new Weaviate conversation storage
-func NewWeaviate() *Weaviate {
+// NewWeaviate create a new weaviate store
+func NewWeaviate() Store {
 	return &Weaviate{}
 }
 

@@ -1,4 +1,4 @@
-package conversation
+package store
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ func TestNewXunDefault(t *testing.T) {
 	// Add a small delay to ensure table is created
 	time.Sleep(100 * time.Millisecond)
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 	})
@@ -69,38 +69,47 @@ func TestNewXunDefault(t *testing.T) {
 	}
 	assert.Equal(t, true, has)
 
-	// validate the history table
-	tab, err := conv.schema.GetTable(conv.getHistoryTable())
-	if err != nil {
-		t.Fatal(err)
+	// Validate table structure by attempting operations
+	// Test history operations
+	messages := []map[string]interface{}{
+		{"role": "user", "content": "test message"},
+	}
+	err = store.SaveHistory("test_user", messages, "test_chat", nil)
+	assert.Nil(t, err)
+
+	history, err := store.GetHistory("test_user", "test_chat")
+	assert.Nil(t, err)
+	assert.NotEmpty(t, history)
+
+	// Test chat operations
+	err = store.UpdateChatTitle("test_user", "test_chat", "Test Chat")
+	assert.Nil(t, err)
+
+	chat, err := store.GetChat("test_user", "test_chat")
+	assert.Nil(t, err)
+	assert.NotNil(t, chat)
+
+	// Test assistant operations
+	assistant := map[string]interface{}{
+		"name":        "Test Assistant",
+		"type":        "assistant",
+		"connector":   "test",
+		"description": "Test Description",
+		"tags":        []string{"test"},
+		"mentionable": true,
+		"automated":   true,
 	}
 
-	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "created_at", "updated_at", "expired_at"}
-	for _, field := range fields {
-		assert.Equal(t, true, tab.HasColumn(field))
-	}
+	id, err := store.SaveAssistant(assistant)
+	assert.Nil(t, err)
+	assert.NotNil(t, id)
 
-	// validate the chat table
-	tab, err = conv.schema.GetTable(conv.getChatTable())
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Clean up test data
+	err = store.DeleteChat("test_user", "test_chat")
+	assert.Nil(t, err)
 
-	chatFields := []string{"id", "chat_id", "title", "sid", "created_at", "updated_at"}
-	for _, field := range chatFields {
-		assert.Equal(t, true, tab.HasColumn(field))
-	}
-
-	// validate the assistant table
-	tab, err = conv.schema.GetTable(conv.getAssistantTable())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assistantFields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "tags", "readonly", "permissions", "automated", "mentionable", "created_at", "updated_at"}
-	for _, field := range assistantFields {
-		assert.Equal(t, true, tab.HasColumn(field))
-	}
+	err = store.DeleteAssistant(id.(string))
+	assert.Nil(t, err)
 }
 
 func TestNewXunConnector(t *testing.T) {
@@ -128,7 +137,7 @@ func TestNewXunConnector(t *testing.T) {
 	// Add a small delay to ensure table is created
 	time.Sleep(100 * time.Millisecond)
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "mysql",
 		Table:     "__unit_test_conversation",
 	})
@@ -159,38 +168,19 @@ func TestNewXunConnector(t *testing.T) {
 	}
 	assert.Equal(t, true, has)
 
-	// validate the history table
-	tab, err := conv.schema.GetTable(conv.getHistoryTable())
-	if err != nil {
-		t.Fatal(err)
+	// Test basic operations
+	messages := []map[string]interface{}{
+		{"role": "user", "content": "test message"},
 	}
+	err = store.SaveHistory("test_user", messages, "test_chat", nil)
+	assert.Nil(t, err)
 
-	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "created_at", "updated_at", "expired_at"}
-	for _, field := range fields {
-		assert.Equal(t, true, tab.HasColumn(field))
-	}
+	history, err := store.GetHistory("test_user", "test_chat")
+	assert.Nil(t, err)
+	assert.NotEmpty(t, history)
 
-	// validate the chat table
-	tab, err = conv.schema.GetTable(conv.getChatTable())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	chatFields := []string{"id", "chat_id", "title", "sid", "created_at", "updated_at"}
-	for _, field := range chatFields {
-		assert.Equal(t, true, tab.HasColumn(field))
-	}
-
-	// validate the assistant table
-	tab, err = conv.schema.GetTable(conv.getAssistantTable())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assistantFields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "tags", "readonly", "permissions", "automated", "mentionable", "created_at", "updated_at"}
-	for _, field := range assistantFields {
-		assert.Equal(t, true, tab.HasColumn(field))
-	}
+	err = store.DeleteChat("test_user", "test_chat")
+	assert.Nil(t, err)
 }
 
 func TestXunSaveAndGetHistory(t *testing.T) {
@@ -209,7 +199,7 @@ func TestXunSaveAndGetHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 		TTL:       3600,
@@ -217,14 +207,14 @@ func TestXunSaveAndGetHistory(t *testing.T) {
 
 	// save the history
 	cid := "123456"
-	err = conv.SaveHistory("123456", []map[string]interface{}{
+	err = store.SaveHistory("123456", []map[string]interface{}{
 		{"role": "user", "name": "user1", "content": "hello"},
 		{"role": "assistant", "name": "user1", "content": "Hello there, how"},
 	}, cid, nil)
 	assert.Nil(t, err)
 
 	// get the history
-	data, err := conv.GetHistory("123456", cid)
+	data, err := store.GetHistory("123456", cid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +237,7 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 		TTL:       3600,
@@ -260,11 +250,11 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 		{"role": "user", "name": "user1", "content": "hello"},
 		{"role": "assistant", "name": "assistant1", "content": "Hi! How can I help you?"},
 	}
-	err = conv.SaveHistory(sid, messages, cid, nil)
+	err = store.SaveHistory(sid, messages, cid, nil)
 	assert.Nil(t, err)
 
 	// get the history for specific cid
-	data, err := conv.GetHistory(sid, cid)
+	data, err := store.GetHistory(sid, cid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,25 +265,25 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 	moreMessages := []map[string]interface{}{
 		{"role": "user", "name": "user1", "content": "another message"},
 	}
-	err = conv.SaveHistory(sid, moreMessages, anotherCID, nil)
+	err = store.SaveHistory(sid, moreMessages, anotherCID, nil)
 	assert.Nil(t, err)
 
 	// get history for the first cid - should still be 2 messages
-	data, err = conv.GetHistory(sid, cid)
+	data, err = store.GetHistory(sid, cid)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 2, len(data))
 
 	// get history for the second cid - should be 1 message
-	data, err = conv.GetHistory(sid, anotherCID)
+	data, err = store.GetHistory(sid, anotherCID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 1, len(data))
 
 	// get all history for the sid without specifying cid
-	allData, err := conv.GetHistory(sid, cid)
+	allData, err := store.GetHistory(sid, cid)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +306,7 @@ func TestXunGetChats(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 	})
@@ -333,22 +323,15 @@ func TestXunGetChats(t *testing.T) {
 	// Create chats with different dates
 	for i := 0; i < 5; i++ {
 		chatID := fmt.Sprintf("chat_%d", i)
-		// First create the chat with a title
-		err = conv.newQueryChat().Insert(map[string]interface{}{
-			"chat_id":    chatID,
-			"title":      fmt.Sprintf("Test Chat %d", i),
-			"sid":        sid,
-			"created_at": time.Now(),
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		title := fmt.Sprintf("Test Chat %d", i)
 
-		// Then save the history
-		err = conv.SaveHistory(sid, messages, chatID, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
+		// Save history first to create the chat
+		err = store.SaveHistory(sid, messages, chatID, nil)
+		assert.Nil(t, err)
+
+		// Update the chat title
+		err = store.UpdateChatTitle(sid, chatID, title)
+		assert.Nil(t, err)
 	}
 
 	// Test getting chats with default filter
@@ -356,7 +339,7 @@ func TestXunGetChats(t *testing.T) {
 		PageSize: 10,
 		Order:    "desc",
 	}
-	groups, err := conv.GetChats(sid, filter)
+	groups, err := store.GetChats(sid, filter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -365,7 +348,7 @@ func TestXunGetChats(t *testing.T) {
 
 	// Test with keywords
 	filter.Keywords = "test"
-	groups, err = conv.GetChats(sid, filter)
+	groups, err = store.GetChats(sid, filter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +362,7 @@ func TestXunDeleteChat(t *testing.T) {
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 	})
@@ -395,20 +378,20 @@ func TestXunDeleteChat(t *testing.T) {
 	}
 
 	// Save the chat and history
-	err = conv.SaveHistory(sid, messages, cid, nil)
+	err = store.SaveHistory(sid, messages, cid, nil)
 	assert.Nil(t, err)
 
 	// Verify chat exists
-	chat, err := conv.GetChat(sid, cid)
+	chat, err := store.GetChat(sid, cid)
 	assert.Nil(t, err)
 	assert.NotNil(t, chat)
 
 	// Delete the chat
-	err = conv.DeleteChat(sid, cid)
+	err = store.DeleteChat(sid, cid)
 	assert.Nil(t, err)
 
 	// Verify chat is deleted
-	chat, err = conv.GetChat(sid, cid)
+	chat, err = store.GetChat(sid, cid)
 	assert.Nil(t, err)
 	assert.Equal(t, (*ChatInfo)(nil), chat)
 }
@@ -419,7 +402,7 @@ func TestXunDeleteAllChats(t *testing.T) {
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 	})
@@ -436,21 +419,21 @@ func TestXunDeleteAllChats(t *testing.T) {
 	// Save multiple chats
 	for i := 0; i < 3; i++ {
 		cid := fmt.Sprintf("test_chat_%d", i)
-		err = conv.SaveHistory(sid, messages, cid, nil)
+		err = store.SaveHistory(sid, messages, cid, nil)
 		assert.Nil(t, err)
 	}
 
 	// Verify chats exist
-	response, err := conv.GetChats(sid, ChatFilter{})
+	response, err := store.GetChats(sid, ChatFilter{})
 	assert.Nil(t, err)
 	assert.Greater(t, response.Total, int64(0))
 
 	// Delete all chats
-	err = conv.DeleteAllChats(sid)
+	err = store.DeleteAllChats(sid)
 	assert.Nil(t, err)
 
 	// Verify all chats are deleted
-	response, err = conv.GetChats(sid, ChatFilter{})
+	response, err = store.GetChats(sid, ChatFilter{})
 	assert.Nil(t, err)
 	assert.Equal(t, int64(0), response.Total)
 }
@@ -470,7 +453,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	// Add a small delay to ensure table is created
 	time.Sleep(100 * time.Millisecond)
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 	})
@@ -495,7 +478,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	}
 
 	// Test SaveAssistant (Create) with string JSON
-	v, err := conv.SaveAssistant(assistant)
+	v, err := store.SaveAssistant(assistant)
 	assert.Nil(t, err)
 	assistantID := v.(string)
 	assert.NotEmpty(t, assistantID)
@@ -519,7 +502,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	}
 
 	// Test SaveAssistant (Create) with native types
-	v, err = conv.SaveAssistant(assistant2)
+	v, err = store.SaveAssistant(assistant2)
 	assert.Nil(t, err)
 	assistant2ID := v.(string)
 	assert.NotEmpty(t, assistant2ID)
@@ -542,13 +525,13 @@ func TestXunAssistantCRUD(t *testing.T) {
 	}
 
 	// Test SaveAssistant (Create) with nil fields
-	v, err = conv.SaveAssistant(assistant3)
+	v, err = store.SaveAssistant(assistant3)
 	assert.Nil(t, err)
 	assistant3ID := v.(string)
 	assert.NotEmpty(t, assistant3ID)
 
 	// Test GetAssistants to verify JSON fields are properly stored
-	resp, err := conv.GetAssistants(AssistantFilter{})
+	resp, err := store.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(resp.Data))
 
@@ -614,11 +597,11 @@ func TestXunAssistantCRUD(t *testing.T) {
 
 	// Test updating with mixed JSON formats
 	assistant2["assistant_id"] = assistant2ID
-	_, err = conv.SaveAssistant(assistant2)
+	_, err = store.SaveAssistant(assistant2)
 	assert.Nil(t, err)
 
 	// Verify update
-	resp, err = conv.GetAssistants(AssistantFilter{})
+	resp, err = store.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
 	for _, item := range resp.Data {
 		if item["assistant_id"].(string) == assistant2ID {
@@ -630,14 +613,14 @@ func TestXunAssistantCRUD(t *testing.T) {
 	}
 
 	// Test DeleteAssistant
-	err = conv.DeleteAssistant(assistantID)
+	err = store.DeleteAssistant(assistantID)
 	assert.Nil(t, err)
-	err = conv.DeleteAssistant(assistant2ID)
+	err = store.DeleteAssistant(assistant2ID)
 	assert.Nil(t, err)
-	err = conv.DeleteAssistant(assistant3ID)
+	err = store.DeleteAssistant(assistant3ID)
 	assert.Nil(t, err)
 
-	resp, err = conv.GetAssistants(AssistantFilter{})
+	resp, err = store.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(resp.Data))
 }
@@ -658,7 +641,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	// Add a small delay to ensure table is created
 	time.Sleep(100 * time.Millisecond)
 
-	conv, err := NewXun(Setting{
+	store, err := NewXun(Setting{
 		Connector: "default",
 		Table:     "__unit_test_conversation",
 	})
@@ -692,12 +675,12 @@ func TestXunAssistantPagination(t *testing.T) {
 			"mentionable": mentionable,
 			"automated":   automated,
 		}
-		_, err = conv.SaveAssistant(assistant)
+		_, err = store.SaveAssistant(assistant)
 		assert.Nil(t, err)
 	}
 
 	// Test first page
-	resp, err := conv.GetAssistants(AssistantFilter{
+	resp, err := store.GetAssistants(AssistantFilter{
 		Page:     1,
 		PageSize: 10,
 	})
@@ -709,7 +692,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, 0, resp.Prev)
 
 	// Test second page
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Page:     2,
 		PageSize: 10,
 	})
@@ -719,7 +702,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, 1, resp.Prev)
 
 	// Test last page
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Page:     3,
 		PageSize: 10,
 	})
@@ -729,7 +712,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, 2, resp.Prev)
 
 	// Test filtering with tags
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Tags:     []string{"tag0"},
 		Page:     1,
 		PageSize: 10,
@@ -738,7 +721,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, 5, len(resp.Data))
 
 	// Test filtering with keywords
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Keywords: "Assistant 1",
 		Page:     1,
 		PageSize: 10,
@@ -747,7 +730,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Greater(t, len(resp.Data), 0)
 
 	// Test filtering with connector
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Connector: "connector0",
 		Page:      1,
 		PageSize:  10,
@@ -757,7 +740,7 @@ func TestXunAssistantPagination(t *testing.T) {
 
 	// Test filtering with mentionable
 	mentionableTrue := true
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Mentionable: &mentionableTrue,
 		Page:        1,
 		PageSize:    10,
@@ -767,7 +750,7 @@ func TestXunAssistantPagination(t *testing.T) {
 
 	// Test filtering with automated
 	automatedTrue := true
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Automated: &automatedTrue,
 		Page:      1,
 		PageSize:  10,
@@ -780,7 +763,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	firstAssistantID := resp.Data[0]["assistant_id"].(string)
 
 	// Test exact match with assistant_id
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		AssistantID: firstAssistantID,
 		Page:        1,
 		PageSize:    10,
@@ -790,7 +773,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, firstAssistantID, resp.Data[0]["assistant_id"])
 
 	// Test assistant_id with other filters
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		AssistantID: firstAssistantID,
 		Select:      []string{"name", "assistant_id", "description"},
 		Page:        1,
@@ -807,7 +790,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.NotContains(t, resp.Data[0], "options")
 
 	// Test non-existent assistant_id
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		AssistantID: "non-existent-id",
 		Page:        1,
 		PageSize:    10,
@@ -816,7 +799,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, 0, len(resp.Data))
 
 	// Test combined filters
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Tags:        []string{"tag0"},
 		Keywords:    "Assistant",
 		Connector:   "connector0",
@@ -828,7 +811,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Test filtering with select fields
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Select:   []string{"name", "description", "tags"},
 		Page:     1,
 		PageSize: 10,
@@ -851,7 +834,7 @@ func TestXunAssistantPagination(t *testing.T) {
 	}
 
 	// Test filtering with select fields and other filters combined
-	resp, err = conv.GetAssistants(AssistantFilter{
+	resp, err = store.GetAssistants(AssistantFilter{
 		Tags:     []string{"tag0"},
 		Keywords: "Assistant",
 		Select:   []string{"name", "tags"},

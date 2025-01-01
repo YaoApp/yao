@@ -1,4 +1,4 @@
-package conversation
+package store
 
 // Setting represents the conversation configuration structure
 // Used to configure basic conversation parameters including connector, user field, table name, etc.
@@ -69,9 +69,9 @@ type AssistantResponse struct {
 	Total    int64                    `json:"total"`    // Total number of items
 }
 
-// Conversation defines the conversation storage interface
+// Store defines the conversation storage interface
 // Provides basic operations required for conversation management
-type Conversation interface {
+type Store interface {
 	// GetChats retrieves a list of chats
 	// sid: Session ID
 	// filter: Filter conditions

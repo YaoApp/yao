@@ -1,4 +1,4 @@
-package conversation
+package store
 
 import (
 	"fmt"
@@ -45,8 +45,8 @@ type Xun struct {
 // DeleteAssistant deletes an assistant by assistant_id
 // GetAssistants retrieves a paginated list of assistants with filtering
 
-// NewXun create a new conversation
-func NewXun(setting Setting) (*Xun, error) {
+// NewXun create a new xun store
+func NewXun(setting Setting) (Store, error) {
 	conv := &Xun{setting: setting}
 	if setting.Connector == "default" {
 		conv.query = capsule.Global.Query()

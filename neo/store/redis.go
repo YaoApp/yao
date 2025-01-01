@@ -1,10 +1,10 @@
-package conversation
+package store
 
 // Redis represents a Redis-based conversation storage
 type Redis struct{}
 
-// NewRedis creates a new Redis conversation storage
-func NewRedis() *Redis {
+// NewRedis create a new redis store
+func NewRedis() Store {
 	return &Redis{}
 }
 

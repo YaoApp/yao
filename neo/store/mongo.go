@@ -1,10 +1,10 @@
-package conversation
+package store
 
 // Mongo represents a MongoDB-based conversation storage
 type Mongo struct{}
 
-// NewMongo creates a new MongoDB conversation storage
-func NewMongo() *Mongo {
+// NewMongo create a new mongo store
+func NewMongo() Store {
 	return &Mongo{}
 }
 

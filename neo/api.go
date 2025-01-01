@@ -15,8 +15,8 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
+	"github.com/yaoapp/yao/neo/store"
 )
 
 // API registers the Neo API endpoints
@@ -227,7 +227,7 @@ func (neo *DSL) handleChatList(c *gin.Context) {
 	}
 
 	// Create filter from query parameters
-	filter := conversation.ChatFilter{
+	filter := store.ChatFilter{
 		Keywords: c.Query("keywords"),
 		Order:    c.Query("order"),
 	}
@@ -245,7 +245,7 @@ func (neo *DSL) handleChatList(c *gin.Context) {
 		}
 	}
 
-	response, err := neo.Conversation.GetChats(sid, filter)
+	response, err := neo.Store.GetChats(sid, filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -266,7 +266,7 @@ func (neo *DSL) handleChatHistory(c *gin.Context) {
 	}
 
 	cid := c.Query("chat_id")
-	history, err := neo.Conversation.GetHistory(sid, cid)
+	history, err := neo.Store.GetHistory(sid, cid)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -450,7 +450,7 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		return
 	}
 
-	chat, err := neo.Conversation.GetChat(sid, chatID)
+	chat, err := neo.Store.GetChat(sid, chatID)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -475,14 +475,14 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 	mentionable := true
 
 	// Query mentionable assistants
-	filter := conversation.AssistantFilter{
+	filter := store.AssistantFilter{
 		Keywords:    keywords,
 		Mentionable: &mentionable,
 		Page:        1,
 		PageSize:    20,
 	}
 
-	response, err := neo.Conversation.GetAssistants(filter)
+	response, err := neo.Store.GetAssistants(filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -552,7 +552,7 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 		return
 	}
 
-	err := neo.Conversation.UpdateChatTitle(sid, chatID, body.Title)
+	err := neo.Store.UpdateChatTitle(sid, chatID, body.Title)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -579,7 +579,7 @@ func (neo *DSL) handleChatDelete(c *gin.Context) {
 		return
 	}
 
-	err := neo.Conversation.DeleteChat(sid, chatID)
+	err := neo.Store.DeleteChat(sid, chatID)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -599,7 +599,7 @@ func (neo *DSL) handleChatsDeleteAll(c *gin.Context) {
 		return
 	}
 
-	err := neo.Conversation.DeleteAllChats(sid)
+	err := neo.Store.DeleteAllChats(sid)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -840,7 +840,7 @@ func (neo *DSL) handleGenerateCustom(c *gin.Context) {
 // handleAssistantList handles listing assistants
 func (neo *DSL) handleAssistantList(c *gin.Context) {
 	// Parse filter parameters
-	filter := conversation.AssistantFilter{
+	filter := store.AssistantFilter{
 		Page:     1,
 		PageSize: 20,
 	}
@@ -894,7 +894,7 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		}
 	}
 
-	response, err := neo.Conversation.GetAssistants(filter)
+	response, err := neo.Store.GetAssistants(filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -930,13 +930,13 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 		return
 	}
 
-	filter := conversation.AssistantFilter{
+	filter := store.AssistantFilter{
 		AssistantID: assistantID,
 		Page:        1,
 		PageSize:    1,
 	}
 
-	response, err := neo.Conversation.GetAssistants(filter)
+	response, err := neo.Store.GetAssistants(filter)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -962,7 +962,7 @@ func (neo *DSL) handleAssistantSave(c *gin.Context) {
 		return
 	}
 
-	id, err := neo.Conversation.SaveAssistant(assistant)
+	id, err := neo.Store.SaveAssistant(assistant)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -987,7 +987,7 @@ func (neo *DSL) handleAssistantDelete(c *gin.Context) {
 		return
 	}
 
-	err := neo.Conversation.DeleteAssistant(assistantID)
+	err := neo.Store.DeleteAssistant(assistantID)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()

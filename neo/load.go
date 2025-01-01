@@ -9,7 +9,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/conversation"
+	"github.com/yaoapp/yao/neo/store"
 )
 
 // Neo the neo AI assistant
@@ -23,7 +23,7 @@ func Load(cfg config.Config) error {
 		Prompts: []assistant.Prompt{},
 		Option:  map[string]interface{}{},
 		Allows:  []string{},
-		ConversationSetting: conversation.Setting{
+		StoreSetting: store.Setting{
 			Table:     "yao_neo_conversation",
 			Connector: "default",
 		},
@@ -39,14 +39,14 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	if setting.ConversationSetting.MaxSize == 0 {
-		setting.ConversationSetting.MaxSize = 100
+	if setting.StoreSetting.MaxSize == 0 {
+		setting.StoreSetting.MaxSize = 100
 	}
 
 	Neo = &setting
 
-	// Conversation Setting
-	err = Neo.createConversation()
+	// Store Setting
+	err = Neo.createStore()
 	if err != nil {
 		return err
 	}

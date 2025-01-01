@@ -13,8 +13,8 @@ import (
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/assistant/local"
 	"github.com/yaoapp/yao/neo/assistant/openai"
-	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
+	"github.com/yaoapp/yao/neo/store"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -473,7 +473,7 @@ func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
 // chatMessages get the chat messages
 func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]interface{}, error) {
 
-	history, err := neo.Conversation.GetHistory(ctx.Sid, ctx.ChatID)
+	history, err := neo.Store.GetHistory(ctx.Sid, ctx.ChatID)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]inter
 func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages []map[string]interface{}) {
 
 	if len(content) > 0 && sid != "" && len(messages) > 0 {
-		err := neo.Conversation.SaveHistory(
+		err := neo.Store.SaveHistory(
 			sid,
 			[]map[string]interface{}{
 				{"role": "user", "content": messages[len(messages)-1]["content"], "name": sid},
@@ -509,39 +509,39 @@ func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages 
 	}
 }
 
-// createConversation create a new conversation
-func (neo *DSL) createConversation() error {
+// createStore create a new store
+func (neo *DSL) createStore() error {
 
 	var err error
-	if neo.ConversationSetting.Connector == "default" || neo.ConversationSetting.Connector == "" {
-		neo.Conversation, err = conversation.NewXun(neo.ConversationSetting)
+	if neo.StoreSetting.Connector == "default" || neo.StoreSetting.Connector == "" {
+		neo.Store, err = store.NewXun(neo.StoreSetting)
 		return err
 	}
 
 	// other connector
-	conn, err := connector.Select(neo.ConversationSetting.Connector)
+	conn, err := connector.Select(neo.StoreSetting.Connector)
 	if err != nil {
 		return err
 	}
 
 	if conn.Is(connector.DATABASE) {
-		neo.Conversation, err = conversation.NewXun(neo.ConversationSetting)
+		neo.Store, err = store.NewXun(neo.StoreSetting)
 		return err
 
 	} else if conn.Is(connector.REDIS) {
-		neo.Conversation = conversation.NewRedis()
+		neo.Store = store.NewRedis()
 		return nil
 
 	} else if conn.Is(connector.MONGO) {
-		neo.Conversation = conversation.NewMongo()
+		neo.Store = store.NewMongo()
 		return nil
 
 	} else if conn.Is(connector.WEAVIATE) {
-		neo.Conversation = conversation.NewWeaviate()
+		neo.Store = store.NewWeaviate()
 		return nil
 	}
 
-	return fmt.Errorf("%s conversation connector %s not support", neo.ID, neo.ConversationSetting.Connector)
+	return fmt.Errorf("%s store connector %s not support", neo.ID, neo.StoreSetting.Connector)
 }
 
 // sendMessage sends a message to the client
