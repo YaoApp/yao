@@ -1,10 +1,7 @@
 package neo
 
 import (
-	"context"
-	"fmt"
 	"path/filepath"
-	"time"
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
@@ -58,32 +55,11 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Query Assistant List
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	listDone := make(chan error, 1)
-	go func() {
-		list, err := Neo.HookAssistants(ctx, assistant.QueryParam{Limit: 100})
-		Neo.updateAssistantList(list)
-		listDone <- err
-	}()
-
-	select {
-	case err := <-listDone:
-		if err != nil {
-			return fmt.Errorf("Neo assistant list failed: %w", err)
-		}
-
-		// Create Default Assistant
-		Neo.Assistant, err = Neo.createDefaultAssistant()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("Neo assistant list timeout: %w", ctx.Err())
+	defaultAssistant, err := Neo.defaultAssistant()
+	if err != nil {
+		return err
 	}
 
+	Neo.Assistant = defaultAssistant.API
+	return nil
 }

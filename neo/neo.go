@@ -346,6 +346,20 @@ func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]inter
 	}
 }
 
+// defaultAssistant get the default assistant
+func (neo *DSL) defaultAssistant() (*assistant.Assistant, error) {
+	if neo.Use != "" {
+		return assistant.Get(neo.Use)
+	}
+
+	name := neo.Name
+	if name == "" {
+		name = "Neo"
+	}
+
+	return assistant.GetByConnector(neo.Connector, name)
+}
+
 // updateAssistantList update the assistant list
 func (neo *DSL) updateAssistantList(list []assistant.Assistant) {
 	lock.Lock()

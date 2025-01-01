@@ -115,6 +115,17 @@ func LoadStore(id string) (*Assistant, error) {
 		return nil, err
 	}
 
+	// Load from path
+	if data["path"] != nil {
+		assistant, err = LoadPath(data["path"].(string))
+		if err != nil {
+			return nil, err
+		}
+		loaded.Put(assistant)
+		return assistant, nil
+	}
+
+	// Load from store
 	assistant, err = loadMap(data)
 	if err != nil {
 		return nil, err
