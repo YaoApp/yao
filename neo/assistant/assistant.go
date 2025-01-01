@@ -61,6 +61,10 @@ func LoadBuiltIn() error {
 		assistant.Readonly = true
 		assistant.BuiltIn = true
 		assistant.Sort = sort
+		if assistant.Tags == nil {
+			assistant.Tags = []string{"Built-in"}
+		}
+
 		sort++
 		loaded.Put(assistant)
 
@@ -236,6 +240,21 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// connector
 	if connector, ok := data["connector"].(string); ok {
 		assistant.Connector = connector
+	}
+
+	// tags
+	if v, ok := data["tags"].([]string); ok {
+		assistant.Tags = v
+	}
+
+	// options
+	if v, ok := data["options"].(map[string]interface{}); ok {
+		assistant.Options = v
+	}
+
+	// description
+	if v, ok := data["description"].(string); ok {
+		assistant.Description = v
 	}
 
 	// prompts
