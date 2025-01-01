@@ -225,6 +225,9 @@ func (conv *Xun) initAssistantTable() error {
 			table.String("avatar", 200).Null()                        // assistant avatar
 			table.String("connector", 200).NotNull()                  // assistant connector
 			table.Text("description").Null()                          // assistant description
+			table.String("path", 200).Null()                          // assistant storage path
+			table.Integer("sort").SetDefault(9999).Index()            // assistant sort order
+			table.Boolean("built_in").SetDefault(false).Index()       // whether this is a built-in assistant
 			table.JSON("options").Null()                              // assistant options
 			table.JSON("prompts").Null()                              // assistant prompts
 			table.JSON("flows").Null()                                // assistant flows
@@ -251,7 +254,7 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "options", "prompts", "flows", "files", "functions", "tags", "mentionable", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "path", "sort", "built_in", "options", "prompts", "flows", "files", "functions", "tags", "mentionable", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -845,6 +848,11 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		qb.Where("automated", *filter.Automated)
 	}
 
+	// Apply built_in filter if provided
+	if filter.BuiltIn != nil {
+		qb.Where("built_in", *filter.BuiltIn)
+	}
+
 	// Set defaults for pagination
 	if filter.PageSize <= 0 {
 		filter.PageSize = 20
@@ -881,7 +889,8 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 	}
 
 	// Get paginated results
-	rows, err := qb.OrderBy("created_at", "desc").
+	rows, err := qb.OrderBy("sort", "asc").
+		OrderBy("updated_at", "desc").
 		Offset(offset).
 		Limit(filter.PageSize).
 		Get()
@@ -949,4 +958,88 @@ func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error
 	conv.parseJSONFields(data, jsonFields)
 
 	return data, nil
+}
+
+// DeleteAssistants deletes assistants based on filter conditions
+func (conv *Xun) DeleteAssistants(filter AssistantFilter) (int64, error) {
+	qb := conv.query.New().
+		Table(conv.getAssistantTable())
+
+	// Apply tag filter if provided
+	if filter.Tags != nil && len(filter.Tags) > 0 {
+		qb.Where(func(qb query.Query) {
+			for i, tag := range filter.Tags {
+				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
+				if i == 0 {
+					qb.Where("tags", "like", pattern)
+				} else {
+					qb.OrWhere("tags", "like", pattern)
+				}
+			}
+		})
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where(func(qb query.Query) {
+			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+		})
+	}
+
+	// Apply connector filter if provided
+	if filter.Connector != "" {
+		qb.Where("connector", filter.Connector)
+	}
+
+	// Apply assistant_id filter if provided
+	if filter.AssistantID != "" {
+		qb.Where("assistant_id", filter.AssistantID)
+	}
+
+	// Apply mentionable filter if provided
+	if filter.Mentionable != nil {
+		qb.Where("mentionable", *filter.Mentionable)
+	}
+
+	// Apply automated filter if provided
+	if filter.Automated != nil {
+		qb.Where("automated", *filter.Automated)
+	}
+
+	// Apply built_in filter if provided
+	if filter.BuiltIn != nil {
+		qb.Where("built_in", *filter.BuiltIn)
+	}
+
+	// Execute delete and return number of deleted records
+	return qb.Delete()
+}
+
+// GetAssistantTags retrieves all unique tags from assistants
+func (conv *Xun) GetAssistantTags() ([]string, error) {
+	q := conv.newQuery().Table(conv.getAssistantTable())
+	rows, err := q.Select("tags").GroupBy("tags").Get()
+	if err != nil {
+		return nil, err
+	}
+
+	tagSet := map[string]bool{}
+	for _, row := range rows {
+		if tags, ok := row["tags"].(string); ok && tags != "" {
+			var tagList []string
+			if err := jsoniter.UnmarshalFromString(tags, &tagList); err == nil {
+				for _, tag := range tagList {
+					tagSet[tag] = true
+				}
+			}
+		}
+	}
+
+	// Convert map keys to slice
+	tags := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	return tags, nil
 }

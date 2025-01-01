@@ -471,6 +471,9 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"avatar":      "https://example.com/avatar.png",
 		"connector":   "openai",
 		"description": "Test Description",
+		"path":        "/assistants/test",
+		"sort":        100,
+		"built_in":    true,
 		"tags":        tagsJSON,
 		"options":     optionsJSON,
 		"mentionable": true,
@@ -492,6 +495,9 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assert.Equal(t, "https://example.com/avatar.png", assistantData["avatar"])
 	assert.Equal(t, "openai", assistantData["connector"])
 	assert.Equal(t, "Test Description", assistantData["description"])
+	assert.Equal(t, "/assistants/test", assistantData["path"])
+	assert.Equal(t, int64(100), assistantData["sort"])
+	assert.Equal(t, int64(1), assistantData["built_in"])
 	assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, assistantData["tags"])
 	assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, assistantData["options"])
 	assert.Equal(t, int64(1), assistantData["mentionable"])
@@ -504,6 +510,9 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"avatar":      "https://example.com/avatar2.png",
 		"connector":   "openai",
 		"description": "Test Description 2",
+		"path":        "/assistants/test2",
+		"sort":        200,
+		"built_in":    false,
 		"tags":        []string{"tag1", "tag2", "tag3"},
 		"options":     map[string]interface{}{"model": "gpt-4"},
 		"prompts":     []string{"prompt1", "prompt2"},
@@ -545,6 +554,9 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"type":        "assistant",
 		"connector":   "openai",
 		"description": "Test Description 3",
+		"path":        nil,
+		"sort":        9999,
+		"built_in":    false,
 		"tags":        nil,
 		"options":     nil,
 		"prompts":     nil,
@@ -665,14 +677,232 @@ func TestXunAssistantCRUD(t *testing.T) {
 		}
 	}
 
-	// Test DeleteAssistant
-	err = store.DeleteAssistant(assistantID)
+	// Test non-existent assistant_id
+	resp, err = store.GetAssistants(AssistantFilter{
+		AssistantID: "non-existent-id",
+		Page:        1,
+		PageSize:    10,
+	})
 	assert.Nil(t, err)
-	err = store.DeleteAssistant(assistant2ID)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Test filtering with select fields
+	resp, err = store.GetAssistants(AssistantFilter{
+		Select:   []string{"name", "description", "tags"},
+		Page:     1,
+		PageSize: 10,
+	})
 	assert.Nil(t, err)
-	err = store.DeleteAssistant(assistant3ID)
+	// Verify only selected fields are returned
+	for _, item := range resp.Data {
+		// These fields should exist
+		assert.Contains(t, item, "name")
+		assert.Contains(t, item, "description")
+		assert.Contains(t, item, "tags")
+		// These fields should not exist
+		assert.NotContains(t, item, "options")
+		assert.NotContains(t, item, "prompts")
+		assert.NotContains(t, item, "flows")
+		assert.NotContains(t, item, "files")
+		assert.NotContains(t, item, "functions")
+		assert.NotContains(t, item, "permissions")
+	}
+
+	// Test filtering with select fields and other filters combined
+	resp, err = store.GetAssistants(AssistantFilter{
+		Tags:     []string{"tag1"},
+		Keywords: "Assistant",
+		Select:   []string{"name", "tags"},
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	// Verify only selected fields are returned
+	for _, item := range resp.Data {
+		// These fields should exist
+		assert.Contains(t, item, "name")
+		assert.Contains(t, item, "tags")
+		// These fields should not exist
+		assert.NotContains(t, item, "description")
+		assert.NotContains(t, item, "options")
+		assert.NotContains(t, item, "prompts")
+		assert.NotContains(t, item, "flows")
+		assert.NotContains(t, item, "files")
+		assert.NotContains(t, item, "functions")
+		assert.NotContains(t, item, "permissions")
+	}
+
+	// Test filtering with automated
+	automatedTrue := true
+	resp, err = store.GetAssistants(AssistantFilter{
+		Automated: &automatedTrue,
+		Page:      1,
+		PageSize:  10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering with mentionable
+	mentionableTrue := true
+	resp, err = store.GetAssistants(AssistantFilter{
+		Mentionable: &mentionableTrue,
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test combined filters
+	resp, err = store.GetAssistants(AssistantFilter{
+		Tags:        []string{"tag1"},
+		Keywords:    "Assistant",
+		Connector:   "openai",
+		Mentionable: &mentionableTrue,
+		Automated:   &automatedTrue,
+		Page:        1,
+		PageSize:    10,
+	})
 	assert.Nil(t, err)
 
+	// Test filtering with built_in
+	builtInTrue := true
+	resp, err = store.GetAssistants(AssistantFilter{
+		BuiltIn:  &builtInTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	for _, assistant := range resp.Data {
+		assert.Equal(t, int64(1), assistant["built_in"], "All assistants should be built-in")
+	}
+
+	builtInFalse := false
+	resp, err = store.GetAssistants(AssistantFilter{
+		BuiltIn:  &builtInFalse,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	for _, assistant := range resp.Data {
+		assert.Equal(t, int64(0), assistant["built_in"], "All assistants should not be built-in")
+	}
+
+	// Now test the delete operations
+	// First create some test data for delete operations
+	for i := 0; i < 5; i++ {
+		assistant := map[string]interface{}{
+			"name":        fmt.Sprintf("Delete Test Assistant %d", i),
+			"type":        "assistant",
+			"connector":   "openai",
+			"description": fmt.Sprintf("Delete Test Description %d", i),
+			"tags":        []string{"delete-tag1", "delete-tag2"},
+			"built_in":    i%2 == 0,
+			"mentionable": true,
+			"automated":   true,
+		}
+		_, err = store.SaveAssistant(assistant)
+		assert.Nil(t, err)
+	}
+
+	// Test delete by connector
+	count, err := store.DeleteAssistants(AssistantFilter{
+		Connector: "openai",
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAssistants(AssistantFilter{
+		Connector: "openai",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Create more test data for built_in test
+	for i := 0; i < 5; i++ {
+		assistant := map[string]interface{}{
+			"name":        fmt.Sprintf("Built-in Test Assistant %d", i),
+			"type":        "assistant",
+			"connector":   "openai",
+			"description": fmt.Sprintf("Built-in Test Description %d", i),
+			"tags":        []string{"builtin-tag1", "builtin-tag2"},
+			"built_in":    true,
+			"mentionable": true,
+			"automated":   true,
+		}
+		_, err = store.SaveAssistant(assistant)
+		assert.Nil(t, err)
+	}
+
+	// Test delete by built_in status
+	builtInTrue = true
+	count, err = store.DeleteAssistants(AssistantFilter{
+		BuiltIn: &builtInTrue,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAssistants(AssistantFilter{
+		BuiltIn: &builtInTrue,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Create more test data for tags test
+	for i := 0; i < 5; i++ {
+		assistant := map[string]interface{}{
+			"name":        fmt.Sprintf("Tags Test Assistant %d", i),
+			"type":        "assistant",
+			"connector":   "openai",
+			"description": fmt.Sprintf("Tags Test Description %d", i),
+			"tags":        []string{"tag1", "tag2"},
+			"built_in":    false,
+			"mentionable": true,
+			"automated":   true,
+		}
+		_, err = store.SaveAssistant(assistant)
+		assert.Nil(t, err)
+	}
+
+	// Test delete by tags
+	count, err = store.DeleteAssistants(AssistantFilter{
+		Tags: []string{"tag1"},
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAssistants(AssistantFilter{
+		Tags: []string{"tag1"},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Create more test data for keywords test
+	for i := 0; i < 5; i++ {
+		assistant := map[string]interface{}{
+			"name":        fmt.Sprintf("Keywords Test Assistant %d", i),
+			"type":        "assistant",
+			"connector":   "openai",
+			"description": fmt.Sprintf("Keywords Test Description %d", i),
+			"tags":        []string{"keyword-tag1", "keyword-tag2"},
+			"built_in":    false,
+			"mentionable": true,
+			"automated":   true,
+		}
+		_, err = store.SaveAssistant(assistant)
+		assert.Nil(t, err)
+	}
+
+	// Test delete by keywords
+	count, err = store.DeleteAssistants(AssistantFilter{
+		Keywords: "Keywords Test",
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify all assistants are deleted
 	resp, err = store.GetAssistants(AssistantFilter{})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(resp.Data))
@@ -725,6 +955,9 @@ func TestXunAssistantPagination(t *testing.T) {
 			"connector":   fmt.Sprintf("connector%d", i%3),
 			"description": fmt.Sprintf("Description %d", i),
 			"tags":        tagsJSON,
+			"sort":        9999 - i,
+			"updated_at":  time.Now().Add(time.Duration(-i) * time.Hour),
+			"built_in":    i%2 == 0,
 			"mentionable": mentionable,
 			"automated":   automated,
 		}
@@ -743,6 +976,25 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Equal(t, 3, resp.PageCnt)
 	assert.Equal(t, 2, resp.Next)
 	assert.Equal(t, 0, resp.Prev)
+
+	// Verify sorting order (sort ASC, updated_at DESC)
+	for i := 1; i < len(resp.Data); i++ {
+		curr := resp.Data[i]["sort"].(int64)
+		prev := resp.Data[i-1]["sort"].(int64)
+		assert.True(t, curr >= prev, "Results should be sorted by sort ASC")
+
+		// When sort values are equal, check updated_at if both values exist
+		if curr == prev {
+			currTime, currOk := resp.Data[i]["updated_at"].(time.Time)
+			prevTime, prevOk := resp.Data[i-1]["updated_at"].(time.Time)
+
+			// Only compare times if both values exist
+			if currOk && prevOk {
+				assert.True(t, currTime.Before(prevTime) || currTime.Equal(prevTime),
+					"Results with same sort should be ordered by updated_at DESC")
+			}
+		}
+	}
 
 	// Test second page
 	resp, err = store.GetAssistants(AssistantFilter{
@@ -811,7 +1063,30 @@ func TestXunAssistantPagination(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(resp.Data), 0)
 
-	// Test filtering by assistant_id
+	// Test filtering with built_in
+	builtInTrue := true
+	resp, err = store.GetAssistants(AssistantFilter{
+		BuiltIn:  &builtInTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	for _, assistant := range resp.Data {
+		assert.Equal(t, int64(1), assistant["built_in"], "All assistants should be built-in")
+	}
+
+	builtInFalse := false
+	resp, err = store.GetAssistants(AssistantFilter{
+		BuiltIn:  &builtInFalse,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	for _, assistant := range resp.Data {
+		assert.Equal(t, int64(0), assistant["built_in"], "All assistants should not be built-in")
+	}
+
+	// Test assistant_id with other filters
 	// First get an assistant_id from previous results
 	firstAssistantID := resp.Data[0]["assistant_id"].(string)
 
@@ -850,18 +1125,6 @@ func TestXunAssistantPagination(t *testing.T) {
 	})
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(resp.Data))
-
-	// Test combined filters
-	resp, err = store.GetAssistants(AssistantFilter{
-		Tags:        []string{"tag0"},
-		Keywords:    "Assistant",
-		Connector:   "connector0",
-		Mentionable: &mentionableTrue,
-		Automated:   &automatedTrue,
-		Page:        1,
-		PageSize:    10,
-	})
-	assert.Nil(t, err)
 
 	// Test filtering with select fields
 	resp, err = store.GetAssistants(AssistantFilter{
@@ -908,5 +1171,153 @@ func TestXunAssistantPagination(t *testing.T) {
 		assert.NotContains(t, item, "files")
 		assert.NotContains(t, item, "functions")
 		assert.NotContains(t, item, "permissions")
+	}
+
+	// Test combined filters
+	resp, err = store.GetAssistants(AssistantFilter{
+		Tags:        []string{"tag0"},
+		Keywords:    "Assistant",
+		Connector:   "connector0",
+		Mentionable: &mentionableTrue,
+		Automated:   &automatedTrue,
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+
+	// Now test the delete operations
+	// Test delete by connector
+	count, err := store.DeleteAssistants(AssistantFilter{
+		Connector: "connector0",
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAssistants(AssistantFilter{
+		Connector: "connector0",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Test delete by built_in status
+	builtInTrue = true
+	count, err = store.DeleteAssistants(AssistantFilter{
+		BuiltIn: &builtInTrue,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAssistants(AssistantFilter{
+		BuiltIn: &builtInTrue,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Test delete by tags
+	count, err = store.DeleteAssistants(AssistantFilter{
+		Tags: []string{"tag1"},
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAssistants(AssistantFilter{
+		Tags: []string{"tag1"},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Test delete by keywords
+	count, err = store.DeleteAssistants(AssistantFilter{
+		Keywords: "Assistant",
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify all assistants are deleted
+	resp, err = store.GetAssistants(AssistantFilter{})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+}
+
+func TestGetAssistantTags(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_assistant")
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Table:     "__unit_test_conversation",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test assistants with tags
+	assistants := []map[string]interface{}{
+		{
+			"assistant_id": "test-assistant-1",
+			"type":         "assistant",
+			"connector":    "test",
+			"tags":         []string{"tag1", "tag2"},
+			"name":         "Test Assistant 1",
+		},
+		{
+			"assistant_id": "test-assistant-2",
+			"type":         "assistant",
+			"connector":    "test",
+			"tags":         []string{"tag2", "tag3"},
+			"name":         "Test Assistant 2",
+		},
+		{
+			"assistant_id": "test-assistant-3",
+			"type":         "assistant",
+			"connector":    "test",
+			"tags":         []string{"tag1", "tag3", "tag4"},
+			"name":         "Test Assistant 3",
+		},
+	}
+
+	// Save test assistants
+	for _, assistant := range assistants {
+		_, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Get tags
+	tags, err := store.GetAssistantTags()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify results
+	expectedTags := map[string]bool{
+		"tag1": true,
+		"tag2": true,
+		"tag3": true,
+		"tag4": true,
+	}
+
+	if len(tags) != len(expectedTags) {
+		t.Errorf("Expected %d tags, got %d", len(expectedTags), len(tags))
+	}
+
+	for _, tag := range tags {
+		if !expectedTags[tag] {
+			t.Errorf("Unexpected tag found: %s", tag)
+		}
+	}
+
+	// Cleanup
+	for _, assistant := range assistants {
+		err := store.DeleteAssistant(assistant["assistant_id"].(string))
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }

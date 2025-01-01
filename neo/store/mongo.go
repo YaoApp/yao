@@ -62,3 +62,13 @@ func (m *Mongo) GetAssistants(filter AssistantFilter) (*AssistantResponse, error
 func (m *Mongo) GetAssistant(assistantID string) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
+
+// DeleteAssistants deletes assistants based on filter conditions (not implemented)
+func (mongo *Mongo) DeleteAssistants(filter AssistantFilter) (int64, error) {
+	return 0, nil
+}
+
+// GetAssistantTags retrieves all unique tags from assistants
+func (conv *Mongo) GetAssistantTags() ([]string, error) {
+	return []string{}, nil
+}

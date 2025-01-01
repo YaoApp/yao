@@ -62,6 +62,9 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// List assistants example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants?page=1&pagesize=20&tags=tag1,tag2&token=xxx'
 	router.GET(path+"/assistants", append(middlewares, neo.handleAssistantList)...)
+	// Get all assistant tags example:
+	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants/tags?token=xxx'
+	router.GET(path+"/assistants/tags", append(middlewares, neo.handleAssistantTags)...)
 
 	// Get assistant details example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants/assistant_123?token=xxx'
@@ -878,6 +881,14 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		filter.Select = strings.Split(selectFields, ",")
 	}
 
+	// Parse built_in (support various boolean formats)
+	if builtIn := c.Query("built_in"); builtIn != "" {
+		val := parseBoolValue(builtIn)
+		if val != nil {
+			filter.BuiltIn = val
+		}
+	}
+
 	// Parse mentionable (support various boolean formats)
 	if mentionable := c.Query("mentionable"); mentionable != "" {
 		val := parseBoolValue(mentionable)
@@ -892,6 +903,11 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		if val != nil {
 			filter.Automated = val
 		}
+	}
+
+	// Parse assistant_id
+	if assistantID := c.Query("assistant_id"); assistantID != "" {
+		filter.AssistantID = assistantID
 	}
 
 	response, err := neo.Store.GetAssistants(filter)
@@ -1021,5 +1037,25 @@ func (neo *DSL) handleConnectors(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"data": options})
+	c.Done()
+}
+
+// handleAssistantTags handles getting all assistant tags
+func (neo *DSL) handleAssistantTags(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	tags, err := neo.Store.GetAssistantTags()
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, gin.H{"data": tags})
 	c.Done()
 }

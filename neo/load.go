@@ -51,6 +51,13 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Load Built-in Assistants
+	assistant.SetStorage(Neo.Store)
+	err = assistant.LoadBuiltIn()
+	if err != nil {
+		return err
+	}
+
 	// Query Assistant List
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

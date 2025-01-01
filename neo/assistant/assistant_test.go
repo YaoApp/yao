@@ -127,6 +127,196 @@ func TestAssistant_Cache(t *testing.T) {
 	assert.NotNil(t, loaded)
 }
 
+func TestAssistant_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		ast     *Assistant
+		wantErr bool
+	}{
+		{
+			name: "valid assistant",
+			ast: &Assistant{
+				ID:        "test-id",
+				Name:      "Test Assistant",
+				Connector: "test-connector",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing id",
+			ast: &Assistant{
+				Name:      "Test Assistant",
+				Connector: "test-connector",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing name",
+			ast: &Assistant{
+				ID:        "test-id",
+				Connector: "test-connector",
+			},
+			wantErr: true,
+		},
+		{
+			name: "missing connector",
+			ast: &Assistant{
+				ID:   "test-id",
+				Name: "Test Assistant",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.ast.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Assistant.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAssistant_Clone(t *testing.T) {
+	// Create a test assistant with all fields populated
+	original := &Assistant{
+		ID:          "test-id",
+		Type:        "test-type",
+		Name:        "Test Assistant",
+		Avatar:      "test-avatar",
+		Connector:   "test-connector",
+		Path:        "test-path",
+		BuiltIn:     true,
+		Sort:        1,
+		Description: "test description",
+		Tags:        []string{"tag1", "tag2"},
+		Readonly:    true,
+		Mentionable: true,
+		Automated:   true,
+		Options:     map[string]interface{}{"key": "value"},
+		Prompts:     []Prompt{{Role: "system", Content: "test"}},
+		Flows:       []map[string]interface{}{{"step": "test"}},
+	}
+
+	// Clone the assistant
+	clone := original.Clone()
+
+	// Verify all fields are correctly cloned
+	assert.Equal(t, original.ID, clone.ID)
+	assert.Equal(t, original.Type, clone.Type)
+	assert.Equal(t, original.Name, clone.Name)
+	assert.Equal(t, original.Avatar, clone.Avatar)
+	assert.Equal(t, original.Connector, clone.Connector)
+	assert.Equal(t, original.Path, clone.Path)
+	assert.Equal(t, original.BuiltIn, clone.BuiltIn)
+	assert.Equal(t, original.Sort, clone.Sort)
+	assert.Equal(t, original.Description, clone.Description)
+	assert.Equal(t, original.Tags, clone.Tags)
+	assert.Equal(t, original.Readonly, clone.Readonly)
+	assert.Equal(t, original.Mentionable, clone.Mentionable)
+	assert.Equal(t, original.Automated, clone.Automated)
+	assert.Equal(t, original.Options, clone.Options)
+	assert.Equal(t, original.Prompts, clone.Prompts)
+	assert.Equal(t, original.Flows, clone.Flows)
+
+	// Verify deep copy by modifying original
+	original.Tags[0] = "modified"
+	original.Options["key"] = "modified"
+	original.Flows[0]["step"] = "modified"
+	assert.NotEqual(t, original.Tags[0], clone.Tags[0])
+	assert.NotEqual(t, original.Options["key"], clone.Options["key"])
+	assert.NotEqual(t, original.Flows[0]["step"], clone.Flows[0]["step"])
+
+	// Test nil case
+	var nilAssistant *Assistant
+	assert.Nil(t, nilAssistant.Clone())
+}
+
+func TestAssistant_Update(t *testing.T) {
+	// Create a test assistant
+	ast := &Assistant{
+		ID:        "test-id",
+		Name:      "Original Name",
+		Connector: "original-connector",
+	}
+
+	// Test updating various fields
+	updates := map[string]interface{}{
+		"name":        "Updated Name",
+		"avatar":      "updated-avatar",
+		"description": "Updated description",
+		"connector":   "updated-connector",
+		"type":        "updated-type",
+		"sort":        2,
+		"mentionable": true,
+		"automated":   true,
+		"tags":        []string{"new-tag"},
+		"options":     map[string]interface{}{"new": "value"},
+	}
+
+	err := ast.Update(updates)
+	assert.NoError(t, err)
+
+	// Verify updates
+	assert.Equal(t, "Updated Name", ast.Name)
+	assert.Equal(t, "updated-avatar", ast.Avatar)
+	assert.Equal(t, "Updated description", ast.Description)
+	assert.Equal(t, "updated-connector", ast.Connector)
+	assert.Equal(t, "updated-type", ast.Type)
+	assert.Equal(t, 2, ast.Sort)
+	assert.True(t, ast.Mentionable)
+	assert.True(t, ast.Automated)
+	assert.Equal(t, []string{"new-tag"}, ast.Tags)
+	assert.Equal(t, map[string]interface{}{"new": "value"}, ast.Options)
+
+	// Test nil assistant
+	var nilAssistant *Assistant
+	err = nilAssistant.Update(updates)
+	assert.Error(t, err)
+
+	// Test invalid update that would make the assistant invalid
+	invalidUpdates := map[string]interface{}{
+		"name": "",
+	}
+	err = ast.Update(invalidUpdates)
+	assert.Error(t, err)
+}
+
+func TestLoadBuiltIn(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
+
+	// Clear any existing cache and storage
+	ClearCache()
+	SetStorage(nil)
+
+	// Create a mock store to verify built-in assistants are saved
+	mockStore := &mockStore{
+		data: make(map[string]map[string]interface{}),
+	}
+	SetStorage(mockStore)
+	SetCache(100)
+
+	// Test loading built-in assistants
+	err := LoadBuiltIn()
+	assert.NoError(t, err)
+
+	// Verify Modi assistant was loaded
+	assistant, exists := loaded.Get("modi")
+	assert.True(t, exists, "Modi assistant should be loaded in cache")
+	if exists {
+		assert.Equal(t, "modi", assistant.ID)
+		assert.Equal(t, "Modi", assistant.Name)
+		assert.Equal(t, "deepseek", assistant.Connector)
+		assert.True(t, assistant.BuiltIn)
+		assert.True(t, assistant.Readonly)
+		assert.NotNil(t, assistant.Prompts)
+		assert.NotNil(t, assistant.Script)
+	}
+
+}
+
 // mockStore implements store.Store interface for testing
 type mockStore struct {
 	data map[string]map[string]interface{}
@@ -193,4 +383,6 @@ func (m *mockStore) SaveAssistant(assistant map[string]interface{}) (interface{}
 func (m *mockStore) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
 	return nil
 }
-func (m *mockStore) UpdateChatTitle(sid string, cid string, title string) error { return nil }
+func (m *mockStore) UpdateChatTitle(sid string, cid string, title string) error   { return nil }
+func (m *mockStore) DeleteAssistants(filter store.AssistantFilter) (int64, error) { return 0, nil }
+func (m *mockStore) GetAssistantTags() ([]string, error)                          { return []string{}, nil }

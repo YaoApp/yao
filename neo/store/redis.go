@@ -62,3 +62,13 @@ func (r *Redis) GetAssistants(filter AssistantFilter) (*AssistantResponse, error
 func (r *Redis) GetAssistant(assistantID string) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
 }
+
+// DeleteAssistants deletes assistants based on filter conditions (not implemented)
+func (redis *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
+	return 0, nil
+}
+
+// GetAssistantTags retrieves all unique tags from assistants
+func (conv *Redis) GetAssistantTags() ([]string, error) {
+	return []string{}, nil
+}
