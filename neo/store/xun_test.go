@@ -483,6 +483,20 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assistantID := v.(string)
 	assert.NotEmpty(t, assistantID)
 
+	// Test GetAssistant for the first assistant
+	assistantData, err := store.GetAssistant(assistantID)
+	assert.Nil(t, err)
+	assert.NotNil(t, assistantData)
+	assert.Equal(t, "Test Assistant", assistantData["name"])
+	assert.Equal(t, "assistant", assistantData["type"])
+	assert.Equal(t, "https://example.com/avatar.png", assistantData["avatar"])
+	assert.Equal(t, "openai", assistantData["connector"])
+	assert.Equal(t, "Test Description", assistantData["description"])
+	assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, assistantData["tags"])
+	assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, assistantData["options"])
+	assert.Equal(t, int64(1), assistantData["mentionable"])
+	assert.Equal(t, int64(1), assistantData["automated"])
+
 	// Test case 2: JSON fields as native types
 	assistant2 := map[string]interface{}{
 		"name":        "Test Assistant 2",
@@ -507,6 +521,24 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assistant2ID := v.(string)
 	assert.NotEmpty(t, assistant2ID)
 
+	// Test GetAssistant for the second assistant
+	assistant2Data, err := store.GetAssistant(assistant2ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, assistant2Data)
+	assert.Equal(t, "Test Assistant 2", assistant2Data["name"])
+	assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, assistant2Data["tags"])
+	assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, assistant2Data["options"])
+	assert.Equal(t, []interface{}{"prompt1", "prompt2"}, assistant2Data["prompts"])
+	assert.Equal(t, []interface{}{"flow1", "flow2"}, assistant2Data["flows"])
+	assert.Equal(t, []interface{}{"file1", "file2"}, assistant2Data["files"])
+	assert.Equal(t, []interface{}{
+		map[string]interface{}{"name": "func1"},
+		map[string]interface{}{"name": "func2"},
+	}, assistant2Data["functions"])
+	assert.Equal(t, map[string]interface{}{"read": true, "write": true}, assistant2Data["permissions"])
+	assert.Equal(t, int64(1), assistant2Data["mentionable"])
+	assert.Equal(t, int64(1), assistant2Data["automated"])
+
 	// Test case 3: Test with nil JSON fields
 	assistant3 := map[string]interface{}{
 		"name":        "Test Assistant 3",
@@ -529,6 +561,27 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assert.Nil(t, err)
 	assistant3ID := v.(string)
 	assert.NotEmpty(t, assistant3ID)
+
+	// Test GetAssistant for the third assistant
+	assistant3Data, err := store.GetAssistant(assistant3ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, assistant3Data)
+	assert.Equal(t, "Test Assistant 3", assistant3Data["name"])
+	assert.Nil(t, assistant3Data["tags"])
+	assert.Nil(t, assistant3Data["options"])
+	assert.Nil(t, assistant3Data["prompts"])
+	assert.Nil(t, assistant3Data["flows"])
+	assert.Nil(t, assistant3Data["files"])
+	assert.Nil(t, assistant3Data["functions"])
+	assert.Nil(t, assistant3Data["permissions"])
+	assert.Equal(t, int64(1), assistant3Data["mentionable"])
+	assert.Equal(t, int64(1), assistant3Data["automated"])
+
+	// Test GetAssistant with non-existent ID
+	nonExistentData, err := store.GetAssistant("non-existent-id")
+	assert.Error(t, err)
+	assert.Nil(t, nonExistentData)
+	assert.Contains(t, err.Error(), "not found")
 
 	// Test GetAssistants to verify JSON fields are properly stored
 	resp, err := store.GetAssistants(AssistantFilter{})

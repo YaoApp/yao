@@ -44,6 +44,7 @@ type Xun struct {
 // SaveAssistant creates or updates an assistant
 // DeleteAssistant deletes an assistant by assistant_id
 // GetAssistants retrieves a paginated list of assistants with filtering
+// GetAssistant retrieves a single assistant by assistant_id
 
 // NewXun create a new xun store
 func NewXun(setting Setting) (Store, error) {
@@ -922,4 +923,30 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		Prev:     prevPage,
 		Total:    total,
 	}, nil
+}
+
+// GetAssistant retrieves a single assistant by ID
+func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error) {
+	row, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		First()
+	if err != nil {
+		return nil, err
+	}
+
+	if row == nil {
+		return nil, fmt.Errorf("assistant %s not found", assistantID)
+	}
+
+	data := row.ToMap()
+	if data == nil || len(data) == 0 {
+		return nil, fmt.Errorf("assistant %s not found", assistantID)
+	}
+
+	// Parse JSON fields
+	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "functions", "permissions"}
+	conv.parseJSONFields(data, jsonFields)
+
+	return data, nil
 }

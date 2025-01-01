@@ -57,3 +57,8 @@ func (m *Mongo) DeleteAssistant(assistantID string) error {
 func (m *Mongo) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
 	return &AssistantResponse{}, nil
 }
+
+// GetAssistant retrieves a single assistant by ID
+func (m *Mongo) GetAssistant(assistantID string) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
+}

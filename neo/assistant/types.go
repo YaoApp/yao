@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"mime/multipart"
+
+	v8 "github.com/yaoapp/gou/runtime/v8"
 )
 
 // API the assistant API interface
@@ -40,6 +42,7 @@ type Assistant struct {
 	Option      map[string]interface{}   `json:"option,omitempty"`      // AI Option
 	Prompts     []Prompt                 `json:"prompts,omitempty"`     // AI Prompts
 	Flows       []map[string]interface{} `json:"flows,omitempty"`       // Assistant Flows
+	Script      *v8.Script               `json:"-" yaml:"-"`            // Assistant Script
 	API         API                      `json:"-" yaml:"-"`            // Assistant API
 }
 

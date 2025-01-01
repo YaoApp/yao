@@ -535,10 +535,6 @@ func (neo *DSL) createStore() error {
 	} else if conn.Is(connector.MONGO) {
 		neo.Store = store.NewMongo()
 		return nil
-
-	} else if conn.Is(connector.WEAVIATE) {
-		neo.Store = store.NewWeaviate()
-		return nil
 	}
 
 	return fmt.Errorf("%s store connector %s not support", neo.ID, neo.StoreSetting.Connector)

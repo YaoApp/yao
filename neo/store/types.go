@@ -130,4 +130,9 @@ type Store interface {
 	// filter: Filter conditions
 	// Returns: Paginated assistant list and potential error
 	GetAssistants(filter AssistantFilter) (*AssistantResponse, error)
+
+	// GetAssistant retrieves a single assistant by ID
+	// assistantID: Assistant ID
+	// Returns: Assistant information and potential error
+	GetAssistant(assistantID string) (map[string]interface{}, error)
 }

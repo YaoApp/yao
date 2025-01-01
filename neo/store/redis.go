@@ -57,3 +57,8 @@ func (r *Redis) DeleteAssistant(assistantID string) error {
 func (r *Redis) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
 	return &AssistantResponse{}, nil
 }
+
+// GetAssistant retrieves a single assistant by ID
+func (r *Redis) GetAssistant(assistantID string) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
+}
