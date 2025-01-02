@@ -99,7 +99,7 @@ func (conv *Xun) clean() {
 	}
 
 	if nums > 0 {
-		log.Trace("Clean the conversation table: %s %d", conv.setting.Table, nums)
+		log.Trace("Clean the conversation table: %s %d", conv.setting.Prefix, nums)
 	}
 }
 
@@ -283,15 +283,15 @@ func (conv *Xun) getUserID(sid string) (string, error) {
 }
 
 func (conv *Xun) getHistoryTable() string {
-	return conv.setting.Table + "_history"
+	return conv.setting.Prefix + "history"
 }
 
 func (conv *Xun) getChatTable() string {
-	return conv.setting.Table + "_chat"
+	return conv.setting.Prefix + "chat"
 }
 
 func (conv *Xun) getAssistantTable() string {
-	return conv.setting.Table + "_assistant"
+	return conv.setting.Prefix + "assistant"
 }
 
 // UpdateChatTitle update the chat title

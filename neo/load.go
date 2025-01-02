@@ -38,7 +38,7 @@ func Load(cfg config.Config) error {
 		Option:  map[string]interface{}{},
 		Allows:  []string{},
 		StoreSetting: store.Setting{
-			Table:     "yao_neo_conversation",
+			Prefix:    "yao_neo_",
 			Connector: "default",
 		},
 	}
