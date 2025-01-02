@@ -1,10 +1,10 @@
-package conversation
+package store
 
 // Redis represents a Redis-based conversation storage
 type Redis struct{}
 
-// NewRedis creates a new Redis conversation storage
-func NewRedis() *Redis {
+// NewRedis create a new redis store
+func NewRedis() Store {
 	return &Redis{}
 }
 
@@ -56,4 +56,19 @@ func (r *Redis) DeleteAssistant(assistantID string) error {
 // GetAssistants retrieves a list of assistants
 func (r *Redis) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
 	return &AssistantResponse{}, nil
+}
+
+// GetAssistant retrieves a single assistant by ID
+func (r *Redis) GetAssistant(assistantID string) (map[string]interface{}, error) {
+	return map[string]interface{}{}, nil
+}
+
+// DeleteAssistants deletes assistants based on filter conditions (not implemented)
+func (redis *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
+	return 0, nil
+}
+
+// GetAssistantTags retrieves all unique tags from assistants
+func (conv *Redis) GetAssistantTags() ([]string, error) {
+	return []string{}, nil
 }

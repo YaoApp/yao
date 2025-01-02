@@ -73,12 +73,11 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        go: [1.20.0, 1.21.1]
+        go: [1.23]
         db: [MySQL8.0, MySQL5.7, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]
     steps:
-
       - name: Checkout Kun
         uses: actions/checkout@v4
         with:

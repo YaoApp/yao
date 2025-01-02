@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"mime/multipart"
+
+	v8 "github.com/yaoapp/gou/runtime/v8"
 )
 
 // API the assistant API interface
@@ -11,6 +13,7 @@ type API interface {
 	Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
+	ReadBase64(ctx context.Context, fileID string) (string, error)
 }
 
 // Prompt a prompt
@@ -35,10 +38,18 @@ type Assistant struct {
 	Name        string                   `json:"name,omitempty"`        // Assistant Name
 	Avatar      string                   `json:"avatar,omitempty"`      // Assistant Avatar
 	Connector   string                   `json:"connector"`             // AI Connector
+	Path        string                   `json:"path,omitempty"`        // Assistant Path
+	BuiltIn     bool                     `json:"built_in,omitempty"`    // Whether this is a built-in assistant
+	Sort        int                      `json:"sort,omitempty"`        // Assistant Sort
 	Description string                   `json:"description,omitempty"` // Assistant Description
-	Option      map[string]interface{}   `json:"option,omitempty"`      // AI Option
+	Tags        []string                 `json:"tags,omitempty"`        // Assistant Tags
+	Readonly    bool                     `json:"readonly,omitempty"`    // Whether this assistant is readonly
+	Mentionable bool                     `json:"mentionable,omitempty"` // Whether this assistant is mentionable
+	Automated   bool                     `json:"automated,omitempty"`   // Whether this assistant is automated
+	Options     map[string]interface{}   `json:"options,omitempty"`     // AI Options
 	Prompts     []Prompt                 `json:"prompts,omitempty"`     // AI Prompts
 	Flows       []map[string]interface{} `json:"flows,omitempty"`       // Assistant Flows
+	Script      *v8.Script               `json:"-" yaml:"-"`            // Assistant Script
 	API         API                      `json:"-" yaml:"-"`            // Assistant API
 }
 

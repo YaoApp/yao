@@ -13,8 +13,8 @@ import (
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/assistant/local"
 	"github.com/yaoapp/yao/neo/assistant/openai"
-	"github.com/yaoapp/yao/neo/conversation"
 	"github.com/yaoapp/yao/neo/message"
+	"github.com/yaoapp/yao/neo/store"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -124,7 +124,6 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
 	fail := make(chan error, 1)
-
 	content := []byte{}
 
 	// Chat with AI in background
@@ -142,26 +141,28 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 
 				// Handle error
 				if msg.Type == "error" {
-					fail <- fmt.Errorf("%s", msg.Message.Text)
+					fail <- fmt.Errorf("%s", msg.Text)
 					return 0 // break
 				}
 
 				// Append content and send message
 				content = msg.Append(content)
-
-				// Only send real-time messages if not in silent mode
-				if !silent && msg.Message != nil && msg.Message.Text != "" {
-					message.New().
-						Map(map[string]interface{}{
-							"text": msg.Message.Text,
-							"done": msg.Message.Done,
-						}).
-						Write(c.Writer)
+				if !silent {
+					value := msg.String()
+					if value != "" {
+						message.New().
+							Map(map[string]interface{}{
+								"text": value,
+								"done": msg.IsDone,
+							}).
+							Write(c.Writer)
+					}
 				}
 
 				// Complete the stream
-				if msg.Message.Done {
-					if !silent && msg.Message.Text == "" {
+				if msg.IsDone {
+					value := msg.String()
+					if value == "" {
 						msg.Write(c.Writer)
 					}
 					done <- true
@@ -267,7 +268,6 @@ func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, 
 
 // chat chat with AI
 func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]interface{}, c *gin.Context) error {
-
 	if ast == nil {
 		msg := message.New().Error("assistant is not initialized").Done()
 		msg.Write(c.Writer)
@@ -293,24 +293,26 @@ func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]inter
 
 				// Handle error
 				if msg.Type == "error" {
-					message.New().Error(msg.Message.Text).Done().Write(c.Writer)
+					value := msg.String()
+					message.New().Error(value).Done().Write(c.Writer)
 					return 0 // break
 				}
 
 				// Append content and send message
 				content = msg.Append(content)
-				if msg.Message != nil && msg.Message.Text != "" {
+				value := msg.String()
+				if value != "" {
 					message.New().
 						Map(map[string]interface{}{
-							"text": msg.Message.Text,
-							"done": msg.Message.Done,
+							"text": value,
+							"done": msg.IsDone,
 						}).
 						Write(c.Writer)
 				}
 
 				// Complete the stream
-				if msg.Message != nil && msg.Message.Done {
-					if msg.Message.Text == "" {
+				if msg.IsDone {
+					if value == "" {
 						msg.Write(c.Writer)
 					}
 					done <- true
@@ -342,6 +344,20 @@ func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]inter
 		clientBreak <- true
 		return nil
 	}
+}
+
+// defaultAssistant get the default assistant
+func (neo *DSL) defaultAssistant() (*assistant.Assistant, error) {
+	if neo.Use != "" {
+		return assistant.Get(neo.Use)
+	}
+
+	name := neo.Name
+	if name == "" {
+		name = "Neo"
+	}
+
+	return assistant.GetByConnector(neo.Connector, name)
 }
 
 // updateAssistantList update the assistant list
@@ -471,7 +487,7 @@ func (neo *DSL) createDefaultAssistant() (assistant.API, error) {
 // chatMessages get the chat messages
 func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]interface{}, error) {
 
-	history, err := neo.Conversation.GetHistory(ctx.Sid, ctx.ChatID)
+	history, err := neo.Store.GetHistory(ctx.Sid, ctx.ChatID)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +507,7 @@ func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]inter
 func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages []map[string]interface{}) {
 
 	if len(content) > 0 && sid != "" && len(messages) > 0 {
-		err := neo.Conversation.SaveHistory(
+		err := neo.Store.SaveHistory(
 			sid,
 			[]map[string]interface{}{
 				{"role": "user", "content": messages[len(messages)-1]["content"], "name": sid},
@@ -507,46 +523,44 @@ func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages 
 	}
 }
 
-// createConversation create a new conversation
-func (neo *DSL) createConversation() error {
+// createStore create a new store
+func (neo *DSL) createStore() error {
 
 	var err error
-	if neo.ConversationSetting.Connector == "default" || neo.ConversationSetting.Connector == "" {
-		neo.Conversation, err = conversation.NewXun(neo.ConversationSetting)
+	if neo.StoreSetting.Connector == "default" || neo.StoreSetting.Connector == "" {
+		neo.Store, err = store.NewXun(neo.StoreSetting)
 		return err
 	}
 
 	// other connector
-	conn, err := connector.Select(neo.ConversationSetting.Connector)
+	conn, err := connector.Select(neo.StoreSetting.Connector)
 	if err != nil {
 		return err
 	}
 
 	if conn.Is(connector.DATABASE) {
-		neo.Conversation, err = conversation.NewXun(neo.ConversationSetting)
+		neo.Store, err = store.NewXun(neo.StoreSetting)
 		return err
 
 	} else if conn.Is(connector.REDIS) {
-		neo.Conversation = conversation.NewRedis()
+		neo.Store = store.NewRedis()
 		return nil
 
 	} else if conn.Is(connector.MONGO) {
-		neo.Conversation = conversation.NewMongo()
-		return nil
-
-	} else if conn.Is(connector.WEAVIATE) {
-		neo.Conversation = conversation.NewWeaviate()
+		neo.Store = store.NewMongo()
 		return nil
 	}
 
-	return fmt.Errorf("%s conversation connector %s not support", neo.ID, neo.ConversationSetting.Connector)
+	return fmt.Errorf("%s store connector %s not support", neo.ID, neo.StoreSetting.Connector)
 }
 
 // sendMessage sends a message to the client
 func (neo *DSL) sendMessage(w gin.ResponseWriter, data interface{}) error {
-	msg := message.New().Map(data.(map[string]interface{}))
-	if !msg.Write(w) {
-		return fmt.Errorf("failed to write message to stream")
+	if msg, ok := data.(map[string]interface{}); ok {
+		if !message.New().Map(msg).Write(w) {
+			return fmt.Errorf("failed to write message to stream")
+		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("invalid message data type")
 }

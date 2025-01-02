@@ -1,19 +1,33 @@
 package neo
 
 import (
-	"context"
-	"fmt"
 	"path/filepath"
-	"time"
 
+	"github.com/fatih/color"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/conversation"
+	"github.com/yaoapp/yao/neo/rag"
+	"github.com/yaoapp/yao/neo/store"
 )
 
 // Neo the neo AI assistant
 var Neo *DSL
+
+// initRAG initialize the RAG instance
+func (neo *DSL) initRAG() {
+	if neo.RAGSetting.Engine.Driver == "" {
+		return
+	}
+	instance, err := rag.New(neo.RAGSetting)
+	if err != nil {
+		color.Red("[Neo] Failed to initialize RAG: %v", err)
+		log.Error("[Neo] Failed to initialize RAG: %v", err)
+		return
+	}
+	neo.RAG = instance
+}
 
 // Load load AIGC
 func Load(cfg config.Config) error {
@@ -23,7 +37,7 @@ func Load(cfg config.Config) error {
 		Prompts: []assistant.Prompt{},
 		Option:  map[string]interface{}{},
 		Allows:  []string{},
-		ConversationSetting: conversation.Setting{
+		StoreSetting: store.Setting{
 			Table:     "yao_neo_conversation",
 			Connector: "default",
 		},
@@ -39,44 +53,33 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	if setting.ConversationSetting.MaxSize == 0 {
-		setting.ConversationSetting.MaxSize = 100
+	if setting.StoreSetting.MaxSize == 0 {
+		setting.StoreSetting.MaxSize = 100
 	}
 
 	Neo = &setting
 
-	// Conversation Setting
-	err = Neo.createConversation()
+	// Store Setting
+	err = Neo.createStore()
 	if err != nil {
 		return err
 	}
 
-	// Query Assistant List
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Initialize RAG
+	Neo.initRAG()
 
-	listDone := make(chan error, 1)
-	go func() {
-		list, err := Neo.HookAssistants(ctx, assistant.QueryParam{Limit: 100})
-		Neo.updateAssistantList(list)
-		listDone <- err
-	}()
-
-	select {
-	case err := <-listDone:
-		if err != nil {
-			return fmt.Errorf("Neo assistant list failed: %w", err)
-		}
-
-		// Create Default Assistant
-		Neo.Assistant, err = Neo.createDefaultAssistant()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	case <-ctx.Done():
-		return fmt.Errorf("Neo assistant list timeout: %w", ctx.Err())
+	// Load Built-in Assistants
+	assistant.SetStorage(Neo.Store)
+	err = assistant.LoadBuiltIn()
+	if err != nil {
+		return err
 	}
 
+	defaultAssistant, err := Neo.defaultAssistant()
+	if err != nil {
+		return err
+	}
+
+	Neo.Assistant = defaultAssistant.API
+	return nil
 }

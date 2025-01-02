@@ -1,4 +1,4 @@
-package conversation
+package store
 
 // Setting represents the conversation configuration structure
 // Used to configure basic conversation parameters including connector, user field, table name, etc.
@@ -52,6 +52,7 @@ type AssistantFilter struct {
 	AssistantID string   `json:"assistant_id,omitempty"` // Filter by assistant ID
 	Mentionable *bool    `json:"mentionable,omitempty"`  // Filter by mentionable status
 	Automated   *bool    `json:"automated,omitempty"`    // Filter by automation status
+	BuiltIn     *bool    `json:"built_in,omitempty"`     // Filter by built-in status
 	Page        int      `json:"page,omitempty"`         // Page number, starting from 1
 	PageSize    int      `json:"pagesize,omitempty"`     // Items per page
 	Select      []string `json:"select,omitempty"`       // Fields to return, returns all fields if empty
@@ -69,9 +70,9 @@ type AssistantResponse struct {
 	Total    int64                    `json:"total"`    // Total number of items
 }
 
-// Conversation defines the conversation storage interface
+// Store defines the conversation storage interface
 // Provides basic operations required for conversation management
-type Conversation interface {
+type Store interface {
 	// GetChats retrieves a list of chats
 	// sid: Session ID
 	// filter: Filter conditions
@@ -130,4 +131,18 @@ type Conversation interface {
 	// filter: Filter conditions
 	// Returns: Paginated assistant list and potential error
 	GetAssistants(filter AssistantFilter) (*AssistantResponse, error)
+
+	// GetAssistant retrieves a single assistant by ID
+	// assistantID: Assistant ID
+	// Returns: Assistant information and potential error
+	GetAssistant(assistantID string) (map[string]interface{}, error)
+
+	// DeleteAssistants deletes assistants based on filter conditions
+	// filter: Filter conditions
+	// Returns: Number of deleted records and potential error
+	DeleteAssistants(filter AssistantFilter) (int64, error)
+
+	// GetAssistantTags retrieves all unique tags from assistants
+	// Returns: List of tags and potential error
+	GetAssistantTags() ([]string, error)
 }

@@ -3,6 +3,7 @@ package local
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -131,4 +132,31 @@ func (ast *Local) Download(ctx context.Context, fileID string) (*assistant.FileR
 		ContentType: contentType,
 		Extension:   ext,
 	}, nil
+}
+
+// ReadBase64 reads a file and returns its base64 encoded content
+func (ast *Local) ReadBase64(ctx context.Context, fileID string) (string, error) {
+	// Get the data filesystem
+	data, err := fs.Get("data")
+	if err != nil {
+		return "", fmt.Errorf("get filesystem error: %s", err.Error())
+	}
+
+	// Check if file exists
+	exists, err := data.Exists(fileID)
+	if err != nil {
+		return "", fmt.Errorf("check file error: %s", err.Error())
+	}
+	if !exists {
+		return "", fmt.Errorf("file %s not found", fileID)
+	}
+
+	// Read file content
+	content, err := data.ReadFile(fileID)
+	if err != nil {
+		return "", fmt.Errorf("read file error: %s", err.Error())
+	}
+
+	// Encode to base64
+	return base64.StdEncoding.EncodeToString(content), nil
 }
