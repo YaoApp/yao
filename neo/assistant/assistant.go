@@ -9,6 +9,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/neo/store"
 	"github.com/yaoapp/yao/share"
@@ -18,6 +19,7 @@ import (
 // loaded the loaded assistant
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
+var rag *RAG = nil
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -83,6 +85,18 @@ func LoadBuiltIn() error {
 // SetStorage set the storage
 func SetStorage(s store.Store) {
 	storage = s
+}
+
+// SetRAG set the RAG engine
+// e: the RAG engine
+// u: the RAG file uploader
+// v: the RAG vectorizer
+func SetRAG(e driver.Engine, u driver.FileUpload, v driver.Vectorizer) {
+	rag = &RAG{
+		Engine:     e,
+		Uploader:   u,
+		Vectorizer: v,
+	}
 }
 
 // SetCache set the cache

@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 
+	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 )
 
@@ -14,6 +15,13 @@ type API interface {
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
+}
+
+// RAG the RAG interface
+type RAG struct {
+	Engine     driver.Engine
+	Uploader   driver.FileUpload
+	Vectorizer driver.Vectorizer
 }
 
 // Prompt a prompt
