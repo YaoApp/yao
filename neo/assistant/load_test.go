@@ -14,7 +14,7 @@ func prepare(t *testing.T) {
 	test.Prepare(t, config.Conf)
 }
 
-func TestAssistant_LoadPath(t *testing.T) {
+func TestLoad_LoadPath(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
@@ -37,7 +37,7 @@ func TestAssistant_LoadPath(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAssistant_LoadStore(t *testing.T) {
+func TestLoad_LoadStore(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
@@ -79,7 +79,7 @@ func TestAssistant_LoadStore(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestAssistant_Cache(t *testing.T) {
+func TestLoad_Cache(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
@@ -127,7 +127,7 @@ func TestAssistant_Cache(t *testing.T) {
 	assert.NotNil(t, loaded)
 }
 
-func TestAssistant_Validate(t *testing.T) {
+func TestLoad_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		ast     *Assistant
@@ -178,7 +178,7 @@ func TestAssistant_Validate(t *testing.T) {
 	}
 }
 
-func TestAssistant_Clone(t *testing.T) {
+func TestLoad_Clone(t *testing.T) {
 	// Create a test assistant with all fields populated
 	original := &Assistant{
 		ID:          "test-id",
@@ -233,7 +233,7 @@ func TestAssistant_Clone(t *testing.T) {
 	assert.Nil(t, nilAssistant.Clone())
 }
 
-func TestAssistant_Update(t *testing.T) {
+func TestLoad_Update(t *testing.T) {
 	// Create a test assistant
 	ast := &Assistant{
 		ID:        "test-id",
