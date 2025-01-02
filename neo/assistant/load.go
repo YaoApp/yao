@@ -67,16 +67,15 @@ func LoadBuiltIn() error {
 			assistant.Tags = []string{"Built-in"}
 		}
 
+		// Save the assistant
+		err = assistant.Save()
+		if err != nil {
+			return err
+		}
+
 		sort++
 		loaded.Put(assistant)
 
-		// Save the assistant
-		if storage != nil {
-			_, err := storage.SaveAssistant(assistant.Map())
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
@@ -91,11 +90,12 @@ func SetStorage(s store.Store) {
 // e: the RAG engine
 // u: the RAG file uploader
 // v: the RAG vectorizer
-func SetRAG(e driver.Engine, u driver.FileUpload, v driver.Vectorizer) {
+func SetRAG(e driver.Engine, u driver.FileUpload, v driver.Vectorizer, setting RAGSetting) {
 	rag = &RAG{
 		Engine:     e,
 		Uploader:   u,
 		Vectorizer: v,
+		Setting:    setting,
 	}
 }
 
@@ -177,24 +177,30 @@ func LoadPath(path string) (*Assistant, error) {
 	data["assistant_id"] = id
 	data["type"] = "assistant"
 	data["path"] = path
+
+	updatedAt := int64(0)
+
 	// prompts
 	promptsfile := filepath.Join(path, "prompts.yml")
 	if has, _ := app.Exists(promptsfile); has {
-		prompts, err := loadPrompts(promptsfile, path)
+		prompts, ts, err := loadPrompts(promptsfile, path)
 		if err != nil {
 			return nil, err
 		}
 		data["prompts"] = prompts
+		data["updated_at"] = ts
+		updatedAt = ts
 	}
 
 	// load script
 	scriptfile := filepath.Join(path, "src", "index.ts")
 	if has, _ := app.Exists(scriptfile); has {
-		script, err := loadScript(scriptfile, path)
+		script, ts, err := loadScript(scriptfile, path)
 		if err != nil {
 			return nil, err
 		}
 		data["script"] = script
+		data["updated_at"] = max(updatedAt, ts)
 	}
 
 	// load functions
@@ -307,19 +313,42 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		}
 	}
 
+	// created_at
+	if v, has := data["created_at"]; has {
+		ts, err := getTimestamp(v)
+		if err != nil {
+			return nil, err
+		}
+		assistant.CreatedAt = ts
+	}
+
+	// updated_at
+	if v, has := data["updated_at"]; has {
+		ts, err := getTimestamp(v)
+		if err != nil {
+			return nil, err
+		}
+		assistant.UpdatedAt = ts
+	}
+
 	return assistant, nil
 }
 
-func loadPrompts(file string, root string) (string, error) {
+func loadPrompts(file string, root string) (string, int64, error) {
 
 	app, err := fs.Get("app")
 	if err != nil {
-		return "", err
+		return "", 0, err
+	}
+
+	ts, err := app.ModTime(file)
+	if err != nil {
+		return "", 0, err
 	}
 
 	prompts, err := app.ReadFile(file)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	re := regexp.MustCompile(`@assets/([^\s]+\.(md|yml|yaml|json|txt))`)
@@ -339,11 +368,27 @@ func loadPrompts(file string, root string) (string, error) {
 		return []byte(formattedContent)
 	})
 
-	return string(prompts), nil
+	return string(prompts), ts.UnixNano(), nil
 }
 
-func loadScript(file string, root string) (*v8.Script, error) {
-	return v8.Load(file, share.ID(root, file))
+func loadScript(file string, root string) (*v8.Script, int64, error) {
+
+	app, err := fs.Get("app")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ts, err := app.ModTime(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	script, err := v8.Load(file, share.ID(root, file))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return script, ts.UnixNano(), nil
 }
 
 func loadScriptSource(source string, file string) (*v8.Script, error) {
@@ -352,152 +397,4 @@ func loadScriptSource(source string, file string) (*v8.Script, error) {
 		return nil, err
 	}
 	return script, nil
-}
-
-// Save save the assistant
-func (ast *Assistant) Save() error {
-	if storage == nil {
-		return fmt.Errorf("storage is not set")
-	}
-
-	_, err := storage.SaveAssistant(ast.Map())
-	return err
-}
-
-// Map convert the assistant to a map
-func (ast *Assistant) Map() map[string]interface{} {
-
-	if ast == nil {
-		return nil
-	}
-
-	return map[string]interface{}{
-		"assistant_id": ast.ID,
-		"type":         ast.Type,
-		"name":         ast.Name,
-		"readonly":     ast.Readonly,
-		"avatar":       ast.Avatar,
-		"connector":    ast.Connector,
-		"path":         ast.Path,
-		"built_in":     ast.BuiltIn,
-		"sort":         ast.Sort,
-		"description":  ast.Description,
-		"options":      ast.Options,
-		"prompts":      ast.Prompts,
-		"tags":         ast.Tags,
-		"mentionable":  ast.Mentionable,
-		"automated":    ast.Automated,
-	}
-}
-
-// Validate validates the assistant configuration
-func (ast *Assistant) Validate() error {
-	if ast.ID == "" {
-		return fmt.Errorf("assistant_id is required")
-	}
-	if ast.Name == "" {
-		return fmt.Errorf("name is required")
-	}
-	if ast.Connector == "" {
-		return fmt.Errorf("connector is required")
-	}
-	return nil
-}
-
-// Clone creates a deep copy of the assistant
-func (ast *Assistant) Clone() *Assistant {
-	if ast == nil {
-		return nil
-	}
-
-	clone := &Assistant{
-		ID:          ast.ID,
-		Type:        ast.Type,
-		Name:        ast.Name,
-		Avatar:      ast.Avatar,
-		Connector:   ast.Connector,
-		Path:        ast.Path,
-		BuiltIn:     ast.BuiltIn,
-		Sort:        ast.Sort,
-		Description: ast.Description,
-		Readonly:    ast.Readonly,
-		Mentionable: ast.Mentionable,
-		Automated:   ast.Automated,
-		Script:      ast.Script,
-		API:         ast.API,
-	}
-
-	// Deep copy tags
-	if ast.Tags != nil {
-		clone.Tags = make([]string, len(ast.Tags))
-		copy(clone.Tags, ast.Tags)
-	}
-
-	// Deep copy options
-	if ast.Options != nil {
-		clone.Options = make(map[string]interface{})
-		for k, v := range ast.Options {
-			clone.Options[k] = v
-		}
-	}
-
-	// Deep copy prompts
-	if ast.Prompts != nil {
-		clone.Prompts = make([]Prompt, len(ast.Prompts))
-		copy(clone.Prompts, ast.Prompts)
-	}
-
-	// Deep copy flows
-	if ast.Flows != nil {
-		clone.Flows = make([]map[string]interface{}, len(ast.Flows))
-		for i, flow := range ast.Flows {
-			cloneFlow := make(map[string]interface{})
-			for k, v := range flow {
-				cloneFlow[k] = v
-			}
-			clone.Flows[i] = cloneFlow
-		}
-	}
-
-	return clone
-}
-
-// Update updates the assistant properties
-func (ast *Assistant) Update(data map[string]interface{}) error {
-	if ast == nil {
-		return fmt.Errorf("assistant is nil")
-	}
-
-	if v, ok := data["name"].(string); ok {
-		ast.Name = v
-	}
-	if v, ok := data["avatar"].(string); ok {
-		ast.Avatar = v
-	}
-	if v, ok := data["description"].(string); ok {
-		ast.Description = v
-	}
-	if v, ok := data["connector"].(string); ok {
-		ast.Connector = v
-	}
-	if v, ok := data["type"].(string); ok {
-		ast.Type = v
-	}
-	if v, ok := data["sort"].(int); ok {
-		ast.Sort = v
-	}
-	if v, ok := data["mentionable"].(bool); ok {
-		ast.Mentionable = v
-	}
-	if v, ok := data["automated"].(bool); ok {
-		ast.Automated = v
-	}
-	if v, ok := data["tags"].([]string); ok {
-		ast.Tags = v
-	}
-	if v, ok := data["options"].(map[string]interface{}); ok {
-		ast.Options = v
-	}
-
-	return ast.Validate()
 }

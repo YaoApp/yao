@@ -119,7 +119,14 @@ func (neo *DSL) initAssistant() error {
 
 	// Assistant RAG
 	if Neo.RAG != nil {
-		assistant.SetRAG(Neo.RAG.Engine(), Neo.RAG.FileUpload(), Neo.RAG.Vectorizer())
+		assistant.SetRAG(
+			Neo.RAG.Engine(),
+			Neo.RAG.FileUpload(),
+			Neo.RAG.Vectorizer(),
+			assistant.RAGSetting{
+				IndexPrefix: Neo.RAGSetting.IndexPrefix,
+			},
+		)
 	}
 
 	// Load Built-in Assistants
