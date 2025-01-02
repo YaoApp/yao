@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/neo/rag"
 	"github.com/yaoapp/yao/neo/store"
 )
 
@@ -16,6 +17,7 @@ type DSL struct {
 	Guard             string                         `json:"guard,omitempty" yaml:"guard,omitempty"`
 	Connector         string                         `json:"connector" yaml:"connector"`
 	StoreSetting      store.Setting                  `json:"store" yaml:"store"`
+	RAGSetting        rag.Setting                    `json:"rag" yaml:"rag"`
 	Option            map[string]interface{}         `json:"option" yaml:"option"`
 	Prepare           string                         `json:"prepare,omitempty" yaml:"prepare,omitempty"`
 	Create            string                         `json:"create,omitempty" yaml:"create,omitempty"`
@@ -26,6 +28,7 @@ type DSL struct {
 	Allows            []string                       `json:"allows,omitempty" yaml:"allows,omitempty"`
 	Assistant         assistant.API                  `json:"-" yaml:"-"` // The default assistant
 	Store             store.Store                    `json:"-" yaml:"-"`
+	RAG               *rag.RAG                       `json:"-" yaml:"-"`
 	GuardHandlers     []gin.HandlerFunc              `json:"-" yaml:"-"`
 	AssistantList     []assistant.Assistant          `json:"-" yaml:"-"`
 	AssistantMaps     map[string]assistant.Assistant `json:"-" yaml:"-"`
