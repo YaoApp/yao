@@ -5,7 +5,7 @@ package store
 type Setting struct {
 	Connector string `json:"connector,omitempty"`                          // Name of the connector used to specify data storage method
 	UserField string `json:"user_field,omitempty"`                         // User ID field name, defaults to "user_id"
-	Table     string `json:"table,omitempty"`                              // Database table name
+	Prefix    string `json:"prefix,omitempty"`                             // Database table name prefix
 	MaxSize   int    `json:"max_size,omitempty" yaml:"max_size,omitempty"` // Maximum storage size limit
 	TTL       int    `json:"ttl,omitempty" yaml:"ttl,omitempty"`           // Time To Live in seconds
 }

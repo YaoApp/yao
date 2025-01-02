@@ -40,7 +40,7 @@ func TestNewXunDefault(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 
 	if err != nil {
@@ -139,7 +139,7 @@ func TestNewXunConnector(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "mysql",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 
 	if err != nil {
@@ -201,7 +201,7 @@ func TestXunSaveAndGetHistory(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 		TTL:       3600,
 	})
 
@@ -239,7 +239,7 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 		TTL:       3600,
 	})
 
@@ -308,7 +308,7 @@ func TestXunGetChats(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -364,7 +364,7 @@ func TestXunDeleteChat(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -404,7 +404,7 @@ func TestXunDeleteAllChats(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -455,7 +455,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -926,7 +926,7 @@ func TestXunAssistantPagination(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1250,7 +1250,7 @@ func TestGetAssistantTags(t *testing.T) {
 
 	store, err := NewXun(Setting{
 		Connector: "default",
-		Table:     "__unit_test_conversation",
+		Prefix:    "__unit_test_conversation_",
 	})
 	if err != nil {
 		t.Fatal(err)

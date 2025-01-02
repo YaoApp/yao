@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 
+	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 )
 
@@ -14,6 +15,19 @@ type API interface {
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
+}
+
+// RAG the RAG interface
+type RAG struct {
+	Engine     driver.Engine
+	Uploader   driver.FileUpload
+	Vectorizer driver.Vectorizer
+	Setting    RAGSetting
+}
+
+// RAGSetting the RAG setting
+type RAGSetting struct {
+	IndexPrefix string `json:"index_prefix" yaml:"index_prefix"`
 }
 
 // Prompt a prompt
@@ -51,6 +65,8 @@ type Assistant struct {
 	Flows       []map[string]interface{} `json:"flows,omitempty"`       // Assistant Flows
 	Script      *v8.Script               `json:"-" yaml:"-"`            // Assistant Script
 	API         API                      `json:"-" yaml:"-"`            // Assistant API
+	CreatedAt   int64                    `json:"created_at"`            // Creation timestamp
+	UpdatedAt   int64                    `json:"updated_at"`            // Last update timestamp
 }
 
 // File the file
