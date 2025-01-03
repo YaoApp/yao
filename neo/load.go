@@ -12,6 +12,8 @@ import (
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/rag"
 	"github.com/yaoapp/yao/neo/store"
+	"github.com/yaoapp/yao/neo/vision"
+	"github.com/yaoapp/yao/neo/vision/driver"
 )
 
 // Neo the neo AI assistant
@@ -55,6 +57,9 @@ func Load(cfg config.Config) error {
 
 	// Initialize RAG
 	Neo.initRAG()
+
+	// Initialize Vision
+	Neo.initVision()
 
 	// Initialize Assistant
 	err = Neo.initAssistant()
@@ -111,6 +116,27 @@ func (neo *DSL) initStore() error {
 	return fmt.Errorf("%s store connector %s not support", neo.ID, neo.StoreSetting.Connector)
 }
 
+// initVision initialize the Vision instance
+func (neo *DSL) initVision() {
+	if neo.VisionSetting.Storage.Driver == "" {
+		return
+	}
+
+	cfg := &driver.Config{
+		Storage: neo.VisionSetting.Storage,
+		Model:   neo.VisionSetting.Model,
+	}
+
+	instance, err := vision.New(cfg)
+	if err != nil {
+		color.Red("[Neo] Failed to initialize Vision: %v", err)
+		log.Error("[Neo] Failed to initialize Vision: %v", err)
+		return
+	}
+
+	neo.Vision = instance
+}
+
 // initAssistant initialize the assistant
 func (neo *DSL) initAssistant() error {
 
@@ -129,6 +155,14 @@ func (neo *DSL) initAssistant() error {
 		)
 	}
 
+	// Assistant Vision
+	if Neo.Vision != nil {
+		assistant.SetVision(Neo.Vision)
+	}
+
+	// Default Connector
+	assistant.SetConnector(Neo.Connector)
+
 	// Load Built-in Assistants
 	err := assistant.LoadBuiltIn()
 	if err != nil {
@@ -141,7 +175,7 @@ func (neo *DSL) initAssistant() error {
 		return err
 	}
 
-	Neo.Assistant = defaultAssistant.API
+	Neo.Assistant = defaultAssistant
 	return nil
 }
 

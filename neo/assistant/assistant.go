@@ -174,7 +174,7 @@ func (ast *Assistant) Clone() *Assistant {
 		Mentionable: ast.Mentionable,
 		Automated:   ast.Automated,
 		Script:      ast.Script,
-		API:         ast.API,
+		openai:      ast.openai,
 	}
 
 	// Deep copy tags
