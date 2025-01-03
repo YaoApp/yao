@@ -7,6 +7,8 @@ import (
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/rag"
 	"github.com/yaoapp/yao/neo/store"
+	"github.com/yaoapp/yao/neo/vision"
+	"github.com/yaoapp/yao/neo/vision/driver"
 )
 
 // DSL AI assistant
@@ -18,6 +20,7 @@ type DSL struct {
 	Connector         string                         `json:"connector" yaml:"connector"`
 	StoreSetting      store.Setting                  `json:"store" yaml:"store"`
 	RAGSetting        rag.Setting                    `json:"rag" yaml:"rag"`
+	VisionSetting     VisionSetting                  `json:"vision" yaml:"vision"`
 	Option            map[string]interface{}         `json:"option" yaml:"option"`
 	Prepare           string                         `json:"prepare,omitempty" yaml:"prepare,omitempty"`
 	Create            string                         `json:"create,omitempty" yaml:"create,omitempty"`
@@ -29,9 +32,16 @@ type DSL struct {
 	Assistant         assistant.API                  `json:"-" yaml:"-"` // The default assistant
 	Store             store.Store                    `json:"-" yaml:"-"`
 	RAG               *rag.RAG                       `json:"-" yaml:"-"`
+	Vision            *vision.Vision                 `json:"-" yaml:"-"`
 	GuardHandlers     []gin.HandlerFunc              `json:"-" yaml:"-"`
 	AssistantList     []assistant.Assistant          `json:"-" yaml:"-"`
 	AssistantMaps     map[string]assistant.Assistant `json:"-" yaml:"-"`
+}
+
+// VisionSetting the vision setting
+type VisionSetting struct {
+	Storage driver.StorageConfig `json:"storage" yaml:"storage"`
+	Model   driver.ModelConfig   `json:"model" yaml:"model"`
 }
 
 // Mention list
