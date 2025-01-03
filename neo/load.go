@@ -155,6 +155,14 @@ func (neo *DSL) initAssistant() error {
 		)
 	}
 
+	// Assistant Vision
+	if Neo.Vision != nil {
+		assistant.SetVision(Neo.Vision)
+	}
+
+	// Default Connector
+	assistant.SetConnector(Neo.Connector)
+
 	// Load Built-in Assistants
 	err := assistant.LoadBuiltIn()
 	if err != nil {
@@ -167,7 +175,7 @@ func (neo *DSL) initAssistant() error {
 		return err
 	}
 
-	Neo.Assistant = defaultAssistant.API
+	Neo.Assistant = defaultAssistant
 	return nil
 }
 

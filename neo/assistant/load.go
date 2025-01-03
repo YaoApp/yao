@@ -12,6 +12,8 @@ import (
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/neo/store"
+	neovision "github.com/yaoapp/yao/neo/vision"
+	"github.com/yaoapp/yao/openai"
 	"github.com/yaoapp/yao/share"
 	"gopkg.in/yaml.v3"
 )
@@ -20,6 +22,8 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var rag *RAG = nil
+var vision *neovision.Vision = nil
+var defaultConnector string = "" // default connector
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -73,6 +77,12 @@ func LoadBuiltIn() error {
 			return err
 		}
 
+		// Initialize the assistant
+		err = assistant.initialize()
+		if err != nil {
+			return err
+		}
+
 		sort++
 		loaded.Put(assistant)
 
@@ -84,6 +94,16 @@ func LoadBuiltIn() error {
 // SetStorage set the storage
 func SetStorage(s store.Store) {
 	storage = s
+}
+
+// SetVision set the vision
+func SetVision(v *neovision.Vision) {
+	vision = v
+}
+
+// SetConnector set the connector
+func SetConnector(c string) {
+	defaultConnector = c
 }
 
 // SetRAG set the RAG engine
@@ -115,6 +135,11 @@ func ClearCache() {
 
 // LoadStore create a new assistant from store
 func LoadStore(id string) (*Assistant, error) {
+
+	if id == "" {
+		return nil, fmt.Errorf("assistant_id is required")
+	}
+
 	assistant, exists := loaded.Get(id)
 	if exists {
 		return assistant, nil
@@ -331,6 +356,12 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.UpdatedAt = ts
 	}
 
+	// Initialize the assistant
+	err := assistant.initialize()
+	if err != nil {
+		return nil, err
+	}
+
 	return assistant, nil
 }
 
@@ -397,4 +428,22 @@ func loadScriptSource(source string, file string) (*v8.Script, error) {
 		return nil, err
 	}
 	return script, nil
+}
+
+// Init init the assistant
+// Choose the connector and initialize the assistant
+func (ast *Assistant) initialize() error {
+
+	conn := defaultConnector
+	if ast.Connector != "" {
+		conn = ast.Connector
+	}
+	ast.Connector = conn
+
+	api, err := openai.New(conn)
+	if err != nil {
+		return err
+	}
+	ast.openai = api
+	return nil
 }
