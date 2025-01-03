@@ -82,6 +82,25 @@ func (ast *Assistant) Chat(ctx context.Context, messages []map[string]interface{
 
 func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string]interface{}) ([]map[string]interface{}, error) {
 	newMessages := []map[string]interface{}{}
+
+	// With Prompts
+	if ast.Prompts != nil {
+		for _, prompt := range ast.Prompts {
+			message := map[string]interface{}{
+				"role":    prompt.Role,
+				"content": prompt.Content,
+			}
+
+			name := ast.Name
+			if prompt.Name != "" {
+				name = prompt.Name
+			}
+
+			message["name"] = name
+			newMessages = append(newMessages, message)
+		}
+	}
+
 	length := len(messages)
 	for index, message := range messages {
 		role, ok := message["role"].(string)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
@@ -66,9 +67,25 @@ func LoadBuiltIn() error {
 
 		assistant.Readonly = true
 		assistant.BuiltIn = true
-		assistant.Sort = sort
+		if assistant.Sort == 0 {
+			assistant.Sort = sort
+		}
 		if assistant.Tags == nil {
 			assistant.Tags = []string{"Built-in"}
+		}
+
+		// Check if the assistant has Built-in tag
+		hasBuiltIn := false
+		for _, tag := range assistant.Tags {
+			if tag == "Built-in" {
+				hasBuiltIn = true
+				break
+			}
+		}
+
+		// add Built-in tag if not exists
+		if !hasBuiltIn {
+			assistant.Tags = append(assistant.Tags, "Built-in")
 		}
 
 		// Save the assistant
@@ -284,8 +301,8 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	// sort
-	if v, ok := data["sort"].(int); ok {
-		assistant.Sort = v
+	if v, has := data["sort"]; has {
+		assistant.Sort = cast.ToInt(v)
 	}
 
 	// path
