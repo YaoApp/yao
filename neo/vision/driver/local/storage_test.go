@@ -3,6 +3,8 @@ package local
 import (
 	"bytes"
 	"context"
+	"image"
+	"image/png"
 	"io"
 	"testing"
 
@@ -47,6 +49,80 @@ func TestLocalStorage(t *testing.T) {
 		downloaded, err := io.ReadAll(reader2)
 		assert.NoError(t, err)
 		assert.Equal(t, content, downloaded)
+	})
+
+	t.Run("Upload and Download Image with Compression", func(t *testing.T) {
+		storage, err := New(map[string]interface{}{
+			"path":        "/__vision_test",
+			"compression": true,
+		})
+		assert.NoError(t, err)
+
+		// Create a test image (2000x2000 pixels)
+		img := image.NewRGBA(image.Rect(0, 0, 2000, 2000))
+		var buf bytes.Buffer
+		err = png.Encode(&buf, img)
+		assert.NoError(t, err)
+
+		// Upload
+		reader := bytes.NewReader(buf.Bytes())
+		fileID, err := storage.Upload(context.Background(), "test.png", reader, "image/png")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, fileID)
+
+		// Download and verify size
+		reader2, contentType, err := storage.Download(context.Background(), fileID)
+		assert.NoError(t, err)
+		assert.Equal(t, "image/png", contentType)
+
+		downloaded, err := io.ReadAll(reader2)
+		assert.NoError(t, err)
+
+		// Decode the downloaded image
+		downloadedImg, _, err := image.Decode(bytes.NewReader(downloaded))
+		assert.NoError(t, err)
+
+		// Verify dimensions
+		bounds := downloadedImg.Bounds()
+		assert.LessOrEqual(t, bounds.Dx(), MaxImageSize)
+		assert.LessOrEqual(t, bounds.Dy(), MaxImageSize)
+	})
+
+	t.Run("Upload Image without Compression", func(t *testing.T) {
+		storage, err := New(map[string]interface{}{
+			"path":        "/__vision_test",
+			"compression": false,
+		})
+		assert.NoError(t, err)
+
+		// Create a test image (2000x2000 pixels)
+		img := image.NewRGBA(image.Rect(0, 0, 2000, 2000))
+		var buf bytes.Buffer
+		err = png.Encode(&buf, img)
+		assert.NoError(t, err)
+
+		// Upload
+		reader := bytes.NewReader(buf.Bytes())
+		fileID, err := storage.Upload(context.Background(), "test.png", reader, "image/png")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, fileID)
+
+		// Download and verify size
+		reader2, contentType, err := storage.Download(context.Background(), fileID)
+		assert.NoError(t, err)
+		assert.Equal(t, "image/png", contentType)
+
+		downloaded, err := io.ReadAll(reader2)
+		assert.NoError(t, err)
+
+		// Decode the downloaded image
+		downloadedImg, _, err := image.Decode(bytes.NewReader(downloaded))
+		assert.NoError(t, err)
+
+		// Verify dimensions are unchanged
+		bounds := downloadedImg.Bounds()
+		assert.Equal(t, 2000, bounds.Dx())
+		assert.Equal(t, 2000, bounds.Dy())
 	})
 
 	t.Run("URL Generation", func(t *testing.T) {

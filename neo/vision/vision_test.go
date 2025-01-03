@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +17,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/vision/driver"
+	"github.com/yaoapp/yao/neo/vision/driver/local"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -22,6 +25,9 @@ var (
 	// 1x1 transparent PNG
 	testImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 )
+
+// MaxImageSize maximum image size (1920x1080)
+const MaxImageSize = local.MaxImageSize
 
 func TestVision(t *testing.T) {
 	test.Prepare(t, config.Conf)
@@ -253,6 +259,78 @@ func TestVision(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "storage driver invalid not supported")
 	})
+
+	t.Run("Upload and Download Image with Local Storage", func(t *testing.T) {
+		vision, err := createTestVision(imgServer.URL)
+		assert.NoError(t, err)
+
+		// Create test image (2000x2000 pixels)
+		img := image.NewRGBA(image.Rect(0, 0, 2000, 2000))
+		var buf bytes.Buffer
+		err = png.Encode(&buf, img)
+		assert.NoError(t, err)
+
+		// Upload
+		reader := bytes.NewReader(buf.Bytes())
+		resp, err := vision.Upload(context.Background(), "test.png", reader, "image/png")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp.FileID)
+		assert.NotEmpty(t, resp.URL)
+
+		// Download and verify size
+		reader2, contentType, err := vision.Download(context.Background(), resp.FileID)
+		assert.NoError(t, err)
+		assert.Equal(t, "image/png", contentType)
+
+		downloaded, err := io.ReadAll(reader2)
+		assert.NoError(t, err)
+
+		// Decode the downloaded image
+		downloadedImg, _, err := image.Decode(bytes.NewReader(downloaded))
+		assert.NoError(t, err)
+
+		// Verify dimensions
+		bounds := downloadedImg.Bounds()
+		assert.LessOrEqual(t, bounds.Dx(), MaxImageSize)
+		assert.LessOrEqual(t, bounds.Dy(), MaxImageSize)
+	})
+
+	t.Run("Upload and Download Image with S3 Storage", func(t *testing.T) {
+		vision, err := createTestVisionWithS3()
+		if err != nil {
+			t.Skip("S3 configuration not available")
+		}
+
+		// Create test image (2000x2000 pixels)
+		img := image.NewRGBA(image.Rect(0, 0, 2000, 2000))
+		var buf bytes.Buffer
+		err = png.Encode(&buf, img)
+		assert.NoError(t, err)
+
+		// Upload
+		reader := bytes.NewReader(buf.Bytes())
+		resp, err := vision.Upload(context.Background(), "test.png", reader, "image/png")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, resp.FileID)
+		assert.NotEmpty(t, resp.URL)
+
+		// Download and verify size
+		reader2, contentType, err := vision.Download(context.Background(), resp.FileID)
+		assert.NoError(t, err)
+		assert.Equal(t, "image/png", contentType)
+
+		downloaded, err := io.ReadAll(reader2)
+		assert.NoError(t, err)
+
+		// Decode the downloaded image
+		downloadedImg, _, err := image.Decode(bytes.NewReader(downloaded))
+		assert.NoError(t, err)
+
+		// Verify dimensions
+		bounds := downloadedImg.Bounds()
+		assert.LessOrEqual(t, bounds.Dx(), MaxImageSize)
+		assert.LessOrEqual(t, bounds.Dy(), MaxImageSize)
+	})
 }
 
 func createTestVision(baseURL string) (*Vision, error) {
@@ -271,17 +349,17 @@ func createTestVision(baseURL string) (*Vision, error) {
 				"api_key": os.Getenv("OPENAI_API_KEY"),
 				"model":   os.Getenv("VISION_MODEL"),
 				"prompt": `# Objective 
-				You are a vision assistant, you can help the user to understand the image and describe it.
-				
-				## Task Execution Steps
-				1. Understand the image/video and describe it.
-				2. Describe the image/video in detail.
-				
-				## Result Format
-				{
-					"description": "The description of the image/video",
-					"content": "The content of the image/video"
-				}`,
+					You are a vision assistant, you can help the user to understand the image and describe it.
+					
+					## Task Execution Steps
+					1. Understand the image/video and describe it.
+					2. Describe the image/video in detail.
+					
+					## Result Format
+					{
+						"description": "The description of the image/video",
+						"content": "The content of the image/video"
+					}`,
 			},
 		},
 	}

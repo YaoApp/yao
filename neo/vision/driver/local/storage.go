@@ -1,9 +1,13 @@
 package local
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"path/filepath"
 	"strings"
@@ -11,6 +15,9 @@ import (
 
 	"github.com/yaoapp/gou/fs"
 )
+
+// MaxImageSize maximum image size (1920x1080)
+const MaxImageSize = 1920
 
 // Storage the local storage driver
 type Storage struct {
@@ -66,10 +73,31 @@ func (storage *Storage) Upload(ctx context.Context, filename string, reader io.R
 		return "", err
 	}
 
-	// Write file
-	_, err = data.Write(path, reader, 0644)
-	if err != nil {
-		return "", err
+	// Check if compression is enabled and if it's an image
+	if storage.Compression && isImage(contentType) {
+		// Read the entire image into memory
+		content, err := io.ReadAll(reader)
+		if err != nil {
+			return "", fmt.Errorf("failed to read image: %w", err)
+		}
+
+		// Compress image
+		compressed, err := compressImage(content, contentType)
+		if err != nil {
+			return "", fmt.Errorf("failed to compress image: %w", err)
+		}
+
+		// Write compressed image
+		_, err = data.Write(path, bytes.NewReader(compressed), 0644)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// Write file without compression
+		_, err = data.Write(path, reader, 0644)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	return id, nil
@@ -112,4 +140,69 @@ func (storage *Storage) makeID(filename string, ext string) string {
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(filename)))[:8]
 	name := strings.TrimSuffix(filepath.Base(filename), ext)
 	return fmt.Sprintf("%s/%s-%s%s", date, name, hash, ext)
+}
+
+// isImage checks if the content type is an image
+func isImage(contentType string) bool {
+	return strings.HasPrefix(contentType, "image/")
+}
+
+// compressImage compresses the image while maintaining aspect ratio
+func compressImage(data []byte, contentType string) ([]byte, error) {
+	// Decode image
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode image: %w", err)
+	}
+
+	// Calculate new dimensions
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+	var newWidth, newHeight int
+
+	if width > height {
+		if width > MaxImageSize {
+			newWidth = MaxImageSize
+			newHeight = int(float64(height) * (float64(MaxImageSize) / float64(width)))
+		} else {
+			return data, nil // No need to resize
+		}
+	} else {
+		if height > MaxImageSize {
+			newHeight = MaxImageSize
+			newWidth = int(float64(width) * (float64(MaxImageSize) / float64(height)))
+		} else {
+			return data, nil // No need to resize
+		}
+	}
+
+	// Create new image with new dimensions
+	newImg := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
+
+	// Scale the image using bilinear interpolation
+	for y := 0; y < newHeight; y++ {
+		for x := 0; x < newWidth; x++ {
+			srcX := float64(x) * float64(width) / float64(newWidth)
+			srcY := float64(y) * float64(height) / float64(newHeight)
+			newImg.Set(x, y, img.At(int(srcX), int(srcY)))
+		}
+	}
+
+	// Encode image
+	var buf bytes.Buffer
+	switch contentType {
+	case "image/jpeg":
+		err = jpeg.Encode(&buf, newImg, &jpeg.Options{Quality: 85})
+	case "image/png":
+		err = png.Encode(&buf, newImg)
+	default:
+		return data, nil // Unsupported format, return original
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode image: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
