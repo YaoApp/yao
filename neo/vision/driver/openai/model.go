@@ -52,9 +52,15 @@ func New(options map[string]interface{}) (*Model, error) {
 }
 
 // Analyze analyze image using OpenAI vision model
-func (model *Model) Analyze(ctx context.Context, fileID string, prompt string) (map[string]interface{}, error) {
+func (model *Model) Analyze(ctx context.Context, fileID string, prompt ...string) (map[string]interface{}, error) {
 	if model.APIKey == "" {
 		return nil, fmt.Errorf("api_key is required")
+	}
+
+	// Use default prompt if none provided
+	userPrompt := model.Prompt
+	if len(prompt) > 0 && prompt[0] != "" {
+		userPrompt = prompt[0]
 	}
 
 	// Check if fileID is a URL or base64 data
@@ -103,7 +109,7 @@ func (model *Model) Analyze(ctx context.Context, fileID string, prompt string) (
 				"content": []map[string]interface{}{
 					{
 						"type": "text",
-						"text": prompt,
+						"text": userPrompt,
 					},
 					{
 						"type": "image_url",

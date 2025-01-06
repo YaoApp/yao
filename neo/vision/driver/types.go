@@ -32,7 +32,9 @@ type Storage interface {
 
 // Model the vision model interface
 type Model interface {
-	Analyze(ctx context.Context, fileID string, prompt string) (map[string]interface{}, error)
+	// Analyze analyzes an image file
+	// If prompt is empty, it will use the default prompt from model.options.prompt
+	Analyze(ctx context.Context, fileID string, prompt ...string) (map[string]interface{}, error)
 }
 
 // Response the vision response

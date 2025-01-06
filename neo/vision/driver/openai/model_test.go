@@ -146,4 +146,49 @@ func TestOpenAIModel(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "OpenAI API error")
 	})
+
+	t.Run("Analyze with Default Prompt", func(t *testing.T) {
+		model, err := New(map[string]interface{}{
+			"api_key": os.Getenv("OPENAI_API_KEY"),
+			"model":   os.Getenv("VISION_MODEL"),
+			"prompt":  "Default test prompt",
+		})
+		assert.NoError(t, err)
+
+		// Use base64 image data without providing a prompt
+		result, err := model.Analyze(context.Background(), "data:image/png;base64,"+testImageBase64)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result["description"])
+	})
+
+	t.Run("Analyze with Custom Prompt Overriding Default", func(t *testing.T) {
+		model, err := New(map[string]interface{}{
+			"api_key": os.Getenv("OPENAI_API_KEY"),
+			"model":   os.Getenv("VISION_MODEL"),
+			"prompt":  "Default test prompt",
+		})
+		assert.NoError(t, err)
+
+		// Use base64 image data with custom prompt
+		result, err := model.Analyze(context.Background(), "data:image/png;base64,"+testImageBase64, "Custom test prompt")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result["description"])
+	})
+
+	t.Run("Analyze with Empty Custom Prompt", func(t *testing.T) {
+		model, err := New(map[string]interface{}{
+			"api_key": os.Getenv("OPENAI_API_KEY"),
+			"model":   os.Getenv("VISION_MODEL"),
+			"prompt":  "Default test prompt",
+		})
+		assert.NoError(t, err)
+
+		// Use base64 image data with empty prompt (should use default)
+		result, err := model.Analyze(context.Background(), "data:image/png;base64,"+testImageBase64, "")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result["description"])
+	})
 }

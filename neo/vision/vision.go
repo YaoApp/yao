@@ -104,7 +104,7 @@ func (v *Vision) Upload(ctx context.Context, filename string, reader io.Reader, 
 }
 
 // Analyze analyze image using vision model
-func (v *Vision) Analyze(ctx context.Context, fileID string, prompt string) (*driver.Response, error) {
+func (v *Vision) Analyze(ctx context.Context, fileID string, prompt ...string) (*driver.Response, error) {
 	if v.model == nil {
 		return nil, fmt.Errorf("model is required")
 	}
@@ -121,7 +121,7 @@ func (v *Vision) Analyze(ctx context.Context, fileID string, prompt string) (*dr
 		}
 	}
 
-	result, err := v.model.Analyze(ctx, url, prompt)
+	result, err := v.model.Analyze(ctx, url, prompt...)
 	if err != nil {
 		return nil, err
 	}
