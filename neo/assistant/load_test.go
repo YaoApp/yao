@@ -53,7 +53,7 @@ func TestLoad_LoadStore(t *testing.T) {
 				"assistant_id": "test-id",
 				"name":         "Test Assistant",
 				"avatar":       "test-avatar",
-				"connector":    "test-connector",
+				"connector":    "gpt-3_5-turbo",
 			},
 		},
 	}
@@ -67,7 +67,7 @@ func TestLoad_LoadStore(t *testing.T) {
 	assert.Equal(t, "test-id", assistant.ID)
 	assert.Equal(t, "Test Assistant", assistant.Name)
 	assert.Equal(t, "test-avatar", assistant.Avatar)
-	assert.Equal(t, "test-connector", assistant.Connector)
+	assert.Equal(t, "gpt-3_5-turbo", assistant.Connector)
 
 	// Test cache functionality
 	assistant2, err := LoadStore("test-id")

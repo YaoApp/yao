@@ -70,13 +70,41 @@ type Assistant struct {
 	openai      *api.OpenAI              // OpenAI API
 }
 
+// VisionCapableModels list of LLM models that support vision capabilities
+var VisionCapableModels = map[string]bool{
+	// OpenAI Models
+	"gpt-4-vision-preview": true,
+	"gpt-4v":               true, // Alias for gpt-4-vision-preview
+
+	// Anthropic Models
+	"claude-3-opus":   true, // Most capable Claude model
+	"claude-3-sonnet": true, // Balanced Claude model
+	"claude-3-haiku":  true, // Fast and efficient Claude model
+
+	// Google Models
+	"gemini-pro-vision": true,
+
+	// Open Source Models
+	"llava-13b": true,
+	"cogvlm":    true,
+	"qwen-vl":   true,
+	"yi-vl":     true,
+
+	// Custom Models
+	"gpt-4o":      true, // Custom OpenAI compatible model
+	"gpt-4o-mini": true, // Custom OpenAI compatible model - mini version
+}
+
 // File the file
 type File struct {
-	ID          string `json:"file_id"`
-	Bytes       int    `json:"bytes"`
-	CreatedAt   int    `json:"created_at"`
-	Filename    string `json:"filename"`
-	ContentType string `json:"content_type"`
+	ID          string   `json:"file_id"`
+	Bytes       int      `json:"bytes"`
+	CreatedAt   int      `json:"created_at"`
+	Filename    string   `json:"filename"`
+	ContentType string   `json:"content_type"`
+	Description string   `json:"description,omitempty"` // Vision analysis result or other description
+	URL         string   `json:"url,omitempty"`         // Vision URL for vision-capable models
+	DocIDs      []string `json:"doc_ids,omitempty"`     // RAG document IDs
 }
 
 // FileResponse represents a file download response
