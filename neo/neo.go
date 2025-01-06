@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/neo/assistant"
+	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 )
 
@@ -16,7 +17,7 @@ import (
 var lock sync.Mutex = sync.Mutex{}
 
 // Answer reply the message
-func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
+func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) error {
 	messages, err := neo.chatMessages(ctx, question)
 	if err != nil {
 		msg := message.New().Error(err).Done()
@@ -50,7 +51,7 @@ func (neo *DSL) Select(id string) (assistant.API, error) {
 }
 
 // GeneratePrompts generate prompts for the AI assistant
-func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
+func (neo *DSL) GeneratePrompts(ctx chatctx.Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
 	Optimize the prompts for the AI assistant
 	1. Optimize prompts based on the user's input
@@ -68,7 +69,7 @@ func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context, silen
 }
 
 // GenerateChatTitle generate the chat title
-func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
+func (neo *DSL) GenerateChatTitle(ctx chatctx.Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
 	Help me generate a title for the chat 
 	1. The title should be a short and concise description of the chat.
@@ -84,7 +85,7 @@ func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context, sil
 }
 
 // GenerateWithAI generate content with AI, type can be "title", "prompts", etc.
-func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, systemPrompt string, c *gin.Context, silent bool) (string, error) {
+func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType string, systemPrompt string, c *gin.Context, silent bool) (string, error) {
 	messages := []map[string]interface{}{
 		{"role": "system", "content": systemPrompt},
 		{
@@ -187,7 +188,7 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 }
 
 // Upload upload a file
-func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
+func (neo *DSL) Upload(ctx chatctx.Context, c *gin.Context) (*assistant.File, error) {
 	// Get the file
 	tmpfile, err := c.FormFile("file")
 	if err != nil {
@@ -212,11 +213,11 @@ func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
 	}
 
 	// Get file info
-	ctx.Upload = &FileUpload{
-		Bytes:       int(tmpfile.Size),
-		Name:        tmpfile.Filename,
-		ContentType: tmpfile.Header.Get("Content-Type"),
-		Option:      option,
+	ctx.Upload = &chatctx.FileUpload{
+		Name:     tmpfile.Filename,
+		Type:     tmpfile.Header.Get("Content-Type"),
+		Size:     tmpfile.Size,
+		TempFile: tmpfile.Filename,
 	}
 
 	// Default use the assistant in context
@@ -235,7 +236,7 @@ func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
 }
 
 // Download downloads a file
-func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, error) {
+func (neo *DSL) Download(ctx chatctx.Context, c *gin.Context) (*assistant.FileResponse, error) {
 	// Get file_id from query string
 	fileID := c.Query("file_id")
 	if fileID == "" {
@@ -259,7 +260,7 @@ func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, 
 }
 
 // chat chat with AI
-func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]interface{}, c *gin.Context) error {
+func (neo *DSL) chat(ast assistant.API, ctx chatctx.Context, messages []map[string]interface{}, c *gin.Context) error {
 	if ast == nil {
 		msg := message.New().Error("assistant is not initialized").Done()
 		msg.Write(c.Writer)
@@ -339,7 +340,7 @@ func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]inter
 }
 
 // chatMessages get the chat messages
-func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]interface{}, error) {
+func (neo *DSL) chatMessages(ctx chatctx.Context, content ...string) ([]map[string]interface{}, error) {
 
 	history, err := neo.Store.GetHistory(ctx.Sid, ctx.ChatID)
 	if err != nil {
