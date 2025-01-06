@@ -219,15 +219,16 @@ func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
 		Option:      option,
 	}
 
-	res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
-	if err != nil {
-		return nil, err
-	}
-
-	// Select Assistant
-	ast, err := neo.Select(res.AssistantID)
-	if err != nil {
-		return nil, err
+	// Default use the assistant in context
+	ast := neo.Assistant
+	if ctx.ChatID == "" {
+		if ctx.AssistantID == "" {
+			return nil, fmt.Errorf("assistant_id is required")
+		}
+		ast, err = neo.Select(ctx.AssistantID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ast.Upload(ctx, tmpfile, reader, option)
