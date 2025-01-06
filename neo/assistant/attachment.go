@@ -81,7 +81,7 @@ func (ast *Assistant) Upload(ctx context.Context, file *multipart.FileHeader, re
 	}
 
 	// Handle RAG if available
-	if err := ast.handleRAG(ctx, fileResp, reader); err != nil {
+	if err := ast.handleRAG(ctx, fileResp, reader, option); err != nil {
 		return nil, fmt.Errorf("RAG handling error: %s", err.Error())
 	}
 
@@ -112,8 +112,13 @@ func (ast *Assistant) generateFileID(filename string, sid string, chatID string)
 }
 
 // handleRAG handles the file with RAG if available
-func (ast *Assistant) handleRAG(ctx context.Context, file *File, reader io.Reader) error {
+func (ast *Assistant) handleRAG(ctx context.Context, file *File, reader io.Reader, option map[string]interface{}) error {
 	if rag == nil {
+		return nil
+	}
+
+	// Check if RAG processing is enabled
+	if option, ok := option["rag"].(bool); !ok || !option {
 		return nil
 	}
 
@@ -193,6 +198,11 @@ func (ast *Assistant) handleRAG(ctx context.Context, file *File, reader io.Reade
 // handleVision handles the file with Vision if available
 func (ast *Assistant) handleVision(ctx context.Context, file *File, option map[string]interface{}) error {
 	if vision == nil {
+		return nil
+	}
+
+	// Check if Vision processing is enabled
+	if option, ok := option["vision"].(bool); !ok || !option {
 		return nil
 	}
 

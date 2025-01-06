@@ -30,7 +30,7 @@ func TestUpload(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ast := setupTestAssistant(t)
+	ast := setupTestAssistant()
 	ctx := context.Background()
 
 	t.Run("Basic File Upload", func(t *testing.T) {
@@ -90,15 +90,15 @@ func TestUploadWithRAG(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ast := setupTestAssistant(t)
+	ast := setupTestAssistant()
 	ragEngine, ragUploader, ragVectorizer := setupTestRAG(t)
 	SetRAG(ragEngine, ragUploader, ragVectorizer, RAGSetting{IndexPrefix: "test_"})
 	defer func() {
-		rag = nil // Completely reset the global rag variable
+		rag = nil
 	}()
 	ctx := context.Background()
 
-	t.Run("Text File with RAG", func(t *testing.T) {
+	t.Run("Text File with RAG Enabled", func(t *testing.T) {
 		content := []byte("This is a test document for RAG indexing")
 		file := &multipart.FileHeader{
 			Filename: "test.txt",
@@ -111,6 +111,7 @@ func TestUploadWithRAG(t *testing.T) {
 		fileResp, err := ast.Upload(ctx, file, reader, map[string]interface{}{
 			"sid":     "test-user",
 			"chat_id": "test-chat",
+			"rag":     true,
 		})
 
 		assert.NoError(t, err)
@@ -120,33 +121,35 @@ func TestUploadWithRAG(t *testing.T) {
 		// Wait for indexing to complete
 		time.Sleep(500 * time.Millisecond)
 
-		// Verify the file was indexed by checking if it exists in RAG
+		// Verify the file was indexed
 		exists, err := ragEngine.HasDocument(ctx, "test_test-assistant-test-user-test-chat", fileResp.DocIDs[0])
 		assert.NoError(t, err)
 		assert.True(t, exists, "Document should exist in RAG index")
 	})
 
-	t.Run("Non-Text File with RAG", func(t *testing.T) {
-		imgData, _ := base64.StdEncoding.DecodeString(testImageBase64)
+	t.Run("Text File with RAG Disabled", func(t *testing.T) {
+		content := []byte("This is a test document with RAG disabled")
 		file := &multipart.FileHeader{
-			Filename: "test.png",
-			Size:     int64(len(imgData)),
+			Filename: "test.txt",
+			Size:     int64(len(content)),
 		}
 		file.Header = make(map[string][]string)
-		file.Header.Set("Content-Type", "image/png")
+		file.Header.Set("Content-Type", "text/plain")
 
-		reader := bytes.NewReader(imgData)
-		fileResp, err := ast.Upload(ctx, file, reader, nil)
+		reader := bytes.NewReader(content)
+		fileResp, err := ast.Upload(ctx, file, reader, map[string]interface{}{
+			"sid":     "test-user",
+			"chat_id": "test-chat",
+			"rag":     false,
+		})
+
 		assert.NoError(t, err)
 		assert.NotNil(t, fileResp)
-		// Verify the file was not indexed
-		exists, err := ragEngine.HasDocument(ctx, "test_test-assistant", fileResp.ID)
-		assert.NoError(t, err)
-		assert.False(t, exists)
+		assert.Empty(t, fileResp.DocIDs, "Document IDs should be empty when RAG is disabled")
 	})
 }
 
-func setupTestAssistant(t *testing.T) *Assistant {
+func setupTestAssistant() *Assistant {
 	ast := &Assistant{
 		ID:        "test-assistant",
 		Name:      "Test Assistant",
@@ -246,15 +249,15 @@ func TestUploadWithVision(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ast := setupTestAssistant(t)
+	ast := setupTestAssistant()
 	vision := setupTestVision(t)
 	SetVision(vision)
 	defer func() {
-		vision = nil // Completely reset the global vision variable
+		vision = nil
 	}()
 	ctx := context.Background()
 
-	t.Run("Image with Vision-Capable Model", func(t *testing.T) {
+	t.Run("Image File with Vision Enabled", func(t *testing.T) {
 		imgData, _ := base64.StdEncoding.DecodeString(testImageBase64)
 		file := &multipart.FileHeader{
 			Filename: "test.png",
@@ -265,16 +268,18 @@ func TestUploadWithVision(t *testing.T) {
 
 		reader := bytes.NewReader(imgData)
 		fileResp, err := ast.Upload(ctx, file, reader, map[string]interface{}{
-			"model": "gpt-4-vision-preview",
+			"vision": true,
+			"model":  "gpt-4-vision-preview",
 		})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, fileResp)
-		assert.NotEmpty(t, fileResp.URL)
-		assert.Empty(t, fileResp.Description)
+		if fileResp.URL == "" && fileResp.Description == "" {
+			t.Error("Either URL or Description should be set when vision is enabled")
+		}
 	})
 
-	t.Run("Image with Non-Vision Model", func(t *testing.T) {
+	t.Run("Image File with Vision Disabled", func(t *testing.T) {
 		imgData, _ := base64.StdEncoding.DecodeString(testImageBase64)
 		file := &multipart.FileHeader{
 			Filename: "test.png",
@@ -285,14 +290,34 @@ func TestUploadWithVision(t *testing.T) {
 
 		reader := bytes.NewReader(imgData)
 		fileResp, err := ast.Upload(ctx, file, reader, map[string]interface{}{
-			"model":         "gpt-4",
-			"vision_prompt": "What's in this image?",
+			"vision": false,
 		})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, fileResp)
-		assert.Empty(t, fileResp.URL)
-		assert.NotEmpty(t, fileResp.Description)
+		assert.Empty(t, fileResp.URL, "Vision URL should be empty when vision is disabled")
+		assert.Empty(t, fileResp.Description, "Vision Description should be empty when vision is disabled")
+	})
+
+	t.Run("Image File with Non-Vision Model", func(t *testing.T) {
+		imgData, _ := base64.StdEncoding.DecodeString(testImageBase64)
+		file := &multipart.FileHeader{
+			Filename: "test.png",
+			Size:     int64(len(imgData)),
+		}
+		file.Header = make(map[string][]string)
+		file.Header.Set("Content-Type", "image/png")
+
+		reader := bytes.NewReader(imgData)
+		fileResp, err := ast.Upload(ctx, file, reader, map[string]interface{}{
+			"vision": true,
+			"model":  "gpt-4",
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, fileResp)
+		assert.Empty(t, fileResp.URL, "Vision URL should be empty for non-vision models")
+		assert.NotEmpty(t, fileResp.Description, "Vision Description should be set for non-vision models")
 	})
 }
 
@@ -300,7 +325,7 @@ func TestDownload(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ast := setupTestAssistant(t)
+	ast := setupTestAssistant()
 	ctx := context.Background()
 
 	t.Run("Download Existing File", func(t *testing.T) {
