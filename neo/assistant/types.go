@@ -7,6 +7,8 @@ import (
 
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/message"
 	api "github.com/yaoapp/yao/openai"
 )
 
@@ -16,6 +18,7 @@ type API interface {
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
+	HookInit(ctx chatctx.Context, messages []message.Message) (*ResHookInit, error)
 }
 
 // RAG the RAG interface

@@ -25,19 +25,30 @@ func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) err
 		return err
 	}
 
-	// Get the assistant_id, chat_id
-	res, err := neo.HookCreate(ctx, messages, c)
+	var res *assistant.ResHookInit = nil
+	var ast assistant.API = neo.Assistant
+
+	if ctx.AssistantID != "" {
+		ast, err = neo.Select(ctx.AssistantID)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Init the assistant
+	res, err = ast.HookInit(ctx, []message.Message{{Text: question}})
 	if err != nil {
-		msg := message.New().Error(err).Done()
-		msg.Write(c.Writer)
 		return err
 	}
 
-	// Select Assistant
-	ast, err := neo.Select(res.AssistantID)
-	if err != nil {
-		return err
+	// Switch to the new assistant if necessary
+	if res.AssistantID != ctx.AssistantID {
+		ast, err = neo.Select(res.AssistantID)
+		if err != nil {
+			return err
+		}
 	}
+
 	// Chat with AI
 	return neo.chat(ast, ctx, messages, c)
 }

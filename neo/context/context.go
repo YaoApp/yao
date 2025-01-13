@@ -80,3 +80,43 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, context.Cancel
 	parent.Context = new
 	return parent, cancel
 }
+
+// Map the context to a map
+func (ctx *Context) Map() map[string]interface{} {
+	data := map[string]interface{}{
+		"sid": ctx.Sid,
+	}
+
+	if ctx.ChatID != "" {
+		data["chat_id"] = ctx.ChatID
+	}
+	if ctx.AssistantID != "" {
+		data["assistant_id"] = ctx.AssistantID
+	}
+	if ctx.Stack != "" {
+		data["stack"] = ctx.Stack
+	}
+	if ctx.Path != "" {
+		data["pathname"] = ctx.Path
+	}
+	if len(ctx.FormData) > 0 {
+		data["formdata"] = ctx.FormData
+	}
+	if ctx.Field != nil {
+		data["field"] = ctx.Field
+	}
+	if ctx.Namespace != "" {
+		data["namespace"] = ctx.Namespace
+	}
+	if len(ctx.Config) > 0 {
+		data["config"] = ctx.Config
+	}
+	if ctx.Signal != nil {
+		data["signal"] = ctx.Signal
+	}
+	if ctx.Upload != nil {
+		data["upload"] = ctx.Upload
+	}
+
+	return data
+}
