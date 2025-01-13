@@ -135,6 +135,13 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 			// Handle error
 			if msg.Type == "error" {
 				value := msg.String()
+				res, hookErr := ast.HookFail(c, ctx, messages, string(*content), fmt.Errorf("%s", value))
+				if hookErr == nil && res != nil && (res.Output != "" || res.Error != "") {
+					value = res.Output
+					if res.Error != "" {
+						value = res.Error
+					}
+				}
 				chatMessage.New().Error(value).Done().Write(c.Writer)
 				return 0 // break
 			}
@@ -143,35 +150,27 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 			*content = msg.Append(*content)
 			value := msg.String()
 			if value != "" {
-
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, value)
-				if err != nil {
-					return 0 // break
-				}
-
-				// Custom output from hook
-				if res.Output != "" {
-					value = res.Output
-				}
-
-				// Custom next action from hook
-				if res.Next != nil {
-					switch res.Next.Action {
-					case "exit":
+				res, err := ast.HookStream(c, ctx, messages, string(*content))
+				if err == nil && res != nil {
+					if res.Output != "" {
+						value = res.Output
+					}
+					if res.Next != nil && res.Next.Action == "exit" {
 						done <- true
 						return 0 // break
 					}
+					if res.Silent {
+						return 1 // continue
+					}
 				}
 
-				if !res.Silent {
-					chatMessage.New().
-						Map(map[string]interface{}{
-							"text": value,
-							"done": msg.IsDone,
-						}).
-						Write(c.Writer)
-				}
+				chatMessage.New().
+					Map(map[string]interface{}{
+						"text": value,
+						"done": msg.IsDone,
+					}).
+					Write(c.Writer)
 			}
 
 			// Complete the stream
@@ -179,6 +178,31 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 				if value == "" {
 					msg.Write(c.Writer)
 				}
+
+				// Call HookDone
+				res, hookErr := ast.HookDone(c, ctx, messages, string(*content))
+				if hookErr == nil && res != nil {
+					if res.Output != "" {
+						chatMessage.New().
+							Map(map[string]interface{}{
+								"text": res.Output,
+								"done": true,
+							}).
+							Write(c.Writer)
+					}
+					if res.Next != nil && res.Next.Action == "exit" {
+						done <- true
+						return 0 // break
+					}
+				} else if value != "" {
+					chatMessage.New().
+						Map(map[string]interface{}{
+							"text": value,
+							"done": true,
+						}).
+						Write(c.Writer)
+				}
+
 				done <- true
 				return 0 // break
 			}

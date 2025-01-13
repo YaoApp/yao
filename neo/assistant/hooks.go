@@ -99,6 +99,90 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 	return response, nil
 }
 
+// HookDone Handle completion of assistant response
+func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output string) (*ResHookDone, error) {
+	// Create timeout context
+	ctx, cancel := ast.createTimeoutContext(c)
+	defer cancel()
+
+	v, err := ast.call(ctx, "Done", context, input, output, c.Writer)
+	if err != nil {
+		if err.Error() == HookErrorMethodNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	response := &ResHookDone{
+		Input:  input,
+		Output: output,
+	}
+
+	switch v := v.(type) {
+	case map[string]interface{}:
+		if res, ok := v["output"].(string); ok {
+			response.Output = res
+		}
+		if res, ok := v["next"].(map[string]interface{}); ok {
+			response.Next = &NextAction{}
+			if name, ok := res["action"].(string); ok {
+				response.Next.Action = name
+			}
+			if payload, ok := res["payload"].(map[string]interface{}); ok {
+				response.Next.Payload = payload
+			}
+		}
+	case string:
+		response.Output = v
+	}
+
+	return response, nil
+}
+
+// HookFail Handle failure of assistant response
+func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []message.Message, output string, err error) (*ResHookFail, error) {
+	// Create timeout context
+	ctx, cancel := ast.createTimeoutContext(c)
+	defer cancel()
+
+	v, callErr := ast.call(ctx, "Fail", context, input, output, err.Error(), c.Writer)
+	if callErr != nil {
+		if callErr.Error() == HookErrorMethodNotFound {
+			return nil, nil
+		}
+		return nil, callErr
+	}
+
+	response := &ResHookFail{
+		Input:  input,
+		Output: output,
+		Error:  err.Error(),
+	}
+
+	switch v := v.(type) {
+	case map[string]interface{}:
+		if res, ok := v["output"].(string); ok {
+			response.Output = res
+		}
+		if res, ok := v["error"].(string); ok {
+			response.Error = res
+		}
+		if res, ok := v["next"].(map[string]interface{}); ok {
+			response.Next = &NextAction{}
+			if name, ok := res["action"].(string); ok {
+				response.Next.Action = name
+			}
+			if payload, ok := res["payload"].(map[string]interface{}); ok {
+				response.Next.Payload = payload
+			}
+		}
+	case string:
+		response.Output = v
+	}
+
+	return response, nil
+}
+
 // createTimeoutContext creates a timeout context with 5 seconds timeout
 func (ast *Assistant) createTimeoutContext(c *gin.Context) (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)

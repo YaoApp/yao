@@ -44,6 +44,21 @@ type ResHookStream struct {
 	Output string      `json:"output,omitempty"` // The output
 }
 
+// ResHookDone the response of the done hook
+type ResHookDone struct {
+	Next   *NextAction       `json:"next,omitempty"`
+	Input  []message.Message `json:"input,omitempty"`
+	Output string            `json:"output,omitempty"`
+}
+
+// ResHookFail the response of the fail hook
+type ResHookFail struct {
+	Next   *NextAction       `json:"next,omitempty"`
+	Input  []message.Message `json:"input,omitempty"`
+	Output string            `json:"output,omitempty"`
+	Error  string            `json:"error,omitempty"`
+}
+
 // NextAction the next action
 type NextAction struct {
 	Action  string                 `json:"action"`
