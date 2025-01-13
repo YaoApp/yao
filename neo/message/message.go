@@ -22,6 +22,8 @@ type Message struct {
 	IsDone      bool                   `json:"done,omitempty"`
 	Actions     []Action               `json:"actions,omitempty"`     // Conversation Actions for frontend
 	Attachments []Attachment           `json:"attachments,omitempty"` // File attachments
+	Role        string                 `json:"role,omitempty"`        // user, assistant, system ...
+	Name        string                 `json:"name,omitempty"`        // name for the message
 	Data        map[string]interface{} `json:"-"`
 }
 
@@ -134,10 +136,72 @@ func (m *Message) Error(message interface{}) *Message {
 	return m
 }
 
+// SetContent set the content
+func (m *Message) SetContent(content string) *Message {
+	if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
+		var msg Message
+		if err := jsoniter.UnmarshalFromString(content, &msg); err != nil {
+			m.Text = err.Error() + "\n" + content
+			return m
+		}
+		*m = msg
+	} else {
+		m.Text = content
+		m.Type = "text"
+	}
+	return m
+}
+
+// Content get the content
+func (m *Message) Content() string {
+	content := map[string]interface{}{"text": m.Text}
+	if m.Attachments != nil {
+		content["attachments"] = m.Attachments
+	}
+
+	if m.Type != "" {
+		content["type"] = m.Type
+	}
+	contentRaw, _ := jsoniter.MarshalToString(content)
+	return contentRaw
+}
+
+// ToMap convert to map
+func (m *Message) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"content": m.Content(),
+		"role":    m.Role,
+		"name":    m.Name,
+	}
+}
+
 // Map set from map
 func (m *Message) Map(msg map[string]interface{}) *Message {
 	if msg == nil {
 		return m
+	}
+
+	// Content  {"text": "xxxx",  "attachments": ... }
+	if content, ok := msg["content"].(string); ok {
+		if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
+			var msg Message
+			if err := jsoniter.UnmarshalFromString(content, &msg); err != nil {
+				m.Text = err.Error() + "\n" + content
+				return m
+			}
+			*m = msg
+		} else {
+			m.Text = content
+			m.Type = "text"
+		}
+	}
+
+	if role, ok := msg["role"].(string); ok {
+		m.Role = role
+	}
+
+	if name, ok := msg["name"].(string); ok {
+		m.Name = name
 	}
 
 	if text, ok := msg["text"].(string); ok {

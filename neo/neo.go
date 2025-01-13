@@ -18,7 +18,7 @@ var lock sync.Mutex = sync.Mutex{}
 
 // Answer reply the message
 func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) error {
-	messages, err := neo.chatMessages(ctx, question)
+	messages, err := neo.withHistory(ctx, question)
 	if err != nil {
 		msg := message.New().Error(err).Done()
 		msg.Write(c.Writer)
@@ -36,7 +36,7 @@ func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) err
 	}
 
 	// Init the assistant
-	res, err = ast.HookInit(ctx, []message.Message{{Text: question}})
+	res, err = ast.HookInit(c, ctx, messages)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,11 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 
 	// Chat with AI in background
 	go func() {
-		err := ast.Chat(c.Request.Context(), messages, neo.Option, func(data []byte) int {
+		msgList := make([]message.Message, len(messages))
+		for i, msg := range messages {
+			msgList[i] = *message.New().Map(msg)
+		}
+		err := ast.Chat(c.Request.Context(), msgList, neo.Option, func(data []byte) int {
 			select {
 			case <-clientBreak:
 				return 0 // break
@@ -271,7 +275,7 @@ func (neo *DSL) Download(ctx chatctx.Context, c *gin.Context) (*assistant.FileRe
 }
 
 // chat chat with AI
-func (neo *DSL) chat(ast assistant.API, ctx chatctx.Context, messages []map[string]interface{}, c *gin.Context) error {
+func (neo *DSL) chat(ast assistant.API, ctx chatctx.Context, messages []message.Message, c *gin.Context) error {
 	if ast == nil {
 		msg := message.New().Error("assistant is not initialized").Done()
 		msg.Write(c.Writer)
@@ -350,33 +354,30 @@ func (neo *DSL) chat(ast assistant.API, ctx chatctx.Context, messages []map[stri
 	}
 }
 
-// chatMessages get the chat messages
-func (neo *DSL) chatMessages(ctx chatctx.Context, content ...string) ([]map[string]interface{}, error) {
-
+func (neo *DSL) withHistory(ctx chatctx.Context, question string) ([]message.Message, error) {
 	history, err := neo.Store.GetHistory(ctx.Sid, ctx.ChatID)
 	if err != nil {
 		return nil, err
 	}
 
-	messages := []map[string]interface{}{}
-	messages = append(messages, history...)
-	if len(content) == 0 {
-		return messages, nil
+	// Add history messages
+	messages := []message.Message{}
+	for _, h := range history {
+		messages = append(messages, *message.New().Map(h))
 	}
 
 	// Add user message
-	messages = append(messages, map[string]interface{}{"role": "user", "content": content[0], "name": ctx.Sid})
+	messages = append(messages, *message.New().Map(map[string]interface{}{"role": "user", "content": question, "name": ctx.Sid}))
 	return messages, nil
 }
 
 // saveHistory save the history
-func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages []map[string]interface{}) {
-
+func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages []message.Message) {
 	if len(content) > 0 && sid != "" && len(messages) > 0 {
 		err := neo.Store.SaveHistory(
 			sid,
 			[]map[string]interface{}{
-				{"role": "user", "content": messages[len(messages)-1]["content"], "name": sid},
+				{"role": "user", "content": messages[len(messages)-1].Content(), "name": sid},
 				{"role": "assistant", "content": string(content), "name": sid},
 			},
 			chatID,

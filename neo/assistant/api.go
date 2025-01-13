@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
 
@@ -41,7 +42,7 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 }
 
 // Chat implements the chat functionality
-func (ast *Assistant) Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error {
+func (ast *Assistant) Chat(ctx context.Context, messages []message.Message, option map[string]interface{}, cb func(data []byte) int) error {
 	if ast.openai == nil {
 		return fmt.Errorf("openai is not initialized")
 	}
@@ -59,13 +60,12 @@ func (ast *Assistant) Chat(ctx context.Context, messages []map[string]interface{
 	return nil
 }
 
-func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string]interface{}) ([]map[string]interface{}, error) {
+func (ast *Assistant) requestMessages(ctx context.Context, messages []message.Message) ([]map[string]interface{}, error) {
 	newMessages := []map[string]interface{}{}
-
 	// With Prompts
 	if ast.Prompts != nil {
 		for _, prompt := range ast.Prompts {
-			message := map[string]interface{}{
+			msg := map[string]interface{}{
 				"role":    prompt.Role,
 				"content": prompt.Content,
 			}
@@ -75,20 +75,20 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string
 				name = prompt.Name
 			}
 
-			message["name"] = name
-			newMessages = append(newMessages, message)
+			msg["name"] = name
+			newMessages = append(newMessages, msg)
 		}
 	}
 
 	length := len(messages)
 	for index, message := range messages {
-		role, ok := message["role"].(string)
-		if !ok {
+		role := message.Role
+		if role == "" {
 			return nil, fmt.Errorf("role must be string")
 		}
 
-		content, ok := message["content"].(string)
-		if !ok {
+		content := message.Text
+		if content == "" {
 			return nil, fmt.Errorf("content must be string")
 		}
 
@@ -97,7 +97,7 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string
 			"content": content,
 		}
 
-		if name, ok := message["name"].(string); ok {
+		if name := message.Name; name != "" {
 			newMessage["name"] = name
 		}
 

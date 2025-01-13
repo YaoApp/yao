@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	chatctx "github.com/yaoapp/yao/neo/context"
@@ -14,11 +15,11 @@ import (
 
 // API the assistant API interface
 type API interface {
-	Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error
+	Chat(ctx context.Context, messages []message.Message, option map[string]interface{}, cb func(data []byte) int) error
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
-	HookInit(ctx chatctx.Context, messages []message.Message) (*ResHookInit, error)
+	HookInit(c *gin.Context, ctx chatctx.Context, messages []message.Message) (*ResHookInit, error)
 }
 
 // RAG the RAG interface

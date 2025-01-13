@@ -1,8 +1,11 @@
 package assistant
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 )
@@ -19,8 +22,12 @@ type ResHookInit struct {
 }
 
 // HookInit initialize the assistant
-func (ast *Assistant) HookInit(context chatctx.Context, messages []message.Message) (*ResHookInit, error) {
-	v, err := ast.call("Init", context, messages)
+func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, messages []message.Message) (*ResHookInit, error) {
+	// Create timeout context
+	ctx, cancel := ast.createTimeoutContext(c)
+	defer cancel()
+
+	v, err := ast.call(ctx, "Init", context, messages, c.Writer)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -50,25 +57,47 @@ func (ast *Assistant) HookInit(context chatctx.Context, messages []message.Messa
 	return response, nil
 }
 
-// Call the script method
-func (ast *Assistant) call(method string, context chatctx.Context, args ...any) (interface{}, error) {
+// createTimeoutContext creates a timeout context with 5 seconds timeout
+func (ast *Assistant) createTimeoutContext(c *gin.Context) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	return ctx, cancel
+}
 
+// Call the script method
+func (ast *Assistant) call(ctx context.Context, method string, context chatctx.Context, args ...any) (interface{}, error) {
 	if ast.Script == nil {
 		return nil, nil
 	}
 
-	ctx, err := ast.Script.NewContext(context.Sid, nil)
+	scriptCtx, err := ast.Script.NewContext(context.Sid, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer ctx.Close()
+	defer scriptCtx.Close()
 
 	// Check if the method exists
-	if !ctx.Global().Has(method) {
+	if !scriptCtx.Global().Has(method) {
 		return nil, fmt.Errorf(HookErrorMethodNotFound)
 	}
 
-	// Call the method
-	args = append([]interface{}{context.Map()}, args...)
-	return ctx.Call(method, args...)
+	// Create done channel for handling cancellation
+	done := make(chan struct{})
+	var result interface{}
+	var callErr error
+
+	go func() {
+		defer close(done)
+		// Call the method
+		args = append([]interface{}{context.Map()}, args...)
+		result, callErr = scriptCtx.Call(method, args...)
+	}()
+
+	// Wait for either context cancellation or method completion
+	select {
+	case <-ctx.Done():
+		scriptCtx.Close() // Force close the script context
+		return nil, ctx.Err()
+	case <-done:
+		return result, callErr
+	}
 }
