@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/fs"
+	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
@@ -39,6 +41,184 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 	}
 	loaded.Put(assistant)
 	return assistant, nil
+}
+
+// Execute implements the execute functionality
+func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error {
+	messages, err := ast.withHistory(ctx, input)
+	if err != nil {
+		return err
+	}
+
+	options = ast.withOptions(options)
+
+	// Run init hook
+	res, err := ast.HookInit(c, ctx, messages, options)
+	if err != nil {
+		return err
+	}
+
+	// Switch to the new assistant if necessary
+	if res.AssistantID != ctx.AssistantID {
+		newAst, err := Get(res.AssistantID)
+		if err != nil {
+			return err
+		}
+		*ast = *newAst
+	}
+
+	// Handle next action
+	if res.Next != nil {
+		switch res.Next.Action {
+		case "exit":
+			return nil
+			// Add other actions here if needed
+		}
+	}
+
+	// Update options if provided
+	if res.Options != nil {
+		options = res.Options
+	}
+
+	// Only proceed with chat stream if no specific next action was handled
+	return ast.handleChatStream(c, ctx, messages, options)
+}
+
+// handleChatStream manages the streaming chat interaction with the AI
+func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []message.Message, options map[string]interface{}) error {
+	clientBreak := make(chan bool, 1)
+	done := make(chan bool, 1)
+	content := []byte{}
+
+	// Chat with AI in background
+	go func() {
+		err := ast.streamChat(c, messages, options, clientBreak, done, &content)
+		if err != nil {
+			chatMessage.New().Error(err).Done().Write(c.Writer)
+		}
+
+		ast.saveChatHistory(ctx, messages, content)
+		done <- true
+	}()
+
+	// Wait for completion or client disconnect
+	select {
+	case <-done:
+		return nil
+	case <-c.Writer.CloseNotify():
+		clientBreak <- true
+		return nil
+	}
+}
+
+// streamChat handles the streaming chat interaction
+func (ast *Assistant) streamChat(c *gin.Context, messages []message.Message, options map[string]interface{},
+	clientBreak chan bool, done chan bool, content *[]byte) error {
+
+	return ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
+		select {
+		case <-clientBreak:
+			return 0 // break
+
+		default:
+			msg := chatMessage.NewOpenAI(data)
+			if msg == nil {
+				return 1 // continue
+			}
+
+			// Handle error
+			if msg.Type == "error" {
+				value := msg.String()
+				chatMessage.New().Error(value).Done().Write(c.Writer)
+				return 0 // break
+			}
+
+			// Append content and send message
+			*content = msg.Append(*content)
+			value := msg.String()
+			if value != "" {
+				chatMessage.New().
+					Map(map[string]interface{}{
+						"text": value,
+						"done": msg.IsDone,
+					}).
+					Write(c.Writer)
+			}
+
+			// Complete the stream
+			if msg.IsDone {
+				if value == "" {
+					msg.Write(c.Writer)
+				}
+				done <- true
+				return 0 // break
+			}
+
+			return 1 // continue
+		}
+	})
+}
+
+// saveChatHistory saves the chat history if storage is available
+func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []message.Message, content []byte) {
+	if len(content) > 0 && ctx.Sid != "" && len(messages) > 0 {
+		storage.SaveHistory(
+			ctx.Sid,
+			[]map[string]interface{}{
+				{"role": "user", "content": messages[len(messages)-1].Content(), "name": ctx.Sid},
+				{"role": "assistant", "content": string(content), "name": ctx.Sid},
+			},
+			ctx.ChatID,
+			nil,
+		)
+	}
+}
+
+func (ast *Assistant) withOptions(options map[string]interface{}) map[string]interface{} {
+	if options == nil {
+		options = map[string]interface{}{}
+	}
+
+	if ast.Options != nil {
+		for key, value := range ast.Options {
+			options[key] = value
+		}
+	}
+	return options
+}
+
+func (ast *Assistant) withPrompts(messages []message.Message) []message.Message {
+	if ast.Prompts != nil {
+		for _, prompt := range ast.Prompts {
+			name := ast.Name
+			if prompt.Name != "" {
+				name = prompt.Name
+			}
+			messages = append(messages, *message.New().Map(map[string]interface{}{"role": prompt.Role, "content": prompt.Content, "name": name}))
+		}
+	}
+	return messages
+}
+
+func (ast *Assistant) withHistory(ctx chatctx.Context, input string) ([]message.Message, error) {
+	messages := []message.Message{}
+	messages = ast.withPrompts(messages)
+	if storage != nil {
+		history, err := storage.GetHistory(ctx.Sid, ctx.ChatID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add history messages
+		for _, h := range history {
+			messages = append(messages, *message.New().Map(h))
+		}
+	}
+
+	// Add user message
+	messages = append(messages, *message.New().Map(map[string]interface{}{"role": "user", "content": input, "name": ctx.Sid}))
+	return messages, nil
 }
 
 // Chat implements the chat functionality

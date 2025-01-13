@@ -17,17 +17,26 @@ const (
 
 // ResHookInit the response of the init hook
 type ResHookInit struct {
-	AssistantID string `json:"assistant_id,omitempty"`
-	ChatID      string `json:"chat_id,omitempty"`
+	AssistantID string                 `json:"assistant_id,omitempty"`
+	ChatID      string                 `json:"chat_id,omitempty"`
+	Next        *NextAction            `json:"next,omitempty"`
+	Input       []message.Message      `json:"input,omitempty"`
+	Options     map[string]interface{} `json:"options,omitempty"`
+}
+
+// NextAction the next action
+type NextAction struct {
+	Action  string                 `json:"action"`
+	Payload map[string]interface{} `json:"payload,omitempty"`
 }
 
 // HookInit initialize the assistant
-func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, messages []message.Message) (*ResHookInit, error) {
+func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}) (*ResHookInit, error) {
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Init", context, messages, c.Writer)
+	v, err := ast.call(ctx, "Init", context, input, c.Writer)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
