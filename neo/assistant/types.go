@@ -13,6 +13,11 @@ import (
 	api "github.com/yaoapp/yao/openai"
 )
 
+const (
+	// HookErrorMethodNotFound is the error message for method not found
+	HookErrorMethodNotFound = "method not found"
+)
+
 // API the assistant API interface
 type API interface {
 	Chat(ctx context.Context, messages []message.Message, option map[string]interface{}, cb func(data []byte) int) error
@@ -21,6 +26,28 @@ type API interface {
 	ReadBase64(ctx context.Context, fileID string) (string, error)
 	Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error
 	HookInit(c *gin.Context, ctx chatctx.Context, input []message.Message, options map[string]interface{}) (*ResHookInit, error)
+}
+
+// ResHookInit the response of the init hook
+type ResHookInit struct {
+	AssistantID string                 `json:"assistant_id,omitempty"`
+	ChatID      string                 `json:"chat_id,omitempty"`
+	Next        *NextAction            `json:"next,omitempty"`
+	Input       []message.Message      `json:"input,omitempty"`
+	Options     map[string]interface{} `json:"options,omitempty"`
+}
+
+// ResHookStream the response of the stream hook
+type ResHookStream struct {
+	Silent bool        `json:"silent,omitempty"` // Whether to suppress the output
+	Next   *NextAction `json:"next,omitempty"`   // The next action
+	Output string      `json:"output,omitempty"` // The output
+}
+
+// NextAction the next action
+type NextAction struct {
+	Action  string                 `json:"action"`
+	Payload map[string]interface{} `json:"payload,omitempty"`
 }
 
 // RAG the RAG interface

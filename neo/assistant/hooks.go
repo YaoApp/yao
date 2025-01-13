@@ -10,26 +10,6 @@ import (
 	"github.com/yaoapp/yao/neo/message"
 )
 
-const (
-	// HookErrorMethodNotFound is the error message for method not found
-	HookErrorMethodNotFound = "method not found"
-)
-
-// ResHookInit the response of the init hook
-type ResHookInit struct {
-	AssistantID string                 `json:"assistant_id,omitempty"`
-	ChatID      string                 `json:"chat_id,omitempty"`
-	Next        *NextAction            `json:"next,omitempty"`
-	Input       []message.Message      `json:"input,omitempty"`
-	Options     map[string]interface{} `json:"options,omitempty"`
-}
-
-// NextAction the next action
-type NextAction struct {
-	Action  string                 `json:"action"`
-	Payload map[string]interface{} `json:"payload,omitempty"`
-}
-
 // HookInit initialize the assistant
 func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}) (*ResHookInit, error) {
 	// Create timeout context
@@ -54,6 +34,16 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 			response.ChatID = res
 		}
 
+		if res, ok := v["next"].(map[string]interface{}); ok {
+			response.Next = &NextAction{}
+			if name, ok := res["action"].(string); ok {
+				response.Next.Action = name
+			}
+			if payload, ok := res["payload"].(map[string]interface{}); ok {
+				response.Next.Payload = payload
+			}
+		}
+
 	case string:
 		response.AssistantID = v
 		response.ChatID = context.ChatID
@@ -61,6 +51,49 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 	case nil:
 		response.AssistantID = ast.ID
 		response.ChatID = context.ChatID
+	}
+
+	return response, nil
+}
+
+// HookStream Handle streaming response from LLM
+func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output string) (*ResHookStream, error) {
+
+	// Create timeout context
+	ctx, cancel := ast.createTimeoutContext(c)
+	defer cancel()
+
+	v, err := ast.call(ctx, "Stream", context, input, output, c.Writer)
+	if err != nil {
+		if err.Error() == HookErrorMethodNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	response := &ResHookStream{}
+	switch v := v.(type) {
+	case map[string]interface{}:
+		if res, ok := v["output"].(string); ok {
+			response.Output = res
+		}
+		if res, ok := v["next"].(map[string]interface{}); ok {
+			response.Next = &NextAction{}
+			if name, ok := res["action"].(string); ok {
+				response.Next.Action = name
+			}
+			if payload, ok := res["payload"].(map[string]interface{}); ok {
+				response.Next.Payload = payload
+			}
+		}
+
+		// Custom silent from hook
+		if res, ok := v["silent"].(bool); ok {
+			response.Silent = res
+		}
+
+	case string:
+		response.Output = v
 	}
 
 	return response, nil

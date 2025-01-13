@@ -81,6 +81,11 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 		options = res.Options
 	}
 
+	// messages
+	if res.Input != nil {
+		messages = res.Input
+	}
+
 	// Only proceed with chat stream if no specific next action was handled
 	return ast.handleChatStream(c, ctx, messages, options)
 }
@@ -93,7 +98,7 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 
 	// Chat with AI in background
 	go func() {
-		err := ast.streamChat(c, messages, options, clientBreak, done, &content)
+		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, &content)
 		if err != nil {
 			chatMessage.New().Error(err).Done().Write(c.Writer)
 		}
@@ -113,7 +118,7 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 }
 
 // streamChat handles the streaming chat interaction
-func (ast *Assistant) streamChat(c *gin.Context, messages []message.Message, options map[string]interface{},
+func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages []message.Message, options map[string]interface{},
 	clientBreak chan bool, done chan bool, content *[]byte) error {
 
 	return ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
@@ -138,12 +143,35 @@ func (ast *Assistant) streamChat(c *gin.Context, messages []message.Message, opt
 			*content = msg.Append(*content)
 			value := msg.String()
 			if value != "" {
-				chatMessage.New().
-					Map(map[string]interface{}{
-						"text": value,
-						"done": msg.IsDone,
-					}).
-					Write(c.Writer)
+
+				// Handle stream
+				res, err := ast.HookStream(c, ctx, messages, value)
+				if err != nil {
+					return 0 // break
+				}
+
+				// Custom output from hook
+				if res.Output != "" {
+					value = res.Output
+				}
+
+				// Custom next action from hook
+				if res.Next != nil {
+					switch res.Next.Action {
+					case "exit":
+						done <- true
+						return 0 // break
+					}
+				}
+
+				if !res.Silent {
+					chatMessage.New().
+						Map(map[string]interface{}{
+							"text": value,
+							"done": msg.IsDone,
+						}).
+						Write(c.Writer)
+				}
 			}
 
 			// Complete the stream
