@@ -175,9 +175,9 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 
 			// Complete the stream
 			if msg.IsDone {
-				if value == "" {
-					msg.Write(c.Writer)
-				}
+				// if value == "" {
+				// 	msg.Write(c.Writer)
+				// }
 
 				// Call HookDone
 				res, hookErr := ast.HookDone(c, ctx, messages, string(*content))
