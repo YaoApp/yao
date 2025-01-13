@@ -2,16 +2,14 @@ package assistant
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"io"
-	"mime/multipart"
-	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/fs"
+	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
 
@@ -45,24 +43,238 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 	return assistant, nil
 }
 
-// AllowedFileTypes the allowed file types
-var AllowedFileTypes = map[string]string{
-	"application/json":   "json",
-	"application/pdf":    "pdf",
-	"application/msword": "doc",
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   "docx",
-	"application/vnd.oasis.opendocument.text":                                   "odt",
-	"application/vnd.ms-excel":                                                  "xls",
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         "xlsx",
-	"application/vnd.ms-powerpoint":                                             "ppt",
-	"application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+// Execute implements the execute functionality
+func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error {
+	messages, err := ast.withHistory(ctx, input)
+	if err != nil {
+		return err
+	}
+
+	options = ast.withOptions(options)
+
+	// Run init hook
+	res, err := ast.HookInit(c, ctx, messages, options)
+	if err != nil {
+		return err
+	}
+
+	// Switch to the new assistant if necessary
+	if res.AssistantID != ctx.AssistantID {
+		newAst, err := Get(res.AssistantID)
+		if err != nil {
+			return err
+		}
+		*ast = *newAst
+	}
+
+	// Handle next action
+	if res.Next != nil {
+		switch res.Next.Action {
+		case "exit":
+			return nil
+			// Add other actions here if needed
+		}
+	}
+
+	// Update options if provided
+	if res.Options != nil {
+		options = res.Options
+	}
+
+	// messages
+	if res.Input != nil {
+		messages = res.Input
+	}
+
+	// Only proceed with chat stream if no specific next action was handled
+	return ast.handleChatStream(c, ctx, messages, options)
 }
 
-// MaxSize 20M max file size
-var MaxSize int64 = 20 * 1024 * 1024
+// handleChatStream manages the streaming chat interaction with the AI
+func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []message.Message, options map[string]interface{}) error {
+	clientBreak := make(chan bool, 1)
+	done := make(chan bool, 1)
+	content := []byte{}
+
+	// Chat with AI in background
+	go func() {
+		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, &content)
+		if err != nil {
+			chatMessage.New().Error(err).Done().Write(c.Writer)
+		}
+
+		ast.saveChatHistory(ctx, messages, content)
+		done <- true
+	}()
+
+	// Wait for completion or client disconnect
+	select {
+	case <-done:
+		return nil
+	case <-c.Writer.CloseNotify():
+		clientBreak <- true
+		return nil
+	}
+}
+
+// streamChat handles the streaming chat interaction
+func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages []message.Message, options map[string]interface{},
+	clientBreak chan bool, done chan bool, content *[]byte) error {
+
+	return ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
+		select {
+		case <-clientBreak:
+			return 0 // break
+
+		default:
+			msg := chatMessage.NewOpenAI(data)
+			if msg == nil {
+				return 1 // continue
+			}
+
+			// Handle error
+			if msg.Type == "error" {
+				value := msg.String()
+				res, hookErr := ast.HookFail(c, ctx, messages, string(*content), fmt.Errorf("%s", value))
+				if hookErr == nil && res != nil && (res.Output != "" || res.Error != "") {
+					value = res.Output
+					if res.Error != "" {
+						value = res.Error
+					}
+				}
+				chatMessage.New().Error(value).Done().Write(c.Writer)
+				return 0 // break
+			}
+
+			// Append content and send message
+			*content = msg.Append(*content)
+			value := msg.String()
+			if value != "" {
+				// Handle stream
+				res, err := ast.HookStream(c, ctx, messages, string(*content))
+				if err == nil && res != nil {
+					if res.Output != "" {
+						value = res.Output
+					}
+					if res.Next != nil && res.Next.Action == "exit" {
+						done <- true
+						return 0 // break
+					}
+					if res.Silent {
+						return 1 // continue
+					}
+				}
+
+				chatMessage.New().
+					Map(map[string]interface{}{
+						"text": value,
+						"done": msg.IsDone,
+					}).
+					Write(c.Writer)
+			}
+
+			// Complete the stream
+			if msg.IsDone {
+				// if value == "" {
+				// 	msg.Write(c.Writer)
+				// }
+
+				// Call HookDone
+				res, hookErr := ast.HookDone(c, ctx, messages, string(*content))
+				if hookErr == nil && res != nil {
+					if res.Output != "" {
+						chatMessage.New().
+							Map(map[string]interface{}{
+								"text": res.Output,
+								"done": true,
+							}).
+							Write(c.Writer)
+					}
+					if res.Next != nil && res.Next.Action == "exit" {
+						done <- true
+						return 0 // break
+					}
+				} else if value != "" {
+					chatMessage.New().
+						Map(map[string]interface{}{
+							"text": value,
+							"done": true,
+						}).
+						Write(c.Writer)
+				}
+
+				done <- true
+				return 0 // break
+			}
+
+			return 1 // continue
+		}
+	})
+}
+
+// saveChatHistory saves the chat history if storage is available
+func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []message.Message, content []byte) {
+	if len(content) > 0 && ctx.Sid != "" && len(messages) > 0 {
+		storage.SaveHistory(
+			ctx.Sid,
+			[]map[string]interface{}{
+				{"role": "user", "content": messages[len(messages)-1].Content(), "name": ctx.Sid},
+				{"role": "assistant", "content": string(content), "name": ctx.Sid},
+			},
+			ctx.ChatID,
+			nil,
+		)
+	}
+}
+
+func (ast *Assistant) withOptions(options map[string]interface{}) map[string]interface{} {
+	if options == nil {
+		options = map[string]interface{}{}
+	}
+
+	if ast.Options != nil {
+		for key, value := range ast.Options {
+			options[key] = value
+		}
+	}
+	return options
+}
+
+func (ast *Assistant) withPrompts(messages []message.Message) []message.Message {
+	if ast.Prompts != nil {
+		for _, prompt := range ast.Prompts {
+			name := ast.Name
+			if prompt.Name != "" {
+				name = prompt.Name
+			}
+			messages = append(messages, *message.New().Map(map[string]interface{}{"role": prompt.Role, "content": prompt.Content, "name": name}))
+		}
+	}
+	return messages
+}
+
+func (ast *Assistant) withHistory(ctx chatctx.Context, input string) ([]message.Message, error) {
+	messages := []message.Message{}
+	messages = ast.withPrompts(messages)
+	if storage != nil {
+		history, err := storage.GetHistory(ctx.Sid, ctx.ChatID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add history messages
+		for _, h := range history {
+			messages = append(messages, *message.New().Map(h))
+		}
+	}
+
+	// Add user message
+	messages = append(messages, *message.New().Map(map[string]interface{}{"role": "user", "content": input, "name": ctx.Sid}))
+	return messages, nil
+}
 
 // Chat implements the chat functionality
-func (ast *Assistant) Chat(ctx context.Context, messages []map[string]interface{}, option map[string]interface{}, cb func(data []byte) int) error {
+func (ast *Assistant) Chat(ctx context.Context, messages []message.Message, option map[string]interface{}, cb func(data []byte) int) error {
 	if ast.openai == nil {
 		return fmt.Errorf("openai is not initialized")
 	}
@@ -80,13 +292,12 @@ func (ast *Assistant) Chat(ctx context.Context, messages []map[string]interface{
 	return nil
 }
 
-func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string]interface{}) ([]map[string]interface{}, error) {
+func (ast *Assistant) requestMessages(ctx context.Context, messages []message.Message) ([]map[string]interface{}, error) {
 	newMessages := []map[string]interface{}{}
-
 	// With Prompts
 	if ast.Prompts != nil {
 		for _, prompt := range ast.Prompts {
-			message := map[string]interface{}{
+			msg := map[string]interface{}{
 				"role":    prompt.Role,
 				"content": prompt.Content,
 			}
@@ -96,20 +307,20 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string
 				name = prompt.Name
 			}
 
-			message["name"] = name
-			newMessages = append(newMessages, message)
+			msg["name"] = name
+			newMessages = append(newMessages, msg)
 		}
 	}
 
 	length := len(messages)
 	for index, message := range messages {
-		role, ok := message["role"].(string)
-		if !ok {
+		role := message.Role
+		if role == "" {
 			return nil, fmt.Errorf("role must be string")
 		}
 
-		content, ok := message["content"].(string)
-		if !ok {
+		content := message.Text
+		if content == "" {
 			return nil, fmt.Errorf("content must be string")
 		}
 
@@ -118,7 +329,7 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []map[string
 			"content": content,
 		}
 
-		if name, ok := message["name"].(string); ok {
+		if name := message.Name; name != "" {
 			newMessage["name"] = name
 		}
 
@@ -173,94 +384,6 @@ func (ast *Assistant) withAttachments(ctx context.Context, msg *chatMessage.Mess
 	}
 
 	return contents, nil
-}
-
-// Upload implements file upload functionality
-func (ast *Assistant) Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error) {
-	// check file size
-	if file.Size > MaxSize {
-		return nil, fmt.Errorf("file size %d exceeds the maximum size of %d", file.Size, MaxSize)
-	}
-
-	contentType := file.Header.Get("Content-Type")
-	if !ast.allowed(contentType) {
-		return nil, fmt.Errorf("file type %s not allowed", contentType)
-	}
-
-	data, err := fs.Get("data")
-	if err != nil {
-		return nil, err
-	}
-
-	ext := filepath.Ext(file.Filename)
-	id, err := ast.id(file.Filename, ext)
-	if err != nil {
-		return nil, err
-	}
-
-	filename := id
-	_, err = data.Write(filename, reader, 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	return &File{
-		ID:          filename,
-		Filename:    filename,
-		ContentType: contentType,
-		Bytes:       int(file.Size),
-		CreatedAt:   int(time.Now().Unix()),
-	}, nil
-}
-
-func (ast *Assistant) allowed(contentType string) bool {
-	if _, ok := AllowedFileTypes[contentType]; ok {
-		return true
-	}
-	if strings.HasPrefix(contentType, "text/") || strings.HasPrefix(contentType, "image/") ||
-		strings.HasPrefix(contentType, "audio/") || strings.HasPrefix(contentType, "video/") {
-		return true
-	}
-	return false
-}
-
-func (ast *Assistant) id(temp string, ext string) (string, error) {
-	date := time.Now().Format("20060102")
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(temp)))[:8]
-	return fmt.Sprintf("/__assistants/%s/%s/%s%s", ast.ID, date, hash, ext), nil
-}
-
-// Download implements file download functionality
-func (ast *Assistant) Download(ctx context.Context, fileID string) (*FileResponse, error) {
-	data, err := fs.Get("data")
-	if err != nil {
-		return nil, fmt.Errorf("get filesystem error: %s", err.Error())
-	}
-
-	exists, err := data.Exists(fileID)
-	if err != nil {
-		return nil, fmt.Errorf("check file error: %s", err.Error())
-	}
-	if !exists {
-		return nil, fmt.Errorf("file %s not found", fileID)
-	}
-
-	reader, err := data.ReadCloser(fileID)
-	if err != nil {
-		return nil, err
-	}
-
-	ext := filepath.Ext(fileID)
-	contentType := "application/octet-stream"
-	if v, err := data.MimeType(fileID); err == nil {
-		contentType = v
-	}
-
-	return &FileResponse{
-		Reader:      reader,
-		ContentType: contentType,
-		Extension:   ext,
-	}, nil
 }
 
 // ReadBase64 implements base64 file reading functionality

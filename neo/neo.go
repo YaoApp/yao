@@ -4,41 +4,25 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/neo/assistant"
+	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 )
 
-// Lock the assistant list
-var lock sync.Mutex = sync.Mutex{}
-
 // Answer reply the message
-func (neo *DSL) Answer(ctx Context, question string, c *gin.Context) error {
-	messages, err := neo.chatMessages(ctx, question)
-	if err != nil {
-		msg := message.New().Error(err).Done()
-		msg.Write(c.Writer)
-		return err
+func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) error {
+	var err error
+	var ast assistant.API = neo.Assistant
+	if ctx.AssistantID != "" {
+		ast, err = neo.Select(ctx.AssistantID)
+		if err != nil {
+			return err
+		}
 	}
-
-	// Get the assistant_id, chat_id
-	res, err := neo.HookCreate(ctx, messages, c)
-	if err != nil {
-		msg := message.New().Error(err).Done()
-		msg.Write(c.Writer)
-		return err
-	}
-
-	// Select Assistant
-	ast, err := neo.Select(res.AssistantID)
-	if err != nil {
-		return err
-	}
-	// Chat with AI
-	return neo.chat(ast, ctx, messages, c)
+	return ast.Execute(c, ctx, question, nil)
 }
 
 // Select select an assistant
@@ -50,7 +34,7 @@ func (neo *DSL) Select(id string) (assistant.API, error) {
 }
 
 // GeneratePrompts generate prompts for the AI assistant
-func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
+func (neo *DSL) GeneratePrompts(ctx chatctx.Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
 	Optimize the prompts for the AI assistant
 	1. Optimize prompts based on the user's input
@@ -68,13 +52,14 @@ func (neo *DSL) GeneratePrompts(ctx Context, input string, c *gin.Context, silen
 }
 
 // GenerateChatTitle generate the chat title
-func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context, silent ...bool) (string, error) {
+func (neo *DSL) GenerateChatTitle(ctx chatctx.Context, input string, c *gin.Context, silent ...bool) (string, error) {
 	prompts := `
 	Help me generate a title for the chat 
 	1. The title should be a short and concise description of the chat.
 	2. The title should be a single sentence.
 	3. The title should be in same language as the chat.
 	4. The title should be no more than 50 characters.
+	5. ANSWER ONLY THE TITLE CONTENT, FOR EXAMPLE: Chat with AI is a valid title, but "Chat with AI" is not a valid title.
 	`
 	isSilent := false
 	if len(silent) > 0 {
@@ -84,7 +69,7 @@ func (neo *DSL) GenerateChatTitle(ctx Context, input string, c *gin.Context, sil
 }
 
 // GenerateWithAI generate content with AI, type can be "title", "prompts", etc.
-func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, systemPrompt string, c *gin.Context, silent bool) (string, error) {
+func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType string, systemPrompt string, c *gin.Context, silent bool) (string, error) {
 	messages := []map[string]interface{}{
 		{"role": "system", "content": systemPrompt},
 		{
@@ -119,7 +104,11 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 
 	// Chat with AI in background
 	go func() {
-		err := ast.Chat(c.Request.Context(), messages, neo.Option, func(data []byte) int {
+		msgList := make([]message.Message, len(messages))
+		for i, msg := range messages {
+			msgList[i] = *message.New().Map(msg)
+		}
+		err := ast.Chat(c.Request.Context(), msgList, neo.Option, func(data []byte) int {
 			select {
 			case <-clientBreak:
 				return 0 // break
@@ -187,7 +176,7 @@ func (neo *DSL) GenerateWithAI(ctx Context, input string, messageType string, sy
 }
 
 // Upload upload a file
-func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
+func (neo *DSL) Upload(ctx chatctx.Context, c *gin.Context) (*assistant.File, error) {
 	// Get the file
 	tmpfile, err := c.FormFile("file")
 	if err != nil {
@@ -212,29 +201,30 @@ func (neo *DSL) Upload(ctx Context, c *gin.Context) (*assistant.File, error) {
 	}
 
 	// Get file info
-	ctx.Upload = &FileUpload{
-		Bytes:       int(tmpfile.Size),
-		Name:        tmpfile.Filename,
-		ContentType: tmpfile.Header.Get("Content-Type"),
-		Option:      option,
+	ctx.Upload = &chatctx.FileUpload{
+		Name:     tmpfile.Filename,
+		Type:     tmpfile.Header.Get("Content-Type"),
+		Size:     tmpfile.Size,
+		TempFile: tmpfile.Filename,
 	}
 
-	res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
-	if err != nil {
-		return nil, err
-	}
-
-	// Select Assistant
-	ast, err := neo.Select(res.AssistantID)
-	if err != nil {
-		return nil, err
+	// Default use the assistant in context
+	ast := neo.Assistant
+	if ctx.ChatID == "" {
+		if ctx.AssistantID == "" {
+			return nil, fmt.Errorf("assistant_id is required")
+		}
+		ast, err = neo.Select(ctx.AssistantID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ast.Upload(ctx, tmpfile, reader, option)
 }
 
 // Download downloads a file
-func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, error) {
+func (neo *DSL) Download(ctx chatctx.Context, c *gin.Context) (*assistant.FileResponse, error) {
 	// Get file_id from query string
 	fileID := c.Query("file_id")
 	if fileID == "" {
@@ -255,134 +245,4 @@ func (neo *DSL) Download(ctx Context, c *gin.Context) (*assistant.FileResponse, 
 
 	// Download file using the assistant
 	return ast.Download(ctx.Context, fileID)
-}
-
-// chat chat with AI
-func (neo *DSL) chat(ast assistant.API, ctx Context, messages []map[string]interface{}, c *gin.Context) error {
-	if ast == nil {
-		msg := message.New().Error("assistant is not initialized").Done()
-		msg.Write(c.Writer)
-		return fmt.Errorf("assistant is not initialized")
-	}
-
-	clientBreak := make(chan bool, 1)
-	done := make(chan bool, 1)
-	content := []byte{}
-
-	// Chat with AI in background
-	go func() {
-		err := ast.Chat(c.Request.Context(), messages, neo.Option, func(data []byte) int {
-			select {
-			case <-clientBreak:
-				return 0 // break
-
-			default:
-				msg := message.NewOpenAI(data)
-				if msg == nil {
-					return 1 // continue
-				}
-
-				// Handle error
-				if msg.Type == "error" {
-					value := msg.String()
-					message.New().Error(value).Done().Write(c.Writer)
-					return 0 // break
-				}
-
-				// Append content and send message
-				content = msg.Append(content)
-				value := msg.String()
-				if value != "" {
-					message.New().
-						Map(map[string]interface{}{
-							"text": value,
-							"done": msg.IsDone,
-						}).
-						Write(c.Writer)
-				}
-
-				// Complete the stream
-				if msg.IsDone {
-					if value == "" {
-						msg.Write(c.Writer)
-					}
-					done <- true
-					return 0 // break
-				}
-
-				return 1 // continue
-			}
-		})
-
-		if err != nil {
-			log.Error("Chat error: %s", err.Error())
-			message.New().Error(err).Done().Write(c.Writer)
-		}
-
-		// Save chat history
-		if len(content) > 0 {
-			neo.saveHistory(ctx.Sid, ctx.ChatID, content, messages)
-		}
-
-		done <- true
-	}()
-
-	// Wait for completion or client disconnect
-	select {
-	case <-done:
-		return nil
-	case <-c.Writer.CloseNotify():
-		clientBreak <- true
-		return nil
-	}
-}
-
-// chatMessages get the chat messages
-func (neo *DSL) chatMessages(ctx Context, content ...string) ([]map[string]interface{}, error) {
-
-	history, err := neo.Store.GetHistory(ctx.Sid, ctx.ChatID)
-	if err != nil {
-		return nil, err
-	}
-
-	messages := []map[string]interface{}{}
-	messages = append(messages, history...)
-	if len(content) == 0 {
-		return messages, nil
-	}
-
-	// Add user message
-	messages = append(messages, map[string]interface{}{"role": "user", "content": content[0], "name": ctx.Sid})
-	return messages, nil
-}
-
-// saveHistory save the history
-func (neo *DSL) saveHistory(sid string, chatID string, content []byte, messages []map[string]interface{}) {
-
-	if len(content) > 0 && sid != "" && len(messages) > 0 {
-		err := neo.Store.SaveHistory(
-			sid,
-			[]map[string]interface{}{
-				{"role": "user", "content": messages[len(messages)-1]["content"], "name": sid},
-				{"role": "assistant", "content": string(content), "name": sid},
-			},
-			chatID,
-			nil,
-		)
-
-		if err != nil {
-			log.Error("Save history error: %s", err.Error())
-		}
-	}
-}
-
-// sendMessage sends a message to the client
-func (neo *DSL) sendMessage(w gin.ResponseWriter, data interface{}) error {
-	if msg, ok := data.(map[string]interface{}); ok {
-		if !message.New().Map(msg).Write(w) {
-			return fmt.Errorf("failed to write message to stream")
-		}
-		return nil
-	}
-	return fmt.Errorf("invalid message data type")
 }

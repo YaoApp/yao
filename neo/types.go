@@ -1,8 +1,6 @@
 package neo
 
 import (
-	"context"
-
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/rag"
@@ -46,22 +44,6 @@ type Mention struct {
 	Name   string `json:"name"`
 	Avatar string `json:"avatar,omitempty"`
 	Type   string `json:"type,omitempty"`
-}
-
-// Context the context
-type Context struct {
-	Sid             string                 `json:"sid" yaml:"-"`           // Session ID
-	ChatID          string                 `json:"chat_id,omitempty"`      // Chat ID, use to select chat
-	AssistantID     string                 `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
-	Stack           string                 `json:"stack,omitempty"`
-	Path            string                 `json:"pathname,omitempty"`
-	FormData        map[string]interface{} `json:"formdata,omitempty"`
-	Field           *Field                 `json:"field,omitempty"`
-	Namespace       string                 `json:"namespace,omitempty"`
-	Config          map[string]interface{} `json:"config,omitempty"`
-	Signal          interface{}            `json:"signal,omitempty"`
-	Upload          *FileUpload            `json:"upload,omitempty"`
-	context.Context `json:"-" yaml:"-"`
 }
 
 // Field the context field

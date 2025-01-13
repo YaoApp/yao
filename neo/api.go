@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
+	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
 )
@@ -173,7 +174,7 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 	}
 
 	// Set the context
-	ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
+	ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
 	defer cancel()
 
 	// Upload the file
@@ -214,7 +215,7 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	}
 
 	// Set the context with validated chat_id
-	ctx, cancel := NewContextWithCancel(sid, chatID, c.Query("context"))
+	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
 	defer cancel()
 
 	neo.Answer(ctx, content, c)
@@ -297,7 +298,7 @@ func (neo *DSL) handleDownload(c *gin.Context) {
 	}
 
 	// Set the context
-	ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
+	ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
 	defer cancel()
 
 	// Download the file
@@ -537,7 +538,7 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 
 	// If content is not empty, Generate the chat title
 	if body.Content != "" {
-		ctx, cancel := NewContextWithCancel(sid, c.Query("chat_id"), "")
+		ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
 		defer cancel()
 
 		title, err := neo.GenerateChatTitle(ctx, body.Content, c, true)
@@ -729,7 +730,7 @@ func (neo *DSL) handleGenerateTitle(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
+	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
 	defer cancel()
 
 	// Use silent mode for regular HTTP requests, streaming for SSE
@@ -780,7 +781,7 @@ func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
+	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
 	defer cancel()
 
 	// Use silent mode for regular HTTP requests, streaming for SSE
@@ -831,7 +832,7 @@ func (neo *DSL) handleGenerateCustom(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := NewContextWithCancel(resp.sid, c.Query("chat_id"), "")
+	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
 	defer cancel()
 
 	// Use silent mode for regular HTTP requests, streaming for SSE

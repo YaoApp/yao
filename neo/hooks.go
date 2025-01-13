@@ -7,10 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
+	chatctx "github.com/yaoapp/yao/neo/context"
 )
 
 // HookCreate create the assistant
-func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gin.Context) (CreateResponse, error) {
+func (neo *DSL) HookCreate(ctx chatctx.Context, messages []map[string]interface{}, c *gin.Context) (CreateResponse, error) {
 
 	// Default assistant
 	assistantID := neo.Use
@@ -69,7 +70,7 @@ func (neo *DSL) HookCreate(ctx Context, messages []map[string]interface{}, c *gi
 }
 
 // HookPrepare executes the prepare hook before AI is called
-func (neo *DSL) HookPrepare(ctx Context, messages []map[string]interface{}) ([]map[string]interface{}, error) {
+func (neo *DSL) HookPrepare(ctx chatctx.Context, messages []map[string]interface{}) ([]map[string]interface{}, error) {
 	if neo.Prepare == "" {
 		return messages, nil
 	}
@@ -114,7 +115,7 @@ func (neo *DSL) HookPrepare(ctx Context, messages []map[string]interface{}) ([]m
 }
 
 // HookWrite executes the write hook when response is received from AI
-func (neo *DSL) HookWrite(ctx Context, messages []map[string]interface{}, response map[string]interface{}, content string, writer *gin.ResponseWriter) ([]map[string]interface{}, error) {
+func (neo *DSL) HookWrite(ctx chatctx.Context, messages []map[string]interface{}, response map[string]interface{}, content string, writer *gin.ResponseWriter) ([]map[string]interface{}, error) {
 	if neo.Write == "" {
 		return []map[string]interface{}{response}, nil
 	}

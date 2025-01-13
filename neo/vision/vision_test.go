@@ -331,6 +331,96 @@ func TestVision(t *testing.T) {
 		assert.LessOrEqual(t, bounds.Dx(), MaxImageSize)
 		assert.LessOrEqual(t, bounds.Dy(), MaxImageSize)
 	})
+
+	t.Run("Analyze Image with Default Prompt", func(t *testing.T) {
+		// Create vision service with default prompt
+		cfg := &driver.Config{
+			Storage: driver.StorageConfig{
+				Driver: "local",
+				Options: map[string]interface{}{
+					"path":        "/__vision_test",
+					"compression": true,
+				},
+			},
+			Model: driver.ModelConfig{
+				Driver: "openai",
+				Options: map[string]interface{}{
+					"api_key": os.Getenv("OPENAI_API_KEY"),
+					"model":   os.Getenv("VISION_MODEL"),
+					"prompt":  "Default test prompt",
+				},
+			},
+		}
+
+		vision, err := New(cfg)
+		assert.NoError(t, err)
+
+		// Use base64 data without providing a prompt
+		result, err := vision.Analyze(context.Background(), "data:image/png;base64,"+testImageBase64)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result.Description)
+	})
+
+	t.Run("Analyze Image with Custom Prompt", func(t *testing.T) {
+		// Create vision service with default prompt
+		cfg := &driver.Config{
+			Storage: driver.StorageConfig{
+				Driver: "local",
+				Options: map[string]interface{}{
+					"path":        "/__vision_test",
+					"compression": true,
+				},
+			},
+			Model: driver.ModelConfig{
+				Driver: "openai",
+				Options: map[string]interface{}{
+					"api_key": os.Getenv("OPENAI_API_KEY"),
+					"model":   os.Getenv("VISION_MODEL"),
+					"prompt":  "Default test prompt",
+				},
+			},
+		}
+
+		vision, err := New(cfg)
+		assert.NoError(t, err)
+
+		// Use base64 data with custom prompt
+		result, err := vision.Analyze(context.Background(), "data:image/png;base64,"+testImageBase64, "Custom test prompt")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result.Description)
+	})
+
+	t.Run("Analyze Image with Empty Custom Prompt", func(t *testing.T) {
+		// Create vision service with default prompt
+		cfg := &driver.Config{
+			Storage: driver.StorageConfig{
+				Driver: "local",
+				Options: map[string]interface{}{
+					"path":        "/__vision_test",
+					"compression": true,
+				},
+			},
+			Model: driver.ModelConfig{
+				Driver: "openai",
+				Options: map[string]interface{}{
+					"api_key": os.Getenv("OPENAI_API_KEY"),
+					"model":   os.Getenv("VISION_MODEL"),
+					"prompt":  "Default test prompt",
+				},
+			},
+		}
+
+		vision, err := New(cfg)
+		assert.NoError(t, err)
+
+		// Use base64 data with empty prompt (should use default)
+		result, err := vision.Analyze(context.Background(), "data:image/png;base64,"+testImageBase64, "")
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result.Description)
+	})
 }
 
 func createTestVision(baseURL string) (*Vision, error) {

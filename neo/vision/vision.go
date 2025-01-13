@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -12,6 +13,30 @@ import (
 	"github.com/yaoapp/yao/neo/vision/driver/openai"
 	"github.com/yaoapp/yao/neo/vision/driver/s3"
 )
+
+// parseEnvValue parse environment variable if the value starts with $ENV.
+func parseEnvValue(value string) string {
+	if strings.HasPrefix(value, "$ENV.") {
+		envKey := strings.TrimPrefix(value, "$ENV.")
+		if envVal := os.Getenv(envKey); envVal != "" {
+			return envVal
+		}
+	}
+	return value
+}
+
+// convertOptions convert interface{} options map to string map and parse environment variables
+func convertOptions(options map[string]interface{}) map[string]interface{} {
+	converted := make(map[string]interface{})
+	for k, v := range options {
+		if str, ok := v.(string); ok {
+			converted[k] = parseEnvValue(str)
+		} else {
+			converted[k] = v
+		}
+	}
+	return converted
+}
 
 // Vision the vision service
 type Vision struct {
@@ -22,20 +47,24 @@ type Vision struct {
 // New create a new vision service
 func New(cfg *driver.Config) (*Vision, error) {
 
+	// Parse environment variables in options
+	storageOptions := convertOptions(cfg.Storage.Options)
+	modelOptions := convertOptions(cfg.Model.Options)
+
 	// Create storage driver
 	var storage driver.Storage
 	var err error
 	switch cfg.Storage.Driver {
 	case "local":
-		storage, err = local.New(cfg.Storage.Options)
+		storage, err = local.New(storageOptions)
 	case "s3":
 		// Convert expiration string to duration if present
-		if exp, ok := cfg.Storage.Options["expiration"].(string); ok {
+		if exp, ok := storageOptions["expiration"].(string); ok {
 			if duration, err := time.ParseDuration(exp); err == nil {
-				cfg.Storage.Options["expiration"] = duration
+				storageOptions["expiration"] = duration
 			}
 		}
-		storage, err = s3.New(cfg.Storage.Options)
+		storage, err = s3.New(storageOptions)
 	default:
 		return nil, fmt.Errorf("storage driver %s not supported", cfg.Storage.Driver)
 	}
@@ -47,7 +76,7 @@ func New(cfg *driver.Config) (*Vision, error) {
 	var model driver.Model
 	switch cfg.Model.Driver {
 	case "openai":
-		model, err = openai.New(cfg.Model.Options)
+		model, err = openai.New(modelOptions)
 	default:
 		return nil, fmt.Errorf("model driver %s not supported", cfg.Model.Driver)
 	}
@@ -75,7 +104,7 @@ func (v *Vision) Upload(ctx context.Context, filename string, reader io.Reader, 
 }
 
 // Analyze analyze image using vision model
-func (v *Vision) Analyze(ctx context.Context, fileID string, prompt string) (*driver.Response, error) {
+func (v *Vision) Analyze(ctx context.Context, fileID string, prompt ...string) (*driver.Response, error) {
 	if v.model == nil {
 		return nil, fmt.Errorf("model is required")
 	}
@@ -92,7 +121,7 @@ func (v *Vision) Analyze(ctx context.Context, fileID string, prompt string) (*dr
 		}
 	}
 
-	result, err := v.model.Analyze(ctx, url, prompt)
+	result, err := v.model.Analyze(ctx, url, prompt...)
 	if err != nil {
 		return nil, err
 	}
