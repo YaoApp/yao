@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/process"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
@@ -69,11 +70,7 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 
 	// Handle next action
 	if res.Next != nil {
-		switch res.Next.Action {
-		case "exit":
-			return nil
-			// Add other actions here if needed
-		}
+		return res.Next.Execute(c, ctx)
 	}
 
 	// Update options if provided
@@ -88,6 +85,78 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 
 	// Only proceed with chat stream if no specific next action was handled
 	return ast.handleChatStream(c, ctx, messages, options)
+}
+
+// Execute the next action
+func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context) error {
+	switch next.Action {
+
+	case "process":
+		if next.Payload == nil {
+			return fmt.Errorf("payload is required")
+		}
+
+		name, ok := next.Payload["name"].(string)
+		if !ok {
+			return fmt.Errorf("process name should be string")
+		}
+
+		args := []interface{}{}
+		if v, ok := next.Payload["args"].([]interface{}); ok {
+			args = v
+		}
+
+		// Add context and writer to args
+		args = append(args, ctx, c.Writer)
+		p, err := process.Of(name, args...)
+		if err != nil {
+			return fmt.Errorf("get process error: %s", err.Error())
+		}
+
+		err = p.Execute()
+		if err != nil {
+			return fmt.Errorf("execute process error: %s", err.Error())
+		}
+		defer p.Release()
+
+		return nil
+
+	case "assistant":
+		if next.Payload == nil {
+			return fmt.Errorf("payload is required")
+		}
+
+		// Get assistant id
+		id, ok := next.Payload["assistant_id"].(string)
+		if !ok {
+			return fmt.Errorf("assistant id should be string")
+		}
+
+		// Get assistant
+		assistant, err := Get(id)
+		if err != nil {
+			return fmt.Errorf("get assistant error: %s", err.Error())
+		}
+
+		// Input
+		input, ok := next.Payload["input"].(string)
+		if !ok {
+			return fmt.Errorf("input should be string")
+		}
+
+		// Options
+		options := map[string]interface{}{}
+		if v, ok := next.Payload["options"].(map[string]interface{}); ok {
+			options = v
+		}
+		return assistant.Execute(c, ctx, input, options)
+
+	case "exit":
+		return nil
+
+	default:
+		return fmt.Errorf("unknown action: %s", next.Action)
+	}
 }
 
 // handleChatStream manages the streaming chat interaction with the AI
@@ -156,10 +225,17 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 					if res.Output != "" {
 						value = res.Output
 					}
-					if res.Next != nil && res.Next.Action == "exit" {
+
+					if res.Next != nil {
+						err = res.Next.Execute(c, ctx)
+						if err != nil {
+							chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
+						}
+
 						done <- true
 						return 0 // break
 					}
+
 					if res.Silent {
 						return 1 // continue
 					}
@@ -190,10 +266,16 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 							}).
 							Write(c.Writer)
 					}
-					if res.Next != nil && res.Next.Action == "exit" {
+
+					if res.Next != nil {
+						err := res.Next.Execute(c, ctx)
+						if err != nil {
+							chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
+						}
 						done <- true
 						return 0 // break
 					}
+
 				} else if value != "" {
 					chatMessage.New().
 						Map(map[string]interface{}{
