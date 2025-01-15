@@ -240,7 +240,7 @@ func (ast *Assistant) streamChat(
 			content.Append(value)
 			if value != "" {
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, content.String(), msg.Type == "tool_calls")
+				res, err := ast.HookStream(c, ctx, messages, content.String(), content.Type == "function")
 				if err == nil && res != nil {
 					if res.Output != "" {
 						value = res.Output
@@ -277,7 +277,7 @@ func (ast *Assistant) streamChat(
 
 				// Call HookDone
 				content.SetStatus(message.ContentStatusDone)
-				res, hookErr := ast.HookDone(c, ctx, messages, content.String(), msg.Type == "tool_calls")
+				res, hookErr := ast.HookDone(c, ctx, messages, content.String(), content.Type == "function")
 				if hookErr == nil && res != nil {
 					if res.Output != "" {
 						chatMessage.New().

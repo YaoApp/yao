@@ -97,6 +97,7 @@ func NewOpenAI(data []byte) *Message {
 			return msg
 		}
 
+		msg.Type = "text"
 		if len(message.Choices) > 0 {
 			msg.Text = message.Choices[0].Delta.Content
 		}
