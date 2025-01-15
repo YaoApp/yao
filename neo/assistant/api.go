@@ -163,11 +163,11 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context) error {
 func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []message.Message, options map[string]interface{}) error {
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
-	content := []byte{}
+	content := message.NewContent("text")
 
 	// Chat with AI in background
 	go func() {
-		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, &content)
+		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, content)
 		if err != nil {
 			chatMessage.New().Error(err).Done().Write(c.Writer)
 		}
@@ -187,8 +187,14 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 }
 
 // streamChat handles the streaming chat interaction
-func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages []message.Message, options map[string]interface{},
-	clientBreak chan bool, done chan bool, content *[]byte) error {
+func (ast *Assistant) streamChat(
+	c *gin.Context,
+	ctx chatctx.Context,
+	messages []message.Message,
+	options map[string]interface{},
+	clientBreak chan bool,
+	done chan bool,
+	content *message.Content) error {
 
 	return ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
@@ -204,7 +210,7 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 			// Handle error
 			if msg.Type == "error" {
 				value := msg.String()
-				res, hookErr := ast.HookFail(c, ctx, messages, string(*content), fmt.Errorf("%s", value))
+				res, hookErr := ast.HookFail(c, ctx, messages, content.String(), fmt.Errorf("%s", value))
 				if hookErr == nil && res != nil && (res.Output != "" || res.Error != "") {
 					value = res.Output
 					if res.Error != "" {
@@ -215,12 +221,26 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 				return 0 // break
 			}
 
+			// Handle tool call
+			if msg.Type == "tool_calls" {
+				content.SetType("function") // Set type to function
+				// Set id
+				if id, ok := msg.Props["id"].(string); ok && id != "" {
+					content.SetID(id)
+				}
+
+				// Set name
+				if name, ok := msg.Props["name"].(string); ok && name != "" {
+					content.SetName(name)
+				}
+			}
+
 			// Append content and send message
-			*content = msg.Append(*content)
 			value := msg.String()
+			content.Append(value)
 			if value != "" {
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, string(*content))
+				res, err := ast.HookStream(c, ctx, messages, content.String(), msg.Type == "tool_calls")
 				if err == nil && res != nil {
 					if res.Output != "" {
 						value = res.Output
@@ -256,7 +276,8 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 				// }
 
 				// Call HookDone
-				res, hookErr := ast.HookDone(c, ctx, messages, string(*content))
+				content.SetStatus(message.ContentStatusDone)
+				res, hookErr := ast.HookDone(c, ctx, messages, content.String(), msg.Type == "tool_calls")
 				if hookErr == nil && res != nil {
 					if res.Output != "" {
 						chatMessage.New().
@@ -295,13 +316,13 @@ func (ast *Assistant) streamChat(c *gin.Context, ctx chatctx.Context, messages [
 }
 
 // saveChatHistory saves the chat history if storage is available
-func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []message.Message, content []byte) {
-	if len(content) > 0 && ctx.Sid != "" && len(messages) > 0 {
+func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []message.Message, content *message.Content) {
+	if len(content.Bytes) > 0 && ctx.Sid != "" && len(messages) > 0 {
 		storage.SaveHistory(
 			ctx.Sid,
 			[]map[string]interface{}{
 				{"role": "user", "content": messages[len(messages)-1].Content(), "name": ctx.Sid},
-				{"role": "assistant", "content": string(content), "name": ctx.Sid},
+				{"role": "assistant", "content": content.String(), "name": ctx.Sid},
 			},
 			ctx.ChatID,
 			nil,
@@ -319,6 +340,15 @@ func (ast *Assistant) withOptions(options map[string]interface{}) map[string]int
 			options[key] = value
 		}
 	}
+
+	// Add functions
+	if ast.Functions != nil {
+		options["tools"] = ast.Functions
+		if options["tool_choice"] == nil {
+			options["tool_choice"] = "auto"
+		}
+	}
+
 	return options
 }
 

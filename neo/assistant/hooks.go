@@ -57,13 +57,13 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 }
 
 // HookStream Handle streaming response from LLM
-func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output string) (*ResHookStream, error) {
+func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output string, toolcall bool) (*ResHookStream, error) {
 
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Stream", context, input, output, c.Writer)
+	v, err := ast.call(ctx, "Stream", context, input, output, toolcall, c.Writer)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -100,12 +100,12 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 }
 
 // HookDone Handle completion of assistant response
-func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output string) (*ResHookDone, error) {
+func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output string, toolcall bool) (*ResHookDone, error) {
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Done", context, input, output, c.Writer)
+	v, err := ast.call(ctx, "Done", context, input, output, toolcall, c.Writer)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil

@@ -132,6 +132,7 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"description":  ast.Description,
 		"options":      ast.Options,
 		"prompts":      ast.Prompts,
+		"functions":    ast.Functions,
 		"tags":         ast.Tags,
 		"mentionable":  ast.Mentionable,
 		"automated":    ast.Automated,
