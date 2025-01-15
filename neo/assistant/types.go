@@ -85,6 +85,16 @@ type Prompt struct {
 	Name    string `json:"name,omitempty"`
 }
 
+// Function a function
+type Function struct {
+	Type     string `json:"type"`
+	Function struct {
+		Name        string                 `json:"name"`
+		Description string                 `json:"description"`
+		Parameters  map[string]interface{} `json:"parameters"`
+	} `json:"function"`
+}
+
 // QueryParam the assistant query param
 type QueryParam struct {
 	Limit  uint   `json:"limit"`
@@ -110,6 +120,7 @@ type Assistant struct {
 	Automated   bool                     `json:"automated,omitempty"`   // Whether this assistant is automated
 	Options     map[string]interface{}   `json:"options,omitempty"`     // AI Options
 	Prompts     []Prompt                 `json:"prompts,omitempty"`     // AI Prompts
+	Functions   []Function               `json:"functions,omitempty"`   // Assistant Functions
 	Flows       []map[string]interface{} `json:"flows,omitempty"`       // Assistant Flows
 	Script      *v8.Script               `json:"-" yaml:"-"`            // Assistant Script
 	CreatedAt   int64                    `json:"created_at"`            // Creation timestamp

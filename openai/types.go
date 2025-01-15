@@ -16,6 +16,28 @@ type Message struct {
 	} `json:"choices,omitempty"`
 }
 
+// ToolCalls is the response from OpenAI
+type ToolCalls struct {
+	ID      string `json:"id,omitempty"`
+	Object  string `json:"object,omitempty"`
+	Created int64  `json:"created,omitempty"`
+	Model   string `json:"model,omitempty"`
+	Choices []struct {
+		Delta struct {
+			ToolCalls []struct {
+				ID       string `json:"id,omitempty"`
+				Type     string `json:"type,omitempty"`
+				Function struct {
+					Name      string `json:"name,omitempty"`
+					Arguments string `json:"arguments,omitempty"`
+				} `json:"function,omitempty"`
+			} `json:"tool_calls,omitempty"`
+		} `json:"delta,omitempty"`
+		Index        int    `json:"index,omitempty"`
+		FinishReason string `json:"finish_reason,omitempty"`
+	} `json:"choices,omitempty"`
+}
+
 // ErrorMessage is the error response from OpenAI
 type ErrorMessage struct {
 	Error Error `json:"error,omitempty"`

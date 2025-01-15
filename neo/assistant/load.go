@@ -246,6 +246,16 @@ func LoadPath(path string) (*Assistant, error) {
 	}
 
 	// load functions
+	functionsfile := filepath.Join(path, "functions.json")
+	if has, _ := app.Exists(functionsfile); has {
+		functions, ts, err := loadFunctions(functionsfile)
+		if err != nil {
+			return nil, err
+		}
+		data["functions"] = functions
+		updatedAt = max(updatedAt, ts)
+		data["updated_at"] = updatedAt
+	}
 
 	// load flow
 
@@ -340,6 +350,25 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Prompts = prompts
 	}
 
+	// functions
+	if funcs, has := data["functions"]; has {
+		switch vv := funcs.(type) {
+		case []Function:
+			assistant.Functions = vv
+		default:
+			raw, err := jsoniter.Marshal(vv)
+			if err != nil {
+				return nil, err
+			}
+			var functions []Function
+			err = jsoniter.Unmarshal(raw, &functions)
+			if err != nil {
+				return nil, err
+			}
+			assistant.Functions = functions
+		}
+	}
+
 	// script
 	if data["script"] != nil {
 		switch v := data["script"].(type) {
@@ -380,6 +409,32 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	return assistant, nil
+}
+
+func loadFunctions(file string) ([]Function, int64, error) {
+
+	app, err := fs.Get("app")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ts, err := app.ModTime(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	raw, err := app.ReadFile(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var functions []Function
+	err = jsoniter.Unmarshal(raw, &functions)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return functions, ts.UnixNano(), nil
 }
 
 func loadPrompts(file string, root string) (string, int64, error) {
