@@ -11,6 +11,9 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// Router export the router to meet customized need when used yao as lib
+var Router *gin.Engine
+
 // Start the yao service
 func Start(cfg config.Config) (*http.Server, error) {
 
@@ -24,6 +27,7 @@ func Start(cfg config.Config) (*http.Server, error) {
 	}
 
 	router := gin.New()
+	Router = router
 	router.Use(Middlewares...)
 	api.SetGuards(Guards)
 	api.SetRoutes(router, "/api", cfg.AllowFrom...)
