@@ -127,6 +127,11 @@ func NewMoapi(model string) (*OpenAI, error) {
 	}, nil
 }
 
+// Model get the model
+func (openai OpenAI) Model() string {
+	return openai.model
+}
+
 // Completions Creates a completion for the provided prompt and parameters.
 // https://platform.openai.com/docs/api-reference/completions/create
 func (openai OpenAI) Completions(prompt interface{}, option map[string]interface{}, cb func(data []byte) int) (interface{}, *exception.Exception) {

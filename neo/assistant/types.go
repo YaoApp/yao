@@ -126,6 +126,8 @@ type Assistant struct {
 	CreatedAt   int64                    `json:"created_at"`            // Creation timestamp
 	UpdatedAt   int64                    `json:"updated_at"`            // Last update timestamp
 	openai      *api.OpenAI              // OpenAI API
+	vision      bool                     // Whether this assistant supports vision
+	initHook    bool                     // Whether this assistant has an init hook
 }
 
 // VisionCapableModels list of LLM models that support vision capabilities

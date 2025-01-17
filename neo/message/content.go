@@ -1,6 +1,8 @@
 package message
 
-import "fmt"
+import (
+	jsoniter "github.com/json-iterator/go"
+)
 
 const (
 	// ContentStatusPending the content status pending
@@ -36,7 +38,32 @@ func NewContent(typ string) *Content {
 // String the content string
 func (c *Content) String() string {
 	if c.Type == "function" {
-		return fmt.Sprintf(`{"id":"%s","type": "function", "function": {"name": "%s", "arguments": "%s"}}`, c.ID, c.Name, c.Bytes)
+
+		var arguments interface{} = string(c.Bytes)
+		if c.Status == ContentStatusDone {
+			var vv interface{} = nil
+			err := jsoniter.Unmarshal(c.Bytes, &vv)
+			if err != nil {
+				return ""
+			}
+			arguments = vv
+		}
+
+		data := map[string]interface{}{
+			"id":   c.ID,
+			"type": "function",
+			"function": map[string]interface{}{
+				"name":      c.Name,
+				"arguments": arguments,
+			},
+		}
+
+		raw, err := jsoniter.MarshalToString(data)
+		if err != nil {
+			return ""
+		}
+
+		return raw
 	}
 	return string(c.Bytes)
 }

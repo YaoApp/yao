@@ -31,6 +31,7 @@ type Message struct {
 type Attachment struct {
 	Name        string `json:"name,omitempty"`
 	URL         string `json:"url,omitempty"`
+	Description string `json:"description,omitempty"`
 	Type        string `json:"type,omitempty"`
 	ContentType string `json:"content_type,omitempty"`
 	Bytes       int64  `json:"bytes,omitempty"`
@@ -97,6 +98,7 @@ func NewOpenAI(data []byte) *Message {
 			return msg
 		}
 
+		msg.Type = "text"
 		if len(message.Choices) > 0 {
 			msg.Text = message.Choices[0].Delta.Content
 		}

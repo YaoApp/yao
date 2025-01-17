@@ -197,24 +197,28 @@ func (ast *Assistant) handleRAG(ctx context.Context, file *File, reader io.Reade
 
 // handleVision handles the file with Vision if available
 func (ast *Assistant) handleVision(ctx context.Context, file *File, option map[string]interface{}) error {
+
 	if vision == nil {
 		return nil
 	}
 
-	// Check if Vision processing is enabled
-	if option, ok := option["vision"].(bool); !ok || !option {
+	handleVision := false
+	if vv, has := option["vision"]; has {
+		switch v := vv.(type) {
+		case bool:
+			handleVision = v
+		case string:
+			handleVision = v == "true" || v == "1" || v == "yes" || v == "on" || v == "enable"
+		}
+	}
+
+	if !handleVision {
 		return nil
 	}
 
 	// Check if file is an image
 	if !strings.HasPrefix(file.ContentType, "image/") {
 		return nil
-	}
-
-	// Get model from options
-	model := ""
-	if v, ok := option["model"].(string); ok {
-		model = v
 	}
 
 	// Reset reader for vision service
@@ -237,43 +241,48 @@ func (ast *Assistant) handleVision(ctx context.Context, file *File, option map[s
 		return fmt.Errorf("read file error: %s", err.Error())
 	}
 
-	if VisionCapableModels[model] {
+	// The model is vision capable
+	if ast.vision {
 		// For vision-capable models, upload to vision service to get URL
 		resp, err := vision.Upload(ctx, file.Filename, bytes.NewReader(imgData), file.ContentType)
 		if err != nil {
 			return fmt.Errorf("vision upload error: %s", err.Error())
 		}
 		file.URL = resp.URL // Store the URL for vision-capable models to use
+		return nil
+	}
+
+	// For non-vision models, get image description
+	prompt := "Describe this image in detail."
+	if v, ok := option["vision_prompt"].(string); ok {
+		prompt = v
+	}
+
+	// Upload to vision service first Compress image
+	resp, err := vision.Upload(ctx, file.Filename, bytes.NewReader(imgData), file.ContentType)
+	if err != nil {
+		return fmt.Errorf("vision upload error: %s", err.Error())
+	}
+
+	// Analyze using base64 data
+	result, err := vision.Analyze(ctx, resp.FileID, prompt)
+	if err != nil {
+		return fmt.Errorf("vision analyze error: %s", err.Error())
+	}
+
+	// Extract description text from response
+	if desc, ok := result.Description["description"].(string); ok {
+		file.Description = desc
+	} else if desc, ok := result.Description["text"].(string); ok {
+		file.Description = desc
 	} else {
-		// For non-vision models, get image description
-		prompt := "Describe this image in detail."
-		if v, ok := option["vision_prompt"].(string); ok {
-			prompt = v
-		}
-
-		// Upload to vision service first Compress image
-		resp, err := vision.Upload(ctx, file.Filename, bytes.NewReader(imgData), file.ContentType)
-		if err != nil {
-			return fmt.Errorf("vision upload error: %s", err.Error())
-		}
-
-		// Analyze using base64 data
-		result, err := vision.Analyze(ctx, resp.FileID, prompt)
-		if err != nil {
-			return fmt.Errorf("vision analyze error: %s", err.Error())
-		}
-
-		// Extract description text from response
-		if desc, ok := result.Description["text"].(string); ok {
-			file.Description = desc
-		} else {
-			// Convert the entire description to JSON string as fallback
-			bytes, err := jsoniter.Marshal(result.Description)
-			if err == nil {
-				file.Description = string(bytes)
-			}
+		// Convert the entire description to JSON string as fallback
+		bytes, err := jsoniter.Marshal(result.Description)
+		if err == nil {
+			file.Description = string(bytes)
 		}
 	}
+
 	return nil
 }
 
