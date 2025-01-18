@@ -221,7 +221,9 @@ func (ast *Assistant) call(ctx context.Context, method string, context chatctx.C
 	// Wait for either context cancellation or method completion
 	select {
 	case <-ctx.Done():
-		scriptCtx.Close() // Force close the script context
+		if scriptCtx != nil {
+			scriptCtx.Close() // Force close the script context
+		}
 		return nil, ctx.Err()
 	case <-done:
 		return result, callErr
