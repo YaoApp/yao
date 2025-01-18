@@ -52,6 +52,12 @@ func (c *Content) String() string {
 		data := map[string]interface{}{
 			"id":   c.ID,
 			"type": "function",
+			"text": c.Name,
+			"props": map[string]interface{}{
+				"id":        c.ID,
+				"name":      c.Name,
+				"arguments": arguments,
+			},
 			"function": map[string]interface{}{
 				"name":      c.Name,
 				"arguments": arguments,
