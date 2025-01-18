@@ -16,15 +16,26 @@ import (
 
 // Message the message
 type Message struct {
-	Text        string                 `json:"text,omitempty"`  // text content
-	Type        string                 `json:"type,omitempty"`  // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
-	Props       map[string]interface{} `json:"props,omitempty"` // props for the types
-	IsDone      bool                   `json:"done,omitempty"`
-	Actions     []Action               `json:"actions,omitempty"`     // Conversation Actions for frontend
-	Attachments []Attachment           `json:"attachments,omitempty"` // File attachments
-	Role        string                 `json:"role,omitempty"`        // user, assistant, system ...
-	Name        string                 `json:"name,omitempty"`        // name for the message
-	Data        map[string]interface{} `json:"-"`
+	Text            string                 `json:"text,omitempty"`  // text content
+	Type            string                 `json:"type,omitempty"`  // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
+	Props           map[string]interface{} `json:"props,omitempty"` // props for the types
+	IsDone          bool                   `json:"done,omitempty"`
+	Actions         []Action               `json:"actions,omitempty"`          // Conversation Actions for frontend
+	Attachments     []Attachment           `json:"attachments,omitempty"`      // File attachments
+	Role            string                 `json:"role,omitempty"`             // user, assistant, system ...
+	Name            string                 `json:"name,omitempty"`             // name for the message
+	AssistantID     string                 `json:"assistant_id,omitempty"`     // assistant_id (for assistant role = assistant )
+	AssistantName   string                 `json:"assistant_name,omitempty"`   // assistant_name (for assistant role = assistant )
+	AssistantAvatar string                 `json:"assistant_avatar,omitempty"` // assistant_avatar (for assistant role = assistant )
+	Mentions        []Mention              `json:"menions,omitempty"`          // Mentions for the message ( for user  role = user )
+	Data            map[string]interface{} `json:"-"`
+}
+
+// Mention represents a mention
+type Mention struct {
+	ID     string `json:"assistant_id"`     // assistant_id
+	Name   string `json:"name"`             // name
+	Avatar string `json:"avatar,omitempty"` // avatar
 }
 
 // Attachment represents a file attachment
