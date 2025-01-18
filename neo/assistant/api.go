@@ -60,7 +60,7 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 	}
 
 	// Switch to the new assistant if necessary
-	if res.AssistantID != ctx.AssistantID {
+	if res != nil && res.AssistantID != ctx.AssistantID {
 		newAst, err := Get(res.AssistantID)
 		if err != nil {
 			return err
@@ -69,17 +69,17 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 	}
 
 	// Handle next action
-	if res.Next != nil {
+	if res != nil && res.Next != nil {
 		return res.Next.Execute(c, ctx)
 	}
 
 	// Update options if provided
-	if res.Options != nil {
+	if res != nil && res.Options != nil {
 		options = res.Options
 	}
 
 	// messages
-	if res.Input != nil {
+	if res != nil && res.Input != nil {
 		messages = res.Input
 	}
 
@@ -263,17 +263,20 @@ func (ast *Assistant) streamChat(
 
 				chatMessage.New().
 					Map(map[string]interface{}{
-						"text": value,
-						"done": msg.IsDone,
+						"assistant_id":     ast.ID,
+						"assistant_name":   ast.Name,
+						"assistant_avatar": ast.Avatar,
+						"text":             value,
+						"done":             msg.IsDone,
 					}).
 					Write(c.Writer)
 			}
 
 			// Complete the stream
 			if msg.IsDone {
-				// if value == "" {
-				// 	msg.Write(c.Writer)
-				// }
+				if value == "" {
+					msg.Write(c.Writer)
+				}
 
 				// Call HookDone
 				content.SetStatus(chatMessage.ContentStatusDone)
@@ -300,8 +303,11 @@ func (ast *Assistant) streamChat(
 				} else if value != "" {
 					chatMessage.New().
 						Map(map[string]interface{}{
-							"text": value,
-							"done": true,
+							"assistant_id":     ast.ID,
+							"assistant_name":   ast.Name,
+							"assistant_avatar": ast.Avatar,
+							"text":             value,
+							"done":             true,
 						}).
 						Write(c.Writer)
 				}

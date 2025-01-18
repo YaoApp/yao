@@ -16,10 +16,11 @@ import (
 
 // Message the message
 type Message struct {
-	Text            string                 `json:"text,omitempty"`  // text content
-	Type            string                 `json:"type,omitempty"`  // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
-	Props           map[string]interface{} `json:"props,omitempty"` // props for the types
-	IsDone          bool                   `json:"done,omitempty"`
+	Text            string                 `json:"text,omitempty"`             // text content
+	Type            string                 `json:"type,omitempty"`             // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
+	Props           map[string]interface{} `json:"props,omitempty"`            // props for the types
+	IsDone          bool                   `json:"done,omitempty"`             // Mark as a done message from neo
+	IsNew           bool                   `json:"is_new,omitempty"`           // Mark as a new message from neo
 	Actions         []Action               `json:"actions,omitempty"`          // Conversation Actions for frontend
 	Attachments     []Attachment           `json:"attachments,omitempty"`      // File attachments
 	Role            string                 `json:"role,omitempty"`             // user, assistant, system ...
@@ -244,6 +245,23 @@ func (m *Message) Map(msg map[string]interface{}) *Message {
 	if done, ok := msg["done"].(bool); ok {
 		m.IsDone = done
 	}
+
+	if isNew, ok := msg["is_new"].(bool); ok {
+		m.IsNew = isNew
+	}
+
+	if assistantID, ok := msg["assistant_id"].(string); ok {
+		m.AssistantID = assistantID
+	}
+
+	if assistantName, ok := msg["assistant_name"].(string); ok {
+		m.AssistantName = assistantName
+	}
+
+	if assistantAvatar, ok := msg["assistant_avatar"].(string); ok {
+		m.AssistantAvatar = assistantAvatar
+	}
+
 	if actions, ok := msg["actions"].([]interface{}); ok {
 		for _, action := range actions {
 			if v, ok := action.(map[string]interface{}); ok {
