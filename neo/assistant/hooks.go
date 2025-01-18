@@ -206,23 +206,10 @@ func (ast *Assistant) call(ctx context.Context, method string, context chatctx.C
 		return nil, fmt.Errorf(HookErrorMethodNotFound)
 	}
 
-	// Create done channel for handling cancellation
-	done := make(chan struct{})
-	var result interface{}
-	var callErr error
-
-	go func() {
-		defer close(done)
-		// Call the method
-		args = append([]interface{}{context.Map()}, args...)
-		result, callErr = scriptCtx.Call(method, args...)
-	}()
-
-	// Wait for either context cancellation or method completion
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-done:
-		return result, callErr
+	// Call the method directly in the current thread
+	args = append([]interface{}{context.Map()}, args...)
+	if scriptCtx != nil {
+		return scriptCtx.CallWith(ctx, method, args...)
 	}
+	return nil, nil
 }
