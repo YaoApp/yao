@@ -141,6 +141,10 @@ func (conv *Xun) initHistoryTable() error {
 			table.String("name", 200).Null().Index()
 			table.Text("content").Null()
 			table.JSON("context").Null()
+			table.String("assistant_id", 200).Null().Index()
+			table.String("assistant_name", 200).Null()
+			table.String("assistant_avatar", 200).Null()
+			table.JSON("mentions").Null()
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
 			table.TimestampTz("expired_at").Null().Index()
@@ -158,7 +162,7 @@ func (conv *Xun) initHistoryTable() error {
 		return err
 	}
 
-	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -450,7 +454,7 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 	}
 
 	qb := conv.newQuery().
-		Select("role", "name", "content", "context", "uid", "created_at", "updated_at").
+		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "created_at", "updated_at").
 		Where("sid", userID).
 		Where("cid", cid).
 		OrderBy("id", "desc")
@@ -472,13 +476,17 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 	res := []map[string]interface{}{}
 	for _, row := range rows {
 		message := map[string]interface{}{
-			"role":       row.Get("role"),
-			"name":       row.Get("name"),
-			"content":    row.Get("content"),
-			"context":    row.Get("context"),
-			"uid":        row.Get("uid"),
-			"created_at": row.Get("created_at"),
-			"updated_at": row.Get("updated_at"),
+			"role":             row.Get("role"),
+			"name":             row.Get("name"),
+			"content":          row.Get("content"),
+			"context":          row.Get("context"),
+			"assistant_id":     row.Get("assistant_id"),
+			"assistant_name":   row.Get("assistant_name"),
+			"assistant_avatar": row.Get("assistant_avatar"),
+			"mentions":         row.Get("mentions"),
+			"uid":              row.Get("uid"),
+			"created_at":       row.Get("created_at"),
+			"updated_at":       row.Get("updated_at"),
 		}
 		res = append([]map[string]interface{}{message}, res...)
 	}
@@ -551,21 +559,45 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 			}
 		}
 
+		// Process mentions if present
+		var mentionsRaw interface{} = nil
+		if mentions, ok := message["mentions"].([]interface{}); ok && len(mentions) > 0 {
+			mentionsRaw, err = jsoniter.MarshalToString(mentions)
+			if err != nil {
+				return err
+			}
+		}
+
 		value := map[string]interface{}{
-			"role":       role,
-			"name":       "",
-			"content":    content,
-			"sid":        userID,
-			"cid":        cid,
-			"uid":        userID,
-			"context":    contextRaw,
-			"created_at": now,
-			"updated_at": nil,
-			"expired_at": expiredAt,
+			"role":             role,
+			"name":             "",
+			"content":          content,
+			"sid":              userID,
+			"cid":              cid,
+			"uid":              userID,
+			"context":          contextRaw,
+			"mentions":         mentionsRaw,
+			"assistant_id":     nil,
+			"assistant_name":   nil,
+			"assistant_avatar": nil,
+			"created_at":       now,
+			"updated_at":       nil,
+			"expired_at":       expiredAt,
 		}
 
 		if name, ok := message["name"].(string); ok {
 			value["name"] = name
+		}
+
+		// Add assistant fields if present
+		if assistantID, ok := message["assistant_id"].(string); ok {
+			value["assistant_id"] = assistantID
+		}
+		if assistantName, ok := message["assistant_name"].(string); ok {
+			value["assistant_name"] = assistantName
+		}
+		if assistantAvatar, ok := message["assistant_avatar"].(string); ok {
+			value["assistant_avatar"] = assistantAvatar
 		}
 
 		values = append(values, value)
