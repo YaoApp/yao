@@ -184,8 +184,8 @@ func (m *Message) SetContent(content string) *Message {
 	return m
 }
 
-// Append append the contents
-func (m *Message) Append(contents *Contents) *Message {
+// AppendTo append the contents
+func (m *Message) AppendTo(contents *Contents) *Message {
 
 	switch m.Type {
 	case "text":

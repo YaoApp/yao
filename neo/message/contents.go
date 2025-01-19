@@ -120,6 +120,34 @@ func (c *Contents) Text() string {
 	return string(c.Data[c.Current].Bytes)
 }
 
+// Map returns the map representation
+func (data *Data) Map() (map[string]interface{}, error) {
+	v := map[string]interface{}{"type": data.Type}
+
+	if data.ID != "" {
+		v["id"] = data.ID
+	}
+
+	if data.Bytes != nil {
+		v["text"] = string(data.Bytes)
+	}
+
+	if data.Arguments != nil {
+		var vv interface{} = nil
+		err := jsoniter.Unmarshal(data.Arguments, &vv)
+		if err != nil {
+			return nil, err
+		}
+		v["arguments"] = vv
+	}
+
+	if data.Function != "" {
+		v["function"] = data.Function
+	}
+
+	return v, nil
+}
+
 // MarshalJSON returns the json representation
 func (data *Data) MarshalJSON() ([]byte, error) {
 
@@ -130,7 +158,7 @@ func (data *Data) MarshalJSON() ([]byte, error) {
 	}
 
 	if data.Bytes != nil {
-		v["bytes"] = string(data.Bytes)
+		v["text"] = string(data.Bytes)
 	}
 
 	if data.Arguments != nil {

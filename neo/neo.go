@@ -126,7 +126,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 				}
 
 				// Append content and send message
-				msg.Append(contents)
+				msg.AppendTo(contents)
 				if !silent {
 					value := msg.String()
 					if value != "" {

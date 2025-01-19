@@ -232,15 +232,12 @@ func (ast *Assistant) streamChat(
 			}
 
 			// Append content and send message
-			msg.Append(contents)
+			msg.AppendTo(contents)
 			value := msg.String()
 			if value != "" {
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, contents.JSON())
+				res, err := ast.HookStream(c, ctx, messages, contents.Data)
 				if err == nil && res != nil {
-					if res.Output != "" {
-						value = res.Output
-					}
 
 					if res.Next != nil {
 						err = res.Next.Execute(c, ctx)
@@ -270,16 +267,16 @@ func (ast *Assistant) streamChat(
 
 			// Complete the stream
 			if msg.IsDone {
-				if value == "" {
-					msg.Write(c.Writer)
-				}
+				// if value == "" {
+				// 	msg.Write(c.Writer)
+				// }
 
-				res, hookErr := ast.HookDone(c, ctx, messages, contents.JSON())
+				res, hookErr := ast.HookDone(c, ctx, messages, contents.Data)
 				if hookErr == nil && res != nil {
-					if res.Output != "" {
+					if res.Output != nil {
 						chatMessage.New().
 							Map(map[string]interface{}{
-								"text": res.Output,
+								"text": res.Input,
 								"done": true,
 							}).
 							Write(c.Writer)

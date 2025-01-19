@@ -69,7 +69,7 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 }
 
 // HookStream Handle streaming response from LLM
-func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output string) (*ResHookStream, error) {
+func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output []message.Data) (*ResHookStream, error) {
 
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
@@ -87,8 +87,24 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 	switch v := v.(type) {
 	case map[string]interface{}:
 		if res, ok := v["output"].(string); ok {
-			response.Output = res
+			vv := []message.Data{}
+			err := jsoniter.UnmarshalFromString(res, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
 		}
+
+		if res, ok := v["output"].([]interface{}); ok {
+			vv := []message.Data{}
+			raw, _ := jsoniter.MarshalToString(res)
+			err := jsoniter.UnmarshalFromString(raw, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
+		}
+
 		if res, ok := v["next"].(map[string]interface{}); ok {
 			response.Next = &NextAction{}
 			if name, ok := res["action"].(string); ok {
@@ -105,14 +121,19 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 		}
 
 	case string:
-		response.Output = v
+		vv := []message.Data{}
+		err := jsoniter.UnmarshalFromString(v, &vv)
+		if err != nil {
+			return nil, err
+		}
+		response.Output = vv
 	}
 
 	return response, nil
 }
 
 // HookDone Handle completion of assistant response
-func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output string) (*ResHookDone, error) {
+func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output []message.Data) (*ResHookDone, error) {
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
@@ -133,8 +154,24 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 	switch v := v.(type) {
 	case map[string]interface{}:
 		if res, ok := v["output"].(string); ok {
-			response.Output = res
+			vv := []message.Data{}
+			err := jsoniter.UnmarshalFromString(res, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
 		}
+
+		if res, ok := v["output"].([]interface{}); ok {
+			vv := []message.Data{}
+			raw, _ := jsoniter.MarshalToString(res)
+			err := jsoniter.UnmarshalFromString(raw, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
+		}
+
 		if res, ok := v["next"].(map[string]interface{}); ok {
 			response.Next = &NextAction{}
 			if name, ok := res["action"].(string); ok {
@@ -145,7 +182,12 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 			}
 		}
 	case string:
-		response.Output = v
+		vv := []message.Data{}
+		err := jsoniter.UnmarshalFromString(v, &vv)
+		if err != nil {
+			return nil, err
+		}
+		response.Output = vv
 	}
 
 	return response, nil
