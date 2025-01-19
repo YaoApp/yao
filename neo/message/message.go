@@ -99,7 +99,7 @@ func NewOpenAI(data []byte) *Message {
 		msg.Type = "tool_calls"
 		if len(toolCalls.Choices) > 0 && len(toolCalls.Choices[0].Delta.ToolCalls) > 0 {
 			msg.Props["id"] = toolCalls.Choices[0].Delta.ToolCalls[0].ID
-			msg.Props["name"] = toolCalls.Choices[0].Delta.ToolCalls[0].Function.Name
+			msg.Props["function"] = toolCalls.Choices[0].Delta.ToolCalls[0].Function.Name
 			msg.Text = toolCalls.Choices[0].Delta.ToolCalls[0].Function.Arguments
 		}
 
@@ -180,6 +180,32 @@ func (m *Message) SetContent(content string) *Message {
 	} else {
 		m.Text = content
 		m.Type = "text"
+	}
+	return m
+}
+
+// Append append the contents
+func (m *Message) Append(contents *Contents) *Message {
+
+	switch m.Type {
+	case "text":
+		if m.Text != "" {
+			contents.AppendText([]byte(m.Text))
+		}
+
+	case "tool_calls":
+
+		// Set function name
+		if name, ok := m.Props["function"].(string); ok && name != "" {
+			contents.NewFunction(name, []byte(m.Text))
+		}
+
+		// Set id
+		if id, ok := m.Props["id"].(string); ok && id != "" {
+			contents.SetFunctionID(id)
+		}
+
+		contents.AppendFunction([]byte(m.Text))
 	}
 	return m
 }
@@ -291,6 +317,14 @@ func (m *Message) Done() *Message {
 	return m
 }
 
+// Assistant set the assistant
+func (m *Message) Assistant(id string, name string, avatar string) *Message {
+	m.AssistantID = id
+	m.AssistantName = name
+	m.AssistantAvatar = avatar
+	return m
+}
+
 // Action add an action
 func (m *Message) Action(name string, t string, payload interface{}, next string) *Message {
 	if m.Data != nil {
@@ -337,11 +371,6 @@ func (m *Message) Write(w gin.ResponseWriter) bool {
 	}
 	w.Flush()
 	return true
-}
-
-// Append appends content to the byte slice
-func (m *Message) Append(content []byte) []byte {
-	return append(content, []byte(m.Text)...)
 }
 
 // WriteError writes an error message to response writer

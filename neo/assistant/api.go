@@ -56,6 +56,11 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 	// Run init hook
 	res, err := ast.HookInit(c, ctx, messages, options)
 	if err != nil {
+		chatMessage.New().
+			Assistant(ast.ID, ast.Name, ast.Avatar).
+			Error(err).
+			Done().
+			Write(c.Writer)
 		return err
 	}
 
@@ -63,6 +68,11 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 	if res != nil && res.AssistantID != ctx.AssistantID {
 		newAst, err := Get(res.AssistantID)
 		if err != nil {
+			chatMessage.New().
+				Assistant(ast.ID, ast.Name, ast.Avatar).
+				Error(err).
+				Done().
+				Write(c.Writer)
 			return err
 		}
 		*ast = *newAst
@@ -163,16 +173,16 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context) error {
 func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}) error {
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
-	content := chatMessage.NewContent("text")
+	contents := chatMessage.NewContents()
 
 	// Chat with AI in background
 	go func() {
-		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, content)
+		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, contents)
 		if err != nil {
 			chatMessage.New().Error(err).Done().Write(c.Writer)
 		}
 
-		ast.saveChatHistory(ctx, messages, content)
+		ast.saveChatHistory(ctx, messages, contents)
 		done <- true
 	}()
 
@@ -194,7 +204,7 @@ func (ast *Assistant) streamChat(
 	options map[string]interface{},
 	clientBreak chan bool,
 	done chan bool,
-	content *chatMessage.Content) error {
+	contents *chatMessage.Contents) error {
 
 	return ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
@@ -210,7 +220,7 @@ func (ast *Assistant) streamChat(
 			// Handle error
 			if msg.Type == "error" {
 				value := msg.String()
-				res, hookErr := ast.HookFail(c, ctx, messages, content.String(), fmt.Errorf("%s", value))
+				res, hookErr := ast.HookFail(c, ctx, messages, contents.JSON(), fmt.Errorf("%s", value))
 				if hookErr == nil && res != nil && (res.Output != "" || res.Error != "") {
 					value = res.Output
 					if res.Error != "" {
@@ -221,26 +231,12 @@ func (ast *Assistant) streamChat(
 				return 0 // break
 			}
 
-			// Handle tool call
-			if msg.Type == "tool_calls" {
-				content.SetType("function") // Set type to function
-				// Set id
-				if id, ok := msg.Props["id"].(string); ok && id != "" {
-					content.SetID(id)
-				}
-
-				// Set name
-				if name, ok := msg.Props["name"].(string); ok && name != "" {
-					content.SetName(name)
-				}
-			}
-
 			// Append content and send message
+			msg.Append(contents)
 			value := msg.String()
-			content.Append(value)
 			if value != "" {
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, content.String(), content.Type == "function")
+				res, err := ast.HookStream(c, ctx, messages, contents.JSON())
 				if err == nil && res != nil {
 					if res.Output != "" {
 						value = res.Output
@@ -278,9 +274,7 @@ func (ast *Assistant) streamChat(
 					msg.Write(c.Writer)
 				}
 
-				// Call HookDone
-				content.SetStatus(chatMessage.ContentStatusDone)
-				res, hookErr := ast.HookDone(c, ctx, messages, content.String(), content.Type == "function")
+				res, hookErr := ast.HookDone(c, ctx, messages, contents.JSON())
 				if hookErr == nil && res != nil {
 					if res.Output != "" {
 						chatMessage.New().
@@ -322,8 +316,8 @@ func (ast *Assistant) streamChat(
 }
 
 // saveChatHistory saves the chat history if storage is available
-func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessage.Message, content *chatMessage.Content) {
-	if len(content.Bytes) > 0 && ctx.Sid != "" && len(messages) > 0 {
+func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessage.Message, contents *chatMessage.Contents) {
+	if len(contents.Data) > 0 && ctx.Sid != "" && len(messages) > 0 {
 		userMessage := messages[len(messages)-1]
 		data := []map[string]interface{}{
 			{
@@ -333,7 +327,7 @@ func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessag
 			},
 			{
 				"role":             "assistant",
-				"content":          content.String(),
+				"content":          contents.JSON(),
 				"name":             ctx.Sid,
 				"assistant_id":     ast.ID,
 				"assistant_name":   ast.Name,
