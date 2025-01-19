@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 )
@@ -34,6 +35,17 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 			response.ChatID = res
 		}
 
+		// input
+		if input, has := v["input"]; has {
+			raw, _ := jsoniter.MarshalToString(input)
+			vv := []message.Message{}
+			err := jsoniter.UnmarshalFromString(raw, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Input = vv
+		}
+
 		if res, ok := v["next"].(map[string]interface{}); ok {
 			response.Next = &NextAction{}
 			if name, ok := res["action"].(string); ok {
@@ -57,13 +69,13 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 }
 
 // HookStream Handle streaming response from LLM
-func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output string, toolcall bool) (*ResHookStream, error) {
+func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output []message.Data) (*ResHookStream, error) {
 
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Stream", context, input, output, toolcall, c.Writer)
+	v, err := ast.call(ctx, "Stream", context, input, output, c.Writer)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -75,8 +87,24 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 	switch v := v.(type) {
 	case map[string]interface{}:
 		if res, ok := v["output"].(string); ok {
-			response.Output = res
+			vv := []message.Data{}
+			err := jsoniter.UnmarshalFromString(res, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
 		}
+
+		if res, ok := v["output"].([]interface{}); ok {
+			vv := []message.Data{}
+			raw, _ := jsoniter.MarshalToString(res)
+			err := jsoniter.UnmarshalFromString(raw, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
+		}
+
 		if res, ok := v["next"].(map[string]interface{}); ok {
 			response.Next = &NextAction{}
 			if name, ok := res["action"].(string); ok {
@@ -93,19 +121,24 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 		}
 
 	case string:
-		response.Output = v
+		vv := []message.Data{}
+		err := jsoniter.UnmarshalFromString(v, &vv)
+		if err != nil {
+			return nil, err
+		}
+		response.Output = vv
 	}
 
 	return response, nil
 }
 
 // HookDone Handle completion of assistant response
-func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output string, toolcall bool) (*ResHookDone, error) {
+func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output []message.Data) (*ResHookDone, error) {
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Done", context, input, output, toolcall, c.Writer)
+	v, err := ast.call(ctx, "Done", context, input, output, c.Writer)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -121,8 +154,24 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 	switch v := v.(type) {
 	case map[string]interface{}:
 		if res, ok := v["output"].(string); ok {
-			response.Output = res
+			vv := []message.Data{}
+			err := jsoniter.UnmarshalFromString(res, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
 		}
+
+		if res, ok := v["output"].([]interface{}); ok {
+			vv := []message.Data{}
+			raw, _ := jsoniter.MarshalToString(res)
+			err := jsoniter.UnmarshalFromString(raw, &vv)
+			if err != nil {
+				return nil, err
+			}
+			response.Output = vv
+		}
+
 		if res, ok := v["next"].(map[string]interface{}); ok {
 			response.Next = &NextAction{}
 			if name, ok := res["action"].(string); ok {
@@ -133,7 +182,12 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 			}
 		}
 	case string:
-		response.Output = v
+		vv := []message.Data{}
+		err := jsoniter.UnmarshalFromString(v, &vv)
+		if err != nil {
+			return nil, err
+		}
+		response.Output = vv
 	}
 
 	return response, nil
@@ -185,7 +239,7 @@ func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []
 
 // createTimeoutContext creates a timeout context with 5 seconds timeout
 func (ast *Assistant) createTimeoutContext(c *gin.Context) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	return ctx, cancel
 }
 

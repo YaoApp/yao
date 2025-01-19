@@ -100,7 +100,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
 	fail := make(chan error, 1)
-	content := []byte{}
+	contents := message.NewContents()
 
 	// Chat with AI in background
 	go func() {
@@ -126,7 +126,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 				}
 
 				// Append content and send message
-				content = msg.Append(content)
+				msg.AppendTo(contents)
 				if !silent {
 					value := msg.String()
 					if value != "" {
@@ -166,7 +166,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 	// Wait for completion or client disconnect
 	select {
 	case <-done:
-		return string(content), nil
+		return contents.Text(), nil
 	case err := <-fail:
 		return "", err
 	case <-c.Writer.CloseNotify():

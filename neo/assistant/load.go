@@ -28,6 +28,10 @@ var defaultConnector string = "" // default connector
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
+
+	// Clear the cache
+	loaded.Clear()
+
 	root := `/assistants`
 	app, err := fs.Get("app")
 	if err != nil {
