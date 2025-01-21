@@ -20,7 +20,7 @@ type Message struct {
 	Type            string                 `json:"type,omitempty"`             // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
 	Props           map[string]interface{} `json:"props,omitempty"`            // props for the types
 	IsDone          bool                   `json:"done,omitempty"`             // Mark as a done message from neo
-	IsNew           bool                   `json:"is_new,omitempty"`           // Mark as a new message from neo
+	IsNew           bool                   `json:"new,omitempty"`              // Mark as a new message from neo
 	Actions         []Action               `json:"actions,omitempty"`          // Conversation Actions for frontend
 	Attachments     []Attachment           `json:"attachments,omitempty"`      // File attachments
 	Role            string                 `json:"role,omitempty"`             // user, assistant, system ...
