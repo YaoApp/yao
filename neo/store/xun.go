@@ -335,7 +335,7 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 
 	// Build base query
 	qb := conv.newQueryChat().
-		Select("chat_id", "title", "created_at").
+		Select("chat_id", "title", "created_at", "updated_at").
 		Where("sid", userID).
 		Where("chat_id", "!=", "")
 
@@ -358,7 +358,9 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 	lastPage := int(math.Ceil(float64(total) / float64(filter.PageSize)))
 
 	// Get paginated results
-	rows, err := qb.OrderBy("created_at", filter.Order).
+	rows, err := qb.
+		OrderBy("updated_at", filter.Order).
+		OrderBy("created_at", filter.Order).
 		Offset(offset).
 		Limit(filter.PageSize).
 		Get()
@@ -392,8 +394,13 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 			"title":   row.Get("title"),
 		}
 
+		var dbDatetime = row.Get("updated_at")
+		if dbDatetime == nil {
+			dbDatetime = row.Get("created_at")
+		}
+
 		var createdAt time.Time
-		switch v := row.Get("created_at").(type) {
+		switch v := dbDatetime.(type) {
 		case time.Time:
 			createdAt = v
 		case string:
@@ -604,6 +611,15 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 	}
 
 	err = conv.newQuery().Insert(values)
+	if err != nil {
+		return err
+	}
+
+	// Update Chat updated_at
+	_, err = conv.newQueryChat().
+		Where("chat_id", cid).
+		Where("sid", userID).
+		Update(map[string]interface{}{"updated_at": now})
 	if err != nil {
 		return err
 	}
