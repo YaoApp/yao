@@ -86,6 +86,9 @@ func NewOpenAI(data []byte) *Message {
 	msg := New()
 	text := string(data)
 	data = []byte(strings.TrimPrefix(text, "data: "))
+	// fmt.Println("--------------------------------")
+	// fmt.Println(string(data))
+	// fmt.Println("--------------------------------")
 
 	switch {
 
@@ -187,11 +190,22 @@ func (m *Message) SetContent(content string) *Message {
 // AppendTo append the contents
 func (m *Message) AppendTo(contents *Contents) *Message {
 
+	// Set type
+	if m.Type == "" {
+		m.Type = "text"
+	}
+
 	switch m.Type {
 	case "text":
 		if m.Text != "" {
+			if m.IsNew {
+				contents.NewText([]byte(m.Text))
+				return m
+			}
 			contents.AppendText([]byte(m.Text))
+			return m
 		}
+		return m
 
 	case "tool_calls":
 
@@ -206,8 +220,20 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 		}
 
 		contents.AppendFunction([]byte(m.Text))
+		return m
+
+	case "loading":
+		return m
+
+	default:
+		if m.IsNew {
+			contents.NewType(m.Type, m.Props)
+			return m
+		}
+		contents.UpdateType(m.Type, m.Props)
+		return m
 	}
-	return m
+
 }
 
 // Content get the content
@@ -271,8 +297,11 @@ func (m *Message) Map(msg map[string]interface{}) *Message {
 	if done, ok := msg["done"].(bool); ok {
 		m.IsDone = done
 	}
+	if props, ok := msg["props"].(map[string]interface{}); ok {
+		m.Props = props
+	}
 
-	if isNew, ok := msg["is_new"].(bool); ok {
+	if isNew, ok := msg["new"].(bool); ok {
 		m.IsNew = isNew
 	}
 

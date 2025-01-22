@@ -7,17 +7,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/runtime/v8/bridge"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
+	chatMessage "github.com/yaoapp/yao/neo/message"
+	"rogchap.com/v8go"
 )
 
 // HookInit initialize the assistant
-func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}) (*ResHookInit, error) {
+func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}, contents *message.Contents) (*ResHookInit, error) {
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Init", context, input, c.Writer)
+	v, err := ast.call(ctx, "Init", c, contents, context, input)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -69,13 +72,13 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 }
 
 // HookStream Handle streaming response from LLM
-func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, output []message.Data) (*ResHookStream, error) {
+func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents) (*ResHookStream, error) {
 
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Stream", context, input, output, c.Writer)
+	v, err := ast.call(ctx, "Stream", c, contents, context, input)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -133,12 +136,11 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 }
 
 // HookDone Handle completion of assistant response
-func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, output []message.Data) (*ResHookDone, error) {
+func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents) (*ResHookDone, error) {
 	// Create timeout context
-	ctx, cancel := ast.createTimeoutContext(c)
-	defer cancel()
+	ctx := ast.createBackgroundContext()
 
-	v, err := ast.call(ctx, "Done", context, input, output, c.Writer)
+	v, err := ast.call(ctx, "Done", c, contents, context, input)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -148,7 +150,7 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 
 	response := &ResHookDone{
 		Input:  input,
-		Output: output,
+		Output: contents.Data,
 	}
 
 	switch v := v.(type) {
@@ -194,12 +196,12 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 }
 
 // HookFail Handle failure of assistant response
-func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []message.Message, output string, err error) (*ResHookFail, error) {
+func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []message.Message, err error, contents *chatMessage.Contents) (*ResHookFail, error) {
 	// Create timeout context
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, callErr := ast.call(ctx, "Fail", context, input, output, err.Error(), c.Writer)
+	v, callErr := ast.call(ctx, "Fail", c, contents, context, input, err.Error())
 	if callErr != nil {
 		if callErr.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -209,7 +211,7 @@ func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []
 
 	response := &ResHookFail{
 		Input:  input,
-		Output: output,
+		Output: contents.Text(),
 		Error:  err.Error(),
 	}
 
@@ -243,8 +245,13 @@ func (ast *Assistant) createTimeoutContext(c *gin.Context) (context.Context, con
 	return ctx, cancel
 }
 
+// createBackgroundContext creates a background context
+func (ast *Assistant) createBackgroundContext() context.Context {
+	return context.Background()
+}
+
 // Call the script method
-func (ast *Assistant) call(ctx context.Context, method string, context chatctx.Context, args ...any) (interface{}, error) {
+func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, contents *chatMessage.Contents, context chatctx.Context, args ...any) (interface{}, error) {
 	if ast.Script == nil {
 		return nil, nil
 	}
@@ -254,6 +261,44 @@ func (ast *Assistant) call(ctx context.Context, method string, context chatctx.C
 		return nil, err
 	}
 	defer scriptCtx.Close()
+
+	// Add sendMessage function to the script context
+	scriptCtx.WithFunction("SendMessage", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+
+		// Get the message
+		args := info.Args()
+		if len(args) < 1 {
+			return bridge.JsException(info.Context(), "SendMessage requires at least one argument")
+		}
+
+		input, err := bridge.GoValue(args[0], info.Context())
+		if err != nil {
+			return bridge.JsException(info.Context(), err.Error())
+		}
+
+		switch v := input.(type) {
+		case string:
+			// Check if the message is json
+			msg, err := message.NewString(v)
+			if err != nil {
+				return bridge.JsException(info.Context(), err.Error())
+			}
+
+			// Append the message to the contents
+			msg.AppendTo(contents)
+			msg.Write(c.Writer)
+			return nil
+
+		case map[string]interface{}:
+			msg := message.New().Map(v)
+			msg.AppendTo(contents)
+			msg.Write(c.Writer)
+			return nil
+
+		default:
+			return bridge.JsException(info.Context(), "SendMessage requires a string or a map")
+		}
+	})
 
 	// Check if the method exists
 	if !scriptCtx.Global().Has(method) {

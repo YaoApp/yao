@@ -21,11 +21,12 @@ type Contents struct {
 
 // Data the data of the content
 type Data struct {
-	Type      string `json:"type"`      // text, function, error, ...
-	ID        string `json:"id"`        // the id of the content
-	Function  string `json:"function"`  // the function name
-	Bytes     []byte `json:"bytes"`     // the content bytes
-	Arguments []byte `json:"arguments"` // the function arguments
+	Type      string                 `json:"type"`      // text, function, error, ...
+	ID        string                 `json:"id"`        // the id of the content
+	Function  string                 `json:"function"`  // the function name
+	Bytes     []byte                 `json:"bytes"`     // the content bytes
+	Arguments []byte                 `json:"arguments"` // the function arguments
+	Props     map[string]interface{} `json:"props"`     // the props
 }
 
 // NewContents create a new contents
@@ -54,6 +55,28 @@ func (c *Contents) NewFunction(function string, arguments []byte) *Contents {
 		Arguments: arguments,
 	})
 	c.Current++
+	return c
+}
+
+// NewType create a new type data and append to the contents
+func (c *Contents) NewType(typ string, props map[string]interface{}) *Contents {
+	c.Data = append(c.Data, Data{
+		Type:  typ,
+		Props: props,
+	})
+	c.Current++
+	return c
+}
+
+// UpdateType update the type of the current content
+func (c *Contents) UpdateType(typ string, props map[string]interface{}) *Contents {
+	if c.Current == -1 {
+		c.NewType(typ, props)
+		return c
+	}
+
+	c.Data[c.Current].Type = typ
+	c.Data[c.Current].Props = props
 	return c
 }
 
@@ -128,8 +151,12 @@ func (data *Data) Map() (map[string]interface{}, error) {
 		v["id"] = data.ID
 	}
 
-	if data.Bytes != nil {
+	if data.Bytes != nil && data.Type == "text" {
 		v["text"] = string(data.Bytes)
+	}
+
+	if data.Props != nil && data.Type != "text" {
+		v["props"] = data.Props
 	}
 
 	if data.Arguments != nil {
@@ -157,8 +184,12 @@ func (data *Data) MarshalJSON() ([]byte, error) {
 		v["id"] = data.ID
 	}
 
-	if data.Bytes != nil {
+	if data.Bytes != nil && data.Type == "text" {
 		v["text"] = string(data.Bytes)
+	}
+
+	if data.Props != nil && data.Type != "text" {
+		v["props"] = data.Props
 	}
 
 	if data.Arguments != nil {
