@@ -276,6 +276,12 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 			return bridge.JsException(info.Context(), err.Error())
 		}
 
+		// Save history by default
+		saveHistory := true
+		if len(args) > 1 && args[1].IsBoolean() {
+			saveHistory = args[1].Boolean()
+		}
+
 		switch v := input.(type) {
 		case string:
 			// Check if the message is json
@@ -285,13 +291,17 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 			}
 
 			// Append the message to the contents
-			msg.AppendTo(contents)
+			if saveHistory {
+				msg.AppendTo(contents)
+			}
 			msg.Write(c.Writer)
 			return nil
 
 		case map[string]interface{}:
 			msg := message.New().Map(v)
-			msg.AppendTo(contents)
+			if saveHistory {
+				msg.AppendTo(contents)
+			}
 			msg.Write(c.Writer)
 			return nil
 
