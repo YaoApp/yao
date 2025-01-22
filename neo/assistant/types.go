@@ -25,7 +25,6 @@ type API interface {
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
 	Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error
-	HookInit(c *gin.Context, ctx chatctx.Context, input []message.Message, options map[string]interface{}) (*ResHookInit, error)
 }
 
 // ResHookInit the response of the init hook

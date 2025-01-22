@@ -51,10 +51,11 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 		return err
 	}
 
+	contents := chatMessage.NewContents()
 	options = ast.withOptions(options)
 
 	// Run init hook
-	res, err := ast.HookInit(c, ctx, messages, options)
+	res, err := ast.HookInit(c, ctx, messages, options, contents)
 	if err != nil {
 		chatMessage.New().
 			Assistant(ast.ID, ast.Name, ast.Avatar).
@@ -94,7 +95,7 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 	}
 
 	// Only proceed with chat stream if no specific next action was handled
-	return ast.handleChatStream(c, ctx, messages, options)
+	return ast.handleChatStream(c, ctx, messages, options, contents)
 }
 
 // Execute the next action
@@ -170,10 +171,9 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context) error {
 }
 
 // handleChatStream manages the streaming chat interaction with the AI
-func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}) error {
+func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) error {
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
-	contents := chatMessage.NewContents()
 
 	// Chat with AI in background
 	go func() {
@@ -220,7 +220,7 @@ func (ast *Assistant) streamChat(
 			// Handle error
 			if msg.Type == "error" {
 				value := msg.String()
-				res, hookErr := ast.HookFail(c, ctx, messages, contents.JSON(), fmt.Errorf("%s", value))
+				res, hookErr := ast.HookFail(c, ctx, messages, fmt.Errorf("%s", value), contents)
 				if hookErr == nil && res != nil && (res.Output != "" || res.Error != "") {
 					value = res.Output
 					if res.Error != "" {
@@ -236,7 +236,7 @@ func (ast *Assistant) streamChat(
 			value := msg.String()
 			if value != "" {
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, contents.Data)
+				res, err := ast.HookStream(c, ctx, messages, contents)
 				if err == nil && res != nil {
 
 					if res.Next != nil {
@@ -271,7 +271,7 @@ func (ast *Assistant) streamChat(
 				// 	msg.Write(c.Writer)
 				// }
 
-				res, hookErr := ast.HookDone(c, ctx, messages, contents.Data)
+				res, hookErr := ast.HookDone(c, ctx, messages, contents)
 				if hookErr == nil && res != nil {
 					if res.Output != nil {
 						chatMessage.New().
