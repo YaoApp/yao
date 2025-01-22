@@ -104,10 +104,25 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 
 	// Chat with AI in background
 	go func() {
-		msgList := make([]message.Message, len(messages))
-		for i, msg := range messages {
-			msgList[i] = *message.New().Map(msg)
+		msgList := []message.Message{}
+		for _, vv := range messages {
+			msg := message.New().Map(vv)
+			if content, ok := vv["content"].(string); ok {
+				msgs, err := message.NewContent(content)
+				if err == nil {
+					for _, v := range msgs {
+						v.AssistantID = msg.AssistantID
+						v.AssistantName = msg.AssistantName
+						v.AssistantAvatar = msg.AssistantAvatar
+						v.Role = msg.Role
+						v.Name = msg.Name
+						v.Mentions = msg.Mentions
+						msgList = append(msgList, v)
+					}
+				}
+			}
 		}
+
 		err := ast.Chat(c.Request.Context(), msgList, neo.Option, func(data []byte) int {
 			select {
 			case <-clientBreak:

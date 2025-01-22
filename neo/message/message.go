@@ -65,6 +65,73 @@ func New() *Message {
 	return &Message{Actions: []Action{}, Props: map[string]interface{}{}}
 }
 
+// NewHistory create a new message from history
+func NewHistory(history map[string]interface{}) ([]Message, error) {
+	if history == nil {
+		return []Message{}, nil
+	}
+
+	var copy map[string]interface{} = map[string]interface{}{}
+	for key, value := range history {
+		if key != "content" {
+			copy[key] = value
+		}
+	}
+
+	globalMessage := New().Map(copy)
+	messages := []Message{}
+	if content, ok := history["content"].(string); ok {
+		if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
+			var msg Message = *globalMessage
+			if err := jsoniter.UnmarshalFromString(content, &msg); err != nil {
+				return nil, err
+			}
+			messages = append(messages, msg)
+		} else if strings.HasPrefix(content, "[") && strings.HasSuffix(content, "]") {
+			var msgs []Message
+			if err := jsoniter.UnmarshalFromString(content, &msgs); err != nil {
+				return nil, err
+			}
+			for _, msg := range msgs {
+				msg.AssistantID = globalMessage.AssistantID
+				msg.AssistantName = globalMessage.AssistantName
+				msg.AssistantAvatar = globalMessage.AssistantAvatar
+				msg.Role = globalMessage.Role
+				msg.Name = globalMessage.Name
+				msg.Mentions = globalMessage.Mentions
+				messages = append(messages, msg)
+			}
+		} else {
+			messages = append(messages, Message{Text: content})
+		}
+	}
+
+	return messages, nil
+}
+
+// NewContent create a new message from content
+func NewContent(content string) ([]Message, error) {
+	messages := []Message{}
+	if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
+		var msg Message
+		if err := jsoniter.UnmarshalFromString(content, &msg); err != nil {
+			return nil, err
+		}
+		messages = append(messages, msg)
+	} else if strings.HasPrefix(content, "[") && strings.HasSuffix(content, "]") {
+		var msgs []Message
+		if err := jsoniter.UnmarshalFromString(content, &msgs); err != nil {
+			return nil, err
+		}
+		for _, msg := range msgs {
+			messages = append(messages, msg)
+		}
+	} else {
+		messages = append(messages, Message{Text: content})
+	}
+	return messages, nil
+}
+
 // NewString create a new message from string
 func NewString(content string) (*Message, error) {
 	if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
@@ -86,10 +153,6 @@ func NewOpenAI(data []byte) *Message {
 	msg := New()
 	text := string(data)
 	data = []byte(strings.TrimPrefix(text, "data: "))
-	// fmt.Println("--------------------------------")
-	// fmt.Println(string(data))
-	// fmt.Println("--------------------------------")
-
 	switch {
 
 	case strings.Contains(text, `"delta":{`) && strings.Contains(text, `"tool_calls"`):
@@ -138,10 +201,18 @@ func NewOpenAI(data []byte) *Message {
 
 // String returns the string representation
 func (m *Message) String() string {
-	if m.Text != "" {
-		return m.Text
+	typ := m.Type
+	if typ == "" {
+		typ = "text"
 	}
-	return ""
+
+	switch typ {
+	case "text":
+		return m.Text
+	default:
+		raw, _ := jsoniter.MarshalToString(map[string]interface{}{"type": m.Type, "props": m.Props})
+		return raw
+	}
 }
 
 // SetText set the text
@@ -222,7 +293,7 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 		contents.AppendFunction([]byte(m.Text))
 		return m
 
-	case "loading":
+	case "loading", "error": // Ignore loading and error messages
 		return m
 
 	default:
@@ -307,6 +378,11 @@ func (m *Message) Map(msg map[string]interface{}) *Message {
 
 	if assistantID, ok := msg["assistant_id"].(string); ok {
 		m.AssistantID = assistantID
+
+		// Set name
+		if m.Role == "assistant" {
+			m.Name = m.AssistantID
+		}
 	}
 
 	if assistantName, ok := msg["assistant_name"].(string); ok {

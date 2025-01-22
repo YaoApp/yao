@@ -387,7 +387,11 @@ func (ast *Assistant) withHistory(ctx chatctx.Context, input string) ([]chatMess
 
 		// Add history messages
 		for _, h := range history {
-			messages = append(messages, *chatMessage.New().Map(h))
+			msgs, err := chatMessage.NewHistory(h)
+			if err != nil {
+				return nil, err
+			}
+			messages = append(messages, msgs...)
 		}
 	}
 
@@ -416,6 +420,7 @@ func (ast *Assistant) Chat(ctx context.Context, messages []chatMessage.Message, 
 }
 
 func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessage.Message) ([]map[string]interface{}, error) {
+
 	newMessages := []map[string]interface{}{}
 	length := len(messages)
 
@@ -425,7 +430,7 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 			return nil, fmt.Errorf("role must be string")
 		}
 
-		content := message.Text
+		content := message.String()
 		if content == "" {
 			return nil, fmt.Errorf("content must be string")
 		}
