@@ -293,7 +293,7 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 		contents.AppendFunction([]byte(m.Text))
 		return m
 
-	case "loading", "error": // Ignore loading and error messages
+	case "loading", "error", "action": // Ignore loading, action and error messages
 		return m
 
 	default:
