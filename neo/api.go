@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/neo/assistant"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
@@ -44,7 +45,9 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/dangerous/clear_chats", neo.optionsHandler)
 	router.OPTIONS(path+"/assistants", neo.optionsHandler)
 	router.OPTIONS(path+"/assistants/:id", neo.optionsHandler)
+	router.OPTIONS(path+"/assistants/:id/call", neo.optionsHandler)
 
+	// Chat endpoint
 	// Chat endpoint
 	// Example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo?content=Hello&chat_id=chat_123&context=previous_context&token=xxx'
@@ -70,6 +73,12 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Get assistant details example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants/assistant_123?token=xxx'
 	router.GET(path+"/assistants/:id", append(middlewares, neo.handleAssistantDetail)...)
+
+	// Execute assistant API example:
+	// curl -X POST 'http://localhost:5099/api/__yao/neo/assistants/assistant_123/api' \
+	//   -H 'Content-Type: application/json' \
+	//   -d '{"name": "Test", "payload": {"name": "yao", "age": 18}}'
+	router.POST(path+"/assistants/:id/call", append(middlewares, neo.handleAssistantCall)...)
 
 	// Create/Update assistant example:
 	// curl -X POST 'http://localhost:5099/api/__yao/neo/assistants' \
@@ -936,6 +945,46 @@ func parseBoolValue(value string) *bool {
 	default:
 		return nil
 	}
+}
+
+// handleAssistantAPI handles the assistant API
+func (neo *DSL) handleAssistantCall(c *gin.Context) {
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
+		c.Done()
+		return
+	}
+	ast, err := assistant.Get(assistantID)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	payload := assistant.APIPayload{Sid: sid}
+	if err := c.BindJSON(&payload); err != nil {
+		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
+		c.Done()
+		return
+	}
+
+	result, err := ast.Call(c, payload)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	c.JSON(200, result)
+	c.Done()
 }
 
 // handleAssistantDetail handles getting a single assistant's details

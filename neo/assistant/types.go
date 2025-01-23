@@ -25,6 +25,14 @@ type API interface {
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
 	Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error
+	Call(c *gin.Context, payload APIPayload) (interface{}, error)
+}
+
+// APIPayload the API payload
+type APIPayload struct {
+	Sid     string                 `json:"sid"`
+	Name    string                 `json:"name"`
+	Payload map[string]interface{} `json:"payload"`
 }
 
 // ResHookInit the response of the init hook

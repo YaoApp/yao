@@ -170,6 +170,25 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context) error {
 	}
 }
 
+// Call implements the call functionality
+func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, error) {
+	scriptCtx, err := ast.Script.NewContext(payload.Sid, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer scriptCtx.Close()
+	ctx := c.Request.Context()
+
+	method := fmt.Sprintf("%sAPI", payload.Name)
+
+	// Check if the method exists
+	if !scriptCtx.Global().Has(method) {
+		return nil, fmt.Errorf(HookErrorMethodNotFound)
+	}
+
+	return scriptCtx.CallWith(ctx, method, payload.Payload)
+}
+
 // handleChatStream manages the streaming chat interaction with the AI
 func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) error {
 	clientBreak := make(chan bool, 1)
