@@ -136,6 +136,7 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"tags":         ast.Tags,
 		"mentionable":  ast.Mentionable,
 		"automated":    ast.Automated,
+		"placeholder":  ast.Placeholder,
 		"created_at":   timeToMySQLFormat(ast.CreatedAt),
 		"updated_at":   timeToMySQLFormat(ast.UpdatedAt),
 	}

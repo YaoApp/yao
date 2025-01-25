@@ -294,6 +294,41 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Type = v
 	}
 
+	// Placeholder
+	if v, ok := data["placeholder"]; ok {
+
+		switch vv := v.(type) {
+		case string:
+			placeholder, err := jsoniter.Marshal(vv)
+			if err != nil {
+				return nil, err
+			}
+			assistant.Placeholder = &Placeholder{}
+			err = jsoniter.Unmarshal(placeholder, assistant.Placeholder)
+			if err != nil {
+				return nil, err
+			}
+
+		case map[string]interface{}:
+			raw, err := jsoniter.Marshal(vv)
+			if err != nil {
+				return nil, err
+			}
+
+			assistant.Placeholder = &Placeholder{}
+			err = jsoniter.Unmarshal(raw, assistant.Placeholder)
+			if err != nil {
+				return nil, err
+			}
+
+		case *Placeholder:
+			assistant.Placeholder = vv
+
+		case nil:
+			assistant.Placeholder = nil
+		}
+	}
+
 	// Mentionable
 	if v, ok := data["mentionable"].(bool); ok {
 		assistant.Mentionable = v

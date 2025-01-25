@@ -465,6 +465,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	// Test case 1: JSON fields as strings
 	tagsJSON := `["tag1", "tag2", "tag3"]`
 	optionsJSON := `{"model": "gpt-4"}`
+	placeholderJSON := `{"title": "Test Title", "description": "Test Description", "prompts": ["prompt1", "prompt2"]}`
 	assistant := map[string]interface{}{
 		"name":        "Test Assistant",
 		"type":        "assistant",
@@ -476,6 +477,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"built_in":    true,
 		"tags":        tagsJSON,
 		"options":     optionsJSON,
+		"placeholder": placeholderJSON,
 		"mentionable": true,
 		"automated":   true,
 	}
@@ -500,6 +502,11 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assert.Equal(t, int64(1), assistantData["built_in"])
 	assert.Equal(t, []interface{}{"tag1", "tag2", "tag3"}, assistantData["tags"])
 	assert.Equal(t, map[string]interface{}{"model": "gpt-4"}, assistantData["options"])
+	assert.Equal(t, map[string]interface{}{
+		"title":       "Test Title",
+		"description": "Test Description",
+		"prompts":     []interface{}{"prompt1", "prompt2"},
+	}, assistantData["placeholder"])
 	assert.Equal(t, int64(1), assistantData["mentionable"])
 	assert.Equal(t, int64(1), assistantData["automated"])
 
@@ -520,6 +527,11 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"files":       []string{"file1", "file2"},
 		"functions":   []map[string]interface{}{{"name": "func1"}, {"name": "func2"}},
 		"permissions": map[string]interface{}{"read": true, "write": true},
+		"placeholder": map[string]interface{}{
+			"title":       "Test Title 2",
+			"description": "Test Description 2",
+			"prompts":     []string{"prompt3", "prompt4"},
+		},
 		"mentionable": true,
 		"automated":   true,
 	}
@@ -545,6 +557,11 @@ func TestXunAssistantCRUD(t *testing.T) {
 		map[string]interface{}{"name": "func2"},
 	}, assistant2Data["functions"])
 	assert.Equal(t, map[string]interface{}{"read": true, "write": true}, assistant2Data["permissions"])
+	assert.Equal(t, map[string]interface{}{
+		"title":       "Test Title 2",
+		"description": "Test Description 2",
+		"prompts":     []interface{}{"prompt3", "prompt4"},
+	}, assistant2Data["placeholder"])
 	assert.Equal(t, int64(1), assistant2Data["mentionable"])
 	assert.Equal(t, int64(1), assistant2Data["automated"])
 
@@ -564,6 +581,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"files":       nil,
 		"functions":   nil,
 		"permissions": nil,
+		"placeholder": nil,
 		"mentionable": true,
 		"automated":   true,
 	}
@@ -586,6 +604,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assert.Nil(t, assistant3Data["files"])
 	assert.Nil(t, assistant3Data["functions"])
 	assert.Nil(t, assistant3Data["permissions"])
+	assert.Nil(t, assistant3Data["placeholder"])
 	assert.Equal(t, int64(1), assistant3Data["mentionable"])
 	assert.Equal(t, int64(1), assistant3Data["automated"])
 
@@ -655,6 +674,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 			assert.Nil(t, item["files"])
 			assert.Nil(t, item["functions"])
 			assert.Nil(t, item["permissions"])
+			assert.Nil(t, item["placeholder"])
 			break
 		}
 	}
