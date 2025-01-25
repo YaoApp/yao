@@ -24,6 +24,8 @@ type API interface {
 	Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
+
+	GetPlaceholder() *Placeholder
 	Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error
 	Call(c *gin.Context, payload APIPayload) (interface{}, error)
 }

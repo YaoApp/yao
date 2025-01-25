@@ -170,6 +170,11 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context) error {
 	}
 }
 
+// GetPlaceholder returns the placeholder of the assistant
+func (ast *Assistant) GetPlaceholder() *Placeholder {
+	return ast.Placeholder
+}
+
 // Call implements the call functionality
 func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, error) {
 	scriptCtx, err := ast.Script.NewContext(payload.Sid, nil)
