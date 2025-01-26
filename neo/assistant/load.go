@@ -365,8 +365,32 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	// tags
-	if v, ok := data["tags"].([]string); ok {
-		assistant.Tags = v
+	if v, has := data["tags"]; has {
+		switch vv := v.(type) {
+		case []string:
+			assistant.Tags = vv
+		case []interface{}:
+			var tags []string
+			for _, tag := range vv {
+				tags = append(tags, cast.ToString(tag))
+			}
+			assistant.Tags = tags
+
+		case interface{}:
+			raw, err := jsoniter.Marshal(vv)
+			if err != nil {
+				return nil, err
+			}
+			var tags []string
+			err = jsoniter.Unmarshal(raw, &tags)
+			if err != nil {
+				return nil, err
+			}
+			assistant.Tags = tags
+
+		case string:
+			assistant.Tags = []string{vv}
+		}
 	}
 
 	// options
