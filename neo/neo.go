@@ -15,7 +15,7 @@ import (
 // Answer reply the message
 func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) error {
 	var err error
-	var ast assistant.API = neo.Assistant
+	var ast assistant.API = Neo.Assistant
 	if ctx.AssistantID != "" {
 		ast, err = neo.Select(ctx.AssistantID)
 		if err != nil {
@@ -28,7 +28,7 @@ func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) err
 // Select select an assistant
 func (neo *DSL) Select(id string) (assistant.API, error) {
 	if id == "" {
-		return neo.Assistant, nil
+		return Neo.Assistant, nil
 	}
 	return assistant.Get(id)
 }
