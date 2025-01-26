@@ -50,19 +50,19 @@ func Load(cfg config.Config) error {
 	Neo = &setting
 
 	// Store Setting
-	err = Neo.initStore()
+	err = initStore()
 	if err != nil {
 		return err
 	}
 
 	// Initialize RAG
-	Neo.initRAG()
+	initRAG()
 
 	// Initialize Vision
-	Neo.initVision()
+	initVision()
 
 	// Initialize Assistant
-	err = Neo.initAssistant()
+	err = initAssistant()
 	if err != nil {
 		return err
 	}
@@ -71,60 +71,60 @@ func Load(cfg config.Config) error {
 }
 
 // initRAG initialize the RAG instance
-func (neo *DSL) initRAG() {
-	if neo.RAGSetting.Engine.Driver == "" {
+func initRAG() {
+	if Neo.RAGSetting.Engine.Driver == "" {
 		return
 	}
-	instance, err := rag.New(neo.RAGSetting)
+	instance, err := rag.New(Neo.RAGSetting)
 	if err != nil {
 		color.Red("[Neo] Failed to initialize RAG: %v", err)
 		log.Error("[Neo] Failed to initialize RAG: %v", err)
 		return
 	}
 
-	neo.RAG = instance
+	Neo.RAG = instance
 }
 
 // initStore initialize the store
-func (neo *DSL) initStore() error {
+func initStore() error {
 
 	var err error
-	if neo.StoreSetting.Connector == "default" || neo.StoreSetting.Connector == "" {
-		neo.Store, err = store.NewXun(neo.StoreSetting)
+	if Neo.StoreSetting.Connector == "default" || Neo.StoreSetting.Connector == "" {
+		Neo.Store, err = store.NewXun(Neo.StoreSetting)
 		return err
 	}
 
 	// other connector
-	conn, err := connector.Select(neo.StoreSetting.Connector)
+	conn, err := connector.Select(Neo.StoreSetting.Connector)
 	if err != nil {
 		return err
 	}
 
 	if conn.Is(connector.DATABASE) {
-		neo.Store, err = store.NewXun(neo.StoreSetting)
+		Neo.Store, err = store.NewXun(Neo.StoreSetting)
 		return err
 
 	} else if conn.Is(connector.REDIS) {
-		neo.Store = store.NewRedis()
+		Neo.Store = store.NewRedis()
 		return nil
 
 	} else if conn.Is(connector.MONGO) {
-		neo.Store = store.NewMongo()
+		Neo.Store = store.NewMongo()
 		return nil
 	}
 
-	return fmt.Errorf("%s store connector %s not support", neo.ID, neo.StoreSetting.Connector)
+	return fmt.Errorf("%s store connector %s not support", Neo.ID, Neo.StoreSetting.Connector)
 }
 
 // initVision initialize the Vision instance
-func (neo *DSL) initVision() {
-	if neo.VisionSetting.Storage.Driver == "" {
+func initVision() {
+	if Neo.VisionSetting.Storage.Driver == "" {
 		return
 	}
 
 	cfg := &driver.Config{
-		Storage: neo.VisionSetting.Storage,
-		Model:   neo.VisionSetting.Model,
+		Storage: Neo.VisionSetting.Storage,
+		Model:   Neo.VisionSetting.Model,
 	}
 
 	instance, err := vision.New(cfg)
@@ -134,11 +134,11 @@ func (neo *DSL) initVision() {
 		return
 	}
 
-	neo.Vision = instance
+	Neo.Vision = instance
 }
 
 // initAssistant initialize the assistant
-func (neo *DSL) initAssistant() error {
+func initAssistant() error {
 
 	// Set Storage
 	assistant.SetStorage(Neo.Store)
@@ -170,7 +170,7 @@ func (neo *DSL) initAssistant() error {
 	}
 
 	// Default Assistant
-	defaultAssistant, err := Neo.defaultAssistant()
+	defaultAssistant, err := defaultAssistant()
 	if err != nil {
 		return err
 	}
@@ -180,15 +180,15 @@ func (neo *DSL) initAssistant() error {
 }
 
 // defaultAssistant get the default assistant
-func (neo *DSL) defaultAssistant() (*assistant.Assistant, error) {
-	if neo.Use != "" {
-		return assistant.Get(neo.Use)
+func defaultAssistant() (*assistant.Assistant, error) {
+	if Neo.Use != "" {
+		return assistant.Get(Neo.Use)
 	}
 
-	name := neo.Name
+	name := Neo.Name
 	if name == "" {
 		name = "Neo"
 	}
 
-	return assistant.GetByConnector(neo.Connector, name)
+	return assistant.GetByConnector(Neo.Connector, name)
 }
