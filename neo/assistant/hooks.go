@@ -20,7 +20,7 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 	ctx, cancel := ast.createTimeoutContext(c)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Init", c, contents, context, input)
+	v, err := ast.call(ctx, "Init", c, contents, context, input, options)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
