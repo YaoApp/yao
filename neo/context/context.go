@@ -22,8 +22,6 @@ type Context struct {
 	Config      map[string]interface{} `json:"config,omitempty"`
 	Signal      interface{}            `json:"signal,omitempty"`
 	Upload      *FileUpload            `json:"upload,omitempty"`
-	Version     bool                   `json:"version,omitempty"` // Version support
-	RAG         bool                   `json:"rag,omitempty"`     // RAG support
 }
 
 // Field the context field
@@ -86,9 +84,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, context.Cancel
 // Map the context to a map
 func (ctx *Context) Map() map[string]interface{} {
 	data := map[string]interface{}{
-		"sid":     ctx.Sid,
-		"rag":     ctx.RAG,
-		"version": ctx.Version,
+		"sid": ctx.Sid,
 	}
 
 	if ctx.ChatID != "" {
