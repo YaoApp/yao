@@ -181,6 +181,15 @@ func NewOpenAI(data []byte) *Message {
 			msg.Text = message.Choices[0].Delta.Content
 		}
 
+	case strings.Contains(text, `{"error":{`):
+		var errorMessage openai.ErrorMessage
+		if err := jsoniter.Unmarshal(data, &errorMessage); err != nil {
+			msg.Text = err.Error() + "\n" + string(data)
+			return msg
+		}
+		msg.Type = "error"
+		msg.Text = errorMessage.Error.Message
+
 	case strings.Contains(text, `[DONE]`):
 		msg.IsDone = true
 
@@ -209,6 +218,10 @@ func (m *Message) String() string {
 	switch typ {
 	case "text":
 		return m.Text
+
+	case "error":
+		return m.Text
+
 	default:
 		raw, _ := jsoniter.MarshalToString(map[string]interface{}{"type": m.Type, "props": m.Props})
 		return raw

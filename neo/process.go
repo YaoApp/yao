@@ -27,6 +27,7 @@ func init() {
 		"assistant.delete": processAssistantDelete,
 		"assistant.search": processAssistantSearch,
 		"assistant.find":   processAssistantFind,
+		"assistant.match":  processAssistantMatch, // Match assistant by content and params
 	})
 }
 
@@ -108,6 +109,73 @@ func processAssistantDelete(process *process.Process) interface{} {
 	}
 
 	return gin.H{"message": "ok"}
+}
+
+// processAssistantMatch process the assistant match request
+func processAssistantMatch(process *process.Process) interface{} {
+	process.ValidateArgNums(1)
+	content := process.Args[0]
+	params := map[string]interface{}{}
+	if len(process.Args) > 1 {
+		params = process.ArgsMap(1)
+	}
+
+	// Limit default to 20
+	if _, has := params["limit"]; !has {
+		params["limit"] = 20
+	}
+
+	// Max limit to 100
+	if limit, has := params["limit"]; has {
+		switch v := limit.(type) {
+		case int:
+			if v > 100 {
+				params["limit"] = 100
+			}
+		case string:
+			limitInt, err := strconv.Atoi(v)
+			if err != nil {
+				exception.New("Invalid limit type: %T", 500, limit).Throw()
+			}
+
+			params["limit"] = limitInt
+			if limitInt > 100 {
+				params["limit"] = 100
+			}
+
+		default:
+			exception.New("Invalid limit type: %T", 500, limit).Throw()
+		}
+	}
+
+	// Force Using sotre
+	forceStore := false
+	if store, has := params["store"]; has {
+		switch v := store.(type) {
+		case bool:
+			forceStore = v
+		case int:
+			forceStore = v == 1
+		case string:
+			forceStore = v == "true" || v == "1"
+		}
+	}
+
+	// Rag Support match using RAG
+	if Neo.RAG != nil && !forceStore {
+		return assistantMatchRAG(content, params)
+	}
+
+	// Match using Store
+	return assistantMatchStore(content, params)
+}
+
+func assistantMatchRAG(content interface{}, params map[string]interface{}) interface{} {
+	return nil
+}
+
+func assistantMatchStore(content interface{}, params map[string]interface{}) interface{} {
+	return nil
 }
 
 // processAssistantSearch process the assistant search request
