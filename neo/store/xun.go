@@ -887,6 +887,11 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		qb.Where("assistant_id", filter.AssistantID)
 	}
 
+	// Apply assistantIDs filter if provided
+	if filter.AssistantIDs != nil && len(filter.AssistantIDs) > 0 {
+		qb.WhereIn("assistant_id", filter.AssistantIDs)
+	}
+
 	// Apply mentionable filter if provided
 	if filter.Mentionable != nil {
 		qb.Where("mentionable", *filter.Mentionable)
@@ -1044,6 +1049,11 @@ func (conv *Xun) DeleteAssistants(filter AssistantFilter) (int64, error) {
 	// Apply assistant_id filter if provided
 	if filter.AssistantID != "" {
 		qb.Where("assistant_id", filter.AssistantID)
+	}
+
+	// Apply assistantIDs filter if provided
+	if filter.AssistantIDs != nil && len(filter.AssistantIDs) > 0 {
+		qb.WhereIn("assistant_id", filter.AssistantIDs)
 	}
 
 	// Apply mentionable filter if provided

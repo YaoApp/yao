@@ -1,11 +1,14 @@
 package neo
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/rag/driver"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
@@ -171,16 +174,110 @@ func processAssistantMatch(process *process.Process) interface{} {
 }
 
 func assistantMatchRAG(content interface{}, params map[string]interface{}) interface{} {
-	return nil
+	if Neo == nil {
+		exception.New("Neo is not initialized", 500).Throw()
+	}
+
+	// Convert content to JSON string
+	var contentStr string
+	switch v := content.(type) {
+	case string:
+		contentStr = v
+	case []byte:
+		contentStr = string(v)
+	default:
+		bytes, err := json.Marshal(v)
+		if err != nil {
+			exception.New("Failed to convert content to JSON: %s", 500, err.Error()).Throw()
+		}
+		contentStr = string(bytes)
+	}
+
+	// Get limit from params
+	limit := 20 // default limit
+	if v, has := params["limit"]; has {
+		switch lv := v.(type) {
+		case int:
+			limit = lv
+		case string:
+			limitInt, err := strconv.Atoi(lv)
+			if err == nil {
+				limit = limitInt
+			}
+		}
+	}
+
+	// Get min_score from params
+	minScore := 0.0 // default min_score
+	if v, has := params["min_score"]; has {
+		switch lv := v.(type) {
+		case float64:
+			minScore = lv
+		case float32:
+			minScore = float64(lv)
+		case int:
+			minScore = float64(lv)
+		case string:
+			if score, err := strconv.ParseFloat(lv, 64); err == nil {
+				minScore = score
+			}
+		}
+	}
+
+	ctx := context.Background()
+
+	// Get vectors using vectorizer
+	vectors, err := Neo.RAG.Vectorizer().Vectorize(ctx, contentStr)
+	if err != nil {
+		exception.New("Failed to encode content: %s", 500, err.Error()).Throw()
+	}
+
+	// Search using RAG engine
+	opts := driver.VectorSearchOptions{
+		TopK:      limit,
+		MinScore:  minScore,
+		QueryText: contentStr,
+	}
+
+	index := fmt.Sprintf("%sassistants", Neo.RAG.Setting().IndexPrefix)
+	results, err := Neo.RAG.Engine().Search(ctx, index, vectors, opts)
+	if err != nil {
+		exception.New("Failed to search with RAG: %s", 500, err.Error()).Throw()
+	}
+
+	// Convert results to assistant data array
+	ids := []string{}
+
+	// Collect IDs from search results
+	for _, result := range results {
+		if result.Metadata != nil {
+			if id, ok := result.Metadata["assistant_id"].(string); ok {
+				ids = append(ids, id)
+			}
+		}
+	}
+
+	// If no IDs found, return empty array
+	if len(ids) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	// Fetch complete assistant data from store using AssistantIDs
+	filter := store.AssistantFilter{
+		AssistantIDs: ids,
+		Page:         1,
+		PageSize:     len(ids),
+	}
+	res, err := Neo.Store.GetAssistants(filter)
+	if err != nil {
+		exception.New("get assistants error: %s", 500, err).Throw()
+	}
+
+	return res.Data
 }
 
-func assistantMatchStore(content interface{}, params map[string]interface{}) interface{} {
-	return nil
-}
-
-// processAssistantSearch process the assistant search request
-func processAssistantSearch(process *process.Process) interface{} {
-	params := process.ArgsMap(0)
+// parseAssistantFilter parse common filter parameters
+func parseAssistantFilter(params map[string]interface{}) store.AssistantFilter {
 	filter := store.AssistantFilter{}
 
 	// Parse page and pagesize
@@ -190,6 +287,7 @@ func processAssistantSearch(process *process.Process) interface{} {
 			filter.Page = pageInt
 		}
 	}
+
 	if pagesize, ok := params["pagesize"]; ok {
 		pagesizeStr := fmt.Sprintf("%v", pagesize)
 		if pagesizeInt, err := strconv.Atoi(pagesizeStr); err == nil {
@@ -229,6 +327,43 @@ func processAssistantSearch(process *process.Process) interface{} {
 	if automated, ok := params["automated"].(bool); ok {
 		filter.Automated = &automated
 	}
+
+	return filter
+}
+
+func assistantMatchStore(content interface{}, params map[string]interface{}) interface{} {
+	neo := GetNeo()
+	if neo.Store == nil {
+		exception.New("Neo store is not initialized", 500).Throw()
+	}
+
+	// Convert limit to pagesize
+	if limit, has := params["limit"]; has {
+		params["pagesize"] = limit
+	}
+	params["page"] = 1
+
+	// Parse content to keywords if not empty
+	if content != nil {
+		contentStr := fmt.Sprintf("%v", content)
+		if contentStr != "" {
+			params["keywords"] = contentStr
+		}
+	}
+
+	filter := parseAssistantFilter(params)
+	res, err := neo.Store.GetAssistants(filter)
+	if err != nil {
+		exception.New("get assistants error: %s", 500, err).Throw()
+	}
+
+	return res.Data
+}
+
+// processAssistantSearch process the assistant search request
+func processAssistantSearch(process *process.Process) interface{} {
+	params := process.ArgsMap(0)
+	filter := parseAssistantFilter(params)
 
 	// Get assistants
 	neo := GetNeo()
