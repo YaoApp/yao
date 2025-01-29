@@ -308,8 +308,6 @@ func (ast *Assistant) streamChat(
 				// 	msg.Write(c.Writer)
 				// }
 
-				fmt.Println("Done", contents.JSON())
-
 				res, hookErr := ast.HookDone(c, ctx, messages, contents)
 				if hookErr == nil && res != nil {
 
@@ -468,6 +466,12 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 	length := len(messages)
 
 	for index, message := range messages {
+
+		// Ignore the function call message
+		if message.Type == "function" {
+			continue
+		}
+
 		role := message.Role
 		if role == "" {
 			return nil, fmt.Errorf("role must be string")
