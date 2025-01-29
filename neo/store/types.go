@@ -46,16 +46,17 @@ type ChatGroupResponse struct {
 // AssistantFilter represents the assistant filter structure
 // Used for filtering and pagination when retrieving assistant lists
 type AssistantFilter struct {
-	Tags        []string `json:"tags,omitempty"`         // Filter by tags
-	Keywords    string   `json:"keywords,omitempty"`     // Search in name and description
-	Connector   string   `json:"connector,omitempty"`    // Filter by connector
-	AssistantID string   `json:"assistant_id,omitempty"` // Filter by assistant ID
-	Mentionable *bool    `json:"mentionable,omitempty"`  // Filter by mentionable status
-	Automated   *bool    `json:"automated,omitempty"`    // Filter by automation status
-	BuiltIn     *bool    `json:"built_in,omitempty"`     // Filter by built-in status
-	Page        int      `json:"page,omitempty"`         // Page number, starting from 1
-	PageSize    int      `json:"pagesize,omitempty"`     // Items per page
-	Select      []string `json:"select,omitempty"`       // Fields to return, returns all fields if empty
+	Tags         []string `json:"tags,omitempty"`          // Filter by tags
+	Keywords     string   `json:"keywords,omitempty"`      // Search in name and description
+	Connector    string   `json:"connector,omitempty"`     // Filter by connector
+	AssistantID  string   `json:"assistant_id,omitempty"`  // Filter by assistant ID
+	AssistantIDs []string `json:"assistant_ids,omitempty"` // Filter by assistant IDs
+	Mentionable  *bool    `json:"mentionable,omitempty"`   // Filter by mentionable status
+	Automated    *bool    `json:"automated,omitempty"`     // Filter by automation status
+	BuiltIn      *bool    `json:"built_in,omitempty"`      // Filter by built-in status
+	Page         int      `json:"page,omitempty"`          // Page number, starting from 1
+	PageSize     int      `json:"pagesize,omitempty"`      // Items per page
+	Select       []string `json:"select,omitempty"`        // Fields to return, returns all fields if empty
 }
 
 // AssistantResponse represents the assistant response structure
