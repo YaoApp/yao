@@ -17,9 +17,7 @@ import (
 // HookInit initialize the assistant
 func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}, contents *message.Contents) (*ResHookInit, error) {
 	// Create timeout context
-	ctx, cancel := ast.createTimeoutContext(c)
-	defer cancel()
-
+	ctx := ast.createBackgroundContext()
 	v, err := ast.call(ctx, "Init", c, contents, context, input, options)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
@@ -72,13 +70,13 @@ func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []
 }
 
 // HookStream Handle streaming response from LLM
-func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents) (*ResHookStream, error) {
+func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, msg *message.Message, contents *chatMessage.Contents) (*ResHookStream, error) {
 
 	// Create timeout context
-	ctx, cancel := ast.createTimeoutContext(c)
+	ctx, cancel := ast.createTimeoutContext(5 * time.Second)
 	defer cancel()
 
-	v, err := ast.call(ctx, "Stream", c, contents, context, input)
+	v, err := ast.call(ctx, "Stream", c, contents, context, input, msg, contents.JSON())
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -140,7 +138,7 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 	// Create timeout context
 	ctx := ast.createBackgroundContext()
 
-	v, err := ast.call(ctx, "Done", c, contents, context, input)
+	v, err := ast.call(ctx, "Done", c, contents, context, input, contents.Data)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -148,10 +146,7 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 		return nil, err
 	}
 
-	response := &ResHookDone{
-		Input:  input,
-		Output: contents.Data,
-	}
+	response := &ResHookDone{Input: input, Output: contents.Data}
 
 	switch v := v.(type) {
 	case map[string]interface{}:
@@ -198,7 +193,7 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 // HookFail Handle failure of assistant response
 func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []message.Message, err error, contents *chatMessage.Contents) (*ResHookFail, error) {
 	// Create timeout context
-	ctx, cancel := ast.createTimeoutContext(c)
+	ctx, cancel := ast.createTimeoutContext(5 * time.Second)
 	defer cancel()
 
 	v, callErr := ast.call(ctx, "Fail", c, contents, context, input, err.Error())
@@ -240,8 +235,8 @@ func (ast *Assistant) HookFail(c *gin.Context, context chatctx.Context, input []
 }
 
 // createTimeoutContext creates a timeout context with 5 seconds timeout
-func (ast *Assistant) createTimeoutContext(c *gin.Context) (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (ast *Assistant) createTimeoutContext(time time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithTimeout(context.Background(), time)
 	return ctx, cancel
 }
 

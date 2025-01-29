@@ -3,6 +3,7 @@ package neo
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/rag"
 	"github.com/yaoapp/yao/neo/store"
 	"github.com/yaoapp/yao/neo/vision"
@@ -62,6 +63,7 @@ type FileUpload struct {
 
 // CreateResponse the response of the create hook
 type CreateResponse struct {
-	AssistantID string `json:"assistant_id,omitempty"`
-	ChatID      string `json:"chat_id,omitempty"`
+	AssistantID string            `json:"assistant_id,omitempty"`
+	ChatID      string            `json:"chat_id,omitempty"`
+	Input       []message.Message `json:"messages,omitempty"`
 }
