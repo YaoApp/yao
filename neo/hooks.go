@@ -8,6 +8,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/message"
 )
 
 // HookCreate create the assistant
@@ -25,7 +26,7 @@ func (neo *DSL) HookCreate(ctx chatctx.Context, messages []map[string]interface{
 	}
 
 	// Create a context with 10 second timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
 	p, err := process.Of(neo.Create, ctx, messages, c.Writer)
@@ -63,10 +64,23 @@ func (neo *DSL) HookCreate(ctx chatctx.Context, messages []map[string]interface{
 			chatID = ctx.ChatID
 		}
 
-		return CreateResponse{AssistantID: assistantID, ChatID: chatID}, nil
+		// Messages fixed input
+		input := []message.Message{}
+		if vv, has := v["input"]; has {
+			bytes, err := jsoniter.Marshal(vv)
+			if err != nil {
+				return CreateResponse{}, err
+			}
+			err = jsoniter.Unmarshal(bytes, &input)
+			if err != nil {
+				return CreateResponse{}, err
+			}
+		}
+
+		return CreateResponse{AssistantID: assistantID, ChatID: chatID, Input: input}, nil
 	}
 
-	return CreateResponse{AssistantID: assistantID, ChatID: ctx.ChatID}, nil
+	return CreateResponse{AssistantID: assistantID, ChatID: ctx.ChatID, Input: nil}, nil
 }
 
 // HookPrepare executes the prepare hook before AI is called
