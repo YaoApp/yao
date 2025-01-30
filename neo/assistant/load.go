@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cast"
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
@@ -195,8 +197,8 @@ func LoadStore(id string) (*Assistant, error) {
 	return assistant, nil
 }
 
-// LoadPath load assistant from path
-func LoadPath(path string) (*Assistant, error) {
+// loadPackage loads and parses the package.yao file
+func loadPackage(path string) (map[string]interface{}, error) {
 	app, err := fs.Get("app")
 	if err != nil {
 		return nil, err
@@ -207,19 +209,44 @@ func LoadPath(path string) (*Assistant, error) {
 		return nil, fmt.Errorf("package.yao not found in %s", path)
 	}
 
-	pkg, err := app.ReadFile(pkgfile)
+	pkgraw, err := app.ReadFile(pkgfile)
 	if err != nil {
 		return nil, err
 	}
 
-	id := strings.ReplaceAll(strings.TrimPrefix(path, "/assistants/"), "/", ".")
 	var data map[string]interface{}
-	err = jsoniter.Unmarshal(pkg, &data)
+	err = application.Parse(pkgfile, pkgraw, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Process connector environment variable
+	if connector, ok := data["connector"].(string); ok {
+		if strings.HasPrefix(connector, "$ENV.") {
+			envKey := strings.TrimPrefix(connector, "$ENV.")
+			if envValue := os.Getenv(envKey); envValue != "" {
+				data["connector"] = envValue
+			}
+		}
+	}
+
+	return data, nil
+}
+
+// LoadPath load assistant from path
+func LoadPath(path string) (*Assistant, error) {
+	app, err := fs.Get("app")
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := loadPackage(path)
 	if err != nil {
 		return nil, err
 	}
 
 	// assistant_id
+	id := strings.ReplaceAll(strings.TrimPrefix(path, "/assistants/"), "/", ".")
 	data["assistant_id"] = id
 	data["type"] = "assistant"
 	data["path"] = path

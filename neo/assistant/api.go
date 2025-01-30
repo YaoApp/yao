@@ -10,6 +10,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/kun/utils"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
@@ -47,16 +48,15 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 // Execute implements the execute functionality
 func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error {
 	contents := chatMessage.NewContents()
-	return ast.execute(c, ctx, input, options, contents)
-}
-
-// Execute implements the execute functionality
-func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}, contents *chatMessage.Contents) error {
-
 	messages, err := ast.withHistory(ctx, input)
 	if err != nil {
 		return err
 	}
+	return ast.execute(c, ctx, messages, options, contents)
+}
+
+// Execute implements the execute functionality
+func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) error {
 
 	if contents == nil {
 		contents = chatMessage.NewContents()
@@ -68,7 +68,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input string,
 	ctx.Version = ast.vision
 
 	// Run init hook
-	res, err := ast.HookInit(c, ctx, messages, options, contents)
+	res, err := ast.HookInit(c, ctx, input, options, contents)
 	if err != nil {
 		chatMessage.New().
 			Assistant(ast.ID, ast.Name, ast.Avatar).
@@ -104,11 +104,11 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input string,
 
 	// messages
 	if res != nil && res.Input != nil {
-		messages = res.Input
+		input = res.Input
 	}
 
 	// Only proceed with chat stream if no specific next action was handled
-	return ast.handleChatStream(c, ctx, messages, options, contents)
+	return ast.handleChatStream(c, ctx, input, options, contents)
 }
 
 // Execute the next action
@@ -163,9 +163,36 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 		}
 
 		// Input
-		input, ok := next.Payload["input"].(string)
-		if !ok {
-			return fmt.Errorf("input should be string")
+		input := chatMessage.Message{}
+		_, has := next.Payload["input"]
+		if !has {
+			return fmt.Errorf("input is required")
+		}
+
+		switch v := next.Payload["input"].(type) {
+		case string:
+			messages := chatMessage.Message{}
+			err := jsoniter.UnmarshalFromString(v, &messages)
+			if err != nil {
+				return fmt.Errorf("unmarshal input error: %s", err.Error())
+			}
+			input = messages
+
+		case map[string]interface{}:
+			msg, err := chatMessage.NewMap(v)
+			if err != nil {
+				return fmt.Errorf("unmarshal input error: %s", err.Error())
+			}
+			input = *msg
+
+		case *chatMessage.Message:
+			input = *v
+
+		case chatMessage.Message:
+			input = v
+
+		default:
+			return fmt.Errorf("input should be string or []chatMessage.Message")
 		}
 
 		// Options
@@ -173,7 +200,17 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 		if v, ok := next.Payload["options"].(map[string]interface{}); ok {
 			options = v
 		}
-		return assistant.execute(c, ctx, input, options, contents)
+
+		messages, err := assistant.withHistory(ctx, input)
+		if err != nil {
+			return fmt.Errorf("with history error: %s", err.Error())
+		}
+
+		fmt.Println("---messages ---")
+		utils.Dump(messages)
+		fmt.Println(`chatID: `, ctx.ChatID)
+
+		return assistant.execute(c, ctx, messages, options, contents)
 
 	case "exit":
 		return nil
@@ -220,6 +257,7 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 		}
 
 		ast.saveChatHistory(ctx, messages, contents)
+		fmt.Printf("saveChatHistory %v\n", ctx.ChatID)
 		done <- true
 	}()
 
@@ -243,7 +281,8 @@ func (ast *Assistant) streamChat(
 	done chan bool,
 	contents *chatMessage.Contents) error {
 
-	return ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
+	errorRaw := ""
+	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
 		case <-clientBreak:
 			return 0 // break
@@ -251,6 +290,11 @@ func (ast *Assistant) streamChat(
 		default:
 			msg := chatMessage.NewOpenAI(data)
 			if msg == nil {
+				return 1 // continue
+			}
+
+			if msg.Pending {
+				errorRaw += msg.Text
 				return 1 // continue
 			}
 
@@ -350,6 +394,22 @@ func (ast *Assistant) streamChat(
 			return 1 // continue
 		}
 	})
+
+	// Handle error
+	if err != nil {
+		return err
+	}
+
+	// raw error
+	if errorRaw != "" {
+		msg, err := chatMessage.NewStringError(errorRaw)
+		if err != nil {
+			return fmt.Errorf("error: %s", err.Error())
+		}
+		msg.Done().Write(c.Writer)
+	}
+
+	return nil
 }
 
 // saveChatHistory saves the chat history if storage is available
@@ -371,6 +431,11 @@ func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessag
 				"assistant_avatar": ast.Avatar,
 			},
 		}
+
+		// contents
+		fmt.Println("---contents ---")
+		utils.Dump(contents)
+		fmt.Println("---contents end ---")
 
 		// Add mentions
 		if userMessage.Mentions != nil {
@@ -417,7 +482,22 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 	return messages
 }
 
-func (ast *Assistant) withHistory(ctx chatctx.Context, input string) ([]chatMessage.Message, error) {
+func (ast *Assistant) withHistory(ctx chatctx.Context, input interface{}) ([]chatMessage.Message, error) {
+
+	var userMessage *chatMessage.Message = chatMessage.New()
+	switch v := input.(type) {
+	case string:
+		userMessage.Map(map[string]interface{}{"role": "user", "content": v})
+	case map[string]interface{}:
+		userMessage.Map(v)
+	case chatMessage.Message:
+		userMessage = &v
+	case *chatMessage.Message:
+		userMessage = v
+	default:
+		return nil, fmt.Errorf("unknown input type: %T", input)
+	}
+
 	messages := []chatMessage.Message{}
 	messages = ast.withPrompts(messages)
 	if storage != nil {
@@ -437,7 +517,7 @@ func (ast *Assistant) withHistory(ctx chatctx.Context, input string) ([]chatMess
 	}
 
 	// Add user message
-	messages = append(messages, *chatMessage.New().Map(map[string]interface{}{"role": "user", "content": input, "name": ctx.Sid}))
+	messages = append(messages, *userMessage)
 	return messages, nil
 }
 

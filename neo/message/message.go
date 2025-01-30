@@ -29,7 +29,8 @@ type Message struct {
 	AssistantName   string                 `json:"assistant_name,omitempty"`   // assistant_name (for assistant role = assistant )
 	AssistantAvatar string                 `json:"assistant_avatar,omitempty"` // assistant_avatar (for assistant role = assistant )
 	Mentions        []Mention              `json:"menions,omitempty"`          // Mentions for the message ( for user  role = user )
-	Data            map[string]interface{} `json:"-"`
+	Data            map[string]interface{} `json:"-"`                          // data for the message
+	Pending         bool                   `json:"-"`                          // pending for the message
 }
 
 // Mention represents a mention
@@ -144,6 +145,38 @@ func NewString(content string) (*Message, error) {
 	return &Message{Text: content}, nil
 }
 
+// NewStringError create a new message from string error
+func NewStringError(content string) (*Message, error) {
+	if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
+		var msg = New()
+		var errorMessage openai.ErrorMessage
+		if err := jsoniter.UnmarshalFromString(content, &errorMessage); err != nil {
+			msg.Text = err.Error() + "\n" + content
+			return msg, nil
+		}
+		msg.Type = "error"
+		msg.Text = errorMessage.Error.Message
+		return msg, nil
+	}
+	return &Message{Text: content}, nil
+}
+
+// NewMap create a new message from map
+func NewMap(content map[string]interface{}) (*Message, error) {
+	return New().Map(content), nil
+}
+
+// NewAny create a new message from any content
+func NewAny(content interface{}) (*Message, error) {
+	switch v := content.(type) {
+	case string:
+		return NewString(v)
+	case map[string]interface{}:
+		return NewMap(v)
+	}
+	return nil, fmt.Errorf("unknown content type: %T", content)
+}
+
 // NewOpenAI create a new message from OpenAI response
 func NewOpenAI(data []byte) *Message {
 	if data == nil || len(data) == 0 {
@@ -198,6 +231,11 @@ func NewOpenAI(data []byte) *Message {
 
 	case strings.Contains(text, `"finish_reason":"tool_calls"`):
 		msg.IsDone = true
+
+	// Not a data message
+	case !strings.Contains(text, `data: `):
+		msg.Pending = true
+		msg.Text = text
 
 	default:
 		str := strings.TrimPrefix(strings.Trim(string(data), "\""), "data: ")
