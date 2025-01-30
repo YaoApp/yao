@@ -123,6 +123,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 			}
 		}
 
+		errorRaw := ""
 		err := ast.Chat(c.Request.Context(), msgList, neo.Option, func(data []byte) int {
 			select {
 			case <-clientBreak:
@@ -131,6 +132,11 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 			default:
 				msg := message.NewOpenAI(data)
 				if msg == nil {
+					return 1 // continue
+				}
+
+				if msg.Pending {
+					errorRaw += msg.Text
 					return 1 // continue
 				}
 
@@ -173,6 +179,14 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 			if !silent {
 				message.New().Error(err).Done().Write(c.Writer)
 			}
+		}
+
+		if errorRaw != "" {
+			msg, err := message.NewStringError(errorRaw)
+			if err != nil {
+				log.Error("Error parsing error message: %s", err.Error())
+			}
+			msg.Write(c.Writer)
 		}
 
 		done <- true
