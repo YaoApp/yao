@@ -45,11 +45,24 @@ func File(id string, ext string) string {
 
 // SpecName 解析名称  root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"
 func SpecName(root string, file string) string {
-	filename := strings.TrimPrefix(file, root+"/") // "foo/bar.http.json"
-	namer := strings.Split(filename, ".")          // ["foo/bar", "http", "json"]
-	nametypes := strings.Split(namer[0], "/")      // ["foo", "bar"]
-	name := strings.Join(nametypes, ".")           // "foo.bar"
-	return name
+	filename := strings.TrimPrefix(file, root+"/") // "foo/bar.http.json", "foo/bar2.0.http.json"
+	parts := strings.Split(filename, "/")          // ["foo", "bar.http.json"], ["foo", "bar2.0.http.json"]
+	basename := parts[len(parts)-1]                // "bar.http.json", "bar2.0.http.json"
+	paths := parts[:len(parts)-1]                  // ["foo"], ["foo"]
+	for i, path := range paths {
+		paths[i] = strings.ReplaceAll(path, ".", "_") // ["foo"], ["foo"]
+	}
+	names := strings.Split(basename, ".") // ["bar", "http", "json"], ["bar2", "0", "http", "json"]
+	namelen := len(names)
+	extcnt := 1
+	if names[namelen-1] == "yao" || names[namelen-1] == "json" || names[namelen-1] == "jsonc" {
+		extcnt = 2
+	}
+	names = names[:len(names)-extcnt]                 // ["bar"], ["bar2", "0"]
+	basename = strings.Join(names, ".")               // "bar", "bar2.0"
+	basename = strings.ReplaceAll(basename, ".", "_") // "bar", "bar2_0"
+	paths = append(paths, basename)                   // ["foo", "bar"], ["foo", "bar2_0"]
+	return strings.Join(paths, ".")                   // "foo.bar", "foo.bar2_0"
 }
 
 // ScriptName 解析数据处理脚本名称

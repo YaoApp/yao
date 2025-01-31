@@ -377,6 +377,13 @@ func (ast *Assistant) streamChat(
 						Write(c.Writer)
 				}
 
+				// Hook execute error
+				if hookErr != nil {
+					chatMessage.New().Error(hookErr.Error()).Done().Write(c.Writer)
+					done <- true
+					return 0 // break
+				}
+
 				// Output
 				if res.Output != nil {
 					chatMessage.New().

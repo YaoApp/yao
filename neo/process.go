@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/process"
@@ -292,6 +293,29 @@ func parseAssistantFilter(params map[string]interface{}) store.AssistantFilter {
 		pagesizeStr := fmt.Sprintf("%v", pagesize)
 		if pagesizeInt, err := strconv.Atoi(pagesizeStr); err == nil {
 			filter.PageSize = pagesizeInt
+		}
+	}
+
+	// select
+	if sel, ok := params["select"]; ok {
+		switch v := sel.(type) {
+		case []interface{}:
+			filter.Select = []string{}
+			for _, field := range v {
+				switch field.(type) {
+				case string:
+					filter.Select = append(filter.Select, field.(string))
+				case interface{}:
+					filter.Select = append(filter.Select, fmt.Sprintf("%v", field))
+				}
+			}
+
+		case []string:
+			filter.Select = v
+
+		case string:
+			fields := strings.Split(v, ",")
+			filter.Select = fields
 		}
 	}
 
