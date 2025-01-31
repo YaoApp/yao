@@ -332,8 +332,10 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 	case "tool_calls":
 
 		// Set function name
+		new := false
 		if name, ok := m.Props["function"].(string); ok && name != "" {
 			contents.NewFunction(name, []byte(m.Text))
+			new = true
 		}
 
 		// Set id
@@ -341,7 +343,9 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 			contents.SetFunctionID(id)
 		}
 
-		contents.AppendFunction([]byte(m.Text))
+		if !new {
+			contents.AppendFunction([]byte(m.Text))
+		}
 		return m
 
 	case "loading", "error", "action": // Ignore loading, action and error messages
