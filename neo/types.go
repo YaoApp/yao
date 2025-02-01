@@ -12,25 +12,32 @@ import (
 
 // DSL AI assistant
 type DSL struct {
-	ID            string                 `json:"-" yaml:"-"`
-	Name          string                 `json:"name,omitempty" yaml:"name,omitempty"`
-	Use           string                 `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default
-	Guard         string                 `json:"guard,omitempty" yaml:"guard,omitempty"`
-	Connector     string                 `json:"connector" yaml:"connector"`
-	StoreSetting  store.Setting          `json:"store" yaml:"store"`
-	RAGSetting    rag.Setting            `json:"rag" yaml:"rag"`
-	VisionSetting VisionSetting          `json:"vision" yaml:"vision"`
-	Option        map[string]interface{} `json:"option" yaml:"option"`
-	Prepare       string                 `json:"prepare,omitempty" yaml:"prepare,omitempty"`
-	Create        string                 `json:"create,omitempty" yaml:"create,omitempty"`
-	Write         string                 `json:"write,omitempty" yaml:"write,omitempty"`
-	Prompts       []assistant.Prompt     `json:"prompts,omitempty" yaml:"prompts,omitempty"`
-	Allows        []string               `json:"allows,omitempty" yaml:"allows,omitempty"`
-	Assistant     assistant.API          `json:"-" yaml:"-"` // The default assistant
-	Store         store.Store            `json:"-" yaml:"-"`
-	RAG           *rag.RAG               `json:"-" yaml:"-"`
-	Vision        *vision.Vision         `json:"-" yaml:"-"`
-	GuardHandlers []gin.HandlerFunc      `json:"-" yaml:"-"`
+	ID            string                      `json:"-" yaml:"-"`
+	Name          string                      `json:"name,omitempty" yaml:"name,omitempty"`
+	Use           string                      `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default
+	Guard         string                      `json:"guard,omitempty" yaml:"guard,omitempty"`
+	Connector     string                      `json:"connector" yaml:"connector"`
+	StoreSetting  store.Setting               `json:"store" yaml:"store"`
+	RAGSetting    rag.Setting                 `json:"rag" yaml:"rag"`
+	VisionSetting VisionSetting               `json:"vision" yaml:"vision"`
+	Option        map[string]interface{}      `json:"option" yaml:"option"`
+	Prepare       string                      `json:"prepare,omitempty" yaml:"prepare,omitempty"`
+	Create        string                      `json:"create,omitempty" yaml:"create,omitempty"`
+	Write         string                      `json:"write,omitempty" yaml:"write,omitempty"`
+	Prompts       []assistant.Prompt          `json:"prompts,omitempty" yaml:"prompts,omitempty"`
+	Allows        []string                    `json:"allows,omitempty" yaml:"allows,omitempty"`
+	Assistant     assistant.API               `json:"-" yaml:"-"` // The default assistant
+	Store         store.Store                 `json:"-" yaml:"-"`
+	RAG           *rag.RAG                    `json:"-" yaml:"-"`
+	Vision        *vision.Vision              `json:"-" yaml:"-"`
+	GuardHandlers []gin.HandlerFunc           `json:"-" yaml:"-"`
+	Connectors    map[string]ConnectorSetting `json:"-" yaml:"-"`
+}
+
+// ConnectorSetting the connector setting
+type ConnectorSetting struct {
+	Vision bool `json:"vision,omitempty" yaml:"vision,omitempty"`
+	Tools  bool `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 
 // VisionSetting the vision setting

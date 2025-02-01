@@ -526,7 +526,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"prompts":     []string{"prompt1", "prompt2"},
 		"flows":       []string{"flow1", "flow2"},
 		"files":       []string{"file1", "file2"},
-		"functions":   []map[string]interface{}{{"name": "func1"}, {"name": "func2"}},
+		"tools":       []map[string]interface{}{{"name": "tool1"}, {"name": "tool2"}},
 		"permissions": map[string]interface{}{"read": true, "write": true},
 		"placeholder": map[string]interface{}{
 			"title":       "Test Title 2",
@@ -557,7 +557,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"prompts":     nil,
 		"flows":       nil,
 		"files":       nil,
-		"functions":   nil,
+		"tools":       nil,
 		"permissions": nil,
 		"placeholder": nil,
 		"mentionable": true,
@@ -580,7 +580,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assert.Nil(t, assistant3Data["prompts"])
 	assert.Nil(t, assistant3Data["flows"])
 	assert.Nil(t, assistant3Data["files"])
-	assert.Nil(t, assistant3Data["functions"])
+	assert.Nil(t, assistant3Data["tools"])
 	assert.Nil(t, assistant3Data["permissions"])
 	assert.Nil(t, assistant3Data["placeholder"])
 	assert.Equal(t, int64(1), assistant3Data["mentionable"])
