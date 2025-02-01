@@ -498,6 +498,33 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 	// Add tool_calls
 	if ast.Tools != nil && ast.Tools.Tools != nil && len(ast.Tools.Tools) > 0 {
 		if settings, has := connectorSettings[ast.Connector]; has && !settings.Tools {
+			raw, _ := jsoniter.MarshalToString(ast.Tools.Tools)
+			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
+				"role":    "system",
+				"content": raw,
+			}))
+
+			// Add the default system prompts for tool calls
+			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
+				"role": "system",
+				"content": "## Tool Calls Match Rules:\n" +
+					"1. if the user's question is about the tool_calls, just answer one of the tool_calls, do not provide any additional information.\n" +
+					"2. if the user's question is not about the tool_calls, just answer the user's question directly.\n" +
+					"3. You can only use the functions defined in tool_calls. If none exist, reply directly to the user.",
+			}))
+			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
+				"role": "system",
+				"content": "## Tool Calls Response Rules:\n" +
+					"1. The response should be a valid JSON object.\n" +
+					"2. The JSON object should be wrapped by <tool_calls> and </tool_calls>.\n" +
+					"3. The structure of the JSON object is { \"arguments\": {...}, function:\"function_name\"}\n" +
+					"4. The function_name should be the name of the function defined in tool_calls.\n" +
+					"5. The arguments should be the arguments of the function defined in tool_calls.\n" +
+					"6. Do not add any additional information to the response.\n" +
+					"7. e.g: <tool_calls>{\"arguments\":{\"assistant_id\":\"xxxx\"},\"function\":\"select_assistant\"}</tool_calls>",
+			}))
+
+			// Add tool_calls prompts
 			if ast.Tools.Prompts != nil && len(ast.Tools.Prompts) > 0 {
 				for _, prompt := range ast.Tools.Prompts {
 					messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
