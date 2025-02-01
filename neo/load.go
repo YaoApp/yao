@@ -160,6 +160,10 @@ func initAssistant() error {
 		assistant.SetVision(Neo.Vision)
 	}
 
+	if Neo.Connectors != nil {
+		assistant.SetConnectorSettings(Neo.Connectors)
+	}
+
 	// Default Connector
 	assistant.SetConnector(Neo.Connector)
 

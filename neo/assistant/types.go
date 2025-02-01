@@ -129,7 +129,7 @@ type Assistant struct {
 	Automated   bool                     `json:"automated,omitempty"`   // Whether this assistant is automated
 	Options     map[string]interface{}   `json:"options,omitempty"`     // AI Options
 	Prompts     []Prompt                 `json:"prompts,omitempty"`     // AI Prompts
-	Tools       []Tool                   `json:"tools,omitempty"`       // Assistant Tools
+	Tools       *ToolCalls               `json:"tools,omitempty"`       // Assistant Tools
 	Flows       []map[string]interface{} `json:"flows,omitempty"`       // Assistant Flows
 	Placeholder *Placeholder             `json:"placeholder,omitempty"` // Assistant Placeholder
 	Script      *v8.Script               `json:"-" yaml:"-"`            // Assistant Script
@@ -137,7 +137,20 @@ type Assistant struct {
 	UpdatedAt   int64                    `json:"updated_at"`            // Last update timestamp
 	openai      *api.OpenAI              // OpenAI API
 	vision      bool                     // Whether this assistant supports vision
+	toolCalls   bool                     // Whether this assistant supports tool_calls
 	initHook    bool                     // Whether this assistant has an init hook
+}
+
+// ToolCalls the tool calls
+type ToolCalls struct {
+	Tools   []Tool   `json:"tools,omitempty"`
+	Prompts []Prompt `json:"prompts,omitempty"`
+}
+
+// ConnectorSetting the connector setting
+type ConnectorSetting struct {
+	Vision bool `json:"vision,omitempty" yaml:"vision,omitempty"`
+	Tools  bool `json:"tools,omitempty" yaml:"tools,omitempty"`
 }
 
 // Placeholder the assistant placeholder

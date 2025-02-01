@@ -471,11 +471,13 @@ func (ast *Assistant) withOptions(options map[string]interface{}) map[string]int
 		}
 	}
 
-	// Add tools
-	if ast.Tools != nil && len(ast.Tools) > 0 {
-		options["tools"] = ast.Tools
-		if options["tool_choice"] == nil {
-			options["tool_choice"] = "auto"
+	// Add tool_calls
+	if ast.Tools != nil && ast.Tools.Tools != nil && len(ast.Tools.Tools) > 0 {
+		if settings, has := connectorSettings[ast.Connector]; has && settings.Tools {
+			options["tools"] = ast.Tools.Tools
+			if options["tool_choice"] == nil {
+				options["tool_choice"] = "auto"
+			}
 		}
 	}
 
@@ -492,6 +494,22 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{"role": prompt.Role, "content": prompt.Content, "name": name}))
 		}
 	}
+
+	// Add tool_calls
+	if ast.Tools != nil && ast.Tools.Tools != nil && len(ast.Tools.Tools) > 0 {
+		if settings, has := connectorSettings[ast.Connector]; has && !settings.Tools {
+			if ast.Tools.Prompts != nil && len(ast.Tools.Prompts) > 0 {
+				for _, prompt := range ast.Tools.Prompts {
+					messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
+						"role":    prompt.Role,
+						"content": prompt.Content,
+						"name":    prompt.Name,
+					}))
+				}
+			}
+		}
+	}
+
 	return messages
 }
 
