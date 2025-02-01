@@ -276,16 +276,15 @@ func LoadPath(path string) (*Assistant, error) {
 		data["updated_at"] = max(updatedAt, ts)
 	}
 
-	// load functions
-	functionsfile := filepath.Join(path, "functions.json")
-	if has, _ := app.Exists(functionsfile); has {
-		functions, ts, err := loadFunctions(functionsfile)
+	// load tools
+	toolsfile := filepath.Join(path, "tools.yao")
+	if has, _ := app.Exists(toolsfile); has {
+		tools, ts, err := loadTools(toolsfile)
 		if err != nil {
 			return nil, err
 		}
-		data["functions"] = functions
+		data["tools"] = tools
 		updatedAt = max(updatedAt, ts)
-		data["updated_at"] = updatedAt
 	}
 
 	// load flow
@@ -440,22 +439,24 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Prompts = prompts
 	}
 
-	// functions
-	if funcs, has := data["functions"]; has {
-		switch vv := funcs.(type) {
-		case []Function:
-			assistant.Functions = vv
+	// tools
+	if tools, has := data["tools"]; has {
+		switch vv := tools.(type) {
+		case []Tool:
+			assistant.Tools = vv
+
 		default:
-			raw, err := jsoniter.Marshal(vv)
+			raw, err := jsoniter.Marshal(tools)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("tools format error %s", err.Error())
 			}
-			var functions []Function
-			err = jsoniter.Unmarshal(raw, &functions)
+
+			var tools []Tool
+			err = jsoniter.Unmarshal(raw, &tools)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("tools format error %s", err.Error())
 			}
-			assistant.Functions = functions
+			assistant.Tools = tools
 		}
 	}
 
@@ -499,32 +500,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	return assistant, nil
-}
-
-func loadFunctions(file string) ([]Function, int64, error) {
-
-	app, err := fs.Get("app")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	ts, err := app.ModTime(file)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	raw, err := app.ReadFile(file)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var functions []Function
-	err = jsoniter.Unmarshal(raw, &functions)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return functions, ts.UnixNano(), nil
 }
 
 func loadPrompts(file string, root string) (string, int64, error) {
@@ -628,4 +603,34 @@ func (ast *Assistant) initialize() error {
 	}
 
 	return nil
+}
+
+func loadTools(file string) ([]Tool, int64, error) {
+
+	app, err := fs.Get("app")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	content, err := app.ReadFile(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ts, err := app.ModTime(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if len(content) == 0 {
+		return []Tool{}, ts.UnixNano(), nil
+	}
+
+	var tools []Tool
+	err = jsoniter.Unmarshal(content, &tools)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return tools, ts.UnixNano(), nil
 }

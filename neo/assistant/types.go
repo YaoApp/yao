@@ -94,8 +94,8 @@ type Prompt struct {
 	Name    string `json:"name,omitempty"`
 }
 
-// Function a function
-type Function struct {
+// Tool represents a tool
+type Tool struct {
 	Type     string `json:"type"`
 	Function struct {
 		Name        string                 `json:"name"`
@@ -129,7 +129,7 @@ type Assistant struct {
 	Automated   bool                     `json:"automated,omitempty"`   // Whether this assistant is automated
 	Options     map[string]interface{}   `json:"options,omitempty"`     // AI Options
 	Prompts     []Prompt                 `json:"prompts,omitempty"`     // AI Prompts
-	Functions   []Function               `json:"functions,omitempty"`   // Assistant Functions
+	Tools       []Tool                   `json:"tools,omitempty"`       // Assistant Tools
 	Flows       []map[string]interface{} `json:"flows,omitempty"`       // Assistant Flows
 	Placeholder *Placeholder             `json:"placeholder,omitempty"` // Assistant Placeholder
 	Script      *v8.Script               `json:"-" yaml:"-"`            // Assistant Script

@@ -1,6 +1,8 @@
 package message
 
 import (
+	"fmt"
+
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -21,12 +23,12 @@ type Contents struct {
 
 // Data the data of the content
 type Data struct {
-	Type      string                 `json:"type"`      // text, function, error, ...
-	ID        string                 `json:"id"`        // the id of the content
-	Function  string                 `json:"function"`  // the function name
-	Bytes     []byte                 `json:"bytes"`     // the content bytes
-	Arguments []byte                 `json:"arguments"` // the function arguments
-	Props     map[string]interface{} `json:"props"`     // the props
+	Type      string                 `json:"type"`                // text, function, error, ...
+	ID        string                 `json:"id"`                  // the id of the content
+	Function  string                 `json:"function"`            // the function name
+	Bytes     []byte                 `json:"bytes"`               // the content bytes
+	Arguments []byte                 `json:"arguments,omitempty"` // the function arguments
+	Props     map[string]interface{} `json:"props"`               // the props
 }
 
 // NewContents create a new contents
@@ -159,7 +161,8 @@ func (data *Data) Map() (map[string]interface{}, error) {
 		v["props"] = data.Props
 	}
 
-	if data.Arguments != nil {
+	if data.Arguments != nil && len(data.Arguments) > 0 {
+		fmt.Println("data.Arguments", string(data.Arguments))
 		var vv interface{} = nil
 		err := jsoniter.Unmarshal(data.Arguments, &vv)
 		if err != nil {
@@ -192,7 +195,7 @@ func (data *Data) MarshalJSON() ([]byte, error) {
 		v["props"] = data.Props
 	}
 
-	if data.Arguments != nil {
+	if data.Arguments != nil && len(data.Arguments) > 0 {
 		var vv interface{} = nil
 		err := jsoniter.Unmarshal(data.Arguments, &vv)
 		if err != nil {

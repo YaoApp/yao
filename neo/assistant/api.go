@@ -441,7 +441,13 @@ func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessag
 
 		// contents
 		fmt.Println("---contents ---")
-		utils.Dump(contents)
+		if contents.Data != nil {
+			fmt.Println("---contents.Data ---")
+			for _, content := range contents.Data {
+				fmt.Println(content.Map())
+			}
+			fmt.Println("---contents.Data end ---")
+		}
 		fmt.Println("---contents end ---")
 
 		// Add mentions
@@ -465,9 +471,9 @@ func (ast *Assistant) withOptions(options map[string]interface{}) map[string]int
 		}
 	}
 
-	// Add functions
-	if ast.Functions != nil && len(ast.Functions) > 0 {
-		options["tools"] = ast.Functions
+	// Add tools
+	if ast.Tools != nil && len(ast.Tools) > 0 {
+		options["tools"] = ast.Tools
 		if options["tool_choice"] == nil {
 			options["tool_choice"] = "auto"
 		}
@@ -554,8 +560,8 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 	for index, message := range messages {
 
-		// Ignore the function call message
-		if message.Type == "function" {
+		// Ignore the tool call message
+		if message.Type == "tool_calls" {
 			continue
 		}
 
