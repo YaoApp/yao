@@ -201,8 +201,16 @@ func (ast *Assistant) Clone() *Assistant {
 
 	// Deep copy tools
 	if ast.Tools != nil {
-		clone.Tools = make([]Tool, len(ast.Tools))
-		copy(clone.Tools, ast.Tools)
+		clone.Tools = &ToolCalls{}
+		if ast.Tools.Tools != nil {
+			clone.Tools.Tools = make([]Tool, len(ast.Tools.Tools))
+			copy(clone.Tools.Tools, ast.Tools.Tools)
+		}
+
+		if ast.Tools.Prompts != nil {
+			clone.Tools.Prompts = make([]Prompt, len(ast.Tools.Prompts))
+			copy(clone.Tools.Prompts, ast.Tools.Prompts)
+		}
 	}
 
 	// Deep copy flows
@@ -242,13 +250,20 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 	if v, has := data["tools"]; has {
 		switch tools := v.(type) {
 		case []Tool:
+			ast.Tools = &ToolCalls{
+				Tools:   tools,
+				Prompts: ast.Prompts,
+			}
+
+		case *ToolCalls:
 			ast.Tools = tools
+
 		default:
 			raw, err := jsoniter.Marshal(tools)
 			if err != nil {
 				return err
 			}
-			ast.Tools = []Tool{}
+			ast.Tools = &ToolCalls{}
 			err = jsoniter.Unmarshal(raw, &ast.Tools)
 			if err != nil {
 				return err

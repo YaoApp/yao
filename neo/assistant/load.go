@@ -25,6 +25,7 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var rag *RAG = nil
+var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *neovision.Vision = nil
 var defaultConnector string = "" // default connector
 
@@ -122,6 +123,11 @@ func SetStorage(s store.Store) {
 // SetVision set the vision
 func SetVision(v *neovision.Vision) {
 	vision = v
+}
+
+// SetConnectorSettings set the connector settings
+func SetConnectorSettings(settings map[string]ConnectorSetting) {
+	connectorSettings = settings
 }
 
 // SetConnector set the connector
@@ -443,7 +449,13 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	if tools, has := data["tools"]; has {
 		switch vv := tools.(type) {
 		case []Tool:
-			assistant.Tools = vv
+			assistant.Tools = &ToolCalls{
+				Tools:   vv,
+				Prompts: assistant.Prompts,
+			}
+
+		case ToolCalls:
+			assistant.Tools = &vv
 
 		default:
 			raw, err := jsoniter.Marshal(tools)
@@ -451,12 +463,12 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 				return nil, fmt.Errorf("tools format error %s", err.Error())
 			}
 
-			var tools []Tool
+			var tools ToolCalls
 			err = jsoniter.Unmarshal(raw, &tools)
 			if err != nil {
 				return nil, fmt.Errorf("tools format error %s", err.Error())
 			}
-			assistant.Tools = tools
+			assistant.Tools = &tools
 		}
 	}
 
@@ -605,7 +617,7 @@ func (ast *Assistant) initialize() error {
 	return nil
 }
 
-func loadTools(file string) ([]Tool, int64, error) {
+func loadTools(file string) (*ToolCalls, int64, error) {
 
 	app, err := fs.Get("app")
 	if err != nil {
@@ -623,14 +635,14 @@ func loadTools(file string) ([]Tool, int64, error) {
 	}
 
 	if len(content) == 0 {
-		return []Tool{}, ts.UnixNano(), nil
+		return &ToolCalls{Tools: []Tool{}, Prompts: []Prompt{}}, ts.UnixNano(), nil
 	}
 
-	var tools []Tool
-	err = jsoniter.Unmarshal(content, &tools)
+	var tools ToolCalls
+	err = application.Parse(file, content, &tools)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return tools, ts.UnixNano(), nil
+	return &tools, ts.UnixNano(), nil
 }
