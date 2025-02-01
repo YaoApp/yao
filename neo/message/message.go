@@ -191,7 +191,11 @@ func NewOpenAI(data []byte) *Message {
 	case strings.Contains(text, `"delta":{`) && strings.Contains(text, `"tool_calls"`):
 		var toolCalls openai.ToolCalls
 		if err := jsoniter.Unmarshal(data, &toolCalls); err != nil {
-			msg.Text = err.Error() + "\n" + string(data)
+			color.Red("JSON parse error: %s", err.Error())
+			color.White(string(data))
+			msg.Text = "JSON parse error\n" + string(data)
+			msg.Type = "error"
+			msg.IsDone = true
 			return msg
 		}
 
@@ -205,7 +209,11 @@ func NewOpenAI(data []byte) *Message {
 	case strings.Contains(text, `"delta":{`) && strings.Contains(text, `"content":`):
 		var message openai.Message
 		if err := jsoniter.Unmarshal(data, &message); err != nil {
-			msg.Text = err.Error() + "\n" + string(data)
+			color.Red("JSON parse error: %s", err.Error())
+			color.White(string(data))
+			msg.Text = "JSON parse error\n" + string(data)
+			msg.Type = "error"
+			msg.IsDone = true
 			return msg
 		}
 
@@ -214,14 +222,35 @@ func NewOpenAI(data []byte) *Message {
 			msg.Text = message.Choices[0].Delta.Content
 		}
 
+	case strings.Index(text, `{"code":`) == 0:
+		var errorMessage openai.Error
+		if err := jsoniter.UnmarshalFromString(text, &errorMessage); err != nil {
+			color.Red("JSON parse error: %s", err.Error())
+			color.White(string(data))
+			msg.Text = "JSON parse error\n" + string(data)
+			msg.Type = "error"
+			msg.IsDone = true
+			return msg
+		}
+		msg.Type = "error"
+		msg.Text = errorMessage.Message
+		msg.IsDone = true
+		break
+
 	case strings.Contains(text, `{"error":{`):
 		var errorMessage openai.ErrorMessage
 		if err := jsoniter.Unmarshal(data, &errorMessage); err != nil {
-			msg.Text = err.Error() + "\n" + string(data)
+			color.Red("JSON parse error: %s", err.Error())
+			color.White(string(data))
+			msg.Text = "JSON parse error\n" + string(data)
+			msg.Type = "error"
+			msg.IsDone = true
 			return msg
 		}
 		msg.Type = "error"
 		msg.Text = errorMessage.Error.Message
+		msg.IsDone = true
+		break
 
 	case strings.Contains(text, `[DONE]`):
 		msg.IsDone = true

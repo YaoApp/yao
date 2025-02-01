@@ -48,5 +48,5 @@ type Error struct {
 	Message string      `json:"message,omitempty"`
 	Type    string      `json:"type,omitempty"`
 	Param   interface{} `json:"param,omitempty"`
-	Code    string      `json:"code,omitempty"`
+	Code    any         `json:"code,omitempty"` // string or int
 }
