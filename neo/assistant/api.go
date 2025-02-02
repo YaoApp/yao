@@ -497,7 +497,8 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 
 	// Add tool_calls
 	if ast.Tools != nil && ast.Tools.Tools != nil && len(ast.Tools.Tools) > 0 {
-		if settings, has := connectorSettings[ast.Connector]; has && !settings.Tools {
+		settings, has := connectorSettings[ast.Connector]
+		if !has || !settings.Tools {
 			raw, _ := jsoniter.MarshalToString(ast.Tools.Tools)
 			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
 				"role":    "system",
@@ -515,13 +516,13 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
 				"role": "system",
 				"content": "## Tool Calls Response Rules:\n" +
-					"1. The response should be a valid JSON object.\n" +
-					"2. The JSON object should be wrapped by <tool_calls> and </tool_calls>.\n" +
-					"3. The structure of the JSON object is { \"arguments\": {...}, function:\"function_name\"}\n" +
-					"4. The function_name should be the name of the function defined in tool_calls.\n" +
-					"5. The arguments should be the arguments of the function defined in tool_calls.\n" +
-					"6. Do not add any additional information to the response.\n" +
-					"7. e.g: <tool_calls>{\"arguments\":{\"assistant_id\":\"xxxx\"},\"function\":\"select_assistant\"}</tool_calls>",
+					"1. The response should be a valid JSON object:\n" +
+					"  1.1. e.g: <tool_calls>{\"arguments\":{\"assistant_id\":\"xxxx\"},\"function\":\"select_assistant\"}</tool_calls>\n" +
+					"  1.2. strict the example format, do not add any additional information.\n" +
+					"  1.3. The JSON object should be wrapped by <tool_calls> and </tool_calls>.\n" +
+					"2. The structure of the JSON object is { \"arguments\": {...}, function:\"function_name\"}\n" +
+					"3. The function_name should be the name of the function defined in tool_calls.\n" +
+					"4. The arguments should be the arguments of the function defined in tool_calls.\n",
 			}))
 
 			// Add tool_calls prompts
