@@ -321,7 +321,6 @@ func (ast *Assistant) streamChat(
 				msg.AppendTo(contents) // Append content and send message
 
 				// Scan the tokens
-				breakpoint := false
 				contents.ScanTokens(func(token string, begin bool, text string, tails string) {
 					msg.Type = token
 					msg.Text = ""                                    // clear the text
@@ -332,12 +331,6 @@ func (ast *Assistant) streamChat(
 						return
 					}
 
-					// Ignore the end of the token
-					if !begin && tails == "" {
-						breakpoint = true
-						return
-					}
-
 					// New message with the tails
 					newMsg, err := chatMessage.NewString(tails)
 					if err != nil {
@@ -345,11 +338,6 @@ func (ast *Assistant) streamChat(
 					}
 					messages = append(messages, *newMsg)
 				})
-
-				// If the breakpoint is true, continue the stream
-				if breakpoint {
-					return 1 // continue
-				}
 
 				// Handle stream
 				res, err := ast.HookStream(c, ctx, messages, msg, contents)

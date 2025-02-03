@@ -61,9 +61,6 @@ func (c *Contents) ScanTokens(cb func(token string, begin bool, text string, tai
 			if index > 0 {
 				tails = text[index+len(token[1]):]
 			}
-
-			text = strings.TrimLeft(text[len(token[0]):index], "\n")
-			c.Data[c.Current].Bytes = []byte(text)
 			c.UpdateType(c.token, map[string]interface{}{"text": text})
 			c.NewText([]byte(tails)) // Create new text with the tails
 			cb(c.token, false, text, tails)
@@ -80,7 +77,6 @@ func (c *Contents) ScanTokens(cb func(token string, begin bool, text string, tai
 	for name, token := range tokens {
 		if index := strings.Index(text, token[0]); index >= 0 {
 			c.token = name
-			text = strings.TrimSpace(text[index+len(token[0]):])
 			cb(name, true, text, "") // call the callback
 		}
 	}
