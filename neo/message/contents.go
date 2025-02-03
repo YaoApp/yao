@@ -2,6 +2,7 @@ package message
 
 import (
 	"fmt"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 )
@@ -15,15 +16,21 @@ const (
 	ContentStatusError
 )
 
+var tokens = map[string][2]string{
+	"think": {"<think>", "</think>"},
+	"tool":  {"<tool>", "</tool>"},
+}
+
 // Contents the contents
 type Contents struct {
 	Current int    `json:"current"` // the current content index
 	Data    []Data `json:"data"`    // the data
+	token   string // the current token
 }
 
 // Data the data of the content
 type Data struct {
-	Type      string                 `json:"type"`                // text, function, error, ...
+	Type      string                 `json:"type"`                // text, function, error, think, tool
 	ID        string                 `json:"id"`                  // the id of the content
 	Function  string                 `json:"function"`            // the function name
 	Bytes     []byte                 `json:"bytes"`               // the content bytes
@@ -39,6 +46,59 @@ func NewContents() *Contents {
 	}
 }
 
+// ScanTokens scan the tokens
+func (c *Contents) ScanTokens(cb func(token string, begin bool, text string, tails string)) {
+
+	text := strings.TrimSpace(c.Text())
+
+	// check the end of the token
+	if c.token != "" {
+		token := tokens[c.token]
+
+		// Check the end of the token
+		if index := strings.Index(text, token[1]); index >= 0 {
+			tails := ""
+			if index > 0 {
+				tails = text[index+len(token[1]):]
+			}
+
+			text = strings.TrimLeft(text[len(token[0]):index], "\n")
+			c.Data[c.Current].Bytes = []byte(text)
+			c.UpdateType(c.token, map[string]interface{}{"text": text})
+			c.NewText([]byte(tails)) // Create new text with the tails
+			cb(c.token, false, text, tails)
+			c.token = "" // clear the token
+			return
+		}
+
+		// call the callback for the begin of the token
+		cb(c.token, true, text, "")
+		return
+	}
+
+	// scan the begin of the token
+	for name, token := range tokens {
+		if index := strings.Index(text, token[0]); index >= 0 {
+			c.token = name
+			text = strings.TrimSpace(text[index+len(token[0]):])
+			cb(name, true, text, "") // call the callback
+		}
+	}
+}
+
+// RemoveLastEmpty remove the last empty data
+func (c *Contents) RemoveLastEmpty() {
+	if c.Current == -1 {
+		return
+	}
+
+	// Remove the last empty data
+	if len(c.Data[c.Current].Bytes) == 0 && c.Data[c.Current].Type == "text" {
+		c.Data = c.Data[:c.Current]
+		c.Current--
+	}
+}
+
 // NewText create a new text data and append to the contents
 func (c *Contents) NewText(bytes []byte) *Contents {
 	c.Data = append(c.Data, Data{
@@ -49,10 +109,10 @@ func (c *Contents) NewText(bytes []byte) *Contents {
 	return c
 }
 
-// NewFunction create a new function data and append to the contents
-func (c *Contents) NewFunction(function string, arguments []byte) *Contents {
+// NewTool create a new tool data and append to the contents
+func (c *Contents) NewTool(function string, arguments []byte) *Contents {
 	c.Data = append(c.Data, Data{
-		Type:      "function",
+		Type:      "tool",
 		Function:  function,
 		Arguments: arguments,
 	})
@@ -82,10 +142,10 @@ func (c *Contents) UpdateType(typ string, props map[string]interface{}) *Content
 	return c
 }
 
-// SetFunctionID set the id of the current function content
-func (c *Contents) SetFunctionID(id string) *Contents {
+// SetToolID set the id of the current tool content
+func (c *Contents) SetToolID(id string) *Contents {
 	if c.Current == -1 {
-		c.NewFunction("", []byte{})
+		c.NewTool("", []byte{})
 	}
 	c.Data[c.Current].ID = id
 	return c
@@ -111,10 +171,10 @@ func (c *Contents) AppendText(bytes []byte) *Contents {
 	return c
 }
 
-// AppendFunction append the function to the current content
-func (c *Contents) AppendFunction(arguments []byte) *Contents {
+// AppendTool append the tool to the current content
+func (c *Contents) AppendTool(arguments []byte) *Contents {
 	if c.Current == -1 {
-		c.NewFunction("", arguments)
+		c.NewTool("", arguments)
 		return c
 	}
 	c.Data[c.Current].Arguments = append(c.Data[c.Current].Arguments, arguments...)
@@ -143,6 +203,14 @@ func (c *Contents) Text() string {
 		return ""
 	}
 	return string(c.Data[c.Current].Bytes)
+}
+
+// CurrentType returns the type of the current content
+func (c *Contents) CurrentType() string {
+	if c.Current == -1 {
+		return ""
+	}
+	return c.Data[c.Current].Type
 }
 
 // Map returns the map representation

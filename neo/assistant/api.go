@@ -282,6 +282,7 @@ func (ast *Assistant) streamChat(
 	contents *chatMessage.Contents) error {
 
 	errorRaw := ""
+	isFirst := true
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
 		case <-clientBreak:
@@ -312,10 +313,44 @@ func (ast *Assistant) streamChat(
 				return 0 // break
 			}
 
-			// Append content and send message
-			msg.AppendTo(contents)
-			value := msg.String()
-			if value != "" {
+			delta := msg.String()
+
+			// Chunk the delta
+			if delta != "" {
+
+				msg.AppendTo(contents) // Append content and send message
+
+				// Scan the tokens
+				breakpoint := false
+				contents.ScanTokens(func(token string, begin bool, text string, tails string) {
+					msg.Type = token
+					msg.Text = ""                                    // clear the text
+					msg.Props = map[string]interface{}{"text": text} // Update props
+
+					// End of the token clear the text
+					if begin {
+						return
+					}
+
+					// Ignore the end of the token
+					if !begin && tails == "" {
+						breakpoint = true
+						return
+					}
+
+					// New message with the tails
+					newMsg, err := chatMessage.NewString(tails)
+					if err != nil {
+						return
+					}
+					messages = append(messages, *newMsg)
+				})
+
+				// If the breakpoint is true, continue the stream
+				if breakpoint {
+					return 1 // continue
+				}
+
 				// Handle stream
 				res, err := ast.HookStream(c, ctx, messages, msg, contents)
 				if err == nil && res != nil {
@@ -335,26 +370,33 @@ func (ast *Assistant) streamChat(
 					}
 				}
 
-				chatMessage.New().
-					Map(map[string]interface{}{
-						"assistant_id":     ast.ID,
-						"assistant_name":   ast.Name,
-						"assistant_avatar": ast.Avatar,
-						"text":             value,
-						"done":             msg.IsDone,
-					}).
-					Write(c.Writer)
+				// Write the message to the client
+				output := chatMessage.New().Map(map[string]interface{}{
+					"text":  delta,
+					"type":  msg.Type,
+					"done":  msg.IsDone,
+					"delta": true,
+				})
+
+				if isFirst {
+					output.Assistant(ast.ID, ast.Name, ast.Avatar)
+					isFirst = false
+				}
+				output.Write(c.Writer)
 			}
 
 			// Complete the stream
 			if msg.IsDone {
+
 				// if value == "" {
 				// 	msg.Write(c.Writer)
 				// }
 
+				// Remove the last empty data
+				contents.RemoveLastEmpty()
+
 				res, hookErr := ast.HookDone(c, ctx, messages, contents)
 				if hookErr == nil && res != nil {
-
 					if res.Next != nil {
 						err := res.Next.Execute(c, ctx, contents)
 						if err != nil {
@@ -365,13 +407,15 @@ func (ast *Assistant) streamChat(
 						return 0 // break
 					}
 
-				} else if value != "" {
+				} else if delta != "" {
 					chatMessage.New().
 						Map(map[string]interface{}{
 							"assistant_id":     ast.ID,
 							"assistant_name":   ast.Name,
 							"assistant_avatar": ast.Avatar,
-							"text":             value,
+							"text":             delta,
+							"type":             "text",
+							"delta":            true,
 							"done":             true,
 						}).
 						Write(c.Writer)
@@ -384,16 +428,15 @@ func (ast *Assistant) streamChat(
 					return 0 // break
 				}
 
-				// Output
-				if res.Output != nil {
-					chatMessage.New().
+				msg := chatMessage.New().Done()
+				if res != nil && res.Output != nil {
+					msg = chatMessage.New().
 						Map(map[string]interface{}{
 							"text": res.Input,
 							"done": true,
-						}).
-						Write(c.Writer)
+						})
 				}
-
+				msg.Write(c.Writer)
 				done <- true
 				return 0 // break
 			}
@@ -517,9 +560,9 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 				"role": "system",
 				"content": "## Tool Calls Response Rules:\n" +
 					"1. The response should be a valid JSON object:\n" +
-					"  1.1. e.g: <tool_calls>{\"arguments\":{\"assistant_id\":\"xxxx\"},\"function\":\"select_assistant\"}</tool_calls>\n" +
+					"  1.1. e.g: <tool>{\"function\":\"function_name\",\"arguments\":{\"arg1\":\"xxxx\"}}</tool>\n" +
 					"  1.2. strict the example format, do not add any additional information.\n" +
-					"  1.3. The JSON object should be wrapped by <tool_calls> and </tool_calls>.\n" +
+					"  1.3. The JSON object should be wrapped by <tool> and </tool>.\n" +
 					"2. The structure of the JSON object is { \"arguments\": {...}, function:\"function_name\"}\n" +
 					"3. The function_name should be the name of the function defined in tool_calls.\n" +
 					"4. The arguments should be the arguments of the function defined in tool_calls.\n",
@@ -606,8 +649,8 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 	for index, message := range messages {
 
-		// Ignore the tool call message
-		if message.Type == "tool_calls" {
+		// Ignore the tool, think, error
+		if message.Type == "tool" || message.Type == "think" || message.Type == "error" {
 			continue
 		}
 
