@@ -2,7 +2,9 @@ package message
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -15,15 +17,22 @@ const (
 	ContentStatusError
 )
 
+var tokens = map[string][2]string{
+	"think": {"<think>", "</think>"},
+	"tool":  {"<tool>", "</tool>"},
+}
+
 // Contents the contents
 type Contents struct {
 	Current int    `json:"current"` // the current content index
 	Data    []Data `json:"data"`    // the data
+	token   string // the current token
+	id      string // the id of the contents
 }
 
 // Data the data of the content
 type Data struct {
-	Type      string                 `json:"type"`                // text, function, error, ...
+	Type      string                 `json:"type"`                // text, function, error, think, tool
 	ID        string                 `json:"id"`                  // the id of the content
 	Function  string                 `json:"function"`            // the function name
 	Bytes     []byte                 `json:"bytes"`               // the content bytes
@@ -39,53 +48,121 @@ func NewContents() *Contents {
 	}
 }
 
+// ScanTokens scan the tokens
+func (c *Contents) ScanTokens(currentID string, cb func(token string, id string, begin bool, text string, tails string)) {
+
+	text := strings.TrimSpace(c.Text())
+
+	// check the end of the token
+	if c.token != "" {
+		token := tokens[c.token]
+
+		// Check the end of the token
+		if index := strings.Index(text, token[1]); index >= 0 {
+			tails := ""
+			if index > 0 {
+				tails = text[index+len(token[1]):]
+			}
+			c.UpdateType(c.token, map[string]interface{}{"text": text}, c.id)
+			c.NewText([]byte(tails), c.id) // Create new text with the tails
+			cb(c.token, c.id, false, text, tails)
+			c.token = "" // clear the token
+			return
+		}
+
+		// call the callback for the begin of the token
+		cb(c.token, c.id, true, text, "")
+		return
+	}
+
+	// scan the begin of the token
+	for name, token := range tokens {
+		if index := strings.Index(text, token[0]); index >= 0 {
+			c.token = name
+			c.id = currentID
+			if c.id == "" {
+				c.id = uuid.New().String()
+			}
+			cb(name, c.id, true, text, "") // call the callback
+		}
+	}
+}
+
+// RemoveLastEmpty remove the last empty data
+func (c *Contents) RemoveLastEmpty() {
+	if c.Current == -1 {
+		return
+	}
+
+	// Remove the last empty data
+	if len(c.Data[c.Current].Bytes) == 0 && c.Data[c.Current].Type == "text" {
+		c.Data = c.Data[:c.Current]
+		c.Current--
+	}
+}
+
 // NewText create a new text data and append to the contents
-func (c *Contents) NewText(bytes []byte) *Contents {
-	c.Data = append(c.Data, Data{
-		Type:  "text",
-		Bytes: bytes,
-	})
+func (c *Contents) NewText(bytes []byte, id ...string) *Contents {
+
+	data := Data{Type: "text", Bytes: bytes}
+	if len(id) > 0 && id[0] != "" {
+		data.ID = id[0]
+	}
+	c.Data = append(c.Data, data)
 	c.Current++
 	return c
 }
 
-// NewFunction create a new function data and append to the contents
-func (c *Contents) NewFunction(function string, arguments []byte) *Contents {
-	c.Data = append(c.Data, Data{
-		Type:      "function",
+// NewTool create a new tool data and append to the contents
+func (c *Contents) NewTool(function string, arguments []byte, id ...string) *Contents {
+
+	data := Data{
+		Type:      "tool",
 		Function:  function,
 		Arguments: arguments,
-	})
+	}
+	if len(id) > 0 && id[0] != "" {
+		data.ID = id[0]
+	}
+	c.Data = append(c.Data, data)
 	c.Current++
 	return c
 }
 
 // NewType create a new type data and append to the contents
-func (c *Contents) NewType(typ string, props map[string]interface{}) *Contents {
-	c.Data = append(c.Data, Data{
+func (c *Contents) NewType(typ string, props map[string]interface{}, id ...string) *Contents {
+
+	data := Data{
 		Type:  typ,
 		Props: props,
-	})
+	}
+	if len(id) > 0 && id[0] != "" {
+		data.ID = id[0]
+	}
+	c.Data = append(c.Data, data)
 	c.Current++
 	return c
 }
 
 // UpdateType update the type of the current content
-func (c *Contents) UpdateType(typ string, props map[string]interface{}) *Contents {
+func (c *Contents) UpdateType(typ string, props map[string]interface{}, id ...string) *Contents {
 	if c.Current == -1 {
-		c.NewType(typ, props)
+		c.NewType(typ, props, id...)
 		return c
 	}
 
+	if len(id) > 0 && id[0] != "" {
+		c.Data[c.Current].ID = id[0]
+	}
 	c.Data[c.Current].Type = typ
 	c.Data[c.Current].Props = props
 	return c
 }
 
-// SetFunctionID set the id of the current function content
-func (c *Contents) SetFunctionID(id string) *Contents {
+// SetToolID set the id of the current tool content
+func (c *Contents) SetToolID(id string) *Contents {
 	if c.Current == -1 {
-		c.NewFunction("", []byte{})
+		c.NewTool("", []byte{})
 	}
 	c.Data[c.Current].ID = id
 	return c
@@ -102,19 +179,23 @@ func (c *Contents) NewError(err []byte) *Contents {
 }
 
 // AppendText append the text to the current content
-func (c *Contents) AppendText(bytes []byte) *Contents {
+func (c *Contents) AppendText(bytes []byte, id ...string) *Contents {
 	if c.Current == -1 {
-		c.NewText(bytes)
+		c.NewText(bytes, id...)
 		return c
+	}
+
+	if len(id) > 0 && id[0] != "" {
+		c.Data[c.Current].ID = id[0]
 	}
 	c.Data[c.Current].Bytes = append(c.Data[c.Current].Bytes, bytes...)
 	return c
 }
 
-// AppendFunction append the function to the current content
-func (c *Contents) AppendFunction(arguments []byte) *Contents {
+// AppendTool append the tool to the current content
+func (c *Contents) AppendTool(arguments []byte, id ...string) *Contents {
 	if c.Current == -1 {
-		c.NewFunction("", arguments)
+		c.NewTool("", arguments, id...)
 		return c
 	}
 	c.Data[c.Current].Arguments = append(c.Data[c.Current].Arguments, arguments...)
@@ -143,6 +224,14 @@ func (c *Contents) Text() string {
 		return ""
 	}
 	return string(c.Data[c.Current].Bytes)
+}
+
+// CurrentType returns the type of the current content
+func (c *Contents) CurrentType() string {
+	if c.Current == -1 {
+		return ""
+	}
+	return c.Data[c.Current].Type
 }
 
 // Map returns the map representation
