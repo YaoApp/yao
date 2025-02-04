@@ -321,7 +321,8 @@ func (ast *Assistant) streamChat(
 				msg.AppendTo(contents) // Append content and send message
 
 				// Scan the tokens
-				contents.ScanTokens(func(token string, begin bool, text string, tails string) {
+				contents.ScanTokens(func(token string, id string, begin bool, text string, tails string) {
+					msg.ID = id
 					msg.Type = token
 					msg.Text = ""                                    // clear the text
 					msg.Props = map[string]interface{}{"text": text} // Update props
@@ -332,7 +333,7 @@ func (ast *Assistant) streamChat(
 					}
 
 					// New message with the tails
-					newMsg, err := chatMessage.NewString(tails)
+					newMsg, err := chatMessage.NewString(tails, id)
 					if err != nil {
 						return
 					}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 )
 
@@ -26,6 +27,7 @@ type Contents struct {
 	Current int    `json:"current"` // the current content index
 	Data    []Data `json:"data"`    // the data
 	token   string // the current token
+	id      string // the id of the contents
 }
 
 // Data the data of the content
@@ -47,7 +49,7 @@ func NewContents() *Contents {
 }
 
 // ScanTokens scan the tokens
-func (c *Contents) ScanTokens(cb func(token string, begin bool, text string, tails string)) {
+func (c *Contents) ScanTokens(cb func(token string, id string, begin bool, text string, tails string)) {
 
 	text := strings.TrimSpace(c.Text())
 
@@ -61,15 +63,15 @@ func (c *Contents) ScanTokens(cb func(token string, begin bool, text string, tai
 			if index > 0 {
 				tails = text[index+len(token[1]):]
 			}
-			c.UpdateType(c.token, map[string]interface{}{"text": text})
-			c.NewText([]byte(tails)) // Create new text with the tails
-			cb(c.token, false, text, tails)
+			c.UpdateType(c.token, map[string]interface{}{"text": text}, c.id)
+			c.NewText([]byte(tails), c.id) // Create new text with the tails
+			cb(c.token, c.id, false, text, tails)
 			c.token = "" // clear the token
 			return
 		}
 
 		// call the callback for the begin of the token
-		cb(c.token, true, text, "")
+		cb(c.token, c.id, true, text, "")
 		return
 	}
 
@@ -77,7 +79,8 @@ func (c *Contents) ScanTokens(cb func(token string, begin bool, text string, tai
 	for name, token := range tokens {
 		if index := strings.Index(text, token[0]); index >= 0 {
 			c.token = name
-			cb(name, true, text, "") // call the callback
+			c.id = uuid.New().String()
+			cb(name, c.id, true, text, "") // call the callback
 		}
 	}
 }
@@ -96,43 +99,58 @@ func (c *Contents) RemoveLastEmpty() {
 }
 
 // NewText create a new text data and append to the contents
-func (c *Contents) NewText(bytes []byte) *Contents {
-	c.Data = append(c.Data, Data{
-		Type:  "text",
-		Bytes: bytes,
-	})
+func (c *Contents) NewText(bytes []byte, id ...string) *Contents {
+
+	data := Data{Type: "text", Bytes: bytes}
+	if len(id) > 0 && id[0] != "" {
+		data.ID = id[0]
+	}
+	c.Data = append(c.Data, data)
 	c.Current++
 	return c
 }
 
 // NewTool create a new tool data and append to the contents
-func (c *Contents) NewTool(function string, arguments []byte) *Contents {
-	c.Data = append(c.Data, Data{
+func (c *Contents) NewTool(function string, arguments []byte, id ...string) *Contents {
+
+	data := Data{
 		Type:      "tool",
 		Function:  function,
 		Arguments: arguments,
-	})
+	}
+	if len(id) > 0 && id[0] != "" {
+		data.ID = id[0]
+	}
+	c.Data = append(c.Data, data)
 	c.Current++
 	return c
 }
 
 // NewType create a new type data and append to the contents
-func (c *Contents) NewType(typ string, props map[string]interface{}) *Contents {
-	c.Data = append(c.Data, Data{
+func (c *Contents) NewType(typ string, props map[string]interface{}, id ...string) *Contents {
+
+	data := Data{
 		Type:  typ,
 		Props: props,
-	})
+	}
+	if len(id) > 0 && id[0] != "" {
+		data.ID = id[0]
+	}
+	c.Data = append(c.Data, data)
 	c.Current++
 	return c
 }
 
 // UpdateType update the type of the current content
-func (c *Contents) UpdateType(typ string, props map[string]interface{}) *Contents {
+func (c *Contents) UpdateType(typ string, props map[string]interface{}, id ...string) *Contents {
 	if c.Current == -1 {
-		c.NewType(typ, props)
+		c.NewType(typ, props, id...)
 		return c
 	}
 
+	if len(id) > 0 && id[0] != "" {
+		c.Data[c.Current].ID = id[0]
+	}
 	c.Data[c.Current].Type = typ
 	c.Data[c.Current].Props = props
 	return c
@@ -158,19 +176,23 @@ func (c *Contents) NewError(err []byte) *Contents {
 }
 
 // AppendText append the text to the current content
-func (c *Contents) AppendText(bytes []byte) *Contents {
+func (c *Contents) AppendText(bytes []byte, id ...string) *Contents {
 	if c.Current == -1 {
-		c.NewText(bytes)
+		c.NewText(bytes, id...)
 		return c
+	}
+
+	if len(id) > 0 && id[0] != "" {
+		c.Data[c.Current].ID = id[0]
 	}
 	c.Data[c.Current].Bytes = append(c.Data[c.Current].Bytes, bytes...)
 	return c
 }
 
 // AppendTool append the tool to the current content
-func (c *Contents) AppendTool(arguments []byte) *Contents {
+func (c *Contents) AppendTool(arguments []byte, id ...string) *Contents {
 	if c.Current == -1 {
-		c.NewTool("", arguments)
+		c.NewTool("", arguments, id...)
 		return c
 	}
 	c.Data[c.Current].Arguments = append(c.Data[c.Current].Arguments, arguments...)

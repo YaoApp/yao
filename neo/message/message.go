@@ -16,6 +16,7 @@ import (
 
 // Message the message
 type Message struct {
+	ID              string                 `json:"id,omitempty"`               // id for the message
 	Text            string                 `json:"text,omitempty"`             // text content
 	Type            string                 `json:"type,omitempty"`             // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
 	Props           map[string]interface{} `json:"props,omitempty"`            // props for the types
@@ -135,13 +136,16 @@ func NewContent(content string) ([]Message, error) {
 }
 
 // NewString create a new message from string
-func NewString(content string) (*Message, error) {
+func NewString(content string, id ...string) (*Message, error) {
 	if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
 		var msg Message
 		if err := jsoniter.UnmarshalFromString(content, &msg); err != nil {
 			return nil, err
 		}
 		return &msg, nil
+	}
+	if len(id) > 0 {
+		return &Message{ID: id[0], Text: content}, nil
 	}
 	return &Message{Text: content}, nil
 }
@@ -357,10 +361,10 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 	case "text", "think", "tool":
 		if m.Text != "" {
 			if m.IsNew {
-				contents.NewText([]byte(m.Text))
+				contents.NewText([]byte(m.Text), m.ID)
 				return m
 			}
-			contents.AppendText([]byte(m.Text))
+			contents.AppendText([]byte(m.Text), m.ID)
 			return m
 		}
 		return m
