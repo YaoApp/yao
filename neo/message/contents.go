@@ -49,7 +49,7 @@ func NewContents() *Contents {
 }
 
 // ScanTokens scan the tokens
-func (c *Contents) ScanTokens(cb func(token string, id string, begin bool, text string, tails string)) {
+func (c *Contents) ScanTokens(currentID string, cb func(token string, id string, begin bool, text string, tails string)) {
 
 	text := strings.TrimSpace(c.Text())
 
@@ -79,7 +79,10 @@ func (c *Contents) ScanTokens(cb func(token string, id string, begin bool, text 
 	for name, token := range tokens {
 		if index := strings.Index(text, token[0]); index >= 0 {
 			c.token = name
-			c.id = uuid.New().String()
+			c.id = currentID
+			if c.id == "" {
+				c.id = uuid.New().String()
+			}
 			cb(name, c.id, true, text, "") // call the callback
 		}
 	}

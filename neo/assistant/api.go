@@ -283,6 +283,7 @@ func (ast *Assistant) streamChat(
 
 	errorRaw := ""
 	isFirst := true
+	currentMessageID := ""
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
 		case <-clientBreak:
@@ -321,7 +322,8 @@ func (ast *Assistant) streamChat(
 				msg.AppendTo(contents) // Append content and send message
 
 				// Scan the tokens
-				contents.ScanTokens(func(token string, id string, begin bool, text string, tails string) {
+				contents.ScanTokens(currentMessageID, func(token string, id string, begin bool, text string, tails string) {
+					currentMessageID = id
 					msg.ID = id
 					msg.Type = token
 					msg.Text = ""                                    // clear the text
