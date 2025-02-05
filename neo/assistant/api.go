@@ -283,6 +283,8 @@ func (ast *Assistant) streamChat(
 
 	errorRaw := ""
 	isFirst := true
+	isFirstThink := true
+	isThinking := false
 	currentMessageID := ""
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
@@ -290,7 +292,7 @@ func (ast *Assistant) streamChat(
 			return 0 // break
 
 		default:
-			msg := chatMessage.NewOpenAI(data)
+			msg := chatMessage.NewOpenAI(data, isThinking)
 			if msg == nil {
 				return 1 // continue
 			}
@@ -312,6 +314,29 @@ func (ast *Assistant) streamChat(
 				}
 				chatMessage.New().Error(value).Done().Write(c.Writer)
 				return 0 // break
+			}
+
+			// for api reasoning_content response
+			if msg.Type == "think" {
+				if isFirstThink {
+					msg.Text = "<think>\n" + msg.Text // add the think begin tag
+					isFirstThink = false
+					isThinking = true
+				}
+			}
+
+			// for api reasoning_content response
+			if isThinking && msg.Type != "think" {
+				// add the think close tag
+				end := chatMessage.New().Map(map[string]interface{}{"text": "\n</think>\n", "type": "think", "delta": true})
+				end.Write(c.Writer)
+				end.ID = currentMessageID
+				end.AppendTo(contents)
+				isThinking = false
+
+				// Clear the token and make a new line
+				contents.NewText([]byte{}, currentMessageID)
+				contents.ClearToken()
 			}
 
 			delta := msg.String()
