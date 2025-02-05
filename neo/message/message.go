@@ -183,7 +183,7 @@ func NewAny(content interface{}) (*Message, error) {
 }
 
 // NewOpenAI create a new message from OpenAI response
-func NewOpenAI(data []byte) *Message {
+func NewOpenAI(data []byte, isThinking bool) *Message {
 	if data == nil || len(data) == 0 {
 		return nil
 	}
@@ -212,7 +212,7 @@ func NewOpenAI(data []byte) *Message {
 		}
 
 	case strings.Contains(text, `"delta":{`) && strings.Contains(text, `"content":`):
-		var message openai.Message
+		var message openai.MessageWithReasoningContent
 		if err := jsoniter.Unmarshal(data, &message); err != nil {
 			color.Red("JSON parse error: %s", err.Error())
 			color.White(string(data))
@@ -224,7 +224,26 @@ func NewOpenAI(data []byte) *Message {
 
 		msg.Type = "text"
 		if len(message.Choices) > 0 {
-			msg.Text = message.Choices[0].Delta.Content
+			if reasoningContent, ok := message.Choices[0].Delta["reasoning_content"].(string); ok {
+				msg.Text = reasoningContent
+				msg.Type = "think"
+				return msg
+			}
+
+			if content, ok := message.Choices[0].Delta["content"].(string); ok && content != "" {
+				msg.Text = content
+				msg.Type = "text"
+				return msg
+			}
+
+			if isThinking {
+				msg.Type = "think"
+				msg.Text = ""
+				return msg
+			}
+
+			msg.Text = ""
+			return msg
 		}
 
 	case strings.Index(text, `{"code":`) == 0:

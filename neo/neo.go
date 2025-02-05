@@ -124,13 +124,16 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 		}
 
 		errorRaw := ""
+		isFirstThink := true
+		isThinking := false
+		currentMessageID := ""
 		err := ast.Chat(c.Request.Context(), msgList, neo.Option, func(data []byte) int {
 			select {
 			case <-clientBreak:
 				return 0 // break
 
 			default:
-				msg := message.NewOpenAI(data)
+				msg := message.NewOpenAI(data, isThinking)
 				if msg == nil {
 					return 1 // continue
 				}
@@ -146,15 +149,61 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 					return 0 // break
 				}
 
+				// for api reasoning_content response
+				if msg.Type == "think" {
+					if isFirstThink {
+						msg.Text = "<think>\n" + msg.Text // add the think begin tag
+						isFirstThink = false
+						isThinking = true
+					}
+				}
+
+				// for api reasoning_content response
+				if isThinking && msg.Type != "think" {
+					// add the think close tag
+					end := message.New().Map(map[string]interface{}{"text": "\n</think>\n", "type": "think", "delta": true})
+					end.Write(c.Writer)
+					end.ID = currentMessageID
+					end.AppendTo(contents)
+					isThinking = false
+
+					// Clear the token and make a new line
+					contents.NewText([]byte{}, currentMessageID)
+					contents.ClearToken()
+				}
+
 				// Append content and send message
 				msg.AppendTo(contents)
+
+				// Scan the tokens
+				contents.ScanTokens(currentMessageID, func(token string, id string, begin bool, text string, tails string) {
+					currentMessageID = id
+					msg.ID = id
+					msg.Type = token
+					msg.Text = ""                                    // clear the text
+					msg.Props = map[string]interface{}{"text": text} // Update props
+
+					// End of the token clear the text
+					if begin {
+						return
+					}
+
+					// New message with the tails
+					newMsg, err := message.NewString(tails, id)
+					if err != nil {
+						return
+					}
+					msgList = append(msgList, *newMsg)
+				})
+
 				if !silent {
 					value := msg.String()
 					if value != "" {
 						message.New().
 							Map(map[string]interface{}{
-								"text": value,
-								"done": msg.IsDone,
+								"text":  value,
+								"delta": true,
+								"done":  msg.IsDone,
 							}).
 							Write(c.Writer)
 					}

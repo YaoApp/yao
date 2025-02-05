@@ -28,6 +28,7 @@ type OpenAI struct {
 	key          string
 	model        string
 	host         string
+	baseURL      string
 	organization string
 	maxToken     int
 }
@@ -71,8 +72,16 @@ func NewOpenAI(setting map[string]interface{}) (*OpenAI, error) {
 	}
 
 	host := "https://api.openai.com"
+	baseURL := "/v1"
 	if v, ok := setting["host"].(string); ok {
+		// Trim trailing slashes
+		v = strings.TrimRight(v, "/")
 		host = v
+		parts := strings.Split(v, "/")
+		if len(parts) > 3 {
+			host = strings.Join(parts[0:3], "/")
+			baseURL = "/" + strings.Join(parts[3:], "/")
+		}
 	}
 
 	organization := ""
@@ -89,6 +98,7 @@ func NewOpenAI(setting map[string]interface{}) (*OpenAI, error) {
 		key:          key,
 		model:        model,
 		host:         host,
+		baseURL:      baseURL,
 		organization: organization,
 		maxToken:     maxToken,
 	}, nil
@@ -142,11 +152,11 @@ func (openai OpenAI) Completions(prompt interface{}, option map[string]interface
 
 	if cb != nil {
 		option["stream"] = true
-		return nil, openai.stream(context.Background(), "/v1/completions", option, cb)
+		return nil, openai.stream(context.Background(), openai.baseURL+"/completions", option, cb)
 	}
 
 	option["stream"] = false
-	return openai.post("/v1/completions", option)
+	return openai.post(openai.baseURL+"/completions", option)
 }
 
 // CompletionsWith Creates a completion for the provided prompt and parameters.
@@ -159,11 +169,11 @@ func (openai OpenAI) CompletionsWith(ctx context.Context, prompt interface{}, op
 
 	if cb != nil {
 		option["stream"] = true
-		return nil, openai.stream(ctx, "/v1/completions", option, cb)
+		return nil, openai.stream(ctx, openai.baseURL+"/completions", option, cb)
 	}
 
 	option["stream"] = false
-	return openai.post("/v1/completions", option)
+	return openai.post(openai.baseURL+"/completions", option)
 }
 
 // ChatCompletions Creates a model response for the given chat conversation.
@@ -176,11 +186,11 @@ func (openai OpenAI) ChatCompletions(messages []map[string]interface{}, option m
 
 	if cb != nil {
 		option["stream"] = true
-		return nil, openai.stream(context.Background(), "/v1/chat/completions", option, cb)
+		return nil, openai.stream(context.Background(), openai.baseURL+"/chat/completions", option, cb)
 	}
 
 	option["stream"] = false
-	return openai.post("/v1/chat/completions", option)
+	return openai.post(openai.baseURL+"/chat/completions", option)
 }
 
 // ChatCompletionsWith Creates a model response for the given chat conversation.
@@ -193,11 +203,11 @@ func (openai OpenAI) ChatCompletionsWith(ctx context.Context, messages []map[str
 
 	if cb != nil {
 		option["stream"] = true
-		return nil, openai.stream(ctx, "/v1/chat/completions", option, cb)
+		return nil, openai.stream(ctx, openai.baseURL+"/chat/completions", option, cb)
 	}
 
 	option["stream"] = false
-	return openai.post("/v1/chat/completions", option)
+	return openai.post(openai.baseURL+"/chat/completions", option)
 }
 
 // Edits Creates a new edit for the provided input, instruction, and parameters.
@@ -207,7 +217,7 @@ func (openai OpenAI) Edits(instruction string, option map[string]interface{}) (i
 		option = map[string]interface{}{}
 	}
 	option["instruction"] = instruction
-	return openai.post("/v1/edits", option)
+	return openai.post(openai.baseURL+"/edits", option)
 }
 
 // Embeddings Creates an embedding vector representing the input text.
@@ -217,7 +227,7 @@ func (openai OpenAI) Embeddings(input interface{}, user string) (interface{}, *e
 	if user != "" {
 		payload["user"] = user
 	}
-	return openai.post("/v1/embeddings", payload)
+	return openai.post(openai.baseURL+"/embeddings", payload)
 }
 
 // AudioTranscriptions Transcribes audio into the input language.
@@ -231,7 +241,7 @@ func (openai OpenAI) AudioTranscriptions(dataBase64 string, option map[string]in
 	if option == nil {
 		option = map[string]interface{}{}
 	}
-	return openai.postFile("/v1/audio/transcriptions", map[string][]byte{"file": data}, option)
+	return openai.postFile(openai.baseURL+"/audio/transcriptions", map[string][]byte{"file": data}, option)
 }
 
 // ImagesGenerations Creates an image given a prompt.
@@ -246,7 +256,7 @@ func (openai OpenAI) ImagesGenerations(prompt string, option map[string]interfac
 	}
 
 	option["prompt"] = prompt
-	return openai.postWithoutModel("/v1/images/generations", option)
+	return openai.postWithoutModel(openai.baseURL+"/images/generations", option)
 }
 
 // ImagesEdits Creates an edited or extended image given an original image and a prompt.
@@ -277,7 +287,7 @@ func (openai OpenAI) ImagesEdits(imageBase64 string, prompt string, option map[s
 	}
 
 	option["prompt"] = prompt
-	return openai.postFileWithoutModel("/v1/images/edits", files, option)
+	return openai.postFileWithoutModel(openai.baseURL+"/images/edits", files, option)
 }
 
 // ImagesVariations Creates a variation of a given image.
@@ -298,7 +308,7 @@ func (openai OpenAI) ImagesVariations(imageBase64 string, option map[string]inte
 		option["response_format"] = "b64_json"
 	}
 
-	return openai.postFileWithoutModel("/v1/images/variations", files, option)
+	return openai.postFileWithoutModel(openai.baseURL+"/images/variations", files, option)
 }
 
 // Tiktoken get number of tokens
