@@ -206,11 +206,19 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 			return fmt.Errorf("with history error: %s", err.Error())
 		}
 
-		fmt.Println("---messages ---")
-		utils.Dump(messages)
-		fmt.Println(`chatID: `, ctx.ChatID)
+		// Create a new Text
+		// Send loading message and mark as new
+		msg := chatMessage.New().Map(map[string]interface{}{
+			"new":   true,
+			"role":  "assistant",
+			"type":  "loading",
+			"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
+		})
+		msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
+		msg.Write(c.Writer)
+		newContents := chatMessage.NewContents()
 
-		return assistant.execute(c, ctx, messages, options, contents)
+		return assistant.execute(c, ctx, messages, options, newContents)
 
 	case "exit":
 		return nil
@@ -360,33 +368,39 @@ func (ast *Assistant) streamChat(
 					}
 
 					// New message with the tails
-					newMsg, err := chatMessage.NewString(tails, id)
-					if err != nil {
-						return
+					if tails != "" {
+						newMsg, err := chatMessage.NewString(tails, id)
+						if err != nil {
+							return
+						}
+						messages = append(messages, *newMsg)
 					}
-					messages = append(messages, *newMsg)
 				})
 
 				// Handle stream
-				res, err := ast.HookStream(c, ctx, messages, msg, contents)
-				if err == nil && res != nil {
+				// The stream hook is not used, because there's no need to handle the stream output
+				// if some thing need to be handled in future, we can use the stream hook again
+				// ------------------------------------------------------------------------------
+				// res, err := ast.HookStream(c, ctx, messages, msg, contents)
+				// if err == nil && res != nil {
 
-					if res.Next != nil {
-						err = res.Next.Execute(c, ctx, contents)
-						if err != nil {
-							chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
-						}
+				// 	if res.Next != nil {
+				// 		err = res.Next.Execute(c, ctx, contents)
+				// 		if err != nil {
+				// 			chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
+				// 		}
 
-						done <- true
-						return 0 // break
-					}
+				// 		done <- true
+				// 		return 0 // break
+				// 	}
 
-					if res.Silent {
-						return 1 // continue
-					}
-				}
+				// 	if res.Silent {
+				// 		return 1 // continue
+				// 	}
+				// }
+				// ------------------------------------------------------------------------------
 
-				// Write the message to the client
+				// Write the message to the stream
 				output := chatMessage.New().Map(map[string]interface{}{
 					"text":  delta,
 					"type":  msg.Type,
@@ -414,6 +428,10 @@ func (ast *Assistant) streamChat(
 				res, hookErr := ast.HookDone(c, ctx, messages, contents)
 				if hookErr == nil && res != nil {
 					if res.Next != nil {
+
+						fmt.Println("---- Execute Next ---")
+						utils.Dump(res.Next)
+						fmt.Println("---- Execute Next end ---")
 						err := res.Next.Execute(c, ctx, contents)
 						if err != nil {
 							chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
