@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -138,7 +139,40 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 	// Create timeout context
 	ctx := ast.createBackgroundContext()
 
-	v, err := ast.call(ctx, "Done", c, contents, context, input, contents.Data)
+	// format the output
+	// 1. Remove thinking message
+	// 2. Parse the tool call message content
+	output := []message.Data{}
+	if contents != nil && contents.Data != nil {
+		for _, data := range contents.Data {
+			if data.Type == "think" {
+				continue
+			}
+
+			// parse the tool call message content
+			if data.Type == "tool" && data.Props != nil {
+				props := map[string]interface{}{}
+				if text, ok := data.Props["text"].(string); ok {
+
+					// Remove <tool> and </tool> tags
+					text = strings.ReplaceAll(text, "<tool>", "")
+					text = strings.ReplaceAll(text, "</tool>", "")
+
+					// Parse the text into props
+					err := jsoniter.UnmarshalFromString(text, &props)
+					if err != nil {
+						props["error"] = err.Error()
+					}
+				}
+
+				output = append(output, message.Data{Type: "tool", Props: props})
+				continue
+			}
+			output = append(output, data)
+		}
+	}
+
+	v, err := ast.call(ctx, "Done", c, contents, context, input, output)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
