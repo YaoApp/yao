@@ -201,7 +201,11 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 			options = v
 		}
 
-		input.Hidden = true // not show in the history
+		input.Hidden = true                    // not show in the history
+		if input.Name == "" && ctx.Sid != "" { // add user id to the input
+			input.Name = ctx.Sid
+		}
+
 		messages, err := assistant.withHistory(ctx, input)
 		if err != nil {
 			return fmt.Errorf("with history error: %s", err.Error())
@@ -338,6 +342,7 @@ func (ast *Assistant) streamChat(
 				end.Write(c.Writer)
 				end.ID = currentMessageID
 				end.AppendTo(contents)
+				contents.UpdateType("think", map[string]interface{}{"text": contents.Text()}, currentMessageID)
 				isThinking = false
 
 				// Clear the token and make a new line
@@ -614,7 +619,7 @@ func (ast *Assistant) withHistory(ctx chatctx.Context, input interface{}) ([]cha
 	}
 
 	messages := []chatMessage.Message{}
-	messages = ast.withPrompts(messages)
+
 	if storage != nil {
 		history, err := storage.GetHistory(ctx.Sid, ctx.ChatID)
 		if err != nil {
@@ -630,6 +635,9 @@ func (ast *Assistant) withHistory(ctx chatctx.Context, input interface{}) ([]cha
 			messages = append(messages, msgs...)
 		}
 	}
+
+	// Add system prompts
+	messages = ast.withPrompts(messages)
 
 	// Add user message
 	messages = append(messages, *userMessage)

@@ -1,7 +1,6 @@
 package message
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/google/uuid"
@@ -256,7 +255,6 @@ func (data *Data) Map() (map[string]interface{}, error) {
 	}
 
 	if data.Arguments != nil && len(data.Arguments) > 0 {
-		fmt.Println("data.Arguments", string(data.Arguments))
 		var vv interface{} = nil
 		err := jsoniter.Unmarshal(data.Arguments, &vv)
 		if err != nil {
