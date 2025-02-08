@@ -221,11 +221,12 @@ func (openai OpenAI) ChatCompletionsWith(ctx context.Context, messages []map[str
 // Edits Creates a new edit for the provided input, instruction, and parameters.
 // https://platform.openai.com/docs/api-reference/edits/create
 func (openai OpenAI) Edits(instruction string, option map[string]interface{}) (interface{}, *exception.Exception) {
-	if option == nil {
-		option = map[string]interface{}{}
-	}
-	option["instruction"] = instruction
-	return openai.post(openai.baseURL+"/edits", option)
+	return nil, exception.New("Edits is not deprecated", 404)
+	// if option == nil {
+	// 	option = map[string]interface{}{}
+	// }
+	// option["instruction"] = instruction
+	// return openai.post(openai.baseURL+"/edits", option)
 }
 
 // Embeddings Creates an embedding vector representing the input text.
@@ -377,9 +378,15 @@ func (openai OpenAI) post(path string, payload map[string]interface{}) (interfac
 
 	req := http.New(url)
 	if openai.azure {
-		req.WithHeader(map[string][]string{"api-key": {openai.key}})
+		req.WithHeader(map[string][]string{
+			"Content-Type": {"application/json; charset=utf-8"},
+			"api-key":      {openai.key},
+		})
 	} else {
-		req.WithHeader(map[string][]string{"Authorization": {fmt.Sprintf("Bearer %s", openai.key)}})
+		req.WithHeader(map[string][]string{
+			"Content-Type":  {"application/json; charset=utf-8"},
+			"Authorization": {fmt.Sprintf("Bearer %s", openai.key)},
+		})
 	}
 
 	res := req.Post(payload)
@@ -411,14 +418,22 @@ func (openai OpenAI) postWithoutModel(path string, payload map[string]interface{
 func (openai OpenAI) postFile(path string, files map[string][]byte, option map[string]interface{}) (interface{}, *exception.Exception) {
 
 	url := fmt.Sprintf("%s%s", openai.host, path)
-	option["model"] = openai.model
+	if _, ok := option["model"].(string); !ok {
+		option["model"] = openai.model
+	}
 
-	req := http.New(url).WithHeader(map[string][]string{"Content-Type": {"multipart/form-data"}})
+	req := http.New(url)
 
 	if openai.azure {
-		req.WithHeader(map[string][]string{"api-key": {openai.key}})
+		req.WithHeader(map[string][]string{
+			"Content-Type": {"multipart/form-data"},
+			"api-key":      {openai.key},
+		})
 	} else {
-		req.WithHeader(map[string][]string{"Authorization": {fmt.Sprintf("Bearer %s", openai.key)}})
+		req.WithHeader(map[string][]string{
+			"Content-Type":  {"multipart/form-data"},
+			"Authorization": {fmt.Sprintf("Bearer %s", openai.key)},
+		})
 	}
 
 	for name, data := range files {
@@ -459,14 +474,23 @@ func (openai OpenAI) postFileWithoutModel(path string, files map[string][]byte, 
 // stream post request
 func (openai OpenAI) stream(ctx context.Context, path string, payload map[string]interface{}, cb func(data []byte) int) *exception.Exception {
 	url := fmt.Sprintf("%s%s", openai.host, path)
-	payload["model"] = openai.model
-	req := http.New(url)
-	req.WithHeader(map[string][]string{"Content-Type": {"application/json; charset=utf-8"}})
 
+	// If the model is not set, set the model to the default model
+	if _, ok := payload["model"].(string); !ok {
+		payload["model"] = openai.model
+	}
+
+	req := http.New(url)
 	if openai.azure {
-		req.WithHeader(map[string][]string{"api-key": {openai.key}})
+		req.WithHeader(map[string][]string{
+			"Content-Type": {"application/json; charset=utf-8"},
+			"api-key":      {openai.key},
+		})
 	} else {
-		req.WithHeader(map[string][]string{"Authorization": {fmt.Sprintf("Bearer %s", openai.key)}})
+		req.WithHeader(map[string][]string{
+			"Content-Type":  {"application/json; charset=utf-8"},
+			"Authorization": {fmt.Sprintf("Bearer %s", openai.key)},
+		})
 	}
 
 	err := req.Stream(ctx, "POST", payload, cb)
