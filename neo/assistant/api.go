@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/kun/utils"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
@@ -295,6 +297,9 @@ func (ast *Assistant) streamChat(
 	isFirst := true
 	isFirstThink := true
 	isThinking := false
+
+	isFirstTool := true
+	isTool := false
 	currentMessageID := ""
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
@@ -348,6 +353,32 @@ func (ast *Assistant) streamChat(
 				// Clear the token and make a new line
 				contents.NewText([]byte{}, currentMessageID)
 				contents.ClearToken()
+			}
+
+			// for native tool_calls response
+			if msg.Type == "tool_calls_native" {
+				if isFirstTool {
+					msg.Text = "<tool>\n" + msg.Text // add the tool_calls begin tag
+					isFirstTool = false
+					isTool = true
+				}
+			}
+
+			// for tool response
+			if isTool && msg.Type != "tool_calls_native" {
+
+				if msg.IsDone {
+					end := chatMessage.New().Map(map[string]interface{}{"text": "}\n</tool>\n", "type": "tool", "delta": true})
+					end.Write(c.Writer)
+					end.ID = currentMessageID
+					end.AppendTo(contents)
+					contents.UpdateType("tool", map[string]interface{}{"text": contents.Text()}, currentMessageID)
+					isTool = false
+				} else {
+					msg.Text = "\n</tool>\n" + msg.Text // add the tool_calls close tag
+				}
+
+				isTool = false
 			}
 
 			delta := msg.String()
@@ -404,9 +435,14 @@ func (ast *Assistant) streamChat(
 				// ------------------------------------------------------------------------------
 
 				// Write the message to the stream
+				msgType := msg.Type
+				if msgType == "tool_calls_native" {
+					msgType = "tool"
+				}
+
 				output := chatMessage.New().Map(map[string]interface{}{
 					"text":  delta,
-					"type":  msg.Type,
+					"type":  msgType,
 					"done":  msg.IsDone,
 					"delta": true,
 				})
@@ -691,7 +727,7 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 		}
 
 		if name := message.Name; name != "" {
-			newMessage["name"] = name
+			newMessage["name"] = stringHash(name)
 		}
 
 		// Special handling for user messages with JSON content last message
@@ -726,6 +762,14 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 		newMessages = append(newMessages, newMessage)
 	}
+
+	// For debug environment, print the request messages
+	if os.Getenv("YAO_AGENT_PRINT_REQUEST_MESSAGES") == "true" {
+		fmt.Println("--------------------------------")
+		utils.Dump(newMessages)
+		fmt.Println("--------------------------------")
+	}
+
 	return newMessages, nil
 }
 

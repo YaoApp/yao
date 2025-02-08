@@ -191,7 +191,8 @@ func NewAny(content interface{}) (*Message, error) {
 func NewOpenAI(data []byte, isThinking bool) *Message {
 
 	// For Debug
-	if os.Getenv("YAO_AGENT_DEBUG") == "true" {
+	// For debug environment, print the response data
+	if os.Getenv("YAO_AGENT_PRINT_RESPONSE_DATA") == "true" {
 		fmt.Printf("%s\n", string(data))
 	}
 
@@ -217,9 +218,14 @@ func NewOpenAI(data []byte, isThinking bool) *Message {
 
 		msg.Type = "tool_calls_native"
 		if len(toolCalls.Choices) > 0 && len(toolCalls.Choices[0].Delta.ToolCalls) > 0 {
-			msg.Props["id"] = toolCalls.Choices[0].Delta.ToolCalls[0].ID
-			msg.Props["function"] = toolCalls.Choices[0].Delta.ToolCalls[0].Function.Name
-			msg.Text = toolCalls.Choices[0].Delta.ToolCalls[0].Function.Arguments
+			id := toolCalls.Choices[0].Delta.ToolCalls[0].ID
+			function := toolCalls.Choices[0].Delta.ToolCalls[0].Function.Name
+			arguments := toolCalls.Choices[0].Delta.ToolCalls[0].Function.Arguments
+			text := arguments
+			if id != "" {
+				text = fmt.Sprintf(`{"id": "%s", "function": "%s", "arguments": %s`, id, function, arguments)
+			}
+			msg.Text = text
 		}
 
 	case strings.Contains(text, `"delta":{`) && strings.Contains(text, `"content":`):
@@ -322,7 +328,7 @@ func (m *Message) String() string {
 	}
 
 	switch typ {
-	case "text", "think", "tool":
+	case "text", "think", "tool", "tool_calls_native":
 		return m.Text
 
 	case "error":
@@ -392,7 +398,7 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 	}
 
 	switch m.Type {
-	case "text", "think", "tool":
+	case "text", "think", "tool", "tool_calls_native":
 		if m.Text != "" {
 			if m.IsNew {
 				contents.NewText([]byte(m.Text), m.ID)
@@ -400,25 +406,6 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 			}
 			contents.AppendText([]byte(m.Text), m.ID)
 			return m
-		}
-		return m
-
-	case "tool_calls_native":
-
-		// Set function name
-		new := false
-		if name, ok := m.Props["tool"].(string); ok && name != "" {
-			contents.NewTool(name, []byte(m.Text))
-			new = true
-		}
-
-		// Set id
-		if id, ok := m.Props["id"].(string); ok && id != "" {
-			contents.SetToolID(id)
-		}
-
-		if !new {
-			contents.AppendTool([]byte(m.Text))
 		}
 		return m
 
