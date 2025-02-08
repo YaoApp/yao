@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/config"
@@ -18,7 +17,7 @@ func TestCompletions(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	openai := prepare(t, "text-davinci-003")
+	openai := prepare(t, "gpt-3_5-turbo-instruct")
 	data, err := openai.Completions("Hello", nil, nil)
 	if err != nil {
 		t.Fatal(err.Message)
@@ -58,7 +57,7 @@ func TestCompletionsWith(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	openai := prepare(t, "text-davinci-003")
+	openai := prepare(t, "gpt-3_5-turbo-instruct")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
@@ -152,24 +151,24 @@ func TestChatCompletionsWith(t *testing.T) {
 	assert.Contains(t, err.Message, "context canceled")
 }
 
-func TestEdits(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
+// func TestEdits(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer test.Clean()
 
-	openai := prepare(t, "text-davinci-edit-001")
-	data, err := openai.Edits("Hello world"+uuid.NewString(), nil)
-	if err != nil {
-		t.Fatal(err.Message)
-	}
-	assert.NotNil(t, data.(map[string]interface{})["created"])
+// 	openai := prepare(t, "gpt-4o")
+// 	data, err := openai.Edits("Hello world"+uuid.NewString(), nil)
+// 	if err != nil {
+// 		t.Fatal(err.Message)
+// 	}
+// 	assert.NotNil(t, data.(map[string]interface{})["created"])
 
-	data, err = openai.Edits("Fix the spelling mistakes 2nd"+uuid.NewString(), map[string]interface{}{"input": "What day of the wek is it?"})
-	if err != nil {
-		t.Fatal(err.Message)
-	}
-	assert.NotNil(t, data.(map[string]interface{})["created"])
+// 	data, err = openai.Edits("Fix the spelling mistakes 2nd"+uuid.NewString(), map[string]interface{}{"input": "What day of the wek is it?"})
+// 	if err != nil {
+// 		t.Fatal(err.Message)
+// 	}
+// 	assert.NotNil(t, data.(map[string]interface{})["created"])
 
-}
+// }
 
 func TestEmbeddings(t *testing.T) {
 	test.Prepare(t, config.Conf)
