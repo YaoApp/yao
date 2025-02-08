@@ -1,6 +1,8 @@
 package assistant
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"time"
@@ -41,4 +43,11 @@ func timeToMySQLFormat(ts int64) string {
 		return "0000-00-00 00:00:00"
 	}
 	return time.Unix(ts/1e9, ts%1e9).Format("2006-01-02 15:04:05")
+}
+
+// stringHash returns the sha256 hash of the string
+func stringHash(v string) string {
+	h := sha256.New()
+	h.Write([]byte(v))
+	return hex.EncodeToString(h.Sum(nil))
 }
