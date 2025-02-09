@@ -95,7 +95,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatM
 	// }
 
 	// Switch to the new assistant if necessary
-	if res != nil && res.AssistantID != ctx.AssistantID {
+	if res != nil && res.AssistantID != "" && res.AssistantID != ctx.AssistantID {
 		newAst, err := Get(res.AssistantID)
 		if err != nil {
 			chatMessage.New().
@@ -244,6 +244,8 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 		msg.Write(c.Writer)
 		newContents := chatMessage.NewContents()
 
+		// Update the context id
+		ctx.AssistantID = assistant.ID
 		return assistant.execute(c, ctx, messages, options, newContents)
 
 	case "exit":
