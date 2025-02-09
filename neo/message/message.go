@@ -232,7 +232,6 @@ func NewOpenAI(data []byte, isThinking bool) *Message {
 
 			msg.Text = text
 			msg.IsDone = chunk.Choices[0].FinishReason == "tool_calls" // is done when tool calls are finished
-			fmt.Printf("arguments: %s, finish_reason: %#v\n", arguments, chunk.Choices[0].FinishReason)
 			return msg
 		}
 
