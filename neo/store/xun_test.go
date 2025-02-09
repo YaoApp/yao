@@ -245,11 +245,15 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 	// save the history with specific cid
 	sid := "123456"
 	cid := "789012"
+	assistantID := "test-assistant-1"
 	messages := []map[string]interface{}{
 		{"role": "user", "name": "user1", "content": "hello"},
 		{"role": "assistant", "name": "assistant1", "content": "Hi! How can I help you?"},
 	}
-	err = store.SaveHistory(sid, messages, cid, nil)
+	context := map[string]interface{}{
+		"assistant_id": assistantID,
+	}
+	err = store.SaveHistory(sid, messages, cid, context)
 	assert.Nil(t, err)
 
 	// get the history for specific cid
@@ -259,13 +263,28 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 	}
 	assert.Equal(t, 2, len(data))
 
-	// save another message with different cid
+	// Verify assistant_id is saved in chat
+	chat, err := store.GetChat(sid, cid)
+	assert.Nil(t, err)
+	assert.Equal(t, assistantID, chat.Chat["assistant_id"])
+
+	// save another message with different cid and assistant
 	anotherCID := "345678"
+	anotherAssistantID := "test-assistant-2"
 	moreMessages := []map[string]interface{}{
 		{"role": "user", "name": "user1", "content": "another message"},
+		{"role": "assistant", "name": "assistant2", "content": "Hello!"},
 	}
-	err = store.SaveHistory(sid, moreMessages, anotherCID, nil)
+	anotherContext := map[string]interface{}{
+		"assistant_id": anotherAssistantID,
+	}
+	err = store.SaveHistory(sid, moreMessages, anotherCID, anotherContext)
 	assert.Nil(t, err)
+
+	// Verify second chat's assistant_id
+	chat2, err := store.GetChat(sid, anotherCID)
+	assert.Nil(t, err)
+	assert.Equal(t, anotherAssistantID, chat2.Chat["assistant_id"])
 
 	// get history for the first cid - should still be 2 messages
 	data, err = store.GetHistory(sid, cid)
@@ -274,12 +293,12 @@ func TestXunSaveAndGetHistoryWithCID(t *testing.T) {
 	}
 	assert.Equal(t, 2, len(data))
 
-	// get history for the second cid - should be 1 message
+	// get history for the second cid - should be 2 messages
 	data, err = store.GetHistory(sid, anotherCID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 1, len(data))
+	assert.Equal(t, 2, len(data))
 
 	// get all history for the sid without specifying cid
 	allData, err := store.GetHistory(sid, cid)
@@ -294,13 +313,18 @@ func TestXunGetChats(t *testing.T) {
 	defer test.Clean()
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
 	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_assistant")
 
-	// Drop both tables before test
+	// Drop tables before test
 	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = capsule.Schema().DropTableIfExists("__unit_test_conversation_assistant")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,45 +337,111 @@ func TestXunGetChats(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Create test assistants first
+	assistant1 := map[string]interface{}{
+		"assistant_id": "test-assistant-1",
+		"name":         "Test Assistant 1",
+		"avatar":       "avatar1.png",
+		"type":         "assistant",
+		"connector":    "test",
+	}
+	assistant2 := map[string]interface{}{
+		"assistant_id": "test-assistant-2",
+		"name":         "Test Assistant 2",
+		"avatar":       "avatar2.png",
+		"type":         "assistant",
+		"connector":    "test",
+	}
+	_, err = store.SaveAssistant(assistant1)
+	assert.Nil(t, err)
+	_, err = store.SaveAssistant(assistant2)
+	assert.Nil(t, err)
+
 	// Save some test chats
 	sid := "test_user"
 	messages := []map[string]interface{}{
 		{"role": "user", "content": "test message"},
 	}
 
-	// Create chats with different dates
+	// Create chats with different dates and assistants
 	for i := 0; i < 5; i++ {
 		chatID := fmt.Sprintf("chat_%d", i)
 		title := fmt.Sprintf("Test Chat %d", i)
+		var context map[string]interface{}
+
+		// Alternate between having assistant and no assistant
+		if i%2 == 0 {
+			context = map[string]interface{}{
+				"assistant_id": "test-assistant-1",
+			}
+		} else if i%3 == 0 {
+			context = map[string]interface{}{
+				"assistant_id": "test-assistant-2",
+			}
+		}
 
 		// Save history first to create the chat
-		err = store.SaveHistory(sid, messages, chatID, nil)
+		err = store.SaveHistory(sid, messages, chatID, context)
 		assert.Nil(t, err)
 
 		// Update the chat title
 		err = store.UpdateChatTitle(sid, chatID, title)
 		assert.Nil(t, err)
+
+		// Verify chat was created with correct assistant info
+		chat, err := store.GetChat(sid, chatID)
+		assert.Nil(t, err)
+		assert.NotNil(t, chat)
+		assert.Equal(t, chatID, chat.Chat["chat_id"])
+		assert.Equal(t, title, chat.Chat["title"])
+
+		if i%2 == 0 {
+			assert.Equal(t, "test-assistant-1", chat.Chat["assistant_id"])
+			assert.Equal(t, "Test Assistant 1", chat.Chat["assistant_name"])
+			assert.Equal(t, "avatar1.png", chat.Chat["assistant_avatar"])
+		} else if i%3 == 0 {
+			assert.Equal(t, "test-assistant-2", chat.Chat["assistant_id"])
+			assert.Equal(t, "Test Assistant 2", chat.Chat["assistant_name"])
+			assert.Equal(t, "avatar2.png", chat.Chat["assistant_avatar"])
+		} else {
+			assert.Nil(t, chat.Chat["assistant_id"])
+			assert.Nil(t, chat.Chat["assistant_name"])
+			assert.Nil(t, chat.Chat["assistant_avatar"])
+		}
 	}
 
-	// Test getting chats with default filter
+	// Test GetChats
 	filter := ChatFilter{
 		PageSize: 10,
 		Order:    "desc",
 	}
 	groups, err := store.GetChats(sid, filter)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	assert.Nil(t, err)
+	assert.NotNil(t, groups)
 	assert.Greater(t, len(groups.Groups), 0)
+
+	// Verify assistant information in chat list
+	for _, group := range groups.Groups {
+		for _, chat := range group.Chats {
+			if assistantID, ok := chat["assistant_id"].(string); ok && assistantID != "" {
+				if assistantID == "test-assistant-1" {
+					assert.Equal(t, "Test Assistant 1", chat["assistant_name"])
+					assert.Equal(t, "avatar1.png", chat["assistant_avatar"])
+				} else if assistantID == "test-assistant-2" {
+					assert.Equal(t, "Test Assistant 2", chat["assistant_name"])
+					assert.Equal(t, "avatar2.png", chat["assistant_avatar"])
+				}
+			} else {
+				assert.Nil(t, chat["assistant_name"])
+				assert.Nil(t, chat["assistant_avatar"])
+			}
+		}
+	}
 
 	// Test with keywords
 	filter.Keywords = "test"
 	groups, err = store.GetChats(sid, filter)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	assert.Nil(t, err)
 	assert.Greater(t, len(groups.Groups), 0)
 }
 

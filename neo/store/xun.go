@@ -185,6 +185,7 @@ func (conv *Xun) initChatTable() error {
 			table.ID("id")
 			table.String("chat_id", 200).Unique().Index()
 			table.String("title", 200).Null()
+			table.String("assistant_id", 200).Null().Index()
 			table.String("sid", 255).Index()
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
@@ -202,7 +203,7 @@ func (conv *Xun) initChatTable() error {
 		return err
 	}
 
-	fields := []string{"id", "chat_id", "title", "sid", "created_at", "updated_at"}
+	fields := []string{"id", "chat_id", "title", "assistant_id", "sid", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -336,7 +337,7 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 
 	// Build base query
 	qb := conv.newQueryChat().
-		Select("chat_id", "title", "created_at", "updated_at").
+		Select("chat_id", "title", "assistant_id", "created_at", "updated_at").
 		Where("sid", userID).
 		Where("chat_id", "!=", "")
 
@@ -384,6 +385,36 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 		"Even Earlier": {},
 	}
 
+	// Get assistant details for all chats
+	assistantIDs := []interface{}{}
+	assistantMap := make(map[string]map[string]interface{})
+
+	for _, row := range rows {
+		if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
+			assistantIDs = append(assistantIDs, assistantID)
+		}
+	}
+
+	if len(assistantIDs) > 0 {
+		assistants, err := conv.query.New().
+			Table(conv.getAssistantTable()).
+			Select("assistant_id", "name", "avatar").
+			WhereIn("assistant_id", assistantIDs).
+			Get()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, assistant := range assistants {
+			if id := assistant.Get("assistant_id"); id != nil {
+				assistantMap[fmt.Sprintf("%v", id)] = map[string]interface{}{
+					"name":   assistant.Get("name"),
+					"avatar": assistant.Get("avatar"),
+				}
+			}
+		}
+	}
+
 	for _, row := range rows {
 		chatID := row.Get("chat_id")
 		if chatID == nil || chatID == "" {
@@ -391,8 +422,17 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 		}
 
 		chat := map[string]interface{}{
-			"chat_id": chatID,
-			"title":   row.Get("title"),
+			"chat_id":      chatID,
+			"title":        row.Get("title"),
+			"assistant_id": row.Get("assistant_id"),
+		}
+
+		// Add assistant details if available
+		if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
+			if assistant, ok := assistantMap[fmt.Sprintf("%v", assistantID)]; ok {
+				chat["assistant_name"] = assistant["name"]
+				chat["assistant_avatar"] = assistant["avatar"]
+			}
 		}
 
 		var dbDatetime = row.Get("updated_at")
@@ -514,6 +554,14 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		return err
 	}
 
+	// Get assistant_id from context
+	var assistantID interface{} = nil
+	if context != nil {
+		if id, ok := context["assistant_id"].(string); ok && id != "" {
+			assistantID = id
+		}
+	}
+
 	// First ensure chat record exists
 	exists, err := conv.newQueryChat().
 		Where("chat_id", cid).
@@ -528,13 +576,27 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		// Create new chat record
 		err = conv.newQueryChat().
 			Insert(map[string]interface{}{
-				"chat_id":    cid,
-				"sid":        userID,
-				"created_at": time.Now(),
+				"chat_id":      cid,
+				"sid":          userID,
+				"assistant_id": assistantID,
+				"created_at":   time.Now(),
 			})
 
 		if err != nil {
 			return err
+		}
+	} else {
+		// Update assistant_id if it exists
+		if assistantID != nil {
+			_, err = conv.newQueryChat().
+				Where("chat_id", cid).
+				Where("sid", userID).
+				Update(map[string]interface{}{
+					"assistant_id": assistantID,
+				})
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -637,7 +699,7 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 
 	// Get chat info
 	qb := conv.newQueryChat().
-		Select("chat_id", "title").
+		Select("chat_id", "title", "assistant_id").
 		Where("sid", userID).
 		Where("chat_id", cid)
 
@@ -652,8 +714,26 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 	}
 
 	chat := map[string]interface{}{
-		"chat_id": row.Get("chat_id"),
-		"title":   row.Get("title"),
+		"chat_id":      row.Get("chat_id"),
+		"title":        row.Get("title"),
+		"assistant_id": row.Get("assistant_id"),
+	}
+
+	// Get assistant details if assistant_id exists
+	if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
+		assistant, err := conv.query.New().
+			Table(conv.getAssistantTable()).
+			Select("name", "avatar").
+			Where("assistant_id", assistantID).
+			First()
+		if err != nil {
+			return nil, err
+		}
+
+		if assistant != nil {
+			chat["assistant_name"] = assistant.Get("name")
+			chat["assistant_avatar"] = assistant.Get("avatar")
+		}
 	}
 
 	// Get chat history
@@ -713,24 +793,6 @@ func (conv *Xun) DeleteAllChats(sid string) error {
 		Where("sid", userID).
 		Delete()
 	return err
-}
-
-// processJSONField processes a field that should be stored as JSON string
-func (conv *Xun) processJSONField(field interface{}) (interface{}, error) {
-	if field == nil {
-		return nil, nil
-	}
-
-	switch v := field.(type) {
-	case string:
-		return v, nil
-	default:
-		jsonStr, err := jsoniter.MarshalToString(v)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal %v to JSON: %v", field, err)
-		}
-		return jsonStr, nil
-	}
 }
 
 // parseJSONFields parses JSON string fields into their corresponding Go types
