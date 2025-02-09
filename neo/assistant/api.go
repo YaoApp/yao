@@ -56,12 +56,12 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) error {
+func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatMessage.Message, userOptions map[string]interface{}, contents *chatMessage.Contents) error {
 
 	if contents == nil {
 		contents = chatMessage.NewContents()
 	}
-	options = ast.withOptions(options)
+	options := ast.withOptions(userOptions)
 
 	// Add RAG and Version support
 	ctx.RAG = rag != nil
@@ -78,6 +78,22 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatM
 		return err
 	}
 
+	// Update options if provided
+	if res != nil && res.Options != nil {
+		options = res.Options
+	}
+
+	// messages
+	if res != nil && res.Input != nil {
+		input = res.Input
+	}
+
+	// Handle next action
+	// It's not used, return the new assistant_id and chat_id
+	// if res != nil && res.Next != nil {
+	// 	return res.Next.Execute(c, ctx, contents)
+	// }
+
 	// Switch to the new assistant if necessary
 	if res != nil && res.AssistantID != ctx.AssistantID {
 		newAst, err := Get(res.AssistantID)
@@ -89,22 +105,25 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatM
 				Write(c.Writer)
 			return err
 		}
-		*ast = *newAst
-	}
 
-	// Handle next action
-	if res != nil && res.Next != nil {
-		return res.Next.Execute(c, ctx, contents)
-	}
+		// Reset Message Contents
+		last := input[len(input)-1]
+		input, err = newAst.withHistory(ctx, last)
+		if err != nil {
+			return err
+		}
 
-	// Update options if provided
-	if res != nil && res.Options != nil {
-		options = res.Options
-	}
+		// Reset options
+		options = newAst.withOptions(userOptions)
 
-	// messages
-	if res != nil && res.Input != nil {
-		input = res.Input
+		// Update options if provided
+		if res.Options != nil {
+			options = res.Options
+		}
+
+		// Update assistant id
+		ctx.AssistantID = res.AssistantID
+		return newAst.handleChatStream(c, ctx, input, options, contents)
 	}
 
 	// Only proceed with chat stream if no specific next action was handled

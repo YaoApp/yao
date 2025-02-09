@@ -471,18 +471,27 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 	// Create a new chat
 	if len(chats.Groups) == 0 || len(chats.Groups[0].Chats) == 0 {
 
-		ast := neo.Assistant
-		assistantID := c.Query("assistant_id")
-		if assistantID != "" {
-			ast, err = assistant.Get(assistantID)
-			if err != nil {
-				c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-				c.Done()
-				return
-			}
+		assistantID := neo.Use
+		queryAssistantID := c.Query("assistant_id")
+		if queryAssistantID != "" {
+			assistantID = queryAssistantID
 		}
 
-		c.JSON(200, map[string]interface{}{"data": map[string]interface{}{"placeholder": ast.GetPlaceholder()}})
+		// Get the assistant info
+		ast, err := assistant.Get(assistantID)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+
+		c.JSON(200, map[string]interface{}{"data": map[string]interface{}{
+			"placeholder":          ast.GetPlaceholder(),
+			"assistant_id":         ast.ID,
+			"assistant_name":       ast.Name,
+			"assistant_avatar":     ast.Avatar,
+			"assistant_deleteable": neo.Use != ast.ID,
+		}})
 		c.Done()
 		return
 	}
@@ -502,6 +511,22 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		return
 	}
 
+	// assistant_id is nil return the default assistant
+	if chat.Chat["assistant_id"] == nil {
+		chat.Chat["assistant_id"] = neo.Use
+
+		// Get the assistant info
+		ast, err := assistant.Get(neo.Use)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+		chat.Chat["assistant_name"] = ast.Name
+		chat.Chat["assistant_avatar"] = ast.Avatar
+	}
+
+	chat.Chat["assistant_deleteable"] = neo.Use != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
@@ -529,6 +554,22 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		return
 	}
 
+	// assistant_id is nil return the default assistant
+	if chat.Chat["assistant_id"] == nil {
+		chat.Chat["assistant_id"] = neo.Use
+
+		// Get the assistant info
+		ast, err := assistant.Get(neo.Use)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+		chat.Chat["assistant_name"] = ast.Name
+		chat.Chat["assistant_avatar"] = ast.Avatar
+	}
+
+	chat.Chat["assistant_deleteable"] = neo.Use != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
