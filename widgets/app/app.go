@@ -568,8 +568,7 @@ func processXgen(process *process.Process) interface{} {
 	// The default assistant
 	agent := map[string]interface{}{}
 	if neo.Neo != nil {
-		ast := neo.Neo.Assistant.(*assistant.Assistant)
-		if ast != nil {
+		if ast, ok := neo.Neo.Assistant.(*assistant.Assistant); ok {
 			agent["default"] = map[string]interface{}{
 				"assistant_id":         ast.ID,
 				"assistant_name":       ast.Name,
