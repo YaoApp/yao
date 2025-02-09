@@ -20,6 +20,8 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/neo"
+	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -563,6 +565,20 @@ func processXgen(process *process.Process) interface{} {
 		}
 	}
 
+	// The default assistant
+	agent := map[string]interface{}{}
+	if neo.Neo != nil {
+		ast := neo.Neo.Assistant.(*assistant.Assistant)
+		if ast != nil {
+			agent["default"] = map[string]interface{}{
+				"assistant_id":         ast.ID,
+				"assistant_name":       ast.Name,
+				"assistant_avatar":     ast.Avatar,
+				"assistant_deleteable": false,
+			}
+		}
+	}
+
 	xgenSetting := map[string]interface{}{
 		"name":        Setting.Name,
 		"description": Setting.Description,
@@ -574,6 +590,7 @@ func processXgen(process *process.Process) interface{} {
 		"token":       Setting.Token,
 		"optional":    Setting.Optional,
 		"login":       xgenLogin,
+		"agent":       agent,
 	}
 
 	if Setting.Logo != "" {
