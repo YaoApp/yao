@@ -29,6 +29,73 @@ type MessageWithReasoningContent struct {
 	} `json:"choices,omitempty"`
 }
 
+// ChatCompletionChunk is the response from OpenAI
+type ChatCompletionChunk struct {
+	ID                string                      `json:"id"`
+	Object            string                      `json:"object"`
+	Created           int64                       `json:"created"`
+	Model             string                      `json:"model"`
+	SystemFingerprint string                      `json:"system_fingerprint,omitempty"`
+	Choices           []ChatCompletionChunkChoice `json:"choices"`
+}
+
+// ChatCompletionChunkChoice represents a chunk choice in the response
+type ChatCompletionChunkChoice struct {
+	Index        int                      `json:"index"`
+	Delta        ChatCompletionChunkDelta `json:"delta"`
+	LogProbs     *LogProbs                `json:"logprobs,omitempty"`
+	FinishReason string                   `json:"finish_reason,omitempty"`
+}
+
+// ChatCompletionChunkDelta represents the delta content in a chunk
+type ChatCompletionChunkDelta struct {
+	Role             string        `json:"role,omitempty"`
+	Content          string        `json:"content,omitempty"`
+	ReasoningContent string        `json:"reasoning_content,omitempty"`
+	ToolCalls        []ToolCall    `json:"tool_calls,omitempty"`
+	FunctionCall     *FunctionCall `json:"function_call,omitempty"`
+}
+
+// LogProbs represents the log probabilities in a response
+type LogProbs struct {
+	Content []ContentLogProb `json:"content,omitempty"`
+}
+
+// ContentLogProb represents a single token's log probability information
+type ContentLogProb struct {
+	Token       string    `json:"token"`
+	LogProb     float64   `json:"logprob"`
+	Bytes       []int     `json:"bytes,omitempty"`
+	TopLogProbs []LogProb `json:"top_logprobs,omitempty"`
+}
+
+// LogProb represents a token and its log probability
+type LogProb struct {
+	Token   string  `json:"token"`
+	LogProb float64 `json:"logprob"`
+	Bytes   []int   `json:"bytes,omitempty"`
+}
+
+// ToolCall represents a tool call in the response
+type ToolCall struct {
+	Index    int      `json:"index"`
+	ID       string   `json:"id"`
+	Type     string   `json:"type"`
+	Function Function `json:"function"`
+}
+
+// FunctionCall represents a function call in the response
+type FunctionCall struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+// Function represents a function in a tool call
+type Function struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
 // ToolCalls is the response from OpenAI
 type ToolCalls struct {
 	ID      string `json:"id,omitempty"`
