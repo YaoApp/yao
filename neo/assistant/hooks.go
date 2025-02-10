@@ -3,6 +3,7 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -154,26 +155,28 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 				props := map[string]interface{}{}
 				if text, ok := data.Props["text"].(string); ok {
 
-					// Format the text keep only the <tool> and </tool> inner text
-					parts := strings.Split(text, "<tool>")
-					if len(parts) > 1 {
-						text = parts[1]
+					// Extract the content between <tool> and </tool> tags more reliably
+					startTag := "<tool>"
+					endTag := "</tool>"
+					startIndex := strings.Index(text, startTag)
+					if startIndex != -1 {
+						// Find the content after <tool>
+						content := text[startIndex+len(startTag):]
+						endIndex := strings.LastIndex(content, endTag)
+						if endIndex != -1 {
+							// Extract the content between tags
+							text = content[:endIndex]
+							text = strings.TrimSpace(text)
+							if os.Getenv("YAO_AGENT_PRINT_TOOL_CALL") == "true" {
+								fmt.Println("---- EXTRACTED TOOL CALL ----")
+								fmt.Println(text)
+								fmt.Println("---- END EXTRACTED TOOL CALL ----")
+							}
+						}
 					}
-
-					// Format the text keep only the <tool> and </tool> inner text
-					parts = strings.Split(text, "</tool>")
-					if len(parts) > 1 {
-						text = parts[0]
-					}
-
-					// Escape %7B and %7b to {, %7D and %7d to }
-					text = strings.ReplaceAll(text, "%7B", "{")
-					text = strings.ReplaceAll(text, "%7b", "{")
-					text = strings.ReplaceAll(text, "%7D", "}")
-					text = strings.ReplaceAll(text, "%7d", "}")
 
 					// Parse the text into props
-					err := jsoniter.UnmarshalFromString(text, &props)
+					err := ParseJSON(text, &props)
 					if err != nil {
 						props["error"] = fmt.Sprintf("Can not parse the tool call: %s\n--original--\n%s", err.Error(), text)
 					}

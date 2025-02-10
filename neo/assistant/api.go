@@ -620,27 +620,38 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 			raw, _ := jsoniter.MarshalToString(ast.Tools.Tools)
 			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
 				"role":    "system",
+				"name":    "TOOL_CALLS_SCHEMA",
 				"content": raw,
 			}))
 
-			// Add the default system prompts for tool calls
 			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
 				"role": "system",
-				"content": "## Tool Calls Match Rules:\n" +
-					"1. if the user's question is about the tool_calls, just answer one of the tool_calls, do not provide any additional information.\n" +
-					"2. if the user's question is not about the tool_calls, just answer the user's question directly.\n" +
-					"3. You can only use the functions defined in tool_calls. If none exist, reply directly to the user.",
+				"name": "TOOL_CALLS",
+				"content": "## Tool Response Format\n" +
+					"1. If no matching function exists in TOOL_CALLS_SCHEMA, respond normally without using tool calls\n" +
+					"2. When using tools, wrap function calls in <tool> and </tool> tags\n" +
+					"3. The tool call must be a valid JSON object\n" +
+					"4. Follow the JSON Schema defined in TOOL_CALLS_SCHEMA\n" +
+					"5. One complete tool call per response\n" +
+					"6. Parameter values MUST strictly follow the descriptions and validation rules defined in properties\n" +
+					"7. For each parameter, carefully check and comply with:\n" +
+					"   - Data type requirements\n" +
+					"   - Format restrictions\n" +
+					"   - Value range limitations\n" +
+					"   - Pattern matching rules\n" +
+					"   - Required field validations\n\n" +
+					"Example:\n" +
+					"<tool>\n" + `{"function":"<FunctionName>","arguments":{"<ArgumentName>":"<ArgumentValue>"}}` + "\n</tool>",
 			}))
 			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
 				"role": "system",
-				"content": "## Tool Calls Response Rules:\n" +
-					"1. The response should be a valid JSON object:\n" +
-					"  1.1. e.g: <tool>{\"function\":\"function_name\",\"arguments\":{\"arg1\":\"xxxx\"}}</tool>\n" +
-					"  1.2. strict the example format, do not add any additional information.\n" +
-					"  1.3. The JSON object should be wrapped by <tool> and </tool>.\n" +
-					"2. The structure of the JSON object is { \"arguments\": {...}, function:\"function_name\"}\n" +
-					"3. The function_name should be the name of the function defined in tool_calls.\n" +
-					"4. The arguments should be the arguments of the function defined in tool_calls.\n",
+				"name": "TOOL_CALLS",
+				"content": "## Tool Usage Guidelines\n" +
+					"1. Use functions defined in TOOL_CALLS_SCHEMA only when they match your needs\n" +
+					"2. If no matching function exists, respond normally as a helpful assistant\n" +
+					"3. When using tools, arguments must match the schema definition exactly\n" +
+					"4. All parameter values must strictly adhere to the validation rules specified in properties\n" +
+					"5. Never skip or ignore any validation requirements defined in the schema",
 			}))
 
 			// Add tool_calls prompts
@@ -747,8 +758,13 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 			"content": content,
 		}
 
+		// Keep the name for user messages
 		if name := message.Name; name != "" {
-			newMessage["name"] = stringHash(name)
+			if role != "system" {
+				newMessage["name"] = stringHash(name)
+			} else {
+				newMessage["name"] = name
+			}
 		}
 
 		// Special handling for user messages with JSON content last message
@@ -786,9 +802,9 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 	// For debug environment, print the request messages
 	if os.Getenv("YAO_AGENT_PRINT_REQUEST_MESSAGES") == "true" {
-		fmt.Println("--------------------------------")
+		fmt.Println("--- REQUEST_MESSAGES -----------------------------")
 		utils.Dump(newMessages)
-		fmt.Println("--------------------------------")
+		fmt.Println("--- END REQUEST_MESSAGES -----------------------------")
 	}
 
 	return newMessages, nil

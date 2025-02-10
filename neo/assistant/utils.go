@@ -5,7 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
 
 func getTimestamp(v interface{}) (int64, error) {
@@ -50,4 +53,34 @@ func stringHash(v string) string {
 	h := sha256.New()
 	h.Write([]byte(v))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// ParseJSON attempts to parse a potentially malformed JSON string
+// It tries different approaches:
+// 1. Parse as-is
+// 2. Add a missing closing brace
+// 3. Remove an extra closing brace
+func ParseJSON(jsonStr string, v interface{}) error {
+	// Try parsing as-is first
+	err := jsoniter.UnmarshalFromString(jsonStr, v)
+	if err == nil {
+		return nil
+	}
+	originalErr := err
+
+	// Try adding a closing brace
+	if err := jsoniter.UnmarshalFromString(jsonStr+"}", v); err == nil {
+		return nil
+	}
+
+	// Try removing last closing brace if it exists
+	if strings.HasSuffix(jsonStr, "}") {
+		trimmed := strings.TrimSuffix(jsonStr, "}")
+		if err := jsoniter.UnmarshalFromString(trimmed, v); err == nil {
+			return nil
+		}
+	}
+
+	// If all attempts fail, return the original error
+	return originalErr
 }
