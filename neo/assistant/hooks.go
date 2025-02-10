@@ -154,14 +154,28 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 				props := map[string]interface{}{}
 				if text, ok := data.Props["text"].(string); ok {
 
-					// Remove <tool> and </tool> tags
-					text = strings.ReplaceAll(text, "<tool>", "")
-					text = strings.ReplaceAll(text, "</tool>", "")
+					// Format the text keep only the <tool> and </tool> inner text
+					parts := strings.Split(text, "<tool>")
+					if len(parts) > 1 {
+						text = parts[1]
+					}
+
+					// Format the text keep only the <tool> and </tool> inner text
+					parts = strings.Split(text, "</tool>")
+					if len(parts) > 1 {
+						text = parts[0]
+					}
+
+					// Escape %7B and %7b to {, %7D and %7d to }
+					text = strings.ReplaceAll(text, "%7B", "{")
+					text = strings.ReplaceAll(text, "%7b", "{")
+					text = strings.ReplaceAll(text, "%7D", "}")
+					text = strings.ReplaceAll(text, "%7d", "}")
 
 					// Parse the text into props
 					err := jsoniter.UnmarshalFromString(text, &props)
 					if err != nil {
-						props["error"] = err.Error()
+						props["error"] = fmt.Sprintf("Can not parse the tool call: %s\n--original--\n%s", err.Error(), text)
 					}
 				}
 

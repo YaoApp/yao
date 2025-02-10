@@ -228,6 +228,7 @@ func NewOpenAI(data []byte, isThinking bool) *Message {
 			text := arguments
 			if id != "" {
 				text = fmt.Sprintf(`{"id": "%s", "function": "%s", "arguments": %s`, id, function, arguments)
+				msg.IsNew = true // mark as a new message
 			}
 
 			msg.Text = text

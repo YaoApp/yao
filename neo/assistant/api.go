@@ -379,7 +379,7 @@ func (ast *Assistant) streamChat(
 			// for native tool_calls response
 			if msg.Type == "tool_calls_native" {
 				if isFirstTool {
-					msg.Text = "<tool>\n" + msg.Text // add the tool_calls begin tag
+					msg.Text = "\n<tool>\n" + msg.Text // add the tool_calls begin tag
 					isFirstTool = false
 					isTool = true
 				}
