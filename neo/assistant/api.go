@@ -561,7 +561,7 @@ func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessag
 			{
 				"role":             "assistant",
 				"content":          contents.JSON(),
-				"name":             ctx.Sid,
+				"name":             ast.ID,
 				"assistant_id":     ast.ID,
 				"assistant_name":   ast.Name,
 				"assistant_avatar": ast.Avatar,
@@ -605,7 +605,7 @@ func (ast *Assistant) withOptions(options map[string]interface{}) map[string]int
 func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.Message {
 	if ast.Prompts != nil {
 		for _, prompt := range ast.Prompts {
-			name := ast.Name
+			name := strings.ReplaceAll(ast.ID, ".", "_") // OpenAI only supports underscore in the name
 			if prompt.Name != "" {
 				name = prompt.Name
 			}
@@ -618,43 +618,61 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 		settings, has := connectorSettings[ast.Connector]
 		if !has || !settings.Tools {
 			raw, _ := jsoniter.MarshalToString(ast.Tools.Tools)
-			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
-				"role":    "system",
-				"name":    "TOOL_CALLS_SCHEMA",
-				"content": raw,
-			}))
 
-			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
-				"role": "system",
-				"name": "TOOL_CALLS",
-				"content": "## Tool Response Format\n" +
-					"1. If no matching function exists in TOOL_CALLS_SCHEMA, respond normally without using tool calls\n" +
-					"2. When using tools, wrap function calls in <tool> and </tool> tags\n" +
-					"3. The tool call must be a valid JSON object\n" +
-					"4. Follow the JSON Schema defined in TOOL_CALLS_SCHEMA\n" +
-					"5. One complete tool call per response\n" +
-					"6. Parameter values MUST strictly follow the descriptions and validation rules defined in properties\n" +
-					"7. For each parameter, carefully check and comply with:\n" +
-					"   - Data type requirements\n" +
-					"   - Format restrictions\n" +
-					"   - Value range limitations\n" +
-					"   - Pattern matching rules\n" +
-					"   - Required field validations\n\n" +
-					"Example:\n" +
-					"<tool>\n" + `{"function":"<FunctionName>","arguments":{"<ArgumentName>":"<ArgumentValue>"}}` + "\n</tool>",
-			}))
-			messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
-				"role": "system",
-				"name": "TOOL_CALLS",
-				"content": "## Tool Usage Guidelines\n" +
-					"1. Use functions defined in TOOL_CALLS_SCHEMA only when they match your needs\n" +
-					"2. If no matching function exists, respond normally as a helpful assistant\n" +
-					"3. When using tools, arguments must match the schema definition exactly\n" +
-					"4. All parameter values must strictly adhere to the validation rules specified in properties\n" +
-					"5. Never skip or ignore any validation requirements defined in the schema",
-			}))
+			examples := []string{}
+			for _, tool := range ast.Tools.Tools {
+				example := tool.Example()
+				examples = append(examples, example)
+			}
 
-			// Add tool_calls prompts
+			examplesStr := ""
+			if len(examples) > 0 {
+				examplesStr = "Examples:\n" + strings.Join(examples, "\n\n")
+			}
+
+			prompts := []map[string]interface{}{
+				{
+					"role":    "system",
+					"name":    "TOOL_CALLS_SCHEMA",
+					"content": raw,
+				},
+				{
+					"role": "system",
+					"name": "TOOL_CALLS_SCHEMA",
+					"content": "## Tool Calls Schema Definition\n" +
+						"Each tool call is defined with:\n" +
+						"  - type: always 'function'\n" +
+						"  - function:\n" +
+						"    - name: function name\n" +
+						"    - description: function description\n" +
+						"    - parameters: function parameters with type and validation rules\n",
+				},
+				{
+					"role": "system",
+					"name": "TOOL_CALLS",
+					"content": "## Tool Response Format\n" +
+						"1. Only use tool calls when a function matches your task exactly\n" +
+						"2. Each tool call must be wrapped in <tool> and </tool> tags\n" +
+						"3. Tool call must be a valid JSON with:\n" +
+						"   {\"function\": \"function_name\", \"arguments\": {parameters}}\n" +
+						"4. Return the function's result as your response\n" +
+						"5. One tool call per response\n" +
+						"6. Arguments must match parameter types, rules and description\n\n" +
+						examplesStr,
+				},
+				{
+					"role": "system",
+					"name": "TOOL_CALLS",
+					"content": "## Tool Usage Guidelines\n" +
+						"1. Use functions defined in TOOL_CALLS_SCHEMA only when they match your needs\n" +
+						"2. If no matching function exists, respond normally as a helpful assistant\n" +
+						"3. When using tools, arguments must match the schema definition exactly\n" +
+						"4. All parameter values must strictly adhere to the validation rules specified in properties\n" +
+						"5. Never skip or ignore any validation requirements defined in the schema",
+				},
+			}
+
+			// Add tool_calls developer prompts
 			if ast.Tools.Prompts != nil && len(ast.Tools.Prompts) > 0 {
 				for _, prompt := range ast.Tools.Prompts {
 					messages = append(messages, *chatMessage.New().Map(map[string]interface{}{
@@ -664,6 +682,12 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 					}))
 				}
 			}
+
+			// Add the prompts
+			for _, prompt := range prompts {
+				messages = append(messages, *chatMessage.New().Map(prompt))
+			}
+
 		}
 	}
 
