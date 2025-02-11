@@ -94,16 +94,6 @@ type Prompt struct {
 	Name    string `json:"name,omitempty"`
 }
 
-// Tool represents a tool
-type Tool struct {
-	Type     string `json:"type"`
-	Function struct {
-		Name        string                 `json:"name"`
-		Description string                 `json:"description"`
-		Parameters  map[string]interface{} `json:"parameters"`
-	} `json:"function"`
-}
-
 // QueryParam the assistant query param
 type QueryParam struct {
 	Limit  uint   `json:"limit"`
