@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/watchfultele/jsonrepair"
 )
 
 func getTimestamp(v interface{}) (int64, error) {
@@ -56,10 +56,6 @@ func stringHash(v string) string {
 }
 
 // ParseJSON attempts to parse a potentially malformed JSON string
-// It tries different approaches:
-// 1. Parse as-is
-// 2. Add a missing closing brace
-// 3. Remove an extra closing brace
 func ParseJSON(jsonStr string, v interface{}) error {
 	// Try parsing as-is first
 	err := jsoniter.UnmarshalFromString(jsonStr, v)
@@ -73,12 +69,15 @@ func ParseJSON(jsonStr string, v interface{}) error {
 		return nil
 	}
 
-	// Try removing last closing brace if it exists
-	if strings.HasSuffix(jsonStr, "}") {
-		trimmed := strings.TrimSuffix(jsonStr, "}")
-		if err := jsoniter.UnmarshalFromString(trimmed, v); err == nil {
-			return nil
-		}
+	// Try repairing the JSON
+	repaired, err := jsonrepair.JSONRepair(jsonStr)
+	if err != nil {
+		return originalErr
+	}
+
+	// Try parsing the repaired JSON
+	if err := jsoniter.UnmarshalFromString(repaired, v); err == nil {
+		return nil
 	}
 
 	// If all attempts fail, return the original error
