@@ -13,6 +13,7 @@ import (
 type DSL struct {
 	ID     string                 `json:"id,omitempty"`
 	Root   string                 `json:"-"`
+	Rule   string                 `json:"rule,omitempty"`
 	Name   string                 `json:"name,omitempty"`
 	Action *ActionDSL             `json:"action"`
 	Layout *LayoutDSL             `json:"layout"`

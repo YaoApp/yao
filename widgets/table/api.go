@@ -6,9 +6,27 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/rules"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/action"
 )
+
+var editAPIS = []string{
+	"/api/__yao/table/:id/upload/:xpath/:method",
+	"/api/__yao/table/:id/save",
+	"/api/__yao/table/:id/create",
+	"/api/__yao/table/:id/insert",
+	"/api/__yao/table/:id/update/:primary",
+	"/api/__yao/table/:id/update/in",
+	"/api/__yao/table/:id/update/where",
+}
+
+var deleteAPIS = []string{
+	"/api/__yao/table/:id/delete/:primary",
+	"/api/__yao/table/:id/delete/in",
+	"/api/__yao/table/:id/delete/where",
+}
 
 // Guard table widget guard
 func Guard(c *gin.Context) {
@@ -37,6 +55,15 @@ func Guard(c *gin.Context) {
 		return
 	}
 
+	rules.Guard(c, tab.Rule)
+	if helper.ContainsString(editAPIS, c.FullPath()) {
+		ruleKey := fmt.Sprintf("%s_edit", tab.Rule)
+		rules.Guard(c, ruleKey)
+	}
+	if helper.ContainsString(deleteAPIS, c.FullPath()) {
+		ruleKey := fmt.Sprintf("%s_del", tab.Rule)
+		rules.Guard(c, ruleKey)
+	}
 }
 
 func abort(c *gin.Context, code int, message string) {

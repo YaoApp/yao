@@ -64,7 +64,7 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 
 	now := time.Now().Unix()
 	sid := ""
-	timeout := int64(3600)
+	timeout := int64(36000)
 	uid := fmt.Sprintf("%d", id)
 	subject := "User Token"
 	audience := "Yao Process utils.jwt.Make"

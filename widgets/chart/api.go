@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/yao/rules"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/action"
 )
@@ -37,6 +38,7 @@ func Guard(c *gin.Context) {
 		return
 	}
 
+	rules.Guard(c, chart.Rule)
 }
 
 func abort(c *gin.Context, code int, message string) {

@@ -13,6 +13,7 @@ import (
 type DSL struct {
 	ID     string                 `json:"id,omitempty"`
 	Name   string                 `json:"name,omitempty"`
+	Rule   string                 `json:"rule,omitempty"`
 	Action *ActionDSL             `json:"action"`
 	Layout *LayoutDSL             `json:"layout"`
 	Fields *FieldsDSL             `json:"fields"`
@@ -94,6 +95,7 @@ type SectionDSL struct {
 	Icon    interface{} `json:"icon,omitempty"`
 	Color   string      `json:"color,omitempty"`
 	Weight  interface{} `json:"weight,omitempty"`
+	Rule    string      `json:"rule,omitempty"`
 	Columns []Column    `json:"columns,omitempty"`
 }
 

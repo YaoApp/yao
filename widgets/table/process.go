@@ -260,8 +260,11 @@ func processDeleteIn(process *gouProcess.Process) interface{} {
 func processExport(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
 	tab := MustGet(process) // 0
+
 	params := process.ArgsQueryParams(1, types.QueryParam{})
-	pagesize := process.ArgsInt(2, 50)
+	page := process.ArgsInt(2, 1)
+	pagesize := process.ArgsInt(3, 50)
+
 	log.Trace("[table] export %s %v %d", tab.ID, params, pagesize)
 
 	// Filename
@@ -276,7 +279,7 @@ func processExport(process *gouProcess.Process) interface{} {
 	}
 
 	// Query
-	page := 1
+
 	for page > 0 {
 		process.Args = []interface{}{tab.ID, params, page, pagesize}
 		data, err := tab.Action.Search.Exec(process)

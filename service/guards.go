@@ -74,6 +74,7 @@ func guardBearerJWT(c *gin.Context) {
 
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
+	return
 }
 
 // JWT Bearer JWT

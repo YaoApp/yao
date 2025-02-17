@@ -192,7 +192,7 @@ func (layout *LayoutDSL) Xgen(data map[string]interface{}, excludes map[string]b
 		if clone.Header.Preset.Batch != nil && clone.Header.Preset.Batch.Columns != nil {
 			columns := []component.InstanceDSL{}
 			for _, column := range clone.Header.Preset.Batch.Columns {
-				id, has := mapping.Filters[column.Name]
+				id, has := mapping.Batches[column.Name]
 				if !has {
 					continue
 				}

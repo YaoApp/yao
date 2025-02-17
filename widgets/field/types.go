@@ -7,6 +7,9 @@ import (
 // Filters the filters DSL
 type Filters map[string]FilterDSL
 
+// Batch the batch DSL
+type Batches map[string]FilterDSL
+
 // Columns the columns DSL
 type Columns map[string]ColumnDSL
 

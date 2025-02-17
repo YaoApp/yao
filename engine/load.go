@@ -27,6 +27,7 @@ import (
 	"github.com/yaoapp/yao/pipe"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
+	"github.com/yaoapp/yao/rules"
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
@@ -151,6 +152,12 @@ func Load(cfg config.Config, options LoadOption) (err error) {
 	err = plugin.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Plugin", err)
+	}
+
+	// Load Rules
+	err = rules.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Rules", err)
 	}
 
 	// Load WASM Application (experimental)

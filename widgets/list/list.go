@@ -135,6 +135,9 @@ func LoadID(id string, root string) error {
 // LoadData load via data
 func (dsl *DSL) parse(id string, root string) error {
 
+	if dsl.Rule == "" {
+		dsl.Rule = strings.ReplaceAll(id, ".", "_")
+	}
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
 	}

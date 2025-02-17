@@ -14,6 +14,7 @@ type DSL struct {
 	// Root   string                 `json:"-"`
 	ID     string                 `json:"id,omitempty"`
 	Name   string                 `json:"name,omitempty"`
+	Rule   string                 `json:"rule,omitempty"`
 	Action *ActionDSL             `json:"action"`
 	Layout *LayoutDSL             `json:"layout"`
 	Fields *FieldsDSL             `json:"fields"`
@@ -99,6 +100,12 @@ type HeaderLayoutDSL struct {
 type PresetHeaderDSL struct {
 	Batch  *BatchPresetDSL  `json:"batch,omitempty"`
 	Import *ImportPresetDSL `json:"import,omitempty"`
+	Column *ColumnDSL       `json:"column,omitempty"`
+	Filter *ColumnDSL       `json:"filter,omitempty"`
+}
+
+type ColumnDSL struct {
+	Musts []string `json:"musts,omitempty"`
 }
 
 // BatchPresetDSL layout.header.preset.batch
@@ -137,6 +144,7 @@ type OperationTableDSL struct {
 // FieldsDSL the table fields DSL
 type FieldsDSL struct {
 	Filter    field.Filters `json:"filter,omitempty"`
+	Batch     field.Batches `json:"batch,omitempty"`
 	Table     field.Columns `json:"table,omitempty"`
 	filterMap map[string]field.FilterDSL
 	tableMap  map[string]field.ColumnDSL

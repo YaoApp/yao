@@ -50,6 +50,10 @@ func (dsl *DSL) mapping() error {
 		dsl.Mapping.Filters = map[string]string{}
 	}
 
+	if dsl.Mapping.Batches == nil {
+		dsl.Mapping.Batches = map[string]string{}
+	}
+
 	if dsl.Mapping.Columns == nil {
 		dsl.Mapping.Columns = map[string]string{}
 	}
@@ -75,6 +79,27 @@ func (dsl *DSL) mapping() error {
 				// Mapping Compute
 				if filter.Edit != nil && filter.Edit.Compute != nil {
 					bind := filter.FilterBind()
+					if _, has := dsl.Computes.Filter[bind]; !has {
+						dsl.Computes.Filter[bind] = []compute.Unit{}
+					}
+					dsl.Computes.Filter[bind] = append(dsl.Computes.Filter[bind], compute.Unit{Name: inst.Name, Kind: compute.Filter})
+				}
+			}
+		}
+	}
+
+	if dsl.Fields.Batch != nil && dsl.Layout.Header.Preset.Batch != nil && dsl.Layout.Header.Preset.Batch.Columns != nil {
+		for _, inst := range dsl.Layout.Header.Preset.Batch.Columns {
+
+			if batch, has := dsl.Fields.Batch[inst.Name]; has {
+
+				// Mapping ID
+				dsl.Mapping.Batches[batch.ID] = inst.Name
+				dsl.Mapping.Batches[inst.Name] = batch.ID
+
+				// Mapping Compute
+				if batch.Edit != nil && batch.Edit.Compute != nil {
+					bind := batch.FilterBind()
 					if _, has := dsl.Computes.Filter[bind]; !has {
 						dsl.Computes.Filter[bind] = []compute.Unit{}
 					}

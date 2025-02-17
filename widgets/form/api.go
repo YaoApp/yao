@@ -6,9 +6,22 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
+	"github.com/yaoapp/yao/helper"
+	"github.com/yaoapp/yao/rules"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/action"
 )
+
+var editAPIS = []string{
+	"/api/__yao/form/:id/upload/:xpath/:method",
+	"/api/__yao/form/:id/save",
+	"/api/__yao/form/:id/create",
+	"/api/__yao/form/:id/insert",
+}
+
+var deleteAPIS = []string{
+	"/api/__yao/form/:id/delete/:primary",
+}
 
 // Guard form widget guard
 func Guard(c *gin.Context) {
@@ -37,6 +50,15 @@ func Guard(c *gin.Context) {
 		return
 	}
 
+	rules.Guard(c, form.Rule)
+	if helper.ContainsString(editAPIS, c.FullPath()) {
+		ruleKey := fmt.Sprintf("%s_edit", form.Rule)
+		rules.Guard(c, ruleKey)
+	}
+	if helper.ContainsString(deleteAPIS, c.FullPath()) {
+		ruleKey := fmt.Sprintf("%s_del", form.Rule)
+		rules.Guard(c, ruleKey)
+	}
 }
 
 func abort(c *gin.Context, code int, message string) {

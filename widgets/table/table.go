@@ -209,6 +209,10 @@ func load(source []byte, id string, file string) (*DSL, error) {
 // parse parse table dsl source
 func (dsl *DSL) parse(id string) error {
 
+	if dsl.Rule == "" {
+		dsl.Rule = strings.ReplaceAll(id, ".", "_")
+	}
+
 	if dsl.Action == nil {
 		dsl.Action = &ActionDSL{}
 	}

@@ -283,7 +283,7 @@ release: clean
 #   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
 #   ** new repository: https://github.com/YaoApp/dui.git **
 	export NODE_ENV=production
-	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
+	git clone https://github.com/sjzsdu/xgen.git .tmp/xgen/v1.0
 # 	cd .tmp/xgen/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
@@ -347,7 +347,7 @@ linux-release: clean
 #   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
 #   ** new repository: https://github.com/YaoApp/dui.git **
 	export NODE_ENV=production
-	git clone https://github.com/YaoApp/xgen.git .tmp/xgen/v1.0
+	git clone https://github.com/sjzsdu/xgen.git .tmp/xgen/v1.0
 	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
 	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
 	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
@@ -386,6 +386,34 @@ linux-release: clean
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
+
+
+.PHONY: ubutu-release
+ubutu-release: clean
+	mkdir -p dist/release
+	mkdir .tmp
+#	Checkout init
+	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
+	rm -rf .tmp/yao-init/.git
+	rm -rf .tmp/yao-init/.gitignore
+	rm -rf .tmp/yao-init/LICENSE
+	rm -rf .tmp/yao-init/README.md
+
+#	Packing
+	mkdir -p .tmp/data/xgen
+	cp -r ./ui .tmp/data/ui
+	cp -r ./yao .tmp/data/yao
+	cp -r xgenDist .tmp/data/xgen/v1.0
+	cp -r .tmp/yao-init .tmp/data/init
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+	rm -rf .tmp/xgen
+
+#   Making artifacts
+	mkdir -p dist
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" go build -v -o dist/release/yao
+	chmod +x  dist/release/yao
+
 
 # make clean
 .PHONY: clean

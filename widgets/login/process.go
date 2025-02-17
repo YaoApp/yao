@@ -79,6 +79,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		Wheres: []model.QueryWhere{
 			{Column: column, Value: value},
 			{Column: "status", Value: "enabled"},
+			{Column: "type", Value: "admin"},
 		},
 	})
 
@@ -91,6 +92,9 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	}
 
 	row := rows[0]
+	row["rule_ids"] = []string{"*"}
+	row["role_ids"] = []int{0}
+	row["department_ids"] = []int{0}
 	passwordHash := row.Get("password").(string)
 	row.Del("password")
 
@@ -99,7 +103,7 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		exception.New("Login password error (%v)", 403, value).Throw()
 	}
 
-	expiresAt := time.Now().Unix() + 3600*8
+	expiresAt := time.Now().Unix() + 36000
 
 	// token := MakeToken(row, expiresAt)
 	id := any.Of(row.Get("id")).CInt()
@@ -128,12 +132,19 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	}
 
 	// Get user menus
-	menus := process.New("yao.app.menu").WithSID(sid).Run()
+	// menus := process.New("yao.app.menu").WithSID(sid).Run()
+	// 读取菜单
+	setting := process.New("yao.rule.menus", []string{"sys"}, true).WithSID(sid).Run()
+	items := process.New("yao.rule.menus", []string{"pro", "crm"}, true).WithSID(sid).Run()
+
 	return maps.Map{
 		"expires_at": token.ExpiresAt,
 		"token":      token.Token,
 		"user":       row,
-		"menus":      menus,
-		"studio":     studio,
+		"menus": maps.Map{
+			"setting": setting,
+			"items":   items,
+		},
+		"studio": studio,
 	}
 }

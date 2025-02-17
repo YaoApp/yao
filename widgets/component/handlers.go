@@ -11,6 +11,7 @@ var hanlders = map[string]ComputeHanlder{
 	"Trim":          Trim,
 	"Hide":          Hide,
 	"Concat":        Concat,
+	"ValueOr":       ValueOr,
 	"Download":      Download,
 	"Upload":        Upload,
 	"QueryString":   Trim,
@@ -48,6 +49,18 @@ func Concat(args ...interface{}) (interface{}, error) {
 			continue
 		}
 		res = fmt.Sprintf("%v%v", res, arg)
+	}
+	return res, nil
+}
+
+// ValueOr
+func ValueOr(args ...interface{}) (interface{}, error) {
+	res := ""
+	for _, arg := range args {
+		if arg != nil {
+			res = fmt.Sprintf("%v", arg)
+			break
+		}
 	}
 	return res, nil
 }

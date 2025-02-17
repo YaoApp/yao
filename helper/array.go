@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"errors"
 	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
@@ -191,59 +192,80 @@ func NewArrayTreeOption(option map[string]interface{}) ArrayTreeOption {
 // ArrayTree []map[string]interface{} 转树形结构
 func ArrayTree(records []map[string]interface{}, setting map[string]interface{}) []map[string]interface{} {
 	opt := NewArrayTreeOption(setting)
-	return opt.Tree(records)
+	res, err := opt.Tree(records)
+	if err == nil {
+		return res
+	}
+	return nil
 }
 
-// Tree Array 转换为 Tree
-func (opt ArrayTreeOption) Tree(records []map[string]interface{}) []map[string]interface{} {
-
+func (opt ArrayTreeOption) Tree(records []map[string]interface{}) ([]map[string]interface{}, error) {
 	mapping := map[string]map[string]interface{}{}
-	for i := range records {
-		if key, has := records[i][opt.Key]; has {
-			primary := fmt.Sprintf("%v", key)
-			mapping[primary] = map[string]interface{}{}
-			mapping[primary][opt.Children] = []map[string]interface{}{}
-			for k, v := range records[i] {
-				mapping[primary][k] = v
-			}
+	recordOrder := []string{}
+
+	for _, record := range records {
+		key, hasKey := record[opt.Key]
+		if !hasKey {
+			return nil, errors.New("missing key field")
 		}
+
+		primary := fmt.Sprintf("%v", key)
+		mapping[primary] = make(map[string]interface{})
+		mapping[primary][opt.Children] = []map[string]interface{}{}
+
+		for k, v := range record {
+			mapping[primary][k] = v
+		}
+
+		recordOrder = append(recordOrder, primary)
 	}
 
 	// 向上归集
-	for key, record := range mapping {
+	for _, key := range recordOrder {
+		record := mapping[key]
+
 		parent := fmt.Sprintf("%v", record[opt.Parent])
 		empty := fmt.Sprintf("%v", opt.Empty)
 		if parent == empty { // 第一级
 			continue
 		}
+
 		pKey := fmt.Sprintf("%v", parent)
-		if _, has := mapping[pKey]; !has {
+		parentRecord, hasParent := mapping[pKey]
+		if !hasParent {
 			continue
 		}
-		children, ok := mapping[pKey][opt.Children].([]map[string]interface{})
+
+		children, ok := parentRecord[opt.Children].([]map[string]interface{})
 		if !ok {
 			children = []map[string]interface{}{}
 		}
-		children = append(children, mapping[key])
-		mapping[pKey][opt.Children] = children
+
+		children = append(children, record)
+		parentRecord[opt.Children] = children
+		mapping[pKey] = parentRecord
 	}
 
 	res := []map[string]interface{}{}
-	for i := range records {
-		if key, has := records[i][opt.Key]; has {
-			record := mapping[fmt.Sprintf("%v", key)]
-			if pValue, has := record[opt.Parent]; has {
-				parent := fmt.Sprintf("%v", pValue)
-				empty := fmt.Sprintf("%v", opt.Empty)
-				if parent == empty { // 父类为空
-					res = append(res, record)
-				} else if _, has := mapping[parent]; !has { // 或者父类为定义的
-					res = append(res, record)
-				}
+	for _, key := range recordOrder {
+		record := mapping[key]
+
+		// recordKey := fmt.Sprintf("%v", record[opt.Key])
+		recordValue, hasParent := record[opt.Parent]
+
+		if hasParent {
+			parent := fmt.Sprintf("%v", recordValue)
+			empty := fmt.Sprintf("%v", opt.Empty)
+
+			if parent == empty || len(mapping[parent]) == 0 {
+				res = append(res, record)
 			}
+		} else {
+			res = append(res, record)
 		}
 	}
-	return res
+
+	return res, nil
 }
 
 // ArrayMapSet []map[string]interface{} 设定数值
