@@ -7,9 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
@@ -19,7 +21,7 @@ import (
 )
 
 // HookInit initialize the assistant
-func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}, contents *message.Contents) (*ResHookInit, error) {
+func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) (*ResHookInit, error) {
 	// Create timeout context
 	ctx := ast.createBackgroundContext()
 	v, err := ast.call(ctx, "Init", c, contents, context, input, options)
@@ -310,7 +312,7 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 
 	// Add sendMessage function to the script context
 	scriptCtx.WithFunction("SendMessage", sendMessage(c, contents))
-	scriptCtx.WithFunction("Run", run(c, context))
+	scriptCtx.WithFunction("Run", ast.run(c, context))
 
 	// Check if the method exists
 	if !scriptCtx.Global().Has(method) {
@@ -326,7 +328,7 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 }
 
 // Execute the assistant
-func run(c *gin.Context, context chatctx.Context) func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+func (ast *Assistant) run(c *gin.Context, context chatctx.Context) func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	return func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 		// Get the args
@@ -345,11 +347,72 @@ func run(c *gin.Context, context chatctx.Context) func(info *v8go.FunctionCallba
 		}
 
 		// input []chatMessage.Message
+		var cb func(msg *chatMessage.Message)
 		input := args[1].String()
+		if len(args) > 2 {
+
+			goValue, err := bridge.GoValue(args[2], info.Context())
+			if err != nil {
+				return bridge.JsException(info.Context(), err.Error())
+			}
+
+			name := ""
+			userArgs := []interface{}{}
+			switch v := goValue.(type) {
+			case string:
+				name = v
+			case map[string]interface{}:
+				if fname, ok := v["name"].(string); ok {
+					name = fname
+				}
+				if args, ok := v["args"].([]interface{}); ok {
+					userArgs = args
+				}
+			}
+
+			if strings.Contains(name, ".") {
+				cb = func(msg *chatMessage.Message) {
+					cbArgs := []interface{}{}
+					cbArgs = append(cbArgs, msg)
+					cbArgs = append(cbArgs, userArgs...)
+					p, err := process.Of(name, cbArgs...)
+					if err != nil {
+						log.Error("Failed to get the process: %s", err.Error())
+						color.Red("Failed to get the process: %s", err.Error())
+						return
+					}
+					err = p.Execute()
+					if err != nil {
+						log.Error("Failed to execute the process: %s", err.Error())
+						color.Red("Failed to execute the process: %s", err.Error())
+						return
+					}
+					defer p.Release()
+				}
+			}
+
+			// Call self method
+			cb = func(msg *chatMessage.Message) {
+				cbArgs := []interface{}{}
+				cbArgs = append(cbArgs, msg)
+				cbArgs = append(cbArgs, userArgs...)
+				ctx, err := ast.Script.NewContext(context.Sid, nil)
+				if err != nil {
+					return
+				}
+				defer ctx.Close()
+				_, err = ctx.CallWith(context, name, cbArgs...)
+				if err != nil {
+					log.Error("Failed to call the method: %s", err.Error())
+					color.Red("Failed to call the method: %s", err.Error())
+					return
+				}
+			}
+		}
 
 		options := map[string]interface{}{}
-		if len(args) > 2 {
-			optionsRaw, err := bridge.GoValue(args[2], info.Context())
+		if len(args) > 3 {
+			optionsRaw, err := bridge.GoValue(args[3], info.Context())
 			if err != nil {
 				return bridge.JsException(info.Context(), err.Error())
 			}
@@ -374,7 +437,7 @@ func run(c *gin.Context, context chatctx.Context) func(info *v8go.FunctionCallba
 		context.AssistantID = assistantID
 		context.ChatID = fmt.Sprintf("chat_%s", uuid.New().String()) // New chat id
 		context.Silent = true                                        // Silent mode
-		err = assistant.Execute(c, context, input, options)          // Execute the assistant
+		err = assistant.Execute(c, context, input, options, cb)      // Execute the assistant
 		if err != nil {
 			return bridge.JsException(info.Context(), err.Error())
 		}

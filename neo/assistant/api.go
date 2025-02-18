@@ -46,17 +46,17 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error {
+func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}, callback ...interface{}) error {
 	contents := chatMessage.NewContents()
 	messages, err := ast.withHistory(ctx, input)
 	if err != nil {
 		return err
 	}
-	return ast.execute(c, ctx, messages, options, contents)
+	return ast.execute(c, ctx, messages, options, contents, callback...)
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatMessage.Message, userOptions map[string]interface{}, contents *chatMessage.Contents) error {
+func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatMessage.Message, userOptions map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) error {
 
 	if contents == nil {
 		contents = chatMessage.NewContents()
@@ -123,11 +123,11 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatM
 
 		// Update assistant id
 		ctx.AssistantID = res.AssistantID
-		return newAst.handleChatStream(c, ctx, input, options, contents)
+		return newAst.handleChatStream(c, ctx, input, options, contents, callback...)
 	}
 
 	// Only proceed with chat stream if no specific next action was handled
-	return ast.handleChatStream(c, ctx, input, options, contents)
+	return ast.handleChatStream(c, ctx, input, options, contents, callback...)
 }
 
 // Execute the next action
@@ -289,13 +289,13 @@ func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, err
 }
 
 // handleChatStream manages the streaming chat interaction with the AI
-func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) error {
+func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) error {
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
 
 	// Chat with AI in background
 	go func() {
-		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, contents)
+		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, contents, callback...)
 		if err != nil {
 			chatMessage.New().Error(err).Done().Write(c.Writer)
 		}
@@ -320,7 +320,14 @@ func (ast *Assistant) streamChat(
 	options map[string]interface{},
 	clientBreak chan bool,
 	done chan bool,
-	contents *chatMessage.Contents) error {
+	contents *chatMessage.Contents,
+	callback ...interface{},
+) error {
+
+	var cb interface{}
+	if len(callback) > 0 {
+		cb = callback[0]
+	}
 
 	errorRaw := ""
 	isFirst := true
@@ -363,7 +370,7 @@ func (ast *Assistant) streamChat(
 				newMsg := chatMessage.New().Error(value).Done()
 				newMsg.Retry = ctx.Retry
 				newMsg.Silent = ctx.Silent
-				newMsg.Write(c.Writer)
+				newMsg.Callback(cb).Write(c.Writer)
 				return 0 // break
 			}
 
@@ -380,8 +387,11 @@ func (ast *Assistant) streamChat(
 			if isThinking && msg.Type != "think" {
 				// add the think close tag
 				end := chatMessage.New().Map(map[string]interface{}{"text": "\n</think>\n", "type": "think", "delta": true})
-				end.Write(c.Writer)
 				end.ID = currentMessageID
+				end.Retry = ctx.Retry
+				end.Silent = ctx.Silent
+
+				end.Callback(cb).Write(c.Writer)
 				end.AppendTo(contents)
 				contents.UpdateType("think", map[string]interface{}{"text": contents.Text()}, currentMessageID)
 				isThinking = false
@@ -405,8 +415,10 @@ func (ast *Assistant) streamChat(
 
 				if msg.IsDone {
 					end := chatMessage.New().Map(map[string]interface{}{"text": "}\n</tool>\n", "type": "tool", "delta": true})
-					end.Write(c.Writer)
 					end.ID = currentMessageID
+					end.Retry = ctx.Retry
+					end.Silent = ctx.Silent
+					end.Callback(cb).Write(c.Writer)
 					end.AppendTo(contents)
 					contents.UpdateType("tool", map[string]interface{}{"text": contents.Text()}, currentMessageID)
 					isTool = false
@@ -485,12 +497,11 @@ func (ast *Assistant) streamChat(
 
 				output.Retry = ctx.Retry   // Retry mode
 				output.Silent = ctx.Silent // Silent mode
-
 				if isFirst {
 					output.Assistant(ast.ID, ast.Name, ast.Avatar)
 					isFirst = false
 				}
-				output.Write(c.Writer)
+				output.Callback(cb).Write(c.Writer)
 			}
 
 			// Complete the stream
@@ -510,6 +521,7 @@ func (ast *Assistant) streamChat(
 							"retry":            ctx.Retry,
 							"silent":           ctx.Silent,
 						}).
+						Callback(cb).
 						Write(c.Writer)
 				}
 
@@ -544,7 +556,7 @@ func (ast *Assistant) streamChat(
 					output.Retry = ctx.Retry
 					output.Silent = ctx.Silent
 				}
-				output.Write(c.Writer)
+				output.Callback(cb).Write(c.Writer)
 				done <- true
 				return 0 // break
 			}
@@ -566,7 +578,7 @@ func (ast *Assistant) streamChat(
 		}
 		msg.Retry = ctx.Retry
 		msg.Silent = ctx.Silent
-		msg.Done().Write(c.Writer)
+		msg.Done().Callback(cb).Write(c.Writer)
 	}
 
 	return nil

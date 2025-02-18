@@ -693,6 +693,26 @@ func (m *Message) Bind(data map[string]interface{}) *Message {
 	return m
 }
 
+// Callback callback the message
+func (m *Message) Callback(fn interface{}) *Message {
+	if fn != nil {
+		switch v := fn.(type) {
+		case func(msg *Message):
+			v(m)
+			break
+
+		case func():
+			v()
+			break
+
+		default:
+			fmt.Println("no match callback")
+			break
+		}
+	}
+	return m
+}
+
 // Write writes the message to response writer
 func (m *Message) Write(w gin.ResponseWriter) bool {
 	defer func() {
@@ -701,6 +721,11 @@ func (m *Message) Write(w gin.ResponseWriter) bool {
 			color.Red(message, r)
 		}
 	}()
+
+	// Ignore silent messages
+	if m.Silent {
+		return true
+	}
 
 	data, err := jsoniter.Marshal(m)
 	if err != nil {
