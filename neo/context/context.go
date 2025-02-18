@@ -21,6 +21,8 @@ type Context struct {
 	Namespace   string                 `json:"namespace,omitempty"`
 	Config      map[string]interface{} `json:"config,omitempty"`
 	Signal      interface{}            `json:"signal,omitempty"`
+	Silent      bool                   `json:"silent,omitempty"` // Silent mode
+	Retry       bool                   `json:"retry,omitempty"`  // Retry mode
 	Upload      *FileUpload            `json:"upload,omitempty"`
 	Version     bool                   `json:"version,omitempty"` // Version support
 	RAG         bool                   `json:"rag,omitempty"`     // RAG support

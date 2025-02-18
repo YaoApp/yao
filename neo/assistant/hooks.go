@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
@@ -168,9 +170,7 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 							text = content[:endIndex]
 							text = strings.TrimSpace(text)
 							if os.Getenv("YAO_AGENT_PRINT_TOOL_CALL") == "true" {
-								fmt.Println("---- EXTRACTED TOOL CALL ----")
-								fmt.Println(text)
-								fmt.Println("---- END EXTRACTED TOOL CALL ----")
+								log.Trace("[TOOL CALL] %s", text)
 							}
 						}
 					}
@@ -309,7 +309,81 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 	defer scriptCtx.Close()
 
 	// Add sendMessage function to the script context
-	scriptCtx.WithFunction("SendMessage", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	scriptCtx.WithFunction("SendMessage", sendMessage(c, contents))
+	scriptCtx.WithFunction("Run", run(c, context))
+
+	// Check if the method exists
+	if !scriptCtx.Global().Has(method) {
+		return nil, fmt.Errorf(HookErrorMethodNotFound)
+	}
+
+	// Call the method directly in the current thread
+	args = append([]interface{}{context.Map()}, args...)
+	if scriptCtx != nil {
+		return scriptCtx.CallWith(ctx, method, args...)
+	}
+	return nil, nil
+}
+
+// Execute the assistant
+func run(c *gin.Context, context chatctx.Context) func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	return func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+
+		// Get the args
+		args := info.Args()
+		if len(args) < 2 {
+			return bridge.JsException(info.Context(), "Run requires at least two arguments")
+		}
+
+		// Get the assistant id
+		assistantID := args[0].String()
+
+		// Get the assistant
+		assistant, err := Get(assistantID)
+		if err != nil {
+			return bridge.JsException(info.Context(), err.Error())
+		}
+
+		// input []chatMessage.Message
+		input := args[1].String()
+
+		options := map[string]interface{}{}
+		if len(args) > 2 {
+			optionsRaw, err := bridge.GoValue(args[2], info.Context())
+			if err != nil {
+				return bridge.JsException(info.Context(), err.Error())
+			}
+
+			// Parse the options
+			if optionsRaw != nil {
+				switch v := optionsRaw.(type) {
+				case string:
+					err := jsoniter.UnmarshalFromString(v, &options)
+					if err != nil {
+						return bridge.JsException(info.Context(), err.Error())
+					}
+				case map[string]interface{}:
+					options = v
+				default:
+					return bridge.JsException(info.Context(), "Invalid options")
+				}
+			}
+		}
+
+		// Execute the assistant
+		context.AssistantID = assistantID
+		context.ChatID = fmt.Sprintf("chat_%s", uuid.New().String()) // New chat id
+		context.Silent = true                                        // Silent mode
+		err = assistant.Execute(c, context, input, options)          // Execute the assistant
+		if err != nil {
+			return bridge.JsException(info.Context(), err.Error())
+		}
+		return nil
+	}
+}
+
+func sendMessage(c *gin.Context, contents *chatMessage.Contents) func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	return func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 		// Get the message
 		args := info.Args()
@@ -354,17 +428,5 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 		default:
 			return bridge.JsException(info.Context(), "SendMessage requires a string or a map")
 		}
-	})
-
-	// Check if the method exists
-	if !scriptCtx.Global().Has(method) {
-		return nil, fmt.Errorf(HookErrorMethodNotFound)
 	}
-
-	// Call the method directly in the current thread
-	args = append([]interface{}{context.Map()}, args...)
-	if scriptCtx != nil {
-		return scriptCtx.CallWith(ctx, method, args...)
-	}
-	return nil, nil
 }
