@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
-	"github.com/yaoapp/kun/utils"
+	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
@@ -190,6 +190,14 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 			return fmt.Errorf("input is required")
 		}
 
+		// Retry mode
+		retry := false
+		_, has = next.Payload["retry"]
+		if has {
+			retry = next.Payload["retry"].(bool)
+			ctx.Retry = retry
+		}
+
 		switch v := next.Payload["input"].(type) {
 		case string:
 			messages := chatMessage.Message{}
@@ -338,6 +346,10 @@ func (ast *Assistant) streamChat(
 				return 1 // continue
 			}
 
+			// Retry mode
+			msg.Retry = ctx.Retry   // Retry mode
+			msg.Silent = ctx.Silent // Silent mode
+
 			// Handle error
 			if msg.Type == "error" {
 				value := msg.String()
@@ -348,7 +360,10 @@ func (ast *Assistant) streamChat(
 						value = res.Error
 					}
 				}
-				chatMessage.New().Error(value).Done().Write(c.Writer)
+				newMsg := chatMessage.New().Error(value).Done()
+				newMsg.Retry = ctx.Retry
+				newMsg.Silent = ctx.Silent
+				newMsg.Write(c.Writer)
 				return 0 // break
 			}
 
@@ -468,6 +483,9 @@ func (ast *Assistant) streamChat(
 					"delta": true,
 				})
 
+				output.Retry = ctx.Retry   // Retry mode
+				output.Silent = ctx.Silent // Silent mode
+
 				if isFirst {
 					output.Assistant(ast.ID, ast.Name, ast.Avatar)
 					isFirst = false
@@ -489,6 +507,8 @@ func (ast *Assistant) streamChat(
 							"type":             "text",
 							"delta":            true,
 							"done":             true,
+							"retry":            ctx.Retry,
+							"silent":           ctx.Silent,
 						}).
 						Write(c.Writer)
 				}
@@ -521,6 +541,8 @@ func (ast *Assistant) streamChat(
 				output := chatMessage.New().Done()
 				if res != nil && res.Output != nil {
 					output = chatMessage.New().Map(map[string]interface{}{"text": res.Output, "done": true})
+					output.Retry = ctx.Retry
+					output.Silent = ctx.Silent
 				}
 				output.Write(c.Writer)
 				done <- true
@@ -542,6 +564,8 @@ func (ast *Assistant) streamChat(
 		if err != nil {
 			return fmt.Errorf("error: %s", err.Error())
 		}
+		msg.Retry = ctx.Retry
+		msg.Silent = ctx.Silent
 		msg.Done().Write(c.Writer)
 	}
 
@@ -826,9 +850,10 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 	// For debug environment, print the request messages
 	if os.Getenv("YAO_AGENT_PRINT_REQUEST_MESSAGES") == "true" {
-		fmt.Println("--- REQUEST_MESSAGES -----------------------------")
-		utils.Dump(newMessages)
-		fmt.Println("--- END REQUEST_MESSAGES -----------------------------")
+		for _, message := range newMessages {
+			raw, _ := jsoniter.MarshalToString(message)
+			log.Trace("[Request Message] %s", raw)
+		}
 	}
 
 	return newMessages, nil

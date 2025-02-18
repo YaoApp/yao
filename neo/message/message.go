@@ -35,6 +35,8 @@ type Message struct {
 	Data            map[string]interface{} `json:"-"`                          // data for the message
 	Pending         bool                   `json:"-"`                          // pending for the message
 	Hidden          bool                   `json:"hidden,omitempty"`           // hidden for the message (not show in the UI and history)
+	Retry           bool                   `json:"retry,omitempty"`            // retry for the message
+	Silent          bool                   `json:"silent,omitempty"`           // silent for the message (not show in the UI and history)
 }
 
 // Mention represents a mention
@@ -187,10 +189,9 @@ func NewAny(content interface{}) (*Message, error) {
 // NewOpenAI create a new message from OpenAI response
 func NewOpenAI(data []byte, isThinking bool) *Message {
 
-	// For Debug
 	// For debug environment, print the response data
 	if os.Getenv("YAO_AGENT_PRINT_RESPONSE_DATA") == "true" {
-		fmt.Printf("%s\n", string(data))
+		log.Trace("[Response Data] %s", string(data))
 	}
 
 	if data == nil || len(data) == 0 {
