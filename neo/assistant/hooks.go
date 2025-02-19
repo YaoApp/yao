@@ -312,7 +312,7 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 
 	// Add sendMessage function to the script context
 	scriptCtx.WithFunction("SendMessage", sendMessage(c, contents))
-	scriptCtx.WithFunction("Run", ast.run(c, context))
+	scriptCtx.WithFunction("Run", ast.run(c, context, contents))
 
 	// Check if the method exists
 	if !scriptCtx.Global().Has(method) {
@@ -328,7 +328,7 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 }
 
 // Execute the assistant
-func (ast *Assistant) run(c *gin.Context, context chatctx.Context) func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+func (ast *Assistant) run(c *gin.Context, context chatctx.Context, contents *chatMessage.Contents) func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	return func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 		// Get the args
@@ -401,6 +401,7 @@ func (ast *Assistant) run(c *gin.Context, context chatctx.Context) func(info *v8
 					return
 				}
 				defer ctx.Close()
+				ctx.WithFunction("SendMessage", sendMessage(c, contents))
 				_, err = ctx.CallWith(context, name, cbArgs...)
 				if err != nil {
 					log.Error("Failed to call the method: %s", err.Error())
