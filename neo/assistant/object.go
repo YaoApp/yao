@@ -23,7 +23,7 @@ import (
 type GlobalVariables struct {
 	Assistant   *Assistant
 	Contents    *chatMessage.Contents
-	Context     *gin.Context
+	GinContext  *gin.Context
 	ChatContext chatctx.Context
 }
 
@@ -39,7 +39,7 @@ func (ast *Assistant) InitObject(v8ctx *v8.Context, c *gin.Context, context chat
 	v8ctx.WithGlobal("__yao_agent_global", &GlobalVariables{
 		Assistant:   ast,
 		Contents:    contents,
-		Context:     c,
+		GinContext:  c,
 		ChatContext: context,
 	})
 
@@ -89,7 +89,7 @@ func jsSend(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		if saveHistory {
 			msg.AppendTo(global.Contents)
 		}
-		msg.Write(global.Context.Writer)
+		msg.Write(global.GinContext.Writer)
 		return nil
 
 	case map[string]interface{}:
@@ -97,7 +97,7 @@ func jsSend(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		if saveHistory {
 			msg.AppendTo(global.Contents)
 		}
-		msg.Write(global.Context.Writer)
+		msg.Write(global.GinContext.Writer)
 		return nil
 
 	default:
@@ -180,7 +180,7 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 				}
 				defer ctx.Close()
 
-				global.Assistant.InitObject(ctx, global.Context, chatContext, global.Contents)
+				global.Assistant.InitObject(ctx, global.GinContext, chatContext, global.Contents)
 				_, err = ctx.CallAnonymousWith(context.Background(), source, cbArgs...)
 				if err != nil {
 					log.Error("Failed to call the method: %s", err.Error())
@@ -223,7 +223,7 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 				}
 				defer ctx.Close()
 
-				global.Assistant.InitObject(ctx, global.Context, global.ChatContext, global.Contents)
+				global.Assistant.InitObject(ctx, global.GinContext, global.ChatContext, global.Contents)
 				_, err = ctx.CallWith(context.Background(), name, cbArgs...)
 				if err != nil {
 					log.Error("Failed to call the method: %s", err.Error())
@@ -259,7 +259,7 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		}
 	}
 
-	err = newAst.Execute(global.Context, chatContext, input, options, cb) // Execute the assistant
+	err = newAst.Execute(global.GinContext, chatContext, input, options, cb) // Execute the assistant
 	if err != nil {
 		return bridge.JsException(info.Context(), err.Error())
 	}
