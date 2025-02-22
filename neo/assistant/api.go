@@ -68,7 +68,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatM
 	ctx.Version = ast.vision
 
 	// Run init hook
-	res, err := ast.HookInit(c, ctx, input, options, contents)
+	res, err := ast.HookCreate(c, ctx, input, options, contents)
 	if err != nil {
 		chatMessage.New().
 			Assistant(ast.ID, ast.Name, ast.Avatar).
