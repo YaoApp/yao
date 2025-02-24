@@ -334,8 +334,7 @@ func (ast *Assistant) streamChat(
 	isFirstThink := true
 	isThinking := false
 
-	isFirstTool := true
-	isTool := false
+	toolsCount := 0
 	currentMessageID := ""
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
@@ -401,32 +400,34 @@ func (ast *Assistant) streamChat(
 				contents.ClearToken()
 			}
 
-			// for native tool_calls response
+			// for native tool_calls response, keep the first tool_calls_native message
 			if msg.Type == "tool_calls_native" {
-				if isFirstTool {
-					msg.Text = "\n<tool>\n" + msg.Text // add the tool_calls begin tag
-					isFirstTool = false
-					isTool = true
-				}
-			}
 
-			// for tool response
-			if isTool && msg.Type != "tool_calls_native" {
-
-				if msg.IsDone {
-					end := chatMessage.New().Map(map[string]interface{}{"text": "}\n</tool>\n", "type": "tool", "delta": true})
-					end.ID = currentMessageID
-					end.Retry = ctx.Retry
-					end.Silent = ctx.Silent
-					end.Callback(cb).Write(c.Writer)
-					end.AppendTo(contents)
-					contents.UpdateType("tool", map[string]interface{}{"text": contents.Text()}, currentMessageID)
-					isTool = false
-				} else {
-					msg.Text = "\n</tool>\n" + msg.Text // add the tool_calls close tag
+				if toolsCount > 1 {
+					msg.Text = "" // clear the text
+					msg.Type = "text"
+					msg.IsNew = false
+					return 1 // continue
 				}
 
-				isTool = false
+				if msg.IsBeginTool {
+
+					if toolsCount == 1 {
+						msg.IsNew = false
+						msg.Text = "\n</tool>\n" // add the tool_calls close tag
+					}
+
+					if toolsCount == 0 {
+						msg.Text = "\n<tool>\n" + msg.Text // add the tool_calls begin tag
+					}
+
+					toolsCount++
+
+				}
+
+				if msg.IsEndTool {
+					msg.Text = msg.Text + "\n</tool>\n" // add the tool_calls close tag
+				}
 			}
 
 			delta := msg.String()

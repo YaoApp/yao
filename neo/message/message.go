@@ -40,6 +40,9 @@ type Message struct {
 	Hidden          bool                   `json:"hidden,omitempty"`           // hidden for the message (not show in the UI and history)
 	Retry           bool                   `json:"retry,omitempty"`            // retry for the message
 	Silent          bool                   `json:"silent,omitempty"`           // silent for the message (not show in the UI and history)
+	IsTool          bool                   `json:"-"`                          // is tool for the message for native tool_calls
+	IsBeginTool     bool                   `json:"-"`                          // is new tool for the message for native tool_calls
+	IsEndTool       bool                   `json:"-"`                          // is end tool for the message for native tool_calls
 }
 
 // Mention represents a mention
@@ -224,19 +227,26 @@ func NewOpenAI(data []byte, isThinking bool) *Message {
 		}
 
 		// Tool calls
-		if len(chunk.Choices[0].Delta.ToolCalls) > 0 {
+		if len(chunk.Choices[0].Delta.ToolCalls) > 0 || chunk.Choices[0].FinishReason == "tool_calls" {
 			msg.Type = "tool_calls_native"
-			id := chunk.Choices[0].Delta.ToolCalls[0].ID
-			function := chunk.Choices[0].Delta.ToolCalls[0].Function.Name
-			arguments := chunk.Choices[0].Delta.ToolCalls[0].Function.Arguments
-			text := arguments
-			if id != "" {
-				text = fmt.Sprintf(`{"id": "%s", "function": "%s", "arguments": %s`, id, function, arguments)
-				msg.IsNew = true // mark as a new message
+			text := ""
+			if len(chunk.Choices[0].Delta.ToolCalls) > 0 {
+				id := chunk.Choices[0].Delta.ToolCalls[0].ID
+				function := chunk.Choices[0].Delta.ToolCalls[0].Function.Name
+				arguments := chunk.Choices[0].Delta.ToolCalls[0].Function.Arguments
+				text = arguments
+				if id != "" {
+					msg.IsBeginTool = true
+					msg.IsNew = true // mark as a new message
+					text = fmt.Sprintf(`{"id": "%s", "function": "%s", "arguments": %s`, id, function, arguments)
+				}
+			}
+
+			if chunk.Choices[0].FinishReason == "tool_calls" {
+				msg.IsEndTool = true
 			}
 
 			msg.Text = text
-			msg.IsDone = chunk.Choices[0].FinishReason == "tool_calls" // is done when tool calls are finished
 			return msg
 		}
 
