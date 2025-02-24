@@ -283,7 +283,7 @@ func global(info *v8go.FunctionCallbackInfo) (global *GlobalVariables, err error
 
 	global, ok := goGlobal.(*GlobalVariables)
 	if !ok {
-		return nil, fmt.Errorf("global is not a valid GlobalVariables")
+		return nil, fmt.Errorf("global is not a valid GlobalVariables. %#v", goGlobal)
 	}
 
 	return global, nil
