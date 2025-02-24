@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openai"
 )
+
+var locker = sync.Mutex{}
 
 // Message the message
 type Message struct {
@@ -721,6 +724,11 @@ func (m *Message) Callback(fn interface{}) *Message {
 
 // Write writes the message to response writer
 func (m *Message) Write(w gin.ResponseWriter) bool {
+
+	// Sync write to response writer
+	locker.Lock()
+	defer locker.Unlock()
+
 	defer func() {
 		if r := recover(); r != nil {
 
