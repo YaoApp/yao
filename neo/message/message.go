@@ -698,10 +698,16 @@ func (m *Message) Callback(fn interface{}) *Message {
 	if fn != nil {
 		switch v := fn.(type) {
 		case func(msg *Message):
+			if v == nil {
+				break
+			}
 			v(m)
 			break
 
 		case func():
+			if v == nil {
+				break
+			}
 			v()
 			break
 
@@ -717,8 +723,18 @@ func (m *Message) Callback(fn interface{}) *Message {
 func (m *Message) Write(w gin.ResponseWriter) bool {
 	defer func() {
 		if r := recover(); r != nil {
+
+			// Ignore if done is true
+			if m.IsDone {
+				return
+			}
+
 			message := "Write Response Exception: (if client close the connection, it's normal) \n  %s\n\n"
 			color.Red(message, r)
+
+			// Print the message
+			raw, _ := jsoniter.MarshalToString(m)
+			color.White("Message:\n %s", raw)
 		}
 	}()
 
