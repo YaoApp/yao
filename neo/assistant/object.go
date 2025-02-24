@@ -138,7 +138,7 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	chatContext.ChatID = fmt.Sprintf("chat_%s", uuid.New().String()) // New chat id
 	chatContext.Silent = true                                        // Silent mode
 
-	var cb func(msg *chatMessage.Message)
+	var cb func(msg *chatMessage.Message) = nil
 	if len(args) > 2 {
 
 		// Parse the callback

@@ -64,29 +64,29 @@ func SubscribeFn(plan_id string, key string, value interface{}, source bool, met
 	// Data
 	plan, err := v8plan.GetPlan(plan_id)
 	if err != nil {
-		color.Red("Failed to get the plan: %s", err.Error())
+		color.Red("Subscribe Failed to get the plan: %s", err.Error())
 		return
 	}
 
 	global, ok := plan.Data().(*GlobalVariables)
 	if !ok {
-		color.Red("plan data is not a GlobalVariables")
+		color.Red("Subscribe Failed: plan data is not a GlobalVariables")
 		return
 	}
 
 	if global.Assistant == nil {
-		color.Red("assistant is not set")
+		color.Red("Subscribe Failed: assistant is not set")
 		return
 	}
 
 	if global.Assistant.Script == nil {
-		color.Red("script is not set")
+		color.Red("Subscribe Failed: script is not set")
 		return
 	}
 
 	scriptCtx, err := global.Assistant.Script.NewContext(global.ChatContext.Sid, nil)
 	if err != nil {
-		color.Red("Failed to create the script context: %s", err.Error())
+		color.Red("Subscribe Failed: Failed to create the script context: %s", err.Error())
 		return
 	}
 	defer scriptCtx.Close()
