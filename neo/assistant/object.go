@@ -186,6 +186,31 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	var cb func(msg *chatMessage.Message) = nil
 	if len(args) > 2 {
 
+		// Rest args
+		var jsArgs *v8go.Value
+		if len(args) > 3 {
+			jsArgs = args[3]
+		}
+
+		goArgs := []interface{}{}
+		if jsArgs.IsArray() {
+			v, err := bridge.GoValue(jsArgs, info.Context())
+			if err != nil {
+				return bridge.JsException(info.Context(), err.Error())
+			}
+			arr, ok := v.([]interface{})
+			if !ok {
+				return bridge.JsException(info.Context(), "Invalid arguments")
+			}
+			goArgs = arr
+		} else {
+			v, err := bridge.GoValue(jsArgs, info.Context())
+			if err != nil {
+				return bridge.JsException(info.Context(), err.Error())
+			}
+			goArgs = []interface{}{v}
+		}
+
 		// Parse the callback
 		funcType := "method"
 		name := ""
@@ -219,6 +244,7 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 			source := args[2].String()
 			cb = func(msg *chatMessage.Message) {
 				cbArgs := []interface{}{msg}
+				cbArgs = append(cbArgs, goArgs...)
 				ctx, err := global.Assistant.Script.NewContext(global.ChatContext.Sid, nil)
 				if err != nil {
 					fmt.Println("Failed to create context", err.Error())
@@ -283,8 +309,8 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 	// Parse the options
 	options := map[string]interface{}{}
-	if len(args) > 3 {
-		optionsRaw, err := bridge.GoValue(args[3], info.Context())
+	if len(args) > 4 {
+		optionsRaw, err := bridge.GoValue(args[4], info.Context())
 		if err != nil {
 			return bridge.JsException(info.Context(), err.Error())
 		}
