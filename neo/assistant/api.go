@@ -131,7 +131,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatM
 }
 
 // Execute the next action
-func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *chatMessage.Contents) error {
+func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *chatMessage.Contents, callback ...interface{}) error {
 	switch next.Action {
 
 	// It's not used, because the process could be executed in the hook script
@@ -256,7 +256,7 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 
 		// Update the context id
 		ctx.AssistantID = assistant.ID
-		return assistant.execute(c, ctx, messages, options, newContents)
+		return assistant.execute(c, ctx, messages, options, newContents, callback...)
 
 	case "exit":
 		return nil
@@ -534,7 +534,8 @@ func (ast *Assistant) streamChat(
 
 				// Some error occurred in the hook, return the error
 				if hookErr != nil {
-					chatMessage.New().Error(hookErr.Error()).Done().Write(c.Writer)
+					chatMessage.New().Error(hookErr.Error()).Done().Callback(cb).Write(c.Writer)
+
 					done <- true
 					return 0 // break
 				}
@@ -544,9 +545,9 @@ func (ast *Assistant) streamChat(
 
 				// If the hook is successful, execute the next action
 				if res != nil && res.Next != nil {
-					err := res.Next.Execute(c, ctx, contents)
+					err := res.Next.Execute(c, ctx, contents, cb)
 					if err != nil {
-						chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
+						chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
 					}
 					done <- true
 					return 0 // break
@@ -559,6 +560,12 @@ func (ast *Assistant) streamChat(
 					output.Retry = ctx.Retry
 					output.Silent = ctx.Silent
 				}
+
+				// has result
+				if res != nil && res.Result != nil && cb != nil {
+					output.Result = res.Result // Add the result to the output  message
+				}
+
 				output.Callback(cb).Write(c.Writer)
 				done <- true
 				return 0 // break

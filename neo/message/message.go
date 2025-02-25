@@ -43,6 +43,7 @@ type Message struct {
 	IsTool          bool                   `json:"-"`                          // is tool for the message for native tool_calls
 	IsBeginTool     bool                   `json:"-"`                          // is new tool for the message for native tool_calls
 	IsEndTool       bool                   `json:"-"`                          // is end tool for the message for native tool_calls
+	Result          any                    `json:"result,omitempty"`           // result for the message
 }
 
 // Mention represents a mention
