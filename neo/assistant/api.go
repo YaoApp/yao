@@ -242,14 +242,16 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 
 		// Create a new Text
 		// Send loading message and mark as new
-		msg := chatMessage.New().Map(map[string]interface{}{
-			"new":   true,
-			"role":  "assistant",
-			"type":  "loading",
-			"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
-		})
-		msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
-		msg.Write(c.Writer)
+		if !ctx.Silent {
+			msg := chatMessage.New().Map(map[string]interface{}{
+				"new":   true,
+				"role":  "assistant",
+				"type":  "loading",
+				"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
+			})
+			msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
+			msg.Write(c.Writer)
+		}
 		newContents := chatMessage.NewContents()
 
 		// Update the context id

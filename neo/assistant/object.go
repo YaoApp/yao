@@ -51,6 +51,51 @@ func (ast *Assistant) InitObject(v8ctx *v8.Context, c *gin.Context, context chat
 	v8ctx.WithFunction("Plan", jsPlan) // Create a new plan object
 	v8ctx.WithFunction("Send", jsSend)
 	v8ctx.WithFunction("Call", jsCall)
+	v8ctx.WithFunction("Assets", jsAssets)
+}
+
+// jsAssets function, get the assets content
+func jsAssets(info *v8go.FunctionCallbackInfo) *v8go.Value {
+
+	global, err := global(info)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	// Get the message
+	args := info.Args()
+	if len(args) < 1 {
+		return bridge.JsException(info.Context(), "Assets requires at least one argument")
+	}
+
+	// Get the name
+	name := args[0].String()
+
+	data := map[string]interface{}{}
+	if len(args) > 1 {
+		raw, err := bridge.GoValue(args[1], info.Context())
+		if err != nil {
+			return bridge.JsException(info.Context(), err.Error())
+		}
+
+		v, ok := raw.(map[string]interface{})
+		if !ok {
+			return bridge.JsException(info.Context(), "Assets requires a map")
+		}
+		data = v
+	}
+
+	content, err := global.Assistant.Assets(name, data)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	jsContent, err := bridge.JsValue(info.Context(), content)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	return jsContent
 }
 
 // jsSend function, send a message to the http stream connection
