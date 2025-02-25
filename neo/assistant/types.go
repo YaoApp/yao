@@ -58,6 +58,7 @@ type ResHookDone struct {
 	Next   *NextAction       `json:"next,omitempty"`
 	Input  []message.Message `json:"input,omitempty"`
 	Output []message.Data    `json:"output,omitempty"`
+	Result any               `json:"result,omitempty"`
 }
 
 // ResHookFail the response of the fail hook

@@ -217,6 +217,11 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 			response.Output = vv
 		}
 
+		// has result
+		if res, has := v["result"]; has {
+			response.Result = res
+		}
+
 		if res, ok := v["next"].(map[string]interface{}); ok {
 			response.Next = &NextAction{}
 			if name, ok := res["action"].(string); ok {
