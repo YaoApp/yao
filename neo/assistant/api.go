@@ -801,13 +801,144 @@ func (ast *Assistant) Chat(ctx context.Context, messages []chatMessage.Message, 
 	return nil
 }
 
-func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessage.Message) ([]map[string]interface{}, error) {
+// formatMessages processes messages to ensure they meet the required standards:
+// 1. Filters out duplicate messages with identical content, role, and name
+// 2. Moves system messages to the beginning while preserving the order of other messages
+// 3. Ensures the first non-system message is a user message (removes leading assistant messages)
+// 4. Ensures the last message is a user message (removes trailing assistant messages)
+// 5. Merges consecutive assistant messages from the same assistant
+func formatMessages(messages []map[string]interface{}) []map[string]interface{} {
+	// Filter out duplicate messages with identical content, role, and name
+	filteredMessages := []map[string]interface{}{}
+	seen := make(map[string]bool)
 
+	for _, msg := range messages {
+		// Create a unique key for each message based on role, content, and name
+		role := msg["role"].(string)
+		content := fmt.Sprintf("%v", msg["content"]) // Convert to string regardless of type
+
+		// Get name if it exists
+		name := ""
+		if nameVal, exists := msg["name"]; exists {
+			name = fmt.Sprintf("%v", nameVal)
+		}
+
+		// Create a unique key for this message
+		key := fmt.Sprintf("%s:%s:%s", role, content, name)
+
+		// If we haven't seen this message before, add it to filtered messages
+		if !seen[key] {
+			filteredMessages = append(filteredMessages, msg)
+			seen[key] = true
+		}
+	}
+
+	// Separate system messages while preserving the order of other messages
+	systemMessages := []map[string]interface{}{}
+	otherMessages := []map[string]interface{}{}
+
+	for _, msg := range filteredMessages {
+		if msg["role"].(string) == "system" {
+			systemMessages = append(systemMessages, msg)
+		} else {
+			otherMessages = append(otherMessages, msg)
+		}
+	}
+
+	// Ensure the first non-system message is a user message
+	// If there are no user messages or the first message is not a user message, remove leading assistant messages
+	validOtherMessages := []map[string]interface{}{}
+	foundUserMessage := false
+
+	for _, msg := range otherMessages {
+		if msg["role"].(string) == "user" {
+			foundUserMessage = true
+			validOtherMessages = append(validOtherMessages, msg)
+		} else if foundUserMessage {
+			// Only keep assistant messages that come after a user message
+			validOtherMessages = append(validOtherMessages, msg)
+		}
+		// Skip assistant messages that come before any user message
+	}
+
+	// If no valid messages remain, return just the system messages
+	if len(validOtherMessages) == 0 {
+		return systemMessages
+	}
+
+	// Ensure the last message is a user message
+	// Remove any trailing assistant messages
+	lastUserIndex := -1
+	for i := len(validOtherMessages) - 1; i >= 0; i-- {
+		if validOtherMessages[i]["role"].(string) == "user" {
+			lastUserIndex = i
+			break
+		}
+	}
+
+	// If we found a user message, trim any assistant messages after it
+	if lastUserIndex >= 0 && lastUserIndex < len(validOtherMessages)-1 {
+		validOtherMessages = validOtherMessages[:lastUserIndex+1]
+	}
+
+	// If there are no user messages left after filtering, return just the system messages
+	if len(validOtherMessages) == 0 {
+		return systemMessages
+	}
+
+	// Combine system messages first, followed by other valid messages in their original order
+	orderedMessages := append(systemMessages, validOtherMessages...)
+
+	// Merge consecutive assistant messages
+	mergedMessages := []map[string]interface{}{}
+	var lastMessage map[string]interface{}
+
+	for _, msg := range orderedMessages {
+		// If this is the first message, just add it
+		if lastMessage == nil {
+			mergedMessages = append(mergedMessages, msg)
+			lastMessage = msg
+			continue
+		}
+
+		// If both current and last messages are from assistant, check if they can be merged
+		if msg["role"].(string) == "assistant" && lastMessage["role"].(string) == "assistant" {
+			// Get name information
+			nameVal, hasName := msg["name"]
+
+			// Prepare name prefix for the content
+			namePrefix := ""
+			if hasName {
+				namePrefix = fmt.Sprintf("[%v]: ", nameVal)
+			}
+
+			// Merge the content, including name information if available
+			lastContent := fmt.Sprintf("%v", lastMessage["content"])
+			content := fmt.Sprintf("%v", msg["content"])
+
+			// Add the name prefix to the content
+			if namePrefix != "" {
+				content = namePrefix + content
+			}
+
+			// Merge the messages
+			lastMessage["content"] = lastContent + "\n" + content
+			continue
+		}
+
+		// If we can't merge, add as a new message
+		mergedMessages = append(mergedMessages, msg)
+		lastMessage = msg
+	}
+
+	return mergedMessages
+}
+
+func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessage.Message) ([]map[string]interface{}, error) {
 	newMessages := []map[string]interface{}{}
 	length := len(messages)
 
 	for index, message := range messages {
-
 		// Ignore the tool, think, error
 		if message.Type == "tool" || message.Type == "think" || message.Type == "error" {
 			continue
@@ -870,15 +1001,18 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 		newMessages = append(newMessages, newMessage)
 	}
 
+	// Process messages to standardize format, filter duplicates, and merge consecutive assistant messages
+	processedMessages := formatMessages(newMessages)
+
 	// For debug environment, print the request messages
 	if os.Getenv("YAO_AGENT_PRINT_REQUEST_MESSAGES") == "true" {
-		for _, message := range newMessages {
+		for _, message := range processedMessages {
 			raw, _ := jsoniter.MarshalToString(message)
 			log.Trace("[Request Message] %s", raw)
 		}
 	}
 
-	return newMessages, nil
+	return processedMessages, nil
 }
 
 func (ast *Assistant) withAttachments(ctx context.Context, msg *chatMessage.Message) ([]map[string]interface{}, error) {
