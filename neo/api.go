@@ -230,6 +230,7 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	// Set the context with validated chat_id
 	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
 	defer cancel()
+	defer ctx.Release() // Release the context after the request is done
 
 	neo.Answer(ctx, content, c)
 }
