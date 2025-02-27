@@ -52,6 +52,145 @@ func (ast *Assistant) InitObject(v8ctx *v8.Context, c *gin.Context, context chat
 	v8ctx.WithFunction("Send", jsSend)
 	v8ctx.WithFunction("Call", jsCall)
 	v8ctx.WithFunction("Assets", jsAssets)
+
+	// Shared space methods
+	v8ctx.WithFunction("Set", jsSet)
+	v8ctx.WithFunction("Get", jsGet)
+	v8ctx.WithFunction("Del", jsDel)
+	v8ctx.WithFunction("Clear", jsClear)
+}
+
+// jsSet function, set a value to the shared space
+func jsSet(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	global, err := global(info)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	if global.ChatContext.SharedSpace == nil {
+		return bridge.JsException(info.Context(), "Shared space is not set")
+	}
+
+	args := info.Args()
+	if len(args) < 2 {
+		return bridge.JsException(info.Context(), "Set requires at least two arguments")
+	}
+
+	if !args[0].IsString() {
+		return bridge.JsException(info.Context(), "Set requires a valid key")
+	}
+
+	// Validate the key
+	key := args[0].String()
+	if key == "" {
+		return bridge.JsException(info.Context(), "Set requires a valid key")
+	}
+
+	// Validate the value
+	value, err := bridge.GoValue(args[1], info.Context())
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	// Set the value
+	err = global.ChatContext.SharedSpace.Set(key, value)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	return nil
+}
+
+// jsGet function, get a value from the shared space
+func jsGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	global, err := global(info)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	if global.ChatContext.SharedSpace == nil {
+		return bridge.JsException(info.Context(), "Shared space is not set")
+	}
+
+	args := info.Args()
+	if len(args) < 1 {
+		return bridge.JsException(info.Context(), "Get requires at least one argument")
+	}
+
+	if !args[0].IsString() {
+		return bridge.JsException(info.Context(), "Get requires a valid key")
+	}
+
+	// Get the key
+	key := args[0].String()
+	if key == "" {
+		return bridge.JsException(info.Context(), "Get requires a valid key")
+	}
+
+	// Get the value
+	value, err := global.ChatContext.SharedSpace.Get(key)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	jsValue, err := bridge.JsValue(info.Context(), value)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	return jsValue
+}
+
+// jsDel function, delete a value from the shared space
+func jsDel(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	global, err := global(info)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	if global.ChatContext.SharedSpace == nil {
+		return bridge.JsException(info.Context(), "Shared space is not set")
+	}
+
+	args := info.Args()
+	if len(args) < 1 {
+		return bridge.JsException(info.Context(), "Get requires at least one argument")
+	}
+
+	if !args[0].IsString() {
+		return bridge.JsException(info.Context(), "Get requires a valid key")
+	}
+
+	// Get the key
+	key := args[0].String()
+	if key == "" {
+		return bridge.JsException(info.Context(), "Get requires a valid key")
+	}
+
+	err = global.ChatContext.SharedSpace.Delete(key)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	return nil
+}
+
+func jsClear(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	global, err := global(info)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	if global.ChatContext.SharedSpace == nil {
+		return bridge.JsException(info.Context(), "Shared space is not set")
+	}
+
+	err = global.ChatContext.SharedSpace.Clear()
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	return nil
 }
 
 // jsAssets function, get the assets content
