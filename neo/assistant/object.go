@@ -188,27 +188,28 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 		// Rest args
 		var jsArgs *v8go.Value
+		goArgs := []interface{}{}
 		if len(args) > 3 {
 			jsArgs = args[3]
-		}
-
-		goArgs := []interface{}{}
-		if jsArgs.IsArray() {
-			v, err := bridge.GoValue(jsArgs, info.Context())
-			if err != nil {
-				return bridge.JsException(info.Context(), err.Error())
+			if jsArgs != nil {
+				if jsArgs.IsArray() {
+					v, err := bridge.GoValue(jsArgs, info.Context())
+					if err != nil {
+						return bridge.JsException(info.Context(), err.Error())
+					}
+					arr, ok := v.([]interface{})
+					if !ok {
+						return bridge.JsException(info.Context(), "Invalid arguments")
+					}
+					goArgs = arr
+				} else {
+					v, err := bridge.GoValue(jsArgs, info.Context())
+					if err != nil {
+						return bridge.JsException(info.Context(), err.Error())
+					}
+					goArgs = []interface{}{v}
+				}
 			}
-			arr, ok := v.([]interface{})
-			if !ok {
-				return bridge.JsException(info.Context(), "Invalid arguments")
-			}
-			goArgs = arr
-		} else {
-			v, err := bridge.GoValue(jsArgs, info.Context())
-			if err != nil {
-				return bridge.JsException(info.Context(), err.Error())
-			}
-			goArgs = []interface{}{v}
 		}
 
 		// Parse the callback
