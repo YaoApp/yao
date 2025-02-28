@@ -112,9 +112,6 @@ func jsPlan(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 	obj := newPlanObject()
 
-	// Export the object
-	objectTmpl := obj.ExportObject(info.Context().Isolate())
-
 	args := info.Args()
 	if len(args) < 1 {
 		return bridge.JsException(info.Context(), "the first parameter should be a string")
@@ -125,6 +122,7 @@ func jsPlan(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	id := args[0].String()
+	objectTmpl := obj.ExportObject(info.Context().Isolate())
 	plan, err := objectTmpl.NewInstance(info.Context())
 	if err != nil {
 		return bridge.JsException(info.Context(), fmt.Sprintf("failed to create plan object %s", err.Error()))
