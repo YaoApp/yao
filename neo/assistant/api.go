@@ -46,7 +46,7 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}, callback ...interface{}) error {
+func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) error {
 	contents := chatMessage.NewContents()
 	messages, err := ast.withHistory(ctx, input)
 	if err != nil {
@@ -56,7 +56,27 @@ func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input string,
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, input []chatMessage.Message, userOptions map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) error {
+func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput interface{}, userOptions map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) error {
+
+	var input []chatMessage.Message
+
+	switch v := userInput.(type) {
+	case string:
+		input = []chatMessage.Message{{Role: "user", Text: v}}
+
+	case []interface{}:
+		raw, err := jsoniter.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("marshal input error: %s", err.Error())
+		}
+		err = jsoniter.Unmarshal(raw, &input)
+		if err != nil {
+			return fmt.Errorf("unmarshal input error: %s", err.Error())
+		}
+
+	case []chatMessage.Message:
+		input = v
+	}
 
 	if contents == nil {
 		contents = chatMessage.NewContents()
@@ -742,12 +762,25 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 
 func (ast *Assistant) withHistory(ctx chatctx.Context, input interface{}) ([]chatMessage.Message, error) {
 
-	var userMessage *chatMessage.Message = chatMessage.New()
+	var userMessage *chatMessage.Message
+	var inputMessages []*chatMessage.Message
 	switch v := input.(type) {
 	case string:
-		userMessage.Map(map[string]interface{}{"role": "user", "content": v})
+		userMessage = chatMessage.New().Map(map[string]interface{}{"role": "user", "content": v})
+
 	case map[string]interface{}:
-		userMessage.Map(v)
+		userMessage = chatMessage.New().Map(v)
+
+	case []interface{}:
+		raw, err := jsoniter.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("marshal input error: %s", err.Error())
+		}
+		err = jsoniter.Unmarshal(raw, &inputMessages)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshal input error: %s", err.Error())
+		}
+
 	case chatMessage.Message:
 		userMessage = &v
 	case *chatMessage.Message:
@@ -757,7 +790,6 @@ func (ast *Assistant) withHistory(ctx chatctx.Context, input interface{}) ([]cha
 	}
 
 	messages := []chatMessage.Message{}
-
 	if storage != nil {
 		history, err := storage.GetHistory(ctx.Sid, ctx.ChatID)
 		if err != nil {
@@ -778,7 +810,19 @@ func (ast *Assistant) withHistory(ctx chatctx.Context, input interface{}) ([]cha
 	messages = ast.withPrompts(messages)
 
 	// Add user message
-	messages = append(messages, *userMessage)
+	if userMessage != nil {
+		messages = append(messages, *userMessage)
+	}
+
+	// Add input messages
+	if len(inputMessages) > 0 {
+		for _, msg := range inputMessages {
+			if msg == nil || msg.Role == "" {
+				continue
+			}
+			messages = append(messages, *msg)
+		}
+	}
 	return messages, nil
 }
 
