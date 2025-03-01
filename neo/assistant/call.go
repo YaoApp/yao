@@ -3,13 +3,18 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/google/uuid"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	chatMessage "github.com/yaoapp/yao/neo/message"
+	sui "github.com/yaoapp/yao/sui/core"
 	"rogchap.com/v8go"
 )
 
@@ -42,6 +47,7 @@ var callProps = []string{
 	"assistant_id",
 	"input",
 	"options",
+	"retry_times",
 }
 
 // jsNewPlan create a plan object and return it
@@ -81,6 +87,7 @@ func jsCall(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	this.Set("assistant_id", args[0])
 	this.Set("input", args[1])
 	this.Set("options", options)
+	this.Set("retry_times", int32(1))
 	return this.Value
 }
 
@@ -162,6 +169,20 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), fmt.Sprintf("Failed to unmarshal the input: %s", err.Error()))
 	}
 
+	// Get the retry input
+	if this.Has("retry_input") {
+
+		jsRetryInput, err := this.Get("retry_input")
+		if err != nil {
+			return bridge.JsException(info.Context(), fmt.Sprintf("Failed to get the retry input: %s", err.Error()))
+		}
+
+		input, err = bridge.GoValue(jsRetryInput, info.Context())
+		if err != nil {
+			return bridge.JsException(info.Context(), fmt.Sprintf("Failed to unmarshal the retry input: %s", err.Error()))
+		}
+	}
+
 	// Options
 	options := OptionsCall{
 		Retry: OptionsCallRetry{
@@ -239,9 +260,12 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	// Execute the assistant
-	err = newAst.Execute(global.GinContext, chatCtx, input, options.Options, cb) // Execute the assistant
+	result, err := newAst.Execute(global.GinContext, chatCtx, input, options.Options, cb) // Execute the assistant
 	if err != nil {
-		return bridge.JsException(info.Context(), err.Error())
+		result, err = obj.retry(jsArgs, err, input, output, info, options)
+		if err != nil {
+			return bridge.JsException(info.Context(), err.Error())
+		}
 	}
 
 	// Copy props
@@ -250,12 +274,178 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	// Trigger the done event
-	exception := obj.trigger(info, "done", jsArgs...)
-	if exception != nil {
-		return exception
+	_, err = obj.trigger(info, "done", jsArgs...)
+	if err != nil {
+		result, err = obj.retry(jsArgs, err, input, output, info, options)
+		if err != nil {
+			return bridge.JsException(info.Context(), err.Error())
+		}
 	}
 
-	return nil
+	// Return Value
+	switch v := result.(type) {
+	case *v8go.Value:
+		return v
+	case error:
+		return bridge.JsException(info.Context(), v.Error())
+	}
+
+	// Return Value
+	jsResult, err := bridge.JsValue(info.Context(), result)
+	if err != nil {
+		return bridge.JsException(info.Context(), fmt.Sprintf("Failed to get the result: %s", err.Error()))
+	}
+	return jsResult
+}
+
+func (obj *objectCall) retry(jsArgs []v8go.Valuer, err error, input interface{}, output []chatMessage.Message, info *v8go.FunctionCallbackInfo, options OptionsCall) (*v8go.Value, error) {
+
+	// Retry times, if not set, return the error
+	if options.Retry.Times <= 0 {
+		return nil, err
+	}
+
+	this := info.This()
+	errmsg := exception.Trim(err)
+
+	// Get current retry times
+	jsTimes, retryErr := this.Get("retry_times")
+	if retryErr != nil {
+		return nil, fmt.Errorf("%s occurred but failed to get the retry times: %s", errmsg, retryErr.Error())
+	}
+
+	times := int(jsTimes.Int32())
+	if times > options.Retry.Times {
+		return nil, fmt.Errorf("%s occurred, max retry times reached", errmsg)
+	}
+
+	// Update the retry times
+	times = times + 1
+	this.Set("retry_times", int32(times))
+
+	// Message content
+	content := ""
+	for _, msg := range output {
+		if msg.Type == "text" && msg.IsDelta {
+			content += msg.Text
+		}
+	}
+
+	// Delay
+	delay := options.Retry.Delay * int(times)
+	if delay > options.Retry.DelayMax {
+		delay = options.Retry.DelayMax
+	}
+
+	// Retry delay (millisecond)
+	if delay > 0 {
+		time.Sleep(time.Duration(delay) * time.Millisecond)
+	}
+
+	// Format the input
+	var lastUserMessage *chatMessage.Message = nil
+	var inputMessages []*chatMessage.Message = nil
+	var lastUserMessageIndex int = 0
+	switch v := input.(type) {
+	case string:
+		lastUserMessage = &chatMessage.Message{Type: "text", Text: v, Role: "user"}
+		inputMessages = []*chatMessage.Message{lastUserMessage}
+
+	case []interface{}:
+		// Get the last user message
+		raw, parseErr := jsoniter.Marshal(v)
+		if parseErr != nil {
+			return nil, fmt.Errorf("%s occurred but failed to marshal the input: %s", errmsg, parseErr.Error())
+		}
+
+		parseErr = jsoniter.Unmarshal(raw, &inputMessages)
+		if parseErr != nil {
+			return nil, fmt.Errorf("%s occurred but failed to unmarshal the input: %s", errmsg, parseErr.Error())
+		}
+
+		// Get the last user message
+		for i := len(inputMessages) - 1; i >= 0; i-- {
+			if inputMessages[i].Type == "text" && inputMessages[i].Role == "user" {
+				lastUserMessage = inputMessages[i]
+				lastUserMessageIndex = i
+				break
+			}
+		}
+
+	case *chatMessage.Message:
+		lastUserMessage = v
+		inputMessages = []*chatMessage.Message{lastUserMessage}
+
+	case map[string]interface{}:
+		text, ok := v["text"].(string)
+		if !ok {
+			return nil, fmt.Errorf("%s occurred but failed to get the text", errmsg)
+		}
+
+		if v["role"] != "user" {
+			return nil, fmt.Errorf("%s occurred but the role is not user", errmsg)
+		}
+
+		lastUserMessage = &chatMessage.Message{Type: "text", Text: text, Role: "user"}
+		inputMessages = []*chatMessage.Message{lastUserMessage}
+	}
+
+	// Get the prompt from the options
+	promptTmpl := options.Retry.Prompt
+	data := sui.Data{
+		"error":  errmsg,
+		"output": strings.TrimSpace(content),
+		"input":  lastUserMessage.Text,
+	}
+	prompt, _ := data.Replace(promptTmpl)
+
+	// Custom retry prompt by hooking the retry event
+	if this.Has("on_retry") {
+		info.Context().Global().Set("error", errmsg) // Set error
+		jsDelay, _ := bridge.JsValue(info.Context(), delay)
+		jsPrompt, _ := bridge.JsValue(info.Context(), prompt)
+		newPrompt, retryErr := obj.trigger(info, "retry", jsTimes, jsDelay, jsPrompt)
+		if retryErr != nil {
+			return nil, fmt.Errorf("%s occurred but failed to trigger the retry event: %s", errmsg, retryErr.Error())
+		}
+		// Update the prompt
+		if newPrompt.IsString() {
+			prompt = newPrompt.String()
+		}
+	}
+
+	// Generate the new input with the prompt
+	// Update the input
+	inputMessages[lastUserMessageIndex].Text = prompt
+	jsInput, inputErr := bridge.JsValue(info.Context(), inputMessages)
+	if inputErr != nil {
+		return nil, fmt.Errorf("%s occurred but failed to update the input: %s", errmsg, inputErr.Error())
+	}
+	// Update the input
+	this.Set("retry_input", jsInput)
+
+	// Call the run function
+	run, funcErr := this.Get("Run")
+	if funcErr != nil {
+		return nil, fmt.Errorf("%s occurred but failed to get the run function: %s", errmsg, funcErr.Error())
+	}
+
+	if !run.IsFunction() {
+		return nil, fmt.Errorf("%s occurred but the run function is not a function", errmsg)
+	}
+
+	fn, fnErr := run.AsFunction()
+	if fnErr != nil {
+		return nil, fmt.Errorf("%s occurred but failed to get the run function: %s", errmsg, fnErr.Error())
+	}
+
+	// Call the run function
+	result, resErr := fn.Call(this, jsArgs...)
+	if resErr != nil {
+		return nil, fmt.Errorf("%s (%d)", exception.Trim(resErr), times-1)
+	}
+
+	return result, nil
 }
 
 func (obj *objectCall) triggerAnonymous(chatCtx chatctx.Context, global *GlobalVariables, goCallProps map[string]interface{}, source string, bindArgs []interface{}, fnArgs ...interface{}) error {
@@ -285,31 +475,31 @@ func (obj *objectCall) triggerAnonymous(chatCtx chatctx.Context, global *GlobalV
 }
 
 // trigger trigger the callback
-func (obj *objectCall) trigger(info *v8go.FunctionCallbackInfo, name string, fnArgs ...v8go.Valuer) *v8go.Value {
+func (obj *objectCall) trigger(info *v8go.FunctionCallbackInfo, name string, fnArgs ...v8go.Valuer) (*v8go.Value, error) {
 	// Try to get the callback
 	this := info.This()
 	if this.Has(fmt.Sprintf("on_%s", name)) {
 		event, err := this.Get(fmt.Sprintf("on_%s", name))
 		if err != nil {
-			return bridge.JsException(info.Context(), fmt.Sprintf("Failed to get the %s callback: %s	", name, err.Error()))
+			return nil, err
 		}
 
 		if event.IsFunction() {
 
 			cb, err := event.AsFunction()
 			if err != nil {
-				return bridge.JsException(info.Context(), fmt.Sprintf("Failed to get the %s callback: %s", name, err.Error()))
+				return nil, err
 			}
 
 			result, err := cb.Call(this, fnArgs...)
 			if err != nil {
-				return bridge.JsException(info.Context(), fmt.Sprintf("Failed to trigger the %s callback: %s", name, err.Error()))
+				return nil, err
 			}
-			return result
+			return result, nil
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // jsCallBackup is the backup function for the call function

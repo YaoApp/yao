@@ -22,7 +22,8 @@ func (neo *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) err
 			return err
 		}
 	}
-	return ast.Execute(c, ctx, question, nil)
+	_, err = ast.Execute(c, ctx, question, nil)
+	return err
 }
 
 // Select select an assistant
