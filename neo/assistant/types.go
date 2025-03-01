@@ -26,7 +26,7 @@ type API interface {
 	ReadBase64(ctx context.Context, fileID string) (string, error)
 
 	GetPlaceholder() *Placeholder
-	Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) error
+	Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) (interface{}, error)
 	Call(c *gin.Context, payload APIPayload) (interface{}, error)
 }
 

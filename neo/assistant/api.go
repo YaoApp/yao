@@ -46,17 +46,17 @@ func GetByConnector(connector string, name string) (*Assistant, error) {
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) error {
+func (ast *Assistant) Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) (interface{}, error) {
 	contents := chatMessage.NewContents()
 	messages, err := ast.withHistory(ctx, input)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return ast.execute(c, ctx, messages, options, contents, callback...)
 }
 
 // Execute implements the execute functionality
-func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput interface{}, userOptions map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) error {
+func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput interface{}, userOptions map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) (interface{}, error) {
 
 	var input []chatMessage.Message
 
@@ -67,11 +67,11 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 	case []interface{}:
 		raw, err := jsoniter.Marshal(v)
 		if err != nil {
-			return fmt.Errorf("marshal input error: %s", err.Error())
+			return nil, fmt.Errorf("marshal input error: %s", err.Error())
 		}
 		err = jsoniter.Unmarshal(raw, &input)
 		if err != nil {
-			return fmt.Errorf("unmarshal input error: %s", err.Error())
+			return nil, fmt.Errorf("unmarshal input error: %s", err.Error())
 		}
 
 	case []chatMessage.Message:
@@ -95,7 +95,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 			Error(err).
 			Done().
 			Write(c.Writer)
-		return err
+		return nil, err
 	}
 
 	// Update options if provided
@@ -123,14 +123,14 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 				Error(err).
 				Done().
 				Write(c.Writer)
-			return err
+			return nil, err
 		}
 
 		// Reset Message Contents
 		last := input[len(input)-1]
 		input, err = newAst.withHistory(ctx, last)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Reset options
@@ -151,7 +151,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 }
 
 // Execute the next action
-func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *chatMessage.Contents, callback ...interface{}) error {
+func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *chatMessage.Contents, callback ...interface{}) (interface{}, error) {
 	switch next.Action {
 
 	// It's not used, because the process could be executed in the hook script
@@ -188,26 +188,26 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 
 	case "assistant":
 		if next.Payload == nil {
-			return fmt.Errorf("payload is required")
+			return nil, fmt.Errorf("payload is required")
 		}
 
 		// Get assistant id
 		id, ok := next.Payload["assistant_id"].(string)
 		if !ok {
-			return fmt.Errorf("assistant id should be string")
+			return nil, fmt.Errorf("assistant id should be string")
 		}
 
 		// Get assistant
 		assistant, err := Get(id)
 		if err != nil {
-			return fmt.Errorf("get assistant error: %s", err.Error())
+			return nil, fmt.Errorf("get assistant error: %s", err.Error())
 		}
 
 		// Input
 		input := chatMessage.Message{}
 		_, has := next.Payload["input"]
 		if !has {
-			return fmt.Errorf("input is required")
+			return nil, fmt.Errorf("input is required")
 		}
 
 		// Retry mode
@@ -223,14 +223,14 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 			messages := chatMessage.Message{}
 			err := jsoniter.UnmarshalFromString(v, &messages)
 			if err != nil {
-				return fmt.Errorf("unmarshal input error: %s", err.Error())
+				return nil, fmt.Errorf("unmarshal input error: %s", err.Error())
 			}
 			input = messages
 
 		case map[string]interface{}:
 			msg, err := chatMessage.NewMap(v)
 			if err != nil {
-				return fmt.Errorf("unmarshal input error: %s", err.Error())
+				return nil, fmt.Errorf("unmarshal input error: %s", err.Error())
 			}
 			input = *msg
 
@@ -241,7 +241,7 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 			input = v
 
 		default:
-			return fmt.Errorf("input should be string or []chatMessage.Message")
+			return nil, fmt.Errorf("input should be string or []chatMessage.Message")
 		}
 
 		// Options
@@ -257,7 +257,7 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 
 		messages, err := assistant.withHistory(ctx, input)
 		if err != nil {
-			return fmt.Errorf("with history error: %s", err.Error())
+			return nil, fmt.Errorf("with history error: %s", err.Error())
 		}
 
 		// Create a new Text
@@ -279,10 +279,10 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 		return assistant.execute(c, ctx, messages, options, newContents, callback...)
 
 	case "exit":
-		return nil
+		return nil, nil
 
 	default:
-		return fmt.Errorf("unknown action: %s", next.Action)
+		return nil, fmt.Errorf("unknown action: %s", next.Action)
 	}
 }
 
@@ -311,7 +311,7 @@ func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, err
 }
 
 // handleChatStream manages the streaming chat interaction with the AI
-func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) error {
+func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) (interface{}, error) {
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
 
@@ -327,10 +327,10 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 	// Wait for completion or client disconnect
 	select {
 	case <-done:
-		return nil
+		return nil, nil
 	case <-c.Writer.CloseNotify():
 		clientBreak <- true
-		return nil
+		return nil, nil
 	}
 }
 
@@ -565,7 +565,7 @@ func (ast *Assistant) streamChat(
 
 				// If the hook is successful, execute the next action
 				if res != nil && res.Next != nil {
-					err := res.Next.Execute(c, ctx, contents, cb)
+					_, err := res.Next.Execute(c, ctx, contents, cb)
 					if err != nil {
 						chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
 					}
