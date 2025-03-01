@@ -996,3 +996,252 @@ func TestGetAssistantTags(t *testing.T) {
 		}
 	}
 }
+
+func TestXunSaveAndGetHistoryWithSilent(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+		TTL:       3600,
+	})
+
+	// save the history with silent messages
+	sid := "123456"
+	cid := "silent_test"
+
+	// First save regular messages
+	messages := []map[string]interface{}{
+		{"role": "user", "name": "user1", "content": "hello"},
+		{"role": "assistant", "name": "assistant1", "content": "Hi! How can I help you?"},
+	}
+	context := map[string]interface{}{
+		"assistant_id": "test-assistant-1",
+	}
+	err = store.SaveHistory(sid, messages, cid, context)
+	assert.Nil(t, err)
+
+	// Then save silent messages
+	silentMessages := []map[string]interface{}{
+		{"role": "user", "name": "user1", "content": "silent message"},
+		{"role": "assistant", "name": "assistant1", "content": "This is a silent response"},
+	}
+	silentContext := map[string]interface{}{
+		"assistant_id": "test-assistant-1",
+		"silent":       true,
+	}
+	err = store.SaveHistory(sid, silentMessages, cid, silentContext)
+	assert.Nil(t, err)
+
+	// Get history without filter (should only return non-silent messages)
+	data, err := store.GetHistory(sid, cid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(data))
+	for _, msg := range data {
+		// Check if silent is false, handling different types
+		isSilent := false
+		switch v := msg["silent"].(type) {
+		case bool:
+			isSilent = v
+		case int:
+			isSilent = v != 0
+		case int64:
+			isSilent = v != 0
+		case float64:
+			isSilent = v != 0
+		}
+		assert.False(t, isSilent, "message should not be silent")
+	}
+
+	// Get history with silent=true filter (should return all messages)
+	silentTrue := true
+	filter := ChatFilter{
+		Silent: &silentTrue,
+	}
+	allData, err := store.GetHistoryWithFilter(sid, cid, filter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 4, len(allData))
+
+	// Count silent messages
+	silentCount := 0
+	for _, msg := range allData {
+		// Check if silent is true, handling different types
+		isSilent := false
+		switch v := msg["silent"].(type) {
+		case bool:
+			isSilent = v
+		case int:
+			isSilent = v != 0
+		case int64:
+			isSilent = v != 0
+		case float64:
+			isSilent = v != 0
+		}
+		if isSilent {
+			silentCount++
+		}
+	}
+	assert.Equal(t, 2, silentCount)
+
+	// Get chat with filter (should include silent messages)
+	chat, err := store.GetChatWithFilter(sid, cid, filter)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(chat.History))
+
+	// Get chat without filter (should exclude silent messages)
+	chatNoSilent, err := store.GetChat(sid, cid)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(chatNoSilent.History))
+}
+
+func TestXunGetChatsWithSilent(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_assistant")
+
+	// Drop tables before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_history")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = capsule.Schema().DropTableIfExists("__unit_test_conversation_chat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = capsule.Schema().DropTableIfExists("__unit_test_conversation_assistant")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test assistant
+	assistant := map[string]interface{}{
+		"assistant_id": "test-assistant-1",
+		"name":         "Test Assistant 1",
+		"avatar":       "avatar1.png",
+		"type":         "assistant",
+		"connector":    "test",
+	}
+	_, err = store.SaveAssistant(assistant)
+	assert.Nil(t, err)
+
+	// Save some test chats
+	sid := "test_user"
+	messages := []map[string]interface{}{
+		{"role": "user", "content": "test message"},
+	}
+
+	// Create regular chats
+	for i := 0; i < 3; i++ {
+		chatID := fmt.Sprintf("regular_chat_%d", i)
+		title := fmt.Sprintf("Regular Chat %d", i)
+		context := map[string]interface{}{
+			"assistant_id": "test-assistant-1",
+			"silent":       false,
+		}
+
+		// Save history to create the chat
+		err = store.SaveHistory(sid, messages, chatID, context)
+		assert.Nil(t, err)
+
+		// Update the chat title
+		err = store.UpdateChatTitle(sid, chatID, title)
+		assert.Nil(t, err)
+	}
+
+	// Create silent chats
+	for i := 0; i < 2; i++ {
+		chatID := fmt.Sprintf("silent_chat_%d", i)
+		title := fmt.Sprintf("Silent Chat %d", i)
+		context := map[string]interface{}{
+			"assistant_id": "test-assistant-1",
+			"silent":       true,
+		}
+
+		// Save history to create the chat
+		err = store.SaveHistory(sid, messages, chatID, context)
+		assert.Nil(t, err)
+
+		// Update the chat title
+		err = store.UpdateChatTitle(sid, chatID, title)
+		assert.Nil(t, err)
+	}
+
+	// Test GetChats with default filter (should exclude silent chats)
+	defaultFilter := ChatFilter{
+		PageSize: 10,
+		Order:    "desc",
+	}
+	defaultGroups, err := store.GetChats(sid, defaultFilter)
+	assert.Nil(t, err)
+	assert.NotNil(t, defaultGroups)
+
+	// Count total chats in all groups
+	totalDefaultChats := 0
+	for _, group := range defaultGroups.Groups {
+		totalDefaultChats += len(group.Chats)
+	}
+	assert.Equal(t, 3, totalDefaultChats, "Default filter should only return non-silent chats")
+
+	// Test GetChats with silent=true filter (should include all chats)
+	silentTrue := true
+	silentFilter := ChatFilter{
+		PageSize: 10,
+		Order:    "desc",
+		Silent:   &silentTrue,
+	}
+	silentGroups, err := store.GetChats(sid, silentFilter)
+	assert.Nil(t, err)
+	assert.NotNil(t, silentGroups)
+
+	// Count total chats in all groups
+	totalSilentChats := 0
+	for _, group := range silentGroups.Groups {
+		totalSilentChats += len(group.Chats)
+	}
+	assert.Equal(t, 5, totalSilentChats, "Silent filter should return all chats")
+
+	// Test GetChats with silent=false filter (should only include non-silent chats)
+	silentFalse := false
+	nonSilentFilter := ChatFilter{
+		PageSize: 10,
+		Order:    "desc",
+		Silent:   &silentFalse,
+	}
+	nonSilentGroups, err := store.GetChats(sid, nonSilentFilter)
+	assert.Nil(t, err)
+	assert.NotNil(t, nonSilentGroups)
+
+	// Count total chats in all groups
+	totalNonSilentChats := 0
+	for _, group := range nonSilentGroups.Groups {
+		totalNonSilentChats += len(group.Chats)
+	}
+	assert.Equal(t, 3, totalNonSilentChats, "Non-silent filter should only return non-silent chats")
+}

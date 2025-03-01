@@ -113,6 +113,12 @@ func (ctx *Context) Map() map[string]interface{} {
 	if ctx.Stack != "" {
 		data["stack"] = ctx.Stack
 	}
+
+	// Silent mode
+	if ctx.Silent {
+		data["silent"] = ctx.Silent
+	}
+
 	if ctx.Path != "" {
 		data["pathname"] = ctx.Path
 	}

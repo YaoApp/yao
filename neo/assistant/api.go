@@ -314,20 +314,28 @@ func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, err
 func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, messages []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents, callback ...interface{}) (interface{}, error) {
 	clientBreak := make(chan bool, 1)
 	done := make(chan bool, 1)
+	var result interface{} = nil
+	var err error = nil
 
 	// Chat with AI in background
 	go func() {
-		err := ast.streamChat(c, ctx, messages, options, clientBreak, done, contents, callback...)
+		var res interface{} = nil
+		res, err = ast.streamChat(c, ctx, messages, options, clientBreak, contents, callback...)
 		if err != nil {
 			chatMessage.New().Error(err).Done().Write(c.Writer)
+			err = fmt.Errorf("stream chat error %s", err.Error())
 		}
+		result = res
 		done <- true
 	}()
 
 	// Wait for completion or client disconnect
 	select {
 	case <-done:
-		return nil, nil
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
 	case <-c.Writer.CloseNotify():
 		clientBreak <- true
 		return nil, nil
@@ -341,10 +349,9 @@ func (ast *Assistant) streamChat(
 	messages []chatMessage.Message,
 	options map[string]interface{},
 	clientBreak chan bool,
-	done chan bool,
 	contents *chatMessage.Contents,
 	callback ...interface{},
-) error {
+) (interface{}, error) {
 
 	var cb interface{}
 	if len(callback) > 0 {
@@ -358,6 +365,8 @@ func (ast *Assistant) streamChat(
 
 	toolsCount := 0
 	currentMessageID := ""
+	var result interface{} = nil // To save the result
+	var content string = ""      // To save the content
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
 		select {
 		case <-clientBreak:
@@ -511,6 +520,11 @@ func (ast *Assistant) streamChat(
 					msgType = "tool"
 				}
 
+				// Add the text content to the content
+				if msgType == "text" || msgType == "" {
+					content += msg.Text // Save the content
+				}
+
 				output := chatMessage.New().Map(map[string]interface{}{
 					"text":  delta,
 					"type":  msgType,
@@ -555,8 +569,6 @@ func (ast *Assistant) streamChat(
 				// Some error occurred in the hook, return the error
 				if hookErr != nil {
 					chatMessage.New().Error(hookErr.Error()).Done().Callback(cb).Write(c.Writer)
-
-					done <- true
 					return 0 // break
 				}
 
@@ -569,8 +581,12 @@ func (ast *Assistant) streamChat(
 					if err != nil {
 						chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
 					}
-					done <- true
 					return 0 // break
+				}
+
+				// if the result is not nil, save the result
+				if res != nil && res.Result != nil {
+					result = res.Result
 				}
 
 				// The default output
@@ -587,7 +603,6 @@ func (ast *Assistant) streamChat(
 				}
 
 				output.Callback(cb).Write(c.Writer)
-				done <- true
 				return 0 // break
 			}
 
@@ -597,21 +612,27 @@ func (ast *Assistant) streamChat(
 
 	// Handle error
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// raw error
 	if errorRaw != "" {
 		msg, err := chatMessage.NewStringError(errorRaw)
 		if err != nil {
-			return fmt.Errorf("error: %s", err.Error())
+			return nil, fmt.Errorf("stream chat error %s", err.Error())
 		}
 		msg.Retry = ctx.Retry
 		msg.Silent = ctx.Silent
 		msg.Done().Callback(cb).Write(c.Writer)
 	}
 
-	return nil
+	// If the result is not nil, return the result
+	if result != nil {
+		return result, nil
+	}
+
+	// Return the content
+	return strings.TrimSpace(content), nil
 }
 
 // saveChatHistory saves the chat history if storage is available

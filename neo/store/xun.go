@@ -3,7 +3,6 @@ package store
 import (
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -145,6 +144,7 @@ func (conv *Xun) initHistoryTable() error {
 			table.String("assistant_name", 200).Null()
 			table.String("assistant_avatar", 200).Null()
 			table.JSON("mentions").Null()
+			table.Boolean("silent").SetDefault(false).Index()
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
 			table.TimestampTz("expired_at").Null().Index()
@@ -162,7 +162,7 @@ func (conv *Xun) initHistoryTable() error {
 		return err
 	}
 
-	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "created_at", "updated_at", "expired_at"}
+	fields := []string{"id", "sid", "cid", "uid", "role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "silent", "created_at", "updated_at", "expired_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -187,6 +187,7 @@ func (conv *Xun) initChatTable() error {
 			table.String("title", 200).Null()
 			table.String("assistant_id", 200).Null().Index()
 			table.String("sid", 255).Index()
+			table.Boolean("silent").SetDefault(false).Index()
 			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
@@ -203,7 +204,7 @@ func (conv *Xun) initChatTable() error {
 		return err
 	}
 
-	fields := []string{"id", "chat_id", "title", "assistant_id", "sid", "created_at", "updated_at"}
+	fields := []string{"id", "chat_id", "title", "assistant_id", "sid", "silent", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -319,53 +320,90 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 
 // GetChats get the chat list with grouping by date
 func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+	// Default behavior: exclude silent chats
+	if filter.Silent == nil {
+		silentFalse := false
+		filter.Silent = &silentFalse
+	}
+
+	return conv.getChatsWithFilter(sid, filter)
+}
+
+// getChatsWithFilter get the chats with filter options
+func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set defaults
-	if filter.PageSize <= 0 {
-		filter.PageSize = 100
-	}
+	// Set default values
 	if filter.Page <= 0 {
 		filter.Page = 1
+	}
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
 	}
 	if filter.Order == "" {
 		filter.Order = "desc"
 	}
 
-	// Build base query
-	qb := conv.newQueryChat().
-		Select("chat_id", "title", "assistant_id", "created_at", "updated_at").
-		Where("sid", userID).
-		Where("chat_id", "!=", "")
+	// Get total count
+	qbCount := conv.newQueryChat().
+		Where("sid", userID)
 
-	// Add keyword filter
-	if filter.Keywords != "" {
-		keyword := strings.TrimSpace(filter.Keywords)
-		if keyword != "" {
-			qb.Where("title", "like", "%"+keyword+"%")
+	// Apply silent filter if provided
+	if filter.Silent != nil {
+		if *filter.Silent {
+			// Include all chats (both silent and non-silent)
+		} else {
+			// Only include non-silent chats
+			qbCount.Where("silent", false)
 		}
 	}
 
-	// Get total count
-	total, err := qb.Clone().Count()
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qbCount.Where("title", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+	}
+
+	total, err := qbCount.Count()
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate pagination
-	offset := (filter.Page - 1) * filter.PageSize
+	// Calculate last page
 	lastPage := int(math.Ceil(float64(total) / float64(filter.PageSize)))
+	if lastPage < 1 {
+		lastPage = 1
+	}
 
-	// Get paginated results
-	rows, err := qb.
-		OrderBy("updated_at", filter.Order).
-		OrderBy("created_at", filter.Order).
+	// Get chats with pagination
+	qb := conv.newQueryChat().
+		Select("chat_id", "title", "assistant_id", "silent", "created_at", "updated_at").
+		Where("sid", userID)
+
+	// Apply silent filter if provided
+	if filter.Silent != nil {
+		if *filter.Silent {
+			// Include all chats (both silent and non-silent)
+		} else {
+			// Only include non-silent chats
+			qb.Where("silent", false)
+		}
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where("title", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+	}
+
+	// Apply pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	qb.OrderBy("updated_at", filter.Order).
 		Offset(offset).
-		Limit(filter.PageSize).
-		Get()
+		Limit(filter.PageSize)
+
+	rows, err := qb.Get()
 	if err != nil {
 		return nil, err
 	}
@@ -385,16 +423,16 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 		"Even Earlier": {},
 	}
 
-	// Get assistant details for all chats
+	// Collect assistant IDs to fetch their details
 	assistantIDs := []interface{}{}
-	assistantMap := make(map[string]map[string]interface{})
-
 	for _, row := range rows {
 		if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
 			assistantIDs = append(assistantIDs, assistantID)
 		}
 	}
 
+	// Fetch assistant details
+	assistantMap := map[string]map[string]interface{}{}
 	if len(assistantIDs) > 0 {
 		assistants, err := conv.query.New().
 			Table(conv.getAssistantTable()).
@@ -425,6 +463,7 @@ func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, er
 			"chat_id":      chatID,
 			"title":        row.Get("title"),
 			"assistant_id": row.Get("assistant_id"),
+			"silent":       row.Get("silent"),
 		}
 
 		// Add assistant details if available
@@ -502,10 +541,13 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 	}
 
 	qb := conv.newQuery().
-		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "created_at", "updated_at").
+		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "silent", "created_at", "updated_at").
 		Where("sid", userID).
 		Where("cid", cid).
 		OrderBy("id", "desc")
+
+	// By default, exclude silent messages
+	qb.Where("silent", false)
 
 	if conv.setting.TTL > 0 {
 		qb.Where("expired_at", ">", time.Now())
@@ -533,6 +575,7 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 			"assistant_avatar": row.Get("assistant_avatar"),
 			"mentions":         row.Get("mentions"),
 			"uid":              row.Get("uid"),
+			"silent":           row.Get("silent"),
 			"created_at":       row.Get("created_at"),
 			"updated_at":       row.Get("updated_at"),
 		}
@@ -562,6 +605,23 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 		}
 	}
 
+	// Get silent flag from context
+	var silent bool = false
+	if context != nil {
+		if silentVal, ok := context["silent"]; ok {
+			switch v := silentVal.(type) {
+			case bool:
+				silent = v
+			case string:
+				silent = v == "true" || v == "1" || v == "yes"
+			case int:
+				silent = v != 0
+			case float64:
+				silent = v != 0
+			}
+		}
+	}
+
 	// First ensure chat record exists
 	exists, err := conv.newQueryChat().
 		Where("chat_id", cid).
@@ -579,6 +639,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 				"chat_id":      cid,
 				"sid":          userID,
 				"assistant_id": assistantID,
+				"silent":       silent,
 				"created_at":   time.Now(),
 			})
 
@@ -586,17 +647,16 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 			return err
 		}
 	} else {
-		// Update assistant_id if it exists
-		if assistantID != nil {
-			_, err = conv.newQueryChat().
-				Where("chat_id", cid).
-				Where("sid", userID).
-				Update(map[string]interface{}{
-					"assistant_id": assistantID,
-				})
-			if err != nil {
-				return err
-			}
+		// Update assistant_id and silent if needed
+		_, err = conv.newQueryChat().
+			Where("chat_id", cid).
+			Where("sid", userID).
+			Update(map[string]interface{}{
+				"assistant_id": assistantID,
+				"silent":       silent,
+			})
+		if err != nil {
+			return err
 		}
 	}
 
@@ -650,6 +710,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 			"assistant_id":     nil,
 			"assistant_name":   nil,
 			"assistant_avatar": nil,
+			"silent":           silent,
 			"created_at":       now,
 			"updated_at":       nil,
 			"expired_at":       expiredAt,
@@ -736,8 +797,66 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 		}
 	}
 
-	// Get chat history
+	// Get chat history with default filter (silent=false)
 	history, err := conv.GetHistory(sid, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ChatInfo{
+		Chat:    chat,
+		History: history,
+	}, nil
+}
+
+// GetChatWithFilter get the chat info and its history with filter options
+func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get chat info
+	qb := conv.newQueryChat().
+		Select("chat_id", "title", "assistant_id").
+		Where("sid", userID).
+		Where("chat_id", cid)
+
+	row, err := qb.First()
+	if err != nil {
+		return nil, err
+	}
+
+	// Return nil if chat_id is nil (means no chat found)
+	if row.Get("chat_id") == nil {
+		return nil, nil
+	}
+
+	chat := map[string]interface{}{
+		"chat_id":      row.Get("chat_id"),
+		"title":        row.Get("title"),
+		"assistant_id": row.Get("assistant_id"),
+	}
+
+	// Get assistant details if assistant_id exists
+	if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
+		assistant, err := conv.query.New().
+			Table(conv.getAssistantTable()).
+			Select("name", "avatar").
+			Where("assistant_id", assistantID).
+			First()
+		if err != nil {
+			return nil, err
+		}
+
+		if assistant != nil {
+			chat["assistant_name"] = assistant.Get("name")
+			chat["assistant_avatar"] = assistant.Get("avatar")
+		}
+	}
+
+	// Get chat history with filter
+	history, err := conv.GetHistoryWithFilter(sid, cid, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -1163,4 +1282,75 @@ func (conv *Xun) GetAssistantTags() ([]string, error) {
 		tags = append(tags, tag)
 	}
 	return tags, nil
+}
+
+// GetHistoryWithFilter get the history with filter options
+func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
+
+	qb := conv.newQuery().
+		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "silent", "created_at", "updated_at").
+		Where("sid", userID).
+		Where("cid", cid).
+		OrderBy("id", "desc")
+
+	// Apply silent filter if provided, otherwise exclude silent messages by default
+	if filter.Silent != nil {
+		if *filter.Silent {
+			// Include all messages (both silent and non-silent)
+		} else {
+			// Only include non-silent messages
+			qb.Where("silent", false)
+		}
+	} else {
+		// Default behavior: exclude silent messages
+		qb.Where("silent", false)
+	}
+
+	if conv.setting.TTL > 0 {
+		qb.Where("expired_at", ">", time.Now())
+	}
+
+	limit := 20
+	if conv.setting.MaxSize > 0 {
+		limit = conv.setting.MaxSize
+	}
+	if filter.PageSize > 0 {
+		limit = filter.PageSize
+	}
+
+	// Apply pagination if provided
+	if filter.Page > 0 {
+		offset := (filter.Page - 1) * limit
+		qb.Offset(offset)
+	}
+
+	rows, err := qb.Limit(limit).Get()
+	if err != nil {
+		return nil, err
+	}
+
+	res := []map[string]interface{}{}
+	for _, row := range rows {
+		message := map[string]interface{}{
+			"role":             row.Get("role"),
+			"name":             row.Get("name"),
+			"content":          row.Get("content"),
+			"context":          row.Get("context"),
+			"assistant_id":     row.Get("assistant_id"),
+			"assistant_name":   row.Get("assistant_name"),
+			"assistant_avatar": row.Get("assistant_avatar"),
+			"mentions":         row.Get("mentions"),
+			"uid":              row.Get("uid"),
+			"silent":           row.Get("silent"),
+			"created_at":       row.Get("created_at"),
+			"updated_at":       row.Get("updated_at"),
+		}
+		res = append([]map[string]interface{}{message}, res...)
+	}
+
+	return res, nil
 }

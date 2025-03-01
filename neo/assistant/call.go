@@ -23,23 +23,23 @@ type objectCall struct{}
 
 // OptionsCall is the options for the call function
 type OptionsCall struct {
-	Retry   OptionsCallRetry       `json:"retry,omitempty"`
-	Options map[string]interface{} `json:"options,omitempty"`
+	Retry   OptionsCallRetry       `json:"retry,omitempty"`   // Retry options
+	Options map[string]interface{} `json:"options,omitempty"` // LLM API options
+	Silent  bool                   `json:"silent,omitempty"`  // Silent mode, default is true
 }
 
 // OptionsCallRetry is the retry options for the call function
 type OptionsCallRetry struct {
-	Times    int    `json:"times,omitempty"`
-	Delay    int    `json:"delay,omitempty"`
-	DelayMax int    `json:"delay_max,omitempty"`
-	Prompt   string `json:"prompt,omitempty"`
+	Times    int    `json:"times,omitempty"`     // Retry times, default is 3
+	Delay    int    `json:"delay,omitempty"`     // Retry delay, default is 200
+	DelayMax int    `json:"delay_max,omitempty"` // Retry delay max, default is 5000
+	Prompt   string `json:"prompt,omitempty"`    // Retry prompt, default is "Please fix the error. \n {{ error }}"
 }
 
 // allowedEvents is the allowed events for the call function
 var allowedEvents = map[string]bool{
 	"done":    true,
 	"retry":   true,
-	"error":   true,
 	"message": true,
 }
 
@@ -188,10 +188,11 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		Retry: OptionsCallRetry{
 			Times:    3,
 			Delay:    200,
-			DelayMax: 5000,
-			Prompt:   "Please fix the error. \n {{ error }}",
+			DelayMax: 1000,
+			Prompt:   "{{ input }}\n**Answer is not correct, please try again.**\nError:\n{{ error }} \nAssistant's last answer:\n{{ output }}",
 		},
-		Options: map[string]interface{}{},
+		Silent:  true,
+		Options: map[string]interface{}{}, // LLM API options
 	}
 
 	// Get the options
@@ -241,8 +242,8 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	// Update the chat context
 	var chatCtx chatctx.Context = global.ChatContext
 	chatCtx.AssistantID = assistantID
-	chatCtx.ChatID = fmt.Sprintf("chat_%s", uuid.New().String()) // New chat id
-	chatCtx.Silent = true
+	chatCtx.ChatID = fmt.Sprintf("call_%s", uuid.New().String()) // New chat id
+	chatCtx.Silent = options.Silent                              // Check the silent mode
 
 	// Define the callback function
 	var cb func(msg *chatMessage.Message) = nil
@@ -274,12 +275,17 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	// Trigger the done event
-	_, err = obj.trigger(info, "done", jsArgs...)
+	doneResult, err := obj.trigger(info, "done", jsArgs...)
 	if err != nil {
 		result, err = obj.retry(jsArgs, err, input, output, info, options)
 		if err != nil {
 			return bridge.JsException(info.Context(), err.Error())
 		}
+	}
+
+	// Return the done result
+	if doneResult != nil && !doneResult.IsUndefined() {
+		return doneResult
 	}
 
 	// Return Value
