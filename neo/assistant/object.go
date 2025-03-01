@@ -59,10 +59,10 @@ func (ast *Assistant) InitObject(v8ctx *v8.Context, c *gin.Context, context chat
 	v8ctx.WithGlobal("context", context.Map())
 
 	// Add methods to the script contexts
-	v8ctx.WithFunction("Plan", jsPlan) // Create a new plan object
 	v8ctx.WithFunction("Send", jsSend)
-	v8ctx.WithFunction("Call", jsCall)
 	v8ctx.WithFunction("Assets", jsAssets)
+	v8ctx.WithFunction("MakeCall", jsCall) // Create a new call object
+	v8ctx.WithFunction("MakePlan", jsPlan) // Create a new plan object
 
 	// Shared space methods
 	v8ctx.WithFunction("Set", jsSet)

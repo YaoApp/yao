@@ -371,10 +371,16 @@ func (m *mockStore) GetAssistants(filter store.AssistantFilter) (*store.Assistan
 	return nil, nil
 }
 func (m *mockStore) GetChat(id string, chatID string) (*store.ChatInfo, error) { return nil, nil }
+func (m *mockStore) GetChatWithFilter(id string, chatID string, filter store.ChatFilter) (*store.ChatInfo, error) {
+	return nil, nil
+}
 func (m *mockStore) GetChats(id string, filter store.ChatFilter) (*store.ChatGroupResponse, error) {
 	return nil, nil
 }
 func (m *mockStore) GetHistory(id string, chatID string) ([]map[string]interface{}, error) {
+	return nil, nil
+}
+func (m *mockStore) GetHistoryWithFilter(id string, chatID string, filter store.ChatFilter) ([]map[string]interface{}, error) {
 	return nil, nil
 }
 func (m *mockStore) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
