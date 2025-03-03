@@ -631,6 +631,7 @@ func (ast *Assistant) streamChat(
 
 		// if the prompt is empty, return the error
 		if prompt == "" {
+			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
