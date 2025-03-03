@@ -9,6 +9,7 @@ import (
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
+	sui "github.com/yaoapp/yao/sui/core"
 	"rogchap.com/v8go"
 )
 
@@ -69,6 +70,9 @@ func (ast *Assistant) InitObject(v8ctx *v8.Context, c *gin.Context, context chat
 	v8ctx.WithFunction("Get", jsGet)
 	v8ctx.WithFunction("Del", jsDel)
 	v8ctx.WithFunction("Clear", jsClear)
+
+	// Template methods
+	v8ctx.WithFunction("Replace", jsReplace)
 }
 
 // jsSet function, set a value to the shared space
@@ -299,6 +303,40 @@ func jsSend(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	default:
 		return bridge.JsException(info.Context(), "Send requires a string or a map")
 	}
+}
+
+func jsReplace(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	args := info.Args()
+	if len(args) < 2 {
+		return bridge.JsException(info.Context(), "Replace requires at least two arguments")
+	}
+
+	if !args[0].IsString() {
+		return bridge.JsException(info.Context(), "the first argument must be a string")
+	}
+	tmpl := args[0].String()
+
+	raw, err := bridge.GoValue(args[1], info.Context())
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	data, ok := raw.(map[string]interface{})
+	if !ok {
+		return bridge.JsException(info.Context(), "the second argument must be a map")
+	}
+
+	replaced, _ := sui.Data(data).Replace(tmpl)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	jsReplaced, err := bridge.JsValue(info.Context(), replaced)
+	if err != nil {
+		return bridge.JsException(info.Context(), err.Error())
+	}
+
+	return jsReplaced
 }
 
 // global get the global variables

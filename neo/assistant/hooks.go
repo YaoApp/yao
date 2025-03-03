@@ -134,6 +134,38 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 	return response, nil
 }
 
+// HookRetry Handle retry of assistant response
+func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents, errmsg string) (string, error) {
+	ctx := ast.createBackgroundContext()
+	output := []message.Data{}
+	if len(input) < 1 {
+		return "", fmt.Errorf("no input")
+	}
+
+	var lastInput message.Message = input[len(input)-1]
+	for _, data := range contents.Data {
+		if data.Type == "think" {
+			continue
+		}
+		output = append(output, data)
+	}
+
+	v, err := ast.call(ctx, "Retry", c, contents, context, lastInput.String(), output, errmsg)
+	if err != nil {
+		if err.Error() == HookErrorMethodNotFound {
+			return "", nil
+		}
+		return "", err
+	}
+
+	res, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("invalid return type: %T", v)
+	}
+
+	return res, nil
+}
+
 // HookDone Handle completion of assistant response
 func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents) (*ResHookDone, error) {
 	// Create timeout context

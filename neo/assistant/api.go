@@ -7,9 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	chatMessage "github.com/yaoapp/yao/neo/message"
@@ -365,9 +367,11 @@ func (ast *Assistant) streamChat(
 
 	toolsCount := 0
 	currentMessageID := ""
+	var retry error = nil
 	var result interface{} = nil // To save the result
 	var content string = ""      // To save the content
 	err := ast.Chat(c.Request.Context(), messages, options, func(data []byte) int {
+
 		select {
 		case <-clientBreak:
 			return 0 // break
@@ -568,7 +572,7 @@ func (ast *Assistant) streamChat(
 
 				// Some error occurred in the hook, return the error
 				if hookErr != nil {
-					chatMessage.New().Error(hookErr.Error()).Done().Callback(cb).Write(c.Writer)
+					retry = hookErr
 					return 0 // break
 				}
 
@@ -610,6 +614,38 @@ func (ast *Assistant) streamChat(
 		}
 	})
 
+	// retry
+	if retry != nil {
+
+		// Update the retry times
+		ctx.RetryTimes = ctx.RetryTimes + 1 // Increment the retry times
+		ctx.Retry = true                    // Set the retry mode
+
+		// Hook retry
+		prompt, retryErr := ast.HookRetry(c, ctx, messages, contents, exception.Trim(retry))
+		if retryErr != nil {
+			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
+			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			return nil, retry
+		}
+
+		// if the prompt is empty, return the error
+		if prompt == "" {
+			return nil, retry
+		}
+
+		// Add the prompt to the messages
+		retryMessages, retryErr := ast.retryMessages(messages, prompt)
+		if retryErr != nil {
+			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
+			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			return nil, retry
+		}
+
+		// Retry the chat
+		return ast.streamChat(c, ctx, retryMessages, options, clientBreak, contents, cb)
+	}
+
 	// Handle error
 	if err != nil {
 		return nil, err
@@ -633,6 +669,27 @@ func (ast *Assistant) streamChat(
 
 	// Return the content
 	return strings.TrimSpace(content), nil
+}
+
+func (ast *Assistant) retryMessages(messages []chatMessage.Message, prompt string) ([]chatMessage.Message, error) {
+
+	// Get the last user message
+	var lastIndex int
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			messages[i].Text = prompt
+			lastIndex = i
+			break
+		}
+	}
+
+	if lastIndex == 0 {
+		return nil, fmt.Errorf("no user message found")
+	}
+
+	// Remove the messages after the last user message
+	messages = messages[:lastIndex+1]
+	return messages, nil
 }
 
 // saveChatHistory saves the chat history if storage is available
