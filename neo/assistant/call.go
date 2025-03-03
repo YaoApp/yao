@@ -202,9 +202,12 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 			return bridge.JsException(info.Context(), fmt.Sprintf("Failed to get the options: %s", err.Error()))
 		}
 
-		err = bridge.Unmarshal(jsOptions, &options)
-		if err != nil {
-			return bridge.JsException(info.Context(), fmt.Sprintf("Failed to unmarshal the options: %s", err.Error()))
+		// Check if the options is undefined
+		if !jsOptions.IsUndefined() {
+			err = bridge.Unmarshal(jsOptions, &options)
+			if err != nil {
+				return bridge.JsException(info.Context(), fmt.Sprintf("Failed to unmarshal the options: %s", err.Error()))
+			}
 		}
 	}
 
