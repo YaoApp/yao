@@ -22,8 +22,9 @@ type Context struct {
 	Namespace   string                 `json:"namespace,omitempty"`
 	Config      map[string]interface{} `json:"config,omitempty"`
 	Signal      interface{}            `json:"signal,omitempty"`
-	Silent      bool                   `json:"silent,omitempty"` // Silent mode
-	Retry       bool                   `json:"retry,omitempty"`  // Retry mode
+	Silent      bool                   `json:"silent,omitempty"`      // Silent mode
+	Retry       bool                   `json:"retry,omitempty"`       // Retry mode
+	RetryTimes  uint8                  `json:"retry_times,omitempty"` // Retry times
 	Upload      *FileUpload            `json:"upload,omitempty"`
 	Version     bool                   `json:"version,omitempty"` // Version support
 	RAG         bool                   `json:"rag,omitempty"`     // RAG support
@@ -118,6 +119,14 @@ func (ctx *Context) Map() map[string]interface{} {
 	if ctx.Silent {
 		data["silent"] = ctx.Silent
 	}
+
+	// Retry mode
+	if ctx.Retry {
+		data["retry"] = ctx.Retry
+	}
+
+	// Retry times
+	data["retry_times"] = ctx.RetryTimes
 
 	if ctx.Path != "" {
 		data["pathname"] = ctx.Path
