@@ -135,7 +135,7 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 }
 
 // HookRetry Handle retry of assistant response
-func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents, errmsg string) (string, error) {
+func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents, errmsg string) (interface{}, error) {
 	ctx := ast.createBackgroundContext()
 	output := []message.Data{}
 	if len(input) < 1 {
@@ -158,12 +158,20 @@ func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input [
 		return "", err
 	}
 
-	res, ok := v.(string)
-	if !ok {
-		return "", fmt.Errorf("invalid return type: %T", v)
+	switch v := v.(type) {
+	case string:
+		return v, nil
+	case map[string]interface{}:
+		var next NextAction
+		raw, _ := jsoniter.MarshalToString(v)
+		err := jsoniter.UnmarshalFromString(raw, &next)
+		if err != nil {
+			return "", err
+		}
+		return next, nil
 	}
 
-	return res, nil
+	return "", nil
 }
 
 // HookDone Handle completion of assistant response
