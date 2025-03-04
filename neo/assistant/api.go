@@ -623,17 +623,30 @@ func (ast *Assistant) streamChat(
 		ctx.Retry = true                    // Set the retry mode
 
 		// Hook retry
-		prompt, retryErr := ast.HookRetry(c, ctx, messages, contents, exception.Trim(retry))
+		promptAny, retryErr := ast.HookRetry(c, ctx, messages, contents, exception.Trim(retry))
 		if retryErr != nil {
 			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
 			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
-		// if the prompt is empty, return the error
-		if prompt == "" {
+		if promptAny == nil {
 			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
+		}
+
+		var prompt string = ""
+		switch v := promptAny.(type) {
+		case NextAction:
+			result, err := v.Execute(c, ctx, contents, cb)
+			if err != nil {
+				chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
+				return nil, retry
+			}
+			return result, nil
+
+		case string:
+			prompt = v
 		}
 
 		// Add the prompt to the messages
@@ -645,7 +658,8 @@ func (ast *Assistant) streamChat(
 		}
 
 		// Retry the chat
-		return ast.streamChat(c, ctx, retryMessages, options, clientBreak, contents, cb)
+		retryContents := chatMessage.NewContents()
+		return ast.execute(c, ctx, retryMessages, options, retryContents, cb)
 	}
 
 	// Handle error
