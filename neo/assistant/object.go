@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	v8 "github.com/yaoapp/gou/runtime/v8"
@@ -145,6 +146,10 @@ func jsGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	// Get the value
 	value, err := global.ChatContext.SharedSpace.Get(key)
 	if err != nil {
+		// If the key is not found, return null
+		if strings.Contains(err.Error(), "not found") {
+			return v8go.Null(info.Context().Isolate())
+		}
 		return bridge.JsException(info.Context(), err.Error())
 	}
 
