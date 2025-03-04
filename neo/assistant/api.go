@@ -319,7 +319,7 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 	var result interface{} = nil
 	var err error = nil
 
-	// Chat with AI in background
+	requestCtx := c.Request.Context()
 	go func() {
 		var res interface{} = nil
 		res, err = ast.streamChat(c, ctx, messages, options, clientBreak, contents, callback...)
@@ -338,7 +338,8 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 			return nil, err
 		}
 		return result, nil
-	case <-c.Writer.CloseNotify():
+
+	case <-requestCtx.Done():
 		clientBreak <- true
 		return nil, nil
 	}
