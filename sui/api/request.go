@@ -141,7 +141,7 @@ func (r *Request) Render() (string, int, error) {
 		if c.Data != "" {
 			err = r.Request.ExecStringMerge(data, c.Data)
 			if err != nil {
-				return "", 500, fmt.Errorf("data error, please re-complie the page. %s", err.Error())
+				return "", 500, fmt.Errorf("data merge error, please re-complie the page. %s", err.Error())
 			}
 		}
 
