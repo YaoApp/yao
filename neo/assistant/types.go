@@ -26,7 +26,7 @@ type API interface {
 	ReadBase64(ctx context.Context, fileID string) (string, error)
 
 	GetPlaceholder() *Placeholder
-	Execute(c *gin.Context, ctx chatctx.Context, input string, options map[string]interface{}) error
+	Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) (interface{}, error)
 	Call(c *gin.Context, payload APIPayload) (interface{}, error)
 }
 
@@ -58,6 +58,7 @@ type ResHookDone struct {
 	Next   *NextAction       `json:"next,omitempty"`
 	Input  []message.Message `json:"input,omitempty"`
 	Output []message.Data    `json:"output,omitempty"`
+	Result any               `json:"result,omitempty"`
 }
 
 // ResHookFail the response of the fail hook

@@ -18,8 +18,18 @@ func (r *Redis) GetChat(sid string, cid string) (*ChatInfo, error) {
 	return &ChatInfo{}, nil
 }
 
+// GetChatWithFilter retrieves a single chat's information with filter options
+func (r *Redis) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error) {
+	return &ChatInfo{}, nil
+}
+
 // GetHistory retrieves chat history
 func (r *Redis) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+
+// GetHistoryWithFilter retrieves chat history with filter options
+func (r *Redis) GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 

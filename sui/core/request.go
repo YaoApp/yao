@@ -218,7 +218,12 @@ func (r *Request) execValue(value interface{}) (interface{}, error) {
 		}
 
 		if strings.HasPrefix(v, "$") {
-			return r.call(strings.TrimLeft(v, "$"))
+			res, err := r.call(strings.TrimLeft(v, "$"))
+			if err != nil {
+				log.Error("[Request] Exec  value:%s, %s", v, err.Error())
+				return nil, nil
+			}
+			return res, nil
 		}
 		return v, nil
 

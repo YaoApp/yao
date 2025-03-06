@@ -3,12 +3,15 @@ package assistant
 import (
 	"context"
 	"fmt"
+	"path"
 	"time"
 
 	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	"github.com/yaoapp/kun/log"
+	sui "github.com/yaoapp/yao/sui/core"
 )
 
 // Save save the assistant
@@ -154,6 +157,28 @@ func (ast *Assistant) Validate() error {
 		return fmt.Errorf("connector is required")
 	}
 	return nil
+}
+
+// Assets get the assets content
+func (ast *Assistant) Assets(name string, data sui.Data) (string, error) {
+
+	app, err := fs.Get("app")
+	if err != nil {
+		return "", err
+	}
+
+	root := path.Join(ast.Path, "assets", name)
+	raw, err := app.ReadFile(root)
+	if err != nil {
+		return "", err
+	}
+
+	if data != nil {
+		content, _ := data.Replace(string(raw))
+		return content, nil
+	}
+
+	return string(raw), nil
 }
 
 // Clone creates a deep copy of the assistant

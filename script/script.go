@@ -25,6 +25,27 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Load assistants - Move to the neo assistant package
+	// err = application.App.Walk("assistants", func(root, file string, isdir bool) error {
+	// 	if isdir {
+	// 		return nil
+	// 	}
+
+	// 	// Keep the src.index only
+	// 	if !strings.HasSuffix(file, "src/index.ts") {
+	// 		return nil
+	// 	}
+
+	// 	id := fmt.Sprintf("assistants.%s", share.ID(root, file))
+	// 	id = strings.TrimSuffix(id, ".src.index")
+	// 	_, err := v8.Load(file, id)
+	// 	return err
+	// }, exts...)
+
+	// if err != nil {
+	// 	return err
+	// }
+
 	return application.App.Walk("services", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil

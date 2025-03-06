@@ -9,18 +9,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
-	"rogchap.com/v8go"
 )
 
-// HookInit initialize the assistant
-func (ast *Assistant) HookInit(c *gin.Context, context chatctx.Context, input []message.Message, options map[string]interface{}, contents *message.Contents) (*ResHookInit, error) {
+// HookCreate create a new assistant
+func (ast *Assistant) HookCreate(c *gin.Context, context chatctx.Context, input []chatMessage.Message, options map[string]interface{}, contents *chatMessage.Contents) (*ResHookInit, error) {
 	// Create timeout context
 	ctx := ast.createBackgroundContext()
-	v, err := ast.call(ctx, "Init", c, contents, context, input, options)
+	v, err := ast.call(ctx, "Create", c, contents, context, input, options)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
 			return nil, nil
@@ -135,6 +134,46 @@ func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input 
 	return response, nil
 }
 
+// HookRetry Handle retry of assistant response
+func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents, errmsg string) (interface{}, error) {
+	ctx := ast.createBackgroundContext()
+	output := []message.Data{}
+	if len(input) < 1 {
+		return "", fmt.Errorf("no input")
+	}
+
+	var lastInput message.Message = input[len(input)-1]
+	for _, data := range contents.Data {
+		if data.Type == "think" {
+			continue
+		}
+		output = append(output, data)
+	}
+
+	v, err := ast.call(ctx, "Retry", c, contents, context, lastInput.String(), output, errmsg)
+	if err != nil {
+		if err.Error() == HookErrorMethodNotFound {
+			return "", nil
+		}
+		return "", err
+	}
+
+	switch v := v.(type) {
+	case string:
+		return v, nil
+	case map[string]interface{}:
+		var next NextAction
+		raw, _ := jsoniter.MarshalToString(v)
+		err := jsoniter.UnmarshalFromString(raw, &next)
+		if err != nil {
+			return "", err
+		}
+		return next, nil
+	}
+
+	return "", nil
+}
+
 // HookDone Handle completion of assistant response
 func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents) (*ResHookDone, error) {
 	// Create timeout context
@@ -168,9 +207,7 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 							text = content[:endIndex]
 							text = strings.TrimSpace(text)
 							if os.Getenv("YAO_AGENT_PRINT_TOOL_CALL") == "true" {
-								fmt.Println("---- EXTRACTED TOOL CALL ----")
-								fmt.Println(text)
-								fmt.Println("---- END EXTRACTED TOOL CALL ----")
+								log.Trace("[TOOL CALL] %s", text)
 							}
 						}
 					}
@@ -218,6 +255,11 @@ func (ast *Assistant) HookDone(c *gin.Context, context chatctx.Context, input []
 				return nil, err
 			}
 			response.Output = vv
+		}
+
+		// has result
+		if res, has := v["result"]; has {
+			response.Result = res
 		}
 
 		if res, ok := v["next"].(map[string]interface{}); ok {
@@ -308,53 +350,8 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 	}
 	defer scriptCtx.Close()
 
-	// Add sendMessage function to the script context
-	scriptCtx.WithFunction("SendMessage", func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-
-		// Get the message
-		args := info.Args()
-		if len(args) < 1 {
-			return bridge.JsException(info.Context(), "SendMessage requires at least one argument")
-		}
-
-		input, err := bridge.GoValue(args[0], info.Context())
-		if err != nil {
-			return bridge.JsException(info.Context(), err.Error())
-		}
-
-		// Save history by default
-		saveHistory := true
-		if len(args) > 1 && args[1].IsBoolean() {
-			saveHistory = args[1].Boolean()
-		}
-
-		switch v := input.(type) {
-		case string:
-			// Check if the message is json
-			msg, err := message.NewString(v)
-			if err != nil {
-				return bridge.JsException(info.Context(), err.Error())
-			}
-
-			// Append the message to the contents
-			if saveHistory {
-				msg.AppendTo(contents)
-			}
-			msg.Write(c.Writer)
-			return nil
-
-		case map[string]interface{}:
-			msg := message.New().Map(v)
-			if saveHistory {
-				msg.AppendTo(contents)
-			}
-			msg.Write(c.Writer)
-			return nil
-
-		default:
-			return bridge.JsException(info.Context(), "SendMessage requires a string or a map")
-		}
-	})
+	// Initialize the object, add the global variables, methods to the script context
+	ast.InitObject(scriptCtx, c, context, contents)
 
 	// Check if the method exists
 	if !scriptCtx.Global().Has(method) {
@@ -362,7 +359,6 @@ func (ast *Assistant) call(ctx context.Context, method string, c *gin.Context, c
 	}
 
 	// Call the method directly in the current thread
-	args = append([]interface{}{context.Map()}, args...)
 	if scriptCtx != nil {
 		return scriptCtx.CallWith(ctx, method, args...)
 	}

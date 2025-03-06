@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openai"
 )
+
+var locker = sync.Mutex{}
 
 // Message the message
 type Message struct {
@@ -35,6 +38,12 @@ type Message struct {
 	Data            map[string]interface{} `json:"-"`                          // data for the message
 	Pending         bool                   `json:"-"`                          // pending for the message
 	Hidden          bool                   `json:"hidden,omitempty"`           // hidden for the message (not show in the UI and history)
+	Retry           bool                   `json:"retry,omitempty"`            // retry for the message
+	Silent          bool                   `json:"silent,omitempty"`           // silent for the message (not show in the UI and history)
+	IsTool          bool                   `json:"-"`                          // is tool for the message for native tool_calls
+	IsBeginTool     bool                   `json:"-"`                          // is new tool for the message for native tool_calls
+	IsEndTool       bool                   `json:"-"`                          // is end tool for the message for native tool_calls
+	Result          any                    `json:"result,omitempty"`           // result for the message
 }
 
 // Mention represents a mention
@@ -187,10 +196,9 @@ func NewAny(content interface{}) (*Message, error) {
 // NewOpenAI create a new message from OpenAI response
 func NewOpenAI(data []byte, isThinking bool) *Message {
 
-	// For Debug
 	// For debug environment, print the response data
 	if os.Getenv("YAO_AGENT_PRINT_RESPONSE_DATA") == "true" {
-		fmt.Printf("%s\n", string(data))
+		log.Trace("[Response Data] %s", string(data))
 	}
 
 	if data == nil || len(data) == 0 {
@@ -220,19 +228,26 @@ func NewOpenAI(data []byte, isThinking bool) *Message {
 		}
 
 		// Tool calls
-		if len(chunk.Choices[0].Delta.ToolCalls) > 0 {
+		if len(chunk.Choices[0].Delta.ToolCalls) > 0 || chunk.Choices[0].FinishReason == "tool_calls" {
 			msg.Type = "tool_calls_native"
-			id := chunk.Choices[0].Delta.ToolCalls[0].ID
-			function := chunk.Choices[0].Delta.ToolCalls[0].Function.Name
-			arguments := chunk.Choices[0].Delta.ToolCalls[0].Function.Arguments
-			text := arguments
-			if id != "" {
-				text = fmt.Sprintf(`{"id": "%s", "function": "%s", "arguments": %s`, id, function, arguments)
-				msg.IsNew = true // mark as a new message
+			text := ""
+			if len(chunk.Choices[0].Delta.ToolCalls) > 0 {
+				id := chunk.Choices[0].Delta.ToolCalls[0].ID
+				function := chunk.Choices[0].Delta.ToolCalls[0].Function.Name
+				arguments := chunk.Choices[0].Delta.ToolCalls[0].Function.Arguments
+				text = arguments
+				if id != "" {
+					msg.IsBeginTool = true
+					msg.IsNew = true // mark as a new message
+					text = fmt.Sprintf(`{"id": "%s", "function": "%s", "arguments": %s`, id, function, arguments)
+				}
+			}
+
+			if chunk.Choices[0].FinishReason == "tool_calls" {
+				msg.IsEndTool = true
 			}
 
 			msg.Text = text
-			msg.IsDone = chunk.Choices[0].FinishReason == "tool_calls" // is done when tool calls are finished
 			return msg
 		}
 
@@ -692,14 +707,60 @@ func (m *Message) Bind(data map[string]interface{}) *Message {
 	return m
 }
 
+// Callback callback the message
+func (m *Message) Callback(fn interface{}) *Message {
+	if fn != nil {
+		switch v := fn.(type) {
+		case func(msg *Message):
+			if v == nil {
+				break
+			}
+			v(m)
+			break
+
+		case func():
+			if v == nil {
+				break
+			}
+			v()
+			break
+
+		default:
+			fmt.Println("no match callback")
+			break
+		}
+	}
+	return m
+}
+
 // Write writes the message to response writer
 func (m *Message) Write(w gin.ResponseWriter) bool {
+
+	// Sync write to response writer
+	locker.Lock()
+	defer locker.Unlock()
+
 	defer func() {
 		if r := recover(); r != nil {
+
+			// Ignore if done is true
+			if m.IsDone {
+				return
+			}
+
 			message := "Write Response Exception: (if client close the connection, it's normal) \n  %s\n\n"
 			color.Red(message, r)
+
+			// Print the message
+			raw, _ := jsoniter.MarshalToString(m)
+			color.White("Message:\n %s", raw)
 		}
 	}()
+
+	// Ignore silent messages
+	if m.Silent {
+		return true
+	}
 
 	data, err := jsoniter.Marshal(m)
 	if err != nil {

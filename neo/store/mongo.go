@@ -18,8 +18,18 @@ func (m *Mongo) GetChat(sid string, cid string) (*ChatInfo, error) {
 	return &ChatInfo{}, nil
 }
 
+// GetChatWithFilter retrieves a single chat's information with filter options
+func (m *Mongo) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error) {
+	return &ChatInfo{}, nil
+}
+
 // GetHistory retrieves chat history
 func (m *Mongo) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+	return []map[string]interface{}{}, nil
+}
+
+// GetHistoryWithFilter retrieves chat history with filter options
+func (m *Mongo) GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
