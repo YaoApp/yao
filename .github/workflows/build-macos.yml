@@ -49,7 +49,7 @@ jobs:
       - name: Checkout Gou
         uses: actions/checkout@v4
         with:
-          repository: yaoapp/gou
+          repository: sjzsdu/gou
           path: gou
 
       - name: Checkout V8Go
@@ -73,7 +73,7 @@ jobs:
         #  ** new repository: https://github.com/YaoApp/dui.git **
         uses: actions/checkout@v4
         with:
-          repository: yaoapp/xgen
+          repository: sjzsdu/xgen
           path: xgen-v1.0
 
       - name: Checkout Yao-Init
@@ -97,6 +97,8 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          repository: sjzsdu/yao
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v5
@@ -116,55 +118,6 @@ jobs:
           make artifacts-macos
           mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
           mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
-
-      - name: Install Certificates
-        env:
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-
-        run: |
-          mkdir -p certs
-          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode > certs/DeveloperIDG2CA.cer
-          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode > certs/distribution.cer
-          echo "${{ secrets.APPLE_PRIVATE_KEY }}" | base64 --decode > certs/private_key.p12
-          security verify-cert -c certs/DeveloperIDG2CA.cer
-          security verify-cert -c certs/distribution.cer
-
-      - name: Import Certificates
-        run: |
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          # create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # import certificate to keychain
-          security import ./certs/DeveloperIDG2CA.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
-          security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
-
-          # import private key to keychain
-          security import ./certs/private_key.p12 -k $KEYCHAIN_PATH -P "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" -T /usr/bin/codesign
-
-          security list-keychain -d user -s $KEYCHAIN_PATH
-
-      - name: Sign Artifacts
-        run: |
-          codesign --deep --force --verbose --timestamp --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
-          codesign --deep --force --verbose --timestamp --options runtime --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
-
-      - name: Verify Signature
-        run: |
-          codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-arm64
-          codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-amd64
-
-      - name: Send to Apple Notary Service
-        run: |
-          zip -r dist/release/yao-$VERSION-unstable-darwin-arm64.zip dist/release/yao-$VERSION-unstable-darwin-arm64
-          zip -r dist/release/yao-$VERSION-unstable-darwin-amd64.zip dist/release/yao-$VERSION-unstable-darwin-amd64
-          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-arm64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
-          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-amd64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
-          rm -f dist/release/yao-$VERSION-unstable-darwin-arm64.zip
-          rm -f dist/release/yao-$VERSION-unstable-darwin-amd64.zip
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
