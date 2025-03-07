@@ -5,17 +5,32 @@ on:
     inputs:
       tags:
         description: "Version tags"
+        required: true
+        type: string
 
 jobs:
   build:
     runs-on: "ubuntu-latest"
     container:
       image: sjzsdu/yao-build:0.10.4
+      options: --privileged
+      volumes:
+        - /data:/data
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GO111MODULE: on
+        GOPROXY: https://goproxy.cn,direct
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: /app/yao
+
       - name: Build
         run: |
           export PATH=$PATH:/github/home/go/bin
+          cd /app
           /app/build.sh
           ls -l /data
 
@@ -25,3 +40,16 @@ jobs:
           name: yao-linux
           path: |
             /data/*
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: success()
+        continue-on-error: true
+        with:
+          tag_name: ${{ github.event.inputs.tags }}
+          name: Release ${{ github.event.inputs.tags }}
+          files: /data/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

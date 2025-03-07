@@ -1,4 +1,10 @@
 #!/bin/bash
+set -e
+
+# 确保目录存在并设置权限
+mkdir -p /data
+chmod 777 /data
+
 cd /app && \
 git clone https://github.com/yaoapp/kun.git /app/kun && \
 git clone https://github.com/yaoapp/xun.git /app/xun && \
@@ -22,4 +28,4 @@ cd /app/yao && \
 export VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g") 
 
 cd /app/yao && make tools && make artifacts-linux
-mv /app/yao/dist/release/* /data/% 
+mv /app/yao/dist/release/* /data/

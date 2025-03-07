@@ -1,3 +1,9 @@
+## Install Yao
+
+```
+curl -sSL https://github.com/sjzsdu/yao/raw/master/get-wn.sh | bash
+```
+
 ## What is Yao?
 
 Yao is an all-in-one application engine that enables developers to create web apps, REST APIs, business applications, and more, with AI as a development partner.

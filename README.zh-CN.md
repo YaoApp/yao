@@ -1,5 +1,11 @@
 # Yao
 
+## 安装 Yao
+
+```
+curl -sSL https://github.com/sjzsdu/yao/raw/master/get-wn.sh | bash
+```
+
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
 [![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
 

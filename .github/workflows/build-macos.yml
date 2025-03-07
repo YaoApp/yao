@@ -125,3 +125,14 @@ jobs:
           name: yao-macos
           path: |
             dist/release/*
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        continue-on-error: true
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          files: dist/release/*
