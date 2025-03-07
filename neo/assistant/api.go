@@ -323,10 +323,6 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 	go func() {
 		var res interface{} = nil
 		res, err = ast.streamChat(c, ctx, messages, options, clientBreak, contents, callback...)
-		if err != nil {
-			chatMessage.New().Error(err).Done().Write(c.Writer)
-			err = fmt.Errorf("stream chat error %s", err.Error())
-		}
 		result = res
 		done <- true
 	}()
@@ -622,16 +618,22 @@ func (ast *Assistant) streamChat(
 		ctx.RetryTimes = ctx.RetryTimes + 1 // Increment the retry times
 		ctx.Retry = true                    // Set the retry mode
 
+		// The maximum retry times is 9
+		if ctx.RetryTimes > 9 {
+			color.Red("Maximum retry times is 9, please check the error and fix it")
+			// chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			return nil, retry
+		}
+
 		// Hook retry
 		promptAny, retryErr := ast.HookRetry(c, ctx, messages, contents, exception.Trim(retry))
 		if retryErr != nil {
 			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
-			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			// chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
 		if promptAny == nil {
-			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
@@ -640,7 +642,7 @@ func (ast *Assistant) streamChat(
 		case NextAction:
 			result, err := v.Execute(c, ctx, contents, cb)
 			if err != nil {
-				chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
+				// chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
 				return nil, retry
 			}
 			return result, nil
@@ -653,7 +655,7 @@ func (ast *Assistant) streamChat(
 		retryMessages, retryErr := ast.retryMessages(messages, prompt)
 		if retryErr != nil {
 			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
-			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			// chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
@@ -690,7 +692,7 @@ func (ast *Assistant) streamChat(
 func (ast *Assistant) retryMessages(messages []chatMessage.Message, prompt string) ([]chatMessage.Message, error) {
 
 	// Get the last user message
-	var lastIndex int
+	var lastIndex int = -1
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].Role == "user" {
 			messages[i].Text = prompt
@@ -699,7 +701,7 @@ func (ast *Assistant) retryMessages(messages []chatMessage.Message, prompt strin
 		}
 	}
 
-	if lastIndex == 0 {
+	if lastIndex == -1 {
 		return nil, fmt.Errorf("no user message found")
 	}
 
@@ -1089,7 +1091,12 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 		content := message.String()
 		if content == "" {
-			return nil, fmt.Errorf("content must be string")
+			// fmt.Println("--------------------------------")
+			// fmt.Println("Request Message Error")
+			// utils.Dump(message)
+			// fmt.Println("--------------------------------")
+			// return nil, fmt.Errorf("content must be string")
+			continue
 		}
 
 		newMessage := map[string]interface{}{

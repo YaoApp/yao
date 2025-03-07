@@ -153,9 +153,9 @@ func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input [
 	v, err := ast.call(ctx, "Retry", c, contents, context, lastInput.String(), output, errmsg)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
-			return "", nil
+			return nil, nil
 		}
-		return "", err
+		return nil, err
 	}
 
 	switch v := v.(type) {
@@ -166,12 +166,12 @@ func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input [
 		raw, _ := jsoniter.MarshalToString(v)
 		err := jsoniter.UnmarshalFromString(raw, &next)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return next, nil
+		return &next, nil
 	}
 
-	return "", nil
+	return nil, nil
 }
 
 // HookDone Handle completion of assistant response
