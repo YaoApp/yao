@@ -42,3 +42,4 @@ xgen/v1.0/*
 docker/build/test
 db
 *.sh
+!get-yao.sh

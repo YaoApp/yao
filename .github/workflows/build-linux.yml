@@ -5,51 +5,140 @@ on:
     inputs:
       tags:
         description: "Version tags"
-        required: true
-        type: string
+
+env:
+  VERSION: 0.9.0
 
 jobs:
   build:
+    strategy:
+      matrix:
+        go: [1.23.4]
     runs-on: "ubuntu-latest"
-    container:
-      image: sjzsdu/yao-build:0.10.4
-      options: --privileged
-      volumes:
-        - /data:/data
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GO111MODULE: on
-        GOPROXY: https://goproxy.cn,direct
-
     steps:
-      - name: Checkout code
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Setup Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install Cross Compilers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libc6-armel-cross libc6-dev-armel-cross binutils-arm-linux-gnueabi libncurses5-dev build-essential bison flex libssl-dev bc
+          sudo apt-get install -y gcc-arm-linux-gnueabi g++-arm-linux-gnueabi
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+          sudo apt-get install -y g++-aarch64-linux-gnu crossbuild-essential-arm64
+          sudo apt-get install -y gcc-13-aarch64-linux-gnu
+          sudo apt-get install -y g++-13-aarch64-linux-gnu
+
+      - name: Checkout Kun
         uses: actions/checkout@v4
         with:
-          path: /app/yao
+          repository: yaoapp/kun
+          path: kun
 
-      - name: Build
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: sjzsdu/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
         run: |
-          export PATH=$PATH:/github/home/go/bin
-          cd /app
-          /app/build.sh
-          ls -l /data
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout XGen v1.0
+        uses: actions/checkout@v4
+        with:
+          repository: sjzsdu/xgen
+          path: xgen-v1.0
+
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
+
+      - name: Move Kun, Xun, Gou, UI, V8Go
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv xgen-v1.0 ../
+          mv yao-init ../
+          rm -f ../xgen-v1.0/packages/setup/vite.config.ts.*
+          ls -l .
+          ls -l ../
+          ls -l ../xgen-v1.0/packages/setup/
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          repository: sjzsdu/yao
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Setup Go Tools
+        run: |
+          make tools
+
+      - name: Get Version
+        run: |
+          echo VERSION=$(cat share/const.go  |grep 'const VERSION' | awk '{print $4}' | sed "s/\"//g")  >> $GITHUB_ENV
+
+      - name: Make Artifacts Linux
+        run: |
+          make artifacts-linux
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: yao-linux
           path: |
-            /data/*
+            dist/release/*
 
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v1
-        if: success()
         continue-on-error: true
         with:
-          tag_name: ${{ github.event.inputs.tags }}
-          name: Release ${{ github.event.inputs.tags }}
-          files: /data/*
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: dist/release/*

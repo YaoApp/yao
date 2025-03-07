@@ -1,10 +1,4 @@
 #!/bin/bash
-set -e
-
-# 确保目录存在并设置权限
-mkdir -p /data
-chmod 777 /data
-
 cd /app && \
 git clone https://github.com/yaoapp/kun.git /app/kun && \
 git clone https://github.com/yaoapp/xun.git /app/xun && \
