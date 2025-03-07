@@ -246,7 +246,7 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	var chatCtx chatctx.Context = global.ChatContext
 	chatCtx.AssistantID = assistantID
 	chatCtx.ChatID = fmt.Sprintf("call_%s", uuid.New().String()) // New chat id
-	chatCtx.Silent = options.Silent                              // Check the silent mode
+	chatCtx.Silent = options.Silent
 
 	// Define the callback function
 	var cb func(msg *chatMessage.Message) = nil
@@ -346,7 +346,7 @@ func (obj *objectCall) retry(jsArgs []v8go.Valuer, err error, input interface{},
 		delay = options.Retry.DelayMax
 	}
 
-	// Retry delay (millisecond)
+	// Wait for the delay
 	if delay > 0 {
 		time.Sleep(time.Duration(delay) * time.Millisecond)
 	}
@@ -448,7 +448,6 @@ func (obj *objectCall) retry(jsArgs []v8go.Valuer, err error, input interface{},
 		return nil, fmt.Errorf("%s occurred but failed to get the run function: %s", errmsg, fnErr.Error())
 	}
 
-	// Call the run function
 	result, resErr := fn.Call(this, jsArgs...)
 	if resErr != nil {
 		return nil, fmt.Errorf("%s (%d)", exception.Trim(resErr), times-1)
