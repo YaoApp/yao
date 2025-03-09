@@ -37,11 +37,17 @@ DOWNLOAD_URL="https://github.com/$REPO/releases/download/v$VERSION/yao-$VERSION-
 
 # 下载文件
 echo "正在下载 yao-$OS-$ARCH 版本 $VERSION ..."
-curl -L $DOWNLOAD_URL -o yao
-echo "下载 URL: $DOWNLOAD_URL"
+TEMP_FILE="yao_temp_$RANDOM"
+if curl -L $DOWNLOAD_URL -o "$TEMP_FILE"; then
+    echo "下载完成。"
+else
+    echo "下载失败，请检查网络连接或下载 URL。"
+    echo "下载 URL: $DOWNLOAD_URL"
+    exit 1
+fi
 
 # 使文件可执行
-chmod +x yao
+chmod +x "$TEMP_FILE"
 
 # 确定安装目录
 INSTALL_DIR="/usr/local/bin"
@@ -52,7 +58,13 @@ fi
 
 # 移动文件到安装目录
 echo "正在安装 yao 到 $INSTALL_DIR ..."
-mv yao "$INSTALL_DIR/yao"
+if mv "$TEMP_FILE" "$INSTALL_DIR/yao"; then
+    echo "yao 安装完成！"
+else
+    echo "安装失败，无法移动文件到 $INSTALL_DIR。"
+    echo "请检查目录权限或手动移动文件。"
+    exit 1
+fi
 
 # 检查安装目录是否在 PATH 中
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then

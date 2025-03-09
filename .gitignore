@@ -43,4 +43,5 @@ docker/build/test
 db
 *.sh
 !get-yao.sh
+!docker/base/**
 __debug*
