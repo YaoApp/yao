@@ -1,7 +1,7 @@
 ## Install Yao
 
 ```
-curl -sSL https://github.com/sjzsdu/yao/raw/master/get-yao.sh | bash
+curl -sSL https://raw.githubusercontent.com/sjzsdu/yao/refs/heads/main/get-yao.sh | bash
 ```
 
 ## What is Yao?

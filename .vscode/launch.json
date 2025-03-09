@@ -17,17 +17,6 @@
             ],
         },
         {
-            "name": "Launch Yao Project",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
-            "cwd": "/Users/juzhongsun/Works/yao-project",
-            "args": [
-                "start"
-            ],
-        },
-        {
             "name": "Launch Fabric Project",
             "type": "go",
             "request": "launch",

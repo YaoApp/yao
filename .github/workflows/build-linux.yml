@@ -2,24 +2,21 @@ name: Build Linux Artifacts
 
 on:
   workflow_dispatch:
-    inputs:
-      tags:
-        description: "Version tags"
-
-env:
-  VERSION: 0.9.0
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
+    runs-on: "ubuntu-latest"
     strategy:
       matrix:
         go: [1.23.4]
-    runs-on: "ubuntu-latest"
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -124,6 +121,8 @@ jobs:
       - name: Make Artifacts Linux
         run: |
           make artifacts-linux
+          mv dist/release/yao-${{ env.VERSION }}-unstable-linux-arm64 dist/release/yao-${{ env.VERSION }}-linux-arm64
+          mv dist/release/yao-${{ env.VERSION }}-unstable-linux-amd64 dist/release/yao-${{ env.VERSION }}-linux-amd64
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4

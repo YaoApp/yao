@@ -2,12 +2,9 @@ name: Build MacOS Artifacts
 
 on:
   workflow_dispatch:
-    inputs:
-      tags:
-        description: "Version tags"
-
-env:
-  VERSION: 0.9.0
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
@@ -19,7 +16,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -69,8 +66,6 @@ jobs:
           done
 
       - name: Checkout XGen v1.0
-        #  ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
-        #  ** new repository: https://github.com/YaoApp/dui.git **
         uses: actions/checkout@v4
         with:
           repository: sjzsdu/xgen
@@ -116,8 +111,8 @@ jobs:
       - name: Make Artifacts MacOS
         run: |
           make artifacts-macos
-          mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
-          mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
+          mv dist/release/yao-${{ env.VERSION }}-dev-darwin-arm64 dist/release/yao-${{ env.VERSION }}-darwin-arm64
+          mv dist/release/yao-${{ env.VERSION }}-dev-darwin-amd64 dist/release/yao-${{ env.VERSION }}-darwin-amd64
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4

@@ -2,12 +2,10 @@
 
 # 定义 GitHub 仓库信息
 REPO="sjzsdu/yao"
-API_URL="https://api.github.com/repos/$REPO/releases/latest"
+CONST_URL="https://raw.githubusercontent.com/$REPO/main/share/const.go"
 
-# 获取最新版本号
-VERSION=$(curl -s $API_URL | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-# 获取最新版本号并移除 'v' 前缀（如果存在）
-VERSION_NO=$(echo $VERSION | sed 's/^v//')
+# 从 const.go 文件获取最新版本号
+VERSION=$(curl -s $CONST_URL | grep 'const VERSION' | awk -F '"' '{print $2}')
 
 # 检测操作系统类型和架构
 OS="unknown"
@@ -35,12 +33,13 @@ else
 fi
 
 # 构建下载 URL
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/yao-$VERSION_NO-unstable-$OS-$ARCH"
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/v$VERSION/yao-$VERSION-$OS-$ARCH"
 
 # 下载文件
-echo "正在下载 yao-$OS-$ARCH ..."
+echo "正在下载 yao-$OS-$ARCH 版本 $VERSION ..."
 curl -L $DOWNLOAD_URL -o yao
-echo $DOWNLOAD_URL
+echo "下载 URL: $DOWNLOAD_URL"
+
 # 使文件可执行
 chmod +x yao
 

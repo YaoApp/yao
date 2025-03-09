@@ -3,7 +3,7 @@
 ## 安装 Yao
 
 ```
-curl -sSL https://github.com/sjzsdu/yao/raw/master/get-wn.sh | bash
+curl -sSL https://raw.githubusercontent.com/sjzsdu/yao/refs/heads/main/get-yao.sh | bash
 ```
 
 [![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
