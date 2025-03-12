@@ -247,6 +247,7 @@ func (obj *objectCall) run(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	chatCtx.AssistantID = assistantID
 	chatCtx.ChatID = fmt.Sprintf("call_%s", uuid.New().String()) // New chat id
 	chatCtx.Silent = options.Silent
+	chatCtx.Args = goArgs // Arguments for call
 
 	// Define the callback function
 	var cb func(msg *chatMessage.Message) = nil

@@ -28,6 +28,7 @@ type Context struct {
 	Upload      *FileUpload            `json:"upload,omitempty"`
 	Version     bool                   `json:"version,omitempty"` // Version support
 	RAG         bool                   `json:"rag,omitempty"`     // RAG support
+	Args        []interface{}          `json:"args,omitempty"`    // Arguments for call
 	SharedSpace plan.Space             `json:"-"`                 // Shared space
 }
 
@@ -123,6 +124,11 @@ func (ctx *Context) Map() map[string]interface{} {
 	// Retry mode
 	if ctx.Retry {
 		data["retry"] = ctx.Retry
+	}
+
+	// Arguments for call
+	if ctx.Args != nil && len(ctx.Args) > 0 {
+		data["args"] = ctx.Args
 	}
 
 	// Retry times
