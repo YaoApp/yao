@@ -78,21 +78,7 @@ func LoadBuiltIn() error {
 			assistant.Sort = sort
 		}
 		if assistant.Tags == nil {
-			assistant.Tags = []string{"Built-in"}
-		}
-
-		// Check if the assistant has Built-in tag
-		hasBuiltIn := false
-		for _, tag := range assistant.Tags {
-			if tag == "Built-in" {
-				hasBuiltIn = true
-				break
-			}
-		}
-
-		// add Built-in tag if not exists
-		if !hasBuiltIn {
-			assistant.Tags = append(assistant.Tags, "Built-in")
+			assistant.Tags = []string{}
 		}
 
 		// Save the assistant
@@ -254,8 +240,10 @@ func LoadPath(path string) (*Assistant, error) {
 	// assistant_id
 	id := strings.ReplaceAll(strings.TrimPrefix(path, "/assistants/"), "/", ".")
 	data["assistant_id"] = id
-	data["type"] = "assistant"
 	data["path"] = path
+	if _, has := data["type"]; !has {
+		data["type"] = "assistant"
+	}
 
 	updatedAt := int64(0)
 
