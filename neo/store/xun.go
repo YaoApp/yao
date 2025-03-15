@@ -1058,6 +1058,11 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		})
 	}
 
+	// Apply type filter if provided
+	if filter.Type != "" {
+		qb.Where("type", filter.Type)
+	}
+
 	// Apply connector filter if provided
 	if filter.Connector != "" {
 		qb.Where("connector", filter.Connector)
@@ -1259,7 +1264,7 @@ func (conv *Xun) DeleteAssistants(filter AssistantFilter) (int64, error) {
 // GetAssistantTags retrieves all unique tags from assistants
 func (conv *Xun) GetAssistantTags() ([]string, error) {
 	q := conv.newQuery().Table(conv.getAssistantTable())
-	rows, err := q.Select("tags").GroupBy("tags").Get()
+	rows, err := q.Select("tags").Where("type", "assistant").GroupBy("tags").Get()
 	if err != nil {
 		return nil, err
 	}
