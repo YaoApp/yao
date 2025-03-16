@@ -12,6 +12,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/session"
@@ -63,10 +64,6 @@ func Load(cfg config.Config) error {
 	}
 
 	data, err := application.App.Read(file)
-	if err != nil {
-		return err
-	}
-
 	if err != nil {
 		return err
 	}
@@ -574,8 +571,10 @@ func processXgen(process *process.Process) interface{} {
 				"assistant_name":       ast.Name,
 				"assistant_avatar":     ast.Avatar,
 				"assistant_deleteable": false,
+				"placeholder":          ast.Placeholder,
 			}
 		}
+		agent["connectors"] = connector.AIConnectors
 	}
 
 	xgenSetting := map[string]interface{}{
