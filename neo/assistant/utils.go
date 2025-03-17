@@ -33,8 +33,11 @@ func getTimestamp(v interface{}) (int64, error) {
 			return ts, nil
 		}
 
+	case nil:
+		return 0, nil
 	}
-	return 0, fmt.Errorf("invalid timestamp type")
+
+	return 0, fmt.Errorf("invalid timestamp type %T", v)
 }
 
 func stringToTimestamp(v string) (int64, error) {

@@ -963,7 +963,11 @@ func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, e
 
 	// Generate assistant_id if not provided
 	if _, ok := assistantCopy["assistant_id"]; !ok {
-		assistantCopy["assistant_id"] = uuid.New().String()
+		var err error
+		assistantCopy["assistant_id"], err = conv.GenerateAssistantID()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if assistant exists
@@ -1358,4 +1362,34 @@ func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter)
 	}
 
 	return res, nil
+}
+
+// GenerateAssistantID generates a random-looking 6-digit ID
+func (conv *Xun) GenerateAssistantID() (string, error) {
+	maxAttempts := 10 // Maximum number of attempts to generate a unique ID
+	for i := 0; i < maxAttempts; i++ {
+		// Generate a random number using timestamp and some bit operations
+		timestamp := time.Now().UnixNano()
+		random := (timestamp ^ (timestamp >> 12)) % 1000000
+		hash := fmt.Sprintf("%06d", random)
+
+		// Check if this ID already exists
+		exists, err := conv.query.New().
+			Table(conv.getAssistantTable()).
+			Where("assistant_id", hash).
+			Exists()
+
+		if err != nil {
+			return "", err
+		}
+
+		if !exists {
+			return hash, nil
+		}
+
+		// If ID exists, wait a bit and try again
+		time.Sleep(time.Millisecond)
+	}
+
+	return "", fmt.Errorf("failed to generate unique ID after %d attempts", maxAttempts)
 }
