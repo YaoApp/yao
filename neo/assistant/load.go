@@ -148,6 +148,11 @@ func ClearCache() {
 	}
 }
 
+// GetCache returns the loaded cache
+func GetCache() *Cache {
+	return loaded
+}
+
 // LoadStore create a new assistant from store
 func LoadStore(id string) (*Assistant, error) {
 
