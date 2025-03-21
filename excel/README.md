@@ -12,15 +12,15 @@ Here's a simple but complete example showing proper resource management:
 
 ```typescript
 // Open an Excel file
-const h = Process("excel.open", "data.xlsx", true);
+const h = Process("excel.Open", "data.xlsx", true);
 
 // Perform operations
-const sheets = Process("excel.sheets", h);
-Process("excel.write.cell", h, sheets[0], "A1", "Hello World");
-Process("excel.save", h);
+const sheets = Process("excel.Sheets", h);
+Process("excel.write.Cell", h, sheets[0], "A1", "Hello World");
+Process("excel.Save", h);
 
 // IMPORTANT: Always close the handle when done
-Process("excel.close", h);
+Process("excel.Close", h);
 ```
 
 ## Usage in TypeScript
@@ -38,15 +38,15 @@ You can use the Excel module in TypeScript through the Process API. Below are ex
  * @param writable - Whether to open in writable mode (true) or read-only mode (false)
  * @returns string - Handle ID used for subsequent operations
  */
-const h: string = Process("excel.open", "file.xlsx", true);
+const h: string = Process("excel.Open", "file.xlsx", true);
 
 // Open in read-only mode (false parameter or not passed)
-const hRead: string = Process("excel.open", "file.xlsx", false);
+const hRead: string = Process("excel.Open", "file.xlsx", false);
 // or simply
-const h2: string = Process("excel.open", "file.xlsx");
+const h2: string = Process("excel.Open", "file.xlsx");
 
 // IMPORTANT: Don't forget to close the handle when done
-// Process("excel.close", h);
+// Process("excel.Close", h);
 ```
 
 #### Get all sheets in the workbook
@@ -57,7 +57,7 @@ const h2: string = Process("excel.open", "file.xlsx");
  * @param handle - Handle ID from excel.open
  * @returns string[] - Array of sheet names
  */
-const sheets: string[] = Process("excel.sheets", h);
+const sheets: string[] = Process("excel.Sheets", h);
 // Example output: ["Sheet1", "Sheet2"]
 ```
 
@@ -69,7 +69,7 @@ const sheets: string[] = Process("excel.sheets", h);
  * @param handle - Handle ID from excel.open
  * @returns null
  */
-Process("excel.close", h);
+Process("excel.Close", h);
 ```
 
 #### Save changes to file
@@ -80,7 +80,7 @@ Process("excel.close", h);
  * @param handle - Handle ID from excel.open
  * @returns null
  */
-Process("excel.save", h);
+Process("excel.Save", h);
 ```
 
 ### Reading Data
@@ -95,7 +95,7 @@ Process("excel.save", h);
  * @param cell - Cell reference (e.g. "A1")
  * @returns string - Cell value
  */
-const value: string = Process("excel.read.cell", h, "SheetName", "A1");
+const value: string = Process("excel.read.Cell", h, "SheetName", "A1");
 ```
 
 #### Read all rows
@@ -107,7 +107,7 @@ const value: string = Process("excel.read.cell", h, "SheetName", "A1");
  * @param sheet - Sheet name
  * @returns string[][] - Two-dimensional array of cell values
  */
-const rows: string[][] = Process("excel.read.row", h, "SheetName");
+const rows: string[][] = Process("excel.read.Row", h, "SheetName");
 ```
 
 #### Read all columns
@@ -119,7 +119,7 @@ const rows: string[][] = Process("excel.read.row", h, "SheetName");
  * @param sheet - Sheet name
  * @returns string[][] - Two-dimensional array of cell values
  */
-const columns: string[][] = Process("excel.read.column", h, "SheetName");
+const columns: string[][] = Process("excel.read.Column", h, "SheetName");
 ```
 
 ### Writing Data
@@ -135,10 +135,10 @@ const columns: string[][] = Process("excel.read.column", h, "SheetName");
  * @param value - Value to write (string, number, boolean, etc.)
  * @returns null
  */
-Process("excel.write.cell", h, "SheetName", "A1", "Hello World");
+Process("excel.write.Cell", h, "SheetName", "A1", "Hello World");
 // Can write different types of values
-Process("excel.write.cell", h, "SheetName", "A2", 123.45);
-Process("excel.write.cell", h, "SheetName", "A3", true);
+Process("excel.write.Cell", h, "SheetName", "A2", 123.45);
+Process("excel.write.Cell", h, "SheetName", "A3", true);
 ```
 
 #### Write a row
@@ -152,7 +152,7 @@ Process("excel.write.cell", h, "SheetName", "A3", true);
  * @param values - Array of values to write
  * @returns null
  */
-Process("excel.write.row", h, "SheetName", "A1", ["Cell1", "Cell2", "Cell3"]);
+Process("excel.write.Row", h, "SheetName", "A1", ["Cell1", "Cell2", "Cell3"]);
 ```
 
 #### Write a column
@@ -166,7 +166,7 @@ Process("excel.write.row", h, "SheetName", "A1", ["Cell1", "Cell2", "Cell3"]);
  * @param values - Array of values to write
  * @returns null
  */
-Process("excel.write.column", h, "SheetName", "A1", ["Row1", "Row2", "Row3"]);
+Process("excel.write.Column", h, "SheetName", "A1", ["Row1", "Row2", "Row3"]);
 ```
 
 #### Write multiple rows
@@ -180,7 +180,7 @@ Process("excel.write.column", h, "SheetName", "A1", ["Row1", "Row2", "Row3"]);
  * @param values - Two-dimensional array of values to write
  * @returns null
  */
-Process("excel.write.all", h, "SheetName", "A1", [
+Process("excel.write.All", h, "SheetName", "A1", [
   ["Row1Cell1", "Row1Cell2", "Row1Cell3"],
   ["Row2Cell1", "Row2Cell2", "Row2Cell3"],
 ]);
@@ -199,7 +199,7 @@ Process("excel.write.all", h, "SheetName", "A1", [
  * @param styleID - Style ID
  * @returns null
  */
-Process("excel.set.style", h, "SheetName", "A1", 1);
+Process("excel.set.Style", h, "SheetName", "A1", 1);
 ```
 
 #### Set row height
@@ -213,7 +213,7 @@ Process("excel.set.style", h, "SheetName", "A1", 1);
  * @param height - Height in points
  * @returns null
  */
-Process("excel.set.rowheight", h, "SheetName", 1, 30); // Set row 1 to 30 pts height
+Process("excel.set.RowHeight", h, "SheetName", 1, 30); // Set row 1 to 30 pts height
 ```
 
 #### Set column width
@@ -228,7 +228,7 @@ Process("excel.set.rowheight", h, "SheetName", 1, 30); // Set row 1 to 30 pts he
  * @param width - Width in points
  * @returns null
  */
-Process("excel.set.columnwidth", h, "SheetName", "A", "B", 20);
+Process("excel.set.ColumnWidth", h, "SheetName", "A", "B", 20);
 ```
 
 #### Merge cells
@@ -242,7 +242,7 @@ Process("excel.set.columnwidth", h, "SheetName", "A", "B", 20);
  * @param endCell - Ending cell reference (e.g. "B2")
  * @returns null
  */
-Process("excel.set.mergecell", h, "SheetName", "A1", "B2");
+Process("excel.set.MergeCell", h, "SheetName", "A1", "B2");
 ```
 
 #### Unmerge cells
@@ -256,7 +256,7 @@ Process("excel.set.mergecell", h, "SheetName", "A1", "B2");
  * @param endCell - Ending cell reference (e.g. "B2")
  * @returns null
  */
-Process("excel.set.unmergecell", h, "SheetName", "A1", "B2");
+Process("excel.set.UnmergeCell", h, "SheetName", "A1", "B2");
 ```
 
 #### Set a formula
@@ -270,7 +270,7 @@ Process("excel.set.unmergecell", h, "SheetName", "A1", "B2");
  * @param formula - Excel formula without the leading equals sign
  * @returns null
  */
-Process("excel.set.formula", h, "SheetName", "C1", "SUM(A1:B1)");
+Process("excel.set.Formula", h, "SheetName", "C1", "SUM(A1:B1)");
 ```
 
 #### Add a hyperlink
@@ -286,7 +286,7 @@ Process("excel.set.formula", h, "SheetName", "C1", "SUM(A1:B1)");
  * @returns null
  */
 Process(
-  "excel.set.link",
+  "excel.set.Link",
   h,
   "SheetName",
   "A1",
@@ -306,7 +306,7 @@ Process(
  * @param sheet - Sheet name
  * @returns string - Row iterator ID
  */
-const rid: string = Process("excel.each.openrow", h, "SheetName");
+const rid: string = Process("excel.each.OpenRow", h, "SheetName");
 
 /**
  * Gets the next row from the iterator
@@ -314,7 +314,7 @@ const rid: string = Process("excel.each.openrow", h, "SheetName");
  * @returns string[] | null - Array of cell values or null if no more rows
  */
 let row: string[] | null;
-while ((row = Process("excel.each.nextrow", rid)) !== null) {
+while ((row = Process("excel.each.NextRow", rid)) !== null) {
   // Process the row
   console.log(row);
 }
@@ -324,7 +324,7 @@ while ((row = Process("excel.each.nextrow", rid)) !== null) {
  * @param rowID - Row iterator ID from excel.each.openrow
  * @returns null
  */
-Process("excel.each.closerow", rid);
+Process("excel.each.CloseRow", rid);
 ```
 
 #### Column Iterator
@@ -336,7 +336,7 @@ Process("excel.each.closerow", rid);
  * @param sheet - Sheet name
  * @returns string - Column iterator ID
  */
-const cid: string = Process("excel.each.opencolumn", h, "SheetName");
+const cid: string = Process("excel.each.OpenColumn", h, "SheetName");
 
 /**
  * Gets the next column from the iterator
@@ -344,7 +344,7 @@ const cid: string = Process("excel.each.opencolumn", h, "SheetName");
  * @returns string[] | null - Array of cell values or null if no more columns
  */
 let col: string[] | null;
-while ((col = Process("excel.each.nextcolumn", cid)) !== null) {
+while ((col = Process("excel.each.NextColumn", cid)) !== null) {
   // Process the column
   console.log(col);
 }
@@ -354,7 +354,7 @@ while ((col = Process("excel.each.nextcolumn", cid)) !== null) {
  * @param colID - Column iterator ID from excel.each.opencolumn
  * @returns null
  */
-Process("excel.each.closecolumn", cid);
+Process("excel.each.CloseColumn", cid);
 ```
 
 ### Utility Functions
@@ -367,14 +367,14 @@ Process("excel.each.closecolumn", cid);
  * @param colName - Column name (e.g. "A", "AB")
  * @returns number - Column number (1-based)
  */
-const colNum: number = Process("excel.convert.columnnametonumber", "AK"); // Returns 37
+const colNum: number = Process("excel.convert.ColumnNameToNumber", "AK"); // Returns 37
 
 /**
  * Converts a column number to a column name
  * @param colNum - Column number (1-based)
  * @returns string - Column name
  */
-const colName: string = Process("excel.convert.columnnumbertoname", 37); // Returns "AK"
+const colName: string = Process("excel.convert.ColumnNumberToName", 37); // Returns "AK"
 ```
 
 #### Convert between cell references and coordinates
@@ -385,7 +385,7 @@ const colName: string = Process("excel.convert.columnnumbertoname", 37); // Retu
  * @param cell - Cell reference (e.g. "A1")
  * @returns number[] - Array with [columnNumber, rowNumber] (1-based)
  */
-const coords: number[] = Process("excel.convert.cellnametocoordinates", "A1"); // Returns [1, 1]
+const coords: number[] = Process("excel.convert.CellNameToCoordinates", "A1"); // Returns [1, 1]
 
 /**
  * Converts coordinates to a cell reference
@@ -393,39 +393,39 @@ const coords: number[] = Process("excel.convert.cellnametocoordinates", "A1"); /
  * @param row - Row number (1-based)
  * @returns string - Cell reference
  */
-const cellName: string = Process("excel.convert.coordinatestocellname", 1, 1); // Returns "A1"
+const cellName: string = Process("excel.convert.CoordinatesToCellName", 1, 1); // Returns "A1"
 ```
 
 ## Complete Workflow Example
 
 ```typescript
 // Open Excel file in writable mode
-const h: string = Process("excel.open", "file.xlsx", true);
+const h: string = Process("excel.Open", "file.xlsx", true);
 
 // Get available sheets
-const sheets: string[] = Process("excel.sheets", h);
+const sheets: string[] = Process("excel.Sheets", h);
 const sheetName: string = sheets[0];
 
 // Read some data
-const value: string = Process("excel.read.cell", h, sheetName, "A1");
+const value: string = Process("excel.read.Cell", h, sheetName, "A1");
 console.log("Cell A1 contains:", value);
 
 // Write data
-Process("excel.write.cell", h, sheetName, "B1", "New Value");
-Process("excel.write.row", h, sheetName, "A2", ["Data1", "Data2", "Data3"]);
+Process("excel.write.Cell", h, sheetName, "B1", "New Value");
+Process("excel.write.Row", h, sheetName, "A2", ["Data1", "Data2", "Data3"]);
 
 // Add a formula
-Process("excel.set.formula", h, sheetName, "D1", "SUM(A1:C1)");
+Process("excel.set.Formula", h, sheetName, "D1", "SUM(A1:C1)");
 
 // Format cells
-Process("excel.set.rowheight", h, sheetName, 1, 30);
-Process("excel.set.columnwidth", h, sheetName, "A", "D", 15);
+Process("excel.set.RowHeight", h, sheetName, 1, 30);
+Process("excel.set.ColumnWidth", h, sheetName, "A", "D", 15);
 
 // Save changes
-Process("excel.save", h);
+Process("excel.Save", h);
 
 // IMPORTANT: Always close the handle when done
-Process("excel.close", h);
+Process("excel.Close", h);
 ```
 
 ## Notes
