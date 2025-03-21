@@ -202,6 +202,61 @@ Process("excel.write.All", h, "SheetName", "A1", [
 Process("excel.set.Style", h, "SheetName", "A1", 1);
 ```
 
+#### Style ID Constants
+
+When using `excel.set.Style`, you need to provide a style ID. The following style IDs are supported:
+
+```typescript
+// Border styles
+const BORDER_NONE = 0; // No border
+const BORDER_CONTINUOUS = 1; // Continuous border (thin)
+const BORDER_CONTINUOUS_2 = 2; // Continuous border (medium)
+const BORDER_DASH = 3; // Dashed border
+const BORDER_DOT = 4; // Dotted border
+const BORDER_CONTINUOUS_3 = 5; // Continuous border (thick)
+const BORDER_DOUBLE = 6; // Double line border
+const BORDER_CONTINUOUS_0 = 7; // Continuous border (hair)
+const BORDER_DASH_2 = 8; // Dashed border (medium)
+const BORDER_DASH_DOT = 9; // Dash-dot border
+const BORDER_DASH_DOT_2 = 10; // Dash-dot border (medium)
+const BORDER_DASH_DOT_DOT = 11; // Dash-dot-dot border
+const BORDER_DASH_DOT_DOT_2 = 12; // Dash-dot-dot border (medium)
+const BORDER_SLANT_DASH_DOT = 13; // Slanted dash-dot border
+
+// Fill patterns
+const FILL_NONE = 0; // No fill
+const FILL_SOLID = 1; // Solid fill
+const FILL_MEDIUM_GRAY = 2; // Medium gray fill
+const FILL_DARK_GRAY = 3; // Dark gray fill
+const FILL_LIGHT_GRAY = 4; // Light gray fill
+const FILL_DARK_HORIZONTAL = 5; // Dark horizontal line pattern
+const FILL_DARK_VERTICAL = 6; // Dark vertical line pattern
+const FILL_DARK_DOWN = 7; // Dark diagonal down pattern
+const FILL_DARK_UP = 8; // Dark diagonal up pattern
+const FILL_DARK_GRID = 9; // Dark grid pattern
+const FILL_DARK_TRELLIS = 10; // Dark trellis pattern
+const FILL_LIGHT_HORIZONTAL = 11; // Light horizontal line pattern
+const FILL_LIGHT_VERTICAL = 12; // Light vertical line pattern
+const FILL_LIGHT_DOWN = 13; // Light diagonal down pattern
+const FILL_LIGHT_UP = 14; // Light diagonal up pattern
+const FILL_LIGHT_GRID = 15; // Light grid pattern
+const FILL_LIGHT_TRELLIS = 16; // Light trellis pattern
+const FILL_GRAY_125 = 17; // 12.5% gray fill
+const FILL_GRAY_0625 = 18; // 6.25% gray fill
+```
+
+Example of creating a custom style with borders and fill:
+
+```typescript
+// Create style with thick border and light gray fill
+const styleID = 1; // This would typically be a custom style ID created via the NewStyle API
+
+// Apply the style to cell A1
+Process("excel.set.Style", h, "SheetName", "A1", styleID);
+```
+
+Note: The excelize library supports creating custom styles through the `NewStyle` function. Currently, in the Yao Excel module, only predefined style IDs are supported. For more complex styling needs, consider creating a custom style in the future versions of the API.
+
 #### Set row height
 
 ```typescript
