@@ -46,16 +46,16 @@ func init() {
 	})
 }
 
-// processOpen process the excel.open <file> <readonly>
+// processOpen process the excel.open <file> <writable>
 func processOpen(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	file := process.ArgsString(0)
-	readonly := false
+	writable := false
 	if len(process.Args) > 1 {
-		readonly = process.ArgsBool(1)
+		writable = process.ArgsBool(1)
 	}
 
-	handle, err := Open(file, readonly)
+	handle, err := Open(file, writable)
 	if err != nil {
 		exception.New("excel.open %s error: %s", 500, file, err.Error()).Throw()
 	}
