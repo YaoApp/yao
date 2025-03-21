@@ -41,12 +41,22 @@ func LoadBuiltIn() error {
 		return err
 	}
 
+	// Get all existing built-in assistants
+	deletedBuiltIn := map[string]bool{}
+
 	// Remove the built-in assistants
 	if storage != nil {
+
 		builtIn := true
-		_, err := storage.DeleteAssistants(store.AssistantFilter{BuiltIn: &builtIn})
+		res, err := storage.GetAssistants(store.AssistantFilter{BuiltIn: &builtIn, Select: []string{"assistant_id", "id"}})
 		if err != nil {
 			return err
+		}
+
+		// Get all existing built-in assistants
+		for _, assistant := range res.Data {
+			assistantID := assistant["assistant_id"].(string)
+			deletedBuiltIn[assistantID] = true
 		}
 	}
 
@@ -96,6 +106,22 @@ func LoadBuiltIn() error {
 		sort++
 		loaded.Put(assistant)
 
+		// Remove the built-in assistant from the store
+		if _, ok := deletedBuiltIn[assistant.ID]; ok {
+			delete(deletedBuiltIn, assistant.ID)
+		}
+	}
+
+	// Remove deleted built-in assistants
+	if len(deletedBuiltIn) > 0 {
+		assistantIDs := []string{}
+		for assistantID := range deletedBuiltIn {
+			assistantIDs = append(assistantIDs, assistantID)
+		}
+		_, err := storage.DeleteAssistants(store.AssistantFilter{AssistantIDs: assistantIDs})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
