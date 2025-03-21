@@ -17,6 +17,7 @@ type Excel struct {
 	id     string
 	path   string
 	create int64
+	abs    string
 	*excelize.File
 }
 
@@ -29,7 +30,7 @@ func Open(path string, writable bool) (string, error) {
 	excel := &Excel{path: path}
 	// GET DATA ROOT
 	root := config.Conf.DataRoot
-	path, err := filepath.Abs(filepath.Join(root, path))
+	absPath, err := filepath.Abs(filepath.Join(root, path))
 	if err != nil {
 		return "", err
 	}
@@ -37,30 +38,31 @@ func Open(path string, writable bool) (string, error) {
 	if writable {
 
 		// if the file not exists, create it
-		if _, err := os.Stat(path); os.IsNotExist(err) {
+		if _, err := os.Stat(absPath); os.IsNotExist(err) {
 			create := excelize.NewFile()
-			err := create.SaveAs(path)
+			err := create.SaveAs(absPath)
 			if err != nil {
 				return "", err
 			}
 			create.Close()
 		}
 
-		excelFile, err := excelize.OpenFile(path)
+		excelFile, err := excelize.OpenFile(absPath)
 		if err != nil {
 			return "", err
 		}
 		id := uuid.NewString()
 		excel.File = excelFile
 		excel.id = id
+		excel.abs = absPath
 		excel.create = time.Now().Unix()
 		openFiles.Store(id, excel)
 		return id, nil
 	}
 
-	file, err := os.Open(path)
+	file, err := os.Open(absPath)
 	if err != nil {
-		return "", fmt.Errorf("open file %s failed: %w", path, err)
+		return "", fmt.Errorf("open file %s failed: %w", absPath, err)
 	}
 
 	excelFile, err := excelize.OpenReader(file)
@@ -71,6 +73,7 @@ func Open(path string, writable bool) (string, error) {
 	id := uuid.NewString()
 	excel.File = excelFile
 	excel.id = id
+	excel.abs = absPath
 	excel.create = time.Now().Unix()
 	openFiles.Store(id, excel)
 	return id, nil

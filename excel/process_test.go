@@ -248,7 +248,7 @@ func TestProcessSave(t *testing.T) {
 	defer os.Remove(filepath.Join(dataRoot, newFile)) // Clean up after test
 
 	// Open new file in write mode
-	p, err := process.Of("excel.open", newFile, true)
+	p, err := process.Of("excel.open", newFile, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,4 +429,332 @@ func TestProcessSetStyle(t *testing.T) {
 
 	_, err = p.Exec()
 	assert.Error(t, err)
+}
+
+func TestProcessReadRow(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Open file first
+	p, err := process.Of("excel.open", files["test-01"], true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Read rows from the first sheet
+	p, err = process.Of("excel.read.row", handle, "供销存管理表格")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify we got some rows
+	assert.NotNil(t, rows)
+	rowsData := rows.([][]string)
+	assert.True(t, len(rowsData) > 0, "Should have at least one row")
+}
+
+func TestProcessReadColumn(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Open file first
+	p, err := process.Of("excel.open", files["test-01"], true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Read columns from the first sheet
+	p, err = process.Of("excel.read.column", handle, "供销存管理表格")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cols, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify we got some columns
+	assert.NotNil(t, cols)
+	colsData := cols.([][]string)
+	assert.True(t, len(colsData) > 0, "Should have at least one column")
+}
+
+func TestProcessWriteOperations(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Create a new test file path
+	dataRoot := config.Conf.DataRoot
+	newFile := filepath.Join(filepath.Dir(files["test-01"]), "test-write-ops.xlsx")
+
+	// Copy test-01.xlsx to new file
+	content, err := os.ReadFile(filepath.Join(dataRoot, files["test-01"]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(dataRoot, newFile), content, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath.Join(dataRoot, newFile)) // Clean up after test
+
+	// Open file in write mode
+	p, err := process.Of("excel.open", newFile, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test write row
+	p, err = process.Of("excel.write.row", handle, "供销存管理表格", "A1", []interface{}{"Test1", "Test2", "Test3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Test write column
+	p, err = process.Of("excel.write.column", handle, "供销存管理表格", "B1", []interface{}{"Col1", "Col2", "Col3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Test write all
+	p, err = process.Of("excel.write.all", handle, "供销存管理表格", "C1", [][]interface{}{
+		{"All1", "All2", "All3"},
+		{"All4", "All5", "All6"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Save and close
+	p, err = process.Of("excel.save", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	p, err = process.Of("excel.close", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+}
+
+func TestProcessSetOptions(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Create a new test file path
+	dataRoot := config.Conf.DataRoot
+	newFile := filepath.Join(filepath.Dir(files["test-01"]), "test-set-ops.xlsx")
+
+	// Copy test-01.xlsx to new file
+	content, err := os.ReadFile(filepath.Join(dataRoot, files["test-01"]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(dataRoot, newFile), content, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath.Join(dataRoot, newFile)) // Clean up after test
+
+	// Open file in write mode
+	p, err := process.Of("excel.open", newFile, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test row height
+	p, err = process.Of("excel.set.rowheight", handle, "供销存管理表格", 1, 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Test column width
+	p, err = process.Of("excel.set.columnwidth", handle, "供销存管理表格", "A", "B", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Test merge cells
+	p, err = process.Of("excel.set.mergecell", handle, "供销存管理表格", "C3", "D4")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Test formula
+	p, err = process.Of("excel.set.formula", handle, "供销存管理表格", "E5", "SUM(A1:A4)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Save and close
+	p, err = process.Of("excel.save", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	p, err = process.Of("excel.close", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+}
+
+func TestProcessIterators(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Open file first
+	p, err := process.Of("excel.open", files["test-01"], true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test row iterator
+	p, err = process.Of("excel.each.openrow", handle, "供销存管理表格")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rowID, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotEmpty(t, rowID)
+
+	// Get first row
+	p, err = process.Of("excel.each.nextrow", rowID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	row, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// May be nil if empty sheet, but shouldn't error
+	if row != nil {
+		assert.IsType(t, []string{}, row)
+	}
+
+	// Close row iterator
+	p, err = process.Of("excel.each.closerow", rowID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	// Test column iterator
+	p, err = process.Of("excel.each.opencolumn", handle, "供销存管理表格")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	colID, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotEmpty(t, colID)
+
+	// Get first column
+	p, err = process.Of("excel.each.nextcolumn", colID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	col, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// May be nil if empty sheet, but shouldn't error
+	if col != nil {
+		assert.IsType(t, []string{}, col)
+	}
+
+	// Close column iterator
+	p, err = process.Of("excel.each.closecolumn", colID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
 }
