@@ -1194,7 +1194,7 @@ func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error
 
 	data := row.ToMap()
 	if data == nil || len(data) == 0 {
-		return nil, fmt.Errorf("assistant %s not found", assistantID)
+		return nil, fmt.Errorf("the assistant %s is empty", assistantID)
 	}
 
 	// Parse JSON fields
