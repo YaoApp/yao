@@ -19,8 +19,9 @@ type Tool struct {
 
 // SchemaProperty represents a JSON Schema property
 type SchemaProperty struct {
-	Type        string `json:"type,omitempty"`
-	Description string `json:"description,omitempty"`
+	Type        string    `json:"type,omitempty"`
+	Description string    `json:"description,omitempty"`
+	Items       Parameter `json:"items,omitempty"`
 }
 
 // Parameter represents the parameters field in function calling format
@@ -29,6 +30,7 @@ type Parameter struct {
 	Properties           map[string]SchemaProperty `json:"properties,omitempty"`
 	Required             []string                  `json:"required,omitempty"`
 	AdditionalProperties bool                      `json:"additionalProperties"`
+	Strict               bool                      `json:"strict,omitempty"`
 }
 
 // Example returns a formatted example of how to use this tool
