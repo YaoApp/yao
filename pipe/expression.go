@@ -42,7 +42,7 @@ func (data Data) Exec(stmt string) (interface{}, error) {
 		return nil, nil
 	}
 
-	v, err := expr.Run(program, data)
+	v, err := expr.Run(program, map[string]interface{}(data))
 	if err != nil {
 		log.Warn("pipe: %s %s", stmt, err)
 		return nil, nil
