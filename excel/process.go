@@ -19,6 +19,7 @@ func init() {
 		"sheet.delete": processDeleteSheet,
 		"sheet.copy":   processCopySheet,
 		"sheet.list":   processListSheets,
+		"sheet.exists": processSheetExists,
 
 		"read.cell":   processReadCell,
 		"read.row":    processReadRow,
@@ -720,4 +721,18 @@ func processListSheets(process *process.Process) interface{} {
 	}
 
 	return xls.ListSheets()
+}
+
+// processSheetExists process the excel.sheet.exists <handle> <name>
+func processSheetExists(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.exists %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	return xls.SheetExists(name)
 }

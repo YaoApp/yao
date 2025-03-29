@@ -84,6 +84,17 @@ func TestSheetOperations(t *testing.T) {
 		assert.Contains(t, sheets, "NewSheet")
 	})
 
+	// Test SheetExists
+	t.Run("SheetExists", func(t *testing.T) {
+		// Check existing sheet
+		exists := excel.SheetExists("TestSheet1")
+		assert.True(t, exists)
+
+		// Check non-existent sheet
+		exists = excel.SheetExists("NonExistentSheet")
+		assert.False(t, exists)
+	})
+
 	// Test CopySheet
 	t.Run("CopySheet", func(t *testing.T) {
 		// Copy existing sheet

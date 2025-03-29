@@ -121,6 +121,12 @@ func (excel *Excel) ListSheets() []string {
 	return excel.GetSheetList()
 }
 
+// SheetExists checks if a sheet exists in the workbook
+func (excel *Excel) SheetExists(name string) bool {
+	idx, _ := excel.GetSheetIndex(name)
+	return idx != -1
+}
+
 // CopySheet copies a sheet to a new name
 func (excel *Excel) CopySheet(source, destination string) error {
 	// Validate destination sheet name
