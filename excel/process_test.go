@@ -758,3 +758,161 @@ func TestProcessIterators(t *testing.T) {
 	_, err = p.Exec()
 	assert.NoError(t, err)
 }
+
+func TestProcessSheetOperations(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Create a new test file path
+	dataRoot := config.Conf.DataRoot
+	newFile := filepath.Join(filepath.Dir(files["test-01"]), "test-sheet-ops.xlsx")
+
+	// Copy test-01.xlsx to new file
+	content, err := os.ReadFile(filepath.Join(dataRoot, files["test-01"]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(dataRoot, newFile), content, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath.Join(dataRoot, newFile)) // Clean up after test
+
+	// Open file in write mode
+	p, err := process.Of("excel.open", newFile, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test sheet.create
+	t.Run("CreateSheet", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.create", handle, "TestSheet1")
+		assert.NoError(t, err)
+
+		idx, err := p.Exec()
+		assert.NoError(t, err)
+		assert.Greater(t, idx.(int), 0)
+
+		// Try to create a sheet with the same name (should fail)
+		p, err = process.Of("excel.sheet.create", handle, "TestSheet1")
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	// Test sheet.list
+	t.Run("ListSheets", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.list", handle)
+		assert.NoError(t, err)
+
+		sheets, err := p.Exec()
+		assert.NoError(t, err)
+		sheetList := sheets.([]string)
+		assert.Contains(t, sheetList, "TestSheet1")
+	})
+
+	// Test sheet.update and sheet.read
+	t.Run("UpdateAndReadSheet", func(t *testing.T) {
+		testData := [][]interface{}{
+			{"Header1", "Header2"},
+			{1, "Data1"},
+			{2, "Data2"},
+		}
+
+		p, err := process.Of("excel.sheet.update", handle, "TestSheet1", testData)
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Read and verify
+		p, err = process.Of("excel.sheet.read", handle, "TestSheet1")
+		assert.NoError(t, err)
+
+		data, err := p.Exec()
+		assert.NoError(t, err)
+		assert.NotNil(t, data)
+
+		// Try to read non-existent sheet
+		p, err = process.Of("excel.sheet.read", handle, "NonExistentSheet")
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	// Test sheet.copy
+	t.Run("CopySheet", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.copy", handle, "TestSheet1", "CopiedSheet")
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Verify the copy exists
+		p, err = process.Of("excel.sheet.list", handle)
+		assert.NoError(t, err)
+
+		sheets, err := p.Exec()
+		assert.NoError(t, err)
+		sheetList := sheets.([]string)
+		assert.Contains(t, sheetList, "CopiedSheet")
+
+		// Try to copy to existing sheet name (should fail)
+		p, err = process.Of("excel.sheet.copy", handle, "TestSheet1", "CopiedSheet")
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	// Test sheet.delete
+	t.Run("DeleteSheet", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.delete", handle, "CopiedSheet")
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Verify the sheet is deleted
+		p, err = process.Of("excel.sheet.list", handle)
+		assert.NoError(t, err)
+
+		sheets, err := p.Exec()
+		assert.NoError(t, err)
+		sheetList := sheets.([]string)
+		assert.NotContains(t, sheetList, "CopiedSheet")
+
+		// Try to delete non-existent sheet
+		p, err = process.Of("excel.sheet.delete", handle, "NonExistentSheet")
+		assert.NoError(t, err)
+
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	// Save and close
+	p, err = process.Of("excel.save", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	p, err = process.Of("excel.close", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Exec()
+	assert.NoError(t, err)
+}

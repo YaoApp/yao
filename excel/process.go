@@ -13,6 +13,13 @@ func init() {
 		"save":   processSave,
 		"sheets": processSheets,
 
+		"sheet.create": processCreateSheet,
+		"sheet.read":   processReadSheet,
+		"sheet.update": processUpdateSheet,
+		"sheet.delete": processDeleteSheet,
+		"sheet.copy":   processCopySheet,
+		"sheet.list":   processListSheets,
+
 		"read.cell":   processReadCell,
 		"read.row":    processReadRow,
 		"read.column": processReadColumn,
@@ -622,4 +629,123 @@ func processNextColumn(process *process.Process) interface{} {
 	}
 
 	return col
+}
+
+// processCreateSheet process the excel.sheet.create <handle> <name>
+func processCreateSheet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.create %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	idx, err := xls.CreateSheet(name)
+	if err != nil {
+		exception.New("excel.sheet.create %s:%s error: %s", 500, handle, name, err.Error()).Throw()
+	}
+	return idx
+}
+
+// processReadSheet process the excel.sheet.read <handle> <name>
+func processReadSheet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.read %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	data, err := xls.ReadSheet(name)
+	if err != nil {
+		exception.New("excel.sheet.read %s:%s error: %s", 500, handle, name, err.Error()).Throw()
+	}
+	return data
+}
+
+// processUpdateSheet process the excel.sheet.update <handle> <name> <data>
+func processUpdateSheet(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+	data := process.Args[2]
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.update %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	// Convert data to [][]interface{}
+	var sheetData [][]interface{}
+	if arr, ok := data.([]interface{}); ok {
+		for _, row := range arr {
+			if rowArr, ok := row.([]interface{}); ok {
+				sheetData = append(sheetData, rowArr)
+			} else {
+				sheetData = append(sheetData, []interface{}{row})
+			}
+		}
+	} else {
+		sheetData = [][]interface{}{{data}}
+	}
+
+	err = xls.UpdateSheet(name, sheetData)
+	if err != nil {
+		exception.New("excel.sheet.update %s:%s error: %s", 500, handle, name, err.Error()).Throw()
+	}
+	return nil
+}
+
+// processDeleteSheet process the excel.sheet.delete <handle> <name>
+func processDeleteSheet(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.delete %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	err = xls.DeleteSheet(name)
+	if err != nil {
+		exception.New("excel.sheet.delete %s:%s error: %s", 500, handle, name, err.Error()).Throw()
+	}
+	return nil
+}
+
+// processCopySheet process the excel.sheet.copy <handle> <source> <target>
+func processCopySheet(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+	handle := process.ArgsString(0)
+	source := process.ArgsString(1)
+	target := process.ArgsString(2)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.copy %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	err = xls.CopySheet(source, target)
+	if err != nil {
+		exception.New("excel.sheet.copy %s:%s:%s error: %s", 500, handle, source, target, err.Error()).Throw()
+	}
+	return nil
+}
+
+// processListSheets process the excel.sheet.list <handle>
+func processListSheets(process *process.Process) interface{} {
+	process.ValidateArgNums(1)
+	handle := process.ArgsString(0)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.list %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	return xls.ListSheets()
 }

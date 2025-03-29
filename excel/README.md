@@ -49,6 +49,125 @@ const h2: string = Process("excel.Open", "file.xlsx");
 // Process("excel.Close", h);
 ```
 
+### Sheet Operations
+
+#### Create a new sheet
+
+```typescript
+/**
+ * Creates a new sheet in the workbook
+ * @param handle - Handle ID from excel.open
+ * @param name - Name for the new sheet
+ * @returns number - Index of the new sheet
+ */
+const idx: number = Process("excel.sheet.create", h, "NewSheet");
+```
+
+#### List all sheets
+
+```typescript
+/**
+ * Lists all sheets in the workbook
+ * @param handle - Handle ID from excel.open
+ * @returns string[] - Array of sheet names
+ */
+const sheets: string[] = Process("excel.sheet.list", h);
+// Example output: ["Sheet1", "Sheet2", "NewSheet"]
+```
+
+#### Read sheet data
+
+```typescript
+/**
+ * Reads all data from a sheet
+ * @param handle - Handle ID from excel.open
+ * @param name - Sheet name
+ * @returns any[][] - Two-dimensional array of cell values
+ */
+const data: any[][] = Process("excel.sheet.read", h, "Sheet1");
+```
+
+#### Update sheet data
+
+```typescript
+/**
+ * Updates data in a sheet. Creates the sheet if it doesn't exist.
+ * @param handle - Handle ID from excel.open
+ * @param name - Sheet name
+ * @param data - Two-dimensional array of values to write
+ * @returns null
+ */
+const data = [
+  ["Header1", "Header2", "Header3"],
+  [1, "Data1", true],
+  [2, "Data2", false],
+];
+Process("excel.sheet.update", h, "Sheet1", data);
+```
+
+#### Copy a sheet
+
+```typescript
+/**
+ * Copies a sheet with all its content and formatting
+ * @param handle - Handle ID from excel.open
+ * @param source - Source sheet name
+ * @param target - Target sheet name (must not exist)
+ * @returns null
+ */
+Process("excel.sheet.copy", h, "Sheet1", "Sheet1Copy");
+```
+
+#### Delete a sheet
+
+```typescript
+/**
+ * Deletes a sheet from the workbook
+ * @param handle - Handle ID from excel.open
+ * @param name - Sheet name to delete
+ * @returns null
+ */
+Process("excel.sheet.delete", h, "Sheet1Copy");
+```
+
+### Example: Sheet Operations Workflow
+
+```typescript
+// Open Excel file in writable mode
+const h: string = Process("excel.Open", "file.xlsx", true);
+
+// Create a new sheet
+const idx: number = Process("excel.sheet.create", h, "DataSheet");
+
+// Write some data to the new sheet
+const data = [
+  ["Name", "Age", "Active"],
+  ["John", 30, true],
+  ["Jane", 25, false],
+];
+Process("excel.sheet.update", h, "DataSheet", data);
+
+// Make a backup copy of the sheet
+Process("excel.sheet.copy", h, "DataSheet", "DataSheet_Backup");
+
+// List all sheets to verify
+const sheets: string[] = Process("excel.sheet.list", h);
+console.log("Available sheets:", sheets);
+
+// Read data from the backup sheet
+const backupData: any[][] = Process("excel.sheet.read", h, "DataSheet_Backup");
+console.log("Backup data:", backupData);
+
+// Delete the backup sheet when no longer needed
+Process("excel.sheet.delete", h, "DataSheet_Backup");
+
+// Save changes
+Process("excel.Save", h);
+
+// IMPORTANT: Always close the handle when done
+Process("excel.Close", h);
+```
+
 #### Get all sheets in the workbook
 
 ```typescript

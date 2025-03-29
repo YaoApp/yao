@@ -39,6 +39,16 @@ func Open(path string, writable bool) (string, error) {
 
 		// if the file not exists, create it
 		if _, err := os.Stat(absPath); os.IsNotExist(err) {
+
+			// Auto create dir
+			dir := filepath.Dir(absPath)
+			if _, err := os.Stat(dir); os.IsNotExist(err) {
+				err := os.MkdirAll(dir, 0644)
+				if err != nil {
+					return "", err
+				}
+			}
+
 			create := excelize.NewFile()
 			err := create.SaveAs(absPath)
 			if err != nil {
