@@ -43,7 +43,7 @@ func Open(path string, writable bool) (string, error) {
 			// Auto create dir
 			dir := filepath.Dir(absPath)
 			if _, err := os.Stat(dir); os.IsNotExist(err) {
-				err := os.MkdirAll(dir, 0644)
+				err := os.MkdirAll(dir, 0755) // 0755 is the default permission for directories
 				if err != nil {
 					return "", err
 				}
