@@ -2,6 +2,7 @@ package excel
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -18,9 +19,31 @@ func New() (*Excel, error) {
 	}, nil
 }
 
+// validateSheetName checks if the sheet name contains invalid characters
+func (excel *Excel) validateSheetName(name string) error {
+	invalidChars := []string{":", "\\", "/", "?", "*", "[", "]"}
+	for _, char := range invalidChars {
+		if strings.Contains(name, char) {
+			return fmt.Errorf("sheet name cannot contain any of these characters: :/?*[\\]")
+		}
+	}
+	if len(name) == 0 {
+		return fmt.Errorf("sheet name cannot be empty")
+	}
+	if len(name) > 31 {
+		return fmt.Errorf("sheet name cannot be longer than 31 characters")
+	}
+	return nil
+}
+
 // CreateSheet creates a new sheet with the given name
 // Returns the index of the new sheet and any error encountered
 func (excel *Excel) CreateSheet(name string) (int, error) {
+	// Validate sheet name
+	if err := excel.validateSheetName(name); err != nil {
+		return 0, err
+	}
+
 	// Check if sheet already exists
 	if idx, _ := excel.GetSheetIndex(name); idx != -1 {
 		return 0, fmt.Errorf("sheet %s already exists", name)
@@ -56,6 +79,11 @@ func (excel *Excel) ReadSheet(name string) ([][]interface{}, error) {
 // UpdateSheet updates an existing sheet with new data
 // If the sheet doesn't exist, it will be created
 func (excel *Excel) UpdateSheet(name string, data [][]interface{}) error {
+	// Validate sheet name
+	if err := excel.validateSheetName(name); err != nil {
+		return err
+	}
+
 	// Ensure sheet exists
 	_, err := excel.SetSheet(name)
 	if err != nil {
@@ -95,6 +123,11 @@ func (excel *Excel) ListSheets() []string {
 
 // CopySheet copies a sheet to a new name
 func (excel *Excel) CopySheet(source, destination string) error {
+	// Validate destination sheet name
+	if err := excel.validateSheetName(destination); err != nil {
+		return err
+	}
+
 	// Check if source exists
 	if idx, _ := excel.GetSheetIndex(source); idx == -1 {
 		return fmt.Errorf("source sheet %s does not exist", source)
