@@ -130,6 +130,18 @@ Process("excel.sheet.copy", h, "Sheet1", "Sheet1Copy");
 Process("excel.sheet.delete", h, "Sheet1Copy");
 ```
 
+#### Check if a sheet exists
+
+```typescript
+/**
+ * Checks if a sheet exists in the workbook
+ * @param handle - Handle ID from excel.open
+ * @param name - Sheet name to check
+ * @returns boolean - true if sheet exists, false otherwise
+ */
+const exists: boolean = Process("excel.sheet.exists", h, "Sheet1");
+```
+
 ### Example: Sheet Operations Workflow
 
 ```typescript
