@@ -250,51 +250,23 @@ func processWriteAll(process *process.Process) interface{} {
 		exception.New("excel.write.all %s error: %s", 500, handle, err.Error()).Throw()
 	}
 
-	// 处理二维切片值
+	// Convert data to [][]interface{}
+	var sheetData [][]interface{}
 	if arr, ok := values.([]interface{}); ok {
 		for _, row := range arr {
 			if rowArr, ok := row.([]interface{}); ok {
-				// 对于每行，使用 SetSheetRow
-				err = xls.SetSheetRow(sheet, cell, &rowArr)
-				if err != nil {
-					exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-				}
-
-				// 移动到下一行
-				colIndex, rowIndex, err := excelize.CellNameToCoordinates(cell)
-				if err != nil {
-					exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-				}
-				cell, err = excelize.CoordinatesToCellName(colIndex, rowIndex+1)
-				if err != nil {
-					exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-				}
+				sheetData = append(sheetData, rowArr)
 			} else {
-				// 单元素行
-				singleRow := []interface{}{row}
-				err = xls.SetSheetRow(sheet, cell, &singleRow)
-				if err != nil {
-					exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-				}
-
-				// 移动到下一行
-				colIndex, rowIndex, err := excelize.CellNameToCoordinates(cell)
-				if err != nil {
-					exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-				}
-				cell, err = excelize.CoordinatesToCellName(colIndex, rowIndex+1)
-				if err != nil {
-					exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-				}
+				sheetData = append(sheetData, []interface{}{row})
 			}
 		}
 	} else {
-		// 单元素
-		singleElement := []interface{}{values}
-		err = xls.SetSheetRow(sheet, cell, &singleElement)
-		if err != nil {
-			exception.New("excel.write.all %s:%s:%s error: %s", 500, handle, sheet, cell, err.Error()).Throw()
-		}
+		sheetData = [][]interface{}{{values}}
+	}
+
+	err = xls.WriteAll(sheet, cell, sheetData)
+	if err != nil {
+		exception.New("excel.write.all %s:%s error: %s", 500, handle, sheet, err.Error()).Throw()
 	}
 	return nil
 }
