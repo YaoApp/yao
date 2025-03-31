@@ -25,6 +25,8 @@ import (
 // Export process
 
 func exportProcess() {
+
+	// Table Data Operations
 	gouProcess.Register("yao.table.setting", processSetting)
 	gouProcess.Register("yao.table.xgen", processXgen)
 	gouProcess.Register("yao.table.component", processComponent)
@@ -43,11 +45,15 @@ func exportProcess() {
 	gouProcess.Register("yao.table.deletewhere", processDeleteWhere)
 	gouProcess.Register("yao.table.deletein", processDeleteIn)
 	gouProcess.Register("yao.table.export", processExport)
+
+	// DSL Operations
+	gouProcess.Register("yao.table.exists", processExists)
+	gouProcess.Register("yao.table.read", processRead)
+	gouProcess.Register("yao.table.list", processList)
+	gouProcess.Register("yao.table.dsl", processDSL)
 	gouProcess.Register("yao.table.load", processLoad)
 	gouProcess.Register("yao.table.reload", processReload)
 	gouProcess.Register("yao.table.unload", processUnload)
-	gouProcess.Register("yao.table.read", processRead)
-	gouProcess.Register("yao.table.exists", processExists)
 }
 
 func processXgen(process *gouProcess.Process) interface{} {
@@ -376,4 +382,27 @@ func processRead(process *gouProcess.Process) interface{} {
 func processExists(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
 	return Exists(process.ArgsString(0))
+}
+
+// processList returns all loaded tables
+func processList(process *gouProcess.Process) interface{} {
+	tables := GetTables()
+	return tables
+}
+
+// GetTables returns all loaded tables
+func GetTables() map[string]*DSL {
+	return Tables
+}
+
+// processGetDSL returns the DSL of a table by its ID
+func processDSL(process *gouProcess.Process) interface{} {
+	process.ValidateArgNums(1)
+	id := process.ArgsString(0)
+	if !Exists(id) {
+		exception.New("table %s does not exist", 404, id).Throw()
+	}
+
+	tab := MustGet(process) // 0
+	return tab
 }
