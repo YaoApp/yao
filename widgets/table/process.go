@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/model"
 	gouProcess "github.com/yaoapp/gou/process"
@@ -370,12 +369,7 @@ func processUnload(process *gouProcess.Process) interface{} {
 func processRead(process *gouProcess.Process) interface{} {
 	process.ValidateArgNums(1)
 	tab := MustGet(process) // 0
-	source := map[string]interface{}{}
-	err := application.Parse(tab.file, tab.Read(), &source)
-	if err != nil {
-		exception.New(err.Error(), 500).Throw()
-	}
-	return source
+	return string(tab.Read())
 }
 
 // processExists yao.table.Exists table_name
