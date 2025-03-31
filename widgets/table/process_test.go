@@ -637,7 +637,7 @@ func TestProcessRead(t *testing.T) {
 
 	res := process.New("yao.table.Read", "pet").Run()
 	assert.NotNil(t, res)
-	assert.Equal(t, "::Pet Admin", res.(map[string]interface{})["name"])
+	assert.Contains(t, res.(string), "::Pet Admin")
 }
 
 func TestProcessList(t *testing.T) {
