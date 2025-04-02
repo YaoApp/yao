@@ -1086,6 +1086,11 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 		role := message.Role
 		if role == "" {
+			if os.Getenv("YAO_AGENT_PRINT_REQUEST_MESSAGES") == "true" {
+				raw, _ := jsoniter.MarshalToString(message)
+				color.Red("Request Message Error, role is empty:")
+				fmt.Println(raw)
+			}
 			return nil, fmt.Errorf("role must be string")
 		}
 
