@@ -306,10 +306,15 @@ func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, err
 
 	// Check if the method exists
 	if !scriptCtx.Global().Has(method) {
+		color.Red("Assistant Call: %s Method %s not found", ast.ID, method)
 		return nil, fmt.Errorf(HookErrorMethodNotFound)
 	}
 
-	return scriptCtx.CallWith(ctx, method, payload.Payload)
+	if payload.Args == nil || len(payload.Args) == 0 {
+		return scriptCtx.CallWith(ctx, method)
+	}
+
+	return scriptCtx.CallWith(ctx, method, payload.Args...)
 }
 
 // handleChatStream manages the streaming chat interaction with the AI
