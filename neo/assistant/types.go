@@ -32,9 +32,9 @@ type API interface {
 
 // APIPayload the API payload
 type APIPayload struct {
-	Sid     string                 `json:"sid"`
-	Name    string                 `json:"name"`
-	Payload map[string]interface{} `json:"payload"`
+	Sid  string        `json:"sid"`
+	Name string        `json:"name"`
+	Args []interface{} `json:"args,omitempty"`
 }
 
 // ResHookInit the response of the init hook
