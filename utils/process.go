@@ -67,6 +67,7 @@ func Init() {
 	process.Register("utils.str.Join", str.ProcessJoin)
 	process.Register("utils.str.JoinPath", str.ProcessJoinPath)
 	process.Register("utils.str.UUID", str.ProcessUUID)
+	process.Register("utils.str.Pinyin", str.ProcessPinyin)
 
 	// Array
 	process.Alias("xiang.helper.ArrayPluck", "utils.arr.Pluck")
