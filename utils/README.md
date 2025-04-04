@@ -56,12 +56,26 @@ const uuid = Process("utils.str.UUID");
 const pinyin = Process("utils.str.Pinyin", "你好");
 // Returns: "ni hao"
 
-// With options
+// With tone marks
 const pinyinWithTone = Process("utils.str.Pinyin", "你好", {
   tone: true,
   separator: "-",
 });
+// Returns: "nǐ-hǎo"
+
+// With tone numbers
+const pinyinWithToneNumbers = Process("utils.str.Pinyin", "你好", {
+  tone: "number",
+  separator: "-",
+});
 // Returns: "ni3-hao3"
+
+// With multiple pronunciations for characters (heteronym mode)
+const pinyinWithHeteronym = Process("utils.str.Pinyin", "中国", {
+  heteronym: true,
+  tone: true,
+});
+// Returns: "zhōng|zhòng guó"
 ```
 
 #### Convert hex to string
