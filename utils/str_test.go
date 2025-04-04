@@ -57,13 +57,69 @@ func TestProcessPinyin(t *testing.T) {
 	res := process.New("utils.str.Pinyin", "你好世界").Run().(string)
 	assert.Equal(t, "ni hao shi jie", res)
 
-	// Test with tone enabled and custom separator
+	// Test with tone enabled (boolean true)
 	config := map[string]interface{}{
+		"tone": true,
+	}
+	res = process.New("utils.str.Pinyin", "你好世界", config).Run().(string)
+	assert.Equal(t, "nǐ hǎo shì jiè", res)
+
+	// Test with tone as string "mark"
+	config = map[string]interface{}{
+		"tone": "mark",
+	}
+	res = process.New("utils.str.Pinyin", "你好世界", config).Run().(string)
+	assert.Equal(t, "nǐ hǎo shì jiè", res)
+
+	// Test with tone as string "number"
+	config = map[string]interface{}{
+		"tone": "number",
+	}
+	res = process.New("utils.str.Pinyin", "你好世界", config).Run().(string)
+	assert.Equal(t, "ni3 hao3 shi4 jie4", res)
+
+	// Test with tone enabled (boolean true) and custom separator
+	config = map[string]interface{}{
 		"tone":      true,
 		"separator": "-",
 	}
 	res = process.New("utils.str.Pinyin", "你好世界", config).Run().(string)
 	assert.Equal(t, "nǐ-hǎo-shì-jiè", res)
+
+	// Test with tone "number" and custom separator
+	config = map[string]interface{}{
+		"tone":      "number",
+		"separator": "-",
+	}
+	res = process.New("utils.str.Pinyin", "你好世界", config).Run().(string)
+	assert.Equal(t, "ni3-hao3-shi4-jie4", res)
+
+	// Test with heteronym enabled
+	config = map[string]interface{}{
+		"heteronym": true,
+	}
+	res = process.New("utils.str.Pinyin", "中国", config).Run().(string)
+	assert.Contains(t, res, "zhong")
+	assert.Contains(t, res, "guo")
+
+	// Test with heteronym and tone enabled
+	config = map[string]interface{}{
+		"heteronym": true,
+		"tone":      true,
+	}
+	res = process.New("utils.str.Pinyin", "中国", config).Run().(string)
+	assert.Contains(t, res, "zhōng")
+	assert.Contains(t, res, "guó")
+
+	// Test with heteronym and tone number
+	config = map[string]interface{}{
+		"heteronym": true,
+		"tone":      "number",
+	}
+	res = process.New("utils.str.Pinyin", "中国", config).Run().(string)
+	assert.Contains(t, res, "zhong1")
+	assert.NotContains(t, res, "zho1ng")
+	assert.Contains(t, res, "guo2")
 
 	// Test with only custom separator
 	config = map[string]interface{}{
