@@ -30,6 +30,7 @@ func Start(cfg config.Config) error {
 		ContextTimeout:    cfg.Runtime.ContextTimeout,
 		Import:            cfg.Runtime.Import,
 		Debug:             debug,
+		ConsoleMode:       cfg.Mode,
 	}
 
 	// Read the tsconfig.json
