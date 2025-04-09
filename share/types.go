@@ -84,8 +84,18 @@ type AppInfo struct {
 	Static       Static                 `json:"public,omitempty"`
 	Optional     map[string]interface{} `json:"optional,omitempty"`
 	Moapi        Moapi                  `json:"moapi,omitempty"`
+	Developer    Developer              `json:"developer,omitempty"`
 	AfterLoad    string                 `json:"afterLoad,omitempty"`    // Process executed after the app is loaded
 	AfterMigrate string                 `json:"afterMigrate,omitempty"` // Process executed after the app is migrated
+}
+
+// Developer The developer informations
+type Developer struct {
+	ID       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Info     string `json:"info,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Homepage string `json:"homepage,omitempty"`
 }
 
 // Moapi AIGC App Store API

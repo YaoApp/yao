@@ -580,15 +580,20 @@ func processXgen(process *process.Process) interface{} {
 	xgenSetting := map[string]interface{}{
 		"name":        Setting.Name,
 		"description": Setting.Description,
+		"developer":   share.App.Developer,
 		"version":     Setting.Version,
-		"theme":       Setting.Theme,
-		"lang":        Setting.Lang,
-		"mode":        mode,
-		"apiPrefix":   "__yao",
-		"token":       Setting.Token,
-		"optional":    Setting.Optional,
-		"login":       xgenLogin,
-		"agent":       agent,
+		"yao": map[string]interface{}{
+			"version":   share.VERSION,
+			"prversion": share.PRVERSION,
+		},
+		"theme":     Setting.Theme,
+		"lang":      Setting.Lang,
+		"mode":      mode,
+		"apiPrefix": "__yao",
+		"token":     Setting.Token,
+		"optional":  Setting.Optional,
+		"login":     xgenLogin,
+		"agent":     agent,
 	}
 
 	if Setting.Logo != "" {
