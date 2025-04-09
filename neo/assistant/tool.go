@@ -19,18 +19,23 @@ type Tool struct {
 
 // SchemaProperty represents a JSON Schema property
 type SchemaProperty struct {
-	Type        string    `json:"type,omitempty"`
-	Description string    `json:"description,omitempty"`
-	Items       Parameter `json:"items,omitempty"`
+	Type        string           `json:"type,omitempty"`
+	Description string           `json:"description,omitempty"`
+	Items       *Parameter       `json:"items,omitempty"`
+	OneOf       []SchemaProperty `json:"oneOf,omitempty"`
+	Enum        []interface{}    `json:"enum,omitempty"`
 }
 
 // Parameter represents the parameters field in function calling format
 type Parameter struct {
-	Type                 string                    `json:"type"`
+	Type                 string                    `json:"type,omitempty"`
 	Properties           map[string]SchemaProperty `json:"properties,omitempty"`
+	Description          string                    `json:"description,omitempty"`
 	Required             []string                  `json:"required,omitempty"`
-	AdditionalProperties bool                      `json:"additionalProperties"`
+	AdditionalProperties bool                      `json:"additionalProperties,omitempty"`
 	Strict               bool                      `json:"strict,omitempty"`
+	OneOf                []SchemaProperty          `json:"oneOf,omitempty"`
+	Enum                 []interface{}             `json:"enum,omitempty"`
 }
 
 // Example returns a formatted example of how to use this tool
@@ -56,6 +61,21 @@ func (tool Tool) ExampleArguments() map[string]interface{} {
 
 // generateExampleValue creates an example value for a parameter
 func generateExampleValue(name string, prop SchemaProperty) interface{} {
+	if len(prop.OneOf) > 0 {
+		// Return the first non-null type example value from oneOf
+		for _, subProp := range prop.OneOf {
+			if subProp.Type != "null" {
+				return generateExampleValue(name, subProp)
+			}
+		}
+		return nil
+	}
+
+	// If enum is defined, return the first enum value
+	if len(prop.Enum) > 0 {
+		return prop.Enum[0]
+	}
+
 	switch prop.Type {
 	case "string":
 		return fmt.Sprintf("<%s:string>", name)
@@ -69,6 +89,8 @@ func generateExampleValue(name string, prop SchemaProperty) interface{} {
 		return fmt.Sprintf("<%s:object>", name)
 	case "array":
 		return fmt.Sprintf("<%s:array>", name)
+	case "null":
+		return nil
 	default:
 		return fmt.Sprintf("<%s>", name)
 	}
