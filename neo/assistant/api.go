@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -954,7 +955,12 @@ func (ast *Assistant) Chat(ctx context.Context, messages []chatMessage.Message, 
 // 5. Merges consecutive assistant messages from the same assistant
 func formatMessages(messages []map[string]interface{}) []map[string]interface{} {
 	// Filter out duplicate messages with identical content, role, and name
-	filteredMessages := []map[string]interface{}{}
+	filteredMessages := []map[string]interface{}{
+		{
+			"role":    "system",
+			"content": "Current time: " + time.Now().Format(time.RFC3339),
+		},
+	}
 	seen := make(map[string]bool)
 
 	for _, msg := range messages {
