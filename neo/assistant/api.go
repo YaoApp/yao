@@ -433,6 +433,7 @@ func (ast *Assistant) streamChat(
 				end.Silent = ctx.Silent
 				end.End = time.Now().UnixNano()
 				end.Begin = beganAt
+				end.ToolID = tokenID
 
 				end.Callback(cb).Write(c.Writer)
 				end.AppendTo(contents)
@@ -491,10 +492,11 @@ func (ast *Assistant) streamChat(
 					currentMessageID = params.MessageID
 					msg.ID = params.MessageID
 					msg.Type = params.Token
-					msg.Text = ""                                           // clear the text
-					msg.Props = map[string]interface{}{"text": params.Text} // Update props
+					msg.Text = ""                                                                 // clear the text
+					msg.Props = map[string]interface{}{"text": params.Text, "id": params.TokenID} // Update props
 					msg.Begin = params.BeganAt
 					msg.End = params.EndAt
+					msg.ToolID = params.TokenID
 
 					// End of the token clear the text
 					if params.Begin {
@@ -570,6 +572,7 @@ func (ast *Assistant) streamChat(
 				if msg.Type == "think" || msg.Type == "tool" {
 					output.Begin = msg.Begin
 					output.End = msg.End
+					output.ToolID = msg.ToolID
 				}
 
 				output.Callback(cb).Write(c.Writer)

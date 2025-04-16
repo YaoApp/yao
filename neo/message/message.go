@@ -21,6 +21,7 @@ var locker = sync.Mutex{}
 // Message the message
 type Message struct {
 	ID              string                 `json:"id,omitempty"`               // id for the message
+	ToolID          string                 `json:"tool_id,omitempty"`          // tool_id for the message
 	Text            string                 `json:"text,omitempty"`             // text content
 	Type            string                 `json:"type,omitempty"`             // error, text, plan, table, form, page, file, video, audio, image, markdown, json ...
 	Props           map[string]interface{} `json:"props,omitempty"`            // props for the types
