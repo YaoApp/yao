@@ -372,7 +372,7 @@ func (ast *Assistant) streamChat(
 	toolsCount := 0
 	currentMessageID := ""
 	tokenID := ""
-	beginAt := int64(0)
+	beganAt := int64(0)
 	var retry error = nil
 	var result interface{} = nil // To save the result
 	var content string = ""      // To save the content
@@ -417,7 +417,7 @@ func (ast *Assistant) streamChat(
 			// for api reasoning_content response
 			if msg.Type == "think" {
 				if isFirstThink {
-					msg.BeginAt = time.Now().UnixNano()
+					msg.Begin = time.Now().UnixNano()
 					msg.Text = "<think>\n" + msg.Text // add the think begin tag
 					isFirstThink = false
 					isThinking = true
@@ -431,8 +431,8 @@ func (ast *Assistant) streamChat(
 				end.ID = currentMessageID
 				end.Retry = ctx.Retry
 				end.Silent = ctx.Silent
-				end.EndAt = time.Now().UnixNano()
-				end.BeginAt = beginAt
+				end.End = time.Now().UnixNano()
+				end.Begin = beganAt
 
 				end.Callback(cb).Write(c.Writer)
 				end.AppendTo(contents)
@@ -444,7 +444,7 @@ func (ast *Assistant) streamChat(
 
 				// Clear the token
 				contents.ClearToken(tokenID)
-				beginAt = 0
+				beganAt = 0
 				tokenID = ""
 			}
 
@@ -470,12 +470,12 @@ func (ast *Assistant) streamChat(
 					}
 
 					toolsCount++
-					msg.BeginAt = time.Now().UnixNano()
+					msg.Begin = time.Now().UnixNano()
 				}
 
 				if msg.IsEndTool {
 					msg.Text = msg.Text + "\n</tool>\n" // add the tool_calls close tag
-					msg.EndAt = time.Now().UnixNano()
+					msg.End = time.Now().UnixNano()
 				}
 			}
 
@@ -487,25 +487,25 @@ func (ast *Assistant) streamChat(
 				msg.AppendTo(contents) // Append content
 
 				// Scan the tokens
-				contents.ScanTokens(currentMessageID, tokenID, beginAt, func(params message.ScanCallbackParams) {
+				contents.ScanTokens(currentMessageID, tokenID, beganAt, func(params message.ScanCallbackParams) {
 					currentMessageID = params.MessageID
 					msg.ID = params.MessageID
 					msg.Type = params.Token
 					msg.Text = ""                                           // clear the text
 					msg.Props = map[string]interface{}{"text": params.Text} // Update props
-					msg.BeginAt = params.BeginAt
-					msg.EndAt = params.EndAt
+					msg.Begin = params.BeganAt
+					msg.End = params.EndAt
 
 					// End of the token clear the text
 					if params.Begin {
 						tokenID = params.TokenID
-						beginAt = params.BeginAt
+						beganAt = params.BeganAt
 						return
 					}
 
 					if params.End {
 						tokenID = ""
-						beginAt = 0
+						beganAt = 0
 						return
 					}
 
@@ -568,8 +568,8 @@ func (ast *Assistant) streamChat(
 				}
 
 				if msg.Type == "think" || msg.Type == "tool" {
-					output.BeginAt = msg.BeginAt
-					output.EndAt = msg.EndAt
+					output.Begin = msg.Begin
+					output.End = msg.End
 				}
 
 				output.Callback(cb).Write(c.Writer)

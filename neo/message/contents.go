@@ -56,7 +56,7 @@ type ScanCallbackParams struct {
 	Token     string
 	MessageID string
 	TokenID   string
-	BeginAt   int64
+	BeganAt   int64
 	EndAt     int64
 	Begin     bool
 	End       bool
@@ -73,7 +73,7 @@ func NewContents() *Contents {
 }
 
 // ScanTokens scan the tokens
-func (c *Contents) ScanTokens(messageID string, tokenID string, beginAt int64, cb func(params ScanCallbackParams)) {
+func (c *Contents) ScanTokens(messageID string, tokenID string, beganAt int64, cb func(params ScanCallbackParams)) {
 
 	text := strings.TrimSpace(c.Text())
 
@@ -96,13 +96,13 @@ func (c *Contents) ScanTokens(messageID string, tokenID string, beginAt int64, c
 
 			c.UpdateType(tokenType, map[string]interface{}{"text": text}, extra)
 			c.NewText([]byte(tails), extra) // Create new text with the tails
-			cb(ScanCallbackParams{Token: tokenType, MessageID: c.id, TokenID: tokenID, BeginAt: beginAt, Begin: false, End: true, Text: text, Tails: tails, EndAt: extra.End})
+			cb(ScanCallbackParams{Token: tokenType, MessageID: c.id, TokenID: tokenID, BeganAt: beganAt, Begin: false, End: true, Text: text, Tails: tails, EndAt: extra.End})
 			c.ClearToken(c.token) // clear the token
 			return
 		}
 
 		// call the callback for the scanning of the token
-		cb(ScanCallbackParams{Token: tokenType, MessageID: c.id, TokenID: tokenID, BeginAt: beginAt, Begin: false, End: false, Text: text, Tails: "", EndAt: 0})
+		cb(ScanCallbackParams{Token: tokenType, MessageID: c.id, TokenID: tokenID, BeganAt: beganAt, Begin: false, End: false, Text: text, Tails: "", EndAt: 0})
 		return
 	}
 
@@ -124,14 +124,14 @@ func (c *Contents) ScanTokens(messageID string, tokenID string, beginAt int64, c
 			// First time scanning the token, generate the token ID and begin time
 			if tokenID == "" || tokenType != name {
 				tokenID = GenerateNumericID("T")
-				beginAt = time.Now().UnixNano()
+				beganAt = time.Now().UnixNano()
 				begin = true
 				c.token = tokenID
 				c.AppendToken(tokenID, name)
-				c.UpdateType(name, map[string]interface{}{"text": text, "id": tokenID}, Extra{ID: c.id, Begin: beginAt, End: beginAt})
+				c.UpdateType(name, map[string]interface{}{"text": text, "id": tokenID}, Extra{ID: c.id, Begin: beganAt, End: beganAt})
 			}
 
-			cb(ScanCallbackParams{Token: name, MessageID: c.id, TokenID: tokenID, BeginAt: beginAt, Begin: begin, End: false, Text: text, Tails: "", EndAt: 0}) // call the callback
+			cb(ScanCallbackParams{Token: name, MessageID: c.id, TokenID: tokenID, BeganAt: beganAt, Begin: begin, End: false, Text: text, Tails: "", EndAt: 0}) // call the callback
 		}
 	}
 }
