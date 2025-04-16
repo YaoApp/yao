@@ -2,9 +2,10 @@ package helper
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/any"
@@ -13,12 +14,19 @@ import (
 	"github.com/yaoapp/yao/config"
 )
 
+const (
+	// MaxTokenLength is the maximum allowed length for a JWT token
+	MaxTokenLength = 4096
+	// MaxTokenParts is the maximum allowed number of parts in a JWT token (header.payload.signature)
+	MaxTokenParts = 3
+)
+
 // JwtClaims 用户Token
 type JwtClaims struct {
 	ID   int                    `json:"id"`
 	SID  string                 `json:"sid"`
 	Data map[string]interface{} `json:"data"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // JwtToken JWT令牌
@@ -29,6 +37,18 @@ type JwtToken struct {
 
 // JwtValidate JWT 校验
 func JwtValidate(tokenString string, secret ...[]byte) *JwtClaims {
+	// Check token length
+	if len(tokenString) > MaxTokenLength {
+		exception.New("Token too long", 401).Throw()
+		return nil
+	}
+
+	// Check number of parts
+	parts := strings.Split(tokenString, ".")
+	if len(parts) > MaxTokenParts {
+		exception.New("Invalid token format", 401).Throw()
+		return nil
+	}
 
 	jwtSecret := []byte(config.Conf.JWTSecret)
 	if len(secret) > 0 {
@@ -62,12 +82,12 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 		jwtSecret = secret[0]
 	}
 
-	now := time.Now().Unix()
+	now := time.Now()
 	sid := ""
-	timeout := int64(3600)
+	timeout := time.Hour
 	uid := fmt.Sprintf("%d", id)
 	subject := "User Token"
-	audience := "Yao Process utils.jwt.Make"
+	audience := []string{"Yao Process utils.jwt.Make"}
 	issuer := fmt.Sprintf("xiang:%d", id)
 
 	if v, has := option["subject"]; has {
@@ -75,7 +95,7 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 	}
 
 	if v, has := option["audience"]; has {
-		audience = fmt.Sprintf("%v", v)
+		audience = []string{fmt.Sprintf("%v", v)}
 	}
 
 	if v, has := option["issuer"]; has {
@@ -87,45 +107,42 @@ func JwtMake(id int, data map[string]interface{}, option map[string]interface{},
 	}
 
 	if v, has := option["timeout"]; has {
-		timeout = int64(any.Of(v).CInt())
+		timeout = time.Duration(any.Of(v).CInt()) * time.Second
 	}
 
-	expiresAt := now + timeout
+	expiresAt := now.Add(timeout)
 	if v, has := option["expires_at"]; has {
-		expiresAt = int64(any.Of(v).CInt())
+		expiresAt = time.Unix(int64(any.Of(v).CInt()), 0)
 	}
 
 	if sid == "" {
 		sid = session.ID()
 	}
 
-	// 设定会话过期时间 (并写需要加锁，这个逻辑需要优化)
-	// session.Global().Expire(time.Duration(timeout) * time.Second)
-
 	claims := &JwtClaims{
 		ID:   id,
 		SID:  sid, // 会话ID
 		Data: data,
-		StandardClaims: jwt.StandardClaims{
-			Id:        uid,       // 唯一ID
-			Subject:   subject,   // 主题
-			Audience:  audience,  // 接收人
-			ExpiresAt: expiresAt, // 过期时间
-			NotBefore: now,       // 生效时间
-			IssuedAt:  now,       // 签发时间
-			Issuer:    issuer,    // 签发人
+		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        uid,                           // 唯一ID
+			Subject:   subject,                       // 主题
+			Audience:  audience,                      // 接收人
+			ExpiresAt: jwt.NewNumericDate(expiresAt), // 过期时间
+			NotBefore: jwt.NewNumericDate(now),       // 生效时间
+			IssuedAt:  jwt.NewNumericDate(now),       // 签发时间
+			Issuer:    issuer,                        // 签发人
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(jwtSecret))
+	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
 		exception.New("JWT Make Error: %s", 500, err.Error()).Throw()
 	}
 
 	return JwtToken{
 		Token:     tokenString,
-		ExpiresAt: expiresAt,
+		ExpiresAt: expiresAt.Unix(),
 	}
 }
 
