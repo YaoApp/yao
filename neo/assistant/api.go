@@ -370,6 +370,8 @@ func (ast *Assistant) streamChat(
 
 	toolsCount := 0
 	currentMessageID := ""
+	tokenID := ""
+	beginAt := int64(0)
 	var retry error = nil
 	var result interface{} = nil // To save the result
 	var content string = ""      // To save the content
@@ -414,6 +416,7 @@ func (ast *Assistant) streamChat(
 			// for api reasoning_content response
 			if msg.Type == "think" {
 				if isFirstThink {
+					msg.BeginAt = time.Now().UnixNano()
 					msg.Text = "<think>\n" + msg.Text // add the think begin tag
 					isFirstThink = false
 					isThinking = true
@@ -427,14 +430,15 @@ func (ast *Assistant) streamChat(
 				end.ID = currentMessageID
 				end.Retry = ctx.Retry
 				end.Silent = ctx.Silent
+				end.EndAt = time.Now().UnixNano()
 
 				end.Callback(cb).Write(c.Writer)
 				end.AppendTo(contents)
-				contents.UpdateType("think", map[string]interface{}{"text": contents.Text()}, currentMessageID)
+				contents.UpdateType("think", map[string]interface{}{"text": contents.Text()}, chatMessage.Extra{ID: currentMessageID, End: time.Now().UnixNano()})
 				isThinking = false
 
 				// Clear the token and make a new line
-				contents.NewText([]byte{}, currentMessageID)
+				contents.NewText([]byte{}, chatMessage.Extra{ID: currentMessageID})
 				contents.ClearToken()
 			}
 
@@ -460,11 +464,12 @@ func (ast *Assistant) streamChat(
 					}
 
 					toolsCount++
-
+					msg.BeginAt = time.Now().UnixNano()
 				}
 
 				if msg.IsEndTool {
 					msg.Text = msg.Text + "\n</tool>\n" // add the tool_calls close tag
+					msg.EndAt = time.Now().UnixNano()
 				}
 			}
 
@@ -473,18 +478,21 @@ func (ast *Assistant) streamChat(
 			// Chunk the delta
 			if delta != "" {
 
-				msg.AppendTo(contents) // Append content and send message
+				msg.AppendTo(contents) // Append content
 
 				// Scan the tokens
-				contents.ScanTokens(currentMessageID, func(token string, id string, begin bool, text string, tails string) {
+				contents.ScanTokens(currentMessageID, tokenID, beginAt, func(token string, id string, tid string, beginAt int64, text string, tails string) {
 					currentMessageID = id
 					msg.ID = id
 					msg.Type = token
 					msg.Text = ""                                    // clear the text
 					msg.Props = map[string]interface{}{"text": text} // Update props
+					msg.EndAt = time.Now().Unix()
 
 					// End of the token clear the text
-					if begin {
+					if beginAt != 0 {
+						tokenID = tid
+						msg.BeginAt = beginAt
 						return
 					}
 
@@ -496,6 +504,10 @@ func (ast *Assistant) streamChat(
 						}
 						messages = append(messages, *newMsg)
 					}
+
+					// Reset the begin at and token id
+					beginAt = 0
+					tokenID = ""
 				})
 
 				// Handle stream
