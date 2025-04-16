@@ -128,6 +128,8 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 		isFirstThink := true
 		isThinking := false
 		currentMessageID := ""
+		tokenID := ""
+		beginAt := int64(0)
 		err := ast.Chat(c.Request.Context(), msgList, neo.Option, func(data []byte) int {
 			select {
 			case <-clientBreak:
@@ -169,7 +171,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 					isThinking = false
 
 					// Clear the token and make a new line
-					contents.NewText([]byte{}, currentMessageID)
+					contents.NewText([]byte{}, message.Extra{ID: currentMessageID})
 					contents.ClearToken()
 				}
 
@@ -177,7 +179,7 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 				msg.AppendTo(contents)
 
 				// Scan the tokens
-				contents.ScanTokens(currentMessageID, func(token string, id string, begin bool, text string, tails string) {
+				contents.ScanTokens(currentMessageID, tokenID, beginAt, func(token string, id string, tid string, beginAt int64, text string, tails string) {
 					currentMessageID = id
 					msg.ID = id
 					msg.Type = token
@@ -185,7 +187,8 @@ func (neo *DSL) GenerateWithAI(ctx chatctx.Context, input string, messageType st
 					msg.Props = map[string]interface{}{"text": text} // Update props
 
 					// End of the token clear the text
-					if begin {
+					if beginAt != 0 {
+						msg.BeginAt = beginAt
 						return
 					}
 
