@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
 
@@ -431,6 +432,7 @@ func (ast *Assistant) streamChat(
 				end.Retry = ctx.Retry
 				end.Silent = ctx.Silent
 				end.EndAt = time.Now().UnixNano()
+				end.BeginAt = beginAt
 
 				end.Callback(cb).Write(c.Writer)
 				end.AppendTo(contents)
@@ -439,7 +441,11 @@ func (ast *Assistant) streamChat(
 
 				// Clear the token and make a new line
 				contents.NewText([]byte{}, chatMessage.Extra{ID: currentMessageID})
-				contents.ClearToken()
+
+				// Clear the token
+				contents.ClearToken(tokenID)
+				beginAt = 0
+				tokenID = ""
 			}
 
 			// for native tool_calls response, keep the first tool_calls_native message
@@ -481,33 +487,36 @@ func (ast *Assistant) streamChat(
 				msg.AppendTo(contents) // Append content
 
 				// Scan the tokens
-				contents.ScanTokens(currentMessageID, tokenID, beginAt, func(token string, id string, tid string, beginAt int64, text string, tails string) {
-					currentMessageID = id
-					msg.ID = id
-					msg.Type = token
-					msg.Text = ""                                    // clear the text
-					msg.Props = map[string]interface{}{"text": text} // Update props
-					msg.EndAt = time.Now().Unix()
+				contents.ScanTokens(currentMessageID, tokenID, beginAt, func(params message.ScanCallbackParams) {
+					currentMessageID = params.MessageID
+					msg.ID = params.MessageID
+					msg.Type = params.Token
+					msg.Text = ""                                           // clear the text
+					msg.Props = map[string]interface{}{"text": params.Text} // Update props
+					msg.BeginAt = params.BeginAt
+					msg.EndAt = params.EndAt
 
 					// End of the token clear the text
-					if beginAt != 0 {
-						tokenID = tid
-						msg.BeginAt = beginAt
+					if params.Begin {
+						tokenID = params.TokenID
+						beginAt = params.BeginAt
+						return
+					}
+
+					if params.End {
+						tokenID = ""
+						beginAt = 0
 						return
 					}
 
 					// New message with the tails
-					if tails != "" {
-						newMsg, err := chatMessage.NewString(tails, id)
+					if params.Tails != "" {
+						newMsg, err := chatMessage.NewString(params.Tails, params.MessageID)
 						if err != nil {
 							return
 						}
 						messages = append(messages, *newMsg)
 					}
-
-					// Reset the begin at and token id
-					beginAt = 0
-					tokenID = ""
 				})
 
 				// Handle stream
@@ -557,6 +566,12 @@ func (ast *Assistant) streamChat(
 					output.Assistant(ast.ID, ast.Name, ast.Avatar)
 					isFirst = false
 				}
+
+				if msg.Type == "think" || msg.Type == "tool" {
+					output.BeginAt = msg.BeginAt
+					output.EndAt = msg.EndAt
+				}
+
 				output.Callback(cb).Write(c.Writer)
 			}
 

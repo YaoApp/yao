@@ -26,10 +26,12 @@ var tokens = map[string][2]string{
 
 // Contents the contents
 type Contents struct {
-	Current int    `json:"current"` // the current content index
-	Data    []Data `json:"data"`    // the data
-	token   string // the current token
-	id      string // the id of the contents
+	Current int               `json:"current"` // the current content index
+	Data    []Data            `json:"data"`    // the data
+	token   string            // the current token
+	id      string            // the id of the contents
+	stack   [][]string        // the token stack
+	mapping map[string]string // the mapping of the token stack
 }
 
 // Data the data of the content
@@ -49,6 +51,19 @@ type Extra struct {
 	End   int64  `json:"end,omitempty"`   // the end time
 }
 
+// ScanCallbackParams the params of the scan callback
+type ScanCallbackParams struct {
+	Token     string
+	MessageID string
+	TokenID   string
+	BeginAt   int64
+	EndAt     int64
+	Begin     bool
+	End       bool
+	Text      string
+	Tails     string
+}
+
 // NewContents create a new contents
 func NewContents() *Contents {
 	return &Contents{
@@ -58,14 +73,15 @@ func NewContents() *Contents {
 }
 
 // ScanTokens scan the tokens
-func (c *Contents) ScanTokens(messageID string, tokenID string, beginAt int64, cb func(token string, messageID string, tokenID string, beginAt int64, text string, tails string)) {
+func (c *Contents) ScanTokens(messageID string, tokenID string, beginAt int64, cb func(params ScanCallbackParams)) {
 
 	text := strings.TrimSpace(c.Text())
 
 	// check the end of the token
 	if c.token != "" {
-		token := tokens[c.token]
 
+		token := c.GetToken(c.token)
+		tokenType := c.GetTokenType(c.token)
 		// Check the end of the token
 		if index := strings.Index(text, token[1]); index >= 0 {
 			tails := ""
@@ -78,42 +94,101 @@ func (c *Contents) ScanTokens(messageID string, tokenID string, beginAt int64, c
 				End: time.Now().UnixNano(),
 			}
 
-			c.UpdateType(c.token, map[string]interface{}{"text": text}, extra)
+			c.UpdateType(tokenType, map[string]interface{}{"text": text}, extra)
 			c.NewText([]byte(tails), extra) // Create new text with the tails
-			cb(c.token, c.id, tokenID, beginAt, text, tails)
-			c.ClearToken() // clear the token
+			cb(ScanCallbackParams{Token: tokenType, MessageID: c.id, TokenID: tokenID, BeginAt: beginAt, Begin: false, End: true, Text: text, Tails: tails, EndAt: extra.End})
+			c.ClearToken(c.token) // clear the token
 			return
 		}
 
 		// call the callback for the scanning of the token
-		cb(c.token, c.id, tokenID, beginAt, text, "")
+		cb(ScanCallbackParams{Token: tokenType, MessageID: c.id, TokenID: tokenID, BeginAt: beginAt, Begin: false, End: false, Text: text, Tails: "", EndAt: 0})
 		return
 	}
 
 	// scan the begin of the token
+	begin := false
 	for name, token := range tokens {
 		if index := strings.Index(text, token[0]); index >= 0 {
-			c.token = name
+
 			c.id = messageID
 			if c.id == "" {
 				c.id = GenerateNumericID("M")
 			}
 
+			tokenType := name
+			if tokenID != "" {
+				tokenType = c.GetTokenType(tokenID)
+			}
+
 			// First time scanning the token, generate the token ID and begin time
-			if tokenID == "" {
+			if tokenID == "" || tokenType != name {
 				tokenID = GenerateNumericID("T")
 				beginAt = time.Now().UnixNano()
+				begin = true
+				c.token = tokenID
+				c.AppendToken(tokenID, name)
 				c.UpdateType(name, map[string]interface{}{"text": text, "id": tokenID}, Extra{ID: c.id, Begin: beginAt, End: beginAt})
 			}
 
-			cb(name, c.id, tokenID, beginAt, text, "") // call the callback
+			cb(ScanCallbackParams{Token: name, MessageID: c.id, TokenID: tokenID, BeginAt: beginAt, Begin: begin, End: false, Text: text, Tails: "", EndAt: 0}) // call the callback
 		}
 	}
 }
 
 // ClearToken clear the token
-func (c *Contents) ClearToken() {
+func (c *Contents) ClearToken(id string) {
 	c.token = ""
+	next := 0
+
+	if c.stack == nil {
+		c.stack = [][]string{}
+	}
+
+	if c.mapping == nil {
+		c.mapping = map[string]string{}
+	}
+
+	for i, node := range c.stack {
+		if node[0] == id {
+			next = i + 1
+			delete(c.mapping, id)
+			break
+		}
+	}
+
+	// Remove the token from the stack, and set the next token
+	if next > 0 && next < len(c.stack) {
+		c.stack = c.stack[next:]
+		c.token = c.stack[len(c.stack)-1][0]
+	}
+}
+
+// AppendToken append the token to the stack
+func (c *Contents) AppendToken(id string, name string) {
+	if c.stack == nil {
+		c.stack = [][]string{}
+	}
+	if c.mapping == nil {
+		c.mapping = map[string]string{}
+	}
+	c.stack = append(c.stack, []string{id, name})
+	c.mapping[id] = name
+	c.token = id
+}
+
+// GetTokenType get the token type from the stack
+func (c *Contents) GetTokenType(id string) string {
+	return c.mapping[id]
+}
+
+// GetToken get the token from the stack
+func (c *Contents) GetToken(name string) [2]string {
+	typ, ok := c.mapping[name]
+	if !ok {
+		return [2]string{}
+	}
+	return tokens[typ]
 }
 
 // RemoveLastEmpty remove the last empty data
