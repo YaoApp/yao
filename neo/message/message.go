@@ -44,8 +44,8 @@ type Message struct {
 	IsBeginTool     bool                   `json:"-"`                          // is new tool for the message for native tool_calls
 	IsEndTool       bool                   `json:"-"`                          // is end tool for the message for native tool_calls
 	Result          any                    `json:"result,omitempty"`           // result for the message
-	BeginAt         int64                  `json:"begin_at,omitempty"`         // begin at for the message // timestamp
-	EndAt           int64                  `json:"end_at,omitempty"`           // end at for the message // timestamp
+	Begin           int64                  `json:"begin,omitempty"`            // begin at for the message // timestamp
+	End             int64                  `json:"end,omitempty"`              // end at for the message // timestamp
 }
 
 // Mention represents a mention
@@ -423,10 +423,10 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 	case "text", "think", "tool", "tool_calls_native":
 		if m.Text != "" {
 			if m.IsNew {
-				contents.NewText([]byte(m.Text), Extra{ID: m.ID, Begin: m.BeginAt, End: m.EndAt})
+				contents.NewText([]byte(m.Text), Extra{ID: m.ID, Begin: m.Begin, End: m.End})
 				return m
 			}
-			contents.AppendText([]byte(m.Text), Extra{ID: m.ID, Begin: m.BeginAt, End: m.EndAt})
+			contents.AppendText([]byte(m.Text), Extra{ID: m.ID, Begin: m.Begin, End: m.End})
 			return m
 		}
 		return m
