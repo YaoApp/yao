@@ -432,7 +432,7 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 		}
 		return m
 
-	case "loading", "error", "action": // Ignore loading, action and error messages
+	case "loading", "error", "action", "progress": // Ignore progress, loading, action and error messages
 		return m
 
 	default:
