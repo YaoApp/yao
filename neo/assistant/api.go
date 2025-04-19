@@ -264,18 +264,19 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 			return nil, fmt.Errorf("with history error: %s", err.Error())
 		}
 
+		// Send the progress message from application side instead
 		// Create a new Text
 		// Send loading message and mark as new
-		if !ctx.Silent {
-			msg := chatMessage.New().Map(map[string]interface{}{
-				"new":   true,
-				"role":  "assistant",
-				"type":  "loading",
-				"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
-			})
-			msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
-			msg.Write(c.Writer)
-		}
+		// if !ctx.Silent {
+		// 	msg := chatMessage.New().Map(map[string]interface{}{
+		// 		"new":   true,
+		// 		"role":  "assistant",
+		// 		"type":  "loading",
+		// 		"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
+		// 	})
+		// 	msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
+		// 	msg.Write(c.Writer)
+		// }
 		newContents := chatMessage.NewContents()
 
 		// Update the context id
