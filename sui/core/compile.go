@@ -89,8 +89,27 @@ func (page *Page) Compile(ctx *BuildContext, option *BuildOption) (string, strin
 	}
 
 	// Page Components
-	if ctx != nil && ctx.components != nil && len(ctx.components) > 0 {
-		rawComponents, _ := jsoniter.MarshalToString(ctx.components)
+	if ctx != nil {
+		components := map[string]string{}
+		for _, component := range ctx.GetComponents() {
+			components[component] = component
+		}
+
+		// Add Jit Components
+		if ctx.global != nil && ctx.global.tmpl != nil {
+			patterns := ctx.GetJitComponents()
+
+			// Get all pages
+			routes, err := ctx.global.tmpl.GlobRoutes(patterns, true)
+			if err != nil {
+				return "", "", warnings, fmt.Errorf("Get jit components error: %s", err.Error())
+			}
+			for _, route := range routes {
+				components[route] = route
+			}
+		}
+
+		rawComponents, _ := jsoniter.MarshalToString(components)
 		body.AppendHtml("\n\n" + `<script name="imports" type="json">` + "\n" + rawComponents + "\n</script>\n\n")
 	}
 

@@ -6,7 +6,7 @@ import (
 
 var propTokens = Tokens{
 	{start: "{%", end: "%}"}, // {% xxx %}
-	{start: "[{", end: "}]"}, // [{ xxx }]
+	// {start: "[{", end: "}]"}, // [{ xxx }] Deprecated
 }
 
 var dataTokens = Tokens{
