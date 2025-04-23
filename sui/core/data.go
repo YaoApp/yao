@@ -187,6 +187,7 @@ func (data Data) ReplaceUse(tokens Tokens, value string) (string, []StringValue)
 		values = append(values, v)
 		return v.Value
 	})
+
 	return res, values
 }
 

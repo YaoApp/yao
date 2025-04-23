@@ -292,7 +292,7 @@ func (parser *TemplateParser) parseElementNode(sel *goquery.Selection) {
 func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 
 	parser.parsed(sel)
-	com := sel.AttrOr("s:cn", "")
+	com := sel.AttrOr("s:route", "")
 	props := map[string]interface{}{}
 	for _, attr := range sel.Nodes[0].Attr {
 		if strings.HasPrefix(attr.Key, "prop:") {

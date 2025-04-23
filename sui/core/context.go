@@ -26,9 +26,10 @@ func NewTranslateContext() *TranslateContext {
 }
 
 // NewGlobalBuildContext create a new global build context
-func NewGlobalBuildContext() *GlobalBuildContext {
+func NewGlobalBuildContext(tmpl ITemplate) *GlobalBuildContext {
 	return &GlobalBuildContext{
 		jitComponents: map[string]bool{},
+		tmpl:          tmpl,
 	}
 }
 

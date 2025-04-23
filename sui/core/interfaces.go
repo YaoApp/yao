@@ -69,6 +69,8 @@ type ITemplate interface {
 	ExecAfterBuildScripts() []TemplateScirptResult
 
 	Trans(option *BuildOption) ([]string, error)
+
+	GlobRoutes(patterns []string, unique ...bool) ([]string, error)
 }
 
 // IPage is the interface for the page

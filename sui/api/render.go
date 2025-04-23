@@ -164,7 +164,7 @@ func TemplateRender(process *process.Process) interface{} {
 	source := process.ArgsString(2)
 	page := tmpl.CreatePage(source)
 	route := page.Get().Route
-	globalCtx := core.NewGlobalBuildContext()
+	globalCtx := core.NewGlobalBuildContext(tmpl)
 	suicode, _, err := page.Get().CompileAsComponent(core.NewBuildContext(globalCtx), &core.BuildOption{
 		PublicRoot:     root,
 		AssetRoot:      assetRoot,
