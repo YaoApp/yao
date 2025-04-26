@@ -432,7 +432,7 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 		}
 		return m
 
-	case "loading", "error", "action", "progress": // Ignore progress, loading, action and error messages
+	case "loading", "error", "action", "progress", "plan": // Ignore progress, loading, plan and error messages
 		return m
 
 	default:
@@ -621,52 +621,6 @@ func (m *Message) Callback(fn interface{}) *Message {
 	return m
 }
 
-// Write writes the message to response writer
-func (m *Message) Write(w gin.ResponseWriter) bool {
-
-	// Sync write to response writer
-	locker.Lock()
-	defer locker.Unlock()
-
-	defer func() {
-		if r := recover(); r != nil {
-
-			// Ignore if done is true
-			if m.IsDone {
-				return
-			}
-
-			message := "Write Response Exception: (if client close the connection, it's normal) \n  %s\n\n"
-			color.Red(message, r)
-
-			// Print the message
-			raw, _ := jsoniter.MarshalToString(m)
-			color.White("Message:\n %s", raw)
-		}
-	}()
-
-	// Ignore silent messages
-	if m.Silent {
-		return true
-	}
-
-	data, err := jsoniter.Marshal(m)
-	if err != nil {
-		log.Error("%s", err.Error())
-		return false
-	}
-
-	data = append([]byte("data: "), data...)
-	data = append(data, []byte("\n\n")...)
-
-	if _, err := w.Write(data); err != nil {
-		color.Red("Write JSON Message Error: %s", err.Error())
-		return false
-	}
-	w.Flush()
-	return true
-}
-
 // WriteError writes an error message to response writer
 func (m *Message) WriteError(w gin.ResponseWriter, message string) {
 	errMsg := strings.Trim(exception.New(message, 500).Message, "\"")
@@ -729,4 +683,9 @@ func (a *Action) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// Write writes the message to response writer using the message queue
+func (m *Message) Write(w gin.ResponseWriter) bool {
+	return WriteMessageAsync(m, w)
 }
