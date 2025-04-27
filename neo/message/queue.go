@@ -84,17 +84,25 @@ func (mq *AsyncMessageQueue) worker() {
 
 // WriteMessageAsync writes the message to response writer using the message queue
 func WriteMessageAsync(m *Message, w gin.ResponseWriter) bool {
+	done := make(chan bool, 1)
 	task := &AsyncTask{
 		message: m,
 		writer:  w,
-		done:    nil, // No need for done channel anymore
+		done:    done,
 	}
 
-	// Try to send the task to the queue with a short timeout
+	// Try to send the task to the queue with a timeout
 	select {
 	case GetQueue().queue <- task:
-		return true
-	case <-time.After(100 * time.Millisecond): // Reduced timeout since we don't wait for result
+		// Wait for the message to be processed with a longer timeout
+		select {
+		case success := <-done:
+			return success
+		case <-time.After(5 * time.Second): // Increased timeout to 5 seconds
+			log.Error("Message processing timeout")
+			return false
+		}
+	case <-time.After(1 * time.Second): // Increased queue timeout to 1 second
 		log.Error("Queue is full, message dropped")
 		return false
 	}
