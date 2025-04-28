@@ -27,7 +27,7 @@ func (ast *Assistant) HookCreate(c *gin.Context, context chatctx.Context, input 
 		return nil, err
 	}
 
-	response := &ResHookInit{}
+	response := &ResHookInit{Result: nil}
 	switch v := v.(type) {
 	case map[string]interface{}:
 		if res, ok := v["assistant_id"].(string); ok {
@@ -46,6 +46,11 @@ func (ast *Assistant) HookCreate(c *gin.Context, context chatctx.Context, input 
 				return nil, err
 			}
 			response.Input = vv
+		}
+
+		// result
+		if result, has := v["result"]; has {
+			response.Result = result
 		}
 
 		if res, ok := v["next"].(map[string]interface{}); ok {
