@@ -44,6 +44,7 @@ type ResHookInit struct {
 	Next        *NextAction            `json:"next,omitempty"`
 	Input       []message.Message      `json:"input,omitempty"`
 	Options     map[string]interface{} `json:"options,omitempty"`
+	Result      any                    `json:"result,omitempty"`
 }
 
 // ResHookStream the response of the stream hook

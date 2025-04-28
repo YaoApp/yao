@@ -112,6 +112,19 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 		input = res.Input
 	}
 
+	// Has result return directly
+	if res != nil && res.Result != nil {
+		// Has callback function
+		if len(callback) > 0 {
+			output := chatMessage.New()
+			output.Result = res.Result
+			output.Callback(callback[0]).Write(c.Writer)
+		}
+
+		// Return the result directly
+		return res.Result, nil
+	}
+
 	// Handle next action
 	// It's not used, return the new assistant_id and chat_id
 	// if res != nil && res.Next != nil {
