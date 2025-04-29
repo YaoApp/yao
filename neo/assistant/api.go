@@ -687,9 +687,18 @@ func (ast *Assistant) streamChat(
 			return nil, retry
 		}
 
-		var prompt string = ""
+		// Default prompt
+		var prompt string = fmt.Sprintf("Try to fix the error following the error message. error:\n %s", exception.Trim(retry))
 		switch v := promptAny.(type) {
-		case NextAction:
+		case bool: // Ignore the error, and return the specific result
+			if v == false {
+				return nil, retry
+			}
+
+		case map[string]interface{}: // Ignore the error, and return the specific result
+			return v, nil
+
+		case NextAction: // Execute the next action
 			result, err := v.Execute(c, ctx, contents, cb)
 			if err != nil {
 				// chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
@@ -697,7 +706,7 @@ func (ast *Assistant) streamChat(
 			}
 			return result, nil
 
-		case string:
+		case string: // Add the prompt to the messages
 			prompt = v
 		}
 

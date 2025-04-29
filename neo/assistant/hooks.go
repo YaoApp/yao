@@ -164,16 +164,25 @@ func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input [
 	}
 
 	switch v := v.(type) {
-	case string:
+	case string, bool:
 		return v, nil
+
 	case map[string]interface{}:
-		var next NextAction
-		raw, _ := jsoniter.MarshalToString(v)
-		err := jsoniter.UnmarshalFromString(raw, &next)
-		if err != nil {
-			return nil, err
+
+		// Has Action
+		if _, has := v["action"]; has {
+			var next NextAction
+			raw, _ := jsoniter.MarshalToString(v)
+			err := jsoniter.UnmarshalFromString(raw, &next)
+			if err != nil {
+				return nil, err
+			}
+			return &next, nil
 		}
-		return &next, nil
+
+		// Ignore the error, and return the specific result
+		return v, nil
+
 	}
 
 	return nil, nil
