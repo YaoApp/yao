@@ -29,8 +29,14 @@ func LibSUI() ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
+	// Read agent source code from bindata
+	agent, err := data.Read("libsui/agent.ts")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Merge the source code
-	source := fmt.Sprintf("%s\n%s\n%s", index, utils, yao)
+	source := fmt.Sprintf("%s\n%s\n%s\n%s", index, utils, yao, agent)
 
 	// Build the source code
 	js, sm, err := transform.TypeScriptWithSourceMap(string(source), api.TransformOptions{
