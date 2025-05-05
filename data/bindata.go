@@ -89,9 +89,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"net/http"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,7 +159,6 @@ func (fi bindataFileInfo) IsDir() bool {
 func (fi bindataFileInfo) Sys() interface{} {
 	return nil
 }
-
 
 type assetFile struct {
 	*bytes.Reader
@@ -2048,11 +2047,13 @@ var _bindata = map[string]func() (*asset, error){
 // directory embedded in the file by go-bindata.
 // For example if you run go-bindata on data/... and data contains the
 // following hierarchy:
-//     data/
-//       foo.txt
-//       img/
-//         a.png
-//         b.png
+//
+//	data/
+//	  foo.txt
+//	  img/
+//	    a.png
+//	    b.png
+//
 // then AssetDir("data") would return []string{"foo.txt", "img"}
 // AssetDir("data/img") would return []string{"a.png", "b.png"}
 // AssetDir("foo.txt") and AssetDir("notexist") would return an error
@@ -2085,185 +2086,185 @@ type bintree struct {
 }
 
 var _bintree = &bintree{nil, map[string]*bintree{
-	"init": &bintree{nil, map[string]*bintree{
-		".env": &bintree{initEnv, map[string]*bintree{}},
-		".vscode": &bintree{nil, map[string]*bintree{
-			"settings.json": &bintree{initVscodeSettingsJson, map[string]*bintree{}},
-			"types": &bintree{nil, map[string]*bintree{
-				"runtime": &bintree{nil, map[string]*bintree{
-					"console.d.ts":   &bintree{initVscodeTypesRuntimeConsoleDTs, map[string]*bintree{}},
-					"exception.d.ts": &bintree{initVscodeTypesRuntimeExceptionDTs, map[string]*bintree{}},
-					"fs.d.ts":        &bintree{initVscodeTypesRuntimeFsDTs, map[string]*bintree{}},
-					"global.d.ts":    &bintree{initVscodeTypesRuntimeGlobalDTs, map[string]*bintree{}},
-					"http.d.ts":      &bintree{initVscodeTypesRuntimeHttpDTs, map[string]*bintree{}},
-					"io.d.ts":        &bintree{initVscodeTypesRuntimeIoDTs, map[string]*bintree{}},
-					"log.d.ts":       &bintree{initVscodeTypesRuntimeLogDTs, map[string]*bintree{}},
-					"neo.d.ts":       &bintree{initVscodeTypesRuntimeNeoDTs, map[string]*bintree{}},
-					"process": &bintree{nil, map[string]*bintree{
-						"fs.d.ts":    &bintree{initVscodeTypesRuntimeProcessFsDTs, map[string]*bintree{}},
-						"http.d.ts":  &bintree{initVscodeTypesRuntimeProcessHttpDTs, map[string]*bintree{}},
-						"model.d.ts": &bintree{initVscodeTypesRuntimeProcessModelDTs, map[string]*bintree{}},
+	"init": {nil, map[string]*bintree{
+		".env": {initEnv, map[string]*bintree{}},
+		".vscode": {nil, map[string]*bintree{
+			"settings.json": {initVscodeSettingsJson, map[string]*bintree{}},
+			"types": {nil, map[string]*bintree{
+				"runtime": {nil, map[string]*bintree{
+					"console.d.ts":   {initVscodeTypesRuntimeConsoleDTs, map[string]*bintree{}},
+					"exception.d.ts": {initVscodeTypesRuntimeExceptionDTs, map[string]*bintree{}},
+					"fs.d.ts":        {initVscodeTypesRuntimeFsDTs, map[string]*bintree{}},
+					"global.d.ts":    {initVscodeTypesRuntimeGlobalDTs, map[string]*bintree{}},
+					"http.d.ts":      {initVscodeTypesRuntimeHttpDTs, map[string]*bintree{}},
+					"io.d.ts":        {initVscodeTypesRuntimeIoDTs, map[string]*bintree{}},
+					"log.d.ts":       {initVscodeTypesRuntimeLogDTs, map[string]*bintree{}},
+					"neo.d.ts":       {initVscodeTypesRuntimeNeoDTs, map[string]*bintree{}},
+					"process": {nil, map[string]*bintree{
+						"fs.d.ts":    {initVscodeTypesRuntimeProcessFsDTs, map[string]*bintree{}},
+						"http.d.ts":  {initVscodeTypesRuntimeProcessHttpDTs, map[string]*bintree{}},
+						"model.d.ts": {initVscodeTypesRuntimeProcessModelDTs, map[string]*bintree{}},
 					}},
-					"process.d.ts": &bintree{initVscodeTypesRuntimeProcessDTs, map[string]*bintree{}},
-					"query.d.ts":   &bintree{initVscodeTypesRuntimeQueryDTs, map[string]*bintree{}},
-					"store.d.ts":   &bintree{initVscodeTypesRuntimeStoreDTs, map[string]*bintree{}},
-					"sui.d.ts":     &bintree{initVscodeTypesRuntimeSuiDTs, map[string]*bintree{}},
-					"time.d.ts":    &bintree{initVscodeTypesRuntimeTimeDTs, map[string]*bintree{}},
+					"process.d.ts": {initVscodeTypesRuntimeProcessDTs, map[string]*bintree{}},
+					"query.d.ts":   {initVscodeTypesRuntimeQueryDTs, map[string]*bintree{}},
+					"store.d.ts":   {initVscodeTypesRuntimeStoreDTs, map[string]*bintree{}},
+					"sui.d.ts":     {initVscodeTypesRuntimeSuiDTs, map[string]*bintree{}},
+					"time.d.ts":    {initVscodeTypesRuntimeTimeDTs, map[string]*bintree{}},
 				}},
-				"runtime.d.ts": &bintree{initVscodeTypesRuntimeDTs, map[string]*bintree{}},
-				"sui.d.ts":     &bintree{initVscodeTypesSuiDTs, map[string]*bintree{}},
+				"runtime.d.ts": {initVscodeTypesRuntimeDTs, map[string]*bintree{}},
+				"sui.d.ts":     {initVscodeTypesSuiDTs, map[string]*bintree{}},
 			}},
 		}},
-		"app.yao": &bintree{initAppYao, map[string]*bintree{}},
-		"data": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initDataReadmeMd, map[string]*bintree{}},
-			"templates": &bintree{nil, map[string]*bintree{
-				"default": &bintree{nil, map[string]*bintree{
-					"__assets": &bintree{nil, map[string]*bintree{
-						"README.md": &bintree{initDataTemplatesDefault__assetsReadmeMd, map[string]*bintree{}},
-						"images": &bintree{nil, map[string]*bintree{
-							"icons": &bintree{nil, map[string]*bintree{
-								"app.png": &bintree{initDataTemplatesDefault__assetsImagesIconsAppPng, map[string]*bintree{}},
+		"app.yao": {initAppYao, map[string]*bintree{}},
+		"data": {nil, map[string]*bintree{
+			"README.md": {initDataReadmeMd, map[string]*bintree{}},
+			"templates": {nil, map[string]*bintree{
+				"default": {nil, map[string]*bintree{
+					"__assets": {nil, map[string]*bintree{
+						"README.md": {initDataTemplatesDefault__assetsReadmeMd, map[string]*bintree{}},
+						"images": {nil, map[string]*bintree{
+							"icons": {nil, map[string]*bintree{
+								"app.png": {initDataTemplatesDefault__assetsImagesIconsAppPng, map[string]*bintree{}},
 							}},
-							"logos": &bintree{nil, map[string]*bintree{
-								"logo_color.svg": &bintree{initDataTemplatesDefault__assetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
-								"wordmark.svg":   &bintree{initDataTemplatesDefault__assetsImagesLogosWordmarkSvg, map[string]*bintree{}},
+							"logos": {nil, map[string]*bintree{
+								"logo_color.svg": {initDataTemplatesDefault__assetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
+								"wordmark.svg":   {initDataTemplatesDefault__assetsImagesLogosWordmarkSvg, map[string]*bintree{}},
 							}},
 						}},
 					}},
-					"__data.json":     &bintree{initDataTemplatesDefault__dataJson, map[string]*bintree{}},
-					"__document.html": &bintree{initDataTemplatesDefault__documentHtml, map[string]*bintree{}},
-					"index": &bintree{nil, map[string]*bintree{
-						"index.css":  &bintree{initDataTemplatesDefaultIndexIndexCss, map[string]*bintree{}},
-						"index.html": &bintree{initDataTemplatesDefaultIndexIndexHtml, map[string]*bintree{}},
-						"index.json": &bintree{initDataTemplatesDefaultIndexIndexJson, map[string]*bintree{}},
+					"__data.json":     {initDataTemplatesDefault__dataJson, map[string]*bintree{}},
+					"__document.html": {initDataTemplatesDefault__documentHtml, map[string]*bintree{}},
+					"index": {nil, map[string]*bintree{
+						"index.css":  {initDataTemplatesDefaultIndexIndexCss, map[string]*bintree{}},
+						"index.html": {initDataTemplatesDefaultIndexIndexHtml, map[string]*bintree{}},
+						"index.json": {initDataTemplatesDefaultIndexIndexJson, map[string]*bintree{}},
 					}},
 				}},
 			}},
 		}},
-		"db": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initDbReadmeMd, map[string]*bintree{}},
+		"db": {nil, map[string]*bintree{
+			"README.md": {initDbReadmeMd, map[string]*bintree{}},
 		}},
-		"flows": &bintree{nil, map[string]*bintree{
-			"menu.flow.yao": &bintree{initFlowsMenuFlowYao, map[string]*bintree{}},
+		"flows": {nil, map[string]*bintree{
+			"menu.flow.yao": {initFlowsMenuFlowYao, map[string]*bintree{}},
 		}},
-		"forms": &bintree{nil, map[string]*bintree{
-			"account.form.yao": &bintree{initFormsAccountFormYao, map[string]*bintree{}},
+		"forms": {nil, map[string]*bintree{
+			"account.form.yao": {initFormsAccountFormYao, map[string]*bintree{}},
 		}},
-		"icons": &bintree{nil, map[string]*bintree{
-			"app.icns": &bintree{initIconsAppIcns, map[string]*bintree{}},
-			"app.ico":  &bintree{initIconsAppIco, map[string]*bintree{}},
-			"app.png":  &bintree{initIconsAppPng, map[string]*bintree{}},
+		"icons": {nil, map[string]*bintree{
+			"app.icns": {initIconsAppIcns, map[string]*bintree{}},
+			"app.ico":  {initIconsAppIco, map[string]*bintree{}},
+			"app.png":  {initIconsAppPng, map[string]*bintree{}},
 		}},
-		"logins": &bintree{nil, map[string]*bintree{
-			"admin.login.yao": &bintree{initLoginsAdminLoginYao, map[string]*bintree{}},
+		"logins": {nil, map[string]*bintree{
+			"admin.login.yao": {initLoginsAdminLoginYao, map[string]*bintree{}},
 		}},
-		"logs": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initLogsReadmeMd, map[string]*bintree{}},
+		"logs": {nil, map[string]*bintree{
+			"README.md": {initLogsReadmeMd, map[string]*bintree{}},
 		}},
-		"models": &bintree{nil, map[string]*bintree{
-			"admin": &bintree{nil, map[string]*bintree{
-				"user.mod.yao": &bintree{initModelsAdminUserModYao, map[string]*bintree{}},
+		"models": {nil, map[string]*bintree{
+			"admin": {nil, map[string]*bintree{
+				"user.mod.yao": {initModelsAdminUserModYao, map[string]*bintree{}},
 			}},
-			"tests": &bintree{nil, map[string]*bintree{
-				"pet.mod.yao": &bintree{initModelsTestsPetModYao, map[string]*bintree{}},
+			"tests": {nil, map[string]*bintree{
+				"pet.mod.yao": {initModelsTestsPetModYao, map[string]*bintree{}},
 			}},
 		}},
-		"neo": &bintree{nil, map[string]*bintree{
-			"neo.yml": &bintree{initNeoNeoYml, map[string]*bintree{}},
+		"neo": {nil, map[string]*bintree{
+			"neo.yml": {initNeoNeoYml, map[string]*bintree{}},
 		}},
-		"public": &bintree{nil, map[string]*bintree{
-			"README.md": &bintree{initPublicReadmeMd, map[string]*bintree{}},
-			"assets": &bintree{nil, map[string]*bintree{
-				"README.md": &bintree{initPublicAssetsReadmeMd, map[string]*bintree{}},
-				"images": &bintree{nil, map[string]*bintree{
-					"icons": &bintree{nil, map[string]*bintree{
-						"app.png": &bintree{initPublicAssetsImagesIconsAppPng, map[string]*bintree{}},
+		"public": {nil, map[string]*bintree{
+			"README.md": {initPublicReadmeMd, map[string]*bintree{}},
+			"assets": {nil, map[string]*bintree{
+				"README.md": {initPublicAssetsReadmeMd, map[string]*bintree{}},
+				"images": {nil, map[string]*bintree{
+					"icons": {nil, map[string]*bintree{
+						"app.png": {initPublicAssetsImagesIconsAppPng, map[string]*bintree{}},
 					}},
-					"logos": &bintree{nil, map[string]*bintree{
-						"logo_color.svg": &bintree{initPublicAssetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
-						"wordmark.svg":   &bintree{initPublicAssetsImagesLogosWordmarkSvg, map[string]*bintree{}},
+					"logos": {nil, map[string]*bintree{
+						"logo_color.svg": {initPublicAssetsImagesLogosLogo_colorSvg, map[string]*bintree{}},
+						"wordmark.svg":   {initPublicAssetsImagesLogosWordmarkSvg, map[string]*bintree{}},
 					}},
 				}},
-				"libsui.min.js":     &bintree{initPublicAssetsLibsuiMinJs, map[string]*bintree{}},
-				"libsui.min.js.map": &bintree{initPublicAssetsLibsuiMinJsMap, map[string]*bintree{}},
+				"libsui.min.js":     {initPublicAssetsLibsuiMinJs, map[string]*bintree{}},
+				"libsui.min.js.map": {initPublicAssetsLibsuiMinJsMap, map[string]*bintree{}},
 			}},
-			"index.cfg": &bintree{initPublicIndexCfg, map[string]*bintree{}},
-			"index.sui": &bintree{initPublicIndexSui, map[string]*bintree{}},
+			"index.cfg": {initPublicIndexCfg, map[string]*bintree{}},
+			"index.sui": {initPublicIndexSui, map[string]*bintree{}},
 		}},
-		"scripts": &bintree{nil, map[string]*bintree{
-			"account.ts": &bintree{initScriptsAccountTs, map[string]*bintree{}},
-			"ai": &bintree{nil, map[string]*bintree{
-				"neo.ts": &bintree{initScriptsAiNeoTs, map[string]*bintree{}},
+		"scripts": {nil, map[string]*bintree{
+			"account.ts": {initScriptsAccountTs, map[string]*bintree{}},
+			"ai": {nil, map[string]*bintree{
+				"neo.ts": {initScriptsAiNeoTs, map[string]*bintree{}},
 			}},
-			"tests.ts": &bintree{initScriptsTestsTs, map[string]*bintree{}},
-			"utils.ts": &bintree{initScriptsUtilsTs, map[string]*bintree{}},
+			"tests.ts": {initScriptsTestsTs, map[string]*bintree{}},
+			"utils.ts": {initScriptsUtilsTs, map[string]*bintree{}},
 		}},
-		"suis": &bintree{nil, map[string]*bintree{
-			"web.sui.yao": &bintree{initSuisWebSuiYao, map[string]*bintree{}},
+		"suis": {nil, map[string]*bintree{
+			"web.sui.yao": {initSuisWebSuiYao, map[string]*bintree{}},
 		}},
-		"tables": &bintree{nil, map[string]*bintree{
-			"account.tab.yao": &bintree{initTablesAccountTabYao, map[string]*bintree{}},
+		"tables": {nil, map[string]*bintree{
+			"account.tab.yao": {initTablesAccountTabYao, map[string]*bintree{}},
 		}},
-		"tsconfig.json": &bintree{initTsconfigJson, map[string]*bintree{}},
+		"tsconfig.json": {initTsconfigJson, map[string]*bintree{}},
 	}},
-	"libsui": &bintree{nil, map[string]*bintree{
-		"agent.ts": &bintree{libsuiAgentTs, map[string]*bintree{}},
-		"index.ts": &bintree{libsuiIndexTs, map[string]*bintree{}},
-		"utils.ts": &bintree{libsuiUtilsTs, map[string]*bintree{}},
-		"yao.ts":   &bintree{libsuiYaoTs, map[string]*bintree{}},
+	"libsui": {nil, map[string]*bintree{
+		"agent.ts": {libsuiAgentTs, map[string]*bintree{}},
+		"index.ts": {libsuiIndexTs, map[string]*bintree{}},
+		"utils.ts": {libsuiUtilsTs, map[string]*bintree{}},
+		"yao.ts":   {libsuiYaoTs, map[string]*bintree{}},
 	}},
-	"public": &bintree{nil, map[string]*bintree{
-		"index.html": &bintree{publicIndexHtml, map[string]*bintree{}},
+	"public": {nil, map[string]*bintree{
+		"index.html": {publicIndexHtml, map[string]*bintree{}},
 	}},
-	"ui": &bintree{nil, map[string]*bintree{
-		"index.html": &bintree{uiIndexHtml, map[string]*bintree{}},
+	"ui": {nil, map[string]*bintree{
+		"index.html": {uiIndexHtml, map[string]*bintree{}},
 	}},
-	"xgen": &bintree{nil, map[string]*bintree{
-		"setup": &bintree{nil, map[string]*bintree{
-			"index.html": &bintree{xgenSetupIndexHtml, map[string]*bintree{}},
+	"xgen": {nil, map[string]*bintree{
+		"setup": {nil, map[string]*bintree{
+			"index.html": {xgenSetupIndexHtml, map[string]*bintree{}},
 		}},
-		"v0.9": &bintree{nil, map[string]*bintree{
-			"index.html": &bintree{xgenV09IndexHtml, map[string]*bintree{}},
+		"v0.9": {nil, map[string]*bintree{
+			"index.html": {xgenV09IndexHtml, map[string]*bintree{}},
 		}},
-		"v1.0": &bintree{nil, map[string]*bintree{
-			"index.html":              &bintree{xgenV10IndexHtml, map[string]*bintree{}},
-			"layouts__index.async.js": &bintree{xgenV10Layouts__indexAsyncJs, map[string]*bintree{}},
-			"umi.js":                  &bintree{xgenV10UmiJs, map[string]*bintree{}},
+		"v1.0": {nil, map[string]*bintree{
+			"index.html":              {xgenV10IndexHtml, map[string]*bintree{}},
+			"layouts__index.async.js": {xgenV10Layouts__indexAsyncJs, map[string]*bintree{}},
+			"umi.js":                  {xgenV10UmiJs, map[string]*bintree{}},
 		}},
 	}},
-	"yao": &bintree{nil, map[string]*bintree{
-		"data": &bintree{nil, map[string]*bintree{
-			"icons": &bintree{nil, map[string]*bintree{
-				"404.png":   &bintree{yaoDataIcons404Png, map[string]*bintree{}},
-				"icon.icns": &bintree{yaoDataIconsIconIcns, map[string]*bintree{}},
-				"icon.ico":  &bintree{yaoDataIconsIconIco, map[string]*bintree{}},
-				"icon.png":  &bintree{yaoDataIconsIconPng, map[string]*bintree{}},
+	"yao": {nil, map[string]*bintree{
+		"data": {nil, map[string]*bintree{
+			"icons": {nil, map[string]*bintree{
+				"404.png":   {yaoDataIcons404Png, map[string]*bintree{}},
+				"icon.icns": {yaoDataIconsIconIcns, map[string]*bintree{}},
+				"icon.ico":  {yaoDataIconsIconIco, map[string]*bintree{}},
+				"icon.png":  {yaoDataIconsIconPng, map[string]*bintree{}},
 			}},
-			"index.html": &bintree{yaoDataIndexHtml, map[string]*bintree{}},
+			"index.html": {yaoDataIndexHtml, map[string]*bintree{}},
 		}},
-		"fields": &bintree{nil, map[string]*bintree{
-			"model.trans.json": &bintree{yaoFieldsModelTransJson, map[string]*bintree{}},
+		"fields": {nil, map[string]*bintree{
+			"model.trans.json": {yaoFieldsModelTransJson, map[string]*bintree{}},
 		}},
-		"langs": &bintree{nil, map[string]*bintree{
-			"en-US.json": &bintree{yaoLangsEnUsJson, map[string]*bintree{}},
-			"zh-cn": &bintree{nil, map[string]*bintree{
-				"global.yml": &bintree{yaoLangsZhCnGlobalYml, map[string]*bintree{}},
-				"logins": &bintree{nil, map[string]*bintree{
-					"admin.login.yml": &bintree{yaoLangsZhCnLoginsAdminLoginYml, map[string]*bintree{}},
-					"user.login.yml":  &bintree{yaoLangsZhCnLoginsUserLoginYml, map[string]*bintree{}},
+		"langs": {nil, map[string]*bintree{
+			"en-US.json": {yaoLangsEnUsJson, map[string]*bintree{}},
+			"zh-cn": {nil, map[string]*bintree{
+				"global.yml": {yaoLangsZhCnGlobalYml, map[string]*bintree{}},
+				"logins": {nil, map[string]*bintree{
+					"admin.login.yml": {yaoLangsZhCnLoginsAdminLoginYml, map[string]*bintree{}},
+					"user.login.yml":  {yaoLangsZhCnLoginsUserLoginYml, map[string]*bintree{}},
 				}},
 			}},
-			"zh-hk": &bintree{nil, map[string]*bintree{
-				"global.yml": &bintree{yaoLangsZhHkGlobalYml, map[string]*bintree{}},
-				"logins": &bintree{nil, map[string]*bintree{
-					"admin.login.yml": &bintree{yaoLangsZhHkLoginsAdminLoginYml, map[string]*bintree{}},
-					"user.login.yml":  &bintree{yaoLangsZhHkLoginsUserLoginYml, map[string]*bintree{}},
+			"zh-hk": {nil, map[string]*bintree{
+				"global.yml": {yaoLangsZhHkGlobalYml, map[string]*bintree{}},
+				"logins": {nil, map[string]*bintree{
+					"admin.login.yml": {yaoLangsZhHkLoginsAdminLoginYml, map[string]*bintree{}},
+					"user.login.yml":  {yaoLangsZhHkLoginsUserLoginYml, map[string]*bintree{}},
 				}},
 			}},
 		}},
-		"release": &bintree{nil, map[string]*bintree{
-			"app.yaz": &bintree{yaoReleaseAppYaz, map[string]*bintree{}},
+		"release": {nil, map[string]*bintree{
+			"app.yaz": {yaoReleaseAppYaz, map[string]*bintree{}},
 		}},
 	}},
 }}
