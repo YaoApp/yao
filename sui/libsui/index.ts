@@ -357,7 +357,9 @@ async function __sui_render(
   const elm = comp.root.closest("[s\\:route]");
   const routeAttr = elm ? elm.getAttribute("s:route") : false;
   const root = document.body.getAttribute("s:public") || "";
-  const route = routeAttr ? `${root}${routeAttr}` : window.location.pathname;
+  const route = routeAttr
+    ? `${root}${routeAttr}`
+    : option.route || window.location.pathname;
   option.component = (routeAttr && comp.root.getAttribute("s:cn")) || "";
 
   const url = `/api/__yao/sui/v1/render${route}`;
@@ -386,6 +388,22 @@ async function __sui_render(
     // Set the response text to the elements
     elms.forEach((elm) => {
       elm.innerHTML = text;
+
+      // Find sub components and initialize them
+      const subElms = elm.querySelectorAll("[s\\:cn]");
+      subElms.forEach((subElm) => {
+        const method = subElm.getAttribute("s:ready");
+        const cn = subElm.getAttribute("s:cn");
+        if (method && cn && typeof window[cn] === "function") {
+          try {
+            new window[cn](subElm);
+          } catch (e) {
+            const message = e.message || e || "An error occurred";
+            console.error(`[SUI] ${cn} Error: ${message}`);
+          }
+        }
+      });
+
       try {
         __sui_event_init(elm);
       } catch (e) {
@@ -421,6 +439,7 @@ export type RenderOption = {
   replace?: boolean; // default is true
   withPageData?: boolean; // default is false
   component?: string; // default is empty
+  route?: string; // default is empty
 };
 
 export type ComponentState = {
