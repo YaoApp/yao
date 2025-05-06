@@ -232,6 +232,12 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	defer cancel()
 	defer ctx.Release() // Release the context after the request is done
 
+	// Set the assistant ID
+	assistantID := c.Query("assistant_id")
+	if assistantID != "" {
+		ctx = chatctx.WithAssistantID(ctx, assistantID)
+	}
+
 	err := neo.Answer(ctx, content, c)
 
 	// Error handling
