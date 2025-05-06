@@ -71,6 +71,12 @@ func NewWithCancel(sid, cid, payload string) (Context, context.CancelFunc) {
 	return WithCancel(ctx)
 }
 
+// WithAssistantID set the assistant ID
+func WithAssistantID(ctx Context, assistantID string) Context {
+	ctx.AssistantID = assistantID
+	return ctx
+}
+
 // NewWithTimeout create a new context with timeout
 func NewWithTimeout(sid, cid, payload string, timeout time.Duration) (Context, context.CancelFunc) {
 	ctx := New(sid, cid, payload)

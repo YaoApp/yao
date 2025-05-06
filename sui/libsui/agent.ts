@@ -103,7 +103,7 @@ class Agent {
    * @param input Text message or input object with text and optional attachments
    * @param args Additional arguments to pass to the agent
    */
-  async Call(input: AgentInput, ...args: any[]) {
+  async Call(input: AgentInput, ...args: any[]): Promise<any> {
     const messages: AgentMessage[] = [];
     let currentContent = "";
     let lastAssistant = {
@@ -302,6 +302,13 @@ class Agent {
 
             messages.push(newMessage);
             messageHandler(newMessage);
+
+            // If the message is done, close the event source
+            if (done) {
+              const doneHandler = this.events["done"] as DoneHandler;
+              doneHandler?.(messages);
+              es.close();
+            }
             return;
           }
 
