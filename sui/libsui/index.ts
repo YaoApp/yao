@@ -167,7 +167,14 @@ function __sui_event_handler(event, dataKeys, jsonKeys, target, root, handler) {
 
 function __sui_event_init(elm: Element) {
   const bindEvent = (eventElm) => {
-    const cn = eventElm.getAttribute("s:event-cn") || "";
+    let cn = eventElm.getAttribute("s:event-cn") || "";
+
+    // If has parent component, use the parent component name
+    const parent = eventElm.closest(`[s\\:cn]`);
+    if (parent) {
+      cn = parent.getAttribute("s:cn") || "";
+    }
+
     if (cn == "") {
       console.error("[SUI] Component name is required for event binding", elm);
       return;
