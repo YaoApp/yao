@@ -57,6 +57,8 @@ class Agent {
   private events: EventHandlers;
   private assistant_id: string;
   private chat_id?: string;
+  private es: EventSource | null;
+  private context: Record<string, any>;
 
   /**
    * Agent constructor
@@ -68,6 +70,8 @@ class Agent {
     this.events = {};
     this.assistant_id = assistant_id;
     this.chat_id = option.chat_id;
+    this.es = null;
+    this.context = option.context || {};
   }
 
   /**
@@ -99,13 +103,22 @@ class Agent {
   }
 
   /**
+   * Cancel the agent
+   */
+  Cancel() {
+    if (this.es) {
+      this.es.close();
+      this.es = null;
+    }
+  }
+
+  /**
    * Call the AI Agent
    * @param input Text message or input object with text and optional attachments
    * @param args Additional arguments to pass to the agent
    */
   async Call(input: AgentInput, ...args: any[]): Promise<any> {
     const messages: AgentMessage[] = [];
-    let currentContent = "";
     let lastAssistant = {
       assistant_id: null as string | null,
       assistant_name: null as string | null,
@@ -134,8 +147,10 @@ class Agent {
       }
     }
 
+    // Add context to the content
+    const context = { ...this.context, args };
     const contentRaw = encodeURIComponent(JSON.stringify(content));
-    const contextRaw = encodeURIComponent(JSON.stringify(args));
+    const contextRaw = encodeURIComponent(JSON.stringify(context));
     const token = this.token;
     const chatId = this.chat_id || this.makeChatID();
     const assistantParam = `&assistant_id=${this.assistant_id}`;
@@ -196,21 +211,10 @@ class Agent {
     };
 
     try {
-      const es = new EventSource(endpoint, {
-        withCredentials: true,
-      });
+      const es = new EventSource(endpoint, { withCredentials: true });
+      this.es = es;
 
-      es.onopen = () => {
-        const messageHandler = this.events["message"] as MessageHandler;
-        if (messageHandler) {
-          messageHandler({
-            text: "",
-            is_neo: true,
-            new: true,
-          });
-        }
-      };
-
+      es.onopen = () => {};
       es.onmessage = ({ data }: { data: string }) => {
         try {
           const formated_data = JSON.parse(data);
@@ -438,4 +442,5 @@ interface AgentOption {
   host?: string;
   token: string;
   chat_id?: string;
+  context?: Record<string, any>;
 }
