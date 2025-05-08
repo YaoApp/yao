@@ -15,7 +15,7 @@ import (
 func (neo *DSL) HookCreate(ctx chatctx.Context, messages []map[string]interface{}, c *gin.Context) (CreateResponse, error) {
 
 	// Default assistant
-	assistantID := neo.Use
+	assistantID := neo.Use.Default
 	if ctx.AssistantID != "" {
 		assistantID = ctx.AssistantID
 	}

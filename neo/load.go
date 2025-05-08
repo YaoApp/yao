@@ -47,6 +47,21 @@ func Load(cfg config.Config) error {
 		setting.StoreSetting.MaxSize = 100
 	}
 
+	// Default Assistant
+	if setting.Use == nil {
+		setting.Use = &Use{Default: "neo"}
+	}
+
+	// Title Assistant
+	if setting.Use.Title == "" {
+		setting.Use.Title = setting.Use.Default
+	}
+
+	// Prompt Assistant
+	if setting.Use.Prompt == "" {
+		setting.Use.Prompt = setting.Use.Default
+	}
+
 	Neo = &setting
 
 	// Store Setting
@@ -185,8 +200,8 @@ func initAssistant() error {
 
 // defaultAssistant get the default assistant
 func defaultAssistant() (*assistant.Assistant, error) {
-	if Neo.Use != "" {
-		return assistant.Get(Neo.Use)
+	if Neo.Use != nil && Neo.Use.Default != "" {
+		return assistant.Get(Neo.Use.Default)
 	}
 
 	name := Neo.Name

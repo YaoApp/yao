@@ -59,6 +59,8 @@ class Agent {
   private chat_id?: string;
   private es: EventSource | null;
   private context: Record<string, any>;
+  private silent?: boolean = false;
+  private history_visible?: boolean = false;
 
   /**
    * Agent constructor
@@ -72,6 +74,28 @@ class Agent {
     this.chat_id = option.chat_id;
     this.es = null;
     this.context = option.context || {};
+
+    // Set silent mode, default is true
+    if (option.silent !== undefined) {
+      this.silent =
+        option.silent === true ||
+        option.silent === "true" ||
+        option.silent === 1 ||
+        option.silent === "1"
+          ? false
+          : true;
+    }
+
+    // Set history visible mode, default is false
+    if (option.history_visible !== undefined) {
+      this.history_visible =
+        option.history_visible === true ||
+        option.history_visible === "true" ||
+        option.history_visible === 1 ||
+        option.history_visible === "1"
+          ? true
+          : false;
+    }
   }
 
   /**
@@ -152,10 +176,12 @@ class Agent {
     const contentRaw = encodeURIComponent(JSON.stringify(content));
     const contextRaw = encodeURIComponent(JSON.stringify(context));
     const token = this.token;
+    const silent = this.silent ? "true" : "false";
+    const history_visible = this.history_visible ? "true" : "false";
     const chatId = this.chat_id || this.makeChatID();
     const assistantParam = `&assistant_id=${this.assistant_id}`;
     const status_endpoint = `${this.host}/status?content=${contentRaw}&context=${contextRaw}&token=${token}&chat_id=${chatId}${assistantParam}`;
-    const endpoint = `${this.host}?content=${contentRaw}&context=${contextRaw}&token=${token}&chat_id=${chatId}${assistantParam}`;
+    const endpoint = `${this.host}?client_type=jssdk&content=${contentRaw}&context=${contextRaw}&token=${token}&silent=${silent}&history_visible=${history_visible}&chat_id=${chatId}${assistantParam}`;
 
     const handleError = async (error: any) => {
       try {
@@ -447,6 +473,8 @@ type AgentInput =
 interface AgentOption {
   host?: string;
   token: string;
+  silent?: boolean | string | number;
+  history_visible?: boolean | string | number;
   chat_id?: string;
   context?: Record<string, any>;
 }

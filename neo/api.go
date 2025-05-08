@@ -134,15 +134,6 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/mentions?keywords=assistant&token=xxx'
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
 
-	// Generation endpoints
-	// Generate custom content example:
-	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate?content=Generate+something&type=custom&system_prompt=You+are+a+helpful+assistant&chat_id=chat_123&token=xxx'
-	// curl -X POST 'http://localhost:5099/api/__yao/neo/generate' \
-	//   -H 'Content-Type: application/json' \
-	//   -d '{"content": "Generate something", "type": "custom", "system_prompt": "You are a helpful assistant", "chat_id": "chat_123", "token": "xxx"}'
-	router.GET(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
-	router.POST(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
-
 	// Generate title example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate/title?content=Chat+content&chat_id=chat_123&token=xxx'
 	// curl -X POST 'http://localhost:5099/api/__yao/neo/generate/title' \
@@ -236,6 +227,24 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	assistantID := c.Query("assistant_id")
 	if assistantID != "" {
 		ctx = chatctx.WithAssistantID(ctx, assistantID)
+	}
+
+	// Set the silent mode
+	silent := c.Query("silent")
+	if silent == "true" || silent == "1" {
+		ctx = chatctx.WithSilent(ctx, true)
+	}
+
+	// Set the history visible
+	historyVisible := c.Query("history_visible")
+	if historyVisible != "" {
+		ctx = chatctx.WithHistoryVisible(ctx, historyVisible == "true" || historyVisible == "1")
+	}
+
+	// Set the client type
+	clientType := c.Query("client_type")
+	if clientType != "" {
+		ctx = chatctx.WithClientType(ctx, clientType)
 	}
 
 	err := neo.Answer(ctx, content, c)
@@ -485,7 +494,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 	// Create a new chat
 	if len(chats.Groups) == 0 || len(chats.Groups[0].Chats) == 0 {
 
-		assistantID := neo.Use
+		assistantID := neo.Use.Default
 		queryAssistantID := c.Query("assistant_id")
 		if queryAssistantID != "" {
 			assistantID = queryAssistantID
@@ -504,7 +513,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 			"assistant_id":         ast.ID,
 			"assistant_name":       ast.Name,
 			"assistant_avatar":     ast.Avatar,
-			"assistant_deleteable": neo.Use != ast.ID,
+			"assistant_deleteable": neo.Use.Default != ast.ID,
 		}})
 		c.Done()
 		return
@@ -530,7 +539,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		chat.Chat["assistant_id"] = neo.Use
 
 		// Get the assistant info
-		ast, err := assistant.Get(neo.Use)
+		ast, err := assistant.Get(neo.Use.Default)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
@@ -573,7 +582,7 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		chat.Chat["assistant_id"] = neo.Use
 
 		// Get the assistant info
-		ast, err := assistant.Get(neo.Use)
+		ast, err := assistant.Get(neo.Use.Default)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
@@ -583,7 +592,7 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
-	chat.Chat["assistant_deleteable"] = neo.Use != chat.Chat["assistant_id"]
+	chat.Chat["assistant_deleteable"] = neo.Use.Default != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
@@ -657,20 +666,6 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
 		c.Done()
 		return
-	}
-
-	// If content is not empty, Generate the chat title
-	if body.Content != "" {
-		ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
-		defer cancel()
-
-		title, err := neo.GenerateChatTitle(ctx, body.Content, c, true)
-		if err != nil {
-			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-			c.Done()
-			return
-		}
-		body.Title = title
 	}
 
 	if body.Title == "" {
@@ -813,155 +808,81 @@ func (r *generateResponse) send(key string) {
 
 // handleGenerateTitle handles generating a chat title
 func (neo *DSL) handleGenerateTitle(c *gin.Context) {
-	var content string
-	if c.Request.Method == "GET" {
-		content = c.Query("content")
-	} else {
-		var body struct {
-			Content string `json:"content"`
-		}
-		if err := c.BindJSON(&body); err != nil {
-			// For SSE requests, send error message in SSE format
-			if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-				c.Header("Content-Type", "text/event-stream;charset=utf-8")
-				c.Header("Cache-Control", "no-cache")
-				c.Header("Connection", "keep-alive")
-				msg := message.New().Error("invalid request body").Done()
-				msg.Write(c.Writer)
-				return
-			}
-			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-			return
-		}
-		content = body.Content
+	// Set headers for SSE
+	c.Header("Content-Type", "text/event-stream;charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	sid := c.GetString("__sid")
+	if sid == "" {
+		sid = uuid.New().String()
 	}
 
-	resp := &generateResponse{
-		c:       c,
-		sid:     c.GetString("__sid"),
-		content: content,
-	}
-
-	// For SSE requests, set headers before validation
-	if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-		c.Header("Content-Type", "text/event-stream;charset=utf-8")
-		c.Header("Cache-Control", "no-cache")
-		c.Header("Connection", "keep-alive")
-	}
-
-	if !resp.validate() {
+	content := c.Query("content")
+	if content == "" {
+		msg := message.New().Error("content is required").Done()
+		msg.Write(c.Writer)
 		return
 	}
 
-	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
-	defer cancel()
+	chatID := fmt.Sprintf("generate_title_%d", time.Now().UnixNano())
 
-	// Use silent mode for regular HTTP requests, streaming for SSE
-	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
-	resp.result, resp.err = neo.GenerateChatTitle(ctx, resp.content, c, silent)
-	resp.send("result")
+	// Set the context with validated chat_id
+	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
+	defer cancel()
+	defer ctx.Release() // Release the context after the request is done
+
+	// Set the assistant ID
+	ctx = chatctx.WithHistoryVisible(ctx, false)
+	ctx = chatctx.WithAssistantID(ctx, neo.Use.Title)
+
+	err := neo.Answer(ctx, content, c)
+
+	// Error handling
+	if err != nil {
+		message.New().Done().Error(err).Write(c.Writer)
+		c.Done()
+		return
+	}
 }
 
 // handleGeneratePrompts handles generating prompts
 func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
-	var content string
-	if c.Request.Method == "GET" {
-		content = c.Query("content")
-	} else {
-		var body struct {
-			Content string `json:"content"`
-		}
-		if err := c.BindJSON(&body); err != nil {
-			// For SSE requests, send error message in SSE format
-			if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-				c.Header("Content-Type", "text/event-stream;charset=utf-8")
-				c.Header("Cache-Control", "no-cache")
-				c.Header("Connection", "keep-alive")
-				msg := message.New().Error("invalid request body").Done()
-				msg.Write(c.Writer)
-				return
-			}
-			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-			return
-		}
-		content = body.Content
+	// Set headers for SSE
+	c.Header("Content-Type", "text/event-stream;charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	sid := c.GetString("__sid")
+	if sid == "" {
+		sid = uuid.New().String()
 	}
 
-	resp := &generateResponse{
-		c:       c,
-		sid:     c.GetString("__sid"),
-		content: content,
-	}
-
-	// For SSE requests, set headers before validation
-	if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-		c.Header("Content-Type", "text/event-stream;charset=utf-8")
-		c.Header("Cache-Control", "no-cache")
-		c.Header("Connection", "keep-alive")
-	}
-
-	if !resp.validate() {
+	content := c.Query("content")
+	if content == "" {
+		msg := message.New().Error("content is required").Done()
+		msg.Write(c.Writer)
 		return
 	}
 
-	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
+	chatID := fmt.Sprintf("generate_prompts_%d", time.Now().UnixNano())
+
+	// Set the context with validated chat_id
+	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
 	defer cancel()
+	defer ctx.Release() // Release the context after the request is done
 
-	// Use silent mode for regular HTTP requests, streaming for SSE
-	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
-	resp.result, resp.err = neo.GeneratePrompts(ctx, resp.content, c, silent)
-	resp.send("result")
-}
+	// Set the assistant ID
+	ctx = chatctx.WithHistoryVisible(ctx, false)
+	ctx = chatctx.WithAssistantID(ctx, neo.Use.Prompt)
+	err := neo.Answer(ctx, content, c)
 
-// handleGenerateCustom handles generating custom content
-func (neo *DSL) handleGenerateCustom(c *gin.Context) {
-	var content, genType, systemPrompt string
-
-	if c.Request.Method == "GET" {
-		content = c.Query("content")
-		genType = c.Query("type")
-		systemPrompt = c.Query("system_prompt")
-	} else {
-		var body struct {
-			Content      string `json:"content"`
-			Type         string `json:"type"`
-			SystemPrompt string `json:"system_prompt"`
-		}
-		if err := c.BindJSON(&body); err != nil {
-			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-			return
-		}
-		content = body.Content
-		genType = body.Type
-		systemPrompt = body.SystemPrompt
-	}
-
-	resp := &generateResponse{
-		c:       c,
-		sid:     c.GetString("__sid"),
-		content: content,
-	}
-	if !resp.validate() {
+	// Error handling
+	if err != nil {
+		message.New().Done().Error(err).Write(c.Writer)
+		c.Done()
 		return
 	}
-
-	// Additional validations for custom generation
-	if genType == "" {
-		c.JSON(400, gin.H{"message": "type is required", "code": 400})
-		return
-	}
-	if systemPrompt == "" {
-		c.JSON(400, gin.H{"message": "system_prompt is required", "code": 400})
-		return
-	}
-
-	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
-	defer cancel()
-
-	// Use silent mode for regular HTTP requests, streaming for SSE
-	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
-	resp.result, resp.err = neo.GenerateWithAI(ctx, resp.content, genType, systemPrompt, c, silent)
-	resp.send("result")
 }
 
 // handleAssistantList handles listing assistants
