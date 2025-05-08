@@ -607,6 +607,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 
 	// Get silent flag from context
 	var silent bool = false
+	var historyVisible bool = true
 	if context != nil {
 		if silentVal, ok := context["silent"]; ok {
 			switch v := silentVal.(type) {
@@ -618,6 +619,20 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 				silent = v != 0
 			case float64:
 				silent = v != 0
+			}
+		}
+
+		// Get history visible from context
+		if historyVisibleVal, ok := context["history_visible"]; ok {
+			switch v := historyVisibleVal.(type) {
+			case bool:
+				historyVisible = v
+			case string:
+				historyVisible = v == "true" || v == "1" || v == "yes"
+			case int:
+				historyVisible = v != 0
+			case float64:
+				historyVisible = v != 0
 			}
 		}
 	}
@@ -639,7 +654,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 				"chat_id":      cid,
 				"sid":          userID,
 				"assistant_id": assistantID,
-				"silent":       silent,
+				"silent":       silent || historyVisible == false,
 				"created_at":   time.Now(),
 			})
 
@@ -653,7 +668,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 			Where("sid", userID).
 			Update(map[string]interface{}{
 				"assistant_id": assistantID,
-				"silent":       silent,
+				"silent":       silent || historyVisible == false,
 			})
 		if err != nil {
 			return err

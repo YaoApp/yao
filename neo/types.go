@@ -14,7 +14,7 @@ import (
 type DSL struct {
 	ID            string                                `json:"-" yaml:"-"`
 	Name          string                                `json:"name,omitempty" yaml:"name,omitempty"`
-	Use           string                                `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default
+	Use           *Use                                  `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default, title, prompt
 	Guard         string                                `json:"guard,omitempty" yaml:"guard,omitempty"`
 	Connector     string                                `json:"connector" yaml:"connector"`
 	StoreSetting  store.Setting                         `json:"store" yaml:"store"`
@@ -32,6 +32,13 @@ type DSL struct {
 	RAG           *rag.RAG                              `json:"-" yaml:"-"`
 	Vision        *vision.Vision                        `json:"-" yaml:"-"`
 	GuardHandlers []gin.HandlerFunc                     `json:"-" yaml:"-"`
+}
+
+// Use the use setting for the assistant
+type Use struct {
+	Default string `json:"default,omitempty" yaml:"default,omitempty"`
+	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
+	Prompt  string `json:"prompt,omitempty" yaml:"prompt,omitempty"`
 }
 
 // VisionSetting the vision setting
