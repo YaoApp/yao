@@ -211,6 +211,7 @@ class Agent {
     };
 
     try {
+      let last_type: string | null = null;
       const es = new EventSource(endpoint, { withCredentials: true });
       this.es = es;
 
@@ -226,10 +227,10 @@ class Agent {
           const {
             tool_id,
             begin,
+            type,
             end,
             text,
             props,
-            type,
             done,
             assistant_id,
             assistant_name,
@@ -271,10 +272,15 @@ class Agent {
 
           // Check if we need to create a new message
           const shouldCreateNewMessage =
+            (type !== last_type &&
+              (!done || (done === true && (text || props)))) || // if type changed or done is true and there is text or props
             messages.length === 0 ||
             (assistant_id &&
               messages[messages.length - 1].assistant_id !== assistant_id) ||
             (is_new && !delta); // Only create new message if it's new and not a delta update
+
+          // Update last type
+          last_type = type;
 
           // Update assistant information
           if (assistant_id) lastAssistant.assistant_id = assistant_id;
