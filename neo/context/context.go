@@ -59,8 +59,8 @@ const (
 	// ClientTypeWeb is the client type for Web (Default UI)
 	ClientTypeWeb = "web"
 
-	// ClientTypeSDK is the client type for SDK
-	ClientTypeSDK = "android"
+	// ClientTypeAndroid is the client type for Android
+	ClientTypeAndroid = "android"
 
 	// ClientTypeIOS is the client type for IOS
 	ClientTypeIOS = "ios"
@@ -82,7 +82,7 @@ const (
 var SupportedClientTypes = map[string]bool{
 	ClientTypeAgent:   true,
 	ClientTypeWeb:     true,
-	ClientTypeSDK:     true,
+	ClientTypeAndroid: true,
 	ClientTypeIOS:     true,
 	ClientTypeJSSDK:   true,
 	ClientTypeMacOS:   true,
