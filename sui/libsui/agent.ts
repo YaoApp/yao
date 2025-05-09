@@ -227,7 +227,7 @@ class Agent {
             });
           }
 
-          return reject(error);
+          return reject(new Error(errorMessage));
         } catch (statusError) {
           const messageHandler = this.events["message"] as MessageHandler;
           if (messageHandler) {
@@ -239,7 +239,9 @@ class Agent {
             });
           }
 
-          return reject(statusError);
+          return reject(
+            new Error("Service unavailable, please try again later")
+          );
         }
       };
 
@@ -434,8 +436,10 @@ class Agent {
             // Send current message to handler
             messageHandler(current_answer);
           } catch (err) {
+            const errorMessage =
+              err.message || JSON.stringify(err) || "未知错误";
             console.error("Failed to parse message:", err);
-            reject(err);
+            reject(new Error(errorMessage));
           }
         };
 
