@@ -396,6 +396,13 @@ func (m *Message) Error(message interface{}) *Message {
 	return m
 }
 
+// SetResult set the result
+func (m *Message) SetResult(result any) *Message {
+	m.Result = result
+	m.Type = "result" // set the type to result
+	return m
+}
+
 // SetContent set the content
 func (m *Message) SetContent(content string) *Message {
 	if strings.HasPrefix(content, "{") && strings.HasSuffix(content, "}") {
@@ -432,7 +439,7 @@ func (m *Message) AppendTo(contents *Contents) *Message {
 		}
 		return m
 
-	case "loading", "error", "action", "progress", "plan": // Ignore progress, loading, plan and error messages
+	case "loading", "error", "action", "progress", "plan", "result": // Ignore progress, loading, plan and error messages
 		return m
 
 	default:

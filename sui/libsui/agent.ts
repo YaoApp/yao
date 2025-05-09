@@ -19,6 +19,7 @@ interface AgentMessage {
   tool_id?: string;
   new?: boolean;
   delta?: boolean;
+  result?: any;
   previous_assistant_id?: string;
 }
 
@@ -142,294 +143,310 @@ class Agent {
    * @param args Additional arguments to pass to the agent
    */
   async Call(input: AgentInput, ...args: any[]): Promise<any> {
-    const messages: AgentMessage[] = [];
-    let lastAssistant = {
-      assistant_id: null as string | null,
-      assistant_name: null as string | null,
-      assistant_avatar: null as string | null,
-    };
+    return new Promise((resolve, reject) => {
+      const messages: AgentMessage[] = [];
+      let lastAssistant = {
+        assistant_id: null as string | null,
+        assistant_name: null as string | null,
+        assistant_avatar: null as string | null,
+      };
 
-    // Process input content
-    let content: AgentInputContent;
-    if (typeof input === "string") {
-      content = { text: input };
-    } else {
-      content = { text: input.text };
-      if (input.attachments && input.attachments.length > 0) {
-        content.attachments = input.attachments.map((attachment) => ({
-          name: attachment.name,
-          url: attachment.url,
-          type: attachment.type,
-          content_type: attachment.content_type,
-          bytes: attachment.bytes,
-          created_at: attachment.created_at,
-          file_id: attachment.file_id,
-          chat_id: attachment.chat_id,
-          assistant_id: attachment.assistant_id,
-          description: attachment.description,
-        }));
-      }
-    }
-
-    // Add context to the content
-    const context = { ...this.context, args };
-    const contentRaw = encodeURIComponent(JSON.stringify(content));
-    const contextRaw = encodeURIComponent(JSON.stringify(context));
-    const token = this.token;
-    const silent = this.silent ? "true" : "false";
-    const history_visible = this.history_visible ? "true" : "false";
-    const chatId = this.chat_id || this.makeChatID();
-    const assistantParam = `&assistant_id=${this.assistant_id}`;
-    const status_endpoint = `${this.host}/status?content=${contentRaw}&context=${contextRaw}&token=${token}&chat_id=${chatId}${assistantParam}`;
-    const endpoint = `${this.host}?client_type=jssdk&content=${contentRaw}&context=${contextRaw}&token=${token}&silent=${silent}&history_visible=${history_visible}&chat_id=${chatId}${assistantParam}`;
-
-    const handleError = async (error: any) => {
-      try {
-        const response = await fetch(status_endpoint, {
-          credentials: "include",
-          headers: { Accept: "application/json" },
-        });
-
-        if (response.status === 200 || response.status === 201) return;
-
-        const data = await response.json().catch(() => ({
-          message: `HTTP ${response.status}`,
-        }));
-
-        let errorMessage = "Network error, please try again later";
-        if (data?.message) {
-          errorMessage = data.message;
-        } else if (error.message?.includes("401")) {
-          errorMessage = "Session expired: Please login again";
-        } else if (error.message?.includes("403")) {
-          errorMessage =
-            "Access denied: Please check your permissions or login again";
-        } else if (error.message?.includes("500")) {
-          errorMessage = "Server error: The service is temporarily unavailable";
-        } else if (error.message?.includes("404")) {
-          errorMessage =
-            "AI service not found: Please check your configuration";
-        } else if (error.name === "TypeError") {
-          errorMessage =
-            "Connection failed: Please check your network connection";
-        }
-
-        const messageHandler = this.events["message"] as MessageHandler;
-        if (messageHandler) {
-          messageHandler({
-            text: errorMessage,
-            type: "error",
-            is_neo: true,
-            done: true,
-          });
-        }
-      } catch (statusError) {
-        const messageHandler = this.events["message"] as MessageHandler;
-        if (messageHandler) {
-          messageHandler({
-            text: "Service unavailable, please try again later",
-            type: "error",
-            is_neo: true,
-            done: true,
-          });
+      // Process input content
+      let content: AgentInputContent;
+      if (typeof input === "string") {
+        content = { text: input };
+      } else {
+        content = { text: input.text };
+        if (input.attachments && input.attachments.length > 0) {
+          content.attachments = input.attachments.map((attachment) => ({
+            name: attachment.name,
+            url: attachment.url,
+            type: attachment.type,
+            content_type: attachment.content_type,
+            bytes: attachment.bytes,
+            created_at: attachment.created_at,
+            file_id: attachment.file_id,
+            chat_id: attachment.chat_id,
+            assistant_id: attachment.assistant_id,
+            description: attachment.description,
+          }));
         }
       }
-    };
 
-    try {
-      let last_type: string | null = null;
-      const es = new EventSource(endpoint, { withCredentials: true });
-      this.es = es;
+      // Add context to the content
+      const context = { ...this.context, args };
+      const contentRaw = encodeURIComponent(JSON.stringify(content));
+      const contextRaw = encodeURIComponent(JSON.stringify(context));
+      const token = this.token;
+      const silent = this.silent ? "true" : "false";
+      const history_visible = this.history_visible ? "true" : "false";
+      const chatId = this.chat_id || this.makeChatID();
+      const assistantParam = `&assistant_id=${this.assistant_id}`;
+      const status_endpoint = `${this.host}/status?content=${contentRaw}&context=${contextRaw}&token=${token}&chat_id=${chatId}${assistantParam}`;
+      const endpoint = `${this.host}?client_type=jssdk&content=${contentRaw}&context=${contextRaw}&token=${token}&silent=${silent}&history_visible=${history_visible}&chat_id=${chatId}${assistantParam}`;
 
-      es.onopen = () => {};
-      es.onmessage = ({ data }: { data: string }) => {
+      const handleError = async (error: any) => {
         try {
-          const formated_data = JSON.parse(data);
-          if (!formated_data) return;
+          const response = await fetch(status_endpoint, {
+            credentials: "include",
+            headers: { Accept: "application/json" },
+          });
+
+          if (response.status === 200 || response.status === 201) return;
+
+          const data = await response.json().catch(() => ({
+            message: `HTTP ${response.status}`,
+          }));
+
+          let errorMessage = "Network error, please try again later";
+          if (data?.message) {
+            errorMessage = data.message;
+          } else if (error.message?.includes("401")) {
+            errorMessage = "Session expired: Please login again";
+          } else if (error.message?.includes("403")) {
+            errorMessage =
+              "Access denied: Please check your permissions or login again";
+          } else if (error.message?.includes("500")) {
+            errorMessage =
+              "Server error: The service is temporarily unavailable";
+          } else if (error.message?.includes("404")) {
+            errorMessage =
+              "AI service not found: Please check your configuration";
+          } else if (error.name === "TypeError") {
+            errorMessage =
+              "Connection failed: Please check your network connection";
+          }
 
           const messageHandler = this.events["message"] as MessageHandler;
-          if (!messageHandler) return;
+          if (messageHandler) {
+            messageHandler({
+              text: errorMessage,
+              type: "error",
+              is_neo: true,
+              done: true,
+            });
+          }
 
-          const {
-            tool_id,
-            begin,
-            type,
-            end,
-            text,
-            props,
-            done,
-            assistant_id,
-            assistant_name,
-            assistant_avatar,
-            new: is_new,
-            delta,
-          } = formated_data;
+          return reject(error);
+        } catch (statusError) {
+          const messageHandler = this.events["message"] as MessageHandler;
+          if (messageHandler) {
+            messageHandler({
+              text: "Service unavailable, please try again later",
+              type: "error",
+              is_neo: true,
+              done: true,
+            });
+          }
 
-          // Handle action message type
-          if (type === "action") {
-            const { namespace, primary, data_item, action, extra } =
-              props || {};
-            if (action && Array.isArray(action)) {
-              const actionMessage = {
+          return reject(statusError);
+        }
+      };
+
+      try {
+        let last_type: string | null = null;
+        const es = new EventSource(endpoint, { withCredentials: true });
+        this.es = es;
+
+        es.onopen = () => {};
+        es.onmessage = ({ data }: { data: string }) => {
+          try {
+            const formated_data = JSON.parse(data);
+            if (!formated_data) return;
+
+            const messageHandler = this.events["message"] as MessageHandler;
+            if (!messageHandler) return;
+
+            const {
+              tool_id,
+              begin,
+              type,
+              end,
+              text,
+              props,
+              done,
+              assistant_id,
+              assistant_name,
+              assistant_avatar,
+              new: is_new,
+              delta,
+              result,
+            } = formated_data;
+
+            // Handle action message type
+            if (type === "action") {
+              const { namespace, primary, data_item, action, extra } =
+                props || {};
+              if (action && Array.isArray(action)) {
+                const actionMessage = {
+                  text: text || "",
+                  type: "action",
+                  props: {
+                    namespace: namespace || "chat",
+                    primary: primary || "id",
+                    data_item: data_item || {},
+                    action,
+                    extra,
+                  },
+                  is_neo: true,
+                  done: !!done,
+                };
+
+                messages.push(actionMessage);
+                messageHandler(actionMessage);
+
+                if (done) {
+                  const doneHandler = this.events["done"] as DoneHandler;
+                  doneHandler?.(messages);
+                  es.close();
+                }
+                return resolve(result);
+              }
+            }
+
+            // Check if we need to create a new message
+            const shouldCreateNewMessage =
+              (type !== last_type &&
+                (!done || (done === true && (text || props)))) || // if type changed or done is true and there is text or props
+              messages.length === 0 ||
+              (assistant_id &&
+                messages[messages.length - 1].assistant_id !== assistant_id) ||
+              (is_new && !delta); // Only create new message if it's new and not a delta update
+
+            // Update last type
+            last_type = type;
+
+            // Update assistant information
+            if (assistant_id) lastAssistant.assistant_id = assistant_id;
+            if (assistant_name) lastAssistant.assistant_name = assistant_name;
+            if (assistant_avatar)
+              lastAssistant.assistant_avatar = assistant_avatar;
+
+            if (shouldCreateNewMessage) {
+              // Mark the last message as done if it exists
+              if (messages.length > 0 && messages[messages.length - 1].is_neo) {
+                messages[messages.length - 1] = {
+                  ...messages[messages.length - 1],
+                  done: true,
+                };
+              }
+
+              // Create new message with all original properties
+              const newMessage = {
                 text: text || "",
-                type: "action",
-                props: {
-                  namespace: namespace || "chat",
-                  primary: primary || "id",
-                  data_item: data_item || {},
-                  action,
-                  extra,
-                },
+                type: type || "text",
+                props,
                 is_neo: true,
-                done: !!done,
+                new: is_new, // Only set new if it's from the original message
+                tool_id,
+                result: result,
+                assistant_id: lastAssistant.assistant_id || undefined,
+                assistant_name: lastAssistant.assistant_name || undefined,
+                assistant_avatar: lastAssistant.assistant_avatar || undefined,
               };
 
-              messages.push(actionMessage);
-              messageHandler(actionMessage);
+              messages.push(newMessage);
+              messageHandler(newMessage);
 
+              // If the message is done, close the event source
               if (done) {
                 const doneHandler = this.events["done"] as DoneHandler;
                 doneHandler?.(messages);
                 es.close();
+                return resolve(result);
               }
               return;
             }
-          }
 
-          // Check if we need to create a new message
-          const shouldCreateNewMessage =
-            (type !== last_type &&
-              (!done || (done === true && (text || props)))) || // if type changed or done is true and there is text or props
-            messages.length === 0 ||
-            (assistant_id &&
-              messages[messages.length - 1].assistant_id !== assistant_id) ||
-            (is_new && !delta); // Only create new message if it's new and not a delta update
+            // Get current message (we know it exists because we checked messages.length above)
+            const current_answer = messages[messages.length - 1];
 
-          // Update last type
-          last_type = type;
-
-          // Update assistant information
-          if (assistant_id) lastAssistant.assistant_id = assistant_id;
-          if (assistant_name) lastAssistant.assistant_name = assistant_name;
-          if (assistant_avatar)
-            lastAssistant.assistant_avatar = assistant_avatar;
-
-          if (shouldCreateNewMessage) {
-            // Mark the last message as done if it exists
-            if (messages.length > 0 && messages[messages.length - 1].is_neo) {
-              messages[messages.length - 1] = {
-                ...messages[messages.length - 1],
-                done: true,
-              };
+            // Set previous assistant id
+            if (messages.length > 1) {
+              const previous_message = messages[messages.length - 2];
+              if (previous_message.assistant_id) {
+                current_answer.previous_assistant_id =
+                  previous_message.assistant_id;
+              }
             }
 
-            // Create new message with all original properties
-            const newMessage = {
-              text: text || "",
-              type: type || "text",
-              props,
-              is_neo: true,
-              new: is_new, // Only set new if it's from the original message
-              tool_id,
-              assistant_id: lastAssistant.assistant_id || undefined,
-              assistant_name: lastAssistant.assistant_name || undefined,
-              assistant_avatar: lastAssistant.assistant_avatar || undefined,
-            };
-
-            messages.push(newMessage);
-            messageHandler(newMessage);
-
-            // If the message is done, close the event source
+            // Handle message completion (done flag is set)
             if (done) {
+              if (text) {
+                current_answer.text = text;
+              }
+              if (type) {
+                current_answer.type = type;
+              }
+              if (props) {
+                current_answer.props = props;
+              }
+
+              // Set result if available
+              if (result) {
+                current_answer.result = result;
+              }
+
+              // Mark all previous neo messages as done
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const message = messages[i];
+                if (message.is_neo) {
+                  if (message.done) break;
+                  messages[i] = { ...message, done: true };
+                }
+              }
+
               const doneHandler = this.events["done"] as DoneHandler;
               doneHandler?.(messages);
               es.close();
+              return resolve(result);
             }
-            return;
-          }
 
-          // Get current message (we know it exists because we checked messages.length above)
-          const current_answer = messages[messages.length - 1];
+            // Skip processing if no content to update
+            if (!text && !props && !type) return;
 
-          // Set previous assistant id
-          if (messages.length > 1) {
-            const previous_message = messages[messages.length - 2];
-            if (previous_message.assistant_id) {
-              current_answer.previous_assistant_id =
-                previous_message.assistant_id;
-            }
-          }
-
-          // Handle message completion (done flag is set)
-          if (done) {
-            if (text) {
-              current_answer.text = text;
-            }
-            if (type) {
-              current_answer.type = type;
-            }
+            // Update props if available
             if (props) {
-              current_answer.props = props;
-            }
-
-            // Mark all previous neo messages as done
-            for (let i = messages.length - 1; i >= 0; i--) {
-              const message = messages[i];
-              if (message.is_neo) {
-                if (message.done) break;
-                messages[i] = { ...message, done: true };
+              if (type === "think" || type === "tool") {
+                current_answer.props = {
+                  ...(current_answer.props || {}),
+                  id: tool_id,
+                  begin,
+                  end,
+                };
+              } else {
+                current_answer.props = props;
               }
             }
 
-            const doneHandler = this.events["done"] as DoneHandler;
-            doneHandler?.(messages);
-            es.close();
-            return;
-          }
-
-          // Skip processing if no content to update
-          if (!text && !props && !type) return;
-
-          // Update props if available
-          if (props) {
-            if (type === "think" || type === "tool") {
-              current_answer.props = {
-                ...(current_answer.props || {}),
-                id: tool_id,
-                begin,
-                end,
-              };
-            } else {
-              current_answer.props = props;
-            }
-          }
-
-          // Handle text content
-          if (text) {
-            if (delta) {
-              current_answer.text = (current_answer.text || "") + text;
-              if (text.startsWith("\r")) {
-                current_answer.text = text.replace("\r", "");
+            // Handle text content
+            if (text) {
+              if (delta) {
+                current_answer.text = (current_answer.text || "") + text;
+                if (text.startsWith("\r")) {
+                  current_answer.text = text.replace("\r", "");
+                }
+              } else {
+                current_answer.text = text;
               }
-            } else {
-              current_answer.text = text;
             }
+
+            // Send current message to handler
+            messageHandler(current_answer);
+          } catch (err) {
+            console.error("Failed to parse message:", err);
+            reject(err);
           }
+        };
 
-          // Send current message to handler
-          messageHandler(current_answer);
-        } catch (err) {
-          console.error("Failed to parse message:", err);
-        }
-      };
-
-      es.onerror = (ev) => {
-        handleError(ev);
-        es.close();
-      };
-    } catch (error) {
-      handleError(error);
-    }
+        es.onerror = (ev) => {
+          handleError(ev);
+          es.close();
+        };
+      } catch (error) {
+        handleError(error);
+      }
+    });
   }
 }
 

@@ -114,22 +114,19 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 
 	// Has result return directly
 	if res != nil && res.Result != nil {
+		output := chatMessage.New().
+			Assistant(ast.ID, ast.Name, ast.Avatar).
+			SetResult(res.Result).
+			Done()
+
 		// Has callback function
 		if len(callback) > 0 {
-			output := chatMessage.New()
-			output.Result = res.Result
 			output.Callback(callback[0]).Write(c.Writer)
+			return res.Result, nil
 		}
-
-		// Return the result directly
+		output.Write(c.Writer)
 		return res.Result, nil
 	}
-
-	// Handle next action
-	// It's not used, return the new assistant_id and chat_id
-	// if res != nil && res.Next != nil {
-	// 	return res.Next.Execute(c, ctx, contents)
-	// }
 
 	// Switch to the new assistant if necessary
 	if res != nil && res.AssistantID != "" && res.AssistantID != ctx.AssistantID {
@@ -170,38 +167,6 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 // Execute the next action
 func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *chatMessage.Contents, callback ...interface{}) (interface{}, error) {
 	switch next.Action {
-
-	// It's not used, because the process could be executed in the hook script
-	// It may remove in the future
-	// case "process":
-	// 	if next.Payload == nil {
-	// 		return fmt.Errorf("payload is required")
-	// 	}
-
-	// 	name, ok := next.Payload["name"].(string)
-	// 	if !ok {
-	// 		return fmt.Errorf("process name should be string")
-	// 	}
-
-	// 	args := []interface{}{}
-	// 	if v, ok := next.Payload["args"].([]interface{}); ok {
-	// 		args = v
-	// 	}
-
-	// 	// Add context and writer to args
-	// 	args = append(args, ctx, c.Writer)
-	// 	p, err := process.Of(name, args...)
-	// 	if err != nil {
-	// 		return fmt.Errorf("get process error: %s", err.Error())
-	// 	}
-
-	// 	err = p.Execute()
-	// 	if err != nil {
-	// 		return fmt.Errorf("execute process error: %s", err.Error())
-	// 	}
-	// 	defer p.Release()
-
-	// 	return nil
 
 	case "assistant":
 		if next.Payload == nil {
@@ -535,29 +500,6 @@ func (ast *Assistant) streamChat(
 					}
 				})
 
-				// Handle stream
-				// The stream hook is not used, because there's no need to handle the stream output
-				// if some thing need to be handled in future, we can use the stream hook again
-				// ------------------------------------------------------------------------------
-				// res, err := ast.HookStream(c, ctx, messages, msg, contents)
-				// if err == nil && res != nil {
-
-				// 	if res.Next != nil {
-				// 		err = res.Next.Execute(c, ctx, contents)
-				// 		if err != nil {
-				// 			chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
-				// 		}
-
-				// 		done <- true
-				// 		return 0 // break
-				// 	}
-
-				// 	if res.Silent {
-				// 		return 1 // continue
-				// 	}
-				// }
-				// ------------------------------------------------------------------------------
-
 				// Write the message to the stream
 				msgType := msg.Type
 				if msgType == "tool_calls_native" {
@@ -650,7 +592,7 @@ func (ast *Assistant) streamChat(
 
 				// has result
 				if res != nil && res.Result != nil && cb != nil {
-					output.Result = res.Result // Add the result to the output  message
+					output.SetResult(res.Result)
 				}
 
 				output.Callback(cb).Write(c.Writer)
