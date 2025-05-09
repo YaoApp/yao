@@ -591,11 +591,17 @@ func (ast *Assistant) streamChat(
 				}
 
 				// has result
-				if res != nil && res.Result != nil && cb != nil {
+				if res != nil && res.Result != nil {
 					output.SetResult(res.Result)
+					if cb != nil {
+						output.Callback(cb).Write(c.Writer)
+						return 0 // break
+					}
+					// Send the result to the client
+					output.Write(c.Writer)
+					return 0 // break
 				}
 
-				output.Callback(cb).Write(c.Writer)
 				return 0 // break
 			}
 
