@@ -95,7 +95,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 	res, err := ast.HookCreate(c, ctx, input, options, contents)
 	if err != nil {
 		chatMessage.New().
-			Assistant(ast.ID, ast.Name, ast.Avatar).
+			// Assistant(ast.ID, ast.Name, ast.Avatar).
 			Error(err).
 			Done().
 			Write(c.Writer)
@@ -115,7 +115,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 	// Has result return directly
 	if res != nil && res.Result != nil {
 		output := chatMessage.New().
-			Assistant(ast.ID, ast.Name, ast.Avatar).
+			// Assistant(ast.ID, ast.Name, ast.Avatar).
 			SetResult(res.Result).
 			Done()
 
@@ -133,7 +133,7 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 		newAst, err := Get(res.AssistantID)
 		if err != nil {
 			chatMessage.New().
-				Assistant(ast.ID, ast.Name, ast.Avatar).
+				// Assistant(ast.ID, ast.Name, ast.Avatar).
 				Error(err).
 				Done().
 				Write(c.Writer)
@@ -597,11 +597,10 @@ func (ast *Assistant) streamChat(
 						output.Callback(cb).Write(c.Writer)
 						return 0 // break
 					}
-					// Send the result to the client
-					output.Write(c.Writer)
-					return 0 // break
 				}
 
+				// Send the result to the client
+				output.Write(c.Writer)
 				return 0 // break
 			}
 
