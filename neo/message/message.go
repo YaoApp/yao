@@ -497,6 +497,16 @@ func (m *Message) Map(msg map[string]interface{}) *Message {
 		}
 	}
 
+	// attachments
+	if attachments, has := msg["attachments"]; has {
+		raw, _ := jsoniter.Marshal(attachments)
+		m.Attachments = []Attachment{}
+		if err := jsoniter.Unmarshal(raw, &m.Attachments); err != nil {
+			color.Red("JSON parse error: %s", err.Error())
+			color.White(string(raw))
+		}
+	}
+
 	if role, ok := msg["role"].(string); ok {
 		m.Role = role
 	}
