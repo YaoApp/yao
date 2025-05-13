@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/lang"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -41,6 +42,15 @@ func Load(cfg config.Config) error {
 	err := loadFromBin()
 	if err != nil {
 		return err
+	}
+
+	// Ignore if the langs directory does not exist
+	exists, err := application.App.Exists("langs")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
 	}
 
 	// Load langs

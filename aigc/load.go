@@ -11,9 +11,19 @@ import (
 
 // Load load AIGC
 func Load(cfg config.Config) error {
+
+	// Ignore if the aigcs directory does not exist
+	exists, err := application.App.Exists("aigcs")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	exts := []string{"*.ai.yml", "*.ai.yaml"}
 	messages := []string{}
-	err := application.App.Walk("aigcs", func(root, file string, isdir bool) error {
+	err = application.App.Walk("aigcs", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}

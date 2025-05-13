@@ -57,7 +57,7 @@ var runCmd = &cobra.Command{
 			return
 		}
 
-		err := engine.Load(cfg, engine.LoadOption{Action: "run"})
+		loadWarnings, err := engine.Load(cfg, engine.LoadOption{Action: "run"})
 		if err != nil {
 			if !runSilent {
 				color.Red(L("Engine: %s\n"), err.Error())
@@ -130,6 +130,17 @@ var runCmd = &cobra.Command{
 		}
 
 		if !runSilent {
+
+			if len(loadWarnings) > 0 {
+				fmt.Println(color.YellowString("---------------------------------"))
+				fmt.Println(color.YellowString(L("Warnings")))
+				fmt.Println(color.YellowString("---------------------------------"))
+				for _, warning := range loadWarnings {
+					fmt.Println(color.YellowString("[%s] %s", warning.Widget, warning.Error))
+				}
+				fmt.Printf("\n")
+			}
+
 			color.White("--------------------------------------\n")
 			color.White(L("%s Response\n"), name)
 			color.White("--------------------------------------\n")

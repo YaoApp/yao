@@ -107,9 +107,19 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load table dsl
 func Load(cfg config.Config) error {
+
+	// Ignore if the charts directory does not exist
+	exists, err := application.App.Exists("tables")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	messages := []string{}
 	exts := []string{"*.tab.yao", "*.tab.json", "*.tab.jsonc"}
-	err := application.App.Walk("tables", func(root, file string, isdir bool) error {
+	err = application.App.Walk("tables", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
