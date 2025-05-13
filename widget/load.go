@@ -17,10 +17,19 @@ var Widgets = map[string]*DSL{}
 // Load Widgets
 func Load(cfg config.Config) error {
 
+	// Ignore if the widgets directory does not exist
+	exists, err := application.App.Exists("widgets")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	exts := []string{"*.wid.yao", "*.wid.json", "*.wid.jsonc"}
 	messages := []string{}
 
-	err := application.App.Walk("widgets", func(root, file string, isdir bool) error {
+	err = application.App.Walk("widgets", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}

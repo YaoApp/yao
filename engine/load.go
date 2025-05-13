@@ -19,7 +19,6 @@ import (
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/importer"
 	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/neo"
@@ -60,8 +59,14 @@ type LoadOption struct {
 	IsReload         bool   `json:"reload"`
 }
 
+// Warning the warning
+type Warning struct {
+	Widget string
+	Error  error
+}
+
 // Load application engine
-func Load(cfg config.Config, options LoadOption) (err error) {
+func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error) {
 
 	defer func() { err = exception.Catch(recover()) }()
 	exception.Mode = cfg.Mode
@@ -79,78 +84,91 @@ func Load(cfg config.Config, options LoadOption) (err error) {
 	err = loadApp(cfg.AppSource)
 	if err != nil {
 		printErr(cfg.Mode, "Load Application", err)
+		warnings = append(warnings, Warning{Widget: "Load Application", Error: err})
 	}
 
 	// Make Database connections
 	err = share.DBConnect(cfg.DB)
 	if err != nil {
-		printErr(cfg.Mode, "DB", err)
+		// printErr(cfg.Mode, "DB", err)
+		warnings = append(warnings, Warning{Widget: "DB", Error: err})
 	}
 
 	// Load Certs
 	err = cert.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Cert", err)
+		// printErr(cfg.Mode, "Cert", err)
+		warnings = append(warnings, Warning{Widget: "Cert", Error: err})
 	}
 
 	// Load Connectors
 	err = connector.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Connector", err)
+		// printErr(cfg.Mode, "Connector", err)
+		warnings = append(warnings, Warning{Widget: "Connector", Error: err})
 	}
 
 	// Load FileSystem
 	err = fs.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "FileSystem", err)
+		// printErr(cfg.Mode, "FileSystem", err)
+		warnings = append(warnings, Warning{Widget: "FileSystem", Error: err})
 	}
 
 	// Load i18n
 	err = i18n.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "i18n", err)
+		// printErr(cfg.Mode, "i18n", err)
+		warnings = append(warnings, Warning{Widget: "i18n", Error: err})
 	}
 
 	// start v8 runtime
 	err = runtime.Start(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Runtime", err)
+		// printErr(cfg.Mode, "Runtime", err)
+		warnings = append(warnings, Warning{Widget: "Runtime", Error: err})
 	}
 
 	// Load Query Engine
 	err = query.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Query Engine", err)
+		// printErr(cfg.Mode, "Query Engine", err)
+		warnings = append(warnings, Warning{Widget: "Query Engine", Error: err})
 	}
 
 	// Load Scripts
 	err = script.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Script", err)
+		// printErr(cfg.Mode, "Script", err)
+		warnings = append(warnings, Warning{Widget: "Script", Error: err})
 	}
 
 	// Load Models
 	err = model.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Model", err)
+		// printErr(cfg.Mode, "Model", err)
+		warnings = append(warnings, Warning{Widget: "Model", Error: err})
 	}
 
 	// Load Data flows
 	err = flow.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Flow", err)
+		// printErr(cfg.Mode, "Flow", err)
+		warnings = append(warnings, Warning{Widget: "Flow", Error: err})
 	}
 
 	// Load Stores
 	err = store.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Store", err)
+		// printErr(cfg.Mode, "Store", err)
+		warnings = append(warnings, Warning{Widget: "Store", Error: err})
 	}
 
 	// Load Plugins
 	err = plugin.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Plugin", err)
+		// printErr(cfg.Mode, "Plugin", err)
+		warnings = append(warnings, Warning{Widget: "Plugin", Error: err})
 	}
 
 	// Load WASM Application (experimental)
@@ -158,91 +176,106 @@ func Load(cfg config.Config, options LoadOption) (err error) {
 	// Load build-in widgets (table / form / chart / ...)
 	err = widgets.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Widgets", err)
+		// printErr(cfg.Mode, "Widgets", err)
+		warnings = append(warnings, Warning{Widget: "Widgets", Error: err})
 	}
 
 	// Load Importers
-	err = importer.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Plugin", err)
-	}
+	// err = importer.Load(cfg)
+	// if err != nil {
+	// 	// printErr(cfg.Mode, "Plugin", err)
+	// 	warnings = append(warnings, Warning{Widget: "Plugin", Error: err})
+	// }
 
 	// Load Apis
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
-		printErr(cfg.Mode, "API", err)
+		// printErr(cfg.Mode, "API", err)
+		warnings = append(warnings, Warning{Widget: "API", Error: err})
 	}
 
 	// Load Sockets
 	err = socket.Load(cfg) // Load sockets
 	if err != nil {
-		printErr(cfg.Mode, "Socket", err)
+		// printErr(cfg.Mode, "Socket", err)
+		warnings = append(warnings, Warning{Widget: "Socket", Error: err})
 	}
 
 	// Load websockets (client mode)
 	err = websocket.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "WebSocket", err)
+		// printErr(cfg.Mode, "WebSocket", err)
+		warnings = append(warnings, Warning{Widget: "WebSocket", Error: err})
 	}
 
 	// Load tasks
 	err = task.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Task", err)
+		// printErr(cfg.Mode, "Task", err)
+		warnings = append(warnings, Warning{Widget: "Task", Error: err})
 	}
 
 	// Load schedules
 	err = schedule.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Schedule", err)
+		// printErr(cfg.Mode, "Schedule", err)
+		warnings = append(warnings, Warning{Widget: "Schedule", Error: err})
 	}
 
 	// Load AIGC
 	err = aigc.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "AIGC", err)
-	}
-
-	// Load Neo
-	err = neo.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Neo", err)
+		// printErr(cfg.Mode, "AIGC", err)
+		warnings = append(warnings, Warning{Widget: "AIGC", Error: err})
 	}
 
 	// Load Custom Widget
 	err = widget.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Widget", err)
+		// printErr(cfg.Mode, "Widget", err)
+		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
 	}
 
 	// Load Custom Widget Instances
 	err = widget.LoadInstances()
 	if err != nil {
-		printErr(cfg.Mode, "Widget", err)
+		// printErr(cfg.Mode, "Widget", err)
+		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
 	}
 
 	// Load SUI
 	err = sui.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "SUI", err)
+		// printErr(cfg.Mode, "SUI", err)
+		warnings = append(warnings, Warning{Widget: "SUI", Error: err})
 	}
 
 	// Load Moapi
 	err = moapi.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Moapi", err)
+		// printErr(cfg.Mode, "Moapi", err)
+		warnings = append(warnings, Warning{Widget: "Moapi", Error: err})
 	}
 
 	// Load Pipe
 	err = pipe.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Pipe", err)
+		// printErr(cfg.Mode, "Pipe", err)
+		warnings = append(warnings, Warning{Widget: "Pipe", Error: err})
+	}
+
+	// Load Neo
+	err = neo.Load(cfg)
+	if err != nil {
+		// printErr(cfg.Mode, "Neo", err)
+		warnings = append(warnings, Warning{Widget: "Neo", Error: err})
 	}
 
 	for name, hook := range LoadHooks {
 		err = hook(cfg)
 		if err != nil {
-			printErr(cfg.Mode, name, err)
+			// printErr(cfg.Mode, name, err)
+			warnings = append(warnings, Warning{Widget: name, Error: err})
 		}
 	}
 
@@ -251,17 +284,19 @@ func Load(cfg config.Config, options LoadOption) (err error) {
 		p, err := process.Of(share.App.AfterLoad, options)
 		if err != nil {
 			printErr(cfg.Mode, "AfterLoad", err)
-			return err
+			warnings = append(warnings, Warning{Widget: "AfterLoad", Error: err})
+			return warnings, err
 		}
 
 		_, err = p.Exec()
 		if err != nil {
 			printErr(cfg.Mode, "AfterLoad", err)
-			return err
+			warnings = append(warnings, Warning{Widget: "AfterLoad", Error: err})
+			return warnings, err
 		}
 	}
 
-	return nil
+	return warnings, nil
 }
 
 // Unload application engine
@@ -458,7 +493,19 @@ func Restart(cfg config.Config, options LoadOption) error {
 	if err != nil {
 		return err
 	}
-	return Load(cfg, options)
+
+	warnings, err := Load(cfg, options)
+	if err != nil {
+		return err
+	}
+
+	if len(warnings) > 0 {
+		for _, warning := range warnings {
+			printErr(cfg.Mode, warning.Widget, warning.Error)
+		}
+	}
+
+	return nil
 }
 
 // loadApp load the application from bindata / pkg / disk

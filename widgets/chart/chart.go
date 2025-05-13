@@ -55,9 +55,19 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load task
 func Load(cfg config.Config) error {
+
+	// Ignore if the charts directory does not exist
+	exists, err := application.App.Exists("charts")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	messages := []string{}
 	exts := []string{"*.yao", "*.json", "*.jsonc"}
-	err := application.App.Walk("charts", func(root, file string, isdir bool) error {
+	err = application.App.Walk("charts", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}

@@ -13,9 +13,19 @@ import (
 
 // Load load schedule
 func Load(cfg config.Config) error {
+
+	// Ignore if the tasks directory does not exist
+	exists, err := application.App.Exists("schedules")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	messages := []string{}
 	exts := []string{"*.sch.yao", "*.sch.json", "*.sch.jsonc"}
-	err := application.App.Walk("schedules", func(root, file string, isdir bool) error {
+	err = application.App.Walk("schedules", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
