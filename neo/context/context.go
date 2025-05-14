@@ -28,10 +28,11 @@ type Context struct {
 	Retry          bool                   `json:"retry,omitempty"`           // Retry mode
 	RetryTimes     uint8                  `json:"retry_times,omitempty"`     // Retry times
 	Upload         *FileUpload            `json:"upload,omitempty"`
-	Version        bool                   `json:"version,omitempty"` // Version support
-	RAG            bool                   `json:"rag,omitempty"`     // RAG support
-	Args           []interface{}          `json:"args,omitempty"`    // Arguments for call
-	SharedSpace    plan.Space             `json:"-"`                 // Shared space
+	Vision         bool                   `json:"vision,omitempty"` // Vision support
+	Search         bool                   `json:"search,omitempty"` // Search support
+	RAG            bool                   `json:"rag,omitempty"`    // RAG support
+	Args           []interface{}          `json:"args,omitempty"`   // Arguments for call
+	SharedSpace    plan.Space             `json:"-"`                // Shared space
 }
 
 // Field the context field
@@ -181,9 +182,10 @@ func (ctx *Context) Release() {
 // Map the context to a map
 func (ctx *Context) Map() map[string]interface{} {
 	data := map[string]interface{}{
-		"sid":     ctx.Sid,
-		"rag":     ctx.RAG,
-		"version": ctx.Version,
+		"sid":    ctx.Sid,
+		"rag":    ctx.RAG,
+		"vision": ctx.Vision,
+		"search": ctx.Search,
 	}
 
 	if ctx.ChatID != "" {
