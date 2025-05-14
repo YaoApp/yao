@@ -84,6 +84,12 @@ type RAG struct {
 	Setting    RAGSetting
 }
 
+// Search the search interface
+// @todo: add search engine
+type Search struct {
+	Engine interface{}
+}
+
 // RAGSetting the RAG setting
 type RAGSetting struct {
 	IndexPrefix string `json:"index_prefix" yaml:"index_prefix"`
@@ -129,6 +135,7 @@ type Assistant struct {
 	UpdatedAt   int64                    `json:"updated_at"`            // Last update timestamp
 	openai      *api.OpenAI              // OpenAI API
 	vision      bool                     // Whether this assistant supports vision
+	search      bool                     // Whether this assistant supports search
 	toolCalls   bool                     // Whether this assistant supports tool_calls
 	initHook    bool                     // Whether this assistant has an init hook
 }

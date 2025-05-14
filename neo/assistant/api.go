@@ -87,9 +87,10 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 	}
 	options := ast.withOptions(userOptions)
 
-	// Add RAG and Version support
+	// Add RAG、Vision and Search support
 	ctx.RAG = rag != nil
-	ctx.Version = ast.vision
+	ctx.Vision = ast.vision
+	ctx.Search = ast.search && search != nil
 
 	// Run init hook
 	res, err := ast.HookCreate(c, ctx, input, options, contents)
