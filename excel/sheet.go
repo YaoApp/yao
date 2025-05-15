@@ -91,77 +91,18 @@ func (excel *Excel) GetSheetDimension(name string) (rows int, cols int, err erro
 	defer ri.Close()
 	for ri.Next() {
 		rows++
-		row, err := ri.Columns()
-		if err != nil {
-			return 0, 0, err
-		}
-		if len(row) > cols {
-			cols = max(cols, len(row))
-		}
+	}
+
+	// Get column count
+	ci, err := excel.File.Cols(name)
+	if err != nil {
+		return 0, 0, err
+	}
+	for ci.Next() {
+		cols++
 	}
 	return rows, cols, nil
 
-	// // Get dimension directly using excelize API
-	// dimension, err := excel.File.GetSheetDimension(name)
-	// if err != nil {
-	// 	return 0, 0, err
-	// }
-
-	// // If sheet is not set, use row and column count
-	// if dimension == "A1" {
-	// 	rows = 0
-	// 	cols = 0
-	// 	ri, err := excel.File.Rows(name)
-	// 	if err != nil {
-	// 		return 0, 0, err
-	// 	}
-	// 	defer ri.Close()
-	// 	for ri.Next() {
-	// 		rows++
-	// 		row, err := ri.Columns()
-	// 		if err != nil {
-	// 			return 0, 0, err
-	// 		}
-	// 		if len(row) > cols {
-	// 			cols = max(cols, len(row))
-	// 		}
-	// 	}
-	// 	return rows, cols, nil
-	// }
-
-	// // If sheet is empty
-	// if dimension == "" || dimension == "A1" {
-	// 	return 0, 0, nil
-	// }
-
-	// // For single cell case, add the range suffix
-	// if !strings.Contains(dimension, ":") {
-	// 	dimension = fmt.Sprintf("%s:%s", dimension, dimension)
-	// }
-
-	// // Split dimension into start and end coordinates
-	// parts := strings.Split(dimension, ":")
-	// if len(parts) != 2 {
-	// 	return 0, 0, fmt.Errorf("invalid dimension format: %s", dimension)
-	// }
-
-	// // Convert end coordinate to row and column numbers
-	// endCol, endRow, err := excelize.CellNameToCoordinates(parts[1])
-	// if err != nil {
-	// 	return 0, 0, err
-	// }
-
-	// // Convert start coordinate to row and column numbers
-	// startCol, startRow, err := excelize.CellNameToCoordinates(parts[0])
-	// if err != nil {
-	// 	return 0, 0, err
-	// }
-
-	// // Calculate actual dimensions
-	// rows = endRow - startRow + 1
-	// cols = endCol - startCol + 1
-
-	// return rows, cols, nil
 }
 
 // ReadSheetRows reads all data from a sheet by rows
