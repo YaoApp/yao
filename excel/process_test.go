@@ -1,6 +1,7 @@
 package excel
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -531,35 +532,37 @@ func TestProcessWriteOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test write row
-	p, err = process.Of("excel.write.row", handle, "供销存管理表格", "A1", []interface{}{"Test1", "Test2", "Test3"})
+	// Create test data
+	testData := make([]interface{}, 0)
+	testData = append(testData, []interface{}{"Header1", "Header2", "Header3"})
+	testData = append(testData, []interface{}{1, "Row1", true})
+	testData = append(testData, []interface{}{2, "Row2", false})
+	testData = append(testData, []interface{}{3, "Row3", true})
+	testData = append(testData, []interface{}{4, "Row4", false})
+	testData = append(testData, []interface{}{5, "Row5", true})
+	testData = append(testData, []interface{}{6, "Row6", false})
+	testData = append(testData, []interface{}{7, "Row7", true})
+	testData = append(testData, []interface{}{8, "Row8", false})
+	testData = append(testData, []interface{}{9, "Row9", true})
+
+	// Create a new sheet and write test data
+	p, err = process.Of("excel.sheet.create", handle, "RowTestSheet")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = p.Exec()
-	assert.NoError(t, err)
-
-	// Test write column
-	p, err = process.Of("excel.write.column", handle, "供销存管理表格", "B1", []interface{}{"Col1", "Col2", "Col3"})
+	p, err = process.Of("excel.write.all", handle, "RowTestSheet", "A1", testData)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	_, err = p.Exec()
-	assert.NoError(t, err)
-
-	// Test write all
-	p, err = process.Of("excel.write.all", handle, "供销存管理表格", "C1", [][]interface{}{
-		{"All1", "All2", "All3"},
-		{"All4", "All5", "All6"},
-	})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	_, err = p.Exec()
-	assert.NoError(t, err)
 
 	// Save and close
 	p, err = process.Of("excel.save", handle)
@@ -913,6 +916,323 @@ func TestProcessSheetOperations(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_, err = p.Exec()
+	assert.NoError(t, err)
+}
+
+func TestProcessReadSheetRows(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Create a new test file path
+	dataRoot := config.Conf.DataRoot
+	newFile := filepath.Join(filepath.Dir(files["test-01"]), "test-read-rows.xlsx")
+
+	// Copy test-01.xlsx to new file
+	content, err := os.ReadFile(filepath.Join(dataRoot, files["test-01"]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(dataRoot, newFile), content, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath.Join(dataRoot, newFile)) // Clean up after test
+
+	// Open file in write mode
+	p, err := process.Of("excel.open", newFile, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test data
+	testData := make([]interface{}, 0)
+	testData = append(testData, []interface{}{"Header1", "Header2", "Header3"})
+	testData = append(testData, []interface{}{1, "Row1", true})
+	testData = append(testData, []interface{}{2, "Row2", false})
+	testData = append(testData, []interface{}{3, "Row3", true})
+	testData = append(testData, []interface{}{4, "Row4", false})
+	testData = append(testData, []interface{}{5, "Row5", true})
+	testData = append(testData, []interface{}{6, "Row6", false})
+	testData = append(testData, []interface{}{7, "Row7", true})
+	testData = append(testData, []interface{}{8, "Row8", false})
+	testData = append(testData, []interface{}{9, "Row9", true})
+
+	// Create a new sheet and write test data
+	p, err = process.Of("excel.sheet.create", handle, "RowTestSheet")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = process.Of("excel.write.all", handle, "RowTestSheet", "A1", testData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and close the file
+	p, err = process.Of("excel.save", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p, err = process.Of("excel.close", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Reopen the file for reading
+	p, err = process.Of("excel.open", newFile, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle, err = p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test cases for reading rows
+	t.Run("ReadFromMiddle", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "RowTestSheet", 2, 4)
+		assert.NoError(t, err)
+		data, err := p.Exec()
+		assert.NoError(t, err)
+		rows := data.([][]string)
+		assert.Equal(t, 4, len(rows))
+		assert.Equal(t, "2", rows[0][0]) // First row should be row 2
+	})
+
+	t.Run("ReadFromBeginning", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "RowTestSheet", 0, 3)
+		assert.NoError(t, err)
+		data, err := p.Exec()
+		assert.NoError(t, err)
+		rows := data.([][]string)
+		assert.Equal(t, 3, len(rows))
+		assert.Equal(t, "Header1", rows[0][0]) // First row should be header
+	})
+
+	t.Run("ReadBeyondAvailable", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "RowTestSheet", 8, 5)
+		assert.NoError(t, err)
+		data, err := p.Exec()
+		assert.NoError(t, err)
+		rows := data.([][]string)
+		assert.Equal(t, 2, len(rows)) // Only 2 rows remain
+	})
+
+	t.Run("ReadNonExistentSheet", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "NonExistentSheet", 0, 5)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	t.Run("ReadWithSizeZero", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "RowTestSheet", 0, 0)
+		assert.NoError(t, err)
+		data, err := p.Exec()
+		assert.NoError(t, err)
+		rows := data.([][]string)
+		assert.Equal(t, 0, len(rows))
+	})
+
+	t.Run("ReadWithNegativeStart", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "RowTestSheet", -1, 5)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	t.Run("ReadWithNegativeSize", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.rows", handle, "RowTestSheet", 0, -1)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	// Save and close
+	p, err = process.Of("excel.save", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	assert.NoError(t, err)
+
+	p, err = process.Of("excel.close", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.Exec()
+	assert.NoError(t, err)
+}
+
+func TestProcessGetSheetDimension(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	files := testFiles(t)
+
+	// Create a new test file path
+	dataRoot := config.Conf.DataRoot
+	newFile := filepath.Join(filepath.Dir(files["test-01"]), "test-dimension.xlsx")
+
+	// Copy test-01.xlsx to new file
+	content, err := os.ReadFile(filepath.Join(dataRoot, files["test-01"]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(dataRoot, newFile), content, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(filepath.Join(dataRoot, newFile)) // Clean up after test
+
+	// Open file in write mode
+	p, err := process.Of("excel.open", newFile, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handle, err := p.Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test 1: Empty sheet
+	t.Run("EmptySheet", func(t *testing.T) {
+		// Create empty sheet
+		p, err := process.Of("excel.sheet.create", handle, "EmptySheet")
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Get dimensions
+		p, err = process.Of("excel.sheet.dimension", handle, "EmptySheet")
+		assert.NoError(t, err)
+		dim, err := p.Exec()
+		assert.NoError(t, err)
+
+		// Verify dimensions
+		dimMap := dim.(map[string]int)
+		assert.Equal(t, 0, dimMap["rows"])
+		assert.Equal(t, 0, dimMap["cols"])
+	})
+
+	// Test 2: Sheet with data
+	t.Run("SheetWithData", func(t *testing.T) {
+
+		// Create test data
+		testData := make([]interface{}, 0)
+		testData = append(testData, []interface{}{"A1", "B1", "C1"})
+		testData = append(testData, []interface{}{"A2", "B2", "C2"})
+		testData = append(testData, []interface{}{"A3", "B3", "C3"})
+
+		// Create and write to sheet
+		p, err := process.Of("excel.sheet.create", handle, "DataSheet")
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		p, err = process.Of("excel.write.all", handle, "DataSheet", "A1", testData)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Save to ensure dimensions are updated
+		p, err = process.Of("excel.save", handle)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Get dimensions
+		p, err = process.Of("excel.sheet.dimension", handle, "DataSheet")
+		assert.NoError(t, err)
+		dim, err := p.Exec()
+		assert.NoError(t, err)
+
+		// Verify dimensions
+		dimMap := dim.(map[string]int)
+		assert.Equal(t, 3, dimMap["rows"])
+		assert.Equal(t, 3, dimMap["cols"])
+	})
+
+	// Test 3: Non-existent sheet
+	t.Run("NonExistentSheet", func(t *testing.T) {
+		p, err := process.Of("excel.sheet.dimension", handle, "NonExistentSheet")
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.Error(t, err)
+	})
+
+	// Test 4: Large sheet
+	t.Run("LargeSheet", func(t *testing.T) {
+		// Create large test data (100x50)
+		largeData := make([]interface{}, 0)
+		for i := 0; i < 100; i++ {
+			row := make([]interface{}, 50)
+			for j := 0; j < 50; j++ {
+				row[j] = fmt.Sprintf("Cell_%d_%d", i, j)
+			}
+			largeData = append(largeData, row)
+		}
+
+		// Create and write to sheet
+		p, err := process.Of("excel.sheet.create", handle, "LargeSheet")
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		p, err = process.Of("excel.write.all", handle, "LargeSheet", "A1", largeData)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Save to ensure dimensions are updated
+		p, err = process.Of("excel.save", handle)
+		assert.NoError(t, err)
+		_, err = p.Exec()
+		assert.NoError(t, err)
+
+		// Get dimensions
+		p, err = process.Of("excel.sheet.dimension", handle, "LargeSheet")
+		assert.NoError(t, err)
+		dim, err := p.Exec()
+		assert.NoError(t, err)
+
+		// Verify dimensions
+		dimMap := dim.(map[string]int)
+		assert.Equal(t, 100, dimMap["rows"])
+		assert.Equal(t, 50, dimMap["cols"])
+	})
+
+	// Clean up
+	p, err = process.Of("excel.close", handle)
+	if err != nil {
+		t.Fatal(err)
+	}
 	_, err = p.Exec()
 	assert.NoError(t, err)
 }

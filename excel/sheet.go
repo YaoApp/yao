@@ -76,6 +76,151 @@ func (excel *Excel) ReadSheet(name string) ([][]interface{}, error) {
 	return result, nil
 }
 
+// GetSheetDimension returns the number of rows and columns in a sheet
+func (excel *Excel) GetSheetDimension(name string) (rows int, cols int, err error) {
+	// Check if sheet exists
+	if idx, _ := excel.GetSheetIndex(name); idx == -1 {
+		return 0, 0, fmt.Errorf("sheet %s does not exist", name)
+	}
+	rows = 0
+	cols = 0
+	ri, err := excel.File.Rows(name)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer ri.Close()
+	for ri.Next() {
+		rows++
+		row, err := ri.Columns()
+		if err != nil {
+			return 0, 0, err
+		}
+		if len(row) > cols {
+			cols = max(cols, len(row))
+		}
+	}
+	return rows, cols, nil
+
+	// // Get dimension directly using excelize API
+	// dimension, err := excel.File.GetSheetDimension(name)
+	// if err != nil {
+	// 	return 0, 0, err
+	// }
+
+	// // If sheet is not set, use row and column count
+	// if dimension == "A1" {
+	// 	rows = 0
+	// 	cols = 0
+	// 	ri, err := excel.File.Rows(name)
+	// 	if err != nil {
+	// 		return 0, 0, err
+	// 	}
+	// 	defer ri.Close()
+	// 	for ri.Next() {
+	// 		rows++
+	// 		row, err := ri.Columns()
+	// 		if err != nil {
+	// 			return 0, 0, err
+	// 		}
+	// 		if len(row) > cols {
+	// 			cols = max(cols, len(row))
+	// 		}
+	// 	}
+	// 	return rows, cols, nil
+	// }
+
+	// // If sheet is empty
+	// if dimension == "" || dimension == "A1" {
+	// 	return 0, 0, nil
+	// }
+
+	// // For single cell case, add the range suffix
+	// if !strings.Contains(dimension, ":") {
+	// 	dimension = fmt.Sprintf("%s:%s", dimension, dimension)
+	// }
+
+	// // Split dimension into start and end coordinates
+	// parts := strings.Split(dimension, ":")
+	// if len(parts) != 2 {
+	// 	return 0, 0, fmt.Errorf("invalid dimension format: %s", dimension)
+	// }
+
+	// // Convert end coordinate to row and column numbers
+	// endCol, endRow, err := excelize.CellNameToCoordinates(parts[1])
+	// if err != nil {
+	// 	return 0, 0, err
+	// }
+
+	// // Convert start coordinate to row and column numbers
+	// startCol, startRow, err := excelize.CellNameToCoordinates(parts[0])
+	// if err != nil {
+	// 	return 0, 0, err
+	// }
+
+	// // Calculate actual dimensions
+	// rows = endRow - startRow + 1
+	// cols = endCol - startCol + 1
+
+	// return rows, cols, nil
+}
+
+// ReadSheetRows reads all data from a sheet by rows
+func (excel *Excel) ReadSheetRows(name string, start int, size int) ([][]string, error) {
+	// Validate parameters
+	if start < 0 {
+		return nil, fmt.Errorf("start position cannot be negative")
+	}
+	if size < 0 {
+		return nil, fmt.Errorf("size cannot be negative")
+	}
+
+	// Check if sheet exists
+	if idx, _ := excel.GetSheetIndex(name); idx == -1 {
+		return nil, fmt.Errorf("sheet %s does not exist", name)
+	}
+
+	// If size is 0, return empty slice
+	if size == 0 {
+		return [][]string{}, nil
+	}
+
+	// Get rows iterator
+	rows, err := excel.File.Rows(name)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Skip to start position
+	currentRow := -1
+	for rows.Next() {
+		currentRow++
+		if currentRow >= start {
+			break
+		}
+	}
+
+	// Read requested number of rows
+	result := make([][]string, 0, size)
+	if currentRow == start {
+		row, err := rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+
+	for i := 1; i < size && rows.Next(); i++ {
+		row, err := rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+
+	return result, nil
+}
+
 // UpdateSheet updates an existing sheet with new data
 // If the sheet doesn't exist, it will be created
 func (excel *Excel) UpdateSheet(name string, data [][]interface{}) error {
