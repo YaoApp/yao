@@ -13,13 +13,15 @@ func init() {
 		"save":   processSave,
 		"sheets": processSheets,
 
-		"sheet.create": processCreateSheet,
-		"sheet.read":   processReadSheet,
-		"sheet.update": processUpdateSheet,
-		"sheet.delete": processDeleteSheet,
-		"sheet.copy":   processCopySheet,
-		"sheet.list":   processListSheets,
-		"sheet.exists": processSheetExists,
+		"sheet.create":    processCreateSheet,
+		"sheet.read":      processReadSheet,
+		"sheet.update":    processUpdateSheet,
+		"sheet.delete":    processDeleteSheet,
+		"sheet.copy":      processCopySheet,
+		"sheet.list":      processListSheets,
+		"sheet.exists":    processSheetExists,
+		"sheet.rows":      processReadSheetRows,
+		"sheet.dimension": processGetSheetDimension,
 
 		"read.cell":   processReadCell,
 		"read.row":    processReadRow,
@@ -735,4 +737,46 @@ func processSheetExists(process *process.Process) interface{} {
 	}
 
 	return xls.SheetExists(name)
+}
+
+// processReadSheetRows process the excel.sheet.rows <handle> <name> <start> <size>
+func processReadSheetRows(process *process.Process) interface{} {
+	process.ValidateArgNums(4)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+	start := process.ArgsInt(2)
+	size := process.ArgsInt(3)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.rows %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	data, err := xls.ReadSheetRows(name, start, size)
+	if err != nil {
+		exception.New("excel.sheet.rows %s:%s error: %s", 500, handle, name, err.Error()).Throw()
+	}
+	return data
+}
+
+// processGetSheetDimension process the excel.sheet.dimension <handle> <name>
+func processGetSheetDimension(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+	handle := process.ArgsString(0)
+	name := process.ArgsString(1)
+
+	xls, err := Get(handle)
+	if err != nil {
+		exception.New("excel.sheet.dimension %s error: %s", 500, handle, err.Error()).Throw()
+	}
+
+	rows, cols, err := xls.GetSheetDimension(name)
+	if err != nil {
+		exception.New("excel.sheet.dimension %s:%s error: %s", 500, handle, name, err.Error()).Throw()
+	}
+
+	return map[string]int{
+		"rows": rows,
+		"cols": cols,
+	}
 }

@@ -142,6 +142,37 @@ Process("excel.sheet.delete", h, "Sheet1Copy");
 const exists: boolean = Process("excel.sheet.exists", h, "Sheet1");
 ```
 
+#### Read sheet rows with pagination
+
+```typescript
+/**
+ * Reads rows from a sheet with pagination support
+ * @param handle - Handle ID from excel.open
+ * @param name - Sheet name
+ * @param start - Starting row index (0-based)
+ * @param size - Number of rows to read
+ * @returns string[][] - Two-dimensional array of cell values
+ */
+const rows: string[][] = Process("excel.sheet.rows", h, "Sheet1", 0, 10); // Read first 10 rows
+```
+
+#### Get sheet dimensions
+
+```typescript
+/**
+ * Gets the dimensions (number of rows and columns) of a sheet
+ * @param handle - Handle ID from excel.open
+ * @param name - Sheet name
+ * @returns {rows: number, cols: number} - Object containing row and column counts
+ */
+const dim: { rows: number; cols: number } = Process(
+  "excel.sheet.dimension",
+  h,
+  "Sheet1"
+);
+console.log(`Sheet has ${dim.rows} rows and ${dim.cols} columns`);
+```
+
 ### Example: Sheet Operations Workflow
 
 ```typescript
