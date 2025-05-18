@@ -6,8 +6,6 @@ VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
 VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
 COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
-CUI_COMMIT_RELEASE := $(shell cd .tmp/cui/v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
-CUI_COMMIT_ARTIFACTS := $(shell cd ../cui-v1.0 && git log | head -n 1 | awk '{print $$2}')
 NOW := $(shell date +"%FT%T%z")
 OS := $(shell uname)
 
@@ -177,7 +175,8 @@ artifacts-linux: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
-	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"${CUI_COMMIT_ARTIFACTS}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -213,8 +212,6 @@ artifacts-macos: clean
 #	 cd ../yao-init && rm -rf README.md
 
 #	Packing
-#   ** CUI will be renamed to CUI in the feature. and move to the new repository. **
-#   ** new repository: https://github.com/YaoApp/cui.git **
 	mkdir -p .tmp/data/cui
 	cp -r ./ui .tmp/data/ui
 	cp -r ../cui-v1.0/packages/cui/dist .tmp/data/cui/v1.0
@@ -226,7 +223,8 @@ artifacts-macos: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
-	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"${CUI_COMMIT_ARTIFACTS}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -239,9 +237,6 @@ artifacts-macos: clean
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-dev-darwin-amd64 version
 
-# 	Reset const 
-#	cp -f share/const.goe share/const.go
-#	rm -f share/const.goe
 
 .PHONY: debug
 debug: clean
@@ -284,6 +279,7 @@ release: clean
 # 	cd .tmp/cui/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
 	echo "BASE=__yao_admin_root" > .tmp/cui/v1.0/packages/cui/.env
 	cd .tmp/cui/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+	CUI_COMMIT=$$(cd .tmp/cui/v1.0 && git rev-parse --short HEAD)
 
 #	Checkout init
 	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
@@ -300,6 +296,7 @@ release: clean
 #	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
+	cp -f data/bindata.go data/bindata.go.bak
 	mkdir -p .tmp/data/cui
 	cp -r ./ui .tmp/data/ui
 	cp -r ./yao .tmp/data/yao
@@ -308,26 +305,31 @@ release: clean
 	cp -r .tmp/cui/v1.0/packages/cui/dist .tmp/data/cui/v1.0
 	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
-	rm -rf .tmp/data
-	rm -rf .tmp/cui
+
 
 #	Replace PRVERSION
+	cp -f share/const.go share/const.go.bak
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
-	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"${CUI_COMMIT_RELEASE}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd .tmp/cui/v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
 
+# 	Clean up and restore bindata.go and const.go
+	cp data/bindata.go.bak data/bindata.go
+	cp share/const.go.bak share/const.go
+	rm data/bindata.go.bak
+	rm share/const.go.bak
+	rm -rf .tmp
+
 #   MacOS Application Signing
 	@if [ "$(OS)" = "Darwin" ]; then \
 	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
 	fi
 
-# 	Reset const 
-	cp -f share/const.goe share/const.go
-	rm share/const.goe
 
 .PHONY: linux-release
 linux-release: clean

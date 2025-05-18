@@ -42,3 +42,6 @@ xgen/v1.0/*
 docker/build/test
 db
 *.sh
+data/bindata.go.bak
+share/const.go.bak
+share/const.goe
