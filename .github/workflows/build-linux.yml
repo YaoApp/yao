@@ -43,5 +43,5 @@ jobs:
       - name: Push To R2 Cloudflare
         run: |
           for file in /data/*; do
-            aws s3 cp $file s3://$R2_BUCKET/archives/ --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com --no-checksum-validation
+            aws s3 cp $file s3://$R2_BUCKET/archives/ --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
           done
