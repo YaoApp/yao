@@ -34,7 +34,7 @@ func withStaticFileServer(c *gin.Context) {
 	// Xgen 1.0
 	if length >= AdminRootLen && c.Request.URL.Path[0:AdminRootLen] == AdminRoot {
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, c.Request.URL.Path[0:AdminRootLen-1])
-		XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
+		CUIFileServerV1.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 		return
 	}
@@ -42,7 +42,7 @@ func withStaticFileServer(c *gin.Context) {
 	// __yao_admin_root
 	if length >= 18 && c.Request.URL.Path[0:18] == "/__yao_admin_root/" {
 		c.Request.URL.Path = strings.TrimPrefix(c.Request.URL.Path, "/__yao_admin_root")
-		XGenFileServerV1.ServeHTTP(c.Writer, c.Request)
+		CUIFileServerV1.ServeHTTP(c.Writer, c.Request)
 		c.Abort()
 		return
 	}

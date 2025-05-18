@@ -11,7 +11,7 @@ on:
       - completed
 
 env:
-  VERSION: 0.10.4
+  VERSION: 0.10.5
 jobs:
   build:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
