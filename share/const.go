@@ -3,14 +3,14 @@ package share
 // VERSION Yao App Engine Version
 const VERSION = "0.10.5"
 
-// PRVERSION Yao App Engine PreRelease Version
+// PRVERSION Yao App Engine PR Commit
 const PRVERSION = "DEV"
 
 // CUI Version
 const CUI = "0.10.5"
 
-// PRECUI PreRelease Version
-const PRECUI = "DEV"
+// PRCUI CUI PR Commit
+const PRCUI = "DEV"
 
 // BUILDIN If true, the application will be built into a single artifact
 const BUILDIN = false

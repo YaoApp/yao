@@ -39,7 +39,7 @@ func processPing(process *process.Process) interface{} {
 func processInspect(process *process.Process) interface{} {
 	return map[string]interface{}{
 		"VERSION":   fmt.Sprintf("%s %s", share.VERSION, share.PRVERSION),
-		"CUI":       fmt.Sprintf("%s %s", share.CUI, share.PRECUI),
+		"CUI":       fmt.Sprintf("%s %s", share.CUI, share.PRCUI),
 		"BUILDNAME": share.BUILDNAME,
 		"CONFIG":    config.Conf,
 	}

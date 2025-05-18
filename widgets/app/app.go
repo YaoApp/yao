@@ -588,7 +588,7 @@ func processXgen(process *process.Process) interface{} {
 		},
 		"cui": map[string]interface{}{
 			"version":   share.CUI,
-			"prversion": share.PRECUI,
+			"prversion": share.PRCUI,
 		},
 		"theme":     Setting.Theme,
 		"lang":      Setting.Lang,
