@@ -41,7 +41,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 RUN npm install -g pnpm
 
 # Install AWS CLI
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \ 
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.7.zip" -o "awscliv2.zip" && \ 
     unzip awscliv2.zip && \ 
     ./aws/install && \ 
     rm -rf awscliv2.zip && \ 

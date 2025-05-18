@@ -26,6 +26,7 @@ jobs:
           aws configure set default.region us-east-1 # Update with your R2 region if different
           aws configure set default.s3.signature_version s3v4
           aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+          aws --version
 
       - name: Build
         run: |
@@ -43,5 +44,5 @@ jobs:
       - name: Push To R2 Cloudflare
         run: |
           for file in /data/*; do
-            AWS_S3_DISABLE_CHECKSUMS=true aws s3 cp $file s3://$R2_BUCKET/archives/ --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+            aws s3 cp $file s3://$R2_BUCKET/archives/ --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
           done
