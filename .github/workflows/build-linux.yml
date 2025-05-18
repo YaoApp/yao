@@ -26,7 +26,6 @@ jobs:
           aws configure set default.region us-east-1 # Update with your R2 region if different
           aws configure set default.s3.signature_version s3v4
           aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
-          aws version
 
       - name: Build
         run: |
