@@ -6,18 +6,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReplaceXGenIndex(t *testing.T) {
-	err := ReplaceXGen("__yao_admin_root", "Admin-Replaced")
+func TestReplaceCUIIndex(t *testing.T) {
+	err := ReplaceCUI("__yao_admin_root", "Admin-Replaced")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	content, err := bindataRead(_xgenV10IndexHtml, "index.html")
+	content, err := bindataRead(_cuiV10IndexHtml, "index.html")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	content, err = bindataRead(_xgenV10UmiJs, "umi.js")
+	content, err = bindataRead(_cuiV10UmiJs, "umi.js")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -13,7 +13,7 @@ jobs:
   build:
     strategy:
       matrix:
-        go: [1.23.4]
+        go: [1.24.3]
     runs-on: "macos-latest"
     steps:
       - name: Setup Node.js
@@ -68,13 +68,13 @@ jobs:
             rm -rf $dir/__MACOSX
           done
 
-      - name: Checkout XGen v1.0
-        #  ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
-        #  ** new repository: https://github.com/YaoApp/dui.git **
+      - name: Checkout CUI v1.0
+        #  ** XGEN will be renamed to CUI in the feature. and move to the new repository. **
+        #  ** new repository: https://github.com/YaoApp/cui.git **
         uses: actions/checkout@v4
         with:
-          repository: yaoapp/xgen
-          path: xgen-v1.0
+          repository: yaoapp/cui
+          path: cui-v1.0
 
       - name: Checkout Yao-Init
         uses: actions/checkout@v4

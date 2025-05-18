@@ -586,6 +586,10 @@ func processXgen(process *process.Process) interface{} {
 			"version":   share.VERSION,
 			"prversion": share.PRVERSION,
 		},
+		"cui": map[string]interface{}{
+			"version":   share.CUI,
+			"prversion": share.PRECUI,
+		},
 		"theme":     Setting.Theme,
 		"lang":      Setting.Lang,
 		"mode":      mode,
@@ -627,7 +631,7 @@ func (dsl *DSL) replaceAdminRoot() error {
 	// 	return err
 	// }
 
-	return data.ReplaceXGen("__yao_admin_root", root)
+	return data.ReplaceCUI("__yao_admin_root", root)
 }
 
 // icons
