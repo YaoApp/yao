@@ -29,10 +29,10 @@ RUN apt-get update && \
     apt-get install -y git && \
     apt-get install -y unzip 
 
-# Install Go 1.24.0 
-RUN wget https://golang.org/dl/go1.24.0.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.24.0.linux-amd64.tar.gz && \
-    rm go1.24.0.linux-amd64.tar.gz
+# Install Go 1.24.3 
+RUN wget https://golang.org/dl/go1.24.3.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.24.3.linux-amd64.tar.gz && \
+    rm go1.24.3.linux-amd64.tar.gz
 
 # Install Node.js 18.x
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
