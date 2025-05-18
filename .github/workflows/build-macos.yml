@@ -88,12 +88,12 @@ jobs:
           mv xun ../
           mv gou ../
           mv v8go ../
-          mv xgen-v1.0 ../
+          mv cui-v1.0 ../
           mv yao-init ../
-          rm -f ../xgen-v1.0/packages/setup/vite.config.ts.*
+          rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
           ls -l .
           ls -l ../
-          ls -l ../xgen-v1.0/packages/setup/
+          ls -l ../cui-v1.0/packages/setup/
 
       - name: Checkout Code
         uses: actions/checkout@v4
