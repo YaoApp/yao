@@ -6,6 +6,8 @@ VETPACKAGES ?= $(shell $(GO) list ./... | grep -v /examples/)
 GOFILES := $(shell find . -name "*.go")
 VERSION := $(shell grep 'const VERSION =' share/const.go |awk '{print $$4}' |sed 's/\"//g')
 COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
+CUI_COMMIT_RELEASE := $(shell cd .tmp/cui/v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
+CUI_COMMIT_ARTIFACTS := $(shell cd ../cui-v1.0 && git log | head -n 1 | awk '{print $$2}')
 NOW := $(shell date +"%FT%T%z")
 OS := $(shell uname)
 
@@ -175,6 +177,7 @@ artifacts-linux: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"${CUI_COMMIT_ARTIFACTS}-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -209,13 +212,6 @@ artifacts-macos: clean
 	cd ../yao-init && rm -rf LICENSE
 #	 cd ../yao-init && rm -rf README.md
 
-#   Yao Builder
-#   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
-#	mkdir -p .tmp/data/builder
-#	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
-#	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
-#	rm -rf .tmp/yao-builder-latest.tar.gz
-
 #	Packing
 #   ** CUI will be renamed to CUI in the feature. and move to the new repository. **
 #   ** new repository: https://github.com/YaoApp/cui.git **
@@ -230,6 +226,7 @@ artifacts-macos: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"${CUI_COMMIT_ARTIFACTS}-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -316,6 +313,7 @@ release: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"${CUI_COMMIT_RELEASE}-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
