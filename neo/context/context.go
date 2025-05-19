@@ -12,27 +12,33 @@ import (
 // Context the context
 type Context struct {
 	context.Context
-	Sid            string                 `json:"sid" yaml:"-"`           // Session ID
-	ChatID         string                 `json:"chat_id,omitempty"`      // Chat ID, use to select chat
-	AssistantID    string                 `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
-	Stack          string                 `json:"stack,omitempty"`        // will be removed in the future
-	Path           string                 `json:"pathname,omitempty"`     // wiil be rename to path
-	FormData       map[string]interface{} `json:"formdata,omitempty"`
-	Field          *Field                 `json:"field,omitempty"`
-	Namespace      string                 `json:"namespace,omitempty"`
-	Config         map[string]interface{} `json:"config,omitempty"`
-	Signal         interface{}            `json:"signal,omitempty"`
-	Silent         bool                   `json:"silent,omitempty"`          // Silent mode
-	ClientType     string                 `json:"client_type,omitempty"`     // The request client type. SDK, Desktop, Web, JSSDK, etc. the default is Web
-	HistoryVisible bool                   `json:"history_visible,omitempty"` // History visible, default is true, if false, the history will not be displayed in the UI
-	Retry          bool                   `json:"retry,omitempty"`           // Retry mode
-	RetryTimes     uint8                  `json:"retry_times,omitempty"`     // Retry times
-	Upload         *FileUpload            `json:"upload,omitempty"`
-	Vision         bool                   `json:"vision,omitempty"` // Vision support
-	Search         bool                   `json:"search,omitempty"` // Search support
-	RAG            bool                   `json:"rag,omitempty"`    // RAG support
-	Args           []interface{}          `json:"args,omitempty"`   // Arguments for call
-	SharedSpace    plan.Space             `json:"-"`                // Shared space
+	Sid         string                 `json:"sid" yaml:"-"`           // Session ID
+	ChatID      string                 `json:"chat_id,omitempty"`      // Chat ID, use to select chat
+	AssistantID string                 `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
+	Stack       string                 `json:"stack,omitempty"`        // will be removed in the future
+	Path        string                 `json:"pathname,omitempty"`     // wiil be rename to path
+	FormData    map[string]interface{} `json:"formdata,omitempty"`
+	Field       *Field                 `json:"field,omitempty"`
+	Namespace   string                 `json:"namespace,omitempty"`
+	Config      map[string]interface{} `json:"config,omitempty"`
+	Signal      interface{}            `json:"signal,omitempty"`
+
+	Locale string `json:"locale,omitempty"` // Locale
+	Theme  string `json:"theme,omitempty"`  // Theme
+
+	Silent         bool        `json:"silent,omitempty"`          // Silent mode
+	ClientType     string      `json:"client_type,omitempty"`     // The request client type. SDK, Desktop, Web, JSSDK, etc. the default is Web
+	HistoryVisible bool        `json:"history_visible,omitempty"` // History visible, default is true, if false, the history will not be displayed in the UI
+	Retry          bool        `json:"retry,omitempty"`           // Retry mode
+	RetryTimes     uint8       `json:"retry_times,omitempty"`     // Retry times
+	Upload         *FileUpload `json:"upload,omitempty"`          // Will be removed in the future
+
+	Vision bool `json:"vision,omitempty"` // Vision support
+	Search bool `json:"search,omitempty"` // Search support
+	RAG    bool `json:"rag,omitempty"`    // RAG support
+
+	Args        []interface{} `json:"args,omitempty"` // Arguments for call
+	SharedSpace plan.Space    `json:"-"`              // Shared space
 }
 
 // Field the context field
@@ -243,6 +249,12 @@ func (ctx *Context) Map() map[string]interface{} {
 	if ctx.Upload != nil {
 		data["upload"] = ctx.Upload
 	}
+
+	// Locale
+	data["locale"] = ctx.Locale
+
+	// Theme
+	data["theme"] = ctx.Theme
 
 	return data
 }
