@@ -8,7 +8,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/watchfultele/jsonrepair"
+	"github.com/kaptinlin/jsonrepair"
 )
 
 func getTimestamp(v interface{}) (int64, error) {
