@@ -57,14 +57,6 @@ func (neo *DSL) Upload(ctx chatctx.Context, c *gin.Context) (*assistant.File, er
 		}
 	}
 
-	// Get file info
-	ctx.Upload = &chatctx.FileUpload{
-		Name:     tmpfile.Filename,
-		Type:     tmpfile.Header.Get("Content-Type"),
-		Size:     tmpfile.Size,
-		TempFile: tmpfile.Filename,
-	}
-
 	// Default use the assistant in context
 	ast := neo.Assistant
 	if ctx.ChatID == "" {
