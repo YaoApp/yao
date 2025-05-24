@@ -89,13 +89,13 @@ func (neo *DSL) Download(ctx chatctx.Context, c *gin.Context) (*assistant.FileRe
 	}
 
 	// Get assistant_id from context or query
-	res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
-	if err != nil {
-		return nil, err
-	}
+	// res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Select Assistant
-	ast, err := neo.Select(res.AssistantID)
+	ast, err := neo.Select(neo.Use.Default)
 	if err != nil {
 		return nil, err
 	}
