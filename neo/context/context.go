@@ -12,30 +12,32 @@ import (
 // Context the context
 type Context struct {
 	context.Context
-	Sid         string                 `json:"sid" yaml:"-"`           // Session ID
-	ChatID      string                 `json:"chat_id,omitempty"`      // Chat ID, use to select chat
-	AssistantID string                 `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
-	Stack       string                 `json:"stack,omitempty"`        // will be removed in the future
-	Path        string                 `json:"pathname,omitempty"`     // wiil be rename to path
-	FormData    map[string]interface{} `json:"formdata,omitempty"`
-	Field       *Field                 `json:"field,omitempty"`
-	Namespace   string                 `json:"namespace,omitempty"`
-	Config      map[string]interface{} `json:"config,omitempty"`
-	Signal      interface{}            `json:"signal,omitempty"`
+	Sid         string `json:"sid" yaml:"-"`           // Session ID
+	ChatID      string `json:"chat_id,omitempty"`      // Chat ID, use to select chat
+	AssistantID string `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
 
+	// CUI Context
+	Namespace string                 `json:"namespace,omitempty"`
+	Stack     string                 `json:"stack,omitempty"`    // will be removed in the future
+	Path      string                 `json:"pathname,omitempty"` // wiil be rename to path
+	FormData  map[string]interface{} `json:"formdata,omitempty"`
+	Field     *Field                 `json:"field,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty"`
+	Signal    interface{}            `json:"signal,omitempty"`
+
+	// Locale information
 	Locale string `json:"locale,omitempty"` // Locale
 	Theme  string `json:"theme,omitempty"`  // Theme
 
-	Silent         bool        `json:"silent,omitempty"`          // Silent mode
-	ClientType     string      `json:"client_type,omitempty"`     // The request client type. SDK, Desktop, Web, JSSDK, etc. the default is Web
-	HistoryVisible bool        `json:"history_visible,omitempty"` // History visible, default is true, if false, the history will not be displayed in the UI
-	Retry          bool        `json:"retry,omitempty"`           // Retry mode
-	RetryTimes     uint8       `json:"retry_times,omitempty"`     // Retry times
-	Upload         *FileUpload `json:"upload,omitempty"`          // Will be removed in the future
+	Silent         bool   `json:"silent,omitempty"`          // Silent mode
+	ClientType     string `json:"client_type,omitempty"`     // The request client type. SDK, Desktop, Web, JSSDK, etc. the default is Web
+	HistoryVisible bool   `json:"history_visible,omitempty"` // History visible, default is true, if false, the history will not be displayed in the UI
+	Retry          bool   `json:"retry,omitempty"`           // Retry mode
+	RetryTimes     uint8  `json:"retry_times,omitempty"`     // Retry times
 
-	Vision bool `json:"vision,omitempty"` // Vision support
-	Search bool `json:"search,omitempty"` // Search support
-	RAG    bool `json:"rag,omitempty"`    // RAG support
+	Vision    bool `json:"vision,omitempty"`    // Vision support
+	Search    bool `json:"search,omitempty"`    // Search support
+	Knowledge bool `json:"knowledge,omitempty"` // Knowledge support
 
 	Args        []interface{} `json:"args,omitempty"` // Arguments for call
 	SharedSpace plan.Space    `json:"-"`              // Shared space
@@ -188,10 +190,10 @@ func (ctx *Context) Release() {
 // Map the context to a map
 func (ctx *Context) Map() map[string]interface{} {
 	data := map[string]interface{}{
-		"sid":    ctx.Sid,
-		"rag":    ctx.RAG,
-		"vision": ctx.Vision,
-		"search": ctx.Search,
+		"sid":       ctx.Sid,
+		"knowledge": ctx.Knowledge,
+		"vision":    ctx.Vision,
+		"search":    ctx.Search,
 	}
 
 	if ctx.ChatID != "" {
@@ -245,9 +247,6 @@ func (ctx *Context) Map() map[string]interface{} {
 	}
 	if ctx.Signal != nil {
 		data["signal"] = ctx.Signal
-	}
-	if ctx.Upload != nil {
-		data["upload"] = ctx.Upload
 	}
 
 	// Locale

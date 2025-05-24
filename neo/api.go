@@ -732,80 +732,6 @@ func (neo *DSL) handleChatsDeleteAll(c *gin.Context) {
 	c.Done()
 }
 
-// generateResponse is a helper struct to handle both SSE and HTTP responses
-type generateResponse struct {
-	c       *gin.Context
-	sid     string
-	content string
-	result  interface{}
-	err     error
-}
-
-// validate checks common validation rules
-func (r *generateResponse) validate() bool {
-	if r.sid == "" {
-		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-			r.c.Header("Cache-Control", "no-cache")
-			r.c.Header("Connection", "keep-alive")
-			msg := message.New().
-				Error("sid is required").
-				Done()
-			msg.Write(r.c.Writer)
-		} else {
-			r.c.JSON(400, gin.H{"message": "sid is required", "code": 400})
-		}
-		return false
-	}
-
-	if r.content == "" {
-		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-			r.c.Header("Cache-Control", "no-cache")
-			r.c.Header("Connection", "keep-alive")
-			msg := message.New().
-				Error("content is required").
-				Done()
-			msg.Write(r.c.Writer)
-		} else {
-			r.c.JSON(400, gin.H{"message": "content is required", "code": 400})
-		}
-		return false
-	}
-
-	return true
-}
-
-// send handles both SSE and HTTP responses
-func (r *generateResponse) send(key string) {
-	if r.err != nil {
-		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-			r.c.Header("Cache-Control", "no-cache")
-			r.c.Header("Connection", "keep-alive")
-			msg := message.New().
-				Error(r.err.Error()).
-				Done()
-			msg.Write(r.c.Writer)
-		} else {
-			r.c.JSON(500, gin.H{"message": r.err.Error(), "code": 500})
-		}
-		return
-	}
-
-	if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-		r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-		r.c.Header("Cache-Control", "no-cache")
-		r.c.Header("Connection", "keep-alive")
-		msg := message.New().
-			Map(gin.H{key: r.result}).
-			Done()
-		msg.Write(r.c.Writer)
-	} else {
-		r.c.JSON(200, gin.H{key: r.result})
-	}
-}
-
 // handleGenerateTitle handles generating a chat title
 func (neo *DSL) handleGenerateTitle(c *gin.Context) {
 	// Set headers for SSE
@@ -963,6 +889,22 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		return
 	}
 
+	locale := "en-us" // Default locale
+	for i, ast := range response.Data {
+		id := ast["assistant_id"].(string)
+		if locales, ok := assistant.Locales[id]; ok {
+			if loc := c.Query("locale"); loc != "" {
+				loc = strings.ToLower(strings.TrimSpace(loc))
+				if _, ok := locales[loc]; ok {
+					locale = loc
+				}
+			}
+			if i18n, ok := locales[locale]; ok {
+				response.Data[i] = i18n.Parse(ast).(map[string]interface{})
+			}
+		}
+	}
+
 	c.JSON(200, response)
 	c.Done()
 }
@@ -1050,6 +992,20 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 		c.JSON(404, gin.H{"message": "assistant not found", "code": 404})
 		c.Done()
 		return
+	}
+
+	locale := "en-us" // Default locale
+	id := response.Data[0]["assistant_id"].(string)
+	if locales, ok := assistant.Locales[id]; ok {
+		if loc := c.Query("locale"); loc != "" {
+			loc = strings.ToLower(strings.TrimSpace(loc))
+			if _, ok := locales[loc]; ok {
+				locale = loc
+			}
+		}
+		if i18n, ok := locales[locale]; ok {
+			response.Data[0] = i18n.Parse(response.Data[0]).(map[string]interface{})
+		}
 	}
 
 	c.JSON(200, map[string]interface{}{"data": response.Data[0]})

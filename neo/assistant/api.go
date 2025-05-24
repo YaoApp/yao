@@ -88,7 +88,8 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 	options := ast.withOptions(userOptions)
 
 	// Add RAG、Vision and Search support
-	ctx.RAG = rag != nil
+	// ctx.RAG = rag != nil
+	ctx.Knowledge = false
 	ctx.Vision = ast.vision
 	ctx.Search = ast.search && search != nil
 

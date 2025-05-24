@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/neo/store"
 	neovision "github.com/yaoapp/yao/neo/vision"
 	"github.com/yaoapp/yao/openai"
@@ -25,7 +26,7 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var rag *RAG = nil
-var search *Search = nil
+var search interface{} = nil
 var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *neovision.Vision = nil
 var defaultConnector string = "" // default connector
@@ -313,7 +314,37 @@ func LoadPath(path string) (*Assistant, error) {
 		updatedAt = max(updatedAt, ts)
 	}
 
-	// load flow
+	// i18ns
+	localesdir := filepath.Join(path, "locales")
+	var i18ns map[string]I18n = map[string]I18n{}
+	if has, _ := app.Exists(localesdir); has {
+		locales, err := app.ReadDir(localesdir, true)
+		if err != nil {
+			return nil, err
+		}
+
+		// load locales
+		for _, locale := range locales {
+			localeData, err := app.ReadFile(locale)
+			if err != nil {
+				return nil, err
+			}
+			var messages maps.Map
+			err = application.Parse(locale, localeData, &messages)
+			if err != nil {
+				return nil, err
+			}
+			if messages != nil {
+				name := strings.ToLower(strings.TrimSuffix(filepath.Base(locale), ".yml"))
+				i18ns[name] = I18n{Locale: name, Messages: messages.Dot()}
+				namer := strings.Split(name, "-")
+				if len(namer) > 1 {
+					i18ns[namer[0]] = I18n{Locale: name, Messages: messages.Dot()}
+				}
+			}
+		}
+		data["locales"] = i18ns
+	}
 
 	return loadMap(data)
 }
@@ -453,6 +484,40 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// description
 	if v, ok := data["description"].(string); ok {
 		assistant.Description = v
+	}
+
+	// locales
+	if locales, ok := data["locales"].(map[string]I18n); ok {
+		Locales[id] = locales
+	}
+
+	// Search options
+	if v, ok := data["search"].(map[string]interface{}); ok {
+		assistant.Search = &SearchOption{}
+		raw, err := jsoniter.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unmarshal the raw data
+		err = jsoniter.Unmarshal(raw, assistant.Search)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Knowledge options
+	if v, ok := data["knowledge"].(map[string]interface{}); ok {
+		assistant.Knowledge = &KnowledgeOption{}
+		raw, err := jsoniter.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		// Unmarshal the raw data
+		err = jsoniter.Unmarshal(raw, assistant.Knowledge)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// prompts
