@@ -889,22 +889,15 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		return
 	}
 
+	// Translate the response
 	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
 	for i, ast := range response.Data {
 		id := ast["assistant_id"].(string)
-		if locales, ok := assistant.Locales[id]; ok {
-			if loc := c.Query("locale"); loc != "" {
-				loc = strings.ToLower(strings.TrimSpace(loc))
-				if _, ok := locales[loc]; ok {
-					locale = loc
-				}
-			}
-			if i18n, ok := locales[locale]; ok {
-				response.Data[i] = i18n.Parse(ast).(map[string]interface{})
-			}
-		}
+		response.Data[i] = assistant.Translate(locale, id, ast).(map[string]interface{})
 	}
-
 	c.JSON(200, response)
 	c.Done()
 }
@@ -995,18 +988,12 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 	}
 
 	locale := "en-us" // Default locale
-	id := response.Data[0]["assistant_id"].(string)
-	if locales, ok := assistant.Locales[id]; ok {
-		if loc := c.Query("locale"); loc != "" {
-			loc = strings.ToLower(strings.TrimSpace(loc))
-			if _, ok := locales[loc]; ok {
-				locale = loc
-			}
-		}
-		if i18n, ok := locales[locale]; ok {
-			response.Data[0] = i18n.Parse(response.Data[0]).(map[string]interface{})
-		}
+	// Translate the response
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
 	}
+	id := response.Data[0]["assistant_id"].(string)
+	response.Data[0] = assistant.Translate(locale, id, response.Data[0]).(map[string]interface{})
 
 	c.JSON(200, map[string]interface{}{"data": response.Data[0]})
 	c.Done()
@@ -1118,6 +1105,21 @@ func (neo *DSL) handleAssistantTags(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{"data": tags})
+	// Translate the tags
+	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	// Translate the tags
+	items := []map[string]interface{}{}
+	for _, value := range tags {
+		items = append(items, map[string]interface{}{
+			"label": assistant.Translate(locale, "", value).(string),
+			"key":   value,
+		})
+	}
+
+	c.JSON(200, gin.H{"data": items})
 	c.Done()
 }
