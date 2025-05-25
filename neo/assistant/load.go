@@ -14,7 +14,6 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/neo/store"
 	neovision "github.com/yaoapp/yao/neo/vision"
 	"github.com/yaoapp/yao/openai"
@@ -315,37 +314,11 @@ func LoadPath(path string) (*Assistant, error) {
 	}
 
 	// i18ns
-	localesdir := filepath.Join(path, "locales")
-	var i18ns map[string]I18n = map[string]I18n{}
-	if has, _ := app.Exists(localesdir); has {
-		locales, err := app.ReadDir(localesdir, true)
-		if err != nil {
-			return nil, err
-		}
-
-		// load locales
-		for _, locale := range locales {
-			localeData, err := app.ReadFile(locale)
-			if err != nil {
-				return nil, err
-			}
-			var messages maps.Map
-			err = application.Parse(locale, localeData, &messages)
-			if err != nil {
-				return nil, err
-			}
-			if messages != nil {
-				name := strings.ToLower(strings.TrimSuffix(filepath.Base(locale), ".yml"))
-				i18ns[name] = I18n{Locale: name, Messages: messages.Dot()}
-				namer := strings.Split(name, "-")
-				if len(namer) > 1 {
-					i18ns[namer[0]] = I18n{Locale: name, Messages: messages.Dot()}
-				}
-			}
-		}
-		data["locales"] = i18ns
+	locales, err := GetI18n(path)
+	if err != nil {
+		return nil, err
 	}
-
+	data["locales"] = locales
 	return loadMap(data)
 }
 

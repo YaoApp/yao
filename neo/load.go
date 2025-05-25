@@ -63,12 +63,57 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Initialize Connectors
+	err = initConnectors()
+	if err != nil {
+		return err
+	}
+
+	// Initialize Global I18n
+	err = initGlobalI18n()
+	if err != nil {
+		return err
+	}
+
 	// Initialize Assistant
 	err = initAssistant()
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// initGlobalI18n initialize the global i18n
+func initGlobalI18n() error {
+	locales, err := assistant.GetI18n("neo")
+	if err != nil {
+		return err
+	}
+	assistant.Locales["__global__"] = locales
+	return nil
+}
+
+// initConnectors initialize the connectors
+func initConnectors() error {
+	path := filepath.Join("neo", "connectors.yml")
+	if exists, _ := application.App.Exists(path); !exists {
+		return nil
+	}
+
+	// Open the connectors
+	bytes, err := application.App.Read(path)
+	if err != nil {
+		return err
+	}
+
+	var connectors map[string]assistant.ConnectorSetting = map[string]assistant.ConnectorSetting{}
+	err = application.Parse("connectors.yml", bytes, &connectors)
+	if err != nil {
+		return err
+	}
+
+	Neo.Connectors = connectors
 	return nil
 }
 
