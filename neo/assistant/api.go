@@ -960,7 +960,8 @@ func formatMessages(messages []map[string]interface{}) []map[string]interface{} 
 	filteredMessages := []map[string]interface{}{
 		{
 			"role":    "system",
-			"content": "Current time: " + time.Now().Format(time.RFC3339),
+			"name":    "SYSTEM_TIME",
+			"content": "System Time: " + time.Now().Format(time.RFC3339) + "\n\n" + "It's the system time, please use it for reference.",
 		},
 	}
 	seen := make(map[string]bool)
@@ -1084,6 +1085,7 @@ func formatMessages(messages []map[string]interface{}) []map[string]interface{} 
 		lastMessage = msg
 	}
 
+	// Development log for DUI platform
 	return mergedMessages
 }
 
