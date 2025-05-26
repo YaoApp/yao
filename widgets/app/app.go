@@ -466,6 +466,7 @@ func processXgen(process *process.Process) interface{} {
 	}
 
 	// Set User ENV
+	lang := config.Conf.Lang
 	if process.NumOfArgs() > 0 {
 		payload := process.ArgsMap(0, map[string]interface{}{
 			"now":  time.Now().Unix(),
@@ -476,8 +477,7 @@ func processXgen(process *process.Process) interface{} {
 		if v, ok := payload["sid"].(string); ok && v != "" {
 			sid = v
 		}
-
-		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
+		lang = strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
 		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
@@ -571,7 +571,7 @@ func processXgen(process *process.Process) interface{} {
 				"assistant_name":       ast.Name,
 				"assistant_avatar":     ast.Avatar,
 				"assistant_deleteable": false,
-				"placeholder":          ast.Placeholder,
+				"placeholder":          ast.GetPlaceholder(lang),
 			}
 		}
 		agent["connectors"] = connector.AIConnectors

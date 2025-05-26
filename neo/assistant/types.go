@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/message"
 	api "github.com/yaoapp/yao/openai"
 )
@@ -25,7 +26,7 @@ type API interface {
 	Download(ctx context.Context, fileID string) (*FileResponse, error)
 	ReadBase64(ctx context.Context, fileID string) (string, error)
 
-	GetPlaceholder() *Placeholder
+	GetPlaceholder(locale string) *Placeholder
 	Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) (interface{}, error)
 	Call(c *gin.Context, payload APIPayload) (interface{}, error)
 }
@@ -139,6 +140,7 @@ type Assistant struct {
 	Tools       *ToolCalls               `json:"tools,omitempty"`                                // Assistant Tools
 	Flows       []map[string]interface{} `json:"flows,omitempty"`                                // Assistant Flows
 	Placeholder *Placeholder             `json:"placeholder,omitempty"`                          // Assistant Placeholder
+	Locales     i18n.Map                 `json:"locales,omitempty"`                              // Assistant Locales
 	Search      *SearchOption            `json:"search,omitempty" yaml:"search,omitempty"`       // Whether this assistant supports search
 	Knowledge   *KnowledgeOption         `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Whether this assistant supports knowledge
 	CreatedAt   int64                    `json:"created_at"`                                     // Creation timestamp

@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/xun/dbal/schema"
+	"github.com/yaoapp/yao/neo/i18n"
 )
 
 // Package conversation provides functionality for managing chat conversations and assistants.
@@ -145,7 +147,7 @@ func (conv *Xun) initHistoryTable() error {
 			table.String("assistant_avatar", 200).Null()
 			table.JSON("mentions").Null()
 			table.Boolean("silent").SetDefault(false).Index()
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 			table.TimestampTz("expired_at").Null().Index()
 		})
@@ -188,7 +190,7 @@ func (conv *Xun) initChatTable() error {
 			table.String("assistant_id", 200).Null().Index()
 			table.String("sid", 255).Index()
 			table.Boolean("silent").SetDefault(false).Index()
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
 
@@ -237,15 +239,16 @@ func (conv *Xun) initAssistantTable() error {
 			table.JSON("placeholder").Null()                          // assistant placeholder
 			table.JSON("options").Null()                              // assistant options
 			table.JSON("prompts").Null()                              // assistant prompts
-			table.JSON("flows").Null()                                // assistant flows
-			table.JSON("files").Null()                                // assistant files
+			table.JSON("workflow").Null()                             // assistant workflow
+			table.JSON("knowledge").Null()                            // assistant knowledge
 			table.JSON("tools").Null()                                // assistant tools
 			table.JSON("tags").Null()                                 // assistant tags
 			table.Boolean("readonly").SetDefault(false).Index()       // assistant readonly
 			table.JSON("permissions").Null()                          // assistant permissions
+			table.JSON("locales").Null()                              // assistant i18n
 			table.Boolean("automated").SetDefault(true).Index()       // assistant autoable
 			table.Boolean("mentionable").SetDefault(true).Index()     // Whether this assistant can appear in @ mention list
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
 
@@ -261,7 +264,7 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "path", "sort", "built_in", "placeholder", "options", "prompts", "flows", "files", "tools", "tags", "mentionable", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "path", "sort", "built_in", "placeholder", "options", "prompts", "workflow", "knowledge", "tools", "tags", "readonly", "permissions", "locales", "automated", "mentionable", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -963,7 +966,7 @@ func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, e
 	}
 
 	// Process JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder", "locales"}
 	for _, field := range jsonFields {
 		if val, ok := assistantCopy[field]; ok && val != nil {
 			// If it's a string, try to parse it first
@@ -1049,7 +1052,7 @@ func (conv *Xun) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves assistants with pagination and filtering
-func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+func (conv *Xun) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
 	qb := conv.query.New().
 		Table(conv.getAssistantTable())
 
@@ -1159,7 +1162,7 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 
 	// Convert rows to map slice and parse JSON fields
 	data := make([]map[string]interface{}, len(rows))
-	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder"}
 	for i, row := range rows {
 		data[i] = row
 		// Only parse JSON fields if they are selected or no select filter is provided
@@ -1182,6 +1185,15 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		}
 	}
 
+	// Translate Data
+	if len(locale) > 0 {
+		lang := strings.ToLower(locale[0])
+		for i, row := range data {
+			assistantID := row["assistant_id"].(string)
+			data[i] = i18n.Translate(assistantID, lang, row).(map[string]interface{})
+		}
+	}
+
 	return &AssistantResponse{
 		Data:     data,
 		Page:     filter.Page,
@@ -1194,7 +1206,7 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error) {
+func (conv *Xun) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
 	row, err := conv.query.New().
 		Table(conv.getAssistantTable()).
 		Where("assistant_id", assistantID).
@@ -1213,9 +1225,12 @@ func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder"}
 	conv.parseJSONFields(data, jsonFields)
-
+	if len(locale) > 0 {
+		lang := strings.ToLower(locale[0])
+		return i18n.Translate(assistantID, lang, data).(map[string]interface{}), nil
+	}
 	return data, nil
 }
 
@@ -1281,7 +1296,7 @@ func (conv *Xun) DeleteAssistants(filter AssistantFilter) (int64, error) {
 }
 
 // GetAssistantTags retrieves all unique tags from assistants
-func (conv *Xun) GetAssistantTags() ([]string, error) {
+func (conv *Xun) GetAssistantTags(locale ...string) ([]Tag, error) {
 	q := conv.newQuery().Table(conv.getAssistantTable())
 	rows, err := q.Select("tags").Where("type", "assistant").GroupBy("tags").Get()
 	if err != nil {
@@ -1300,10 +1315,18 @@ func (conv *Xun) GetAssistantTags() ([]string, error) {
 		}
 	}
 
+	lang := "en"
+	if len(locale) > 0 {
+		lang = locale[0]
+	}
+
 	// Convert map keys to slice
-	tags := make([]string, 0, len(tagSet))
+	tags := make([]Tag, 0, len(tagSet))
 	for tag := range tagSet {
-		tags = append(tags, tag)
+		tags = append(tags, Tag{
+			Value: tag,
+			Label: i18n.TranslateGlobal(lang, tag).(string),
+		})
 	}
 	return tags, nil
 }

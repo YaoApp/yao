@@ -983,7 +983,8 @@ func TestGetAssistantTags(t *testing.T) {
 	}
 
 	for _, tag := range tags {
-		if !expectedTags[tag] {
+		value := tag.Value
+		if !expectedTags[value] {
 			t.Errorf("Unexpected tag found: %s", tag)
 		}
 	}

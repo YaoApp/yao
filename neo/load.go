@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/store"
 )
 
@@ -86,11 +87,11 @@ func Load(cfg config.Config) error {
 
 // initGlobalI18n initialize the global i18n
 func initGlobalI18n() error {
-	locales, err := assistant.GetI18n("neo")
+	locales, err := i18n.GetLocales("neo")
 	if err != nil {
 		return err
 	}
-	assistant.Locales["__global__"] = locales
+	i18n.Locales["__global__"] = locales.Flatten()
 	return nil
 }
 

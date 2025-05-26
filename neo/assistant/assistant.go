@@ -140,6 +140,7 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"mentionable":  ast.Mentionable,
 		"automated":    ast.Automated,
 		"placeholder":  ast.Placeholder,
+		"locales":      ast.Locales,
 		"created_at":   timeToMySQLFormat(ast.CreatedAt),
 		"updated_at":   timeToMySQLFormat(ast.UpdatedAt),
 	}

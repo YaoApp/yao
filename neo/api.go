@@ -491,6 +491,11 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		return
 	}
 
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
 	// Create a new chat
 	if len(chats.Groups) == 0 || len(chats.Groups[0].Chats) == 0 {
 
@@ -509,7 +514,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		}
 
 		c.JSON(200, map[string]interface{}{"data": map[string]interface{}{
-			"placeholder":          ast.GetPlaceholder(),
+			"placeholder":          ast.GetPlaceholder(locale),
 			"assistant_id":         ast.ID,
 			"assistant_name":       ast.Name,
 			"assistant_avatar":     ast.Avatar,
@@ -882,22 +887,18 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		filter.AssistantID = assistantID
 	}
 
-	response, err := neo.Store.GetAssistants(filter)
+	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	response, err := neo.Store.GetAssistants(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
 
-	// Translate the response
-	locale := "en-us" // Default locale
-	if loc := c.Query("locale"); loc != "" {
-		locale = strings.ToLower(strings.TrimSpace(loc))
-	}
-	for i, ast := range response.Data {
-		id := ast["assistant_id"].(string)
-		response.Data[i] = assistant.Translate(locale, id, ast).(map[string]interface{})
-	}
 	c.JSON(200, response)
 	c.Done()
 }
@@ -974,7 +975,13 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 		PageSize:    1,
 	}
 
-	response, err := neo.Store.GetAssistants(filter)
+	locale := "en-us" // Default locale
+	// Translate the response
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	response, err := neo.Store.GetAssistants(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -986,14 +993,6 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 		c.Done()
 		return
 	}
-
-	locale := "en-us" // Default locale
-	// Translate the response
-	if loc := c.Query("locale"); loc != "" {
-		locale = strings.ToLower(strings.TrimSpace(loc))
-	}
-	id := response.Data[0]["assistant_id"].(string)
-	response.Data[0] = assistant.Translate(locale, id, response.Data[0]).(map[string]interface{})
 
 	c.JSON(200, map[string]interface{}{"data": response.Data[0]})
 	c.Done()
@@ -1098,28 +1097,18 @@ func (neo *DSL) handleAssistantTags(c *gin.Context) {
 		return
 	}
 
-	tags, err := neo.Store.GetAssistantTags()
+	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	tags, err := neo.Store.GetAssistantTags(locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
 
-	// Translate the tags
-	locale := "en-us" // Default locale
-	if loc := c.Query("locale"); loc != "" {
-		locale = strings.ToLower(strings.TrimSpace(loc))
-	}
-
-	// Translate the tags
-	items := []map[string]interface{}{}
-	for _, value := range tags {
-		items = append(items, map[string]interface{}{
-			"label": assistant.Translate(locale, "", value).(string),
-			"key":   value,
-		})
-	}
-
-	c.JSON(200, gin.H{"data": items})
+	c.JSON(200, gin.H{"data": tags})
 	c.Done()
 }
