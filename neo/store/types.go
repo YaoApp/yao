@@ -73,6 +73,12 @@ type AssistantResponse struct {
 	Total    int64                    `json:"total"`    // Total number of items
 }
 
+// Tag represents a tag
+type Tag struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+}
+
 // Store defines the conversation storage interface
 // Provides basic operations required for conversation management
 type Store interface {
@@ -147,19 +153,19 @@ type Store interface {
 	// GetAssistants retrieves a list of assistants
 	// filter: Filter conditions
 	// Returns: Paginated assistant list and potential error
-	GetAssistants(filter AssistantFilter) (*AssistantResponse, error)
+	GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error)
+
+	// GetAssistantTags retrieves all unique tags from assistants
+	// Returns: List of tags and potential error
+	GetAssistantTags(locale ...string) ([]Tag, error)
 
 	// GetAssistant retrieves a single assistant by ID
 	// assistantID: Assistant ID
 	// Returns: Assistant information and potential error
-	GetAssistant(assistantID string) (map[string]interface{}, error)
+	GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error)
 
 	// DeleteAssistants deletes assistants based on filter conditions
 	// filter: Filter conditions
 	// Returns: Number of deleted records and potential error
 	DeleteAssistants(filter AssistantFilter) (int64, error)
-
-	// GetAssistantTags retrieves all unique tags from assistants
-	// Returns: List of tags and potential error
-	GetAssistantTags() ([]string, error)
 }

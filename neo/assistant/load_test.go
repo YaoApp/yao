@@ -322,7 +322,7 @@ type mockStore struct {
 	data map[string]map[string]interface{}
 }
 
-func (m *mockStore) GetAssistant(id string) (map[string]interface{}, error) {
+func (m *mockStore) GetAssistant(id string, locale ...string) (map[string]interface{}, error) {
 	if data, ok := m.data[id]; ok {
 		return data, nil
 	}
@@ -367,7 +367,7 @@ func (m *mockStore) ListFiles(query map[string]interface{}) ([]map[string]interf
 }
 func (m *mockStore) DeleteAllChats(id string) error            { return nil }
 func (m *mockStore) DeleteChat(id string, chatID string) error { return nil }
-func (m *mockStore) GetAssistants(filter store.AssistantFilter) (*store.AssistantResponse, error) {
+func (m *mockStore) GetAssistants(filter store.AssistantFilter, locale ...string) (*store.AssistantResponse, error) {
 	return nil, nil
 }
 func (m *mockStore) GetChat(id string, chatID string) (*store.ChatInfo, error) { return nil, nil }
@@ -391,4 +391,6 @@ func (m *mockStore) SaveHistory(sid string, messages []map[string]interface{}, c
 }
 func (m *mockStore) UpdateChatTitle(sid string, cid string, title string) error   { return nil }
 func (m *mockStore) DeleteAssistants(filter store.AssistantFilter) (int64, error) { return 0, nil }
-func (m *mockStore) GetAssistantTags() ([]string, error)                          { return []string{}, nil }
+func (m *mockStore) GetAssistantTags(locale ...string) ([]store.Tag, error) {
+	return []store.Tag{}, nil
+}

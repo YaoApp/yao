@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/store"
 	neovision "github.com/yaoapp/yao/neo/vision"
 	"github.com/yaoapp/yao/openai"
@@ -314,7 +315,7 @@ func LoadPath(path string) (*Assistant, error) {
 	}
 
 	// i18ns
-	locales, err := GetI18n(path)
+	locales, err := i18n.GetLocales(path)
 	if err != nil {
 		return nil, err
 	}
@@ -460,8 +461,9 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	// locales
-	if locales, ok := data["locales"].(map[string]I18n); ok {
-		Locales[id] = locales
+	if locales, ok := data["locales"].(i18n.Map); ok {
+		assistant.Locales = locales
+		i18n.Locales[id] = locales.FlattenWithGlobal()
 	}
 
 	// Search options

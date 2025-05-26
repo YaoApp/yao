@@ -64,21 +64,21 @@ func (r *Redis) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves a list of assistants
-func (r *Redis) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+func (r *Redis) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
 	return &AssistantResponse{}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (r *Redis) GetAssistant(assistantID string) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (r *Redis) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
 }
 
 // DeleteAssistants deletes assistants based on filter conditions (not implemented)
-func (redis *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
+func (r *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
 	return 0, nil
 }
 
 // GetAssistantTags retrieves all unique tags from assistants
-func (conv *Redis) GetAssistantTags() ([]string, error) {
-	return []string{}, nil
+func (r *Redis) GetAssistantTags(locale ...string) ([]Tag, error) {
+	return []Tag{}, nil
 }

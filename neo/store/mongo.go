@@ -64,21 +64,21 @@ func (m *Mongo) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves a list of assistants
-func (m *Mongo) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+func (m *Mongo) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
 	return &AssistantResponse{}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (m *Mongo) GetAssistant(assistantID string) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+func (m *Mongo) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
 }
 
 // DeleteAssistants deletes assistants based on filter conditions (not implemented)
-func (mongo *Mongo) DeleteAssistants(filter AssistantFilter) (int64, error) {
+func (m *Mongo) DeleteAssistants(filter AssistantFilter) (int64, error) {
 	return 0, nil
 }
 
 // GetAssistantTags retrieves all unique tags from assistants
-func (conv *Mongo) GetAssistantTags() ([]string, error) {
-	return []string{}, nil
+func (m *Mongo) GetAssistantTags(locale ...string) ([]Tag, error) {
+	return []Tag{}, nil
 }

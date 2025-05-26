@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
@@ -243,20 +244,6 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 		if err != nil {
 			return nil, fmt.Errorf("with history error: %s", err.Error())
 		}
-
-		// Send the progress message from application side instead
-		// Create a new Text
-		// Send loading message and mark as new
-		// if !ctx.Silent {
-		// 	msg := chatMessage.New().Map(map[string]interface{}{
-		// 		"new":   true,
-		// 		"role":  "assistant",
-		// 		"type":  "loading",
-		// 		"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
-		// 	})
-		// 	msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
-		// 	msg.Write(c.Writer)
-		// }
 		newContents := chatMessage.NewContents()
 
 		// Update the context id
@@ -272,8 +259,19 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 }
 
 // GetPlaceholder returns the placeholder of the assistant
-func (ast *Assistant) GetPlaceholder() *Placeholder {
-	return ast.Placeholder
+func (ast *Assistant) GetPlaceholder(locale string) *Placeholder {
+
+	prompts := []string{}
+	if ast.Placeholder.Prompts != nil {
+		prompts = i18n.Translate(ast.ID, locale, ast.Placeholder.Prompts).([]string)
+	}
+	title := i18n.Translate(ast.ID, locale, ast.Placeholder.Title).(string)
+	description := i18n.Translate(ast.ID, locale, ast.Placeholder.Description).(string)
+	return &Placeholder{
+		Title:       title,
+		Description: description,
+		Prompts:     prompts,
+	}
 }
 
 // Call implements the call functionality
