@@ -86,33 +86,33 @@ type Store interface {
 	// sid: Session ID
 	// filter: Filter conditions
 	// Returns: Grouped chat list and potential error
-	GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error)
+	GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error)
 
 	// GetChat retrieves a single chat's information
 	// sid: Session ID
 	// cid: Chat ID
 	// Returns: Chat information and potential error
-	GetChat(sid string, cid string) (*ChatInfo, error)
+	GetChat(sid string, cid string, locale ...string) (*ChatInfo, error)
 
 	// GetChatWithFilter retrieves a single chat's information with filter options
 	// sid: Session ID
 	// cid: Chat ID
 	// filter: Filter conditions
 	// Returns: Chat information and potential error
-	GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error)
+	GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error)
 
 	// GetHistory retrieves chat history
 	// sid: Session ID
 	// cid: Chat ID
 	// Returns: History record list and potential error
-	GetHistory(sid string, cid string) ([]map[string]interface{}, error)
+	GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error)
 
 	// GetHistoryWithFilter retrieves chat history with filter options
 	// sid: Session ID
 	// cid: Chat ID
 	// filter: Filter conditions
 	// Returns: History record list and potential error
-	GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error)
+	GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error)
 
 	// SaveHistory saves chat history
 	// sid: Session ID

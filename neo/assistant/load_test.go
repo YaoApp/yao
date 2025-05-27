@@ -370,17 +370,19 @@ func (m *mockStore) DeleteChat(id string, chatID string) error { return nil }
 func (m *mockStore) GetAssistants(filter store.AssistantFilter, locale ...string) (*store.AssistantResponse, error) {
 	return nil, nil
 }
-func (m *mockStore) GetChat(id string, chatID string) (*store.ChatInfo, error) { return nil, nil }
-func (m *mockStore) GetChatWithFilter(id string, chatID string, filter store.ChatFilter) (*store.ChatInfo, error) {
+func (m *mockStore) GetChat(id string, chatID string, locale ...string) (*store.ChatInfo, error) {
 	return nil, nil
 }
-func (m *mockStore) GetChats(id string, filter store.ChatFilter) (*store.ChatGroupResponse, error) {
+func (m *mockStore) GetChatWithFilter(id string, chatID string, filter store.ChatFilter, locale ...string) (*store.ChatInfo, error) {
 	return nil, nil
 }
-func (m *mockStore) GetHistory(id string, chatID string) ([]map[string]interface{}, error) {
+func (m *mockStore) GetChats(id string, filter store.ChatFilter, locale ...string) (*store.ChatGroupResponse, error) {
 	return nil, nil
 }
-func (m *mockStore) GetHistoryWithFilter(id string, chatID string, filter store.ChatFilter) ([]map[string]interface{}, error) {
+func (m *mockStore) GetHistory(id string, chatID string, locale ...string) ([]map[string]interface{}, error) {
+	return nil, nil
+}
+func (m *mockStore) GetHistoryWithFilter(id string, chatID string, filter store.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	return nil, nil
 }
 func (m *mockStore) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
