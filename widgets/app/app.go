@@ -159,12 +159,11 @@ func exportAPI() error {
 
 	process = "yao.app.Menu"
 	args := []interface{}{}
-	if Setting.Menu.Process != "" {
-		if Setting.Menu.Args != nil {
-			args = Setting.Menu.Args
-		}
+	if Setting.Menu.Args != nil {
+		args = Setting.Menu.Args
 	}
 
+	args = append(args, "$query.locale")
 	path = api.Path{
 		Label:       "App Menu",
 		Description: "App Menu",
@@ -386,36 +385,21 @@ func processIcons(process *process.Process) interface{} {
 
 func processMenu(p *process.Process) interface{} {
 
-	if Setting.Menu.Process != "" {
-
-		return process.
-			New(Setting.Menu.Process, p.Args...).
-			WithGlobal(p.Global).
-			WithSID(p.Sid).
-			Run()
+	if Setting.Menu.Process == "" {
+		exception.New("menu.process is required", 400).Throw()
 	}
 
-	args := map[string]interface{}{
-		"select": []string{"id", "name", "icon", "parent", "path", "blocks", "visible_menu"},
-		"withs": map[string]interface{}{
-			"children": map[string]interface{}{
-				"query": map[string]interface{}{
-					"select": []string{"id", "name", "icon", "parent", "path", "blocks", "visible_menu"},
-				},
-			},
-		},
-		"wheres": []map[string]interface{}{
-			{"column": "status", "value": "enabled"},
-			{"column": "parent", "op": "null"},
-		},
-		"limit":  200,
-		"orders": []map[string]interface{}{{"column": "rank", "option": "asc"}},
+	handle, err := process.Of(Setting.Menu.Process, p.Args...)
+	if err != nil {
+		exception.New(err.Error(), 400).Throw()
 	}
-	return process.
-		New("models.xiang.menu.get", args).
-		WithGlobal(p.Global).
-		WithSID(p.Sid).
-		Run()
+
+	err = handle.WithGlobal(p.Global).WithSID(p.Sid).Execute()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	defer handle.Dispose()
+	return handle.Value()
 }
 
 func processSetting(process *process.Process) interface{} {
