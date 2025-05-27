@@ -196,7 +196,7 @@ func TestLoad_Clone(t *testing.T) {
 		Automated:   true,
 		Options:     map[string]interface{}{"key": "value"},
 		Prompts:     []Prompt{{Role: "system", Content: "test"}},
-		Flows:       []map[string]interface{}{{"step": "test"}},
+		Workflow:    map[string]interface{}{"step": "test"},
 	}
 
 	// Clone the assistant
@@ -218,15 +218,15 @@ func TestLoad_Clone(t *testing.T) {
 	assert.Equal(t, original.Automated, clone.Automated)
 	assert.Equal(t, original.Options, clone.Options)
 	assert.Equal(t, original.Prompts, clone.Prompts)
-	assert.Equal(t, original.Flows, clone.Flows)
+	assert.Equal(t, original.Workflow, clone.Workflow)
 
 	// Verify deep copy by modifying original
 	original.Tags[0] = "modified"
 	original.Options["key"] = "modified"
-	original.Flows[0]["step"] = "modified"
+	original.Workflow["step"] = "modified"
 	assert.NotEqual(t, original.Tags[0], clone.Tags[0])
 	assert.NotEqual(t, original.Options["key"], clone.Options["key"])
-	assert.NotEqual(t, original.Flows[0]["step"], clone.Flows[0]["step"])
+	assert.NotEqual(t, original.Workflow["step"], clone.Workflow["step"])
 
 	// Test nil case
 	var nilAssistant *Assistant

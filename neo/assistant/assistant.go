@@ -239,15 +239,11 @@ func (ast *Assistant) Clone() *Assistant {
 		}
 	}
 
-	// Deep copy flows
-	if ast.Flows != nil {
-		clone.Flows = make([]map[string]interface{}, len(ast.Flows))
-		for i, flow := range ast.Flows {
-			cloneFlow := make(map[string]interface{})
-			for k, v := range flow {
-				cloneFlow[k] = v
-			}
-			clone.Flows[i] = cloneFlow
+	// Deep copy workflow
+	if ast.Workflow != nil {
+		clone.Workflow = make(map[string]interface{})
+		for k, v := range ast.Workflow {
+			clone.Workflow[k] = v
 		}
 	}
 
