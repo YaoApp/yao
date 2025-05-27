@@ -9,27 +9,27 @@ func NewMongo() Store {
 }
 
 // GetChats retrieves a list of chats
-func (m *Mongo) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+func (m *Mongo) GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
 	return &ChatGroupResponse{}, nil
 }
 
 // GetChat retrieves a single chat's information
-func (m *Mongo) GetChat(sid string, cid string) (*ChatInfo, error) {
+func (m *Mongo) GetChat(sid string, cid string, locale ...string) (*ChatInfo, error) {
 	return &ChatInfo{}, nil
 }
 
 // GetChatWithFilter retrieves a single chat's information with filter options
-func (m *Mongo) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error) {
+func (m *Mongo) GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error) {
 	return &ChatInfo{}, nil
 }
 
 // GetHistory retrieves chat history
-func (m *Mongo) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+func (m *Mongo) GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
 // GetHistoryWithFilter retrieves chat history with filter options
-func (m *Mongo) GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error) {
+func (m *Mongo) GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 

@@ -285,7 +285,12 @@ func (neo *DSL) handleChatList(c *gin.Context) {
 		}
 	}
 
-	response, err := neo.Store.GetChats(sid, filter)
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	response, err := neo.Store.GetChats(sid, filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -483,17 +488,17 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		return
 	}
 
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
 	// Get the chats
-	chats, err := neo.Store.GetChats(sid, store.ChatFilter{Page: 1})
+	chats, err := neo.Store.GetChats(sid, store.ChatFilter{Page: 1}, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
-	}
-
-	locale := "en-us"
-	if loc := c.Query("locale"); loc != "" {
-		locale = strings.ToLower(strings.TrimSpace(loc))
 	}
 
 	// Create a new chat
@@ -516,7 +521,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		c.JSON(200, map[string]interface{}{"data": map[string]interface{}{
 			"placeholder":          ast.GetPlaceholder(locale),
 			"assistant_id":         ast.ID,
-			"assistant_name":       ast.Name,
+			"assistant_name":       ast.GetName(locale),
 			"assistant_avatar":     ast.Avatar,
 			"assistant_deleteable": neo.Use.Default != ast.ID,
 		}})
@@ -532,7 +537,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		return
 	}
 
-	chat, err := neo.Store.GetChat(sid, chatID)
+	chat, err := neo.Store.GetChat(sid, chatID, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -550,7 +555,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 			c.Done()
 			return
 		}
-		chat.Chat["assistant_name"] = ast.Name
+		chat.Chat["assistant_name"] = ast.GetName(locale)
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
@@ -575,7 +580,13 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		return
 	}
 
-	chat, err := neo.Store.GetChat(sid, chatID)
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	// Get the chat details
+	chat, err := neo.Store.GetChat(sid, chatID, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -593,7 +604,7 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 			c.Done()
 			return
 		}
-		chat.Chat["assistant_name"] = ast.Name
+		chat.Chat["assistant_name"] = ast.GetName(locale)
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
@@ -611,6 +622,11 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 		return
 	}
 
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
 	// Get keywords from query parameter
 	keywords := strings.ToLower(c.Query("keywords"))
 	mentionable := true
@@ -623,7 +639,7 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 		PageSize:    20,
 	}
 
-	response, err := neo.Store.GetAssistants(filter)
+	response, err := neo.Store.GetAssistants(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()

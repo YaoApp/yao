@@ -154,6 +154,12 @@ func WithClientType(ctx Context, clientType string) Context {
 	return ctx
 }
 
+// WithLocale set the locale
+func WithLocale(ctx Context, locale string) Context {
+	ctx.Locale = locale
+	return ctx
+}
+
 // WithHistoryVisible set the history visible
 func WithHistoryVisible(ctx Context, historyVisible bool) Context {
 	ctx.HistoryVisible = historyVisible

@@ -274,6 +274,16 @@ func (ast *Assistant) GetPlaceholder(locale string) *Placeholder {
 	}
 }
 
+// GetName returns the name of the assistant
+func (ast *Assistant) GetName(locale string) string {
+	return i18n.Translate(ast.ID, locale, ast.Name).(string)
+}
+
+// GetDescription returns the description of the assistant
+func (ast *Assistant) GetDescription(locale string) string {
+	return i18n.Translate(ast.ID, locale, ast.Description).(string)
+}
+
 // Call implements the call functionality
 func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, error) {
 	scriptCtx, err := ast.Script.NewContext(payload.Sid, nil)
@@ -521,7 +531,7 @@ func (ast *Assistant) streamChat(
 				output.Retry = ctx.Retry   // Retry mode
 				output.Silent = ctx.Silent // Silent mode
 				if isFirst {
-					output.Assistant(ast.ID, ast.Name, ast.Avatar)
+					output.Assistant(ast.ID, ast.GetName(ctx.Locale), ast.Avatar)
 					isFirst = false
 				}
 
@@ -542,7 +552,7 @@ func (ast *Assistant) streamChat(
 					chatMessage.New().
 						Map(map[string]interface{}{
 							"assistant_id":     ast.ID,
-							"assistant_name":   ast.Name,
+							"assistant_name":   ast.GetName(ctx.Locale),
 							"assistant_avatar": ast.Avatar,
 							"text":             delta,
 							"type":             "text",
@@ -731,7 +741,7 @@ func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessag
 				"content":          contents.JSON(),
 				"name":             ast.ID,
 				"assistant_id":     ast.ID,
-				"assistant_name":   ast.Name,
+				"assistant_name":   ast.GetName(ctx.Locale),
 				"assistant_avatar": ast.Avatar,
 			},
 		}

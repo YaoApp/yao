@@ -322,18 +322,18 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // GetChats get the chat list with grouping by date
-func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+func (conv *Xun) GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
 	// Default behavior: exclude silent chats
 	if filter.Silent == nil {
 		silentFalse := false
 		filter.Silent = &silentFalse
 	}
 
-	return conv.getChatsWithFilter(sid, filter)
+	return conv.getChatsWithFilter(sid, filter, locale...)
 }
 
 // getChatsWithFilter get the chats with filter options
-func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -448,8 +448,13 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 
 		for _, assistant := range assistants {
 			if id := assistant.Get("assistant_id"); id != nil {
+				name := assistant.Get("name")
+				if len(locale) > 0 {
+					lang := strings.ToLower(locale[0])
+					name = i18n.Translate(id.(string), lang, name).(string)
+				}
 				assistantMap[fmt.Sprintf("%v", id)] = map[string]interface{}{
-					"name":   assistant.Get("name"),
+					"name":   name,
 					"avatar": assistant.Get("avatar"),
 				}
 			}
@@ -472,7 +477,12 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 		// Add assistant details if available
 		if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
 			if assistant, ok := assistantMap[fmt.Sprintf("%v", assistantID)]; ok {
-				chat["assistant_name"] = assistant["name"]
+				name := assistant["name"]
+				if len(locale) > 0 {
+					lang := strings.ToLower(locale[0])
+					name = i18n.Translate(assistantID.(string), lang, name).(string)
+				}
+				chat["assistant_name"] = name
 				chat["assistant_avatar"] = assistant["avatar"]
 			}
 		}
@@ -516,12 +526,17 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 		}
 	}
 
-	// Convert to ordered slice
+	// Convert to ordered slice and apply i18n
 	result := []ChatGroup{}
 	for _, label := range []string{"Today", "Yesterday", "This Week", "Last Week", "Even Earlier"} {
 		if len(groups[label]) > 0 {
+			translatedLabel := label
+			if len(locale) > 0 {
+				lang := strings.ToLower(locale[0])
+				translatedLabel = i18n.TranslateGlobal(lang, label).(string)
+			}
 			result = append(result, ChatGroup{
-				Label: label,
+				Label: translatedLabel,
 				Chats: groups[label],
 			})
 		}
@@ -537,7 +552,7 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 }
 
 // GetHistory get the history
-func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+func (conv *Xun) GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -568,13 +583,20 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 
 	res := []map[string]interface{}{}
 	for _, row := range rows {
+		assistantName := row.Get("assistant_name")
+		assistantID := row.Get("assistant_id")
+		if len(locale) > 0 && assistantID != nil {
+			lang := strings.ToLower(locale[0])
+			assistantName = i18n.Translate(assistantID.(string), lang, assistantName).(string)
+		}
+
 		message := map[string]interface{}{
 			"role":             row.Get("role"),
 			"name":             row.Get("name"),
 			"content":          row.Get("content"),
 			"context":          row.Get("context"),
 			"assistant_id":     row.Get("assistant_id"),
-			"assistant_name":   row.Get("assistant_name"),
+			"assistant_name":   assistantName,
 			"assistant_avatar": row.Get("assistant_avatar"),
 			"mentions":         row.Get("mentions"),
 			"uid":              row.Get("uid"),
@@ -770,7 +792,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 }
 
 // GetChat get the chat info and its history
-func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
+func (conv *Xun) GetChat(sid string, cid string, locale ...string) (*ChatInfo, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -809,14 +831,20 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 			return nil, err
 		}
 
+		name := assistant.Get("name")
+		if len(locale) > 0 {
+			lang := strings.ToLower(locale[0])
+			name = i18n.Translate(assistantID.(string), lang, name).(string)
+		}
+
 		if assistant != nil {
-			chat["assistant_name"] = assistant.Get("name")
+			chat["assistant_name"] = name
 			chat["assistant_avatar"] = assistant.Get("avatar")
 		}
 	}
 
 	// Get chat history with default filter (silent=false)
-	history, err := conv.GetHistory(sid, cid)
+	history, err := conv.GetHistory(sid, cid, locale...)
 	if err != nil {
 		return nil, err
 	}
@@ -828,7 +856,7 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 }
 
 // GetChatWithFilter get the chat info and its history with filter options
-func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error) {
+func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -874,7 +902,7 @@ func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*
 	}
 
 	// Get chat history with filter
-	history, err := conv.GetHistoryWithFilter(sid, cid, filter)
+	history, err := conv.GetHistoryWithFilter(sid, cid, filter, locale...)
 	if err != nil {
 		return nil, err
 	}
@@ -1332,7 +1360,7 @@ func (conv *Xun) GetAssistantTags(locale ...string) ([]Tag, error) {
 }
 
 // GetHistoryWithFilter get the history with filter options
-func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error) {
+func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
