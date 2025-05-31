@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/neo/attachment"
 	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/store"
 )
@@ -76,10 +77,75 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Initialize Upload
+	err = initUpload()
+	if err != nil {
+		return err
+	}
+
 	// Initialize Assistant
 	err = initAssistant()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// initUpload initialize the upload
+func initUpload() error {
+
+	if Neo.UploadSetting == nil {
+		_, err := attachment.RegisterDefault("chat")
+		if err != nil {
+			return err
+		}
+		_, err = attachment.RegisterDefault("knowledge")
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// If the chat upload setting is not set, use the default chat upload setting.
+	if Neo.UploadSetting.Chat == nil {
+		_, err := attachment.RegisterDefault("chat")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use the chat upload setting for knowledge upload, if the knowledge upload setting is not set.
+	if Neo.UploadSetting.Knowledge == nil {
+		if Neo.UploadSetting.Chat == nil {
+			_, err := attachment.RegisterDefault("knowledge")
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := attachment.Register("knowledge", Neo.UploadSetting.Chat.Driver, *Neo.UploadSetting.Chat)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Use custom chat upload setting
+	if Neo.UploadSetting.Chat != nil {
+		Neo.UploadSetting.Chat.ReplaceEnv(config.Conf.DataRoot)
+		_, err := attachment.Register("chat", Neo.UploadSetting.Chat.Driver, *Neo.UploadSetting.Chat) // Register the chat upload manager
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use custom knowledge upload setting
+	if Neo.UploadSetting.Knowledge != nil {
+		Neo.UploadSetting.Knowledge.ReplaceEnv(config.Conf.DataRoot)
+		_, err := attachment.Register("knowledge", Neo.UploadSetting.Knowledge.Driver, *Neo.UploadSetting.Knowledge)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

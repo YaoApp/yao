@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/attachment/local"
 	"github.com/yaoapp/yao/neo/attachment/s3"
 )
@@ -23,11 +25,6 @@ var Managers = map[string]*Manager{}
 // Register registers a global attachment manager
 func Register(name string, driver string, option ManagerOption) (*Manager, error) {
 
-	// Check if the manager already exists
-	if _, ok := Managers[name]; ok {
-		return nil, fmt.Errorf("manager %s already exists", name)
-	}
-
 	// Create a new manager
 	manager, err := New(option)
 	if err != nil {
@@ -37,6 +34,57 @@ func Register(name string, driver string, option ManagerOption) (*Manager, error
 	// Register the manager
 	Managers[name] = manager
 	return manager, nil
+}
+
+// RegisterDefault registers a default attachment manager
+func RegisterDefault(name string) (*Manager, error) {
+
+	option := ManagerOption{
+		Driver:    "local",
+		Options:   map[string]interface{}{"path": filepath.Join(config.Conf.DataRoot, "attachments")},
+		MaxSize:   "50M",
+		ChunkSize: "2M",
+		AllowedTypes: []string{
+			"text/*",
+			"image/*",
+			"video/*",
+			"audio/*",
+			"application/x-zip-compressed",
+			"application/x-tar",
+			"application/x-gzip",
+			"application/yao",
+			"application/zip",
+			"application/pdf",
+			"application/json",
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+			"application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+		},
+	}
+	return Register(name, option.Driver, option)
+}
+
+// ReplaceEnv replaces the environment variables in the options
+func (option *ManagerOption) ReplaceEnv(root string) {
+	if option.Options != nil {
+		// Replace the environment variables in the options
+		for k, v := range option.Options {
+			if iv, ok := v.(string); ok {
+				if strings.HasPrefix(iv, "$ENV.") {
+					iv = os.ExpandEnv(fmt.Sprintf("${%s}", strings.TrimPrefix(iv, "$ENV.")))
+					option.Options[k] = iv
+				}
+
+				// Path
+				if k == "path" {
+					iv = strings.TrimPrefix(iv, "/")
+					option.Options[k] = filepath.Join(root, iv)
+				}
+
+			}
+		}
+	}
 }
 
 // New creates a new attachment manager
