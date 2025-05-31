@@ -82,6 +82,7 @@ type AuthFields struct {
 // ===============================
 type Upload struct {
 	Chat      *attachment.ManagerOption `json:"chat,omitempty" yaml:"chat,omitempty"`           // Chat conversation upload setting, if not set use the local and root path is `/attachments`.
+	Assets    *attachment.ManagerOption `json:"assets,omitempty" yaml:"assets,omitempty"`       // Asset upload setting, if not set use the chat upload setting.
 	Knowledge *attachment.ManagerOption `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base upload setting, if not set use the chat upload setting.
 }
 

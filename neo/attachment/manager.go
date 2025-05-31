@@ -41,7 +41,7 @@ func RegisterDefault(name string) (*Manager, error) {
 
 	option := ManagerOption{
 		Driver:    "local",
-		Options:   map[string]interface{}{"path": filepath.Join(config.Conf.DataRoot, "attachments")},
+		Options:   map[string]interface{}{"path": filepath.Join(config.Conf.DataRoot, name)},
 		MaxSize:   "50M",
 		ChunkSize: "2M",
 		AllowedTypes: []string{
