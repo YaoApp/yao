@@ -148,6 +148,22 @@ func initUpload() error {
 		}
 	}
 
+	// Use the chat upload setting for asset upload, if the asset upload setting is not set. (public assets)
+	if Neo.UploadSetting.Assets == nil {
+		_, err := attachment.RegisterDefault("assets")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use custom asset upload setting
+	if Neo.UploadSetting.Assets != nil {
+		Neo.UploadSetting.Assets.ReplaceEnv(config.Conf.DataRoot)
+		_, err := attachment.Register("assets", Neo.UploadSetting.Assets.Driver, *Neo.UploadSetting.Assets)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
