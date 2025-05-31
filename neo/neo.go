@@ -68,8 +68,11 @@ func (neo *DSL) Upload(ctx chatctx.Context, c *gin.Context) (*assistant.File, er
 			return nil, err
 		}
 	}
+	fmt.Println(ast)
 
-	return ast.Upload(ctx, tmpfile, reader, option)
+	return nil, nil
+
+	// return ast.Upload(ctx, tmpfile, reader, option)
 }
 
 // Download downloads a file
@@ -93,5 +96,7 @@ func (neo *DSL) Download(ctx chatctx.Context, c *gin.Context) (*assistant.FileRe
 	}
 
 	// Download file using the assistant
-	return ast.Download(ctx.Context, fileID)
+	// return ast.Download(ctx.Context, fileID)
+	fmt.Println(ast)
+	return nil, nil
 }
