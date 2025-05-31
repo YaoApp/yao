@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"mime/multipart"
+	"net/textproto"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -36,6 +38,25 @@ func Register(name string, driver string, option ManagerOption) (*Manager, error
 	return manager, nil
 }
 
+// ToFileHeader converts a multipart.FileHeader or textproto.MIMEHeader to a FileHeader
+func ToFileHeader(header interface{}) (*FileHeader, error) {
+
+	switch header := header.(type) {
+	case *multipart.FileHeader:
+		return &FileHeader{
+			FileHeader: header,
+		}, nil
+	case textproto.MIMEHeader:
+		return &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Header: header,
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("invalid header type: %T", header)
+	}
+}
+
 // RegisterDefault registers a default attachment manager
 func RegisterDefault(name string) (*Manager, error) {
 
@@ -60,6 +81,22 @@ func RegisterDefault(name string) (*Manager, error) {
 			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 			"application/vnd.openxmlformats-officedocument.presentationml.presentation",
 			"application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+			".md",
+			".txt",
+			".csv",
+			".xls",
+			".xlsx",
+			".ppt",
+			".pptx",
+			".doc",
+			".docx",
+			".mdx",
+			".m4a",
+			".mp3",
+			".mp4",
+			".wav",
+			".webm",
+			".yao",
 		},
 	}
 	return Register(name, option.Driver, option)
@@ -363,7 +400,14 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 
 	// Get the content type
 	contentType := file.Header.Get("Content-Type")
-	extension := filepath.Ext(file.Filename)
+
+	// Use original filename if provided, otherwise use the file header filename
+	filename := file.Filename
+	if option.OriginalFilename != "" {
+		filename = option.OriginalFilename
+	}
+
+	extension := filepath.Ext(filename)
 
 	// Get the extension from the content type if not available from filename
 	if extension == "" {
@@ -400,7 +444,7 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 
 	// Validate allowed types
 	if !manager.allowed(contentType, extension) {
-		return nil, fmt.Errorf("%s type %s is not allowed", file.Filename, contentType)
+		return nil, fmt.Errorf("%s type %s is not allowed", filename, contentType)
 	}
 
 	// Generate file ID
@@ -411,7 +455,7 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 
 	return &File{
 		ID:          id,
-		Filename:    file.Filename,
+		Filename:    filename, // Use the correct filename (original or from header)
 		ContentType: contentType,
 		Bytes:       int(file.Size),
 		CreatedAt:   int(time.Now().Unix()),
@@ -445,6 +489,12 @@ func (manager Manager) allowed(contentType string, extension string) bool {
 // generateFileID generates a file ID with proper namespace
 func (manager Manager) generateFileID(file *FileHeader, extension string, option UploadOption) (string, error) {
 	filename := file.Filename
+
+	// Use original filename if provided for better file identification
+	if option.OriginalFilename != "" {
+		filename = option.OriginalFilename
+	}
+
 	if file.IsChunk() {
 		filename = file.UID()
 	}
@@ -464,7 +514,7 @@ func (manager Manager) generateFileID(file *FileHeader, extension string, option
 		path = filepath.Join(path, option.AssistantID)
 	}
 
-	return filepath.Join(path, hash[:2], hash[2:4], hash, extension), nil
+	return filepath.Join(path, hash[:2], hash[2:4], hash) + extension, nil
 }
 
 // getSize converts the size to bytes

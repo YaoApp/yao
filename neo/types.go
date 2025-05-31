@@ -68,7 +68,7 @@ type AuthModels struct {
 type AuthSessionFields struct {
 	ID    string `json:"id,omitempty" yaml:"id,omitempty"`       // the field name of the user id, default is user_id
 	Roles string `json:"roles,omitempty" yaml:"roles,omitempty"` // the field name of the user roles, default is user_roles. the value must be an JSON array string.
-	Guest string `json:"guest,omitempty" yaml:"guest,omitempty"` // the field name of the guest user, default is guest
+	Guest string `json:"guest,omitempty" yaml:"guest,omitempty"` // the field name of the guest user, default is guest_id
 }
 
 // AuthFields the auth field
