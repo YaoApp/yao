@@ -6,6 +6,7 @@ import (
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/neo/attachment"
@@ -77,6 +78,12 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Initialize Auth
+	err = initAuth()
+	if err != nil {
+		return err
+	}
+
 	// Initialize Upload
 	err = initUpload()
 	if err != nil {
@@ -87,6 +94,79 @@ func Load(cfg config.Config) error {
 	err = initAssistant()
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// initAuth initialize the auth
+func initAuth() error {
+	if Neo.AuthSetting == nil {
+		Neo.AuthSetting = &Auth{
+			Models:        &AuthModels{User: "admin.user", Guest: "guest"},
+			Fields:        &AuthFields{ID: "id", Roles: "roles", Permission: "permission"},
+			SessionFields: &AuthSessionFields{ID: "user_id", Roles: "user_roles", Guest: "guest_id"},
+		}
+	}
+
+	if Neo.AuthSetting.Models == nil {
+		Neo.AuthSetting.Models = &AuthModels{User: "admin.user", Guest: "guest"}
+	}
+
+	if Neo.AuthSetting.Fields == nil {
+		Neo.AuthSetting.Fields = &AuthFields{ID: "id", Roles: "roles", Permission: "permission"}
+	}
+
+	if Neo.AuthSetting.SessionFields == nil {
+		Neo.AuthSetting.SessionFields = &AuthSessionFields{ID: "user_id", Roles: "user_roles", Guest: "guest_id"}
+	}
+
+	if Neo.AuthSetting.Models.User == "" {
+		Neo.AuthSetting.Models.User = "admin.user"
+	}
+
+	if Neo.AuthSetting.Models.Guest == "" {
+		Neo.AuthSetting.Models.Guest = "guest"
+	}
+
+	if Neo.AuthSetting.Fields.Roles == "" {
+		Neo.AuthSetting.Fields.Roles = "roles"
+	}
+
+	if Neo.AuthSetting.Fields.Permission == "" {
+		Neo.AuthSetting.Fields.Permission = "permission"
+	}
+
+	if Neo.AuthSetting.Fields.ID == "" {
+		Neo.AuthSetting.Fields.ID = "id"
+	}
+
+	if Neo.AuthSetting.Fields.ID == "" {
+		Neo.AuthSetting.Fields.ID = "id"
+	}
+
+	if Neo.AuthSetting.SessionFields.ID == "" {
+		Neo.AuthSetting.SessionFields.ID = "user_id"
+	}
+
+	if Neo.AuthSetting.SessionFields.Roles == "" {
+		Neo.AuthSetting.SessionFields.Roles = "user_roles"
+	}
+
+	if Neo.AuthSetting.SessionFields.Guest == "" {
+		Neo.AuthSetting.SessionFields.Guest = "guest_id"
+	}
+
+	// Validate User Model and Fields
+	if !model.Exists(Neo.AuthSetting.Models.User) {
+		return fmt.Errorf("model %s not found", Neo.AuthSetting.Models.User)
+	}
+	user := model.Select(Neo.AuthSetting.Models.User)
+	shouldHave := []string{Neo.AuthSetting.Fields.ID, Neo.AuthSetting.Fields.Roles, Neo.AuthSetting.Fields.Permission}
+	for _, name := range shouldHave {
+		if _, has := user.Columns[name]; !has {
+			return fmt.Errorf("model %s should have column %s", Neo.AuthSetting.Models.User, name)
+		}
 	}
 
 	return nil

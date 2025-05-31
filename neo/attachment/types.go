@@ -77,14 +77,14 @@ type allowedType struct {
 
 // UploadOption the upload option
 type UploadOption struct {
-	CompressImage bool   `json:"compress_image,omitempty"` // Compress the file, Optional, default is true
-	CompressSize  int    `json:"compress_size,omitempty"`  // Compress the file size, Optional, default is 1920, if compress_image is true, the file size will be compressed to the compress_size
-	Gzip          bool   `json:"gzip,omitempty"`           // Gzip the file, Optional, default is false
-	Knowledge     bool   `json:"knowledge,omitempty"`      // Push to knowledge base, Optional, default is false
-	ChatID        string `json:"chat_id,omitempty"`        // Chat ID, Optional
-	AssistantID   string `json:"assistant_id,omitempty"`   // Assistant ID, Optional
-	UserID        string `json:"user_id,omitempty"`        // User ID, Optional
-	ChunkSize     string `json:"chunk_size,omitempty"`     // Chunk size of the file, Optional, default is 2M, default is 2M
+	CompressImage    bool   `json:"compress_image,omitempty" form:"compress_image"`       // Compress the file, Optional, default is true
+	CompressSize     int    `json:"compress_size,omitempty" form:"compress_size"`         // Compress the file size, Optional, default is 1920, if compress_image is true, the file size will be compressed to the compress_size
+	Gzip             bool   `json:"gzip,omitempty" form:"gzip"`                           // Gzip the file, Optional, default is false
+	Knowledge        bool   `json:"knowledge,omitempty" form:"knowledge"`                 // Push to knowledge base, Optional, default is false
+	ChatID           string `json:"chat_id,omitempty" form:"chat_id"`                     // Chat ID, Optional
+	AssistantID      string `json:"assistant_id,omitempty" form:"assistant_id"`           // Assistant ID, Optional
+	UserID           string `json:"user_id,omitempty"`                                    // User ID, Optional
+	OriginalFilename string `json:"original_filename,omitempty" form:"original_filename"` // Original filename sent separately to avoid encoding issues
 }
 
 // FileHeader the file header

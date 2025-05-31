@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/neo/attachment"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
@@ -36,7 +38,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/chats", neo.optionsHandler)
 	router.OPTIONS(path+"/chats/:id", neo.optionsHandler)
 	router.OPTIONS(path+"/history", neo.optionsHandler)
-	router.OPTIONS(path+"/upload", neo.optionsHandler)
+	router.OPTIONS(path+"/upload/:storage", neo.optionsHandler)
 	router.OPTIONS(path+"/download", neo.optionsHandler)
 	router.OPTIONS(path+"/mentions", neo.optionsHandler)
 	router.OPTIONS(path+"/generate", neo.optionsHandler)
@@ -122,7 +124,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Upload file example:
 	// curl -X POST 'http://localhost:5099/api/__yao/neo/upload?chat_id=chat_123&token=xxx' \
 	//   -F 'file=@/path/to/file.txt'
-	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
+	router.POST(path+"/upload/:storage", append(middlewares, neo.handleUpload)...)
 
 	// Download file example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/download?file_id=file_123&disposition=attachment&token=xxx' \
@@ -177,19 +179,91 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 		sid = uuid.New().String()
 	}
 
-	// Set the context
-	ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
-	defer cancel()
-
-	// Upload the file
-	file, err := neo.Upload(ctx, c)
+	uid, err := neo.UserOrGuestID(sid)
 	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.JSON(401, gin.H{"message": fmt.Sprintf("Unauthorized, %s", err.Error()), "code": 401})
 		c.Done()
 		return
 	}
 
-	c.JSON(200, file)
+	if uid == nil || uid == "" {
+		c.JSON(401, gin.H{"message": "Unauthorized", "code": 401})
+		c.Done()
+		return
+	}
+
+	// Storage name must be chat, knowledge or assets
+	storage := c.Param("storage")
+	if storage != "chat" && storage != "knowledge" && storage != "assets" {
+		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get the manager
+	var manager, ok = attachment.Managers[storage]
+	if !ok {
+		c.JSON(400, gin.H{"message": "Invalid storage: " + storage, "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get Option from form data
+	var option attachment.UploadOption
+	err = c.ShouldBind(&option)
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.Done()
+		return
+	}
+
+	// Validate the option with the storage
+	option.UserID = fmt.Sprintf("%v", uid)
+
+	if storage == "chat" {
+		if option.ChatID == "" {
+			c.JSON(400, gin.H{"message": "chat_id is required", "code": 400})
+			c.Done()
+			return
+		}
+	}
+
+	// Get the file
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.Done()
+		return
+	}
+
+	// Open the file
+	reader, err := file.Open()
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.Done()
+		return
+	}
+	defer func() {
+		reader.Close()
+		os.Remove(file.Filename)
+	}()
+
+	// Convert the header to a FileHeader
+	header, err := attachment.ToFileHeader(file.Header)
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.Done()
+		return
+	}
+
+	// Upload the file
+	res, err := manager.Upload(c.Request.Context(), header, reader, option)
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+	c.JSON(200, map[string]interface{}{"data": res})
 	c.Done()
 }
 
@@ -402,7 +476,7 @@ func (neo *DSL) corsMiddleware(allowsMap map[string]bool) gin.HandlerFunc {
 		// Set CORS headers
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Uid, Content-Range")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
 		if c.Request.Method == "OPTIONS" {
@@ -420,7 +494,7 @@ func (neo *DSL) optionsHandler(c *gin.Context) {
 	if origin != "" {
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Content-Sync, Content-Uid, Content-Range")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400") // 24 hours
 	}
