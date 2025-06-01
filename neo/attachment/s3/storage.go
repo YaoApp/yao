@@ -2,6 +2,7 @@ package s3
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
 	"image"
@@ -229,6 +230,15 @@ func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadClose
 		return nil, fmt.Errorf("failed to get file: %w", err)
 	}
 
+	// If the file is a gzip file, decompress it
+	if strings.HasSuffix(fileID, ".gz") {
+		reader, err := gzip.NewReader(result.Body)
+		if err != nil {
+			return nil, err
+		}
+		return reader, nil
+	}
+
 	return result.Body, nil
 }
 
@@ -252,6 +262,51 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 	contentType := "application/octet-stream"
 	if result.ContentType != nil {
 		contentType = *result.ContentType
+	}
+
+	// Try to detect content type from file extension
+	ext := filepath.Ext(strings.TrimSuffix(fileID, ".gz"))
+	switch strings.ToLower(ext) {
+	case ".txt":
+		contentType = "text/plain"
+	case ".html":
+		contentType = "text/html"
+	case ".css":
+		contentType = "text/css"
+	case ".js":
+		contentType = "application/javascript"
+	case ".json":
+		contentType = "application/json"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".pdf":
+		contentType = "application/pdf"
+	case ".mp4":
+		contentType = "video/mp4"
+	case ".mp3":
+		contentType = "audio/mpeg"
+	case ".wav":
+		contentType = "audio/wav"
+	case ".ogg":
+		contentType = "audio/ogg"
+	case ".webm":
+		contentType = "video/webm"
+	case ".webp":
+		contentType = "image/webp"
+	case ".zip":
+	}
+
+	// If the file is a gzip file, decompress it
+	if strings.HasSuffix(fileID, ".gz") {
+		reader, err := gzip.NewReader(result.Body)
+		if err != nil {
+			return nil, "", err
+		}
+		return reader, contentType, nil
 	}
 
 	return result.Body, contentType, nil
