@@ -299,6 +299,9 @@ CREATE TABLE neo_attachment (
     gzip BOOLEAN DEFAULT FALSE INDEX,          -- Compression flag
     bytes BIGINT INDEX,                        -- File size
     collection_id VARCHAR(200) INDEX,          -- Associated knowledge collection
+    status ENUM('uploading', 'uploaded', 'indexing', 'indexed', 'upload_failed', 'index_failed') DEFAULT 'uploading' INDEX, -- Processing status
+    progress VARCHAR(200),                     -- Progress information (nullable)
+    error VARCHAR(600),                        -- Error message (nullable)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP INDEX,
     updated_at TIMESTAMP INDEX
 );
@@ -352,6 +355,26 @@ type AssistantFilter struct {
     Mentionable  *bool    `json:"mentionable,omitempty"`   // Mentionable status
     Automated    *bool    `json:"automated,omitempty"`     // Automation status
     BuiltIn      *bool    `json:"built_in,omitempty"`      // Built-in status
+    Page         int      `json:"page,omitempty"`          // Page number
+    PageSize     int      `json:"pagesize,omitempty"`      // Items per page
+    Select       []string `json:"select,omitempty"`        // Fields to return
+}
+```
+
+#### AttachmentFilter
+
+```go
+type AttachmentFilter struct {
+    UID          string   `json:"uid,omitempty"`           // Filter by user ID
+    Guest        *bool    `json:"guest,omitempty"`         // Filter by guest status
+    Manager      string   `json:"manager,omitempty"`       // Filter by upload manager
+    ContentType  string   `json:"content_type,omitempty"`  // Filter by content type
+    Name         string   `json:"name,omitempty"`          // Filter by filename
+    Public       *bool    `json:"public,omitempty"`        // Filter by public status
+    Gzip         *bool    `json:"gzip,omitempty"`          // Filter by gzip compression
+    CollectionID string   `json:"collection_id,omitempty"` // Filter by knowledge collection ID
+    Status       string   `json:"status,omitempty"`        // Filter by processing status
+    Keywords     string   `json:"keywords,omitempty"`      // Search in filename
     Page         int      `json:"page,omitempty"`          // Page number
     PageSize     int      `json:"pagesize,omitempty"`      // Items per page
     Select       []string `json:"select,omitempty"`        // Fields to return
@@ -439,18 +462,64 @@ attachment := map[string]interface{}{
     "bytes": 102400,
     "collection_id": "knowledge456",
     "scope": []string{"user", "admin"},
+    "status": "uploaded",           // Status: uploading, uploaded, indexing, indexed, upload_failed, index_failed
+    "progress": "Upload completed", // Progress information (optional)
+    "error": nil,                   // Error message (optional, for failed statuses)
 }
 fileID, err := store.SaveAttachment(attachment)
+
+// Update attachment status during processing workflow
+attachment["status"] = "indexing"
+attachment["progress"] = "Processing file for indexing..."
+_, err = store.SaveAttachment(attachment)
+
+// Handle failed upload
+attachment["status"] = "upload_failed"
+attachment["progress"] = nil
+attachment["error"] = "Network connection timeout"
+_, err = store.SaveAttachment(attachment)
+
+// Complete indexing
+attachment["status"] = "indexed"
+attachment["progress"] = "File indexed successfully"
+attachment["error"] = nil
+_, err = store.SaveAttachment(attachment)
 
 // Get attachments with filtering
 filter := AttachmentFilter{
     UID: "user123",
     ContentType: "image/jpeg",
+    Status: "indexed", // Filter by status
     Page: 1,
     PageSize: 20,
 }
 attachments, err := store.GetAttachments(filter)
+
+// Get all failed uploads
+failedFilter := AttachmentFilter{
+    UID: "user123",
+    Status: "upload_failed",
+    Page: 1,
+    PageSize: 10,
+}
+failedUploads, err := store.GetAttachments(failedFilter)
 ```
+
+#### Attachment Status Workflow
+
+The attachment system supports a complete file processing workflow with the following status values:
+
+- **`uploading`** (default): File upload is in progress
+- **`uploaded`**: File upload completed successfully
+- **`indexing`**: File is being processed for search indexing
+- **`indexed`**: File has been indexed and is ready for use
+- **`upload_failed`**: File upload failed (check `error` field for details)
+- **`index_failed`**: File indexing failed (check `error` field for details)
+
+#### Additional Fields
+
+- **`progress`**: Human-readable progress information (string, nullable)
+- **`error`**: Error message for failed operations (string, nullable, max 600 characters)
 
 ### 4. Knowledge Collection Management
 

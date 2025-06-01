@@ -367,6 +367,9 @@ func (conv *Xun) initAttachmentTable() error {
 			table.Boolean("gzip").SetDefault(false).Index()
 			table.BigInteger("bytes").Index()
 			table.String("collection_id", 200).Null().Index()
+			table.Enum("status", []string{"uploading", "uploaded", "indexing", "indexed", "upload_failed", "index_failed"}).SetDefault("uploading").Index() // Status field enum
+			table.String("progress", 200).Null()                                                                                                            // Progress information
+			table.String("error", 600).Null()                                                                                                               // Error information
 			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
@@ -383,7 +386,7 @@ func (conv *Xun) initAttachmentTable() error {
 		return err
 	}
 
-	fields := []string{"id", "file_id", "uid", "guest", "manager", "content_type", "name", "public", "scope", "gzip", "bytes", "collection_id", "created_at", "updated_at"}
+	fields := []string{"id", "file_id", "uid", "guest", "manager", "content_type", "name", "public", "scope", "gzip", "bytes", "collection_id", "status", "progress", "error", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -1789,6 +1792,11 @@ func (conv *Xun) GetAttachments(filter AttachmentFilter, locale ...string) (*Att
 		qb.Where("collection_id", filter.CollectionID)
 	}
 
+	// Apply status filter if provided
+	if filter.Status != "" {
+		qb.Where("status", filter.Status)
+	}
+
 	// Apply keyword filter if provided
 	if filter.Keywords != "" {
 		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
@@ -1943,6 +1951,11 @@ func (conv *Xun) DeleteAttachments(filter AttachmentFilter) (int64, error) {
 	// Apply collection_id filter if provided
 	if filter.CollectionID != "" {
 		qb.Where("collection_id", filter.CollectionID)
+	}
+
+	// Apply status filter if provided
+	if filter.Status != "" {
+		qb.Where("status", filter.Status)
 	}
 
 	// Apply keyword filter if provided
