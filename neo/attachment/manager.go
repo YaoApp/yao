@@ -36,10 +36,10 @@ type UploadChunk struct {
 }
 
 // GetHeader gets the header from the file header and request header
-func GetHeader(requestHeader http.Header, fileHeader textproto.MIMEHeader) *FileHeader {
+func GetHeader(requestHeader http.Header, fileHeader textproto.MIMEHeader, size int64) *FileHeader {
 
 	// Convert the header to a FileHeader
-	header := &FileHeader{FileHeader: &multipart.FileHeader{Header: make(map[string][]string)}}
+	header := &FileHeader{FileHeader: &multipart.FileHeader{Header: make(map[string][]string), Size: size}}
 
 	for key, values := range fileHeader {
 		for _, value := range values {
@@ -267,6 +267,10 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 			return nil, err
 		}
 
+		// Fix the file size, the file size is the sum of all chunks
+		file.Bytes = chunkIndex * int(chunkdata.Chunksize)
+		file.Status = "uploading"
+
 		// If this is the last chunk, merge all chunks
 		if fileheader.Complete() {
 			err = manager.storage.MergeChunks(ctx, file.ID, int(chunkdata.TotalChunks))
@@ -284,6 +288,10 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 
 			// Remove the chunk data
 			uploadChunks.Delete(file.ID)
+
+			// Fix the file size
+			file.Bytes = int(chunkdata.Total)
+			file.Status = "uploaded"
 		}
 
 		return file, nil
@@ -346,6 +354,7 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 
 	// Update the file ID
 	file.ID = id
+	file.Status = "uploaded"
 	return file, nil
 }
 
@@ -487,6 +496,7 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 		ContentType: contentType,
 		Bytes:       int(file.Size),
 		CreatedAt:   int(time.Now().Unix()),
+		Status:      "uploading",
 	}, nil
 }
 
@@ -516,7 +526,13 @@ func (manager Manager) allowed(contentType string, extension string) bool {
 
 // generateFileID generates a file ID with proper namespace
 func (manager Manager) generateFileID(file *FileHeader, extension string, option UploadOption) (string, error) {
-	filename := file.Filename
+
+	filename := file.Fingerprint()
+
+	// If the fingerprint is not set, use the filename
+	if filename == "" {
+		filename = file.Filename
+	}
 
 	// Use original filename if provided for better file identification
 	if option.OriginalFilename != "" {

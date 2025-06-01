@@ -86,6 +86,14 @@ type Upload struct {
 	Knowledge *attachment.ManagerOption `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base upload setting, if not set use the chat upload setting.
 }
 
+// UploadOption the upload option
+type UploadOption struct {
+	attachment.UploadOption
+	Public       bool        `json:"public,omitempty" yaml:"public,omitempty, form:public"`                      // The public of the file, default is false
+	Scope        interface{} `json:"scope,omitempty" yaml:"scope,omitempty, form:scope"`                         // The scope of the file, default is private
+	CollectionID string      `json:"collection_id,omitempty" yaml:"collection_id,omitempty, form:collection_id"` // The collection id of the file, default is empty
+}
+
 // Knowledge base Settings
 // ===============================
 type Knowledge struct {

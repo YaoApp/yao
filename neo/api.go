@@ -179,7 +179,7 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 		sid = uuid.New().String()
 	}
 
-	uid, err := neo.UserOrGuestID(sid)
+	uid, isGuest, err := neo.UserOrGuestID(sid)
 	if err != nil {
 		c.JSON(401, gin.H{"message": fmt.Sprintf("Unauthorized, %s", err.Error()), "code": 401})
 		c.Done()
@@ -209,7 +209,7 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 	}
 
 	// Get Option from form data
-	var option attachment.UploadOption
+	var option UploadOption
 	err = c.ShouldBind(&option)
 	if err != nil {
 		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
@@ -226,6 +226,13 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 			c.Done()
 			return
 		}
+
+	} else if storage == "knowledge" {
+		if option.CollectionID == "" {
+			c.JSON(400, gin.H{"message": "collection_id is required", "code": 400})
+			c.Done()
+			return
+		}
 	}
 
 	// Get the file
@@ -239,7 +246,7 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 	// Open the file
 	reader, err := file.Open()
 	if err != nil {
-		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
@@ -249,13 +256,48 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 	}()
 
 	// Upload the file
-	header := attachment.GetHeader(c.Request.Header, file.Header)
-	res, err := manager.Upload(c.Request.Context(), header, reader, option)
+	header := attachment.GetHeader(c.Request.Header, file.Header, file.Size)
+	res, err := manager.Upload(c.Request.Context(), header, reader, option.UploadOption)
 	if err != nil {
-		c.JSON(400, gin.H{"message": err.Error(), "code": 500})
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
+
+	// if storage is chat or knowledge, save the file to the store
+	if storage == "chat" || storage == "knowledge" {
+
+		attachment := map[string]interface{}{
+			"file_id":      res.ID,
+			"uid":          uid,
+			"guest":        isGuest,
+			"manager":      storage,
+			"public":       option.Public,
+			"name":         option.OriginalFilename,
+			"content_type": res.ContentType,
+			"bytes":        res.Bytes,
+			"gzip":         option.Gzip,
+			"status":       res.Status,
+		}
+
+		// Set the scope
+		if option.Scope != nil {
+			attachment["scope"] = option.Scope
+		}
+
+		// Set the collection_id
+		if option.CollectionID != "" {
+			attachment["collection_id"] = option.CollectionID
+		}
+
+		_, err = neo.Store.SaveAttachment(attachment)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+	}
+
 	c.JSON(200, map[string]interface{}{"data": res})
 	c.Done()
 }
@@ -469,7 +511,7 @@ func (neo *DSL) corsMiddleware(allowsMap map[string]bool) gin.HandlerFunc {
 		// Set CORS headers
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Uid, Content-Range")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 
 		if c.Request.Method == "OPTIONS" {
@@ -487,7 +529,7 @@ func (neo *DSL) optionsHandler(c *gin.Context) {
 	if origin != "" {
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Content-Sync, Content-Uid, Content-Range")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400") // 24 hours
 	}
