@@ -118,14 +118,8 @@ func TestManagerUpload(t *testing.T) {
 			t.Fatalf("Failed to read gzipped file: %v", err)
 		}
 
-		// Since we're storing compressed data, we need to decompress it
-		decompressed, err := Gunzip(downloadedContent)
-		if err != nil {
-			t.Fatalf("Failed to decompress file: %v", err)
-		}
-
-		if string(decompressed) != content {
-			t.Errorf("Expected content '%s', got '%s'", content, string(decompressed))
+		if string(downloadedContent) != content {
+			t.Errorf("Expected content '%s', got '%s'", content, string(downloadedContent))
 		}
 	})
 
@@ -158,10 +152,7 @@ func TestManagerUpload(t *testing.T) {
 				fmt.Sprintf("bytes %d-%d/%d", start, end, totalSize))
 			fileHeader.Header.Set("Content-Uid", "unique-file-id-123")
 
-			option := UploadOption{
-				UserID: "user123",
-			}
-
+			option := UploadOption{UserID: "user123"}
 			file, err := manager.Upload(context.Background(), fileHeader, bytes.NewReader(chunk), option)
 			if err != nil {
 				t.Fatalf("Failed to upload chunk starting at %d: %v", start, err)

@@ -248,15 +248,8 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 		os.Remove(file.Filename)
 	}()
 
-	// Convert the header to a FileHeader
-	header, err := attachment.ToFileHeader(file.Header)
-	if err != nil {
-		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
-		c.Done()
-		return
-	}
-
 	// Upload the file
+	header := attachment.GetHeader(c.Request.Header, file.Header)
 	res, err := manager.Upload(c.Request.Context(), header, reader, option)
 	if err != nil {
 		c.JSON(400, gin.H{"message": err.Error(), "code": 500})

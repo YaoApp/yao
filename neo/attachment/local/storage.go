@@ -1,6 +1,7 @@
 package local
 
 import (
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"fmt"
@@ -142,10 +143,21 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 // Reader read file from local storage
 func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadCloser, error) {
 	fullpath := filepath.Join(storage.Path, fileID)
+
 	reader, err := os.Open(fullpath)
 	if err != nil {
 		return nil, err
 	}
+
+	// If the file is a gzip file, decompress it
+	if strings.HasSuffix(fileID, ".gz") {
+		reader, err := gzip.NewReader(reader)
+		if err != nil {
+			return nil, err
+		}
+		return reader, nil
+	}
+
 	return reader, nil
 }
 
@@ -159,7 +171,7 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 
 	// Try to detect content type from file extension
 	contentType := "application/octet-stream"
-	ext := filepath.Ext(path)
+	ext := filepath.Ext(strings.TrimSuffix(fileID, ".gz"))
 	switch strings.ToLower(ext) {
 	case ".txt":
 		contentType = "text/plain"
@@ -179,6 +191,28 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 		contentType = "image/gif"
 	case ".pdf":
 		contentType = "application/pdf"
+	case ".mp4":
+		contentType = "video/mp4"
+	case ".mp3":
+		contentType = "audio/mpeg"
+	case ".wav":
+		contentType = "audio/wav"
+	case ".ogg":
+		contentType = "audio/ogg"
+	case ".webm":
+		contentType = "video/webm"
+	case ".webp":
+		contentType = "image/webp"
+	case ".zip":
+	}
+
+	// If the file is a gzip file, decompress it
+	if strings.HasSuffix(fileID, ".gz") {
+		reader, err := gzip.NewReader(reader)
+		if err != nil {
+			return nil, "", err
+		}
+		return reader, contentType, nil
 	}
 
 	return reader, contentType, nil
