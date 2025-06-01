@@ -235,6 +235,7 @@ type AttachmentFilter struct {
 	Public       *bool    `json:"public,omitempty"`        // Filter by public status
 	Gzip         *bool    `json:"gzip,omitempty"`          // Filter by gzip compression
 	CollectionID string   `json:"collection_id,omitempty"` // Filter by knowledge collection ID
+	Status       string   `json:"status,omitempty"`        // Filter by processing status (uploading, uploaded, indexing, indexed, upload_failed, index_failed)
 	Keywords     string   `json:"keywords,omitempty"`      // Search in filename
 	Page         int      `json:"page,omitempty"`          // Page number, starting from 1
 	PageSize     int      `json:"pagesize,omitempty"`      // Items per page

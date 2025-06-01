@@ -1289,6 +1289,9 @@ func TestXunAttachmentCRUD(t *testing.T) {
 		"gzip":         false,
 		"bytes":        102400,
 		"scope":        []string{"user", "admin"},
+		"status":       "uploaded",
+		"progress":     "100%",
+		"error":        nil,
 	}
 
 	v, err := store.SaveAttachment(attachment)
@@ -1307,10 +1310,16 @@ func TestXunAttachmentCRUD(t *testing.T) {
 	assert.Equal(t, "test-image.jpg", attachmentData["name"])
 	assert.Equal(t, int64(1), attachmentData["public"])
 	assert.Equal(t, []interface{}{"user", "admin"}, attachmentData["scope"])
+	assert.Equal(t, "uploaded", attachmentData["status"])
+	assert.Equal(t, "100%", attachmentData["progress"])
+	assert.Nil(t, attachmentData["error"])
 
 	// Test SaveAttachment (Update)
 	attachment["name"] = "updated-image.jpg"
 	attachment["bytes"] = 204800
+	attachment["status"] = "indexing"
+	attachment["progress"] = "Processing..."
+	attachment["error"] = "Connection timeout"
 	v, err = store.SaveAttachment(attachment)
 	assert.Nil(t, err)
 	assert.Equal(t, "test-file-123", v.(string))
@@ -1320,6 +1329,9 @@ func TestXunAttachmentCRUD(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "updated-image.jpg", attachmentData["name"])
 	assert.Equal(t, int64(204800), attachmentData["bytes"])
+	assert.Equal(t, "indexing", attachmentData["status"])
+	assert.Equal(t, "Processing...", attachmentData["progress"])
+	assert.Equal(t, "Connection timeout", attachmentData["error"])
 
 	// Test GetAttachments with filters
 	resp, err := store.GetAttachments(AttachmentFilter{
@@ -1707,6 +1719,152 @@ func TestXunAttachmentFiltering(t *testing.T) {
 	assert.Equal(t, 0, len(resp.Data))
 
 	// Clean up all test data
+	_, err = store.DeleteAttachments(AttachmentFilter{})
+	assert.Nil(t, err)
+}
+
+func TestXunAttachmentStatusFields(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+
+	// Drop attachment table before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean up any existing data
+	_, err = store.DeleteAttachments(AttachmentFilter{})
+	assert.Nil(t, err)
+
+	// Test all possible enum status values
+	statusValues := []string{"uploading", "uploaded", "indexing", "indexed", "upload_failed", "index_failed"}
+
+	for i, status := range statusValues {
+		// Create attachment with specific status
+		attachment := map[string]interface{}{
+			"file_id":      fmt.Sprintf("test-file-%s-%d", status, i),
+			"uid":          "user-123",
+			"manager":      "local",
+			"content_type": "image/jpeg",
+			"name":         fmt.Sprintf("test-%s.jpg", status),
+			"guest":        false,
+			"public":       true,
+			"gzip":         false,
+			"bytes":        102400,
+			"status":       status,
+			"progress":     fmt.Sprintf("%s in progress", status),
+			"error":        nil,
+		}
+
+		// Set error message for failed statuses
+		if status == "upload_failed" || status == "index_failed" {
+			attachment["error"] = fmt.Sprintf("%s error occurred", status)
+		}
+
+		v, err := store.SaveAttachment(attachment)
+		assert.Nil(t, err)
+		fileID := v.(string)
+
+		// Verify the attachment was saved with correct status
+		attachmentData, err := store.GetAttachment(fileID)
+		assert.Nil(t, err)
+		assert.Equal(t, status, attachmentData["status"])
+		assert.Equal(t, fmt.Sprintf("%s in progress", status), attachmentData["progress"])
+
+		if status == "upload_failed" || status == "index_failed" {
+			assert.Equal(t, fmt.Sprintf("%s error occurred", status), attachmentData["error"])
+		} else {
+			assert.Nil(t, attachmentData["error"])
+		}
+	}
+
+	// Test default status value (should be "uploading")
+	attachmentWithoutStatus := map[string]interface{}{
+		"file_id":      "test-file-default",
+		"uid":          "user-123",
+		"manager":      "local",
+		"content_type": "image/jpeg",
+		"name":         "test-default.jpg",
+		"guest":        false,
+		"public":       true,
+		"gzip":         false,
+		"bytes":        102400,
+		// status not specified - should use default
+	}
+
+	v, err := store.SaveAttachment(attachmentWithoutStatus)
+	assert.Nil(t, err)
+	fileID := v.(string)
+
+	// Verify default status
+	attachmentData, err := store.GetAttachment(fileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "uploading", attachmentData["status"]) // Should be default value
+	assert.Nil(t, attachmentData["progress"])              // Should be null
+	assert.Nil(t, attachmentData["error"])                 // Should be null
+
+	// Test updating status workflow: uploading -> uploaded -> indexing -> indexed
+	workflowAttachment := map[string]interface{}{
+		"file_id":      "test-file-workflow",
+		"uid":          "user-123",
+		"manager":      "local",
+		"content_type": "text/plain",
+		"name":         "workflow-test.txt",
+		"status":       "uploading",
+		"progress":     "Starting upload...",
+	}
+
+	v, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+	workflowFileID := v.(string)
+
+	// Update to uploaded
+	workflowAttachment["status"] = "uploaded"
+	workflowAttachment["progress"] = "Upload completed, starting indexing..."
+	_, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+
+	attachmentData, err = store.GetAttachment(workflowFileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "uploaded", attachmentData["status"])
+	assert.Equal(t, "Upload completed, starting indexing...", attachmentData["progress"])
+
+	// Update to indexing
+	workflowAttachment["status"] = "indexing"
+	workflowAttachment["progress"] = "Indexing in progress..."
+	_, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+
+	attachmentData, err = store.GetAttachment(workflowFileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "indexing", attachmentData["status"])
+	assert.Equal(t, "Indexing in progress...", attachmentData["progress"])
+
+	// Update to indexed (final state)
+	workflowAttachment["status"] = "indexed"
+	workflowAttachment["progress"] = "Indexing completed"
+	_, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+
+	attachmentData, err = store.GetAttachment(workflowFileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "indexed", attachmentData["status"])
+	assert.Equal(t, "Indexing completed", attachmentData["progress"])
+
+	// Clean up test data
 	_, err = store.DeleteAttachments(AttachmentFilter{})
 	assert.Nil(t, err)
 }
