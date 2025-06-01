@@ -77,7 +77,7 @@ type Setting struct {
 #### Database Configuration
 
 ```yaml
-# app.yao
+# neo.yml
 neo:
   store:
     connector: "mysql" # or "postgresql", "sqlite", "default"
@@ -381,6 +381,22 @@ type AttachmentFilter struct {
 }
 ```
 
+#### KnowledgeFilter
+
+```go
+type KnowledgeFilter struct {
+    UID      string   `json:"uid,omitempty"`      // Filter by user ID
+    Name     string   `json:"name,omitempty"`     // Filter by collection name
+    Keywords string   `json:"keywords,omitempty"` // Search in name and description
+    Public   *bool    `json:"public,omitempty"`   // Filter by public status
+    Readonly *bool    `json:"readonly,omitempty"` // Filter by readonly status
+    System   *bool    `json:"system,omitempty"`   // Filter by system status
+    Page     int      `json:"page,omitempty"`     // Page number
+    PageSize int      `json:"pagesize,omitempty"` // Items per page
+    Select   []string `json:"select,omitempty"`   // Fields to return
+}
+```
+
 ## Usage Examples
 
 ### 1. Chat Management
@@ -550,6 +566,23 @@ filter := KnowledgeFilter{
     PageSize: 10,
 }
 collections, err := store.GetKnowledges(filter)
+
+// Get system knowledge collections
+systemFilter := KnowledgeFilter{
+    System: &[]bool{true}[0],
+    Page: 1,
+    PageSize: 20,
+}
+systemCollections, err := store.GetKnowledges(systemFilter)
+
+// Get readonly knowledge collections with specific fields
+readonlyFilter := KnowledgeFilter{
+    Readonly: &[]bool{true}[0],
+    Select: []string{"collection_id", "name", "description", "sort"},
+    Page: 1,
+    PageSize: 15,
+}
+readonlyCollections, err := store.GetKnowledges(readonlyFilter)
 ```
 
 ### 5. Internationalization Support
@@ -721,4 +754,4 @@ Key metrics to monitor:
 
 ## License
 
-This project is part of the YAO framework and follows the same license terms.
+This project is part of the Yao App Engine and follows the same license terms.
