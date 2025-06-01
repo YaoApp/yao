@@ -168,4 +168,113 @@ type Store interface {
 	// filter: Filter conditions
 	// Returns: Number of deleted records and potential error
 	DeleteAssistants(filter AssistantFilter) (int64, error)
+
+	// SaveAttachment saves attachment information
+	// attachment: Attachment information
+	// Returns: Attachment ID and potential error
+	SaveAttachment(attachment map[string]interface{}) (interface{}, error)
+
+	// DeleteAttachment deletes an attachment
+	// fileID: Attachment file ID
+	// Returns: Potential error
+	DeleteAttachment(fileID string) error
+
+	// GetAttachments retrieves a list of attachments
+	// filter: Filter conditions
+	// Returns: Paginated attachment list and potential error
+	GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error)
+
+	// GetAttachment retrieves a single attachment by file ID
+	// fileID: Attachment file ID
+	// Returns: Attachment information and potential error
+	GetAttachment(fileID string, locale ...string) (map[string]interface{}, error)
+
+	// DeleteAttachments deletes attachments based on filter conditions
+	// filter: Filter conditions
+	// Returns: Number of deleted records and potential error
+	DeleteAttachments(filter AttachmentFilter) (int64, error)
+
+	// SaveKnowledge saves knowledge collection information
+	// knowledge: Knowledge collection information
+	// Returns: Collection ID and potential error
+	SaveKnowledge(knowledge map[string]interface{}) (interface{}, error)
+
+	// DeleteKnowledge deletes a knowledge collection
+	// collectionID: Knowledge collection ID
+	// Returns: Potential error
+	DeleteKnowledge(collectionID string) error
+
+	// GetKnowledges retrieves a list of knowledge collections
+	// filter: Filter conditions
+	// Returns: Paginated knowledge collection list and potential error
+	GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error)
+
+	// GetKnowledge retrieves a single knowledge collection by ID
+	// collectionID: Knowledge collection ID
+	// Returns: Knowledge collection information and potential error
+	GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error)
+
+	// DeleteKnowledges deletes knowledge collections based on filter conditions
+	// filter: Filter conditions
+	// Returns: Number of deleted records and potential error
+	DeleteKnowledges(filter KnowledgeFilter) (int64, error)
+
+	// Close closes the store and releases any resources
+	// Returns: Potential error
+	Close() error
+}
+
+// AttachmentFilter represents the attachment filter structure
+// Used for filtering and pagination when retrieving attachment lists
+type AttachmentFilter struct {
+	UID          string   `json:"uid,omitempty"`           // Filter by user ID
+	Guest        *bool    `json:"guest,omitempty"`         // Filter by guest status
+	Manager      string   `json:"manager,omitempty"`       // Filter by upload manager
+	ContentType  string   `json:"content_type,omitempty"`  // Filter by content type
+	Name         string   `json:"name,omitempty"`          // Filter by filename
+	Public       *bool    `json:"public,omitempty"`        // Filter by public status
+	Gzip         *bool    `json:"gzip,omitempty"`          // Filter by gzip compression
+	CollectionID string   `json:"collection_id,omitempty"` // Filter by knowledge collection ID
+	Keywords     string   `json:"keywords,omitempty"`      // Search in filename
+	Page         int      `json:"page,omitempty"`          // Page number, starting from 1
+	PageSize     int      `json:"pagesize,omitempty"`      // Items per page
+	Select       []string `json:"select,omitempty"`        // Fields to return, returns all fields if empty
+}
+
+// AttachmentResponse represents the attachment response structure
+// Used for returning paginated attachment lists
+type AttachmentResponse struct {
+	Data     []map[string]interface{} `json:"data"`     // The paginated data
+	Page     int                      `json:"page"`     // Current page number
+	PageSize int                      `json:"pagesize"` // Number of items per page
+	PageCnt  int                      `json:"pagecnt"`  // Total number of pages
+	Next     int                      `json:"next"`     // Next page number
+	Prev     int                      `json:"prev"`     // Previous page number
+	Total    int64                    `json:"total"`    // Total number of items
+}
+
+// KnowledgeFilter represents the knowledge filter structure
+// Used for filtering and pagination when retrieving knowledge lists
+type KnowledgeFilter struct {
+	UID      string   `json:"uid,omitempty"`      // Filter by user ID
+	Name     string   `json:"name,omitempty"`     // Filter by collection name
+	Keywords string   `json:"keywords,omitempty"` // Search in name and description
+	Public   *bool    `json:"public,omitempty"`   // Filter by public status
+	Readonly *bool    `json:"readonly,omitempty"` // Filter by readonly status
+	System   *bool    `json:"system,omitempty"`   // Filter by system status
+	Page     int      `json:"page,omitempty"`     // Page number, starting from 1
+	PageSize int      `json:"pagesize,omitempty"` // Items per page
+	Select   []string `json:"select,omitempty"`   // Fields to return, returns all fields if empty
+}
+
+// KnowledgeResponse represents the knowledge response structure
+// Used for returning paginated knowledge lists
+type KnowledgeResponse struct {
+	Data     []map[string]interface{} `json:"data"`     // The paginated data
+	Page     int                      `json:"page"`     // Current page number
+	PageSize int                      `json:"pagesize"` // Number of items per page
+	PageCnt  int                      `json:"pagecnt"`  // Total number of pages
+	Next     int                      `json:"next"`     // Next page number
+	Prev     int                      `json:"prev"`     // Previous page number
+	Total    int64                    `json:"total"`    // Total number of items
 }

@@ -82,3 +82,58 @@ func (r *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
 func (r *Redis) GetAssistantTags(locale ...string) ([]Tag, error) {
 	return []Tag{}, nil
 }
+
+// SaveAttachment saves attachment information
+func (r *Redis) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
+	return attachment["file_id"], nil
+}
+
+// DeleteAttachment deletes an attachment
+func (r *Redis) DeleteAttachment(fileID string) error {
+	return nil
+}
+
+// GetAttachments retrieves a list of attachments
+func (r *Redis) GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error) {
+	return &AttachmentResponse{}, nil
+}
+
+// GetAttachment retrieves a single attachment by file ID
+func (r *Redis) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+// DeleteAttachments deletes attachments based on filter conditions
+func (r *Redis) DeleteAttachments(filter AttachmentFilter) (int64, error) {
+	return 0, nil
+}
+
+// SaveKnowledge saves knowledge collection information
+func (r *Redis) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
+	return knowledge["collection_id"], nil
+}
+
+// DeleteKnowledge deletes a knowledge collection
+func (r *Redis) DeleteKnowledge(collectionID string) error {
+	return nil
+}
+
+// GetKnowledges retrieves a list of knowledge collections
+func (r *Redis) GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error) {
+	return &KnowledgeResponse{}, nil
+}
+
+// GetKnowledge retrieves a single knowledge collection by ID
+func (r *Redis) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+// DeleteKnowledges deletes knowledge collections based on filter conditions
+func (r *Redis) DeleteKnowledges(filter KnowledgeFilter) (int64, error) {
+	return 0, nil
+}
+
+// Close closes the store and releases any resources
+func (r *Redis) Close() error {
+	return nil
+}

@@ -82,3 +82,58 @@ func (m *Mongo) DeleteAssistants(filter AssistantFilter) (int64, error) {
 func (m *Mongo) GetAssistantTags(locale ...string) ([]Tag, error) {
 	return []Tag{}, nil
 }
+
+// SaveAttachment saves attachment information
+func (m *Mongo) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
+	return attachment["file_id"], nil
+}
+
+// DeleteAttachment deletes an attachment
+func (m *Mongo) DeleteAttachment(fileID string) error {
+	return nil
+}
+
+// GetAttachments retrieves a list of attachments
+func (m *Mongo) GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error) {
+	return &AttachmentResponse{}, nil
+}
+
+// GetAttachment retrieves a single attachment by file ID
+func (m *Mongo) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+// DeleteAttachments deletes attachments based on filter conditions
+func (m *Mongo) DeleteAttachments(filter AttachmentFilter) (int64, error) {
+	return 0, nil
+}
+
+// SaveKnowledge saves knowledge collection information
+func (m *Mongo) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
+	return knowledge["collection_id"], nil
+}
+
+// DeleteKnowledge deletes a knowledge collection
+func (m *Mongo) DeleteKnowledge(collectionID string) error {
+	return nil
+}
+
+// GetKnowledges retrieves a list of knowledge collections
+func (m *Mongo) GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error) {
+	return &KnowledgeResponse{}, nil
+}
+
+// GetKnowledge retrieves a single knowledge collection by ID
+func (m *Mongo) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+// DeleteKnowledges deletes knowledge collections based on filter conditions
+func (m *Mongo) DeleteKnowledges(filter KnowledgeFilter) (int64, error) {
+	return 0, nil
+}
+
+// Close closes the store and releases any resources
+func (m *Mongo) Close() error {
+	return nil
+}

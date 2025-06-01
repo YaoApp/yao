@@ -396,3 +396,50 @@ func (m *mockStore) DeleteAssistants(filter store.AssistantFilter) (int64, error
 func (m *mockStore) GetAssistantTags(locale ...string) ([]store.Tag, error) {
 	return []store.Tag{}, nil
 }
+
+// Attachment related methods
+func (m *mockStore) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
+	return attachment["file_id"], nil
+}
+
+func (m *mockStore) DeleteAttachment(fileID string) error {
+	return nil
+}
+
+func (m *mockStore) GetAttachments(filter store.AttachmentFilter, locale ...string) (*store.AttachmentResponse, error) {
+	return &store.AttachmentResponse{}, nil
+}
+
+func (m *mockStore) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (m *mockStore) DeleteAttachments(filter store.AttachmentFilter) (int64, error) {
+	return 0, nil
+}
+
+// Knowledge related methods
+func (m *mockStore) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
+	return knowledge["collection_id"], nil
+}
+
+func (m *mockStore) DeleteKnowledge(collectionID string) error {
+	return nil
+}
+
+func (m *mockStore) GetKnowledges(filter store.KnowledgeFilter, locale ...string) (*store.KnowledgeResponse, error) {
+	return &store.KnowledgeResponse{}, nil
+}
+
+func (m *mockStore) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (m *mockStore) DeleteKnowledges(filter store.KnowledgeFilter) (int64, error) {
+	return 0, nil
+}
+
+// Close closes the store and releases any resources
+func (m *mockStore) Close() error {
+	return nil
+}
