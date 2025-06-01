@@ -6,6 +6,7 @@ A comprehensive file upload package for Go that supports chunked uploads, file f
 
 - **Multiple Storage Backends**: Local filesystem and S3-compatible storage
 - **Chunked Upload Support**: Handle large files with standard HTTP Content-Range headers
+- **File Deduplication**: Content-based fingerprinting to avoid duplicate uploads
 - **File Compression**:
   - Gzip compression for any file type
   - Image compression with configurable size limits
@@ -16,6 +17,8 @@ A comprehensive file upload package for Go that supports chunked uploads, file f
 - **Flexible File Organization**: Hierarchical storage with user/chat/assistant organization
 - **Multiple Read Methods**: Stream, bytes, and base64 encoding
 - **Global Manager Registry**: Support for registering and accessing managers globally
+- **Upload Status Tracking**: Track upload progress with status field
+- **Content Synchronization**: Support for synchronized uploads with Content-Sync header
 
 ## Installation
 
@@ -38,8 +41,14 @@ import (
 )
 
 func main() {
-    // Create a manager
-    manager, err := attachment.New(attachment.ManagerOption{
+    // Create a manager with default settings
+    manager, err := attachment.RegisterDefault("uploads")
+    if err != nil {
+        panic(err)
+    }
+
+    // Or create a custom manager
+    customManager, err := attachment.New(attachment.ManagerOption{
         Driver:       "local",
         MaxSize:      "20M",
         ChunkSize:    "2M",
@@ -64,13 +73,19 @@ func main() {
     fileHeader.Header.Set("Content-Type", "text/plain")
 
     option := attachment.UploadOption{
-        UserID: "user123",
-        ChatID: "chat456",
+        UserID:           "user123",
+        ChatID:           "chat456",
+        OriginalFilename: "my_document.txt", // Preserve original filename
     }
 
     file, err := manager.Upload(context.Background(), fileHeader, strings.NewReader(content), option)
     if err != nil {
         panic(err)
+    }
+
+    // Check upload status
+    if file.Status == "uploaded" {
+        fmt.Printf("File uploaded successfully: %s\n", file.ID)
     }
 
     // Read the file back
@@ -247,7 +262,10 @@ if err != nil {
 You can register managers globally for easy access:
 
 ```go
-// Register managers
+// Register default manager with sensible defaults
+attachment.RegisterDefault("main")
+
+// Register custom managers
 attachment.Register("local", "local", attachment.ManagerOption{
     Driver: "local",
     Options: map[string]interface{}{
@@ -267,6 +285,7 @@ attachment.Register("s3", "s3", attachment.ManagerOption{
 // Use global managers
 localManager := attachment.Managers["local"]
 s3Manager := attachment.Managers["s3"]
+defaultManager := attachment.Managers["main"]
 ```
 
 ## File Organization
@@ -355,7 +374,9 @@ Options for file upload:
 - `CompressImage`: Enable image compression
 - `CompressSize`: Maximum image dimension (default: 1920)
 - `Gzip`: Enable gzip compression
+- `Knowledge`: Push to knowledge base
 - `UserID`, `ChatID`, `AssistantID`: Organization IDs
+- `OriginalFilename`: Original filename to preserve (avoids encoding issues)
 
 #### `File`
 
@@ -366,6 +387,7 @@ Uploaded file information:
 - `ContentType`: MIME type
 - `Bytes`: File size
 - `CreatedAt`: Upload timestamp
+- `Status`: Upload status ("uploading", "uploaded", "indexing", "indexed", "upload_failed", "index_failed")
 
 #### `FileResponse`
 
@@ -448,3 +470,175 @@ The package includes comprehensive tests for:
 ## License
 
 This package is part of the Yao project and follows the same license terms.
+
+### File Deduplication with Fingerprints
+
+The package supports file deduplication using content fingerprints:
+
+```go
+// Set a content fingerprint to enable deduplication
+fileHeader := &attachment.FileHeader{
+    FileHeader: &multipart.FileHeader{
+        Filename: "document.pdf",
+        Size:     fileSize,
+        Header:   make(map[string][]string),
+    },
+}
+fileHeader.Header.Set("Content-Type", "application/pdf")
+fileHeader.Header.Set("Content-Fingerprint", "sha256:abcdef123456") // Content-based hash
+
+file, err := manager.Upload(ctx, fileHeader, reader, option)
+```
+
+### Content Synchronization
+
+For synchronized uploads across multiple clients:
+
+```go
+// Enable content synchronization
+fileHeader.Header.Set("Content-Sync", "true")
+
+// Each client can upload the same content with the same fingerprint
+// The system will deduplicate based on the content fingerprint
+```
+
+### Chunked Upload with Enhanced Headers
+
+For large files, you can upload in chunks using standard HTTP Content-Range headers with additional metadata:
+
+```go
+// Upload chunks with unique identifier and fingerprint
+totalSize := int64(1024000) // 1MB file
+chunkSize := int64(1024)    // 1KB chunks
+uid := "unique-file-id-123"
+fingerprint := "sha256:content-hash-here"
+
+for start := int64(0); start < totalSize; start += chunkSize {
+    end := start + chunkSize - 1
+    if end >= totalSize {
+        end = totalSize - 1
+    }
+
+    chunkData := make([]byte, end-start+1)
+    // ... fill chunkData with actual data ...
+
+    chunkHeader := &attachment.FileHeader{
+        FileHeader: &multipart.FileHeader{
+            Filename: "large_file.zip",
+            Size:     end - start + 1,
+            Header:   make(map[string][]string),
+        },
+    }
+    chunkHeader.Header.Set("Content-Type", "application/zip")
+    chunkHeader.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, totalSize))
+    chunkHeader.Header.Set("Content-Uid", uid)
+    chunkHeader.Header.Set("Content-Fingerprint", fingerprint)
+    chunkHeader.Header.Set("Content-Sync", "true") // Enable synchronization
+
+    option := attachment.UploadOption{
+        UserID:           "user123",
+        ChatID:           "chat456",
+        OriginalFilename: "my_large_file.zip", // Preserve original name
+    }
+
+    file, err := manager.Upload(ctx, chunkHeader, bytes.NewReader(chunkData), option)
+    if err != nil {
+        return err
+    }
+
+    // Check if upload is complete
+    if file.Status == "uploaded" {
+        fmt.Printf("Upload complete: %s\n", file.ID)
+        break
+    } else if file.Status == "uploading" {
+        fmt.Printf("Chunk uploaded, progress: %d/%d\n", chunkHeader.GetChunkSize(), chunkHeader.GetTotalSize())
+    }
+}
+```
+
+### FileHeader Methods
+
+The `FileHeader` type provides several utility methods:
+
+```go
+// Get unique identifier for chunked uploads
+uid := fileHeader.UID()
+
+// Get content fingerprint for deduplication
+fingerprint := fileHeader.Fingerprint()
+
+// Get byte range for chunked uploads
+rangeHeader := fileHeader.Range()
+
+// Check if synchronization is enabled
+isSync := fileHeader.Sync()
+
+// Check if this is a chunked upload
+isChunk := fileHeader.IsChunk()
+
+// Check if upload is complete (for chunked uploads)
+isComplete := fileHeader.Complete()
+
+// Get detailed chunk information
+start, end, total, err := fileHeader.GetChunkInfo()
+
+// Get total file size (for chunked uploads)
+totalSize := fileHeader.GetTotalSize()
+
+// Get current chunk size
+chunkSize := fileHeader.GetChunkSize()
+```
+
+## File Headers and Metadata
+
+The package supports several HTTP headers for enhanced functionality:
+
+- `Content-Range`: Standard HTTP range header for chunked uploads (e.g., "bytes 0-1023/2048")
+- `Content-Uid`: Unique identifier for file uploads (for deduplication and tracking)
+- `Content-Fingerprint`: Content-based hash for deduplication (e.g., "sha256:abc123")
+- `Content-Sync`: Enable synchronized uploads across multiple clients ("true"/"false")
+
+### Header Processing
+
+When processing uploads, headers can be extracted from both HTTP request headers and multipart file headers:
+
+```go
+// Extract headers from HTTP request and file headers
+header := attachment.GetHeader(requestHeader, fileHeader, fileSize)
+
+// The resulting FileHeader will contain merged headers from both sources
+uid := header.UID()
+fingerprint := header.Fingerprint()
+isSync := header.Sync()
+```
+
+## Upload Status Tracking
+
+Files have a status field that tracks the upload lifecycle:
+
+- `"uploading"`: File upload is in progress (for chunked uploads)
+- `"uploaded"`: File has been successfully uploaded
+- `"indexing"`: File is being processed for search indexing
+- `"indexed"`: File has been indexed and is fully processed
+- `"upload_failed"`: Upload failed due to an error
+- `"index_failed"`: Indexing failed but file is still accessible
+
+```go
+file, err := manager.Upload(ctx, fileHeader, reader, option)
+if err != nil {
+    return err
+}
+
+switch file.Status {
+case "uploading":
+    fmt.Println("Upload in progress...")
+case "uploaded":
+    fmt.Println("Upload completed successfully")
+case "upload_failed":
+    fmt.Println("Upload failed")
+}
+```
+
+#### `RegisterDefault(name string) (*Manager, error)`
+
+Registers a default attachment manager with sensible defaults for common file types.

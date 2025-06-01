@@ -8,14 +8,12 @@ import (
 
 // File the file
 type File struct {
-	ID          string   `json:"file_id"`
-	Bytes       int      `json:"bytes"`
-	CreatedAt   int      `json:"created_at"`
-	Filename    string   `json:"filename"`
-	ContentType string   `json:"content_type"`
-	Description string   `json:"description,omitempty"` // Vision analysis result or other description
-	URL         string   `json:"url,omitempty"`         // Vision URL for vision-capable models
-	DocIDs      []string `json:"doc_ids,omitempty"`     // RAG document IDs
+	ID          string `json:"file_id"`
+	Bytes       int    `json:"bytes"`
+	CreatedAt   int    `json:"created_at"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Status      string `json:"status"` // uploading, uploaded, indexing, indexed, upload_failed, index_failed
 }
 
 // FileResponse represents a file download response

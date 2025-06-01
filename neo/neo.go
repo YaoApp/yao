@@ -50,12 +50,16 @@ func (neo *DSL) UserRoles(sid string) (interface{}, error) {
 }
 
 // UserOrGuestID get the user id or guest id from the session
-func (neo *DSL) UserOrGuestID(sid string) (interface{}, error) {
+func (neo *DSL) UserOrGuestID(sid string) (interface{}, bool, error) {
 	userID, err := neo.UserID(sid)
 	if err != nil {
-		return neo.GuestID(sid)
+		guestID, err := neo.GuestID(sid)
+		if err != nil {
+			return nil, false, err
+		}
+		return guestID, true, nil
 	}
-	return userID, nil
+	return userID, false, nil
 }
 
 // Download downloads a file

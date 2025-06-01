@@ -10,6 +10,11 @@ func (fileheader *FileHeader) UID() string {
 	return fileheader.Header.Get("Content-Uid")
 }
 
+// Fingerprint is the fingerprint of the file, it is the fingerprint of the file
+func (fileheader *FileHeader) Fingerprint() string {
+	return fileheader.Header.Get("Content-Fingerprint")
+}
+
 // Range is the range of the file, it is the start and end of the file
 func (fileheader *FileHeader) Range() string {
 	return fileheader.Header.Get("Content-Range")
