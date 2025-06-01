@@ -1,8 +1,6 @@
 package neo
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/yao/neo/assistant"
@@ -60,30 +58,4 @@ func (neo *DSL) UserOrGuestID(sid string) (interface{}, bool, error) {
 		return guestID, true, nil
 	}
 	return userID, false, nil
-}
-
-// Download downloads a file
-func (neo *DSL) Download(ctx chatctx.Context, c *gin.Context) (*assistant.FileResponse, error) {
-	// Get file_id from query string
-	fileID := c.Query("file_id")
-	if fileID == "" {
-		return nil, fmt.Errorf("file_id is required")
-	}
-
-	// Get assistant_id from context or query
-	// res, err := neo.HookCreate(ctx, []map[string]interface{}{}, c)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// Select Assistant
-	ast, err := neo.Select(neo.Use.Default)
-	if err != nil {
-		return nil, err
-	}
-
-	// Download file using the assistant
-	// return ast.Download(ctx.Context, fileID)
-	fmt.Println(ast)
-	return nil, nil
 }
