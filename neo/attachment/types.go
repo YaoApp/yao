@@ -64,6 +64,7 @@ type ManagerOption struct {
 	MaxSize      string                 `json:"max_size,omitempty" yaml:"max_size,omitempty"`           // Max size of the file, Optional, default is 20M
 	ChunkSize    string                 `json:"chunk_size,omitempty" yaml:"chunk_size,omitempty"`       // Chunk size of the file, Optional, default is 2M
 	AllowedTypes []string               `json:"allowed_types,omitempty" yaml:"allowed_types,omitempty"` // Allowed types of the file, Optional, default is all
+	Gzip         bool                   `json:"gzip,omitempty" yaml:"gzip,omitempty"`                   // Gzip the file, Optional, default is false
 	Driver       string                 `json:"driver,omitempty" yaml:"driver,omitempty"`               // Driver, Optional, default is local
 	Options      map[string]interface{} `json:"options,omitempty" yaml:"options,omitempty"`             // Options, Optional
 }
