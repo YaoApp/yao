@@ -27,7 +27,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/rhysd/go-github-selfupdate v1.2.3
-	github.com/spf13/cast v1.8.0
+	github.com/spf13/cast v1.9.2
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	github.com/xuri/excelize/v2 v2.9.1
