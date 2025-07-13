@@ -1,0 +1,134 @@
+{
+  "name": "mcp",
+  "label": "MCP",
+  "description": "MCP table for storing MCP client configuration",
+  "table": {
+    "name": "mcp",
+    "comment": "MCP table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Unique identifier"
+    },
+    {
+      "name": "mcp_id",
+      "type": "string",
+      "label": "MCP ID",
+      "comment": "MCP client identifier",
+      "length": 200,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "MCP client name",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "MCP client description",
+      "nullable": true
+    },
+    {
+      "name": "dsl",
+      "type": "json",
+      "label": "DSL",
+      "comment": "MCP client DSL configuration in JSON format",
+      "nullable": true
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "MCP client readonly status",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "built_in",
+      "type": "boolean",
+      "label": "Built In",
+      "comment": "Whether this is a built-in MCP client",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "creator_id",
+      "type": "string",
+      "label": "Creator ID",
+      "comment": "Creator user ID",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "creator_name",
+      "type": "string",
+      "label": "Creator Name",
+      "comment": "Creator user name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "updater_id",
+      "type": "string",
+      "label": "Updater ID",
+      "comment": "Last updater user ID",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "updater_name",
+      "type": "string",
+      "label": "Updater Name",
+      "comment": "Last updater user name",
+      "length": 200,
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "idx_mcp_id",
+      "columns": ["mcp_id"],
+      "type": "unique"
+    },
+    {
+      "name": "idx_name",
+      "columns": ["name"],
+      "type": "index"
+    },
+    {
+      "name": "idx_readonly",
+      "columns": ["readonly"],
+      "type": "index"
+    },
+    {
+      "name": "idx_built_in",
+      "columns": ["built_in"],
+      "type": "index"
+    },
+    {
+      "name": "idx_creator_id",
+      "columns": ["creator_id"],
+      "type": "index"
+    },
+    {
+      "name": "idx_updater_id",
+      "columns": ["updater_id"],
+      "type": "index"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

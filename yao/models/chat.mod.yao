@@ -1,0 +1,85 @@
+{
+  "name": "chat",
+  "label": "Chat",
+  "description": "Chat table for storing chat metadata and information",
+  "table": {
+    "name": "chat",
+    "comment": "Chat table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Chat ID",
+      "comment": "Unique chat identifier"
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Chat identifier",
+      "length": 200,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "label": "Title",
+      "comment": "Chat title",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "assistant_id",
+      "type": "string",
+      "label": "Assistant ID",
+      "comment": "Assistant identifier",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "sid",
+      "type": "string",
+      "label": "Session ID",
+      "comment": "Session identifier",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "silent",
+      "type": "boolean",
+      "label": "Silent Mode",
+      "comment": "Whether this is a silent chat",
+      "default": false,
+      "index": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "idx_chat_id",
+      "columns": ["chat_id"],
+      "type": "unique"
+    },
+    {
+      "name": "idx_assistant_id",
+      "columns": ["assistant_id"],
+      "type": "index"
+    },
+    {
+      "name": "idx_sid",
+      "columns": ["sid"],
+      "type": "index"
+    },
+    {
+      "name": "idx_silent",
+      "columns": ["silent"],
+      "type": "index"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

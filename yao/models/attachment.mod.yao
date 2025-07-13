@@ -1,0 +1,202 @@
+{
+  "name": "attachment",
+  "label": "Attachment",
+  "description": "Attachment table for storing file attachments with metadata and access control",
+  "table": {
+    "name": "attachment",
+    "comment": "Attachment table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Attachment ID",
+      "comment": "Unique attachment identifier"
+    },
+    {
+      "name": "file_id",
+      "type": "string",
+      "label": "File ID",
+      "comment": "File identifier",
+      "length": 255,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "uid",
+      "type": "string",
+      "label": "User ID",
+      "comment": "User identifier",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "guest",
+      "type": "boolean",
+      "label": "Guest",
+      "comment": "Whether uploaded by guest user",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "manager",
+      "type": "string",
+      "label": "Manager",
+      "comment": "File manager type",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "content_type",
+      "type": "string",
+      "label": "Content Type",
+      "comment": "File content type",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "File name",
+      "length": 500,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "public",
+      "type": "boolean",
+      "label": "Public",
+      "comment": "Whether file is public",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "scope",
+      "type": "json",
+      "label": "Scope",
+      "comment": "File access scope",
+      "nullable": true
+    },
+    {
+      "name": "gzip",
+      "type": "boolean",
+      "label": "Gzip",
+      "comment": "Whether file is gzipped",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "bytes",
+      "type": "bigInteger",
+      "label": "Bytes",
+      "comment": "File size in bytes",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "collection_id",
+      "type": "string",
+      "label": "Collection ID",
+      "comment": "Knowledge collection identifier",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "File processing status",
+      "option": [
+        "uploading",
+        "uploaded",
+        "indexing",
+        "indexed",
+        "upload_failed",
+        "index_failed"
+      ],
+      "default": "uploading",
+      "index": true
+    },
+    {
+      "name": "progress",
+      "type": "string",
+      "label": "Progress",
+      "comment": "Processing progress information",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "type": "string",
+      "label": "Error",
+      "comment": "Error information",
+      "length": 600,
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "idx_file_id",
+      "columns": ["file_id"],
+      "type": "unique"
+    },
+    {
+      "name": "idx_uid",
+      "columns": ["uid"],
+      "type": "index"
+    },
+    {
+      "name": "idx_guest",
+      "columns": ["guest"],
+      "type": "index"
+    },
+    {
+      "name": "idx_manager",
+      "columns": ["manager"],
+      "type": "index"
+    },
+    {
+      "name": "idx_content_type",
+      "columns": ["content_type"],
+      "type": "index"
+    },
+    {
+      "name": "idx_name",
+      "columns": ["name"],
+      "type": "index"
+    },
+    {
+      "name": "idx_public",
+      "columns": ["public"],
+      "type": "index"
+    },
+    {
+      "name": "idx_gzip",
+      "columns": ["gzip"],
+      "type": "index"
+    },
+    {
+      "name": "idx_bytes",
+      "columns": ["bytes"],
+      "type": "index"
+    },
+    {
+      "name": "idx_collection_id",
+      "columns": ["collection_id"],
+      "type": "index"
+    },
+    {
+      "name": "idx_status",
+      "columns": ["status"],
+      "type": "index"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}
