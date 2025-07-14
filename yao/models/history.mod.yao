@@ -121,42 +121,6 @@
     }
   ],
   "relations": {},
-  "indexes": [
-    {
-      "name": "idx_sid",
-      "columns": ["sid"],
-      "type": "index"
-    },
-    {
-      "name": "idx_cid",
-      "columns": ["cid"],
-      "type": "index"
-    },
-    {
-      "name": "idx_uid",
-      "columns": ["uid"],
-      "type": "index"
-    },
-    {
-      "name": "idx_role",
-      "columns": ["role"],
-      "type": "index"
-    },
-    {
-      "name": "idx_assistant_id",
-      "columns": ["assistant_id"],
-      "type": "index"
-    },
-    {
-      "name": "idx_silent",
-      "columns": ["silent"],
-      "type": "index"
-    },
-    {
-      "name": "idx_expired_at",
-      "columns": ["expired_at"],
-      "type": "index"
-    }
-  ],
+  "indexes": [],
   "option": { "timestamps": true, "soft_deletes": false }
 }

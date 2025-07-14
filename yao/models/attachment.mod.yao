@@ -141,62 +141,6 @@
     }
   ],
   "relations": {},
-  "indexes": [
-    {
-      "name": "idx_file_id",
-      "columns": ["file_id"],
-      "type": "unique"
-    },
-    {
-      "name": "idx_uid",
-      "columns": ["uid"],
-      "type": "index"
-    },
-    {
-      "name": "idx_guest",
-      "columns": ["guest"],
-      "type": "index"
-    },
-    {
-      "name": "idx_manager",
-      "columns": ["manager"],
-      "type": "index"
-    },
-    {
-      "name": "idx_content_type",
-      "columns": ["content_type"],
-      "type": "index"
-    },
-    {
-      "name": "idx_name",
-      "columns": ["name"],
-      "type": "index"
-    },
-    {
-      "name": "idx_public",
-      "columns": ["public"],
-      "type": "index"
-    },
-    {
-      "name": "idx_gzip",
-      "columns": ["gzip"],
-      "type": "index"
-    },
-    {
-      "name": "idx_bytes",
-      "columns": ["bytes"],
-      "type": "index"
-    },
-    {
-      "name": "idx_collection_id",
-      "columns": ["collection_id"],
-      "type": "index"
-    },
-    {
-      "name": "idx_status",
-      "columns": ["status"],
-      "type": "index"
-    }
-  ],
+  "indexes": [],
   "option": { "timestamps": true, "soft_deletes": false }
 }

@@ -1,0 +1,153 @@
+{
+  "name": "dsl",
+  "label": "DSL",
+  "description": "DSL table for storing Yao DSL configurations",
+  "table": {
+    "name": "dsl",
+    "comment": "DSL table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Unique identifier"
+    },
+    {
+      "name": "dsl_id",
+      "type": "string",
+      "label": "DSL ID",
+      "comment": "DSL identifier",
+      "length": 200,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "DSL type (model, api, table, form, list, chart, dashboard, connector, store, schedule, flow, pipe, aigc, sui, etc.)",
+      "length": 50,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "label": "Label",
+      "comment": "DSL display label",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "label": "Path",
+      "comment": "DSL file path",
+      "length": 500,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort",
+      "comment": "Sort order for data sorting",
+      "nullable": true,
+      "default": 0,
+      "index": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "DSL description",
+      "nullable": true
+    },
+    {
+      "name": "tags",
+      "type": "json",
+      "label": "Tags",
+      "comment": "DSL tags for categorization and filtering",
+      "nullable": true
+    },
+    {
+      "name": "dsl",
+      "type": "json",
+      "label": "DSL",
+      "comment": "DSL configuration in JSON format",
+      "nullable": true
+    },
+    {
+      "name": "mtime",
+      "type": "timestamp",
+      "label": "Modification Time",
+      "comment": "File modification time (for file-based DSL)",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "ctime",
+      "type": "timestamp",
+      "label": "Creation Time",
+      "comment": "File creation time (for file-based DSL)",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "DSL readonly status",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "built_in",
+      "type": "boolean",
+      "label": "Built In",
+      "comment": "Whether this is a built-in DSL",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "creator_id",
+      "type": "string",
+      "label": "Creator ID",
+      "comment": "Creator user ID",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "creator_name",
+      "type": "string",
+      "label": "Creator Name",
+      "comment": "Creator user name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "updater_id",
+      "type": "string",
+      "label": "Updater ID",
+      "comment": "Last updater user ID",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "updater_name",
+      "type": "string",
+      "label": "Updater Name",
+      "comment": "Last updater user name",
+      "length": 200,
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [],
+  "option": { "timestamps": true, "soft_deletes": false }
+}
