@@ -178,47 +178,6 @@
     }
   ],
   "relations": {},
-  "indexes": [
-    {
-      "name": "idx_assistant_id",
-      "columns": ["assistant_id"],
-      "type": "unique"
-    },
-    {
-      "name": "idx_type",
-      "columns": ["type"],
-      "type": "index"
-    },
-    {
-      "name": "idx_description",
-      "columns": ["description"],
-      "type": "index"
-    },
-    {
-      "name": "idx_sort",
-      "columns": ["sort"],
-      "type": "index"
-    },
-    {
-      "name": "idx_built_in",
-      "columns": ["built_in"],
-      "type": "index"
-    },
-    {
-      "name": "idx_readonly",
-      "columns": ["readonly"],
-      "type": "index"
-    },
-    {
-      "name": "idx_automated",
-      "columns": ["automated"],
-      "type": "index"
-    },
-    {
-      "name": "idx_mentionable",
-      "columns": ["mentionable"],
-      "type": "index"
-    }
-  ],
+  "indexes": [],
   "option": { "timestamps": true, "soft_deletes": false }
 }

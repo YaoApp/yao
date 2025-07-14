@@ -66,27 +66,6 @@
     }
   ],
   "relations": {},
-  "indexes": [
-    {
-      "name": "idx_key",
-      "columns": ["key"],
-      "type": "unique"
-    },
-    {
-      "name": "idx_category",
-      "columns": ["category"],
-      "type": "index"
-    },
-    {
-      "name": "idx_type",
-      "columns": ["type"],
-      "type": "index"
-    },
-    {
-      "name": "idx_readonly",
-      "columns": ["readonly"],
-      "type": "index"
-    }
-  ],
+  "indexes": [],
   "option": { "timestamps": true, "soft_deletes": false }
 }

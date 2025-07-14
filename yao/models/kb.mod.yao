@@ -106,47 +106,6 @@
     }
   ],
   "relations": {},
-  "indexes": [
-    {
-      "name": "idx_collection_id",
-      "columns": ["collection_id"],
-      "type": "unique"
-    },
-    {
-      "name": "idx_name",
-      "columns": ["name"],
-      "type": "index"
-    },
-    {
-      "name": "idx_description",
-      "columns": ["description"],
-      "type": "index"
-    },
-    {
-      "name": "idx_uid",
-      "columns": ["uid"],
-      "type": "index"
-    },
-    {
-      "name": "idx_public",
-      "columns": ["public"],
-      "type": "index"
-    },
-    {
-      "name": "idx_readonly",
-      "columns": ["readonly"],
-      "type": "index"
-    },
-    {
-      "name": "idx_system",
-      "columns": ["system"],
-      "type": "index"
-    },
-    {
-      "name": "idx_sort",
-      "columns": ["sort"],
-      "type": "index"
-    }
-  ],
+  "indexes": [],
   "option": { "timestamps": true, "soft_deletes": false }
 }

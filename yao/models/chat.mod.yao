@@ -59,27 +59,6 @@
     }
   ],
   "relations": {},
-  "indexes": [
-    {
-      "name": "idx_chat_id",
-      "columns": ["chat_id"],
-      "type": "unique"
-    },
-    {
-      "name": "idx_assistant_id",
-      "columns": ["assistant_id"],
-      "type": "index"
-    },
-    {
-      "name": "idx_sid",
-      "columns": ["sid"],
-      "type": "index"
-    },
-    {
-      "name": "idx_silent",
-      "columns": ["silent"],
-      "type": "index"
-    }
-  ],
+  "indexes": [],
   "option": { "timestamps": true, "soft_deletes": false }
 }
