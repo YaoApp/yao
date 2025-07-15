@@ -20,6 +20,43 @@ func NewDB(typ types.Type) types.IO {
 	return &DB{Type: typ}
 }
 
+// fmtRow format the row data for DSL info
+func fmtRow(row map[string]interface{}) map[string]interface{} {
+	// Handle source field first
+	if source, ok := row["source"]; ok {
+		if str, ok := source.(string); ok {
+			row["source"] = str
+		}
+	}
+
+	// Map fields
+	if id, ok := row["dsl_id"]; ok {
+		row["id"] = id
+		delete(row, "dsl_id")
+	}
+	if readonly, ok := row["readonly"]; ok {
+		row["readable"] = readonly
+		delete(row, "readonly")
+	}
+
+	// Convert boolean values
+	if row["readable"] != nil {
+		if row["readable"].(int64) == 1 {
+			row["readable"] = true
+		} else {
+			row["readable"] = false
+		}
+	}
+	if row["built_in"] != nil {
+		if row["built_in"].(int64) == 1 {
+			row["built_in"] = true
+		} else {
+			row["built_in"] = false
+		}
+	}
+	return row
+}
+
 // Inspect get the info from the db
 func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 
@@ -42,6 +79,8 @@ func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 			"store",
 			"mtime",
 			"ctime",
+			"readonly",
+			"built_in",
 		},
 		Limit:  1,
 		Orders: []model.QueryOrder{{Column: "sort", Option: "asc"}, {Column: "mtime", Option: "desc"}},
@@ -54,7 +93,10 @@ func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 		return nil, false, nil
 	}
 
-	raw, err := jsoniter.Marshal(rows[0])
+	// Format row data
+	row := fmtRow(rows[0])
+
+	raw, err := jsoniter.Marshal(row)
 	if err != nil {
 		return nil, false, err
 	}
@@ -85,6 +127,10 @@ func (db *DB) Source(id string) (string, bool, error) {
 
 	if len(rows) == 0 {
 		return "", false, nil
+	}
+
+	if rows[0]["source"] == nil {
+		return "", true, nil
 	}
 
 	source, ok := rows[0]["source"].(string)
@@ -119,7 +165,21 @@ func (db *DB) List(options *types.ListOptions) ([]*types.Info, error) {
 	}
 
 	// Select fields
-	fields := []interface{}{"dsl_id", "label", "path", "sort", "tags", "description", "status", "store", "mtime", "ctime"}
+	fields := []interface{}{
+		"dsl_id",
+		"type",
+		"label",
+		"path",
+		"sort",
+		"tags",
+		"description",
+		"status",
+		"store",
+		"mtime",
+		"ctime",
+		"readonly",
+		"built_in",
+	}
 	if options.Source {
 		fields = append(fields, "source")
 	}
@@ -136,6 +196,11 @@ func (db *DB) List(options *types.ListOptions) ([]*types.Info, error) {
 
 	if len(rows) == 0 {
 		return nil, nil
+	}
+
+	// Format rows data
+	for i := range rows {
+		rows[i] = fmtRow(rows[i])
 	}
 
 	var infos []*types.Info
@@ -179,8 +244,20 @@ func (db *DB) Create(options *types.CreateOptions) error {
 		"description": info.Description,
 		"status":      info.Status,
 		"store":       info.Store,
-		"mtime":       time.Now().Unix(),
-		"ctime":       time.Now().Unix(),
+		"mtime":       time.Now(),
+		"ctime":       time.Now(),
+		"readonly":    0,
+		"built_in":    0,
+		"created_at":  time.Now(),
+		"updated_at":  time.Now(),
+	}
+
+	// Convert boolean values
+	if info.Readable {
+		data["readonly"] = 1
+	}
+	if info.Builtin {
+		data["built_in"] = 1
 	}
 
 	_, err = m.Create(data)
@@ -202,7 +279,7 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 	// Check if the dsl exists
 	rows, err := m.Get(model.QueryParam{
 		Wheres: []model.QueryWhere{{Column: "dsl_id", Value: options.ID}},
-		Select: []interface{}{"id", "dsl_id"},
+		Select: []interface{}{"id"},
 		Limit:  1,
 	})
 	if err != nil {
@@ -213,38 +290,66 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 		return fmt.Errorf("%s %s not found", db.Type, options.ID)
 	}
 
-	row := rows[0]
-
 	// update source
-	var data map[string]interface{} = map[string]interface{}{}
+	var data map[string]interface{} = map[string]interface{}{
+		"source": options.Source,
+	}
 	if options.Source != "" {
-		data["source"] = options.Source
+		// Parse source to update other fields
+		var info types.Info
+		err = jsoniter.Unmarshal([]byte(options.Source), &info)
+		if err != nil {
+			return err
+		}
+
+		data["label"] = info.Label
+		data["description"] = info.Description
+		data["tags"] = info.Tags
+		data["sort"] = info.Sort
+		data["status"] = info.Status
+		data["store"] = info.Store
+		if info.Readable {
+			data["readonly"] = 1
+		}
+		if info.Builtin {
+			data["built_in"] = 1
+		}
 	} else {
 		// Update info
 		if options.Info.Label != "" {
 			data["label"] = options.Info.Label
 		}
-
-		if options.Info.Path != "" {
-			data["path"] = options.Info.Path
-		}
-
-		if options.Info.Sort != 0 {
-			data["sort"] = options.Info.Sort
-		}
-
-		if options.Info.Tags != nil {
-			data["tags"] = options.Info.Tags
-		}
-
 		if options.Info.Description != "" {
 			data["description"] = options.Info.Description
 		}
-
+		if len(options.Info.Tags) > 0 {
+			data["tags"] = options.Info.Tags
+		}
+		if options.Info.Sort != 0 {
+			data["sort"] = options.Info.Sort
+		}
+		if options.Info.Status != "" {
+			data["status"] = options.Info.Status
+		}
+		if options.Info.Store != "" {
+			data["store"] = options.Info.Store
+		}
+		if options.Info.Readable {
+			data["readonly"] = 1
+		}
+		if options.Info.Builtin {
+			data["built_in"] = 1
+		}
 	}
 
-	// Update the data
-	err = m.Update(row["id"], data)
+	data["updated_at"] = time.Now()
+	data["mtime"] = time.Now()
+
+	// Debug SQL
+	fmt.Printf("Update SQL: %v\n", data)
+	fmt.Printf("Update ID: %v\n", rows[0]["id"])
+
+	err = m.Update(rows[0]["id"], data)
 	if err != nil {
 		return err
 	}
