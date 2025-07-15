@@ -127,15 +127,24 @@ func (dsl *DSL) Source(ctx context.Context, id string) (string, error) {
 // List DSLs
 func (dsl *DSL) List(ctx context.Context, opts *types.ListOptions) ([]*types.Info, error) {
 	// Get the list from the db
-	dbList, err := dsl.db.List(opts)
-	if err != nil {
-		return nil, err
+	var dbList []*types.Info
+	var fileList []*types.Info
+	var err error
+
+	// If StoreType is not specified or is DB, get from db
+	if opts.Store == "" || opts.Store == types.StoreTypeDB {
+		dbList, err = dsl.db.List(opts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	// Get the list from the file
-	fileList, err := dsl.fs.List(opts)
-	if err != nil {
-		return nil, err
+	// If StoreType is not specified or is File, get from file
+	if opts.Store == "" || opts.Store == types.StoreTypeFile {
+		fileList, err = dsl.fs.List(opts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Merge the list and unique

@@ -78,30 +78,34 @@ const (
 
 // Info for DSL
 type Info struct {
-	ID string
+	ID string `json:"id" yaml:"id"` // Unique identifier for the DSL instance
 
-	Type        Type
-	Label       string
-	Description string
-	Tags        []string
+	Type        Type     `json:"type" yaml:"type"`                                   // DSL type (model, api, table, form, list, chart, dashboard, etc.)
+	Label       string   `json:"label,omitempty" yaml:"label,omitempty"`             // Display name for the DSL
+	Description string   `json:"description,omitempty" yaml:"description,omitempty"` // Detailed description of the DSL
+	Tags        []string `json:"tags,omitempty" yaml:"tags,omitempty"`               // Tags for categorization and filtering
 
-	Sort  int
-	Path  string
-	Store StoreType
+	Sort  int       `json:"sort,omitempty" yaml:"sort,omitempty"` // Sort order for display, default is 0
+	Path  string    `json:"path" yaml:"path"`                     // File system path or identifier
+	Store StoreType `json:"store" yaml:"store"`                   // Storage type (file or database)
 
-	Readable bool
-	Builtin  bool
+	Readable bool `json:"readable,omitempty" yaml:"readable,omitempty"` // Whether the DSL is readable
+	Builtin  bool `json:"built_in,omitempty" yaml:"built_in,omitempty"` // Whether this is a built-in DSL
 
-	Status Status
-	Mtime  time.Time
-	Ctime  time.Time
+	Status Status    `json:"status,omitempty" yaml:"status,omitempty"` // Current status (loading, loaded, error)
+	Mtime  time.Time `json:"mtime" yaml:"mtime"`                       // Last modification timestamp
+	Ctime  time.Time `json:"ctime" yaml:"ctime"`                       // Creation timestamp
+
+	Source string `json:"source,omitempty" yaml:"source,omitempty"` // Source content, only available when explicitly requested
 }
 
 // ListOptions for DSL list
 type ListOptions struct {
-	Sort  string
-	Order string
-	Tags  []string
+	Sort   string
+	Order  string
+	Store  StoreType
+	Source bool
+	Tags   []string
 }
 
 // CreateOptions for DSL upsert

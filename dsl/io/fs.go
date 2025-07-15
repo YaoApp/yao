@@ -101,6 +101,14 @@ func (fs *FS) List(options *types.ListOptions) ([]*types.Info, error) {
 			for _, tag := range options.Tags {
 				for _, t := range info.Tags {
 					if t == tag {
+						if options.Source {
+							source, _, err := fs.Source(id)
+							if err != nil {
+								errs = append(errs, err)
+								return nil
+							}
+							info.Source = source
+						}
 						infos = append(infos, info)
 						return nil
 					}
@@ -109,6 +117,14 @@ func (fs *FS) List(options *types.ListOptions) ([]*types.Info, error) {
 		}
 
 		// Add to the list
+		if options.Source {
+			source, _, err := fs.Source(id)
+			if err != nil {
+				errs = append(errs, err)
+				return nil
+			}
+			info.Source = source
+		}
 		infos = append(infos, info)
 		return err
 	}, patterns...)
