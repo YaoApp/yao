@@ -46,6 +46,19 @@ func fmtRow(row map[string]interface{}) map[string]interface{} {
 	if row["built_in"] != nil {
 		row["built_in"] = toBool(row["built_in"])
 	}
+
+	// Convert time values
+	if mtime, ok := row["mtime"]; ok && mtime != nil {
+		if timeStr := toTime(mtime); timeStr != "" {
+			row["mtime"] = timeStr
+		}
+	}
+	if ctime, ok := row["ctime"]; ok && ctime != nil {
+		if timeStr := toTime(ctime); timeStr != "" {
+			row["ctime"] = timeStr
+		}
+	}
+
 	return row
 }
 

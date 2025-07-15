@@ -82,7 +82,9 @@ func TestDBList(t *testing.T) {
 	list, err = db.List(tc1.ListOptions(false))
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(list))
-	assert.Equal(t, tc1.ID, list[0].ID)
+	if assert.Greater(t, len(list), 0, "List should not be empty") {
+		assert.Equal(t, tc1.ID, list[0].ID)
+	}
 }
 
 func TestDBUpdate(t *testing.T) {
