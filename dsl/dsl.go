@@ -6,6 +6,7 @@ import (
 
 	"github.com/yaoapp/yao/dsl/api"
 	"github.com/yaoapp/yao/dsl/connector"
+	"github.com/yaoapp/yao/dsl/io"
 	"github.com/yaoapp/yao/dsl/mcp"
 	"github.com/yaoapp/yao/dsl/model"
 	"github.com/yaoapp/yao/dsl/types"
@@ -17,11 +18,15 @@ type DSL struct {
 	exts    []string
 	root    string
 	manager types.Manager
+	db      types.IO
+	fs      types.IO
 }
 
 // New returns a new DSL manager
 func New(typ types.Type) (types.DSL, error) {
 	var manager types.Manager
+	var db types.IO = io.NewDB(typ)
+	var fs types.IO = io.NewFS(typ)
 
 	// Get the root path and the extensions of the type
 	root, exts := types.TypeRootAndExts(typ)
@@ -30,15 +35,15 @@ func New(typ types.Type) (types.DSL, error) {
 	switch typ {
 	case types.TypeConnector:
 		exts = []string{".conn.yao", ".conn.jsonc", ".conn.json"}
-		manager = connector.New(root)
+		manager = connector.New(root, fs, db)
 
 	case types.TypeModel:
 		exts = []string{".mod.yao", ".mod.jsonc", ".mod.json"}
-		manager = model.New(root)
+		manager = model.New(root, fs, db)
 
 	case types.TypeMCPClient:
 		exts = []string{".mcp.yao", ".mcp.jsonc", ".mcp.json"}
-		manager = mcp.NewClient(root)
+		manager = mcp.NewClient(root, fs, db)
 
 	// case types.TypeMCPServer:
 	// 	exts = []string{".mcp.yao", ".mcp.jsonc", ".mcp.json"}
@@ -46,27 +51,27 @@ func New(typ types.Type) (types.DSL, error) {
 
 	case types.TypeAPI:
 		exts = []string{".http.yao", ".http.jsonc", ".http.json"}
-		manager = api.New(root)
+		manager = api.New(root, fs, db)
 
 	default:
 		return nil, fmt.Errorf("dsl manager is not initialized, %s not supported", typ)
 	}
 
-	return &DSL{Type: typ, manager: manager, root: root, exts: exts}, nil
+	return &DSL{Type: typ, manager: manager, root: root, exts: exts, db: db, fs: fs}, nil
 }
 
 // Inspect DSL
 func (dsl *DSL) Inspect(ctx context.Context, id string) (*types.Info, error) {
 
 	// Get the info from the db
-	info, exists, err := dsl.dbInspect(id)
+	info, exists, err := dsl.db.Inspect(id)
 	if err != nil {
 		return nil, err
 	}
 
 	if !exists {
 		// Get the info from the file
-		info, exists, err = dsl.fsInspect(types.ToPath(dsl.Type, id))
+		info, exists, err = dsl.fs.Inspect(id)
 		if err != nil {
 			return nil, err
 		}
@@ -99,14 +104,14 @@ func (dsl *DSL) Path(ctx context.Context, id string) (string, error) {
 func (dsl *DSL) Source(ctx context.Context, id string) (string, error) {
 
 	// Get the source from the db
-	source, exists, err := dsl.dbSource(id)
+	source, exists, err := dsl.db.Source(id)
 	if err != nil {
 		return "", err
 	}
 
 	if !exists {
 		// Get the source from the file
-		source, exists, err = dsl.fsSource(types.ToPath(dsl.Type, id))
+		source, exists, err = dsl.fs.Source(id)
 		if err != nil {
 			return "", err
 		}
@@ -122,13 +127,13 @@ func (dsl *DSL) Source(ctx context.Context, id string) (string, error) {
 // List DSLs
 func (dsl *DSL) List(ctx context.Context, opts *types.ListOptions) ([]*types.Info, error) {
 	// Get the list from the db
-	dbList, err := dsl.dbList(opts)
+	dbList, err := dsl.db.List(opts)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get the list from the file
-	fileList, err := dsl.fsList(opts)
+	fileList, err := dsl.fs.List(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -167,22 +172,35 @@ func (dsl *DSL) List(ctx context.Context, opts *types.ListOptions) ([]*types.Inf
 
 // Create DSL
 func (dsl *DSL) Create(ctx context.Context, options *types.CreateOptions) error {
+
+	if options == nil {
+		return fmt.Errorf("create options is required")
+	}
+
 	if options.Store == types.StoreTypeDB {
-		err := dsl.dbCreate(options)
+		err := dsl.db.Create(options)
 		if err != nil {
 			return err
 		}
 	}
 
 	if options.Store == types.StoreTypeFile {
-		err := dsl.fsCreate(options)
+		err := dsl.fs.Create(options)
 		if err != nil {
 			return err
 		}
 	}
 
+	var loadOptions *types.LoadOptions = &types.LoadOptions{
+		ID:      options.ID,
+		Path:    types.ToPath(dsl.Type, options.ID),
+		Source:  options.Source,
+		Store:   options.Store,
+		Options: options.Load,
+	}
+
 	// Load the DSL
-	err := dsl.Load(ctx, options.ID, options.LoadOptions)
+	err := dsl.Load(ctx, loadOptions)
 	if err != nil {
 		return err
 	}
@@ -193,7 +211,7 @@ func (dsl *DSL) Create(ctx context.Context, options *types.CreateOptions) error 
 // Exists Check if the DSL exists
 func (dsl *DSL) Exists(ctx context.Context, id string) (bool, error) {
 	// Check if the DSL exists in the db
-	exists, err := dsl.dbExists(id)
+	exists, err := dsl.db.Exists(id)
 	if err != nil {
 		return false, err
 	}
@@ -203,20 +221,24 @@ func (dsl *DSL) Exists(ctx context.Context, id string) (bool, error) {
 	}
 
 	// Check if the DSL exists in the file
-	return dsl.fsExists(id)
+	return dsl.fs.Exists(id)
 }
 
 // Update DSL
 func (dsl *DSL) Update(ctx context.Context, options *types.UpdateOptions) error {
 
+	if options == nil {
+		return fmt.Errorf("update options is required")
+	}
+
 	// Exists
-	info, exists, err := dsl.dbInspect(options.ID)
+	info, exists, err := dsl.db.Inspect(options.ID)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		info, exists, err = dsl.fsInspect(types.ToPath(dsl.Type, options.ID))
+		info, exists, err = dsl.fs.Inspect(options.ID)
 		if err != nil {
 			return err
 		}
@@ -225,92 +247,113 @@ func (dsl *DSL) Update(ctx context.Context, options *types.UpdateOptions) error 
 		}
 	}
 
+	// Create the reload options
+	var reloadOptions *types.ReloadOptions = &types.ReloadOptions{
+		ID:      options.ID,
+		Path:    info.Path,
+		Source:  options.Source,
+		Store:   info.Store,
+		Options: options.Reload,
+	}
+
 	// Update the DSL in the db
 	if info.Store == types.StoreTypeDB {
-		err := dsl.dbUpdate(options)
+		err := dsl.db.Update(options)
 		if err != nil {
 			return err
 		}
 
 		// Reload the DSL
-		return dsl.manager.Reload(ctx, options.ID, options.ReloadOptions)
+		return dsl.manager.Reload(ctx, reloadOptions)
 	}
 
 	// Update the DSL in the file
-	err = dsl.fsUpdate(options)
+	err = dsl.fs.Update(options)
 	if err != nil {
 		return err
 	}
 
 	// Reload the DSL
-	return dsl.manager.Reload(ctx, options.ID, options.ReloadOptions)
+	return dsl.manager.Reload(ctx, reloadOptions)
 }
 
 // Delete DSL
-func (dsl *DSL) Delete(ctx context.Context, id string, options ...interface{}) error {
+func (dsl *DSL) Delete(ctx context.Context, options *types.DeleteOptions) error {
+
+	if options == nil {
+		return fmt.Errorf("delete options is required")
+	}
+
+	if options.ID == "" {
+		return fmt.Errorf("delete options id is required")
+	}
+
 	// Exists
-	info, exists, err := dsl.dbInspect(id)
+	info, exists, err := dsl.db.Inspect(options.ID)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		info, exists, err = dsl.fsInspect(types.ToPath(dsl.Type, id))
+		info, exists, err = dsl.fs.Inspect(options.ID)
 		if err != nil {
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("%s DSL not found, %s", dsl.Type, id)
+			return fmt.Errorf("%s DSL not found, %s", dsl.Type, options.ID)
 		}
 	}
 
-	var unloadOptions interface{}
-	if len(options) > 0 {
-		unloadOptions = options[0]
+	var opts map[string]interface{}
+	if options.Options != nil {
+		opts = options.Options
+	}
+
+	var unloadOptions *types.UnloadOptions = &types.UnloadOptions{
+		ID:      options.ID,
+		Path:    info.Path,
+		Store:   info.Store,
+		Options: opts,
 	}
 
 	if info.Store == types.StoreTypeDB {
-		err = dsl.dbDelete(id)
+		err = dsl.db.Delete(options.ID)
 		if err != nil {
 			return err
 		}
 
 		// Unload the DSL
-		return dsl.manager.Unload(ctx, id, unloadOptions)
+		return dsl.manager.Unload(ctx, unloadOptions)
 	}
 
-	err = dsl.fsDelete(id)
+	err = dsl.fs.Delete(options.ID)
 	if err != nil {
 		return err
 	}
 
 	// Unload the DSL
-	return dsl.manager.Unload(ctx, id, unloadOptions)
+	return dsl.manager.Unload(ctx, unloadOptions)
 
 }
 
 // Load DSL
-func (dsl *DSL) Load(ctx context.Context, id string, options interface{}) error {
-	return dsl.manager.Load(ctx, id, options)
+func (dsl *DSL) Load(ctx context.Context, options *types.LoadOptions) error {
+	return dsl.manager.Load(ctx, options)
 }
 
 // Unload DSL
-func (dsl *DSL) Unload(ctx context.Context, id string, options ...interface{}) error {
-	var unloadOptions interface{}
-	if len(options) > 0 {
-		unloadOptions = options[0]
-	}
-	return dsl.manager.Unload(ctx, id, unloadOptions)
+func (dsl *DSL) Unload(ctx context.Context, options *types.UnloadOptions) error {
+	return dsl.manager.Unload(ctx, options)
 }
 
 // Reload DSL
-func (dsl *DSL) Reload(ctx context.Context, id string, options interface{}) error {
-	return dsl.manager.Reload(ctx, id, options)
+func (dsl *DSL) Reload(ctx context.Context, options *types.ReloadOptions) error {
+	return dsl.manager.Reload(ctx, options)
 }
 
 // Execute DSL (Some DSLs can be executed)
-func (dsl *DSL) Execute(ctx context.Context, method string, args ...any) (any, error) {
-	return dsl.manager.Execute(ctx, method, args...)
+func (dsl *DSL) Execute(ctx context.Context, id string, method string, args ...any) (any, error) {
+	return dsl.manager.Execute(ctx, id, method, args...)
 }
 
 // Validate DSL

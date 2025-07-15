@@ -78,17 +78,23 @@ const (
 
 // Info for DSL
 type Info struct {
-	ID          string
+	ID string
+
 	Type        Type
-	Sort        int
-	Path        string
 	Label       string
 	Description string
 	Tags        []string
-	Status      Status
-	Store       StoreType
-	Mtime       time.Time
-	Ctime       time.Time
+
+	Sort  int
+	Path  string
+	Store StoreType
+
+	Readable bool
+	Builtin  bool
+
+	Status Status
+	Mtime  time.Time
+	Ctime  time.Time
 }
 
 // ListOptions for DSL list
@@ -100,18 +106,52 @@ type ListOptions struct {
 
 // CreateOptions for DSL upsert
 type CreateOptions struct {
-	ID          string      // ID is the id of the DSL, if not provided, a new id will be generated, required
-	Source      string      // Source is the source of the DSL, if not provided, the DSL will be loaded from the file system
-	Store       StoreType   // Store is the store type of the DSL, if not provided, the DSL will be loaded from the file system
-	LoadOptions interface{} // LoadOptions is the options for the DSL, if not provided, the DSL will be loaded from the file system
+	ID     string                 // ID is the id of the DSL, if not provided, a new id will be generated, required
+	Source string                 // Source is the source of the DSL, if not provided, the DSL will be loaded from the file system
+	Store  StoreType              // Store is the store type of the DSL, if not provided, the DSL will be loaded from the file system
+	Load   map[string]interface{} // LoadOptions is the options for the DSL, if not provided, the DSL will be loaded from the file system
 }
 
 // UpdateOptions for DSL upsert
 type UpdateOptions struct {
-	ID            string      // ID is the id of the DSL, if not provided, a new id will be generated, required
-	Info          *Info       // Info is the info of the DSL, if not provided, the DSL will be loaded from the file system, one of info or source must be provided
-	Source        string      // Source is the source of the DSL, if not provided, the DSL will be loaded from the file system, one of info or source must be provided
-	ReloadOptions interface{} // ReloadOptions is the options for the DSL, if not provided, the DSL will be loaded from the file system
+	ID     string                 // ID is the id of the DSL, if not provided, a new id will be generated, required
+	Info   *Info                  // Info is the info of the DSL, if not provided, the DSL will be loaded from the file system, one of info or source must be provided
+	Source string                 // Source is the source of the DSL, if not provided, the DSL will be loaded from the file system, one of info or source must be provided
+	Reload map[string]interface{} // ReloadOptions is the options for the DSL, if not provided, the DSL will be loaded from the file system
+}
+
+// DeleteOptions for DSL delete options
+type DeleteOptions struct {
+	ID      string                 // ID is the id of the DSL, if not provided, a new id will be generated, required
+	Path    string                 // Path is the path of the DSL, if not provided, the DSL will be loaded from the file system
+	Options map[string]interface{} // Options is the options for the DSL, if not provided, the DSL will be loaded from the file system
+}
+
+// LoadOptions for DSL load options
+type LoadOptions struct {
+	ID      string
+	Path    string
+	Source  string
+	Store   StoreType
+	Options map[string]interface{}
+}
+
+// UnloadOptions for DSL unload options
+type UnloadOptions struct {
+	ID      string
+	Path    string
+	Source  string
+	Store   StoreType
+	Options map[string]interface{}
+}
+
+// ReloadOptions for DSL reload options
+type ReloadOptions struct {
+	ID      string
+	Path    string
+	Source  string
+	Store   StoreType
+	Options map[string]interface{}
 }
 
 // LintMessage for DSL linter

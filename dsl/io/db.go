@@ -1,4 +1,4 @@
-package dsl
+package io
 
 import (
 	"fmt"
@@ -10,8 +10,18 @@ import (
 	"github.com/yaoapp/yao/dsl/types"
 )
 
-// getInfoFromDB get the info from the db
-func (dsl *DSL) dbInspect(id string) (*types.Info, bool, error) {
+// DB is the db io
+type DB struct {
+	Type types.Type
+}
+
+// NewDB create a new db io
+func NewDB(typ types.Type) types.IO {
+	return &DB{Type: typ}
+}
+
+// Inspect get the info from the db
+func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 
 	// Get from database
 	m := model.Select("__yao.dsl")
@@ -57,8 +67,8 @@ func (dsl *DSL) dbInspect(id string) (*types.Info, bool, error) {
 	return &info, true, nil
 }
 
-// getSourceFromDB get the source from the db
-func (dsl *DSL) dbSource(id string) (string, bool, error) {
+// Source get the source from the db
+func (db *DB) Source(id string) (string, bool, error) {
 
 	// Get from database
 	m := model.Select("__yao.dsl")
@@ -79,14 +89,14 @@ func (dsl *DSL) dbSource(id string) (string, bool, error) {
 
 	source, ok := rows[0]["source"].(string)
 	if !ok {
-		return "", true, fmt.Errorf("%s %s source is not a string", dsl.Type, id)
+		return "", true, fmt.Errorf("%s %s source is not a string", db.Type, id)
 	}
 
 	return source, true, nil
 }
 
-// getListFromDB get the list from the db
-func (dsl *DSL) dbList(options *types.ListOptions) ([]*types.Info, error) {
+// List get the list from the db
+func (db *DB) List(options *types.ListOptions) ([]*types.Info, error) {
 
 	// Get from database
 	m := model.Select("__yao.dsl")
@@ -96,7 +106,7 @@ func (dsl *DSL) dbList(options *types.ListOptions) ([]*types.Info, error) {
 		orders = []model.QueryOrder{{Column: "sort", Option: "asc"}}
 	}
 
-	var wheres []model.QueryWhere = []model.QueryWhere{{Column: "type", Value: dsl.Type}}
+	var wheres []model.QueryWhere = []model.QueryWhere{{Column: "type", Value: db.Type}}
 
 	// Filter by tags
 	if len(options.Tags) > 0 {
@@ -110,7 +120,7 @@ func (dsl *DSL) dbList(options *types.ListOptions) ([]*types.Info, error) {
 
 	// Get the list
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "type", Value: dsl.Type}},
+		Wheres: []model.QueryWhere{{Column: "type", Value: db.Type}},
 		Select: []interface{}{"dsl_id", "label", "path", "sort", "tags", "description", "status", "store", "mtime", "ctime"},
 		Orders: orders,
 	})
@@ -136,10 +146,11 @@ func (dsl *DSL) dbList(options *types.ListOptions) ([]*types.Info, error) {
 	return infos, nil
 }
 
-func (dsl *DSL) dbCreate(options *types.CreateOptions) error {
+// Create create the dsl
+func (db *DB) Create(options *types.CreateOptions) error {
 
 	if options.Source == "" {
-		return fmt.Errorf("%s %s source is required", dsl.Type, options.ID)
+		return fmt.Errorf("%s %s source is required", db.Type, options.ID)
 	}
 
 	// Get info from source
@@ -154,7 +165,7 @@ func (dsl *DSL) dbCreate(options *types.CreateOptions) error {
 	data := map[string]interface{}{
 		"source":      options.Source,
 		"dsl_id":      options.ID,
-		"type":        dsl.Type,
+		"type":        db.Type,
 		"label":       info.Label,
 		"path":        info.Path,
 		"sort":        info.Sort,
@@ -174,9 +185,10 @@ func (dsl *DSL) dbCreate(options *types.CreateOptions) error {
 	return nil
 }
 
-func (dsl *DSL) dbUpdate(options *types.UpdateOptions) error {
+// Update update the dsl
+func (db *DB) Update(options *types.UpdateOptions) error {
 	if options.Source == "" && options.Info == nil {
-		return fmt.Errorf("%s %s one of source or info is required", dsl.Type, options.ID)
+		return fmt.Errorf("%s %s one of source or info is required", db.Type, options.ID)
 	}
 
 	m := model.Select("__yao.dsl")
@@ -192,7 +204,7 @@ func (dsl *DSL) dbUpdate(options *types.UpdateOptions) error {
 	}
 
 	if len(rows) == 0 {
-		return fmt.Errorf("%s %s not found", dsl.Type, options.ID)
+		return fmt.Errorf("%s %s not found", db.Type, options.ID)
 	}
 
 	row := rows[0]
@@ -234,7 +246,8 @@ func (dsl *DSL) dbUpdate(options *types.UpdateOptions) error {
 	return nil
 }
 
-func (dsl *DSL) dbDelete(id string) error {
+// Delete delete the dsl
+func (db *DB) Delete(id string) error {
 
 	// Get from database
 	m := model.Select("__yao.dsl")
@@ -250,7 +263,7 @@ func (dsl *DSL) dbDelete(id string) error {
 	}
 
 	if len(rows) == 0 {
-		return fmt.Errorf("%s %s not found", dsl.Type, id)
+		return fmt.Errorf("%s %s not found", db.Type, id)
 	}
 
 	// Delete the dsl
@@ -258,7 +271,8 @@ func (dsl *DSL) dbDelete(id string) error {
 	return m.Delete(row["id"])
 }
 
-func (dsl *DSL) dbExists(id string) (bool, error) {
+// Exists check if the dsl exists
+func (db *DB) Exists(id string) (bool, error) {
 
 	// Get from database
 	m := model.Select("__yao.dsl")

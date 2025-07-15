@@ -22,17 +22,17 @@ func (server *YaoMCPServer) Loaded(ctx context.Context) (map[string]*types.Info,
 }
 
 // Load will unload the DSL first, then load the DSL from DB or file system
-func (server *YaoMCPServer) Load(ctx context.Context, id string, options interface{}) error {
+func (server *YaoMCPServer) Load(ctx context.Context, options *types.LoadOptions) error {
 	return nil
 }
 
 // Unload will unload the DSL from memory
-func (server *YaoMCPServer) Unload(ctx context.Context, id string, options interface{}) error {
+func (server *YaoMCPServer) Unload(ctx context.Context, options *types.UnloadOptions) error {
 	return nil
 }
 
 // Reload will unload the DSL first, then reload the DSL from DB or file system
-func (server *YaoMCPServer) Reload(ctx context.Context, id string, options interface{}) error {
+func (server *YaoMCPServer) Reload(ctx context.Context, options *types.ReloadOptions) error {
 	return nil
 }
 
@@ -42,6 +42,6 @@ func (server *YaoMCPServer) Validate(ctx context.Context, source string) (bool, 
 }
 
 // Execute will execute the DSL
-func (server *YaoMCPServer) Execute(ctx context.Context, method string, args ...any) (any, error) {
+func (server *YaoMCPServer) Execute(ctx context.Context, id string, method string, args ...any) (any, error) {
 	return nil, nil
 }
