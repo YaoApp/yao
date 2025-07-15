@@ -1,4 +1,4 @@
-package dsl
+package io
 
 import (
 	"fmt"
@@ -8,15 +8,19 @@ import (
 	"github.com/yaoapp/yao/dsl/types"
 )
 
-// getInfoFromFile get the info from the file
-func (dsl *DSL) fsInspect(id string, path ...string) (*types.Info, bool, error) {
-	file := ""
-	if len(path) > 0 {
-		file = path[0]
-	} else {
-		file = types.ToPath(dsl.Type, id)
-	}
+// FS is the fs io
+type FS struct {
+	Type types.Type
+}
 
+// NewFS create a new fs io
+func NewFS(typ types.Type) types.IO {
+	return &FS{Type: typ}
+}
+
+// Inspect get the info from the file
+func (fs *FS) Inspect(id string) (*types.Info, bool, error) {
+	file := types.ToPath(fs.Type, id)
 	var info types.Info = types.Info{ID: id, Path: file}
 	exists, err := application.App.Exists(file)
 	if err != nil {
@@ -49,9 +53,9 @@ func (dsl *DSL) fsInspect(id string, path ...string) (*types.Info, bool, error) 
 	return &info, true, nil
 }
 
-// getSourceFromFile get the source from the file
-func (dsl *DSL) fsSource(id string) (string, bool, error) {
-	path := types.ToPath(dsl.Type, id)
+// Source get the source from the file
+func (fs *FS) Source(id string) (string, bool, error) {
+	path := types.ToPath(fs.Type, id)
 	exists, err := application.App.Exists(path)
 	if err != nil {
 		return "", false, err
@@ -68,9 +72,9 @@ func (dsl *DSL) fsSource(id string) (string, bool, error) {
 	return string(data), true, nil
 }
 
-// getListFromPath get the list from the path
-func (dsl *DSL) fsList(options *types.ListOptions) ([]*types.Info, error) {
-	root, exts := types.TypeRootAndExts(dsl.Type)
+// List get the list from the path
+func (fs *FS) List(options *types.ListOptions) ([]*types.Info, error) {
+	root, exts := types.TypeRootAndExts(fs.Type)
 	var infos []*types.Info = []*types.Info{}
 	patterns := []string{}
 	for _, ext := range exts {
@@ -81,8 +85,8 @@ func (dsl *DSL) fsList(options *types.ListOptions) ([]*types.Info, error) {
 		if isdir {
 			return nil
 		}
-		id := types.WithTypeToID(dsl.Type, file)
-		info, _, err := dsl.fsInspect(id, file)
+		id := types.WithTypeToID(fs.Type, file)
+		info, _, err := fs.Inspect(id)
 		if err != nil {
 			errs = append(errs, err)
 			return nil
@@ -112,9 +116,10 @@ func (dsl *DSL) fsList(options *types.ListOptions) ([]*types.Info, error) {
 	return infos, err
 }
 
-func (dsl *DSL) fsCreate(options *types.CreateOptions) error {
+// Create create the file
+func (fs *FS) Create(options *types.CreateOptions) error {
 
-	path := types.ToPath(dsl.Type, options.ID)
+	path := types.ToPath(fs.Type, options.ID)
 
 	// Check if the file is a directory
 	exists, err := application.App.Exists(path)
@@ -123,21 +128,22 @@ func (dsl *DSL) fsCreate(options *types.CreateOptions) error {
 	}
 
 	if exists {
-		return fmt.Errorf("%v %s already exists", dsl.Type, options.ID)
+		return fmt.Errorf("%v %s already exists", fs.Type, options.ID)
 	}
 
 	// Create the file
 	return application.App.Write(path, []byte(options.Source))
 }
 
-func (dsl *DSL) fsUpdate(options *types.UpdateOptions) error {
+// Update update the file
+func (fs *FS) Update(options *types.UpdateOptions) error {
 
 	// Validate the options
 	if options.Source == "" && options.Info == nil {
-		return fmt.Errorf("%v %s one of source or info is required", dsl.Type, options.ID)
+		return fmt.Errorf("%v %s one of source or info is required", fs.Type, options.ID)
 	}
 
-	path := types.ToPath(dsl.Type, options.ID)
+	path := types.ToPath(fs.Type, options.ID)
 
 	// Check if the file exists
 	exists, err := application.App.Exists(path)
@@ -146,7 +152,7 @@ func (dsl *DSL) fsUpdate(options *types.UpdateOptions) error {
 	}
 
 	if !exists {
-		return fmt.Errorf("%v %s not found", dsl.Type, options.ID)
+		return fmt.Errorf("%v %s not found", fs.Type, options.ID)
 	}
 
 	// Update source
@@ -179,9 +185,10 @@ func (dsl *DSL) fsUpdate(options *types.UpdateOptions) error {
 	return application.App.Write(path, []byte(new))
 }
 
-func (dsl *DSL) fsDelete(id string) error {
+// Delete delete the file
+func (fs *FS) Delete(id string) error {
 
-	path := types.ToPath(dsl.Type, id)
+	path := types.ToPath(fs.Type, id)
 
 	// Check if the file is a directory
 	exists, err := application.App.Exists(path)
@@ -190,14 +197,15 @@ func (dsl *DSL) fsDelete(id string) error {
 	}
 
 	if !exists {
-		return fmt.Errorf("%v %s not found", dsl.Type, id)
+		return fmt.Errorf("%v %s not found", fs.Type, id)
 	}
 
 	// Delete the file
 	return application.App.Remove(path)
 }
 
-func (dsl *DSL) fsExists(id string) (bool, error) {
-	path := types.ToPath(dsl.Type, id)
+// Exists check if the file exists
+func (fs *FS) Exists(id string) (bool, error) {
+	path := types.ToPath(fs.Type, id)
 	return application.App.Exists(path)
 }

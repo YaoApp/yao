@@ -8,12 +8,14 @@ import (
 
 // YaoConnector is the connector DSL manager
 type YaoConnector struct {
-	root string // The relative path of the connector DSL
+	root string   // The relative path of the connector DSL
+	fs   types.IO // The file system IO interface
+	db   types.IO // The database IO interface
 }
 
 // New returns a new connector DSL manager
-func New(root string) types.Manager {
-	return &YaoConnector{root: root}
+func New(root string, fs types.IO, db types.IO) types.Manager {
+	return &YaoConnector{root: root, fs: fs, db: db}
 }
 
 // Loaded return all loaded DSLs
@@ -22,17 +24,17 @@ func (c *YaoConnector) Loaded(ctx context.Context) (map[string]*types.Info, erro
 }
 
 // Load will unload the DSL first, then load the DSL from DB or file system
-func (c *YaoConnector) Load(ctx context.Context, id string, options interface{}) error {
+func (c *YaoConnector) Load(ctx context.Context, options *types.LoadOptions) error {
 	return nil
 }
 
 // Unload will unload the DSL from memory
-func (c *YaoConnector) Unload(ctx context.Context, id string, options interface{}) error {
+func (c *YaoConnector) Unload(ctx context.Context, options *types.UnloadOptions) error {
 	return nil
 }
 
 // Reload will unload the DSL first, then reload the DSL from DB or file system
-func (c *YaoConnector) Reload(ctx context.Context, id string, options interface{}) error {
+func (c *YaoConnector) Reload(ctx context.Context, options *types.ReloadOptions) error {
 	return nil
 }
 
@@ -42,6 +44,6 @@ func (c *YaoConnector) Validate(ctx context.Context, source string) (bool, []typ
 }
 
 // Execute will execute the DSL
-func (c *YaoConnector) Execute(ctx context.Context, method string, args ...any) (any, error) {
+func (c *YaoConnector) Execute(ctx context.Context, id string, method string, args ...any) (any, error) {
 	return nil, nil
 }

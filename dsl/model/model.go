@@ -10,17 +10,14 @@ import (
 
 // YaoModel is the MCP client DSL manager
 type YaoModel struct {
-	root string // The relative path of the MCP client DSL
-}
-
-// NewClient returns a new MCP client DSL manager
-func NewClient(root string) types.Manager {
-	return New(root)
+	root string   // The relative path of the model DSL
+	fs   types.IO // The file system IO interface
+	db   types.IO // The database IO interface
 }
 
 // New returns a new connector DSL manager
-func New(root string) types.Manager {
-	return &YaoModel{root: root}
+func New(root string, fs types.IO, db types.IO) types.Manager {
+	return &YaoModel{root: root, fs: fs, db: db}
 }
 
 // Loaded return all loaded DSLs
@@ -43,10 +40,19 @@ func (m *YaoModel) Loaded(ctx context.Context) (map[string]*types.Info, error) {
 }
 
 // Load will unload the DSL first, then load the DSL from DB or file system
-func (m *YaoModel) Load(ctx context.Context, id string, options interface{}) error {
+func (m *YaoModel) Load(ctx context.Context, options *types.LoadOptions) error {
+
+	if options == nil {
+		return fmt.Errorf("load options is required")
+	}
+
+	if options.ID == "" {
+		return fmt.Errorf("load options id is required")
+	}
+
 	var opts map[string]interface{}
-	if v, ok := options.(map[string]interface{}); ok {
-		opts = v
+	if options.Options != nil {
+		opts = options.Options
 	}
 
 	var migration bool = false
@@ -59,8 +65,8 @@ func (m *YaoModel) Load(ctx context.Context, id string, options interface{}) err
 		reset = v.(bool)
 	}
 
-	path := types.ToPath(types.TypeModel, id)
-	mod, err := model.LoadSync(path, id)
+	path := types.ToPath(types.TypeModel, options.ID)
+	mod, err := model.LoadSync(path, options.ID)
 	if err != nil {
 		return err
 	}
@@ -73,11 +79,19 @@ func (m *YaoModel) Load(ctx context.Context, id string, options interface{}) err
 }
 
 // Unload will unload the DSL from memory
-func (m *YaoModel) Unload(ctx context.Context, id string, options interface{}) error {
+func (m *YaoModel) Unload(ctx context.Context, options *types.UnloadOptions) error {
+
+	if options == nil {
+		return fmt.Errorf("unload options is required")
+	}
+
+	if options.ID == "" {
+		return fmt.Errorf("unload options id is required")
+	}
 
 	var opts map[string]interface{}
-	if v, ok := options.(map[string]interface{}); ok {
-		opts = v
+	if options.Options != nil {
+		opts = options.Options
 	}
 
 	var dropTable bool = false
@@ -85,9 +99,9 @@ func (m *YaoModel) Unload(ctx context.Context, id string, options interface{}) e
 		dropTable = v.(bool)
 	}
 
-	mod := model.Select(id)
+	mod := model.Select(options.ID)
 	if mod == nil {
-		return fmt.Errorf("model %s not found", id)
+		return fmt.Errorf("model %s not found", options.ID)
 	}
 
 	if dropTable {
@@ -98,11 +112,19 @@ func (m *YaoModel) Unload(ctx context.Context, id string, options interface{}) e
 }
 
 // Reload will unload the DSL first, then reload the DSL from DB or file system
-func (m *YaoModel) Reload(ctx context.Context, id string, options interface{}) error {
+func (m *YaoModel) Reload(ctx context.Context, options *types.ReloadOptions) error {
+
+	if options == nil {
+		return fmt.Errorf("reload options is required")
+	}
+
+	if options.ID == "" {
+		return fmt.Errorf("reload options id is required")
+	}
 
 	var opts map[string]interface{}
-	if v, ok := options.(map[string]interface{}); ok {
-		opts = v
+	if options.Options != nil {
+		opts = options.Options
 	}
 
 	var migration bool = false
@@ -116,8 +138,8 @@ func (m *YaoModel) Reload(ctx context.Context, id string, options interface{}) e
 	}
 
 	// Reload the model
-	path := types.ToPath(types.TypeModel, id)
-	mod, err := model.LoadSync(path, id)
+	path := types.ToPath(types.TypeModel, options.ID)
+	mod, err := model.LoadSync(path, options.ID)
 	if err != nil {
 		return err
 	}
@@ -134,6 +156,6 @@ func (m *YaoModel) Validate(ctx context.Context, source string) (bool, []types.L
 }
 
 // Execute will execute the DSL
-func (m *YaoModel) Execute(ctx context.Context, method string, args ...any) (any, error) {
+func (m *YaoModel) Execute(ctx context.Context, id string, method string, args ...any) (any, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
