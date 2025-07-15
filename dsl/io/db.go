@@ -41,18 +41,10 @@ func fmtRow(row map[string]interface{}) map[string]interface{} {
 
 	// Convert boolean values
 	if row["readable"] != nil {
-		if row["readable"].(int64) == 1 {
-			row["readable"] = true
-		} else {
-			row["readable"] = false
-		}
+		row["readable"] = toBool(row["readable"])
 	}
 	if row["built_in"] != nil {
-		if row["built_in"].(int64) == 1 {
-			row["built_in"] = true
-		} else {
-			row["built_in"] = false
-		}
+		row["built_in"] = toBool(row["built_in"])
 	}
 	return row
 }
@@ -344,10 +336,6 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 
 	data["updated_at"] = time.Now()
 	data["mtime"] = time.Now()
-
-	// Debug SQL
-	fmt.Printf("Update SQL: %v\n", data)
-	fmt.Printf("Update ID: %v\n", rows[0]["id"])
 
 	err = m.Update(rows[0]["id"], data)
 	if err != nil {
