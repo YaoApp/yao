@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/dsl/types"
 )
 
@@ -65,10 +66,44 @@ func (m *YaoModel) Load(ctx context.Context, options *types.LoadOptions) error {
 		reset = v.(bool)
 	}
 
-	path := types.ToPath(types.TypeModel, options.ID)
-	mod, err := model.LoadSync(path, options.ID)
-	if err != nil {
-		return err
+	var mod *model.Model
+	var err error
+
+	// Case 1: If Source is provided, use LoadSource
+	if options.Source != "" {
+		mod, err = model.LoadSourceSync([]byte(options.Source), options.ID, "")
+		if err != nil {
+			return err
+		}
+	} else if options.Path != "" && options.Store == "fs" {
+		// Case 2: If Path is provided and Store is fs, use LoadSync with Path
+		mod, err = model.LoadSync(options.Path, options.ID)
+		if err != nil {
+			return err
+		}
+	} else if options.Store == "db" {
+		// Case 3: If Store is db, get Source from DB first
+		if m.db == nil {
+			return fmt.Errorf("db io is required for store type db")
+		}
+		source, exists, err := m.db.Source(options.ID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("model %s not found in database", options.ID)
+		}
+		mod, err = model.LoadSourceSync([]byte(source), options.ID, "")
+		if err != nil {
+			return err
+		}
+	} else {
+		// Case 4: Default case, use LoadSync with ID
+		path := types.ToPath(types.TypeModel, options.ID)
+		mod, err = model.LoadSync(path, options.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	if migration || reset {
@@ -99,7 +134,28 @@ func (m *YaoModel) Unload(ctx context.Context, options *types.UnloadOptions) err
 		dropTable = v.(bool)
 	}
 
-	mod := model.Select(options.ID)
+	// Try to get model, handle panic
+	var mod *model.Model
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if ex, ok := r.(exception.Exception); ok {
+					if ex.Message == fmt.Sprintf("Model:%s; not found", options.ID) {
+						err = fmt.Errorf("model %s not found", options.ID)
+						return
+					}
+				}
+				panic(r)
+			}
+		}()
+		mod = model.Select(options.ID)
+	}()
+
+	if err != nil {
+		return err
+	}
+
 	if mod == nil {
 		return fmt.Errorf("model %s not found", options.ID)
 	}
@@ -137,16 +193,50 @@ func (m *YaoModel) Reload(ctx context.Context, options *types.ReloadOptions) err
 		reset = v.(bool)
 	}
 
-	// Reload the model
-	path := types.ToPath(types.TypeModel, options.ID)
-	mod, err := model.LoadSync(path, options.ID)
-	if err != nil {
-		return err
+	var mod *model.Model
+	var err error
+
+	// Case 1: If Source is provided, use LoadSource
+	if options.Source != "" {
+		mod, err = model.LoadSourceSync([]byte(options.Source), options.ID, "")
+		if err != nil {
+			return err
+		}
+	} else if options.Path != "" && options.Store == "fs" {
+		// Case 2: If Path is provided and Store is fs, use LoadSync with Path
+		mod, err = model.LoadSync(options.Path, options.ID)
+		if err != nil {
+			return err
+		}
+	} else if options.Store == "db" {
+		// Case 3: If Store is db, get Source from DB first
+		if m.db == nil {
+			return fmt.Errorf("db io is required for store type db")
+		}
+		source, exists, err := m.db.Source(options.ID)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("model %s not found in database", options.ID)
+		}
+		mod, err = model.LoadSourceSync([]byte(source), options.ID, "")
+		if err != nil {
+			return err
+		}
+	} else {
+		// Case 4: Default case, use LoadSync with ID
+		path := types.ToPath(types.TypeModel, options.ID)
+		mod, err = model.LoadSync(path, options.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	if migrate || reset {
 		return mod.Migrate(reset, model.WithDonotInsertValues(true))
 	}
+
 	return nil
 }
 

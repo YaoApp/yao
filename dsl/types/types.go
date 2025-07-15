@@ -145,7 +145,6 @@ type LoadOptions struct {
 type UnloadOptions struct {
 	ID      string
 	Path    string
-	Source  string
 	Store   StoreType
 	Options map[string]interface{}
 }
