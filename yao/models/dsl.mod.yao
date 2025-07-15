@@ -68,6 +68,13 @@
       "nullable": true
     },
     {
+      "name": "source",
+      "type": "text",
+      "label": "Source",
+      "comment": "DSL source content",
+      "nullable": true
+    },
+    {
       "name": "tags",
       "type": "json",
       "label": "Tags",
@@ -112,6 +119,13 @@
       "comment": "Whether this is a built-in DSL",
       "default": false,
       "index": true
+    },
+    {
+      "name": "source",
+      "type": "text",
+      "label": "Source",
+      "comment": "DSL source content",
+      "nullable": true
     },
     {
       "name": "creator_id",

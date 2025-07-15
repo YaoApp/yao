@@ -101,11 +101,12 @@ type Info struct {
 
 // ListOptions for DSL list
 type ListOptions struct {
-	Sort   string
-	Order  string
-	Store  StoreType
-	Source bool
-	Tags   []string
+	Sort    string
+	Order   string
+	Store   StoreType
+	Source  bool
+	Tags    []string
+	Pattern string // Pattern for file name matching, e.g. "test_*" for test files
 }
 
 // CreateOptions for DSL upsert
