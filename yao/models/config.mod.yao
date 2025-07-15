@@ -2,6 +2,10 @@
   "name": "config",
   "label": "Configuration",
   "description": "Configuration table for storing system settings and parameters",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "config",
     "comment": "Configuration table"

@@ -2,6 +2,10 @@
   "name": "knowledge",
   "label": "Knowledge",
   "description": "Knowledge table for storing knowledge collections for AI assistants",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "knowledge",
     "comment": "Knowledge table"
@@ -42,6 +46,37 @@
       "index": true
     },
     {
+      "name": "tags",
+      "type": "json",
+      "label": "Tags",
+      "comment": "Knowledge tags",
+      "nullable": true
+    },
+    {
+      "name": "builtin",
+      "type": "boolean",
+      "label": "Builtin",
+      "comment": "Whether this is a builtin knowledge",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "Whether knowledge is readonly",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort",
+      "comment": "Knowledge sort order",
+      "default": 9999,
+      "index": true
+    },
+    {
       "name": "uid",
       "type": "string",
       "label": "User ID",
@@ -66,14 +101,6 @@
       "nullable": true
     },
     {
-      "name": "readonly",
-      "type": "boolean",
-      "label": "Readonly",
-      "comment": "Whether knowledge is readonly",
-      "default": false,
-      "index": true
-    },
-    {
       "name": "option",
       "type": "json",
       "label": "Option",
@@ -86,14 +113,6 @@
       "label": "System",
       "comment": "Whether this is a system knowledge",
       "default": false,
-      "index": true
-    },
-    {
-      "name": "sort",
-      "type": "integer",
-      "label": "Sort",
-      "comment": "Knowledge sort order",
-      "default": 9999,
       "index": true
     },
     {

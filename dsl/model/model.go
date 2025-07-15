@@ -127,9 +127,9 @@ func (m *YaoModel) Reload(ctx context.Context, options *types.ReloadOptions) err
 		opts = options.Options
 	}
 
-	var migration bool = false
-	if v, ok := opts["migration"]; ok {
-		migration = v.(bool)
+	var migrate bool = false
+	if v, ok := opts["migrate"]; ok {
+		migrate = v.(bool)
 	}
 
 	var reset bool = false
@@ -144,7 +144,7 @@ func (m *YaoModel) Reload(ctx context.Context, options *types.ReloadOptions) err
 		return err
 	}
 
-	if migration || reset {
+	if migrate || reset {
 		return mod.Migrate(reset, model.WithDonotInsertValues(true))
 	}
 	return nil
