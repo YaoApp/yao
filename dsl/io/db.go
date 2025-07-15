@@ -118,10 +118,16 @@ func (db *DB) List(options *types.ListOptions) ([]*types.Info, error) {
 		wheres = append(wheres, model.QueryWhere{Wheres: orwheres})
 	}
 
+	// Select fields
+	fields := []interface{}{"dsl_id", "label", "path", "sort", "tags", "description", "status", "store", "mtime", "ctime"}
+	if options.Source {
+		fields = append(fields, "source")
+	}
+
 	// Get the list
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "type", Value: db.Type}},
-		Select: []interface{}{"dsl_id", "label", "path", "sort", "tags", "description", "status", "store", "mtime", "ctime"},
+		Wheres: wheres,
+		Select: fields,
 		Orders: orders,
 	})
 	if err != nil {

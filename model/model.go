@@ -1,9 +1,11 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
@@ -11,6 +13,8 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
+	"github.com/yaoapp/yao/dsl"
+	"github.com/yaoapp/yao/dsl/types"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -54,18 +58,23 @@ func Load(cfg config.Config) error {
 	}, exts...)
 
 	if len(messages) > 0 {
+		for _, message := range messages {
+			log.Error("Load filesystem models error: %s", message)
+		}
 		return fmt.Errorf(strings.Join(messages, ";\n"))
 	}
 
 	// Load database models ( ignore error)
-	err = loadDatabaseModels()
-	if err != nil {
-		log.Error("load database models error: %s", err.Error())
+	errs := loadDatabaseModels()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			log.Error("Load database models error: %s", err.Error())
+		}
 	}
-
 	return err
 }
 
+// LoadSystemModels load system models
 func loadSystemModels() error {
 	for id, path := range systemModels {
 		content, err := data.Read(path)
@@ -100,7 +109,7 @@ func loadSystemModels() error {
 		}
 
 		// Auto migrate
-		err = mod.Migrate(true, model.WithDonotInsertValues(true))
+		err = mod.Migrate(false, model.WithDonotInsertValues(true))
 		if err != nil {
 			log.Error("migrate system model %s error: %s", id, err.Error())
 			return err
@@ -110,6 +119,33 @@ func loadSystemModels() error {
 	return nil
 }
 
-func loadDatabaseModels() error {
-	return nil
+// LoadDatabaseModels load database models
+func loadDatabaseModels() []error {
+
+	var errs []error = []error{}
+	manager, err := dsl.New(types.TypeModel)
+	if err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	models, err := manager.List(ctx, &types.ListOptions{Store: types.StoreTypeDB, Source: true})
+	if err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	// Load models
+	for _, info := range models {
+		_, err := model.LoadSource([]byte(info.Source), info.ID, info.Path)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+	}
+
+	return errs
 }
