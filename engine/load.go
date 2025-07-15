@@ -595,8 +595,20 @@ func loadApp(root string) error {
 		}
 		return []byte(val)
 	})
+
+	// Parse app.yao
 	share.App = share.AppInfo{}
-	return application.Parse(appFile, appData, &share.App)
+	err = application.Parse(appFile, appData, &share.App)
+	if err != nil {
+		return err
+	}
+
+	// Set default prefix
+	if share.App.Prefix == "" {
+		share.App.Prefix = "yao_"
+	}
+
+	return nil
 }
 
 func printErr(mode, widget string, err error) {

@@ -2,10 +2,11 @@
   "name": "dsl",
   "label": "DSL",
   "description": "DSL table for storing Yao DSL configurations",
-  "table": {
-    "name": "dsl",
-    "comment": "DSL table"
-  },
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "dsl", "comment": "DSL table" },
   "columns": [
     {
       "name": "id",

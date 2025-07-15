@@ -2,6 +2,10 @@
   "name": "history",
   "label": "Chat History",
   "description": "Chat history table for storing detailed chat message information",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "history",
     "comment": "Chat history table"

@@ -81,6 +81,7 @@ type AppInfo struct {
 	Option       map[string]interface{} `json:"option,omitempty"`
 	XGen         string                 `json:"xgen,omitempty"`
 	AdminRoot    string                 `json:"adminRoot,omitempty"`
+	Prefix       string                 `json:"prefix,omitempty"` // The prefix of the app, default is "yao_", it will be used to system table name, e.g. "yao_user", "yao_dsl" etc.
 	Static       Static                 `json:"public,omitempty"`
 	Optional     map[string]interface{} `json:"optional,omitempty"`
 	Moapi        Moapi                  `json:"moapi,omitempty"`

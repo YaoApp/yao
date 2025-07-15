@@ -2,6 +2,10 @@
   "name": "audit",
   "label": "Audit Log",
   "description": "Audit log table for storing system operation audit records",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "audit_log",
     "comment": "Audit log table"

@@ -2,6 +2,10 @@
   "name": "attachment",
   "label": "Attachment",
   "description": "Attachment table for storing file attachments with metadata and access control",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "attachment",
     "comment": "Attachment table"

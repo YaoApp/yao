@@ -45,3 +45,4 @@ db
 data/bindata.go.bak
 share/const.go.bak
 share/const.goe
+.cursor

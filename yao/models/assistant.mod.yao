@@ -2,6 +2,10 @@
   "name": "assistant",
   "label": "Assistant",
   "description": "Assistant table for storing AI assistant configurations and metadata",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "assistant",
     "comment": "Assistant table"

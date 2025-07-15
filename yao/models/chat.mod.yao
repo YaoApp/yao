@@ -2,6 +2,10 @@
   "name": "chat",
   "label": "Chat",
   "description": "Chat table for storing chat metadata and information",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
   "table": {
     "name": "chat",
     "comment": "Chat table"
