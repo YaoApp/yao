@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
@@ -19,8 +20,10 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/runtime"
@@ -29,6 +32,63 @@ import (
 )
 
 var testServer *http.Server = nil
+
+// SystemModels system models for testing
+var testSystemModels = map[string]string{
+	"__yao.assistant":  "yao/models/assistant.mod.yao",
+	"__yao.attachment": "yao/models/attachment.mod.yao",
+	"__yao.audit":      "yao/models/audit.mod.yao",
+	"__yao.chat":       "yao/models/chat.mod.yao",
+	"__yao.config":     "yao/models/config.mod.yao",
+	"__yao.dsl":        "yao/models/dsl.mod.yao",
+	"__yao.history":    "yao/models/history.mod.yao",
+	"__yao.kb":         "yao/models/kb.mod.yao",
+}
+
+// loadSystemModels load system models for testing
+func loadSystemModels(t *testing.T, cfg config.Config) error {
+	for id, path := range testSystemModels {
+		content, err := data.Read(path)
+		if err != nil {
+			return err
+		}
+
+		// Parse model
+		var data map[string]interface{}
+		err = application.Parse(path, content, &data)
+		if err != nil {
+			return err
+		}
+
+		// Set prefix
+		if table, ok := data["table"].(map[string]interface{}); ok {
+			if name, ok := table["name"].(string); ok {
+				table["name"] = share.App.Prefix + name
+				content, err = jsoniter.Marshal(data)
+				if err != nil {
+					log.Error("failed to marshal model data: %v", err)
+					return fmt.Errorf("failed to marshal model data: %v", err)
+				}
+			}
+		}
+
+		// Load Model
+		mod, err := model.LoadSource(content, id, filepath.Join("__system", path))
+		if err != nil {
+			log.Error("load system model %s error: %s", id, err.Error())
+			return err
+		}
+
+		// Auto migrate
+		err = mod.Migrate(false, model.WithDonotInsertValues(true))
+		if err != nil {
+			log.Error("migrate system model %s error: %s", id, err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
 
 // Prepare test environment
 func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
@@ -259,8 +319,14 @@ func loadModel(t *testing.T, cfg config.Config) {
 	model.WithCrypt([]byte(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey)), "AES")
 	model.WithCrypt([]byte(`{}`), "PASSWORD")
 
+	// Load system models
+	err := loadSystemModels(t, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	exts := []string{"*.mod.yao", "*.mod.json", "*.mod.jsonc"}
-	err := application.App.Walk("models", func(root, file string, isdir bool) error {
+	err = application.App.Walk("models", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
