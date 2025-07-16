@@ -187,6 +187,11 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 		t.Fatal(err)
 	}
 
+	// Set default prefix
+	if share.App.Prefix == "" {
+		share.App.Prefix = "yao_"
+	}
+
 	utils.Init()
 	dbconnect(t, cfg)
 	load(t, cfg)
