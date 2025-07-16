@@ -35,16 +35,11 @@ func fmtRow(row map[string]interface{}) map[string]interface{} {
 		delete(row, "dsl_id")
 	}
 	if readonly, ok := row["readonly"]; ok {
-		row["readable"] = readonly
+		row["readonly"] = toBool(readonly)
 		delete(row, "readonly")
 	}
-
-	// Convert boolean values
-	if row["readable"] != nil {
-		row["readable"] = toBool(row["readable"])
-	}
-	if row["built_in"] != nil {
-		row["built_in"] = toBool(row["built_in"])
+	if builtin, ok := row["built_in"]; ok {
+		row["built_in"] = toBool(builtin)
 	}
 
 	// Convert time values
@@ -71,7 +66,10 @@ func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 	// Get the info
 	var info types.Info
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "dsl_id", Value: id}},
+		Wheres: []model.QueryWhere{
+			{Column: "dsl_id", Value: id},
+			{Column: "type", Value: db.Type},
+		},
 		Select: []interface{}{
 			"dsl_id",
 			"type",
@@ -80,7 +78,6 @@ func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 			"sort",
 			"tags",
 			"description",
-			"status",
 			"store",
 			"mtime",
 			"ctime",
@@ -111,6 +108,9 @@ func (db *DB) Inspect(id string) (*types.Info, bool, error) {
 		return nil, false, err
 	}
 
+	// Force set Store to DB since this record is from database
+	info.Store = types.StoreTypeDB
+
 	return &info, true, nil
 }
 
@@ -122,7 +122,10 @@ func (db *DB) Source(id string) (string, bool, error) {
 
 	// Get the source
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "dsl_id", Value: id}},
+		Wheres: []model.QueryWhere{
+			{Column: "dsl_id", Value: id},
+			{Column: "type", Value: db.Type},
+		},
 		Select: []interface{}{"source"},
 		Limit:  1,
 	})
@@ -178,7 +181,6 @@ func (db *DB) List(options *types.ListOptions) ([]*types.Info, error) {
 		"sort",
 		"tags",
 		"description",
-		"status",
 		"store",
 		"mtime",
 		"ctime",
@@ -219,6 +221,11 @@ func (db *DB) List(options *types.ListOptions) ([]*types.Info, error) {
 		return nil, err
 	}
 
+	// Force set Store to DB since these records are from database
+	for _, info := range infos {
+		info.Store = types.StoreTypeDB
+	}
+
 	return infos, nil
 }
 
@@ -229,11 +236,50 @@ func (db *DB) Create(options *types.CreateOptions) error {
 		return fmt.Errorf("%s %s source is required", db.Type, options.ID)
 	}
 
-	// Get info from source
-	var info types.Info
-	err := jsoniter.Unmarshal([]byte(options.Source), &info)
+	// Parse the source to extract metadata
+	var sourceData map[string]interface{}
+	err := jsoniter.Unmarshal([]byte(options.Source), &sourceData)
 	if err != nil {
 		return err
+	}
+
+	// Extract common fields from source
+	var label, description string
+	var tags []string
+	var sort int
+
+	if v, ok := sourceData["label"]; ok {
+		if s, ok := v.(string); ok {
+			label = s
+		}
+	}
+
+	if v, ok := sourceData["description"]; ok {
+		if s, ok := v.(string); ok {
+			description = s
+		}
+	}
+
+	if v, ok := sourceData["tags"]; ok {
+		if tagsList, ok := v.([]interface{}); ok {
+			for _, tag := range tagsList {
+				if s, ok := tag.(string); ok {
+					tags = append(tags, s)
+				}
+			}
+		}
+	}
+
+	if v, ok := sourceData["sort"]; ok {
+		if s, ok := v.(float64); ok {
+			sort = int(s)
+		}
+	}
+
+	// Set default store type if not specified
+	store := options.Store
+	if store == "" {
+		store = types.StoreTypeFile
 	}
 
 	// Get the info
@@ -242,27 +288,18 @@ func (db *DB) Create(options *types.CreateOptions) error {
 		"source":      options.Source,
 		"dsl_id":      options.ID,
 		"type":        db.Type,
-		"label":       info.Label,
-		"path":        info.Path,
-		"sort":        info.Sort,
-		"tags":        info.Tags,
-		"description": info.Description,
-		"status":      info.Status,
-		"store":       info.Store,
+		"label":       label,
+		"path":        types.ToPath(db.Type, options.ID),
+		"sort":        sort,
+		"tags":        tags,
+		"description": description,
+		"store":       store,
 		"mtime":       time.Now(),
 		"ctime":       time.Now(),
 		"readonly":    0,
 		"built_in":    0,
 		"created_at":  time.Now(),
 		"updated_at":  time.Now(),
-	}
-
-	// Convert boolean values
-	if info.Readonly {
-		data["readonly"] = 1
-	}
-	if info.Builtin {
-		data["built_in"] = 1
 	}
 
 	_, err = m.Create(data)
@@ -283,7 +320,10 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 
 	// Check if the dsl exists
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "dsl_id", Value: options.ID}},
+		Wheres: []model.QueryWhere{
+			{Column: "dsl_id", Value: options.ID},
+			{Column: "type", Value: db.Type},
+		},
 		Select: []interface{}{"id"},
 		Limit:  1,
 	})
@@ -300,24 +340,42 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 		"source": options.Source,
 	}
 	if options.Source != "" {
-		// Parse source to update other fields
-		var info types.Info
-		err = jsoniter.Unmarshal([]byte(options.Source), &info)
+		// Parse source to extract metadata
+		var sourceData map[string]interface{}
+		err = jsoniter.Unmarshal([]byte(options.Source), &sourceData)
 		if err != nil {
 			return err
 		}
 
-		data["label"] = info.Label
-		data["description"] = info.Description
-		data["tags"] = info.Tags
-		data["sort"] = info.Sort
-		data["status"] = info.Status
-		data["store"] = info.Store
-		if info.Readonly {
-			data["readonly"] = 1
+		// Extract common fields from source
+		if v, ok := sourceData["label"]; ok {
+			if s, ok := v.(string); ok {
+				data["label"] = s
+			}
 		}
-		if info.Builtin {
-			data["built_in"] = 1
+
+		if v, ok := sourceData["description"]; ok {
+			if s, ok := v.(string); ok {
+				data["description"] = s
+			}
+		}
+
+		if v, ok := sourceData["tags"]; ok {
+			if tagsList, ok := v.([]interface{}); ok {
+				var tags []string
+				for _, tag := range tagsList {
+					if s, ok := tag.(string); ok {
+						tags = append(tags, s)
+					}
+				}
+				data["tags"] = tags
+			}
+		}
+
+		if v, ok := sourceData["sort"]; ok {
+			if s, ok := v.(float64); ok {
+				data["sort"] = int(s)
+			}
 		}
 	} else {
 		// Update info
@@ -366,7 +424,10 @@ func (db *DB) Delete(id string) error {
 
 	// Check if the dsl exists
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "dsl_id", Value: id}},
+		Wheres: []model.QueryWhere{
+			{Column: "dsl_id", Value: id},
+			{Column: "type", Value: db.Type},
+		},
 		Select: []interface{}{"id", "dsl_id"},
 		Limit:  1,
 	})
@@ -391,7 +452,10 @@ func (db *DB) Exists(id string) (bool, error) {
 
 	// Check if the dsl exists
 	rows, err := m.Get(model.QueryParam{
-		Wheres: []model.QueryWhere{{Column: "dsl_id", Value: id}},
+		Wheres: []model.QueryWhere{
+			{Column: "dsl_id", Value: id},
+			{Column: "type", Value: db.Type},
+		},
 		Select: []interface{}{"id", "dsl_id"},
 		Limit:  1,
 	})
