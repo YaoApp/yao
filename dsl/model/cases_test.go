@@ -201,9 +201,14 @@ func (tc *TestCase) AssertInfo(info *types.Info) bool {
 		return false
 	}
 	return info.ID == tc.ID &&
+		info.Type == types.TypeModel &&
 		info.Label == tc.Label &&
 		len(info.Tags) == len(tc.Tags) &&
-		info.Description == tc.Description
+		info.Description == tc.Description &&
+		!info.Readonly &&
+		!info.Builtin &&
+		!info.Mtime.IsZero() &&
+		!info.Ctime.IsZero()
 }
 
 // AssertUpdatedInfo verifies if the updated information is correct
@@ -212,9 +217,14 @@ func (tc *TestCase) AssertUpdatedInfo(info *types.Info) bool {
 		return false
 	}
 	return info.ID == tc.ID &&
+		info.Type == types.TypeModel &&
 		info.Label == "Updated Label" &&
 		len(info.Tags) == 2 &&
-		info.Description == "Updated Description"
+		info.Description == "Updated Description" &&
+		!info.Readonly &&
+		!info.Builtin &&
+		!info.Mtime.IsZero() &&
+		!info.Ctime.IsZero()
 }
 
 // AssertUpdatedInfoViaInfo verifies if the information updated via Info is correct
@@ -223,7 +233,12 @@ func (tc *TestCase) AssertUpdatedInfoViaInfo(info *types.Info) bool {
 		return false
 	}
 	return info.ID == tc.ID &&
+		info.Type == types.TypeModel &&
 		info.Label == "Updated via Info" &&
 		len(info.Tags) == 2 &&
-		info.Description == "Updated via info field"
+		info.Description == "Updated via info field" &&
+		!info.Readonly &&
+		!info.Builtin &&
+		!info.Mtime.IsZero() &&
+		!info.Ctime.IsZero()
 }

@@ -26,14 +26,19 @@ func (m *YaoModel) Loaded(ctx context.Context) (map[string]*types.Info, error) {
 
 	infos := map[string]*types.Info{}
 	for id, mod := range model.Models {
+		meta := mod.GetMetaInfo()
 		infos[id] = &types.Info{
 			ID:          id,
-			Type:        types.TypeModel,
-			Label:       mod.MetaData.Name,
 			Path:        mod.File,
-			Sort:        999,
-			Tags:        []string{},
-			Description: "Description",
+			Type:        types.TypeModel,
+			Label:       meta.Label,
+			Sort:        meta.Sort,
+			Description: meta.Description,
+			Tags:        meta.Tags,
+			Readonly:    meta.Readonly,
+			Builtin:     meta.Builtin,
+			Mtime:       meta.Mtime,
+			Ctime:       meta.Ctime,
 		}
 	}
 

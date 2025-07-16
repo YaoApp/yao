@@ -89,7 +89,7 @@ type Info struct {
 	Path  string    `json:"path" yaml:"path"`                     // File system path or identifier
 	Store StoreType `json:"store" yaml:"store"`                   // Storage type (file or database)
 
-	Readable bool `json:"readable,omitempty" yaml:"readable,omitempty"` // Whether the DSL is readable
+	Readonly bool `json:"readonly,omitempty" yaml:"readonly,omitempty"` // Whether the DSL is readonly
 	Builtin  bool `json:"built_in,omitempty" yaml:"built_in,omitempty"` // Whether this is a built-in DSL
 
 	Status Status    `json:"status,omitempty" yaml:"status,omitempty"` // Current status (loading, loaded, error)
