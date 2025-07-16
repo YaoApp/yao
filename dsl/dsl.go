@@ -77,13 +77,14 @@ func (dsl *DSL) Inspect(ctx context.Context, id string) (*types.Info, error) {
 		}
 
 		if !exists {
-			return nil, fmt.Errorf("dsl not found, %s", id)
+			return nil, fmt.Errorf("%s not found, %s", dsl.Type, id)
 		}
 	}
 
 	// Merge the status from the manager
 	loaded, err := dsl.manager.Loaded(ctx)
 	if err != nil {
+		fmt.Printf("DEBUG: manager.Loaded failed: %v\n", err)
 		return info, err
 	}
 
@@ -186,14 +187,22 @@ func (dsl *DSL) Create(ctx context.Context, options *types.CreateOptions) error 
 		return fmt.Errorf("create options is required")
 	}
 
+	// Set default store type if not specified
+	if options.Store == "" {
+		options.Store = types.StoreTypeFile
+	}
+
+	// Validate store type
+	if options.Store != types.StoreTypeDB && options.Store != types.StoreTypeFile {
+		return fmt.Errorf("invalid store type: %s", options.Store)
+	}
+
 	if options.Store == types.StoreTypeDB {
 		err := dsl.db.Create(options)
 		if err != nil {
 			return err
 		}
-	}
-
-	if options.Store == types.StoreTypeFile {
+	} else if options.Store == types.StoreTypeFile {
 		err := dsl.fs.Create(options)
 		if err != nil {
 			return err
@@ -252,7 +261,16 @@ func (dsl *DSL) Update(ctx context.Context, options *types.UpdateOptions) error 
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("%s DSL not found, %s", dsl.Type, options.ID)
+			return fmt.Errorf("%s not found, %s", dsl.Type, options.ID)
+		}
+		// Fix: If store is empty but found in fs, it should be File store
+		if info.Store == "" {
+			info.Store = types.StoreTypeFile
+		}
+	} else {
+		// Fix: If store is empty but found in db, it should be DB store
+		if info.Store == "" {
+			info.Store = types.StoreTypeDB
 		}
 	}
 
@@ -309,7 +327,17 @@ func (dsl *DSL) Delete(ctx context.Context, options *types.DeleteOptions) error 
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("%s DSL not found, %s", dsl.Type, options.ID)
+			return fmt.Errorf("%s not found, %s", dsl.Type, options.ID)
+		} else {
+			// Fix: If store is empty but found in fs, it should be File store
+			if info.Store == "" {
+				info.Store = types.StoreTypeFile
+			}
+		}
+	} else {
+		// Fix: If store is empty but found in db, it should be DB store
+		if info.Store == "" {
+			info.Store = types.StoreTypeDB
 		}
 	}
 

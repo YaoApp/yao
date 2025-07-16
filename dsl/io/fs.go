@@ -21,7 +21,6 @@ func NewFS(typ types.Type) types.IO {
 // Inspect get the info from the file
 func (fs *FS) Inspect(id string) (*types.Info, bool, error) {
 	file := types.ToPath(fs.Type, id)
-	var info types.Info = types.Info{ID: id, Path: file}
 	exists, err := application.App.Exists(file)
 	if err != nil {
 		return nil, false, err
@@ -36,21 +35,70 @@ func (fs *FS) Inspect(id string) (*types.Info, bool, error) {
 		return nil, false, err
 	}
 
-	// Unmarshal the data to the info
-	err = application.Parse(file, data, &info)
+	// Parse the source to extract metadata
+	var sourceData map[string]interface{}
+	err = application.Parse(file, data, &sourceData)
 	if err != nil {
 		return nil, true, err
 	}
 
-	// Merge the mtime and ctime
+	// Extract common fields from source
+	var label, description string
+	var tags []string
+	var sort int
+
+	if v, ok := sourceData["label"]; ok {
+		if s, ok := v.(string); ok {
+			label = s
+		}
+	}
+
+	if v, ok := sourceData["description"]; ok {
+		if s, ok := v.(string); ok {
+			description = s
+		}
+	}
+
+	if v, ok := sourceData["tags"]; ok {
+		if tagsList, ok := v.([]interface{}); ok {
+			for _, tag := range tagsList {
+				if s, ok := tag.(string); ok {
+					tags = append(tags, s)
+				}
+			}
+		}
+	}
+
+	if v, ok := sourceData["sort"]; ok {
+		if s, ok := v.(float64); ok {
+			sort = int(s)
+		}
+	}
+
+	// Get file info for timestamps
 	fileInfo, err := application.App.Info(file)
 	if err != nil {
 		return nil, true, err
 	}
 
-	info.Mtime = fileInfo.ModTime()
-	info.Ctime = fileInfo.ModTime()
-	return &info, true, nil
+	// Create Info structure with correct fields
+	info := &types.Info{
+		ID:          id,
+		Type:        fs.Type,
+		Label:       label,
+		Description: description,
+		Tags:        tags,
+		Sort:        sort,
+		Path:        file,
+		Store:       types.StoreTypeFile,
+		Readonly:    false,
+		Builtin:     false,
+		Status:      types.StatusLoading,
+		Mtime:       fileInfo.ModTime(),
+		Ctime:       fileInfo.ModTime(),
+	}
+
+	return info, true, nil
 }
 
 // Source get the source from the file
