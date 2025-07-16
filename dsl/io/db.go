@@ -258,7 +258,7 @@ func (db *DB) Create(options *types.CreateOptions) error {
 	}
 
 	// Convert boolean values
-	if info.Readable {
+	if info.Readonly {
 		data["readonly"] = 1
 	}
 	if info.Builtin {
@@ -313,7 +313,7 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 		data["sort"] = info.Sort
 		data["status"] = info.Status
 		data["store"] = info.Store
-		if info.Readable {
+		if info.Readonly {
 			data["readonly"] = 1
 		}
 		if info.Builtin {
@@ -339,7 +339,7 @@ func (db *DB) Update(options *types.UpdateOptions) error {
 		if options.Info.Store != "" {
 			data["store"] = options.Info.Store
 		}
-		if options.Info.Readable {
+		if options.Info.Readonly {
 			data["readonly"] = 1
 		}
 		if options.Info.Builtin {
