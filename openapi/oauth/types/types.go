@@ -1,4 +1,4 @@
-package oauth
+package types
 
 import (
 	"time"
@@ -199,25 +199,26 @@ type UserAddress struct {
 
 // ClientInfo represents OAuth client information
 type ClientInfo struct {
-	ClientID                string    `json:"client_id"`
-	ClientSecret            string    `json:"client_secret,omitempty"`
-	ClientName              string    `json:"client_name,omitempty"`
-	ClientType              string    `json:"client_type"` // "confidential", "public", "credentialed"
-	RedirectURIs            []string  `json:"redirect_uris"`
-	ResponseTypes           []string  `json:"response_types,omitempty"`
-	GrantTypes              []string  `json:"grant_types,omitempty"`
-	ApplicationType         string    `json:"application_type,omitempty"`
-	Contacts                []string  `json:"contacts,omitempty"`
-	ClientURI               string    `json:"client_uri,omitempty"`
-	LogoURI                 string    `json:"logo_uri,omitempty"`
-	Scope                   string    `json:"scope,omitempty"`
-	TosURI                  string    `json:"tos_uri,omitempty"`
-	PolicyURI               string    `json:"policy_uri,omitempty"`
-	JwksURI                 string    `json:"jwks_uri,omitempty"`
-	JwksValue               string    `json:"jwks,omitempty"`
-	TokenEndpointAuthMethod string    `json:"token_endpoint_auth_method,omitempty"`
-	CreatedAt               time.Time `json:"created_at,omitempty"`
-	UpdatedAt               time.Time `json:"updated_at,omitempty"`
+	ClientID                string                 `json:"client_id"`
+	ClientSecret            string                 `json:"client_secret,omitempty"`
+	ClientName              string                 `json:"client_name,omitempty"`
+	ClientType              string                 `json:"client_type"` // "confidential", "public", "credentialed"
+	RedirectURIs            []string               `json:"redirect_uris"`
+	ResponseTypes           []string               `json:"response_types,omitempty"`
+	GrantTypes              []string               `json:"grant_types,omitempty"`
+	ApplicationType         string                 `json:"application_type,omitempty"`
+	Contacts                []string               `json:"contacts,omitempty"`
+	ClientURI               string                 `json:"client_uri,omitempty"`
+	LogoURI                 string                 `json:"logo_uri,omitempty"`
+	Scope                   string                 `json:"scope,omitempty"`
+	TosURI                  string                 `json:"tos_uri,omitempty"`
+	PolicyURI               string                 `json:"policy_uri,omitempty"`
+	JwksURI                 string                 `json:"jwks_uri,omitempty"`
+	JwksValue               string                 `json:"jwks,omitempty"`
+	TokenEndpointAuthMethod string                 `json:"token_endpoint_auth_method,omitempty"`
+	CreatedAt               time.Time              `json:"created_at,omitempty"`
+	UpdatedAt               time.Time              `json:"updated_at,omitempty"`
+	Extra                   map[string]interface{} `json:"extra,omitempty"` // Extra fields for custom client properties
 }
 
 // AuthorizationServerMetadata represents OAuth 2.0 Authorization Server Metadata (RFC 8414)

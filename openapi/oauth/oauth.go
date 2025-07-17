@@ -1,17 +1,21 @@
 package oauth
 
 import (
-	"context"
 	"time"
 
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/openapi/oauth/providers/client"
+	"github.com/yaoapp/yao/openapi/oauth/providers/user"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // Service OAuth service
 type Service struct {
-	config       *Config
-	store        store.Store
-	userProvider UserProvider
+	config         *Config
+	store          store.Store
+	cache          store.Store
+	userProvider   types.UserProvider
+	clientProvider types.ClientProvider
 }
 
 // Config OAuth service configuration
@@ -19,20 +23,26 @@ type Config struct {
 	// Core storage interface
 	Store store.Store `json:"-"`
 
+	// Cache store
+	Cache store.Store `json:"-"`
+
 	// User provider interface
-	UserProvider UserProvider `json:"-"`
+	UserProvider types.UserProvider `json:"-"`
+
+	// Client provider interface
+	ClientProvider types.ClientProvider `json:"-"`
 
 	// Certificate and key management
-	Signing SigningConfig `json:"signing"`
+	Signing types.SigningConfig `json:"signing"`
 
 	// Token management settings
-	Token TokenConfig `json:"token"`
+	Token types.TokenConfig `json:"token"`
 
 	// Security configuration
-	Security SecurityConfig `json:"security"`
+	Security types.SecurityConfig `json:"security"`
 
 	// Default client settings
-	Client ClientConfig `json:"client"`
+	Client types.ClientConfig `json:"client"`
 
 	// Feature flags
 	Features FeatureFlags `json:"features"`
@@ -72,7 +82,7 @@ type FeatureFlags struct {
 // NewService creates a new OAuth service with the given configuration
 func NewService(config *Config) (*Service, error) {
 	if config == nil {
-		return nil, ErrInvalidConfiguration
+		return nil, types.ErrInvalidConfiguration
 	}
 
 	// Set default values if not provided
@@ -88,13 +98,29 @@ func NewService(config *Config) (*Service, error) {
 	// Use UserProvider from config, or create a default one if not provided
 	userProvider := config.UserProvider
 	if userProvider == nil {
-		userProvider = NewDefaultUserProvider(nil, nil, nil)
+		userProvider = user.NewDefaultUserProvider(nil, nil, nil)
+	}
+
+	// Use ClientProvider from config, or create a default one if not provided
+	clientProvider := config.ClientProvider
+	if clientProvider == nil {
+		var err error
+		clientProvider, err = client.NewDefaultClient(&client.DefaultClientOptions{
+			Prefix: "__yao:",
+			Store:  config.Store,
+			Cache:  config.Cache,
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	service := &Service{
-		config:       config,
-		store:        config.Store,
-		userProvider: userProvider,
+		config:         config,
+		store:          config.Store,
+		cache:          config.Cache,
+		userProvider:   userProvider,
+		clientProvider: clientProvider,
 	}
 
 	return service, nil
@@ -106,8 +132,13 @@ func (s *Service) GetConfig() *Config {
 }
 
 // GetUserProvider returns the user provider for the service
-func (s *Service) GetUserProvider() UserProvider {
+func (s *Service) GetUserProvider() types.UserProvider {
 	return s.userProvider
+}
+
+// GetClientProvider returns the client provider for the service
+func (s *Service) GetClientProvider() types.ClientProvider {
+	return s.clientProvider
 }
 
 // setConfigDefaults sets default values for configuration
@@ -182,53 +213,28 @@ func setConfigDefaults(config *Config) error {
 // validateConfig validates the configuration
 func validateConfig(config *Config) error {
 	if config.Store == nil {
-		return ErrStoreMissing
+		return types.ErrStoreMissing
 	}
 
 	// Validate issuer URL
 	if config.IssuerURL == "" {
-		return ErrIssuerURLMissing
+		return types.ErrIssuerURLMissing
 	}
 
 	// Validate certificate configuration
 	if config.Signing.SigningCertPath == "" || config.Signing.SigningKeyPath == "" {
-		return ErrCertificateMissing
+		return types.ErrCertificateMissing
 	}
 
 	// Validate token configuration
 	if config.Token.AccessTokenLifetime <= 0 {
-		return ErrInvalidTokenLifetime
+		return types.ErrInvalidTokenLifetime
 	}
 
 	// Validate security configuration
 	if config.Security.PKCERequired && len(config.Security.PKCECodeChallengeMethod) == 0 {
-		return ErrPKCEConfigurationInvalid
+		return types.ErrPKCEConfigurationInvalid
 	}
 
 	return nil
-}
-
-// Error definitions
-var (
-	ErrInvalidConfiguration     = &ErrorResponse{Code: "invalid_configuration", ErrorDescription: "Invalid OAuth service configuration"}
-	ErrStoreMissing             = &ErrorResponse{Code: "store_missing", ErrorDescription: "Store is required for OAuth service"}
-	ErrIssuerURLMissing         = &ErrorResponse{Code: "issuer_url_missing", ErrorDescription: "Issuer URL is required for OAuth service"}
-	ErrCertificateMissing       = &ErrorResponse{Code: "certificate_missing", ErrorDescription: "JWT signing certificate and key are required"}
-	ErrInvalidTokenLifetime     = &ErrorResponse{Code: "invalid_token_lifetime", ErrorDescription: "Token lifetime must be greater than 0"}
-	ErrPKCEConfigurationInvalid = &ErrorResponse{Code: "pkce_configuration_invalid", ErrorDescription: "PKCE configuration is invalid"}
-)
-
-// AuthorizationServer returns the authorization server endpoint URL
-func (s *Service) AuthorizationServer(ctx context.Context) string {
-	return s.config.IssuerURL
-}
-
-// ProtectedResource returns the protected resource endpoint URL
-func (s *Service) ProtectedResource(ctx context.Context) string {
-	return s.config.IssuerURL
-}
-
-// UserInfo returns user information for a given access token
-func (s *Service) UserInfo(ctx context.Context, accessToken string) (interface{}, error) {
-	return s.userProvider.GetUserByAccessToken(ctx, accessToken)
 }

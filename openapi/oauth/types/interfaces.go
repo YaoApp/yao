@@ -1,4 +1,4 @@
-package oauth
+package types
 
 import (
 	"context"
@@ -145,4 +145,41 @@ type UserProvider interface {
 
 	// ValidateUserScope validates if a user has access to requested scopes
 	ValidateUserScope(ctx context.Context, userID string, scopes []string) (bool, error)
+}
+
+// ClientProvider interface for OAuth client management and persistence
+type ClientProvider interface {
+	// GetClientByID retrieves client information using a client ID
+	GetClientByID(ctx context.Context, clientID string) (*ClientInfo, error)
+
+	// GetClientByCredentials retrieves and validates client using client credentials
+	// Used for client authentication in token requests
+	GetClientByCredentials(ctx context.Context, clientID string, clientSecret string) (*ClientInfo, error)
+
+	// CreateClient creates a new OAuth client and returns the client information
+	CreateClient(ctx context.Context, clientInfo *ClientInfo) (*ClientInfo, error)
+
+	// UpdateClient updates an existing OAuth client configuration
+	UpdateClient(ctx context.Context, clientID string, clientInfo *ClientInfo) (*ClientInfo, error)
+
+	// DeleteClient removes an OAuth client from the system
+	// This should also invalidate all associated tokens
+	DeleteClient(ctx context.Context, clientID string) error
+
+	// ValidateClient validates client information and configuration
+	// Returns validation result with any errors or warnings
+	ValidateClient(ctx context.Context, clientInfo *ClientInfo) (*ValidationResult, error)
+
+	// ListClients retrieves a list of clients with optional filtering
+	// Supports pagination and filtering by various criteria
+	ListClients(ctx context.Context, filters map[string]interface{}, limit int, offset int) ([]*ClientInfo, int, error)
+
+	// ValidateRedirectURI validates if a redirect URI is registered for the client
+	ValidateRedirectURI(ctx context.Context, clientID string, redirectURI string) (*ValidationResult, error)
+
+	// ValidateScope validates if the client is authorized to request specific scopes
+	ValidateScope(ctx context.Context, clientID string, scopes []string) (*ValidationResult, error)
+
+	// IsClientActive checks if a client is active and can be used for authentication
+	IsClientActive(ctx context.Context, clientID string) (bool, error)
 }
