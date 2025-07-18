@@ -415,109 +415,109 @@ type JWK struct {
 
 // SigningConfig represents signing configuration for OAuth service
 type SigningConfig struct {
-	// Token signing certificate and key (for JWT tokens)
-	SigningCertPath    string `json:"signing_cert_path"`
-	SigningKeyPath     string `json:"signing_key_path"`
-	SigningKeyPassword string `json:"signing_key_password,omitempty"`
-	SigningAlgorithm   string `json:"signing_algorithm"` // RS256, RS384, RS512, ES256, ES384, ES512
+	// Token signing certificate and key (for JWT and opaque tokens)
+	SigningCertPath    string `json:"signing_cert_path"`              // Required: Path to token signing certificate (public key)
+	SigningKeyPath     string `json:"signing_key_path"`               // Required: Path to token signing private key
+	SigningKeyPassword string `json:"signing_key_password,omitempty"` // Optional: Password for encrypted private key
+	SigningAlgorithm   string `json:"signing_algorithm"`              // Optional: Token signing algorithm (default: RS256)
 
 	// Token verification certificates (for token validation)
-	VerificationCerts []string `json:"verification_certs,omitempty"`
+	VerificationCerts []string `json:"verification_certs,omitempty"` // Optional: Additional certificates for token verification
 
 	// mTLS client certificate validation
-	MTLSClientCACertPath string `json:"mtls_client_ca_cert_path,omitempty"`
-	MTLSEnabled          bool   `json:"mtls_enabled"`
+	MTLSClientCACertPath string `json:"mtls_client_ca_cert_path,omitempty"` // Optional: CA certificate path for mTLS client validation
+	MTLSEnabled          bool   `json:"mtls_enabled"`                       // Optional: Enable mutual TLS authentication (default: false)
 
 	// Certificate rotation settings
-	CertRotationEnabled  bool          `json:"cert_rotation_enabled"`
-	CertRotationInterval time.Duration `json:"cert_rotation_interval"`
+	CertRotationEnabled  bool          `json:"cert_rotation_enabled"`  // Optional: Enable automatic certificate rotation (default: false)
+	CertRotationInterval time.Duration `json:"cert_rotation_interval"` // Optional: Certificate rotation interval (default: 24h)
 }
 
 // TokenConfig represents token-related configuration
 type TokenConfig struct {
 	// Access token settings
-	AccessTokenLifetime   time.Duration `json:"access_token_lifetime"`    // 1h
-	AccessTokenFormat     string        `json:"access_token_format"`      // jwt, opaque
-	AccessTokenSigningAlg string        `json:"access_token_signing_alg"` // RS256
+	AccessTokenLifetime   time.Duration `json:"access_token_lifetime"`    // Optional: Access token validity period (default: 1h)
+	AccessTokenFormat     string        `json:"access_token_format"`      // Optional: Access token format - jwt, opaque (default: jwt)
+	AccessTokenSigningAlg string        `json:"access_token_signing_alg"` // Optional: Access token signing algorithm (default: RS256)
 
 	// Refresh token settings
-	RefreshTokenLifetime time.Duration `json:"refresh_token_lifetime"` // 24h
-	RefreshTokenRotation bool          `json:"refresh_token_rotation"` // true for OAuth 2.1
-	RefreshTokenFormat   string        `json:"refresh_token_format"`   // opaque, jwt
+	RefreshTokenLifetime time.Duration `json:"refresh_token_lifetime"` // Optional: Refresh token validity period (default: 24h)
+	RefreshTokenRotation bool          `json:"refresh_token_rotation"` // Optional: Enable refresh token rotation for OAuth 2.1 (default: true)
+	RefreshTokenFormat   string        `json:"refresh_token_format"`   // Optional: Refresh token format - opaque, jwt (default: opaque)
 
 	// Authorization code settings
-	AuthorizationCodeLifetime time.Duration `json:"authorization_code_lifetime"` // 10m
-	AuthorizationCodeLength   int           `json:"authorization_code_length"`   // 32
+	AuthorizationCodeLifetime time.Duration `json:"authorization_code_lifetime"` // Optional: Authorization code validity period (default: 10m)
+	AuthorizationCodeLength   int           `json:"authorization_code_length"`   // Optional: Authorization code length in bytes (default: 32)
 
 	// Device code settings
-	DeviceCodeLifetime time.Duration `json:"device_code_lifetime"` // 15m
-	DeviceCodeLength   int           `json:"device_code_length"`   // 8
-	UserCodeLength     int           `json:"user_code_length"`     // 8
-	DeviceCodeInterval time.Duration `json:"device_code_interval"` // 5s
+	DeviceCodeLifetime time.Duration `json:"device_code_lifetime"` // Optional: Device code validity period (default: 15m)
+	DeviceCodeLength   int           `json:"device_code_length"`   // Optional: Device code length in bytes (default: 8)
+	UserCodeLength     int           `json:"user_code_length"`     // Optional: User code length for device flow (default: 8)
+	DeviceCodeInterval time.Duration `json:"device_code_interval"` // Optional: Device code polling interval (default: 5s)
 
 	// Token binding settings
-	TokenBindingEnabled   bool     `json:"token_binding_enabled"`
-	SupportedBindingTypes []string `json:"supported_binding_types"` // dpop, mtls
+	TokenBindingEnabled   bool     `json:"token_binding_enabled"`   // Optional: Enable token binding to client certificates (default: false)
+	SupportedBindingTypes []string `json:"supported_binding_types"` // Optional: Supported token binding types - dpop, mtls (default: [dpop, mtls])
 
 	// Token audience settings
-	DefaultAudience        []string `json:"default_audience"`
-	AudienceValidationMode string   `json:"audience_validation_mode"` // strict, relaxed
+	DefaultAudience        []string `json:"default_audience"`         // Optional: Default token audience (default: [])
+	AudienceValidationMode string   `json:"audience_validation_mode"` // Optional: Audience validation mode - strict, relaxed (default: strict)
 }
 
 // SecurityConfig represents security-related configuration
 type SecurityConfig struct {
 	// PKCE settings (mandatory for OAuth 2.1)
-	PKCERequired            bool     `json:"pkce_required"`              // true for OAuth 2.1
-	PKCECodeChallengeMethod []string `json:"pkce_code_challenge_method"` // S256
-	PKCECodeVerifierLength  int      `json:"pkce_code_verifier_length"`  // 128
+	PKCERequired            bool     `json:"pkce_required"`              // Optional: Require PKCE for OAuth 2.1 compliance (default: true)
+	PKCECodeChallengeMethod []string `json:"pkce_code_challenge_method"` // Optional: Supported PKCE code challenge methods (default: [S256])
+	PKCECodeVerifierLength  int      `json:"pkce_code_verifier_length"`  // Optional: PKCE code verifier length (default: 128)
 
 	// State parameter settings
-	StateParameterRequired bool          `json:"state_parameter_required"`
-	StateParameterLifetime time.Duration `json:"state_parameter_lifetime"` // 10m
-	StateParameterLength   int           `json:"state_parameter_length"`   // 32
+	StateParameterRequired bool          `json:"state_parameter_required"` // Optional: Require state parameter for CSRF protection (default: false)
+	StateParameterLifetime time.Duration `json:"state_parameter_lifetime"` // Optional: State parameter validity period (default: 10m)
+	StateParameterLength   int           `json:"state_parameter_length"`   // Optional: State parameter length in bytes (default: 32)
 
 	// Rate limiting
-	RateLimitEnabled    bool          `json:"rate_limit_enabled"`
-	RateLimitRequests   int           `json:"rate_limit_requests"` // requests per window
-	RateLimitWindow     time.Duration `json:"rate_limit_window"`   // 1m
-	RateLimitByClientID bool          `json:"rate_limit_by_client_id"`
+	RateLimitEnabled    bool          `json:"rate_limit_enabled"`      // Optional: Enable rate limiting (default: false)
+	RateLimitRequests   int           `json:"rate_limit_requests"`     // Optional: Number of requests per window (default: 100)
+	RateLimitWindow     time.Duration `json:"rate_limit_window"`       // Optional: Rate limit time window (default: 1m)
+	RateLimitByClientID bool          `json:"rate_limit_by_client_id"` // Optional: Enable per-client rate limiting (default: false)
 
 	// Brute force protection
-	BruteForceProtectionEnabled bool          `json:"brute_force_protection_enabled"`
-	MaxFailedAttempts           int           `json:"max_failed_attempts"` // 5
-	LockoutDuration             time.Duration `json:"lockout_duration"`    // 15m
+	BruteForceProtectionEnabled bool          `json:"brute_force_protection_enabled"` // Optional: Enable brute force attack protection (default: false)
+	MaxFailedAttempts           int           `json:"max_failed_attempts"`            // Optional: Maximum failed login attempts (default: 5)
+	LockoutDuration             time.Duration `json:"lockout_duration"`               // Optional: Account lockout duration (default: 15m)
 
 	// Encryption settings
-	EncryptionKey       string `json:"encryption_key"`       // for encrypting sensitive data
-	EncryptionAlgorithm string `json:"encryption_algorithm"` // AES-256-GCM
+	EncryptionKey       string `json:"encryption_key"`       // Optional: Key for encrypting sensitive data (default: "")
+	EncryptionAlgorithm string `json:"encryption_algorithm"` // Optional: Encryption algorithm for sensitive data (default: AES-256-GCM)
 
 	// Additional security features
-	IPWhitelist              []string `json:"ip_whitelist,omitempty"`
-	IPBlacklist              []string `json:"ip_blacklist,omitempty"`
-	RequireHTTPS             bool     `json:"require_https"`
-	DisableUnsecureEndpoints bool     `json:"disable_unsecure_endpoints"`
+	IPWhitelist              []string `json:"ip_whitelist,omitempty"`     // Optional: IP addresses allowed to access (default: [])
+	IPBlacklist              []string `json:"ip_blacklist,omitempty"`     // Optional: IP addresses blocked from access (default: [])
+	RequireHTTPS             bool     `json:"require_https"`              // Optional: Require HTTPS for all endpoints (default: true)
+	DisableUnsecureEndpoints bool     `json:"disable_unsecure_endpoints"` // Optional: Disable non-HTTPS endpoints (default: false)
 }
 
 // ClientConfig represents default client configuration
 type ClientConfig struct {
 	// Default client settings
-	DefaultClientType              string   `json:"default_client_type"`                // confidential, public
-	DefaultTokenEndpointAuthMethod string   `json:"default_token_endpoint_auth_method"` // client_secret_basic, client_secret_post, private_key_jwt
-	DefaultGrantTypes              []string `json:"default_grant_types"`                // authorization_code, refresh_token
-	DefaultResponseTypes           []string `json:"default_response_types"`             // code
-	DefaultScopes                  []string `json:"default_scopes"`                     // openid, profile, email
+	DefaultClientType              string   `json:"default_client_type"`                // Optional: Default client type - confidential, public (default: confidential)
+	DefaultTokenEndpointAuthMethod string   `json:"default_token_endpoint_auth_method"` // Optional: Default client authentication method (default: client_secret_basic)
+	DefaultGrantTypes              []string `json:"default_grant_types"`                // Optional: Default supported grant types (default: [authorization_code, refresh_token])
+	DefaultResponseTypes           []string `json:"default_response_types"`             // Optional: Default supported response types (default: [code])
+	DefaultScopes                  []string `json:"default_scopes"`                     // Optional: Default OAuth scopes (default: [openid, profile, email])
 
 	// Client validation settings
-	ClientIDLength       int           `json:"client_id_length"`       // 32
-	ClientSecretLength   int           `json:"client_secret_length"`   // 64
-	ClientSecretLifetime time.Duration `json:"client_secret_lifetime"` // 0 (never expires)
+	ClientIDLength       int           `json:"client_id_length"`       // Optional: Client ID length in bytes (default: 32)
+	ClientSecretLength   int           `json:"client_secret_length"`   // Optional: Client secret length in bytes (default: 64)
+	ClientSecretLifetime time.Duration `json:"client_secret_lifetime"` // Optional: Client secret lifetime, 0 = never expires (default: 0s)
 
 	// Dynamic client registration
-	DynamicRegistrationEnabled bool     `json:"dynamic_registration_enabled"`
-	AllowedRedirectURISchemes  []string `json:"allowed_redirect_uri_schemes"` // https, http (for dev)
-	AllowedRedirectURIHosts    []string `json:"allowed_redirect_uri_hosts"`   // localhost (for dev)
+	DynamicRegistrationEnabled bool     `json:"dynamic_registration_enabled"` // Optional: Enable dynamic client registration (default: true)
+	AllowedRedirectURISchemes  []string `json:"allowed_redirect_uri_schemes"` // Optional: Allowed redirect URI schemes (default: [https, http])
+	AllowedRedirectURIHosts    []string `json:"allowed_redirect_uri_hosts"`   // Optional: Allowed redirect URI hosts (default: [localhost, 127.0.0.1])
 
 	// Client certificate settings
-	ClientCertificateRequired   bool   `json:"client_certificate_required"`
-	ClientCertificateValidation string `json:"client_certificate_validation"` // none, optional, required
+	ClientCertificateRequired   bool   `json:"client_certificate_required"`   // Optional: Require client certificates (default: false)
+	ClientCertificateValidation string `json:"client_certificate_validation"` // Optional: Client certificate validation mode - none, optional, required (default: none)
 }
