@@ -28,6 +28,7 @@ var systemModels = map[string]string{
 	"__yao.dsl":        "yao/models/dsl.mod.yao",
 	"__yao.history":    "yao/models/history.mod.yao",
 	"__yao.kb":         "yao/models/kb.mod.yao",
+	"__yao.user":       "yao/models/user.mod.yao",
 }
 
 // Load load models
