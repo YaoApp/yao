@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"time"
 )
 
 // OAuth interface defines the complete OAuth 2.1 and MCP authorization server functionality
@@ -145,6 +146,55 @@ type UserProvider interface {
 
 	// ValidateUserScope validates if a user has access to requested scopes
 	ValidateUserScope(ctx context.Context, userID string, scopes []string) (bool, error)
+
+	// Token management methods
+	// StoreToken stores a token with expiration time
+	StoreToken(accessToken string, tokenData map[string]interface{}, expiration time.Duration) error
+
+	// RevokeToken revokes a token by removing it from storage
+	RevokeToken(accessToken string) error
+
+	// TokenExists checks if a token exists in storage
+	TokenExists(accessToken string) bool
+
+	// GetTokenData retrieves token data from storage
+	GetTokenData(accessToken string) (map[string]interface{}, error)
+
+	// User management methods
+	// CreateUser creates a new user in the database
+	CreateUser(userData map[string]interface{}) (interface{}, error)
+
+	// UpdateUserLastLogin updates the user's last login timestamp
+	UpdateUserLastLogin(userID interface{}) error
+
+	// GetUserByUsername retrieves user by username
+	GetUserByUsername(username string) (interface{}, error)
+
+	// GetUserByEmail retrieves user by email
+	GetUserByEmail(email string) (interface{}, error)
+
+	// GetUserForAuth retrieves user information for authentication purposes (internal use only)
+	// This method includes sensitive fields like password_hash and should not be exposed to external APIs
+	GetUserForAuth(ctx context.Context, identifier string, identifierType string) (interface{}, error)
+
+	// Two-factor authentication methods
+	// GenerateTOTPSecret generates a new TOTP secret for user
+	GenerateTOTPSecret(ctx context.Context, userID string, issuer string, accountName string) (string, string, error) // returns secret and QR code URL
+
+	// EnableTwoFactor enables two-factor authentication for user
+	EnableTwoFactor(ctx context.Context, userID string, secret string, code string) error
+
+	// DisableTwoFactor disables two-factor authentication for user
+	DisableTwoFactor(ctx context.Context, userID string, code string) error
+
+	// VerifyTOTPCode verifies a TOTP code for user
+	VerifyTOTPCode(ctx context.Context, userID string, code string) (bool, error)
+
+	// GenerateRecoveryCodes generates new recovery codes for user
+	GenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error)
+
+	// VerifyRecoveryCode verifies and consumes a recovery code
+	VerifyRecoveryCode(ctx context.Context, userID string, code string) (bool, error)
 }
 
 // ClientProvider interface for OAuth client management and persistence

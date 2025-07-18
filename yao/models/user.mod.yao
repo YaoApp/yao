@@ -1,0 +1,267 @@
+{
+  "name": "OAuth User",
+  "label": "OAuth User",
+  "description": "OAuth user model for authentication and authorization",
+  "tags": ["oauth", "auth", "user"],
+  "table": {
+    "name": "oauth_users",
+    "comment": "OAuth users table for authentication and authorization"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "subject",
+      "type": "string",
+      "label": "Subject",
+      "comment": "OAuth subject identifier (sub claim)",
+      "length": 255,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "username",
+      "type": "string",
+      "label": "Username",
+      "comment": "User login username",
+      "length": 100,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "label": "Email",
+      "comment": "User email address",
+      "length": 255,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "password_hash",
+      "type": "string",
+      "label": "Password Hash",
+      "comment": "Hashed password for authentication",
+      "length": 255,
+      "nullable": true,
+      "crypt": "PASSWORD"
+    },
+    {
+      "name": "first_name",
+      "type": "string",
+      "label": "First Name",
+      "comment": "User first name",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "last_name",
+      "type": "string",
+      "label": "Last Name",
+      "comment": "User last name",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "full_name",
+      "type": "string",
+      "label": "Full Name",
+      "comment": "User full display name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "avatar_url",
+      "type": "string",
+      "label": "Avatar URL",
+      "comment": "URL to user profile picture",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "mobile",
+      "type": "string",
+      "label": "Mobile",
+      "comment": "User mobile phone number",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "address",
+      "type": "text",
+      "label": "Address",
+      "comment": "User address information",
+      "nullable": true
+    },
+    {
+      "name": "scopes",
+      "type": "json",
+      "label": "Scopes",
+      "comment": "Available OAuth scopes for this user",
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "User account status",
+      "option": ["active", "inactive", "suspended", "pending"],
+      "default": "pending",
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "email_verified",
+      "type": "boolean",
+      "label": "Email Verified",
+      "comment": "Whether user email is verified",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "mobile_verified",
+      "type": "boolean",
+      "label": "Mobile Verified",
+      "comment": "Whether user mobile phone is verified",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "two_factor_enabled",
+      "type": "boolean",
+      "label": "Two Factor Enabled",
+      "comment": "Whether two-factor authentication is enabled",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "two_factor_secret",
+      "type": "string",
+      "label": "Two Factor Secret",
+      "comment": "TOTP shared secret key (Base32 encoded)",
+      "length": 255,
+      "nullable": true,
+      "crypt": "AES"
+    },
+    {
+      "name": "two_factor_issuer",
+      "type": "string",
+      "label": "Two Factor Issuer",
+      "comment": "Issuer name displayed in authenticator app",
+      "length": 100,
+      "nullable": true,
+      "default": "YAO OAuth"
+    },
+    {
+      "name": "two_factor_algorithm",
+      "type": "enum",
+      "label": "Two Factor Algorithm",
+      "comment": "TOTP algorithm (SHA1, SHA256, SHA512)",
+      "option": ["SHA1", "SHA256", "SHA512"],
+      "default": "SHA1",
+      "nullable": true
+    },
+    {
+      "name": "two_factor_digits",
+      "type": "integer",
+      "label": "Two Factor Digits",
+      "comment": "Number of digits in TOTP code (6 or 8)",
+      "default": 6,
+      "nullable": true
+    },
+    {
+      "name": "two_factor_period",
+      "type": "integer",
+      "label": "Two Factor Period",
+      "comment": "TOTP time period in seconds (usually 30)",
+      "default": 30,
+      "nullable": true
+    },
+    {
+      "name": "two_factor_account_name",
+      "type": "string",
+      "label": "Two Factor Account Name",
+      "comment": "Account name displayed in authenticator app (usually username or email)",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "two_factor_recovery_codes",
+      "type": "json",
+      "label": "Two Factor Recovery Codes",
+      "comment": "Backup recovery codes for two-factor authentication",
+      "nullable": true
+    },
+    {
+      "name": "two_factor_enabled_at",
+      "type": "timestamp",
+      "label": "Two Factor Enabled At",
+      "comment": "When two-factor authentication was enabled",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "two_factor_last_verified_at",
+      "type": "timestamp",
+      "label": "Two Factor Last Verified At",
+      "comment": "Last time two-factor authentication was verified",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "last_login_at",
+      "type": "timestamp",
+      "label": "Last Login At",
+      "comment": "Last login timestamp",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "password_changed_at",
+      "type": "timestamp",
+      "label": "Password Changed At",
+      "comment": "When password was last changed",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional user metadata and custom fields",
+      "nullable": true
+    },
+    {
+      "name": "preferences",
+      "type": "json",
+      "label": "Preferences",
+      "comment": "User preferences and settings",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_user_two_factor",
+      "columns": ["two_factor_enabled", "two_factor_enabled_at"],
+      "type": "index",
+      "comment": "Index on two-factor authentication status and time"
+    },
+    {
+      "name": "idx_user_verification",
+      "columns": ["email_verified", "mobile_verified"],
+      "type": "index",
+      "comment": "Index on verification status for filtering"
+    }
+  ],
+  "relations": {},
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true }
+}

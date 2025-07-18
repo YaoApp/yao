@@ -1,12 +1,14 @@
 package oauth
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/openapi/oauth/providers/client"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/share"
 )
 
 // Service OAuth service
@@ -98,7 +100,12 @@ func NewService(config *Config) (*Service, error) {
 	// Use UserProvider from config, or create a default one if not provided
 	userProvider := config.UserProvider
 	if userProvider == nil {
-		userProvider = user.NewDefaultUserProvider(nil, nil, nil)
+		userProvider = user.NewDefaultUser(&user.DefaultUserOptions{
+			Prefix:     fmt.Sprintf("%s:", share.App.Prefix),
+			Model:      "__yao.user",
+			Cache:      config.Cache,
+			TokenStore: config.Store,
+		})
 	}
 
 	// Use ClientProvider from config, or create a default one if not provided
@@ -106,7 +113,7 @@ func NewService(config *Config) (*Service, error) {
 	if clientProvider == nil {
 		var err error
 		clientProvider, err = client.NewDefaultClient(&client.DefaultClientOptions{
-			Prefix: "__yao:",
+			Prefix: fmt.Sprintf("%s:", share.App.Prefix),
 			Store:  config.Store,
 			Cache:  config.Cache,
 		})
