@@ -367,6 +367,45 @@ func TestDynamicClientRegistration(t *testing.T) {
 		assert.Equal(t, types.ErrorInvalidRequest, oauthErr.Code)
 		assert.Contains(t, oauthErr.ErrorDescription, "At least one redirect URI is required")
 	})
+
+	t.Run("register with disallowed redirect URI host", func(t *testing.T) {
+		request := &types.DynamicClientRegistrationRequest{
+			ClientName:   "Disallowed Host Client",
+			RedirectURIs: []string{"https://example.com/callback"}, // example.com is not in allowed hosts
+		}
+
+		response, err := service.DynamicClientRegistration(ctx, request)
+		assert.Error(t, err)
+		assert.Nil(t, response)
+
+		oauthErr, ok := err.(*types.ErrorResponse)
+		assert.True(t, ok)
+		assert.Equal(t, types.ErrorInvalidRequest, oauthErr.Code)
+		assert.Contains(t, oauthErr.ErrorDescription, "Redirect URI host 'example.com' is not allowed")
+	})
+
+	t.Run("register with disallowed redirect URI scheme", func(t *testing.T) {
+		// Temporarily restrict schemes to only HTTPS
+		originalSchemes := service.config.Client.AllowedRedirectURISchemes
+		service.config.Client.AllowedRedirectURISchemes = []string{"https"}
+		defer func() {
+			service.config.Client.AllowedRedirectURISchemes = originalSchemes
+		}()
+
+		request := &types.DynamicClientRegistrationRequest{
+			ClientName:   "Disallowed Scheme Client",
+			RedirectURIs: []string{"http://localhost/callback"}, // HTTP is not allowed when only HTTPS is permitted
+		}
+
+		response, err := service.DynamicClientRegistration(ctx, request)
+		assert.Error(t, err)
+		assert.Nil(t, response)
+
+		oauthErr, ok := err.(*types.ErrorResponse)
+		assert.True(t, ok)
+		assert.Equal(t, types.ErrorInvalidRequest, oauthErr.Code)
+		assert.Contains(t, oauthErr.ErrorDescription, "Redirect URI scheme 'http' is not allowed")
+	})
 }
 
 // =============================================================================
