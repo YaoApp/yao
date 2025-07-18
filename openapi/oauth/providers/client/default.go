@@ -151,6 +151,14 @@ func (c *DefaultClient) GetClientByCredentials(ctx context.Context, clientID str
 
 // CreateClient creates a new OAuth client and returns the client information
 func (c *DefaultClient) CreateClient(ctx context.Context, clientInfo *types.ClientInfo) (*types.ClientInfo, error) {
+	// Check for nil client info
+	if clientInfo == nil {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidRequest,
+			ErrorDescription: "Client information is required",
+		}
+	}
+
 	// Validate required fields
 	if clientInfo.ClientID == "" {
 		return nil, &types.ErrorResponse{
@@ -210,6 +218,14 @@ func (c *DefaultClient) CreateClient(ctx context.Context, clientInfo *types.Clie
 
 // UpdateClient updates an existing OAuth client configuration
 func (c *DefaultClient) UpdateClient(ctx context.Context, clientID string, clientInfo *types.ClientInfo) (*types.ClientInfo, error) {
+	// Check for nil client info
+	if clientInfo == nil {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidRequest,
+			ErrorDescription: "Client information is required",
+		}
+	}
+
 	// Check if client exists
 	existing, err := c.GetClientByID(ctx, clientID)
 	if err != nil {

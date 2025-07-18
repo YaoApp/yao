@@ -108,6 +108,20 @@ func (s *Service) DynamicClientRegistration(ctx context.Context, request *types.
 		clientInfo.TokenEndpointAuthMethod = s.config.Client.DefaultTokenEndpointAuthMethod
 	}
 
+	// Update the request with defaults for the response
+	if len(request.GrantTypes) == 0 {
+		request.GrantTypes = clientInfo.GrantTypes
+	}
+	if len(request.ResponseTypes) == 0 {
+		request.ResponseTypes = clientInfo.ResponseTypes
+	}
+	if request.ApplicationType == "" {
+		request.ApplicationType = clientInfo.ApplicationType
+	}
+	if request.TokenEndpointAuthMethod == "" {
+		request.TokenEndpointAuthMethod = clientInfo.TokenEndpointAuthMethod
+	}
+
 	// Create the client
 	createdClient, err := s.clientProvider.CreateClient(ctx, clientInfo)
 	if err != nil {
