@@ -31,7 +31,9 @@ const (
 
 // OAuth 2.1 Response Types
 const (
-	ResponseTypeCode = "code"
+	ResponseTypeCode    = "code"
+	ResponseTypeToken   = "token"
+	ResponseTypeIDToken = "id_token"
 )
 
 // OAuth 2.1 Token Types

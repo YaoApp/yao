@@ -18,6 +18,7 @@ type Service struct {
 	cache          store.Store
 	userProvider   types.UserProvider
 	clientProvider types.ClientProvider
+	prefix         string
 }
 
 // Config OAuth service configuration
@@ -98,10 +99,11 @@ func NewService(config *Config) (*Service, error) {
 	}
 
 	// Use UserProvider from config, or create a default one if not provided
+	keyPrefix := fmt.Sprintf("%s:", share.App.Prefix)
 	userProvider := config.UserProvider
 	if userProvider == nil {
 		userProvider = user.NewDefaultUser(&user.DefaultUserOptions{
-			Prefix:     fmt.Sprintf("%s:", share.App.Prefix),
+			Prefix:     keyPrefix,
 			Model:      "__yao.user",
 			Cache:      config.Cache,
 			TokenStore: config.Store,
@@ -113,7 +115,7 @@ func NewService(config *Config) (*Service, error) {
 	if clientProvider == nil {
 		var err error
 		clientProvider, err = client.NewDefaultClient(&client.DefaultClientOptions{
-			Prefix: fmt.Sprintf("%s:", share.App.Prefix),
+			Prefix: keyPrefix,
 			Store:  config.Store,
 			Cache:  config.Cache,
 		})
@@ -128,6 +130,7 @@ func NewService(config *Config) (*Service, error) {
 		cache:          config.Cache,
 		userProvider:   userProvider,
 		clientProvider: clientProvider,
+		prefix:         keyPrefix,
 	}
 
 	return service, nil
