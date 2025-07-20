@@ -50,6 +50,7 @@ var testSystemModels = map[string]string{
 var testSystemStores = map[string]string{
 	"__yao.store":        "yao/stores/store.badger.yao",
 	"__yao.cache":        "yao/stores/cache.lru.yao",
+	"__yao.oauth.store":  "yao/stores/oauth/store.badger.yao",
 	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao",
 	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
 	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao",
@@ -151,6 +152,10 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 	if len(rootEnv) > 0 {
 		appRootEnv = rootEnv[0]
 	}
+
+	// Remove the data store
+	var path = filepath.Join(os.Getenv(appRootEnv), "data", "stores")
+	os.RemoveAll(path)
 
 	root := os.Getenv(appRootEnv)
 	var app application.Application

@@ -7,5 +7,5 @@
   "sort": 2,
   "name": "System Cache Store",
   "type": "lru",
-  "option": { "size": 4096 }
+  "option": { "size": 8192 }
 }
