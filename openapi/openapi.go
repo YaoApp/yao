@@ -3,6 +3,7 @@ package openapi
 import (
 	"path/filepath"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth"
@@ -49,4 +50,25 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 	// Create the OpenAPI server
 	Server = &OpenAPI{Config: &config, OAuth: oauthService}
 	return Server, nil
+}
+
+// Attach attaches the OpenAPI server to the router
+func (openapi *OpenAPI) Attach(router *gin.Engine) {
+
+	// Ignore if the OpenAPI server is not configured
+	if openapi.Config == nil {
+		return
+	}
+
+	// Basic Groups
+	baseURL := openapi.Config.BaseURL
+	group := router.Group(baseURL)
+
+	// OAuth handlers
+	openapi.attachOAuth(group)
+
+	// Hello World handlers
+	openapi.attachHelloWorld(group)
+
+	// Custom handlers (Defined by developer)
 }

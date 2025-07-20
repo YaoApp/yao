@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -38,6 +39,11 @@ func Start(cfg config.Config) (*http.Server, error) {
 	// Neo API
 	if neo.Neo != nil {
 		neo.Neo.API(router, "/api/__yao/neo")
+	}
+
+	// OpenAPI Server
+	if openapi.Server != nil {
+		openapi.Server.Attach(router)
 	}
 
 	go func() {
