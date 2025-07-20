@@ -3,6 +3,16 @@ package openapi
 import "github.com/gin-gonic/gin"
 
 // OAuth handlers
+// NOTE: If using versioned paths like /v1/oauth, ensure that:
+// 1. Discovery endpoints (.well-known) are at the root level, not versioned
+// 2. Server metadata correctly returns versioned OAuth endpoint URLs
+// 3. MCP clients are configured with the correct base URL for discovery
+//
+// Example setup:
+//   - OAuth endpoints: /v1/oauth/authorize, /v1/oauth/token, etc.
+//   - Discovery endpoints: /.well-known/oauth-authorization-server (root level)
+//   - MCP client URL: https://server.com/v1/mcp (for MCP protocol)
+//   - Authorization discovery: https://server.com/.well-known/oauth-authorization-server
 func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 
 	// OAuth Core Endpoints (RFC 6749, OAuth 2.1)
@@ -47,6 +57,8 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 	oauth.POST("/token_exchange", openapi.oauthTokenExchange)
 
 	// OAuth Discovery and Metadata Endpoints
+	// IMPORTANT: These should be at the root level for proper MCP discovery
+	// If base is /v1, consider mounting these at the application root instead
 	wellKnown := base.Group("/.well-known")
 
 	// OAuth Authorization Server Metadata - RFC 8414 (Required by MCP)
