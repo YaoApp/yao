@@ -31,6 +31,7 @@ func check(t *testing.T) {
 	// System stores
 	assert.True(t, ids["__yao.store"])
 	assert.True(t, ids["__yao.cache"])
+	assert.True(t, ids["__yao.oauth.store"])
 	assert.True(t, ids["__yao.oauth.client"])
 	assert.True(t, ids["__yao.oauth.cache"])
 	assert.True(t, ids["__yao.agent.memory"])

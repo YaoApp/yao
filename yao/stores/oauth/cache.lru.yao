@@ -8,6 +8,6 @@
   "name": "OAuth Cache Store",
   "type": "lru",
   "option": {
-    "size": 4096
+    "size": 8192
   }
 }
