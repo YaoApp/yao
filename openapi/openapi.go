@@ -19,7 +19,7 @@ type OpenAPI struct {
 }
 
 // Load loads the OpenAPI server from the configuration
-func Load(appConfig *config.Config) (*OpenAPI, error) {
+func Load(appConfig config.Config) (*OpenAPI, error) {
 
 	var configPath string = filepath.Join("openapi", "openapi.yao")
 	var configRaw, err = application.App.Read(configPath)
