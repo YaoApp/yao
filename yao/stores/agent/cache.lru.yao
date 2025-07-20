@@ -1,0 +1,13 @@
+{
+  "label": "Agent Cache Store",
+  "description": "LRU cache store for agent temporary data and quick access memory",
+  "tags": ["agent", "cache", "lru", "ai"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 21,
+  "name": "Agent Cache Store",
+  "type": "lru",
+  "option": {
+    "size": 4096
+  }
+}

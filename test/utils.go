@@ -19,6 +19,7 @@ import (
 	"github.com/yaoapp/gou/query/gou"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/server/http"
+	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
@@ -44,6 +45,58 @@ var testSystemModels = map[string]string{
 	"__yao.history":    "yao/models/history.mod.yao",
 	"__yao.kb":         "yao/models/kb.mod.yao",
 	"__yao.user":       "yao/models/user.mod.yao",
+}
+
+var testSystemStores = map[string]string{
+	"__yao.store":        "yao/stores/store.badger.yao",
+	"__yao.cache":        "yao/stores/cache.lru.yao",
+	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao",
+	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
+	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao",
+}
+
+func loadSystemStores(t *testing.T, cfg config.Config) error {
+	for id, path := range testSystemStores {
+		raw, err := data.Read(path)
+		if err != nil {
+			return err
+		}
+
+		// Replace template variables in the JSON string
+		source := string(raw)
+		if strings.Contains(source, "YAO_APP_ROOT") || strings.Contains(source, "YAO_DATA_ROOT") {
+			vars := map[string]string{
+				"YAO_APP_ROOT":  cfg.Root,
+				"YAO_DATA_ROOT": cfg.DataRoot,
+			}
+			source = replaceVars(source, vars)
+		}
+
+		// Load store with the processed source
+		_, err = store.LoadSource([]byte(source), id, filepath.Join("__system", path))
+		if err != nil {
+			log.Error("load system store %s error: %s", id, err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+// replaceVars replaces template variables in the JSON string
+// Supports {{ VAR_NAME }} syntax
+func replaceVars(jsonStr string, vars map[string]string) string {
+	result := jsonStr
+	for key, value := range vars {
+		// Replace both {{ KEY }} and {{KEY}} patterns
+		patterns := []string{
+			"{{ " + key + " }}",
+			"{{" + key + "}}",
+		}
+		for _, pattern := range patterns {
+			result = strings.ReplaceAll(result, pattern, value)
+		}
+	}
+	return result
 }
 
 // loadSystemModels load system models for testing
@@ -203,6 +256,10 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 func Clean() {
 	dbclose()
 	runtime.Stop()
+
+	// Remove the data store
+	var path = filepath.Join(os.Getenv("YAO_TEST_APPLICATION"), "data", "stores")
+	os.RemoveAll(path)
 }
 
 // Start the test server
@@ -282,6 +339,7 @@ func startRuntime(t *testing.T, cfg config.Config) {
 
 func load(t *testing.T, cfg config.Config) {
 	loadFS(t, cfg)
+	loadStore(t, cfg)
 	loadScript(t, cfg)
 	loadModel(t, cfg)
 	loadConnector(t, cfg)
@@ -343,6 +401,23 @@ func loadModel(t *testing.T, cfg config.Config) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+// loadStore load system stores for testing
+func loadStore(t *testing.T, cfg config.Config) {
+	err := loadSystemStores(t, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exts := []string{"*.yao", "*.json", "*.jsonc"}
+	err = application.App.Walk("stores", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		_, err := store.Load(file, share.ID(root, file))
+		return err
+	}, exts...)
 }
 
 func loadQuery(t *testing.T, cfg config.Config) {

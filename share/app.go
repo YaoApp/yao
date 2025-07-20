@@ -10,3 +10,11 @@ func (app AppInfo) Public() AppInfo {
 	app.Storage.S3 = nil
 	return app
 }
+
+// GetPrefix Get the prefix of the app with the default value "yao_"
+func (app AppInfo) GetPrefix() string {
+	if app.Prefix == "" {
+		return "yao_"
+	}
+	return app.Prefix
+}

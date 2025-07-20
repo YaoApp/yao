@@ -27,6 +27,14 @@ func check(t *testing.T) {
 	assert.True(t, ids["cache"])
 	assert.True(t, ids["data"])
 	assert.True(t, ids["share"])
+
+	// System stores
+	assert.True(t, ids["__yao.store"])
+	assert.True(t, ids["__yao.cache"])
+	assert.True(t, ids["__yao.oauth.client"])
+	assert.True(t, ids["__yao.oauth.cache"])
+	assert.True(t, ids["__yao.agent.memory"])
+	assert.True(t, ids["__yao.agent.cache"])
 }
 
 func loadConnectors(t *testing.T) {
