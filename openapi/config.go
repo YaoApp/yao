@@ -249,6 +249,13 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 	}
 
 	// Set defaults if needed
+	if config.BaseURL == "" {
+		config.BaseURL = "/v1"
+	}
+
+	// Format the BaseURL should not have trailing slash
+	config.BaseURL = strings.TrimSuffix(config.BaseURL, "/")
+
 	if config.Cache == "" {
 		config.Cache = "__yao.oauth.cache"
 	}

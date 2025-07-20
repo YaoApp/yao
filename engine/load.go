@@ -22,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/neo"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/pipe"
 	"github.com/yaoapp/yao/plugin"
@@ -279,6 +280,13 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 		}
 	}
 
+	// Load OpenAPI
+	_, err = openapi.Load(cfg)
+	if err != nil {
+		// printErr(cfg.Mode, "OpenAPI", err)
+		warnings = append(warnings, Warning{Widget: "OpenAPI", Error: err})
+	}
+
 	// Execute AfterLoad Process if exists
 	if share.App.AfterLoad != "" && !options.IgnoredAfterLoad {
 		p, err := process.Of(share.App.AfterLoad, options)
@@ -466,6 +474,12 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = neo.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Neo", err)
+	}
+
+	// Load OpenAPI
+	_, err = openapi.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "OpenAPI", err)
 	}
 
 	// Execute AfterLoad Process if exists

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/sui/api"
 )
@@ -22,6 +23,14 @@ var Middlewares = []gin.HandlerFunc{
 
 // withStaticFileServer static file server
 func withStaticFileServer(c *gin.Context) {
+
+	// Handle OpenAPI server
+	if openapi.Server != nil && openapi.Server.Config != nil && openapi.Server.Config.BaseURL != "" {
+		if strings.HasPrefix(c.Request.URL.Path, openapi.Server.Config.BaseURL+"/") {
+			c.Next()
+			return
+		}
+	}
 
 	// Handle API & websocket
 	length := len(c.Request.URL.Path)
