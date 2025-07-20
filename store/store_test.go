@@ -1,6 +1,8 @@
 package store
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,7 +17,14 @@ func TestLoad(t *testing.T) {
 	defer test.Clean()
 	loadConnectors(t)
 
-	Load(config.Conf)
+	// Remove the data store (For cleaning the stores whitch created by the test)
+	var path = filepath.Join(config.Conf.DataRoot, "stores")
+	os.RemoveAll(path)
+
+	err := Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
 	check(t)
 }
 
