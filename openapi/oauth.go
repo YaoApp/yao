@@ -56,20 +56,6 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 	// Token Exchange - RFC 8693
 	oauth.POST("/token_exchange", openapi.oauthTokenExchange)
 
-	// OAuth Discovery and Metadata Endpoints
-	// IMPORTANT: These should be at the root level for proper MCP discovery
-	// If base is /v1, consider mounting these at the application root instead
-	wellKnown := base.Group("/.well-known")
-
-	// OAuth Authorization Server Metadata - RFC 8414 (Required by MCP)
-	wellKnown.GET("/oauth-authorization-server", openapi.oauthServerMetadata)
-
-	// OpenID Connect Discovery - OpenID Connect Discovery 1.0
-	wellKnown.GET("/openid_configuration", openapi.oauthOpenIDConfiguration)
-
-	// OAuth Protected Resource Metadata - RFC 9728 (Required by MCP)
-	wellKnown.GET("/oauth-protected-resource", openapi.oauthProtectedResourceMetadata)
-
 }
 
 // OAuth Core Endpoints Implementation
@@ -114,14 +100,3 @@ func (openapi *OpenAPI) oauthPushedAuthorizationRequest(c *gin.Context) {}
 
 // oauthTokenExchange handles token exchange - RFC 8693
 func (openapi *OpenAPI) oauthTokenExchange(c *gin.Context) {}
-
-// OAuth Discovery and Metadata Endpoints Implementation
-
-// oauthServerMetadata returns authorization server metadata - RFC 8414
-func (openapi *OpenAPI) oauthServerMetadata(c *gin.Context) {}
-
-// oauthOpenIDConfiguration returns OpenID Connect configuration
-func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {}
-
-// oauthProtectedResourceMetadata returns protected resource metadata - RFC 9728
-func (openapi *OpenAPI) oauthProtectedResourceMetadata(c *gin.Context) {}
