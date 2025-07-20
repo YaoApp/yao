@@ -64,6 +64,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	baseURL := openapi.Config.BaseURL
 	group := router.Group(baseURL)
 
+	// Well-known handlers
+	openapi.attachWellKnown(router)
+
 	// OAuth handlers
 	openapi.attachOAuth(group)
 
