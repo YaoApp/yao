@@ -3,6 +3,8 @@ package types
 import (
 	"context"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // OAuth interface defines the complete OAuth 2.1 and MCP authorization server functionality
@@ -134,6 +136,9 @@ type OAuth interface {
 	// ValidateTokenBinding validates token binding information
 	// This ensures tokens are bound to the correct client or device
 	ValidateTokenBinding(ctx context.Context, token string, binding *TokenBinding) (*ValidationResult, error)
+
+	// Guard is the OAuth guard middleware
+	Guard(c *gin.Context)
 }
 
 // UserProvider interface for user information retrieval

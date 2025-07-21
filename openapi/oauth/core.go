@@ -71,6 +71,11 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 	}
 
 	// Validate scope if provided
+	// TODO:
+	//  1. Should validate scope, if not provide, use the default scope
+	//  2. If scope has "openid", should be redirect to the login page/mobile app authentication
+	//  3. If scope not has "openid", can't visit the userinfo endpoint
+	//  4. Security check
 	if request.Scope != "" {
 		scopes := strings.Fields(request.Scope)
 		scopeValidation, err := s.clientProvider.ValidateScope(ctx, request.ClientID, scopes)
