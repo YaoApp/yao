@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -66,15 +68,50 @@ func (openapi *OpenAPI) attachOAuth(base *gin.RouterGroup) {
 // oauthAuthorize handles authorization requests - RFC 6749 Section 3.1
 func (openapi *OpenAPI) oauthAuthorize(c *gin.Context) {
 	// Parse and validate authorization request
-	authReq, err := openapi.parseAuthorizationRequest(c)
-	if err != nil {
-		openapi.respondWithAuthorizationError(c, authReq.RedirectURI, err, authReq.State)
+	authReq, parseErr := openapi.parseAuthorizationRequest(c)
+	if parseErr != nil {
+		openapi.respondWithAuthorizationError(c, authReq.RedirectURI, parseErr, authReq.State)
 		return
 	}
 
-	// TODO: Implement full authorization logic
-	// For now, return server error to indicate not implemented
-	openapi.respondWithAuthorizationError(c, authReq.RedirectURI, ErrServerError, authReq.State)
+	// Call OAuth service to process authorization request
+	authResp, err := openapi.OAuth.Authorize(c, authReq)
+	if err != nil {
+		// OAuth service returned an error
+		openapi.respondWithAuthorizationError(c, authReq.RedirectURI, ErrServerError, authReq.State)
+		return
+	}
+
+	// Check if authorization response contains an error
+	if authResp.Error != "" {
+		// Convert OAuth service error to ErrorResponse
+		oauthError := &ErrorResponse{
+			Code:             authResp.Error,
+			ErrorDescription: authResp.ErrorDescription,
+		}
+		openapi.respondWithAuthorizationError(c, authReq.RedirectURI, oauthError, authReq.State)
+		return
+	}
+
+	// Success: redirect to client with authorization code
+	redirectURL := authReq.RedirectURI
+	if redirectURL != "" {
+		separator := "?"
+		if len(redirectURL) > 0 && redirectURL[len(redirectURL)-1:] == "?" {
+			separator = "&"
+		}
+
+		redirectURL += separator + "code=" + authResp.Code
+		if authResp.State != "" {
+			redirectURL += "&state=" + authResp.State
+		}
+
+		c.Redirect(http.StatusFound, redirectURL)
+		return
+	}
+
+	// Fallback: return JSON response if no redirect URI (should not happen with valid requests)
+	openapi.respondWithSuccess(c, StatusOK, authResp)
 }
 
 // oauthToken handles token requests - RFC 6749 Section 3.2
@@ -379,9 +416,9 @@ func (openapi *OpenAPI) handleDeviceCodeGrant(c *gin.Context) {
 }
 
 // parseAuthorizationRequest parses and validates authorization request parameters
-func (openapi *OpenAPI) parseAuthorizationRequest(c *gin.Context) (*AuthorizationRequest, *ErrorResponse) {
+func (openapi *OpenAPI) parseAuthorizationRequest(c *gin.Context) (*types.AuthorizationRequest, *ErrorResponse) {
 	// Parse authorization request parameters from both GET (query) and POST (form) methods
-	authReq := &AuthorizationRequest{
+	authReq := &types.AuthorizationRequest{
 		ClientID:            openapi.getParam(c, "client_id"),
 		ResponseType:        openapi.getParam(c, "response_type"),
 		RedirectURI:         openapi.getParam(c, "redirect_uri"),
