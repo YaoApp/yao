@@ -2,7 +2,8 @@ package types
 
 import (
 	"context"
-	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 // OAuth interface defines the complete OAuth 2.1 and MCP authorization server functionality
@@ -134,6 +135,9 @@ type OAuth interface {
 	// ValidateTokenBinding validates token binding information
 	// This ensures tokens are bound to the correct client or device
 	ValidateTokenBinding(ctx context.Context, token string, binding *TokenBinding) (*ValidationResult, error)
+
+	// Guard is the OAuth guard middleware
+	Guard(c *gin.Context)
 }
 
 // UserProvider interface for user information retrieval
@@ -149,16 +153,16 @@ type UserProvider interface {
 
 	// Token management methods
 	// StoreToken stores a token with expiration time
-	StoreToken(accessToken string, tokenData map[string]interface{}, expiration time.Duration) error
+	// StoreToken(accessToken string, tokenData map[string]interface{}, expiration time.Duration) error
 
 	// RevokeToken revokes a token by removing it from storage
-	RevokeToken(accessToken string) error
+	// RevokeToken(accessToken string) error
 
 	// TokenExists checks if a token exists in storage
-	TokenExists(accessToken string) bool
+	// TokenExists(accessToken string) bool
 
 	// GetTokenData retrieves token data from storage
-	GetTokenData(accessToken string) (map[string]interface{}, error)
+	// GetTokenData(accessToken string) (map[string]interface{}, error)
 
 	// User management methods
 	// CreateUser creates a new user in the database

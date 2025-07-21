@@ -322,3 +322,155 @@ func TestOAuthAuthorize(t *testing.T) {
 		assert.Equal(t, "test-missing-client-id", query.Get("state"), "State should be preserved")
 	})
 }
+
+func TestOAuthJWKS(t *testing.T) {
+	serverURL := Prepare(t)
+	defer Clean()
+
+	// Debug: Check if Server is properly initialized
+	if Server == nil {
+		t.Fatal("OpenAPI Server is nil")
+	}
+
+	if Server.Config == nil {
+		t.Fatal("OpenAPI Server.Config is nil")
+	}
+
+	if Server.OAuth == nil {
+		t.Fatal("OpenAPI Server.OAuth is nil")
+	}
+
+	t.Logf("Server initialized with BaseURL: %s", Server.Config.BaseURL)
+
+	// Get base URL from server config
+	baseURL := ""
+	if Server != nil && Server.Config != nil {
+		baseURL = Server.Config.BaseURL
+	}
+
+	endpoint := serverURL + baseURL + "/oauth/jwks"
+	t.Logf("Testing JWKS endpoint: %s", endpoint)
+
+	t.Run("Valid JWKS Request", func(t *testing.T) {
+		// Make GET request to JWKS endpoint
+		resp, err := http.Get(endpoint)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		t.Logf("Response status code: %d", resp.StatusCode)
+
+		// Should return 200 OK
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// Verify Content-Type header (case-insensitive comparison)
+		contentType := resp.Header.Get("Content-Type")
+		assert.Contains(t, contentType, "application/json", "Content-Type should be JSON")
+		assert.Contains(t, contentType, "charset=utf", "Content-Type should specify charset")
+
+		// Verify OAuth 2.1 security headers are present
+		assert.Equal(t, "no-store", resp.Header.Get("Cache-Control"), "Cache-Control header should be set")
+		assert.Equal(t, "no-cache", resp.Header.Get("Pragma"), "Pragma header should be set")
+		assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"), "X-Content-Type-Options header should be set")
+		assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"), "X-Frame-Options header should be set")
+		assert.Equal(t, "no-referrer", resp.Header.Get("Referrer-Policy"), "Referrer-Policy header should be set")
+
+		// Read and parse response body
+		bodyBytes, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+		t.Logf("JWKS response body: %s", string(bodyBytes))
+
+		// Parse JWKS response directly as per RFC 7517
+		var jwks types.JWKSResponse
+		err = json.Unmarshal(bodyBytes, &jwks)
+		assert.NoError(t, err, "Response should be valid JWKS JSON")
+
+		// Verify JWKS structure
+		assert.NotNil(t, jwks.Keys, "JWKS should have keys array")
+		assert.Equal(t, 1, len(jwks.Keys), "Should have exactly 1 key (matching 1 certificate pair)")
+
+		// Verify the single JWK entry
+		jwk := jwks.Keys[0]
+
+		// Verify required JWK fields
+		assert.Equal(t, "RSA", jwk.Kty, "Key type should be RSA")
+		assert.Equal(t, "sig", jwk.Use, "Key use should be sig (signature)")
+		assert.NotEmpty(t, jwk.Kid, "Key ID should not be empty")
+		assert.Equal(t, "RS256", jwk.Alg, "Algorithm should be RS256")
+		assert.NotEmpty(t, jwk.N, "RSA modulus (n) should not be empty")
+		assert.NotEmpty(t, jwk.E, "RSA exponent (e) should not be empty")
+
+		t.Logf("JWK Details - Kty: %s, Use: %s, Kid: %s, Alg: %s", jwk.Kty, jwk.Use, jwk.Kid, jwk.Alg)
+		t.Logf("RSA Modulus length: %d, Exponent: %s", len(jwk.N), jwk.E)
+
+		// Verify base64url encoding (basic validation)
+		// Base64URL should not contain padding or invalid characters
+		assert.NotContains(t, jwk.N, "=", "RSA modulus should be base64url encoded (no padding)")
+		assert.NotContains(t, jwk.E, "=", "RSA exponent should be base64url encoded (no padding)")
+		assert.NotContains(t, jwk.N, "+", "RSA modulus should be base64url encoded (no + chars)")
+		assert.NotContains(t, jwk.E, "+", "RSA exponent should be base64url encoded (no + chars)")
+		assert.NotContains(t, jwk.N, "/", "RSA modulus should be base64url encoded (no / chars)")
+		assert.NotContains(t, jwk.E, "/", "RSA exponent should be base64url encoded (no / chars)")
+
+		// Verify optional JWK fields are not present (as they're not needed for basic JWT signing)
+		assert.Empty(t, jwk.D, "Private key components should not be exposed in JWKS")
+		assert.Empty(t, jwk.P, "Private key components should not be exposed in JWKS")
+		assert.Empty(t, jwk.Q, "Private key components should not be exposed in JWKS")
+		assert.Empty(t, jwk.DP, "Private key components should not be exposed in JWKS")
+		assert.Empty(t, jwk.DQ, "Private key components should not be exposed in JWKS")
+		assert.Empty(t, jwk.QI, "Private key components should not be exposed in JWKS")
+	})
+
+	t.Run("JWKS Response Format Compliance", func(t *testing.T) {
+		// Test that JWKS response is RFC 7517 compliant
+		resp, err := http.Get(endpoint)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		// RFC 7517: JWKS MUST have "keys" member
+		keys, exists := response["keys"]
+		assert.True(t, exists, "JWKS must have 'keys' member")
+
+		// Keys should be an array
+		keysArray, ok := keys.([]interface{})
+		assert.True(t, ok, "Keys should be an array")
+		assert.Equal(t, 1, len(keysArray), "Should have exactly one key")
+
+		// Verify the key is a JSON object
+		keyObj, ok := keysArray[0].(map[string]interface{})
+		assert.True(t, ok, "Key should be a JSON object")
+
+		// Verify required RSA JWK parameters are present
+		requiredParams := []string{"kty", "use", "kid", "alg", "n", "e"}
+		for _, param := range requiredParams {
+			_, exists := keyObj[param]
+			assert.True(t, exists, "JWK should have required parameter: %s", param)
+		}
+	})
+
+	t.Run("JWKS Endpoint Security Headers", func(t *testing.T) {
+		// Test that security headers are properly set for JWKS endpoint
+		resp, err := http.Get(endpoint)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Verify all required security headers for OAuth 2.1 compliance
+		expectedHeaders := map[string]string{
+			"Cache-Control":          "no-store",
+			"Pragma":                 "no-cache",
+			"X-Content-Type-Options": "nosniff",
+			"X-Frame-Options":        "DENY",
+			"Referrer-Policy":        "no-referrer",
+			"Content-Type":           "application/json; charset=utf-8",
+		}
+
+		for header, expectedValue := range expectedHeaders {
+			actualValue := resp.Header.Get(header)
+			assert.Equal(t, expectedValue, actualValue, "Header %s should be set correctly", header)
+		}
+	})
+}

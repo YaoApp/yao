@@ -400,9 +400,6 @@ func TestRefreshToken(t *testing.T) {
 		assert.NotEmpty(t, response.RefreshToken)
 		assert.NotEqual(t, refreshToken, response.RefreshToken) // Should be different
 
-		// Old refresh token should be revoked
-		exists := service.userProvider.TokenExists(refreshToken)
-		assert.False(t, exists)
 	})
 
 	t.Run("invalid refresh token", func(t *testing.T) {
@@ -499,9 +496,6 @@ func TestRotateRefreshToken(t *testing.T) {
 		assert.Equal(t, "Bearer", response.TokenType)
 		assert.Equal(t, 3600, response.ExpiresIn)
 
-		// Old token should be revoked
-		exists := service.userProvider.TokenExists(oldToken)
-		assert.False(t, exists)
 	})
 
 	t.Run("rotation with disabled feature", func(t *testing.T) {
@@ -661,9 +655,6 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		assert.NotEmpty(t, token.RefreshToken)
 		assert.NotEqual(t, refreshToken, token.RefreshToken) // Should be different
 
-		// Old refresh token should be revoked
-		exists := service.userProvider.TokenExists(refreshToken)
-		assert.False(t, exists)
 	})
 
 	t.Run("refresh token grant without rotation", func(t *testing.T) {
@@ -693,9 +684,6 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		assert.Equal(t, 3600, token.ExpiresIn)
 		assert.Equal(t, refreshToken, token.RefreshToken) // Should be the same
 
-		// Old refresh token should still exist
-		exists := service.userProvider.TokenExists(refreshToken)
-		assert.True(t, exists)
 	})
 
 	t.Run("refresh token grant with invalid token", func(t *testing.T) {

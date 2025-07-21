@@ -455,3 +455,310 @@ func base64Encode(data []byte) string {
 
 	return string(result)
 }
+
+func TestOAuthRevoke(t *testing.T) {
+	serverURL := Prepare(t)
+	defer Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if Server != nil && Server.Config != nil {
+		baseURL = Server.Config.BaseURL
+	}
+
+	// Register a test client
+	client := RegisterTestClient(t, "Revoke Test Client", []string{"https://localhost/callback"})
+	defer CleanupTestClient(t, client.ClientID)
+
+	// Obtain access token directly using the utility function
+	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+
+	t.Run("Valid Access Token Revocation", func(t *testing.T) {
+		// Prepare revocation request
+		data := url.Values{}
+		data.Set("token", tokenInfo.AccessToken)
+		data.Set("token_type_hint", "access_token")
+
+		// Make revocation request
+		endpoint := serverURL + baseURL + "/oauth/revoke"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 200 OK for successful revocation
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		t.Logf("Access token revoked successfully")
+	})
+
+	t.Run("Valid Refresh Token Revocation", func(t *testing.T) {
+		// Prepare revocation request for refresh token
+		data := url.Values{}
+		data.Set("token", tokenInfo.RefreshToken)
+		data.Set("token_type_hint", "refresh_token")
+
+		// Make revocation request
+		endpoint := serverURL + baseURL + "/oauth/revoke"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 200 OK for successful revocation
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		t.Logf("Refresh token revoked successfully")
+	})
+
+	t.Run("Invalid Token Revocation", func(t *testing.T) {
+		// Prepare revocation request with invalid token
+		data := url.Values{}
+		data.Set("token", "invalid-token-12345")
+		data.Set("token_type_hint", "access_token")
+
+		// Make revocation request
+		endpoint := serverURL + baseURL + "/oauth/revoke"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 200 OK even for invalid tokens (RFC 7009)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		t.Logf("Invalid token revocation handled correctly")
+	})
+
+	t.Run("Missing Token Parameter", func(t *testing.T) {
+		// Prepare revocation request without token parameter
+		data := url.Values{}
+		// Missing token parameter
+
+		// Make revocation request
+		endpoint := serverURL + baseURL + "/oauth/revoke"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 400 Bad Request for missing token
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+func TestOAuthIntrospect(t *testing.T) {
+	serverURL := Prepare(t)
+	defer Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if Server != nil && Server.Config != nil {
+		baseURL = Server.Config.BaseURL
+	}
+
+	// Register a test client
+	client := RegisterTestClient(t, "Introspect Test Client", []string{"https://localhost/callback"})
+	defer CleanupTestClient(t, client.ClientID)
+
+	// Obtain access token directly using the utility function
+	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+
+	t.Run("Valid Access Token Introspection", func(t *testing.T) {
+		// Prepare introspection request
+		data := url.Values{}
+		data.Set("token", tokenInfo.AccessToken)
+		data.Set("token_type_hint", "access_token")
+
+		// Make introspection request
+		endpoint := serverURL + baseURL + "/oauth/introspect"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 200 OK
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// Read response body
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+
+		// Parse the wrapped response structure
+		var wrappedResp struct {
+			Success   bool                       `json:"success"`
+			Data      TokenIntrospectionResponse `json:"data"`
+			Timestamp string                     `json:"timestamp"`
+		}
+		err = json.Unmarshal(body, &wrappedResp)
+		assert.NoError(t, err)
+
+		// Verify the wrapped response
+		assert.True(t, wrappedResp.Success)
+
+		// Get the actual introspection data
+		introspectResp := wrappedResp.Data
+
+		// Verify introspection response
+		assert.True(t, introspectResp.Active)
+		assert.Equal(t, client.ClientID, introspectResp.ClientID)
+		assert.Equal(t, "Bearer", introspectResp.TokenType)
+		// Note: Scope and ExpiresAt might not be included in the response
+
+		t.Logf("Token introspection result: Active=%v, ClientID=%s, TokenType=%s, Scope=%s",
+			introspectResp.Active, introspectResp.ClientID, introspectResp.TokenType, introspectResp.Scope)
+	})
+
+	t.Run("Invalid Token Introspection", func(t *testing.T) {
+		// Prepare introspection request with invalid token
+		data := url.Values{}
+		data.Set("token", "invalid-token-12345")
+		data.Set("token_type_hint", "access_token")
+
+		// Make introspection request
+		endpoint := serverURL + baseURL + "/oauth/introspect"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 200 OK
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// Read response body
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+
+		// Parse the wrapped response structure
+		var wrappedResp struct {
+			Success   bool                       `json:"success"`
+			Data      TokenIntrospectionResponse `json:"data"`
+			Timestamp string                     `json:"timestamp"`
+		}
+		err = json.Unmarshal(body, &wrappedResp)
+		assert.NoError(t, err)
+
+		// Verify the wrapped response
+		assert.True(t, wrappedResp.Success)
+
+		// Get the actual introspection data
+		introspectResp := wrappedResp.Data
+
+		// Should indicate token is inactive
+		assert.False(t, introspectResp.Active)
+
+		t.Logf("Invalid token introspection handled correctly: Active=%v", introspectResp.Active)
+	})
+
+	t.Run("Missing Token Parameter", func(t *testing.T) {
+		// Prepare introspection request without token parameter
+		data := url.Values{}
+		// Missing token parameter
+
+		// Make introspection request
+		endpoint := serverURL + baseURL + "/oauth/introspect"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 400 Bad Request for missing token
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("Revoked Token Introspection", func(t *testing.T) {
+		// First revoke the token
+		revokeData := url.Values{}
+		revokeData.Set("token", tokenInfo.AccessToken)
+
+		revokeEndpoint := serverURL + baseURL + "/oauth/revoke"
+		revokeReq, err := http.NewRequest("POST", revokeEndpoint, bytes.NewBufferString(revokeData.Encode()))
+		assert.NoError(t, err)
+
+		revokeReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		revokeReq.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		revokeResp, err := http.DefaultClient.Do(revokeReq)
+		assert.NoError(t, err)
+		defer revokeResp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, revokeResp.StatusCode)
+
+		// Now try to introspect the revoked token
+		data := url.Values{}
+		data.Set("token", tokenInfo.AccessToken)
+
+		endpoint := serverURL + baseURL + "/oauth/introspect"
+		req, err := http.NewRequest("POST", endpoint, bytes.NewBufferString(data.Encode()))
+		assert.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Authorization", "Basic "+basicAuth(client.ClientID, client.ClientSecret))
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer resp.Body.Close()
+
+		// Should return 200 OK
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		// Read response body
+		body, err := io.ReadAll(resp.Body)
+		assert.NoError(t, err)
+
+		// Parse the wrapped response structure
+		var wrappedResp struct {
+			Success   bool                       `json:"success"`
+			Data      TokenIntrospectionResponse `json:"data"`
+			Timestamp string                     `json:"timestamp"`
+		}
+		err = json.Unmarshal(body, &wrappedResp)
+		assert.NoError(t, err)
+
+		// Verify the wrapped response
+		assert.True(t, wrappedResp.Success)
+
+		// Get the actual introspection data
+		introspectResp := wrappedResp.Data
+
+		// Revoked token should be inactive
+		assert.False(t, introspectResp.Active)
+
+		t.Logf("Revoked token introspection handled correctly: Active=%v", introspectResp.Active)
+	})
+}

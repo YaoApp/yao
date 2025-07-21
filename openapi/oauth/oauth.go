@@ -19,6 +19,8 @@ type Service struct {
 	userProvider   types.UserProvider
 	clientProvider types.ClientProvider
 	prefix         string
+	// Signing certificates for JWT token signing and verification
+	signingCerts *SigningCertificates
 }
 
 // Config OAuth service configuration
@@ -124,6 +126,17 @@ func NewService(config *Config) (*Service, error) {
 		}
 	}
 
+	// Load Certificates
+	signingCerts, err := LoadSigningCertificates(&config.Signing)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load signing certificates: %w", err)
+	}
+
+	// Validate the loaded certificates
+	if err := signingCerts.ValidateCertificate(); err != nil {
+		return nil, fmt.Errorf("certificate validation failed: %w", err)
+	}
+
 	service := &Service{
 		config:         config,
 		store:          config.Store,
@@ -131,6 +144,7 @@ func NewService(config *Config) (*Service, error) {
 		userProvider:   userProvider,
 		clientProvider: clientProvider,
 		prefix:         keyPrefix,
+		signingCerts:   signingCerts,
 	}
 
 	return service, nil
@@ -231,10 +245,16 @@ func validateConfig(config *Config) error {
 		return types.ErrIssuerURLMissing
 	}
 
-	// Validate certificate configuration
-	if config.Signing.SigningCertPath == "" || config.Signing.SigningKeyPath == "" {
-		return types.ErrCertificateMissing
+	// Certificate configuration validation
+	// If both cert and key paths are provided, they must both exist or be empty
+	certPathProvided := config.Signing.SigningCertPath != ""
+	keyPathProvided := config.Signing.SigningKeyPath != ""
+
+	if certPathProvided != keyPathProvided {
+		return types.ErrCertificateMissing // Both paths must be provided together or not at all
 	}
+
+	// If paths are not provided, temporary certificates will be generated automatically
 
 	// Validate token configuration
 	if config.Token.AccessTokenLifetime <= 0 {

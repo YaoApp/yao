@@ -316,14 +316,26 @@ func (openapi *OpenAPI) handleTokenExchangeGrant(c *gin.Context) {
 // oauthRevoke handles token revocation - RFC 7009
 func (openapi *OpenAPI) oauthRevoke(c *gin.Context) {
 	token := c.PostForm("token")
+	tokenTypeHint := c.PostForm("token_type_hint") // Optional hint about token type
 
 	if token == "" {
 		openapi.respondWithError(c, StatusBadRequest, ErrInvalidRequest)
 		return
 	}
 
-	// TODO: Implement token revocation logic
-	c.Status(StatusNoContent)
+	// Call OAuth service to revoke the token
+	err := openapi.OAuth.Revoke(c, token, tokenTypeHint)
+	if err != nil {
+		// OAuth spec requires returning 200 even for invalid tokens to prevent information leakage
+		// Only return error for server errors
+		if oauthErr, ok := err.(*ErrorResponse); ok && oauthErr.Code == ErrServerError.Code {
+			openapi.respondWithError(c, StatusInternalServerError, ErrServerError)
+			return
+		}
+	}
+
+	// RFC 7009: Return 200 OK for successful revocation (or invalid tokens)
+	c.Status(StatusOK)
 }
 
 // oauthIntrospect handles token introspection - RFC 7662
@@ -335,10 +347,28 @@ func (openapi *OpenAPI) oauthIntrospect(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement token introspection logic
-	// Return inactive token for now
+	// Call OAuth service to introspect the token
+	introspectionResult, err := openapi.OAuth.Introspect(c, token)
+	if err != nil {
+		// Return inactive token response on error (RFC 7662)
+		response := &TokenIntrospectionResponse{
+			Active: false,
+		}
+		openapi.respondWithSuccess(c, StatusOK, response)
+		return
+	}
+
+	// Convert OAuth service response to API response format
 	response := &TokenIntrospectionResponse{
-		Active: false,
+		Active:    introspectionResult.Active,
+		Scope:     introspectionResult.Scope,
+		ClientID:  introspectionResult.ClientID,
+		Username:  introspectionResult.Username,
+		TokenType: introspectionResult.TokenType,
+		ExpiresAt: introspectionResult.ExpiresAt,
+		IssuedAt:  introspectionResult.IssuedAt,
+		Subject:   introspectionResult.Subject,
+		Audience:  introspectionResult.Audience,
 	}
 
 	openapi.respondWithSuccess(c, StatusOK, response)
@@ -346,12 +376,22 @@ func (openapi *OpenAPI) oauthIntrospect(c *gin.Context) {
 
 // oauthJWKS returns JSON Web Key Set - RFC 7517
 func (openapi *OpenAPI) oauthJWKS(c *gin.Context) {
-	// TODO: Implement JWKS generation
-	jwks := &JWKSResponse{
-		Keys: []JWK{},
+	jwks, err := openapi.OAuth.JWKS(c)
+	if err != nil {
+		openapi.respondWithError(c, StatusInternalServerError, ErrServerError)
+		return
 	}
 
-	openapi.respondWithSuccess(c, StatusOK, jwks)
+	// RFC 7517 compliance: Return JWKS directly as JSON without wrapper
+	// Set security headers for JWKS endpoint
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("X-Frame-Options", "DENY")
+	c.Header("Referrer-Policy", "no-referrer")
+
+	// Return JWKS directly as per RFC 7517
+	c.JSON(StatusOK, jwks)
 }
 
 // oauthUserInfo returns user information - OpenID Connect Core 1.0

@@ -350,64 +350,6 @@ func TestKeyGeneration(t *testing.T) {
 	}
 }
 
-func TestTokenOperations(t *testing.T) {
-	storeConfigs := getStoreConfigs()
-
-	for _, config := range storeConfigs {
-		t.Run(config.Name, func(t *testing.T) {
-			tokenStore := config.GetFunc(t)
-			cache := getLRUCache(t)
-
-			user := NewDefaultUser(&DefaultUserOptions{
-				Prefix: "test:",
-
-				Cache:      cache,
-				TokenStore: tokenStore,
-			})
-
-			// Clean up
-			tokenStore.Clear()
-
-			t.Run("store and get token", func(t *testing.T) {
-				tokenData := createTestToken("test-subject")
-				err := user.StoreToken("test-token", tokenData, 1*time.Hour)
-				assert.NoError(t, err)
-
-				exists := user.TokenExists("test-token")
-				assert.True(t, exists)
-
-				retrievedData, err := user.GetTokenData("test-token")
-				assert.NoError(t, err)
-				assert.Equal(t, tokenData["subject"], retrievedData["subject"])
-			})
-
-			t.Run("revoke token", func(t *testing.T) {
-				tokenData := createTestToken("test-subject")
-				err := user.StoreToken("test-token-revoke", tokenData, 1*time.Hour)
-				assert.NoError(t, err)
-
-				exists := user.TokenExists("test-token-revoke")
-				assert.True(t, exists)
-
-				err = user.RevokeToken("test-token-revoke")
-				assert.NoError(t, err)
-
-				exists = user.TokenExists("test-token-revoke")
-				assert.False(t, exists)
-			})
-
-			t.Run("non-existent token", func(t *testing.T) {
-				exists := user.TokenExists("non-existent")
-				assert.False(t, exists)
-
-				_, err := user.GetTokenData("non-existent")
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), "token not found")
-			})
-		})
-	}
-}
-
 func TestGetUserBySubject(t *testing.T) {
 	storeConfigs := getStoreConfigs()
 
@@ -552,70 +494,6 @@ func TestGetUserByEmail(t *testing.T) {
 				assert.Error(t, err)
 				assert.Nil(t, retrievedUser)
 				assert.Contains(t, err.Error(), "user not found")
-			})
-		})
-	}
-}
-
-func TestGetUserByAccessToken(t *testing.T) {
-	storeConfigs := getStoreConfigs()
-
-	for _, config := range storeConfigs {
-		t.Run(config.Name, func(t *testing.T) {
-			cleanupTestData(t)
-			defer cleanupTestData(t)
-
-			tokenStore := config.GetFunc(t)
-			cache := getLRUCache(t)
-
-			user := NewDefaultUser(&DefaultUserOptions{
-				Prefix: "test:",
-
-				Cache:      cache,
-				TokenStore: tokenStore,
-			})
-
-			// Clean up
-			tokenStore.Clear()
-
-			// Create test user
-			testUser := createTestUser("token1")
-			setupTestUser(t, testUser)
-
-			ctx := context.Background()
-
-			t.Run("get user by access token", func(t *testing.T) {
-				// Store token
-				tokenData := createTestToken(testUser.Subject)
-				err := user.StoreToken("test-access-token", tokenData, 1*time.Hour)
-				require.NoError(t, err)
-
-				// Get user by token
-				retrievedUser, err := user.GetUserByAccessToken(ctx, "test-access-token")
-				assert.NoError(t, err)
-				assert.NotNil(t, retrievedUser)
-
-				userMap := convertToStringMap(t, retrievedUser)
-				assert.Equal(t, testUser.Subject, userMap["subject"])
-				assert.Equal(t, testUser.Username, userMap["username"])
-			})
-
-			t.Run("non-existent token", func(t *testing.T) {
-				retrievedUser, err := user.GetUserByAccessToken(ctx, "non-existent-token")
-				assert.Error(t, err)
-				assert.Nil(t, retrievedUser)
-				assert.Contains(t, err.Error(), "token not found")
-			})
-
-			t.Run("invalid token format", func(t *testing.T) {
-				// Store invalid token data
-				invalidTokenData := "invalid-token-data"
-				tokenStore.Set(user.tokenKey("invalid-token"), invalidTokenData, 1*time.Hour)
-
-				retrievedUser, err := user.GetUserByAccessToken(ctx, "invalid-token")
-				assert.Error(t, err)
-				assert.Nil(t, retrievedUser)
-				assert.Contains(t, err.Error(), "invalid token data format")
 			})
 		})
 	}
