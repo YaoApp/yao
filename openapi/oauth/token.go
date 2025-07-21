@@ -9,19 +9,20 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // Introspect returns information about an access token
 // This endpoint allows resource servers to validate tokens
 func (s *Service) Introspect(ctx context.Context, token string) (*types.TokenIntrospectionResponse, error) {
-	// Try to get token data from user provider
-	tokenData, err := s.userProvider.GetTokenData(token)
+	// Try to get token data from OAuth store
+	tokenInfo, err := s.getAccessTokenData(token)
 	if err != nil {
 		return &types.TokenIntrospectionResponse{Active: false}, nil
 	}
 
 	// Check if token exists and is valid
-	if tokenData == nil {
+	if tokenInfo == nil {
 		return &types.TokenIntrospectionResponse{Active: false}, nil
 	}
 
@@ -31,34 +32,25 @@ func (s *Service) Introspect(ctx context.Context, token string) (*types.TokenInt
 	}
 
 	// Extract standard fields from token data
-	if clientID, ok := tokenData["client_id"].(string); ok {
+	if clientID, ok := tokenInfo["client_id"].(string); ok {
 		response.ClientID = clientID
 	}
-	if username, ok := tokenData["username"].(string); ok {
-		response.Username = username
-	}
-	if subject, ok := tokenData["sub"].(string); ok {
+	if subject, ok := tokenInfo["subject"].(string); ok {
 		response.Subject = subject
 	}
-	if tokenType, ok := tokenData["token_type"].(string); ok {
+	if tokenType, ok := tokenInfo["token_type"].(string); ok {
 		response.TokenType = tokenType
 	} else {
 		response.TokenType = "Bearer"
 	}
-	if scope, ok := tokenData["scope"].(string); ok {
+	if scope, ok := tokenInfo["scope"].(string); ok {
 		response.Scope = scope
 	}
-	if exp, ok := tokenData["exp"].(int64); ok {
+	if exp, ok := tokenInfo["expires_at"].(int64); ok {
 		response.ExpiresAt = exp
 	}
-	if iat, ok := tokenData["iat"].(int64); ok {
+	if iat, ok := tokenInfo["issued_at"].(int64); ok {
 		response.IssuedAt = iat
-	}
-	if nbf, ok := tokenData["nbf"].(int64); ok {
-		response.NotBefore = nbf
-	}
-	if aud, ok := tokenData["aud"].([]string); ok {
-		response.Audience = aud
 	}
 
 	// Check if token is expired
@@ -247,6 +239,79 @@ func (s *Service) generateAccessToken(clientID string) (string, error) {
 	return s.generateToken("ak", clientID)
 }
 
+// storeAccessToken stores access token with metadata
+func (s *Service) storeAccessToken(accessToken, clientID string, scope string, subject string) error {
+	tokenData := map[string]interface{}{
+		"client_id":  clientID,
+		"type":       "access_token",
+		"scope":      scope,
+		"subject":    subject,
+		"token_type": "Bearer",
+		"issued_at":  time.Now().Unix(),
+		"expires_at": time.Now().Add(s.config.Token.AccessTokenLifetime).Unix(),
+	}
+
+	return s.store.Set(s.accessTokenKey(accessToken), tokenData, s.config.Token.AccessTokenLifetime)
+}
+
+// storeAccessTokenWithExpiry stores access token with custom expiration (for testing)
+func (s *Service) storeAccessTokenWithExpiry(accessToken, clientID, scope, subject string, expiresAt int64) error {
+	tokenData := map[string]interface{}{
+		"client_id":  clientID,
+		"type":       "access_token",
+		"scope":      scope,
+		"subject":    subject,
+		"token_type": "Bearer",
+		"issued_at":  time.Now().Unix(),
+		"expires_at": expiresAt,
+	}
+
+	// Calculate TTL based on expiration time
+	ttl := time.Duration(expiresAt-time.Now().Unix()) * time.Second
+	if ttl <= 0 {
+		ttl = time.Minute // Give expired tokens a short TTL for cleanup
+	}
+
+	return s.store.Set(s.accessTokenKey(accessToken), tokenData, ttl)
+}
+
+// getAccessTokenData retrieves access token data
+func (s *Service) getAccessTokenData(accessToken string) (map[string]interface{}, error) {
+	tokenData, exists := s.store.Get(s.accessTokenKey(accessToken))
+	if !exists {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidToken,
+			ErrorDescription: "Invalid access token",
+		}
+	}
+
+	// Convert to map[string]interface{} if needed
+	tokenInfo, ok := tokenData.(map[string]interface{})
+	if !ok {
+		// Try primitive.M for MongoDB store compatibility
+		if primitiveM, isPrimitiveM := tokenData.(primitive.M); isPrimitiveM {
+			// Convert primitive.M to map[string]interface{}
+			tokenInfo = make(map[string]interface{})
+			for k, v := range primitiveM {
+				tokenInfo[k] = v
+			}
+		} else {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorInvalidToken,
+				ErrorDescription: "Invalid token format",
+			}
+		}
+	}
+
+	return tokenInfo, nil
+}
+
+// revokeAccessToken deletes access token from store
+func (s *Service) revokeAccessToken(accessToken string) error {
+	s.store.Del(s.accessTokenKey(accessToken))
+	return nil
+}
+
 // generateRefreshToken generates a new refresh token
 func (s *Service) generateRefreshToken(clientID string) (string, error) {
 	return s.generateToken("rfk", clientID)
@@ -254,7 +319,159 @@ func (s *Service) generateRefreshToken(clientID string) (string, error) {
 
 // generateAuthorizationCode generates a new authorization code
 func (s *Service) generateAuthorizationCode(clientID string, state string) (string, error) {
-	return s.generateToken("ac", clientID)
+	authCode, err := s.generateToken("ac", clientID)
+	if err != nil {
+		return "", err
+	}
+
+	// Store authorization code with metadata for later validation
+	err = s.storeAuthorizationCode(authCode, clientID, state)
+	if err != nil {
+		return "", fmt.Errorf("failed to store authorization code: %w", err)
+	}
+
+	return authCode, nil
+}
+
+// storeAuthorizationCode stores authorization code with metadata
+func (s *Service) storeAuthorizationCode(code, clientID, state string) error {
+	codeData := map[string]interface{}{
+		"client_id":  clientID,
+		"state":      state,
+		"type":       "authorization_code",
+		"issued_at":  time.Now().Unix(),
+		"expires_at": time.Now().Add(s.config.Token.AuthorizationCodeLifetime).Unix(),
+	}
+
+	return s.store.Set(s.authorizationCodeKey(code), codeData, s.config.Token.AuthorizationCodeLifetime)
+}
+
+// storeAuthorizationCodeWithScope stores authorization code with metadata including scope and subject
+func (s *Service) storeAuthorizationCodeWithScope(code, clientID, state, scope, subject string) error {
+	codeData := map[string]interface{}{
+		"client_id":  clientID,
+		"state":      state,
+		"scope":      scope,
+		"subject":    subject,
+		"type":       "authorization_code",
+		"issued_at":  time.Now().Unix(),
+		"expires_at": time.Now().Add(s.config.Token.AuthorizationCodeLifetime).Unix(),
+	}
+
+	return s.store.Set(s.authorizationCodeKey(code), codeData, s.config.Token.AuthorizationCodeLifetime)
+}
+
+// getAuthorizationCodeData retrieves and validates authorization code data
+func (s *Service) getAuthorizationCodeData(code string) (map[string]interface{}, error) {
+	codeData, exists := s.store.Get(s.authorizationCodeKey(code))
+	if !exists {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Invalid or expired authorization code",
+		}
+	}
+
+	// Convert to map[string]interface{} if needed
+	codeInfo, ok := codeData.(map[string]interface{})
+	if !ok {
+		// Try primitive.M for MongoDB store compatibility
+		if primitiveM, isPrimitiveM := codeData.(primitive.M); isPrimitiveM {
+			// Convert primitive.M to map[string]interface{}
+			codeInfo = make(map[string]interface{})
+			for k, v := range primitiveM {
+				codeInfo[k] = v
+			}
+		} else {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorInvalidGrant,
+				ErrorDescription: "Invalid authorization code format",
+			}
+		}
+	}
+
+	return codeInfo, nil
+}
+
+// consumeAuthorizationCode retrieves and deletes authorization code (prevents reuse)
+func (s *Service) consumeAuthorizationCode(code string) error {
+	s.store.Del(s.authorizationCodeKey(code))
+	return nil
+}
+
+// storeRefreshToken stores refresh token with metadata
+func (s *Service) storeRefreshToken(refreshToken, clientID string) error {
+	tokenData := map[string]interface{}{
+		"client_id": clientID,
+		"type":      "refresh_token",
+		"issued_at": time.Now().Unix(),
+	}
+
+	return s.store.Set(s.refreshTokenKey(refreshToken), tokenData, s.config.Token.RefreshTokenLifetime)
+}
+
+// storeRefreshTokenWithScope stores refresh token with metadata including scope and subject
+func (s *Service) storeRefreshTokenWithScope(refreshToken, clientID, scope, subject string) error {
+	tokenData := map[string]interface{}{
+		"client_id": clientID,
+		"scope":     scope,
+		"subject":   subject,
+		"type":      "refresh_token",
+		"issued_at": time.Now().Unix(),
+	}
+
+	return s.store.Set(s.refreshTokenKey(refreshToken), tokenData, s.config.Token.RefreshTokenLifetime)
+}
+
+// getRefreshTokenData retrieves refresh token data
+func (s *Service) getRefreshTokenData(refreshToken string) (map[string]interface{}, error) {
+	tokenData, exists := s.store.Get(s.refreshTokenKey(refreshToken))
+	if !exists {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Invalid refresh token",
+		}
+	}
+
+	// Convert to map[string]interface{} if needed
+	tokenInfo, ok := tokenData.(map[string]interface{})
+	if !ok {
+		// Try primitive.M for MongoDB store compatibility
+		if primitiveM, isPrimitiveM := tokenData.(primitive.M); isPrimitiveM {
+			// Convert primitive.M to map[string]interface{}
+			tokenInfo = make(map[string]interface{})
+			for k, v := range primitiveM {
+				tokenInfo[k] = v
+			}
+		} else {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorInvalidGrant,
+				ErrorDescription: "Invalid token format",
+			}
+		}
+	}
+
+	return tokenInfo, nil
+}
+
+// revokeRefreshToken deletes refresh token from store
+func (s *Service) revokeRefreshToken(refreshToken string) error {
+	s.store.Del(s.refreshTokenKey(refreshToken))
+	return nil
+}
+
+// authorizationCodeKey generates a key for authorization code storage
+func (s *Service) authorizationCodeKey(code string) string {
+	return fmt.Sprintf("%soauth:auth_code:%s", s.prefix, code)
+}
+
+// refreshTokenKey generates a key for refresh token storage
+func (s *Service) refreshTokenKey(refreshToken string) string {
+	return fmt.Sprintf("%soauth:refresh_token:%s", s.prefix, refreshToken)
+}
+
+// accessTokenKey generates a key for access token storage
+func (s *Service) accessTokenKey(accessToken string) string {
+	return fmt.Sprintf("%soauth:access_token:%s", s.prefix, accessToken)
 }
 
 // generateExchangedToken generates a new token for token exchange

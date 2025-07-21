@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -167,6 +168,255 @@ func Clean() {
 
 	// Step 3: Clean up base test environment and all dependencies
 	test.Clean()
+}
+
+// RegisterTestClient registers a test OAuth client and returns the client information.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to create test OAuth clients for testing OAuth endpoints.
+// This function provides realistic test clients that can be used for authentication flows.
+// ALWAYS clean up test clients using CleanupTestClient() to prevent test interference.
+//
+// Usage pattern:
+//
+//	func TestOAuthEndpoint(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"http://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Use client.ClientID and client.ClientSecret in your tests
+//	    // Example: test OAuth authorize with real client_id
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - clientName: Human-readable name for the client (e.g., "Test Web App")
+// - redirectURIs: List of valid redirect URIs for the client
+//
+// RETURN VALUE:
+// Returns a pointer to types.ClientInfo containing:
+// - ClientID: Generated unique client identifier
+// - ClientSecret: Generated client secret (for confidential clients)
+// - RedirectURIs: The provided redirect URIs
+// - Other OAuth client metadata
+//
+// ERROR HANDLING:
+// If client registration fails, the test will fail immediately with a descriptive error message.
+func RegisterTestClient(t *testing.T, clientName string, redirectURIs []string) *types.ClientInfo {
+	if Server == nil || Server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Create dynamic client registration request
+	req := &types.DynamicClientRegistrationRequest{
+		ClientName:   clientName,
+		RedirectURIs: redirectURIs,
+		GrantTypes: []string{
+			"authorization_code",
+			"refresh_token",
+			"client_credentials",
+		},
+		ResponseTypes: []string{
+			"code",
+		},
+		ApplicationType:         "web",
+		TokenEndpointAuthMethod: "client_secret_basic",
+		Scope:                   "openid profile email",
+	}
+
+	// Register the client using the OAuth service
+	ctx := context.Background()
+	response, err := Server.OAuth.DynamicClientRegistration(ctx, req)
+	if err != nil {
+		t.Fatalf("Failed to register test client: %v", err)
+	}
+
+	// Convert response to ClientInfo for easier usage
+	clientInfo := &types.ClientInfo{
+		ClientID:                response.ClientID,
+		ClientSecret:            response.ClientSecret,
+		ClientName:              response.ClientName,
+		RedirectURIs:            response.RedirectURIs,
+		GrantTypes:              response.GrantTypes,
+		ResponseTypes:           response.ResponseTypes,
+		ApplicationType:         response.ApplicationType,
+		TokenEndpointAuthMethod: response.TokenEndpointAuthMethod,
+		Scope:                   response.Scope,
+		ClientURI:               response.ClientURI,
+		LogoURI:                 response.LogoURI,
+		TosURI:                  response.TosURI,
+		PolicyURI:               response.PolicyURI,
+		Contacts:                response.Contacts,
+	}
+
+	t.Logf("Registered test client: %s (ID: %s)", clientName, clientInfo.ClientID)
+	return clientInfo
+}
+
+// CleanupTestClient removes a test OAuth client from the system.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// ALWAYS call this function to clean up test clients created with RegisterTestClient().
+// Use defer to ensure cleanup happens even if tests fail or panic.
+// Proper cleanup prevents test interference and maintains a clean test environment.
+//
+// Usage pattern:
+//
+//	client := RegisterTestClient(t, "Test Client", []string{"http://localhost/callback"})
+//	defer CleanupTestClient(t, client.ClientID)
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - clientID: The client ID to remove (obtained from RegisterTestClient return value)
+//
+// ERROR HANDLING:
+// If client deletion fails, logs an error but does not fail the test.
+// This prevents cleanup failures from affecting test results.
+func CleanupTestClient(t *testing.T, clientID string) {
+	if Server == nil || Server.OAuth == nil {
+		// Server might already be cleaned up, which is OK
+		return
+	}
+
+	if clientID == "" {
+		return
+	}
+
+	// Delete the client using the OAuth service
+	ctx := context.Background()
+	err := Server.OAuth.DeleteClient(ctx, clientID)
+	if err != nil {
+		// Log error but don't fail the test - cleanup should be resilient
+		t.Logf("Warning: Failed to cleanup test client %s: %v", clientID, err)
+	} else {
+		t.Logf("Cleaned up test client: %s", clientID)
+	}
+}
+
+// CreateTestClientCredentials creates a simple test client with just ID and secret for basic testing.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function when you need a quick test client without full OAuth registration.
+// This is useful for testing non-OAuth endpoints or when you need predictable client credentials.
+// This creates an in-memory client that doesn't persist and doesn't need cleanup.
+//
+// Usage pattern:
+//
+//	clientID, clientSecret := CreateTestClientCredentials()
+//	// Use in Basic Auth or client_credentials grant tests
+//
+// RETURN VALUES:
+// - clientID: A predictable test client ID
+// - clientSecret: A predictable test client secret
+//
+// NOTE: This function creates temporary credentials and doesn't register them with the OAuth service.
+// For full OAuth flow testing, use RegisterTestClient() instead.
+func CreateTestClientCredentials() (clientID, clientSecret string) {
+	return "test-client-id", "test-client-secret"
+}
+
+// ObtainAuthorizationCode dynamically obtains an authorization code for testing OAuth token endpoints.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to get a real authorization code for testing OAuth token exchange.
+// This function simulates the complete OAuth authorization flow and returns all necessary information
+// for testing the token endpoint with realistic data.
+//
+// Usage pattern:
+//
+//	func TestOAuthToken(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain authorization code dynamically
+//	    authInfo := ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
+//
+//	    // Now test token endpoint with real authorization code
+//	    // POST to /oauth/token with grant_type=authorization_code&code=authInfo.Code&...
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - serverURL: The test server URL (from Prepare function)
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - redirectURI: The redirect URI (must match client registration)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns AuthorizationInfo struct containing:
+// - Code: The authorization code for token exchange
+// - State: The state parameter for CSRF protection
+// - RedirectURI: The redirect URI used in the flow
+// - ClientID: The client ID used in the flow
+// - Scope: The scope requested in the flow
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Creates a realistic authorization request with proper parameters
+// 2. Calls the OAuth service directly to simulate user authorization
+// 3. Extracts the authorization code from the response
+// 4. Returns all information needed for token endpoint testing
+//
+// ERROR HANDLING:
+// If authorization fails, the test will fail immediately with a descriptive error message.
+type AuthorizationInfo struct {
+	Code        string
+	State       string
+	RedirectURI string
+	ClientID    string
+	Scope       string
+}
+
+func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, scope string) *AuthorizationInfo {
+	if Server == nil || Server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Generate a unique state parameter for CSRF protection
+	state := fmt.Sprintf("test-state-%d", time.Now().UnixNano())
+
+	// Create authorization request
+	authReq := &types.AuthorizationRequest{
+		ClientID:     clientID,
+		ResponseType: "code",
+		RedirectURI:  redirectURI,
+		Scope:        scope,
+		State:        state,
+	}
+
+	// Call OAuth service to process authorization request
+	ctx := context.Background()
+	authResp, err := Server.OAuth.Authorize(ctx, authReq)
+	if err != nil {
+		t.Fatalf("Failed to obtain authorization code: %v", err)
+	}
+
+	// Check if authorization response contains an error
+	if authResp.Error != "" {
+		t.Fatalf("Authorization failed: %s - %s", authResp.Error, authResp.ErrorDescription)
+	}
+
+	// Verify we got an authorization code
+	if authResp.Code == "" {
+		t.Fatal("Authorization response missing code")
+	}
+
+	authInfo := &AuthorizationInfo{
+		Code:        authResp.Code,
+		State:       authResp.State,
+		RedirectURI: redirectURI,
+		ClientID:    clientID,
+		Scope:       scope,
+	}
+
+	t.Logf("Obtained authorization code: %s (state: %s)", authInfo.Code, authInfo.State)
+	return authInfo
 }
 
 func TestLoad(t *testing.T) {

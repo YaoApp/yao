@@ -218,7 +218,11 @@ func TestToken(t *testing.T) {
 
 	t.Run("authorization code grant", func(t *testing.T) {
 		clientID := testClients[0].ClientID // confidential client
-		code := "test-authorization-code"
+
+		// Generate a real authorization code using the service
+		code, err := service.generateAuthorizationCode(clientID, "test-state")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, code)
 
 		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, "")
 		assert.NoError(t, err)
@@ -245,11 +249,9 @@ func TestToken(t *testing.T) {
 		clientID := testClients[0].ClientID // confidential client
 		refreshToken := "test-refresh-token"
 
-		// Mock token existence
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": clientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		// Store refresh token using the new method
+		err := service.storeRefreshToken(refreshToken, clientID)
+		assert.NoError(t, err)
 
 		token, err := service.Token(ctx, types.GrantTypeRefreshToken, refreshToken, clientID, "")
 		assert.NoError(t, err)
@@ -262,7 +264,12 @@ func TestToken(t *testing.T) {
 
 	t.Run("invalid client", func(t *testing.T) {
 		clientID := "invalid-client-id"
-		code := "test-authorization-code"
+
+		// Generate a real authorization code for consistency, even though client validation happens first
+		validClientID := testClients[0].ClientID
+		code, err := service.generateAuthorizationCode(validClientID, "test-state")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, code)
 
 		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, "")
 		assert.Error(t, err)
@@ -276,7 +283,11 @@ func TestToken(t *testing.T) {
 
 	t.Run("unsupported grant type", func(t *testing.T) {
 		clientID := testClients[0].ClientID
-		code := "test-authorization-code"
+
+		// Generate a real authorization code for consistency
+		code, err := service.generateAuthorizationCode(clientID, "test-state")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, code)
 
 		token, err := service.Token(ctx, "unsupported_grant_type", code, clientID, "")
 		assert.Error(t, err)
@@ -301,19 +312,18 @@ func TestRevoke(t *testing.T) {
 
 	t.Run("successful token revocation", func(t *testing.T) {
 		token := "test-access-token"
+		clientID := testClients[0].ClientID
 
-		// Store token first
-		service.userProvider.StoreToken(token, map[string]interface{}{
-			"client_id": testClients[0].ClientID,
-			"type":      "access_token",
-		}, time.Hour)
-
-		err := service.Revoke(ctx, token, "access_token")
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, "", "")
 		assert.NoError(t, err)
 
-		// Verify token is revoked
-		exists := service.userProvider.TokenExists(token)
-		assert.False(t, exists)
+		err = service.Revoke(ctx, token, "access_token")
+		assert.NoError(t, err)
+
+		// Verify token is revoked - should not be found in store
+		_, err = service.getAccessTokenData(token)
+		assert.Error(t, err) // Should return error since token is revoked
 	})
 
 	t.Run("revoke non-existent token", func(t *testing.T) {
@@ -324,25 +334,24 @@ func TestRevoke(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Verify token still doesn't exist
-		exists := service.userProvider.TokenExists(token)
-		assert.False(t, exists)
+		_, err = service.getAccessTokenData(token)
+		assert.Error(t, err) // Should return error since token doesn't exist
 	})
 
 	t.Run("revoke refresh token", func(t *testing.T) {
 		token := "test-refresh-token"
+		clientID := testClients[0].ClientID
 
-		// Store token first
-		service.userProvider.StoreToken(token, map[string]interface{}{
-			"client_id": testClients[0].ClientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
-
-		err := service.Revoke(ctx, token, "refresh_token")
+		// Store refresh token using the new method
+		err := service.storeRefreshToken(token, clientID)
 		assert.NoError(t, err)
 
-		// Verify token is revoked
-		exists := service.userProvider.TokenExists(token)
-		assert.False(t, exists)
+		err = service.Revoke(ctx, token, "refresh_token")
+		assert.NoError(t, err)
+
+		// Verify token is revoked - should not be found in store
+		_, err = service.getRefreshTokenData(token)
+		assert.Error(t, err) // Should return error since token is revoked
 	})
 }
 
@@ -360,11 +369,9 @@ func TestRefreshToken(t *testing.T) {
 		refreshToken := "test-refresh-token"
 		clientID := testClients[0].ClientID
 
-		// Store refresh token
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": clientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		// Store refresh token using the new method
+		err := service.storeRefreshToken(refreshToken, clientID)
+		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "openid profile")
 		assert.NoError(t, err)
@@ -379,11 +386,9 @@ func TestRefreshToken(t *testing.T) {
 		refreshToken := "test-refresh-token-rotation"
 		clientID := testClients[0].ClientID
 
-		// Store refresh token
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": clientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		// Store refresh token using the new method
+		err := service.storeRefreshToken(refreshToken, clientID)
+		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
 		assert.True(t, service.config.Features.RefreshTokenRotationEnabled)
@@ -417,10 +422,8 @@ func TestRefreshToken(t *testing.T) {
 		refreshToken := "test-refresh-token-invalid-client"
 
 		// Store refresh token with invalid client
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": "invalid-client-id",
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		err := service.storeRefreshToken(refreshToken, "invalid-client-id")
+		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "")
 		assert.Error(t, err)
@@ -437,10 +440,8 @@ func TestRefreshToken(t *testing.T) {
 		clientID := testClients[0].ClientID
 
 		// Store refresh token
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": clientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		err := service.storeRefreshToken(refreshToken, clientID)
+		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "invalid-scope")
 		assert.Error(t, err)
@@ -457,10 +458,8 @@ func TestRefreshToken(t *testing.T) {
 		clientID := testClients[0].ClientID
 
 		// Store refresh token
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": clientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		err := service.storeRefreshToken(refreshToken, clientID)
+		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "")
 		assert.NoError(t, err)
@@ -484,11 +483,9 @@ func TestRotateRefreshToken(t *testing.T) {
 		oldToken := "old-refresh-token"
 		clientID := testClients[0].ClientID
 
-		// Store old refresh token
-		service.userProvider.StoreToken(oldToken, map[string]interface{}{
-			"client_id": clientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		// Store old refresh token using the new method
+		err := service.storeRefreshToken(oldToken, clientID)
+		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
 		assert.True(t, service.config.Features.RefreshTokenRotationEnabled)
@@ -543,10 +540,12 @@ func TestRotateRefreshToken(t *testing.T) {
 	t.Run("rotation with malformed token data", func(t *testing.T) {
 		oldToken := "malformed-refresh-token"
 
-		// Store token with malformed data
-		service.userProvider.StoreToken(oldToken, map[string]interface{}{
+		// Store token with malformed data directly in store
+		malformedData := map[string]interface{}{
 			"invalid_field": "invalid_value",
-		}, 24*time.Hour)
+		}
+		err := service.store.Set(service.refreshTokenKey(oldToken), malformedData, 24*time.Hour)
+		assert.NoError(t, err)
 
 		response, err := service.RotateRefreshToken(ctx, oldToken)
 		assert.Error(t, err)
@@ -575,7 +574,12 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 			GrantTypes: []string{types.GrantTypeAuthorizationCode, types.GrantTypeRefreshToken},
 		}
 
-		token, err := service.handleAuthorizationCodeGrant(ctx, client, "test-code", "test-verifier")
+		// Generate a real authorization code
+		code, err := service.generateAuthorizationCode(client.ClientID, "test-state")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, code)
+
+		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "test-verifier")
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -590,7 +594,12 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 			GrantTypes: []string{types.GrantTypeAuthorizationCode}, // No refresh token
 		}
 
-		token, err := service.handleAuthorizationCodeGrant(ctx, client, "test-code", "test-verifier")
+		// Generate a real authorization code
+		code, err := service.generateAuthorizationCode(client.ClientID, "test-state")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, code)
+
+		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "test-verifier")
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -636,11 +645,9 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 
 		refreshToken := "test-refresh-token-grant"
 
-		// Store refresh token
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": client.ClientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		// Store refresh token using the new method
+		err := service.storeRefreshToken(refreshToken, client.ClientID)
+		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
 		assert.True(t, service.config.Features.RefreshTokenRotationEnabled)
@@ -674,11 +681,9 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 
 		refreshToken := "test-refresh-token-no-rotation"
 
-		// Store refresh token
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
-			"client_id": client.ClientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		// Store refresh token using the new method
+		err := service.storeRefreshToken(refreshToken, client.ClientID)
+		assert.NoError(t, err)
 
 		token, err := service.handleRefreshTokenGrant(ctx, client, refreshToken)
 		assert.NoError(t, err)
@@ -746,10 +751,8 @@ func TestCoreIntegration(t *testing.T) {
 		assert.NotEmpty(t, token.RefreshToken)
 
 		// Store the refresh token for later use
-		service.userProvider.StoreToken(token.RefreshToken, map[string]interface{}{
-			"client_id": testClients[0].ClientID,
-			"type":      "refresh_token",
-		}, 24*time.Hour)
+		err = service.storeRefreshToken(token.RefreshToken, testClients[0].ClientID)
+		assert.NoError(t, err)
 
 		// Step 3: Refresh token
 		refreshResponse, err := service.RefreshToken(ctx, token.RefreshToken, "openid profile")
@@ -855,7 +858,12 @@ func TestCoreEdgeCases(t *testing.T) {
 
 		// Generate multiple tokens and ensure they're unique
 		for i := 0; i < 10; i++ {
-			token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, "test-code", clientID, "")
+			// Generate a new authorization code for each iteration (codes can only be used once)
+			code, err := service.generateAuthorizationCode(clientID, "test-state")
+			assert.NoError(t, err)
+			assert.NotEmpty(t, code)
+
+			token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, code, clientID, "")
 			assert.NoError(t, err)
 			assert.NotNil(t, token)
 			assert.NotEmpty(t, token.AccessToken)
@@ -870,14 +878,16 @@ func TestCoreEdgeCases(t *testing.T) {
 		refreshToken := "test-refresh-token-integrity"
 		clientID := testClients[0].ClientID
 
-		// Store refresh token with additional data
-		service.userProvider.StoreToken(refreshToken, map[string]interface{}{
+		// Store refresh token with additional data directly in store
+		tokenData := map[string]interface{}{
 			"client_id":  clientID,
 			"type":       "refresh_token",
 			"user_id":    "test-user-123",
 			"issued_at":  time.Now().Unix(),
 			"extra_data": "should-be-preserved",
-		}, 24*time.Hour)
+		}
+		err := service.store.Set(service.refreshTokenKey(refreshToken), tokenData, 24*time.Hour)
+		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "")
 		assert.NoError(t, err)
