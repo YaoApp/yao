@@ -419,6 +419,96 @@ func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, sco
 	return authInfo
 }
 
+// ObtainAccessToken directly obtains an access token for testing OAuth endpoints that require authentication.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to get a real access token for testing OAuth endpoints like introspect, revoke, etc.
+// This function handles the complete OAuth flow (authorization + token exchange) and returns a ready-to-use token.
+//
+// Usage pattern:
+//
+//	func TestOAuthIntrospect(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain access token directly
+//	    tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+//
+//	    // Now test introspect endpoint with real access token
+//	    // POST to /oauth/introspect with token=tokenInfo.AccessToken
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - serverURL: The test server URL (from Prepare function)
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - clientSecret: The OAuth client secret (from RegisterTestClient)
+// - redirectURI: The redirect URI (must match client registration)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns TokenInfo struct containing:
+// - AccessToken: The access token for API calls
+// - RefreshToken: The refresh token for token renewal
+// - TokenType: The token type (usually "Bearer")
+// - ExpiresIn: Token expiration time in seconds
+// - Scope: The granted scope
+// - ClientID: The client ID used to obtain the token
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Calls ObtainAuthorizationCode to get an authorization code
+// 2. Exchanges the authorization code for an access token using the OAuth service
+// 3. Returns all token information needed for authenticated API testing
+//
+// ERROR HANDLING:
+// If token exchange fails, the test will fail immediately with a descriptive error message.
+type TokenInfo struct {
+	AccessToken  string
+	RefreshToken string
+	TokenType    string
+	ExpiresIn    int
+	Scope        string
+	ClientID     string
+}
+
+func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirectURI, scope string) *TokenInfo {
+	if Server == nil || Server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Step 1: Get authorization code
+	authInfo := ObtainAuthorizationCode(t, serverURL, clientID, redirectURI, scope)
+
+	// Step 2: Exchange authorization code for access token
+	ctx := context.Background()
+	token, err := Server.OAuth.Token(ctx, "authorization_code", authInfo.Code, clientID, "")
+	if err != nil {
+		t.Fatalf("Failed to exchange authorization code for token: %v", err)
+	}
+
+	// Verify we got a valid token
+	if token.AccessToken == "" {
+		t.Fatal("Token response missing access token")
+	}
+
+	tokenInfo := &TokenInfo{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		TokenType:    token.TokenType,
+		ExpiresIn:    token.ExpiresIn,
+		Scope:        token.Scope,
+		ClientID:     clientID,
+	}
+
+	t.Logf("Obtained access token: %s (type: %s, expires_in: %d)",
+		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn)
+	return tokenInfo
+}
+
 func TestLoad(t *testing.T) {
 	serverURL := Prepare(t)
 	defer Clean()
@@ -426,4 +516,27 @@ func TestLoad(t *testing.T) {
 	assert.NotNil(t, Server)
 	assert.NotEmpty(t, serverURL)
 	assert.Contains(t, serverURL, "http://127.0.0.1:")
+}
+
+func TestObtainAccessToken(t *testing.T) {
+	serverURL := Prepare(t)
+	defer Clean()
+
+	// Register a test client
+	client := RegisterTestClient(t, "Token Utility Test Client", []string{"https://localhost/callback"})
+	defer CleanupTestClient(t, client.ClientID)
+
+	// Test the ObtainAccessToken utility function
+	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile email")
+
+	// Verify token information
+	assert.NotEmpty(t, tokenInfo.AccessToken, "Access token should not be empty")
+	assert.NotEmpty(t, tokenInfo.RefreshToken, "Refresh token should not be empty")
+	assert.Equal(t, "Bearer", tokenInfo.TokenType, "Token type should be Bearer")
+	assert.Greater(t, tokenInfo.ExpiresIn, 0, "ExpiresIn should be greater than 0")
+	assert.Equal(t, client.ClientID, tokenInfo.ClientID, "Client ID should match")
+	// Note: Scope might be empty in token response, which is valid
+
+	t.Logf("Successfully obtained token: AccessToken=%s, TokenType=%s, ExpiresIn=%d, Scope=%s",
+		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn, tokenInfo.Scope)
 }
