@@ -178,8 +178,8 @@ func (openapi *OpenAPI) oauthRegister(c *gin.Context) {
 		return
 	}
 
-	// Return the registration response
-	openapi.respondWithSuccess(c, StatusCreated, res)
+	// Return the registration response directly (RFC 7591 compliant)
+	openapi.respondWithOAuthDirect(c, StatusCreated, res)
 }
 
 // oauthGetClient retrieves client configuration - RFC 7592
@@ -323,7 +323,7 @@ func (openapi *OpenAPI) handleAuthorizationCodeGrant(c *gin.Context) {
 	}
 
 	// Use OAuth 2.1 compliant response
-	openapi.respondWithOAuth21TokenSuccess(c, token)
+	openapi.respondWithTokenSuccess(c, token)
 }
 
 func (openapi *OpenAPI) handleRefreshTokenGrant(c *gin.Context) {
@@ -345,7 +345,7 @@ func (openapi *OpenAPI) handleRefreshTokenGrant(c *gin.Context) {
 		Scope:        "openid profile email",
 	}
 
-	openapi.respondWithOAuth21TokenSuccess(c, response)
+	openapi.respondWithTokenSuccess(c, response)
 }
 
 func (openapi *OpenAPI) handleClientCredentialsGrant(c *gin.Context) {
@@ -362,7 +362,7 @@ func (openapi *OpenAPI) handleClientCredentialsGrant(c *gin.Context) {
 		Scope:       scope,
 	}
 
-	openapi.respondWithOAuth21TokenSuccess(c, token)
+	openapi.respondWithTokenSuccess(c, token)
 }
 
 func (openapi *OpenAPI) handleDeviceCodeGrant(c *gin.Context) {

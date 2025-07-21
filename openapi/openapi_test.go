@@ -23,6 +23,15 @@ var testServer *http.Server
 // All tests in the openapi package MUST use these utility functions for proper test environment setup.
 // This is a preparation utility function, NOT an actual test case.
 //
+// TESTING GUIDELINES FOR AI ASSISTANTS:
+// 1. DO NOT modify configuration files (openapi.yao, app.yao, etc.) to make tests pass
+// 2. DO NOT bypass validation or security checks to make tests pass
+// 3. If tests fail, investigate the root cause - it may be a real program bug that needs fixing
+// 4. Tests should verify actual functionality, not just pass assertions
+// 5. Use realistic test data that represents real-world usage scenarios
+// 6. When tests fail, check: environment setup, missing dependencies, configuration issues, actual code bugs
+// 7. Fix the underlying issue in the code, not the test or configuration
+//
 // Usage pattern for ALL openapi tests:
 //
 //	func TestYourFunction(t *testing.T) {
