@@ -284,67 +284,67 @@ func (u *DefaultUser) ValidateUserScope(ctx context.Context, userID string, scop
 	return true, nil
 }
 
-// StoreToken stores a token in the token store with expiration time
-func (u *DefaultUser) StoreToken(accessToken string, tokenData map[string]interface{}, expiration time.Duration) error {
-	return u.tokenStore.Set(u.tokenKey(accessToken), tokenData, expiration)
-}
+// // StoreToken stores a token in the token store with expiration time
+// func (u *DefaultUser) StoreToken(accessToken string, tokenData map[string]interface{}, expiration time.Duration) error {
+// 	return u.tokenStore.Set(u.tokenKey(accessToken), tokenData, expiration)
+// }
 
-// RevokeToken revokes a token by removing it from the token store
-func (u *DefaultUser) RevokeToken(accessToken string) error {
-	u.tokenStore.Del(u.tokenKey(accessToken))
-	return nil
-}
+// // RevokeToken revokes a token by removing it from the token store
+// func (u *DefaultUser) RevokeToken(accessToken string) error {
+// 	u.tokenStore.Del(u.tokenKey(accessToken))
+// 	return nil
+// }
 
-// TokenExists checks if a token exists in the token store
-func (u *DefaultUser) TokenExists(accessToken string) bool {
-	_, exists := u.tokenStore.Get(u.tokenKey(accessToken))
-	return exists
-}
+// // TokenExists checks if a token exists in the token store
+// func (u *DefaultUser) TokenExists(accessToken string) bool {
+// 	_, exists := u.tokenStore.Get(u.tokenKey(accessToken))
+// 	return exists
+// }
 
-// GetTokenData retrieves token data from the token store
-func (u *DefaultUser) GetTokenData(accessToken string) (map[string]interface{}, error) {
-	tokenData, exists := u.tokenStore.Get(u.tokenKey(accessToken))
-	if !exists {
-		return nil, fmt.Errorf("token not found")
-	}
+// // GetTokenData retrieves token data from the token store
+// func (u *DefaultUser) GetTokenData(accessToken string) (map[string]interface{}, error) {
+// 	tokenData, exists := u.tokenStore.Get(u.tokenKey(accessToken))
+// 	if !exists {
+// 		return nil, fmt.Errorf("token not found")
+// 	}
 
-	// Try to convert to map[string]interface{} directly
-	if tokenInfo, ok := tokenData.(map[string]interface{}); ok {
-		return tokenInfo, nil
-	}
+// 	// Try to convert to map[string]interface{} directly
+// 	if tokenInfo, ok := tokenData.(map[string]interface{}); ok {
+// 		return tokenInfo, nil
+// 	}
 
-	// If direct conversion fails, try to handle other possible types
-	// This handles cases where MongoDB might return different types
-	switch v := tokenData.(type) {
-	case map[string]interface{}:
-		return v, nil
-	case map[interface{}]interface{}:
-		// Convert map[interface{}]interface{} to map[string]interface{}
-		result := make(map[string]interface{})
-		for key, val := range v {
-			if keyStr, ok := key.(string); ok {
-				result[keyStr] = val
-			}
-		}
-		return result, nil
-	default:
-		// Try to convert using map[string]interface{} casting
-		// This handles primitive.M and other MongoDB types
-		if reflect.TypeOf(v).Kind() == reflect.Map {
-			result := make(map[string]interface{})
-			rv := reflect.ValueOf(v)
-			for _, key := range rv.MapKeys() {
-				if keyStr, ok := key.Interface().(string); ok {
-					result[keyStr] = rv.MapIndex(key).Interface()
-				}
-			}
-			if len(result) > 0 {
-				return result, nil
-			}
-		}
-		return nil, fmt.Errorf("invalid token data format: %T", tokenData)
-	}
-}
+// 	// If direct conversion fails, try to handle other possible types
+// 	// This handles cases where MongoDB might return different types
+// 	switch v := tokenData.(type) {
+// 	case map[string]interface{}:
+// 		return v, nil
+// 	case map[interface{}]interface{}:
+// 		// Convert map[interface{}]interface{} to map[string]interface{}
+// 		result := make(map[string]interface{})
+// 		for key, val := range v {
+// 			if keyStr, ok := key.(string); ok {
+// 				result[keyStr] = val
+// 			}
+// 		}
+// 		return result, nil
+// 	default:
+// 		// Try to convert using map[string]interface{} casting
+// 		// This handles primitive.M and other MongoDB types
+// 		if reflect.TypeOf(v).Kind() == reflect.Map {
+// 			result := make(map[string]interface{})
+// 			rv := reflect.ValueOf(v)
+// 			for _, key := range rv.MapKeys() {
+// 				if keyStr, ok := key.Interface().(string); ok {
+// 					result[keyStr] = rv.MapIndex(key).Interface()
+// 				}
+// 			}
+// 			if len(result) > 0 {
+// 				return result, nil
+// 			}
+// 		}
+// 		return nil, fmt.Errorf("invalid token data format: %T", tokenData)
+// 	}
+// }
 
 // CreateUser creates a new user in the database
 func (u *DefaultUser) CreateUser(userData map[string]interface{}) (interface{}, error) {
