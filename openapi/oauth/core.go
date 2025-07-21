@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -129,39 +130,42 @@ func (s *Service) Token(ctx context.Context, grantType string, code string, clie
 // Revoke revokes an access token or refresh token
 // Once revoked, the token cannot be used for accessing protected resources
 func (s *Service) Revoke(ctx context.Context, token string, tokenTypeHint string) error {
-	// Revoke token using user provider
-	if err := s.userProvider.RevokeToken(token); err != nil {
-		return &types.ErrorResponse{
-			Code:             types.ErrorInvalidToken,
-			ErrorDescription: "Failed to revoke token",
+	// Try to revoke as access token first
+	if tokenTypeHint == "" || tokenTypeHint == "access_token" {
+		// Check if it's an access token
+		_, err := s.getAccessTokenData(token)
+		if err == nil {
+			s.revokeAccessToken(token)
+			return nil
 		}
 	}
 
+	// Try to revoke as refresh token
+	if tokenTypeHint == "" || tokenTypeHint == "refresh_token" {
+		// Check if it's a refresh token
+		_, err := s.getRefreshTokenData(token)
+		if err == nil {
+			s.revokeRefreshToken(token)
+			return nil
+		}
+	}
+
+	// If token not found in either store, still return success (RFC 7009)
+	// This prevents information leakage about token existence
 	return nil
 }
 
 // RefreshToken exchanges a refresh token for a new access token
 // This allows clients to obtain fresh access tokens without user interaction
 func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope string) (*types.RefreshTokenResponse, error) {
-	// Validate refresh token
-	if !s.userProvider.TokenExists(refreshToken) {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Invalid refresh token",
-		}
-	}
-
-	// Get token data
-	tokenData, err := s.userProvider.GetTokenData(refreshToken)
+	// Get and validate refresh token data
+	tokenInfo, err := s.getRefreshTokenData(refreshToken)
 	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Invalid refresh token",
-		}
+		return nil, err
 	}
 
 	// Extract client ID from token data
-	clientID, ok := tokenData["client_id"].(string)
+	clientID, ok := tokenInfo["client_id"].(string)
 	if !ok {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorInvalidGrant,
@@ -221,8 +225,17 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope s
 		}
 		response.RefreshToken = newRefreshToken
 
+		// Store new refresh token
+		err = s.storeRefreshToken(newRefreshToken, clientID)
+		if err != nil {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorServerError,
+				ErrorDescription: "Failed to store new refresh token",
+			}
+		}
+
 		// Revoke old refresh token
-		s.userProvider.RevokeToken(refreshToken)
+		s.revokeRefreshToken(refreshToken)
 	}
 
 	return response, nil
@@ -239,25 +252,14 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*typ
 		}
 	}
 
-	// Validate old token
-	if !s.userProvider.TokenExists(oldToken) {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Invalid refresh token",
-		}
-	}
-
-	// Get token data
-	tokenData, err := s.userProvider.GetTokenData(oldToken)
+	// Get and validate refresh token data
+	tokenInfo, err := s.getRefreshTokenData(oldToken)
 	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Invalid refresh token",
-		}
+		return nil, err
 	}
 
 	// Extract client ID from token data
-	clientID, ok := tokenData["client_id"].(string)
+	clientID, ok := tokenInfo["client_id"].(string)
 	if !ok {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorInvalidGrant,
@@ -282,14 +284,17 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*typ
 		}
 	}
 
-	// Revoke old token
-	err = s.userProvider.RevokeToken(oldToken)
+	// Store new refresh token
+	err = s.storeRefreshTokenWithScope(newRefreshToken, clientID, "", "")
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to revoke old token",
+			ErrorDescription: "Failed to store new refresh token",
 		}
 	}
+
+	// Revoke old token
+	s.revokeRefreshToken(oldToken)
 
 	response := &types.RefreshTokenResponse{
 		AccessToken:  newAccessToken,
@@ -305,8 +310,34 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*typ
 
 // handleAuthorizationCodeGrant handles authorization code grant
 func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *types.ClientInfo, code string, codeVerifier string) (*types.Token, error) {
-	// TODO: Validate authorization code
-	// In a real implementation, this would validate the authorization code and extract user info
+	// Get and validate authorization code data
+	codeInfo, err := s.getAuthorizationCodeData(code)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate that the code belongs to the requesting client
+	codeClientID, ok := codeInfo["client_id"].(string)
+	if !ok || codeClientID != client.ClientID {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Authorization code does not belong to this client",
+		}
+	}
+
+	// Check if code has expired
+	expiresAt, ok := codeInfo["expires_at"].(int64)
+	if ok && time.Now().Unix() > expiresAt {
+		// Clean up expired code
+		s.consumeAuthorizationCode(code)
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Authorization code has expired",
+		}
+	}
+
+	// Code is valid, consume it (delete it to prevent reuse)
+	s.consumeAuthorizationCode(code)
 
 	// Generate access token
 	accessToken, err := s.generateAccessToken(client.ClientID)
@@ -314,6 +345,26 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
 			ErrorDescription: "Failed to generate access token",
+		}
+	}
+
+	// Extract scope and subject from authorization code if available
+	scope := ""
+	if scopeVal, ok := codeInfo["scope"].(string); ok {
+		scope = scopeVal
+	}
+
+	subject := ""
+	if subjectVal, ok := codeInfo["subject"].(string); ok {
+		subject = subjectVal
+	}
+
+	// Store access token with metadata
+	err = s.storeAccessToken(accessToken, client.ClientID, scope, subject)
+	if err != nil {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorServerError,
+			ErrorDescription: "Failed to store access token",
 		}
 	}
 
@@ -333,6 +384,15 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 			}
 		}
 		token.RefreshToken = refreshToken
+
+		// Store refresh token for later validation
+		err = s.storeRefreshTokenWithScope(refreshToken, client.ClientID, scope, subject)
+		if err != nil {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorServerError,
+				ErrorDescription: "Failed to store refresh token",
+			}
+		}
 	}
 
 	return token, nil
@@ -349,6 +409,15 @@ func (s *Service) handleClientCredentialsGrant(ctx context.Context, client *type
 		}
 	}
 
+	// Store access token with metadata (no user subject for client credentials)
+	err = s.storeAccessToken(accessToken, client.ClientID, "", "")
+	if err != nil {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorServerError,
+			ErrorDescription: "Failed to store access token",
+		}
+	}
+
 	token := &types.Token{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
@@ -360,12 +429,10 @@ func (s *Service) handleClientCredentialsGrant(ctx context.Context, client *type
 
 // handleRefreshTokenGrant handles refresh token grant
 func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.ClientInfo, refreshToken string) (*types.Token, error) {
-	// Validate refresh token
-	if !s.userProvider.TokenExists(refreshToken) {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Invalid refresh token",
-		}
+	// Get and validate refresh token data
+	refreshTokenInfo, err := s.getRefreshTokenData(refreshToken)
+	if err != nil {
+		return nil, err
 	}
 
 	// Generate new access token
@@ -374,6 +441,26 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
 			ErrorDescription: "Failed to generate access token",
+		}
+	}
+
+	// Extract scope and subject from refresh token if available
+	scope := ""
+	if scopeVal, ok := refreshTokenInfo["scope"].(string); ok {
+		scope = scopeVal
+	}
+
+	subject := ""
+	if subjectVal, ok := refreshTokenInfo["subject"].(string); ok {
+		subject = subjectVal
+	}
+
+	// Store access token with metadata
+	err = s.storeAccessToken(accessToken, client.ClientID, scope, subject)
+	if err != nil {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorServerError,
+			ErrorDescription: "Failed to store access token",
 		}
 	}
 
@@ -394,8 +481,17 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 		}
 		token.RefreshToken = newRefreshToken
 
+		// Store new refresh token
+		err = s.storeRefreshTokenWithScope(newRefreshToken, client.ClientID, scope, subject)
+		if err != nil {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorServerError,
+				ErrorDescription: "Failed to store new refresh token",
+			}
+		}
+
 		// Revoke old refresh token
-		s.userProvider.RevokeToken(refreshToken)
+		s.revokeRefreshToken(refreshToken)
 	} else {
 		// Reuse the same refresh token
 		token.RefreshToken = refreshToken

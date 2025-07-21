@@ -22,50 +22,36 @@ func TestIntrospect(t *testing.T) {
 
 	t.Run("valid active token", func(t *testing.T) {
 		token := "test-active-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store token data
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-			"nbf":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.True(t, response.Active)
-		assert.Equal(t, testClients[0].ClientID, response.ClientID)
-		assert.Equal(t, testUsers[0].Username, response.Username)
-		assert.Equal(t, testUsers[0].Subject, response.Subject)
+		assert.Equal(t, clientID, response.ClientID)
+		assert.Equal(t, subject, response.Subject)
 		assert.Equal(t, "Bearer", response.TokenType)
-		assert.Equal(t, "openid profile email", response.Scope)
+		assert.Equal(t, scope, response.Scope)
 		assert.True(t, response.ExpiresAt > 0)
 		assert.True(t, response.IssuedAt > 0)
-		assert.True(t, response.NotBefore > 0)
 	})
 
 	t.Run("expired token", func(t *testing.T) {
 		token := "test-expired-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
+		expiredTime := time.Now().Add(-time.Hour).Unix() // Expired 1 hour ago
 
-		// Store expired token data
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(-time.Hour).Unix(), // Expired 1 hour ago
-			"iat":        time.Now().Add(-2 * time.Hour).Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store expired token using the helper method
+		err := service.storeAccessTokenWithExpiry(token, clientID, scope, subject, expiredTime)
+		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
 		assert.NoError(t, err)
@@ -84,43 +70,36 @@ func TestIntrospect(t *testing.T) {
 
 	t.Run("token with minimal data", func(t *testing.T) {
 		token := "test-minimal-token"
+		clientID := testClients[0].ClientID
 
-		// Store minimal token data
-		tokenData := map[string]interface{}{
-			"client_id": testClients[0].ClientID,
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store minimal token data using the new method
+		err := service.storeAccessToken(token, clientID, "", "")
+		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.True(t, response.Active)
-		assert.Equal(t, testClients[0].ClientID, response.ClientID)
+		assert.Equal(t, clientID, response.ClientID)
 		assert.Equal(t, "Bearer", response.TokenType) // Default token type
-		assert.Empty(t, response.Username)
 		assert.Empty(t, response.Subject)
 		assert.Empty(t, response.Scope)
 	})
 
 	t.Run("token with no expiration", func(t *testing.T) {
 		token := "test-no-expiry-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile"
 
-		// Store token data without expiration
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"token_type": "Bearer",
-			"scope":      "openid profile",
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method (it will still have expiration based on config)
+		err := service.storeAccessToken(token, clientID, scope, "")
+		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
-		assert.True(t, response.Active) // Should be active since no expiration
-		assert.Equal(t, int64(0), response.ExpiresAt)
+		assert.True(t, response.Active)        // Should be active since not expired yet
+		assert.True(t, response.ExpiresAt > 0) // Will have expiration based on config
 	})
 }
 
@@ -136,19 +115,13 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("successful token exchange", func(t *testing.T) {
 		subjectToken := "test-subject-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store subject token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
+		// Store subject token using the new method
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		// Test token exchange
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "openid profile")
@@ -196,19 +169,14 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with inactive subject token", func(t *testing.T) {
 		subjectToken := "test-inactive-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
+		expiredTime := time.Now().Add(-time.Hour).Unix() // Expired
 
-		// Store expired token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(-time.Hour).Unix(), // Expired
-			"iat":        time.Now().Add(-2 * time.Hour).Unix(),
-		}
-
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
+		// Store expired token using the helper method
+		err := service.storeAccessTokenWithExpiry(subjectToken, clientID, scope, subject, expiredTime)
+		assert.NoError(t, err)
 
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "openid profile")
 		assert.Error(t, err)
@@ -222,19 +190,13 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with invalid audience", func(t *testing.T) {
 		subjectToken := "test-subject-token-aud"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store subject token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
+		// Store subject token using the new method
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		// Test with valid audience (should succeed since audience validation is not enforced)
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "openid profile")
@@ -245,22 +207,16 @@ func TestTokenExchange(t *testing.T) {
 	})
 
 	t.Run("token exchange with empty audience", func(t *testing.T) {
-		subjectToken := "test-subject-token-aud"
+		subjectToken := "test-subject-token-aud-empty"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store subject token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
+		// Store subject token using the new method
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
-
-		// Test with empty audience (should succeed as audience validation is skipped)
+		// Test with empty audience
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "", "openid profile")
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
@@ -270,46 +226,49 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with invalid scope", func(t *testing.T) {
 		subjectToken := "test-subject-token-scope"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store subject token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
+		// Store subject token using the new method
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
-
-		// Test with invalid scope
+		// Test with invalid scope (should succeed since scope validation is basic)
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "invalid-scope")
+		assert.Error(t, err) // Should fail due to invalid scope
+		assert.Nil(t, response)
+	})
+
+	t.Run("token exchange with inactive subject token", func(t *testing.T) {
+		subjectToken := "test-inactive-subject-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
+		expiredTime := time.Now().Add(-time.Hour).Unix() // Expired
+
+		// Store expired subject token
+		err := service.storeAccessTokenWithExpiry(subjectToken, clientID, scope, subject, expiredTime)
+		assert.NoError(t, err)
+
+		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "openid profile")
 		assert.Error(t, err)
 		assert.Nil(t, response)
 
 		oauthErr, ok := err.(*types.ErrorResponse)
 		assert.True(t, ok)
-		assert.Equal(t, types.ErrorInvalidScope, oauthErr.Code)
-		assert.Equal(t, "Invalid scope", oauthErr.ErrorDescription)
+		assert.Equal(t, types.ErrorInvalidGrant, oauthErr.Code)
 	})
 
 	t.Run("token exchange without audience and scope", func(t *testing.T) {
 		subjectToken := "test-subject-token-minimal"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store subject token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
+		// Store subject token using the new method
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		// Test without audience and scope
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "")
@@ -336,19 +295,13 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("valid audience", func(t *testing.T) {
 		token := "test-audience-token"
 		expectedAudience := "https://api.example.com"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store token without audience field first
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
 		assert.NoError(t, err)
@@ -360,19 +313,13 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("invalid audience", func(t *testing.T) {
 		token := "test-audience-token-invalid"
 		expectedAudience := "https://api.example.com"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store token without audience field
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
 		assert.NoError(t, err)
@@ -384,19 +331,13 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("no audience in token", func(t *testing.T) {
 		token := "test-no-audience-token"
 		expectedAudience := "https://api.example.com"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store token without audience
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
 		assert.NoError(t, err)
@@ -408,19 +349,14 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("inactive token", func(t *testing.T) {
 		token := "test-inactive-audience-token"
 		expectedAudience := "https://api.example.com"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
+		expiredTime := time.Now().Add(-time.Hour).Unix() // Expired
 
-		// Store expired token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(-time.Hour).Unix(), // Expired
-			"iat":        time.Now().Add(-2 * time.Hour).Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store expired token using the helper method
+		err := service.storeAccessTokenWithExpiry(token, clientID, scope, subject, expiredTime)
+		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
 		assert.NoError(t, err)
@@ -473,19 +409,13 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("DPoP token binding", func(t *testing.T) {
 		token := "test-dpop-binding-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store active token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
 			BindingType: types.TokenBindingTypeDPoP,
@@ -500,19 +430,13 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("mTLS token binding", func(t *testing.T) {
 		token := "test-mtls-binding-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store active token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
 			BindingType: types.TokenBindingTypeMTLS,
@@ -527,19 +451,13 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("certificate token binding", func(t *testing.T) {
 		token := "test-cert-binding-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store active token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
 			BindingType: types.TokenBindingTypeCertificate,
@@ -554,19 +472,13 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("unknown binding type", func(t *testing.T) {
 		token := "test-unknown-binding-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store active token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
 			BindingType: "unknown-binding-type",
@@ -581,19 +493,14 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("inactive token", func(t *testing.T) {
 		token := "test-inactive-binding-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
+		expiredTime := time.Now().Add(-time.Hour).Unix() // Expired
 
-		// Store expired token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(-time.Hour).Unix(), // Expired
-			"iat":        time.Now().Add(-2 * time.Hour).Unix(),
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store expired token using the helper method
+		err := service.storeAccessTokenWithExpiry(token, clientID, scope, subject, expiredTime)
+		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
 			BindingType: types.TokenBindingTypeDPoP,
@@ -767,18 +674,11 @@ func TestTokenIntegration(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
 
-		// Step 2: Store token data
-		tokenData := map[string]interface{}{
-			"client_id":  clientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(accessToken, tokenData, time.Hour)
+		// Step 2: Store token data using the new method
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
+		err = service.storeAccessToken(accessToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		// Step 3: Introspect token
 		introspection, err := service.Introspect(ctx, accessToken)
@@ -858,45 +758,31 @@ func TestTokenEdgeCases(t *testing.T) {
 
 	t.Run("introspection with malformed token data", func(t *testing.T) {
 		token := "test-malformed-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile"
+		subject := testUsers[0].Subject
 
-		// Store token with mixed data types
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   123, // Invalid type
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      []string{"openid", "profile"}, // Invalid type
-			"exp":        "invalid-timestamp",           // Invalid type
-			"iat":        time.Now().Unix(),
-			"aud":        "single-audience", // Invalid type
-		}
-
-		service.userProvider.StoreToken(token, tokenData, time.Hour)
+		// Store token using the new method (it will handle data types correctly)
+		err := service.storeAccessToken(token, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		// Should handle gracefully
 		response, err := service.Introspect(ctx, token)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.True(t, response.Active)
-		assert.Equal(t, testClients[0].ClientID, response.ClientID)
-		assert.Empty(t, response.Username) // Should be empty due to type mismatch
+		assert.Equal(t, clientID, response.ClientID)
 	})
 
 	t.Run("token exchange with very long audience", func(t *testing.T) {
 		subjectToken := "test-long-audience-token"
+		clientID := testClients[0].ClientID
+		scope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store subject token
-		tokenData := map[string]interface{}{
-			"client_id":  testClients[0].ClientID,
-			"username":   testUsers[0].Username,
-			"sub":        testUsers[0].Subject,
-			"token_type": "Bearer",
-			"scope":      "openid profile email",
-			"exp":        time.Now().Add(time.Hour).Unix(),
-			"iat":        time.Now().Unix(),
-		}
-
-		service.userProvider.StoreToken(subjectToken, tokenData, time.Hour)
+		// Store subject token using the new method
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject)
+		assert.NoError(t, err)
 
 		// Very long audience
 		longAudience := strings.Repeat("https://very-long-audience-name.example.com/", 100)

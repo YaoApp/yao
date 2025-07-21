@@ -1,9 +1,12 @@
 package openapi
 
 import (
+	"encoding/base64"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -125,17 +128,189 @@ func (openapi *OpenAPI) oauthToken(c *gin.Context) {
 	}
 
 	switch grantType {
-	case types.GrantTypeAuthorizationCode:
-		openapi.handleAuthorizationCodeGrant(c)
+	case types.GrantTypeAuthorizationCode, types.GrantTypeClientCredentials, types.GrantTypeDeviceCode:
+		// Handle standard grants through OAuth.Token()
+		openapi.handleStandardTokenGrant(c, grantType)
+
 	case types.GrantTypeRefreshToken:
+		// Handle refresh token grant through OAuth.RefreshToken() - RFC 6749 Section 6
 		openapi.handleRefreshTokenGrant(c)
-	case types.GrantTypeClientCredentials:
-		openapi.handleClientCredentialsGrant(c)
-	case types.GrantTypeDeviceCode:
-		openapi.handleDeviceCodeGrant(c)
+
+	case types.GrantTypeTokenExchange:
+		// Handle token exchange through OAuth.TokenExchange() - RFC 8693
+		openapi.handleTokenExchangeGrant(c)
+
 	default:
 		openapi.respondWithTokenError(c, ErrUnsupportedGrantType)
 	}
+}
+
+// handleStandardTokenGrant handles authorization_code, client_credentials, and device_code grants
+func (openapi *OpenAPI) handleStandardTokenGrant(c *gin.Context, grantType string) {
+	// Extract client credentials from Basic Auth header or form parameters
+	clientID, clientSecret := openapi.extractClientCredentials(c)
+	if clientID == "" {
+		openapi.respondWithTokenError(c, ErrInvalidClient)
+		return
+	}
+
+	// Validate client credentials using OAuth service
+	oauthService, ok := openapi.OAuth.(*oauth.Service)
+	if !ok {
+		openapi.respondWithTokenError(c, ErrInvalidClient)
+		return
+	}
+
+	clientInfo, err := oauthService.GetClientProvider().GetClientByCredentials(c, clientID, clientSecret)
+	if err != nil {
+		openapi.respondWithTokenError(c, ErrInvalidClient)
+		return
+	}
+
+	// Extract PKCE parameter
+	codeVerifier := c.PostForm("code_verifier")
+
+	// Extract grant-specific "code" parameter
+	var code string
+	switch grantType {
+	case types.GrantTypeAuthorizationCode:
+		code = c.PostForm("code")
+		redirectURI := c.PostForm("redirect_uri")
+
+		// Basic validation for authorization code grant
+		if code == "" || redirectURI == "" {
+			openapi.respondWithTokenError(c, ErrInvalidRequest)
+			return
+		}
+
+		// Validate that client supports authorization code grant
+		if !openapi.clientSupportsGrantType(clientInfo, types.GrantTypeAuthorizationCode) {
+			openapi.respondWithTokenError(c, ErrUnauthorizedClient)
+			return
+		}
+
+	case types.GrantTypeDeviceCode:
+		code = c.PostForm("device_code")
+
+		// Basic validation for device code grant
+		if code == "" {
+			openapi.respondWithTokenError(c, ErrInvalidRequest)
+			return
+		}
+
+		// Validate that client supports device code grant
+		if !openapi.clientSupportsGrantType(clientInfo, types.GrantTypeDeviceCode) {
+			openapi.respondWithTokenError(c, ErrUnauthorizedClient)
+			return
+		}
+
+	case types.GrantTypeClientCredentials:
+		// No code needed for client credentials
+		code = ""
+
+		// Validate that client supports client credentials grant
+		if !openapi.clientSupportsGrantType(clientInfo, types.GrantTypeClientCredentials) {
+			openapi.respondWithTokenError(c, ErrUnauthorizedClient)
+			return
+		}
+	}
+
+	// Call OAuth service to handle the token request
+	token, err := openapi.OAuth.Token(c, grantType, code, clientID, codeVerifier)
+	if err != nil {
+		// Convert OAuth service error to token error response
+		if oauthErr, ok := err.(*ErrorResponse); ok {
+			openapi.respondWithTokenError(c, oauthErr)
+		} else {
+			openapi.respondWithTokenError(c, ErrInvalidGrant)
+		}
+		return
+	}
+
+	// Return successful token response
+	openapi.respondWithTokenSuccess(c, token)
+}
+
+// handleRefreshTokenGrant handles refresh token requests - RFC 6749 Section 6
+func (openapi *OpenAPI) handleRefreshTokenGrant(c *gin.Context) {
+	// Extract client credentials from Basic Auth header or form parameters
+	clientID, clientSecret := openapi.extractClientCredentials(c)
+	if clientID == "" {
+		openapi.respondWithTokenError(c, ErrInvalidClient)
+		return
+	}
+
+	// Validate client credentials using OAuth service
+	oauthService, ok := openapi.OAuth.(*oauth.Service)
+	if !ok {
+		openapi.respondWithTokenError(c, ErrInvalidClient)
+		return
+	}
+
+	clientInfo, err := oauthService.GetClientProvider().GetClientByCredentials(c, clientID, clientSecret)
+	if err != nil {
+		openapi.respondWithTokenError(c, ErrInvalidClient)
+		return
+	}
+
+	// Validate that client supports refresh token grant
+	if !openapi.clientSupportsGrantType(clientInfo, types.GrantTypeRefreshToken) {
+		openapi.respondWithTokenError(c, ErrUnauthorizedClient)
+		return
+	}
+
+	refreshToken := c.PostForm("refresh_token")
+	scope := c.PostForm("scope")
+
+	// Basic validation
+	if refreshToken == "" {
+		openapi.respondWithTokenError(c, ErrInvalidRequest)
+		return
+	}
+
+	// Call OAuth service to handle refresh token grant
+	refreshResponse, err := openapi.OAuth.RefreshToken(c, refreshToken, scope)
+	if err != nil {
+		// Convert OAuth service error to token error response
+		if oauthErr, ok := err.(*ErrorResponse); ok {
+			openapi.respondWithTokenError(c, oauthErr)
+		} else {
+			openapi.respondWithTokenError(c, ErrInvalidGrant)
+		}
+		return
+	}
+
+	// Return successful refresh token response
+	openapi.respondWithTokenSuccess(c, refreshResponse)
+}
+
+// handleTokenExchangeGrant handles token exchange requests - RFC 8693
+func (openapi *OpenAPI) handleTokenExchangeGrant(c *gin.Context) {
+	subjectToken := c.PostForm("subject_token")
+	subjectTokenType := c.PostForm("subject_token_type")
+	audience := c.PostForm("audience")
+	scope := c.PostForm("scope")
+
+	// Basic validation
+	if subjectToken == "" {
+		openapi.respondWithTokenError(c, ErrInvalidRequest)
+		return
+	}
+
+	// Call OAuth service to handle token exchange
+	exchangeResponse, err := openapi.OAuth.TokenExchange(c, subjectToken, subjectTokenType, audience, scope)
+	if err != nil {
+		// Convert OAuth service error to token error response
+		if oauthErr, ok := err.(*ErrorResponse); ok {
+			openapi.respondWithTokenError(c, oauthErr)
+		} else {
+			openapi.respondWithTokenError(c, ErrInvalidGrant)
+		}
+		return
+	}
+
+	// Return successful token exchange response
+	openapi.respondWithTokenSuccess(c, exchangeResponse)
 }
 
 // oauthRevoke handles token revocation - RFC 7009
@@ -215,8 +390,51 @@ func (openapi *OpenAPI) oauthRegister(c *gin.Context) {
 		return
 	}
 
-	// Return the registration response directly (RFC 7591 compliant)
+	// Return the authorization response directly (RFC 7591 compliant)
 	openapi.respondWithOAuthDirect(c, StatusCreated, res)
+}
+
+// extractClientCredentials extracts client ID and secret from Basic Auth header or form parameters
+func (openapi *OpenAPI) extractClientCredentials(c *gin.Context) (clientID, clientSecret string) {
+	// First, try to get from HTTP Basic Auth header (RFC 6749 Section 3.2.1)
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Basic ") {
+		// Decode Basic Auth
+		encoded := strings.TrimPrefix(authHeader, "Basic ")
+		decoded, err := base64Decode(encoded)
+		if err == nil {
+			parts := strings.SplitN(string(decoded), ":", 2)
+			if len(parts) == 2 {
+				return parts[0], parts[1]
+			}
+		}
+	}
+
+	// Fallback to form parameters (RFC 6749 Section 3.2.1)
+	clientID = c.PostForm("client_id")
+	clientSecret = c.PostForm("client_secret")
+
+	return clientID, clientSecret
+}
+
+// clientSupportsGrantType checks if a client supports a specific grant type
+func (openapi *OpenAPI) clientSupportsGrantType(clientInfo *types.ClientInfo, grantType string) bool {
+	if clientInfo == nil || len(clientInfo.GrantTypes) == 0 {
+		return false
+	}
+
+	for _, supportedGrantType := range clientInfo.GrantTypes {
+		if supportedGrantType == grantType {
+			return true
+		}
+	}
+
+	return false
+}
+
+// base64Decode decodes a base64 string
+func base64Decode(data string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(data)
 }
 
 // oauthGetClient retrieves client configuration - RFC 7592
@@ -333,86 +551,6 @@ func (openapi *OpenAPI) oauthTokenExchange(c *gin.Context) {
 	}
 
 	openapi.respondWithTokenSuccess(c, response)
-}
-
-// Helper functions for token grant handling
-
-func (openapi *OpenAPI) handleAuthorizationCodeGrant(c *gin.Context) {
-	code := c.PostForm("code")
-	redirectURI := c.PostForm("redirect_uri")
-	clientID := c.PostForm("client_id")
-
-	// Basic validation
-	if code == "" || redirectURI == "" || clientID == "" {
-		openapi.respondWithTokenError(c, ErrInvalidRequest)
-		return
-	}
-
-	// TODO: Validate authorization code and PKCE
-	// TODO: Generate tokens
-
-	token := &Token{
-		AccessToken:  "generated-access-token",
-		TokenType:    types.TokenTypeBearer,
-		ExpiresIn:    3600, // 1 hour
-		RefreshToken: "generated-refresh-token",
-		Scope:        "openid profile email",
-	}
-
-	// Use OAuth 2.1 compliant response
-	openapi.respondWithTokenSuccess(c, token)
-}
-
-func (openapi *OpenAPI) handleRefreshTokenGrant(c *gin.Context) {
-	refreshToken := c.PostForm("refresh_token")
-
-	if refreshToken == "" {
-		openapi.respondWithTokenError(c, ErrInvalidRequest)
-		return
-	}
-
-	// TODO: Validate refresh token
-	// TODO: Generate new tokens
-
-	response := &RefreshTokenResponse{
-		AccessToken:  "new-access-token",
-		TokenType:    types.TokenTypeBearer,
-		ExpiresIn:    3600,                // 1 hour
-		RefreshToken: "new-refresh-token", // OAuth 2.1 requires refresh token rotation
-		Scope:        "openid profile email",
-	}
-
-	openapi.respondWithTokenSuccess(c, response)
-}
-
-func (openapi *OpenAPI) handleClientCredentialsGrant(c *gin.Context) {
-	// Client authentication is handled by middleware
-	scope := c.PostForm("scope")
-
-	// TODO: Validate client credentials
-	// TODO: Generate access token
-
-	token := &Token{
-		AccessToken: "client-credentials-token",
-		TokenType:   types.TokenTypeBearer,
-		ExpiresIn:   3600, // 1 hour
-		Scope:       scope,
-	}
-
-	openapi.respondWithTokenSuccess(c, token)
-}
-
-func (openapi *OpenAPI) handleDeviceCodeGrant(c *gin.Context) {
-	deviceCode := c.PostForm("device_code")
-
-	if deviceCode == "" {
-		openapi.respondWithTokenError(c, ErrInvalidRequest)
-		return
-	}
-
-	// TODO: Check device code status
-	// For now, return authorization pending
-	openapi.respondWithTokenError(c, ErrAuthorizationPending)
 }
 
 // parseAuthorizationRequest parses and validates authorization request parameters

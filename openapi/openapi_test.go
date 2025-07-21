@@ -318,6 +318,107 @@ func CreateTestClientCredentials() (clientID, clientSecret string) {
 	return "test-client-id", "test-client-secret"
 }
 
+// ObtainAuthorizationCode dynamically obtains an authorization code for testing OAuth token endpoints.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function to get a real authorization code for testing OAuth token exchange.
+// This function simulates the complete OAuth authorization flow and returns all necessary information
+// for testing the token endpoint with realistic data.
+//
+// Usage pattern:
+//
+//	func TestOAuthToken(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain authorization code dynamically
+//	    authInfo := ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
+//
+//	    // Now test token endpoint with real authorization code
+//	    // POST to /oauth/token with grant_type=authorization_code&code=authInfo.Code&...
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - serverURL: The test server URL (from Prepare function)
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - redirectURI: The redirect URI (must match client registration)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns AuthorizationInfo struct containing:
+// - Code: The authorization code for token exchange
+// - State: The state parameter for CSRF protection
+// - RedirectURI: The redirect URI used in the flow
+// - ClientID: The client ID used in the flow
+// - Scope: The scope requested in the flow
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Creates a realistic authorization request with proper parameters
+// 2. Calls the OAuth service directly to simulate user authorization
+// 3. Extracts the authorization code from the response
+// 4. Returns all information needed for token endpoint testing
+//
+// ERROR HANDLING:
+// If authorization fails, the test will fail immediately with a descriptive error message.
+type AuthorizationInfo struct {
+	Code        string
+	State       string
+	RedirectURI string
+	ClientID    string
+	Scope       string
+}
+
+func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, scope string) *AuthorizationInfo {
+	if Server == nil || Server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Generate a unique state parameter for CSRF protection
+	state := fmt.Sprintf("test-state-%d", time.Now().UnixNano())
+
+	// Create authorization request
+	authReq := &types.AuthorizationRequest{
+		ClientID:     clientID,
+		ResponseType: "code",
+		RedirectURI:  redirectURI,
+		Scope:        scope,
+		State:        state,
+	}
+
+	// Call OAuth service to process authorization request
+	ctx := context.Background()
+	authResp, err := Server.OAuth.Authorize(ctx, authReq)
+	if err != nil {
+		t.Fatalf("Failed to obtain authorization code: %v", err)
+	}
+
+	// Check if authorization response contains an error
+	if authResp.Error != "" {
+		t.Fatalf("Authorization failed: %s - %s", authResp.Error, authResp.ErrorDescription)
+	}
+
+	// Verify we got an authorization code
+	if authResp.Code == "" {
+		t.Fatal("Authorization response missing code")
+	}
+
+	authInfo := &AuthorizationInfo{
+		Code:        authResp.Code,
+		State:       authResp.State,
+		RedirectURI: redirectURI,
+		ClientID:    clientID,
+		Scope:       scope,
+	}
+
+	t.Logf("Obtained authorization code: %s (state: %s)", authInfo.Code, authInfo.State)
+	return authInfo
+}
+
 func TestLoad(t *testing.T) {
 	serverURL := Prepare(t)
 	defer Clean()
