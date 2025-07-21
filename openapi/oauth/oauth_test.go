@@ -28,6 +28,12 @@ import (
 // $YAO_SOURCE_ROOT is the root directory of the Yao source code.
 // source $YAO_SOURCE_ROOT/env.local.sh
 
+// Test certificate paths - created once and reused across tests
+var (
+	testCertPath string
+	testKeyPath  string
+)
+
 // Store configuration for parameterized tests
 type StoreConfig struct {
 	Name    string
@@ -311,14 +317,19 @@ func setupOAuthTestEnvironment(t *testing.T) (*Service, store.Store, store.Store
 	// Create cache
 	cache := getLRUCache(t)
 
+	// Create test certificates once if not already created
+	if testCertPath == "" || testKeyPath == "" {
+		createTestCertificatesOnce(t)
+	}
+
 	// Create OAuth service configuration
 	oauthConfig := &Config{
 		Store: mainStore,
 		Cache: cache,
 		Signing: types.SigningConfig{
 			SigningAlgorithm: "RS256",
-			SigningCertPath:  "/tmp/test-cert.pem",
-			SigningKeyPath:   "/tmp/test-key.pem",
+			SigningCertPath:  testCertPath,
+			SigningKeyPath:   testKeyPath,
 		},
 		Token: types.TokenConfig{
 			AccessTokenLifetime:       time.Hour,
@@ -498,6 +509,26 @@ func cleanupTestData(t *testing.T, service *Service) {
 	}
 }
 
+// createTestCertificatesOnce creates temporary certificate pair for all tests
+func createTestCertificatesOnce(t *testing.T) {
+	// Generate temporary certificates (auto-generate with empty paths)
+	config := &types.SigningConfig{
+		SigningAlgorithm: "RS256",
+		SigningCertPath:  "",
+		SigningKeyPath:   "",
+	}
+
+	certs, err := LoadSigningCertificates(config)
+	if err != nil {
+		t.Fatalf("Failed to generate test certificates: %v", err)
+	}
+
+	testCertPath = certs.SigningCertPath
+	testKeyPath = certs.SigningKeyPath
+
+	t.Logf("Created test certificates: cert=%s, key=%s", testCertPath, testKeyPath)
+}
+
 // Helper functions for store setup (same as in other test files)
 
 func getMongoStore(t *testing.T) store.Store {
@@ -561,7 +592,25 @@ func getStoreConfigs() []StoreConfig {
 func TestMain(m *testing.M) {
 	// Run tests
 	code := m.Run()
+
+	// Cleanup global test certificates
+	cleanupGlobalTestCertificates()
+
 	os.Exit(code)
+}
+
+// cleanupGlobalTestCertificates removes global test certificates
+func cleanupGlobalTestCertificates() {
+	if testCertPath != "" {
+		if _, err := os.Stat(testCertPath); !os.IsNotExist(err) {
+			os.Remove(testCertPath)
+		}
+	}
+	if testKeyPath != "" {
+		if _, err := os.Stat(testKeyPath); !os.IsNotExist(err) {
+			os.Remove(testKeyPath)
+		}
+	}
 }
 
 func TestNewService(t *testing.T) {
@@ -601,8 +650,8 @@ func TestNewService(t *testing.T) {
 		config := &Config{
 			Store: store,
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
@@ -645,8 +694,8 @@ func TestConfigDefaults(t *testing.T) {
 			Store:     store,
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
@@ -725,8 +774,8 @@ func TestProviderInitialization(t *testing.T) {
 			Cache:     cache,
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
@@ -753,8 +802,8 @@ func TestProviderInitialization(t *testing.T) {
 			Cache:     cache,
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
@@ -772,8 +821,8 @@ func TestProviderInitialization(t *testing.T) {
 			ClientProvider: customClientProvider,
 			IssuerURL:      "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
@@ -829,8 +878,8 @@ func TestConfigValidation(t *testing.T) {
 			Store:     getBadgerStore(t),
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 			Token: types.TokenConfig{
 				AccessTokenLifetime:       time.Hour,
@@ -839,7 +888,12 @@ func TestConfigValidation(t *testing.T) {
 			},
 		}
 
-		err := validateConfig(config)
+		// Set defaults first (like NewService does)
+		err := setConfigDefaults(config)
+		assert.NoError(t, err)
+
+		// Then validate
+		err = validateConfig(config)
 		assert.NoError(t, err)
 	})
 
@@ -847,12 +901,17 @@ func TestConfigValidation(t *testing.T) {
 		config := &Config{
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
-		err := validateConfig(config)
+		// Set defaults first (like NewService does)
+		err := setConfigDefaults(config)
+		assert.NoError(t, err)
+
+		// Then validate
+		err = validateConfig(config)
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrStoreMissing, err)
 	})
@@ -861,24 +920,37 @@ func TestConfigValidation(t *testing.T) {
 		config := &Config{
 			Store: getBadgerStore(t),
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 		}
 
-		err := validateConfig(config)
+		// Set defaults first (like NewService does)
+		err := setConfigDefaults(config)
+		assert.NoError(t, err)
+
+		// Then validate
+		err = validateConfig(config)
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrIssuerURLMissing, err)
 	})
 
-	t.Run("missing certificate configuration", func(t *testing.T) {
+	t.Run("partial certificate configuration", func(t *testing.T) {
 		config := &Config{
 			Store:     getBadgerStore(t),
 			IssuerURL: "https://test.example.com",
-			Signing:   types.SigningConfig{},
+			Signing: types.SigningConfig{
+				SigningCertPath: testCertPath, // Only cert path, missing key path
+				SigningKeyPath:  "",
+			},
 		}
 
-		err := validateConfig(config)
+		// Set defaults first (like NewService does)
+		err := setConfigDefaults(config)
+		assert.NoError(t, err)
+
+		// Then validate
+		err = validateConfig(config)
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrCertificateMissing, err)
 	})
@@ -888,15 +960,20 @@ func TestConfigValidation(t *testing.T) {
 			Store:     getBadgerStore(t),
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
-				SigningCertPath: "/tmp/cert.pem",
-				SigningKeyPath:  "/tmp/key.pem",
+				SigningCertPath: testCertPath,
+				SigningKeyPath:  testKeyPath,
 			},
 			Token: types.TokenConfig{
-				AccessTokenLifetime: -1 * time.Hour,
+				AccessTokenLifetime: -1 * time.Hour, // Invalid negative lifetime
 			},
 		}
 
-		err := validateConfig(config)
+		// Set defaults first (like NewService does)
+		err := setConfigDefaults(config)
+		assert.NoError(t, err)
+
+		// Then validate
+		err = validateConfig(config)
 		assert.Error(t, err)
 		assert.Equal(t, types.ErrInvalidTokenLifetime, err)
 	})
