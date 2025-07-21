@@ -11,34 +11,70 @@ import (
 // Type aliases for OAuth types to simplify usage
 type (
 	// Core response types
-	ErrorResponse        = types.ErrorResponse
-	Token                = types.Token
+
+	// ErrorResponse represents an OAuth 2.0 error response as defined in RFC 6749
+	ErrorResponse = types.ErrorResponse
+
+	// Token represents an OAuth 2.0 access token response as defined in RFC 6749
+	Token = types.Token
+
+	// RefreshTokenResponse represents an OAuth 2.0 refresh token response
 	RefreshTokenResponse = types.RefreshTokenResponse
 
 	// Authorization flow types
-	AuthorizationRequest  = types.AuthorizationRequest
+
+	// AuthorizationRequest represents an OAuth 2.0 authorization request parameters
+	AuthorizationRequest = types.AuthorizationRequest
+
+	// AuthorizationResponse represents an OAuth 2.0 authorization response
 	AuthorizationResponse = types.AuthorizationResponse
 
 	// Client management types
-	ClientInfo                        = types.ClientInfo
-	DynamicClientRegistrationRequest  = types.DynamicClientRegistrationRequest
+
+	// ClientInfo represents OAuth 2.0 client registration information
+	ClientInfo = types.ClientInfo
+
+	// DynamicClientRegistrationRequest represents a dynamic client registration request as defined in RFC 7591
+	DynamicClientRegistrationRequest = types.DynamicClientRegistrationRequest
+
+	// DynamicClientRegistrationResponse represents a dynamic client registration response as defined in RFC 7591
 	DynamicClientRegistrationResponse = types.DynamicClientRegistrationResponse
 
 	// Extended OAuth types
+
+	// DeviceAuthorizationResponse represents a device authorization response as defined in RFC 8628
 	DeviceAuthorizationResponse = types.DeviceAuthorizationResponse
-	PushedAuthorizationRequest  = types.PushedAuthorizationRequest
+
+	// PushedAuthorizationRequest represents a pushed authorization request as defined in RFC 9126
+	PushedAuthorizationRequest = types.PushedAuthorizationRequest
+
+	// PushedAuthorizationResponse represents a pushed authorization response as defined in RFC 9126
 	PushedAuthorizationResponse = types.PushedAuthorizationResponse
-	TokenExchangeResponse       = types.TokenExchangeResponse
-	TokenIntrospectionResponse  = types.TokenIntrospectionResponse
+
+	// TokenExchangeResponse represents a token exchange response as defined in RFC 8693
+	TokenExchangeResponse = types.TokenExchangeResponse
+
+	// TokenIntrospectionResponse represents a token introspection response as defined in RFC 7662
+	TokenIntrospectionResponse = types.TokenIntrospectionResponse
 
 	// Discovery types
+
+	// AuthorizationServerMetadata represents OAuth 2.0 authorization server metadata as defined in RFC 8414
 	AuthorizationServerMetadata = types.AuthorizationServerMetadata
-	ProtectedResourceMetadata   = types.ProtectedResourceMetadata
+
+	// ProtectedResourceMetadata represents OAuth 2.0 protected resource metadata as defined in RFC 9728
+	ProtectedResourceMetadata = types.ProtectedResourceMetadata
 
 	// Security types
+
+	// WWWAuthenticateChallenge represents a WWW-Authenticate challenge header structure
 	WWWAuthenticateChallenge = types.WWWAuthenticateChallenge
-	JWKSResponse             = types.JWKSResponse
-	JWK                      = types.JWK
+
+	// JWKSResponse represents a JSON Web Key Set response as defined in RFC 7517
+	JWKSResponse = types.JWKSResponse
+
+	// JWK represents a JSON Web Key as defined in RFC 7517
+	JWK = types.JWK
 )
 
 // Standard OAuth 2.0/2.1 Error Codes - RFC 6749 Section 5.2
@@ -119,10 +155,27 @@ type StandardResponse struct {
 	RequestID string         `json:"request_id,omitempty"`
 }
 
+// setOAuthSecurityHeaders sets standard OAuth 2.0/2.1 security headers
+// These headers are required by OAuth 2.1 specification for enhanced security
+func (openapi *OpenAPI) setOAuthSecurityHeaders(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("X-Frame-Options", "DENY")
+	c.Header("Referrer-Policy", "no-referrer")
+}
+
+// setJSONContentType sets JSON content type header for OAuth responses
+func (openapi *OpenAPI) setJSONContentType(c *gin.Context) {
+	c.Header("Content-Type", "application/json;charset=UTF-8")
+}
+
 // Response helper functions for consistent OAuth responses
 
 // respondWithSuccess sends a successful OAuth response
 func (openapi *OpenAPI) respondWithSuccess(c *gin.Context, statusCode int, data interface{}) {
+	openapi.setOAuthSecurityHeaders(c)
+
 	response := StandardResponse{
 		Success:   true,
 		Data:      data,
@@ -130,22 +183,19 @@ func (openapi *OpenAPI) respondWithSuccess(c *gin.Context, statusCode int, data 
 		RequestID: c.GetString("request_id"),
 	}
 
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
 	c.JSON(statusCode, response)
 }
 
 // respondWithError sends an OAuth error response
 func (openapi *OpenAPI) respondWithError(c *gin.Context, statusCode int, err *ErrorResponse) {
+	openapi.setOAuthSecurityHeaders(c)
+
 	response := StandardResponse{
 		Success:   false,
 		Error:     err,
 		Timestamp: time.Now().UTC(),
 		RequestID: c.GetString("request_id"),
 	}
-
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
 
 	// Add WWW-Authenticate header for 401 responses
 	if statusCode == StatusUnauthorized {
@@ -156,19 +206,27 @@ func (openapi *OpenAPI) respondWithError(c *gin.Context, statusCode int, err *Er
 }
 
 // respondWithTokenSuccess sends a successful token response (without wrapper)
+// This method is used for OAuth token endpoint responses that must follow RFC 6749 format
 func (openapi *OpenAPI) respondWithTokenSuccess(c *gin.Context, token interface{}) {
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
-	c.Header("Content-Type", "application/json;charset=UTF-8")
+	openapi.setOAuthSecurityHeaders(c)
+	openapi.setJSONContentType(c)
 	c.JSON(StatusOK, token)
 }
 
 // respondWithTokenError sends a token endpoint error response (without wrapper)
+// This method is used for OAuth token endpoint errors that must follow RFC 6749 format
 func (openapi *OpenAPI) respondWithTokenError(c *gin.Context, err *ErrorResponse) {
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
-	c.Header("Content-Type", "application/json;charset=UTF-8")
+	openapi.setOAuthSecurityHeaders(c)
+	openapi.setJSONContentType(c)
 	c.JSON(StatusBadRequest, err)
+}
+
+// respondWithOAuthDirect sends a direct OAuth response without StandardResponse wrapper
+// This method is used for endpoints that require RFC-compliant response format (e.g., client registration)
+func (openapi *OpenAPI) respondWithOAuthDirect(c *gin.Context, statusCode int, data interface{}) {
+	openapi.setOAuthSecurityHeaders(c)
+	openapi.setJSONContentType(c)
+	c.JSON(statusCode, data)
 }
 
 // respondWithAuthorizationError sends an authorization endpoint error via redirect
@@ -276,29 +334,17 @@ func createErrorWithState(baseError *ErrorResponse, state string) *ErrorResponse
 	return errorWithState
 }
 
-// OAuth 2.1 specific response helpers
+// Legacy OAuth 2.1 specific response helpers (deprecated)
+// These methods are kept for backward compatibility but should use the unified approach above
 
 // respondWithOAuth21Error ensures OAuth 2.1 compliance for error responses
+// Deprecated: Use respondWithError instead, which now includes all OAuth 2.1 security headers
 func (openapi *OpenAPI) respondWithOAuth21Error(c *gin.Context, statusCode int, err *ErrorResponse) {
-	// OAuth 2.1 requires additional security headers
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("X-Frame-Options", "DENY")
-	c.Header("Referrer-Policy", "no-referrer")
-
 	openapi.respondWithError(c, statusCode, err)
 }
 
 // respondWithOAuth21TokenSuccess ensures OAuth 2.1 compliance for token responses
+// Deprecated: Use respondWithTokenSuccess instead, which now includes all OAuth 2.1 security headers
 func (openapi *OpenAPI) respondWithOAuth21TokenSuccess(c *gin.Context, token interface{}) {
-	// OAuth 2.1 requires additional security headers
-	c.Header("Cache-Control", "no-store")
-	c.Header("Pragma", "no-cache")
-	c.Header("X-Content-Type-Options", "nosniff")
-	c.Header("X-Frame-Options", "DENY")
-	c.Header("Referrer-Policy", "no-referrer")
-	c.Header("Content-Type", "application/json;charset=UTF-8")
-
-	c.JSON(StatusOK, token)
+	openapi.respondWithTokenSuccess(c, token)
 }
