@@ -2,7 +2,10 @@ package oauth
 
 import (
 	"context"
+	"crypto/rsa"
+	"encoding/base64"
 	"fmt"
+	"math/big"
 
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -10,10 +13,40 @@ import (
 // JWKS returns the JSON Web Key Set for token verification
 // This endpoint provides public keys for validating JWT tokens
 func (s *Service) JWKS(ctx context.Context) (*types.JWKSResponse, error) {
-	// TODO: Implement JWKS endpoint - this requires certificate/key management
-	// For now, return empty JWKS
+	var jwks []types.JWK
+
+	// Get signing certificates from the service
+	signingCerts := s.GetSigningCertificates()
+	if signingCerts == nil || signingCerts.SigningCert == nil {
+		return nil, fmt.Errorf("no signing certificate available")
+	}
+
+	// Get public key from certificate
+	publicKey := signingCerts.GetPublicKey()
+	if publicKey == nil {
+		return nil, fmt.Errorf("no public key available")
+	}
+
+	// Convert to RSA public key (assuming RSA for now)
+	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("only RSA public keys are supported")
+	}
+
+	// Build JWK from RSA public key
+	jwk := types.JWK{
+		Kty: "RSA",
+		Use: "sig",
+		Kid: signingCerts.GetKeyID(),
+		Alg: s.GetSigningAlgorithm(),
+		N:   base64.RawURLEncoding.EncodeToString(rsaPublicKey.N.Bytes()),
+		E:   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(rsaPublicKey.E)).Bytes()),
+	}
+
+	jwks = append(jwks, jwk)
+
 	return &types.JWKSResponse{
-		Keys: []types.JWK{},
+		Keys: jwks,
 	}, nil
 }
 

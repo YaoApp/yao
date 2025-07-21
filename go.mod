@@ -34,6 +34,7 @@ require (
 	github.com/yaoapp/gou v0.10.3
 	github.com/yaoapp/kun v0.9.0
 	github.com/yaoapp/xun v0.9.0
+	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/crypto v0.39.0
 	golang.org/x/net v0.41.0
 	golang.org/x/text v0.27.0
@@ -134,7 +135,6 @@ require (
 	github.com/xuri/nfp v0.0.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	go.mongodb.org/mongo-driver v1.17.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect

@@ -376,12 +376,22 @@ func (openapi *OpenAPI) oauthIntrospect(c *gin.Context) {
 
 // oauthJWKS returns JSON Web Key Set - RFC 7517
 func (openapi *OpenAPI) oauthJWKS(c *gin.Context) {
-	// TODO: Implement JWKS generation
-	jwks := &JWKSResponse{
-		Keys: []JWK{},
+	jwks, err := openapi.OAuth.JWKS(c)
+	if err != nil {
+		openapi.respondWithError(c, StatusInternalServerError, ErrServerError)
+		return
 	}
 
-	openapi.respondWithSuccess(c, StatusOK, jwks)
+	// RFC 7517 compliance: Return JWKS directly as JSON without wrapper
+	// Set security headers for JWKS endpoint
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("X-Frame-Options", "DENY")
+	c.Header("Referrer-Policy", "no-referrer")
+
+	// Return JWKS directly as per RFC 7517
+	c.JSON(StatusOK, jwks)
 }
 
 // oauthUserInfo returns user information - OpenID Connect Core 1.0
