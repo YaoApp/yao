@@ -2,7 +2,6 @@ package openapi
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -146,15 +145,6 @@ const (
 	StatusServiceUnavailable  = http.StatusServiceUnavailable  // 503 - Service temporarily unavailable
 )
 
-// StandardResponse represents a standard OAuth API response
-type StandardResponse struct {
-	Success   bool           `json:"success"`
-	Data      interface{}    `json:"data,omitempty"`
-	Error     *ErrorResponse `json:"error,omitempty"`
-	Timestamp time.Time      `json:"timestamp"`
-	RequestID string         `json:"request_id,omitempty"`
-}
-
 // setOAuthSecurityHeaders sets standard OAuth 2.0/2.1 security headers
 // These headers are required by OAuth 2.1 specification for enhanced security
 func (openapi *OpenAPI) setOAuthSecurityHeaders(c *gin.Context) {
@@ -167,66 +157,25 @@ func (openapi *OpenAPI) setOAuthSecurityHeaders(c *gin.Context) {
 
 // setJSONContentType sets JSON content type header for OAuth responses
 func (openapi *OpenAPI) setJSONContentType(c *gin.Context) {
-	c.Header("Content-Type", "application/json;charset=UTF-8")
+	c.Header("Content-Type", "application/json")
 }
 
-// Response helper functions for consistent OAuth responses
-
-// respondWithSuccess sends a successful OAuth response
+// respondWithSuccess sends a successful response (no wrapper, direct data)
 func (openapi *OpenAPI) respondWithSuccess(c *gin.Context, statusCode int, data interface{}) {
-	openapi.setOAuthSecurityHeaders(c)
-
-	response := StandardResponse{
-		Success:   true,
-		Data:      data,
-		Timestamp: time.Now().UTC(),
-		RequestID: c.GetString("request_id"),
-	}
-
-	c.JSON(statusCode, response)
+	openapi.setJSONContentType(c)
+	c.JSON(statusCode, data)
 }
 
-// respondWithError sends an OAuth error response
+// respondWithError sends an error response (no wrapper, direct error)
 func (openapi *OpenAPI) respondWithError(c *gin.Context, statusCode int, err *ErrorResponse) {
-	openapi.setOAuthSecurityHeaders(c)
-
-	response := StandardResponse{
-		Success:   false,
-		Error:     err,
-		Timestamp: time.Now().UTC(),
-		RequestID: c.GetString("request_id"),
-	}
+	openapi.setJSONContentType(c)
 
 	// Add WWW-Authenticate header for 401 responses
 	if statusCode == StatusUnauthorized {
 		openapi.addWWWAuthenticateHeader(c, err)
 	}
 
-	c.JSON(statusCode, response)
-}
-
-// respondWithTokenSuccess sends a successful token response (without wrapper)
-// This method is used for OAuth token endpoint responses that must follow RFC 6749 format
-func (openapi *OpenAPI) respondWithTokenSuccess(c *gin.Context, token interface{}) {
-	openapi.setOAuthSecurityHeaders(c)
-	openapi.setJSONContentType(c)
-	c.JSON(StatusOK, token)
-}
-
-// respondWithTokenError sends a token endpoint error response (without wrapper)
-// This method is used for OAuth token endpoint errors that must follow RFC 6749 format
-func (openapi *OpenAPI) respondWithTokenError(c *gin.Context, err *ErrorResponse) {
-	openapi.setOAuthSecurityHeaders(c)
-	openapi.setJSONContentType(c)
-	c.JSON(StatusBadRequest, err)
-}
-
-// respondWithOAuthDirect sends a direct OAuth response without StandardResponse wrapper
-// This method is used for endpoints that require RFC-compliant response format (e.g., client registration)
-func (openapi *OpenAPI) respondWithOAuthDirect(c *gin.Context, statusCode int, data interface{}) {
-	openapi.setOAuthSecurityHeaders(c)
-	openapi.setJSONContentType(c)
-	c.JSON(statusCode, data)
+	c.JSON(statusCode, err)
 }
 
 // respondWithAuthorizationError sends an authorization endpoint error via redirect
@@ -289,62 +238,22 @@ func (openapi *OpenAPI) addWWWAuthenticateHeader(c *gin.Context, err *ErrorRespo
 	c.Header("WWW-Authenticate", headerValue)
 }
 
-// Validation helper functions
-
-// validateRedirectURI validates redirect URI according to RFC 6749
-func (openapi *OpenAPI) validateRedirectURI(redirectURI string, client *ClientInfo) error {
-	if redirectURI == "" {
-		return ErrMissingRedirectURI
-	}
-
-	// Check if redirect URI is registered for the client
-	for _, registeredURI := range client.RedirectURIs {
-		if registeredURI == redirectURI {
-			return nil
-		}
-	}
-
-	return ErrInvalidRedirectURI
+// respondWithSecureSuccess sends a successful response with OAuth security headers (for sensitive endpoints)
+func (openapi *OpenAPI) respondWithSecureSuccess(c *gin.Context, statusCode int, data interface{}) {
+	openapi.setOAuthSecurityHeaders(c)
+	openapi.setJSONContentType(c)
+	c.JSON(statusCode, data)
 }
 
-// validatePKCE validates PKCE parameters according to RFC 7636
-func (openapi *OpenAPI) validatePKCE(codeChallenge, codeChallengeMethod, codeVerifier string) error {
-	if codeChallenge == "" {
-		return ErrMissingCodeChallenge
+// respondWithSecureError sends an error response with OAuth security headers (for sensitive endpoints)
+func (openapi *OpenAPI) respondWithSecureError(c *gin.Context, statusCode int, err *ErrorResponse) {
+	openapi.setOAuthSecurityHeaders(c)
+	openapi.setJSONContentType(c)
+
+	// Add WWW-Authenticate header for 401 responses
+	if statusCode == StatusUnauthorized {
+		openapi.addWWWAuthenticateHeader(c, err)
 	}
 
-	if codeChallengeMethod != types.CodeChallengeMethodS256 && codeChallengeMethod != types.CodeChallengeMethodPlain {
-		return ErrInvalidCodeChallenge
-	}
-
-	// Additional PKCE validation logic would go here
-	// This is a simplified example
-
-	return nil
-}
-
-// createErrorWithState creates an error response with state parameter
-func createErrorWithState(baseError *ErrorResponse, state string) *ErrorResponse {
-	errorWithState := &ErrorResponse{
-		Code:             baseError.Code,
-		ErrorDescription: baseError.ErrorDescription,
-		ErrorURI:         baseError.ErrorURI,
-		State:            state,
-	}
-	return errorWithState
-}
-
-// Legacy OAuth 2.1 specific response helpers (deprecated)
-// These methods are kept for backward compatibility but should use the unified approach above
-
-// respondWithOAuth21Error ensures OAuth 2.1 compliance for error responses
-// Deprecated: Use respondWithError instead, which now includes all OAuth 2.1 security headers
-func (openapi *OpenAPI) respondWithOAuth21Error(c *gin.Context, statusCode int, err *ErrorResponse) {
-	openapi.respondWithError(c, statusCode, err)
-}
-
-// respondWithOAuth21TokenSuccess ensures OAuth 2.1 compliance for token responses
-// Deprecated: Use respondWithTokenSuccess instead, which now includes all OAuth 2.1 security headers
-func (openapi *OpenAPI) respondWithOAuth21TokenSuccess(c *gin.Context, token interface{}) {
-	openapi.respondWithTokenSuccess(c, token)
+	c.JSON(statusCode, err)
 }

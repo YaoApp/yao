@@ -2,6 +2,7 @@ package oauth
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,4 +20,11 @@ func (s *Service) Guard(c *gin.Context) {
 	}
 
 	// Validate the token
+	_, err := s.VerifyToken(strings.TrimPrefix(token, "Bearer "))
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+		c.Abort()
+		return
+	}
+
 }
