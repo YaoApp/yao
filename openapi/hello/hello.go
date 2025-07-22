@@ -1,30 +1,27 @@
-package openapi
+package hello
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/share"
 )
 
-// attachHelloWorld attaches the hello world handlers to the router
-func (openapi *OpenAPI) attachHelloWorld(base *gin.RouterGroup) {
-
-	// hello handlers
-	hello := base.Group("/helloworld")
+// Attach attaches the hello world handlers to the router
+func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Health check
-	hello.GET("/public", openapi.helloWorldPublic)
-	hello.POST("/public", openapi.helloWorldPublic)
+	group.GET("/public", helloWorldPublic)
+	group.POST("/public", helloWorldPublic)
 
 	// OAuth Protected Resource
-	hello.GET("/protected", openapi.OAuth.Guard, openapi.helloWorldProtected)
-	hello.POST("/protected", openapi.OAuth.Guard, openapi.helloWorldProtected)
+	group.GET("/protected", oauth.Guard, helloWorldProtected)
+	group.POST("/protected", oauth.Guard, helloWorldProtected)
 }
 
-// helloWorldPublic is the handler for the hello world endpoint
-func (openapi *OpenAPI) helloWorldPublic(c *gin.Context) {
+func helloWorldPublic(c *gin.Context) {
 	serverTime := time.Now().Format(time.RFC3339)
 	c.JSON(http.StatusOK, gin.H{
 		"MESSAGE":     "HELLO, WORLD",
@@ -39,7 +36,7 @@ func (openapi *OpenAPI) helloWorldPublic(c *gin.Context) {
 }
 
 // helloWorldHello is the handler for the hello world endpoint
-func (openapi *OpenAPI) helloWorldProtected(c *gin.Context) {
+func helloWorldProtected(c *gin.Context) {
 	serverTime := time.Now().Format(time.RFC3339)
 	c.JSON(http.StatusOK, gin.H{
 		"MESSAGE":     "HELLO, WORLD",
