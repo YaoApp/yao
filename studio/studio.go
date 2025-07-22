@@ -29,6 +29,7 @@ type cfunc struct {
 
 // Start start the studio api server
 func Start(cfg config.Config) (err error) {
+	return fmt.Errorf("studio is deprecated")
 
 	// recive interrupt signal
 	interrupt := make(chan os.Signal, 1)
@@ -92,6 +93,7 @@ func Stop() {
 
 // Load studio config
 func Load(cfg config.Config) error {
+	return fmt.Errorf("studio is deprecated")
 
 	err := loadDSL(cfg)
 	if err != nil {
@@ -101,12 +103,14 @@ func Load(cfg config.Config) error {
 }
 
 func loadDSL(cfg config.Config) error {
+	return fmt.Errorf("studio is deprecated")
 	dslDenyList := []string{cfg.DataRoot}
 	dfs = dsl.New(cfg.AppSource).DenyAbs(dslDenyList...)
 	return nil
 }
 
 func loadScripts() error {
+	return fmt.Errorf("studio is deprecated")
 	exts := []string{"*.js"}
 	return application.App.Walk("studio", func(root, file string, isdir bool) error {
 		if isdir {
