@@ -2,6 +2,8 @@ package types
 
 import (
 	"time"
+
+	"github.com/golang-jwt/jwt/v4"
 )
 
 // ErrorResponse represents an OAuth 2.1 error response
@@ -496,6 +498,27 @@ type SecurityConfig struct {
 	IPBlacklist              []string `json:"ip_blacklist,omitempty"`     // Optional: IP addresses blocked from access (default: [])
 	RequireHTTPS             bool     `json:"require_https"`              // Optional: Require HTTPS for all endpoints (default: true)
 	DisableUnsecureEndpoints bool     `json:"disable_unsecure_endpoints"` // Optional: Disable non-HTTPS endpoints (default: false)
+}
+
+// TokenClaims represents decoded token claims for both JWT and opaque tokens
+type TokenClaims struct {
+	Subject   string    `json:"sub,omitempty"`   // Subject identifier
+	ClientID  string    `json:"client_id"`       // OAuth client ID
+	Scope     string    `json:"scope,omitempty"` // Access scope
+	TokenType string    `json:"token_type"`      // Token type (access_token, refresh_token, etc.)
+	ExpiresAt time.Time `json:"exp,omitempty"`   // Expiration time
+	IssuedAt  time.Time `json:"iat,omitempty"`   // Issued at time
+	Issuer    string    `json:"iss,omitempty"`   // Token issuer
+	Audience  []string  `json:"aud,omitempty"`   // Token audience
+	JTI       string    `json:"jti,omitempty"`   // JWT ID (for JWT tokens)
+}
+
+// JWTClaims represents JWT-specific claims structure
+type JWTClaims struct {
+	jwt.StandardClaims
+	ClientID  string `json:"client_id"`       // OAuth client ID
+	Scope     string `json:"scope,omitempty"` // Access scope
+	TokenType string `json:"token_type"`      // Token type
 }
 
 // ClientConfig represents default client configuration

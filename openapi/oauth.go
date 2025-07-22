@@ -269,7 +269,12 @@ func (openapi *OpenAPI) handleRefreshTokenGrant(c *gin.Context) {
 	}
 
 	// Call OAuth service to handle refresh token grant
-	refreshResponse, err := openapi.OAuth.RefreshToken(c, refreshToken, scope)
+	var refreshResponse *types.RefreshTokenResponse
+	if scope != "" {
+		refreshResponse, err = openapi.OAuth.RefreshToken(c, refreshToken, scope)
+	} else {
+		refreshResponse, err = openapi.OAuth.RefreshToken(c, refreshToken)
+	}
 	if err != nil {
 		// Convert OAuth service error to token error response
 		if oauthErr, ok := err.(*ErrorResponse); ok {

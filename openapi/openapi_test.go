@@ -2,6 +2,9 @@ package openapi
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/http"
@@ -356,21 +359,28 @@ func CreateTestClientCredentials() (clientID, clientSecret string) {
 // - RedirectURI: The redirect URI used in the flow
 // - ClientID: The client ID used in the flow
 // - Scope: The scope requested in the flow
+// - CodeVerifier: The PKCE code verifier for token exchange
+// - CodeChallenge: The PKCE code challenge used in authorization
+// - CodeChallengeMethod: The PKCE challenge method (S256)
 //
 // WHAT THIS FUNCTION DOES:
-// 1. Creates a realistic authorization request with proper parameters
-// 2. Calls the OAuth service directly to simulate user authorization
-// 3. Extracts the authorization code from the response
-// 4. Returns all information needed for token endpoint testing
+// 1. Generates PKCE parameters for OAuth 2.1 compliance
+// 2. Creates a realistic authorization request with proper parameters
+// 3. Calls the OAuth service directly to simulate user authorization
+// 4. Extracts the authorization code from the response
+// 5. Returns all information needed for token endpoint testing
 //
 // ERROR HANDLING:
 // If authorization fails, the test will fail immediately with a descriptive error message.
 type AuthorizationInfo struct {
-	Code        string
-	State       string
-	RedirectURI string
-	ClientID    string
-	Scope       string
+	Code                string
+	State               string
+	RedirectURI         string
+	ClientID            string
+	Scope               string
+	CodeVerifier        string
+	CodeChallenge       string
+	CodeChallengeMethod string
 }
 
 func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, scope string) *AuthorizationInfo {
@@ -381,13 +391,20 @@ func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, sco
 	// Generate a unique state parameter for CSRF protection
 	state := fmt.Sprintf("test-state-%d", time.Now().UnixNano())
 
-	// Create authorization request
+	// Generate PKCE parameters for OAuth 2.1 compliance
+	codeVerifier := generateCodeVerifier()
+	codeChallenge := generateCodeChallenge(codeVerifier)
+	codeChallengeMethod := "S256"
+
+	// Create authorization request with PKCE parameters
 	authReq := &types.AuthorizationRequest{
-		ClientID:     clientID,
-		ResponseType: "code",
-		RedirectURI:  redirectURI,
-		Scope:        scope,
-		State:        state,
+		ClientID:            clientID,
+		ResponseType:        "code",
+		RedirectURI:         redirectURI,
+		Scope:               scope,
+		State:               state,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
 	}
 
 	// Call OAuth service to process authorization request
@@ -408,11 +425,14 @@ func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, sco
 	}
 
 	authInfo := &AuthorizationInfo{
-		Code:        authResp.Code,
-		State:       authResp.State,
-		RedirectURI: redirectURI,
-		ClientID:    clientID,
-		Scope:       scope,
+		Code:                authResp.Code,
+		State:               authResp.State,
+		RedirectURI:         redirectURI,
+		ClientID:            clientID,
+		Scope:               scope,
+		CodeVerifier:        codeVerifier,
+		CodeChallenge:       codeChallenge,
+		CodeChallengeMethod: codeChallengeMethod,
 	}
 
 	t.Logf("Obtained authorization code: %s (state: %s)", authInfo.Code, authInfo.State)
@@ -480,12 +500,12 @@ func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirect
 		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
 	}
 
-	// Step 1: Get authorization code
+	// Step 1: Get authorization code with PKCE parameters
 	authInfo := ObtainAuthorizationCode(t, serverURL, clientID, redirectURI, scope)
 
-	// Step 2: Exchange authorization code for access token
+	// Step 2: Exchange authorization code for access token with PKCE code verifier
 	ctx := context.Background()
-	token, err := Server.OAuth.Token(ctx, "authorization_code", authInfo.Code, clientID, "")
+	token, err := Server.OAuth.Token(ctx, "authorization_code", authInfo.Code, clientID, authInfo.CodeVerifier)
 	if err != nil {
 		t.Fatalf("Failed to exchange authorization code for token: %v", err)
 	}
@@ -539,4 +559,27 @@ func TestObtainAccessToken(t *testing.T) {
 
 	t.Logf("Successfully obtained token: AccessToken=%s, TokenType=%s, ExpiresIn=%d, Scope=%s",
 		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn, tokenInfo.Scope)
+}
+
+// generateCodeVerifier generates a cryptographically random code verifier for PKCE
+func generateCodeVerifier() string {
+	// PKCE code verifier should be 43-128 characters long
+	// We'll generate 32 random bytes and base64url encode them (43 characters)
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to generate random bytes: %v", err))
+	}
+
+	// Base64 URL encoding without padding
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(bytes)
+}
+
+// generateCodeChallenge generates a code challenge from the code verifier using S256 method
+func generateCodeChallenge(codeVerifier string) string {
+	// SHA256 hash the code verifier
+	hash := sha256.Sum256([]byte(codeVerifier))
+
+	// Base64 URL encode the hash without padding
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
 }

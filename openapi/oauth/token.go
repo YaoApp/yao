@@ -15,6 +15,34 @@ import (
 // Introspect returns information about an access token
 // This endpoint allows resource servers to validate tokens
 func (s *Service) Introspect(ctx context.Context, token string) (*types.TokenIntrospectionResponse, error) {
+	// Try to verify token using signature verification first
+	tokenClaims, err := s.VerifyToken(token)
+	if err != nil {
+		// If signature verification fails, try to get from store (for opaque tokens)
+		return s.introspectFromStore(token)
+	}
+
+	// Token is valid, build response from verified claims
+	response := &types.TokenIntrospectionResponse{
+		Active:    true,
+		ClientID:  tokenClaims.ClientID,
+		Subject:   tokenClaims.Subject,
+		Scope:     tokenClaims.Scope,
+		TokenType: "Bearer",
+		ExpiresAt: tokenClaims.ExpiresAt.Unix(),
+		IssuedAt:  tokenClaims.IssuedAt.Unix(),
+	}
+
+	// Check if token is expired
+	if !tokenClaims.ExpiresAt.IsZero() && time.Now().After(tokenClaims.ExpiresAt) {
+		response.Active = false
+	}
+
+	return response, nil
+}
+
+// introspectFromStore fallback method for token introspection from store
+func (s *Service) introspectFromStore(token string) (*types.TokenIntrospectionResponse, error) {
 	// Try to get token data from OAuth store
 	tokenInfo, err := s.getAccessTokenData(token)
 	if err != nil {
@@ -128,7 +156,7 @@ func (s *Service) TokenExchange(ctx context.Context, subjectToken string, subjec
 		AccessToken:     newToken,
 		IssuedTokenType: "urn:ietf:params:oauth:token-type:access_token",
 		TokenType:       "Bearer",
-		ExpiresIn:       3600, // 1 hour
+		ExpiresIn:       int(s.config.Token.AccessTokenLifetime.Seconds()),
 	}
 
 	if scope != "" {
@@ -236,42 +264,43 @@ func (s *Service) validateAudience(audience string) error {
 
 // generateAccessToken generates a new access token
 func (s *Service) generateAccessToken(clientID string) (string, error) {
-	return s.generateToken("ak", clientID)
+	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+	return s.generateAccessTokenWithScope(clientID, "", "", expiresIn)
 }
 
-// storeAccessToken stores access token with metadata
-func (s *Service) storeAccessToken(accessToken, clientID string, scope string, subject string) error {
-	tokenData := map[string]interface{}{
-		"client_id":  clientID,
-		"type":       "access_token",
-		"scope":      scope,
-		"subject":    subject,
-		"token_type": "Bearer",
-		"issued_at":  time.Now().Unix(),
-		"expires_at": time.Now().Add(s.config.Token.AccessTokenLifetime).Unix(),
+// generateAccessTokenWithScope generates a new access token with specific parameters and stores it
+func (s *Service) generateAccessTokenWithScope(clientID, scope, subject string, expiresIn int) (string, error) {
+	// Use the new signing mechanism based on configuration
+	accessToken, err := s.SignToken("access_token", clientID, scope, subject, expiresIn)
+	if err != nil {
+		return "", err
 	}
 
-	return s.store.Set(s.accessTokenKey(accessToken), tokenData, s.config.Token.AccessTokenLifetime)
+	// Store access token with metadata
+	err = s.storeAccessToken(accessToken, clientID, scope, subject, expiresIn)
+	if err != nil {
+		return "", err
+	}
+
+	return accessToken, nil
 }
 
-// storeAccessTokenWithExpiry stores access token with custom expiration (for testing)
-func (s *Service) storeAccessTokenWithExpiry(accessToken, clientID, scope, subject string, expiresAt int64) error {
+// storeAccessToken stores access token with metadata and specified expiration
+func (s *Service) storeAccessToken(accessToken, clientID string, scope string, subject string, expiresIn int) error {
+	now := time.Now()
+	expiresAt := now.Add(time.Duration(expiresIn) * time.Second).Unix()
+
 	tokenData := map[string]interface{}{
 		"client_id":  clientID,
 		"type":       "access_token",
 		"scope":      scope,
 		"subject":    subject,
 		"token_type": "Bearer",
-		"issued_at":  time.Now().Unix(),
+		"issued_at":  now.Unix(),
 		"expires_at": expiresAt,
 	}
 
-	// Calculate TTL based on expiration time
-	ttl := time.Duration(expiresAt-time.Now().Unix()) * time.Second
-	if ttl <= 0 {
-		ttl = time.Minute // Give expired tokens a short TTL for cleanup
-	}
-
+	ttl := time.Duration(expiresIn) * time.Second
 	return s.store.Set(s.accessTokenKey(accessToken), tokenData, ttl)
 }
 
@@ -312,20 +341,31 @@ func (s *Service) revokeAccessToken(accessToken string) error {
 	return nil
 }
 
-// generateRefreshToken generates a new refresh token
-func (s *Service) generateRefreshToken(clientID string) (string, error) {
-	return s.generateToken("rfk", clientID)
+// generateRefreshToken generates and stores a new refresh token with scope and subject
+func (s *Service) generateRefreshToken(clientID, scope, subject string) (string, error) {
+	refreshToken, err := s.generateToken("rfk", clientID)
+	if err != nil {
+		return "", err
+	}
+
+	// Store refresh token with metadata
+	err = s.storeRefreshTokenWithScope(refreshToken, clientID, scope, subject)
+	if err != nil {
+		return "", err
+	}
+
+	return refreshToken, nil
 }
 
-// generateAuthorizationCode generates a new authorization code
-func (s *Service) generateAuthorizationCode(clientID string, state string) (string, error) {
+// generateAuthorizationCodeWithInfo generates a new authorization code with authorization information
+func (s *Service) generateAuthorizationCodeWithInfo(clientID, state, scope, codeChallenge, codeChallengeMethod string, subject ...string) (string, error) {
 	authCode, err := s.generateToken("ac", clientID)
 	if err != nil {
 		return "", err
 	}
 
 	// Store authorization code with metadata for later validation
-	err = s.storeAuthorizationCode(authCode, clientID, state)
+	err = s.storeAuthorizationCode(authCode, clientID, state, scope, codeChallenge, codeChallengeMethod, subject...)
 	if err != nil {
 		return "", fmt.Errorf("failed to store authorization code: %w", err)
 	}
@@ -334,7 +374,7 @@ func (s *Service) generateAuthorizationCode(clientID string, state string) (stri
 }
 
 // storeAuthorizationCode stores authorization code with metadata
-func (s *Service) storeAuthorizationCode(code, clientID, state string) error {
+func (s *Service) storeAuthorizationCode(code, clientID, state, scope, codeChallenge, codeChallengeMethod string, subject ...string) error {
 	codeData := map[string]interface{}{
 		"client_id":  clientID,
 		"state":      state,
@@ -343,19 +383,25 @@ func (s *Service) storeAuthorizationCode(code, clientID, state string) error {
 		"expires_at": time.Now().Add(s.config.Token.AuthorizationCodeLifetime).Unix(),
 	}
 
-	return s.store.Set(s.authorizationCodeKey(code), codeData, s.config.Token.AuthorizationCodeLifetime)
-}
+	// Add scope if provided
+	if scope != "" {
+		codeData["scope"] = scope
+	}
 
-// storeAuthorizationCodeWithScope stores authorization code with metadata including scope and subject
-func (s *Service) storeAuthorizationCodeWithScope(code, clientID, state, scope, subject string) error {
-	codeData := map[string]interface{}{
-		"client_id":  clientID,
-		"state":      state,
-		"scope":      scope,
-		"subject":    subject,
-		"type":       "authorization_code",
-		"issued_at":  time.Now().Unix(),
-		"expires_at": time.Now().Add(s.config.Token.AuthorizationCodeLifetime).Unix(),
+	// Add subject if provided (optional parameter)
+	if len(subject) > 0 && subject[0] != "" {
+		codeData["subject"] = subject[0]
+	}
+
+	// Add PKCE information if provided
+	if codeChallenge != "" {
+		codeData["code_challenge"] = codeChallenge
+		if codeChallengeMethod != "" {
+			codeData["code_challenge_method"] = codeChallengeMethod
+		} else {
+			// Default to S256 if not specified
+			codeData["code_challenge_method"] = types.CodeChallengeMethodS256
+		}
 	}
 
 	return s.store.Set(s.authorizationCodeKey(code), codeData, s.config.Token.AuthorizationCodeLifetime)

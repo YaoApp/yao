@@ -1,18 +1,23 @@
 package oauth
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/share"
 )
@@ -426,4 +431,271 @@ func (s *Service) GetKeyID() string {
 		return ""
 	}
 	return s.signingCerts.GetKeyID()
+}
+
+// SignToken signs a token based on the configured format (jwt or opaque)
+func (s *Service) SignToken(tokenType, clientID, scope, subject string, expiresIn int) (string, error) {
+	switch s.config.Token.AccessTokenFormat {
+	case "jwt":
+		return s.signJWTToken(tokenType, clientID, scope, subject, expiresIn)
+	case "opaque":
+		return s.signOpaqueToken(tokenType, clientID, scope, subject)
+	default:
+		// Default to JWT if format is not specified or unknown
+		return s.signJWTToken(tokenType, clientID, scope, subject, expiresIn)
+	}
+}
+
+// VerifyToken verifies a token based on its format and returns token claims
+func (s *Service) VerifyToken(token string) (*types.TokenClaims, error) {
+	// First try to verify as JWT (JWT tokens contain dots)
+	if strings.Contains(token, ".") {
+		return s.verifyJWTToken(token)
+	}
+
+	// Otherwise, verify as opaque token
+	return s.verifyOpaqueToken(token)
+}
+
+// signJWTToken signs a JWT token using the configured signing algorithm
+func (s *Service) signJWTToken(tokenType, clientID, scope, subject string, expiresIn int) (string, error) {
+	if s.signingCerts == nil || s.signingCerts.SigningKey == nil {
+		return "", fmt.Errorf("signing certificates not initialized")
+	}
+
+	now := time.Now()
+	claims := &types.JWTClaims{
+		StandardClaims: jwt.StandardClaims{
+			Issuer:    s.config.IssuerURL,
+			Subject:   subject,
+			Audience:  clientID,
+			ExpiresAt: now.Add(time.Duration(expiresIn) * time.Second).Unix(),
+			NotBefore: now.Unix(),
+			IssuedAt:  now.Unix(),
+			Id:        generateJTI(),
+		},
+		ClientID:  clientID,
+		Scope:     scope,
+		TokenType: tokenType,
+	}
+
+	// Create token with claims
+	token := jwt.NewWithClaims(getSigningMethod(s.config.Token.AccessTokenSigningAlg), claims)
+
+	// Set key ID in header
+	token.Header["kid"] = s.GetKeyID()
+
+	// Sign token with private key
+	return token.SignedString(s.signingCerts.SigningKey)
+}
+
+// verifyJWTToken verifies a JWT token and returns its claims
+func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error) {
+	if s.signingCerts == nil || s.signingCerts.SigningCert == nil {
+		return nil, fmt.Errorf("signing certificates not initialized")
+	}
+
+	// Parse token with claims
+	token, err := jwt.ParseWithClaims(tokenString, &types.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		// Validate signing method
+		expectedMethod := getSigningMethod(s.config.Token.AccessTokenSigningAlg)
+		if token.Method != expectedMethod {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// Return public key for verification
+		return s.signingCerts.GetPublicKey(), nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWT token: %w", err)
+	}
+
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid JWT token")
+	}
+
+	// Extract claims
+	jwtClaims, ok := token.Claims.(*types.JWTClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid JWT claims type")
+	}
+
+	// Convert to TokenClaims
+	tokenClaims := &types.TokenClaims{
+		Subject:   jwtClaims.Subject,
+		ClientID:  jwtClaims.ClientID,
+		Scope:     jwtClaims.Scope,
+		TokenType: jwtClaims.TokenType,
+		ExpiresAt: time.Unix(jwtClaims.ExpiresAt, 0),
+		IssuedAt:  time.Unix(jwtClaims.IssuedAt, 0),
+		Issuer:    jwtClaims.Issuer,
+		Audience:  []string{jwtClaims.Audience},
+		JTI:       jwtClaims.Id,
+	}
+
+	return tokenClaims, nil
+}
+
+// signOpaqueToken signs an opaque token using HMAC or RSA signature
+func (s *Service) signOpaqueToken(tokenType, clientID, scope, subject string) (string, error) {
+	// Generate base opaque token
+	baseToken, err := s.generateOpaqueTokenBase(tokenType, clientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate base opaque token: %w", err)
+	}
+
+	// Create token metadata for signature
+	tokenData := fmt.Sprintf("%s.%s.%s.%s.%d", baseToken, clientID, scope, subject, time.Now().Unix())
+
+	// Sign the token data
+	signature, err := s.signData([]byte(tokenData))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign opaque token: %w", err)
+	}
+
+	// Combine base token with signature
+	signedToken := fmt.Sprintf("%s.%s", baseToken, base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(signature))
+
+	return signedToken, nil
+}
+
+// verifyOpaqueToken verifies an opaque token signature and returns token claims
+func (s *Service) verifyOpaqueToken(token string) (*types.TokenClaims, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid opaque token format")
+	}
+
+	baseToken := parts[0]
+	signaturePart := parts[len(parts)-1]
+
+	// Decode signature
+	signature, err := base64.URLEncoding.WithPadding(base64.NoPadding).DecodeString(signaturePart)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode token signature: %w", err)
+	}
+
+	// Extract token information from store
+	tokenInfo, err := s.getAccessTokenData(token)
+	if err != nil {
+		return nil, fmt.Errorf("token not found or invalid: %w", err)
+	}
+
+	// Reconstruct token data for verification
+	clientID := tokenInfo["client_id"].(string)
+	scope := ""
+	if scopeVal, ok := tokenInfo["scope"].(string); ok {
+		scope = scopeVal
+	}
+	subject := ""
+	if subjectVal, ok := tokenInfo["subject"].(string); ok {
+		subject = subjectVal
+	}
+	issuedAt := tokenInfo["issued_at"].(int64)
+
+	tokenData := fmt.Sprintf("%s.%s.%s.%s.%d", baseToken, clientID, scope, subject, issuedAt)
+
+	// Verify signature
+	if err := s.verifySignature([]byte(tokenData), signature); err != nil {
+		return nil, fmt.Errorf("invalid token signature: %w", err)
+	}
+
+	// Build token claims
+	tokenClaims := &types.TokenClaims{
+		Subject:   subject,
+		ClientID:  clientID,
+		Scope:     scope,
+		TokenType: "access_token",
+		IssuedAt:  time.Unix(issuedAt, 0),
+		Issuer:    s.config.IssuerURL,
+	}
+
+	if expiresAt, ok := tokenInfo["expires_at"].(int64); ok {
+		tokenClaims.ExpiresAt = time.Unix(expiresAt, 0)
+	}
+
+	return tokenClaims, nil
+}
+
+// signData signs data using the configured signing key
+func (s *Service) signData(data []byte) ([]byte, error) {
+	if s.signingCerts == nil || s.signingCerts.SigningKey == nil {
+		return nil, fmt.Errorf("signing key not available")
+	}
+
+	switch key := s.signingCerts.SigningKey.(type) {
+	case *rsa.PrivateKey:
+		// Use RSA-PSS for signing
+		hash := sha256.Sum256(data)
+		signature, err := rsa.SignPSS(rand.Reader, key, crypto.SHA256, hash[:], nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign with RSA key: %w", err)
+		}
+		return signature, nil
+	default:
+		return nil, fmt.Errorf("unsupported signing key type: %T", key)
+	}
+}
+
+// verifySignature verifies a signature using the configured public key
+func (s *Service) verifySignature(data []byte, signature []byte) error {
+	if s.signingCerts == nil || s.signingCerts.SigningCert == nil {
+		return fmt.Errorf("signing certificate not available")
+	}
+
+	switch pubKey := s.signingCerts.GetPublicKey().(type) {
+	case *rsa.PublicKey:
+		// Use RSA-PSS for verification
+		hash := sha256.Sum256(data)
+		err := rsa.VerifyPSS(pubKey, crypto.SHA256, hash[:], signature, nil)
+		if err != nil {
+			return fmt.Errorf("failed to verify RSA signature: %w", err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported public key type: %T", pubKey)
+	}
+}
+
+// generateOpaqueTokenBase generates the base part of an opaque token
+func (s *Service) generateOpaqueTokenBase(tokenType, clientID string) (string, error) {
+	// Generate random bytes for token
+	randomBytes := make([]byte, 32)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+
+	// Create base token with type, client ID, timestamp, and random component
+	randomPart := base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(randomBytes)
+	timestamp := time.Now().Format("20060102150405")
+
+	return fmt.Sprintf("%s_%s_%s_%s", tokenType, clientID, timestamp, randomPart), nil
+}
+
+// getSigningMethod returns the JWT signing method for the given algorithm
+func getSigningMethod(algorithm string) jwt.SigningMethod {
+	switch algorithm {
+	case "RS256":
+		return jwt.SigningMethodRS256
+	case "RS384":
+		return jwt.SigningMethodRS384
+	case "RS512":
+		return jwt.SigningMethodRS512
+	case "PS256":
+		return jwt.SigningMethodPS256
+	case "PS384":
+		return jwt.SigningMethodPS384
+	case "PS512":
+		return jwt.SigningMethodPS512
+	default:
+		return jwt.SigningMethodRS256 // Default
+	}
+}
+
+// generateJTI generates a unique JWT ID
+func generateJTI() string {
+	randomBytes := make([]byte, 16)
+	rand.Read(randomBytes)
+	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(randomBytes)
 }

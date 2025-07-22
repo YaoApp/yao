@@ -87,8 +87,15 @@ func (s *Service) Authorize(ctx context.Context, request *types.AuthorizationReq
 		}
 	}
 
-	// Generate authorization code
-	authCode, err := s.generateAuthorizationCode(request.ClientID, request.State)
+	// Generate authorization code with authorization information
+	// TODO: Future implementation will generate subject here after user authentication
+	authCode, err := s.generateAuthorizationCodeWithInfo(
+		request.ClientID,
+		request.State,
+		request.Scope,               // Store the requested scope for validation
+		request.CodeChallenge,       // PKCE code challenge
+		request.CodeChallengeMethod, // PKCE method
+	)
 	if err != nil {
 		return &types.AuthorizationResponse{
 			Error:            types.ErrorServerError,
@@ -162,7 +169,12 @@ func (s *Service) Revoke(ctx context.Context, token string, tokenTypeHint string
 
 // RefreshToken exchanges a refresh token for a new access token
 // This allows clients to obtain fresh access tokens without user interaction
-func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope string) (*types.RefreshTokenResponse, error) {
+func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope ...string) (*types.RefreshTokenResponse, error) {
+	// Check if refresh token rotation is enabled and call RotateRefreshToken directly
+	if s.config.Features.RefreshTokenRotationEnabled {
+		return s.RotateRefreshToken(ctx, refreshToken, scope...)
+	}
+
 	// Get and validate refresh token data
 	tokenInfo, err := s.getRefreshTokenData(refreshToken)
 	if err != nil {
@@ -178,8 +190,8 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope s
 		}
 	}
 
-	// Validate client
-	client, err := s.clientProvider.GetClientByID(ctx, clientID)
+	// Validate client exists
+	_, err = s.clientProvider.GetClientByID(ctx, clientID)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorInvalidClient,
@@ -187,20 +199,48 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope s
 		}
 	}
 
-	// Validate scope if provided
-	if scope != "" {
-		scopes := strings.Fields(scope)
-		scopeValidation, err := s.clientProvider.ValidateScope(ctx, client.ClientID, scopes)
-		if err != nil || !scopeValidation.Valid {
-			return nil, &types.ErrorResponse{
-				Code:             types.ErrorInvalidScope,
-				ErrorDescription: "Invalid scope",
-			}
-		}
+	// Extract original scope and subject from refresh token data
+	originalScope := ""
+	if originalScopeVal, ok := tokenInfo["scope"].(string); ok {
+		originalScope = originalScopeVal
+	}
+	originalSubject := ""
+	if originalSubjectVal, ok := tokenInfo["subject"].(string); ok {
+		originalSubject = originalSubjectVal
 	}
 
-	// Generate new access token
-	newAccessToken, err := s.generateAccessToken(clientID)
+	// Handle scope according to OAuth 2.0 spec:
+	// - If scope is omitted, treat as equal to the scope originally granted
+	// - If scope is provided, it MUST NOT include any scope not originally granted
+	finalScope := originalScope // Default to original scope
+	if len(scope) > 0 && scope[0] != "" {
+		requestedScope := scope[0]
+		// Validate that requested scope doesn't exceed original scope
+		requestedScopes := strings.Fields(requestedScope)
+		originalScopes := strings.Fields(originalScope)
+
+		// Convert original scopes to a map for easier lookup
+		originalScopeMap := make(map[string]bool)
+		for _, s := range originalScopes {
+			originalScopeMap[s] = true
+		}
+
+		// Check that all requested scopes were originally granted
+		for _, reqScope := range requestedScopes {
+			if !originalScopeMap[reqScope] {
+				return nil, &types.ErrorResponse{
+					Code:             types.ErrorInvalidScope,
+					ErrorDescription: "Requested scope exceeds originally granted scope",
+				}
+			}
+		}
+
+		finalScope = requestedScope
+	}
+
+	// Generate new access token with final scope
+	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -209,38 +249,15 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope s
 	}
 
 	response := &types.RefreshTokenResponse{
-		AccessToken: newAccessToken,
-		TokenType:   "Bearer",
-		ExpiresIn:   3600, // 1 hour
+		AccessToken:  newAccessToken,
+		RefreshToken: refreshToken, // Reuse the same refresh token (no rotation)
+		TokenType:    "Bearer",
+		ExpiresIn:    expiresIn,
 	}
 
-	// Include scope if provided
-	if scope != "" {
-		response.Scope = scope
-	}
-
-	// Include refresh token if rotation is enabled
-	if s.config.Features.RefreshTokenRotationEnabled {
-		newRefreshToken, err := s.generateRefreshToken(clientID)
-		if err != nil {
-			return nil, &types.ErrorResponse{
-				Code:             types.ErrorServerError,
-				ErrorDescription: "Failed to generate refresh token",
-			}
-		}
-		response.RefreshToken = newRefreshToken
-
-		// Store new refresh token
-		err = s.storeRefreshToken(newRefreshToken, clientID)
-		if err != nil {
-			return nil, &types.ErrorResponse{
-				Code:             types.ErrorServerError,
-				ErrorDescription: "Failed to store new refresh token",
-			}
-		}
-
-		// Revoke old refresh token
-		s.revokeRefreshToken(refreshToken)
+	// Include scope if different from originally granted
+	if finalScope != originalScope {
+		response.Scope = finalScope
 	}
 
 	return response, nil
@@ -248,7 +265,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope s
 
 // RotateRefreshToken rotates a refresh token and invalidates the old one
 // This implements refresh token rotation for enhanced security
-func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*types.RefreshTokenResponse, error) {
+func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string, requestedScope ...string) (*types.RefreshTokenResponse, error) {
 	// Check if refresh token rotation is enabled
 	if !s.config.Features.RefreshTokenRotationEnabled {
 		return nil, &types.ErrorResponse{
@@ -272,8 +289,57 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*typ
 		}
 	}
 
-	// Generate new tokens
-	newAccessToken, err := s.generateAccessToken(clientID)
+	// Validate client exists
+	_, err = s.clientProvider.GetClientByID(ctx, clientID)
+	if err != nil {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidClient,
+			ErrorDescription: "Invalid client",
+		}
+	}
+
+	// Extract original scope and subject from refresh token data
+	originalScope := ""
+	if originalScopeVal, ok := tokenInfo["scope"].(string); ok {
+		originalScope = originalScopeVal
+	}
+	originalSubject := ""
+	if originalSubjectVal, ok := tokenInfo["subject"].(string); ok {
+		originalSubject = originalSubjectVal
+	}
+
+	// Handle scope according to OAuth 2.0 spec:
+	// - If scope is omitted, treat as equal to the scope originally granted
+	// - If scope is provided, it MUST NOT include any scope not originally granted
+	finalScope := originalScope // Default to original scope
+	if len(requestedScope) > 0 && requestedScope[0] != "" {
+		scope := requestedScope[0]
+		// Validate that requested scope doesn't exceed original scope
+		requestedScopes := strings.Fields(scope)
+		originalScopes := strings.Fields(originalScope)
+
+		// Convert original scopes to a map for easier lookup
+		originalScopeMap := make(map[string]bool)
+		for _, s := range originalScopes {
+			originalScopeMap[s] = true
+		}
+
+		// Check that all requested scopes were originally granted
+		for _, requestedScopeItem := range requestedScopes {
+			if !originalScopeMap[requestedScopeItem] {
+				return nil, &types.ErrorResponse{
+					Code:             types.ErrorInvalidScope,
+					ErrorDescription: "Requested scope exceeds originally granted scope",
+				}
+			}
+		}
+
+		finalScope = scope
+	}
+
+	// Generate new tokens with final scope and original subject
+	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -281,20 +347,11 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*typ
 		}
 	}
 
-	newRefreshToken, err := s.generateRefreshToken(clientID)
+	newRefreshToken, err := s.generateRefreshToken(clientID, finalScope, originalSubject)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
 			ErrorDescription: "Failed to generate refresh token",
-		}
-	}
-
-	// Store new refresh token
-	err = s.storeRefreshTokenWithScope(newRefreshToken, clientID, "", "")
-	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to store new refresh token",
 		}
 	}
 
@@ -305,7 +362,12 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string) (*typ
 		AccessToken:  newAccessToken,
 		RefreshToken: newRefreshToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    3600, // 1 hour
+		ExpiresIn:    expiresIn,
+	}
+
+	// Include scope if different from originally granted
+	if finalScope != originalScope {
+		response.Scope = finalScope
 	}
 
 	return response, nil
@@ -341,11 +403,32 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 		}
 	}
 
+	// PKCE validation (Proof Key for Code Exchange)
+	err = s.validatePKCE(ctx, client, codeInfo, codeVerifier)
+	if err != nil {
+		// Clean up the code since validation failed
+		s.consumeAuthorizationCode(code)
+		return nil, err
+	}
+
 	// Code is valid, consume it (delete it to prevent reuse)
 	s.consumeAuthorizationCode(code)
 
-	// Generate access token
-	accessToken, err := s.generateAccessToken(client.ClientID)
+	// Extract scope from authorization code
+	scope := ""
+	if scopeVal, ok := codeInfo["scope"].(string); ok {
+		scope = scopeVal
+	}
+
+	// Extract subject from authorization code if available
+	subject := ""
+	if subjectVal, ok := codeInfo["subject"].(string); ok {
+		subject = subjectVal
+	}
+
+	// Generate and store access token with proper scope and subject
+	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -353,35 +436,15 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 		}
 	}
 
-	// Extract scope and subject from authorization code if available
-	scope := ""
-	if scopeVal, ok := codeInfo["scope"].(string); ok {
-		scope = scopeVal
-	}
-
-	subject := ""
-	if subjectVal, ok := codeInfo["subject"].(string); ok {
-		subject = subjectVal
-	}
-
-	// Store access token with metadata
-	err = s.storeAccessToken(accessToken, client.ClientID, scope, subject)
-	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to store access token",
-		}
-	}
-
 	token := &types.Token{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		ExpiresIn:   3600, // 1 hour
+		ExpiresIn:   expiresIn,
 	}
 
 	// Generate refresh token if supported
 	if types.Contains(client.GrantTypes, types.GrantTypeRefreshToken) {
-		refreshToken, err := s.generateRefreshToken(client.ClientID)
+		refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -389,15 +452,6 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 			}
 		}
 		token.RefreshToken = refreshToken
-
-		// Store refresh token for later validation
-		err = s.storeRefreshTokenWithScope(refreshToken, client.ClientID, scope, subject)
-		if err != nil {
-			return nil, &types.ErrorResponse{
-				Code:             types.ErrorServerError,
-				ErrorDescription: "Failed to store refresh token",
-			}
-		}
 	}
 
 	return token, nil
@@ -405,8 +459,12 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 
 // handleClientCredentialsGrant handles client credentials grant
 func (s *Service) handleClientCredentialsGrant(ctx context.Context, client *types.ClientInfo) (*types.Token, error) {
-	// Generate access token
-	accessToken, err := s.generateAccessToken(client.ClientID)
+	// Use client's configured scope for client credentials grant
+	scope := client.Scope
+
+	// Generate and store access token with client's scope (no user subject for client credentials)
+	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, "", expiresIn)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -414,19 +472,15 @@ func (s *Service) handleClientCredentialsGrant(ctx context.Context, client *type
 		}
 	}
 
-	// Store access token with metadata (no user subject for client credentials)
-	err = s.storeAccessToken(accessToken, client.ClientID, "", "")
-	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to store access token",
-		}
-	}
-
 	token := &types.Token{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		ExpiresIn:   3600, // 1 hour
+		ExpiresIn:   expiresIn,
+	}
+
+	// Include scope in response if client has configured scope
+	if scope != "" {
+		token.Scope = scope
 	}
 
 	return token, nil
@@ -440,15 +494,6 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 		return nil, err
 	}
 
-	// Generate new access token
-	accessToken, err := s.generateAccessToken(client.ClientID)
-	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to generate access token",
-		}
-	}
-
 	// Extract scope and subject from refresh token if available
 	scope := ""
 	if scopeVal, ok := refreshTokenInfo["scope"].(string); ok {
@@ -460,24 +505,25 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 		subject = subjectVal
 	}
 
-	// Store access token with metadata
-	err = s.storeAccessToken(accessToken, client.ClientID, scope, subject)
+	// Generate and store new access token with proper scope and subject
+	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to store access token",
+			ErrorDescription: "Failed to generate access token",
 		}
 	}
 
 	token := &types.Token{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		ExpiresIn:   3600, // 1 hour
+		ExpiresIn:   expiresIn,
 	}
 
 	// Include refresh token if rotation is enabled
 	if s.config.Features.RefreshTokenRotationEnabled {
-		newRefreshToken, err := s.generateRefreshToken(client.ClientID)
+		newRefreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -485,15 +531,6 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 			}
 		}
 		token.RefreshToken = newRefreshToken
-
-		// Store new refresh token
-		err = s.storeRefreshTokenWithScope(newRefreshToken, client.ClientID, scope, subject)
-		if err != nil {
-			return nil, &types.ErrorResponse{
-				Code:             types.ErrorServerError,
-				ErrorDescription: "Failed to store new refresh token",
-			}
-		}
 
 		// Revoke old refresh token
 		s.revokeRefreshToken(refreshToken)
@@ -503,4 +540,78 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 	}
 
 	return token, nil
+}
+
+// validatePKCE validates PKCE code verifier against stored code challenge
+func (s *Service) validatePKCE(ctx context.Context, client *types.ClientInfo, codeInfo map[string]interface{}, codeVerifier string) error {
+	// Check if PKCE is required
+	isPKCERequired := s.config.Security.PKCERequired
+
+	// For OAuth 2.1, PKCE is mandatory for public clients
+	if client.ClientType == types.ClientTypePublic {
+		isPKCERequired = true
+	}
+
+	// Extract code challenge information from stored authorization code
+	codeChallenge := ""
+	if challengeVal, ok := codeInfo["code_challenge"].(string); ok {
+		codeChallenge = challengeVal
+	}
+
+	codeChallengeMethod := ""
+	if methodVal, ok := codeInfo["code_challenge_method"].(string); ok {
+		codeChallengeMethod = methodVal
+	}
+
+	// Check if PKCE is required but not provided
+	if isPKCERequired && (codeVerifier == "" || codeChallenge == "") {
+		return &types.ErrorResponse{
+			Code:             types.ErrorInvalidRequest,
+			ErrorDescription: "PKCE is required but code verifier or code challenge is missing",
+		}
+	}
+
+	// If code verifier is provided, validate it
+	if codeVerifier != "" {
+		if codeChallenge == "" {
+			return &types.ErrorResponse{
+				Code:             types.ErrorInvalidGrant,
+				ErrorDescription: "Code challenge not found for provided code verifier",
+			}
+		}
+
+		// Use default method if not specified
+		if codeChallengeMethod == "" {
+			codeChallengeMethod = types.CodeChallengeMethodS256
+		}
+
+		// Validate that the method is supported
+		supportedMethods := s.config.Security.PKCECodeChallengeMethod
+		if len(supportedMethods) > 0 {
+			methodSupported := false
+			for _, method := range supportedMethods {
+				if method == codeChallengeMethod {
+					methodSupported = true
+					break
+				}
+			}
+			if !methodSupported {
+				return &types.ErrorResponse{
+					Code:             types.ErrorInvalidRequest,
+					ErrorDescription: "Code challenge method not supported",
+				}
+			}
+		}
+
+		// Validate the code verifier against the challenge
+		err := s.ValidateCodeChallenge(ctx, codeVerifier, codeChallenge, codeChallengeMethod)
+		if err != nil {
+			return &types.ErrorResponse{
+				Code:             types.ErrorInvalidGrant,
+				ErrorDescription: "Code verifier validation failed",
+			}
+		}
+	}
+
+	return nil
 }
