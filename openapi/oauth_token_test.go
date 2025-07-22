@@ -57,7 +57,7 @@ func TestOAuthToken_AuthorizationCode(t *testing.T) {
 		// Verify OAuth 2.1 security headers
 		assert.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 		assert.Equal(t, "no-cache", resp.Header.Get("Pragma"))
-		assert.Equal(t, "application/json;charset=UTF-8", resp.Header.Get("Content-Type"))
+		assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
 
 		// Parse response
 		var tokenResp types.Token
@@ -614,20 +614,10 @@ func TestOAuthIntrospect(t *testing.T) {
 		body, err := io.ReadAll(resp.Body)
 		assert.NoError(t, err)
 
-		// Parse the wrapped response structure
-		var wrappedResp struct {
-			Success   bool                       `json:"success"`
-			Data      TokenIntrospectionResponse `json:"data"`
-			Timestamp string                     `json:"timestamp"`
-		}
-		err = json.Unmarshal(body, &wrappedResp)
+		// Parse response directly (no wrapper)
+		var introspectResp TokenIntrospectionResponse
+		err = json.Unmarshal(body, &introspectResp)
 		assert.NoError(t, err)
-
-		// Verify the wrapped response
-		assert.True(t, wrappedResp.Success)
-
-		// Get the actual introspection data
-		introspectResp := wrappedResp.Data
 
 		// Verify introspection response
 		assert.True(t, introspectResp.Active)
@@ -664,20 +654,10 @@ func TestOAuthIntrospect(t *testing.T) {
 		body, err := io.ReadAll(resp.Body)
 		assert.NoError(t, err)
 
-		// Parse the wrapped response structure
-		var wrappedResp struct {
-			Success   bool                       `json:"success"`
-			Data      TokenIntrospectionResponse `json:"data"`
-			Timestamp string                     `json:"timestamp"`
-		}
-		err = json.Unmarshal(body, &wrappedResp)
+		// Parse response directly (no wrapper)
+		var introspectResp TokenIntrospectionResponse
+		err = json.Unmarshal(body, &introspectResp)
 		assert.NoError(t, err)
-
-		// Verify the wrapped response
-		assert.True(t, wrappedResp.Success)
-
-		// Get the actual introspection data
-		introspectResp := wrappedResp.Data
 
 		// Should indicate token is inactive
 		assert.False(t, introspectResp.Active)
@@ -746,20 +726,10 @@ func TestOAuthIntrospect(t *testing.T) {
 		body, err := io.ReadAll(resp.Body)
 		assert.NoError(t, err)
 
-		// Parse the wrapped response structure
-		var wrappedResp struct {
-			Success   bool                       `json:"success"`
-			Data      TokenIntrospectionResponse `json:"data"`
-			Timestamp string                     `json:"timestamp"`
-		}
-		err = json.Unmarshal(body, &wrappedResp)
+		// Parse response directly (no wrapper)
+		var introspectResp TokenIntrospectionResponse
+		err = json.Unmarshal(body, &introspectResp)
 		assert.NoError(t, err)
-
-		// Verify the wrapped response
-		assert.True(t, wrappedResp.Success)
-
-		// Get the actual introspection data
-		introspectResp := wrappedResp.Data
 
 		// Revoked token should be inactive
 		// Note: For JWT tokens, revocation might not be immediately reflected in introspection

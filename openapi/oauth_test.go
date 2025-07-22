@@ -69,7 +69,7 @@ func TestOAuthRegister(t *testing.T) {
 		assert.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"), "X-Content-Type-Options header should be set")
 		assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"), "X-Frame-Options header should be set")
 		assert.Equal(t, "no-referrer", resp.Header.Get("Referrer-Policy"), "Referrer-Policy header should be set")
-		assert.Equal(t, "application/json;charset=UTF-8", resp.Header.Get("Content-Type"), "Content-Type header should be set")
+		assert.Equal(t, "application/json", resp.Header.Get("Content-Type"), "Content-Type header should be set")
 
 		// Read the complete response body for debugging
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -363,10 +363,9 @@ func TestOAuthJWKS(t *testing.T) {
 		// Should return 200 OK
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		// Verify Content-Type header (case-insensitive comparison)
+		// Verify Content-Type header
 		contentType := resp.Header.Get("Content-Type")
-		assert.Contains(t, contentType, "application/json", "Content-Type should be JSON")
-		assert.Contains(t, contentType, "charset=utf", "Content-Type should specify charset")
+		assert.Equal(t, "application/json", contentType, "Content-Type should be application/json")
 
 		// Verify OAuth 2.1 security headers are present
 		assert.Equal(t, "no-store", resp.Header.Get("Cache-Control"), "Cache-Control header should be set")
@@ -465,7 +464,7 @@ func TestOAuthJWKS(t *testing.T) {
 			"X-Content-Type-Options": "nosniff",
 			"X-Frame-Options":        "DENY",
 			"Referrer-Policy":        "no-referrer",
-			"Content-Type":           "application/json; charset=utf-8",
+			"Content-Type":           "application/json",
 		}
 
 		for header, expectedValue := range expectedHeaders {
