@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/dsl"
+	"github.com/yaoapp/yao/openapi/hello"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -71,7 +73,10 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	openapi.attachOAuth(group)
 
 	// Hello World handlers
-	openapi.attachHelloWorld(group)
+	hello.Attach(group.Group("/helloworld"), openapi.OAuth)
+
+	// DSL handlers
+	dsl.Attach(group.Group("/dsl"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 }
