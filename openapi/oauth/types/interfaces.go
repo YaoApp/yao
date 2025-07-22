@@ -46,7 +46,8 @@ type OAuth interface {
 
 	// RefreshToken exchanges a refresh token for a new access token
 	// This allows clients to obtain fresh access tokens without user interaction
-	RefreshToken(ctx context.Context, refreshToken string, scope string) (*RefreshTokenResponse, error)
+	// scope is optional - if provided, validates against originally granted scopes
+	RefreshToken(ctx context.Context, refreshToken string, scope ...string) (*RefreshTokenResponse, error)
 
 	// DeviceAuthorization initiates the device authorization flow
 	// This is used for devices with limited input capabilities
@@ -130,7 +131,8 @@ type OAuth interface {
 
 	// RotateRefreshToken rotates a refresh token and invalidates the old one
 	// This implements refresh token rotation for enhanced security
-	RotateRefreshToken(ctx context.Context, oldToken string) (*RefreshTokenResponse, error)
+	// requestedScope is optional - if provided, validates against originally granted scopes
+	RotateRefreshToken(ctx context.Context, oldToken string, requestedScope ...string) (*RefreshTokenResponse, error)
 
 	// ValidateTokenBinding validates token binding information
 	// This ensures tokens are bound to the correct client or device

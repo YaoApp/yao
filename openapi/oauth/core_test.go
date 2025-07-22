@@ -220,7 +220,7 @@ func TestToken(t *testing.T) {
 		clientID := testClients[0].ClientID // confidential client
 
 		// Generate a real authorization code using the service
-		code, err := service.generateAuthorizationCode(clientID, "test-state")
+		code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
@@ -267,7 +267,7 @@ func TestToken(t *testing.T) {
 
 		// Generate a real authorization code for consistency, even though client validation happens first
 		validClientID := testClients[0].ClientID
-		code, err := service.generateAuthorizationCode(validClientID, "test-state")
+		code, err := service.generateAuthorizationCodeWithInfo(validClientID, "test-state", "", "", "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
@@ -285,7 +285,7 @@ func TestToken(t *testing.T) {
 		clientID := testClients[0].ClientID
 
 		// Generate a real authorization code for consistency
-		code, err := service.generateAuthorizationCode(clientID, "test-state")
+		code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
@@ -315,7 +315,7 @@ func TestRevoke(t *testing.T) {
 		clientID := testClients[0].ClientID
 
 		// Store token using the new method
-		err := service.storeAccessToken(token, clientID, "", "")
+		err := service.storeAccessToken(token, clientID, "", "", 3600)
 		assert.NoError(t, err)
 
 		err = service.Revoke(ctx, token, "access_token")
@@ -368,9 +368,11 @@ func TestRefreshToken(t *testing.T) {
 	t.Run("successful refresh token exchange", func(t *testing.T) {
 		refreshToken := "test-refresh-token"
 		clientID := testClients[0].ClientID
+		originalScope := "openid profile email"
+		subject := testUsers[0].Subject
 
-		// Store refresh token using the new method
-		err := service.storeRefreshToken(refreshToken, clientID)
+		// Store refresh token with scope using storeRefreshTokenWithScope
+		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
 		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "openid profile")
@@ -378,22 +380,24 @@ func TestRefreshToken(t *testing.T) {
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.AccessToken)
 		assert.Equal(t, "Bearer", response.TokenType)
-		assert.Equal(t, 3600, response.ExpiresIn)
+		assert.Equal(t, int(service.config.Token.AccessTokenLifetime.Seconds()), response.ExpiresIn)
 		assert.Equal(t, "openid profile", response.Scope)
 	})
 
 	t.Run("refresh token with rotation enabled", func(t *testing.T) {
 		refreshToken := "test-refresh-token-rotation"
 		clientID := testClients[0].ClientID
+		originalScope := "openid profile"
+		subject := testUsers[0].Subject
 
-		// Store refresh token using the new method
-		err := service.storeRefreshToken(refreshToken, clientID)
+		// Store refresh token with scope using storeRefreshTokenWithScope
+		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
 		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
 		assert.True(t, service.config.Features.RefreshTokenRotationEnabled)
 
-		response, err := service.RefreshToken(ctx, refreshToken, "")
+		response, err := service.RefreshToken(ctx, refreshToken)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.AccessToken)
@@ -405,7 +409,7 @@ func TestRefreshToken(t *testing.T) {
 	t.Run("invalid refresh token", func(t *testing.T) {
 		refreshToken := "invalid-refresh-token"
 
-		response, err := service.RefreshToken(ctx, refreshToken, "")
+		response, err := service.RefreshToken(ctx, refreshToken)
 		assert.Error(t, err)
 		assert.Nil(t, response)
 
@@ -422,7 +426,7 @@ func TestRefreshToken(t *testing.T) {
 		err := service.storeRefreshToken(refreshToken, "invalid-client-id")
 		assert.NoError(t, err)
 
-		response, err := service.RefreshToken(ctx, refreshToken, "")
+		response, err := service.RefreshToken(ctx, refreshToken)
 		assert.Error(t, err)
 		assert.Nil(t, response)
 
@@ -435,19 +439,22 @@ func TestRefreshToken(t *testing.T) {
 	t.Run("refresh token with invalid scope", func(t *testing.T) {
 		refreshToken := "test-refresh-token-invalid-scope"
 		clientID := testClients[0].ClientID
+		originalScope := "openid profile" // Original scope
+		subject := testUsers[0].Subject
 
-		// Store refresh token
-		err := service.storeRefreshToken(refreshToken, clientID)
+		// Store refresh token with limited scope
+		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
 		assert.NoError(t, err)
 
-		response, err := service.RefreshToken(ctx, refreshToken, "invalid-scope")
+		// Try to request scope that exceeds the original scope
+		response, err := service.RefreshToken(ctx, refreshToken, "openid profile admin")
 		assert.Error(t, err)
 		assert.Nil(t, response)
 
 		oauthErr, ok := err.(*types.ErrorResponse)
 		assert.True(t, ok)
 		assert.Equal(t, types.ErrorInvalidScope, oauthErr.Code)
-		assert.Equal(t, "Invalid scope", oauthErr.ErrorDescription)
+		assert.Equal(t, "Requested scope exceeds originally granted scope", oauthErr.ErrorDescription)
 	})
 
 	t.Run("refresh token without scope", func(t *testing.T) {
@@ -458,7 +465,7 @@ func TestRefreshToken(t *testing.T) {
 		err := service.storeRefreshToken(refreshToken, clientID)
 		assert.NoError(t, err)
 
-		response, err := service.RefreshToken(ctx, refreshToken, "")
+		response, err := service.RefreshToken(ctx, refreshToken)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.AccessToken)
@@ -479,9 +486,11 @@ func TestRotateRefreshToken(t *testing.T) {
 	t.Run("successful refresh token rotation", func(t *testing.T) {
 		oldToken := "old-refresh-token"
 		clientID := testClients[0].ClientID
+		originalScope := "openid profile"
+		subject := testUsers[0].Subject
 
-		// Store old refresh token using the new method
-		err := service.storeRefreshToken(oldToken, clientID)
+		// Store old refresh token with scope using storeRefreshTokenWithScope
+		err := service.storeRefreshTokenWithScope(oldToken, clientID, originalScope, subject)
 		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
@@ -569,11 +578,11 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 		}
 
 		// Generate a real authorization code
-		code, err := service.generateAuthorizationCode(client.ClientID, "test-state")
+		code, err := service.generateAuthorizationCodeWithInfo(client.ClientID, "test-state", "", "", "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
-		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "test-verifier")
+		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "")
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -589,11 +598,11 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 		}
 
 		// Generate a real authorization code
-		code, err := service.generateAuthorizationCode(client.ClientID, "test-state")
+		code, err := service.generateAuthorizationCodeWithInfo(client.ClientID, "test-state", "", "", "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 
-		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "test-verifier")
+		token, err := service.handleAuthorizationCodeGrant(ctx, client, code, "")
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -638,9 +647,11 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		}
 
 		refreshToken := "test-refresh-token-grant"
+		originalScope := "openid profile"
+		subject := testUsers[0].Subject
 
-		// Store refresh token using the new method
-		err := service.storeRefreshToken(refreshToken, client.ClientID)
+		// Store refresh token with scope using storeRefreshTokenWithScope
+		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject)
 		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
@@ -671,9 +682,11 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		}
 
 		refreshToken := "test-refresh-token-no-rotation"
+		originalScope := "openid profile"
+		subject := testUsers[0].Subject
 
-		// Store refresh token using the new method
-		err := service.storeRefreshToken(refreshToken, client.ClientID)
+		// Store refresh token with scope using storeRefreshTokenWithScope
+		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject)
 		assert.NoError(t, err)
 
 		token, err := service.handleRefreshTokenGrant(ctx, client, refreshToken)
@@ -738,11 +751,7 @@ func TestCoreIntegration(t *testing.T) {
 		assert.NotEmpty(t, token.AccessToken)
 		assert.NotEmpty(t, token.RefreshToken)
 
-		// Store the refresh token for later use
-		err = service.storeRefreshToken(token.RefreshToken, testClients[0].ClientID)
-		assert.NoError(t, err)
-
-		// Step 3: Refresh token
+		// Step 3: Refresh token (token already stored with proper scope information)
 		refreshResponse, err := service.RefreshToken(ctx, token.RefreshToken, "openid profile")
 		assert.NoError(t, err)
 		assert.NotNil(t, refreshResponse)
@@ -847,7 +856,7 @@ func TestCoreEdgeCases(t *testing.T) {
 		// Generate multiple tokens and ensure they're unique
 		for i := 0; i < 10; i++ {
 			// Generate a new authorization code for each iteration (codes can only be used once)
-			code, err := service.generateAuthorizationCode(clientID, "test-state")
+			code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
 			assert.NoError(t, err)
 			assert.NotEmpty(t, code)
 
@@ -877,7 +886,7 @@ func TestCoreEdgeCases(t *testing.T) {
 		err := service.store.Set(service.refreshTokenKey(refreshToken), tokenData, 24*time.Hour)
 		assert.NoError(t, err)
 
-		response, err := service.RefreshToken(ctx, refreshToken, "")
+		response, err := service.RefreshToken(ctx, refreshToken)
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.AccessToken)
