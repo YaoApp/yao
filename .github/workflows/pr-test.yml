@@ -64,9 +64,46 @@ env:
   YAO_RUNTIME_HEAP_AVAILABLE: 550000000
   YAO_RUNTIME_PRECOMPILE: true
 
+  # Neo4j
+  NEO4J_TEST_URL: "neo4j://localhost:7686"
+  NEO4J_TEST_USER: "neo4j"
+  NEO4J_TEST_PASS: "Yao2026Neo4j"
+
+  # Qdrant
+  QDRANT_TEST_HOST: "127.0.0.1"
+  QDRANT_TEST_PORT: "6334"
+
 jobs:
   UnitTest:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333 # HTTP API
+          - 6334:6334 # gRPC
+
+      fastembed:
+        image: yaoapp/fastembed:latest-amd64
+        env:
+          FASTEMBED_PASSWORD: Yao@2026
+        ports:
+          - 6001:8000
+
+      neo4j:
+        image: neo4j:latest
+        ports:
+          - "7687:7687"
+        env:
+          NEO4J_AUTH: neo4j/Yao2026Neo4j
+
+      mcp-everything:
+        image: yaoapp/mcp-everything:latest
+        ports:
+          - "3021:3021"
+          - "3022:3022"
+
     strategy:
       matrix:
         go: [1.24]
@@ -201,6 +238,28 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Install FFmpeg 7.x
+        run: |
+          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          tar -xf ffmpeg-master-latest-linux64-gpl.tar.xz
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/
+          sudo chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+      - name: Test FFmpeg
+        run: ffmpeg -version
+
+      - name: Install pdftoppm, mutool, imagemagick
+        run: |
+          sudo apt update
+          sudo apt install -y poppler-utils mupdf-tools imagemagick
+
+      - name: Test pdftoppm, mutool, imagemagick
+        run: |
+          pdftoppm -v
+          mutool -v
+          convert -version
 
       - name: Start MongoDB
         uses: supercharge/mongodb-github-action@1.8.0

@@ -21,6 +21,8 @@ var systemStores = map[string]string{
 	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao", // for OAuth client store
 	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao", // for agent memory store (for agent memory)
 	"__yao.agent.cache":  "yao/stores/agent/cache.lru.yao",     // for agent cache store (for agent cache)
+	"__yao.kb.store":     "yao/stores/kb/store.badger.yao",     // for knowledge base store
+	"__yao.kb.cache":     "yao/stores/kb/cache.lru.yao",        // for knowledge base cache store
 }
 
 // replaceVars replaces template variables in the JSON string

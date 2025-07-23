@@ -373,3 +373,136 @@ func TestRoundTrip(t *testing.T) {
 		t.Errorf("Features mismatch: %+v != %+v", originalConfig.Features, roundTripConfig.Features)
 	}
 }
+
+func TestConfig_ResolveEnvVars(t *testing.T) {
+	// Set test environment variables
+	os.Setenv("TEST_HOST", "localhost")
+	os.Setenv("TEST_PORT", "6333")
+	defer func() {
+		os.Unsetenv("TEST_HOST")
+		os.Unsetenv("TEST_PORT")
+	}()
+
+	config := &Config{}
+
+	tests := []struct {
+		name     string
+		input    map[string]interface{}
+		expected map[string]interface{}
+	}{
+		{
+			name: "simple environment variable",
+			input: map[string]interface{}{
+				"host": "$ENV.TEST_HOST",
+				"port": "$ENV.TEST_PORT",
+			},
+			expected: map[string]interface{}{
+				"host": "localhost",
+				"port": "6333",
+			},
+		},
+		{
+			name: "mixed values",
+			input: map[string]interface{}{
+				"host":   "$ENV.TEST_HOST",
+				"port":   6333,
+				"prefix": "test-$ENV.TEST_HOST-suffix",
+			},
+			expected: map[string]interface{}{
+				"host":   "localhost",
+				"port":   6333,
+				"prefix": "test-localhost-suffix",
+			},
+		},
+		{
+			name: "nested configuration",
+			input: map[string]interface{}{
+				"database": map[string]interface{}{
+					"host": "$ENV.TEST_HOST",
+					"port": "$ENV.TEST_PORT",
+				},
+				"name": "test",
+			},
+			expected: map[string]interface{}{
+				"database": map[string]interface{}{
+					"host": "localhost",
+					"port": "6333",
+				},
+				"name": "test",
+			},
+		},
+		{
+			name: "undefined environment variable",
+			input: map[string]interface{}{
+				"host": "$ENV.UNDEFINED_VAR",
+				"port": "$ENV.TEST_PORT",
+			},
+			expected: map[string]interface{}{
+				"host": "$ENV.UNDEFINED_VAR", // Should remain unchanged
+				"port": "6333",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := config.resolveEnvVars(tt.input)
+			if err != nil {
+				t.Errorf("resolveEnvVars() error = %v", err)
+				return
+			}
+			if !reflect.DeepEqual(result, tt.expected) {
+				t.Errorf("resolveEnvVars() = %+v, want %+v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestConfig_ParseEnvVar(t *testing.T) {
+	// Set test environment variables
+	os.Setenv("TEST_HOST", "test_value")
+	defer os.Unsetenv("TEST_HOST")
+
+	config := &Config{}
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple env var",
+			input:    "$ENV.TEST_HOST",
+			expected: "test_value",
+		},
+		{
+			name:     "env var in string",
+			input:    "prefix-$ENV.TEST_HOST-suffix",
+			expected: "prefix-test_value-suffix",
+		},
+		{
+			name:     "multiple env vars",
+			input:    "$ENV.TEST_HOST-$ENV.TEST_HOST",
+			expected: "test_value-test_value",
+		},
+		{
+			name:     "undefined env var",
+			input:    "$ENV.UNDEFINED_VAR",
+			expected: "$ENV.UNDEFINED_VAR", // Should remain unchanged
+		},
+		{
+			name:     "no env var",
+			input:    "plain_string",
+			expected: "plain_string",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := config.parseEnvVar(tt.input)
+			if result != tt.expected {
+				t.Errorf("parseEnvVar() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}

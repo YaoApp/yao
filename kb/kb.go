@@ -39,7 +39,7 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 		return nil, err
 	}
 
-	err = application.Parse("kb", raw, &config)
+	err = application.Parse("kb.yao", raw, &config)
 	if err != nil {
 		return nil, err
 	}

@@ -54,6 +54,8 @@ var testSystemStores = map[string]string{
 	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao",
 	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
 	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao",
+	"__yao.kb.store":     "yao/stores/kb/store.badger.yao",
+	"__yao.kb.cache":     "yao/stores/kb/cache.lru.yao",
 }
 
 func loadSystemStores(t *testing.T, cfg config.Config) error {
@@ -255,6 +257,7 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 	dbconnect(t, cfg)
 	load(t, cfg)
 	startRuntime(t, cfg)
+
 }
 
 // Clean the test environment
