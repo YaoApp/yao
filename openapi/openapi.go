@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/dsl"
 	"github.com/yaoapp/yao/openapi/hello"
+	"github.com/yaoapp/yao/openapi/kb"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -77,6 +78,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// DSL handlers
 	dsl.Attach(group.Group("/dsl"), openapi.OAuth)
+
+	// Knowledge Base handlers
+	kb.Attach(group.Group("/kb"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 }
