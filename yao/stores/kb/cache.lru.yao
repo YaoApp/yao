@@ -1,0 +1,13 @@
+{
+  "label": "Knowledge Base Cache Store",
+  "description": "LRU cache store for Knowledge Base temporary data",
+  "tags": ["kb", "cache", "lru", "token"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 11,
+  "name": "Knowledge Base Cache Store",
+  "type": "lru",
+  "option": {
+    "size": 8192
+  }
+}
