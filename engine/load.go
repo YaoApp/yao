@@ -266,6 +266,13 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 		warnings = append(warnings, Warning{Widget: "Pipe", Error: err})
 	}
 
+	// Load Knowledge Base
+	_, err = kb.Load(cfg)
+	if err != nil {
+		// printErr(cfg.Mode, "Knowledge Base", err)
+		warnings = append(warnings, Warning{Widget: "Knowledge Base", Error: err})
+	}
+
 	// Load Neo
 	err = neo.Load(cfg)
 	if err != nil {
@@ -279,13 +286,6 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 			// printErr(cfg.Mode, name, err)
 			warnings = append(warnings, Warning{Widget: name, Error: err})
 		}
-	}
-
-	// Load Knowledge Base
-	_, err = kb.Load(cfg)
-	if err != nil {
-		// printErr(cfg.Mode, "Knowledge Base", err)
-		warnings = append(warnings, Warning{Widget: "Knowledge Base", Error: err})
 	}
 
 	// Load OpenAPI
@@ -476,6 +476,13 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = aigc.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "AIGC", err)
+	}
+
+	// Load Knowledge Base
+	_, err = kb.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Knowledge Base", err)
+
 	}
 
 	// Load Neo
