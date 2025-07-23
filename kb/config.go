@@ -3,6 +3,8 @@ package kb
 import (
 	"encoding/json"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/yaoapp/gou/graphrag"
 	"github.com/yaoapp/gou/graphrag/graph/neo4j"
@@ -114,8 +116,14 @@ func (c *Config) createGraphStore() (types.GraphStore, error) {
 
 // toVectorStoreConfig converts the vector config to VectorStoreConfig
 func (c *Config) toVectorStoreConfig() (types.VectorStoreConfig, error) {
-	// Convert map[string]interface{} to types.VectorStoreConfig via JSON
-	jsonData, err := json.Marshal(c.Vector.Config)
+	// Parse environment variables in config
+	resolvedConfig, err := c.resolveEnvVars(c.Vector.Config)
+	if err != nil {
+		return types.VectorStoreConfig{}, err
+	}
+
+	// Convert resolved config to types.VectorStoreConfig via JSON
+	jsonData, err := json.Marshal(resolvedConfig)
 	if err != nil {
 		return types.VectorStoreConfig{}, err
 	}
@@ -130,8 +138,14 @@ func (c *Config) toVectorStoreConfig() (types.VectorStoreConfig, error) {
 
 // toGraphStoreConfig converts the graph config to GraphStoreConfig
 func (c *Config) toGraphStoreConfig() (types.GraphStoreConfig, error) {
-	// Convert map[string]interface{} to types.GraphStoreConfig via JSON
-	jsonData, err := json.Marshal(c.Graph.Config)
+	// Parse environment variables in config
+	resolvedConfig, err := c.resolveEnvVars(c.Graph.Config)
+	if err != nil {
+		return types.GraphStoreConfig{}, err
+	}
+
+	// Convert resolved config to types.GraphStoreConfig via JSON
+	jsonData, err := json.Marshal(resolvedConfig)
 	if err != nil {
 		return types.GraphStoreConfig{}, err
 	}
@@ -142,6 +156,48 @@ func (c *Config) toGraphStoreConfig() (types.GraphStoreConfig, error) {
 	}
 
 	return config, nil
+}
+
+// resolveEnvVars resolves environment variables in configuration values
+func (c *Config) resolveEnvVars(config map[string]interface{}) (map[string]interface{}, error) {
+	resolved := make(map[string]interface{})
+
+	for key, value := range config {
+		switch v := value.(type) {
+		case string:
+			resolved[key] = c.parseEnvVar(v)
+		case map[string]interface{}:
+			// Recursively resolve nested maps
+			nestedResolved, err := c.resolveEnvVars(v)
+			if err != nil {
+				return nil, err
+			}
+			resolved[key] = nestedResolved
+		default:
+			resolved[key] = value
+		}
+	}
+
+	return resolved, nil
+}
+
+// parseEnvVar parses environment variable pattern $ENV.VAR_NAME
+func (c *Config) parseEnvVar(value string) string {
+	// Simple pattern to match $ENV.VAR_NAME
+	envPattern := regexp.MustCompile(`\$ENV\.([A-Za-z_][A-Za-z0-9_]*)`)
+
+	return envPattern.ReplaceAllStringFunc(value, func(match string) string {
+		// Extract variable name (remove $ENV. prefix)
+		varName := strings.TrimPrefix(match, "$ENV.")
+
+		// Get environment variable value
+		if envValue := os.Getenv(varName); envValue != "" {
+			return envValue
+		}
+
+		// Return original if environment variable is not set
+		return match
+	})
 }
 
 // UnmarshalJSON implements json.Unmarshaler interface
