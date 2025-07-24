@@ -1,11 +1,14 @@
-package openapi
+package openapi_test
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -37,7 +40,7 @@ func TestConfigUnmarshalJSON_TimeParsingCorrect(t *testing.T) {
 		}
 	}`
 
-	var config Config
+	var config openapi.Config
 	err := jsoniter.Unmarshal([]byte(jsonData), &config)
 	assert.NoError(t, err, "JSON unmarshaling should succeed")
 
@@ -111,11 +114,11 @@ func TestFormatDuration(t *testing.T) {
 
 func TestConfigMarshalUnmarshalRoundTrip(t *testing.T) {
 	// Create a config with duration fields
-	originalConfig := &Config{
+	originalConfig := &openapi.Config{
 		BaseURL: "/v1",
 		Store:   "__yao.oauth.store",
 		Cache:   "__yao.oauth.cache",
-		OAuth: &OAuth{
+		OAuth: &openapi.OAuth{
 			IssuerURL: "https://localhost:5099",
 			Signing: types.SigningConfig{
 				SigningCertPath:      "/path/to/cert.pem",
@@ -145,7 +148,7 @@ func TestConfigMarshalUnmarshalRoundTrip(t *testing.T) {
 	assert.NoError(t, err, "Marshal should succeed")
 
 	// Unmarshal back to config
-	var unmarshaledConfig Config
+	var unmarshaledConfig openapi.Config
 	err = jsoniter.Unmarshal(jsonData, &unmarshaledConfig)
 	assert.NoError(t, err, "Unmarshal should succeed")
 
@@ -178,11 +181,11 @@ func TestConfigMarshalUnmarshalRoundTrip(t *testing.T) {
 
 // TestConfigJSONOutputDemo demonstrates the human-readable JSON output format
 func TestConfigJSONOutputDemo(t *testing.T) {
-	config := &Config{
+	config := &openapi.Config{
 		BaseURL: "/v1",
 		Store:   "__yao.oauth.store",
 		Cache:   "__yao.oauth.cache",
-		OAuth: &OAuth{
+		OAuth: &openapi.OAuth{
 			IssuerURL: "https://localhost:5099",
 			Signing: types.SigningConfig{
 				SigningCertPath:      "openapi/certs/signing-cert.pem",
@@ -349,4 +352,56 @@ func TestCertificatePathConversion(t *testing.T) {
 			})
 		}
 	})
+}
+
+// parseDuration parses a time duration string (e.g., "24h", "1h", "10m") into time.Duration
+func parseDuration(durationStr string) (time.Duration, error) {
+	if durationStr == "" || durationStr == "0" || durationStr == "0s" {
+		return 0, nil
+	}
+	return time.ParseDuration(durationStr)
+}
+
+// formatDuration converts time.Duration to human-readable string format
+func formatDuration(duration time.Duration) string {
+	if duration == 0 {
+		return "0s"
+	}
+	return duration.String()
+}
+
+// convertRelativeToAbsolutePath converts relative certificate path to absolute path
+func convertRelativeToAbsolutePath(relativePath, rootPath string) string {
+	if relativePath == "" {
+		return ""
+	}
+	// If already absolute path, return as is
+	if filepath.IsAbs(relativePath) {
+		return relativePath
+	}
+	// Convert relative path to absolute: Root + "openapi" + "certs" + relativePath
+	return filepath.Join(rootPath, "openapi", "certs", relativePath)
+}
+
+// convertAbsoluteToRelativePath converts absolute certificate path to relative path
+func convertAbsoluteToRelativePath(absolutePath, rootPath string) string {
+	if absolutePath == "" {
+		return ""
+	}
+	// If not absolute path, return as is
+	if !filepath.IsAbs(absolutePath) {
+		return absolutePath
+	}
+
+	// Remove Root + "openapi" + "certs" prefix
+	certBasePath := filepath.Join(rootPath, "openapi", "certs")
+	if strings.HasPrefix(absolutePath, certBasePath) {
+		relativePath := strings.TrimPrefix(absolutePath, certBasePath)
+		// Remove leading separator
+		relativePath = strings.TrimPrefix(relativePath, string(filepath.Separator))
+		return relativePath
+	}
+
+	// If path doesn't match expected pattern, return as is
+	return absolutePath
 }

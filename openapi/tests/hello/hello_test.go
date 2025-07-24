@@ -1,4 +1,4 @@
-package openapi
+package openapi_test
 
 import (
 	"encoding/json"
@@ -6,17 +6,19 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/openapi"
+	"github.com/yaoapp/yao/openapi/tests/testutils"
 	"github.com/yaoapp/yao/share"
 )
 
 func TestHelloWorldPublic(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	tests := []struct {
@@ -79,21 +81,21 @@ func TestHelloWorldPublic(t *testing.T) {
 }
 
 func TestHelloWorldProtected(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register a test client for authentication
-	client := RegisterTestClient(t, "Hello World Protected Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Hello World Protected Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	// Obtain access token for authentication
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	tests := []struct {
 		name   string
@@ -164,13 +166,13 @@ func TestHelloWorldProtected(t *testing.T) {
 }
 
 func TestHelloWorldProtectedUnauthorized(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	tests := []struct {

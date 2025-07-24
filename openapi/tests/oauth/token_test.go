@@ -1,4 +1,4 @@
-package openapi
+package openapi_test
 
 import (
 	"bytes"
@@ -9,29 +9,32 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/tests/testutils"
 )
 
 func TestOAuthToken_AuthorizationCode(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register a test client
-	client := RegisterTestClient(t, "Token Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Token Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	// Obtain authorization code dynamically
-	authInfo := ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
+	authInfo := testutils.ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
 
 	// Test authorization code grant
 	t.Run("Valid Authorization Code Grant", func(t *testing.T) {
-		// Prepare token request with PKCE code verifier
+		// testutils.Prepare token request with PKCE code verifier
 		data := url.Values{}
 		data.Set("grant_type", "authorization_code")
 		data.Set("code", authInfo.Code)
@@ -77,7 +80,7 @@ func TestOAuthToken_AuthorizationCode(t *testing.T) {
 	t.Run("Invalid Authorization Code", func(t *testing.T) {
 		// Test with invalid authorization code - should return error
 
-		// Prepare token request with invalid code
+		// testutils.Prepare token request with invalid code
 		data := url.Values{}
 		data.Set("grant_type", "authorization_code")
 		data.Set("code", "invalid-code")
@@ -105,7 +108,7 @@ func TestOAuthToken_AuthorizationCode(t *testing.T) {
 	})
 
 	t.Run("Missing Required Parameters", func(t *testing.T) {
-		// Prepare token request missing redirect_uri
+		// testutils.Prepare token request missing redirect_uri
 		data := url.Values{}
 		data.Set("grant_type", "authorization_code")
 		data.Set("code", authInfo.Code)
@@ -130,21 +133,21 @@ func TestOAuthToken_AuthorizationCode(t *testing.T) {
 }
 
 func TestOAuthToken_ClientCredentials(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register a test client for client credentials
-	client := RegisterTestClient(t, "Client Credentials Test", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Client Credentials Test", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	t.Run("Valid Client Credentials Grant", func(t *testing.T) {
-		// Prepare token request
+		// testutils.Prepare token request
 		data := url.Values{}
 		data.Set("grant_type", "client_credentials")
 		data.Set("scope", "api:read api:write")
@@ -191,7 +194,7 @@ func TestOAuthToken_ClientCredentials(t *testing.T) {
 	})
 
 	t.Run("Client Credentials Without Authentication", func(t *testing.T) {
-		// Prepare token request
+		// testutils.Prepare token request
 		data := url.Values{}
 		data.Set("grant_type", "client_credentials")
 
@@ -213,21 +216,21 @@ func TestOAuthToken_ClientCredentials(t *testing.T) {
 }
 
 func TestOAuthToken_RefreshToken(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register a test client
-	client := RegisterTestClient(t, "Refresh Token Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Refresh Token Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	// First, get an access token and refresh token using authorization code
-	authInfo := ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
+	authInfo := testutils.ObtainAuthorizationCode(t, serverURL, client.ClientID, "https://localhost/callback", "openid profile")
 
 	// Get initial token with PKCE code verifier
 	data := url.Values{}
@@ -256,7 +259,7 @@ func TestOAuthToken_RefreshToken(t *testing.T) {
 	assert.NotEmpty(t, initialToken.RefreshToken)
 
 	t.Run("Valid Refresh Token Grant", func(t *testing.T) {
-		// Prepare refresh token request
+		// testutils.Prepare refresh token request
 		data := url.Values{}
 		data.Set("grant_type", "refresh_token")
 		data.Set("refresh_token", initialToken.RefreshToken)
@@ -308,7 +311,7 @@ func TestOAuthToken_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("Invalid Refresh Token", func(t *testing.T) {
-		// Prepare refresh token request with invalid token
+		// testutils.Prepare refresh token request with invalid token
 		data := url.Values{}
 		data.Set("grant_type", "refresh_token")
 		data.Set("refresh_token", "invalid-refresh-token")
@@ -329,7 +332,7 @@ func TestOAuthToken_RefreshToken(t *testing.T) {
 	})
 
 	t.Run("Missing Refresh Token", func(t *testing.T) {
-		// Prepare refresh token request without refresh_token parameter
+		// testutils.Prepare refresh token request without refresh_token parameter
 		data := url.Values{}
 		data.Set("grant_type", "refresh_token")
 		// Missing refresh_token
@@ -351,20 +354,20 @@ func TestOAuthToken_RefreshToken(t *testing.T) {
 }
 
 func TestOAuthToken_InvalidGrantType(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "Invalid Grant Test", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Invalid Grant Test", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	t.Run("Unsupported Grant Type", func(t *testing.T) {
-		// Prepare token request with unsupported grant type
+		// testutils.Prepare token request with unsupported grant type
 		data := url.Values{}
 		data.Set("grant_type", "unsupported_grant_type")
 
@@ -389,7 +392,7 @@ func TestOAuthToken_InvalidGrantType(t *testing.T) {
 	})
 
 	t.Run("Missing Grant Type", func(t *testing.T) {
-		// Prepare token request without grant_type
+		// testutils.Prepare token request without grant_type
 		data := url.Values{}
 		// Missing grant_type
 
@@ -462,24 +465,24 @@ func base64Encode(data []byte) string {
 }
 
 func TestOAuthRevoke(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register a test client
-	client := RegisterTestClient(t, "Revoke Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Revoke Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	// Obtain access token directly using the utility function
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	t.Run("Valid Access Token Revocation", func(t *testing.T) {
-		// Prepare revocation request
+		// testutils.Prepare revocation request
 		data := url.Values{}
 		data.Set("token", tokenInfo.AccessToken)
 		data.Set("token_type_hint", "access_token")
@@ -503,7 +506,7 @@ func TestOAuthRevoke(t *testing.T) {
 	})
 
 	t.Run("Valid Refresh Token Revocation", func(t *testing.T) {
-		// Prepare revocation request for refresh token
+		// testutils.Prepare revocation request for refresh token
 		data := url.Values{}
 		data.Set("token", tokenInfo.RefreshToken)
 		data.Set("token_type_hint", "refresh_token")
@@ -527,7 +530,7 @@ func TestOAuthRevoke(t *testing.T) {
 	})
 
 	t.Run("Invalid Token Revocation", func(t *testing.T) {
-		// Prepare revocation request with invalid token
+		// testutils.Prepare revocation request with invalid token
 		data := url.Values{}
 		data.Set("token", "invalid-token-12345")
 		data.Set("token_type_hint", "access_token")
@@ -551,7 +554,7 @@ func TestOAuthRevoke(t *testing.T) {
 	})
 
 	t.Run("Missing Token Parameter", func(t *testing.T) {
-		// Prepare revocation request without token parameter
+		// testutils.Prepare revocation request without token parameter
 		data := url.Values{}
 		// Missing token parameter
 
@@ -573,24 +576,24 @@ func TestOAuthRevoke(t *testing.T) {
 }
 
 func TestOAuthIntrospect(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register a test client
-	client := RegisterTestClient(t, "Introspect Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
+	client := testutils.RegisterTestClient(t, "Introspect Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
 
 	// Obtain access token directly using the utility function
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	t.Run("Valid Access Token Introspection", func(t *testing.T) {
-		// Prepare introspection request
+		// testutils.Prepare introspection request
 		data := url.Values{}
 		data.Set("token", tokenInfo.AccessToken)
 		data.Set("token_type_hint", "access_token")
@@ -615,7 +618,7 @@ func TestOAuthIntrospect(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Parse response directly (no wrapper)
-		var introspectResp TokenIntrospectionResponse
+		var introspectResp response.TokenIntrospectionResponse
 		err = json.Unmarshal(body, &introspectResp)
 		assert.NoError(t, err)
 
@@ -630,7 +633,7 @@ func TestOAuthIntrospect(t *testing.T) {
 	})
 
 	t.Run("Invalid Token Introspection", func(t *testing.T) {
-		// Prepare introspection request with invalid token
+		// testutils.Prepare introspection request with invalid token
 		data := url.Values{}
 		data.Set("token", "invalid-token-12345")
 		data.Set("token_type_hint", "access_token")
@@ -655,7 +658,7 @@ func TestOAuthIntrospect(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Parse response directly (no wrapper)
-		var introspectResp TokenIntrospectionResponse
+		var introspectResp response.TokenIntrospectionResponse
 		err = json.Unmarshal(body, &introspectResp)
 		assert.NoError(t, err)
 
@@ -666,7 +669,7 @@ func TestOAuthIntrospect(t *testing.T) {
 	})
 
 	t.Run("Missing Token Parameter", func(t *testing.T) {
-		// Prepare introspection request without token parameter
+		// testutils.Prepare introspection request without token parameter
 		data := url.Values{}
 		// Missing token parameter
 
@@ -727,7 +730,7 @@ func TestOAuthIntrospect(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Parse response directly (no wrapper)
-		var introspectResp TokenIntrospectionResponse
+		var introspectResp response.TokenIntrospectionResponse
 		err = json.Unmarshal(body, &introspectResp)
 		assert.NoError(t, err)
 

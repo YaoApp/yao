@@ -1,4 +1,4 @@
-package openapi
+package testutils
 
 import (
 	"context"
@@ -8,18 +8,25 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 )
 
 // testServer holds the test HTTP server instance
 var testServer *http.Server
+
+// testMutex protects global state access during concurrent test execution
+var testMutex sync.RWMutex
+
+// activeTestCount tracks the number of active tests using the global server
+var activeTestCount int
 
 // Prepare initializes the OpenAPI test environment and starts a mock HTTP server.
 //
@@ -85,13 +92,22 @@ var testServer *http.Server
 // ERROR HANDLING:
 // If any step fails, the test will fail immediately with a descriptive error message.
 func Prepare(t *testing.T) string {
+	// Use write lock to protect global state initialization
+	testMutex.Lock()
+	defer func() {
+		activeTestCount++
+		testMutex.Unlock()
+	}()
+
 	// Step 1: Initialize base test environment with all Yao dependencies
 	test.Prepare(t, config.Conf)
 
-	// Step 2: Initialize OpenAPI server and make it available globally
-	_, err := Load(config.Conf)
-	if err != nil {
-		t.Fatalf("Failed to load OpenAPI server: %v", err)
+	// Step 2: Initialize OpenAPI server and make it available globally (only if not already initialized)
+	if openapi.Server == nil {
+		_, err := openapi.Load(config.Conf)
+		if err != nil {
+			t.Fatalf("Failed to load OpenAPI server: %v", err)
+		}
 	}
 
 	// Step 3: Create Gin router and attach OpenAPI server
@@ -99,8 +115,8 @@ func Prepare(t *testing.T) string {
 	router := gin.New()
 
 	// Attach the OpenAPI server to the router
-	if Server != nil {
-		Server.Attach(router)
+	if openapi.Server != nil {
+		openapi.Server.Attach(router)
 	}
 
 	// Step 4: Start HTTP server on random available port
@@ -109,19 +125,22 @@ func Prepare(t *testing.T) string {
 		t.Fatalf("Failed to create listener: %v", err)
 	}
 
-	testServer = &http.Server{
+	server := &http.Server{
 		Handler: router,
 	}
 
 	// Start server in background
 	go func() {
-		if err := testServer.Serve(listener); err != nil && err != http.ErrServerClosed {
+		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			t.Errorf("Failed to start test server: %v", err)
 		}
 	}()
 
 	// Wait a moment for server to start
 	time.Sleep(10 * time.Millisecond)
+
+	// Store server instance for this test (each test gets its own HTTP server)
+	testServer = server
 
 	// Return server URL
 	serverURL := fmt.Sprintf("http://%s", listener.Addr().String())
@@ -154,7 +173,7 @@ func Prepare(t *testing.T) string {
 // - The order of cleanup steps is important: HTTP server first, then OpenAPI cleanup, then base cleanup
 // - Server shutdown has a 5-second timeout to prevent hanging tests
 func Clean() {
-	// Step 1: Gracefully shutdown the HTTP test server
+	// Step 1: Gracefully shutdown the HTTP test server for this test
 	if testServer != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -166,11 +185,21 @@ func Clean() {
 		testServer = nil
 	}
 
-	// Step 2: Reset OpenAPI server instance to prevent state leakage
-	Server = nil
+	// Step 2: Use lock to safely decrement active test count and clean global state if needed
+	testMutex.Lock()
+	activeTestCount--
+	shouldCleanGlobalState := activeTestCount <= 0
+	if shouldCleanGlobalState {
+		// Reset global state only when no other tests are active
+		openapi.Server = nil
+		activeTestCount = 0 // Ensure it doesn't go negative
+	}
+	testMutex.Unlock()
 
-	// Step 3: Clean up base test environment and all dependencies
-	test.Clean()
+	// Step 3: Clean up base test environment
+	if shouldCleanGlobalState {
+		test.Clean()
+	}
 }
 
 // RegisterTestClient registers a test OAuth client and returns the client information.
@@ -209,7 +238,11 @@ func Clean() {
 // ERROR HANDLING:
 // If client registration fails, the test will fail immediately with a descriptive error message.
 func RegisterTestClient(t *testing.T, clientName string, redirectURIs []string) *types.ClientInfo {
-	if Server == nil || Server.OAuth == nil {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
 		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
 	}
 
@@ -232,7 +265,7 @@ func RegisterTestClient(t *testing.T, clientName string, redirectURIs []string) 
 
 	// Register the client using the OAuth service
 	ctx := context.Background()
-	response, err := Server.OAuth.DynamicClientRegistration(ctx, req)
+	response, err := server.OAuth.DynamicClientRegistration(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to register test client: %v", err)
 	}
@@ -279,7 +312,11 @@ func RegisterTestClient(t *testing.T, clientName string, redirectURIs []string) 
 // If client deletion fails, logs an error but does not fail the test.
 // This prevents cleanup failures from affecting test results.
 func CleanupTestClient(t *testing.T, clientID string) {
-	if Server == nil || Server.OAuth == nil {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
 		// Server might already be cleaned up, which is OK
 		return
 	}
@@ -290,7 +327,7 @@ func CleanupTestClient(t *testing.T, clientID string) {
 
 	// Delete the client using the OAuth service
 	ctx := context.Background()
-	err := Server.OAuth.DeleteClient(ctx, clientID)
+	err := server.OAuth.DeleteClient(ctx, clientID)
 	if err != nil {
 		// Log error but don't fail the test - cleanup should be resilient
 		t.Logf("Warning: Failed to cleanup test client %s: %v", clientID, err)
@@ -321,6 +358,7 @@ func CreateTestClientCredentials() (clientID, clientSecret string) {
 	return "test-client-id", "test-client-secret"
 }
 
+// AuthorizationInfo represents the information needed for OAuth authorization.
 // ObtainAuthorizationCode dynamically obtains an authorization code for testing OAuth token endpoints.
 //
 // AI ASSISTANT INSTRUCTIONS:
@@ -383,8 +421,13 @@ type AuthorizationInfo struct {
 	CodeChallengeMethod string
 }
 
+// ObtainAuthorizationCode obtains an authorization code for testing OAuth token endpoints.
 func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, scope string) *AuthorizationInfo {
-	if Server == nil || Server.OAuth == nil {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
 		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
 	}
 
@@ -409,7 +452,7 @@ func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, sco
 
 	// Call OAuth service to process authorization request
 	ctx := context.Background()
-	authResp, err := Server.OAuth.Authorize(ctx, authReq)
+	authResp, err := server.OAuth.Authorize(ctx, authReq)
 	if err != nil {
 		t.Fatalf("Failed to obtain authorization code: %v", err)
 	}
@@ -439,6 +482,7 @@ func ObtainAuthorizationCode(t *testing.T, serverURL, clientID, redirectURI, sco
 	return authInfo
 }
 
+// TokenInfo represents the information needed for OAuth token exchange.
 // ObtainAccessToken directly obtains an access token for testing OAuth endpoints that require authentication.
 //
 // AI ASSISTANT INSTRUCTIONS:
@@ -495,8 +539,13 @@ type TokenInfo struct {
 	ClientID     string
 }
 
+// ObtainAccessToken obtains an access token for testing OAuth endpoints that require authentication.
 func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirectURI, scope string) *TokenInfo {
-	if Server == nil || Server.OAuth == nil {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
 		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
 	}
 
@@ -505,7 +554,7 @@ func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirect
 
 	// Step 2: Exchange authorization code for access token with PKCE code verifier
 	ctx := context.Background()
-	token, err := Server.OAuth.Token(ctx, "authorization_code", authInfo.Code, clientID, authInfo.CodeVerifier)
+	token, err := server.OAuth.Token(ctx, "authorization_code", authInfo.Code, clientID, authInfo.CodeVerifier)
 	if err != nil {
 		t.Fatalf("Failed to exchange authorization code for token: %v", err)
 	}
@@ -527,38 +576,6 @@ func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirect
 	t.Logf("Obtained access token: %s (type: %s, expires_in: %d)",
 		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn)
 	return tokenInfo
-}
-
-func TestLoad(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
-
-	assert.NotNil(t, Server)
-	assert.NotEmpty(t, serverURL)
-	assert.Contains(t, serverURL, "http://127.0.0.1:")
-}
-
-func TestObtainAccessToken(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
-
-	// Register a test client
-	client := RegisterTestClient(t, "Token Utility Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-
-	// Test the ObtainAccessToken utility function
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile email")
-
-	// Verify token information
-	assert.NotEmpty(t, tokenInfo.AccessToken, "Access token should not be empty")
-	assert.NotEmpty(t, tokenInfo.RefreshToken, "Refresh token should not be empty")
-	assert.Equal(t, "Bearer", tokenInfo.TokenType, "Token type should be Bearer")
-	assert.Greater(t, tokenInfo.ExpiresIn, 0, "ExpiresIn should be greater than 0")
-	assert.Equal(t, client.ClientID, tokenInfo.ClientID, "Client ID should match")
-	// Note: Scope might be empty in token response, which is valid
-
-	t.Logf("Successfully obtained token: AccessToken=%s, TokenType=%s, ExpiresIn=%d, Scope=%s",
-		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn, tokenInfo.Scope)
 }
 
 // generateCodeVerifier generates a cryptographically random code verifier for PKCE
