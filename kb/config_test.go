@@ -506,3 +506,79 @@ func TestConfig_ParseEnvVar(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_ResolveEnvVarsOnParsing(t *testing.T) {
+	// Set test environment variables
+	os.Setenv("TEST_VECTOR_HOST", "test-vector-host")
+	os.Setenv("TEST_GRAPH_URL", "neo4j://test-graph:7687")
+	os.Setenv("TEST_GRAPH_USER", "test-user")
+	os.Setenv("TEST_GRAPH_PASS", "test-pass")
+	defer func() {
+		os.Unsetenv("TEST_VECTOR_HOST")
+		os.Unsetenv("TEST_GRAPH_URL")
+		os.Unsetenv("TEST_GRAPH_USER")
+		os.Unsetenv("TEST_GRAPH_PASS")
+	}()
+
+	configJSON := `{
+		"vector": {
+			"driver": "qdrant",
+			"config": {
+				"host": "$ENV.TEST_VECTOR_HOST",
+				"port": 6333
+			}
+		},
+		"graph": {
+			"driver": "neo4j",
+			"config": {
+				"url": "$ENV.TEST_GRAPH_URL",
+				"username": "$ENV.TEST_GRAPH_USER",
+				"password": "$ENV.TEST_GRAPH_PASS"
+			}
+		},
+		"chunkings": [
+			{
+				"id": "__yao.structured",
+				"label": "Document Structure",
+				"description": "Split text",
+				"options": []
+			}
+		],
+		"embeddings": [
+			{
+				"id": "__yao.openai",
+				"label": "OpenAI",
+				"description": "OpenAI embeddings",
+				"options": []
+			}
+		]
+	}`
+
+	// Parse config from JSON
+	config, err := ParseConfigFromJSON([]byte(configJSON))
+	if err != nil {
+		t.Fatalf("Failed to parse config: %v", err)
+	}
+
+	// Verify that environment variables are resolved immediately after parsing
+	if config.Vector.Config["host"] != "test-vector-host" {
+		t.Errorf("Expected vector host to be resolved to 'test-vector-host', got '%v'", config.Vector.Config["host"])
+	}
+
+	if config.Graph.Config["url"] != "neo4j://test-graph:7687" {
+		t.Errorf("Expected graph URL to be resolved to 'neo4j://test-graph:7687', got '%v'", config.Graph.Config["url"])
+	}
+
+	if config.Graph.Config["username"] != "test-user" {
+		t.Errorf("Expected graph username to be resolved to 'test-user', got '%v'", config.Graph.Config["username"])
+	}
+
+	if config.Graph.Config["password"] != "test-pass" {
+		t.Errorf("Expected graph password to be resolved to 'test-pass', got '%v'", config.Graph.Config["password"])
+	}
+
+	// Verify that numeric values remain unchanged (JSON numbers are parsed as float64)
+	if port, ok := config.Vector.Config["port"].(float64); !ok || port != 6333.0 {
+		t.Errorf("Expected vector port to remain 6333.0, got %v (type %T)", config.Vector.Config["port"], config.Vector.Config["port"])
+	}
+}

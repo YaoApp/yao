@@ -2,11 +2,11 @@ package kb
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/openapi/response"
 )
 
 // Collection Management Handlers
@@ -17,19 +17,34 @@ func CreateCollection(c *gin.Context) {
 
 	// Parse and bind JSON request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format: " + err.Error()})
+		// Create a custom error with the same structure but specific message
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
 	// Validate request parameters
 	if err := validateCreateCollectionRequest(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		// Create a custom error with the same structure but specific message
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
 	// Check if kb.Instance is available
 	if kb.Instance == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Knowledge base not initialized"})
+		// Create a custom error with the same structure but specific message
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
 
@@ -43,36 +58,150 @@ func CreateCollection(c *gin.Context) {
 	// Call the actual CreateCollection method
 	collectionID, err := kb.Instance.CreateCollection(c.Request.Context(), collectionConfig)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create collection: " + err.Error()})
+		// Create a custom error with the same structure but specific message
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to create collection: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	successData := gin.H{
 		"message":       "Collection created successfully",
 		"collection_id": collectionID,
-	})
+	}
+	response.RespondWithSuccess(c, response.StatusCreated, successData)
 }
 
 // RemoveCollection removes an existing collection
 func RemoveCollection(c *gin.Context) {
-	// TODO: Implement remove collection logic
-	c.JSON(http.StatusOK, gin.H{"message": "Collection removed"})
+	// Get collection ID from URL parameter
+	collectionID := c.Param("collectionID")
+	if collectionID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Collection ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call the actual RemoveCollection method
+	removed, err := kb.Instance.RemoveCollection(c.Request.Context(), collectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to remove collection: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	if !removed {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Collection not found or could not be removed",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	successData := gin.H{
+		"message":       "Collection removed successfully",
+		"collection_id": collectionID,
+		"removed":       removed,
+	}
+	response.RespondWithSuccess(c, response.StatusOK, successData)
 }
 
 // CollectionExists checks if a collection exists
 func CollectionExists(c *gin.Context) {
-	// TODO: Implement collection exists check logic
-	c.JSON(http.StatusOK, gin.H{"exists": false})
+	// Get collection ID from URL parameter
+	collectionID := c.Param("collectionID")
+	if collectionID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Collection ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call the actual CollectionExists method
+	exists, err := kb.Instance.CollectionExists(c.Request.Context(), collectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to check collection existence: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	successData := gin.H{
+		"collection_id": collectionID,
+		"exists":        exists,
+	}
+	response.RespondWithSuccess(c, response.StatusOK, successData)
 }
 
 // GetCollections retrieves collections with optional filtering
 func GetCollections(c *gin.Context) {
-	collections, err := kb.Instance.GetCollections(c.Request.Context(), map[string]interface{}{})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
-	c.JSON(http.StatusOK, collections)
+
+	// Build filter from query parameters
+	filter := make(map[string]interface{})
+
+	// Extract all query parameters as potential filter conditions
+	// This allows filtering by any metadata field, e.g.:
+	// GET /collections?category=documents&status=active
+	for key, values := range c.Request.URL.Query() {
+		if len(values) > 0 {
+			// Use the first value if multiple values are provided
+			filter[key] = values[0]
+		}
+	}
+
+	collections, err := kb.Instance.GetCollections(c.Request.Context(), filter)
+	if err != nil {
+		// Create a custom error with the same structure but specific message
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+	response.RespondWithSuccess(c, response.StatusOK, collections)
 }
 
 // CreateCollectionRequest represents the request structure for creating a collection
