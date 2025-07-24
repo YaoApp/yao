@@ -1,4 +1,4 @@
-package openapi
+package openapi_test
 
 import (
 	"bytes"
@@ -10,23 +10,25 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/dsl/types"
+	"github.com/yaoapp/yao/openapi"
+	"github.com/yaoapp/yao/openapi/tests/testutils"
 )
 
 // TestDSLCreate tests the DSL creation endpoint
 func TestDSLCreate(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	// Register test client and get token
-	client := RegisterTestClient(t, "DSL Create Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Create Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Generate unique test ID
 	testID := fmt.Sprintf("test_model_%d", time.Now().UnixNano())
@@ -51,7 +53,7 @@ func TestDSLCreate(t *testing.T) {
 
 	for _, store := range stores {
 		t.Run(fmt.Sprintf("CreateModel_%s", store), func(t *testing.T) {
-			// Prepare request body
+			// testutils.Prepare request body
 			createData := map[string]interface{}{
 				"id":     testID + "_" + store,
 				"source": modelSource,
@@ -89,17 +91,17 @@ func TestDSLCreate(t *testing.T) {
 
 // TestDSLInspect tests the DSL inspection endpoint
 func TestDSLInspect(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL Inspect Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Inspect Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	testID := fmt.Sprintf("test_inspect_%d", time.Now().UnixNano())
 	modelSource := fmt.Sprintf(`{
@@ -162,17 +164,17 @@ func TestDSLInspect(t *testing.T) {
 
 // TestDSLSource tests the DSL source retrieval endpoint
 func TestDSLSource(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL Source Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Source Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	testID := fmt.Sprintf("test_source_%d", time.Now().UnixNano())
 	modelSource := fmt.Sprintf(`{
@@ -230,17 +232,17 @@ func TestDSLSource(t *testing.T) {
 
 // TestDSLList tests the DSL listing endpoint
 func TestDSLList(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL List Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL List Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Create multiple test models
 	testTag := fmt.Sprintf("test_list_%d", time.Now().UnixNano())
@@ -317,17 +319,17 @@ func TestDSLList(t *testing.T) {
 
 // TestDSLUpdate tests the DSL update endpoint
 func TestDSLUpdate(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL Update Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Update Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	testID := fmt.Sprintf("test_update_%d", time.Now().UnixNano())
 
@@ -424,17 +426,17 @@ func TestDSLUpdate(t *testing.T) {
 
 // TestDSLExists tests the DSL existence check endpoint
 func TestDSLExists(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL Exists Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Exists Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	testID := fmt.Sprintf("test_exists_%d", time.Now().UnixNano())
 	nonExistentID := fmt.Sprintf("non_existent_%d", time.Now().UnixNano())
@@ -500,17 +502,17 @@ func TestDSLExists(t *testing.T) {
 
 // TestDSLDelete tests the DSL deletion endpoint
 func TestDSLDelete(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL Delete Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Delete Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	testID := fmt.Sprintf("test_delete_%d", time.Now().UnixNano())
 
@@ -576,17 +578,17 @@ func TestDSLDelete(t *testing.T) {
 
 // TestDSLValidate tests the DSL validation endpoint
 func TestDSLValidate(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	client := RegisterTestClient(t, "DSL Validate Test Client", []string{"https://localhost/callback"})
-	defer CleanupTestClient(t, client.ClientID)
-	tokenInfo := ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	client := testutils.RegisterTestClient(t, "DSL Validate Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	tests := []struct {
 		name        string
@@ -662,12 +664,12 @@ func TestDSLValidate(t *testing.T) {
 
 // TestDSLUnauthorized tests that endpoints return 401 when not authenticated
 func TestDSLUnauthorized(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	endpoints := []struct {

@@ -1,4 +1,4 @@
-package openapi
+package openapi_test
 
 import (
 	"bytes"
@@ -9,32 +9,34 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/tests/testutils"
 )
 
 func TestOAuthRegister(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
-	// Debug: Check if Server is properly initialized
-	if Server == nil {
-		t.Fatal("OpenAPI Server is nil")
+	// Debug: Check if openapi.Server is properly initialized
+	if openapi.Server == nil {
+		t.Fatal("OpenAPI openapi.Server is nil")
 	}
 
-	if Server.Config == nil {
-		t.Fatal("OpenAPI Server.Config is nil")
+	if openapi.Server.Config == nil {
+		t.Fatal("OpenAPI openapi.Server.Config is nil")
 	}
 
-	if Server.OAuth == nil {
-		t.Fatal("OpenAPI Server.OAuth is nil")
+	if openapi.Server.OAuth == nil {
+		t.Fatal("OpenAPI openapi.Server.OAuth is nil")
 	}
 
-	t.Logf("Server initialized with BaseURL: %s", Server.Config.BaseURL)
+	t.Logf("openapi.Server initialized with BaseURL: %s", openapi.Server.Config.BaseURL)
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	endpoint := serverURL + baseURL + "/oauth/register"
@@ -108,24 +110,24 @@ func TestOAuthRegister(t *testing.T) {
 			assert.Equal(t, req.RedirectURIs, response.DynamicClientRegistrationRequest.RedirectURIs)
 
 			// Verify that default values were applied when not specified in request
-			assert.NotEmpty(t, response.DynamicClientRegistrationRequest.GrantTypes, "Server should apply default grant types")
-			assert.NotEmpty(t, response.DynamicClientRegistrationRequest.ResponseTypes, "Server should apply default response types")
-			assert.Equal(t, "web", response.DynamicClientRegistrationRequest.ApplicationType, "Server should apply default application type")
-			assert.Equal(t, "client_secret_basic", response.DynamicClientRegistrationRequest.TokenEndpointAuthMethod, "Server should apply default auth method")
+			assert.NotEmpty(t, response.DynamicClientRegistrationRequest.GrantTypes, "openapi.Server should apply default grant types")
+			assert.NotEmpty(t, response.DynamicClientRegistrationRequest.ResponseTypes, "openapi.Server should apply default response types")
+			assert.Equal(t, "web", response.DynamicClientRegistrationRequest.ApplicationType, "openapi.Server should apply default application type")
+			assert.Equal(t, "client_secret_basic", response.DynamicClientRegistrationRequest.TokenEndpointAuthMethod, "openapi.Server should apply default auth method")
 		}
 	})
 }
 
 func TestOAuthAuthorize(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
 	// Register a test client for realistic testing
-	testClient := RegisterTestClient(t, "OAuth Test Client", []string{"http://localhost/callback"})
-	defer CleanupTestClient(t, testClient.ClientID)
+	testClient := testutils.RegisterTestClient(t, "OAuth Test Client", []string{"http://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
 
-	// Prepare test data
-	endpoint := serverURL + Server.Config.BaseURL + "/oauth/authorize"
+	// testutils.Prepare test data
+	endpoint := serverURL + openapi.Server.Config.BaseURL + "/oauth/authorize"
 	t.Logf("Testing authorize endpoint: %s", endpoint)
 
 	t.Run("Valid Authorization Request", func(t *testing.T) {
@@ -324,28 +326,28 @@ func TestOAuthAuthorize(t *testing.T) {
 }
 
 func TestOAuthJWKS(t *testing.T) {
-	serverURL := Prepare(t)
-	defer Clean()
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
 
-	// Debug: Check if Server is properly initialized
-	if Server == nil {
-		t.Fatal("OpenAPI Server is nil")
+	// Debug: Check if openapi.Server is properly initialized
+	if openapi.Server == nil {
+		t.Fatal("OpenAPI openapi.Server is nil")
 	}
 
-	if Server.Config == nil {
-		t.Fatal("OpenAPI Server.Config is nil")
+	if openapi.Server.Config == nil {
+		t.Fatal("OpenAPI openapi.Server.Config is nil")
 	}
 
-	if Server.OAuth == nil {
-		t.Fatal("OpenAPI Server.OAuth is nil")
+	if openapi.Server.OAuth == nil {
+		t.Fatal("OpenAPI openapi.Server.OAuth is nil")
 	}
 
-	t.Logf("Server initialized with BaseURL: %s", Server.Config.BaseURL)
+	t.Logf("openapi.Server initialized with BaseURL: %s", openapi.Server.Config.BaseURL)
 
 	// Get base URL from server config
 	baseURL := ""
-	if Server != nil && Server.Config != nil {
-		baseURL = Server.Config.BaseURL
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
 	}
 
 	endpoint := serverURL + baseURL + "/oauth/jwks"

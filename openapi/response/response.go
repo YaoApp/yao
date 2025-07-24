@@ -1,4 +1,4 @@
-package openapi
+package response
 
 import (
 	"net/http"
@@ -147,7 +147,7 @@ const (
 
 // setOAuthSecurityHeaders sets standard OAuth 2.0/2.1 security headers
 // These headers are required by OAuth 2.1 specification for enhanced security
-func (openapi *OpenAPI) setOAuthSecurityHeaders(c *gin.Context) {
+func SetOAuthSecurityHeaders(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	c.Header("Pragma", "no-cache")
 	c.Header("X-Content-Type-Options", "nosniff")
@@ -156,30 +156,30 @@ func (openapi *OpenAPI) setOAuthSecurityHeaders(c *gin.Context) {
 }
 
 // setJSONContentType sets JSON content type header for OAuth responses
-func (openapi *OpenAPI) setJSONContentType(c *gin.Context) {
+func SetJSONContentType(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 }
 
-// respondWithSuccess sends a successful response (no wrapper, direct data)
-func (openapi *OpenAPI) respondWithSuccess(c *gin.Context, statusCode int, data interface{}) {
-	openapi.setJSONContentType(c)
+// RespondWithSuccess sends a successful response (no wrapper, direct data)
+func RespondWithSuccess(c *gin.Context, statusCode int, data interface{}) {
+	SetJSONContentType(c)
 	c.JSON(statusCode, data)
 }
 
-// respondWithError sends an error response (no wrapper, direct error)
-func (openapi *OpenAPI) respondWithError(c *gin.Context, statusCode int, err *ErrorResponse) {
-	openapi.setJSONContentType(c)
+// RespondWithError sends an error response (no wrapper, direct error)
+func RespondWithError(c *gin.Context, statusCode int, err *ErrorResponse) {
+	SetJSONContentType(c)
 
 	// Add WWW-Authenticate header for 401 responses
 	if statusCode == StatusUnauthorized {
-		openapi.addWWWAuthenticateHeader(c, err)
+		AddWWWAuthenticateHeader(c, err)
 	}
 
 	c.JSON(statusCode, err)
 }
 
-// respondWithAuthorizationError sends an authorization endpoint error via redirect
-func (openapi *OpenAPI) respondWithAuthorizationError(c *gin.Context, redirectURI string, err *ErrorResponse, state string) {
+// RespondWithAuthorizationError sends an authorization endpoint error via redirect
+func RespondWithAuthorizationError(c *gin.Context, redirectURI string, err *ErrorResponse, state string) {
 	// Build error redirect URL
 	redirectURL := redirectURI
 	if redirectURL != "" {
@@ -204,11 +204,11 @@ func (openapi *OpenAPI) respondWithAuthorizationError(c *gin.Context, redirectUR
 	}
 
 	// Fallback to JSON error response if no redirect URI
-	openapi.respondWithError(c, StatusBadRequest, err)
+	RespondWithError(c, StatusBadRequest, err)
 }
 
-// addWWWAuthenticateHeader adds appropriate WWW-Authenticate header
-func (openapi *OpenAPI) addWWWAuthenticateHeader(c *gin.Context, err *ErrorResponse) {
+// AddWWWAuthenticateHeader adds appropriate WWW-Authenticate header
+func AddWWWAuthenticateHeader(c *gin.Context, err *ErrorResponse) {
 	challenge := &WWWAuthenticateChallenge{
 		Scheme: types.WWWAuthenticateSchemeBearer,
 		Realm:  "OAuth",
@@ -238,21 +238,21 @@ func (openapi *OpenAPI) addWWWAuthenticateHeader(c *gin.Context, err *ErrorRespo
 	c.Header("WWW-Authenticate", headerValue)
 }
 
-// respondWithSecureSuccess sends a successful response with OAuth security headers (for sensitive endpoints)
-func (openapi *OpenAPI) respondWithSecureSuccess(c *gin.Context, statusCode int, data interface{}) {
-	openapi.setOAuthSecurityHeaders(c)
-	openapi.setJSONContentType(c)
+// RespondWithSecureSuccess sends a successful response with OAuth security headers (for sensitive endpoints)
+func RespondWithSecureSuccess(c *gin.Context, statusCode int, data interface{}) {
+	SetOAuthSecurityHeaders(c)
+	SetJSONContentType(c)
 	c.JSON(statusCode, data)
 }
 
-// respondWithSecureError sends an error response with OAuth security headers (for sensitive endpoints)
-func (openapi *OpenAPI) respondWithSecureError(c *gin.Context, statusCode int, err *ErrorResponse) {
-	openapi.setOAuthSecurityHeaders(c)
-	openapi.setJSONContentType(c)
+// RespondWithSecureError sends an error response with OAuth security headers (for sensitive endpoints)
+func RespondWithSecureError(c *gin.Context, statusCode int, err *ErrorResponse) {
+	SetOAuthSecurityHeaders(c)
+	SetJSONContentType(c)
 
 	// Add WWW-Authenticate header for 401 responses
 	if statusCode == StatusUnauthorized {
-		openapi.addWWWAuthenticateHeader(c, err)
+		AddWWWAuthenticateHeader(c, err)
 	}
 
 	c.JSON(statusCode, err)
