@@ -116,14 +116,31 @@ func (c *Config) createGraphStore() (types.GraphStore, error) {
 
 // toVectorStoreConfig converts the vector config to VectorStoreConfig
 func (c *Config) toVectorStoreConfig() (types.VectorStoreConfig, error) {
-	// Parse environment variables in config
-	resolvedConfig, err := c.resolveEnvVars(c.Vector.Config)
-	if err != nil {
-		return types.VectorStoreConfig{}, err
+	// Environment variables are already resolved during parsing
+	configCopy := make(map[string]interface{})
+	for k, v := range c.Vector.Config {
+		configCopy[k] = v
 	}
 
-	// Convert resolved config to types.VectorStoreConfig via JSON
-	jsonData, err := json.Marshal(resolvedConfig)
+	// Ensure host and port are in ExtraParams for Qdrant
+	if _, exists := configCopy["extra_params"]; !exists {
+		configCopy["extra_params"] = make(map[string]interface{})
+	}
+
+	extraParams := configCopy["extra_params"].(map[string]interface{})
+
+	// Map host field
+	if host, exists := configCopy["host"]; exists {
+		extraParams["host"] = host
+	}
+
+	// Map port field
+	if port, exists := configCopy["port"]; exists {
+		extraParams["port"] = port
+	}
+
+	// Convert config to types.VectorStoreConfig via JSON
+	jsonData, err := json.Marshal(configCopy)
 	if err != nil {
 		return types.VectorStoreConfig{}, err
 	}
@@ -138,14 +155,39 @@ func (c *Config) toVectorStoreConfig() (types.VectorStoreConfig, error) {
 
 // toGraphStoreConfig converts the graph config to GraphStoreConfig
 func (c *Config) toGraphStoreConfig() (types.GraphStoreConfig, error) {
-	// Parse environment variables in config
-	resolvedConfig, err := c.resolveEnvVars(c.Graph.Config)
-	if err != nil {
-		return types.GraphStoreConfig{}, err
+	// Environment variables are already resolved during parsing
+	configCopy := make(map[string]interface{})
+	for k, v := range c.Graph.Config {
+		configCopy[k] = v
 	}
 
-	// Convert resolved config to types.GraphStoreConfig via JSON
-	jsonData, err := json.Marshal(resolvedConfig)
+	// Map field names to match GraphStoreConfig structure
+	if url, exists := configCopy["url"]; exists {
+		configCopy["database_url"] = url
+		delete(configCopy, "url") // Remove the original field
+	}
+
+	// Ensure DriverConfig exists and map username/password into it
+	if _, exists := configCopy["driver_config"]; !exists {
+		configCopy["driver_config"] = make(map[string]interface{})
+	}
+
+	driverConfig := configCopy["driver_config"].(map[string]interface{})
+
+	// Map username field to DriverConfig
+	if username, exists := configCopy["username"]; exists {
+		driverConfig["username"] = username
+		delete(configCopy, "username") // Remove from top level
+	}
+
+	// Map password field to DriverConfig
+	if password, exists := configCopy["password"]; exists {
+		driverConfig["password"] = password
+		delete(configCopy, "password") // Remove from top level
+	}
+
+	// Convert config to types.GraphStoreConfig via JSON
+	jsonData, err := json.Marshal(configCopy)
 	if err != nil {
 		return types.GraphStoreConfig{}, err
 	}
@@ -200,6 +242,58 @@ func (c *Config) parseEnvVar(value string) string {
 	})
 }
 
+// resolveAllEnvVars resolves environment variables in all configuration sections
+func (c *Config) resolveAllEnvVars() error {
+	// Resolve Vector config
+	if c.Vector.Config != nil {
+		resolved, err := c.resolveEnvVars(c.Vector.Config)
+		if err != nil {
+			return err
+		}
+		c.Vector.Config = resolved
+	}
+
+	// Resolve Graph config
+	if c.Graph != nil && c.Graph.Config != nil {
+		resolved, err := c.resolveEnvVars(c.Graph.Config)
+		if err != nil {
+			return err
+		}
+		c.Graph.Config = resolved
+	}
+
+	// Resolve Provider options (if they contain env vars)
+	if err := c.resolveProviderEnvVars(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// resolveProviderEnvVars resolves environment variables in provider configurations
+func (c *Config) resolveProviderEnvVars() error {
+	providerLists := [][]*Provider{
+		c.Chunkings, c.Embeddings, c.Converters, c.Extractors,
+		c.Fetchers, c.Searchers, c.Rerankers, c.Votes, c.Weights, c.Scores,
+	}
+
+	for _, providers := range providerLists {
+		for _, provider := range providers {
+			for _, option := range provider.Options {
+				if option.Properties != nil {
+					resolved, err := c.resolveEnvVars(option.Properties)
+					if err != nil {
+						return err
+					}
+					option.Properties = resolved
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // UnmarshalJSON implements json.Unmarshaler interface
 func (c *Config) UnmarshalJSON(data []byte) error {
 	// Use alias type to avoid infinite recursion
@@ -208,7 +302,12 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Compute features after parsing
+	// Resolve environment variables immediately after parsing
+	if err := c.resolveAllEnvVars(); err != nil {
+		return err
+	}
+
+	// Compute features after parsing and resolving env vars
 	c.Features = c.ComputeFeatures()
 
 	return nil

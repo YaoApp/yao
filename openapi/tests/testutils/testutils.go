@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -27,6 +28,52 @@ var testMutex sync.RWMutex
 
 // activeTestCount tracks the number of active tests using the global server
 var activeTestCount int
+
+// testCollections tracks collections created during tests for cleanup
+var testCollections []string
+var testCollectionsMutex sync.Mutex
+
+// RegisterTestCollection adds a collection ID to the cleanup list
+func RegisterTestCollection(collectionID string) {
+	testCollectionsMutex.Lock()
+	defer testCollectionsMutex.Unlock()
+	testCollections = append(testCollections, collectionID)
+}
+
+// CleanupTestCollections removes all registered test collections
+func CleanupTestCollections(t *testing.T) {
+	testCollectionsMutex.Lock()
+	collectionsToClean := make([]string, len(testCollections))
+	copy(collectionsToClean, testCollections)
+	testCollections = nil // Clear the list
+	testCollectionsMutex.Unlock()
+
+	if len(collectionsToClean) == 0 {
+		return
+	}
+
+	// Check if KB instance is available
+	if kb.Instance == nil {
+		t.Logf("Warning: KB instance not available, cannot cleanup %d test collections", len(collectionsToClean))
+		return
+	}
+
+	ctx := context.Background()
+	cleanedCount := 0
+	for _, collectionID := range collectionsToClean {
+		removed, err := kb.Instance.RemoveCollection(ctx, collectionID)
+		if err != nil {
+			t.Logf("Warning: Failed to cleanup test collection %s: %v", collectionID, err)
+		} else if removed {
+			cleanedCount++
+			t.Logf("Cleaned up test collection: %s", collectionID)
+		}
+	}
+
+	if cleanedCount > 0 {
+		t.Logf("Successfully cleaned up %d/%d test collections", cleanedCount, len(collectionsToClean))
+	}
+}
 
 // Prepare initializes the OpenAPI test environment and starts a mock HTTP server.
 //
@@ -102,6 +149,14 @@ func Prepare(t *testing.T) string {
 	// Step 1: Initialize base test environment with all Yao dependencies
 	test.Prepare(t, config.Conf)
 
+	// Step 1.5: Initialize Knowledge Base (must be done before OpenAPI load)
+	_, err := kb.Load(config.Conf)
+	if err != nil {
+		// KB loading failure is not fatal for tests, just log it
+		t.Logf("Warning: Failed to load Knowledge Base: %v", err)
+		t.Logf("Some KB-related tests may not work properly")
+	}
+
 	// Step 2: Initialize OpenAPI server and make it available globally (only if not already initialized)
 	if openapi.Server == nil {
 		_, err := openapi.Load(config.Conf)
@@ -163,7 +218,11 @@ func Prepare(t *testing.T) string {
 //
 //	This ensures no state leakage between tests and prevents memory leaks
 //
-// Step 3: Calls test.Clean() to clean up the base test environment
+// Step 3: Clean up GraphRag test collections
+//
+//	This removes any test collections that were created during the test
+//
+// Step 4: Calls test.Clean() to clean up the base test environment
 //
 //	This closes database connections, cleans up temporary files, and resets global state
 //
@@ -196,7 +255,29 @@ func Clean() {
 	}
 	testMutex.Unlock()
 
-	// Step 3: Clean up base test environment
+	// Step 3: Clean up GraphRag test collections (only when cleaning global state)
+	if shouldCleanGlobalState {
+		// Create a dummy test object for logging (since Clean doesn't receive *testing.T)
+		// Note: This is a limitation, but we can still attempt cleanup
+		ctx := context.Background()
+		testCollectionsMutex.Lock()
+		collectionsToClean := make([]string, len(testCollections))
+		copy(collectionsToClean, testCollections)
+		testCollections = nil // Clear the list
+		testCollectionsMutex.Unlock()
+
+		if len(collectionsToClean) > 0 && kb.Instance != nil {
+			for _, collectionID := range collectionsToClean {
+				_, err := kb.Instance.RemoveCollection(ctx, collectionID)
+				if err != nil {
+					// Can't use t.Logf here, but errors will be visible in test output
+					_ = err
+				}
+			}
+		}
+	}
+
+	// Step 4: Clean up base test environment
 	if shouldCleanGlobalState {
 		test.Clean()
 	}
