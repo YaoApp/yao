@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaoapp/yao/attachment/local"
+	"github.com/yaoapp/yao/attachment/s3"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/neo/attachment/local"
-	"github.com/yaoapp/yao/neo/attachment/s3"
 )
 
 // Managers the managers
@@ -161,7 +161,6 @@ func New(option ManagerOption) (*Manager, error) {
 			return nil, err
 		}
 		manager.storage = storage
-		break
 
 	case "s3":
 		storage, err := s3.New(option.Options)
@@ -169,7 +168,6 @@ func New(option ManagerOption) (*Manager, error) {
 			return nil, err
 		}
 		manager.storage = storage
-		break
 
 	default:
 		return nil, fmt.Errorf("driver %s does not support", option.Driver)
@@ -194,7 +192,7 @@ func New(option ManagerOption) (*Manager, error) {
 	}
 
 	// init allowedTypes
-	if option.AllowedTypes != nil && len(option.AllowedTypes) > 0 {
+	if len(option.AllowedTypes) > 0 {
 		for _, t := range option.AllowedTypes {
 			t = strings.TrimSpace(t)
 			if strings.HasSuffix(t, "*") {
@@ -546,16 +544,12 @@ func (manager Manager) generateFileID(file *FileHeader, extension string, option
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(filename)))[:8]
 	date := time.Now().Format("20060102")
 	path := filepath.Join("attachments", date)
-	if option.UserID != "" {
-		path = filepath.Join(path, option.UserID)
-	}
 
-	if option.ChatID != "" {
-		path = filepath.Join(path, option.ChatID)
-	}
-
-	if option.AssistantID != "" {
-		path = filepath.Join(path, option.AssistantID)
+	// Build multi-level group path
+	for _, group := range option.Groups {
+		if group != "" {
+			path = filepath.Join(path, group)
+		}
 	}
 
 	id := filepath.Join(path, hash[:2], hash[2:4], hash) + extension

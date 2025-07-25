@@ -76,14 +76,11 @@ type allowedType struct {
 
 // UploadOption the upload option
 type UploadOption struct {
-	CompressImage    bool   `json:"compress_image,omitempty" form:"compress_image"`       // Compress the file, Optional, default is true
-	CompressSize     int    `json:"compress_size,omitempty" form:"compress_size"`         // Compress the file size, Optional, default is 1920, if compress_image is true, the file size will be compressed to the compress_size
-	Gzip             bool   `json:"gzip,omitempty" form:"gzip"`                           // Gzip the file, Optional, default is false
-	Knowledge        bool   `json:"knowledge,omitempty" form:"knowledge"`                 // Push to knowledge base, Optional, default is false
-	ChatID           string `json:"chat_id,omitempty" form:"chat_id"`                     // Chat ID, Optional
-	AssistantID      string `json:"assistant_id,omitempty" form:"assistant_id"`           // Assistant ID, Optional
-	UserID           string `json:"user_id,omitempty"`                                    // User ID, Optional
-	OriginalFilename string `json:"original_filename,omitempty" form:"original_filename"` // Original filename sent separately to avoid encoding issues
+	CompressImage    bool     `json:"compress_image,omitempty" form:"compress_image"`       // Compress the file, Optional, default is true
+	CompressSize     int      `json:"compress_size,omitempty" form:"compress_size"`         // Compress the file size, Optional, default is 1920, if compress_image is true, the file size will be compressed to the compress_size
+	Gzip             bool     `json:"gzip,omitempty" form:"gzip"`                           // Gzip the file, Optional, default is false
+	OriginalFilename string   `json:"original_filename,omitempty" form:"original_filename"` // Original filename sent separately to avoid encoding issues
+	Groups           []string `json:"groups,omitempty" form:"groups"`                       // Groups, Optional, default is empty, Multi-level groups like ["user", "user123", "chat", "chat456"]
 }
 
 // FileHeader the file header

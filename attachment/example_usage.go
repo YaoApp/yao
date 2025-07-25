@@ -8,7 +8,7 @@ import (
 	"mime/multipart"
 	"strings"
 
-	"github.com/yaoapp/yao/neo/attachment/s3"
+	"github.com/yaoapp/yao/attachment/s3"
 )
 
 // ExampleUsage demonstrates how to use the attachment package
@@ -95,10 +95,8 @@ func ExampleUsage() {
 	fileHeader.Header.Set("Content-Type", "text/plain")
 
 	uploadOption := UploadOption{
-		UserID:      "user123",
-		ChatID:      "chat456",
-		AssistantID: "assistant789",
-		Gzip:        false, // No compression for small text files
+		Groups: []string{"user123"},
+		Gzip:   false, // No compression for small text files
 	}
 
 	file, err := localManager.Upload(ctx, fileHeader, strings.NewReader(content), uploadOption)
@@ -120,7 +118,7 @@ func ExampleUsage() {
 	gzipFileHeader.Header.Set("Content-Type", "text/plain")
 
 	gzipOption := UploadOption{
-		UserID: "user123",
+		Groups: []string{"user123"},
 		Gzip:   true, // Enable compression
 	}
 
@@ -133,7 +131,7 @@ func ExampleUsage() {
 
 	// 6. Example: Image upload with compression
 	imageUploadOption := UploadOption{
-		UserID:        "user123",
+		Groups:        []string{"user123"},
 		CompressImage: true,
 		CompressSize:  1920, // Resize to max 1920px
 		Gzip:          false,
@@ -151,6 +149,75 @@ func ExampleUsage() {
 
 	fmt.Printf("Image upload option configured: compress=%v, size=%d\n",
 		imageUploadOption.CompressImage, imageUploadOption.CompressSize)
+
+	// 6.5. Example: Multi-level groups
+	fmt.Println("\n--- Multi-level Groups Examples ---")
+
+	// Single level grouping
+	singleGroupOption := UploadOption{
+		Groups: []string{"knowledge"},
+	}
+
+	singleGroupHeader := &FileHeader{
+		FileHeader: &multipart.FileHeader{
+			Filename: "knowledge_doc.txt",
+			Size:     int64(len("Knowledge base document")),
+			Header:   make(map[string][]string),
+		},
+	}
+	singleGroupHeader.Header.Set("Content-Type", "text/plain")
+
+	singleFile, err := localManager.Upload(ctx, singleGroupHeader, strings.NewReader("Knowledge base document"), singleGroupOption)
+	if err != nil {
+		log.Printf("Failed to upload single group file: %v", err)
+	} else {
+		fmt.Printf("Single group file uploaded: %s (ID: %s)\n", singleFile.Filename, singleFile.ID)
+	}
+
+	// Multi-level grouping
+	multiGroupOption := UploadOption{
+		Groups: []string{"users", "user123", "chats", "chat456", "documents"},
+	}
+
+	multiGroupHeader := &FileHeader{
+		FileHeader: &multipart.FileHeader{
+			Filename: "chat_document.txt",
+			Size:     int64(len("Document in user chat")),
+			Header:   make(map[string][]string),
+		},
+	}
+	multiGroupHeader.Header.Set("Content-Type", "text/plain")
+
+	multiFile, err := localManager.Upload(ctx, multiGroupHeader, strings.NewReader("Document in user chat"), multiGroupOption)
+	if err != nil {
+		log.Printf("Failed to upload multi-group file: %v", err)
+	} else {
+		fmt.Printf("Multi-level group file uploaded: %s (ID: %s)\n", multiFile.Filename, multiFile.ID)
+		fmt.Printf("File path includes hierarchy: users/user123/chats/chat456/documents\n")
+	}
+
+	// Knowledge base organization
+	knowledgeOption := UploadOption{
+		Groups: []string{"knowledge", "technical", "api", "documentation"},
+	}
+
+	knowledgeHeader := &FileHeader{
+		FileHeader: &multipart.FileHeader{
+			Filename: "api_guide.md",
+			Size:     int64(len("# API Documentation\n\nThis is technical documentation.")),
+			Header:   make(map[string][]string),
+		},
+	}
+	knowledgeHeader.Header.Set("Content-Type", "text/markdown")
+
+	knowledgeFile, err := localManager.Upload(ctx, knowledgeHeader,
+		strings.NewReader("# API Documentation\n\nThis is technical documentation."), knowledgeOption)
+	if err != nil {
+		log.Printf("Failed to upload knowledge file: %v", err)
+	} else {
+		fmt.Printf("Knowledge base file uploaded: %s (ID: %s)\n", knowledgeFile.Filename, knowledgeFile.ID)
+		fmt.Printf("Organized in: knowledge/technical/api/documentation\n")
+	}
 
 	// 7. Example: Chunked upload
 	largeContent = strings.Repeat("This is a large file content that will be uploaded in chunks. ", 1000)
@@ -183,7 +250,7 @@ func ExampleUsage() {
 		chunkHeader.Header.Set("Content-Uid", uid)
 
 		chunkOption := UploadOption{
-			UserID: "user123",
+			Groups: []string{"user123"},
 			Gzip:   true, // Compress chunks
 		}
 
@@ -273,7 +340,7 @@ func ExampleUsage() {
 		testHeader.Header.Set("Content-Type", "text/plain")
 
 		testFile, err := globalManager.Upload(ctx, testHeader, strings.NewReader(testContent), UploadOption{
-			UserID: "global_user",
+			Groups: []string{"global_user"},
 		})
 		if err != nil {
 			log.Printf("Failed to upload with global manager: %v", err)
@@ -356,7 +423,7 @@ func ExampleChunkedUpload(manager *Manager, filename string, totalSize int64, co
 		}
 
 		option := UploadOption{
-			UserID: "user123",
+			Groups: []string{"user123"},
 			Gzip:   false, // Disable compression for this example
 		}
 
@@ -422,7 +489,7 @@ func ExampleS3Upload() {
 	fileHeader.Header.Set("Content-Type", "text/plain")
 
 	file, err := s3Manager.Upload(ctx, fileHeader, strings.NewReader(content), UploadOption{
-		UserID: "s3_user",
+		Groups: []string{"s3_user"},
 	})
 	if err != nil {
 		log.Printf("S3 upload failed: %v", err)

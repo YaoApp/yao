@@ -14,7 +14,7 @@ A comprehensive file upload package for Go that supports chunked uploads, file f
   - File size limits
   - MIME type and extension validation
   - Wildcard pattern support (e.g., `image/*`, `text/*`)
-- **Flexible File Organization**: Hierarchical storage with user/chat/assistant organization
+- **Flexible File Organization**: Hierarchical storage with multi-level group organization
 - **Multiple Read Methods**: Stream, bytes, and base64 encoding
 - **Global Manager Registry**: Support for registering and accessing managers globally
 - **Upload Status Tracking**: Track upload progress with status field
@@ -73,8 +73,7 @@ func main() {
     fileHeader.Header.Set("Content-Type", "text/plain")
 
     option := attachment.UploadOption{
-        UserID:           "user123",
-        ChatID:           "chat456",
+        Groups:           []string{"user123", "chat456"}, // Multi-level groups (e.g., user, chat, knowledge, etc.)
         OriginalFilename: "my_document.txt", // Preserve original filename
     }
 
@@ -196,6 +195,29 @@ option := attachment.UploadOption{
 file, err := manager.Upload(ctx, imageHeader, imageReader, option)
 ```
 
+### Multi-level Groups
+
+The `Groups` field supports hierarchical file organization:
+
+```go
+// Single level grouping
+option := attachment.UploadOption{
+    Groups: []string{"users"},
+}
+
+// Multi-level grouping
+option := attachment.UploadOption{
+    Groups: []string{"users", "user123", "chats", "chat456"},
+}
+
+// Knowledge base organization
+option := attachment.UploadOption{
+    Groups: []string{"knowledge", "documents", "technical"},
+}
+```
+
+This creates nested directory structures for better organization and access control.
+
 ### File Validation
 
 #### Size Limits
@@ -295,18 +317,18 @@ Files are organized in a hierarchical structure:
 ```
 attachments/
 ├── 20240101/           # Date (YYYYMMDD)
-│   └── user123/        # User ID (optional)
-│       └── chat456/    # Chat ID (optional)
-│           └── assistant789/  # Assistant ID (optional)
-│               └── ab/        # First 2 chars of hash
-│                   └── cd/    # Next 2 chars of hash
+│   └── user123/        # First level group (optional)
+│       └── chat456/    # Second level group (optional)
+│           └── knowledge/  # Additional group levels (optional)
+│               └── ab/     # First 2 chars of hash
+│                   └── cd/ # Next 2 chars of hash
 │                       └── abcdef12.txt  # Hash + extension
 ```
 
 The file ID generation includes:
 
 - Date prefix for organization
-- User/Chat/Assistant IDs for access control
+- Multi-level groups for access control and organization
 - Content hash for deduplication
 - Original file extension
 
@@ -374,8 +396,7 @@ Options for file upload:
 - `CompressImage`: Enable image compression
 - `CompressSize`: Maximum image dimension (default: 1920)
 - `Gzip`: Enable gzip compression
-- `Knowledge`: Push to knowledge base
-- `UserID`, `ChatID`, `AssistantID`: Organization IDs
+- `Groups`: Multi-level group identifiers for hierarchical file organization (e.g., []string{"user123", "chat456", "knowledge"})
 - `OriginalFilename`: Original filename to preserve (avoids encoding issues)
 
 #### `File`
@@ -465,7 +486,7 @@ The package includes comprehensive tests for:
 - **File Type Validation**: Prevents upload of unauthorized file types
 - **Size Limits**: Configurable file size restrictions
 - **Path Sanitization**: Secure file path generation
-- **Access Control**: User/Chat/Assistant-based file organization
+- **Access Control**: Multi-level hierarchical file organization
 
 ## License
 
@@ -536,8 +557,7 @@ for start := int64(0); start < totalSize; start += chunkSize {
     chunkHeader.Header.Set("Content-Sync", "true") // Enable synchronization
 
     option := attachment.UploadOption{
-        UserID:           "user123",
-        ChatID:           "chat456",
+        Groups:           []string{"user123", "chat456"}, // Multi-level groups
         OriginalFilename: "my_large_file.zip", // Preserve original name
     }
 
