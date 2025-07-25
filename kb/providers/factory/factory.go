@@ -77,11 +77,11 @@ func MakeConverter(id string, option *kbtypes.ProviderOption) (types.Converter, 
 
 // AutoDetectConverter detects the converter based on the filename and content types
 // return matched, id, error
-func AutoDetectConverter(filename, contentTypes string) (bool, string, error) {
+func AutoDetectConverter(filename, contentType string) (bool, string, error) {
 	var highestPriority int = 0
 	var highestID string = ""
 	for id, converter := range Converters {
-		ok, priority, err := converter.AutoDetect(filename, contentTypes)
+		ok, priority, err := converter.AutoDetect(filename, contentType)
 		if err != nil {
 			continue
 		}
