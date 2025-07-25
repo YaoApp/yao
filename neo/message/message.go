@@ -13,7 +13,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/yao/neo/attachment"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/openai"
 )
 
