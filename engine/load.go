@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/api"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/cert"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/connector"
@@ -164,6 +165,13 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 	if err != nil {
 		// printErr(cfg.Mode, "Store", err)
 		warnings = append(warnings, Warning{Widget: "Store", Error: err})
+	}
+
+	// Load Uploaders
+	err = attachment.Load(cfg)
+	if err != nil {
+		// printErr(cfg.Mode, "Uploader", err)
+		warnings = append(warnings, Warning{Widget: "Uploader", Error: err})
 	}
 
 	// Load Plugins
@@ -420,6 +428,12 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = store.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Store", err)
+	}
+
+	// Load Uploaders
+	err = attachment.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Uploader", err)
 	}
 
 	// Load Plugins

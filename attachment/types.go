@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"mime/multipart"
+
+	"github.com/yaoapp/gou/types"
 )
 
 // File the file
@@ -25,17 +27,16 @@ type FileResponse struct {
 
 // Attachment represents a file attachment
 type Attachment struct {
-	Name        string `json:"name,omitempty"`
-	URL         string `json:"url,omitempty"`
-	Description string `json:"description,omitempty"`
-	Type        string `json:"type,omitempty"`
-	ContentType string `json:"content_type,omitempty"`
-	Bytes       int64  `json:"bytes,omitempty"`
-	CreatedAt   int64  `json:"created_at,omitempty"`
-	FileID      string `json:"file_id,omitempty"`
-	ChatID      string `json:"chat_id,omitempty"`
-	AssistantID string `json:"assistant_id,omitempty"`
-	Gzip        bool   `json:"gzip,omitempty"` // Gzip the file, Optional, default is false
+	Name        string   `json:"name,omitempty"`
+	URL         string   `json:"url,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Type        string   `json:"type,omitempty"`
+	ContentType string   `json:"content_type,omitempty"`
+	Bytes       int64    `json:"bytes,omitempty"`
+	CreatedAt   int64    `json:"created_at,omitempty"`
+	FileID      string   `json:"file_id,omitempty"`
+	Groups      []string `json:"groups,omitempty"`
+	Gzip        bool     `json:"gzip,omitempty"` // Gzip the file, Optional, default is false
 }
 
 // Manager the manager struct
@@ -61,6 +62,7 @@ type Storage interface {
 
 // ManagerOption the manager option
 type ManagerOption struct {
+	types.MetaInfo
 	MaxSize      string                 `json:"max_size,omitempty" yaml:"max_size,omitempty"`           // Max size of the file, Optional, default is 20M
 	ChunkSize    string                 `json:"chunk_size,omitempty" yaml:"chunk_size,omitempty"`       // Chunk size of the file, Optional, default is 2M
 	AllowedTypes []string               `json:"allowed_types,omitempty" yaml:"allowed_types,omitempty"` // Allowed types of the file, Optional, default is all
