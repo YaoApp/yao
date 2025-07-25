@@ -2,8 +2,8 @@ package neo
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/attachment"
 	"github.com/yaoapp/yao/neo/rag"
 	"github.com/yaoapp/yao/neo/store"
 	"github.com/yaoapp/yao/neo/vision"
@@ -92,6 +92,10 @@ type UploadOption struct {
 	Public       bool        `json:"public,omitempty" yaml:"public,omitempty, form:public"`                      // The public of the file, default is false
 	Scope        interface{} `json:"scope,omitempty" yaml:"scope,omitempty, form:scope"`                         // The scope of the file, default is private
 	CollectionID string      `json:"collection_id,omitempty" yaml:"collection_id,omitempty, form:collection_id"` // The collection id of the file, default is empty
+	Knowledge    bool        `json:"knowledge,omitempty" form:"knowledge"`                                       // Push to knowledge base, Optional, default is false
+	ChatID       string      `json:"chat_id,omitempty" form:"chat_id"`                                           // Chat ID, Optional
+	AssistantID  string      `json:"assistant_id,omitempty" form:"assistant_id"`                                 // Assistant ID, Optional
+	UserID       string      `json:"user_id,omitempty"`                                                          // User ID, Optional (used to build Groups)
 }
 
 // Knowledge base Settings

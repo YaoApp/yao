@@ -7,9 +7,9 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/attachment"
 	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/store"
 )

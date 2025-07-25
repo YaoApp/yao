@@ -14,9 +14,9 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/attachment"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
@@ -219,20 +219,36 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 	// Validate the option with the storage
 	option.UserID = fmt.Sprintf("%v", uid)
 
-	if storage == "chat" {
+	// Build multi-level groups based on storage type and IDs
+	var groups []string
+	switch storage {
+	case "chat":
 		if option.ChatID == "" {
 			c.JSON(400, gin.H{"message": "chat_id is required", "code": 400})
 			c.Done()
 			return
 		}
-
-	} else if storage == "knowledge" {
+		// Build groups: ["users", "user123", "chats", "chat456"]
+		groups = []string{"users", option.UserID, "chats", option.ChatID}
+		if option.AssistantID != "" {
+			// Add assistant level: ["users", "user123", "chats", "chat456", "assistants", "assistant789"]
+			groups = append(groups, "assistants", option.AssistantID)
+		}
+	case "knowledge":
 		if option.CollectionID == "" {
 			c.JSON(400, gin.H{"message": "collection_id is required", "code": 400})
 			c.Done()
 			return
 		}
+		// Build groups: ["knowledge", "collection123", "users", "user456"]
+		groups = []string{"knowledge", option.CollectionID, "users", option.UserID}
+	case "assets":
+		// Build groups: ["assets", "users", "user123"]
+		groups = []string{"assets", "users", option.UserID}
 	}
+
+	// Set the groups in the attachment upload option
+	option.UploadOption.Groups = groups
 
 	// Get the file
 	file, err := c.FormFile("file")
@@ -396,7 +412,6 @@ func (neo *DSL) handleDownload(c *gin.Context) {
 		return
 	}
 	c.Done()
-	return
 
 }
 

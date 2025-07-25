@@ -40,11 +40,7 @@ func TestManagerUpload(t *testing.T) {
 		}
 		fileHeader.Header.Set("Content-Type", "text/plain")
 
-		option := UploadOption{
-			UserID:      "user123",
-			ChatID:      "chat456",
-			AssistantID: "assistant789",
-		}
+		option := UploadOption{Groups: []string{"user123"}}
 
 		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
 		if err != nil {
@@ -103,7 +99,7 @@ func TestManagerUpload(t *testing.T) {
 
 		option := UploadOption{
 			Gzip:   true,
-			UserID: "user123",
+			Groups: []string{"user123"},
 		}
 
 		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
@@ -152,7 +148,7 @@ func TestManagerUpload(t *testing.T) {
 				fmt.Sprintf("bytes %d-%d/%d", start, end, totalSize))
 			fileHeader.Header.Set("Content-Uid", "unique-file-id-123")
 
-			option := UploadOption{UserID: "user123"}
+			option := UploadOption{Groups: []string{"user123"}}
 			file, err := manager.Upload(context.Background(), fileHeader, bytes.NewReader(chunk), option)
 			if err != nil {
 				t.Fatalf("Failed to upload chunk starting at %d: %v", start, err)
@@ -172,6 +168,122 @@ func TestManagerUpload(t *testing.T) {
 				t.Errorf("Chunked upload content mismatch. Expected length %d, got %d",
 					len(content), len(downloadedContent))
 			}
+		}
+	})
+}
+
+func TestManagerMultiLevelGroups(t *testing.T) {
+	// Create a local storage manager
+	manager, err := New(ManagerOption{
+		Driver:       "local",
+		MaxSize:      "10M",
+		AllowedTypes: []string{"text/*", "image/*"},
+		Options: map[string]interface{}{
+			"path": "/tmp/test_attachments",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
+
+	// Test multi-level groups
+	t.Run("MultiLevelGroups", func(t *testing.T) {
+		content := "Test content for multi-level groups"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "multilevel.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		// Test with multi-level groups
+		option := UploadOption{
+			Groups: []string{"users", "user123", "chats", "chat456", "documents"},
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file with multi-level groups: %v", err)
+		}
+
+		// Verify the file ID contains the nested structure
+		if !strings.Contains(file.ID, "users") ||
+			!strings.Contains(file.ID, "user123") ||
+			!strings.Contains(file.ID, "chats") ||
+			!strings.Contains(file.ID, "chat456") ||
+			!strings.Contains(file.ID, "documents") {
+			t.Errorf("File ID should contain all group levels: %s", file.ID)
+		}
+
+		// Test download
+		downloadedContent, err := manager.Read(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to read file with multi-level groups: %v", err)
+		}
+
+		if string(downloadedContent) != content {
+			t.Errorf("Content mismatch for multi-level groups file")
+		}
+	})
+
+	// Test single group (backward compatibility)
+	t.Run("SingleGroup", func(t *testing.T) {
+		content := "Test content for single group"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "single.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups: []string{"knowledge"},
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file with single group: %v", err)
+		}
+
+		if !strings.Contains(file.ID, "knowledge") {
+			t.Errorf("File ID should contain group: %s", file.ID)
+		}
+	})
+
+	// Test empty groups (no grouping)
+	t.Run("EmptyGroups", func(t *testing.T) {
+		content := "Test content without groups"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "nogroup.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups: []string{}, // Empty groups
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file without groups: %v", err)
+		}
+
+		// Should still work and create valid file ID
+		if file.ID == "" {
+			t.Error("File ID should not be empty")
 		}
 	})
 }
