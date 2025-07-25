@@ -73,6 +73,13 @@ env:
   QDRANT_TEST_HOST: "127.0.0.1"
   QDRANT_TEST_PORT: "6334"
 
+  # S3
+  S3_API: ${{ secrets.S3_API }}
+  S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+  S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+  S3_CACHE_PATH: /tmp/s3-cache
+
 jobs:
   UnitTest:
     runs-on: ubuntu-latest
