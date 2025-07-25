@@ -8,6 +8,12 @@ import (
 	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
+
+	// Register the built-in providers
+	_ "github.com/yaoapp/yao/kb/providers"
+
+	// Import the kb types
+	kbtypes "github.com/yaoapp/yao/kb/types"
 )
 
 // Instance is the GraphRag instance
@@ -15,7 +21,7 @@ var Instance types.GraphRag = nil
 
 // KnowledgeBase is the Knowledge Base instance
 type KnowledgeBase struct {
-	Config *Config // Knowledge Base configuration
+	Config *kbtypes.Config // Knowledge Base configuration
 	*graphrag.GraphRag
 }
 
@@ -33,7 +39,7 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 	}
 
 	// Parse the configuration
-	var config Config
+	var config kbtypes.Config
 	raw, err := application.App.Read(filepath.Join("kb", "kb.yao"))
 	if err != nil {
 		return nil, err
