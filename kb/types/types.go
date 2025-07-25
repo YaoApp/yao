@@ -1,4 +1,4 @@
-package kb
+package types
 
 // Features represents the available features based on current configuration
 type Features struct {

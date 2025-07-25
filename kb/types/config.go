@@ -1,4 +1,4 @@
-package kb
+package types
 
 import (
 	"encoding/json"
