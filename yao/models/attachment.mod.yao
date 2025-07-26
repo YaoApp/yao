@@ -28,27 +28,10 @@
       "index": true
     },
     {
-      "name": "uid",
+      "name": "uploader",
       "type": "string",
-      "label": "User ID",
-      "comment": "User identifier",
-      "length": 255,
-      "nullable": false,
-      "index": true
-    },
-    {
-      "name": "guest",
-      "type": "boolean",
-      "label": "Guest",
-      "comment": "Whether uploaded by guest user",
-      "default": false,
-      "index": true
-    },
-    {
-      "name": "manager",
-      "type": "string",
-      "label": "Manager",
-      "comment": "File manager type",
+      "label": "Uploader",
+      "comment": "File uploader type",
       "length": 200,
       "nullable": false,
       "index": true
@@ -72,18 +55,55 @@
       "index": true
     },
     {
-      "name": "public",
-      "type": "boolean",
-      "label": "Public",
-      "comment": "Whether file is public",
-      "default": false,
+      "name": "url",
+      "type": "string",
+      "label": "URL",
+      "comment": "File URL",
+      "length": 1000,
+      "nullable": true,
+      "index": false
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "label": "Description",
+      "comment": "File description",
+      "length": 1000,
+      "nullable": true,
+      "index": false
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "File type",
+      "length": 200,
+      "nullable": true,
       "index": true
     },
     {
-      "name": "scope",
+      "name": "user_path",
+      "type": "string",
+      "label": "User Path",
+      "comment": "User-specified complete file path",
+      "length": 1000,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "label": "Storage Path",
+      "comment": "Actual storage path for the file",
+      "length": 1000,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "groups",
       "type": "json",
-      "label": "Scope",
-      "comment": "File access scope",
+      "label": "Groups",
+      "comment": "File groups",
       "nullable": true
     },
     {
@@ -100,15 +120,6 @@
       "label": "Bytes",
       "comment": "File size in bytes",
       "nullable": false,
-      "index": true
-    },
-    {
-      "name": "collection_id",
-      "type": "string",
-      "label": "Collection ID",
-      "comment": "Knowledge collection identifier",
-      "length": 200,
-      "nullable": true,
       "index": true
     },
     {
@@ -142,6 +153,24 @@
       "comment": "Error information",
       "length": 600,
       "nullable": true
+    },
+    {
+      "name": "client_id",
+      "type": "string",
+      "label": "Client ID",
+      "comment": "Client identifier",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "openid",
+      "type": "string",
+      "label": "OpenID",
+      "comment": "OpenID identifier",
+      "length": 255,
+      "nullable": true,
+      "index": true
     }
   ],
   "relations": {},

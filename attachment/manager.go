@@ -3,8 +3,9 @@ package attachment
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
+	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime"
@@ -13,15 +14,20 @@ import (
 	"net/textproto"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/attachment/local"
 	"github.com/yaoapp/yao/attachment/s3"
 	"github.com/yaoapp/yao/config"
 )
+
+// Ensure Manager implements FileManager interface
+var _ FileManager = (*Manager)(nil)
 
 // Managers the managers
 var Managers = map[string]*Manager{}
@@ -73,6 +79,9 @@ func Register(name string, driver string, option ManagerOption) (*Manager, error
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the manager name
+	manager.Name = name
 
 	// Register the manager
 	Managers[name] = manager
@@ -259,8 +268,8 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 
 		}
 
-		// Upload chunk
-		err = manager.storage.UploadChunk(ctx, file.ID, chunkIndex, reader, file.ContentType)
+		// Upload chunk using the storage path
+		err = manager.storage.UploadChunk(ctx, file.Path, chunkIndex, reader, file.ContentType)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +280,7 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 
 		// If this is the last chunk, merge all chunks
 		if fileheader.Complete() {
-			err = manager.storage.MergeChunks(ctx, file.ID, int(chunkdata.TotalChunks))
+			err = manager.storage.MergeChunks(ctx, file.Path, int(chunkdata.TotalChunks))
 			if err != nil {
 				return nil, err
 			}
@@ -290,6 +299,12 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 			// Fix the file size
 			file.Bytes = int(chunkdata.Total)
 			file.Status = "uploaded"
+
+			// Save file information to database when chunked upload is complete
+			err = manager.saveFileToDatabase(ctx, file, file.Path, option)
+			if err != nil {
+				return nil, fmt.Errorf("failed to save chunked file to database: %w", err)
+			}
 		}
 
 		return file, nil
@@ -304,6 +319,7 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 		if err != nil {
 			return nil, fmt.Errorf("failed to gzip file: %w", err)
 		}
+
 		finalReader = bytes.NewReader(compressed)
 	}
 
@@ -344,22 +360,33 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 		}
 	}
 
-	// Upload the file to storage
-	id, err := manager.storage.Upload(ctx, file.ID, finalReader, file.ContentType)
+	// Upload the file to storage using the generated storage path
+	actualStoragePath, err := manager.storage.Upload(ctx, file.Path, finalReader, file.ContentType)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update the file ID
-	file.ID = id
+	// Update the actual storage path if storage returns a different path
+	if actualStoragePath != "" && actualStoragePath != file.Path {
+		file.Path = actualStoragePath
+	}
+
+	// Update the file status
 	file.Status = "uploaded"
+
+	// Save file information to database
+	err = manager.saveFileToDatabase(ctx, file, file.Path, option)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save file to database: %w", err)
+	}
+
 	return file, nil
 }
 
 // compressStoredImage compresses an already stored image
 func (manager Manager) compressStoredImage(ctx context.Context, file *File, option UploadOption) error {
-	// Download the stored file
-	reader, err := manager.storage.Reader(ctx, file.ID)
+	// Download the stored file using storage path
+	reader, err := manager.storage.Reader(ctx, file.Path)
 	if err != nil {
 		return err
 	}
@@ -376,19 +403,25 @@ func (manager Manager) compressStoredImage(ctx context.Context, file *File, opti
 		return err
 	}
 
-	// Re-upload the compressed image
-	_, err = manager.storage.Upload(ctx, file.ID, bytes.NewReader(compressed), file.ContentType)
+	// Re-upload the compressed image using storage path
+	_, err = manager.storage.Upload(ctx, file.Path, bytes.NewReader(compressed), file.ContentType)
 	return err
 }
 
 // Download downloads a file
 func (manager Manager) Download(ctx context.Context, fileID string) (*FileResponse, error) {
-	reader, contentType, err := manager.storage.Download(ctx, fileID)
+	// Get real storage path from database
+	storagePath, err := manager.getStoragePathFromDatabase(ctx, fileID)
 	if err != nil {
 		return nil, err
 	}
 
-	extension := filepath.Ext(fileID)
+	reader, contentType, err := manager.storage.Download(ctx, storagePath)
+	if err != nil {
+		return nil, err
+	}
+
+	extension := filepath.Ext(storagePath)
 	if extension == "" {
 		// Try to get extension from content type
 		extensions, err := mime.ExtensionsByType(contentType)
@@ -406,13 +439,27 @@ func (manager Manager) Download(ctx context.Context, fileID string) (*FileRespon
 
 // Read reads a file and returns the content as bytes
 func (manager Manager) Read(ctx context.Context, fileID string) ([]byte, error) {
-	reader, err := manager.storage.Reader(ctx, fileID)
+	// Get file info from database to check if it's gzipped
+	file, err := manager.getFileFromDatabase(ctx, fileID)
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := manager.storage.Reader(ctx, file.Path)
 	if err != nil {
 		return nil, err
 	}
 	defer reader.Close()
 
-	return io.ReadAll(reader)
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	// Storage layer already handles gzip decompression for .gz files
+	// No need to decompress again at Manager level
+
+	return data, nil
 }
 
 // ReadBase64 reads a file and returns the content as base64 encoded string
@@ -423,6 +470,192 @@ func (manager Manager) ReadBase64(ctx context.Context, fileID string) (string, e
 	}
 
 	return base64.StdEncoding.EncodeToString(data), nil
+}
+
+// Info retrieves complete file information from database by file ID
+func (manager Manager) Info(ctx context.Context, fileID string) (*File, error) {
+	return manager.getFileFromDatabase(ctx, fileID)
+}
+
+// List retrieves files from database with pagination and filtering
+func (manager Manager) List(ctx context.Context, option ListOption) (*ListResult, error) {
+	m := model.Select("__yao.attachment")
+
+	// Set default values
+	page := option.Page
+	if page <= 0 {
+		page = 1
+	}
+
+	pageSize := option.PageSize
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+
+	// Build query parameters
+	queryParam := model.QueryParam{}
+
+	// Add select fields
+	if len(option.Select) > 0 {
+		queryParam.Select = make([]interface{}, len(option.Select))
+		for i, field := range option.Select {
+			queryParam.Select[i] = field
+		}
+	}
+
+	// Add filters
+	if len(option.Filters) > 0 {
+		queryParam.Wheres = make([]model.QueryWhere, 0, len(option.Filters))
+		for field, value := range option.Filters {
+			where := model.QueryWhere{
+				Column: field,
+				Value:  value,
+			}
+
+			// Handle special operators for wildcard matching
+			if strValue, ok := value.(string); ok {
+				if strings.Contains(strValue, "*") {
+					// Wildcard matching for LIKE queries
+					where.OP = "like"
+					where.Value = strings.ReplaceAll(strValue, "*", "%")
+				}
+			}
+
+			queryParam.Wheres = append(queryParam.Wheres, where)
+		}
+	}
+
+	// Add ordering
+	if option.OrderBy != "" {
+		// Parse order by string like "created_at desc" or "name asc"
+		parts := strings.Fields(option.OrderBy)
+		if len(parts) >= 1 {
+			orderField := parts[0]
+			orderDirection := "asc"
+			if len(parts) >= 2 {
+				orderDirection = strings.ToLower(parts[1])
+			}
+
+			queryParam.Orders = []model.QueryOrder{
+				{
+					Column: orderField,
+					Option: orderDirection,
+				},
+			}
+		}
+	} else {
+		// Default order by created_at desc
+		queryParam.Orders = []model.QueryOrder{
+			{
+				Column: "created_at",
+				Option: "desc",
+			},
+		}
+	}
+
+	// Use model's built-in Paginate method
+	result, err := m.Paginate(queryParam, page, pageSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to paginate files: %w", err)
+	}
+
+	// Extract pagination info from result
+	total := int64(0)
+	if totalInterface, ok := result["total"]; ok {
+		if totalInt, ok := totalInterface.(int); ok {
+			total = int64(totalInt)
+		} else if totalInt64, ok := totalInterface.(int64); ok {
+			total = totalInt64
+		}
+	}
+
+	// Extract data from result - handle maps.MapStrAny type
+	var records []map[string]interface{}
+	if dataInterface, ok := result["data"]; ok {
+		// The data is of type []maps.MapStrAny, need to convert
+		if dataSlice, ok := dataInterface.([]interface{}); ok {
+			records = make([]map[string]interface{}, len(dataSlice))
+			for i, item := range dataSlice {
+				if record, ok := item.(map[string]interface{}); ok {
+					records[i] = record
+				}
+			}
+		} else {
+			// Try to handle it as the actual type returned by gou using reflection
+			dataValue := reflect.ValueOf(dataInterface)
+			if dataValue.Kind() == reflect.Slice {
+				length := dataValue.Len()
+				records = make([]map[string]interface{}, length)
+				for i := 0; i < length; i++ {
+					item := dataValue.Index(i).Interface()
+					// Convert the item to map[string]interface{} using reflection
+					if itemValue := reflect.ValueOf(item); itemValue.Kind() == reflect.Map {
+						record := make(map[string]interface{})
+						for _, key := range itemValue.MapKeys() {
+							if keyStr := key.String(); keyStr != "" {
+								record[keyStr] = itemValue.MapIndex(key).Interface()
+							}
+						}
+						records[i] = record
+					}
+				}
+			}
+		}
+	}
+
+	// Convert records to File structs
+	files := make([]*File, 0, len(records))
+	for _, record := range records {
+		file := &File{}
+
+		// Map required fields
+		if fileID, ok := record["file_id"].(string); ok {
+			file.ID = fileID
+		}
+		if name, ok := record["name"].(string); ok {
+			file.Filename = name
+		}
+		if contentType, ok := record["content_type"].(string); ok {
+			file.ContentType = contentType
+		}
+		if status, ok := record["status"].(string); ok {
+			file.Status = status
+		}
+
+		// Map optional fields
+		if userPath, ok := record["user_path"].(string); ok {
+			file.UserPath = userPath
+		}
+		if path, ok := record["path"].(string); ok {
+			file.Path = path
+		}
+		if bytes, ok := record["bytes"].(int64); ok {
+			file.Bytes = int(bytes)
+		} else if bytesInt, ok := record["bytes"].(int); ok {
+			file.Bytes = bytesInt
+		}
+		if createdAt, ok := record["created_at"].(int64); ok {
+			file.CreatedAt = int(createdAt)
+		} else if createdAtInt, ok := record["created_at"].(int); ok {
+			file.CreatedAt = createdAtInt
+		} else {
+			// Fallback to current time if not available
+			file.CreatedAt = int(time.Now().Unix())
+		}
+
+		files = append(files, file)
+	}
+
+	// Calculate total pages
+	totalPages := int((total + int64(pageSize) - 1) / int64(pageSize))
+
+	return &ListResult{
+		Files:      files,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
 }
 
 // validate validates the file and option
@@ -438,8 +671,10 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 
 	// Use original filename if provided, otherwise use the file header filename
 	filename := file.Filename
-	if option.OriginalFilename != "" {
-		filename = option.OriginalFilename
+	userPath := option.OriginalFilename
+	if userPath != "" {
+		// If user provided a path, extract just the filename for the filename field
+		filename = filepath.Base(userPath)
 	}
 
 	extension := filepath.Ext(filename)
@@ -482,15 +717,23 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 		return nil, fmt.Errorf("%s type %s is not allowed", filename, contentType)
 	}
 
-	// Generate file ID
-	id, err := manager.generateFileID(file, extension, option)
+	// Generate file ID and storage path using the new approach
+	id, storagePath, err := manager.generateFilePaths(file, extension, option)
 	if err != nil {
 		return nil, err
 	}
 
+	// Set the path: use userPath if provided, otherwise use filename
+	filePath := userPath
+	if filePath == "" {
+		filePath = filename
+	}
+
 	return &File{
 		ID:          id,
-		Filename:    filename, // Use the correct filename (original or from header)
+		UserPath:    userPath,    // Keep user's original input exactly as provided
+		Path:        storagePath, // Complete storage path: Groups + filename
+		Filename:    filename,    // Use just the filename (extracted from path or header)
 		ContentType: contentType,
 		Bytes:       int(file.Size),
 		CreatedAt:   int(time.Now().Unix()),
@@ -522,41 +765,86 @@ func (manager Manager) allowed(contentType string, extension string) bool {
 	return false
 }
 
-// generateFileID generates a file ID with proper namespace
-func (manager Manager) generateFileID(file *FileHeader, extension string, option UploadOption) (string, error) {
+// generateFileID generates file ID and storage path based on Groups and filename
+func (manager Manager) generateFilePaths(file *FileHeader, extension string, option UploadOption) (fileID string, storagePath string, err error) {
 
-	filename := file.Fingerprint()
-
-	// If the fingerprint is not set, use the filename
-	if filename == "" {
-		filename = file.Filename
-	}
-
-	// Use original filename if provided for better file identification
-	if option.OriginalFilename != "" {
-		filename = option.OriginalFilename
-	}
-
-	if file.IsChunk() {
+	// 1. Get the filename
+	var filename string
+	if file.Fingerprint() != "" {
+		filename = file.Fingerprint()
+	} else if file.IsChunk() {
 		filename = file.UID()
+	} else {
+		// Generate unique filename to avoid conflicts
+		var originalName string
+		if option.OriginalFilename != "" {
+			originalName = filepath.Base(option.OriginalFilename)
+		} else {
+			originalName = file.Filename
+		}
+
+		// Extract extension from original filename
+		ext := filepath.Ext(originalName)
+		if ext == "" && extension != "" {
+			ext = extension
+		}
+
+		// Generate unique filename: MD5 hash of original name + timestamp + extension
+		nameHash := generateID(originalName + fmt.Sprintf("%d", time.Now().UnixNano()))
+		filename = nameHash[:16] + ext // Use first 16 chars of hash + extension
 	}
 
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(filename)))[:8]
-	date := time.Now().Format("20060102")
-	path := filepath.Join("attachments", date)
+	// 2. Build complete storage path: Groups + filename
+	pathParts := []string{}
 
-	// Build multi-level group path
-	for _, group := range option.Groups {
-		if group != "" {
-			path = filepath.Join(path, group)
+	// Add groups to path
+	if len(option.Groups) > 0 {
+		pathParts = append(pathParts, option.Groups...)
+	}
+
+	// Add filename
+	pathParts = append(pathParts, filename)
+
+	// Join to create complete storage path
+	storagePath = strings.Join(pathParts, "/")
+
+	// 3. Validate the storage path
+	if !isValidPath(storagePath) {
+		return "", "", fmt.Errorf("invalid storage path: %s", storagePath)
+	}
+
+	// 4. Generate ID as alias of the storage path (for security)
+	fileID = generateID(storagePath)
+
+	// 5. Add gzip extension to storage path if needed (not to fileID)
+	if option.Gzip {
+		storagePath = storagePath + ".gz"
+	}
+
+	return fileID, storagePath, nil
+}
+
+// generateID generates a URL-safe ID based on the storage path
+func generateID(storagePath string) string {
+	hash := md5.Sum([]byte(storagePath))
+	return hex.EncodeToString(hash[:])
+}
+
+// isValidPath checks if a file path is valid
+func isValidPath(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	// Check for invalid characters that could cause issues
+	invalidChars := []string{"../", "..\\", "\\", "//"}
+	for _, invalid := range invalidChars {
+		if strings.Contains(path, invalid) {
+			return false
 		}
 	}
 
-	id := filepath.Join(path, hash[:2], hash[2:4], hash) + extension
-	if option.Gzip {
-		id = id + ".gz"
-	}
-	return id, nil
+	return true
 }
 
 // getSize converts the size to bytes
@@ -589,4 +877,164 @@ func getSize(size string) (int64, error) {
 	}
 
 	return 0, fmt.Errorf("invalid size: %s", size)
+}
+
+// Exists checks if a file exists in storage
+func (manager Manager) Exists(ctx context.Context, fileID string) bool {
+	// Check if file exists in database first
+	storagePath, err := manager.getStoragePathFromDatabase(ctx, fileID)
+	if err != nil {
+		return false
+	}
+
+	// Then check if it exists in storage
+	return manager.storage.Exists(ctx, storagePath)
+}
+
+// Delete deletes a file from storage
+func (manager Manager) Delete(ctx context.Context, fileID string) error {
+	// Get real storage path from database
+	storagePath, err := manager.getStoragePathFromDatabase(ctx, fileID)
+	if err != nil {
+		return err
+	}
+
+	// Delete from storage
+	err = manager.storage.Delete(ctx, storagePath)
+	if err != nil {
+		return err
+	}
+
+	// Delete from database
+	m := model.Select("__yao.attachment")
+	_, err = m.DeleteWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: fileID},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to delete from database: %w", err)
+	}
+
+	return nil
+}
+
+// saveFileToDatabase saves file information to the database
+func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, storagePath string, option UploadOption) error {
+
+	m := model.Select("__yao.attachment")
+
+	// Prepare data for database
+	data := map[string]interface{}{
+		"file_id":      file.ID,
+		"uploader":     manager.Name,
+		"content_type": file.ContentType,
+		"name":         file.Filename,
+		"user_path":    option.OriginalFilename,
+		"path":         storagePath,
+		"bytes":        int64(file.Bytes),
+		"status":       file.Status,
+		"gzip":         option.Gzip,
+		"groups":       option.Groups,
+		"client_id":    option.ClientID,
+		"openid":       option.OpenID,
+	}
+
+	// Check if record exists first
+	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{"file_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: file.ID},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to check existing record: %w", err)
+	}
+
+	if len(records) > 0 {
+		// Update existing record
+		_, err = m.UpdateWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		}, data)
+	} else {
+		// Create new record
+		_, err = m.Create(data)
+	}
+
+	return err
+}
+
+// getFileFromDatabase retrieves file information from database by file_id
+func (manager Manager) getFileFromDatabase(ctx context.Context, fileID string) (*File, error) {
+	m := model.Select("__yao.attachment")
+
+	records, err := m.Get(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: fileID},
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to query file: %w", err)
+	}
+
+	if len(records) == 0 {
+		return nil, fmt.Errorf("file not found")
+	}
+
+	record := records[0]
+
+	// Convert database record to File struct
+	file := &File{
+		ID:          record["file_id"].(string),
+		Filename:    record["name"].(string),
+		ContentType: record["content_type"].(string),
+		Status:      record["status"].(string),
+		CreatedAt:   int(time.Now().Unix()), // TODO: get from database
+	}
+
+	// Handle optional fields
+	if userPath, ok := record["user_path"].(string); ok {
+		file.UserPath = userPath
+	}
+
+	if path, ok := record["path"].(string); ok {
+		file.Path = path
+	}
+
+	if bytes, ok := record["bytes"].(int64); ok {
+		file.Bytes = int(bytes)
+	}
+
+	return file, nil
+}
+
+// getStoragePathFromDatabase retrieves the real storage path for a file_id
+func (manager Manager) getStoragePathFromDatabase(ctx context.Context, fileID string) (string, error) {
+	m := model.Select("__yao.attachment")
+
+	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{"path"},
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: fileID},
+		},
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to query database: %w", err)
+	}
+
+	if len(records) == 0 {
+		return "", fmt.Errorf("file not found: %s", fileID)
+	}
+
+	if path, ok := records[0]["path"].(string); ok && path != "" {
+		return path, nil
+	}
+
+	return "", fmt.Errorf("invalid storage path for file ID: %s", fileID)
 }

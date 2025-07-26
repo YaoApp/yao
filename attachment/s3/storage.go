@@ -107,12 +107,12 @@ func New(options map[string]interface{}) (*Storage, error) {
 }
 
 // Upload upload file to S3
-func (storage *Storage) Upload(ctx context.Context, fileID string, reader io.Reader, contentType string) (string, error) {
+func (storage *Storage) Upload(ctx context.Context, path string, reader io.Reader, contentType string) (string, error) {
 	if storage.client == nil {
 		return "", fmt.Errorf("s3 client not initialized")
 	}
 
-	key := filepath.Join(storage.prefix, fileID)
+	key := filepath.Join(storage.prefix, path)
 
 	// Upload file
 	_, err := storage.client.PutObject(ctx, &s3.PutObjectInput{
@@ -122,20 +122,20 @@ func (storage *Storage) Upload(ctx context.Context, fileID string, reader io.Rea
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to upload file %s: %w", fileID, err)
+		return "", fmt.Errorf("failed to upload file %s: %w", path, err)
 	}
 
-	return fileID, nil
+	return path, nil
 }
 
 // UploadChunk uploads a chunk of a file to S3
-func (storage *Storage) UploadChunk(ctx context.Context, fileID string, chunkIndex int, reader io.Reader, contentType string) error {
+func (storage *Storage) UploadChunk(ctx context.Context, path string, chunkIndex int, reader io.Reader, contentType string) error {
 	if storage.client == nil {
 		return fmt.Errorf("s3 client not initialized")
 	}
 
 	// Store chunks with a special prefix
-	chunkKey := filepath.Join(storage.prefix, ".chunks", fileID, fmt.Sprintf("chunk_%d", chunkIndex))
+	chunkKey := filepath.Join(storage.prefix, ".chunks", path, fmt.Sprintf("chunk_%d", chunkIndex))
 
 	_, err := storage.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(storage.Bucket),
@@ -144,19 +144,19 @@ func (storage *Storage) UploadChunk(ctx context.Context, fileID string, chunkInd
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload chunk %s %d: %w", fileID, chunkIndex, err)
+		return fmt.Errorf("failed to upload chunk %s %d: %w", path, chunkIndex, err)
 	}
 
 	return nil
 }
 
 // MergeChunks merges all chunks into the final file in S3
-func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChunks int) error {
+func (storage *Storage) MergeChunks(ctx context.Context, path string, totalChunks int) error {
 	if storage.client == nil {
 		return fmt.Errorf("s3 client not initialized")
 	}
 
-	finalKey := filepath.Join(storage.prefix, fileID)
+	finalKey := filepath.Join(storage.prefix, path)
 
 	// Create a buffer to hold the merged content
 	var mergedContent bytes.Buffer
@@ -164,7 +164,7 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 
 	// Download and merge chunks in order
 	for i := 0; i < totalChunks; i++ {
-		chunkKey := filepath.Join(storage.prefix, ".chunks", fileID, fmt.Sprintf("chunk_%d", i))
+		chunkKey := filepath.Join(storage.prefix, ".chunks", path, fmt.Sprintf("chunk_%d", i))
 
 		result, err := storage.client.GetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(storage.Bucket),
@@ -182,7 +182,7 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 		_, err = io.Copy(&mergedContent, result.Body)
 		result.Body.Close()
 		if err != nil {
-			return fmt.Errorf("failed to copy chunk %s %d: %w", fileID, i, err)
+			return fmt.Errorf("failed to copy chunk %s %d: %w", path, i, err)
 		}
 	}
 
@@ -199,12 +199,12 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload merged file %s: %w", fileID, err)
+		return fmt.Errorf("failed to upload merged file %s: %w", path, err)
 	}
 
 	// Clean up chunks
 	for i := 0; i < totalChunks; i++ {
-		chunkKey := filepath.Join(storage.prefix, ".chunks", fileID, fmt.Sprintf("chunk_%d", i))
+		chunkKey := filepath.Join(storage.prefix, ".chunks", path, fmt.Sprintf("chunk_%d", i))
 		storage.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 			Bucket: aws.String(storage.Bucket),
 			Key:    aws.String(chunkKey),
@@ -215,23 +215,23 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 }
 
 // Reader read file from S3
-func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadCloser, error) {
+func (storage *Storage) Reader(ctx context.Context, path string) (io.ReadCloser, error) {
 	if storage.client == nil {
 		return nil, fmt.Errorf("s3 client not initialized")
 	}
 
-	key := filepath.Join(storage.prefix, fileID)
+	key := filepath.Join(storage.prefix, path)
 
 	result, err := storage.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(storage.Bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file %s: %w", fileID, err)
+		return nil, fmt.Errorf("failed to get file %s: %w", path, err)
 	}
 
 	// If the file is a gzip file, decompress it
-	if strings.HasSuffix(fileID, ".gz") {
+	if strings.HasSuffix(path, ".gz") {
 		reader, err := gzip.NewReader(result.Body)
 		if err != nil {
 			return nil, err
@@ -243,12 +243,12 @@ func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadClose
 }
 
 // Download download file from S3
-func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadCloser, string, error) {
+func (storage *Storage) Download(ctx context.Context, path string) (io.ReadCloser, string, error) {
 	if storage.client == nil {
 		return nil, "", fmt.Errorf("s3 client not initialized")
 	}
 
-	key := filepath.Join(storage.prefix, fileID)
+	key := filepath.Join(storage.prefix, path)
 
 	// Get object
 	result, err := storage.client.GetObject(ctx, &s3.GetObjectInput{
@@ -256,7 +256,7 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to download file %s: %w", fileID, err)
+		return nil, "", fmt.Errorf("failed to download file %s: %w", path, err)
 	}
 
 	contentType := "application/octet-stream"
@@ -265,7 +265,7 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 	}
 
 	// Try to detect content type from file extension
-	ext := filepath.Ext(strings.TrimSuffix(fileID, ".gz"))
+	ext := filepath.Ext(strings.TrimSuffix(path, ".gz"))
 	switch strings.ToLower(ext) {
 	case ".txt":
 		contentType = "text/plain"
@@ -301,7 +301,7 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 	}
 
 	// If the file is a gzip file, decompress it
-	if strings.HasSuffix(fileID, ".gz") {
+	if strings.HasSuffix(path, ".gz") {
 		reader, err := gzip.NewReader(result.Body)
 		if err != nil {
 			return nil, "", err
@@ -312,13 +312,24 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 	return result.Body, contentType, nil
 }
 
+// GetContent gets file content as bytes
+func (storage *Storage) GetContent(ctx context.Context, path string) ([]byte, error) {
+	reader, err := storage.Reader(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	return io.ReadAll(reader)
+}
+
 // URL get file url with expiration
-func (storage *Storage) URL(ctx context.Context, fileID string) string {
+func (storage *Storage) URL(ctx context.Context, path string) string {
 	if storage.client == nil {
 		return ""
 	}
 
-	key := filepath.Join(storage.prefix, fileID)
+	key := filepath.Join(storage.prefix, path)
 	presignClient := s3.NewPresignClient(storage.client)
 	request, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(storage.Bucket),
@@ -333,12 +344,12 @@ func (storage *Storage) URL(ctx context.Context, fileID string) string {
 }
 
 // Exists checks if a file exists in S3
-func (storage *Storage) Exists(ctx context.Context, fileID string) bool {
+func (storage *Storage) Exists(ctx context.Context, path string) bool {
 	if storage.client == nil {
 		return false
 	}
 
-	key := filepath.Join(storage.prefix, fileID)
+	key := filepath.Join(storage.prefix, path)
 	_, err := storage.client.HeadObject(ctx, &s3.HeadObjectInput{
 		Bucket: aws.String(storage.Bucket),
 		Key:    aws.String(key),
@@ -347,12 +358,12 @@ func (storage *Storage) Exists(ctx context.Context, fileID string) bool {
 }
 
 // Delete deletes a file from S3
-func (storage *Storage) Delete(ctx context.Context, fileID string) error {
+func (storage *Storage) Delete(ctx context.Context, path string) error {
 	if storage.client == nil {
 		return fmt.Errorf("s3 client not initialized")
 	}
 
-	key := filepath.Join(storage.prefix, fileID)
+	key := filepath.Join(storage.prefix, path)
 	_, err := storage.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(storage.Bucket),
 		Key:    aws.String(key),

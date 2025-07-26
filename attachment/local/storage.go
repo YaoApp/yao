@@ -58,17 +58,17 @@ func New(options map[string]interface{}) (*Storage, error) {
 }
 
 // Upload upload file to local storage
-func (storage *Storage) Upload(ctx context.Context, fileID string, reader io.Reader, contentType string) (string, error) {
-	path := filepath.Join(storage.Path, fileID)
+func (storage *Storage) Upload(ctx context.Context, path string, reader io.Reader, contentType string) (string, error) {
+	fullPath := filepath.Join(storage.Path, path)
 
 	// Create directory if not exists
-	dir := filepath.Dir(path)
+	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
 
 	// Create and write file
-	file, err := os.Create(path)
+	file, err := os.Create(fullPath)
 	if err != nil {
 		return "", err
 	}
@@ -79,13 +79,13 @@ func (storage *Storage) Upload(ctx context.Context, fileID string, reader io.Rea
 		return "", err
 	}
 
-	return fileID, nil
+	return path, nil
 }
 
 // UploadChunk uploads a chunk of a file
-func (storage *Storage) UploadChunk(ctx context.Context, fileID string, chunkIndex int, reader io.Reader, contentType string) error {
+func (storage *Storage) UploadChunk(ctx context.Context, path string, chunkIndex int, reader io.Reader, contentType string) error {
 	// Create chunks directory
-	chunksDir := filepath.Join(storage.Path, ".chunks", fileID)
+	chunksDir := filepath.Join(storage.Path, ".chunks", path)
 	if err := os.MkdirAll(chunksDir, 0755); err != nil {
 		return err
 	}
@@ -103,9 +103,9 @@ func (storage *Storage) UploadChunk(ctx context.Context, fileID string, chunkInd
 }
 
 // MergeChunks merges all chunks into the final file
-func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChunks int) error {
-	chunksDir := filepath.Join(storage.Path, ".chunks", fileID)
-	finalPath := filepath.Join(storage.Path, fileID)
+func (storage *Storage) MergeChunks(ctx context.Context, path string, totalChunks int) error {
+	chunksDir := filepath.Join(storage.Path, ".chunks", path)
+	finalPath := filepath.Join(storage.Path, path)
 
 	// Create directory for final file
 	dir := filepath.Dir(finalPath)
@@ -141,8 +141,8 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 }
 
 // Reader read file from local storage
-func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadCloser, error) {
-	fullpath := filepath.Join(storage.Path, fileID)
+func (storage *Storage) Reader(ctx context.Context, path string) (io.ReadCloser, error) {
+	fullpath := filepath.Join(storage.Path, path)
 
 	reader, err := os.Open(fullpath)
 	if err != nil {
@@ -150,7 +150,7 @@ func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadClose
 	}
 
 	// If the file is a gzip file, decompress it
-	if strings.HasSuffix(fileID, ".gz") {
+	if strings.HasSuffix(path, ".gz") {
 		reader, err := gzip.NewReader(reader)
 		if err != nil {
 			return nil, err
@@ -162,16 +162,16 @@ func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadClose
 }
 
 // Download download file from local storage
-func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadCloser, string, error) {
-	path := filepath.Join(storage.Path, fileID)
-	reader, err := os.Open(path)
+func (storage *Storage) Download(ctx context.Context, path string) (io.ReadCloser, string, error) {
+	fullPath := filepath.Join(storage.Path, path)
+	reader, err := os.Open(fullPath)
 	if err != nil {
 		return nil, "", err
 	}
 
 	// Try to detect content type from file extension
 	contentType := "application/octet-stream"
-	ext := filepath.Ext(strings.TrimSuffix(fileID, ".gz"))
+	ext := filepath.Ext(strings.TrimSuffix(path, ".gz"))
 	switch strings.ToLower(ext) {
 	case ".txt":
 		contentType = "text/plain"
@@ -207,7 +207,7 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 	}
 
 	// If the file is a gzip file, decompress it
-	if strings.HasSuffix(fileID, ".gz") {
+	if strings.HasSuffix(path, ".gz") {
 		reader, err := gzip.NewReader(reader)
 		if err != nil {
 			return nil, "", err
@@ -219,26 +219,37 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 }
 
 // URL get file url
-func (storage *Storage) URL(ctx context.Context, fileID string) string {
+func (storage *Storage) URL(ctx context.Context, path string) string {
 	if storage.PreviewURL != nil {
-		return storage.PreviewURL(fileID)
+		return storage.PreviewURL(path)
 	}
 	if storage.BaseURL != "" {
-		return fmt.Sprintf("%s/%s", strings.TrimRight(storage.BaseURL, "/"), fileID)
+		return fmt.Sprintf("%s/%s", strings.TrimRight(storage.BaseURL, "/"), path)
 	}
-	return fmt.Sprintf("%s/%s", storage.Path, fileID)
+	return fmt.Sprintf("%s/%s", storage.Path, path)
+}
+
+// GetContent gets file content as bytes
+func (storage *Storage) GetContent(ctx context.Context, path string) ([]byte, error) {
+	reader, err := storage.Reader(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	return io.ReadAll(reader)
 }
 
 // Exists checks if a file exists
-func (storage *Storage) Exists(ctx context.Context, fileID string) bool {
-	fullpath := filepath.Join(storage.Path, fileID)
+func (storage *Storage) Exists(ctx context.Context, path string) bool {
+	fullpath := filepath.Join(storage.Path, path)
 	_, err := os.Stat(fullpath)
 	return err == nil
 }
 
 // Delete deletes a file
-func (storage *Storage) Delete(ctx context.Context, fileID string) error {
-	fullpath := filepath.Join(storage.Path, fileID)
+func (storage *Storage) Delete(ctx context.Context, path string) error {
+	fullpath := filepath.Join(storage.Path, path)
 	return os.Remove(fullpath)
 }
 
