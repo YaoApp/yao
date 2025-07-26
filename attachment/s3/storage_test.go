@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -93,7 +94,7 @@ func TestS3Storage(t *testing.T) {
 		storage, err := New(getS3Config())
 		assert.NoError(t, err)
 
-		fileID := "test-chunked.txt"
+		fileID := "test-chunked-" + uuid.New().String() + ".txt"
 		content1 := []byte("chunk1")
 		content2 := []byte("chunk2")
 
@@ -128,7 +129,7 @@ func TestS3Storage(t *testing.T) {
 		storage, err := New(getS3Config())
 		assert.NoError(t, err)
 
-		fileID := "test-ops.txt"
+		fileID := "test-ops-" + uuid.New().String() + ".txt"
 		content := []byte("test content")
 
 		// Upload file
@@ -163,7 +164,9 @@ func TestS3Storage(t *testing.T) {
 		storage, err := New(getS3Config())
 		assert.NoError(t, err)
 
-		_, _, err = storage.Download(context.Background(), "non-existent.txt")
+		// Use UUID for non-existent file to avoid any potential conflicts
+		nonExistentFileID := "non-existent-" + uuid.New().String() + ".txt"
+		_, _, err = storage.Download(context.Background(), nonExistentFileID)
 		assert.Error(t, err)
 	})
 
