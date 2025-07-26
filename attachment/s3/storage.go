@@ -122,7 +122,7 @@ func (storage *Storage) Upload(ctx context.Context, fileID string, reader io.Rea
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to upload file: %w", err)
+		return "", fmt.Errorf("failed to upload file %s: %w", fileID, err)
 	}
 
 	return fileID, nil
@@ -144,7 +144,7 @@ func (storage *Storage) UploadChunk(ctx context.Context, fileID string, chunkInd
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload chunk %d: %w", chunkIndex, err)
+		return fmt.Errorf("failed to upload chunk %s %d: %w", fileID, chunkIndex, err)
 	}
 
 	return nil
@@ -182,7 +182,7 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 		_, err = io.Copy(&mergedContent, result.Body)
 		result.Body.Close()
 		if err != nil {
-			return fmt.Errorf("failed to copy chunk %d: %w", i, err)
+			return fmt.Errorf("failed to copy chunk %s %d: %w", fileID, i, err)
 		}
 	}
 
@@ -199,7 +199,7 @@ func (storage *Storage) MergeChunks(ctx context.Context, fileID string, totalChu
 		ContentType: aws.String(contentType),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to upload merged file: %w", err)
+		return fmt.Errorf("failed to upload merged file %s: %w", fileID, err)
 	}
 
 	// Clean up chunks
@@ -227,7 +227,7 @@ func (storage *Storage) Reader(ctx context.Context, fileID string) (io.ReadClose
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file: %w", err)
+		return nil, fmt.Errorf("failed to get file %s: %w", fileID, err)
 	}
 
 	// If the file is a gzip file, decompress it
@@ -256,7 +256,7 @@ func (storage *Storage) Download(ctx context.Context, fileID string) (io.ReadClo
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to download file: %w", err)
+		return nil, "", fmt.Errorf("failed to download file %s: %w", fileID, err)
 	}
 
 	contentType := "application/octet-stream"
