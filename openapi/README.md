@@ -271,6 +271,41 @@ The DSL Management API provides:
 
 All DSL endpoints require OAuth authentication.
 
+## File Management API
+
+Comprehensive API for managing file uploads, downloads, and file operations with support for multiple storage backends.
+
+**[View Full File Management API Documentation →](file/README.md)**
+
+The File Management API provides:
+
+- **File Upload**: Single and chunked file uploads with compression support
+- **File Listing**: Paginated file listing with filtering and sorting capabilities
+- **File Retrieval**: Get file metadata and download file content with accurate headers
+- **File Management**: Check file existence and delete files
+- **Storage Flexibility**: Support for local, S3, and custom storage backends
+- **Security**: URL-safe file IDs and path validation
+- **Optimized Content Delivery**: Direct content reading with database-driven metadata
+
+**Key Endpoints:**
+
+- `POST /files/{uploaderID}` - Upload files (supports chunked upload)
+- `GET /files/{uploaderID}` - List files with pagination and filters
+- `GET /files/{uploaderID}/{fileID}` - Get file metadata
+- `GET /files/{uploaderID}/{fileID}/content` - Download file content
+- `GET /files/{uploaderID}/{fileID}/exists` - Check file existence
+- `DELETE /files/{uploaderID}/{fileID}` - Delete file
+
+**Advanced Features:**
+
+- **Chunked Upload**: Large file support with reliable chunk-based uploading
+- **Compression**: Automatic gzip and image compression options
+- **Metadata Management**: File organization with groups, paths, and user identifiers
+- **Multiple Storage**: Local filesystem and S3-compatible cloud storage
+- **Optimized Content Delivery**: Direct file reading with accurate metadata headers
+
+All file endpoints require OAuth authentication.
+
 ## Error Responses
 
 All endpoints return standardized error responses:
@@ -383,6 +418,35 @@ curl -X POST "/v1/dsl/create/model" \
     "id": "product",
     "source": "{ \"name\": \"product\", \"table\": { \"name\": \"products\" }, \"columns\": [...] }"
   }'
+```
+
+### File Upload and Management
+
+1. **Upload a file with metadata**:
+
+```bash
+curl -X POST "/v1/files/default" \
+  -H "Authorization: Bearer {access_token}" \
+  -F "file=@document.pdf" \
+  -F "path=documents/reports/quarterly-report.pdf" \
+  -F "groups=documents,reports" \
+  -F "client_id=app123" \
+  -F "gzip=true"
+```
+
+2. **List and filter files**:
+
+```bash
+curl -X GET "/v1/files/default?status=completed&content_type=application/pdf&page=1&page_size=10" \
+  -H "Authorization: Bearer {access_token}"
+```
+
+3. **Download file content** (with optimized delivery):
+
+```bash
+curl -X GET "/v1/files/default/{file_id}/content" \
+  -H "Authorization: Bearer {access_token}" \
+  --output downloaded-document.pdf
 ```
 
 ## Configuration

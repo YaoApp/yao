@@ -210,6 +210,11 @@ func TestLocalStorage(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, content, data)
 
+		// Get file content directly
+		directContent, err := storage.GetContent(context.Background(), fileID)
+		assert.NoError(t, err)
+		assert.Equal(t, content, directContent)
+
 		// Delete file
 		err = storage.Delete(context.Background(), fileID)
 		assert.NoError(t, err)
