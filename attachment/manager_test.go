@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -827,4 +828,283 @@ func TestList(t *testing.T) {
 	})
 
 	t.Logf("Successfully tested list functionality with %d files", len(uploadedFiles))
+}
+
+func TestManagerLocalPath(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Test with local storage
+	t.Run("LocalStorage", func(t *testing.T) {
+		// Create a local storage manager
+		manager, err := New(ManagerOption{
+			Driver:       "local",
+			MaxSize:      "10M",
+			AllowedTypes: []string{"text/*", "image/*", "application/*", ".txt", ".json", ".html", ".csv", ".yao"},
+			Options: map[string]interface{}{
+				"path": "/tmp/test_localpath_attachments",
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create local manager: %v", err)
+		}
+		manager.Name = "localpath-test"
+
+		// Test different file types
+		testFiles := []struct {
+			filename    string
+			content     string
+			contentType string
+			expectedCT  string
+		}{
+			{"test.txt", "Hello LocalPath", "text/plain", "text/plain"},
+			{"test.json", `{"localpath": "test"}`, "application/json", "application/json"},
+			{"test.html", "<html><body>LocalPath Test</body></html>", "text/html", "text/html"},
+			{"test.csv", "col1,col2\nlocalpath,test", "text/csv", "text/csv"},
+			{"test.yao", "localpath yao content", "application/yao", "application/yao"},
+		}
+
+		for _, tf := range testFiles {
+			// Upload file
+			reader := strings.NewReader(tf.content)
+			fileHeader := &FileHeader{
+				FileHeader: &multipart.FileHeader{
+					Filename: tf.filename,
+					Size:     int64(len(tf.content)),
+					Header:   make(map[string][]string),
+				},
+			}
+			fileHeader.Header.Set("Content-Type", tf.contentType)
+
+			option := UploadOption{
+				Groups:           []string{"localpath", "test"},
+				OriginalFilename: tf.filename,
+			}
+
+			file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+			if err != nil {
+				t.Fatalf("Failed to upload file %s: %v", tf.filename, err)
+			}
+
+			// Test LocalPath
+			localPath, detectedCT, err := manager.LocalPath(context.Background(), file.ID)
+			if err != nil {
+				t.Fatalf("Failed to get local path for %s: %v", tf.filename, err)
+			}
+
+			// Verify path is absolute
+			if !filepath.IsAbs(localPath) {
+				t.Errorf("Expected absolute path for %s, got: %s", tf.filename, localPath)
+			}
+
+			// Verify content type
+			if detectedCT != tf.expectedCT {
+				t.Errorf("Expected content type %s for %s, got: %s", tf.expectedCT, tf.filename, detectedCT)
+			}
+
+			// Verify file exists
+			if _, err := os.Stat(localPath); os.IsNotExist(err) {
+				t.Errorf("File should exist at local path %s for %s", localPath, tf.filename)
+			}
+
+			// Verify file content
+			fileContent, err := os.ReadFile(localPath)
+			if err != nil {
+				t.Fatalf("Failed to read file at local path for %s: %v", tf.filename, err)
+			}
+
+			if string(fileContent) != tf.content {
+				t.Errorf("File content mismatch for %s. Expected: %s, Got: %s", tf.filename, tf.content, string(fileContent))
+			}
+
+			t.Logf("File %s - ID: %s, LocalPath: %s, ContentType: %s", tf.filename, file.ID, localPath, detectedCT)
+		}
+	})
+
+	// Test with gzipped files in local storage
+	t.Run("LocalStorage_Gzipped", func(t *testing.T) {
+		manager, err := New(ManagerOption{
+			Driver:       "local",
+			MaxSize:      "10M",
+			AllowedTypes: []string{"text/*"},
+			Options: map[string]interface{}{
+				"path": "/tmp/test_localpath_gzip_attachments",
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create local manager: %v", err)
+		}
+		manager.Name = "localpath-gzip-test"
+
+		content := "This content will be gzipped"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "gzipped.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"gzip", "test"},
+			OriginalFilename: "gzipped.txt",
+			Gzip:             true, // Enable gzip compression
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload gzipped file: %v", err)
+		}
+
+		// Test LocalPath - should get decompressed content
+		localPath, contentType, err := manager.LocalPath(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get local path for gzipped file: %v", err)
+		}
+
+		// Verify content type
+		if contentType != "text/plain" {
+			t.Errorf("Expected content type text/plain, got: %s", contentType)
+		}
+
+		// For gzipped files in local storage, the storage path ends with .gz
+		// but the content should be accessible normally through Read methods
+		fileContent, err := manager.Read(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to read gzipped file: %v", err)
+		}
+
+		if string(fileContent) != content {
+			t.Errorf("Gzipped file content mismatch. Expected: %s, Got: %s", content, string(fileContent))
+		}
+
+		t.Logf("Gzipped file - ID: %s, LocalPath: %s, ContentType: %s", file.ID, localPath, contentType)
+	})
+}
+
+func TestManagerLocalPath_NonExistentFile(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	manager, err := New(ManagerOption{
+		Driver:       "local",
+		AllowedTypes: []string{"text/*"},
+		Options: map[string]interface{}{
+			"path": "/tmp/test_localpath_nonexistent",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
+	manager.Name = "nonexistent-test"
+
+	// Test with non-existent file ID
+	_, _, err = manager.LocalPath(context.Background(), "non-existent-file-id")
+	if err == nil {
+		t.Error("Expected error for non-existent file ID")
+	}
+
+	// Should contain "file not found" in the error chain
+	if !strings.Contains(err.Error(), "file not found") {
+		t.Errorf("Expected 'file not found' in error message, got: %s", err.Error())
+	}
+}
+
+func TestManagerLocalPath_ValidationFlow(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	manager, err := New(ManagerOption{
+		Driver:       "local",
+		AllowedTypes: []string{"text/*"},
+		Options: map[string]interface{}{
+			"path": "/tmp/test_localpath_validation",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
+	manager.Name = "validation-test"
+
+	// Upload a file
+	content := "Validation flow test content"
+	reader := strings.NewReader(content)
+
+	fileHeader := &FileHeader{
+		FileHeader: &multipart.FileHeader{
+			Filename: "validation.txt",
+			Size:     int64(len(content)),
+			Header:   make(map[string][]string),
+		},
+	}
+	fileHeader.Header.Set("Content-Type", "text/plain")
+
+	option := UploadOption{
+		Groups:           []string{"validation"},
+		OriginalFilename: "original-validation.txt",
+	}
+
+	file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+	if err != nil {
+		t.Fatalf("Failed to upload file: %v", err)
+	}
+
+	// Test complete flow: Upload -> LocalPath -> Verify -> Delete
+	t.Run("CompleteFlow", func(t *testing.T) {
+		// Get local path
+		localPath, contentType, err := manager.LocalPath(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get local path: %v", err)
+		}
+
+		// Verify all properties
+		if !filepath.IsAbs(localPath) {
+			t.Error("Path should be absolute")
+		}
+
+		if contentType != "text/plain" {
+			t.Errorf("Expected content type text/plain, got: %s", contentType)
+		}
+
+		// Verify file exists
+		stat, err := os.Stat(localPath)
+		if err != nil {
+			t.Fatalf("File should exist at local path: %v", err)
+		}
+
+		if stat.Size() != int64(len(content)) {
+			t.Errorf("File size mismatch. Expected: %d, Got: %d", len(content), stat.Size())
+		}
+
+		// Verify file content matches
+		fileContent, err := os.ReadFile(localPath)
+		if err != nil {
+			t.Fatalf("Failed to read file: %v", err)
+		}
+
+		if string(fileContent) != content {
+			t.Errorf("Content mismatch. Expected: %s, Got: %s", content, string(fileContent))
+		}
+
+		// Verify through manager's Read method as well
+		managerContent, err := manager.Read(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to read through manager: %v", err)
+		}
+
+		if string(managerContent) != content {
+			t.Errorf("Manager read content mismatch. Expected: %s, Got: %s", content, string(managerContent))
+		}
+
+		t.Logf("Validation complete - LocalPath: %s, Size: %d bytes, ContentType: %s", localPath, stat.Size(), contentType)
+	})
+
+	// Clean up
+	err = manager.Delete(context.Background(), file.ID)
+	if err != nil {
+		t.Logf("Warning: Failed to delete test file: %v", err)
+	}
 }

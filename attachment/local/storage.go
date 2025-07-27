@@ -6,6 +6,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -258,4 +260,251 @@ func (storage *Storage) makeID(filename string, ext string) string {
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(filename)))[:8]
 	name := strings.TrimSuffix(filepath.Base(filename), ext)
 	return fmt.Sprintf("%s/%s-%s%s", date, name, hash, ext)
+}
+
+// LocalPath returns the absolute path of the file and its content type
+func (storage *Storage) LocalPath(ctx context.Context, path string) (string, string, error) {
+	fullPath := filepath.Join(storage.Path, path)
+
+	// Check if file exists
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		return "", "", fmt.Errorf("file not found: %s", path)
+	}
+
+	// For gzipped files, we need to detect the original content type, not the gzip wrapper
+	var contentType string
+	var err error
+
+	if strings.HasSuffix(path, ".gz") {
+		// For gzipped files, detect content type of the decompressed content
+		originalPath := strings.TrimSuffix(path, ".gz")
+		ext := filepath.Ext(originalPath)
+
+		// First try to detect by original file extension
+		contentType, err = detectContentTypeFromExtension(ext)
+		if err != nil || contentType == "application/octet-stream" {
+			// Fallback: decompress and detect from content
+			contentType, err = detectContentTypeFromGzippedFile(fullPath)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to detect content type from gzipped file: %w", err)
+			}
+		}
+	} else {
+		// Regular file content type detection
+		contentType, err = detectContentType(fullPath)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to detect content type: %w", err)
+		}
+	}
+
+	// Return absolute path
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	return absPath, contentType, nil
+}
+
+// detectContentType detects content type based on file extension and content
+func detectContentType(filePath string) (string, error) {
+	// First try to detect by file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+
+	// Common file extensions mapping
+	switch ext {
+	case ".txt":
+		return "text/plain", nil
+	case ".html", ".htm":
+		return "text/html", nil
+	case ".css":
+		return "text/css", nil
+	case ".js":
+		return "application/javascript", nil
+	case ".json":
+		return "application/json", nil
+	case ".xml":
+		return "application/xml", nil
+	case ".jpg", ".jpeg":
+		return "image/jpeg", nil
+	case ".png":
+		return "image/png", nil
+	case ".gif":
+		return "image/gif", nil
+	case ".webp":
+		return "image/webp", nil
+	case ".svg":
+		return "image/svg+xml", nil
+	case ".pdf":
+		return "application/pdf", nil
+	case ".doc":
+		return "application/msword", nil
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", nil
+	case ".xls":
+		return "application/vnd.ms-excel", nil
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
+	case ".ppt":
+		return "application/vnd.ms-powerpoint", nil
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation", nil
+	case ".zip":
+		return "application/zip", nil
+	case ".tar":
+		return "application/x-tar", nil
+	case ".gz":
+		return "application/gzip", nil
+	case ".mp3":
+		return "audio/mpeg", nil
+	case ".wav":
+		return "audio/wav", nil
+	case ".m4a":
+		return "audio/mp4", nil
+	case ".ogg":
+		return "audio/ogg", nil
+	case ".mp4":
+		return "video/mp4", nil
+	case ".avi":
+		return "video/x-msvideo", nil
+	case ".mov":
+		return "video/quicktime", nil
+	case ".webm":
+		return "video/webm", nil
+	case ".md", ".mdx":
+		return "text/markdown", nil
+	case ".yao":
+		return "application/yao", nil
+	case ".csv":
+		return "text/csv", nil
+	}
+
+	// Try to detect by MIME package
+	if contentType := mime.TypeByExtension(ext); contentType != "" {
+		return contentType, nil
+	}
+
+	// Fallback: detect by reading file content
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "application/octet-stream", nil // Default fallback
+	}
+	defer file.Close()
+
+	// Read first 512 bytes for content detection
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "application/octet-stream", nil
+	}
+
+	// Use http.DetectContentType to detect based on content
+	contentType := http.DetectContentType(buffer[:n])
+	return contentType, nil
+}
+
+// detectContentTypeFromExtension detects content type based only on file extension
+func detectContentTypeFromExtension(ext string) (string, error) {
+	ext = strings.ToLower(ext)
+
+	// Common file extensions mapping
+	switch ext {
+	case ".txt":
+		return "text/plain", nil
+	case ".html", ".htm":
+		return "text/html", nil
+	case ".css":
+		return "text/css", nil
+	case ".js":
+		return "application/javascript", nil
+	case ".json":
+		return "application/json", nil
+	case ".xml":
+		return "application/xml", nil
+	case ".jpg", ".jpeg":
+		return "image/jpeg", nil
+	case ".png":
+		return "image/png", nil
+	case ".gif":
+		return "image/gif", nil
+	case ".webp":
+		return "image/webp", nil
+	case ".svg":
+		return "image/svg+xml", nil
+	case ".pdf":
+		return "application/pdf", nil
+	case ".doc":
+		return "application/msword", nil
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", nil
+	case ".xls":
+		return "application/vnd.ms-excel", nil
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
+	case ".ppt":
+		return "application/vnd.ms-powerpoint", nil
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation", nil
+	case ".zip":
+		return "application/zip", nil
+	case ".tar":
+		return "application/x-tar", nil
+	case ".mp3":
+		return "audio/mpeg", nil
+	case ".wav":
+		return "audio/wav", nil
+	case ".m4a":
+		return "audio/mp4", nil
+	case ".ogg":
+		return "audio/ogg", nil
+	case ".mp4":
+		return "video/mp4", nil
+	case ".avi":
+		return "video/x-msvideo", nil
+	case ".mov":
+		return "video/quicktime", nil
+	case ".webm":
+		return "video/webm", nil
+	case ".md", ".mdx":
+		return "text/markdown", nil
+	case ".yao":
+		return "application/yao", nil
+	case ".csv":
+		return "text/csv", nil
+	}
+
+	// Try to detect by MIME package
+	if contentType := mime.TypeByExtension(ext); contentType != "" {
+		return contentType, nil
+	}
+
+	// Return default if not found
+	return "application/octet-stream", nil
+}
+
+// detectContentTypeFromGzippedFile detects content type by decompressing and reading gzipped file
+func detectContentTypeFromGzippedFile(gzippedFilePath string) (string, error) {
+	file, err := os.Open(gzippedFilePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	// Create gzip reader
+	gzipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return "", err
+	}
+	defer gzipReader.Close()
+
+	// Read first 512 bytes of decompressed content
+	buffer := make([]byte, 512)
+	n, err := gzipReader.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	// Use http.DetectContentType to detect based on decompressed content
+	contentType := http.DetectContentType(buffer[:n])
+	return contentType, nil
 }

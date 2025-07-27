@@ -9,6 +9,9 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"mime"
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -32,6 +35,7 @@ type Storage struct {
 	Secret      string        `json:"secret" yaml:"secret"`
 	Bucket      string        `json:"bucket" yaml:"bucket"`
 	Expiration  time.Duration `json:"expiration" yaml:"expiration"`
+	CacheDir    string        `json:"cache_dir" yaml:"cache_dir"`
 	client      *s3.Client
 	prefix      string
 	compression bool
@@ -69,6 +73,13 @@ func New(options map[string]interface{}) (*Storage, error) {
 		storage.prefix = prefix
 	}
 
+	if cacheDir, ok := options["cache_dir"].(string); ok {
+		storage.CacheDir = cacheDir
+	} else {
+		// Use system temp directory as default
+		storage.CacheDir = os.TempDir()
+	}
+
 	if exp, ok := options["expiration"].(time.Duration); ok {
 		storage.Expiration = exp
 	}
@@ -103,6 +114,12 @@ func New(options map[string]interface{}) (*Storage, error) {
 	}
 
 	storage.client = s3.New(opts)
+
+	// Ensure cache directory exists
+	if err := os.MkdirAll(storage.CacheDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create cache directory %s: %w", storage.CacheDir, err)
+	}
+
 	return storage, nil
 }
 
@@ -444,4 +461,279 @@ func compressImage(data []byte, contentType string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// LocalPath downloads the file to cache directory and returns absolute path with content type
+func (storage *Storage) LocalPath(ctx context.Context, path string) (string, string, error) {
+	if storage.client == nil {
+		return "", "", fmt.Errorf("s3 client not initialized")
+	}
+
+	// Create cache file path using the same structure as storage path
+	cacheFilePath := filepath.Join(storage.CacheDir, "s3_cache", path)
+
+	// Create directory for cache file
+	dir := filepath.Dir(cacheFilePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", "", fmt.Errorf("failed to create cache directory: %w", err)
+	}
+
+	// Check if file already exists in cache and is not outdated
+	if _, err := os.Stat(cacheFilePath); err == nil {
+		// File exists in cache, detect content type and return
+		contentType, err := detectContentType(cacheFilePath)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to detect content type: %w", err)
+		}
+		return cacheFilePath, contentType, nil
+	}
+
+	// Download file from S3 to cache
+	key := filepath.Join(storage.prefix, path)
+	result, err := storage.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(storage.Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to download file %s: %w", path, err)
+	}
+	defer result.Body.Close()
+
+	// Create cache file
+	cacheFile, err := os.Create(cacheFilePath)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create cache file: %w", err)
+	}
+	defer cacheFile.Close()
+
+	// Handle gzipped files - decompress during download
+	var reader io.Reader = result.Body
+	if strings.HasSuffix(path, ".gz") {
+		gzipReader, err := gzip.NewReader(result.Body)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		defer gzipReader.Close()
+		reader = gzipReader
+
+		// Remove .gz extension from cache file path since we're decompressing
+		newCacheFilePath := strings.TrimSuffix(cacheFilePath, ".gz")
+		cacheFile.Close()
+		os.Remove(cacheFilePath)
+
+		cacheFile, err = os.Create(newCacheFilePath)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to create decompressed cache file: %w", err)
+		}
+		defer cacheFile.Close()
+		cacheFilePath = newCacheFilePath
+	}
+
+	// Copy file content to cache
+	_, err = io.Copy(cacheFile, reader)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to copy file to cache: %w", err)
+	}
+
+	// For files that were decompressed from .gz, we need to detect the original content type
+	var contentType string
+	if strings.HasSuffix(path, ".gz") {
+		// Original path was gzipped, detect content type of decompressed content
+		originalPath := strings.TrimSuffix(path, ".gz")
+		ext := filepath.Ext(originalPath)
+
+		// First try to detect by original file extension
+		contentType, err = detectContentTypeFromExtension(ext)
+		if err != nil || contentType == "application/octet-stream" {
+			// Fallback: detect from decompressed content
+			contentType, err = detectContentType(cacheFilePath)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to detect content type: %w", err)
+			}
+		}
+	} else {
+		// Regular file content type detection
+		contentType, err = detectContentType(cacheFilePath)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to detect content type: %w", err)
+		}
+	}
+
+	return cacheFilePath, contentType, nil
+}
+
+// detectContentType detects content type based on file extension and content
+func detectContentType(filePath string) (string, error) {
+	// First try to detect by file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+
+	// Common file extensions mapping
+	switch ext {
+	case ".txt":
+		return "text/plain", nil
+	case ".html", ".htm":
+		return "text/html", nil
+	case ".css":
+		return "text/css", nil
+	case ".js":
+		return "application/javascript", nil
+	case ".json":
+		return "application/json", nil
+	case ".xml":
+		return "application/xml", nil
+	case ".jpg", ".jpeg":
+		return "image/jpeg", nil
+	case ".png":
+		return "image/png", nil
+	case ".gif":
+		return "image/gif", nil
+	case ".webp":
+		return "image/webp", nil
+	case ".svg":
+		return "image/svg+xml", nil
+	case ".pdf":
+		return "application/pdf", nil
+	case ".doc":
+		return "application/msword", nil
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", nil
+	case ".xls":
+		return "application/vnd.ms-excel", nil
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
+	case ".ppt":
+		return "application/vnd.ms-powerpoint", nil
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation", nil
+	case ".zip":
+		return "application/zip", nil
+	case ".tar":
+		return "application/x-tar", nil
+	case ".gz":
+		return "application/gzip", nil
+	case ".mp3":
+		return "audio/mpeg", nil
+	case ".wav":
+		return "audio/wav", nil
+	case ".m4a":
+		return "audio/mp4", nil
+	case ".ogg":
+		return "audio/ogg", nil
+	case ".mp4":
+		return "video/mp4", nil
+	case ".avi":
+		return "video/x-msvideo", nil
+	case ".mov":
+		return "video/quicktime", nil
+	case ".webm":
+		return "video/webm", nil
+	case ".md", ".mdx":
+		return "text/markdown", nil
+	case ".yao":
+		return "application/yao", nil
+	case ".csv":
+		return "text/csv", nil
+	}
+
+	// Try to detect by MIME package
+	if contentType := mime.TypeByExtension(ext); contentType != "" {
+		return contentType, nil
+	}
+
+	// Fallback: detect by reading file content
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "application/octet-stream", nil // Default fallback
+	}
+	defer file.Close()
+
+	// Read first 512 bytes for content detection
+	buffer := make([]byte, 512)
+	n, err := file.Read(buffer)
+	if err != nil && err != io.EOF {
+		return "application/octet-stream", nil
+	}
+
+	// Use http.DetectContentType to detect based on content
+	contentType := http.DetectContentType(buffer[:n])
+	return contentType, nil
+}
+
+// detectContentTypeFromExtension detects content type based only on file extension
+func detectContentTypeFromExtension(ext string) (string, error) {
+	ext = strings.ToLower(ext)
+
+	// Common file extensions mapping
+	switch ext {
+	case ".txt":
+		return "text/plain", nil
+	case ".html", ".htm":
+		return "text/html", nil
+	case ".css":
+		return "text/css", nil
+	case ".js":
+		return "application/javascript", nil
+	case ".json":
+		return "application/json", nil
+	case ".xml":
+		return "application/xml", nil
+	case ".jpg", ".jpeg":
+		return "image/jpeg", nil
+	case ".png":
+		return "image/png", nil
+	case ".gif":
+		return "image/gif", nil
+	case ".webp":
+		return "image/webp", nil
+	case ".svg":
+		return "image/svg+xml", nil
+	case ".pdf":
+		return "application/pdf", nil
+	case ".doc":
+		return "application/msword", nil
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document", nil
+	case ".xls":
+		return "application/vnd.ms-excel", nil
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nil
+	case ".ppt":
+		return "application/vnd.ms-powerpoint", nil
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation", nil
+	case ".zip":
+		return "application/zip", nil
+	case ".tar":
+		return "application/x-tar", nil
+	case ".mp3":
+		return "audio/mpeg", nil
+	case ".wav":
+		return "audio/wav", nil
+	case ".m4a":
+		return "audio/mp4", nil
+	case ".ogg":
+		return "audio/ogg", nil
+	case ".mp4":
+		return "video/mp4", nil
+	case ".avi":
+		return "video/x-msvideo", nil
+	case ".mov":
+		return "video/quicktime", nil
+	case ".webm":
+		return "video/webm", nil
+	case ".md", ".mdx":
+		return "text/markdown", nil
+	case ".yao":
+		return "application/yao", nil
+	case ".csv":
+		return "text/csv", nil
+	}
+
+	// Try to detect by MIME package
+	if contentType := mime.TypeByExtension(ext); contentType != "" {
+		return contentType, nil
+	}
+
+	// Return default if not found
+	return "application/octet-stream", nil
 }

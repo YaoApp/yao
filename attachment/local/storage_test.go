@@ -223,4 +223,81 @@ func TestLocalStorage(t *testing.T) {
 		exists = storage.Exists(context.Background(), fileID)
 		assert.False(t, exists)
 	})
+
+	t.Run("LocalPath", func(t *testing.T) {
+		storage, err := New(map[string]interface{}{
+			"path": testPath,
+		})
+		assert.NoError(t, err)
+
+		// Test different file types to verify content type detection
+		testFiles := []struct {
+			name        string
+			content     []byte
+			contentType string
+			expectedCT  string
+		}{
+			{"test.txt", []byte("Hello World"), "text/plain", "text/plain"},
+			{"test.json", []byte(`{"key": "value"}`), "application/json", "application/json"},
+			{"test.html", []byte("<html><body>Test</body></html>"), "text/html", "text/html"},
+			{"test.csv", []byte("col1,col2\nval1,val2"), "text/csv", "text/csv"},
+			{"test.md", []byte("# Markdown Content"), "text/markdown", "text/markdown"},
+			{"test.yao", []byte("yao file content"), "application/yao", "application/yao"},
+		}
+
+		for _, tf := range testFiles {
+			// Upload file
+			_, err = storage.Upload(context.Background(), tf.name, bytes.NewReader(tf.content), tf.contentType)
+			assert.NoError(t, err, "Failed to upload %s", tf.name)
+
+			// Get local path and content type
+			localPath, detectedCT, err := storage.LocalPath(context.Background(), tf.name)
+			assert.NoError(t, err, "Failed to get local path for %s", tf.name)
+			assert.NotEmpty(t, localPath, "Local path should not be empty for %s", tf.name)
+			assert.Equal(t, tf.expectedCT, detectedCT, "Content type mismatch for %s", tf.name)
+
+			// Verify the path is absolute
+			assert.True(t, filepath.IsAbs(localPath), "Path should be absolute for %s", tf.name)
+
+			// Verify the file exists at the returned path
+			_, err = os.Stat(localPath)
+			assert.NoError(t, err, "File should exist at local path for %s", tf.name)
+
+			// Verify file content
+			fileContent, err := os.ReadFile(localPath)
+			assert.NoError(t, err, "Failed to read file at local path for %s", tf.name)
+			assert.Equal(t, tf.content, fileContent, "File content mismatch for %s", tf.name)
+		}
+	})
+
+	t.Run("LocalPath_NonExistentFile", func(t *testing.T) {
+		storage, err := New(map[string]interface{}{
+			"path": testPath,
+		})
+		assert.NoError(t, err)
+
+		// Test with non-existent file
+		_, _, err = storage.LocalPath(context.Background(), "non-existent.txt")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "file not found")
+	})
+
+	t.Run("LocalPath_ContentDetection", func(t *testing.T) {
+		storage, err := New(map[string]interface{}{
+			"path": testPath,
+		})
+		assert.NoError(t, err)
+
+		// Upload a file without extension but with recognizable content
+		htmlContent := []byte("<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Hello</h1></body></html>")
+		_, err = storage.Upload(context.Background(), "noext", bytes.NewReader(htmlContent), "application/octet-stream")
+		assert.NoError(t, err)
+
+		// Get local path - should detect HTML content type
+		localPath, contentType, err := storage.LocalPath(context.Background(), "noext")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, localPath)
+		// Content detection should identify this as HTML
+		assert.Equal(t, "text/html; charset=utf-8", contentType)
+	})
 }
