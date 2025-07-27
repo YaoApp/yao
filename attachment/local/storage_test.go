@@ -10,8 +10,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
+
+// generateTestFileName generates a unique test filename with the given prefix and extension
+func generateTestFileName(prefix, ext string) string {
+	return prefix + "-" + uuid.New().String() + ext
+}
 
 func TestLocalStorage(t *testing.T) {
 	// Create a temporary directory for testing
@@ -41,7 +47,8 @@ func TestLocalStorage(t *testing.T) {
 
 		content := []byte("test content")
 		reader := bytes.NewReader(content)
-		fileID, err := storage.Upload(context.Background(), "test.txt", reader, "text/plain")
+		fileID := generateTestFileName("upload-download", ".txt")
+		_, err = storage.Upload(context.Background(), fileID, reader, "text/plain")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, fileID)
 
@@ -70,7 +77,8 @@ func TestLocalStorage(t *testing.T) {
 
 		// Upload
 		reader := bytes.NewReader(buf.Bytes())
-		fileID, err := storage.Upload(context.Background(), "test.png", reader, "image/png")
+		fileID := generateTestFileName("image-with-compression", ".png")
+		_, err = storage.Upload(context.Background(), fileID, reader, "image/png")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, fileID)
 
@@ -107,7 +115,8 @@ func TestLocalStorage(t *testing.T) {
 
 		// Upload
 		reader := bytes.NewReader(buf.Bytes())
-		fileID, err := storage.Upload(context.Background(), "test.png", reader, "image/png")
+		fileID := generateTestFileName("image-without-compression", ".png")
+		_, err = storage.Upload(context.Background(), fileID, reader, "image/png")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, fileID)
 
@@ -232,41 +241,44 @@ func TestLocalStorage(t *testing.T) {
 
 		// Test different file types to verify content type detection
 		testFiles := []struct {
-			name        string
+			ext         string
 			content     []byte
 			contentType string
 			expectedCT  string
 		}{
-			{"test.txt", []byte("Hello World"), "text/plain", "text/plain"},
-			{"test.json", []byte(`{"key": "value"}`), "application/json", "application/json"},
-			{"test.html", []byte("<html><body>Test</body></html>"), "text/html", "text/html"},
-			{"test.csv", []byte("col1,col2\nval1,val2"), "text/csv", "text/csv"},
-			{"test.md", []byte("# Markdown Content"), "text/markdown", "text/markdown"},
-			{"test.yao", []byte("yao file content"), "application/yao", "application/yao"},
+			{".txt", []byte("Hello World"), "text/plain", "text/plain"},
+			{".json", []byte(`{"key": "value"}`), "application/json", "application/json"},
+			{".html", []byte("<html><body>Test</body></html>"), "text/html", "text/html"},
+			{".csv", []byte("col1,col2\nval1,val2"), "text/csv", "text/csv"},
+			{".md", []byte("# Markdown Content"), "text/markdown", "text/markdown"},
+			{".yao", []byte("yao file content"), "application/yao", "application/yao"},
 		}
 
 		for _, tf := range testFiles {
+			// Generate unique filename with UUID to avoid conflicts
+			fileName := generateTestFileName("localpath-test", tf.ext)
+
 			// Upload file
-			_, err = storage.Upload(context.Background(), tf.name, bytes.NewReader(tf.content), tf.contentType)
-			assert.NoError(t, err, "Failed to upload %s", tf.name)
+			_, err = storage.Upload(context.Background(), fileName, bytes.NewReader(tf.content), tf.contentType)
+			assert.NoError(t, err, "Failed to upload %s", fileName)
 
 			// Get local path and content type
-			localPath, detectedCT, err := storage.LocalPath(context.Background(), tf.name)
-			assert.NoError(t, err, "Failed to get local path for %s", tf.name)
-			assert.NotEmpty(t, localPath, "Local path should not be empty for %s", tf.name)
-			assert.Equal(t, tf.expectedCT, detectedCT, "Content type mismatch for %s", tf.name)
+			localPath, detectedCT, err := storage.LocalPath(context.Background(), fileName)
+			assert.NoError(t, err, "Failed to get local path for %s", fileName)
+			assert.NotEmpty(t, localPath, "Local path should not be empty for %s", fileName)
+			assert.Equal(t, tf.expectedCT, detectedCT, "Content type mismatch for %s", fileName)
 
 			// Verify the path is absolute
-			assert.True(t, filepath.IsAbs(localPath), "Path should be absolute for %s", tf.name)
+			assert.True(t, filepath.IsAbs(localPath), "Path should be absolute for %s", fileName)
 
 			// Verify the file exists at the returned path
 			_, err = os.Stat(localPath)
-			assert.NoError(t, err, "File should exist at local path for %s", tf.name)
+			assert.NoError(t, err, "File should exist at local path for %s", fileName)
 
 			// Verify file content
 			fileContent, err := os.ReadFile(localPath)
-			assert.NoError(t, err, "Failed to read file at local path for %s", tf.name)
-			assert.Equal(t, tf.content, fileContent, "File content mismatch for %s", tf.name)
+			assert.NoError(t, err, "Failed to read file at local path for %s", fileName)
+			assert.Equal(t, tf.content, fileContent, "File content mismatch for %s", fileName)
 		}
 	})
 

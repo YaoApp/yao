@@ -16,6 +16,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// generateTestFileName generates a unique test filename with the given prefix and extension
+func generateTestFileName(prefix, ext string) string {
+	return prefix + "-" + uuid.New().String() + ext
+}
+
 func getS3Config() map[string]interface{} {
 	return map[string]interface{}{
 		"endpoint":    os.Getenv("S3_API"),
@@ -68,7 +73,8 @@ func TestS3Storage(t *testing.T) {
 
 		content := []byte("test content")
 		reader := bytes.NewReader(content)
-		fileID, err := storage.Upload(context.Background(), "test.txt", reader, "text/plain")
+		fileID := generateTestFileName("upload-test", ".txt")
+		_, err = storage.Upload(context.Background(), fileID, reader, "text/plain")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, fileID)
 
@@ -98,7 +104,7 @@ func TestS3Storage(t *testing.T) {
 		storage, err := New(getS3Config())
 		assert.NoError(t, err)
 
-		fileID := "test-chunked-" + uuid.New().String() + ".txt"
+		fileID := generateTestFileName("test-chunked", ".txt")
 		content1 := []byte("chunk1")
 		content2 := []byte("chunk2")
 
@@ -133,7 +139,7 @@ func TestS3Storage(t *testing.T) {
 		storage, err := New(getS3Config())
 		assert.NoError(t, err)
 
-		fileID := "test-ops-" + uuid.New().String() + ".txt"
+		fileID := generateTestFileName("test-ops", ".txt")
 		content := []byte("test content")
 
 		// Upload file
@@ -174,7 +180,7 @@ func TestS3Storage(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Use UUID for non-existent file to avoid any potential conflicts
-		nonExistentFileID := "non-existent-" + uuid.New().String() + ".txt"
+		nonExistentFileID := generateTestFileName("non-existent", ".txt")
 		_, _, err = storage.Download(context.Background(), nonExistentFileID)
 		assert.Error(t, err)
 	})
@@ -222,17 +228,17 @@ func TestS3Storage(t *testing.T) {
 			contentType string
 			expectedCT  string
 		}{
-			{"test.txt", []byte("Hello S3 World"), "text/plain", "text/plain"},
-			{"test.json", []byte(`{"s3": "test"}`), "application/json", "application/json"},
-			{"test.html", []byte("<html><body>S3 Test</body></html>"), "text/html", "text/html"},
-			{"test.csv", []byte("s3,test\nval1,val2"), "text/csv", "text/csv"},
-			{"test.md", []byte("# S3 Markdown"), "text/markdown", "text/markdown"},
-			{"test.yao", []byte("s3 yao content"), "application/yao", "application/yao"},
+			{"localpath-test.txt", []byte("Hello S3 World"), "text/plain", "text/plain"},
+			{"localpath-test.json", []byte(`{"s3": "test"}`), "application/json", "application/json"},
+			{"localpath-test.html", []byte("<html><body>S3 Test</body></html>"), "text/html", "text/html"},
+			{"localpath-test.csv", []byte("s3,test\nval1,val2"), "text/csv", "text/csv"},
+			{"localpath-test.md", []byte("# S3 Markdown"), "text/markdown", "text/markdown"},
+			{"localpath-test.yao", []byte("s3 yao content"), "application/yao", "application/yao"},
 		}
 
 		for _, tf := range testFiles {
 			// Upload file to S3
-			fileID := "s3-localpath-" + uuid.New().String() + "-" + tf.name
+			fileID := generateTestFileName("s3-localpath", "-"+tf.name)
 			_, err = storage.Upload(context.Background(), fileID, bytes.NewReader(tf.content), tf.contentType)
 			assert.NoError(t, err, "Failed to upload %s", tf.name)
 
@@ -288,7 +294,7 @@ func TestS3Storage(t *testing.T) {
 		gzipWriter.Close()
 
 		// Upload gzipped file
-		fileID := "gzipped-" + uuid.New().String() + ".txt.gz"
+		fileID := generateTestFileName("gzipped", ".txt.gz")
 		_, err = storage.Upload(context.Background(), fileID, bytes.NewReader(gzipBuf.Bytes()), "text/plain")
 		assert.NoError(t, err)
 
@@ -319,7 +325,7 @@ func TestS3Storage(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Test with non-existent file
-		nonExistentFileID := "non-existent-" + uuid.New().String() + ".txt"
+		nonExistentFileID := generateTestFileName("non-existent-localpath", ".txt")
 		_, _, err = storage.LocalPath(context.Background(), nonExistentFileID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to download file")
@@ -344,7 +350,7 @@ func TestS3Storage(t *testing.T) {
 
 		// Upload a test file
 		content := []byte("Custom cache directory test")
-		fileID := "custom-cache-" + uuid.New().String() + ".txt"
+		fileID := generateTestFileName("custom-cache", ".txt")
 		_, err = storage.Upload(context.Background(), fileID, bytes.NewReader(content), "text/plain")
 		assert.NoError(t, err)
 
