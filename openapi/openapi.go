@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/agent"
 	"github.com/yaoapp/yao/openapi/dsl"
 	"github.com/yaoapp/yao/openapi/file"
 	"github.com/yaoapp/yao/openapi/hello"
@@ -85,6 +86,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Knowledge Base handlers
 	kb.Attach(group.Group("/kb"), openapi.OAuth)
+
+	// Agent handlers
+	agent.Attach(group.Group("/agent"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 }
