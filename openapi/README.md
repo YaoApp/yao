@@ -271,6 +271,38 @@ The DSL Management API provides:
 
 All DSL endpoints require OAuth authentication.
 
+## Agent API
+
+Comprehensive API for AI agent interactions and chat completions with real-time streaming capabilities.
+
+**[View Full Agent API Documentation →](agent/README.md)**
+
+The Agent API provides:
+
+- **Chat Completions**: AI-powered chat with streaming responses via Server-Sent Events
+- **Assistant Selection**: Multiple AI assistants with different capabilities and personalities
+- **Context Management**: Persistent chat sessions with conversation history
+- **Real-Time Streaming**: Server-Sent Events for immediate response delivery
+- **Session Management**: Automatic session handling with user identification
+- **Flexible Parameters**: Configurable behavior for different client types and use cases
+
+**Key Endpoints:**
+
+- `GET /agent/chat/completions` - Stream chat completions with query parameters
+- `POST /agent/chat/completions` - Stream chat completions with form data
+
+**Features:**
+
+- **Server-Sent Events**: Real-time streaming responses reduce latency
+- **Multi-Assistant Support**: Choose from different AI assistants (`mohe`, `developer`, `analyst`, etc.)
+- **Context Awareness**: Conversation history and additional context support
+- **Silent Mode**: Configurable verbose/quiet response modes
+- **Client Customization**: Client-type specific behavior and formatting
+
+**Note:** This is a temporary implementation for full-process testing, and the interface may undergo significant global changes in the future.
+
+All Agent endpoints require OAuth authentication.
+
 ## File Management API
 
 Comprehensive API for managing file uploads, downloads, and file operations with support for multiple storage backends.
@@ -418,6 +450,34 @@ curl -X POST "/v1/dsl/create/model" \
     "id": "product",
     "source": "{ \"name\": \"product\", \"table\": { \"name\": \"products\" }, \"columns\": [...] }"
   }'
+```
+
+### AI Agent Chat Interaction
+
+1. **Start a chat conversation**:
+
+```bash
+curl -X GET "/v1/agent/chat/completions?content=What%20is%20Yao%20framework?" \
+  -H "Authorization: Bearer {access_token}" \
+  -H "Accept: text/event-stream"
+```
+
+2. **Continue conversation with context**:
+
+```bash
+curl -X GET "/v1/agent/chat/completions?content=Show%20me%20an%20example&chat_id=chat_123&assistant_id=developer" \
+  -H "Authorization: Bearer {access_token}" \
+  -H "Accept: text/event-stream"
+```
+
+3. **Use POST with form data**:
+
+```bash
+curl -X POST "/v1/agent/chat/completions" \
+  -H "Authorization: Bearer {access_token}" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Accept: text/event-stream" \
+  -d "content=Help me create a user model&silent=true&client_type=api"
 ```
 
 ### File Upload and Management
