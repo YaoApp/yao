@@ -271,37 +271,56 @@ The DSL Management API provides:
 
 All DSL endpoints require OAuth authentication.
 
-## Agent API
+## Chat API
 
-Comprehensive API for AI agent interactions and chat completions with real-time streaming capabilities.
+Comprehensive API for AI chat completions with **100% OpenAI client compatibility** and real-time streaming capabilities.
 
-**[View Full Agent API Documentation →](agent/README.md)**
+**[View Full Chat API Documentation →](chat/README.md)**
 
-The Agent API provides:
+The Chat API provides:
 
+- **OpenAI Client Compatibility**: 100% compatible with existing OpenAI client libraries and SDKs
 - **Chat Completions**: AI-powered chat with streaming responses via Server-Sent Events
 - **Assistant Selection**: Multiple AI assistants with different capabilities and personalities
+- **Standard Compliance**: Full OpenAI API specification compliance
 - **Context Management**: Persistent chat sessions with conversation history
 - **Real-Time Streaming**: Server-Sent Events for immediate response delivery
-- **Session Management**: Automatic session handling with user identification
-- **Flexible Parameters**: Configurable behavior for different client types and use cases
+- **Dual Format Support**: Both OpenAI standard and Yao simplified parameter formats
 
 **Key Endpoints:**
 
-- `GET /agent/chat/completions` - Stream chat completions with query parameters
-- `POST /agent/chat/completions` - Stream chat completions with form data
+- `GET /chat/completions` - Stream chat completions with query parameters (Yao format)
+- `POST /chat/completions` - Stream chat completions with JSON body (OpenAI format)
 
-**Features:**
+**OpenAI Compatibility Features:**
 
-- **Server-Sent Events**: Real-time streaming responses reduce latency
-- **Multi-Assistant Support**: Choose from different AI assistants (`mohe`, `developer`, `analyst`, etc.)
-- **Context Awareness**: Conversation history and additional context support
-- **Silent Mode**: Configurable verbose/quiet response modes
-- **Client Customization**: Client-type specific behavior and formatting
+- **Zero Code Migration**: Existing OpenAI code works with just URL/token changes
+- **Client Library Support**: Works with OpenAI Python, Node.js, Go, and other clients
+- **Standard Response Format**: OpenAI-compatible streaming response structure
+- **Parameter Compatibility**: Supports `model`, `messages`, `temperature`, `max_tokens`, etc.
+- **Error Format**: OpenAI-compatible error response structure
 
-**Note:** This is a temporary implementation for full-process testing, and the interface may undergo significant global changes in the future.
+**Yao Extensions:**
 
-All Agent endpoints require OAuth authentication.
+- **Simplified Input**: Use `content` parameter for basic interactions
+- **Assistant Selection**: Choose from Yao assistants (`mohe`, `developer`, `analyst`, etc.)
+- **Context Awareness**: Additional context and conversation history support
+- **Session Management**: Automatic session handling with user identification
+
+**Migration Example:**
+
+```python
+# Before (OpenAI)
+openai.api_key = "sk-..."
+
+# After (Yao - Only 2 lines change!)
+openai.api_base = "https://your-yao.com/v1"
+openai.api_key = "your-oauth-token"
+```
+
+**Note:** This is a temporary implementation for full-process testing, and the interface may undergo significant global changes in the future. However, OpenAI compatibility will be maintained.
+
+All Chat endpoints require OAuth authentication.
 
 ## File Management API
 
@@ -452,32 +471,52 @@ curl -X POST "/v1/dsl/create/model" \
   }'
 ```
 
-### AI Agent Chat Interaction
+### AI Chat Interaction (OpenAI Compatible)
 
-1. **Start a chat conversation**:
+1. **Start a chat conversation (OpenAI format)**:
 
 ```bash
-curl -X GET "/v1/agent/chat/completions?content=What%20is%20Yao%20framework?" \
+curl -X POST "/v1/chat/completions" \
   -H "Authorization: Bearer {access_token}" \
-  -H "Accept: text/event-stream"
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "mohe",
+    "messages": [
+      {"role": "user", "content": "What is Yao framework?"}
+    ],
+    "stream": true
+  }'
 ```
 
-2. **Continue conversation with context**:
+2. **Continue conversation with OpenAI client (Python)**:
 
-```bash
-curl -X GET "/v1/agent/chat/completions?content=Show%20me%20an%20example&chat_id=chat_123&assistant_id=developer" \
-  -H "Authorization: Bearer {access_token}" \
-  -H "Accept: text/event-stream"
+```python
+import openai
+
+# Configure for Yao (only 2 lines change from OpenAI!)
+openai.api_base = "https://your-yao.com/v1"
+openai.api_key = "your-oauth-token"
+
+# Use exactly like OpenAI
+response = openai.ChatCompletion.create(
+    model="developer",
+    messages=[
+        {"role": "user", "content": "Show me an example"}
+    ],
+    stream=True
+)
+
+for chunk in response:
+    if chunk.choices[0].delta.get("content"):
+        print(chunk.choices[0].delta.content, end="")
 ```
 
-3. **Use POST with form data**:
+3. **Use Yao simplified format**:
 
 ```bash
-curl -X POST "/v1/agent/chat/completions" \
+curl -X GET "/v1/chat/completions?content=Help%20me%20create%20a%20user%20model&assistant_id=developer" \
   -H "Authorization: Bearer {access_token}" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -H "Accept: text/event-stream" \
-  -d "content=Help me create a user model&silent=true&client_type=api"
+  -H "Accept: text/event-stream"
 ```
 
 ### File Upload and Management

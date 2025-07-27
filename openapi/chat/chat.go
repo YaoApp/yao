@@ -1,4 +1,4 @@
-package agent
+package chat
 
 import (
 	"fmt"
@@ -19,8 +19,8 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
 	// Chat Completion
-	group.GET("/chat/completions", chatCompletion)
-	group.POST("/chat/completions", chatCompletion)
+	group.GET("/completions", chatCompletion)
+	group.POST("/completions", chatCompletion)
 
 }
 
