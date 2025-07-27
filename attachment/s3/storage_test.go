@@ -5,8 +5,12 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"compress/gzip"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -195,5 +199,165 @@ func TestS3Storage(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "bucket is required")
+	})
+
+	t.Run("LocalPath", func(t *testing.T) {
+		skipIfNoS3Config(t)
+
+		// Create storage with custom cache directory
+		tempCacheDir, err := os.MkdirTemp("", "s3_cache_test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tempCacheDir)
+
+		config := getS3Config()
+		config["cache_dir"] = tempCacheDir
+
+		storage, err := New(config)
+		assert.NoError(t, err)
+
+		// Test different file types
+		testFiles := []struct {
+			name        string
+			content     []byte
+			contentType string
+			expectedCT  string
+		}{
+			{"test.txt", []byte("Hello S3 World"), "text/plain", "text/plain"},
+			{"test.json", []byte(`{"s3": "test"}`), "application/json", "application/json"},
+			{"test.html", []byte("<html><body>S3 Test</body></html>"), "text/html", "text/html"},
+			{"test.csv", []byte("s3,test\nval1,val2"), "text/csv", "text/csv"},
+			{"test.md", []byte("# S3 Markdown"), "text/markdown", "text/markdown"},
+			{"test.yao", []byte("s3 yao content"), "application/yao", "application/yao"},
+		}
+
+		for _, tf := range testFiles {
+			// Upload file to S3
+			fileID := "s3-localpath-" + uuid.New().String() + "-" + tf.name
+			_, err = storage.Upload(context.Background(), fileID, bytes.NewReader(tf.content), tf.contentType)
+			assert.NoError(t, err, "Failed to upload %s", tf.name)
+
+			// Get local path - first call should download to cache
+			localPath1, detectedCT1, err := storage.LocalPath(context.Background(), fileID)
+			assert.NoError(t, err, "Failed to get local path for %s", tf.name)
+			assert.NotEmpty(t, localPath1, "Local path should not be empty for %s", tf.name)
+			assert.Equal(t, tf.expectedCT, detectedCT1, "Content type mismatch for %s", tf.name)
+
+			// Verify the path is absolute
+			assert.True(t, filepath.IsAbs(localPath1), "Path should be absolute for %s", tf.name)
+
+			// Verify the file exists at the returned path
+			_, err = os.Stat(localPath1)
+			assert.NoError(t, err, "File should exist at local path for %s", tf.name)
+
+			// Verify file content
+			fileContent, err := os.ReadFile(localPath1)
+			assert.NoError(t, err, "Failed to read file at local path for %s", tf.name)
+			assert.Equal(t, tf.content, fileContent, "File content mismatch for %s", tf.name)
+
+			// Get local path again - should use cached version
+			localPath2, detectedCT2, err := storage.LocalPath(context.Background(), fileID)
+			assert.NoError(t, err, "Failed to get cached local path for %s", tf.name)
+			assert.Equal(t, localPath1, localPath2, "Cached path should be same as first call for %s", tf.name)
+			assert.Equal(t, detectedCT1, detectedCT2, "Cached content type should be same as first call for %s", tf.name)
+
+			// Clean up from S3
+			storage.Delete(context.Background(), fileID)
+		}
+	})
+
+	t.Run("LocalPath_GzippedFile", func(t *testing.T) {
+		skipIfNoS3Config(t)
+
+		// Create storage with custom cache directory
+		tempCacheDir, err := os.MkdirTemp("", "s3_cache_gzip_test")
+		assert.NoError(t, err)
+		defer os.RemoveAll(tempCacheDir)
+
+		config := getS3Config()
+		config["cache_dir"] = tempCacheDir
+
+		storage, err := New(config)
+		assert.NoError(t, err)
+
+		// Create gzipped content
+		originalContent := []byte("This content will be gzipped and stored in S3")
+		var gzipBuf bytes.Buffer
+		gzipWriter := gzip.NewWriter(&gzipBuf)
+		_, err = gzipWriter.Write(originalContent)
+		assert.NoError(t, err)
+		gzipWriter.Close()
+
+		// Upload gzipped file
+		fileID := "gzipped-" + uuid.New().String() + ".txt.gz"
+		_, err = storage.Upload(context.Background(), fileID, bytes.NewReader(gzipBuf.Bytes()), "text/plain")
+		assert.NoError(t, err)
+
+		// Get local path - should decompress during download
+		localPath, contentType, err := storage.LocalPath(context.Background(), fileID)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, localPath)
+
+		// Verify the file is decompressed in cache (path should not end with .gz)
+		assert.False(t, strings.HasSuffix(localPath, ".gz"), "Cached file should be decompressed")
+
+		// Verify content is decompressed
+		cachedContent, err := os.ReadFile(localPath)
+		assert.NoError(t, err)
+		assert.Equal(t, originalContent, cachedContent, "Cached file should contain decompressed content")
+
+		// Verify content type
+		assert.Equal(t, "text/plain", contentType)
+
+		// Clean up
+		storage.Delete(context.Background(), fileID)
+	})
+
+	t.Run("LocalPath_NonExistentFile", func(t *testing.T) {
+		skipIfNoS3Config(t)
+
+		storage, err := New(getS3Config())
+		assert.NoError(t, err)
+
+		// Test with non-existent file
+		nonExistentFileID := "non-existent-" + uuid.New().String() + ".txt"
+		_, _, err = storage.LocalPath(context.Background(), nonExistentFileID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to download file")
+	})
+
+	t.Run("LocalPath_CustomCacheDir", func(t *testing.T) {
+		skipIfNoS3Config(t)
+
+		// Create custom cache directory
+		customCacheDir, err := os.MkdirTemp("", "custom_s3_cache")
+		assert.NoError(t, err)
+		defer os.RemoveAll(customCacheDir)
+
+		config := getS3Config()
+		config["cache_dir"] = customCacheDir
+
+		storage, err := New(config)
+		assert.NoError(t, err)
+
+		// Verify cache directory is set correctly
+		assert.Equal(t, customCacheDir, storage.CacheDir)
+
+		// Upload a test file
+		content := []byte("Custom cache directory test")
+		fileID := "custom-cache-" + uuid.New().String() + ".txt"
+		_, err = storage.Upload(context.Background(), fileID, bytes.NewReader(content), "text/plain")
+		assert.NoError(t, err)
+
+		// Get local path
+		localPath, contentType, err := storage.LocalPath(context.Background(), fileID)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, localPath)
+		assert.Equal(t, "text/plain", contentType)
+
+		// Verify the file is cached in the custom directory
+		assert.True(t, strings.HasPrefix(localPath, customCacheDir), "File should be cached in custom directory")
+
+		// Clean up
+		storage.Delete(context.Background(), fileID)
 	})
 }

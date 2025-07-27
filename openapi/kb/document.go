@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -12,7 +13,18 @@ import (
 
 // AddFile adds a file to a collection
 func AddFile(c *gin.Context) {
+
 	var req AddFileRequest
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
 
 	// Parse and bind JSON request
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -34,24 +46,41 @@ func AddFile(c *gin.Context) {
 		return
 	}
 
-	// Check if kb.Instance is available
-	if kb.Instance == nil {
+	// Get file manager
+	m, ok := attachment.Managers[req.Uploader]
+	if !ok {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid uploader: " + req.Uploader + " not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Check if the file exists
+	exists := m.Exists(c.Request.Context(), req.FileID)
+	if !exists {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "File not found: " + req.FileID,
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Get the options of the manager
+	path, contentType, err := m.LocalPath(c.Request.Context(), req.FileID)
+	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Knowledge base not initialized",
+			ErrorDescription: "Failed to get local path: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
 
-	// TODO: Call external function to get file info
-	// filename, contentType, err := GetFileInfo(req.FileID)
-	// For now, use hardcoded values
-	filename := "document.pdf"
-	contentType := "application/pdf"
-
 	// Convert request to UpsertOptions
-	upsertOptions, err := req.BaseUpsertRequest.ToUpsertOptions(filename, contentType)
+	upsertOptions, err := req.BaseUpsertRequest.ToUpsertOptions(path, contentType)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,

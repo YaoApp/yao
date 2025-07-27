@@ -91,7 +91,8 @@ type BaseUpsertRequest struct {
 // AddFileRequest represents the request for AddFile API
 type AddFileRequest struct {
 	BaseUpsertRequest
-	FileID string `json:"file_id" binding:"required"`
+	FileID   string `json:"file_id" binding:"required"`
+	Uploader string `json:"uploader,omitempty"` // The name of the uploader, e.g. "s3", "local", "webdav", etc.
 }
 
 // AddTextRequest represents the request for AddText API

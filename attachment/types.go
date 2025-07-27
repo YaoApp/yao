@@ -43,6 +43,9 @@ type FileManager interface {
 
 	// Delete deletes a file
 	Delete(ctx context.Context, fileID string) error
+
+	// LocalPath gets the local path of the file
+	LocalPath(ctx context.Context, fileID string) (string, string, error)
 }
 
 // File the file
@@ -103,6 +106,7 @@ type Storage interface {
 	URL(ctx context.Context, path string) string
 	Exists(ctx context.Context, path string) bool
 	Delete(ctx context.Context, path string) error
+	LocalPath(ctx context.Context, path string) (string, string, error) // Returns absolute path and content type
 }
 
 // ManagerOption the manager option

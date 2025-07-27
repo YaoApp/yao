@@ -215,6 +215,18 @@ func New(option ManagerOption) (*Manager, error) {
 	return manager, nil
 }
 
+// LocalPath gets the local path of the file
+func (manager Manager) LocalPath(ctx context.Context, fileID string) (string, string, error) {
+	// Get the real storage path from database
+	storagePath, err := manager.getStoragePathFromDatabase(ctx, fileID)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Call the storage implementation
+	return manager.storage.LocalPath(ctx, storagePath)
+}
+
 // Upload uploads a file, Content-Sync must be true for chunked upload
 func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reader io.Reader, option UploadOption) (*File, error) {
 
