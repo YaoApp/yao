@@ -24,6 +24,34 @@ type Features struct {
 	SegmentScoring   bool // Segment scoring system
 }
 
+// Global shared configuration variables
+var (
+	// GlobalPDF holds the global PDF configuration
+	GlobalPDF *PDFConfig
+	// GlobalFFmpeg holds the global FFmpeg configuration
+	GlobalFFmpeg *FFmpegConfig
+)
+
+// SetGlobalPDF sets the global PDF configuration
+func SetGlobalPDF(config *PDFConfig) {
+	GlobalPDF = config
+}
+
+// SetGlobalFFmpeg sets the global FFmpeg configuration
+func SetGlobalFFmpeg(config *FFmpegConfig) {
+	GlobalFFmpeg = config
+}
+
+// GetGlobalPDF returns the global PDF configuration
+func GetGlobalPDF() *PDFConfig {
+	return GlobalPDF
+}
+
+// GetGlobalFFmpeg returns the global FFmpeg configuration
+func GetGlobalFFmpeg() *FFmpegConfig {
+	return GlobalFFmpeg
+}
+
 // Config is the configuration for the Knowledge Base
 type Config struct {
 	// Vector Database configuration (Required)

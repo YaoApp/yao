@@ -32,7 +32,26 @@ func (ocr *OCR) Make(option *kbtypes.ProviderOption) (types.Converter, error) {
 		PDFQuality:     90,                     // Default JPEG quality
 	}
 
-	// Extract values from Properties map
+	// Use global PDF configuration as defaults if available
+	if globalPDF := kbtypes.GetGlobalPDF(); globalPDF != nil {
+		// Map PDF configuration to OCR options
+		if globalPDF.ConvertTool != "" {
+			switch globalPDF.ConvertTool {
+			case "pdftoppm":
+				ocrOption.PDFTool = pdf.ToolPdftoppm
+			case "mutool":
+				ocrOption.PDFTool = pdf.ToolMutool
+			case "imagemagick", "convert":
+				ocrOption.PDFTool = pdf.ToolImageMagick
+			}
+		}
+
+		if globalPDF.ToolPath != "" {
+			ocrOption.PDFToolPath = globalPDF.ToolPath
+		}
+	}
+
+	// Extract values from Properties map to override defaults
 	if option != nil && option.Properties != nil {
 		if mode, ok := option.Properties["mode"]; ok {
 			if modeStr, ok := mode.(string); ok {
