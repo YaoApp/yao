@@ -50,6 +50,10 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 		return nil, err
 	}
 
+	// Set global configurations for providers to use
+	kbtypes.SetGlobalPDF(config.PDF)
+	kbtypes.SetGlobalFFmpeg(config.FFmpeg)
+
 	// Create the GraphRag config
 	graphRagConfig, err := config.GraphRagConfig()
 	if err != nil {

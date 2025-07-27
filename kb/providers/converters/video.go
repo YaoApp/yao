@@ -30,7 +30,32 @@ func (video *Video) Make(option *kbtypes.ProviderOption) (types.Converter, error
 		DeduplicationRatio: 0.8,  // Default deduplication ratio
 	}
 
-	// Extract values from Properties map
+	// Use global FFmpeg configuration as defaults if available
+	if globalFFmpeg := kbtypes.GetGlobalFFmpeg(); globalFFmpeg != nil {
+		// Set FFmpeg paths
+		if globalFFmpeg.FFmpegPath != "" {
+			videoOption.FFmpegPath = globalFFmpeg.FFmpegPath
+		}
+		if globalFFmpeg.FFprobePath != "" {
+			videoOption.FFprobePath = globalFFmpeg.FFprobePath
+		}
+
+		// Set concurrency settings
+		if globalFFmpeg.MaxProcesses > 0 {
+			videoOption.MaxConcurrency = globalFFmpeg.MaxProcesses
+		}
+		if globalFFmpeg.MaxThreads > 0 {
+			videoOption.MaxThreads = &globalFFmpeg.MaxThreads
+		}
+
+		// Set GPU settings
+		videoOption.EnableGPU = &globalFFmpeg.EnableGPU
+		if globalFFmpeg.GPUIndex >= -1 { // -1 is valid (auto-detect)
+			videoOption.GPUIndex = &globalFFmpeg.GPUIndex
+		}
+	}
+
+	// Extract values from Properties map to override defaults
 	if option != nil && option.Properties != nil {
 		if keyframeInterval, ok := option.Properties["keyframe_interval"]; ok {
 			if intervalFloat, ok := keyframeInterval.(float64); ok {
@@ -79,6 +104,43 @@ func (video *Video) Make(option *kbtypes.ProviderOption) (types.Converter, error
 				videoOption.DeduplicationRatio = ratioFloat
 			} else if ratioInt, ok := deduplicationRatio.(int); ok {
 				videoOption.DeduplicationRatio = float64(ratioInt)
+			}
+		}
+
+		// FFmpeg-specific property overrides
+		if ffmpegPath, ok := option.Properties["ffmpeg_path"]; ok {
+			if pathStr, ok := ffmpegPath.(string); ok {
+				videoOption.FFmpegPath = pathStr
+			}
+		}
+
+		if ffprobePath, ok := option.Properties["ffprobe_path"]; ok {
+			if pathStr, ok := ffprobePath.(string); ok {
+				videoOption.FFprobePath = pathStr
+			}
+		}
+
+		if enableGPU, ok := option.Properties["enable_gpu"]; ok {
+			if gpuBool, ok := enableGPU.(bool); ok {
+				videoOption.EnableGPU = &gpuBool
+			}
+		}
+
+		if gpuIndex, ok := option.Properties["gpu_index"]; ok {
+			if indexInt, ok := gpuIndex.(int); ok {
+				videoOption.GPUIndex = &indexInt
+			} else if indexFloat, ok := gpuIndex.(float64); ok {
+				indexIntValue := int(indexFloat)
+				videoOption.GPUIndex = &indexIntValue
+			}
+		}
+
+		if maxThreads, ok := option.Properties["max_threads"]; ok {
+			if threadsInt, ok := maxThreads.(int); ok {
+				videoOption.MaxThreads = &threadsInt
+			} else if threadsFloat, ok := maxThreads.(float64); ok {
+				threadsIntValue := int(threadsFloat)
+				videoOption.MaxThreads = &threadsIntValue
 			}
 		}
 
