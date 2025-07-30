@@ -4,7 +4,7 @@ This document describes the RESTful API for managing file uploads, downloads, an
 
 ## Base URL
 
-All endpoints are prefixed with the configured base URL followed by `/files` (e.g., `/v1/files`).
+All endpoints are prefixed with the configured base URL followed by `/file` (e.g., `/v1/file`).
 
 ## Authentication
 
@@ -28,7 +28,7 @@ The File Management API provides comprehensive file handling capabilities includ
 Upload files with support for chunked uploads, compression, and metadata.
 
 ```
-POST /files/{uploaderID}
+POST /file/{uploaderID}
 ```
 
 **Parameters:**
@@ -57,7 +57,7 @@ POST /files/{uploaderID}
 
 ```bash
 # Simple file upload
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -F "file=@document.pdf" \
   -F "path=documents/reports/quarterly-report.pdf" \
@@ -66,7 +66,7 @@ curl -X POST "/v1/files/default" \
   -F "gzip=true"
 
 # Chunked upload (first chunk)
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -H "Content-Range: bytes 0-1023/2048" \
   -H "Content-Sync: chunk-upload" \
@@ -95,7 +95,7 @@ curl -X POST "/v1/files/default" \
 List files with pagination, filtering, and sorting capabilities.
 
 ```
-GET /files/{uploaderID}?page={page}&page_size={page_size}&status={status}&content_type={content_type}&name={name}&order_by={order_by}&select={select}
+GET /file/{uploaderID}?page={page}&page_size={page_size}&status={status}&content_type={content_type}&name={name}&order_by={order_by}&select={select}
 ```
 
 **Parameters:**
@@ -116,15 +116,15 @@ GET /files/{uploaderID}?page={page}&page_size={page_size}&status={status}&conten
 
 ```bash
 # List files with pagination
-curl -X GET "/v1/files/default?page=1&page_size=10" \
+curl -X GET "/v1/file/default?page=1&page_size=10" \
   -H "Authorization: Bearer {token}"
 
 # List files with filters
-curl -X GET "/v1/files/default?status=completed&content_type=image/jpeg&name=photo*" \
+curl -X GET "/v1/file/default?status=completed&content_type=image/jpeg&name=photo*" \
   -H "Authorization: Bearer {token}"
 
 # List with custom ordering and field selection
-curl -X GET "/v1/files/default?order_by=bytes desc&select=file_id,filename,bytes" \
+curl -X GET "/v1/file/default?order_by=bytes desc&select=file_id,filename,bytes" \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -157,7 +157,7 @@ curl -X GET "/v1/files/default?order_by=bytes desc&select=file_id,filename,bytes
 Get detailed metadata for a specific file.
 
 ```
-GET /files/{uploaderID}/{fileID}
+GET /file/{uploaderID}/{fileID}
 ```
 
 **Parameters:**
@@ -168,7 +168,7 @@ GET /files/{uploaderID}/{fileID}
 **Example:**
 
 ```bash
-curl -X GET "/v1/files/default/a1b2c3d4e5f6789012345678901234567890abcd" \
+curl -X GET "/v1/file/default/a1b2c3d4e5f6789012345678901234567890abcd" \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -197,7 +197,7 @@ curl -X GET "/v1/files/default/a1b2c3d4e5f6789012345678901234567890abcd" \
 Download the actual file content directly from storage.
 
 ```
-GET /files/{uploaderID}/{fileID}/content
+GET /file/{uploaderID}/{fileID}/content
 ```
 
 **Parameters:**
@@ -208,7 +208,7 @@ GET /files/{uploaderID}/{fileID}/content
 **Example:**
 
 ```bash
-curl -X GET "/v1/files/default/a1b2c3d4e5f6789012345678901234567890abcd/content" \
+curl -X GET "/v1/file/default/a1b2c3d4e5f6789012345678901234567890abcd/content" \
   -H "Authorization: Bearer {token}" \
   --output downloaded-file.pdf
 ```
@@ -235,7 +235,7 @@ Content-Length: 2048576
 Check if a file exists without downloading it.
 
 ```
-GET /files/{uploaderID}/{fileID}/exists
+GET /file/{uploaderID}/{fileID}/exists
 ```
 
 **Parameters:**
@@ -246,7 +246,7 @@ GET /files/{uploaderID}/{fileID}/exists
 **Example:**
 
 ```bash
-curl -X GET "/v1/files/default/a1b2c3d4e5f6789012345678901234567890abcd/exists" \
+curl -X GET "/v1/file/default/a1b2c3d4e5f6789012345678901234567890abcd/exists" \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -264,7 +264,7 @@ curl -X GET "/v1/files/default/a1b2c3d4e5f6789012345678901234567890abcd/exists" 
 Delete a file and its metadata.
 
 ```
-DELETE /files/{uploaderID}/{fileID}
+DELETE /file/{uploaderID}/{fileID}
 ```
 
 **Parameters:**
@@ -275,7 +275,7 @@ DELETE /files/{uploaderID}/{fileID}
 **Example:**
 
 ```bash
-curl -X DELETE "/v1/files/default/a1b2c3d4e5f6789012345678901234567890abcd" \
+curl -X DELETE "/v1/file/default/a1b2c3d4e5f6789012345678901234567890abcd" \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -340,7 +340,7 @@ For large files, use chunked upload for better reliability:
 
 ```bash
 # Upload chunk 1
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -H "Content-Range: bytes 0-1048575/3145728" \
   -H "Content-Sync: chunk-upload" \
@@ -348,7 +348,7 @@ curl -X POST "/v1/files/default" \
   -F "file=@chunk1.bin"
 
 # Upload chunk 2
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -H "Content-Range: bytes 1048576-2097151/3145728" \
   -H "Content-Sync: chunk-upload" \
@@ -356,7 +356,7 @@ curl -X POST "/v1/files/default" \
   -F "file=@chunk2.bin"
 
 # Upload final chunk (triggers merge)
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -H "Content-Range: bytes 2097152-3145727/3145728" \
   -H "Content-Sync: chunk-upload" \
@@ -397,7 +397,7 @@ All endpoints return standardized error responses:
 1. **Upload a file:**
 
 ```bash
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -F "file=@document.pdf" \
   -F "path=documents/important-doc.pdf" \
@@ -407,14 +407,14 @@ curl -X POST "/v1/files/default" \
 2. **List files to find the uploaded file:**
 
 ```bash
-curl -X GET "/v1/files/default?name=important-doc*" \
+curl -X GET "/v1/file/default?name=important-doc*" \
   -H "Authorization: Bearer {token}"
 ```
 
 3. **Download the file:**
 
 ```bash
-curl -X GET "/v1/files/default/{file_id}/content" \
+curl -X GET "/v1/file/default/{file_id}/content" \
   -H "Authorization: Bearer {token}" \
   --output downloaded-document.pdf
 ```
@@ -439,7 +439,7 @@ for i in chunk_*; do
   START=$((CHUNK_SIZE * (${i#chunk_} - 1)))
   END=$((START + $(stat -c%s $i) - 1))
 
-  curl -X POST "/v1/files/default" \
+  curl -X POST "/v1/file/default" \
     -H "Authorization: Bearer {token}" \
     -H "Content-Range: bytes ${START}-${END}/${TOTAL_SIZE}" \
     -H "Content-Sync: chunk-upload" \
@@ -453,7 +453,7 @@ done
 1. **Upload with comprehensive metadata:**
 
 ```bash
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {token}" \
   -F "file=@report.pdf" \
   -F "path=reports/2024/quarterly-report.pdf" \
@@ -466,21 +466,21 @@ curl -X POST "/v1/files/default" \
 2. **List files with filters:**
 
 ```bash
-curl -X GET "/v1/files/default?status=completed&content_type=application/pdf&order_by=created_at desc" \
+curl -X GET "/v1/file/default?status=completed&content_type=application/pdf&order_by=created_at desc" \
   -H "Authorization: Bearer {token}"
 ```
 
 3. **Get detailed file information:**
 
 ```bash
-curl -X GET "/v1/files/default/{file_id}" \
+curl -X GET "/v1/file/default/{file_id}" \
   -H "Authorization: Bearer {token}"
 ```
 
 4. **Clean up old files:**
 
 ```bash
-curl -X DELETE "/v1/files/default/{file_id}" \
+curl -X DELETE "/v1/file/default/{file_id}" \
   -H "Authorization: Bearer {token}"
 ```
 

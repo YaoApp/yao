@@ -84,6 +84,26 @@ env:
   S3_BUCKET: ${{ secrets.S3_BUCKET }}
   S3_PUBLIC_URL: ${{ secrets.S3_PUBLIC_URL }}
 
+
+  # === Openapi Signin Configs ===
+  ## Google
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+  ## Microsoft
+  MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+  MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+
+  ## Apple
+  APPLE_SERVICE_ID: ${{ secrets.APPLE_SERVICE_ID }}
+  APPLE_PRIVATE_KEY_PATH: "apple/signin_client_secret_key.p8"
+  APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  ## Github
+  GITHUBUSER_CLIENT_ID: ${{ secrets.GITHUBUSER_CLIENT_ID }}
+  GITHUBUSER_CLIENT_SECRET: ${{ secrets.GITHUBUSER_CLIENT_SECRET }}
+
 jobs:
   unit-test:
     runs-on: ubuntu-latest
@@ -189,6 +209,11 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Apple Private Key
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
 
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v5

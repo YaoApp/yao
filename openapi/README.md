@@ -322,6 +322,140 @@ openai.api_key = "your-oauth-token"
 
 All Chat endpoints require OAuth authentication.
 
+## Signin API
+
+Comprehensive authentication API for user signin, configuration management, and OAuth integration with support for multiple authentication providers.
+
+The Signin API provides:
+
+- **Signin Configuration**: Get public signin configuration for different locales
+- **Password Authentication**: Traditional username/password signin flow
+- **OAuth Integration**: Third-party authentication provider callbacks
+- **Multi-Locale Support**: Localized signin configurations and messages
+- **Provider Management**: Support for multiple OAuth providers (Google, GitHub, etc.)
+
+**Key Endpoints:**
+
+- `GET /signin` - Get signin configuration for locale
+- `POST /signin` - Authenticate with username/password
+- `GET /signin/authback/{id}` - OAuth authentication callback handler
+
+**Configuration:**
+
+Signin configurations are defined in DSL files with multi-locale support:
+
+**[View Configuration Examples →](https://github.com/YaoApp/yao-dev-app/blob/main/openapi/signin.en.yao)**
+
+### Get Signin Configuration
+
+Retrieve public signin configuration for a specific locale:
+
+```
+GET /signin?locale={locale}
+```
+
+**Parameters:**
+
+- `locale` (optional): Language locale (e.g., "en", "zh-cn")
+
+**Example:**
+
+```bash
+curl -X GET "/v1/signin?locale=en" \
+  -H "Content-Type: application/json"
+```
+
+**Response:**
+
+```json
+{
+  "title": "Sign In",
+  "subtitle": "Welcome back",
+  "providers": [
+    {
+      "id": "google",
+      "name": "Google",
+      "icon": "google",
+      "enabled": true
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "icon": "github",
+      "enabled": true
+    }
+  ],
+  "password_enabled": true,
+  "register_enabled": true,
+  "forgot_password_enabled": true
+}
+```
+
+### Password Signin
+
+Authenticate using username and password:
+
+```
+POST /signin
+```
+
+**Request Body:**
+
+```json
+{
+  "username": "user@example.com",
+  "password": "your_password",
+  "remember": true
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIs...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "def50200...",
+  "user": {
+    "id": "user123",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}
+```
+
+### OAuth Authentication Callback
+
+Handle OAuth provider authentication callbacks:
+
+```
+GET /signin/authback/{provider_id}
+```
+
+**Parameters:**
+
+- `provider_id` (path): OAuth provider identifier (e.g., "google", "github")
+- Standard OAuth parameters in query string (code, state, etc.)
+
+**Example:**
+
+```
+GET /signin/authback/google?code=auth_code&state=csrf_token
+```
+
+This endpoint processes the OAuth callback and returns authentication tokens or redirects to the configured success/error URLs.
+
+**Features:**
+
+- **Multi-Provider Support**: Google, GitHub, Microsoft, and custom OAuth providers
+- **Locale Awareness**: Configuration adapts to user's preferred language
+- **Security**: CSRF protection, secure token handling, and validation
+- **Customizable UI**: Configurable signin forms and provider buttons
+- **Session Management**: Automatic session creation and token management
+
+**Note:** Signin endpoints are publicly accessible for authentication purposes, but return OAuth tokens that must be used for subsequent API calls.
+
 ## File Management API
 
 Comprehensive API for managing file uploads, downloads, and file operations with support for multiple storage backends.
@@ -340,12 +474,12 @@ The File Management API provides:
 
 **Key Endpoints:**
 
-- `POST /files/{uploaderID}` - Upload files (supports chunked upload)
-- `GET /files/{uploaderID}` - List files with pagination and filters
-- `GET /files/{uploaderID}/{fileID}` - Get file metadata
-- `GET /files/{uploaderID}/{fileID}/content` - Download file content
-- `GET /files/{uploaderID}/{fileID}/exists` - Check file existence
-- `DELETE /files/{uploaderID}/{fileID}` - Delete file
+- `POST /file/{uploaderID}` - Upload files (supports chunked upload)
+- `GET /file/{uploaderID}` - List files with pagination and filters
+- `GET /file/{uploaderID}/{fileID}` - Get file metadata
+- `GET /file/{uploaderID}/{fileID}/content` - Download file content
+- `GET /file/{uploaderID}/{fileID}/exists` - Check file existence
+- `DELETE /file/{uploaderID}/{fileID}` - Delete file
 
 **Advanced Features:**
 
@@ -519,12 +653,40 @@ curl -X GET "/v1/chat/completions?content=Help%20me%20create%20a%20user%20model&
   -H "Accept: text/event-stream"
 ```
 
+### User Authentication with Signin API
+
+1. **Get signin configuration**:
+
+```bash
+curl -X GET "/v1/signin?locale=en" \
+  -H "Content-Type: application/json"
+```
+
+2. **Authenticate with password**:
+
+```bash
+curl -X POST "/v1/signin" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "user@example.com",
+    "password": "secure_password",
+    "remember": true
+  }'
+```
+
+3. **Use authentication token for API access**:
+
+```bash
+curl -X GET "/v1/dsl/list/model" \
+  -H "Authorization: Bearer {received_access_token}"
+```
+
 ### File Upload and Management
 
 1. **Upload a file with metadata**:
 
 ```bash
-curl -X POST "/v1/files/default" \
+curl -X POST "/v1/file/default" \
   -H "Authorization: Bearer {access_token}" \
   -F "file=@document.pdf" \
   -F "path=documents/reports/quarterly-report.pdf" \
@@ -536,14 +698,14 @@ curl -X POST "/v1/files/default" \
 2. **List and filter files**:
 
 ```bash
-curl -X GET "/v1/files/default?status=completed&content_type=application/pdf&page=1&page_size=10" \
+curl -X GET "/v1/file/default?status=completed&content_type=application/pdf&page=1&page_size=10" \
   -H "Authorization: Bearer {access_token}"
 ```
 
 3. **Download file content** (with optimized delivery):
 
 ```bash
-curl -X GET "/v1/files/default/{file_id}/content" \
+curl -X GET "/v1/file/default/{file_id}/content" \
   -H "Authorization: Bearer {access_token}" \
   --output downloaded-document.pdf
 ```

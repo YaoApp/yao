@@ -20,22 +20,22 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
 	// Upload a file (supports chunked upload)
-	group.POST("/files/:uploaderID", upload)
+	group.POST("/:uploaderID", upload)
 
 	// List files
-	group.GET("/files/:uploaderID", list)
+	group.GET("/:uploaderID", list)
 
 	// Retrieve file
-	group.GET("/files/:uploaderID/:fileID", retrieve)
+	group.GET("/:uploaderID/:fileID", retrieve)
 
 	// Delete file
-	group.DELETE("/files/:uploaderID/:fileID", delete)
+	group.DELETE("/:uploaderID/:fileID", delete)
 
 	// Retrieve file content
-	group.GET("/files/:uploaderID/:fileID/content", content)
+	group.GET("/:uploaderID/:fileID/content", content)
 
 	// Check if file exists
-	group.GET("/files/:uploaderID/:fileID/exists", exists)
+	group.GET("/:uploaderID/:fileID/exists", exists)
 }
 
 // upload handles file upload
