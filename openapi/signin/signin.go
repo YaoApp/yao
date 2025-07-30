@@ -2,6 +2,7 @@ package signin
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -88,6 +89,7 @@ type Provider struct {
 	Title                 string            `json:"title,omitempty"`
 	Logo                  string            `json:"logo,omitempty"`
 	Color                 string            `json:"color,omitempty"`
+	TextColor             string            `json:"text_color,omitempty"`
 	ClientID              string            `json:"client_id,omitempty"`
 	ClientSecret          string            `json:"client_secret,omitempty"`
 	ClientSecretGenerator *SecretGenerator  `json:"client_secret_generator,omitempty"`
@@ -217,10 +219,19 @@ func extractLanguageFromFilename(filename string) string {
 
 // processENVVariables processes environment variables in the configuration
 func processENVVariables(config *Config, rootPath string) {
+	var missingEnvVars []string
+
 	// Process form captcha options
 	if config.Form != nil && config.Form.Captcha != nil && config.Form.Captcha.Options != nil {
 		for key, value := range config.Form.Captcha.Options {
 			if strValue, ok := value.(string); ok {
+				// Check if ENV variable exists before replacement
+				if strings.HasPrefix(strValue, "$ENV.") {
+					envVar := strings.TrimPrefix(strValue, "$ENV.")
+					if _, exists := os.LookupEnv(envVar); !exists {
+						missingEnvVars = append(missingEnvVars, envVar)
+					}
+				}
 				config.Form.Captcha.Options[key] = replaceENVVar(strValue)
 			}
 		}
@@ -229,11 +240,33 @@ func processENVVariables(config *Config, rootPath string) {
 	// Process third party providers
 	if config.ThirdParty != nil && config.ThirdParty.Providers != nil {
 		for _, provider := range config.ThirdParty.Providers {
+			// Check ClientID
+			if strings.HasPrefix(provider.ClientID, "$ENV.") {
+				envVar := strings.TrimPrefix(provider.ClientID, "$ENV.")
+				if _, exists := os.LookupEnv(envVar); !exists {
+					missingEnvVars = append(missingEnvVars, envVar)
+				}
+			}
 			provider.ClientID = replaceENVVar(provider.ClientID)
+
+			// Check ClientSecret
+			if strings.HasPrefix(provider.ClientSecret, "$ENV.") {
+				envVar := strings.TrimPrefix(provider.ClientSecret, "$ENV.")
+				if _, exists := os.LookupEnv(envVar); !exists {
+					missingEnvVars = append(missingEnvVars, envVar)
+				}
+			}
 			provider.ClientSecret = replaceENVVar(provider.ClientSecret)
 
 			// Process client secret generator
 			if provider.ClientSecretGenerator != nil {
+				// Check PrivateKey
+				if strings.HasPrefix(provider.ClientSecretGenerator.PrivateKey, "$ENV.") {
+					envVar := strings.TrimPrefix(provider.ClientSecretGenerator.PrivateKey, "$ENV.")
+					if _, exists := os.LookupEnv(envVar); !exists {
+						missingEnvVars = append(missingEnvVars, envVar)
+					}
+				}
 				provider.ClientSecretGenerator.PrivateKey = replaceENVVar(provider.ClientSecretGenerator.PrivateKey)
 
 				// Convert relative path to absolute path for private key
@@ -245,6 +278,12 @@ func processENVVariables(config *Config, rootPath string) {
 				if provider.ClientSecretGenerator.Header != nil {
 					for key, value := range provider.ClientSecretGenerator.Header {
 						if strValue, ok := value.(string); ok {
+							if strings.HasPrefix(strValue, "$ENV.") {
+								envVar := strings.TrimPrefix(strValue, "$ENV.")
+								if _, exists := os.LookupEnv(envVar); !exists {
+									missingEnvVars = append(missingEnvVars, envVar)
+								}
+							}
 							provider.ClientSecretGenerator.Header[key] = replaceENVVar(strValue)
 						}
 					}
@@ -254,6 +293,12 @@ func processENVVariables(config *Config, rootPath string) {
 				if provider.ClientSecretGenerator.Payload != nil {
 					for key, value := range provider.ClientSecretGenerator.Payload {
 						if strValue, ok := value.(string); ok {
+							if strings.HasPrefix(strValue, "$ENV.") {
+								envVar := strings.TrimPrefix(strValue, "$ENV.")
+								if _, exists := os.LookupEnv(envVar); !exists {
+									missingEnvVars = append(missingEnvVars, envVar)
+								}
+							}
 							provider.ClientSecretGenerator.Payload[key] = replaceENVVar(strValue)
 						}
 					}
@@ -261,15 +306,25 @@ func processENVVariables(config *Config, rootPath string) {
 			}
 		}
 	}
+
+	// Log warning for missing environment variables
+	if len(missingEnvVars) > 0 {
+		log.Printf("Warning: The following environment variables are not set and may cause configuration issues: %v", missingEnvVars)
+		log.Printf("Please set these environment variables to avoid exposing placeholder values in configuration")
+	}
 }
 
 // replaceENVVar replaces environment variables in the format $ENV.VAR_NAME
 func replaceENVVar(value string) string {
 	if strings.HasPrefix(value, "$ENV.") {
 		envVar := strings.TrimPrefix(value, "$ENV.")
-		if envValue := os.Getenv(envVar); envValue != "" {
+		envValue, exists := os.LookupEnv(envVar)
+		if exists {
 			return envValue
 		}
+		// If environment variable doesn't exist, return empty string for security
+		// Never expose ENV placeholder values to prevent configuration leakage
+		return ""
 	}
 	return value
 }
@@ -278,15 +333,40 @@ func replaceENVVar(value string) string {
 func createPublicConfig(fullConfig *Config) Config {
 	publicConfig := *fullConfig
 
+	// Remove sensitive data from captcha configuration
+	if publicConfig.Form != nil && publicConfig.Form.Captcha != nil && publicConfig.Form.Captcha.Options != nil {
+		// Create a new options map without sensitive fields
+		publicOptions := make(map[string]interface{})
+		for key, value := range publicConfig.Form.Captcha.Options {
+			// Only include non-sensitive fields
+			switch key {
+			case "sitekey", "theme", "size", "action", "cdata":
+				// These are safe to expose to frontend
+				publicOptions[key] = value
+			case "secret":
+				// Remove secret field - this should never be exposed to frontend
+				continue
+			default:
+				// For unknown fields, be conservative and exclude them
+				continue
+			}
+		}
+		publicConfig.Form.Captcha.Options = publicOptions
+	}
+
 	// Remove sensitive data from third party providers
 	if publicConfig.ThirdParty != nil && publicConfig.ThirdParty.Providers != nil {
 		publicProviders := make([]*Provider, len(publicConfig.ThirdParty.Providers))
 		for i, provider := range publicConfig.ThirdParty.Providers {
-			publicProvider := *provider
-
-			// Remove sensitive fields
-			publicProvider.ClientSecret = ""
-			publicProvider.ClientSecretGenerator = nil
+			publicProvider := Provider{
+				ID:        provider.ID,
+				Title:     provider.Title,
+				Logo:      provider.Logo,
+				Color:     provider.Color,
+				TextColor: provider.TextColor,
+				// Only expose display fields for frontend
+				// Remove sensitive fields: ClientID, ClientSecret, ClientSecretGenerator, Scopes, Endpoints, Mapping
+			}
 
 			publicProviders[i] = &publicProvider
 		}
