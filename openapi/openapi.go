@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/yao/openapi/kb"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/signin"
 )
 
 // Server is the OpenAPI server
@@ -52,6 +53,12 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 		return nil, err
 	}
 
+	// Load signin configurations
+	err = signin.Load(appConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the OpenAPI server
 	Server = &OpenAPI{Config: &config, OAuth: oauthService}
 	return Server, nil
@@ -82,13 +89,16 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	dsl.Attach(group.Group("/dsl"), openapi.OAuth)
 
 	// File handlers
-	file.Attach(group, openapi.OAuth)
+	file.Attach(group.Group("/file"), openapi.OAuth)
 
 	// Knowledge Base handlers
 	kb.Attach(group.Group("/kb"), openapi.OAuth)
 
 	// Chat handlers
 	chat.Attach(group.Group("/chat"), openapi.OAuth)
+
+	// Signin handlers
+	signin.Attach(group, openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 }

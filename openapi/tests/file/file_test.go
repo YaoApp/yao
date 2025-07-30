@@ -127,7 +127,7 @@ func TestFileUpload(t *testing.T) {
 
 	t.Run("UploadFileSuccess", func(t *testing.T) {
 		// Create multipart request
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 			"path":              "documents/reports/quarterly-report.txt",
@@ -177,7 +177,7 @@ func TestFileUpload(t *testing.T) {
 
 	t.Run("UploadFileWithCompression", func(t *testing.T) {
 		// Test with gzip compression
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 			"gzip":              "true",
@@ -205,7 +205,7 @@ func TestFileUpload(t *testing.T) {
 
 	t.Run("UploadFileInvalidUploader", func(t *testing.T) {
 		// Test with invalid uploader ID
-		requestURL := serverURL + baseURL + "/files/" + invalidUploaderID
+		requestURL := serverURL + baseURL + "/file/" + invalidUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), nil)
 		assert.NoError(t, err)
 
@@ -228,7 +228,7 @@ func TestFileUpload(t *testing.T) {
 
 	t.Run("UploadFileNoFile", func(t *testing.T) {
 		// Test with no file in request
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := http.NewRequest("POST", requestURL, strings.NewReader("no file data"))
 		assert.NoError(t, err)
 
@@ -252,7 +252,7 @@ func TestFileUpload(t *testing.T) {
 
 	t.Run("UploadFileMissingUploaderID", func(t *testing.T) {
 		// Test with missing uploader ID in path
-		requestURL := serverURL + baseURL + "/files/"
+		requestURL := serverURL + baseURL + "/file/"
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), nil)
 		assert.NoError(t, err)
 
@@ -287,7 +287,7 @@ func TestFileChunkedUpload(t *testing.T) {
 	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	t.Run("ChunkedUploadSuccess", func(t *testing.T) {
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		uid := fmt.Sprintf("chunked-test-%d", time.Now().UnixNano())
 
 		// Split content into chunks
@@ -353,7 +353,7 @@ func TestFileList(t *testing.T) {
 		fileName := fmt.Sprintf("test-file-%d.txt", i)
 		content := fmt.Sprintf("Test content for file %d", i)
 
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", fileName, []byte(content), map[string]string{
 			"original_filename": fileName,
 		})
@@ -378,7 +378,7 @@ func TestFileList(t *testing.T) {
 
 	t.Run("ListFilesSuccess", func(t *testing.T) {
 		// Test basic file listing
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID, nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID, nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -405,7 +405,7 @@ func TestFileList(t *testing.T) {
 
 	t.Run("ListFilesWithPagination", func(t *testing.T) {
 		// Test with pagination parameters
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"?page=1&page_size=2", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"?page=1&page_size=2", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -427,7 +427,7 @@ func TestFileList(t *testing.T) {
 
 	t.Run("ListFilesWithFilters", func(t *testing.T) {
 		// Test with filter parameters
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"?status=uploaded&content_type=text/plain", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"?status=uploaded&content_type=text/plain", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -442,7 +442,7 @@ func TestFileList(t *testing.T) {
 
 	t.Run("ListFilesInvalidUploader", func(t *testing.T) {
 		// Test with invalid uploader ID
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+invalidUploaderID, nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+invalidUploaderID, nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -476,7 +476,7 @@ func TestFileRetrieve(t *testing.T) {
 
 	t.Run("SetupUploadFile", func(t *testing.T) {
 		// Upload a file first
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 		})
@@ -499,7 +499,7 @@ func TestFileRetrieve(t *testing.T) {
 	t.Run("RetrieveFileSuccess", func(t *testing.T) {
 		// Retrieve file metadata
 		encodedFileID := url.QueryEscape(testFileID)
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID, nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID, nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -528,7 +528,7 @@ func TestFileRetrieve(t *testing.T) {
 		// Test with non-existent file ID
 		nonExistentID := "non-existent-file-id"
 		encodedFileID := url.QueryEscape(nonExistentID)
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID, nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID, nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -550,7 +550,7 @@ func TestFileRetrieve(t *testing.T) {
 	t.Run("RetrieveFileMissingIDs", func(t *testing.T) {
 		// Test with missing file ID - this URL actually matches the list endpoint
 		// which is correct RESTful behavior, so we expect 200 OK
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -594,7 +594,7 @@ func TestFileContent(t *testing.T) {
 
 	t.Run("SetupUploadFile", func(t *testing.T) {
 		// Upload a file first
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 		})
@@ -617,7 +617,7 @@ func TestFileContent(t *testing.T) {
 	t.Run("GetFileContentSuccess", func(t *testing.T) {
 		// Get file content
 		encodedFileID := url.QueryEscape(testFileID)
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/content", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/content", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -641,7 +641,7 @@ func TestFileContent(t *testing.T) {
 		// Test with non-existent file ID
 		nonExistentID := "non-existent-file-id"
 		encodedFileID := url.QueryEscape(nonExistentID)
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/content", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/content", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -676,7 +676,7 @@ func TestFileExists(t *testing.T) {
 
 	t.Run("SetupUploadFile", func(t *testing.T) {
 		// Upload a file first
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 		})
@@ -699,7 +699,7 @@ func TestFileExists(t *testing.T) {
 	t.Run("FileExistsTrue", func(t *testing.T) {
 		// Check if uploaded file exists
 		encodedFileID := url.QueryEscape(testFileID)
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -726,7 +726,7 @@ func TestFileExists(t *testing.T) {
 		// Check if non-existent file exists
 		nonExistentID := "non-existent-file-id"
 		encodedFileID := url.QueryEscape(nonExistentID)
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -768,7 +768,7 @@ func TestFileDelete(t *testing.T) {
 
 	t.Run("DeleteFileSuccess", func(t *testing.T) {
 		// Upload a file first
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		req, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 		})
@@ -788,7 +788,7 @@ func TestFileDelete(t *testing.T) {
 
 		// Now delete the file
 		encodedFileID := url.QueryEscape(testFileID)
-		deleteReq, err := http.NewRequest("DELETE", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID, nil)
+		deleteReq, err := http.NewRequest("DELETE", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID, nil)
 		assert.NoError(t, err)
 		deleteReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -814,7 +814,7 @@ func TestFileDelete(t *testing.T) {
 		// Test deleting non-existent file
 		nonExistentID := "non-existent-file-id"
 		encodedFileID := url.QueryEscape(nonExistentID)
-		req, err := http.NewRequest("DELETE", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID, nil)
+		req, err := http.NewRequest("DELETE", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID, nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -850,12 +850,12 @@ func TestFileEndpointsUnauthorized(t *testing.T) {
 		method string
 		path   string
 	}{
-		{"POST", "/files/" + testUploaderID},
-		{"GET", "/files/" + testUploaderID},
-		{"GET", "/files/" + testUploaderID + "/test-file-id"},
-		{"DELETE", "/files/" + testUploaderID + "/test-file-id"},
-		{"GET", "/files/" + testUploaderID + "/test-file-id/content"},
-		{"GET", "/files/" + testUploaderID + "/test-file-id/exists"},
+		{"POST", "/file/" + testUploaderID},
+		{"GET", "/file/" + testUploaderID},
+		{"GET", "/file/" + testUploaderID + "/test-file-id"},
+		{"DELETE", "/file/" + testUploaderID + "/test-file-id"},
+		{"GET", "/file/" + testUploaderID + "/test-file-id/content"},
+		{"GET", "/file/" + testUploaderID + "/test-file-id/exists"},
 	}
 
 	for _, endpoint := range endpoints {
@@ -908,7 +908,7 @@ func TestFileIntegration(t *testing.T) {
 
 	t.Run("FullFileLifecycle", func(t *testing.T) {
 		// Step 1: Upload a file
-		requestURL := serverURL + baseURL + "/files/" + testUploaderID
+		requestURL := serverURL + baseURL + "/file/" + testUploaderID
 		uploadReq, err := createMultipartRequest(requestURL, "file", testFileName, []byte(testFileContent), map[string]string{
 			"original_filename": testFileName,
 			"path":              "integration/test/file.txt",
@@ -931,7 +931,7 @@ func TestFileIntegration(t *testing.T) {
 
 		// Step 2: Verify file exists
 		encodedFileID := url.QueryEscape(testFileID)
-		existsReq, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
+		existsReq, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
 		assert.NoError(t, err)
 		existsReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -942,7 +942,7 @@ func TestFileIntegration(t *testing.T) {
 		assert.Equal(t, http.StatusOK, existsResp.StatusCode)
 
 		// Step 3: Retrieve file metadata
-		retrieveReq, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID, nil)
+		retrieveReq, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID, nil)
 		assert.NoError(t, err)
 		retrieveReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -953,7 +953,7 @@ func TestFileIntegration(t *testing.T) {
 		assert.Equal(t, http.StatusOK, retrieveResp.StatusCode)
 
 		// Step 4: Download file content
-		contentReq, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/content", nil)
+		contentReq, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/content", nil)
 		assert.NoError(t, err)
 		contentReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -968,7 +968,7 @@ func TestFileIntegration(t *testing.T) {
 		assert.Equal(t, testFileContent, string(content))
 
 		// Step 5: List files and verify our file is included
-		listReq, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"?name="+testFileName, nil)
+		listReq, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"?name="+testFileName, nil)
 		assert.NoError(t, err)
 		listReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -979,7 +979,7 @@ func TestFileIntegration(t *testing.T) {
 		assert.Equal(t, http.StatusOK, listResp.StatusCode)
 
 		// Step 6: Delete the file
-		deleteReq, err := http.NewRequest("DELETE", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID, nil)
+		deleteReq, err := http.NewRequest("DELETE", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID, nil)
 		assert.NoError(t, err)
 		deleteReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -990,7 +990,7 @@ func TestFileIntegration(t *testing.T) {
 		assert.Equal(t, http.StatusOK, deleteResp.StatusCode)
 
 		// Step 7: Verify file no longer exists
-		finalExistsReq, err := http.NewRequest("GET", serverURL+baseURL+"/files/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
+		finalExistsReq, err := http.NewRequest("GET", serverURL+baseURL+"/file/"+testUploaderID+"/"+encodedFileID+"/exists", nil)
 		assert.NoError(t, err)
 		finalExistsReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
