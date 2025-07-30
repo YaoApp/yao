@@ -21,8 +21,10 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -585,6 +587,44 @@ func processXgen(process *process.Process) interface{} {
 		}
 	}
 
+	// OpenAPI Settings
+	openapiConfig := map[string]interface{}{}
+	if openapi.Server != nil {
+		openapiConfig = map[string]interface{}{
+			"baseURL": openapi.Server.Config.BaseURL,
+		}
+	}
+
+	// Knowledge Base Settings
+	kbConfig := map[string]interface{}{}
+	if kb.Instance != nil {
+		if knowledgebase, ok := kb.Instance.(*kb.KnowledgeBase); ok && knowledgebase.Config != nil {
+			chunkings := []string{}
+			if knowledgebase.Config.Chunkings != nil {
+				for _, chunking := range knowledgebase.Config.Chunkings {
+					chunkings = append(chunkings, chunking.ID)
+				}
+			}
+
+			embeddings := []string{}
+			if knowledgebase.Config.Embeddings != nil {
+				for _, embedding := range knowledgebase.Config.Embeddings {
+					embeddings = append(embeddings, embedding.ID)
+				}
+			}
+
+			converters := []string{}
+			if knowledgebase.Config.Converters != nil {
+				for _, converter := range knowledgebase.Config.Converters {
+					converters = append(converters, converter.ID)
+				}
+			}
+
+			// other providers
+			kbConfig = map[string]interface{}{"features": knowledgebase.Config.Features, "chunkings": chunkings, "embeddings": embeddings, "converters": converters}
+		}
+	}
+
 	xgenSetting := map[string]interface{}{
 		"name":        Setting.Name,
 		"description": Setting.Description,
@@ -606,6 +646,8 @@ func processXgen(process *process.Process) interface{} {
 		"optional":  Setting.Optional,
 		"login":     xgenLogin,
 		"agent":     agent,
+		"openapi":   openapiConfig,
+		"kb":        kbConfig,
 	}
 
 	if Setting.Logo != "" {
