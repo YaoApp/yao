@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/captcha"
 	"github.com/yaoapp/yao/openapi/chat"
 	"github.com/yaoapp/yao/openapi/dsl"
 	"github.com/yaoapp/yao/openapi/file"
@@ -99,6 +100,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Signin handlers
 	signin.Attach(group, openapi.OAuth)
+
+	// Captcha handlers
+	captcha.Attach(group.Group("/captcha"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 }
