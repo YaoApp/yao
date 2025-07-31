@@ -150,6 +150,11 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 		params.Add("scope", "openid profile email")
 	}
 
+	// Add response_mode if specified (required for Apple with name/email scopes)
+	if provider.ResponseMode != "" {
+		params.Add("response_mode", provider.ResponseMode)
+	}
+
 	authorizationURL := fmt.Sprintf("%s?%s", provider.Endpoints.Authorization, params.Encode())
 
 	// Return the authorization URL and state
