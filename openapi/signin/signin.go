@@ -377,7 +377,7 @@ func createPublicConfig(fullConfig *Config) Config {
 				for key, value := range fullConfig.Form.Captcha.Options {
 					// Only include non-sensitive fields
 					switch key {
-					case "sitekey", "theme", "size", "action", "cdata":
+					case "sitekey", "theme", "size", "action", "cdata", "response_mode":
 						// These are safe to expose to frontend
 						publicOptions[key] = value
 					case "secret":

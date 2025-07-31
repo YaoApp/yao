@@ -2,6 +2,7 @@ package response
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -177,6 +178,264 @@ func RespondWithError(c *gin.Context, statusCode int, err *ErrorResponse) {
 
 	c.JSON(statusCode, err)
 }
+
+// SecureCookieOptions defines options for secure cookie configuration
+type SecureCookieOptions struct {
+	// MaxAge specifies the max age for the cookie in seconds (0 = session cookie, negative = delete cookie)
+	// MaxAge takes precedence over Expires if both are set
+	MaxAge int
+	// Expires specifies the absolute expiration time for the cookie
+	// If MaxAge is 0 and Expires is set, Expires will be used
+	Expires *time.Time
+	// Path specifies the cookie path (default: "/")
+	Path string
+	// Domain specifies the cookie domain (empty for current domain)
+	Domain string
+	// SameSite specifies the SameSite attribute ("Strict", "Lax", or "None")
+	SameSite string
+	// UseHostPrefix determines if __Host- prefix should be used (most secure)
+	UseHostPrefix bool
+	// UseSecurePrefix determines if __Secure- prefix should be used
+	UseSecurePrefix bool
+}
+
+// NewSecureCookieOptions creates a new SecureCookieOptions with secure defaults
+func NewSecureCookieOptions() *SecureCookieOptions {
+	return &SecureCookieOptions{
+		MaxAge:        0,     // Session cookie by default
+		Path:          "/",   // Root path
+		Domain:        "",    // Current domain
+		SameSite:      "Lax", // Default SameSite policy
+		UseHostPrefix: true,  // Use most secure __Host- prefix
+	}
+}
+
+// WithMaxAge sets the MaxAge in seconds
+func (o *SecureCookieOptions) WithMaxAge(maxAge int) *SecureCookieOptions {
+	o.MaxAge = maxAge
+	return o
+}
+
+// WithExpires sets the absolute expiration time
+func (o *SecureCookieOptions) WithExpires(expires time.Time) *SecureCookieOptions {
+	o.Expires = &expires
+	return o
+}
+
+// WithDuration sets expiration based on duration from now
+func (o *SecureCookieOptions) WithDuration(duration time.Duration) *SecureCookieOptions {
+	expires := time.Now().Add(duration)
+	o.Expires = &expires
+	o.MaxAge = int(duration.Seconds())
+	return o
+}
+
+// WithPath sets the cookie path
+func (o *SecureCookieOptions) WithPath(path string) *SecureCookieOptions {
+	o.Path = path
+	return o
+}
+
+// WithDomain sets the cookie domain
+func (o *SecureCookieOptions) WithDomain(domain string) *SecureCookieOptions {
+	o.Domain = domain
+	return o
+}
+
+// WithSameSite sets the SameSite attribute
+func (o *SecureCookieOptions) WithSameSite(sameSite string) *SecureCookieOptions {
+	o.SameSite = sameSite
+	return o
+}
+
+// WithSecurePrefix uses __Secure- prefix instead of __Host-
+func (o *SecureCookieOptions) WithSecurePrefix() *SecureCookieOptions {
+	o.UseHostPrefix = false
+	o.UseSecurePrefix = true
+	return o
+}
+
+// WithoutPrefix disables security prefixes
+func (o *SecureCookieOptions) WithoutPrefix() *SecureCookieOptions {
+	o.UseHostPrefix = false
+	o.UseSecurePrefix = false
+	return o
+}
+
+// SendSecretCookie sends a secure cookie to the client with RFC 6265bis compliance
+// For sensitive data like session_id, access_token, etc.
+func SendSecretCookie(c *gin.Context, key string, value string) {
+	options := &SecureCookieOptions{
+		MaxAge:        0,     // Session cookie by default
+		Path:          "/",   // Root path
+		Domain:        "",    // Current domain
+		SameSite:      "Lax", // Default SameSite policy
+		UseHostPrefix: true,  // Use most secure __Host- prefix
+	}
+	SendSecureCookieWithOptions(c, key, value, options)
+}
+
+// SendSecureCookieWithOptions sends a secure cookie with custom options
+func SendSecureCookieWithOptions(c *gin.Context, key string, value string, options *SecureCookieOptions) {
+	// Apply RFC 6265bis prefix requirements
+	cookieName := key
+	cookiePath := options.Path
+	cookieDomain := options.Domain
+
+	if options.UseHostPrefix {
+		// __Host- prefix: Requires Secure flag, no Domain attribute, Path=/
+		cookieName = "__Host-" + key
+		cookiePath = "/"  // Must be "/" for __Host- prefix
+		cookieDomain = "" // Must be empty for __Host- prefix
+	} else if options.UseSecurePrefix {
+		// __Secure- prefix: Requires Secure flag, allows Domain and Path
+		cookieName = "__Secure-" + key
+	}
+
+	// Ensure secure defaults
+	if cookiePath == "" {
+		cookiePath = "/"
+	}
+
+	// Determine effective MaxAge
+	effectiveMaxAge := options.MaxAge
+	if effectiveMaxAge == 0 && options.Expires != nil {
+		// If MaxAge is 0 but Expires is set, calculate MaxAge from Expires
+		duration := time.Until(*options.Expires)
+		if duration > 0 {
+			effectiveMaxAge = int(duration.Seconds())
+		} else {
+			effectiveMaxAge = -1 // Expired cookie
+		}
+	}
+
+	// Set the cookie with secure flags
+	// Gin's SetCookie: (name, value, maxAge, path, domain, secure, httpOnly)
+	c.SetCookie(
+		cookieName,      // name (with security prefix if specified)
+		value,           // value
+		effectiveMaxAge, // maxAge (calculated from Expires if needed)
+		cookiePath,      // path
+		cookieDomain,    // domain
+		true,            // secure (HTTPS only) - required for security prefixes
+		true,            // httpOnly (prevent XSS access)
+	)
+
+	// Get existing Set-Cookie headers for additional attributes
+	cookies := c.Writer.Header()["Set-Cookie"]
+	if len(cookies) > 0 {
+		lastCookie := cookies[len(cookies)-1]
+
+		// Add SameSite attribute if specified
+		if options.SameSite != "" {
+			lastCookie += "; SameSite=" + options.SameSite
+		}
+
+		// Add Expires attribute if specified and MaxAge is not used
+		if options.Expires != nil && options.MaxAge == 0 {
+			lastCookie += "; Expires=" + options.Expires.UTC().Format(time.RFC1123)
+		}
+
+		// Replace the last Set-Cookie header with enhanced version
+		cookies[len(cookies)-1] = lastCookie
+		c.Writer.Header()["Set-Cookie"] = cookies
+	}
+}
+
+// SendSessionCookie sends a session cookie with __Host- prefix for maximum security
+func SendSessionCookie(c *gin.Context, sessionID string) {
+	options := NewSecureCookieOptions().WithSameSite("Lax")
+	SendSecureCookieWithOptions(c, "session_id", sessionID, options)
+}
+
+// SendAccessTokenCookie sends an access token cookie with appropriate security settings
+func SendAccessTokenCookie(c *gin.Context, accessToken string, maxAge int) {
+	options := NewSecureCookieOptions().
+		WithMaxAge(maxAge).
+		WithSameSite("Strict")
+	SendSecureCookieWithOptions(c, "access_token", accessToken, options)
+}
+
+// SendAccessTokenCookieWithExpiry sends an access token cookie with absolute expiration time
+func SendAccessTokenCookieWithExpiry(c *gin.Context, accessToken string, expires time.Time) {
+	options := NewSecureCookieOptions().
+		WithExpires(expires).
+		WithSameSite("Strict")
+	SendSecureCookieWithOptions(c, "access_token", accessToken, options)
+}
+
+// SendAccessTokenCookieWithDuration sends an access token cookie with duration-based expiration
+func SendAccessTokenCookieWithDuration(c *gin.Context, accessToken string, duration time.Duration) {
+	options := NewSecureCookieOptions().
+		WithDuration(duration).
+		WithSameSite("Strict")
+	SendSecureCookieWithOptions(c, "access_token", accessToken, options)
+}
+
+// SendRefreshTokenCookie sends a refresh token cookie with strict security settings
+func SendRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
+	options := NewSecureCookieOptions().
+		WithMaxAge(maxAge).
+		WithPath("/auth").
+		WithSameSite("Strict")
+	SendSecureCookieWithOptions(c, "refresh_token", refreshToken, options)
+}
+
+// SendRefreshTokenCookieWithExpiry sends a refresh token cookie with absolute expiration time
+func SendRefreshTokenCookieWithExpiry(c *gin.Context, refreshToken string, expires time.Time) {
+	options := NewSecureCookieOptions().
+		WithExpires(expires).
+		WithPath("/auth").
+		WithSameSite("Strict")
+	SendSecureCookieWithOptions(c, "refresh_token", refreshToken, options)
+}
+
+// SendRefreshTokenCookieWithDuration sends a refresh token cookie with duration-based expiration
+func SendRefreshTokenCookieWithDuration(c *gin.Context, refreshToken string, duration time.Duration) {
+	options := NewSecureCookieOptions().
+		WithDuration(duration).
+		WithPath("/auth").
+		WithSameSite("Strict")
+	SendSecureCookieWithOptions(c, "refresh_token", refreshToken, options)
+}
+
+// DeleteSecureCookie deletes a secure cookie by setting it to expire immediately
+func DeleteSecureCookie(c *gin.Context, key string) {
+	options := NewSecureCookieOptions().WithMaxAge(-1) // Negative MaxAge deletes the cookie
+	SendSecureCookieWithOptions(c, key, "", options)
+}
+
+// DeleteAllAuthCookies deletes all authentication-related cookies
+func DeleteAllAuthCookies(c *gin.Context) {
+	DeleteSecureCookie(c, "session_id")
+	DeleteSecureCookie(c, "access_token")
+
+	// Also delete refresh token with its specific path
+	options := NewSecureCookieOptions().
+		WithMaxAge(-1).
+		WithPath("/auth")
+	SendSecureCookieWithOptions(c, "refresh_token", "", options)
+}
+
+// Common duration constants for cookie expiration
+const (
+	// Session cookies (expires when browser closes)
+	SessionCookie = 0
+	// Short-lived tokens (typically for access tokens)
+	OneHour     = 1 * time.Hour
+	TwoHours    = 2 * time.Hour
+	SixHours    = 6 * time.Hour
+	TwelveHours = 12 * time.Hour
+	// Medium-lived tokens
+	OneDay   = 24 * time.Hour
+	OneWeek  = 7 * 24 * time.Hour
+	TwoWeeks = 14 * 24 * time.Hour
+	// Long-lived tokens (typically for refresh tokens)
+	OneMonth    = 30 * 24 * time.Hour
+	ThreeMonths = 90 * 24 * time.Hour
+	SixMonths   = 180 * 24 * time.Hour
+	OneYear     = 365 * 24 * time.Hour
+)
 
 // RespondWithAuthorizationError sends an authorization endpoint error via redirect
 func RespondWithAuthorizationError(c *gin.Context, redirectURI string, err *ErrorResponse, state string) {
