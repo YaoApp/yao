@@ -94,6 +94,7 @@ type Provider struct {
 	ClientSecret          string            `json:"client_secret,omitempty"`
 	ClientSecretGenerator *SecretGenerator  `json:"client_secret_generator,omitempty"`
 	Scopes                []string          `json:"scopes,omitempty"`
+	ResponseMode          string            `json:"response_mode,omitempty"`
 	Endpoints             *Endpoints        `json:"endpoints,omitempty"`
 	Mapping               map[string]string `json:"mapping,omitempty"`
 }
