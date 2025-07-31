@@ -331,46 +331,105 @@ func replaceENVVar(value string) string {
 
 // createPublicConfig creates a public version of the configuration without sensitive data
 func createPublicConfig(fullConfig *Config) Config {
-	publicConfig := *fullConfig
-
-	// Remove sensitive data from captcha configuration
-	if publicConfig.Form != nil && publicConfig.Form.Captcha != nil && publicConfig.Form.Captcha.Options != nil {
-		// Create a new options map without sensitive fields
-		publicOptions := make(map[string]interface{})
-		for key, value := range publicConfig.Form.Captcha.Options {
-			// Only include non-sensitive fields
-			switch key {
-			case "sitekey", "theme", "size", "action", "cdata":
-				// These are safe to expose to frontend
-				publicOptions[key] = value
-			case "secret":
-				// Remove secret field - this should never be exposed to frontend
-				continue
-			default:
-				// For unknown fields, be conservative and exclude them
-				continue
-			}
-		}
-		publicConfig.Form.Captcha.Options = publicOptions
+	// Perform deep copy to avoid modifying the original fullConfig
+	publicConfig := Config{
+		Title:       fullConfig.Title,
+		Description: fullConfig.Description,
+		SuccessURL:  fullConfig.SuccessURL,
+		FailureURL:  fullConfig.FailureURL,
 	}
 
-	// Remove sensitive data from third party providers
-	if publicConfig.ThirdParty != nil && publicConfig.ThirdParty.Providers != nil {
-		publicProviders := make([]*Provider, len(publicConfig.ThirdParty.Providers))
-		for i, provider := range publicConfig.ThirdParty.Providers {
-			publicProvider := Provider{
-				ID:        provider.ID,
-				Title:     provider.Title,
-				Logo:      provider.Logo,
-				Color:     provider.Color,
-				TextColor: provider.TextColor,
-				// Only expose display fields for frontend
-				// Remove sensitive fields: ClientID, ClientSecret, ClientSecretGenerator, Scopes, Endpoints, Mapping
+	// Deep copy Form configuration
+	if fullConfig.Form != nil {
+		publicConfig.Form = &FormConfig{
+			ForgotPasswordLink: fullConfig.Form.ForgotPasswordLink,
+			RememberMe:         fullConfig.Form.RememberMe,
+			RegisterLink:       fullConfig.Form.RegisterLink,
+			TermsOfServiceLink: fullConfig.Form.TermsOfServiceLink,
+			PrivacyPolicyLink:  fullConfig.Form.PrivacyPolicyLink,
+		}
+
+		// Deep copy Username configuration
+		if fullConfig.Form.Username != nil {
+			publicConfig.Form.Username = &UsernameConfig{
+				Placeholder: fullConfig.Form.Username.Placeholder,
+				Fields:      append([]string(nil), fullConfig.Form.Username.Fields...),
+			}
+		}
+
+		// Deep copy Password configuration
+		if fullConfig.Form.Password != nil {
+			publicConfig.Form.Password = &PasswordConfig{
+				Placeholder: fullConfig.Form.Password.Placeholder,
+			}
+		}
+
+		// Deep copy Captcha configuration with sensitive data removal
+		if fullConfig.Form.Captcha != nil {
+			publicConfig.Form.Captcha = &CaptchaConfig{
+				Type: fullConfig.Form.Captcha.Type,
 			}
 
-			publicProviders[i] = &publicProvider
+			if fullConfig.Form.Captcha.Options != nil {
+				// Create a new options map without sensitive fields
+				publicOptions := make(map[string]interface{})
+				for key, value := range fullConfig.Form.Captcha.Options {
+					// Only include non-sensitive fields
+					switch key {
+					case "sitekey", "theme", "size", "action", "cdata":
+						// These are safe to expose to frontend
+						publicOptions[key] = value
+					case "secret":
+						// Remove secret field - this should never be exposed to frontend
+						continue
+					default:
+						// For unknown fields, be conservative and exclude them
+						continue
+					}
+				}
+				publicConfig.Form.Captcha.Options = publicOptions
+			}
 		}
-		publicConfig.ThirdParty.Providers = publicProviders
+	}
+
+	// Deep copy Token configuration
+	if fullConfig.Token != nil {
+		publicConfig.Token = &TokenConfig{
+			ExpiresIn:           fullConfig.Token.ExpiresIn,
+			RememberMeExpiresIn: fullConfig.Token.RememberMeExpiresIn,
+		}
+	}
+
+	// Deep copy ThirdParty configuration with sensitive data removal
+	if fullConfig.ThirdParty != nil {
+		publicConfig.ThirdParty = &ThirdParty{}
+
+		// Deep copy Register configuration
+		if fullConfig.ThirdParty.Register != nil {
+			publicConfig.ThirdParty.Register = &RegisterConfig{
+				Auto: fullConfig.ThirdParty.Register.Auto,
+				Role: fullConfig.ThirdParty.Register.Role,
+			}
+		}
+
+		// Deep copy Providers with sensitive data removal
+		if fullConfig.ThirdParty.Providers != nil {
+			publicProviders := make([]*Provider, len(fullConfig.ThirdParty.Providers))
+			for i, provider := range fullConfig.ThirdParty.Providers {
+				publicProvider := Provider{
+					ID:        provider.ID,
+					Title:     provider.Title,
+					Logo:      provider.Logo,
+					Color:     provider.Color,
+					TextColor: provider.TextColor,
+					// Only expose display fields for frontend
+					// Remove sensitive fields: ClientID, ClientSecret, ClientSecretGenerator, Scopes, Endpoints, Mapping
+				}
+
+				publicProviders[i] = &publicProvider
+			}
+			publicConfig.ThirdParty.Providers = publicProviders
+		}
 	}
 
 	return publicConfig
