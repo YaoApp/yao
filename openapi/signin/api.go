@@ -71,6 +71,8 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 	state := c.Query("state")
 	locale := c.Query("locale")
 
+	fmt.Println("redirect_uri", redirectURI)
+
 	// Get full configuration
 	config := GetFullConfig(locale)
 	if config == nil {
@@ -137,6 +139,9 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 	params.Add("response_type", "code")
 	params.Add("redirect_uri", redirectURI)
 	params.Add("state", state)
+
+	fmt.Println("client_id", provider.ClientID)
+	fmt.Println("redirectURI", redirectURI)
 
 	// Add scopes
 	if len(provider.Scopes) > 0 {
