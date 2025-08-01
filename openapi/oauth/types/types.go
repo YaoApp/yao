@@ -544,3 +544,67 @@ type ClientConfig struct {
 	ClientCertificateRequired   bool   `json:"client_certificate_required"`   // Optional: Require client certificates (default: false)
 	ClientCertificateValidation string `json:"client_certificate_validation"` // Optional: Client certificate validation mode - none, optional, required (default: none)
 }
+
+// OIDC Standard Types
+
+// OIDCIDToken represents ID Token claims based on OIDC standard
+// https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+type OIDCIDToken struct {
+	// REQUIRED ID Token Claims
+	Iss string `json:"iss"` // Issuer Identifier for the Issuer of the response
+	Sub string `json:"sub"` // Subject Identifier - locally unique identifier for the End-User
+	Aud string `json:"aud"` // Audience - OAuth 2.0 client_id of the Relying Party
+	Exp int64  `json:"exp"` // Expiration time - seconds from 1970-01-01T00:00:00Z UTC
+	Iat int64  `json:"iat"` // Issued at time - seconds from 1970-01-01T00:00:00Z UTC
+
+	// OPTIONAL ID Token Claims
+	AuthTime *int64   `json:"auth_time,omitempty"` // Time when End-User authentication occurred
+	Nonce    string   `json:"nonce,omitempty"`     // String value to associate Client session with ID Token
+	Acr      string   `json:"acr,omitempty"`       // Authentication Context Class Reference
+	Amr      []string `json:"amr,omitempty"`       // Authentication Methods References
+	Azp      string   `json:"azp,omitempty"`       // Authorized party - party to which ID Token was issued
+
+	// Hash Claims for token validation
+	AtHash string `json:"at_hash,omitempty"` // Access Token hash value
+	CHash  string `json:"c_hash,omitempty"`  // Code hash value
+}
+
+// OIDCUserInfo represents user information based on OIDC standard
+type OIDCUserInfo struct {
+	// OIDC Standard Claims (https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims)
+	Sub                 string `json:"sub"`                             // Subject identifier (required)
+	Name                string `json:"name,omitempty"`                  // Full name
+	GivenName           string `json:"given_name,omitempty"`            // Given name(s) or first name(s)
+	FamilyName          string `json:"family_name,omitempty"`           // Surname(s) or last name(s)
+	MiddleName          string `json:"middle_name,omitempty"`           // Middle name(s)
+	Nickname            string `json:"nickname,omitempty"`              // Casual name
+	PreferredUsername   string `json:"preferred_username,omitempty"`    // Shorthand name
+	Profile             string `json:"profile,omitempty"`               // Profile page URL
+	Picture             string `json:"picture,omitempty"`               // Profile picture URL
+	Website             string `json:"website,omitempty"`               // Web page or blog URL
+	Email               string `json:"email,omitempty"`                 // Email address
+	EmailVerified       *bool  `json:"email_verified,omitempty"`        // Email verification status
+	Gender              string `json:"gender,omitempty"`                // Gender
+	Birthdate           string `json:"birthdate,omitempty"`             // Birthday (YYYY-MM-DD format)
+	Zoneinfo            string `json:"zoneinfo,omitempty"`              // Time zone info
+	Locale              string `json:"locale,omitempty"`                // Locale (language-country)
+	PhoneNumber         string `json:"phone_number,omitempty"`          // Phone number
+	PhoneNumberVerified *bool  `json:"phone_number_verified,omitempty"` // Phone verification status
+	UpdatedAt           *int64 `json:"updated_at,omitempty"`            // Time of last update (seconds since epoch)
+
+	// OIDC Address Claim (structured)
+	Address *OIDCAddress `json:"address,omitempty"` // Physical mailing address
+
+	// Raw response for debugging and custom processing
+	Raw map[string]interface{} `json:"raw,omitempty"` // Original provider response
+}
+
+// OIDCAddress represents the OIDC address claim structure
+type OIDCAddress struct {
+	Formatted     string `json:"formatted,omitempty"`      // Full mailing address
+	StreetAddress string `json:"street_address,omitempty"` // Street address
+	Locality      string `json:"locality,omitempty"`       // City or locality
+	Region        string `json:"region,omitempty"`         // State, province, prefecture, or region
+	PostalCode    string `json:"postal_code,omitempty"`    // Zip code or postal code
+	Country       string `json:"country,omitempty"`        // Country name
+}

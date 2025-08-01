@@ -22,7 +22,7 @@ import (
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/signin", getConfig)
 	group.POST("/signin", signin)
-	group.POST("/signin/authback/:provider", authback)
+	group.POST("/signin/oauth/:provider/authback", authback)
 	group.GET("/signin/oauth/:provider/authorize", getOAuthAuthorizationURL)
 	group.POST("/signin/oauth/:provider/authorize/prepare", authbackPrepare) // Receive the post data and forward to the authback handler
 }
@@ -63,6 +63,7 @@ func signin(c *gin.Context) {}
 func authbackPrepare(c *gin.Context) {
 	code := c.PostForm("code")
 	state := c.PostForm("state")
+	user := c.PostForm("user") // form_post may include user info
 	providerID := c.Param("provider")
 	redirectURI, err := getRedirectURI(providerID, state)
 	if err != nil {
@@ -72,6 +73,11 @@ func authbackPrepare(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
+	}
+
+	// Cache user info if provided (form_post mode)
+	if user != "" {
+		saveUserInfo(providerID, state, user)
 	}
 
 	params := url.Values{}
@@ -138,8 +144,7 @@ func authback(c *gin.Context) {
 	// if response mode is form_post
 	if provider.ResponseMode == "form_post" {
 		// Replace the redirectURI to
-		pathname := strings.Replace(c.Request.URL.Path, "/signin/authback/", "/signin/oauth/", 1) + "/authorize/prepare"
-		fmt.Println(pathname)
+		pathname := strings.TrimSuffix(c.Request.URL.Path, "/authback") + "/authorize/prepare"
 		newRedirectURI, err := reconstructRedirectURI(redirectURI, pathname, c)
 		if err != nil {
 			log.Error("Failed to reconstruct redirectURI: %v", err)
@@ -152,7 +157,21 @@ func authback(c *gin.Context) {
 		redirectURI = newRedirectURI
 	}
 
-	// Remove the state from the session and cache
+	// Get AccessToken
+	tokenResponse, err := provider.AccessToken(params.Code, redirectURI)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: fmt.Sprintf("Failed to get user info: %v", err),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Read cached user info before cleaning up (for form_post mode)
+	cachedUserInfo, _ := getUserInfo(providerID, params.State)
+
+	// Remove the state from the session and cache (also cleans up user cache automatically)
 	err = removeState(providerID, sid)
 	if err != nil {
 		log.With(log.F{"sid": sid, "providerID": providerID}).Error("Failed to remove state")
@@ -164,8 +183,16 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	// Get UserInfo
-	tokenResponse, err := provider.AccessToken(params.Code, redirectURI)
+	// Get UserInfo - use different method based on user_info_source
+	var userInfo *OAuthUserInfoResponse
+	if provider.UserInfoSource == UserInfoSourceIDToken {
+		// For OAuth providers that use id_token, pass cached user info for merging
+		userInfo, err = provider.GetUserInfoFromTokenResponse(tokenResponse, cachedUserInfo)
+	} else {
+		// For standard OAuth providers that use userinfo endpoint
+		userInfo, err = provider.GetUserInfo(tokenResponse.AccessToken, tokenResponse.TokenType)
+	}
+
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -177,9 +204,9 @@ func authback(c *gin.Context) {
 
 	// Respond with success
 	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
-		"params":   params,
-		"token":    tokenResponse,
-		"provider": provider,
+		"params": params,
+		"token":  tokenResponse,
+		"user":   userInfo,
 	})
 }
 
@@ -400,6 +427,43 @@ func removeRedirectURI(providerID, state string) error {
 	return nil
 }
 
+// saveUserInfo saves the user info to cache (for form_post mode)
+func saveUserInfo(providerID, state, userInfo string) error {
+	key := fmt.Sprintf("oauth_user_info_%s_%s", providerID, state)
+	store, err := store.Get("__yao.oauth.cache")
+	if err != nil {
+		return err
+	}
+	store.Set(key, userInfo, 20*time.Minute)
+	return nil
+}
+
+// getUserInfo gets the user info from cache
+func getUserInfo(providerID, state string) (string, error) {
+	key := fmt.Sprintf("oauth_user_info_%s_%s", providerID, state)
+	store, err := store.Get("__yao.oauth.cache")
+	if err != nil {
+		return "", err
+	}
+
+	value, ok := store.Get(key)
+	if !ok || value == nil {
+		return "", fmt.Errorf("user info not found")
+	}
+	return value.(string), nil
+}
+
+// removeUserInfo removes the user info from cache
+func removeUserInfo(providerID, state string) error {
+	key := fmt.Sprintf("oauth_user_info_%s_%s", providerID, state)
+	store, err := store.Get("__yao.oauth.cache")
+	if err != nil {
+		return err
+	}
+	store.Del(key)
+	return nil
+}
+
 func removeState(providerID, sid string) error {
 	// Get the state from the session
 	state, err := session.Global().ID(sid).Get(fmt.Sprintf("oauth_state_%s", providerID))
@@ -407,8 +471,16 @@ func removeState(providerID, sid string) error {
 		return err
 	}
 
-	// Remove the redirect URI from the cache
-	removeRedirectURI(providerID, state.(string))
+	// Safely convert state to string
+	stateStr, ok := state.(string)
+	if !ok {
+		return fmt.Errorf("invalid state type: expected string, got %T", state)
+	}
+
+	// Remove all related cached data
+	removeRedirectURI(providerID, stateStr)
+	removeUserInfo(providerID, stateStr)
+
 	return session.Global().ID(sid).Del(fmt.Sprintf("oauth_state_%s", providerID))
 }
 
@@ -419,7 +491,13 @@ func validateState(providerID, sid, state string) error {
 		return err
 	}
 
-	if value != state {
+	// Safely convert value to string
+	stateStr, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("invalid state type: expected string, got %T", value)
+	}
+
+	if stateStr != state {
 		return fmt.Errorf("invalid state")
 	}
 

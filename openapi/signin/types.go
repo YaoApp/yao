@@ -1,5 +1,9 @@
 package signin
 
+import (
+	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
+)
+
 // Config represents the signin page configuration
 type Config struct {
 	Title       string       `json:"title,omitempty"`
@@ -60,18 +64,19 @@ type RegisterConfig struct {
 
 // Provider represents a third party login provider
 type Provider struct {
-	ID                    string            `json:"id,omitempty"`
-	Title                 string            `json:"title,omitempty"`
-	Logo                  string            `json:"logo,omitempty"`
-	Color                 string            `json:"color,omitempty"`
-	TextColor             string            `json:"text_color,omitempty"`
-	ClientID              string            `json:"client_id,omitempty"`
-	ClientSecret          string            `json:"client_secret,omitempty"`
-	ClientSecretGenerator *SecretGenerator  `json:"client_secret_generator,omitempty"`
-	Scopes                []string          `json:"scopes,omitempty"`
-	ResponseMode          string            `json:"response_mode,omitempty"`
-	Endpoints             *Endpoints        `json:"endpoints,omitempty"`
-	Mapping               map[string]string `json:"mapping,omitempty"`
+	ID                    string           `json:"id,omitempty"`
+	Title                 string           `json:"title,omitempty"`
+	Logo                  string           `json:"logo,omitempty"`
+	Color                 string           `json:"color,omitempty"`
+	TextColor             string           `json:"text_color,omitempty"`
+	ClientID              string           `json:"client_id,omitempty"`
+	ClientSecret          string           `json:"client_secret,omitempty"`
+	ClientSecretGenerator *SecretGenerator `json:"client_secret_generator,omitempty"`
+	Scopes                []string         `json:"scopes,omitempty"`
+	ResponseMode          string           `json:"response_mode,omitempty"`
+	UserInfoSource        string           `json:"user_info_source,omitempty"` // "endpoint" (default) | "id_token" | "access_token"
+	Endpoints             *Endpoints       `json:"endpoints,omitempty"`
+	Mapping               interface{}      `json:"mapping,omitempty"` // string (preset) | map[string]string (custom) | nil (generic)
 }
 
 // SecretGenerator represents the client secret generator configuration
@@ -88,6 +93,7 @@ type Endpoints struct {
 	Authorization string `json:"authorization,omitempty"`
 	Token         string `json:"token,omitempty"`
 	UserInfo      string `json:"user_info,omitempty"`
+	JWKS          string `json:"jwks,omitempty"` // JSON Web Key Set endpoint for token verification
 }
 
 // ==== API Types ====
@@ -121,6 +127,7 @@ type OAuthTokenResponse struct {
 	ExpiresIn    int    `json:"expires_in"`
 	RefreshToken string `json:"refresh_token"`
 	Scope        string `json:"scope"`
+	IDToken      string `json:"id_token,omitempty"` // JWT token containing user info (Apple, etc.)
 	Error        string `json:"error"`
 	ErrorDesc    string `json:"error_description"`
 }
@@ -134,11 +141,25 @@ type OAuthTokenRequest struct {
 	RedirectURI  string `json:"redirect_uri,omitempty" form:"redirect_uri,omitempty"`
 }
 
-// OAuthUserInfoResponse represents the user information from OAuth provider
-type OAuthUserInfoResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
-	Username string `json:"username"`
-}
+// OAuthUserInfoResponse is an alias for OIDC standard user information type
+type OAuthUserInfoResponse = oauthtypes.OIDCUserInfo
+
+// OIDCAddress is an alias for OIDC standard address claim type
+type OIDCAddress = oauthtypes.OIDCAddress
+
+// Built-in preset mapping types
+const (
+	MappingGoogle    = "google"
+	MappingGitHub    = "github"
+	MappingMicrosoft = "microsoft"
+	MappingApple     = "apple"
+	MappingWeChat    = "wechat"
+	MappingGeneric   = "generic"
+)
+
+// User info source types
+const (
+	UserInfoSourceEndpoint    = "endpoint"     // Default: Get user info from dedicated endpoint
+	UserInfoSourceIDToken     = "id_token"     // Extract user info from ID token (JWT)
+	UserInfoSourceAccessToken = "access_token" // Extract user info from access token response
+)
