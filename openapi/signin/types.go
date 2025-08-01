@@ -100,8 +100,9 @@ type Endpoints struct {
 
 // OAuthAuthorizationURLResponse represents the response for OAuth authorization URL
 type OAuthAuthorizationURLResponse struct {
-	AuthorizationURL string `json:"authorization_url"`
-	State            string `json:"state"`
+	AuthorizationURL string   `json:"authorization_url"`
+	State            string   `json:"state"`
+	Warnings         []string `json:"warnings,omitempty"` // Optional warnings about state format or other issues
 }
 
 // OAuthCallbackResponse represents the response for OAuth callback

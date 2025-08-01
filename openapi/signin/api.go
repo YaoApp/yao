@@ -1,15 +1,15 @@
 package signin
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
@@ -256,6 +256,9 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 		return
 	}
 
+	// Check if state is provided by user and validate format
+	var warnings []string
+
 	// Generate state if not provided
 	if state == "" {
 		var err error
@@ -267,6 +270,11 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 			}
 			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 			return
+		}
+	} else {
+		// User provided state - check if it's in UUID format
+		if !isValidUUID(state) {
+			warnings = append(warnings, "State parameter is not in UUID format. For better uniqueness and security, consider using UUID format.")
 		}
 	}
 
@@ -347,17 +355,21 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, &OAuthAuthorizationURLResponse{
 		AuthorizationURL: authorizationURL,
 		State:            state,
+		Warnings:         warnings,
 	})
 }
 
-// generateRandomState generates a cryptographically secure random state parameter
+// generateRandomState generates a UUID-based state parameter for better uniqueness
 func generateRandomState() (string, error) {
-	bytes := make([]byte, 16)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
+	u := uuid.New()
+	return u.String(), nil
+}
+
+// isValidUUID checks if a string is a valid UUID format
+func isValidUUID(s string) bool {
+	// UUID v4 format: 8-4-4-4-12 hexadecimal characters
+	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	return uuidRegex.MatchString(strings.ToLower(s))
 }
 
 // getScheme returns the request scheme (http or https)

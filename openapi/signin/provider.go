@@ -22,7 +22,6 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/utils"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -411,20 +410,6 @@ func (p *Provider) getUserInfoFromEndpoint(accessToken string, tokenType string)
 	return userInfo, nil
 }
 
-// getUserInfoFromIDToken extracts user info from ID token (JWT) with signature verification
-func (p *Provider) getUserInfoFromIDToken(idToken string) (*oauthtypes.OIDCUserInfo, error) {
-	// Verify JWT signature and get raw claims
-	rawClaims, err := p.verifyIDTokenAndGetClaims(idToken)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify ID token: %w", err)
-	}
-
-	// Map the raw JWT claims to our standard user info structure
-	userInfo := p.mapUserInfoResponse(rawClaims)
-
-	return userInfo, nil
-}
-
 // verifyIDTokenAndGetClaims verifies ID token signature and returns raw claims for user info mapping
 func (p *Provider) verifyIDTokenAndGetClaims(idToken string) (map[string]interface{}, error) {
 	// Parse token to get header for key ID
@@ -456,10 +441,6 @@ func (p *Provider) verifyIDTokenAndGetClaims(idToken string) (map[string]interfa
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid JWT token")
 	}
-
-	fmt.Println("--- TEST ---")
-	utils.Dump(token.Claims)
-	fmt.Println("---------------")
 
 	// Extract claims
 	claims, ok := token.Claims.(jwt.MapClaims)
