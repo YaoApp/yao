@@ -13,7 +13,6 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/openapi/utils"
@@ -23,6 +22,21 @@ import (
 type OAuthAuthorizationURLResponse struct {
 	AuthorizationURL string `json:"authorization_url"`
 	State            string `json:"state"`
+}
+
+// OAuthCallbackResponse represents the response for OAuth callback
+type OAuthCallbackResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+}
+
+// OAuthAuthbackRequest represents the request for OAuth callback
+type OAuthAuthbackRequest struct {
+	Code     string `json:"code" form:"code"`
+	State    string `json:"state" form:"state"`
+	Provider string `json:"provider" form:"provider"`
+	Scope    string `json:"scope,omitempty" form:"scope,omitempty"`
 }
 
 // Attach attaches the signin handlers to the router
@@ -96,10 +110,18 @@ func authbackPrepare(c *gin.Context) {
 // authback is the handler for authback
 func authback(c *gin.Context) {
 	sid := utils.GetSessionID(c)
+	var params OAuthAuthbackRequest
 	providerID := c.Param("provider")
-	state := c.PostForm("state")
+	if err := c.ShouldBind(&params); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
 
-	if state == "" {
+	if params.State == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: "State is required",
@@ -108,8 +130,8 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	if err := validateState(providerID, sid, state); err != nil {
-		log.With(log.F{"sid": sid, "state": state}).Error("Invalid state")
+	if err := validateState(providerID, sid, params.State); err != nil {
+		log.With(log.F{"sid": sid, "state": params.State}).Error("Invalid state")
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: "Invalid state",
@@ -131,9 +153,7 @@ func authback(c *gin.Context) {
 	}
 
 	// Respond with success
-	response.RespondWithSuccess(c, response.StatusOK, maps.Map{
-		"state": state,
-	})
+	response.RespondWithSuccess(c, response.StatusOK, params)
 }
 
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider
