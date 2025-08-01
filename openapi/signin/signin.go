@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
@@ -24,96 +26,6 @@ var (
 	// Mutex for thread safety
 	configMutex sync.RWMutex
 )
-
-// Config represents the signin page configuration
-type Config struct {
-	Title       string       `json:"title,omitempty"`
-	Description string       `json:"description,omitempty"`
-	SuccessURL  string       `json:"success_url,omitempty"`
-	FailureURL  string       `json:"failure_url,omitempty"`
-	Form        *FormConfig  `json:"form,omitempty"`
-	Token       *TokenConfig `json:"token,omitempty"`
-	ThirdParty  *ThirdParty  `json:"third_party,omitempty"`
-}
-
-// FormConfig represents the form configuration
-type FormConfig struct {
-	Username           *UsernameConfig `json:"username,omitempty"`
-	Password           *PasswordConfig `json:"password,omitempty"`
-	Captcha            *CaptchaConfig  `json:"captcha,omitempty"`
-	ForgotPasswordLink bool            `json:"forgot_password_link,omitempty"`
-	RememberMe         bool            `json:"remember_me,omitempty"`
-	RegisterLink       string          `json:"register_link,omitempty"`
-	TermsOfServiceLink string          `json:"terms_of_service_link,omitempty"`
-	PrivacyPolicyLink  string          `json:"privacy_policy_link,omitempty"`
-}
-
-// UsernameConfig represents the username field configuration
-type UsernameConfig struct {
-	Placeholder string   `json:"placeholder,omitempty"`
-	Fields      []string `json:"fields,omitempty"`
-}
-
-// PasswordConfig represents the password field configuration
-type PasswordConfig struct {
-	Placeholder string `json:"placeholder,omitempty"`
-}
-
-// CaptchaConfig represents the captcha configuration
-type CaptchaConfig struct {
-	Type    string                 `json:"type,omitempty"`
-	Options map[string]interface{} `json:"options,omitempty"`
-}
-
-// TokenConfig represents the token configuration
-type TokenConfig struct {
-	ExpiresIn           string `json:"expires_in,omitempty"`
-	RememberMeExpiresIn string `json:"remember_me_expires_in,omitempty"`
-}
-
-// ThirdParty represents the third party login configuration
-type ThirdParty struct {
-	Register  *RegisterConfig `json:"register,omitempty"`
-	Providers []*Provider     `json:"providers,omitempty"`
-}
-
-// RegisterConfig represents the auto register configuration
-type RegisterConfig struct {
-	Auto bool   `json:"auto,omitempty"`
-	Role string `json:"role,omitempty"`
-}
-
-// Provider represents a third party login provider
-type Provider struct {
-	ID                    string            `json:"id,omitempty"`
-	Title                 string            `json:"title,omitempty"`
-	Logo                  string            `json:"logo,omitempty"`
-	Color                 string            `json:"color,omitempty"`
-	TextColor             string            `json:"text_color,omitempty"`
-	ClientID              string            `json:"client_id,omitempty"`
-	ClientSecret          string            `json:"client_secret,omitempty"`
-	ClientSecretGenerator *SecretGenerator  `json:"client_secret_generator,omitempty"`
-	Scopes                []string          `json:"scopes,omitempty"`
-	ResponseMode          string            `json:"response_mode,omitempty"`
-	Endpoints             *Endpoints        `json:"endpoints,omitempty"`
-	Mapping               map[string]string `json:"mapping,omitempty"`
-}
-
-// SecretGenerator represents the client secret generator configuration
-type SecretGenerator struct {
-	Type       string                 `json:"type,omitempty"`
-	ExpiresIn  string                 `json:"expires_in,omitempty"`
-	PrivateKey string                 `json:"private_key,omitempty"`
-	Header     map[string]interface{} `json:"header,omitempty"`
-	Payload    map[string]interface{} `json:"payload,omitempty"`
-}
-
-// Endpoints represents the OAuth endpoints
-type Endpoints struct {
-	Authorization string `json:"authorization,omitempty"`
-	Token         string `json:"token,omitempty"`
-	UserInfo      string `json:"user_info,omitempty"`
-}
 
 // Load loads all signin configurations from the openapi directory
 func Load(appConfig config.Config) error {
@@ -273,6 +185,19 @@ func processENVVariables(config *Config, rootPath string) {
 				// Convert relative path to absolute path for private key
 				if provider.ClientSecretGenerator.PrivateKey != "" && !filepath.IsAbs(provider.ClientSecretGenerator.PrivateKey) {
 					provider.ClientSecretGenerator.PrivateKey = filepath.Join(rootPath, "openapi", "certs", provider.ClientSecretGenerator.PrivateKey)
+				}
+
+				// Process and normalize expires_in format
+				if provider.ClientSecretGenerator.ExpiresIn != "" {
+					normalizedDuration, err := normalizeExpiresIn(provider.ClientSecretGenerator.ExpiresIn)
+					if err != nil {
+						log.Printf("Warning: Invalid expires_in format '%s' for provider '%s': %v",
+							provider.ClientSecretGenerator.ExpiresIn, provider.ID, err)
+						// Set default to 90 days
+						provider.ClientSecretGenerator.ExpiresIn = "2160h" // 90 * 24 hours
+					} else {
+						provider.ClientSecretGenerator.ExpiresIn = normalizedDuration
+					}
 				}
 
 				// Process header values
@@ -525,4 +450,56 @@ func GetDefaultLanguage() string {
 		return "default"
 	}
 	return defaultLang
+}
+
+// normalizeExpiresIn converts custom time units to Go standard duration format
+func normalizeExpiresIn(expiresIn string) (string, error) {
+	if expiresIn == "" {
+		return "", nil
+	}
+
+	// Try parsing as standard Go duration first
+	if _, err := time.ParseDuration(expiresIn); err == nil {
+		return expiresIn, nil
+	}
+
+	// Custom unit conversion patterns
+	patterns := map[string]func(int) string{
+		"d":  func(n int) string { return fmt.Sprintf("%dh", n*24) },     // days to hours
+		"w":  func(n int) string { return fmt.Sprintf("%dh", n*24*7) },   // weeks to hours
+		"M":  func(n int) string { return fmt.Sprintf("%dh", n*24*30) },  // months to hours (approximate)
+		"y":  func(n int) string { return fmt.Sprintf("%dh", n*24*365) }, // years to hours (approximate)
+		"ms": func(n int) string { return fmt.Sprintf("%dms", n) },       // milliseconds
+		"s":  func(n int) string { return fmt.Sprintf("%ds", n) },        // seconds
+		"m":  func(n int) string { return fmt.Sprintf("%dm", n) },        // minutes
+		"h":  func(n int) string { return fmt.Sprintf("%dh", n) },        // hours
+	}
+
+	// Extract number and unit using regex
+	re := regexp.MustCompile(`^(\d+)(\w+)$`)
+	matches := re.FindStringSubmatch(expiresIn)
+
+	if len(matches) != 3 {
+		return "", fmt.Errorf("invalid duration format: %s", expiresIn)
+	}
+
+	number, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return "", fmt.Errorf("invalid number in duration: %s", matches[1])
+	}
+
+	unit := matches[2]
+	converter, exists := patterns[unit]
+	if !exists {
+		return "", fmt.Errorf("unsupported time unit: %s", unit)
+	}
+
+	normalized := converter(number)
+
+	// Validate the normalized duration
+	if _, err := time.ParseDuration(normalized); err != nil {
+		return "", fmt.Errorf("failed to create valid duration: %v", err)
+	}
+
+	return normalized, nil
 }
