@@ -18,27 +18,6 @@ import (
 	"github.com/yaoapp/yao/openapi/utils"
 )
 
-// OAuthAuthorizationURLResponse represents the response for OAuth authorization URL
-type OAuthAuthorizationURLResponse struct {
-	AuthorizationURL string `json:"authorization_url"`
-	State            string `json:"state"`
-}
-
-// OAuthCallbackResponse represents the response for OAuth callback
-type OAuthCallbackResponse struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn    int    `json:"expires_in"`
-}
-
-// OAuthAuthbackRequest represents the request for OAuth callback
-type OAuthAuthbackRequest struct {
-	Code     string `json:"code" form:"code"`
-	State    string `json:"state" form:"state"`
-	Provider string `json:"provider" form:"provider"`
-	Scope    string `json:"scope,omitempty" form:"scope,omitempty"`
-}
-
 // Attach attaches the signin handlers to the router
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/signin", getConfig)
@@ -95,12 +74,6 @@ func authbackPrepare(c *gin.Context) {
 		return
 	}
 
-	// Remove the redirect URI from the session
-	err = removeRedirectURI(providerID, state)
-	if err != nil {
-		log.Warn("Failed to remove redirect URI: %v", err)
-	}
-
 	params := url.Values{}
 	params.Add("code", code)
 	params.Add("state", state)
@@ -140,8 +113,47 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	// Remove the state from the session
-	err := removeState(providerID, sid)
+	// Get redirect URI
+	redirectURI, err := getRedirectURI(providerID, params.State)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Failed to get redirect URI",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get provider
+	provider, err := GetProvider(params.Locale, providerID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: fmt.Sprintf("Failed to get provider: %v", err),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// if response mode is form_post
+	if provider.ResponseMode == "form_post" {
+		// Replace the redirectURI to
+		pathname := strings.Replace(c.Request.URL.Path, "/signin/authback/", "/signin/oauth/", 1) + "/authorize/prepare"
+		fmt.Println(pathname)
+		newRedirectURI, err := reconstructRedirectURI(redirectURI, pathname, c)
+		if err != nil {
+			log.Error("Failed to reconstruct redirectURI: %v", err)
+			response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Invalid redirect URI format",
+			})
+			return
+		}
+		redirectURI = newRedirectURI
+	}
+
+	// Remove the state from the session and cache
+	err = removeState(providerID, sid)
 	if err != nil {
 		log.With(log.F{"sid": sid, "providerID": providerID}).Error("Failed to remove state")
 		errorResp := &response.ErrorResponse{
@@ -152,8 +164,23 @@ func authback(c *gin.Context) {
 		return
 	}
 
+	// Get UserInfo
+	tokenResponse, err := provider.AccessToken(params.Code, redirectURI)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: fmt.Sprintf("Failed to get user info: %v", err),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
 	// Respond with success
-	response.RespondWithSuccess(c, response.StatusOK, params)
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
+		"params":   params,
+		"token":    tokenResponse,
+		"provider": provider,
+	})
 }
 
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider
@@ -173,26 +200,14 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 	state := c.Query("state")
 	locale := c.Query("locale")
 
-	// Get full configuration
-	config := GetFullConfig(locale)
-	if config == nil {
+	provider, err := GetProvider(locale, providerID)
+	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "No signin configuration found",
+			ErrorDescription: "Failed to get provider",
 		}
 		response.RespondWithError(c, response.StatusNotFound, errorResp)
 		return
-	}
-
-	// Find the provider
-	var provider *Provider
-	if config.ThirdParty != nil && config.ThirdParty.Providers != nil {
-		for _, p := range config.ThirdParty.Providers {
-			if p.ID == providerID {
-				provider = p
-				break
-			}
-		}
 	}
 
 	if provider == nil {
@@ -260,7 +275,7 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 	}
 
 	// Save the state to the session for 20 minutes
-	err := saveState(providerID, sid, state)
+	err = saveState(providerID, sid, state)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -270,18 +285,8 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 		return
 	}
 
-	// if response mode is form_post, save the redirect URI to the session
+	// if response mode is form_post
 	if provider.ResponseMode == "form_post" {
-		err := saveRedirectURI(providerID, state, redirectURI)
-		if err != nil {
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrInvalidRequest.Code,
-				ErrorDescription: "Failed to save OAuth redirect URI",
-			}
-			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-			return
-		}
-
 		// Replace the redirectURI to
 		pathname := c.Request.URL.Path + "/prepare"
 		newRedirectURI, err := reconstructRedirectURI(redirectURI, pathname, c)
@@ -295,6 +300,17 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 		}
 
 		params.Set("redirect_uri", newRedirectURI)
+	}
+
+	// Save the redirect URI to the cache
+	err = saveRedirectURI(providerID, state, redirectURI)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Failed to save OAuth redirect URI",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
 	}
 
 	// Build the authorization URL
@@ -385,6 +401,14 @@ func removeRedirectURI(providerID, state string) error {
 }
 
 func removeState(providerID, sid string) error {
+	// Get the state from the session
+	state, err := session.Global().ID(sid).Get(fmt.Sprintf("oauth_state_%s", providerID))
+	if err != nil {
+		return err
+	}
+
+	// Remove the redirect URI from the cache
+	removeRedirectURI(providerID, state.(string))
 	return session.Global().ID(sid).Del(fmt.Sprintf("oauth_state_%s", providerID))
 }
 
