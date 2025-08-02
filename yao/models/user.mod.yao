@@ -239,20 +239,20 @@
       "nullable": false
     },
     {
-      "name": "role",
+      "name": "role_id",
       "type": "string",
-      "label": "Role",
-      "comment": "User role for authorization",
-      "length": 100,
+      "label": "Role ID",
+      "comment": "User role identifier (references user_role.role_id)",
+      "length": 50,
       "nullable": true,
       "index": true
     },
     {
-      "name": "type",
+      "name": "type_id",
       "type": "string",
-      "label": "Type",
-      "comment": "User type classification",
-      "length": 100,
+      "label": "Type ID",
+      "comment": "User type identifier (references user_type.type_id)",
+      "length": 50,
       "nullable": true,
       "index": true
     },
