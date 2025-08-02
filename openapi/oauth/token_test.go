@@ -23,7 +23,7 @@ func TestIntrospect(t *testing.T) {
 		token := "test-active-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token using the updated method with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -45,7 +45,7 @@ func TestIntrospect(t *testing.T) {
 		token := "test-expired-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store expired token with negative expiresIn (already expired)
 		expiresIn := -3600 // Expired 1 hour ago
@@ -116,7 +116,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-subject-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
 		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
@@ -170,7 +170,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-inactive-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store expired token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
@@ -191,7 +191,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-subject-token-aud"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
 		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
@@ -209,7 +209,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-subject-token-aud-empty"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
 		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
@@ -227,7 +227,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-subject-token-scope"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
 		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
@@ -243,7 +243,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-inactive-subject-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store expired subject token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
@@ -263,7 +263,7 @@ func TestTokenExchange(t *testing.T) {
 		subjectToken := "test-subject-token-minimal"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
 		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
@@ -296,7 +296,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		expectedAudience := "https://api.example.com"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -314,7 +314,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		expectedAudience := "https://api.example.com"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -332,7 +332,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		expectedAudience := "https://api.example.com"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -350,7 +350,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		expectedAudience := "https://api.example.com"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store expired token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
@@ -410,7 +410,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		token := "test-dpop-binding-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -431,7 +431,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		token := "test-mtls-binding-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -452,7 +452,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		token := "test-cert-binding-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -473,7 +473,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		token := "test-unknown-binding-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -494,7 +494,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		token := "test-inactive-binding-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store expired token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
@@ -573,7 +573,7 @@ func TestTokenGeneration(t *testing.T) {
 
 	t.Run("generate refresh token", func(t *testing.T) {
 		// Updated to use new generateRefreshToken signature with scope and subject
-		token, err := service.generateRefreshToken(clientID, "openid profile", testUsers[0].Subject)
+		token, err := service.generateRefreshToken(clientID, "openid profile", testUsers[0].UserID)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 		assert.True(t, strings.HasPrefix(token, "rfk_"))
@@ -668,7 +668,7 @@ func TestTokenIntegration(t *testing.T) {
 
 		// Step 2: Store token data with expiresIn parameter
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 		err = service.storeAccessToken(accessToken, clientID, scope, subject, 3600)
 		assert.NoError(t, err)
 
@@ -752,7 +752,7 @@ func TestTokenEdgeCases(t *testing.T) {
 		token := "test-malformed-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter (it will handle data types correctly)
 		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
@@ -770,7 +770,7 @@ func TestTokenEdgeCases(t *testing.T) {
 		subjectToken := "test-long-audience-token"
 		clientID := testClients[0].ClientID
 		scope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
 		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
