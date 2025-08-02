@@ -58,6 +58,25 @@ func (u *DefaultUser) GetOAuthAccount(ctx context.Context, provider string, subj
 	return accounts[0], nil
 }
 
+// OAuthAccountExists checks if an OAuth account exists by provider and subject (lightweight query)
+func (u *DefaultUser) OAuthAccountExists(ctx context.Context, provider string, subject string) (bool, error) {
+	m := model.Select(u.oauthAccountModel)
+	accounts, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "provider", Value: provider},
+			{Column: "sub", Value: subject},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetOAuthAccount, err)
+	}
+
+	return len(accounts) > 0, nil
+}
+
 // GetUserOAuthAccounts retrieves all OAuth accounts for a user
 func (u *DefaultUser) GetUserOAuthAccounts(ctx context.Context, userID string) ([]maps.MapStrAny, error) {
 	m := model.Select(u.oauthAccountModel)

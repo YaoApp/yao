@@ -152,6 +152,9 @@ type UserProvider interface {
 
 	// User Basic Operations
 	GetUser(ctx context.Context, userID string) (maps.MapStrAny, error)
+	UserExists(ctx context.Context, userID string) (bool, error)
+	UserExistsByEmail(ctx context.Context, email string) (bool, error)
+	UserExistsByPreferredUsername(ctx context.Context, preferredUsername string) (bool, error)
 
 	GetUserByPreferredUsername(ctx context.Context, preferredUsername string) (maps.MapStrAny, error)
 	GetUserByEmail(ctx context.Context, email string) (maps.MapStrAny, error)
@@ -175,9 +178,11 @@ type UserProvider interface {
 	GetUserRole(ctx context.Context, userID string) (maps.MapStrAny, error)
 	SetUserRole(ctx context.Context, userID string, roleID string) error
 	ClearUserRole(ctx context.Context, userID string) error
+	UserHasRole(ctx context.Context, userID string) (bool, error)
 	GetUserType(ctx context.Context, userID string) (maps.MapStrAny, error)
 	SetUserType(ctx context.Context, userID string, typeID string) error
 	ClearUserType(ctx context.Context, userID string) error
+	UserHasType(ctx context.Context, userID string) (bool, error)
 	ValidateUserScope(ctx context.Context, userID string, scopes []string) (bool, error)
 
 	// User MFA Management
@@ -196,6 +201,7 @@ type UserProvider interface {
 
 	CreateOAuthAccount(ctx context.Context, userID string, oauthData maps.MapStrAny) (interface{}, error)
 	GetOAuthAccount(ctx context.Context, provider string, subject string) (maps.MapStrAny, error)
+	OAuthAccountExists(ctx context.Context, provider string, subject string) (bool, error)
 	GetUserOAuthAccounts(ctx context.Context, userID string) ([]maps.MapStrAny, error)
 	UpdateOAuthAccount(ctx context.Context, provider string, subject string, oauthData maps.MapStrAny) error
 	DeleteOAuthAccount(ctx context.Context, provider string, subject string) error
@@ -210,6 +216,7 @@ type UserProvider interface {
 	// ============================================================================
 
 	GetRole(ctx context.Context, roleID string) (maps.MapStrAny, error)
+	RoleExists(ctx context.Context, roleID string) (bool, error)
 	CreateRole(ctx context.Context, roleData maps.MapStrAny) (interface{}, error)
 	UpdateRole(ctx context.Context, roleID string, roleData maps.MapStrAny) error
 	DeleteRole(ctx context.Context, roleID string) error
@@ -227,6 +234,7 @@ type UserProvider interface {
 	// ============================================================================
 
 	GetType(ctx context.Context, typeID string) (maps.MapStrAny, error)
+	TypeExists(ctx context.Context, typeID string) (bool, error)
 	CreateType(ctx context.Context, typeData maps.MapStrAny) (interface{}, error)
 	UpdateType(ctx context.Context, typeID string, typeData maps.MapStrAny) error
 	DeleteType(ctx context.Context, typeID string) error
