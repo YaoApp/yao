@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jaevor/go-nanoid"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/yaoapp/gou/model"
 )
 
@@ -133,11 +133,7 @@ func (u *DefaultUser) GetOAuthUserID(ctx context.Context, provider string, subje
 func generateNanoID(length int) (string, error) {
 	// URL-safe alphabet (no ambiguous characters like 0/O, 1/l/I)
 	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
-	nanoidGen, err := nanoid.CustomASCII(alphabet, length)
-	if err != nil {
-		return "", err
-	}
-	return nanoidGen(), nil
+	return gonanoid.Generate(alphabet, length)
 }
 
 // generateUUID generates a traditional UUID using Google's library

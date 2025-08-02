@@ -21,10 +21,10 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/jaevor/go-nanoid v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12
 	github.com/kaptinlin/jsonrepair v0.1.1
+	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/rhysd/go-github-selfupdate v1.2.3
