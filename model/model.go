@@ -20,15 +20,16 @@ import (
 
 // SystemModels system models
 var systemModels = map[string]string{
-	"__yao.assistant":  "yao/models/assistant.mod.yao",
-	"__yao.attachment": "yao/models/attachment.mod.yao",
-	"__yao.audit":      "yao/models/audit.mod.yao",
-	"__yao.chat":       "yao/models/chat.mod.yao",
-	"__yao.config":     "yao/models/config.mod.yao",
-	"__yao.dsl":        "yao/models/dsl.mod.yao",
-	"__yao.history":    "yao/models/history.mod.yao",
-	"__yao.kb":         "yao/models/kb.mod.yao",
-	"__yao.user":       "yao/models/user.mod.yao",
+	"__yao.assistant":          "yao/models/assistant.mod.yao",
+	"__yao.attachment":         "yao/models/attachment.mod.yao",
+	"__yao.audit":              "yao/models/audit.mod.yao",
+	"__yao.chat":               "yao/models/chat.mod.yao",
+	"__yao.config":             "yao/models/config.mod.yao",
+	"__yao.dsl":                "yao/models/dsl.mod.yao",
+	"__yao.history":            "yao/models/history.mod.yao",
+	"__yao.kb":                 "yao/models/kb.mod.yao",
+	"__yao.user":               "yao/models/user.mod.yao",
+	"__yao.user_oauth_account": "yao/models/user_oauth_account.mod.yao",
 }
 
 // Load load models
