@@ -1,13 +1,16 @@
 {
-  "name": "OAuth User",
-  "label": "OAuth User",
-  "description": "OAuth user model for authentication and authorization",
-  "tags": ["oauth", "auth", "user"],
+  "name": "User",
+  "label": "User",
+  "description": "User profile and information storage",
+  "tags": ["user", "profile", "auth", "mfa"],
   "table": {
-    "name": "oauth_users",
-    "comment": "OAuth users table for authentication and authorization"
+    "name": "user",
+    "comment": "User profile and information storage"
   },
   "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
     {
       "name": "id",
       "type": "ID",
@@ -16,20 +19,24 @@
       "primary": true
     },
     {
-      "name": "subject",
+      "name": "user_id",
       "type": "string",
-      "label": "Subject",
-      "comment": "OAuth subject identifier (sub claim)",
+      "label": "User ID",
+      "comment": "Global unique user identifier",
       "length": 255,
-      "nullable": true,
       "unique": true,
       "index": true
     },
+
+    // ============================================================================
+    // OIDC Standard Claims
+    // Reference: https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+    // ============================================================================
     {
-      "name": "username",
+      "name": "preferred_username",
       "type": "string",
-      "label": "Username",
-      "comment": "User login username",
+      "label": "Preferred Username",
+      "comment": "OIDC preferred username",
       "length": 100,
       "nullable": true,
       "unique": true,
@@ -39,12 +46,166 @@
       "name": "email",
       "type": "string",
       "label": "Email",
-      "comment": "User email address",
+      "comment": "OIDC email address",
       "length": 255,
       "nullable": true,
       "unique": true,
       "index": true
     },
+    {
+      "name": "email_verified",
+      "type": "boolean",
+      "label": "Email Verified",
+      "comment": "OIDC email verification status",
+      "default": false,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Full Name",
+      "comment": "OIDC full name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "given_name",
+      "type": "string",
+      "label": "Given Name",
+      "comment": "OIDC given name(s) or first name(s)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "family_name",
+      "type": "string",
+      "label": "Family Name",
+      "comment": "OIDC surname(s) or last name(s)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "middle_name",
+      "type": "string",
+      "label": "Middle Name",
+      "comment": "OIDC middle name(s)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "nickname",
+      "type": "string",
+      "label": "Nickname",
+      "comment": "OIDC casual name",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "profile",
+      "type": "string",
+      "label": "Profile",
+      "comment": "OIDC profile page URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "picture",
+      "type": "string",
+      "label": "Picture",
+      "comment": "OIDC profile picture URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "website",
+      "type": "string",
+      "label": "Website",
+      "comment": "OIDC web page or blog URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "gender",
+      "type": "string",
+      "label": "Gender",
+      "comment": "OIDC gender",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "birthdate",
+      "type": "string",
+      "label": "Birthdate",
+      "comment": "OIDC birthday (YYYY-MM-DD format)",
+      "length": 10,
+      "nullable": true
+    },
+    {
+      "name": "zoneinfo",
+      "type": "string",
+      "label": "Zone Info",
+      "comment": "OIDC time zone info",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "locale",
+      "type": "string",
+      "label": "Locale",
+      "comment": "OIDC locale (language-country)",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "phone_number",
+      "type": "string",
+      "label": "Phone Number",
+      "comment": "OIDC phone number",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "phone_number_verified",
+      "type": "boolean",
+      "label": "Phone Number Verified",
+      "comment": "OIDC phone verification status",
+      "default": false,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "address",
+      "type": "json",
+      "label": "Address",
+      "comment": "OIDC physical mailing address (structured)",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // User Preferences & Extensions
+    // ============================================================================
+    {
+      "name": "theme",
+      "type": "string",
+      "label": "Theme",
+      "comment": "User interface theme preference",
+      "length": 50,
+      "default": "auto",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Extended user metadata and custom fields",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Authentication Fields
+    // ============================================================================
     {
       "name": "password_hash",
       "type": "string",
@@ -54,169 +215,123 @@
       "nullable": true,
       "crypt": "PASSWORD"
     },
-    {
-      "name": "first_name",
-      "type": "string",
-      "label": "First Name",
-      "comment": "User first name",
-      "length": 100,
-      "nullable": true
-    },
-    {
-      "name": "last_name",
-      "type": "string",
-      "label": "Last Name",
-      "comment": "User last name",
-      "length": 100,
-      "nullable": true
-    },
-    {
-      "name": "full_name",
-      "type": "string",
-      "label": "Full Name",
-      "comment": "User full display name",
-      "length": 200,
-      "nullable": true
-    },
-    {
-      "name": "avatar_url",
-      "type": "string",
-      "label": "Avatar URL",
-      "comment": "URL to user profile picture",
-      "length": 500,
-      "nullable": true
-    },
-    {
-      "name": "mobile",
-      "type": "string",
-      "label": "Mobile",
-      "comment": "User mobile phone number",
-      "length": 50,
-      "nullable": true,
-      "index": true
-    },
-    {
-      "name": "address",
-      "type": "text",
-      "label": "Address",
-      "comment": "User address information",
-      "nullable": true
-    },
-    {
-      "name": "scopes",
-      "type": "json",
-      "label": "Scopes",
-      "comment": "Available OAuth scopes for this user",
-      "nullable": true
-    },
+
+    // ============================================================================
+    // User Management Fields
+    // ============================================================================
     {
       "name": "status",
       "type": "enum",
       "label": "Status",
       "comment": "User account status",
-      "option": ["active", "inactive", "suspended", "pending"],
+      "option": [
+        "pending", // New user awaiting email verification or admin approval
+        "active", // Normal user with full access to all features
+        "disabled", // Disabled by admin, cannot login but data retained
+        "suspended", // Temporarily banned due to policy violations
+        "locked", // System locked due to failed login attempts or security risks
+        "password_expired", // Password expired, requires reset before login
+        "email_unverified", // Email not verified, limited functionality
+        "archived" // Long-term inactive or former employee, data archived
+      ],
       "default": "pending",
       "index": true,
       "nullable": false
     },
     {
-      "name": "email_verified",
-      "type": "boolean",
-      "label": "Email Verified",
-      "comment": "Whether user email is verified",
-      "default": false,
-      "index": true
-    },
-    {
-      "name": "mobile_verified",
-      "type": "boolean",
-      "label": "Mobile Verified",
-      "comment": "Whether user mobile phone is verified",
-      "default": false,
-      "index": true
-    },
-    {
-      "name": "two_factor_enabled",
-      "type": "boolean",
-      "label": "Two Factor Enabled",
-      "comment": "Whether two-factor authentication is enabled",
-      "default": false,
-      "index": true
-    },
-    {
-      "name": "two_factor_secret",
+      "name": "role",
       "type": "string",
-      "label": "Two Factor Secret",
+      "label": "Role",
+      "comment": "User role for authorization",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "User type classification",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Multi-Factor Authentication (MFA) Fields
+    // ============================================================================
+    {
+      "name": "mfa_enabled",
+      "type": "boolean",
+      "label": "MFA Enabled",
+      "comment": "Whether multi-factor authentication is enabled",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "mfa_secret",
+      "type": "string",
+      "label": "MFA Secret",
       "comment": "TOTP shared secret key (Base32 encoded)",
       "length": 255,
       "nullable": true,
       "crypt": "AES"
     },
     {
-      "name": "two_factor_issuer",
+      "name": "mfa_issuer",
       "type": "string",
-      "label": "Two Factor Issuer",
+      "label": "MFA Issuer",
       "comment": "Issuer name displayed in authenticator app",
       "length": 100,
       "nullable": true,
-      "default": "YAO OAuth"
+      "default": "Yao App Engine"
     },
     {
-      "name": "two_factor_algorithm",
+      "name": "mfa_algorithm",
       "type": "enum",
-      "label": "Two Factor Algorithm",
+      "label": "MFA Algorithm",
       "comment": "TOTP algorithm (SHA1, SHA256, SHA512)",
       "option": ["SHA1", "SHA256", "SHA512"],
-      "default": "SHA1",
+      "default": "SHA256",
       "nullable": true
     },
     {
-      "name": "two_factor_digits",
+      "name": "mfa_digits",
       "type": "integer",
-      "label": "Two Factor Digits",
+      "label": "MFA Digits",
       "comment": "Number of digits in TOTP code (6 or 8)",
       "default": 6,
       "nullable": true
     },
     {
-      "name": "two_factor_period",
+      "name": "mfa_period",
       "type": "integer",
-      "label": "Two Factor Period",
+      "label": "MFA Period",
       "comment": "TOTP time period in seconds (usually 30)",
       "default": 30,
       "nullable": true
     },
     {
-      "name": "two_factor_account_name",
+      "name": "mfa_recovery_hash",
       "type": "string",
-      "label": "Two Factor Account Name",
-      "comment": "Account name displayed in authenticator app (usually username or email)",
+      "label": "MFA Recovery Hash",
+      "comment": "Hashed recovery code for MFA backup authentication",
       "length": 255,
-      "nullable": true
+      "nullable": true,
+      "crypt": "PASSWORD"
     },
     {
-      "name": "two_factor_recovery_codes",
-      "type": "json",
-      "label": "Two Factor Recovery Codes",
-      "comment": "Backup recovery codes for two-factor authentication",
-      "nullable": true
-    },
-    {
-      "name": "two_factor_enabled_at",
+      "name": "mfa_enabled_at",
       "type": "timestamp",
-      "label": "Two Factor Enabled At",
-      "comment": "When two-factor authentication was enabled",
+      "label": "MFA Enabled At",
+      "comment": "When multi-factor authentication was enabled",
       "nullable": true,
       "index": true
     },
-    {
-      "name": "two_factor_last_verified_at",
-      "type": "timestamp",
-      "label": "Two Factor Last Verified At",
-      "comment": "Last time two-factor authentication was verified",
-      "nullable": true,
-      "index": true
-    },
+
+    // ============================================================================
+    // User Activity Tracking Fields
+    // ============================================================================
     {
       "name": "last_login_at",
       "type": "timestamp",
@@ -226,37 +341,31 @@
       "index": true
     },
     {
+      "name": "mfa_last_verified_at",
+      "type": "timestamp",
+      "label": "MFA Last Verified At",
+      "comment": "Last time multi-factor authentication was verified",
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "password_changed_at",
       "type": "timestamp",
       "label": "Password Changed At",
       "comment": "When password was last changed",
       "nullable": true
-    },
-    {
-      "name": "metadata",
-      "type": "json",
-      "label": "Metadata",
-      "comment": "Additional user metadata and custom fields",
-      "nullable": true
-    },
-    {
-      "name": "preferences",
-      "type": "json",
-      "label": "Preferences",
-      "comment": "User preferences and settings",
-      "nullable": true
     }
   ],
   "indexes": [
     {
-      "name": "idx_user_two_factor",
-      "columns": ["two_factor_enabled", "two_factor_enabled_at"],
+      "name": "idx_user_mfa",
+      "columns": ["mfa_enabled", "mfa_enabled_at"],
       "type": "index",
-      "comment": "Index on two-factor authentication status and time"
+      "comment": "Index on multi-factor authentication status and time"
     },
     {
       "name": "idx_user_verification",
-      "columns": ["email_verified", "mobile_verified"],
+      "columns": ["email_verified", "phone_number_verified"],
       "type": "index",
       "comment": "Index on verification status for filtering"
     }
