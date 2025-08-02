@@ -117,7 +117,7 @@ func cleanupTestData() {
 	rolePatterns := []string{
 		"test%", "%testrole%", "%listrole%", "%permrole%", "%adminrole%", "%userrole%",
 		"%inactiverole%", "%systemrole%", "%validrole%", "%emptyupdate%", "%emptyperm%",
-		"%guestrole%", "%scoperole%",
+		"%guestrole%", "%scoperole%", "%test-role-for-exists%",
 	}
 	for _, pattern := range rolePatterns {
 		roleModel.DestroyWhere(model.QueryParam{
@@ -132,7 +132,7 @@ func cleanupTestData() {
 	typePatterns := []string{
 		"test%", "%testtype%", "%listtype%", "%configtype%", "%basictype%", "%premiumtype%",
 		"%inactivetype%", "%validtype%", "%emptyupdate%", "%emptyconfig%", "%scopetype%",
-		"%opentype%",
+		"%opentype%", "%test-type-for-exists%",
 	}
 	for _, pattern := range typePatterns {
 		typeModel.DestroyWhere(model.QueryParam{
@@ -150,7 +150,7 @@ func cleanupTestData() {
 		"test-%", "test_%", "%testuser%", "%oauthtest%", "%oauthlist%",
 		"%oautherror%", "%deletetest%", "%roleuser%", "%typeuser%", "%scopeuser%",
 		"%erroruser%", "%noroleuser%", "%clearnouser%", "%integuser%", "%notypeuser%",
-		"%openuser%", "%clearnotypeuser%",
+		"%openuser%", "%clearnotypeuser%", "%test-user-for-exists%", "%perf-test-user%",
 	}
 	for _, pattern := range userPatterns {
 		userModel.DestroyWhere(model.QueryParam{
@@ -164,7 +164,7 @@ func cleanupTestData() {
 	usernamePatterns := []string{
 		"testuser%", "%oauth_%", "%deletetest%", "%roleuser%", "%typeuser%",
 		"%scopeuser%", "%erroruser%", "%noroleuser%", "%clearnouser%", "%integuser%",
-		"%notypeuser%", "%openuser%", "%clearnotypeuser%",
+		"%notypeuser%", "%openuser%", "%clearnotypeuser%", "%testexistsuser%", "%perfuser%",
 	}
 	for _, pattern := range usernamePatterns {
 		userModel.DestroyWhere(model.QueryParam{

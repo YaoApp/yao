@@ -35,6 +35,60 @@ func (u *DefaultUser) GetUser(ctx context.Context, userID string) (maps.MapStrAn
 	return users[0], nil
 }
 
+// UserExists checks if a user exists by user_id (lightweight query)
+func (u *DefaultUser) UserExists(ctx context.Context, userID string) (bool, error) {
+	m := model.Select(u.model)
+	users, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: userID},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	return len(users) > 0, nil
+}
+
+// UserExistsByEmail checks if a user exists by email (lightweight query)
+func (u *DefaultUser) UserExistsByEmail(ctx context.Context, email string) (bool, error) {
+	m := model.Select(u.model)
+	users, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "email", Value: email},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	return len(users) > 0, nil
+}
+
+// UserExistsByPreferredUsername checks if a user exists by preferred_username (lightweight query)
+func (u *DefaultUser) UserExistsByPreferredUsername(ctx context.Context, preferredUsername string) (bool, error) {
+	m := model.Select(u.model)
+	users, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "preferred_username", Value: preferredUsername},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	return len(users) > 0, nil
+}
+
 // GetUserByPreferredUsername retrieves user by preferred_username (OIDC standard)
 func (u *DefaultUser) GetUserByPreferredUsername(ctx context.Context, preferredUsername string) (maps.MapStrAny, error) {
 	m := model.Select(u.model)

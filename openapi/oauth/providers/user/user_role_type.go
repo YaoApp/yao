@@ -151,6 +151,30 @@ func (u *DefaultUser) ClearUserRole(ctx context.Context, userID string) error {
 	return nil
 }
 
+// UserHasRole checks if a user has a role assigned (lightweight query)
+func (u *DefaultUser) UserHasRole(ctx context.Context, userID string) (bool, error) {
+	userModel := model.Select(u.model)
+	users, err := userModel.Get(model.QueryParam{
+		Select: []interface{}{"role_id"}, // Only select role_id field
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: userID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	if len(users) == 0 {
+		return false, fmt.Errorf(ErrUserNotFound)
+	}
+
+	user := users[0]
+	roleID, ok := user["role_id"].(string)
+	return ok && roleID != "", nil
+}
+
 // GetUserType retrieves user's type information
 func (u *DefaultUser) GetUserType(ctx context.Context, userID string) (maps.MapStrAny, error) {
 	// First get the user's type_id
@@ -290,6 +314,30 @@ func (u *DefaultUser) ClearUserType(ctx context.Context, userID string) error {
 
 	// Don't check affected rows - setting null to null is still a successful operation
 	return nil
+}
+
+// UserHasType checks if a user has a type assigned (lightweight query)
+func (u *DefaultUser) UserHasType(ctx context.Context, userID string) (bool, error) {
+	userModel := model.Select(u.model)
+	users, err := userModel.Get(model.QueryParam{
+		Select: []interface{}{"type_id"}, // Only select type_id field
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: userID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	if len(users) == 0 {
+		return false, fmt.Errorf(ErrUserNotFound)
+	}
+
+	user := users[0]
+	typeID, ok := user["type_id"].(string)
+	return ok && typeID != "", nil
 }
 
 // ValidateUserScope validates if a user has access to requested scopes based on role and type

@@ -32,6 +32,24 @@ func (u *DefaultUser) GetRole(ctx context.Context, roleID string) (maps.MapStrAn
 	return roles[0], nil
 }
 
+// RoleExists checks if a role exists by role_id (lightweight query)
+func (u *DefaultUser) RoleExists(ctx context.Context, roleID string) (bool, error) {
+	m := model.Select(u.roleModel)
+	roles, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "role_id", Value: roleID},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetRole, err)
+	}
+
+	return len(roles) > 0, nil
+}
+
 // CreateRole creates a new user role
 func (u *DefaultUser) CreateRole(ctx context.Context, roleData maps.MapStrAny) (interface{}, error) {
 	// Validate required role_id field

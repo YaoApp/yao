@@ -32,6 +32,24 @@ func (u *DefaultUser) GetType(ctx context.Context, typeID string) (maps.MapStrAn
 	return types[0], nil
 }
 
+// TypeExists checks if a type exists by type_id (lightweight query)
+func (u *DefaultUser) TypeExists(ctx context.Context, typeID string) (bool, error) {
+	m := model.Select(u.typeModel)
+	types, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "type_id", Value: typeID},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetType, err)
+	}
+
+	return len(types) > 0, nil
+}
+
 // CreateType creates a new user type
 func (u *DefaultUser) CreateType(ctx context.Context, typeData maps.MapStrAny) (interface{}, error) {
 	// Validate required type_id field
