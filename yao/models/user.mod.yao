@@ -316,9 +316,8 @@
       "type": "string",
       "label": "MFA Recovery Hash",
       "comment": "Hashed recovery code for MFA backup authentication",
-      "length": 255,
-      "nullable": true,
-      "crypt": "PASSWORD"
+      "length": 1024,
+      "nullable": true
     },
     {
       "name": "mfa_enabled_at",

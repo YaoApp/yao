@@ -6,6 +6,18 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// MFAOptions contains configuration for MFA operations
+type MFAOptions struct {
+	Issuer         string // Issuer name displayed in authenticator app
+	Algorithm      string // TOTP algorithm: "SHA1", "SHA256", "SHA512"
+	Digits         int    // Number of digits in TOTP code (6 or 8)
+	Period         int    // TOTP time period in seconds (usually 30)
+	SecretSize     int    // Secret key size in bytes (usually 32)
+	RecoveryCount  int    // Number of recovery codes to generate
+	RecoveryLength int    // Length of each recovery code
+	AccountName    string // Optional account name (defaults to userID)
+}
+
 // ErrorResponse represents an OAuth 2.1 error response
 type ErrorResponse struct {
 	Code             string `json:"error"`
