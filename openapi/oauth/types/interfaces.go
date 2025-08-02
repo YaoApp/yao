@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/maps"
 )
 
 // OAuth interface defines the complete OAuth 2.1 and MCP authorization server functionality
@@ -142,65 +144,106 @@ type OAuth interface {
 	Guard(c *gin.Context)
 }
 
-// UserProvider interface for user information retrieval
+// UserProvider interface for user information retrieval and management
 type UserProvider interface {
-	// GetUserByAccessToken retrieves user information using an access token
-	GetUserByAccessToken(ctx context.Context, accessToken string) (interface{}, error)
+	// ============================================================================
+	// User Resource
+	// ============================================================================
 
-	// GetUserBySubject retrieves user information using a subject identifier
-	GetUserBySubject(ctx context.Context, subject string) (interface{}, error)
+	// User Basic Operations
+	GetUser(ctx context.Context, userID string) (maps.MapStrAny, error)
 
-	// ValidateUserScope validates if a user has access to requested scopes
+	GetUserByPreferredUsername(ctx context.Context, preferredUsername string) (maps.MapStrAny, error)
+	GetUserByEmail(ctx context.Context, email string) (maps.MapStrAny, error)
+	GetUserForAuth(ctx context.Context, identifier string, identifierType string) (maps.MapStrAny, error)
+	VerifyPassword(ctx context.Context, password string, passwordHash string) (bool, error)
+	UpdatePassword(ctx context.Context, userID string, newPassword string) error
+	ResetPassword(ctx context.Context, userID string) (string, error)
+
+	CreateUser(ctx context.Context, userData maps.MapStrAny) (interface{}, error)
+	UpdateUser(ctx context.Context, userID string, userData maps.MapStrAny) error
+	DeleteUser(ctx context.Context, userID string) error
+	UpdateUserLastLogin(ctx context.Context, userID string) error
+	UpdateUserStatus(ctx context.Context, userID string, status string) error
+
+	// User List and Search
+	GetUsers(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error)
+	PaginateUsers(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
+	CountUsers(ctx context.Context, param model.QueryParam) (int64, error)
+
+	// User Role and Type Management
+	GetUserRole(ctx context.Context, userID string) (maps.MapStrAny, error)
+	SetUserRole(ctx context.Context, userID string, roleID string) error
+	GetUserType(ctx context.Context, userID string) (maps.MapStrAny, error)
+	SetUserType(ctx context.Context, userID string, typeID string) error
 	ValidateUserScope(ctx context.Context, userID string, scopes []string) (bool, error)
 
-	// Token management methods
-	// StoreToken stores a token with expiration time
-	// StoreToken(accessToken string, tokenData map[string]interface{}, expiration time.Duration) error
-
-	// RevokeToken revokes a token by removing it from storage
-	// RevokeToken(accessToken string) error
-
-	// TokenExists checks if a token exists in storage
-	// TokenExists(accessToken string) bool
-
-	// GetTokenData retrieves token data from storage
-	// GetTokenData(accessToken string) (map[string]interface{}, error)
-
-	// User management methods
-	// CreateUser creates a new user in the database
-	CreateUser(userData map[string]interface{}) (interface{}, error)
-
-	// UpdateUserLastLogin updates the user's last login timestamp
-	UpdateUserLastLogin(userID interface{}) error
-
-	// GetUserByUsername retrieves user by username
-	GetUserByUsername(username string) (interface{}, error)
-
-	// GetUserByEmail retrieves user by email
-	GetUserByEmail(email string) (interface{}, error)
-
-	// GetUserForAuth retrieves user information for authentication purposes (internal use only)
-	// This method includes sensitive fields like password_hash and should not be exposed to external APIs
-	GetUserForAuth(ctx context.Context, identifier string, identifierType string) (interface{}, error)
-
-	// Two-factor authentication methods
-	// GenerateTOTPSecret generates a new TOTP secret for user
-	GenerateTOTPSecret(ctx context.Context, userID string, issuer string, accountName string) (string, string, error) // returns secret and QR code URL
-
-	// EnableTwoFactor enables two-factor authentication for user
-	EnableTwoFactor(ctx context.Context, userID string, secret string, code string) error
-
-	// DisableTwoFactor disables two-factor authentication for user
-	DisableTwoFactor(ctx context.Context, userID string, code string) error
-
-	// VerifyTOTPCode verifies a TOTP code for user
-	VerifyTOTPCode(ctx context.Context, userID string, code string) (bool, error)
-
-	// GenerateRecoveryCodes generates new recovery codes for user
+	// User MFA Management
+	GenerateMFASecret(ctx context.Context, userID string, issuer string, accountName string) (string, string, error)
+	EnableMFA(ctx context.Context, userID string, secret string, code string) error
+	DisableMFA(ctx context.Context, userID string, code string) error
+	VerifyMFACode(ctx context.Context, userID string, code string) (bool, error)
 	GenerateRecoveryCodes(ctx context.Context, userID string) ([]string, error)
-
-	// VerifyRecoveryCode verifies and consumes a recovery code
 	VerifyRecoveryCode(ctx context.Context, userID string, code string) (bool, error)
+	IsMFAEnabled(ctx context.Context, userID string) (bool, error)
+	GetMFAConfig(ctx context.Context, userID string) (maps.MapStrAny, error)
+
+	// ============================================================================
+	// OAuth Account Resource
+	// ============================================================================
+
+	CreateOAuthAccount(ctx context.Context, userID string, oauthData maps.MapStrAny) (interface{}, error)
+	GetOAuthAccount(ctx context.Context, provider string, subject string) (maps.MapStrAny, error)
+	GetUserOAuthAccounts(ctx context.Context, userID string) ([]maps.MapStrAny, error)
+	UpdateOAuthAccount(ctx context.Context, provider string, subject string, oauthData maps.MapStrAny) error
+	DeleteOAuthAccount(ctx context.Context, provider string, subject string) error
+
+	GetOAuthAccounts(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error)
+	PaginateOAuthAccounts(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
+	CountOAuthAccounts(ctx context.Context, param model.QueryParam) (int64, error)
+
+	// ============================================================================
+	// Role Resource
+	// ============================================================================
+
+	GetRole(ctx context.Context, roleID string) (maps.MapStrAny, error)
+	CreateRole(ctx context.Context, roleData maps.MapStrAny) (interface{}, error)
+	UpdateRole(ctx context.Context, roleID string, roleData maps.MapStrAny) error
+	DeleteRole(ctx context.Context, roleID string) error
+
+	GetRoles(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error)
+	PaginateRoles(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
+	CountRoles(ctx context.Context, param model.QueryParam) (int64, error)
+
+	GetRolePermissions(ctx context.Context, roleID string) (maps.MapStrAny, error)
+	SetRolePermissions(ctx context.Context, roleID string, permissions maps.MapStrAny) error
+	ValidateRolePermissions(ctx context.Context, roleID string, requiredPermissions []string) (bool, error)
+
+	// ============================================================================
+	// Type Resource
+	// ============================================================================
+
+	GetType(ctx context.Context, typeID string) (maps.MapStrAny, error)
+	CreateType(ctx context.Context, typeData maps.MapStrAny) (interface{}, error)
+	UpdateType(ctx context.Context, typeID string, typeData maps.MapStrAny) error
+	DeleteType(ctx context.Context, typeID string) error
+
+	GetTypes(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error)
+	PaginateTypes(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
+	CountTypes(ctx context.Context, param model.QueryParam) (int64, error)
+
+	GetTypeConfiguration(ctx context.Context, typeID string) (maps.MapStrAny, error)
+	SetTypeConfiguration(ctx context.Context, typeID string, config maps.MapStrAny) error
+
+	// ============================================================================
+	// Utils
+	// ============================================================================
+
+	// GenerateUserID generates a new unique user_id for user creation
+	GenerateUserID(ctx context.Context, safe ...bool) (string, error)
+
+	// GetOAuthUserID quickly retrieves user_id by OAuth provider and subject
+	GetOAuthUserID(ctx context.Context, provider string, subject string) (string, error)
 }
 
 // ClientProvider interface for OAuth client management and persistence

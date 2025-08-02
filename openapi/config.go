@@ -346,10 +346,9 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 
 	// Create the User provider
 	userProvider := user.NewDefaultUser(&user.DefaultUserOptions{
-		Prefix:     prefix,
-		Model:      string(providers.User),
-		Cache:      cacheStore,
-		TokenStore: dataStore,
+		Prefix: prefix,
+		Model:  string(providers.User),
+		Cache:  cacheStore,
 	})
 
 	// Create the Client provider

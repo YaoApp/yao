@@ -1,4 +1,4 @@
-package user
+package removedfuncref
 
 import (
 	"context"
