@@ -174,8 +174,10 @@ type UserProvider interface {
 	// User Role and Type Management
 	GetUserRole(ctx context.Context, userID string) (maps.MapStrAny, error)
 	SetUserRole(ctx context.Context, userID string, roleID string) error
+	ClearUserRole(ctx context.Context, userID string) error
 	GetUserType(ctx context.Context, userID string) (maps.MapStrAny, error)
 	SetUserType(ctx context.Context, userID string, typeID string) error
+	ClearUserType(ctx context.Context, userID string) error
 	ValidateUserScope(ctx context.Context, userID string, scopes []string) (bool, error)
 
 	// User MFA Management

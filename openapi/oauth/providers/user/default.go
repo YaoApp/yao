@@ -76,6 +76,33 @@ var (
 		"website", "gender", "birthdate", "zoneinfo", "locale", "phone_number", "phone_number_verified",
 		"address", "raw", "last_login_at", "is_active", "created_at", "updated_at",
 	}
+
+	// DefaultRoleFields contains basic role fields
+	DefaultRoleFields = []interface{}{
+		"id", "role_id", "name", "description", "is_active", "is_default", "is_system",
+		"level", "sort_order", "color", "icon", "created_at", "updated_at",
+	}
+
+	// DefaultRoleDetailFields contains all role fields including permissions and metadata
+	DefaultRoleDetailFields = []interface{}{
+		"id", "role_id", "name", "description", "permissions", "restricted_permissions",
+		"parent_role_id", "level", "is_active", "is_default", "is_system", "sort_order",
+		"color", "icon", "max_users", "requires_approval", "auto_revoke_days",
+		"metadata", "conditions", "created_at", "updated_at",
+	}
+
+	// DefaultTypeFields contains basic type fields
+	DefaultTypeFields = []interface{}{
+		"id", "type_id", "name", "description", "is_active", "is_default", "sort_order",
+		"default_role_id", "max_sessions", "session_timeout", "created_at", "updated_at",
+	}
+
+	// DefaultTypeDetailFields contains all type fields including configuration and metadata
+	DefaultTypeDetailFields = []interface{}{
+		"id", "type_id", "name", "description", "default_role_id", "schema", "metadata",
+		"is_active", "is_default", "sort_order", "max_sessions", "session_timeout",
+		"password_policy", "features", "limits", "created_at", "updated_at",
+	}
 )
 
 // DefaultUser provides a default implementation of UserProvider
@@ -100,6 +127,14 @@ type DefaultUser struct {
 	// OAuth Account Field lists
 	oauthAccountFields       []interface{} // configurable
 	oauthAccountDetailFields []interface{} // configurable
+
+	// Role Field lists
+	roleFields       []interface{} // configurable
+	roleDetailFields []interface{} // configurable
+
+	// Type Field lists
+	typeFields       []interface{} // configurable
+	typeDetailFields []interface{} // configurable
 }
 
 // IDStrategy defines the strategy for generating user IDs
@@ -132,6 +167,14 @@ type DefaultUserOptions struct {
 	// OAuth Account field lists (use defaults if not specified)
 	OAuthAccountFields       []interface{} // basic OAuth account fields
 	OAuthAccountDetailFields []interface{} // detailed OAuth account fields with OIDC claims
+
+	// Role field lists (use defaults if not specified)
+	RoleFields       []interface{} // basic role fields
+	RoleDetailFields []interface{} // detailed role fields including permissions and metadata
+
+	// Type field lists (use defaults if not specified)
+	TypeFields       []interface{} // basic type fields
+	TypeDetailFields []interface{} // detailed type fields including configuration and metadata
 }
 
 // NewDefaultUser creates a new DefaultUser
@@ -188,6 +231,28 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		oauthAccountDetailFields = DefaultOAuthAccountDetailFields
 	}
 
+	// Set role field lists with defaults if not specified
+	roleFields := options.RoleFields
+	if roleFields == nil {
+		roleFields = DefaultRoleFields
+	}
+
+	roleDetailFields := options.RoleDetailFields
+	if roleDetailFields == nil {
+		roleDetailFields = DefaultRoleDetailFields
+	}
+
+	// Set type field lists with defaults if not specified
+	typeFields := options.TypeFields
+	if typeFields == nil {
+		typeFields = DefaultTypeFields
+	}
+
+	typeDetailFields := options.TypeDetailFields
+	if typeDetailFields == nil {
+		typeDetailFields = DefaultTypeDetailFields
+	}
+
 	return &DefaultUser{
 		prefix:            options.Prefix,
 		model:             model,
@@ -205,5 +270,13 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		// OAuth Account field lists
 		oauthAccountFields:       oauthAccountFields,
 		oauthAccountDetailFields: oauthAccountDetailFields,
+
+		// Role field lists
+		roleFields:       roleFields,
+		roleDetailFields: roleDetailFields,
+
+		// Type field lists
+		typeFields:       typeFields,
+		typeDetailFields: typeDetailFields,
 	}
 }
