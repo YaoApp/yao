@@ -155,12 +155,6 @@
       "columns": ["is_default", "is_active"],
       "type": "index",
       "comment": "Index for finding default active user type"
-    },
-    {
-      "name": "idx_user_type_role",
-      "columns": ["default_role_id"],
-      "type": "index",
-      "comment": "Index for role relationships"
     }
   ],
   "relations": {},
