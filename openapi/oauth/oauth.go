@@ -108,10 +108,9 @@ func NewService(config *Config) (*Service, error) {
 	userProvider := config.UserProvider
 	if userProvider == nil {
 		userProvider = user.NewDefaultUser(&user.DefaultUserOptions{
-			Prefix:     keyPrefix,
-			Model:      "__yao.user",
-			Cache:      config.Cache,
-			TokenStore: config.Store,
+			Prefix: keyPrefix,
+			Model:  "__yao.user",
+			Cache:  config.Cache,
 		})
 	}
 

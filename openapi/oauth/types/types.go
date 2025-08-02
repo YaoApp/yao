@@ -101,6 +101,54 @@ const (
 	TokenEndpointAuthSelfSignedTLS = "self_signed_tls_client_auth"
 )
 
+// User Status Constants
+const (
+	UserStatusPending         = "pending"
+	UserStatusActive          = "active"
+	UserStatusDisabled        = "disabled"
+	UserStatusSuspended       = "suspended"
+	UserStatusLocked          = "locked"
+	UserStatusPasswordExpired = "password_expired"
+	UserStatusEmailUnverified = "email_unverified"
+	UserStatusArchived        = "archived"
+)
+
+// MFA Algorithm Constants
+const (
+	MFAAlgorithmSHA1   = "SHA1"
+	MFAAlgorithmSHA256 = "SHA256"
+	MFAAlgorithmSHA512 = "SHA512"
+)
+
+// OAuth Provider Constants
+const (
+	ProviderLocal     = "local"
+	ProviderGoogle    = "google"
+	ProviderApple     = "apple"
+	ProviderGitHub    = "github"
+	ProviderMicrosoft = "microsoft"
+	ProviderWeChat    = "wechat"
+	ProviderGeneric   = "generic"
+)
+
+// User Identifier Types
+const (
+	IdentifierTypeUserID            = "user_id"
+	IdentifierTypeSubject           = "subject"
+	IdentifierTypePreferredUsername = "preferred_username"
+	IdentifierTypeEmail             = "email"
+	IdentifierTypePhoneNumber       = "phone_number"
+)
+
+// Login Methods
+const (
+	LoginMethodPassword = "password"
+	LoginMethodOAuth    = "oauth"
+	LoginMethodMFA      = "mfa"
+	LoginMethodRecovery = "recovery"
+	LoginMethodSSO      = "sso"
+)
+
 // Response Modes
 const (
 	ResponseModeQuery    = "query"
