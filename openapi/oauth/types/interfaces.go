@@ -181,7 +181,7 @@ type UserProvider interface {
 	ValidateUserScope(ctx context.Context, userID string, scopes []string) (bool, error)
 
 	// User MFA Management
-	GenerateMFASecret(ctx context.Context, userID string, issuer string, accountName string) (string, string, error)
+	GenerateMFASecret(ctx context.Context, userID string, options *MFAOptions) (string, string, error)
 	EnableMFA(ctx context.Context, userID string, secret string, code string) error
 	DisableMFA(ctx context.Context, userID string, code string) error
 	VerifyMFACode(ctx context.Context, userID string, code string) (bool, error)

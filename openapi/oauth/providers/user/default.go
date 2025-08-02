@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // Error messages
@@ -32,6 +33,17 @@ const (
 	ErrFailedToDeleteRole      = "failed to delete role: %w"
 	ErrFailedToDeleteType      = "failed to delete type: %w"
 	ErrFailedToDeleteOAuth     = "failed to delete oauth account: %w"
+
+	// MFA related errors
+	ErrMFANotEnabled             = "MFA is not enabled for this user"
+	ErrMFAAlreadyEnabled         = "MFA is already enabled for this user"
+	ErrInvalidMFACode            = "invalid MFA code"
+	ErrInvalidRecoveryCode       = "invalid recovery code"
+	ErrFailedToGenerateMFASecret = "failed to generate MFA secret: %w"
+	ErrFailedToGenerateQRCode    = "failed to generate QR code: %w"
+	ErrFailedToVerifyMFACode     = "failed to verify MFA code: %w"
+	ErrFailedToUpdateMFAStatus   = "failed to update MFA status: %w"
+	ErrRecoveryCodeNotFound      = "recovery code not found or already used"
 )
 
 // Default field lists - used when not configured
@@ -103,6 +115,17 @@ var (
 		"is_active", "is_default", "sort_order", "max_sessions", "session_timeout",
 		"password_policy", "features", "limits", "created_at", "updated_at",
 	}
+
+	// DefaultMFAOptions contains default MFA configuration
+	DefaultMFAOptions = &types.MFAOptions{
+		Issuer:         "Yao App Engine",
+		Algorithm:      "SHA256",
+		Digits:         6,
+		Period:         30,
+		SecretSize:     32,
+		RecoveryCount:  16, // 16 codes (~960 bytes, under 1024 char limit)
+		RecoveryLength: 12, // 12-character codes for better security
+	}
 )
 
 // DefaultUser provides a default implementation of UserProvider
@@ -135,6 +158,9 @@ type DefaultUser struct {
 	// Type Field lists
 	typeFields       []interface{} // configurable
 	typeDetailFields []interface{} // configurable
+
+	// MFA Configuration
+	mfaOptions *types.MFAOptions // configurable MFA settings
 }
 
 // IDStrategy defines the strategy for generating user IDs
@@ -175,6 +201,9 @@ type DefaultUserOptions struct {
 	// Type field lists (use defaults if not specified)
 	TypeFields       []interface{} // basic type fields
 	TypeDetailFields []interface{} // detailed type fields including configuration and metadata
+
+	// MFA configuration (use defaults if not specified)
+	MFAOptions *types.MFAOptions // MFA settings
 }
 
 // NewDefaultUser creates a new DefaultUser
@@ -253,6 +282,12 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		typeDetailFields = DefaultTypeDetailFields
 	}
 
+	// Set MFA options with defaults if not specified
+	mfaOptions := options.MFAOptions
+	if mfaOptions == nil {
+		mfaOptions = DefaultMFAOptions
+	}
+
 	return &DefaultUser{
 		prefix:            options.Prefix,
 		model:             model,
@@ -278,5 +313,8 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		// Type field lists
 		typeFields:       typeFields,
 		typeDetailFields: typeDetailFields,
+
+		// MFA Configuration
+		mfaOptions: mfaOptions,
 	}
 }
