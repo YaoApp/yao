@@ -76,6 +76,20 @@ var (
 		"website", "gender", "birthdate", "zoneinfo", "locale", "phone_number", "phone_number_verified",
 		"address", "raw", "last_login_at", "is_active", "created_at", "updated_at",
 	}
+
+	// DefaultRoleFields contains basic role fields
+	DefaultRoleFields = []interface{}{
+		"id", "role_id", "name", "description", "is_active", "is_default", "is_system",
+		"level", "sort_order", "color", "icon", "created_at", "updated_at",
+	}
+
+	// DefaultRoleDetailFields contains all role fields including permissions and metadata
+	DefaultRoleDetailFields = []interface{}{
+		"id", "role_id", "name", "description", "permissions", "restricted_permissions",
+		"parent_role_id", "level", "is_active", "is_default", "is_system", "sort_order",
+		"color", "icon", "max_users", "requires_approval", "auto_revoke_days",
+		"metadata", "conditions", "created_at", "updated_at",
+	}
 )
 
 // DefaultUser provides a default implementation of UserProvider
@@ -100,6 +114,10 @@ type DefaultUser struct {
 	// OAuth Account Field lists
 	oauthAccountFields       []interface{} // configurable
 	oauthAccountDetailFields []interface{} // configurable
+
+	// Role Field lists
+	roleFields       []interface{} // configurable
+	roleDetailFields []interface{} // configurable
 }
 
 // IDStrategy defines the strategy for generating user IDs
@@ -132,6 +150,10 @@ type DefaultUserOptions struct {
 	// OAuth Account field lists (use defaults if not specified)
 	OAuthAccountFields       []interface{} // basic OAuth account fields
 	OAuthAccountDetailFields []interface{} // detailed OAuth account fields with OIDC claims
+
+	// Role field lists (use defaults if not specified)
+	RoleFields       []interface{} // basic role fields
+	RoleDetailFields []interface{} // detailed role fields including permissions and metadata
 }
 
 // NewDefaultUser creates a new DefaultUser
@@ -188,6 +210,17 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		oauthAccountDetailFields = DefaultOAuthAccountDetailFields
 	}
 
+	// Set role field lists with defaults if not specified
+	roleFields := options.RoleFields
+	if roleFields == nil {
+		roleFields = DefaultRoleFields
+	}
+
+	roleDetailFields := options.RoleDetailFields
+	if roleDetailFields == nil {
+		roleDetailFields = DefaultRoleDetailFields
+	}
+
 	return &DefaultUser{
 		prefix:            options.Prefix,
 		model:             model,
@@ -205,5 +238,9 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		// OAuth Account field lists
 		oauthAccountFields:       oauthAccountFields,
 		oauthAccountDetailFields: oauthAccountDetailFields,
+
+		// Role field lists
+		roleFields:       roleFields,
+		roleDetailFields: roleDetailFields,
 	}
 }

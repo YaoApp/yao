@@ -112,13 +112,29 @@ func cleanupTestData() {
 		})
 	}
 
+	// Clean roles (should be done before users due to potential role_id references)
+	roleModel := model.Select("__yao.user_role")
+	rolePatterns := []string{
+		"test%", "%testrole%", "%listrole%", "%permrole%", "%adminrole%", "%userrole%",
+		"%inactiverole%", "%systemrole%", "%validrole%", "%emptyupdate%", "%emptyperm%",
+		"%guestrole%",
+	}
+	for _, pattern := range rolePatterns {
+		roleModel.DestroyWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "role_id", OP: "like", Value: pattern},
+			},
+		})
+	}
+
 	// Clean users
 	userModel := model.Select("__yao.user")
 
 	// Delete test users by pattern (using hard delete)
 	userPatterns := []string{
 		"test-%", "test_%", "%testuser%", "%oauthtest%", "%oauthlist%",
-		"%oautherror%", "%deletetest%",
+		"%oautherror%", "%deletetest%", "%roleuser%", "%typeuser%", "%scopeuser%",
+		"%erroruser%", "%noroleuser%", "%clearnouser%", "%integuser%",
 	}
 	for _, pattern := range userPatterns {
 		userModel.DestroyWhere(model.QueryParam{
@@ -129,7 +145,10 @@ func cleanupTestData() {
 	}
 
 	// Also clean by username pattern
-	usernamePatterns := []string{"testuser%", "%oauth_%", "%deletetest%"}
+	usernamePatterns := []string{
+		"testuser%", "%oauth_%", "%deletetest%", "%roleuser%", "%typeuser%",
+		"%scopeuser%", "%erroruser%", "%noroleuser%", "%clearnouser%", "%integuser%",
+	}
 	for _, pattern := range usernamePatterns {
 		userModel.DestroyWhere(model.QueryParam{
 			Wheres: []model.QueryWhere{
