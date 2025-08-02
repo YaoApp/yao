@@ -61,6 +61,21 @@ var (
 		"id", "user_id", "mfa_enabled", "mfa_secret", "mfa_issuer", "mfa_algorithm",
 		"mfa_digits", "mfa_period", "mfa_recovery_hash", "mfa_enabled_at",
 	}
+
+	// DefaultOAuthAccountFields contains basic OAuth account fields
+	DefaultOAuthAccountFields = []interface{}{
+		"id", "user_id", "provider", "sub", "preferred_username", "email", "email_verified",
+		"name", "given_name", "family_name", "picture", "last_login_at", "is_active",
+		"created_at", "updated_at",
+	}
+
+	// DefaultOAuthAccountDetailFields contains all OAuth account fields including OIDC claims
+	DefaultOAuthAccountDetailFields = []interface{}{
+		"id", "user_id", "provider", "sub", "preferred_username", "email", "email_verified",
+		"name", "given_name", "family_name", "middle_name", "nickname", "profile", "picture",
+		"website", "gender", "birthdate", "zoneinfo", "locale", "phone_number", "phone_number_verified",
+		"address", "raw", "last_login_at", "is_active", "created_at", "updated_at",
+	}
 )
 
 // DefaultUser provides a default implementation of UserProvider
@@ -81,6 +96,10 @@ type DefaultUser struct {
 	basicUserFields  []interface{} // configurable
 	authUserFields   []interface{} // fixed for security
 	mfaUserFields    []interface{} // fixed for security
+
+	// OAuth Account Field lists
+	oauthAccountFields       []interface{} // configurable
+	oauthAccountDetailFields []interface{} // configurable
 }
 
 // IDStrategy defines the strategy for generating user IDs
@@ -109,6 +128,10 @@ type DefaultUserOptions struct {
 	PublicUserFields []interface{} // fields returned in public APIs
 	BasicUserFields  []interface{} // minimal fields for basic user info
 	// Note: AuthUserFields and MFAUserFields are fixed for security reasons
+
+	// OAuth Account field lists (use defaults if not specified)
+	OAuthAccountFields       []interface{} // basic OAuth account fields
+	OAuthAccountDetailFields []interface{} // detailed OAuth account fields with OIDC claims
 }
 
 // NewDefaultUser creates a new DefaultUser
@@ -154,6 +177,17 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		basicUserFields = DefaultBasicUserFields
 	}
 
+	// Set OAuth account field lists with defaults if not specified
+	oauthAccountFields := options.OAuthAccountFields
+	if oauthAccountFields == nil {
+		oauthAccountFields = DefaultOAuthAccountFields
+	}
+
+	oauthAccountDetailFields := options.OAuthAccountDetailFields
+	if oauthAccountDetailFields == nil {
+		oauthAccountDetailFields = DefaultOAuthAccountDetailFields
+	}
+
 	return &DefaultUser{
 		prefix:            options.Prefix,
 		model:             model,
@@ -167,5 +201,9 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		basicUserFields:   basicUserFields,
 		authUserFields:    DefaultAuthUserFields, // fixed for security
 		mfaUserFields:     DefaultMFAUserFields,  // fixed for security
+
+		// OAuth Account field lists
+		oauthAccountFields:       oauthAccountFields,
+		oauthAccountDetailFields: oauthAccountDetailFields,
 	}
 }

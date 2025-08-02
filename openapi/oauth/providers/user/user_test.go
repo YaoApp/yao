@@ -96,11 +96,32 @@ func cleanupTestData() {
 		return
 	}
 
-	m := model.Select("__yao.user")
+	// Use DestroyWhere (hard delete) to avoid soft delete complications
+	// Clean OAuth accounts first (due to foreign key constraints)
+	oauthModel := model.Select("__yao.user_oauth_account")
+	oauthPatterns := []string{
+		"%oauth_test%", "%_list_%", "%oauthlist%", "%oautherror%",
+		"%google_%", "%github_%", "%apple_%", "%_delete_%",
+		"%discord_%", "%linkedin_%", "%twitter_%",
+	}
+	for _, pattern := range oauthPatterns {
+		oauthModel.DestroyWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "sub", OP: "like", Value: pattern},
+			},
+		})
+	}
 
-	// Delete test users by pattern
-	for _, pattern := range []string{"test-user-%", "test_%"} {
-		m.DeleteWhere(model.QueryParam{
+	// Clean users
+	userModel := model.Select("__yao.user")
+
+	// Delete test users by pattern (using hard delete)
+	userPatterns := []string{
+		"test-%", "test_%", "%testuser%", "%oauthtest%", "%oauthlist%",
+		"%oautherror%", "%deletetest%",
+	}
+	for _, pattern := range userPatterns {
+		userModel.DestroyWhere(model.QueryParam{
 			Wheres: []model.QueryWhere{
 				{Column: "user_id", OP: "like", Value: pattern},
 			},
@@ -108,11 +129,14 @@ func cleanupTestData() {
 	}
 
 	// Also clean by username pattern
-	m.DeleteWhere(model.QueryParam{
-		Wheres: []model.QueryWhere{
-			{Column: "preferred_username", OP: "like", Value: "testuser%"},
-		},
-	})
+	usernamePatterns := []string{"testuser%", "%oauth_%", "%deletetest%"}
+	for _, pattern := range usernamePatterns {
+		userModel.DestroyWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "preferred_username", OP: "like", Value: pattern},
+			},
+		})
+	}
 }
 
 // setupTestUser creates a user in database for testing

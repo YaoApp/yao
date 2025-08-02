@@ -2,8 +2,10 @@ package user_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/maps"
 )
@@ -14,12 +16,15 @@ func TestUserBasicOperations(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8] // 8 char UUID
+
 	// Create test user data dynamically
 	testUser := &TestUserData{
-		PreferredUsername: "testuser001",
-		Email:             "testuser001@example.com",
+		PreferredUsername: "testuser" + testUUID,
+		Email:             "testuser" + testUUID + "@example.com",
 		Password:          "TestPass123!",
-		Name:              "Test User 001",
+		Name:              "Test User " + testUUID,
 		GivenName:         "Test",
 		FamilyName:        "User",
 		Status:            "active",
@@ -234,7 +239,9 @@ func TestUserErrorHandling(t *testing.T) {
 	defer clean()
 
 	ctx := context.Background()
-	nonExistentUserID := "non-existent-user-id"
+	// Use UUID to avoid conflicts
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+	nonExistentUserID := "non-existent-user-id-" + testUUID
 
 	t.Run("GetUser_NotFound", func(t *testing.T) {
 		_, err := testProvider.GetUser(ctx, nonExistentUserID)

@@ -197,6 +197,7 @@ type UserProvider interface {
 	GetUserOAuthAccounts(ctx context.Context, userID string) ([]maps.MapStrAny, error)
 	UpdateOAuthAccount(ctx context.Context, provider string, subject string, oauthData maps.MapStrAny) error
 	DeleteOAuthAccount(ctx context.Context, provider string, subject string) error
+	DeleteUserOAuthAccounts(ctx context.Context, userID string) error
 
 	GetOAuthAccounts(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error)
 	PaginateOAuthAccounts(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
