@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -255,9 +256,48 @@ func (u *DefaultUser) UpdateUser(ctx context.Context, userID string, userData ma
 	return nil
 }
 
-// DeleteUser soft deletes a user account
+// DeleteUser soft deletes a user account and all associated data
 func (u *DefaultUser) DeleteUser(ctx context.Context, userID string) error {
+	// First verify the user exists
 	m := model.Select(u.model)
+	users, err := m.Get(model.QueryParam{
+		Select: []interface{}{"user_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: userID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	if len(users) == 0 {
+		return fmt.Errorf(ErrUserNotFound)
+	}
+
+	// Clean up associated data before deleting the user
+	// Note: We log warnings for cleanup failures but don't fail the user deletion
+
+	// 1. Delete all OAuth accounts for this user
+	err = u.DeleteUserOAuthAccounts(ctx, userID)
+	if err != nil {
+		log.Warn("Failed to delete OAuth accounts for user %s: %v", userID, err)
+	}
+
+	// 2. Clear user role assignment (set role_id to null)
+	err = u.ClearUserRole(ctx, userID)
+	if err != nil {
+		log.Warn("Failed to clear role assignment for user %s: %v", userID, err)
+	}
+
+	// 3. Clear user type assignment (set type_id to null)
+	err = u.ClearUserType(ctx, userID)
+	if err != nil {
+		log.Warn("Failed to clear type assignment for user %s: %v", userID, err)
+	}
+
+	// 4. Finally, delete the user account
 	affected, err := m.DeleteWhere(model.QueryParam{
 		Wheres: []model.QueryWhere{
 			{Column: "user_id", Value: userID},

@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/maps"
 )
 
@@ -157,23 +158,127 @@ func TestUserTypeOperations(t *testing.T) {
 	testUser := createTestUserData("typeuser" + testUUID)
 	_, testUserID := setupTestUser(t, ctx, testUser)
 
-	// Note: User type operations are not yet implemented
-	// These tests are placeholders for future implementation
+	// Step 2: Create test types for assignment
+	testTypes := []maps.MapStrAny{
+		{
+			"type_id":     "basictype_" + testUUID,
+			"name":        "Basic Type " + testUUID,
+			"description": "Basic user type for testing",
+			"is_active":   true,
+			"sort_order":  10,
+		},
+		{
+			"type_id":     "premiumtype_" + testUUID,
+			"name":        "Premium Type " + testUUID,
+			"description": "Premium user type for testing",
+			"is_active":   true,
+			"sort_order":  20,
+		},
+		{
+			"type_id":     "inactivetype_" + testUUID,
+			"name":        "Inactive Type " + testUUID,
+			"description": "Inactive type for testing",
+			"is_active":   false,
+			"sort_order":  0,
+		},
+	}
 
-	// Test GetUserType (should return not implemented or similar)
-	t.Run("GetUserType_NotImplemented", func(t *testing.T) {
-		_, err := testProvider.GetUserType(ctx, testUserID)
-		// Since implementation returns nil, nil - we expect no error but nil result
-		// In a real implementation, this might return an error or the actual type
-		assert.NoError(t, err) // Based on current TODO implementation
+	// Create types in database
+	for _, typeData := range testTypes {
+		_, err := testProvider.CreateType(ctx, typeData)
+		assert.NoError(t, err)
+	}
+
+	basicTypeID := "basictype_" + testUUID
+	premiumTypeID := "premiumtype_" + testUUID
+	inactiveTypeID := "inactivetype_" + testUUID
+
+	// Test SetUserType
+	t.Run("SetUserType", func(t *testing.T) {
+		err := testProvider.SetUserType(ctx, testUserID, basicTypeID)
+		assert.NoError(t, err)
+
+		// Verify type was assigned by getting user info
+		user, err := testProvider.GetUser(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.Equal(t, basicTypeID, user["type_id"])
 	})
 
-	// Test SetUserType (should return not implemented or similar)
-	t.Run("SetUserType_NotImplemented", func(t *testing.T) {
-		err := testProvider.SetUserType(ctx, testUserID, "premium")
-		// Since implementation returns nil - we expect no error
-		// In a real implementation, this might return an error or actually set the type
-		assert.NoError(t, err) // Based on current TODO implementation
+	// Test GetUserType
+	t.Run("GetUserType", func(t *testing.T) {
+		userType, err := testProvider.GetUserType(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.NotNil(t, userType)
+
+		// Verify we got the correct type information
+		assert.Equal(t, basicTypeID, userType["type_id"])
+		assert.Equal(t, "Basic Type "+testUUID, userType["name"])
+		assert.Equal(t, "Basic user type for testing", userType["description"])
+
+		// Handle different boolean representations from database
+		isActive := userType["is_active"]
+		switch v := isActive.(type) {
+		case bool:
+			assert.True(t, v)
+		case int, int32, int64:
+			assert.NotEqual(t, 0, v) // Any non-zero value is true
+		default:
+			t.Errorf("unexpected is_active type: %T, value: %v", isActive, isActive)
+		}
+	})
+
+	// Test SetUserType - Change to different type
+	t.Run("SetUserType_ChangeType", func(t *testing.T) {
+		err := testProvider.SetUserType(ctx, testUserID, premiumTypeID)
+		assert.NoError(t, err)
+
+		// Verify type was changed
+		userType, err := testProvider.GetUserType(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.Equal(t, premiumTypeID, userType["type_id"])
+		assert.Equal(t, "Premium Type "+testUUID, userType["name"])
+	})
+
+	// Test SetUserType - Inactive Type (should fail)
+	t.Run("SetUserType_InactiveType", func(t *testing.T) {
+		err := testProvider.SetUserType(ctx, testUserID, inactiveTypeID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cannot assign inactive type")
+
+		// Verify type was not changed
+		userType, err := testProvider.GetUserType(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.Equal(t, premiumTypeID, userType["type_id"]) // Should still be the previous type
+	})
+
+	// Test ClearUserType
+	t.Run("ClearUserType", func(t *testing.T) {
+		err := testProvider.ClearUserType(ctx, testUserID)
+		assert.NoError(t, err)
+
+		// Verify type was cleared
+		_, err = testProvider.GetUserType(ctx, testUserID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "has no type assigned")
+
+		// Verify user still exists
+		user, err := testProvider.GetUser(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.Equal(t, testUserID, user["user_id"])
+		assert.Nil(t, user["type_id"]) // type_id should be null
+	})
+
+	// Test SetUserType - After Clear
+	t.Run("SetUserType_AfterClear", func(t *testing.T) {
+		// Re-assign a type after clearing
+		err := testProvider.SetUserType(ctx, testUserID, basicTypeID)
+		assert.NoError(t, err)
+
+		// Verify type was assigned
+		userType, err := testProvider.GetUserType(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.Equal(t, basicTypeID, userType["type_id"])
+		assert.Equal(t, "Basic Type "+testUUID, userType["name"])
 	})
 }
 
@@ -186,21 +291,210 @@ func TestValidateUserScope(t *testing.T) {
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
 
-	// Create a test user
+	// Step 1: Create test role with specific permissions
+	testRole := maps.MapStrAny{
+		"role_id":     "scoperole_" + testUUID,
+		"name":        "Scope Test Role " + testUUID,
+		"description": "Role for testing scope validation",
+		"is_active":   true,
+		"permissions": map[string]interface{}{
+			"read":        true,
+			"write":       true,
+			"admin.read":  true,
+			"admin.write": false,
+			"delete":      false,
+		},
+		"restricted_permissions": []string{
+			"system.config",
+			"root.access",
+		},
+	}
+
+	_, err := testProvider.CreateRole(ctx, testRole)
+	assert.NoError(t, err)
+
+	// Step 2: Create test type with scope limitations
+	testType := maps.MapStrAny{
+		"type_id":     "scopetype_" + testUUID,
+		"name":        "Scope Test Type " + testUUID,
+		"description": "Type for testing scope validation",
+		"is_active":   true,
+		"features": map[string]interface{}{
+			"api_access": true,
+			"scope_limits": []interface{}{
+				"read", "write", "admin.read", // Allowed scopes
+			},
+		},
+	}
+
+	_, err = testProvider.CreateType(ctx, testType)
+	assert.NoError(t, err)
+
+	// Step 3: Create test user and assign role and type
 	testUser := createTestUserData("scopeuser" + testUUID)
 	_, testUserID := setupTestUser(t, ctx, testUser)
 
-	// Note: ValidateUserScope is not yet implemented
-	// This test is a placeholder for future implementation
+	roleID := "scoperole_" + testUUID
+	typeID := "scopetype_" + testUUID
 
-	t.Run("ValidateUserScope_NotImplemented", func(t *testing.T) {
-		scopes := []string{"read", "write", "admin"}
-		valid, err := testProvider.ValidateUserScope(ctx, testUserID, scopes)
+	// Assign role and type to user
+	err = testProvider.SetUserRole(ctx, testUserID, roleID)
+	assert.NoError(t, err)
 
-		// Since implementation returns false, nil - we expect no error but false result
-		// In a real implementation, this would validate user's scopes based on role and type
-		assert.NoError(t, err) // Based on current TODO implementation
-		assert.False(t, valid) // Based on current TODO implementation
+	err = testProvider.SetUserType(ctx, testUserID, typeID)
+	assert.NoError(t, err)
+
+	// Test various scope validation scenarios
+	t.Run("ValidateUserScope_EmptyScopes", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{})
+		assert.NoError(t, err)
+		assert.True(t, valid) // Empty scopes should always be valid
+	})
+
+	t.Run("ValidateUserScope_ValidSingleScope", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"read"})
+		assert.NoError(t, err)
+		assert.True(t, valid) // "read" is allowed by both role and type
+	})
+
+	t.Run("ValidateUserScope_ValidMultipleScopes", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"read", "write"})
+		assert.NoError(t, err)
+		assert.True(t, valid) // Both "read" and "write" are allowed
+	})
+
+	t.Run("ValidateUserScope_ValidAdminReadScope", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"admin.read"})
+		assert.NoError(t, err)
+		assert.True(t, valid) // "admin.read" is allowed by both role and type
+	})
+
+	t.Run("ValidateUserScope_InvalidRolePermission", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"admin.write"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // "admin.write" is denied by role permissions
+	})
+
+	t.Run("ValidateUserScope_RestrictedPermission", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"system.config"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // "system.config" is in restricted permissions
+	})
+
+	t.Run("ValidateUserScope_TypeScopeLimitation", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"delete"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // "delete" is not in type's scope_limits
+	})
+
+	t.Run("ValidateUserScope_MixedValidInvalid", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"read", "delete"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // Should fail because "delete" is not allowed
+	})
+
+	t.Run("ValidateUserScope_NonExistentScope", func(t *testing.T) {
+		valid, err := testProvider.ValidateUserScope(ctx, testUserID, []string{"nonexistent.permission"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // Non-existent permissions should be denied
+	})
+
+	// Test user without role
+	t.Run("ValidateUserScope_UserWithoutRole", func(t *testing.T) {
+		// Create a user without role assignment
+		userWithoutRole := createTestUserData("noroleuser" + testUUID)
+		_, userWithoutRoleID := setupTestUser(t, ctx, userWithoutRole)
+
+		// Clear any default role that might have been set
+		err := testProvider.ClearUserRole(ctx, userWithoutRoleID)
+		assert.NoError(t, err)
+
+		// User without role should only have access to empty scopes
+		valid, err := testProvider.ValidateUserScope(ctx, userWithoutRoleID, []string{})
+		assert.NoError(t, err)
+		assert.True(t, valid) // Empty scopes should be valid
+
+		// Users without roles have minimal access (empty scopes only)
+		valid, err = testProvider.ValidateUserScope(ctx, userWithoutRoleID, []string{"read"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // Should return false - users without roles can only access empty scopes
+	})
+
+	// Test user without type (type restrictions should not apply)
+	t.Run("ValidateUserScope_UserWithoutType", func(t *testing.T) {
+		// Create a user with role but without type
+		userWithoutType := createTestUserData("notypeuser" + testUUID)
+		userWithoutType.TypeID = "" // Explicitly clear type_id
+		_, userWithoutTypeID := setupTestUser(t, ctx, userWithoutType)
+
+		// Assign role but no type
+		err := testProvider.SetUserRole(ctx, userWithoutTypeID, roleID)
+		assert.NoError(t, err)
+
+		// Manually clear type_id to ensure user has no type
+		userModel := model.Select("__yao.user")
+		_, err = userModel.UpdateWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "user_id", Value: userWithoutTypeID},
+			},
+			Limit: 1,
+		}, maps.MapStrAny{
+			"type_id": nil, // Set type_id to null
+		})
+		assert.NoError(t, err)
+
+		// Verify user has no type assigned
+		_, err = testProvider.GetUserType(ctx, userWithoutTypeID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "has no type assigned")
+
+		// Should be able to access permissions allowed by role (no type restrictions)
+		valid, err := testProvider.ValidateUserScope(ctx, userWithoutTypeID, []string{"read", "write"})
+		assert.NoError(t, err)
+		assert.True(t, valid) // Role allows these, no type restrictions
+
+		// Should still be restricted by role permissions
+		valid, err = testProvider.ValidateUserScope(ctx, userWithoutTypeID, []string{"admin.write"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // Role denies this
+	})
+
+	// Test type without scope limits
+	t.Run("ValidateUserScope_TypeWithoutScopeLimits", func(t *testing.T) {
+		// Create a type without scope limits
+		openType := maps.MapStrAny{
+			"type_id":     "opentype_" + testUUID,
+			"name":        "Open Type " + testUUID,
+			"description": "Type without scope limitations",
+			"is_active":   true,
+			"features": map[string]interface{}{
+				"api_access": true,
+				// No scope_limits - should allow anything the role permits
+			},
+		}
+
+		_, err := testProvider.CreateType(ctx, openType)
+		assert.NoError(t, err)
+
+		// Create user with role and open type
+		openUser := createTestUserData("openuser" + testUUID)
+		_, openUserID := setupTestUser(t, ctx, openUser)
+
+		err = testProvider.SetUserRole(ctx, openUserID, roleID)
+		assert.NoError(t, err)
+
+		err = testProvider.SetUserType(ctx, openUserID, "opentype_"+testUUID)
+		assert.NoError(t, err)
+
+		// Should be able to access any permission allowed by role
+		valid, err := testProvider.ValidateUserScope(ctx, openUserID, []string{"read", "write", "admin.read"})
+		assert.NoError(t, err)
+		assert.True(t, valid) // Type has no limitations, role allows these
+
+		// Should still be restricted by role permissions
+		valid, err = testProvider.ValidateUserScope(ctx, openUserID, []string{"admin.write"})
+		assert.NoError(t, err)
+		assert.False(t, valid) // Role denies this
 	})
 }
 
@@ -282,30 +576,96 @@ func TestUserRoleErrorHandling(t *testing.T) {
 		assert.NoError(t, err) // Should not error even if no role exists
 	})
 
-	// Test user type error handling (placeholders for future implementation)
+	// Create a valid type for some tests
+	validTypeData := maps.MapStrAny{
+		"type_id":     "validtype_" + testUUID,
+		"name":        "Valid Type " + testUUID,
+		"description": "Valid type for error testing",
+		"is_active":   true,
+	}
+	_, err = testProvider.CreateType(ctx, validTypeData)
+	assert.NoError(t, err)
+	validTypeID := "validtype_" + testUUID
+
+	// Test user type error handling
 	t.Run("GetUserType_UserNotFound", func(t *testing.T) {
 		_, err := testProvider.GetUserType(ctx, nonExistentUserID)
-		// Since implementation returns nil, nil - we expect no error
-		// In a real implementation, this should return an error
-		assert.NoError(t, err) // Based on current TODO implementation
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("GetUserType_NoTypeAssigned", func(t *testing.T) {
+		// Create a user without a type assignment
+		userWithoutType := createTestUserData("notypeuser" + testUUID)
+		userWithoutType.TypeID = "" // Explicitly clear type_id
+		_, userWithoutTypeID := setupTestUser(t, ctx, userWithoutType)
+
+		// Manually clear type_id to ensure user has no type
+		userModel := model.Select("__yao.user")
+		_, err = userModel.UpdateWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "user_id", Value: userWithoutTypeID},
+			},
+			Limit: 1,
+		}, maps.MapStrAny{
+			"type_id": nil, // Set type_id to null
+		})
+		assert.NoError(t, err)
+
+		_, err = testProvider.GetUserType(ctx, userWithoutTypeID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "has no type assigned")
 	})
 
 	t.Run("SetUserType_UserNotFound", func(t *testing.T) {
-		err := testProvider.SetUserType(ctx, nonExistentUserID, "premium")
-		// Since implementation returns nil - we expect no error
-		// In a real implementation, this should return an error
-		assert.NoError(t, err) // Based on current TODO implementation
+		err := testProvider.SetUserType(ctx, nonExistentUserID, validTypeID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
 	})
 
-	// Test scope validation error handling (placeholder for future implementation)
+	t.Run("SetUserType_TypeNotFound", func(t *testing.T) {
+		nonExistentTypeID := "nonexistent_type_" + testUUID
+		err := testProvider.SetUserType(ctx, validUserID, nonExistentTypeID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type not found")
+	})
+
+	t.Run("ClearUserType_UserNotFound", func(t *testing.T) {
+		err := testProvider.ClearUserType(ctx, nonExistentUserID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "user not found")
+	})
+
+	t.Run("ClearUserType_NoTypeTooClear", func(t *testing.T) {
+		// Create a user without type assignment
+		userWithoutType := createTestUserData("clearnotypeuser" + testUUID)
+		userWithoutType.TypeID = "" // Explicitly clear type_id
+		_, userWithoutTypeID := setupTestUser(t, ctx, userWithoutType)
+
+		// Manually clear type_id to ensure user has no type
+		userModel := model.Select("__yao.user")
+		_, err = userModel.UpdateWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "user_id", Value: userWithoutTypeID},
+			},
+			Limit: 1,
+		}, maps.MapStrAny{
+			"type_id": nil, // Set type_id to null
+		})
+		assert.NoError(t, err)
+
+		// Try to clear again (should still succeed)
+		err = testProvider.ClearUserType(ctx, userWithoutTypeID)
+		assert.NoError(t, err) // Should not error even if no type exists
+	})
+
+	// Test scope validation error handling
 	t.Run("ValidateUserScope_UserNotFound", func(t *testing.T) {
 		scopes := []string{"read", "write"}
 		valid, err := testProvider.ValidateUserScope(ctx, nonExistentUserID, scopes)
-
-		// Since implementation returns false, nil - we expect no error but false result
-		// In a real implementation, this should return an error
-		assert.NoError(t, err) // Based on current TODO implementation
-		assert.False(t, valid) // Based on current TODO implementation
+		assert.Error(t, err)
+		assert.False(t, valid)
+		assert.Contains(t, err.Error(), "user not found")
 	})
 }
 
