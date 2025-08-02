@@ -369,7 +369,7 @@ func TestRefreshToken(t *testing.T) {
 		refreshToken := "test-refresh-token"
 		clientID := testClients[0].ClientID
 		originalScope := "openid profile email"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
 		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
@@ -388,7 +388,7 @@ func TestRefreshToken(t *testing.T) {
 		refreshToken := "test-refresh-token-rotation"
 		clientID := testClients[0].ClientID
 		originalScope := "openid profile"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
 		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
@@ -440,7 +440,7 @@ func TestRefreshToken(t *testing.T) {
 		refreshToken := "test-refresh-token-invalid-scope"
 		clientID := testClients[0].ClientID
 		originalScope := "openid profile" // Original scope
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store refresh token with limited scope
 		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
@@ -487,7 +487,7 @@ func TestRotateRefreshToken(t *testing.T) {
 		oldToken := "old-refresh-token"
 		clientID := testClients[0].ClientID
 		originalScope := "openid profile"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store old refresh token with scope using storeRefreshTokenWithScope
 		err := service.storeRefreshTokenWithScope(oldToken, clientID, originalScope, subject)
@@ -648,7 +648,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 
 		refreshToken := "test-refresh-token-grant"
 		originalScope := "openid profile"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
 		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject)
@@ -683,7 +683,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 
 		refreshToken := "test-refresh-token-no-rotation"
 		originalScope := "openid profile"
-		subject := testUsers[0].Subject
+		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
 		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject)
