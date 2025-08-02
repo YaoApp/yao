@@ -45,6 +45,8 @@ var testSystemModels = map[string]string{
 	"__yao.history":            "yao/models/history.mod.yao",
 	"__yao.kb":                 "yao/models/kb.mod.yao",
 	"__yao.user":               "yao/models/user.mod.yao",
+	"__yao.user_role":          "yao/models/user_role.mod.yao",
+	"__yao.user_type":          "yao/models/user_type.mod.yao",
 	"__yao.user_oauth_account": "yao/models/user_oauth_account.mod.yao",
 }
 
