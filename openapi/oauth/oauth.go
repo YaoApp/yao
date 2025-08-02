@@ -11,6 +11,9 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// OAuth is the global OAuth service
+var OAuth *Service = nil
+
 // Service OAuth service
 type Service struct {
 	config         *Config
@@ -147,6 +150,8 @@ func NewService(config *Config) (*Service, error) {
 		signingCerts:   signingCerts,
 	}
 
+	// Set the global OAuth service
+	OAuth = service
 	return service, nil
 }
 
@@ -163,6 +168,16 @@ func (s *Service) GetUserProvider() types.UserProvider {
 // GetClientProvider returns the client provider for the service
 func (s *Service) GetClientProvider() types.ClientProvider {
 	return s.clientProvider
+}
+
+// GetCache returns the cache for the service
+func (s *Service) GetCache() store.Store {
+	return s.cache
+}
+
+// GetStore returns the store for the service
+func (s *Service) GetStore() store.Store {
+	return s.store
 }
 
 // setConfigDefaults sets default values for configuration
