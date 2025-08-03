@@ -52,7 +52,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("successful authorization code flow", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID, // confidential client
+			ClientID:     GetActualClientID(testClients[0].ClientID), // confidential client
 			ResponseType: "code",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "openid profile",
@@ -86,7 +86,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("authorization with missing redirect URI", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "", // Missing redirect URI
 			Scope:        "openid profile",
@@ -103,7 +103,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("authorization with invalid redirect URI", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "https://invalid-domain.com/callback", // Invalid redirect URI
 			Scope:        "openid profile",
@@ -120,7 +120,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("authorization with missing response type", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "", // Missing response type
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "openid profile",
@@ -137,7 +137,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("authorization with unsupported response type", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "unsupported_type",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "openid profile",
@@ -157,7 +157,7 @@ func TestAuthorize(t *testing.T) {
 
 		for _, responseType := range validResponseTypes {
 			request := &types.AuthorizationRequest{
-				ClientID:     testClients[0].ClientID,
+				ClientID:     GetActualClientID(testClients[0].ClientID),
 				ResponseType: responseType,
 				RedirectURI:  "https://localhost/callback",
 				Scope:        "openid profile",
@@ -174,7 +174,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("authorization with invalid scope", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "invalid-scope", // Invalid scope
@@ -191,7 +191,7 @@ func TestAuthorize(t *testing.T) {
 
 	t.Run("authorization without scope", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "", // No scope
@@ -217,7 +217,7 @@ func TestToken(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("authorization code grant", func(t *testing.T) {
-		clientID := testClients[0].ClientID // confidential client
+		clientID := GetActualClientID(testClients[0].ClientID) // confidential client
 
 		// Generate a real authorization code using the service
 		code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
@@ -234,7 +234,7 @@ func TestToken(t *testing.T) {
 	})
 
 	t.Run("client credentials grant", func(t *testing.T) {
-		clientID := testClients[2].ClientID // client credentials client
+		clientID := GetActualClientID(testClients[2].ClientID) // client credentials client
 
 		token, err := service.Token(ctx, types.GrantTypeClientCredentials, "", clientID, "")
 		assert.NoError(t, err)
@@ -246,7 +246,7 @@ func TestToken(t *testing.T) {
 	})
 
 	t.Run("refresh token grant", func(t *testing.T) {
-		clientID := testClients[0].ClientID // confidential client
+		clientID := GetActualClientID(testClients[0].ClientID) // confidential client
 		refreshToken := "test-refresh-token"
 
 		// Store refresh token using the new method
@@ -266,7 +266,7 @@ func TestToken(t *testing.T) {
 		clientID := "invalid-client-id"
 
 		// Generate a real authorization code for consistency, even though client validation happens first
-		validClientID := testClients[0].ClientID
+		validClientID := GetActualClientID(testClients[0].ClientID)
 		code, err := service.generateAuthorizationCodeWithInfo(validClientID, "test-state", "", "", "")
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
@@ -282,7 +282,7 @@ func TestToken(t *testing.T) {
 	})
 
 	t.Run("unsupported grant type", func(t *testing.T) {
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Generate a real authorization code for consistency
 		code, err := service.generateAuthorizationCodeWithInfo(clientID, "test-state", "", "", "")
@@ -312,7 +312,7 @@ func TestRevoke(t *testing.T) {
 
 	t.Run("successful token revocation", func(t *testing.T) {
 		token := "test-access-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store token using the new method
 		err := service.storeAccessToken(token, clientID, "", "", 3600)
@@ -340,7 +340,7 @@ func TestRevoke(t *testing.T) {
 
 	t.Run("revoke refresh token", func(t *testing.T) {
 		token := "test-refresh-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store refresh token using the new method
 		err := service.storeRefreshToken(token, clientID)
@@ -367,7 +367,7 @@ func TestRefreshToken(t *testing.T) {
 
 	t.Run("successful refresh token exchange", func(t *testing.T) {
 		refreshToken := "test-refresh-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		originalScope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -386,7 +386,7 @@ func TestRefreshToken(t *testing.T) {
 
 	t.Run("refresh token with rotation enabled", func(t *testing.T) {
 		refreshToken := "test-refresh-token-rotation"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		originalScope := "openid profile"
 		subject := testUsers[0].UserID
 
@@ -438,7 +438,7 @@ func TestRefreshToken(t *testing.T) {
 
 	t.Run("refresh token with invalid scope", func(t *testing.T) {
 		refreshToken := "test-refresh-token-invalid-scope"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		originalScope := "openid profile" // Original scope
 		subject := testUsers[0].UserID
 
@@ -459,7 +459,7 @@ func TestRefreshToken(t *testing.T) {
 
 	t.Run("refresh token without scope", func(t *testing.T) {
 		refreshToken := "test-refresh-token-no-scope"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store refresh token
 		err := service.storeRefreshToken(refreshToken, clientID)
@@ -485,7 +485,7 @@ func TestRotateRefreshToken(t *testing.T) {
 
 	t.Run("successful refresh token rotation", func(t *testing.T) {
 		oldToken := "old-refresh-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		originalScope := "openid profile"
 		subject := testUsers[0].UserID
 
@@ -573,7 +573,7 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 
 	t.Run("successful authorization code grant", func(t *testing.T) {
 		client := &types.ClientInfo{
-			ClientID:   testClients[0].ClientID,
+			ClientID:   GetActualClientID(testClients[0].ClientID),
 			GrantTypes: []string{types.GrantTypeAuthorizationCode, types.GrantTypeRefreshToken},
 		}
 
@@ -593,7 +593,7 @@ func TestHandleAuthorizationCodeGrant(t *testing.T) {
 
 	t.Run("authorization code grant without refresh token support", func(t *testing.T) {
 		client := &types.ClientInfo{
-			ClientID:   testClients[1].ClientID,
+			ClientID:   GetActualClientID(testClients[1].ClientID),
 			GrantTypes: []string{types.GrantTypeAuthorizationCode}, // No refresh token
 		}
 
@@ -620,7 +620,7 @@ func TestHandleClientCredentialsGrant(t *testing.T) {
 
 	t.Run("successful client credentials grant", func(t *testing.T) {
 		client := &types.ClientInfo{
-			ClientID:   testClients[2].ClientID,
+			ClientID:   GetActualClientID(testClients[2].ClientID),
 			GrantTypes: []string{types.GrantTypeClientCredentials},
 		}
 
@@ -642,7 +642,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 
 	t.Run("successful refresh token grant with rotation", func(t *testing.T) {
 		client := &types.ClientInfo{
-			ClientID:   testClients[0].ClientID,
+			ClientID:   GetActualClientID(testClients[0].ClientID),
 			GrantTypes: []string{types.GrantTypeRefreshToken},
 		}
 
@@ -677,7 +677,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		}()
 
 		client := &types.ClientInfo{
-			ClientID:   testClients[0].ClientID,
+			ClientID:   GetActualClientID(testClients[0].ClientID),
 			GrantTypes: []string{types.GrantTypeRefreshToken},
 		}
 
@@ -701,7 +701,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 
 	t.Run("refresh token grant with invalid token", func(t *testing.T) {
 		client := &types.ClientInfo{
-			ClientID:   testClients[0].ClientID,
+			ClientID:   GetActualClientID(testClients[0].ClientID),
 			GrantTypes: []string{types.GrantTypeRefreshToken},
 		}
 
@@ -731,7 +731,7 @@ func TestCoreIntegration(t *testing.T) {
 	t.Run("complete authorization code flow", func(t *testing.T) {
 		// Step 1: Authorization
 		authRequest := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "openid profile",
@@ -745,7 +745,7 @@ func TestCoreIntegration(t *testing.T) {
 		assert.Equal(t, "integration-test-state", authResponse.State)
 
 		// Step 2: Token exchange
-		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, authResponse.Code, testClients[0].ClientID, "")
+		token, err := service.Token(ctx, types.GrantTypeAuthorizationCode, authResponse.Code, GetActualClientID(testClients[0].ClientID), "")
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -766,7 +766,7 @@ func TestCoreIntegration(t *testing.T) {
 
 	t.Run("client credentials flow", func(t *testing.T) {
 		// Token exchange for client credentials
-		token, err := service.Token(ctx, types.GrantTypeClientCredentials, "", testClients[2].ClientID, "")
+		token, err := service.Token(ctx, types.GrantTypeClientCredentials, "", GetActualClientID(testClients[2].ClientID), "")
 		assert.NoError(t, err)
 		assert.NotNil(t, token)
 		assert.NotEmpty(t, token.AccessToken)
@@ -817,7 +817,7 @@ func TestCoreEdgeCases(t *testing.T) {
 
 	t.Run("authorization with multiple scopes", func(t *testing.T) {
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "openid profile email", // Multiple scopes
@@ -835,7 +835,7 @@ func TestCoreEdgeCases(t *testing.T) {
 		longState := strings.Repeat("test-state-", 10) // Long state parameter
 
 		request := &types.AuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			ResponseType: "code",
 			RedirectURI:  "https://localhost/callback",
 			Scope:        "openid profile",
@@ -850,7 +850,7 @@ func TestCoreEdgeCases(t *testing.T) {
 	})
 
 	t.Run("token generation uniqueness", func(t *testing.T) {
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		tokens := make(map[string]bool)
 
 		// Generate multiple tokens and ensure they're unique
@@ -873,7 +873,7 @@ func TestCoreEdgeCases(t *testing.T) {
 
 	t.Run("refresh token data integrity", func(t *testing.T) {
 		refreshToken := "test-refresh-token-integrity"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store refresh token with additional data directly in store
 		tokenData := map[string]interface{}{

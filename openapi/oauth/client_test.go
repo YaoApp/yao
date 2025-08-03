@@ -74,7 +74,7 @@ func TestRegister(t *testing.T) {
 	t.Run("register client with existing ID", func(t *testing.T) {
 		// Use one of the pre-existing test clients
 		clientInfo := &types.ClientInfo{
-			ClientID:      testClients[0].ClientID, // This client already exists
+			ClientID:      GetActualClientID(testClients[0].ClientID), // This client already exists
 			ClientSecret:  "new-secret",
 			ClientName:    "Duplicate Client",
 			ClientType:    types.ClientTypeConfidential,
@@ -97,8 +97,8 @@ func TestUpdateClient(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("update existing client successfully", func(t *testing.T) {
-		// Use first test client
-		clientID := testClients[0].ClientID
+		// Use first test client with actual ID (includes suffix for parallel test isolation)
+		clientID := GetActualClientID(testClients[0].ClientID)
 		updatedInfo := &types.ClientInfo{
 			ClientID:      clientID,
 			ClientSecret:  "updated-secret",
@@ -132,7 +132,7 @@ func TestUpdateClient(t *testing.T) {
 	})
 
 	t.Run("update with nil client info", func(t *testing.T) {
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		result, err := service.UpdateClient(ctx, clientID, nil)
 		assert.Error(t, err)
@@ -201,7 +201,7 @@ func TestValidateScope(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("validate valid scopes", func(t *testing.T) {
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		requestedScopes := []string{"openid", "profile"}
 
 		result, err := service.ValidateScope(ctx, requestedScopes, clientID)
@@ -220,7 +220,7 @@ func TestValidateScope(t *testing.T) {
 	})
 
 	t.Run("validate with empty scopes", func(t *testing.T) {
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		requestedScopes := []string{}
 
 		result, err := service.ValidateScope(ctx, requestedScopes, clientID)
