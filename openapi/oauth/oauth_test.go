@@ -551,7 +551,7 @@ func cleanupTestData(t *testing.T, service *Service) {
 	// Clean up any remaining test data by patterns
 	_, err := m.DestroyWhere(model.QueryParam{
 		Wheres: []model.QueryWhere{
-			{Column: "subject", OP: "like", Value: "user-%"},
+			{Column: "user_id", OP: "like", Value: "user-%"},
 		},
 	})
 	if err != nil {
