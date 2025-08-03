@@ -131,7 +131,7 @@ func authback(c *gin.Context) {
 	}
 
 	// Get provider
-	provider, err := GetProvider(params.Locale, providerID)
+	provider, err := GetProvider(providerID)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -227,9 +227,8 @@ func getOAuthAuthorizationURL(c *gin.Context) {
 	// Get optional parameters
 	redirectURI := c.Query("redirect_uri")
 	state := c.Query("state")
-	locale := c.Query("locale")
 
-	provider, err := GetProvider(locale, providerID)
+	provider, err := GetProvider(providerID)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,

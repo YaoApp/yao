@@ -6,13 +6,16 @@ import (
 
 // Config represents the signin page configuration
 type Config struct {
-	Title       string       `json:"title,omitempty"`
-	Description string       `json:"description,omitempty"`
-	SuccessURL  string       `json:"success_url,omitempty"`
-	FailureURL  string       `json:"failure_url,omitempty"`
-	Form        *FormConfig  `json:"form,omitempty"`
-	Token       *TokenConfig `json:"token,omitempty"`
-	ThirdParty  *ThirdParty  `json:"third_party,omitempty"`
+	Title        string       `json:"title,omitempty"`
+	Description  string       `json:"description,omitempty"`
+	Default      bool         `json:"default,omitempty"`
+	SuccessURL   string       `json:"success_url,omitempty"`
+	FailureURL   string       `json:"failure_url,omitempty"`
+	ClientID     string       `json:"client_id,omitempty"`
+	ClientSecret string       `json:"client_secret,omitempty"`
+	Form         *FormConfig  `json:"form,omitempty"`
+	Token        *TokenConfig `json:"token,omitempty"`
+	ThirdParty   *ThirdParty  `json:"third_party,omitempty"`
 }
 
 // FormConfig represents the form configuration

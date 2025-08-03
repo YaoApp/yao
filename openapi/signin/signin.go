@@ -21,13 +21,15 @@ var (
 	fullConfigs = make(map[string]*Config)
 	// Public configurations without sensitive data (for frontend use)
 	publicConfigs = make(map[string]*Config)
-	// Default language code
-	defaultLang = ""
+	// Global providers map (decoupled from locale-specific configs)
+	providers = make(map[string]*Provider)
+	// Default configuration (marked with default: true)
+	defaultConfig *Config
 	// Mutex for thread safety
 	configMutex sync.RWMutex
 )
 
-// Load loads all signin configurations from the openapi directory
+// Load loads all signin configurations from the openapi/signin directory
 func Load(appConfig config.Config) error {
 	configMutex.Lock()
 	defer configMutex.Unlock()
@@ -35,40 +37,112 @@ func Load(appConfig config.Config) error {
 	// Clear existing configurations
 	fullConfigs = make(map[string]*Config)
 	publicConfigs = make(map[string]*Config)
-	defaultLang = ""
+	providers = make(map[string]*Provider)
+	defaultConfig = nil
 
-	// Find all signin configuration files
-	files, err := findSigninFiles()
+	// Load providers first
+	err := loadProviders(appConfig.Root)
 	if err != nil {
-		return fmt.Errorf("failed to find signin files: %v", err)
+		return fmt.Errorf("failed to load providers: %v", err)
 	}
 
-	// If no signin files found, that's not necessarily an error
-	// Some applications might not have signin configurations
-	if len(files) == 0 {
-		return nil
+	// Load signin configurations
+	err = loadSigninConfigs(appConfig.Root)
+	if err != nil {
+		return fmt.Errorf("failed to load signin configs: %v", err)
 	}
 
-	// Load each configuration file
-	for _, file := range files {
-		lang := extractLanguageFromFilename(file)
+	return nil
+}
 
-		configPath := filepath.Join("openapi", file)
-		configRaw, err := application.App.Read(configPath)
+// loadProviders loads all provider configurations from the openapi/signin/providers directory
+func loadProviders(rootPath string) error {
+	// Use Walk to find all provider files in the signin/providers directory
+	err := application.App.Walk("openapi/signin/providers", func(root, filename string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		// Only process .yao files
+		if !strings.HasSuffix(filename, ".yao") {
+			return nil
+		}
+
+		// Extract provider ID from filename (basename without extension)
+		baseName := filepath.Base(filename)
+		providerID := strings.TrimSuffix(baseName, ".yao")
+
+		// Read provider configuration
+		configRaw, err := application.App.Read(filename)
 		if err != nil {
-			return fmt.Errorf("failed to read signin config %s: %v", file, err)
+			return fmt.Errorf("failed to read provider config %s: %v", filename, err)
+		}
+
+		// Parse the provider configuration
+		var provider Provider
+		err = application.Parse(filename, configRaw, &provider)
+		if err != nil {
+			return fmt.Errorf("failed to parse provider config %s: %v", filename, err)
+		}
+
+		// Set the provider ID
+		provider.ID = providerID
+
+		// Process ENV variables in provider config
+		processProviderENVVariables(&provider, rootPath)
+
+		// Store the provider
+		providers[providerID] = &provider
+
+		return nil
+	}, "*.yao")
+
+	return err
+}
+
+// loadSigninConfigs loads all signin configurations from the openapi/signin directory
+func loadSigninConfigs(rootPath string) error {
+	// Use Walk to find all signin config files in the signin directory (but not subdirectories)
+	err := application.App.Walk("openapi/signin", func(root, filename string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		// Skip files in subdirectories (like providers/)
+		if filepath.Dir(filename) != "openapi/signin" {
+			return nil
+		}
+
+		// Only process .yao files
+		if !strings.HasSuffix(filename, ".yao") {
+			return nil
+		}
+
+		// Extract language code from filename
+		baseName := filepath.Base(filename)
+		lang := extractLanguageFromFilename(baseName)
+
+		// Read signin configuration
+		configRaw, err := application.App.Read(filename)
+		if err != nil {
+			return fmt.Errorf("failed to read signin config %s: %v", filename, err)
 		}
 
 		// Parse the configuration
 		var signinConfig Config
-		err = application.Parse(configPath, configRaw, &signinConfig)
+		err = application.Parse(filename, configRaw, &signinConfig)
 		if err != nil {
-			return fmt.Errorf("failed to parse signin config %s: %v", file, err)
+			return fmt.Errorf("failed to parse signin config %s: %v", filename, err)
 		}
 
 		// Process ENV variables in full config
 		fullConfig := signinConfig
-		processENVVariables(&fullConfig, appConfig.Root)
+		processConfigENVVariables(&fullConfig, rootPath)
+
+		// Set as default config if marked as default
+		if fullConfig.Default {
+			defaultConfig = &fullConfig
+		}
 
 		// Create public config (without sensitive data)
 		publicConfig := createPublicConfig(&fullConfig)
@@ -77,62 +151,131 @@ func Load(appConfig config.Config) error {
 		fullConfigs[lang] = &fullConfig
 		publicConfigs[lang] = &publicConfig
 
-		// Set default language
-		if defaultLang == "" || lang == "en" || file == "signin.yao" {
-			defaultLang = lang
-		}
-	}
-
-	return nil
-}
-
-// findSigninFiles finds all signin configuration files in the openapi directory
-func findSigninFiles() ([]string, error) {
-	var files []string
-	signinFilePattern := regexp.MustCompile(`^signin(\.[a-z]{2}(-[a-z]{2})?)?\.yao$`)
-
-	// Use Walk to find all signin files in the openapi directory
-	err := application.App.Walk("openapi", func(root, filename string, isdir bool) error {
-		if isdir {
-			return nil
-		}
-
-		baseName := filepath.Base(filename)
-		if signinFilePattern.MatchString(baseName) {
-			files = append(files, baseName)
-		}
-
 		return nil
 	}, "*.yao")
 
-	if err != nil {
-		return nil, err
-	}
-
-	return files, nil
+	return err
 }
 
 // extractLanguageFromFilename extracts language code from filename
 func extractLanguageFromFilename(filename string) string {
-	// signin.yao -> ""
-	// signin.en.yao -> "en"
-	// signin.zh-cn.yao -> "zh-cn"
+	// New naming convention:
+	// en.yao -> "en"
+	// zh-cn.yao -> "zh-cn"
+	// default.yao -> "default"
 
-	if filename == "signin.yao" {
-		return ""
-	}
-
-	parts := strings.Split(filename, ".")
-	if len(parts) >= 3 {
-		return parts[1]
-	}
-
-	return ""
+	baseName := strings.TrimSuffix(filename, ".yao")
+	return strings.ToLower(baseName)
 }
 
-// processENVVariables processes environment variables in the configuration
-func processENVVariables(config *Config, rootPath string) {
+// processProviderENVVariables processes environment variables in the provider configuration
+func processProviderENVVariables(provider *Provider, rootPath string) {
 	var missingEnvVars []string
+
+	// Process ClientID
+	if strings.HasPrefix(provider.ClientID, "$ENV.") {
+		envVar := strings.TrimPrefix(provider.ClientID, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	provider.ClientID = replaceENVVar(provider.ClientID)
+
+	// Process ClientSecret
+	if strings.HasPrefix(provider.ClientSecret, "$ENV.") {
+		envVar := strings.TrimPrefix(provider.ClientSecret, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	provider.ClientSecret = replaceENVVar(provider.ClientSecret)
+
+	// Process client secret generator
+	if provider.ClientSecretGenerator != nil {
+		// Check PrivateKey
+		if strings.HasPrefix(provider.ClientSecretGenerator.PrivateKey, "$ENV.") {
+			envVar := strings.TrimPrefix(provider.ClientSecretGenerator.PrivateKey, "$ENV.")
+			if _, exists := os.LookupEnv(envVar); !exists {
+				missingEnvVars = append(missingEnvVars, envVar)
+			}
+		}
+		provider.ClientSecretGenerator.PrivateKey = replaceENVVar(provider.ClientSecretGenerator.PrivateKey)
+
+		// Convert relative path to absolute path for private key
+		if provider.ClientSecretGenerator.PrivateKey != "" && !filepath.IsAbs(provider.ClientSecretGenerator.PrivateKey) {
+			provider.ClientSecretGenerator.PrivateKey = filepath.Join(rootPath, "openapi", "certs", provider.ClientSecretGenerator.PrivateKey)
+		}
+
+		// Process and normalize expires_in format
+		if provider.ClientSecretGenerator.ExpiresIn != "" {
+			normalizedDuration, err := normalizeExpiresIn(provider.ClientSecretGenerator.ExpiresIn)
+			if err != nil {
+				log.Printf("Warning: Invalid expires_in format '%s' for provider '%s': %v",
+					provider.ClientSecretGenerator.ExpiresIn, provider.ID, err)
+				// Set default to 90 days
+				provider.ClientSecretGenerator.ExpiresIn = "2160h" // 90 * 24 hours
+			} else {
+				provider.ClientSecretGenerator.ExpiresIn = normalizedDuration
+			}
+		}
+
+		// Process header values
+		if provider.ClientSecretGenerator.Header != nil {
+			for key, value := range provider.ClientSecretGenerator.Header {
+				if strValue, ok := value.(string); ok {
+					if strings.HasPrefix(strValue, "$ENV.") {
+						envVar := strings.TrimPrefix(strValue, "$ENV.")
+						if _, exists := os.LookupEnv(envVar); !exists {
+							missingEnvVars = append(missingEnvVars, envVar)
+						}
+					}
+					provider.ClientSecretGenerator.Header[key] = replaceENVVar(strValue)
+				}
+			}
+		}
+
+		// Process payload values
+		if provider.ClientSecretGenerator.Payload != nil {
+			for key, value := range provider.ClientSecretGenerator.Payload {
+				if strValue, ok := value.(string); ok {
+					if strings.HasPrefix(strValue, "$ENV.") {
+						envVar := strings.TrimPrefix(strValue, "$ENV.")
+						if _, exists := os.LookupEnv(envVar); !exists {
+							missingEnvVars = append(missingEnvVars, envVar)
+						}
+					}
+					provider.ClientSecretGenerator.Payload[key] = replaceENVVar(strValue)
+				}
+			}
+		}
+	}
+
+	// Log warning for missing environment variables
+	if len(missingEnvVars) > 0 {
+		log.Printf("Warning: The following environment variables are not set for provider '%s': %v", provider.ID, missingEnvVars)
+	}
+}
+
+// processConfigENVVariables processes environment variables in the signin configuration
+func processConfigENVVariables(config *Config, rootPath string) {
+	var missingEnvVars []string
+
+	// Process client_id and client_secret
+	if strings.HasPrefix(config.ClientID, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ClientID, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ClientID = replaceENVVar(config.ClientID)
+
+	if strings.HasPrefix(config.ClientSecret, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ClientSecret, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ClientSecret = replaceENVVar(config.ClientSecret)
 
 	// Process form captcha options
 	if config.Form != nil && config.Form.Captcha != nil && config.Form.Captcha.Options != nil {
@@ -150,92 +293,12 @@ func processENVVariables(config *Config, rootPath string) {
 		}
 	}
 
-	// Process third party providers
-	if config.ThirdParty != nil && config.ThirdParty.Providers != nil {
-		for _, provider := range config.ThirdParty.Providers {
-			// Check ClientID
-			if strings.HasPrefix(provider.ClientID, "$ENV.") {
-				envVar := strings.TrimPrefix(provider.ClientID, "$ENV.")
-				if _, exists := os.LookupEnv(envVar); !exists {
-					missingEnvVars = append(missingEnvVars, envVar)
-				}
-			}
-			provider.ClientID = replaceENVVar(provider.ClientID)
-
-			// Check ClientSecret
-			if strings.HasPrefix(provider.ClientSecret, "$ENV.") {
-				envVar := strings.TrimPrefix(provider.ClientSecret, "$ENV.")
-				if _, exists := os.LookupEnv(envVar); !exists {
-					missingEnvVars = append(missingEnvVars, envVar)
-				}
-			}
-			provider.ClientSecret = replaceENVVar(provider.ClientSecret)
-
-			// Process client secret generator
-			if provider.ClientSecretGenerator != nil {
-				// Check PrivateKey
-				if strings.HasPrefix(provider.ClientSecretGenerator.PrivateKey, "$ENV.") {
-					envVar := strings.TrimPrefix(provider.ClientSecretGenerator.PrivateKey, "$ENV.")
-					if _, exists := os.LookupEnv(envVar); !exists {
-						missingEnvVars = append(missingEnvVars, envVar)
-					}
-				}
-				provider.ClientSecretGenerator.PrivateKey = replaceENVVar(provider.ClientSecretGenerator.PrivateKey)
-
-				// Convert relative path to absolute path for private key
-				if provider.ClientSecretGenerator.PrivateKey != "" && !filepath.IsAbs(provider.ClientSecretGenerator.PrivateKey) {
-					provider.ClientSecretGenerator.PrivateKey = filepath.Join(rootPath, "openapi", "certs", provider.ClientSecretGenerator.PrivateKey)
-				}
-
-				// Process and normalize expires_in format
-				if provider.ClientSecretGenerator.ExpiresIn != "" {
-					normalizedDuration, err := normalizeExpiresIn(provider.ClientSecretGenerator.ExpiresIn)
-					if err != nil {
-						log.Printf("Warning: Invalid expires_in format '%s' for provider '%s': %v",
-							provider.ClientSecretGenerator.ExpiresIn, provider.ID, err)
-						// Set default to 90 days
-						provider.ClientSecretGenerator.ExpiresIn = "2160h" // 90 * 24 hours
-					} else {
-						provider.ClientSecretGenerator.ExpiresIn = normalizedDuration
-					}
-				}
-
-				// Process header values
-				if provider.ClientSecretGenerator.Header != nil {
-					for key, value := range provider.ClientSecretGenerator.Header {
-						if strValue, ok := value.(string); ok {
-							if strings.HasPrefix(strValue, "$ENV.") {
-								envVar := strings.TrimPrefix(strValue, "$ENV.")
-								if _, exists := os.LookupEnv(envVar); !exists {
-									missingEnvVars = append(missingEnvVars, envVar)
-								}
-							}
-							provider.ClientSecretGenerator.Header[key] = replaceENVVar(strValue)
-						}
-					}
-				}
-
-				// Process payload values
-				if provider.ClientSecretGenerator.Payload != nil {
-					for key, value := range provider.ClientSecretGenerator.Payload {
-						if strValue, ok := value.(string); ok {
-							if strings.HasPrefix(strValue, "$ENV.") {
-								envVar := strings.TrimPrefix(strValue, "$ENV.")
-								if _, exists := os.LookupEnv(envVar); !exists {
-									missingEnvVars = append(missingEnvVars, envVar)
-								}
-							}
-							provider.ClientSecretGenerator.Payload[key] = replaceENVVar(strValue)
-						}
-					}
-				}
-			}
-		}
-	}
+	// Note: Third party providers are now handled separately in loadProviders()
+	// No need to process provider configurations here anymore
 
 	// Log warning for missing environment variables
 	if len(missingEnvVars) > 0 {
-		log.Printf("Warning: The following environment variables are not set and may cause configuration issues: %v", missingEnvVars)
+		log.Printf("Warning: The following environment variables are not set in signin configuration: %v", missingEnvVars)
 		log.Printf("Please set these environment variables to avoid exposing placeholder values in configuration")
 	}
 }
@@ -376,11 +439,9 @@ func GetFullConfig(lang string) *Config {
 		return config
 	}
 
-	// Fallback to default language
-	if defaultLang != "" {
-		if config, exists := fullConfigs[defaultLang]; exists {
-			return config
-		}
+	// Fallback to default config (marked with default: true)
+	if defaultConfig != nil {
+		return defaultConfig
 	}
 
 	// Return any available config as last resort
@@ -406,10 +467,15 @@ func GetPublicConfig(lang string) *Config {
 		return config
 	}
 
-	// Fallback to default language
-	if defaultLang != "" {
-		if config, exists := publicConfigs[defaultLang]; exists {
-			return config
+	// Fallback to default config's public version
+	if defaultConfig != nil {
+		// Find the public version of the default config
+		for lang, fullConfig := range fullConfigs {
+			if fullConfig == defaultConfig {
+				if publicConfig, exists := publicConfigs[lang]; exists {
+					return publicConfig
+				}
+			}
 		}
 	}
 
@@ -428,14 +494,7 @@ func GetAvailableLanguages() []string {
 
 	var languages []string
 	for lang := range fullConfigs {
-		if lang != "" {
-			languages = append(languages, lang)
-		}
-	}
-
-	// Add default language if it exists and is empty string
-	if defaultLang == "" && len(fullConfigs) > 0 {
-		languages = append(languages, "default")
+		languages = append(languages, lang)
 	}
 
 	return languages
@@ -446,10 +505,21 @@ func GetDefaultLanguage() string {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 
-	if defaultLang == "" {
-		return "default"
+	// Find the language code for the default config
+	if defaultConfig != nil {
+		for lang, config := range fullConfigs {
+			if config == defaultConfig {
+				return lang
+			}
+		}
 	}
-	return defaultLang
+
+	// Return the first available language as fallback
+	for lang := range fullConfigs {
+		return lang
+	}
+
+	return ""
 }
 
 // normalizeExpiresIn converts custom time units to Go standard duration format

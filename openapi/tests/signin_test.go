@@ -64,18 +64,20 @@ func TestSigninGetConfigs(t *testing.T) {
 						if publicConfig.ThirdParty != nil && i < len(publicConfig.ThirdParty.Providers) {
 							publicProvider := publicConfig.ThirdParty.Providers[i]
 
-							// Check that sensitive OAuth fields are removed
-							assert.Empty(t, publicProvider.ClientID, "Client ID should be empty in public config")
-							assert.Empty(t, publicProvider.ClientSecret, "Client secret should be empty in public config")
-							assert.Nil(t, publicProvider.ClientSecretGenerator, "Client secret generator should be nil in public config")
-							assert.Empty(t, publicProvider.Scopes, "Scopes should be empty in public config")
-							assert.Nil(t, publicProvider.Endpoints, "Endpoints should be nil in public config")
-							assert.Empty(t, publicProvider.Mapping, "Mapping should be empty in public config")
+							// In the new structure, providers in ThirdParty only contain display info
+							// Sensitive data is now stored separately in the global providers map
 
-							// Check that display fields are preserved
+							// Check that only display fields are present in public config
 							assert.NotEmpty(t, publicProvider.ID, "Provider ID should be preserved in public config")
 							assert.NotEmpty(t, publicProvider.Title, "Provider title should be preserved in public config")
-							// Logo, Color, TextColor might be empty depending on config, so we don't assert NotEmpty
+
+							// Sensitive fields should be empty in the ThirdParty providers (they're in global map now)
+							assert.Empty(t, publicProvider.ClientID, "Client ID should be empty in ThirdParty providers")
+							assert.Empty(t, publicProvider.ClientSecret, "Client secret should be empty in ThirdParty providers")
+							assert.Nil(t, publicProvider.ClientSecretGenerator, "Client secret generator should be nil in ThirdParty providers")
+							assert.Empty(t, publicProvider.Scopes, "Scopes should be empty in ThirdParty providers")
+							assert.Nil(t, publicProvider.Endpoints, "Endpoints should be nil in ThirdParty providers")
+							assert.Empty(t, publicProvider.Mapping, "Mapping should be empty in ThirdParty providers")
 						}
 					}
 				}
@@ -141,6 +143,13 @@ func TestSigninConfigStructure(t *testing.T) {
 		// Verify config structure is valid
 		assert.IsType(t, &signin.Config{}, config, "Should return correct config type")
 
+		// Test new configuration fields
+		assert.IsType(t, "", config.ClientID, "ClientID should be string")
+		assert.IsType(t, "", config.ClientSecret, "ClientSecret should be string")
+		assert.IsType(t, false, config.Default, "Default should be boolean")
+		t.Logf("Config has ClientID: %t, ClientSecret: %t, Default: %t",
+			config.ClientID != "", config.ClientSecret != "", config.Default)
+
 		// Test form configuration
 		if config.Form != nil {
 			t.Logf("Form configuration found")
@@ -159,14 +168,74 @@ func TestSigninConfigStructure(t *testing.T) {
 				assert.IsType(t, []*signin.Provider{}, config.ThirdParty.Providers, "Providers should be slice of Provider pointers")
 				for i, provider := range config.ThirdParty.Providers {
 					t.Logf("Provider %d: %s", i, provider.ID)
-					assert.IsType(t, []string{}, provider.Scopes, "Provider scopes should be string slice")
-					assert.IsType(t, map[string]string{}, provider.Mapping, "Provider mapping should be string map")
+
+					// In the new structure, ThirdParty providers only contain display information
+					// Sensitive configuration data is stored separately in the global providers map
+					assert.NotEmpty(t, provider.ID, "Provider ID should not be empty")
+					assert.NotEmpty(t, provider.Title, "Provider title should not be empty")
+
+					// These fields should be empty in ThirdParty providers (they're in global map now)
+					assert.Empty(t, provider.Scopes, "Provider scopes should be empty in ThirdParty providers")
+					assert.Nil(t, provider.Mapping, "Provider mapping should be nil in ThirdParty providers")
+					assert.Nil(t, provider.Endpoints, "Provider endpoints should be nil in ThirdParty providers")
 				}
 			}
 		}
 	} else {
 		t.Log("No signin configuration found")
 	}
+}
+
+func TestSigninGlobalProvidersMap(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	_ = serverURL // Server URL not needed for this test
+
+	// Load signin configurations
+	err := signin.Load(config.Conf)
+	assert.NoError(t, err, "signin.Load should succeed")
+
+	// Test that providers can be retrieved from global map (no locale needed)
+	providerIDs := []string{"google", "microsoft", "apple", "github"}
+
+	for _, providerID := range providerIDs {
+		t.Run("provider_"+providerID, func(t *testing.T) {
+			provider, err := signin.GetProvider(providerID)
+
+			// Note: Provider might not be found if configuration files don't exist
+			// or if environment variables are not set, which is normal in test environment
+			if err != nil {
+				t.Logf("Provider '%s' not found (expected in test environment): %v", providerID, err)
+				return
+			}
+
+			if provider != nil {
+				assert.Equal(t, providerID, provider.ID, "Provider ID should match")
+				t.Logf("Provider '%s' loaded successfully", providerID)
+
+				// Test provider structure
+				assert.IsType(t, "", provider.ClientID, "ClientID should be string")
+				assert.IsType(t, "", provider.ClientSecret, "ClientSecret should be string")
+				assert.IsType(t, []string{}, provider.Scopes, "Scopes should be string slice")
+
+				if provider.Endpoints != nil {
+					assert.IsType(t, "", provider.Endpoints.Authorization, "Authorization endpoint should be string")
+					assert.IsType(t, "", provider.Endpoints.Token, "Token endpoint should be string")
+					assert.IsType(t, "", provider.Endpoints.UserInfo, "UserInfo endpoint should be string")
+				}
+			}
+		})
+	}
+
+	// Test nonexistent provider
+	t.Run("nonexistent_provider", func(t *testing.T) {
+		provider, err := signin.GetProvider("nonexistent")
+		assert.Error(t, err, "Should return error for nonexistent provider")
+		assert.Nil(t, provider, "Should return nil provider for nonexistent provider")
+		assert.Contains(t, err.Error(), "not found", "Error message should indicate provider not found")
+	})
 }
 
 func TestSigninAPI(t *testing.T) {
@@ -253,9 +322,8 @@ func TestSigninOAuthAuthorizationURL(t *testing.T) {
 	}
 
 	// Test OAuth authorization URL endpoints
-	// Note: These should return 500 because OAuth client credentials (CLIENT_ID, etc.)
-	// are not set in the test environment, making the provider configuration incomplete.
-	// This is the expected secure behavior.
+	// Note: These should return 200 when OAuth client credentials are properly configured
+	// (which they are in this test environment). Only nonexistent providers should return 404.
 	testCases := []struct {
 		name           string
 		provider       string
@@ -263,14 +331,13 @@ func TestSigninOAuthAuthorizationURL(t *testing.T) {
 		expectCode     int
 		expectErrorMsg string
 	}{
-		{"get google oauth url", "google", "", 500, "Provider configuration is incomplete"},
-		{"get microsoft oauth url", "microsoft", "", 500, "Provider configuration is incomplete"},
-		{"get apple oauth url", "apple", "", 500, "Provider configuration is incomplete"},
-		{"get github oauth url", "github", "", 500, "Provider configuration is incomplete"},
-		{"get oauth url with locale", "google", "?locale=en", 500, "Provider configuration is incomplete"},
-		{"get oauth url with redirect_uri", "google", "?redirect_uri=https://example.com/callback", 500, "Provider configuration is incomplete"},
-		{"get oauth url with state", "google", "?state=test-state-123", 500, "Provider configuration is incomplete"},
-		{"get oauth url for nonexistent provider", "nonexistent", "", 404, "OAuth provider 'nonexistent' not found"},
+		{"get google oauth url", "google", "", 200, ""},
+		{"get microsoft oauth url", "microsoft", "", 200, ""},
+		{"get apple oauth url", "apple", "", 200, ""},
+		{"get github oauth url", "github", "", 200, ""},
+		{"get oauth url with redirect_uri", "google", "?redirect_uri=https://example.com/callback", 200, ""},
+		{"get oauth url with state", "google", "?state=test-state-123", 200, ""},
+		{"get oauth url for nonexistent provider", "nonexistent", "", 404, "Failed to get provider"},
 	}
 
 	for _, tc := range testCases {
@@ -289,25 +356,36 @@ func TestSigninOAuthAuthorizationURL(t *testing.T) {
 
 				t.Logf("Response for %s: status=%d, body=%s", tc.provider, resp.StatusCode, string(body))
 
-				// Parse error response to verify the error message
-				var errorResponse map[string]interface{}
-				err = json.Unmarshal(body, &errorResponse)
-				assert.NoError(t, err, "Should parse JSON error response")
+				var response map[string]interface{}
+				err = json.Unmarshal(body, &response)
+				assert.NoError(t, err, "Should parse JSON response")
 
-				// Verify error message matches expected
-				if errorDescription, hasError := errorResponse["error_description"]; hasError {
-					errorDescStr, ok := errorDescription.(string)
-					assert.True(t, ok, "error_description should be string")
-					assert.Equal(t, tc.expectErrorMsg, errorDescStr, "Error message should match expected")
+				if tc.expectCode == 200 {
+					// Success case - should have authorization_url
+					if authURL, hasAuthURL := response["authorization_url"]; hasAuthURL {
+						authURLStr, ok := authURL.(string)
+						assert.True(t, ok, "authorization_url should be string")
+						assert.NotEmpty(t, authURLStr, "authorization_url should not be empty")
+						t.Logf("Authorization URL generated successfully for %s", tc.provider)
+					} else {
+						t.Errorf("Success response should contain authorization_url field")
+					}
 				} else {
-					t.Errorf("Response should contain error_description field")
-				}
+					// Error case - should have error fields
+					if errorDescription, hasError := response["error_description"]; hasError {
+						errorDescStr, ok := errorDescription.(string)
+						assert.True(t, ok, "error_description should be string")
+						assert.Equal(t, tc.expectErrorMsg, errorDescStr, "Error message should match expected")
+					} else {
+						t.Errorf("Error response should contain error_description field")
+					}
 
-				// Verify error code is present
-				if errorCode, hasErrorCode := errorResponse["error"]; hasErrorCode {
-					assert.Equal(t, "invalid_request", errorCode, "Error code should be invalid_request")
-				} else {
-					t.Errorf("Response should contain error field")
+					// Verify error code is present
+					if errorCode, hasErrorCode := response["error"]; hasErrorCode {
+						assert.Equal(t, "invalid_request", errorCode, "Error code should be invalid_request")
+					} else {
+						t.Errorf("Error response should contain error field")
+					}
 				}
 			}
 		})
