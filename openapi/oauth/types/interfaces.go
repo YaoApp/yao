@@ -152,6 +152,7 @@ type UserProvider interface {
 
 	// User Basic Operations
 	GetUser(ctx context.Context, userID string) (maps.MapStrAny, error)
+	GetUserWithScopes(ctx context.Context, userID string) (maps.MapStrAny, error)
 	UserExists(ctx context.Context, userID string) (bool, error)
 	UserExistsByEmail(ctx context.Context, email string) (bool, error)
 	UserExistsByPreferredUsername(ctx context.Context, preferredUsername string) (bool, error)
@@ -166,7 +167,7 @@ type UserProvider interface {
 	CreateUser(ctx context.Context, userData maps.MapStrAny) (string, error)
 	UpdateUser(ctx context.Context, userID string, userData maps.MapStrAny) error
 	DeleteUser(ctx context.Context, userID string) error
-	UpdateUserLastLogin(ctx context.Context, userID string) error
+	UpdateUserLastLogin(ctx context.Context, userID string, ip string) error
 	UpdateUserStatus(ctx context.Context, userID string, status string) error
 
 	// User List and Search

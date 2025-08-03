@@ -340,6 +340,14 @@
       "index": true
     },
     {
+      "name": "last_login_ip",
+      "type": "string",
+      "label": "Last Login IP",
+      "comment": "Last login IP address",
+      "length": 46,
+      "nullable": true
+    },
+    {
       "name": "mfa_last_verified_at",
       "type": "timestamp",
       "label": "MFA Last Verified At",
@@ -369,7 +377,20 @@
       "comment": "Index on verification status for filtering"
     }
   ],
-  "relations": {},
+  "relations": {
+    "role": {
+      "type": "hasOne",
+      "model": "__yao.user_role",
+      "key": "role_id",
+      "foreign": "role_id"
+    },
+    "type": {
+      "type": "hasOne",
+      "model": "__yao.user_type",
+      "key": "type_id",
+      "foreign": "type_id"
+    }
+  },
   "values": [],
   "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }

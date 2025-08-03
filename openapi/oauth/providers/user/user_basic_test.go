@@ -202,7 +202,7 @@ func TestUserBasicOperations(t *testing.T) {
 
 	// Test UpdateUserLastLogin
 	t.Run("UpdateUserLastLogin", func(t *testing.T) {
-		err := testProvider.UpdateUserLastLogin(ctx, testUserID)
+		err := testProvider.UpdateUserLastLogin(ctx, testUserID, "127.0.0.1")
 		assert.NoError(t, err)
 
 		// Verify last_login_at was updated
