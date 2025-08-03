@@ -2,6 +2,7 @@ package signin
 
 import (
 	"context"
+	"strings"
 
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi/oauth"
@@ -93,13 +94,46 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		log.Warn("Failed to update last login: %s", err.Error())
 	}
 
+	var scopes []string
+	if v, ok := user["scopes"].([]string); ok {
+		scopes = v
+	}
+
+	// Get Config form app.yao config ()
+	clientID := "1234567890"
+	oidcExpiresIn := 3600
+	accessTokenExpiresIn := 3600
+
+	subject, err := oauth.OAuth.Subject(clientID, userid)
+	if err != nil {
+		log.Warn("Failed to store user fingerprint: %s", err.Error())
+	}
+	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
+	oidcUserInfo.Sub = subject
+
+	// OIDC Token
+	oidcToken, err := oauth.OAuth.SignIDToken(clientID, strings.Join(scopes, " "), oidcExpiresIn, oidcUserInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Access Token
+	accessToken, err := oauth.OAuth.MakeAccessToken(clientID, strings.Join(scopes, " "), subject, accessTokenExpiresIn)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refresh Token
+	refreshToken, err := oauth.OAuth.MakeRefreshToken(clientID, strings.Join(scopes, " "), subject)
+	if err != nil {
+		return nil, err
+	}
 	return &LoginResponse{
-		AccessToken:  "mock_access_token",
-		IDToken:      "mock_id_token",
-		RefreshToken: "mock_refresh_token",
-		ExpiresIn:    3600,
+		AccessToken:  accessToken,
+		IDToken:      oidcToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    accessTokenExpiresIn,
 		TokenType:    "Bearer",
-		Scope:        "openid profile email",
-		User:         user,
+		Scope:        strings.Join(scopes, " "),
 	}, nil
 }

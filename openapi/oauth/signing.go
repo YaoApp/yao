@@ -457,6 +457,125 @@ func (s *Service) VerifyToken(token string) (*types.TokenClaims, error) {
 	return s.verifyOpaqueToken(token)
 }
 
+// SignIDToken signs an ID token with specific parameters and stores it
+func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *types.OIDCUserInfo) (string, error) {
+	if s.signingCerts == nil || s.signingCerts.SigningKey == nil {
+		return "", fmt.Errorf("signing certificates not initialized")
+	}
+
+	// Check if userdata and subject are provided
+	if userdata == nil || userdata.Sub == "" {
+		return "", fmt.Errorf("userdata or userdata.Sub is required for ID token")
+	}
+
+	tokenSubject := userdata.Sub
+
+	now := time.Now()
+
+	// Create OIDC ID Token claims
+	idTokenClaims := &types.OIDCIDToken{
+		// Required ID Token claims
+		Iss: s.config.IssuerURL,
+		Sub: tokenSubject,
+		Aud: clientID,
+		Exp: now.Add(time.Duration(expiresIn) * time.Second).Unix(),
+		Iat: now.Unix(),
+	}
+
+	// Create a map for custom claims that includes both standard and user info
+	claims := jwt.MapClaims{
+		// Standard OIDC ID Token claims
+		"iss": idTokenClaims.Iss,
+		"sub": idTokenClaims.Sub,
+		"aud": idTokenClaims.Aud,
+		"exp": idTokenClaims.Exp,
+		"iat": idTokenClaims.Iat,
+		"jti": generateJTI(),
+	}
+
+	// Add user information from userdata
+	// Add standard OIDC user claims if they exist
+	if userdata.Name != "" {
+		claims["name"] = userdata.Name
+	}
+	if userdata.GivenName != "" {
+		claims["given_name"] = userdata.GivenName
+	}
+	if userdata.FamilyName != "" {
+		claims["family_name"] = userdata.FamilyName
+	}
+	if userdata.MiddleName != "" {
+		claims["middle_name"] = userdata.MiddleName
+	}
+	if userdata.Nickname != "" {
+		claims["nickname"] = userdata.Nickname
+	}
+	if userdata.PreferredUsername != "" {
+		claims["preferred_username"] = userdata.PreferredUsername
+	}
+	if userdata.Profile != "" {
+		claims["profile"] = userdata.Profile
+	}
+	if userdata.Picture != "" {
+		claims["picture"] = userdata.Picture
+	}
+	if userdata.Website != "" {
+		claims["website"] = userdata.Website
+	}
+	if userdata.Email != "" {
+		claims["email"] = userdata.Email
+	}
+	if userdata.EmailVerified != nil {
+		claims["email_verified"] = *userdata.EmailVerified
+	}
+	if userdata.Gender != "" {
+		claims["gender"] = userdata.Gender
+	}
+	if userdata.Birthdate != "" {
+		claims["birthdate"] = userdata.Birthdate
+	}
+	if userdata.Zoneinfo != "" {
+		claims["zoneinfo"] = userdata.Zoneinfo
+	}
+	if userdata.Locale != "" {
+		claims["locale"] = userdata.Locale
+	}
+	if userdata.PhoneNumber != "" {
+		claims["phone_number"] = userdata.PhoneNumber
+	}
+	if userdata.PhoneNumberVerified != nil {
+		claims["phone_number_verified"] = *userdata.PhoneNumberVerified
+	}
+	if userdata.Address != nil {
+		claims["address"] = userdata.Address
+	}
+	if userdata.UpdatedAt != nil {
+		claims["updated_at"] = *userdata.UpdatedAt
+	}
+
+	// Add scope if provided (useful for determining which claims to include)
+	if scope != "" {
+		claims["scope"] = scope
+	}
+
+	// Create token with claims
+	token := jwt.NewWithClaims(getSigningMethod(s.config.Token.AccessTokenSigningAlg), claims)
+
+	// Set key ID in header
+	token.Header["kid"] = s.GetKeyID()
+
+	// Set token type in header
+	token.Header["typ"] = "JWT"
+
+	// Sign token with private key
+	signedToken, err := token.SignedString(s.signingCerts.SigningKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign ID token: %w", err)
+	}
+
+	return signedToken, nil
+}
+
 // signJWTToken signs a JWT token using the configured signing algorithm
 func (s *Service) signJWTToken(tokenType, clientID, scope, subject string, expiresIn int) (string, error) {
 	if s.signingCerts == nil || s.signingCerts.SigningKey == nil {

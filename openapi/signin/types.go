@@ -153,13 +153,12 @@ type OIDCAddress = oauthtypes.OIDCAddress
 
 // LoginResponse represents the response for login
 type LoginResponse struct {
-	AccessToken  string                 `json:"access_token"`
-	IDToken      string                 `json:"id_token,omitempty"`
-	RefreshToken string                 `json:"refresh_token,omitempty"`
-	ExpiresIn    int                    `json:"expires_in,omitempty"`
-	TokenType    string                 `json:"token_type,omitempty"`
-	Scope        string                 `json:"scope,omitempty"`
-	User         map[string]interface{} `json:"user,omitempty"`
+	AccessToken  string `json:"access_token"`
+	IDToken      string `json:"id_token,omitempty"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresIn    int    `json:"expires_in,omitempty"`
+	TokenType    string `json:"token_type,omitempty"`
+	Scope        string `json:"scope,omitempty"`
 }
 
 // Built-in preset mapping types
