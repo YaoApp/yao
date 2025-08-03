@@ -163,7 +163,7 @@ type UserProvider interface {
 	UpdatePassword(ctx context.Context, userID string, newPassword string) error
 	ResetPassword(ctx context.Context, userID string) (string, error)
 
-	CreateUser(ctx context.Context, userData maps.MapStrAny) (interface{}, error)
+	CreateUser(ctx context.Context, userData maps.MapStrAny) (string, error)
 	UpdateUser(ctx context.Context, userID string, userData maps.MapStrAny) error
 	DeleteUser(ctx context.Context, userID string) error
 	UpdateUserLastLogin(ctx context.Context, userID string) error
@@ -217,7 +217,7 @@ type UserProvider interface {
 
 	GetRole(ctx context.Context, roleID string) (maps.MapStrAny, error)
 	RoleExists(ctx context.Context, roleID string) (bool, error)
-	CreateRole(ctx context.Context, roleData maps.MapStrAny) (interface{}, error)
+	CreateRole(ctx context.Context, roleData maps.MapStrAny) (string, error)
 	UpdateRole(ctx context.Context, roleID string, roleData maps.MapStrAny) error
 	DeleteRole(ctx context.Context, roleID string) error
 
@@ -235,7 +235,7 @@ type UserProvider interface {
 
 	GetType(ctx context.Context, typeID string) (maps.MapStrAny, error)
 	TypeExists(ctx context.Context, typeID string) (bool, error)
-	CreateType(ctx context.Context, typeData maps.MapStrAny) (interface{}, error)
+	CreateType(ctx context.Context, typeData maps.MapStrAny) (string, error)
 	UpdateType(ctx context.Context, typeID string, typeData maps.MapStrAny) error
 	DeleteType(ctx context.Context, typeID string) error
 

@@ -244,12 +244,12 @@ func (u *DefaultUser) ResetPassword(ctx context.Context, userID string) (string,
 }
 
 // CreateUser creates a new user with OIDC standard fields
-func (u *DefaultUser) CreateUser(ctx context.Context, userData maps.MapStrAny) (interface{}, error) {
+func (u *DefaultUser) CreateUser(ctx context.Context, userData maps.MapStrAny) (string, error) {
 	// Auto-generate user_id if not provided
 	if _, exists := userData["user_id"]; !exists {
 		userID, err := u.GenerateUserID(ctx, true) // Force safe mode to ensure uniqueness
 		if err != nil {
-			return nil, fmt.Errorf(ErrFailedToGenerateUserID, err)
+			return "", fmt.Errorf(ErrFailedToGenerateUserID, err)
 		}
 		userData["user_id"] = userID
 	}
@@ -268,10 +268,16 @@ func (u *DefaultUser) CreateUser(ctx context.Context, userData maps.MapStrAny) (
 	m := model.Select(u.model)
 	id, err := m.Create(userData)
 	if err != nil {
-		return nil, fmt.Errorf(ErrFailedToCreateUser, err)
+		return "", fmt.Errorf(ErrFailedToCreateUser, err)
 	}
 
-	return id, nil
+	// Return the user_id as string (preferred approach)
+	if userID, ok := userData["user_id"].(string); ok {
+		return userID, nil
+	}
+
+	// Fallback: convert the returned int id to string
+	return fmt.Sprintf("%d", id), nil
 }
 
 // UpdateUser updates user information (excludes sensitive fields like password, MFA)

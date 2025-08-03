@@ -55,8 +55,7 @@ type TokenConfig struct {
 
 // ThirdParty represents the third party login configuration
 type ThirdParty struct {
-	Register  *RegisterConfig `json:"register,omitempty"`
-	Providers []*Provider     `json:"providers,omitempty"`
+	Providers []*Provider `json:"providers,omitempty"`
 }
 
 // RegisterConfig represents the auto register configuration
@@ -80,6 +79,7 @@ type Provider struct {
 	UserInfoSource        string           `json:"user_info_source,omitempty"` // "endpoint" (default) | "id_token" | "access_token"
 	Endpoints             *Endpoints       `json:"endpoints,omitempty"`
 	Mapping               interface{}      `json:"mapping,omitempty"` // string (preset) | map[string]string (custom) | nil (generic)
+	Register              *RegisterConfig  `json:"register,omitempty"`
 }
 
 // SecretGenerator represents the client secret generator configuration
@@ -150,6 +150,17 @@ type OAuthUserInfoResponse = oauthtypes.OIDCUserInfo
 
 // OIDCAddress is an alias for OIDC standard address claim type
 type OIDCAddress = oauthtypes.OIDCAddress
+
+// LoginResponse represents the response for login
+type LoginResponse struct {
+	AccessToken  string                 `json:"access_token"`
+	IDToken      string                 `json:"id_token,omitempty"`
+	RefreshToken string                 `json:"refresh_token,omitempty"`
+	ExpiresIn    int                    `json:"expires_in,omitempty"`
+	TokenType    string                 `json:"token_type,omitempty"`
+	Scope        string                 `json:"scope,omitempty"`
+	User         map[string]interface{} `json:"user,omitempty"`
+}
 
 // Built-in preset mapping types
 const (

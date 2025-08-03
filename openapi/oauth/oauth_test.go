@@ -484,7 +484,7 @@ func setupTestData(t *testing.T, service *Service) {
 	}
 
 	// Create test users using the updated user provider interface
-	userProvider := service.GetUserProvider()
+	userProvider, _ := service.GetUserProvider()
 	for i, testUser := range testUsers {
 		// Convert TestUser to the format expected by CreateUser
 		userData := map[string]interface{}{
@@ -505,16 +505,13 @@ func setupTestData(t *testing.T, service *Service) {
 
 		createdUserID, err := userProvider.CreateUser(ctx, userData)
 		require.NoError(t, err, "Failed to create test user %d: %s", i, testUser.Description)
-		require.NotNil(t, createdUserID, "Created user ID should not be nil")
+		require.NotEmpty(t, createdUserID, "Created user ID should not be empty")
 
-		// Update the test user with the created database ID and auto-generated user_id
-		if userID, ok := createdUserID.(int64); ok {
-			testUser.ID = userID
-		} else if userID, ok := createdUserID.(int); ok {
-			testUser.ID = int64(userID)
-		} else {
-			testUser.ID = int64(0) // Fallback for interface{} types
-		}
+		// The CreateUser method now returns the user_id as string directly
+		testUser.UserID = createdUserID
+
+		// For backward compatibility, also store as string in userData if needed
+		userData["user_id"] = createdUserID
 
 		// Extract the auto-generated user_id from userData (CreateUser sets it)
 		if generatedUserID, ok := userData["user_id"].(string); ok {
@@ -727,7 +724,7 @@ func TestServiceGetters(t *testing.T) {
 	})
 
 	t.Run("get user provider", func(t *testing.T) {
-		userProvider := service.GetUserProvider()
+		userProvider, _ := service.GetUserProvider()
 		assert.NotNil(t, userProvider)
 		assert.Implements(t, (*types.UserProvider)(nil), userProvider)
 	})
@@ -864,7 +861,7 @@ func TestProviderInitialization(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create custom providers (for this test, we'll use the default ones)
-		customUserProvider := tempService.GetUserProvider()
+		customUserProvider, _ := tempService.GetUserProvider()
 		customClientProvider := tempService.GetClientProvider()
 
 		config := &Config{

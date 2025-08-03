@@ -160,8 +160,8 @@ func (s *Service) GetConfig() *Config {
 }
 
 // GetUserProvider returns the user provider for the service
-func (s *Service) GetUserProvider() types.UserProvider {
-	return s.userProvider
+func (s *Service) GetUserProvider() (types.UserProvider, error) {
+	return s.userProvider, nil
 }
 
 // GetClientProvider returns the client provider for the service
