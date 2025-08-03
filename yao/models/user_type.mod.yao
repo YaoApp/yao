@@ -159,5 +159,5 @@
   ],
   "relations": {},
   "values": [],
-  "option": { "timestamps": true, "soft_deletes": true }
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }
