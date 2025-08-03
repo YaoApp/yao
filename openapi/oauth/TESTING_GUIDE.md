@@ -120,9 +120,48 @@ func setupOAuthTestEnvironment(t *testing.T) (*Service, store.Store, store.Store
 ### Environment Features
 
 - **Store Management**: Automatic store selection with fallback
-- **Data Isolation**: Each test gets fresh data set
-- **Cleanup**: Automatic cleanup of test data
-- **Logging**: Comprehensive test logging for debugging
+- **Data Isolation**: Each test gets fresh data set with unique identifiers
+- **Parallel Execution Support**: Automatic unique suffix generation for concurrent tests
+- **Cleanup**: Comprehensive cleanup of test data with pattern matching
+- **Logging**: Detailed test logging for debugging and monitoring
+
+## Parallel Execution Support
+
+### Automatic Test Isolation
+
+The testing infrastructure now includes automatic test isolation to support parallel test execution in CI/CD environments like GitHub Actions:
+
+#### Unique Test Data Generation
+
+- **Client IDs**: Automatically suffixed with unique identifier (e.g., `test-confidential-client-TestName-1234567890-abcd1234`)
+- **User Emails**: Automatically modified to be unique (e.g., `admin@example.com` → `admin-TestName-1234567890-abcd1234@example.com`)
+- **Usernames**: Automatically suffixed (e.g., `admin` → `admin-TestName-1234567890-abcd1234`)
+
+#### Suffix Generation Strategy
+
+The test suffix is generated using:
+
+1. **Test Name**: Sanitized test function name
+2. **Timestamp**: Millisecond precision timestamp
+3. **Random Component**: 4-byte random hex string
+
+This ensures uniqueness even when tests run simultaneously across multiple processes.
+
+#### Enhanced Cleanup
+
+Cleanup now includes comprehensive pattern matching for:
+
+- User IDs with various prefixes
+- Email addresses with suffixes
+- Usernames with suffixes
+- Client IDs with suffixes
+
+### Concurrent Test Benefits
+
+- **GitHub Actions**: Multiple test jobs can run in parallel without conflicts
+- **Local Development**: Multiple test runs can execute simultaneously
+- **CI/CD Pipelines**: Faster test execution without data collisions
+- **Development Teams**: Multiple developers can run tests concurrently
 
 ## Testing Patterns
 
@@ -289,7 +328,26 @@ export MONGO_TEST_PASS=test
 1. **Store Connection**: Check MongoDB availability or use Badger fallback
 2. **Environment Setup**: Ensure `env.local.sh` is sourced
 3. **Test Timeouts**: Increase timeout for slow operations
-4. **Data Conflicts**: Ensure proper cleanup between tests
+4. **Data Conflicts**: ✅ **RESOLVED** - Now automatically handled with unique test suffixes
+
+#### Historical Issue: UNIQUE Constraint Violations (RESOLVED)
+
+**Previous Problem**: Tests running in parallel (especially in GitHub Actions) would fail with:
+
+```
+UNIQUE constraint failed: yao_user.email
+```
+
+**Root Cause**: Multiple tests creating users with identical email addresses simultaneously.
+
+**Solution Implemented**:
+
+- Automatic unique suffix generation for all test data
+- Enhanced cleanup with comprehensive pattern matching
+- Proper test isolation for concurrent execution
+
+**Before**: All tests used `admin@example.com`
+**After**: Each test uses `admin-t1754189657379-874a8@example.com` (short, timestamp-based unique suffixes)
 
 ### Debug Logging
 

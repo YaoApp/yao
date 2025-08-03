@@ -21,7 +21,7 @@ func TestIntrospect(t *testing.T) {
 
 	t.Run("valid active token", func(t *testing.T) {
 		token := "test-active-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -43,7 +43,7 @@ func TestIntrospect(t *testing.T) {
 
 	t.Run("expired token", func(t *testing.T) {
 		token := "test-expired-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -69,7 +69,7 @@ func TestIntrospect(t *testing.T) {
 
 	t.Run("token with minimal data", func(t *testing.T) {
 		token := "test-minimal-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store minimal token data with expiresIn parameter
 		err := service.storeAccessToken(token, clientID, "", "", 3600)
@@ -87,7 +87,7 @@ func TestIntrospect(t *testing.T) {
 
 	t.Run("token with no expiration", func(t *testing.T) {
 		token := "test-no-expiry-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile"
 
 		// Store token with expiration based on config
@@ -114,7 +114,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("successful token exchange", func(t *testing.T) {
 		subjectToken := "test-subject-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -168,7 +168,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with inactive subject token", func(t *testing.T) {
 		subjectToken := "test-inactive-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -189,7 +189,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with invalid audience", func(t *testing.T) {
 		subjectToken := "test-subject-token-aud"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -207,7 +207,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with empty audience", func(t *testing.T) {
 		subjectToken := "test-subject-token-aud-empty"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -225,7 +225,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with invalid scope", func(t *testing.T) {
 		subjectToken := "test-subject-token-scope"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -241,7 +241,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange with inactive subject token", func(t *testing.T) {
 		subjectToken := "test-inactive-subject-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -261,7 +261,7 @@ func TestTokenExchange(t *testing.T) {
 
 	t.Run("token exchange without audience and scope", func(t *testing.T) {
 		subjectToken := "test-subject-token-minimal"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -294,7 +294,7 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("valid audience", func(t *testing.T) {
 		token := "test-audience-token"
 		expectedAudience := "https://api.example.com"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -312,7 +312,7 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("invalid audience", func(t *testing.T) {
 		token := "test-audience-token-invalid"
 		expectedAudience := "https://api.example.com"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -330,7 +330,7 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("no audience in token", func(t *testing.T) {
 		token := "test-no-audience-token"
 		expectedAudience := "https://api.example.com"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -348,7 +348,7 @@ func TestValidateTokenAudience(t *testing.T) {
 	t.Run("inactive token", func(t *testing.T) {
 		token := "test-inactive-audience-token"
 		expectedAudience := "https://api.example.com"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -408,7 +408,7 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("DPoP token binding", func(t *testing.T) {
 		token := "test-dpop-binding-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -429,7 +429,7 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("mTLS token binding", func(t *testing.T) {
 		token := "test-mtls-binding-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -450,7 +450,7 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("certificate token binding", func(t *testing.T) {
 		token := "test-cert-binding-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -471,7 +471,7 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("unknown binding type", func(t *testing.T) {
 		token := "test-unknown-binding-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -492,7 +492,7 @@ func TestValidateTokenBinding(t *testing.T) {
 
 	t.Run("inactive token", func(t *testing.T) {
 		token := "test-inactive-binding-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -559,7 +559,7 @@ func TestTokenGeneration(t *testing.T) {
 	service, _, _, cleanup := setupOAuthTestEnvironment(t)
 	defer cleanup()
 
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 
 	t.Run("generate access token", func(t *testing.T) {
 		token, err := service.generateAccessToken(clientID)
@@ -638,7 +638,8 @@ func TestTokenGeneration(t *testing.T) {
 	t.Run("token format consistency", func(t *testing.T) {
 		// Test with different client IDs
 		for i, testClient := range testClients {
-			token, err := service.generateAccessToken(testClient.ClientID)
+			actualClientID := GetActualClientID(testClient.ClientID)
+			token, err := service.generateAccessToken(actualClientID)
 			assert.NoError(t, err)
 			assert.NotEmpty(t, token)
 
@@ -661,7 +662,7 @@ func TestTokenIntegration(t *testing.T) {
 
 	t.Run("complete token lifecycle", func(t *testing.T) {
 		// Step 1: Generate access token
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		accessToken, err := service.generateAccessToken(clientID)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, accessToken)
@@ -750,7 +751,7 @@ func TestTokenEdgeCases(t *testing.T) {
 
 	t.Run("introspection with malformed token data", func(t *testing.T) {
 		token := "test-malformed-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile"
 		subject := testUsers[0].UserID
 
@@ -768,7 +769,7 @@ func TestTokenEdgeCases(t *testing.T) {
 
 	t.Run("token exchange with very long audience", func(t *testing.T) {
 		subjectToken := "test-long-audience-token"
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
 
@@ -786,7 +787,7 @@ func TestTokenEdgeCases(t *testing.T) {
 	})
 
 	t.Run("concurrent token generation", func(t *testing.T) {
-		clientID := testClients[0].ClientID
+		clientID := GetActualClientID(testClients[0].ClientID)
 		tokenChan := make(chan string, 10)
 
 		// Generate tokens concurrently

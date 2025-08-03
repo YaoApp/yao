@@ -110,7 +110,7 @@ func TestGenerateStateParameter(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 
 	t.Run("generate valid state parameter", func(t *testing.T) {
 		stateParam, err := service.GenerateStateParameter(ctx, clientID)
@@ -155,7 +155,7 @@ func TestValidateStateParameter(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 
 	t.Run("validate valid state parameter", func(t *testing.T) {
 		stateParam, err := service.GenerateStateParameter(ctx, clientID)
@@ -178,7 +178,7 @@ func TestValidateStateParameter(t *testing.T) {
 		stateParam, err := service.GenerateStateParameter(ctx, clientID)
 		require.NoError(t, err)
 
-		wrongClientID := testClients[1].ClientID
+		wrongClientID := GetActualClientID(testClients[1].ClientID)
 		result, err := service.ValidateStateParameter(ctx, stateParam.Value, wrongClientID)
 		assert.NoError(t, err)
 		assert.False(t, result.Valid)
@@ -297,7 +297,7 @@ func TestValidateRedirectURIForClient(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 	validRedirectURI := testClients[0].RedirectURIs[0]
 
 	t.Run("valid redirect URI for client", func(t *testing.T) {
@@ -331,7 +331,7 @@ func TestPushAuthorizationRequest(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 	redirectURI := testClients[0].RedirectURIs[0]
 
 	t.Run("successful pushed authorization request", func(t *testing.T) {
@@ -446,7 +446,7 @@ func TestSecurityHelperMethods(t *testing.T) {
 	service, _, _, cleanup := setupOAuthTestEnvironment(t)
 	defer cleanup()
 
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 
 	t.Run("state parameter key generation", func(t *testing.T) {
 		state := "test_state"
@@ -499,7 +499,7 @@ func TestSecurityIntegration(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
-	clientID := testClients[0].ClientID
+	clientID := GetActualClientID(testClients[0].ClientID)
 
 	t.Run("complete PKCE flow", func(t *testing.T) {
 		codeVerifier := "test_code_verifier_123456789"
@@ -528,7 +528,7 @@ func TestSecurityIntegration(t *testing.T) {
 		assert.True(t, result.Valid)
 
 		// Test with wrong client
-		wrongClientID := testClients[1].ClientID
+		wrongClientID := GetActualClientID(testClients[1].ClientID)
 		result, err = service.ValidateStateParameter(ctx, stateParam.Value, wrongClientID)
 		assert.NoError(t, err)
 		assert.False(t, result.Valid)
@@ -609,7 +609,7 @@ func TestSecurityEdgeCases(t *testing.T) {
 
 	t.Run("pushed authorization request with empty fields", func(t *testing.T) {
 		request := &types.PushedAuthorizationRequest{
-			ClientID:     testClients[0].ClientID,
+			ClientID:     GetActualClientID(testClients[0].ClientID),
 			RedirectURI:  testClients[0].RedirectURIs[0],
 			ResponseType: "",
 			Scope:        "",
