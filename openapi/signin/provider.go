@@ -1158,27 +1158,11 @@ func (p *Provider) AccessToken(code, redirectURI string) (*OAuthTokenResponse, e
 	return &tokenResponse, nil
 }
 
-// GetProvider gets the provider by ID
-func GetProvider(locale, providerID string) (*Provider, error) {
-
-	// Get the signin configuration
-	config := GetFullConfig(locale)
-	if config == nil {
-		return nil, fmt.Errorf("no signin configuration found")
-	}
-
-	// Find the provider
-	var provider *Provider
-	if config.ThirdParty != nil && config.ThirdParty.Providers != nil {
-		for _, p := range config.ThirdParty.Providers {
-			if p.ID == providerID {
-				provider = p
-				break
-			}
-		}
-	}
-
-	if provider == nil {
+// GetProvider gets the provider by ID from the global providers map
+func GetProvider(providerID string) (*Provider, error) {
+	// Get provider from global providers map
+	provider, exists := providers[providerID]
+	if !exists {
 		return nil, fmt.Errorf("OAuth provider '%s' not found", providerID)
 	}
 
