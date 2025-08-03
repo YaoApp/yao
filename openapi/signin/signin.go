@@ -393,14 +393,6 @@ func createPublicConfig(fullConfig *Config) Config {
 	if fullConfig.ThirdParty != nil {
 		publicConfig.ThirdParty = &ThirdParty{}
 
-		// Deep copy Register configuration
-		if fullConfig.ThirdParty.Register != nil {
-			publicConfig.ThirdParty.Register = &RegisterConfig{
-				Auto: fullConfig.ThirdParty.Register.Auto,
-				Role: fullConfig.ThirdParty.Register.Role,
-			}
-		}
-
 		// Deep copy Providers with sensitive data removal
 		if fullConfig.ThirdParty.Providers != nil {
 			publicProviders := make([]*Provider, len(fullConfig.ThirdParty.Providers))
@@ -412,7 +404,7 @@ func createPublicConfig(fullConfig *Config) Config {
 					Color:     provider.Color,
 					TextColor: provider.TextColor,
 					// Only expose display fields for frontend
-					// Remove sensitive fields: ClientID, ClientSecret, ClientSecretGenerator, Scopes, Endpoints, Mapping
+					// Remove sensitive fields: ClientID, ClientSecret, ClientSecretGenerator, Scopes, Endpoints, Mapping, Register
 				}
 
 				publicProviders[i] = &publicProvider

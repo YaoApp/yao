@@ -51,10 +51,10 @@ func (u *DefaultUser) RoleExists(ctx context.Context, roleID string) (bool, erro
 }
 
 // CreateRole creates a new user role
-func (u *DefaultUser) CreateRole(ctx context.Context, roleData maps.MapStrAny) (interface{}, error) {
+func (u *DefaultUser) CreateRole(ctx context.Context, roleData maps.MapStrAny) (string, error) {
 	// Validate required role_id field
 	if _, exists := roleData["role_id"]; !exists {
-		return nil, fmt.Errorf("role_id is required in roleData")
+		return "", fmt.Errorf("role_id is required in roleData")
 	}
 
 	// Set default values if not provided
@@ -77,10 +77,16 @@ func (u *DefaultUser) CreateRole(ctx context.Context, roleData maps.MapStrAny) (
 	m := model.Select(u.roleModel)
 	id, err := m.Create(roleData)
 	if err != nil {
-		return nil, fmt.Errorf(ErrFailedToCreateRole, err)
+		return "", fmt.Errorf(ErrFailedToCreateRole, err)
 	}
 
-	return id, nil
+	// Return the role_id as string (preferred approach)
+	if roleID, ok := roleData["role_id"].(string); ok {
+		return roleID, nil
+	}
+
+	// Fallback: convert the returned int id to string
+	return fmt.Sprintf("%d", id), nil
 }
 
 // UpdateRole updates an existing role

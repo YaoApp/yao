@@ -51,10 +51,10 @@ func (u *DefaultUser) TypeExists(ctx context.Context, typeID string) (bool, erro
 }
 
 // CreateType creates a new user type
-func (u *DefaultUser) CreateType(ctx context.Context, typeData maps.MapStrAny) (interface{}, error) {
+func (u *DefaultUser) CreateType(ctx context.Context, typeData maps.MapStrAny) (string, error) {
 	// Validate required type_id field
 	if _, exists := typeData["type_id"]; !exists {
-		return nil, fmt.Errorf("type_id is required in typeData")
+		return "", fmt.Errorf("type_id is required in typeData")
 	}
 
 	// Set default values if not provided
@@ -77,10 +77,16 @@ func (u *DefaultUser) CreateType(ctx context.Context, typeData maps.MapStrAny) (
 	m := model.Select(u.typeModel)
 	id, err := m.Create(typeData)
 	if err != nil {
-		return nil, fmt.Errorf(ErrFailedToCreateType, err)
+		return "", fmt.Errorf(ErrFailedToCreateType, err)
 	}
 
-	return id, nil
+	// Return the type_id as string (preferred approach)
+	if typeID, ok := typeData["type_id"].(string); ok {
+		return typeID, nil
+	}
+
+	// Fallback: convert the returned int id to string
+	return fmt.Sprintf("%d", id), nil
 }
 
 // UpdateType updates an existing type

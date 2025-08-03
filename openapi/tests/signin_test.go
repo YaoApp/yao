@@ -78,6 +78,7 @@ func TestSigninGetConfigs(t *testing.T) {
 							assert.Empty(t, publicProvider.Scopes, "Scopes should be empty in ThirdParty providers")
 							assert.Nil(t, publicProvider.Endpoints, "Endpoints should be nil in ThirdParty providers")
 							assert.Empty(t, publicProvider.Mapping, "Mapping should be empty in ThirdParty providers")
+							assert.Nil(t, publicProvider.Register, "Register config should be nil in public config (sensitive data)")
 						}
 					}
 				}
@@ -178,6 +179,7 @@ func TestSigninConfigStructure(t *testing.T) {
 					assert.Empty(t, provider.Scopes, "Provider scopes should be empty in ThirdParty providers")
 					assert.Nil(t, provider.Mapping, "Provider mapping should be nil in ThirdParty providers")
 					assert.Nil(t, provider.Endpoints, "Provider endpoints should be nil in ThirdParty providers")
+					assert.Nil(t, provider.Register, "Provider register should be nil in ThirdParty providers (it's in global map now)")
 				}
 			}
 		}
@@ -224,6 +226,14 @@ func TestSigninGlobalProvidersMap(t *testing.T) {
 					assert.IsType(t, "", provider.Endpoints.Authorization, "Authorization endpoint should be string")
 					assert.IsType(t, "", provider.Endpoints.Token, "Token endpoint should be string")
 					assert.IsType(t, "", provider.Endpoints.UserInfo, "UserInfo endpoint should be string")
+				}
+
+				// Test register configuration (should be present in global providers)
+				if provider.Register != nil {
+					assert.IsType(t, false, provider.Register.Auto, "Register auto should be boolean")
+					assert.IsType(t, "", provider.Register.Role, "Register role should be string")
+					t.Logf("Provider '%s' has register config: auto=%t, role=%s",
+						providerID, provider.Register.Auto, provider.Register.Role)
 				}
 			}
 		})

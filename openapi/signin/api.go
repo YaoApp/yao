@@ -193,8 +193,6 @@ func authback(c *gin.Context) {
 		userInfo, err = provider.GetUserInfo(tokenResponse.AccessToken, tokenResponse.TokenType)
 	}
 
-	// Create / Update / User then login (Generate access_token and id_token)
-
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -204,12 +202,18 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	// Respond with success
-	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
-		"params": params,
-		"token":  tokenResponse,
-		"user":   userInfo,
-	})
+	// LoginThirdParty(providerID, userInfo)
+	loginResponse, err := LoginThirdParty(providerID, userInfo)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Failed to login: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, loginResponse)
 }
 
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider
