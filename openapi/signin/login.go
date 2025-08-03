@@ -10,7 +10,7 @@ import (
 )
 
 // LoginThirdParty is the handler for third party login
-func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo) (*LoginResponse, error) {
+func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, ip string) (*LoginResponse, error) {
 
 	// Get provider
 	provider, err := GetProvider(providerID)
@@ -66,11 +66,11 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo) (*Log
 		return nil, err
 	}
 
-	return LoginByUserID(userID)
+	return LoginByUserID(userID, ip)
 }
 
 // LoginByUserID is the handler for login
-func LoginByUserID(userid string) (*LoginResponse, error) {
+func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 
 	// Get User
 	userProvider, err := oauth.OAuth.GetUserProvider()
@@ -82,13 +82,13 @@ func LoginByUserID(userid string) (*LoginResponse, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	user, err := userProvider.GetUser(ctx, userid)
+	user, err := userProvider.GetUserWithScopes(ctx, userid)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update Last Login
-	err = userProvider.UpdateUserLastLogin(ctx, userid)
+	err = userProvider.UpdateUserLastLogin(ctx, userid, ip)
 	if err != nil {
 		log.Warn("Failed to update last login: %s", err.Error())
 	}

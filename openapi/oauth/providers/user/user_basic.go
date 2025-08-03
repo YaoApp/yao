@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/yaoapp/gou/model"
@@ -32,6 +33,94 @@ func (u *DefaultUser) GetUser(ctx context.Context, userID string) (maps.MapStrAn
 		return nil, fmt.Errorf(ErrUserNotFound)
 	}
 
+	return users[0], nil
+}
+
+// GetUserWithScopes retrieves user information with scopes
+func (u *DefaultUser) GetUserWithScopes(ctx context.Context, userID string) (maps.MapStrAny, error) {
+	m := model.Select(u.model)
+	users, err := m.Get(model.QueryParam{
+		Select: append(u.publicUserFields, "role_id"),
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: userID},
+		},
+		Limit: 1,
+		Withs: map[string]model.With{
+			"role": {
+				Name:  "role",
+				Query: model.QueryParam{Select: []interface{}{"permissions", "restricted_permissions"}},
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetUser, err)
+	}
+
+	if len(users) == 0 {
+		return nil, fmt.Errorf(ErrUserNotFound)
+	}
+
+	var scopes []string = []string{}
+	var restrictedScopes []string = []string{}
+
+	// Flatten the user role permissions
+	if role, ok := users[0]["role"]; ok {
+		// Flatten the role permissions
+		if roleMap, ok := role.(maps.MapStrAny); ok {
+
+			// Get scopes from permissions
+			if permissions, ok := roleMap["permissions"]; ok {
+				if permissionsMap, ok := permissions.(map[string]interface{}); ok {
+					switch v := permissionsMap["scopes"].(type) {
+					case []string:
+						scopes = append(scopes, v...)
+					case []interface{}:
+						for _, v := range v {
+							if str, ok := v.(string); ok {
+								scopes = append(scopes, str)
+							}
+						}
+					case string:
+						scopes = append(scopes, strings.Split(v, " ")...)
+					}
+				}
+			}
+
+			// Get scopes from restricted_permissions
+			if restrictedPermissions, ok := roleMap["restricted_permissions"]; ok {
+				// Get scopes from restricted_permissions
+				if restrictedPermissionsMap, ok := restrictedPermissions.(map[string]interface{}); ok {
+					switch v := restrictedPermissionsMap["scopes"].(type) {
+					case []string:
+						restrictedScopes = append(restrictedScopes, v...)
+					case []interface{}:
+						for _, v := range v {
+							if str, ok := v.(string); ok {
+								restrictedScopes = append(restrictedScopes, str)
+							}
+						}
+					case string:
+						restrictedScopes = append(restrictedScopes, strings.Split(v, " ")...)
+					}
+				}
+			}
+			delete(users[0], "role")
+		}
+	}
+
+	// remove scope if it is in restricted_scopes
+	if len(restrictedScopes) > 0 && len(scopes) > 0 {
+		for _, scope := range restrictedScopes {
+			if strings.Contains(strings.Join(scopes, " "), scope) {
+				delete(users[0], scope)
+			}
+		}
+	}
+
+	// Add scopes and restricted_scopes to the user
+	users[0]["scopes"] = scopes
+	users[0]["restricted_scopes"] = restrictedScopes
 	return users[0], nil
 }
 
@@ -377,9 +466,10 @@ func (u *DefaultUser) DeleteUser(ctx context.Context, userID string) error {
 }
 
 // UpdateUserLastLogin updates the user's last login timestamp
-func (u *DefaultUser) UpdateUserLastLogin(ctx context.Context, userID string) error {
+func (u *DefaultUser) UpdateUserLastLogin(ctx context.Context, userID string, ip string) error {
 	updateData := maps.MapStrAny{
 		"last_login_at": time.Now(),
+		"last_login_ip": ip,
 	}
 
 	return u.UpdateUser(ctx, userID, updateData)
