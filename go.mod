@@ -27,6 +27,7 @@ require (
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/pkoukk/tiktoken-go v0.1.7
+	github.com/pquerna/otp v1.5.0
 	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/cast v1.9.2
 	github.com/spf13/cobra v1.9.1
@@ -117,7 +118,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/pquerna/otp v1.5.0 // indirect
 	github.com/qdrant/go-client v1.14.0 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect

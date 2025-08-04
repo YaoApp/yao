@@ -22,8 +22,8 @@ func (u *DefaultUser) GenerateUserID(ctx context.Context, safe ...bool) (string,
 	if len(safe) > 0 {
 		safeMode = safe[0] // Use provided value
 	} else {
-		// Default: safe for NanoID, unsafe for UUID
-		safeMode = u.idStrategy == NanoIDStrategy
+		// Default: if idStrategy is Numeric or NanoID, use safe mode.
+		safeMode = (u.idStrategy == NumericStrategy) || (u.idStrategy == NanoIDStrategy)
 	}
 
 	if !safeMode {
@@ -66,9 +66,11 @@ func (u *DefaultUser) generateUserID() (string, error) {
 	case UUIDStrategy:
 		id, err = generateUUID()
 	case NanoIDStrategy:
-		fallthrough
-	default:
 		id, err = generateNanoID(12) // 12 characters, URL-safe, readable
+	case NumericStrategy:
+		id, err = generateNumericID(12) // 12 characters, numeric, readable (default)
+	default:
+		id, err = generateNumericID(12) // 12 characters, URL-safe, readable
 	}
 
 	if err != nil {
@@ -134,6 +136,14 @@ func generateNanoID(length int) (string, error) {
 	// URL-safe alphabet (no ambiguous characters like 0/O, 1/l/I)
 	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
 	return gonanoid.Generate(alphabet, length)
+}
+
+// generateNumericID generates a numeric ID
+func generateNumericID(length int) (string, error) {
+	if length <= 0 || length > 16 {
+		return "", fmt.Errorf("length must be between 1 and 16")
+	}
+	return gonanoid.Generate("0123456789", length)
 }
 
 // generateUUID generates a traditional UUID using Google's library

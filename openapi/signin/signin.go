@@ -1,8 +1,8 @@
 package signin
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -12,11 +12,17 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // Global variables to store loaded configurations
 var (
+	// Client config
+	yaoClientConfig *YaoClientConfig
+
 	// Full configurations with sensitive data (for backend use)
 	fullConfigs = make(map[string]*Config)
 	// Public configurations without sensitive data (for frontend use)
@@ -40,19 +46,119 @@ func Load(appConfig config.Config) error {
 	providers = make(map[string]*Provider)
 	defaultConfig = nil
 
-	// Load providers first
-	err := loadProviders(appConfig.Root)
-	if err != nil {
-		return fmt.Errorf("failed to load providers: %v", err)
-	}
-
 	// Load signin configurations
-	err = loadSigninConfigs(appConfig.Root)
+	err := loadSigninConfigs(appConfig.Root)
 	if err != nil {
 		return fmt.Errorf("failed to load signin configs: %v", err)
 	}
 
+	// Load providers first
+	err = loadProviders(appConfig.Root)
+	if err != nil {
+		return fmt.Errorf("failed to load providers: %v", err)
+	}
+
+	// Load client config
+	err = loadClientConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load client config: %v", err)
+	}
+
 	return nil
+}
+
+// loadClientConfig loads the client config from the openapi/signin/client.yao file
+func loadClientConfig() error {
+	// Check if client config exists
+	exists, err := application.App.Exists("openapi/signin/client.yao")
+	if err != nil {
+		return fmt.Errorf("failed to check if client config exists: %v", err)
+	}
+
+	if !exists {
+		return fmt.Errorf("client config not found")
+	}
+
+	// Read client config
+	clientConfigRaw, err := application.App.Read("openapi/signin/client.yao")
+	if err != nil {
+		return fmt.Errorf("failed to read client config: %v", err)
+	}
+
+	var clientConfig YaoClientConfig
+	err = application.Parse("openapi/signin/client.yao", clientConfigRaw, &clientConfig)
+	if err != nil {
+		return fmt.Errorf("failed to parse client config: %v", err)
+	}
+
+	// Process ENV variables in client config
+	clientConfig.ClientID = replaceENVVar(clientConfig.ClientID)
+	clientConfig.ClientSecret = replaceENVVar(clientConfig.ClientSecret)
+
+	// Validate client config
+	err = validateClientConfig(&clientConfig)
+	if err != nil {
+		return fmt.Errorf("failed to validate client config: %v", err)
+	}
+
+	yaoClientConfig = &clientConfig
+	return nil
+}
+
+// validateClientConfig validates the client config
+func validateClientConfig(clientConfig *YaoClientConfig) error {
+
+	// Validate client ID
+	err := oauth.OAuth.ValidateClientID(clientConfig.ClientID)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Validate client is registered
+	c := oauth.OAuth.GetClientProvider()
+	_, err = c.GetClientByID(ctx, clientConfig.ClientID)
+	if err != nil {
+		// If client is not registered, register it
+		if strings.Contains(err.Error(), "Client not found") {
+			yaoClientConfig, err = registerClient(clientConfig.ClientID)
+			if err != nil {
+				return fmt.Errorf("failed to register client: %v", err)
+			}
+			return nil
+		}
+		return fmt.Errorf("failed to get client: %v", err)
+	}
+
+	return nil
+}
+
+// registerClient registers the client config with the OAuth server
+func registerClient(clientID string) (*YaoClientConfig, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Register client
+	response, err := oauth.OAuth.DynamicClientRegistration(ctx, &types.DynamicClientRegistrationRequest{
+		ClientID:        clientID,
+		ClientName:      "Yao OpenAPI Client",
+		ResponseTypes:   []string{"code"},
+		GrantTypes:      []string{"client_credentials"},
+		ApplicationType: types.ApplicationTypeWeb,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %v", err)
+	}
+
+	var clientConfig *YaoClientConfig = &YaoClientConfig{}
+	clientConfig.ClientID = response.ClientID
+	clientConfig.ClientSecret = response.ClientSecret
+	clientConfig.ExpiresIn = 3600 * 24 // 24 hours
+	clientConfig.Scopes = []string{"openid", "profile", "email"}
+	return clientConfig, nil
 }
 
 // loadProviders loads all provider configurations from the openapi/signin/providers directory
@@ -65,6 +171,11 @@ func loadProviders(rootPath string) error {
 
 		// Only process .yao files
 		if !strings.HasSuffix(filename, ".yao") {
+			return nil
+		}
+
+		// Skip client.yao file
+		if filename == "client.yao" {
 			return nil
 		}
 
@@ -210,7 +321,7 @@ func processProviderENVVariables(provider *Provider, rootPath string) {
 		if provider.ClientSecretGenerator.ExpiresIn != "" {
 			normalizedDuration, err := normalizeExpiresIn(provider.ClientSecretGenerator.ExpiresIn)
 			if err != nil {
-				log.Printf("Warning: Invalid expires_in format '%s' for provider '%s': %v",
+				log.Warn("Invalid expires_in format '%s' for provider '%s': %v",
 					provider.ClientSecretGenerator.ExpiresIn, provider.ID, err)
 				// Set default to 90 days
 				provider.ClientSecretGenerator.ExpiresIn = "2160h" // 90 * 24 hours
@@ -252,7 +363,7 @@ func processProviderENVVariables(provider *Provider, rootPath string) {
 
 	// Log warning for missing environment variables
 	if len(missingEnvVars) > 0 {
-		log.Printf("Warning: The following environment variables are not set for provider '%s': %v", provider.ID, missingEnvVars)
+		log.Warn("The following environment variables are not set for provider '%s': %v", provider.ID, missingEnvVars)
 	}
 }
 
@@ -298,8 +409,8 @@ func processConfigENVVariables(config *Config, rootPath string) {
 
 	// Log warning for missing environment variables
 	if len(missingEnvVars) > 0 {
-		log.Printf("Warning: The following environment variables are not set in signin configuration: %v", missingEnvVars)
-		log.Printf("Please set these environment variables to avoid exposing placeholder values in configuration")
+		log.Warn("The following environment variables are not set in signin configuration: %v", missingEnvVars)
+		log.Warn("Please set these environment variables to avoid exposing placeholder values in configuration")
 	}
 }
 

@@ -47,12 +47,17 @@ func (s *Service) DynamicClientRegistration(ctx context.Context, request *types.
 		return nil, err
 	}
 
-	// Generate client ID and secret
-	clientID, err := s.generateClientID()
-	if err != nil {
-		return nil, &types.ErrorResponse{
-			Code:             types.ErrorServerError,
-			ErrorDescription: "Failed to generate client ID",
+	// Generate client ID and secret (use the client ID from the request if provided or generate a new one)
+	clientID := request.ClientID
+	var err error
+	if clientID == "" {
+		var err error
+		clientID, err = s.GenerateClientID()
+		if err != nil {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorServerError,
+				ErrorDescription: "Failed to generate client ID",
+			}
 		}
 	}
 
@@ -64,7 +69,7 @@ func (s *Service) DynamicClientRegistration(ctx context.Context, request *types.
 		request.TokenEndpointAuthMethod == types.TokenEndpointAuthPost ||
 		request.TokenEndpointAuthMethod == types.TokenEndpointAuthJWT {
 		clientType = types.ClientTypeConfidential
-		clientSecret, err = s.generateClientSecret()
+		clientSecret, err = s.GenerateClientSecret()
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -144,8 +149,8 @@ func (s *Service) DynamicClientRegistration(ctx context.Context, request *types.
 	return response, nil
 }
 
-// generateClientID generates a random client ID
-func (s *Service) generateClientID() (string, error) {
+// GenerateClientID generates a random client ID
+func (s *Service) GenerateClientID() (string, error) {
 	length := s.config.Client.ClientIDLength
 	if length == 0 {
 		length = 32
@@ -160,8 +165,30 @@ func (s *Service) generateClientID() (string, error) {
 	return strings.TrimRight(base64.URLEncoding.EncodeToString(bytes), "="), nil
 }
 
-// generateClientSecret generates a random client secret
-func (s *Service) generateClientSecret() (string, error) {
+// ValidateClientID validates the client ID
+func (s *Service) ValidateClientID(clientID string) error {
+	if clientID == "" {
+		return &types.ErrorResponse{
+			Code:             types.ErrorInvalidRequest,
+			ErrorDescription: "Client ID is required",
+		}
+	}
+	length := s.config.Client.ClientIDLength
+	if length == 0 {
+		length = 32
+	}
+
+	if len(clientID) != length {
+		return &types.ErrorResponse{
+			Code:             types.ErrorInvalidRequest,
+			ErrorDescription: fmt.Sprintf("Client ID must be %d characters long", length),
+		}
+	}
+	return nil
+}
+
+// GenerateClientSecret generates a random client secret
+func (s *Service) GenerateClientSecret() (string, error) {
 	length := s.config.Client.ClientSecretLength
 	if length == 0 {
 		length = 64
@@ -179,7 +206,7 @@ func (s *Service) generateClientSecret() (string, error) {
 // validateDynamicClientRegistrationRequest validates the dynamic client registration request
 func (s *Service) validateDynamicClientRegistrationRequest(request *types.DynamicClientRegistrationRequest) error {
 	// Validate redirect URIs
-	if len(request.RedirectURIs) == 0 {
+	if len(request.RedirectURIs) == 0 && (strings.Contains(request.Scope, "openid") || strings.Contains(request.Scope, "profile") || strings.Contains(request.Scope, "email")) {
 		return &types.ErrorResponse{
 			Code:             types.ErrorInvalidRequest,
 			ErrorDescription: "At least one redirect URI is required",

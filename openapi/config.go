@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -133,6 +134,11 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 			IssuerURL: tempConfig.OAuth.IssuerURL,
 			Features:  tempConfig.OAuth.Features,
 		}
+
+		fmt.Println("----debug----")
+		fmt.Println("tempConfig.OAuth.IssuerURL", tempConfig.OAuth.IssuerURL)
+		fmt.Println("config.OAuth.IssuerURL", config.OAuth.IssuerURL)
+		fmt.Println("----debug----")
 
 		// Convert signing config with duration parsing
 		config.OAuth.Signing = types.SigningConfig{
@@ -379,7 +385,7 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 		ClientProvider: clientProvider,
 		Cache:          cacheStore,
 		Store:          dataStore,
-		IssuerURL:      config.BaseURL,
+		IssuerURL:      config.OAuth.IssuerURL,
 		Signing:        signingConfig, // Use the converted signing config
 		Token:          config.OAuth.Token,
 		Security:       config.OAuth.Security,

@@ -417,7 +417,7 @@ func TestGenerateClientID(t *testing.T) {
 	defer cleanup()
 
 	t.Run("generate client ID with default length", func(t *testing.T) {
-		clientID, err := service.generateClientID()
+		clientID, err := service.GenerateClientID()
 		assert.NoError(t, err)
 		assert.NotEmpty(t, clientID)
 		assert.Greater(t, len(clientID), 0)
@@ -432,7 +432,7 @@ func TestGenerateClientID(t *testing.T) {
 		clientIDs := make(map[string]bool)
 
 		for i := 0; i < 100; i++ {
-			clientID, err := service.generateClientID()
+			clientID, err := service.GenerateClientID()
 			assert.NoError(t, err)
 			assert.NotEmpty(t, clientID)
 
@@ -450,7 +450,7 @@ func TestGenerateClientID(t *testing.T) {
 			service.config.Client.ClientIDLength = originalLength
 		}()
 
-		clientID, err := service.generateClientID()
+		clientID, err := service.GenerateClientID()
 		assert.NoError(t, err)
 		assert.NotEmpty(t, clientID)
 
@@ -465,7 +465,7 @@ func TestGenerateClientSecret(t *testing.T) {
 	defer cleanup()
 
 	t.Run("generate client secret with default length", func(t *testing.T) {
-		clientSecret, err := service.generateClientSecret()
+		clientSecret, err := service.GenerateClientSecret()
 		assert.NoError(t, err)
 		assert.NotEmpty(t, clientSecret)
 		assert.Greater(t, len(clientSecret), 0)
@@ -480,7 +480,7 @@ func TestGenerateClientSecret(t *testing.T) {
 		clientSecrets := make(map[string]bool)
 
 		for i := 0; i < 100; i++ {
-			clientSecret, err := service.generateClientSecret()
+			clientSecret, err := service.GenerateClientSecret()
 			assert.NoError(t, err)
 			assert.NotEmpty(t, clientSecret)
 
@@ -498,7 +498,7 @@ func TestGenerateClientSecret(t *testing.T) {
 			service.config.Client.ClientSecretLength = originalLength
 		}()
 
-		clientSecret, err := service.generateClientSecret()
+		clientSecret, err := service.GenerateClientSecret()
 		assert.NoError(t, err)
 		assert.NotEmpty(t, clientSecret)
 
