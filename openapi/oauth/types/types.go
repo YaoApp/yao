@@ -336,6 +336,7 @@ type TokenExchangeResponse struct {
 
 // DynamicClientRegistrationRequest represents dynamic client registration request
 type DynamicClientRegistrationRequest struct {
+	ClientID                    string   `json:"client_id,omitempty"` // Optional: Client ID to use for registration, if not provided, a new client ID will be generated
 	RedirectURIs                []string `json:"redirect_uris"`
 	ResponseTypes               []string `json:"response_types,omitempty"`
 	GrantTypes                  []string `json:"grant_types,omitempty"`

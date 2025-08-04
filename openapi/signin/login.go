@@ -94,17 +94,12 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		log.Warn("Failed to update last login: %s", err.Error())
 	}
 
-	var scopes []string
+	var scopes []string = yaoClientConfig.Scopes
 	if v, ok := user["scopes"].([]string); ok {
 		scopes = v
 	}
 
-	// Get Config form app.yao config ()
-	clientID := "1234567890"
-	oidcExpiresIn := 3600
-	accessTokenExpiresIn := 3600
-
-	subject, err := oauth.OAuth.Subject(clientID, userid)
+	subject, err := oauth.OAuth.Subject(yaoClientConfig.ClientID, userid)
 	if err != nil {
 		log.Warn("Failed to store user fingerprint: %s", err.Error())
 	}
@@ -112,27 +107,28 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	oidcUserInfo.Sub = subject
 
 	// OIDC Token
-	oidcToken, err := oauth.OAuth.SignIDToken(clientID, strings.Join(scopes, " "), oidcExpiresIn, oidcUserInfo)
+	oidcToken, err := oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
 	if err != nil {
 		return nil, err
 	}
 
 	// Access Token
-	accessToken, err := oauth.OAuth.MakeAccessToken(clientID, strings.Join(scopes, " "), subject, accessTokenExpiresIn)
+	accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn)
 	if err != nil {
 		return nil, err
 	}
 
 	// Refresh Token
-	refreshToken, err := oauth.OAuth.MakeRefreshToken(clientID, strings.Join(scopes, " "), subject)
+	refreshToken, err := oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject)
 	if err != nil {
 		return nil, err
 	}
+
 	return &LoginResponse{
 		AccessToken:  accessToken,
 		IDToken:      oidcToken,
 		RefreshToken: refreshToken,
-		ExpiresIn:    accessTokenExpiresIn,
+		ExpiresIn:    yaoClientConfig.ExpiresIn,
 		TokenType:    "Bearer",
 		Scope:        strings.Join(scopes, " "),
 	}, nil

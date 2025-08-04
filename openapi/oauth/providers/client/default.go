@@ -322,9 +322,9 @@ func (c *DefaultClient) ValidateClient(ctx context.Context, clientInfo *types.Cl
 	}
 
 	// Validate redirect URIs
-	if len(clientInfo.RedirectURIs) == 0 {
+	if len(clientInfo.RedirectURIs) == 0 && (strings.Contains(clientInfo.Scope, "openid") || strings.Contains(clientInfo.Scope, "profile") || strings.Contains(clientInfo.Scope, "email")) {
 		result.Valid = false
-		result.Errors = append(result.Errors, "At least one redirect URI is required")
+		result.Errors = append(result.Errors, "At least one redirect URI is required for openid, profile, or email scope")
 	}
 
 	// Validate grant types

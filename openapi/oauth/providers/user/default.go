@@ -168,8 +168,9 @@ type IDStrategy string
 
 // Available ID generation strategies
 const (
-	NanoIDStrategy IDStrategy = "nanoid" // Short, URL-safe, readable (e.g., "Kx9mP2aQ7nR3")
-	UUIDStrategy   IDStrategy = "uuid"   // Traditional UUID (for compatibility)
+	NanoIDStrategy  IDStrategy = "nanoid"  // Short, URL-safe, readable (e.g., "Kx9mP2aQ7nR3")
+	UUIDStrategy    IDStrategy = "uuid"    // Traditional UUID (for compatibility)
+	NumericStrategy IDStrategy = "numeric" // Numeric ID (for compatibility)
 )
 
 // DefaultUserOptions provides options for the DefaultUser
@@ -232,7 +233,7 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 	// Set ID generation strategy with defaults
 	idStrategy := options.IDStrategy
 	if idStrategy == "" {
-		idStrategy = NanoIDStrategy // Default to NanoID for better UX
+		idStrategy = NumericStrategy // Default to Numeric for better UX
 	}
 
 	// Set ID prefix (default is empty string)

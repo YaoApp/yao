@@ -269,8 +269,8 @@ func (s *Service) Subject(clientID, userID string) (string, error) {
 
 	maxRetries := 5
 	for i := 0; i < maxRetries; i++ {
-		// Generate 12-character NanoID
-		nanoID, err := generateNanoID(12)
+		// Generate 16-character NanoID
+		nanoID, err := generateNumericID(16)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate NanoID: %w", err)
 		}
@@ -644,11 +644,16 @@ func (s *Service) generateToken(tokenType string, clientID string) (string, erro
 // User Fingerprint Methods
 // ============================================================================
 
-// generateNanoID generates a Nano ID using the library
-func generateNanoID(length int) (string, error) {
-	// URL-safe alphabet (no ambiguous characters like 0/O, 1/l/I)
-	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
-	return gonanoid.Generate(alphabet, length)
+// generateNumericID generates a deterministic numeric ID using simple hash mapping
+func generateNumericID(length int) (string, error) {
+	if length <= 0 || length > 16 {
+		return "", fmt.Errorf("length must be between 1 and 16")
+	}
+	// Use only digits 0-9 for numeric ID
+	// This provides 10^length possible combinations
+	// For 16 digits, that's 10^16 = 10,000,000,000,000,000 possibilities
+	const numericAlphabet = "0123456789"
+	return gonanoid.Generate(numericAlphabet, length)
 }
 
 // DeleteUserFingerprint removes a fingerprint mapping

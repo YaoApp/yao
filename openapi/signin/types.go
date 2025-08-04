@@ -64,6 +64,14 @@ type RegisterConfig struct {
 	Role string `json:"role,omitempty"`
 }
 
+// YaoClientConfig represents the Yao OpenAPI Client config
+type YaoClientConfig struct {
+	ClientID     string   `json:"client_id,omitempty"`
+	ClientSecret string   `json:"client_secret,omitempty"`
+	Scopes       []string `json:"scopes,omitempty"`     // Default scopes if not set in the provider config
+	ExpiresIn    int      `json:"expires_in,omitempty"` // Default expires in for the access token (optional) in seconds
+}
+
 // Provider represents a third party login provider
 type Provider struct {
 	ID                    string           `json:"id,omitempty"`
