@@ -253,8 +253,8 @@ func (s *Service) MakeAccessToken(clientID, scope, subject string, expiresIn int
 }
 
 // MakeRefreshToken generates a new refresh token with specific parameters and stores it
-func (s *Service) MakeRefreshToken(clientID, scope, subject string) (string, error) {
-	return s.generateRefreshToken(clientID, scope, subject)
+func (s *Service) MakeRefreshToken(clientID, scope, subject string, expiresIn ...int) (string, error) {
+	return s.generateRefreshToken(clientID, scope, subject, expiresIn...)
 }
 
 // Subject converts a userID to a subject using NanoID fingerprint
@@ -415,14 +415,14 @@ func (s *Service) revokeAccessToken(accessToken string) error {
 }
 
 // generateRefreshToken generates and stores a new refresh token with scope and subject
-func (s *Service) generateRefreshToken(clientID, scope, subject string) (string, error) {
+func (s *Service) generateRefreshToken(clientID, scope, subject string, expiresIn ...int) (string, error) {
 	refreshToken, err := s.generateToken("rfk", clientID)
 	if err != nil {
 		return "", err
 	}
 
 	// Store refresh token with metadata
-	err = s.storeRefreshTokenWithScope(refreshToken, clientID, scope, subject)
+	err = s.storeRefreshTokenWithScope(refreshToken, clientID, scope, subject, expiresIn...)
 	if err != nil {
 		return "", err
 	}
@@ -529,7 +529,7 @@ func (s *Service) storeRefreshToken(refreshToken, clientID string) error {
 }
 
 // storeRefreshTokenWithScope stores refresh token with metadata including scope and subject
-func (s *Service) storeRefreshTokenWithScope(refreshToken, clientID, scope, subject string) error {
+func (s *Service) storeRefreshTokenWithScope(refreshToken, clientID, scope, subject string, expiresIn ...int) error {
 	tokenData := map[string]interface{}{
 		"client_id": clientID,
 		"scope":     scope,
@@ -538,7 +538,12 @@ func (s *Service) storeRefreshTokenWithScope(refreshToken, clientID, scope, subj
 		"issued_at": time.Now().Unix(),
 	}
 
-	return s.store.Set(s.refreshTokenKey(refreshToken), tokenData, s.config.Token.RefreshTokenLifetime)
+	expires := s.config.Token.RefreshTokenLifetime
+	if len(expiresIn) > 0 && expiresIn[0] > 0 {
+		expires = time.Duration(expiresIn[0]) * time.Second
+	}
+
+	return s.store.Set(s.refreshTokenKey(refreshToken), tokenData, expires)
 }
 
 // getRefreshTokenData retrieves refresh token data

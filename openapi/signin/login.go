@@ -119,17 +119,18 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	}
 
 	// Refresh Token
-	refreshToken, err := oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject)
+	refreshToken, err := oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LoginResponse{
-		AccessToken:  accessToken,
-		IDToken:      oidcToken,
-		RefreshToken: refreshToken,
-		ExpiresIn:    yaoClientConfig.ExpiresIn,
-		TokenType:    "Bearer",
-		Scope:        strings.Join(scopes, " "),
+		AccessToken:           accessToken,
+		IDToken:               oidcToken,
+		RefreshToken:          refreshToken,
+		ExpiresIn:             yaoClientConfig.ExpiresIn,
+		RefreshTokenExpiresIn: yaoClientConfig.RefreshTokenExpiresIn,
+		TokenType:             "Bearer",
+		Scope:                 strings.Join(scopes, " "),
 	}, nil
 }

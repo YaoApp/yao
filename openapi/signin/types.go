@@ -66,10 +66,11 @@ type RegisterConfig struct {
 
 // YaoClientConfig represents the Yao OpenAPI Client config
 type YaoClientConfig struct {
-	ClientID     string   `json:"client_id,omitempty"`
-	ClientSecret string   `json:"client_secret,omitempty"`
-	Scopes       []string `json:"scopes,omitempty"`     // Default scopes if not set in the provider config
-	ExpiresIn    int      `json:"expires_in,omitempty"` // Default expires in for the access token (optional) in seconds
+	ClientID              string   `json:"client_id,omitempty"`
+	ClientSecret          string   `json:"client_secret,omitempty"`
+	Scopes                []string `json:"scopes,omitempty"`                   // Default scopes if not set in the provider config
+	ExpiresIn             int      `json:"expires_in,omitempty"`               // Default expires in for the access token (optional) in seconds
+	RefreshTokenExpiresIn int      `json:"refresh_token_expires_in,omitempty"` // Default expires in for the refresh token (optional) in seconds
 }
 
 // Provider represents a third party login provider
@@ -161,12 +162,13 @@ type OIDCAddress = oauthtypes.OIDCAddress
 
 // LoginResponse represents the response for login
 type LoginResponse struct {
-	AccessToken  string `json:"access_token"`
-	IDToken      string `json:"id_token,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	ExpiresIn    int    `json:"expires_in,omitempty"`
-	TokenType    string `json:"token_type,omitempty"`
-	Scope        string `json:"scope,omitempty"`
+	AccessToken           string `json:"access_token"`
+	IDToken               string `json:"id_token,omitempty"`
+	RefreshToken          string `json:"refresh_token,omitempty"`
+	ExpiresIn             int    `json:"expires_in,omitempty"`
+	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
+	TokenType             string `json:"token_type,omitempty"`
+	Scope                 string `json:"scope,omitempty"`
 }
 
 // Built-in preset mapping types
