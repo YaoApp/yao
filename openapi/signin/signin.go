@@ -156,7 +156,8 @@ func registerClient(clientID string) (*YaoClientConfig, error) {
 	var clientConfig *YaoClientConfig = &YaoClientConfig{}
 	clientConfig.ClientID = response.ClientID
 	clientConfig.ClientSecret = response.ClientSecret
-	clientConfig.ExpiresIn = 3600 * 24 // 24 hours
+	clientConfig.ExpiresIn = 3600 * 24                  // 24 hours
+	clientConfig.RefreshTokenExpiresIn = 3600 * 24 * 30 // 30 days
 	clientConfig.Scopes = []string{"openid", "profile", "email"}
 	return clientConfig, nil
 }

@@ -214,7 +214,18 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	response.RespondWithSuccess(c, response.StatusOK, loginResponse)
+	// Authorize Cookie
+	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
+	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
+
+	// Send Cookie
+	expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
+	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
+	response.SendAccessTokenCookieWithExpiry(c, accessToken, expires)
+	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+
+	// Send IDToken to the client
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{"id_token": loginResponse.IDToken})
 }
 
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider
