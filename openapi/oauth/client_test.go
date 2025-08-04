@@ -356,6 +356,7 @@ func TestDynamicClientRegistration(t *testing.T) {
 		request := &types.DynamicClientRegistrationRequest{
 			ClientName:   "Invalid Client",
 			RedirectURIs: []string{}, // Empty redirect URIs should cause error
+			Scope:        "openid profile email",
 		}
 
 		response, err := service.DynamicClientRegistration(ctx, request)
@@ -533,6 +534,7 @@ func TestValidateDynamicClientRegistrationRequest(t *testing.T) {
 		request := &types.DynamicClientRegistrationRequest{
 			ClientName:   "No Redirect URIs",
 			RedirectURIs: []string{},
+			Scope:        "openid profile email",
 		}
 
 		err := service.validateDynamicClientRegistrationRequest(request)
@@ -548,6 +550,7 @@ func TestValidateDynamicClientRegistrationRequest(t *testing.T) {
 		request := &types.DynamicClientRegistrationRequest{
 			ClientName:   "Invalid Redirect URI",
 			RedirectURIs: []string{"://invalid-uri"},
+			Scope:        "openid profile email",
 		}
 
 		err := service.validateDynamicClientRegistrationRequest(request)
