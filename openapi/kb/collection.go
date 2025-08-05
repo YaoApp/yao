@@ -221,8 +221,8 @@ func validateCreateCollectionRequest(req *CreateCollectionRequest) error {
 		return fmt.Errorf("config is required")
 	}
 
-	// Validate CreateCollectionOptions
-	if err := req.Config.Validate(); err != nil {
+	// Validate CreateCollectionOptions (ignore collection name cannot be empty error)
+	if err := req.Config.Validate(); err != nil && err.Error() != "collection name cannot be empty" {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
