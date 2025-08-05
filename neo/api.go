@@ -20,6 +20,7 @@ import (
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
+	"github.com/yaoapp/yao/openapi/oauth"
 )
 
 // API registers the Neo API endpoints
@@ -648,6 +649,13 @@ func (neo *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
 
 // defaultGuard is the default authentication handler
 func (neo *DSL) defaultGuard(c *gin.Context) {
+
+	// Check if the request is for OpenAPI OAuth
+	if oauth.OAuth != nil {
+		neo.guardOpenapiOauth(c)
+		return
+	}
+
 	token := strings.TrimSpace(strings.TrimPrefix(c.Query("token"), "Bearer "))
 	if token == "" {
 		c.JSON(403, gin.H{"message": "token is required", "code": 403})
@@ -658,6 +666,55 @@ func (neo *DSL) defaultGuard(c *gin.Context) {
 	user := helper.JwtValidate(token)
 	c.Set("__sid", user.SID)
 	c.Next()
+}
+
+// Openapi Oauth
+func (neo *DSL) guardOpenapiOauth(c *gin.Context) {
+	s := oauth.OAuth
+	token := neo.getAccessToken(c)
+	if token == "" {
+		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
+		c.Abort()
+		return
+	}
+
+	// Validate the token
+	_, err := s.VerifyToken(token)
+	if err != nil {
+		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
+		c.Abort()
+		return
+	}
+
+	// Get the session ID
+	sid := neo.getSessionID(c)
+	if sid == "" {
+		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
+		c.Abort()
+		return
+	}
+
+	c.Set("__sid", sid)
+}
+
+func (neo *DSL) getAccessToken(c *gin.Context) string {
+	token := c.GetHeader("Authorization")
+	if token == "" || token == "Bearer undefined" {
+		cookie, err := c.Cookie("__Host-access_token")
+		if err != nil {
+			return ""
+		}
+		token = cookie
+	}
+	return strings.TrimPrefix(token, "Bearer ")
+}
+
+func (neo *DSL) getSessionID(c *gin.Context) string {
+	sid, err := c.Cookie("__Host-session_id")
+	if err != nil {
+		return ""
+	}
+	return sid
 }
 
 // handleChatLatest handles getting the latest chat
