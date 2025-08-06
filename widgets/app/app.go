@@ -620,8 +620,69 @@ func processXgen(process *process.Process) interface{} {
 				}
 			}
 
-			// other providers
-			kbConfig = map[string]interface{}{"features": knowledgebase.Config.Features, "chunkings": chunkings, "embeddings": embeddings, "converters": converters}
+			extractors := []string{}
+			if knowledgebase.Config.Extractors != nil {
+				for _, extractor := range knowledgebase.Config.Extractors {
+					extractors = append(extractors, extractor.ID)
+				}
+			}
+
+			fetchers := []string{}
+			if knowledgebase.Config.Fetchers != nil {
+				for _, fetcher := range knowledgebase.Config.Fetchers {
+					fetchers = append(fetchers, fetcher.ID)
+				}
+			}
+
+			searchers := []string{}
+			if knowledgebase.Config.Searchers != nil {
+				for _, searcher := range knowledgebase.Config.Searchers {
+					searchers = append(searchers, searcher.ID)
+				}
+			}
+
+			rerankers := []string{}
+			if knowledgebase.Config.Rerankers != nil {
+				for _, reranker := range knowledgebase.Config.Rerankers {
+					rerankers = append(rerankers, reranker.ID)
+				}
+			}
+
+			votes := []string{}
+			if knowledgebase.Config.Votes != nil {
+				for _, vote := range knowledgebase.Config.Votes {
+					votes = append(votes, vote.ID)
+				}
+			}
+
+			weights := []string{}
+			if knowledgebase.Config.Weights != nil {
+				for _, weight := range knowledgebase.Config.Weights {
+					weights = append(weights, weight.ID)
+				}
+			}
+
+			scores := []string{}
+			if knowledgebase.Config.Scores != nil {
+				for _, score := range knowledgebase.Config.Scores {
+					scores = append(scores, score.ID)
+				}
+			}
+
+			kbConfig = map[string]interface{}{
+				"features":   knowledgebase.Config.Features,
+				"chunkings":  chunkings,
+				"embeddings": embeddings,
+				"converters": converters,
+				"extractors": extractors,
+				"fetchers":   fetchers,
+				"searchers":  searchers,
+				"rerankers":  rerankers,
+				"votes":      votes,
+				"weights":    weights,
+				"scores":     scores,
+				"uploader":   knowledgebase.Config.Uploader, // Default: "__yao.attachment"
+			}
 		}
 	}
 
