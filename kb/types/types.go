@@ -69,6 +69,9 @@ type Config struct {
 	// FFmpeg configuration (Optional)
 	FFmpeg *FFmpegConfig `json:"ffmpeg,omitempty" yaml:"ffmpeg"`
 
+	// File uploader configuration (Optional)
+	Uploader string `json:"uploader,omitempty" yaml:"uploader"` // Default: "__yao.attachment"
+
 	// Concurrency limits for task processing (Optional)
 	Limits *LimitsConfig `json:"limits,omitempty" yaml:"limits"`
 

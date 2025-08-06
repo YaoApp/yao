@@ -307,9 +307,13 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Set default uploader if not configured
+	if c.Uploader == "" {
+		c.Uploader = "__yao.attachment"
+	}
+
 	// Compute features after parsing and resolving env vars
 	c.Features = c.ComputeFeatures()
-
 	return nil
 }
 
