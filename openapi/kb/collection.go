@@ -204,11 +204,79 @@ func GetCollections(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, collections)
 }
 
+// UpdateCollectionMetadata updates the metadata of an existing collection
+func UpdateCollectionMetadata(c *gin.Context) {
+	// Get collection ID from URL parameter
+	collectionID := c.Param("collectionID")
+	if collectionID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Collection ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	var req UpdateCollectionMetadataRequest
+
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate request parameters
+	if err := validateUpdateCollectionMetadataRequest(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call the actual UpdateCollectionMetadata method
+	err := kb.Instance.UpdateCollectionMetadata(c.Request.Context(), collectionID, req.Metadata)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to update collection metadata: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	successData := gin.H{
+		"message":       "Collection metadata updated successfully",
+		"collection_id": collectionID,
+	}
+	response.RespondWithSuccess(c, response.StatusOK, successData)
+}
+
 // CreateCollectionRequest represents the request structure for creating a collection
 type CreateCollectionRequest struct {
 	ID       string                         `json:"id" binding:"required"`
 	Metadata map[string]interface{}         `json:"metadata"`
 	Config   *types.CreateCollectionOptions `json:"config" binding:"required"`
+}
+
+// UpdateCollectionMetadataRequest represents the request structure for updating collection metadata
+type UpdateCollectionMetadataRequest struct {
+	Metadata map[string]interface{} `json:"metadata" binding:"required"`
 }
 
 // validateCreateCollectionRequest validates the incoming request for creating a collection
@@ -224,6 +292,19 @@ func validateCreateCollectionRequest(req *CreateCollectionRequest) error {
 	// Validate CreateCollectionOptions (ignore collection name cannot be empty error)
 	if err := req.Config.Validate(); err != nil && err.Error() != "collection name cannot be empty" {
 		return fmt.Errorf("invalid config: %w", err)
+	}
+
+	return nil
+}
+
+// validateUpdateCollectionMetadataRequest validates the incoming request for updating collection metadata
+func validateUpdateCollectionMetadataRequest(req *UpdateCollectionMetadataRequest) error {
+	if req.Metadata == nil {
+		return fmt.Errorf("metadata is required")
+	}
+
+	if len(req.Metadata) == 0 {
+		return fmt.Errorf("metadata cannot be empty")
 	}
 
 	return nil
