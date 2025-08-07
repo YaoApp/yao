@@ -24,6 +24,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.DELETE("/collections/:collectionID", RemoveCollection)
 	group.GET("/collections/:collectionID/exists", CollectionExists)
 	group.GET("/collections", GetCollections)
+	group.PUT("/collections/:collectionID/metadata", UpdateCollectionMetadata)
 
 	// Document Management
 	group.POST("/collections/:collectionID/documents/file", AddFile)
