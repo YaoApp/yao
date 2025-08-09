@@ -183,7 +183,7 @@ func TestFetcherHTTP_Make(t *testing.T) {
 
 func TestFetcherHTTP_Schema(t *testing.T) {
 	fetcher := &FetcherHTTP{}
-	schema, err := fetcher.Schema(nil)
+	schema, err := fetcher.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -441,7 +441,7 @@ func TestFetcherMCP_Make(t *testing.T) {
 
 func TestFetcherMCP_Schema(t *testing.T) {
 	fetcher := &FetcherMCP{}
-	schema, err := fetcher.Schema(nil)
+	schema, err := fetcher.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

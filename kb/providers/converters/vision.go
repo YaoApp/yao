@@ -93,6 +93,6 @@ func (vision *Vision) AutoDetect(filename, contentTypes string) (bool, int, erro
 }
 
 // Schema returns the schema for the Vision converter
-func (vision *Vision) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (vision *Vision) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }

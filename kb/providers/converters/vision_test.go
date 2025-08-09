@@ -182,7 +182,7 @@ func TestVision_AutoDetect(t *testing.T) {
 
 func TestVision_Schema(t *testing.T) {
 	vision := &Vision{}
-	schema, err := vision.Schema(nil)
+	schema, err := vision.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

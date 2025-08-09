@@ -213,7 +213,7 @@ func TestWhisper_AutoDetect(t *testing.T) {
 
 func TestWhisper_Schema(t *testing.T) {
 	whisper := &Whisper{}
-	schema, err := whisper.Schema(nil)
+	schema, err := whisper.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

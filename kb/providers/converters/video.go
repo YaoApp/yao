@@ -189,6 +189,6 @@ func (video *Video) AutoDetect(filename, contentTypes string) (bool, int, error)
 }
 
 // Schema returns the schema for the Video converter
-func (video *Video) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (video *Video) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }
