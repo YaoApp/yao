@@ -57,4 +57,8 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Collection Backup and Restore
 	group.POST("/collections/:collectionID/backup", Backup)
 	group.POST("/collections/:collectionID/restore", Restore)
+
+	// Provider Management (Chunking, Converter, Embedding, Extractor, Fetcher ...)
+	group.GET("/providers/:providerType", GetProviders)
+	group.GET("/providers/:providerType/:providerID/schema", GetProviderSchema)
 }

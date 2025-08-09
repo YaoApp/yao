@@ -1,0 +1,176 @@
+{
+  "id": "__yao.semantic",
+  "title": "智能文本分割",
+  "description": "AI驱动的智能文档分割，能够理解内容含义和上下文。使用大语言模型在自然主题边界处分割文本，保持主题连贯性和逻辑流程，提供更好的搜索检索质量。",
+  "required": ["size", "overlap", "max_depth"],
+  "properties": {
+    "size": {
+      "type": "integer",
+      "title": "片段大小",
+      "description": "每个片段的目标字符数。",
+      "default": 300,
+      "minimum": 50,
+      "maximum": 4000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "overlap": {
+      "type": "integer",
+      "title": "重叠字符",
+      "description": "相邻片段间的重叠字符数。",
+      "default": 50,
+      "minimum": 0,
+      "maximum": 1000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "max_depth": {
+      "type": "integer",
+      "title": "最大深度",
+      "description": "分割时遍历的最大层级深度。",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 3
+    },
+    "size_multiplier": {
+      "type": "integer",
+      "title": "大小倍数",
+      "description": "调整更深层级有效大小的倍数。",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "max_concurrent": {
+      "type": "integer",
+      "title": "最大并发数",
+      "description": "分割文档时的并行度。",
+      "default": 1,
+      "minimum": 1,
+      "maximum": "{{ $limit.max_concurrent }}",
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "semantic": {
+      "type": "object",
+      "title": "语义选项",
+      "description": "语义模型调用的高级选项。",
+      "component": "Nested",
+      "order": 6,
+      "required": false,
+      "requiredFields": ["connector", "context_size"],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "连接器",
+          "description": "AI模型的连接器ID（例如：openai.gpt-4o-mini, deepseek.v3）。",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI 模型",
+              "options": [
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "快速且经济，适合大多数使用场景",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "最高质量的AI分割，适用于复杂文档"
+                }
+              ]
+            },
+            {
+              "groupLabel": "替代模型",
+              "options": [
+                {
+                  "label": "Deepseek V3",
+                  "value": "deepseek.v3",
+                  "description": "经济实惠的替代方案，性能良好"
+                },
+                {
+                  "label": "Claude 3.5 Sonnet",
+                  "value": "anthropic.claude-3-5-sonnet",
+                  "description": "出色的推理和上下文理解能力"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "toolcall": {
+          "type": "boolean",
+          "title": "启用工具调用",
+          "description": "在语义分析过程中允许工具调用。",
+          "default": false,
+          "component": "Switch",
+          "width": "half",
+          "order": 2
+        },
+        "context_size": {
+          "type": "integer",
+          "title": "上下文大小",
+          "description": "提供给模型的近似字符数上下文（默认为大小的6倍）。",
+          "default": 1800,
+          "minimum": 200,
+          "maximum": 32000,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 3
+        },
+        "options": {
+          "type": "string",
+          "title": "模型选项（JSON）",
+          "description": "可选的模型特定选项，JSON字符串格式。",
+          "default": "",
+          "component": "CodeEditor",
+          "width": "full",
+          "order": 4
+        },
+        "prompt": {
+          "type": "string",
+          "title": "自定义提示词",
+          "description": "覆盖语义分割的默认提示词。",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 5
+        },
+        "max_retry": {
+          "type": "integer",
+          "title": "最大重试次数",
+          "description": "模型调用的最大重试次数。",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 10,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 6
+        },
+        "semantic_max_concurrent": {
+          "type": "integer",
+          "title": "语义最大并发数",
+          "description": "语义模型调用的并行度。",
+          "default": 1,
+          "minimum": 1,
+          "maximum": "{{ $limit.task.max_concurrent }}",
+          "component": "InputNumber",
+          "width": "half",
+          "order": 7
+        }
+      }
+    }
+  }
+}
