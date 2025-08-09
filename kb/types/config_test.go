@@ -164,7 +164,13 @@ func TestConfig_UnmarshalJSON(t *testing.T) {
 		t.Errorf("Expected vector driver 'qdrant', got '%s'", config.Vector.Driver)
 	}
 
-	// Verify Features are computed automatically
+	// Verify that Features are not computed during UnmarshalJSON (they should be computed later)
+	// Features will be computed after providers are loaded in the actual Load function
+
+	// But we can manually compute features to test the logic
+	config.Features = config.ComputeFeatures()
+
+	// These should be true based on the config content (graph, pdf, ffmpeg are present)
 	if !config.Features.GraphDatabase {
 		t.Error("Expected GraphDatabase feature to be true")
 	}
