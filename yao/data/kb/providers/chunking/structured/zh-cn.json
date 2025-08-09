@@ -1,0 +1,82 @@
+{
+  "id": "__yao.structured",
+  "title": "分层文本分割",
+  "description": "将文档分割为多层文本片段，可配置大小和重叠度。在不同深度的片段间创建父子关系，支持在搜索应用中进行详细和宽泛的上下文检索。",
+  "required": ["size", "overlap", "max_depth"],
+  "properties": {
+    "size": {
+      "type": "integer",
+      "title": "片段大小",
+      "description": "每个片段的目标字符数。",
+      "default": 300,
+      "minimum": 50,
+      "maximum": 4000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "overlap": {
+      "type": "integer",
+      "title": "重叠字符",
+      "description": "相邻片段间的重叠字符数。",
+      "default": 20,
+      "minimum": 0,
+      "maximum": 1000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "max_depth": {
+      "type": "integer",
+      "title": "最大深度",
+      "description": "分割时遍历的最大层级深度。",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 3
+    },
+    "separator": {
+      "type": "string",
+      "title": "自定义分隔符",
+      "description": "自定义分隔符模式（支持正则表达式）。",
+      "default": "",
+      "placeholder": "例如：\\n\\n, ---",
+      "component": "Input",
+      "width": "half",
+      "order": 4
+    },
+    "enable_debug": {
+      "type": "boolean",
+      "title": "启用调试模式",
+      "description": "输出详细的分割信息用于调试。",
+      "default": false,
+      "component": "Switch",
+      "width": "half",
+      "order": 5
+    },
+    "size_multiplier": {
+      "type": "integer",
+      "title": "大小倍数",
+      "description": "调整更深层级有效大小的倍数。",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "max_concurrent": {
+      "type": "integer",
+      "title": "最大并发数",
+      "description": "分割文档时的并行度。",
+      "default": 1,
+      "minimum": 1,
+      "maximum": "{{ $limit.max_concurrent }}",
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    }
+  }
+}
