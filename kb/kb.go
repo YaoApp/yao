@@ -41,6 +41,12 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 		return nil, nil
 	}
 
+	// Load providers from directories first
+	providers, err := kbtypes.LoadProviders("kb")
+	if err != nil {
+		return nil, err
+	}
+
 	// Parse the configuration
 	var config kbtypes.Config
 	raw, err := application.App.Read(filepath.Join("kb", "kb.yao"))
@@ -53,12 +59,11 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 		return nil, err
 	}
 
-	// Load providers from directories
-	providers, err := kbtypes.LoadProviders("kb")
-	if err != nil {
-		return nil, err
-	}
+	// Assign providers to config
 	config.Providers = providers
+
+	// Compute features after both config and providers are loaded
+	config.Features = config.ComputeFeatures()
 
 	// Set global configurations for providers to use
 	kbtypes.SetGlobalPDF(config.PDF)

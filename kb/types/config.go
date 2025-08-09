@@ -323,8 +323,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		c.Uploader = "__yao.attachment"
 	}
 
-	// Compute features after parsing and resolving env vars
-	c.Features = c.ComputeFeatures()
+	// Note: Features will be computed later after providers are loaded
 	return nil
 }
 
