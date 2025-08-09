@@ -272,20 +272,31 @@ func (c *Config) resolveAllEnvVars() error {
 
 // resolveProviderEnvVars resolves environment variables in provider configurations
 func (c *Config) resolveProviderEnvVars() error {
-	providerLists := [][]*Provider{
-		c.Chunkings, c.Embeddings, c.Converters, c.Extractors,
-		c.Fetchers, c.Searchers, c.Rerankers, c.Votes, c.Weights, c.Scores,
+	if c.Providers == nil {
+		return nil
 	}
 
-	for _, providers := range providerLists {
-		for _, provider := range providers {
-			for _, option := range provider.Options {
-				if option.Properties != nil {
-					resolved, err := c.resolveEnvVars(option.Properties)
-					if err != nil {
-						return err
+	// Resolve env vars for all provider types and languages
+	providerMaps := []map[string][]*Provider{
+		c.Providers.Chunkings, c.Providers.Embeddings, c.Providers.Converters, c.Providers.Extractors,
+		c.Providers.Fetchers, c.Providers.Searchers, c.Providers.Rerankers, c.Providers.Votes,
+		c.Providers.Weights, c.Providers.Scores,
+	}
+
+	for _, providerMap := range providerMaps {
+		if providerMap == nil {
+			continue
+		}
+		for _, providers := range providerMap {
+			for _, provider := range providers {
+				for _, option := range provider.Options {
+					if option.Properties != nil {
+						resolved, err := c.resolveEnvVars(option.Properties)
+						if err != nil {
+							return err
+						}
+						option.Properties = resolved
 					}
-					option.Properties = resolved
 				}
 			}
 		}
@@ -335,8 +346,13 @@ func (c *Config) ComputeFeatures() Features {
 
 	// File format support (based on converters)
 	converterMap := make(map[string]bool)
-	for _, provider := range c.Converters {
-		converterMap[provider.ID] = true
+	if c.Providers != nil && c.Providers.Converters != nil {
+		// Check all languages for converter availability
+		for _, providers := range c.Providers.Converters {
+			for _, provider := range providers {
+				converterMap[provider.ID] = true
+			}
+		}
 	}
 
 	features.PlainText = true // Plain text is always supported as a basic feature
@@ -346,13 +362,28 @@ func (c *Config) ComputeFeatures() Features {
 	features.ImageAnalysis = converterMap["__yao.vision"]
 
 	// Advanced features
-	features.EntityExtraction = len(c.Extractors) > 0
-	features.WebFetching = len(c.Fetchers) > 0
-	features.CustomSearch = len(c.Searchers) > 0
-	features.ResultReranking = len(c.Rerankers) > 0
-	features.SegmentVoting = len(c.Votes) > 0
-	features.SegmentWeighting = len(c.Weights) > 0
-	features.SegmentScoring = len(c.Scores) > 0
+	if c.Providers != nil {
+		features.EntityExtraction = c.hasProvidersInAnyLanguage(c.Providers.Extractors)
+		features.WebFetching = c.hasProvidersInAnyLanguage(c.Providers.Fetchers)
+		features.CustomSearch = c.hasProvidersInAnyLanguage(c.Providers.Searchers)
+		features.ResultReranking = c.hasProvidersInAnyLanguage(c.Providers.Rerankers)
+		features.SegmentVoting = c.hasProvidersInAnyLanguage(c.Providers.Votes)
+		features.SegmentWeighting = c.hasProvidersInAnyLanguage(c.Providers.Weights)
+		features.SegmentScoring = c.hasProvidersInAnyLanguage(c.Providers.Scores)
+	}
 
 	return features
+}
+
+// hasProvidersInAnyLanguage checks if there are providers available in any language
+func (c *Config) hasProvidersInAnyLanguage(providerMap map[string][]*Provider) bool {
+	if providerMap == nil {
+		return false
+	}
+	for _, providers := range providerMap {
+		if len(providers) > 0 {
+			return true
+		}
+	}
+	return false
 }

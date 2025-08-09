@@ -22,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/kb"
+	kbtypes "github.com/yaoapp/yao/kb/types"
 	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/openapi"
@@ -599,74 +600,62 @@ func processXgen(process *process.Process) interface{} {
 	kbConfig := map[string]interface{}{}
 	if kb.Instance != nil {
 		if knowledgebase, ok := kb.Instance.(*kb.KnowledgeBase); ok && knowledgebase.Config != nil {
-			chunkings := []string{}
-			if knowledgebase.Config.Chunkings != nil {
-				for _, chunking := range knowledgebase.Config.Chunkings {
-					chunkings = append(chunkings, chunking.ID)
-				}
+			// Use the current language setting for provider selection
+			currentLang := lang
+			if currentLang == "" {
+				currentLang = "en" // Default to English
 			}
 
-			embeddings := []string{}
-			if knowledgebase.Config.Embeddings != nil {
-				for _, embedding := range knowledgebase.Config.Embeddings {
-					embeddings = append(embeddings, embedding.ID)
+			// Helper function to extract provider IDs from multi-language providers
+			extractProviderIDs := func(providerMap map[string][]*kbtypes.Provider) []string {
+				ids := []string{}
+				if providerMap == nil {
+					return ids
 				}
+
+				// Try current language first
+				if providers, exists := providerMap[currentLang]; exists {
+					for _, provider := range providers {
+						ids = append(ids, provider.ID)
+					}
+					return ids
+				}
+
+				// Fallback to English
+				if currentLang != "en" {
+					if providers, exists := providerMap["en"]; exists {
+						for _, provider := range providers {
+							ids = append(ids, provider.ID)
+						}
+						return ids
+					}
+				}
+
+				// If no providers found for current language or English, return all available
+				for _, providers := range providerMap {
+					for _, provider := range providers {
+						ids = append(ids, provider.ID)
+					}
+					break // Just take the first available language
+				}
+
+				return ids
 			}
 
-			converters := []string{}
-			if knowledgebase.Config.Converters != nil {
-				for _, converter := range knowledgebase.Config.Converters {
-					converters = append(converters, converter.ID)
-				}
-			}
+			var chunkings, embeddings, converters, extractors, fetchers []string
+			var searchers, rerankers, votes, weights, scores []string
 
-			extractors := []string{}
-			if knowledgebase.Config.Extractors != nil {
-				for _, extractor := range knowledgebase.Config.Extractors {
-					extractors = append(extractors, extractor.ID)
-				}
-			}
-
-			fetchers := []string{}
-			if knowledgebase.Config.Fetchers != nil {
-				for _, fetcher := range knowledgebase.Config.Fetchers {
-					fetchers = append(fetchers, fetcher.ID)
-				}
-			}
-
-			searchers := []string{}
-			if knowledgebase.Config.Searchers != nil {
-				for _, searcher := range knowledgebase.Config.Searchers {
-					searchers = append(searchers, searcher.ID)
-				}
-			}
-
-			rerankers := []string{}
-			if knowledgebase.Config.Rerankers != nil {
-				for _, reranker := range knowledgebase.Config.Rerankers {
-					rerankers = append(rerankers, reranker.ID)
-				}
-			}
-
-			votes := []string{}
-			if knowledgebase.Config.Votes != nil {
-				for _, vote := range knowledgebase.Config.Votes {
-					votes = append(votes, vote.ID)
-				}
-			}
-
-			weights := []string{}
-			if knowledgebase.Config.Weights != nil {
-				for _, weight := range knowledgebase.Config.Weights {
-					weights = append(weights, weight.ID)
-				}
-			}
-
-			scores := []string{}
-			if knowledgebase.Config.Scores != nil {
-				for _, score := range knowledgebase.Config.Scores {
-					scores = append(scores, score.ID)
-				}
+			if knowledgebase.Providers != nil {
+				chunkings = extractProviderIDs(knowledgebase.Providers.Chunkings)
+				embeddings = extractProviderIDs(knowledgebase.Providers.Embeddings)
+				converters = extractProviderIDs(knowledgebase.Providers.Converters)
+				extractors = extractProviderIDs(knowledgebase.Providers.Extractors)
+				fetchers = extractProviderIDs(knowledgebase.Providers.Fetchers)
+				searchers = extractProviderIDs(knowledgebase.Providers.Searchers)
+				rerankers = extractProviderIDs(knowledgebase.Providers.Rerankers)
+				votes = extractProviderIDs(knowledgebase.Providers.Votes)
+				weights = extractProviderIDs(knowledgebase.Providers.Weights)
+				scores = extractProviderIDs(knowledgebase.Providers.Scores)
 			}
 
 			kbConfig = map[string]interface{}{

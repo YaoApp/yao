@@ -23,7 +23,8 @@ var Instance types.GraphRag = nil
 
 // KnowledgeBase is the Knowledge Base instance
 type KnowledgeBase struct {
-	Config *kbtypes.Config // Knowledge Base configuration
+	Config    *kbtypes.Config         // Knowledge Base configuration
+	Providers *kbtypes.ProviderConfig // Multi-language provider configurations
 	*graphrag.GraphRag
 }
 
@@ -52,6 +53,13 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 		return nil, err
 	}
 
+	// Load providers from directories
+	providers, err := kbtypes.LoadProviders("kb")
+	if err != nil {
+		return nil, err
+	}
+	config.Providers = providers
+
 	// Set global configurations for providers to use
 	kbtypes.SetGlobalPDF(config.PDF)
 	kbtypes.SetGlobalFFmpeg(config.FFmpeg)
@@ -69,7 +77,7 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 	}
 
 	// Set the instance
-	instance := &KnowledgeBase{Config: &config, GraphRag: graphRag}
+	instance := &KnowledgeBase{Config: &config, Providers: providers, GraphRag: graphRag}
 
 	// Set the instance to the global variable
 	Instance = instance
@@ -88,48 +96,13 @@ func GetProviders(typ string, ids []string, locale string) ([]kbtypes.Provider, 
 		return nil, fmt.Errorf("knowledge base not initialized")
 	}
 
-	// Get the configuration
-	conf := knowledgeBase.Config
-	if conf == nil {
-		return nil, fmt.Errorf("configuration not found")
+	// Default locale to "en" if empty
+	if locale == "" {
+		locale = "en"
 	}
 
-	providers := []*kbtypes.Provider{}
-	switch typ {
-	case "chunking":
-		providers = conf.Chunkings
-
-	case "converter":
-		providers = conf.Converters
-
-	case "embedding":
-		providers = conf.Embeddings
-
-	case "extractor":
-		providers = conf.Extractors
-
-	case "fetcher":
-		providers = conf.Fetchers
-
-	case "searcher":
-		providers = conf.Searchers
-
-	case "reranker":
-		providers = conf.Rerankers
-
-	case "vote":
-		providers = conf.Votes
-
-	case "weight":
-		providers = conf.Weights
-
-	case "score":
-		providers = conf.Scores
-
-	default:
-		return nil, fmt.Errorf("invalid provider type: %s", typ)
-
-	}
+	// Get providers for the requested type and language
+	providers := knowledgeBase.Providers.GetProviders(typ, locale)
 
 	// Filter empty ids
 	filteredIds := []string{}
@@ -149,8 +122,13 @@ func GetProviders(typ string, ids []string, locale string) ([]kbtypes.Provider, 
 	return filteredProviders, nil
 }
 
-// GetProvider returns a provider by id
+// GetProvider returns a provider by id with default language "en"
 func GetProvider(typ string, id string) (*kbtypes.Provider, error) {
+	return GetProviderWithLanguage(typ, id, "en")
+}
+
+// GetProviderWithLanguage returns a provider by id, type, and language
+func GetProviderWithLanguage(typ string, id string, locale string) (*kbtypes.Provider, error) {
 	if Instance == nil {
 		return nil, fmt.Errorf("knowledge base not initialized")
 	}
@@ -160,53 +138,10 @@ func GetProvider(typ string, id string) (*kbtypes.Provider, error) {
 		return nil, fmt.Errorf("knowledge base not initialized")
 	}
 
-	conf := knowledgeBase.Config
-	if conf == nil {
-		return nil, fmt.Errorf("configuration not found")
+	// Default locale to "en" if empty
+	if locale == "" {
+		locale = "en"
 	}
 
-	providers := []*kbtypes.Provider{}
-	switch typ {
-	case "chunking":
-		providers = conf.Chunkings
-
-	case "converter":
-		providers = conf.Converters
-
-	case "embedding":
-		providers = conf.Embeddings
-
-	case "extractor":
-		providers = conf.Extractors
-
-	case "fetcher":
-		providers = conf.Fetchers
-
-	case "searcher":
-		providers = conf.Searchers
-
-	case "reranker":
-		providers = conf.Rerankers
-
-	case "vote":
-		providers = conf.Votes
-
-	case "weight":
-		providers = conf.Weights
-
-	case "score":
-		providers = conf.Scores
-
-	default:
-		return nil, fmt.Errorf("invalid provider type: %s", typ)
-	}
-
-	// Find the provider by id
-	for _, provider := range providers {
-		if provider.ID == id {
-			return provider, nil
-		}
-	}
-
-	return nil, fmt.Errorf("provider %s not found", id)
+	return knowledgeBase.Providers.GetProvider(typ, id, locale)
 }
