@@ -75,20 +75,26 @@ type Config struct {
 	// Concurrency limits for task processing (Optional)
 	Limits *LimitsConfig `json:"limits,omitempty" yaml:"limits,omitempty"`
 
-	// Provider configurations
-	Chunkings  []*Provider `json:"chunkings" yaml:"chunkings"`                       // Text splitting providers (Required - at least one)
-	Embeddings []*Provider `json:"embeddings" yaml:"embeddings"`                     // Text vectorization providers (Required - at least one)
-	Converters []*Provider `json:"converters,omitempty" yaml:"converters,omitempty"` // File processing converters (Optional)
-	Extractors []*Provider `json:"extractors,omitempty" yaml:"extractors,omitempty"` // Entity and relationship extractors (Optional)
-	Fetchers   []*Provider `json:"fetchers,omitempty" yaml:"fetchers,omitempty"`     // File fetchers (Optional)
-	Searchers  []*Provider `json:"searchers,omitempty" yaml:"searchers,omitempty"`   // Search providers (Optional)
-	Rerankers  []*Provider `json:"rerankers,omitempty" yaml:"rerankers,omitempty"`   // Reranking providers (Optional)
-	Votes      []*Provider `json:"votes,omitempty" yaml:"votes,omitempty"`           // Voting providers (Optional)
-	Weights    []*Provider `json:"weights,omitempty" yaml:"weights,omitempty"`       // Weighting providers (Optional)
-	Scores     []*Provider `json:"scores,omitempty" yaml:"scores,omitempty"`         // Scoring providers (Optional)
+	// Multi-language provider configurations (loaded from directories)
+	Providers *ProviderConfig `json:"-"` // Loaded from provider directories, not serialized
 
 	// Feature flags (computed during parsing, not serialized)
 	Features Features `json:"-"`
+}
+
+// ProviderConfig holds providers organized by language
+type ProviderConfig struct {
+	// Provider configurations by language (e.g., "en", "zh-cn")
+	Chunkings  map[string][]*Provider `json:"-"` // Text splitting providers by language
+	Embeddings map[string][]*Provider `json:"-"` // Text vectorization providers by language
+	Converters map[string][]*Provider `json:"-"` // File processing converters by language
+	Extractors map[string][]*Provider `json:"-"` // Entity and relationship extractors by language
+	Fetchers   map[string][]*Provider `json:"-"` // File fetchers by language
+	Searchers  map[string][]*Provider `json:"-"` // Search providers by language
+	Rerankers  map[string][]*Provider `json:"-"` // Reranking providers by language
+	Votes      map[string][]*Provider `json:"-"` // Voting providers by language
+	Weights    map[string][]*Provider `json:"-"` // Weighting providers by language
+	Scores     map[string][]*Provider `json:"-"` // Scoring providers by language
 }
 
 // VectorConfig represents vector database configuration

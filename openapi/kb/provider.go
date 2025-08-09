@@ -12,7 +12,7 @@ import (
 // GetProviders get all providers
 func GetProviders(c *gin.Context) {
 	providerType := c.Param("providerType")
-	locale := c.Query("locale")
+	locale := strings.ToLower(c.Query("locale"))
 	if locale == "" {
 		locale = "en"
 	}
@@ -48,7 +48,7 @@ func GetProviders(c *gin.Context) {
 func GetProviderSchema(c *gin.Context) {
 	providerType := c.Param("providerType")
 	providerID := c.Param("providerID")
-	locale := c.Query("locale")
+	locale := strings.ToLower(c.Query("locale"))
 	if locale == "" {
 		locale = "en"
 	}
@@ -62,7 +62,7 @@ func GetProviderSchema(c *gin.Context) {
 		return
 	}
 
-	provider, err := kb.GetProvider(providerType, providerID)
+	provider, err := kb.GetProviderWithLanguage(providerType, providerID, locale)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,

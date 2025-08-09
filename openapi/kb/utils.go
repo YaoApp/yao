@@ -15,13 +15,14 @@ Usage Examples:
 1. AddFile API (converter will be auto-detected based on file info):
 {
   "collection_id": "my_collection",
+  "locale": "en",
   "file_id": "uploaded_file_123",
   "chunking": {
-    "provider_id": "text_splitter",
-    "option_id": "default"
+    "provider_id": "__yao.structured",
+    "option_id": "standard"
   },
   "embedding": {
-    "provider_id": "openai",
+    "provider_id": "__yao.openai",
     "option_id": "text-embedding-3-small"
   },
   "doc_id": "document_001",
@@ -30,34 +31,39 @@ Usage Examples:
   }
 }
 
-2. AddText API:
+2. AddText API with Chinese locale:
 {
   "collection_id": "my_collection",
-  "text": "This is the text content to be processed.",
+  "locale": "zh-cn",
+  "text": "这是要处理的文本内容。",
   "chunking": {
-    "provider_id": "text_splitter"
+    "provider_id": "__yao.structured"
   },
   "embedding": {
-    "provider_id": "openai"
+    "provider_id": "__yao.fastembed",
+    "option_id": "fastembed-chinese"
   }
 }
 
 3. AddSegments API:
 {
   "collection_id": "my_collection",
+  "locale": "en",
   "doc_id": "document_001",
   "segment_texts": [
     {"text": "First segment", "metadata": {"page": 1}},
     {"text": "Second segment", "metadata": {"page": 2}}
   ],
   "embedding": {
-    "provider_id": "openai",
+    "provider_id": "__yao.openai",
     "option_id": "text-embedding-3-small"
   }
 }
 
 Note:
+- If no locale is specified, defaults to "en"
 - If no option_id is specified, the default option from provider configuration will be selected
+- Providers are loaded based on locale with fallback to "en" if the specified locale is not available
 - For AddFile API, converter will be auto-detected based on filename and content_type obtained from GetFileInfo(file_id)
 - ToUpsertOptions() can be called without parameters, or with filename and contentType for converter auto-detection
 */
@@ -75,6 +81,9 @@ type ProviderConfig struct {
 type BaseUpsertRequest struct {
 	// Collection ID - this will be mapped to UpsertOptions.CollectionID
 	CollectionID string `json:"collection_id" binding:"required"`
+
+	// Language/locale for provider selection (defaults to "en")
+	Locale string `json:"locale,omitempty"`
 
 	// Provider configurations
 	Chunking   *ProviderConfig `json:"chunking" binding:"required"`
@@ -123,7 +132,7 @@ type UpdateSegmentsRequest struct {
 // If OptionID is provided, it looks up the option from the provider
 // If Option is provided directly, it uses the Option field
 // If neither is provided, it selects the default option from provider's Options
-func resolveProviderOption(config *ProviderConfig) (*kbtypes.ProviderOption, error) {
+func resolveProviderOption(config *ProviderConfig, locale string) (*kbtypes.ProviderOption, error) {
 	if config == nil {
 		return nil, fmt.Errorf("provider config is required")
 	}
@@ -142,20 +151,20 @@ func resolveProviderOption(config *ProviderConfig) (*kbtypes.ProviderOption, err
 		return nil, fmt.Errorf("KB instance is not initialized")
 	}
 
-	// Find the provider in KB config
-	var provider *kbtypes.Provider
-	kbConfig := kb.Instance.(*kb.KnowledgeBase).Config
-
-	// Check all provider types to find the matching provider
-	allProviders := [][]*kbtypes.Provider{
-		kbConfig.Chunkings,
-		kbConfig.Embeddings,
-		kbConfig.Converters,
-		kbConfig.Extractors,
-		kbConfig.Fetchers,
+	// Default locale to "en" if not provided
+	if locale == "" {
+		locale = "en"
 	}
 
-	for _, providers := range allProviders {
+	// Find the provider using the new multi-language system
+	var provider *kbtypes.Provider
+	kbInstance := kb.Instance.(*kb.KnowledgeBase)
+
+	// Check all provider types to find the matching provider
+	providerTypes := []string{"chunking", "embedding", "converter", "extractor", "fetcher"}
+
+	for _, providerType := range providerTypes {
+		providers := kbInstance.Providers.GetProviders(providerType, locale)
 		for _, p := range providers {
 			if p.ID == config.ProviderID {
 				provider = p
@@ -168,7 +177,7 @@ func resolveProviderOption(config *ProviderConfig) (*kbtypes.ProviderOption, err
 	}
 
 	if provider == nil {
-		return nil, fmt.Errorf("provider %s not found", config.ProviderID)
+		return nil, fmt.Errorf("provider %s not found for locale %s", config.ProviderID, locale)
 	}
 
 	// If OptionID is provided, look it up from the provider
@@ -207,6 +216,12 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 		contentType = fileInfo[1]
 	}
 
+	// Default locale to "en" if not specified
+	locale := r.Locale
+	if locale == "" {
+		locale = "en"
+	}
+
 	options := &types.UpsertOptions{
 		CollectionID: r.CollectionID, // Collection ID maps to CollectionID
 		DocID:        r.DocID,
@@ -214,7 +229,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	}
 
 	// Resolve and create chunking provider
-	chunkingOption, err := resolveProviderOption(r.Chunking)
+	chunkingOption, err := resolveProviderOption(r.Chunking, locale)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve chunking provider: %w", err)
 	}
@@ -233,7 +248,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	options.ChunkingOptions = chunkingOpts
 
 	// Resolve and create embedding provider
-	embeddingOption, err := resolveProviderOption(r.Embedding)
+	embeddingOption, err := resolveProviderOption(r.Embedding, locale)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve embedding provider: %w", err)
 	}
@@ -246,7 +261,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 
 	// Optional providers
 	if r.Extraction != nil {
-		extractionOption, err := resolveProviderOption(r.Extraction)
+		extractionOption, err := resolveProviderOption(r.Extraction, locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve extraction provider: %w", err)
 		}
@@ -259,7 +274,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	}
 
 	if r.Fetcher != nil {
-		fetcherOption, err := resolveProviderOption(r.Fetcher)
+		fetcherOption, err := resolveProviderOption(r.Fetcher, locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve fetcher provider: %w", err)
 		}
@@ -274,7 +289,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	// Handle converter - auto-detect if not specified
 	if r.Converter != nil {
 		// User specified converter
-		converterOption, err := resolveProviderOption(r.Converter)
+		converterOption, err := resolveProviderOption(r.Converter, locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve converter provider: %w", err)
 		}
@@ -297,7 +312,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 				ProviderID: converterID,
 			}
 
-			converterOption, err := resolveProviderOption(converterConfig)
+			converterOption, err := resolveProviderOption(converterConfig, locale)
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve auto-detected converter provider: %w", err)
 			}

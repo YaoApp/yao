@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// Test data for configuration parsing
+// Test data for configuration parsing (providers are now loaded from directories)
 const testConfigJSON = `{
 	"vector": {
 		"driver": "qdrant",
@@ -32,78 +32,14 @@ const testConfigJSON = `{
 		"ffmpeg_path": "/usr/bin/ffmpeg",
 		"ffprobe_path": "/usr/bin/ffprobe",
 		"enable_gpu": true
-	},
-	"chunkings": [
-		{
-			"id": "__yao.structured",
-			"label": "Document Structure",
-			"description": "Split text by document structure",
-			"default": true,
-			"options": []
-		}
-	],
-	"embeddings": [
-		{
-			"id": "__yao.openai",
-			"label": "OpenAI",
-			"description": "OpenAI embeddings",
-			"default": true,
-			"options": []
-		}
-	],
-	"converters": [
-		{
-			"id": "__yao.office",
-			"label": "Office Documents",
-			"description": "Process office documents",
-			"options": []
-		},
-		{
-			"id": "__yao.ocr",
-			"label": "OCR",
-			"description": "OCR processing",
-			"options": []
-		}
-	],
-	"extractors": [
-		{
-			"id": "__yao.openai",
-			"label": "OpenAI Extractor",
-			"description": "Entity extraction",
-			"options": []
-		}
-	],
-	"fetchers": [
-		{
-			"id": "__yao.http",
-			"label": "HTTP Fetcher",
-			"description": "Fetch from web",
-			"options": []
-		}
-	]
+	}
 }`
 
 const minimalConfigJSON = `{
 	"vector": {
 		"driver": "qdrant",
 		"config": {}
-	},
-	"chunkings": [
-		{
-			"id": "__yao.structured",
-			"label": "Document Structure",
-			"description": "Split text",
-			"options": []
-		}
-	],
-	"embeddings": [
-		{
-			"id": "__yao.openai",
-			"label": "OpenAI",
-			"description": "OpenAI embeddings",
-			"options": []
-		}
-	]
+	}
 }`
 
 func TestParseConfigFromJSON(t *testing.T) {
@@ -285,19 +221,37 @@ func TestConfig_ComputeFeatures(t *testing.T) {
 				Graph:  &GraphConfig{Driver: "neo4j"},
 				PDF:    &PDFConfig{ConvertTool: "pdftoppm"},
 				FFmpeg: &FFmpegConfig{FFmpegPath: "/usr/bin/ffmpeg"},
-				Converters: []*Provider{
-					{ID: "__yao.office"},
-					{ID: "__yao.ocr"},
-					{ID: "__yao.whisper"},
-					{ID: "__yao.vision"},
+				Providers: &ProviderConfig{
+					Converters: map[string][]*Provider{
+						"en": {
+							{ID: "__yao.office"},
+							{ID: "__yao.ocr"},
+							{ID: "__yao.whisper"},
+							{ID: "__yao.vision"},
+						},
+					},
+					Extractors: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
+					Fetchers: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
+					Searchers: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
+					Rerankers: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
+					Votes: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
+					Weights: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
+					Scores: map[string][]*Provider{
+						"en": {{ID: "test"}},
+					},
 				},
-				Extractors: []*Provider{{ID: "test"}},
-				Fetchers:   []*Provider{{ID: "test"}},
-				Searchers:  []*Provider{{ID: "test"}},
-				Rerankers:  []*Provider{{ID: "test"}},
-				Votes:      []*Provider{{ID: "test"}},
-				Weights:    []*Provider{{ID: "test"}},
-				Scores:     []*Provider{{ID: "test"}},
 			},
 			expected: Features{
 				GraphDatabase:    true,
@@ -320,9 +274,10 @@ func TestConfig_ComputeFeatures(t *testing.T) {
 		{
 			name: "minimal config",
 			config: &Config{
-				Graph:  nil,
-				PDF:    nil,
-				FFmpeg: nil,
+				Graph:     nil,
+				PDF:       nil,
+				FFmpeg:    nil,
+				Providers: nil,
 			},
 			expected: Features{
 				GraphDatabase:   false,
@@ -535,23 +490,7 @@ func TestConfig_ResolveEnvVarsOnParsing(t *testing.T) {
 				"username": "$ENV.TEST_GRAPH_USER",
 				"password": "$ENV.TEST_GRAPH_PASS"
 			}
-		},
-		"chunkings": [
-			{
-				"id": "__yao.structured",
-				"label": "Document Structure",
-				"description": "Split text",
-				"options": []
-			}
-		],
-		"embeddings": [
-			{
-				"id": "__yao.openai",
-				"label": "OpenAI",
-				"description": "OpenAI embeddings",
-				"options": []
-			}
-		]
+		}
 	}`
 
 	// Parse config from JSON
@@ -580,5 +519,188 @@ func TestConfig_ResolveEnvVarsOnParsing(t *testing.T) {
 	// Verify that numeric values remain unchanged (JSON numbers are parsed as float64)
 	if port, ok := config.Vector.Config["port"].(float64); !ok || port != 6333.0 {
 		t.Errorf("Expected vector port to remain 6333.0, got %v (type %T)", config.Vector.Config["port"], config.Vector.Config["port"])
+	}
+}
+
+func TestProviderConfig_GetProviders(t *testing.T) {
+	// Create test provider config
+	providerConfig := &ProviderConfig{
+		Chunkings: map[string][]*Provider{
+			"en": {
+				{ID: "__yao.structured", Label: "Document Structure", Description: "Split by structure"},
+				{ID: "__yao.semantic", Label: "Semantic Split", Description: "AI-powered splitting"},
+			},
+			"zh-cn": {
+				{ID: "__yao.structured", Label: "文档结构", Description: "按结构分割"},
+			},
+		},
+		Embeddings: map[string][]*Provider{
+			"en": {
+				{ID: "__yao.openai", Label: "OpenAI", Description: "OpenAI embeddings"},
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		providerType string
+		language     string
+		expectedLen  int
+		expectedIDs  []string
+	}{
+		{
+			name:         "get chunking providers for en",
+			providerType: "chunking",
+			language:     "en",
+			expectedLen:  2,
+			expectedIDs:  []string{"__yao.structured", "__yao.semantic"},
+		},
+		{
+			name:         "get chunking providers for zh-cn",
+			providerType: "chunking",
+			language:     "zh-cn",
+			expectedLen:  1,
+			expectedIDs:  []string{"__yao.structured"},
+		},
+		{
+			name:         "get embedding providers for en",
+			providerType: "embedding",
+			language:     "en",
+			expectedLen:  1,
+			expectedIDs:  []string{"__yao.openai"},
+		},
+		{
+			name:         "fallback to en when language not found",
+			providerType: "embedding",
+			language:     "fr", // Not available, should fallback to en
+			expectedLen:  1,
+			expectedIDs:  []string{"__yao.openai"},
+		},
+		{
+			name:         "return empty when provider type not found",
+			providerType: "nonexistent",
+			language:     "en",
+			expectedLen:  0,
+			expectedIDs:  []string{},
+		},
+		{
+			name:         "return empty when no providers for language",
+			providerType: "converter", // Empty in test config
+			language:     "en",
+			expectedLen:  0,
+			expectedIDs:  []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			providers := providerConfig.GetProviders(tt.providerType, tt.language)
+
+			if len(providers) != tt.expectedLen {
+				t.Errorf("Expected %d providers, got %d", tt.expectedLen, len(providers))
+				return
+			}
+
+			// Check provider IDs
+			actualIDs := make([]string, len(providers))
+			for i, provider := range providers {
+				actualIDs[i] = provider.ID
+			}
+
+			for _, expectedID := range tt.expectedIDs {
+				found := false
+				for _, actualID := range actualIDs {
+					if actualID == expectedID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected provider ID '%s' not found in results: %v", expectedID, actualIDs)
+				}
+			}
+		})
+	}
+}
+
+func TestProviderConfig_GetProvider(t *testing.T) {
+	// Create test provider config
+	providerConfig := &ProviderConfig{
+		Chunkings: map[string][]*Provider{
+			"en": {
+				{ID: "__yao.structured", Label: "Document Structure", Description: "Split by structure"},
+				{ID: "__yao.semantic", Label: "Semantic Split", Description: "AI-powered splitting"},
+			},
+			"zh-cn": {
+				{ID: "__yao.structured", Label: "文档结构", Description: "按结构分割"},
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		providerType string
+		providerID   string
+		language     string
+		expectError  bool
+		expectedID   string
+	}{
+		{
+			name:         "get existing provider in requested language",
+			providerType: "chunking",
+			providerID:   "__yao.structured",
+			language:     "en",
+			expectError:  false,
+			expectedID:   "__yao.structured",
+		},
+		{
+			name:         "get provider with language fallback",
+			providerType: "chunking",
+			providerID:   "__yao.semantic", // Only exists in "en"
+			language:     "fr",             // Should fallback to "en"
+			expectError:  false,
+			expectedID:   "__yao.semantic",
+		},
+		{
+			name:         "provider not found",
+			providerType: "chunking",
+			providerID:   "__yao.nonexistent",
+			language:     "en",
+			expectError:  true,
+		},
+		{
+			name:         "invalid provider type",
+			providerType: "invalid",
+			providerID:   "__yao.structured",
+			language:     "en",
+			expectError:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider, err := providerConfig.GetProvider(tt.providerType, tt.providerID, tt.language)
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("Expected error, got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if provider == nil {
+				t.Error("Expected provider, got nil")
+				return
+			}
+
+			if provider.ID != tt.expectedID {
+				t.Errorf("Expected provider ID '%s', got '%s'", tt.expectedID, provider.ID)
+			}
+		})
 	}
 }
