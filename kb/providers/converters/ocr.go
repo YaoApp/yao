@@ -168,6 +168,6 @@ func (ocr *OCR) AutoDetect(filename, contentTypes string) (bool, int, error) {
 }
 
 // Schema returns the schema for the OCR converter
-func (ocr *OCR) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (ocr *OCR) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }

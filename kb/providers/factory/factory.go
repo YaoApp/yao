@@ -129,7 +129,7 @@ func MakeFetcher(id string, option *kbtypes.ProviderOption) (types.Fetcher, erro
 // === Schema API ===
 
 // GetSchema returns the schema for a provider
-func GetSchema(typ ProviderType, provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func GetSchema(typ ProviderType, provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	var schema Schema = nil
 	var exists bool = false
 	switch typ {
@@ -147,5 +147,5 @@ func GetSchema(typ ProviderType, provider *kbtypes.Provider) (*kbtypes.ProviderS
 	if !exists {
 		return nil, fmt.Errorf("%s provider %s not found", typ, provider.ID)
 	}
-	return schema.Schema(provider)
+	return schema.Schema(provider, locale)
 }

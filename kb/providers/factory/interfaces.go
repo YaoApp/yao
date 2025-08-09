@@ -39,5 +39,5 @@ type Fetcher interface {
 
 // Schema interface for providers
 type Schema interface {
-	Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error)
+	Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error)
 }

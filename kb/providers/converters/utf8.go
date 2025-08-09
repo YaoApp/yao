@@ -43,6 +43,6 @@ func (utf8 *UTF8) AutoDetect(filename, contentTypes string) (bool, int, error) {
 }
 
 // Schema returns the schema for the UTF8 converter
-func (utf8 *UTF8) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (utf8 *UTF8) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }

@@ -244,7 +244,7 @@ func TestVideo_AutoDetect(t *testing.T) {
 
 func TestVideo_Schema(t *testing.T) {
 	video := &Video{}
-	schema, err := video.Schema(nil)
+	schema, err := video.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

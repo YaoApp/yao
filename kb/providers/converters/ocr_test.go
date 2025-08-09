@@ -397,7 +397,7 @@ func TestOCR_AutoDetect(t *testing.T) {
 
 func TestOCR_Schema(t *testing.T) {
 	ocr := &OCR{}
-	schema, err := ocr.Schema(nil)
+	schema, err := ocr.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

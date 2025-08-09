@@ -108,6 +108,6 @@ func (office *Office) AutoDetect(filename, contentTypes string) (bool, int, erro
 }
 
 // Schema returns the schema for the Office converter
-func (office *Office) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (office *Office) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }

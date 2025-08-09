@@ -95,7 +95,7 @@ func (s *Structured) Options(option *kbtypes.ProviderOption) (*types.ChunkingOpt
 }
 
 // Schema returns the schema for the structured chunking provider
-func (s *Structured) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (s *Structured) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }
 
@@ -240,6 +240,6 @@ func (s *Semantic) Options(option *kbtypes.ProviderOption) (*types.ChunkingOptio
 }
 
 // Schema returns the schema for the semantic chunking provider
-func (s *Semantic) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (s *Semantic) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }

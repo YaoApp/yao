@@ -127,6 +127,6 @@ func (mcp *MCP) AutoDetect(filename, contentTypes string) (bool, int, error) {
 }
 
 // Schema returns the schema for the MCP converter
-func (mcp *MCP) Schema(provider *kbtypes.Provider) (*kbtypes.ProviderSchema, error) {
+func (mcp *MCP) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
 	return nil, nil
 }

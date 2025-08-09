@@ -303,7 +303,7 @@ func TestOffice_AutoDetect(t *testing.T) {
 
 func TestOffice_Schema(t *testing.T) {
 	office := &Office{}
-	schema, err := office.Schema(nil)
+	schema, err := office.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

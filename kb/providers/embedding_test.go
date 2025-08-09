@@ -122,7 +122,7 @@ func TestOpenAI_Make(t *testing.T) {
 
 func TestOpenAI_Schema(t *testing.T) {
 	openai := &OpenAI{}
-	schema, err := openai.Schema(nil)
+	schema, err := openai.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -283,7 +283,7 @@ func TestFastembed_Make(t *testing.T) {
 
 func TestFastembed_Schema(t *testing.T) {
 	fastembed := &Fastembed{}
-	schema, err := fastembed.Schema(nil)
+	schema, err := fastembed.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

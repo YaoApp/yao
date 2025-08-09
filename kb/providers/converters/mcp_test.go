@@ -220,7 +220,7 @@ func TestMCP_AutoDetect(t *testing.T) {
 
 func TestMCP_Schema(t *testing.T) {
 	mcp := &MCP{}
-	schema, err := mcp.Schema(nil)
+	schema, err := mcp.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

@@ -121,7 +121,7 @@ func TestUTF8_AutoDetect(t *testing.T) {
 
 func TestUTF8_Schema(t *testing.T) {
 	utf8 := &UTF8{}
-	schema, err := utf8.Schema(nil)
+	schema, err := utf8.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

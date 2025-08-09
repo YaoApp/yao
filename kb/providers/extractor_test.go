@@ -279,7 +279,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 
 func TestExtractorOpenAI_Schema(t *testing.T) {
 	extractor := &ExtractorOpenAI{}
-	schema, err := extractor.Schema(nil)
+	schema, err := extractor.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
