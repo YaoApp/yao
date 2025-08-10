@@ -1,0 +1,136 @@
+{
+  "id": "__yao.vision",
+  "title": "Vision Analysis",
+  "description": "Analyzes images using AI vision models to extract text, describe content, and identify objects. Supports various image formats with configurable compression and language settings.",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "Vision Connector",
+      "description": "AI vision model connector for image analysis.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI Vision",
+          "options": [
+            {
+              "label": "GPT-4o",
+              "value": "openai.gpt-4o",
+              "description": "High-quality vision model with detailed analysis capabilities",
+              "default": true
+            },
+            {
+              "label": "GPT-4o Mini",
+              "value": "openai.gpt-4o-mini",
+              "description": "Cost-effective vision model for basic image analysis"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Alternative Models",
+          "options": [
+            {
+              "label": "Claude 3.5 Sonnet",
+              "value": "anthropic.claude-3-5-sonnet",
+              "description": "Excellent vision understanding and detailed descriptions"
+            },
+            {
+              "label": "Google Gemini Vision",
+              "value": "google.gemini-vision",
+              "description": "Google's multimodal AI with vision capabilities"
+            }
+          ]
+        }
+      ],
+      "width": "half",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "Model Name",
+      "description": "Specific model name (optional, uses connector default).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Custom Prompt",
+      "description": "Custom prompt for image analysis. Leave empty to use default analysis prompt.",
+      "default": "",
+      "component": "TextArea",
+      "placeholder": "e.g., Describe this image in detail, focusing on text content and key visual elements.",
+      "width": "full",
+      "order": 3
+    },
+    "compress_size": {
+      "type": "integer",
+      "title": "Compress Size (KB)",
+      "description": "Maximum image size in KB before compression for API processing.",
+      "default": 512,
+      "minimum": 100,
+      "maximum": 5120,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Expected content language for better analysis (Auto = automatic detection).",
+      "default": "Auto",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "Auto Detect",
+          "value": "Auto",
+          "description": "Automatically detect content language",
+          "default": true
+        },
+        {
+          "label": "English",
+          "value": "English",
+          "description": "English content analysis"
+        },
+        {
+          "label": "Chinese",
+          "value": "Chinese",
+          "description": "Chinese content analysis"
+        },
+        {
+          "label": "Spanish",
+          "value": "Spanish",
+          "description": "Spanish content analysis"
+        },
+        {
+          "label": "French",
+          "value": "French",
+          "description": "French content analysis"
+        },
+        {
+          "label": "German",
+          "value": "German",
+          "description": "German content analysis"
+        },
+        {
+          "label": "Japanese",
+          "value": "Japanese",
+          "description": "Japanese content analysis"
+        }
+      ],
+      "width": "half",
+      "order": 5
+    },
+    "options": {
+      "type": "string",
+      "title": "Additional Options (JSON)",
+      "description": "Additional model-specific options in JSON format.",
+      "default": "",
+      "component": "CodeEditor",
+      "width": "full",
+      "order": 6
+    }
+  }
+}

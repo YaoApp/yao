@@ -1,0 +1,232 @@
+{
+  "id": "__yao.fastembed",
+  "title": "FastEmbed Embeddings",
+  "description": "FastEmbed local and remote embedding models for high-performance text vectorization. Supports various open-source models with configurable hosting options.",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "FastEmbed Connector",
+      "description": "FastEmbed connector for embedding model access.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "Local Models",
+          "options": [
+            {
+              "label": "BAAI/bge-small-en-v1.5",
+              "value": "fastembed.bge-small-en-v1.5",
+              "description": "384 dimensions, English optimized, fast inference",
+              "default": true
+            },
+            {
+              "label": "BAAI/bge-base-en-v1.5",
+              "value": "fastembed.bge-base-en-v1.5",
+              "description": "768 dimensions, English optimized, balanced performance"
+            },
+            {
+              "label": "BAAI/bge-large-en-v1.5",
+              "value": "fastembed.bge-large-en-v1.5",
+              "description": "1024 dimensions, English optimized, highest quality"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Multilingual Models",
+          "options": [
+            {
+              "label": "BAAI/bge-small-zh-v1.5",
+              "value": "fastembed.bge-small-zh-v1.5",
+              "description": "384 dimensions, Chinese optimized"
+            },
+            {
+              "label": "sentence-transformers/all-MiniLM-L6-v2",
+              "value": "fastembed.all-MiniLM-L6-v2",
+              "description": "384 dimensions, multilingual support"
+            },
+            {
+              "label": "sentence-transformers/all-mpnet-base-v2",
+              "value": "fastembed.all-mpnet-base-v2",
+              "description": "768 dimensions, multilingual, high quality"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Remote API",
+          "options": [
+            {
+              "label": "Custom API Endpoint",
+              "value": "fastembed.custom",
+              "description": "Connect to custom FastEmbed API endpoint"
+            }
+          ]
+        }
+      ],
+      "width": "full",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "Model Name (Optional)",
+      "description": "Specific model name to override connector default.",
+      "default": "",
+      "component": "Input",
+      "placeholder": "e.g., BAAI/bge-small-en-v1.5",
+      "width": "half",
+      "order": 2
+    },
+    "dimensions": {
+      "type": "integer",
+      "title": "Embedding Dimensions",
+      "description": "Number of dimensions for the embedding vectors.",
+      "default": 384,
+      "component": "Select",
+      "enum": [
+        {
+          "label": "384 (BGE Small default)",
+          "value": 384,
+          "description": "Standard dimension for small models",
+          "default": true
+        },
+        {
+          "label": "768 (BGE Base default)",
+          "value": 768,
+          "description": "Standard dimension for base models"
+        },
+        {
+          "label": "1024 (BGE Large default)",
+          "value": 1024,
+          "description": "Standard dimension for large models"
+        },
+        {
+          "label": "512",
+          "value": 512,
+          "description": "Custom dimension for specific models"
+        },
+        {
+          "label": "256",
+          "value": 256,
+          "description": "Reduced dimension for memory efficiency"
+        }
+      ],
+      "width": "half",
+      "order": 3
+    },
+    "concurrent": {
+      "type": "integer",
+      "title": "Concurrent Requests",
+      "description": "Number of concurrent embedding requests to process.",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 100,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "host": {
+      "type": "string",
+      "title": "API Host (Optional)",
+      "description": "Custom API host for remote FastEmbed service.",
+      "default": "",
+      "component": "Input",
+      "placeholder": "https://api.example.com",
+      "width": "half",
+      "order": 5
+    },
+    "key": {
+      "type": "string",
+      "title": "API Key (Optional)",
+      "description": "API key for authentication with remote service.",
+      "default": "",
+      "component": "Input",
+      "placeholder": "your-api-key-here",
+      "width": "half",
+      "order": 6
+    },
+    "batch_size": {
+      "type": "integer",
+      "title": "Batch Size",
+      "description": "Number of texts to embed in each batch.",
+      "default": 32,
+      "minimum": 1,
+      "maximum": 512,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "max_length": {
+      "type": "integer",
+      "title": "Max Token Length",
+      "description": "Maximum token length for input texts.",
+      "default": 512,
+      "minimum": 64,
+      "maximum": 8192,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 8
+    },
+    "normalize": {
+      "type": "boolean",
+      "title": "Normalize Vectors",
+      "description": "Normalize embedding vectors to unit length.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 9
+    },
+    "cache_dir": {
+      "type": "string",
+      "title": "Model Cache Directory",
+      "description": "Directory to cache downloaded models (empty = default cache).",
+      "default": "",
+      "component": "Input",
+      "placeholder": "/path/to/model/cache",
+      "width": "half",
+      "order": 10
+    },
+    "device": {
+      "type": "string",
+      "title": "Compute Device",
+      "description": "Device to use for model inference.",
+      "default": "cpu",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "CPU",
+          "value": "cpu",
+          "description": "Use CPU for inference (compatible with all systems)",
+          "default": true
+        },
+        {
+          "label": "CUDA (GPU)",
+          "value": "cuda",
+          "description": "Use NVIDIA GPU for faster inference"
+        },
+        {
+          "label": "MPS (Apple Silicon)",
+          "value": "mps",
+          "description": "Use Apple Silicon GPU acceleration"
+        },
+        {
+          "label": "Auto",
+          "value": "auto",
+          "description": "Automatically select best available device"
+        }
+      ],
+      "width": "half",
+      "order": 11
+    },
+    "threads": {
+      "type": "integer",
+      "title": "CPU Threads",
+      "description": "Number of CPU threads to use (-1 = auto).",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 32,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 12
+    }
+  }
+}

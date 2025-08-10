@@ -1,0 +1,140 @@
+{
+  "id": "__yao.mcp",
+  "title": "MCP 工具转换器",
+  "description": "模型上下文协议（MCP）转换器，使用外部工具进行内容转换。允许通过 MCP 接口与自定义转换工具集成。",
+  "required": ["id", "tool"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "title": "MCP 服务器 ID",
+      "description": "用于转换的 MCP 服务器标识符。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 1
+    },
+    "tool": {
+      "type": "string",
+      "title": "工具名称",
+      "description": "用于转换的 MCP 工具名称。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "arguments_mapping": {
+      "type": "object",
+      "title": "参数映射",
+      "description": "转换参数到 MCP 工具参数的映射。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 3,
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "title": "文件路径参数",
+          "description": "输入文件路径的 MCP 工具参数名称。",
+          "default": "file_path",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "content": {
+          "type": "string",
+          "title": "内容参数",
+          "description": "文件内容的 MCP 工具参数名称。",
+          "default": "content",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "format": {
+          "type": "string",
+          "title": "格式参数",
+          "description": "输出格式规范的 MCP 工具参数名称。",
+          "default": "format",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "options": {
+          "type": "string",
+          "title": "选项参数",
+          "description": "附加选项的 MCP 工具参数名称。",
+          "default": "options",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        }
+      }
+    },
+    "result_mapping": {
+      "type": "object",
+      "title": "结果映射",
+      "description": "MCP 工具响应字段到转换结果的映射。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 4,
+      "properties": {
+        "content": {
+          "type": "string",
+          "title": "内容字段",
+          "description": "包含转换内容的响应字段。",
+          "default": "content",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "metadata": {
+          "type": "string",
+          "title": "元数据字段",
+          "description": "包含转换元数据的响应字段。",
+          "default": "metadata",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "error": {
+          "type": "string",
+          "title": "错误字段",
+          "description": "包含错误信息的响应字段。",
+          "default": "error",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        }
+      }
+    },
+    "notification_mapping": {
+      "type": "object",
+      "title": "通知映射",
+      "description": "转换期间 MCP 通知处理的映射。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 5,
+      "properties": {
+        "progress": {
+          "type": "string",
+          "title": "进度通知",
+          "description": "转换进度更新的通知类型。",
+          "default": "progress",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "status": {
+          "type": "string",
+          "title": "状态通知",
+          "description": "状态变更的通知类型。",
+          "default": "status",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        }
+      }
+    }
+  }
+}

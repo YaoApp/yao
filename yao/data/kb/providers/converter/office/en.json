@@ -1,0 +1,179 @@
+{
+  "id": "__yao.office",
+  "title": "Office Document Converter",
+  "description": "Converts Microsoft Office documents (DOCX, PPTX) to text. Supports extracting text, images, and multimedia content using AI vision and audio processing.",
+  "required": ["vision"],
+  "properties": {
+    "max_concurrency": {
+      "type": "integer",
+      "title": "Max Concurrency",
+      "description": "Maximum number of concurrent office processing operations.",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "temp_dir": {
+      "type": "string",
+      "title": "Temporary Directory",
+      "description": "Custom temporary directory for file processing (empty = system temp).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "cleanup_temp": {
+      "type": "boolean",
+      "title": "Cleanup Temporary Files",
+      "description": "Automatically clean up temporary files after processing.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 3
+    },
+    "vision": {
+      "type": "object",
+      "title": "Vision Converter",
+      "description": "Vision AI converter for processing images and visual content in documents.",
+      "required": true,
+      "component": "Nested",
+      "width": "full",
+      "order": 4,
+      "requiredFields": ["connector"],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "Vision Connector",
+          "description": "AI vision model connector for image analysis.",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI Vision",
+              "options": [
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "High-quality vision model for detailed image analysis",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "Cost-effective vision model for basic image processing"
+                }
+              ]
+            },
+            {
+              "groupLabel": "Alternative Models",
+              "options": [
+                {
+                  "label": "Claude 3.5 Sonnet",
+                  "value": "anthropic.claude-3-5-sonnet",
+                  "description": "Excellent vision understanding and content analysis"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "model": {
+          "type": "string",
+          "title": "Model Name",
+          "description": "Specific model name (optional, uses connector default).",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "prompt": {
+          "type": "string",
+          "title": "Custom Prompt",
+          "description": "Custom prompt for image analysis (optional).",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 3
+        }
+      }
+    },
+    "video": {
+      "type": "object",
+      "title": "Video Converter (Optional)",
+      "description": "Video converter for processing video content in presentations.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 5,
+      "properties": {
+        "keyframe_interval": {
+          "type": "number",
+          "title": "Keyframe Interval (seconds)",
+          "description": "Interval between extracted keyframes.",
+          "default": 10.0,
+          "minimum": 1.0,
+          "maximum": 60.0,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 1
+        },
+        "max_keyframes": {
+          "type": "integer",
+          "title": "Max Keyframes",
+          "description": "Maximum number of keyframes to extract.",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 2
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "Audio Converter (Optional)",
+      "description": "Audio converter for processing audio content in presentations.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 6,
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "Audio Connector",
+          "description": "AI audio transcription connector.",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI Audio",
+              "options": [
+                {
+                  "label": "Whisper",
+                  "value": "openai.whisper-1",
+                  "description": "High-quality audio transcription",
+                  "default": true
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "language": {
+          "type": "string",
+          "title": "Language",
+          "description": "Expected audio language (auto-detect if empty).",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        }
+      }
+    }
+  }
+}
