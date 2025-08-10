@@ -401,7 +401,7 @@ func TestOCR_Schema(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	if schema != nil {
-		t.Error("Expected nil schema")
+	if schema == nil {
+		t.Error("Expected non-nil schema from factory.GetSchemaFromBindata")
 	}
 }
