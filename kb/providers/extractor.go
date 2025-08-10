@@ -129,5 +129,5 @@ func (e *ExtractorOpenAI) Make(option *kbtypes.ProviderOption) (types.Extraction
 
 // Schema returns the schema for the OpenAI extractor provider
 func (e *ExtractorOpenAI) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
-	return nil, nil
+	return factory.GetSchemaFromBindata(factory.ProviderTypeExtractor, "openai", locale)
 }

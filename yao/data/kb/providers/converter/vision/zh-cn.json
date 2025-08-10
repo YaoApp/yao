@@ -1,0 +1,136 @@
+{
+  "id": "__yao.vision",
+  "title": "视觉分析",
+  "description": "使用 AI 视觉模型分析图像以提取文本、描述内容和识别对象。支持多种图像格式，具有可配置的压缩和语言设置。",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "视觉连接器",
+      "description": "用于图像分析的 AI 视觉模型连接器。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI 视觉模型",
+          "options": [
+            {
+              "label": "GPT-4o",
+              "value": "openai.gpt-4o",
+              "description": "具有详细分析能力的高质量视觉模型",
+              "default": true
+            },
+            {
+              "label": "GPT-4o Mini",
+              "value": "openai.gpt-4o-mini",
+              "description": "基础图像分析的经济型视觉模型"
+            }
+          ]
+        },
+        {
+          "groupLabel": "其他模型",
+          "options": [
+            {
+              "label": "Claude 3.5 Sonnet",
+              "value": "anthropic.claude-3-5-sonnet",
+              "description": "出色的视觉理解和详细描述能力"
+            },
+            {
+              "label": "Google Gemini Vision",
+              "value": "google.gemini-vision",
+              "description": "Google 的多模态 AI，具有视觉能力"
+            }
+          ]
+        }
+      ],
+      "width": "half",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "模型名称",
+      "description": "具体模型名称（可选，使用连接器默认值）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "prompt": {
+      "type": "string",
+      "title": "自定义提示",
+      "description": "图像分析的自定义提示。留空则使用默认分析提示。",
+      "default": "",
+      "component": "TextArea",
+      "placeholder": "例如：详细描述这张图像，重点关注文本内容和关键视觉元素。",
+      "width": "full",
+      "order": 3
+    },
+    "compress_size": {
+      "type": "integer",
+      "title": "压缩大小（KB）",
+      "description": "API 处理前压缩的最大图像大小（KB）。",
+      "default": 512,
+      "minimum": 100,
+      "maximum": 5120,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "language": {
+      "type": "string",
+      "title": "语言",
+      "description": "预期内容语言，以便更好地分析（自动 = 自动检测）。",
+      "default": "Auto",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "自动检测",
+          "value": "Auto",
+          "description": "自动检测内容语言",
+          "default": true
+        },
+        {
+          "label": "英语",
+          "value": "English",
+          "description": "英语内容分析"
+        },
+        {
+          "label": "中文",
+          "value": "Chinese",
+          "description": "中文内容分析"
+        },
+        {
+          "label": "西班牙语",
+          "value": "Spanish",
+          "description": "西班牙语内容分析"
+        },
+        {
+          "label": "法语",
+          "value": "French",
+          "description": "法语内容分析"
+        },
+        {
+          "label": "德语",
+          "value": "German",
+          "description": "德语内容分析"
+        },
+        {
+          "label": "日语",
+          "value": "Japanese",
+          "description": "日语内容分析"
+        }
+      ],
+      "width": "half",
+      "order": 5
+    },
+    "options": {
+      "type": "string",
+      "title": "附加选项（JSON）",
+      "description": "JSON 格式的附加模型特定选项。",
+      "default": "",
+      "component": "CodeEditor",
+      "width": "full",
+      "order": 6
+    }
+  }
+}

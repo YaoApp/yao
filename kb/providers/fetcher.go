@@ -67,7 +67,7 @@ func (f *FetcherHTTP) Make(option *kbtypes.ProviderOption) (types.Fetcher, error
 
 // Schema returns the schema for the HTTP fetcher provider
 func (f *FetcherHTTP) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
-	return nil, nil
+	return factory.GetSchemaFromBindata(factory.ProviderTypeFetcher, "http", locale)
 }
 
 // === FetcherMCP ===
@@ -156,5 +156,5 @@ func (f *FetcherMCP) Make(option *kbtypes.ProviderOption) (types.Fetcher, error)
 
 // Schema returns the schema for the MCP fetcher provider
 func (f *FetcherMCP) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
-	return nil, nil
+	return factory.GetSchemaFromBindata(factory.ProviderTypeFetcher, "mcp", locale)
 }

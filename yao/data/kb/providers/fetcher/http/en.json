@@ -1,0 +1,188 @@
+{
+  "id": "__yao.http",
+  "title": "HTTP Web Fetcher",
+  "description": "Fetches content from web URLs using HTTP/HTTPS protocols. Supports custom headers, user agent configuration, and timeout settings for reliable web content retrieval.",
+  "required": [],
+  "properties": {
+    "headers": {
+      "type": "object",
+      "title": "Custom Headers",
+      "description": "Custom HTTP headers to include with requests.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 1,
+      "properties": {
+        "Authorization": {
+          "type": "string",
+          "title": "Authorization",
+          "description": "Authorization header for authenticated requests.",
+          "default": "",
+          "component": "Input",
+          "placeholder": "Bearer token or Basic auth",
+          "width": "full",
+          "order": 1
+        },
+        "Accept": {
+          "type": "string",
+          "title": "Accept",
+          "description": "Accept header to specify preferred content types.",
+          "default": "*/*",
+          "component": "Select",
+          "enum": [
+            {
+              "label": "All Types",
+              "value": "*/*",
+              "description": "Accept any content type",
+              "default": true
+            },
+            {
+              "label": "HTML",
+              "value": "text/html",
+              "description": "HTML documents only"
+            },
+            {
+              "label": "JSON",
+              "value": "application/json",
+              "description": "JSON data only"
+            },
+            {
+              "label": "XML",
+              "value": "application/xml,text/xml",
+              "description": "XML documents"
+            },
+            {
+              "label": "Plain Text",
+              "value": "text/plain",
+              "description": "Plain text content"
+            }
+          ],
+          "width": "half",
+          "order": 2
+        },
+        "Accept-Language": {
+          "type": "string",
+          "title": "Accept Language",
+          "description": "Preferred language for content.",
+          "default": "en-US,en;q=0.9",
+          "component": "Input",
+          "placeholder": "en-US,en;q=0.9,zh-CN;q=0.8",
+          "width": "half",
+          "order": 3
+        },
+        "Referer": {
+          "type": "string",
+          "title": "Referer",
+          "description": "Referer header for the request.",
+          "default": "",
+          "component": "Input",
+          "placeholder": "https://example.com",
+          "width": "full",
+          "order": 4
+        },
+        "Cookie": {
+          "type": "string",
+          "title": "Cookie",
+          "description": "Cookie header for session management.",
+          "default": "",
+          "component": "Input",
+          "placeholder": "session=abc123; preference=light",
+          "width": "full",
+          "order": 5
+        }
+      }
+    },
+    "user_agent": {
+      "type": "string",
+      "title": "User Agent",
+      "description": "User agent string to identify the fetcher.",
+      "default": "GraphRAG-Fetcher/1.0",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "Default GraphRAG",
+          "value": "GraphRAG-Fetcher/1.0",
+          "description": "Default GraphRAG fetcher user agent",
+          "default": true
+        },
+        {
+          "label": "Chrome Desktop",
+          "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "description": "Chrome browser on Windows"
+        },
+        {
+          "label": "Firefox Desktop",
+          "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+          "description": "Firefox browser on Windows"
+        },
+        {
+          "label": "Safari macOS",
+          "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Version/17.0 Safari/537.36",
+          "description": "Safari browser on macOS"
+        },
+        {
+          "label": "Mobile Chrome",
+          "value": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+          "description": "Chrome browser on Android"
+        },
+        {
+          "label": "Custom",
+          "value": "",
+          "description": "Enter custom user agent below"
+        }
+      ],
+      "width": "full",
+      "order": 2
+    },
+    "custom_user_agent": {
+      "type": "string",
+      "title": "Custom User Agent",
+      "description": "Custom user agent string (used when 'Custom' is selected above).",
+      "default": "",
+      "component": "Input",
+      "placeholder": "Your custom user agent string",
+      "width": "full",
+      "order": 3
+    },
+    "timeout": {
+      "type": "integer",
+      "title": "Timeout (seconds)",
+      "description": "Request timeout in seconds.",
+      "default": 300,
+      "minimum": 5,
+      "maximum": 3600,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "follow_redirects": {
+      "type": "boolean",
+      "title": "Follow Redirects",
+      "description": "Automatically follow HTTP redirects.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 5
+    },
+    "max_redirects": {
+      "type": "integer",
+      "title": "Max Redirects",
+      "description": "Maximum number of redirects to follow.",
+      "default": 10,
+      "minimum": 0,
+      "maximum": 50,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "title": "Verify SSL",
+      "description": "Verify SSL certificates for HTTPS requests.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 7
+    }
+  }
+}

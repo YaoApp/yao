@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/gou/graphrag/converter"
 	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/yao/kb/providers/factory"
 	kbtypes "github.com/yaoapp/yao/kb/types"
 )
 
@@ -44,5 +45,5 @@ func (utf8 *UTF8) AutoDetect(filename, contentTypes string) (bool, int, error) {
 
 // Schema returns the schema for the UTF8 converter
 func (utf8 *UTF8) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
-	return nil, nil
+	return factory.GetSchemaFromBindata(factory.ProviderTypeConverter, "utf8", locale)
 }

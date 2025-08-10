@@ -1,0 +1,296 @@
+{
+  "id": "__yao.openai",
+  "title": "OpenAI 实体提取器",
+  "description": "使用 OpenAI 语言模型进行 AI 驱动的实体和关系提取。从非结构化文本中提取结构化信息，支持可配置的提示和工具调用功能。",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "OpenAI 连接器",
+      "description": "用于提取 API 访问的 OpenAI 连接器。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI 模型",
+          "options": [
+            {
+              "label": "GPT-4o",
+              "value": "openai.gpt-4o",
+              "description": "最新的 GPT-4o 模型，适用于复杂的提取任务",
+              "default": true
+            },
+            {
+              "label": "GPT-4o Mini",
+              "value": "openai.gpt-4o-mini",
+              "description": "经济高效的 GPT-4o Mini，适用于基础提取"
+            },
+            {
+              "label": "GPT-4 Turbo",
+              "value": "openai.gpt-4-turbo",
+              "description": "性能增强的 GPT-4 Turbo"
+            },
+            {
+              "label": "GPT-3.5 Turbo",
+              "value": "openai.gpt-3.5-turbo",
+              "description": "快速经济，适用于简单提取"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Azure OpenAI",
+          "options": [
+            {
+              "label": "Azure GPT-4o",
+              "value": "azure.gpt-4o",
+              "description": "Azure 托管的 GPT-4o 模型"
+            },
+            {
+              "label": "Azure GPT-4",
+              "value": "azure.gpt-4",
+              "description": "Azure 托管的 GPT-4 模型"
+            }
+          ]
+        }
+      ],
+      "width": "full",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "模型名称（可选）",
+      "description": "覆盖连接器默认值的特定模型名称。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "使用连接器默认",
+          "value": "",
+          "description": "使用所选连接器的默认模型",
+          "default": true
+        },
+        {
+          "label": "gpt-4o",
+          "value": "gpt-4o",
+          "description": "最新的 GPT-4o 模型"
+        },
+        {
+          "label": "gpt-4o-mini",
+          "value": "gpt-4o-mini",
+          "description": "经济高效的 GPT-4o Mini"
+        },
+        {
+          "label": "gpt-4-turbo",
+          "value": "gpt-4-turbo",
+          "description": "GPT-4 Turbo 模型"
+        },
+        {
+          "label": "gpt-3.5-turbo",
+          "value": "gpt-3.5-turbo",
+          "description": "GPT-3.5 Turbo 模型"
+        }
+      ],
+      "width": "half",
+      "order": 2
+    },
+    "toolcall": {
+      "type": "boolean",
+      "title": "启用工具调用",
+      "description": "使用结构化工具调用以获得更可靠的提取。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 3
+    },
+    "temperature": {
+      "type": "number",
+      "title": "温度",
+      "description": "控制提取的随机性（0.0 = 确定性，1.0 = 创造性）。",
+      "default": 0.1,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "max_tokens": {
+      "type": "integer",
+      "title": "最大令牌数",
+      "description": "响应中的最大令牌数。",
+      "default": 4000,
+      "minimum": 100,
+      "maximum": 32000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "concurrent": {
+      "type": "integer",
+      "title": "并发请求数",
+      "description": "要处理的并发提取请求数。",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 50,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "retry_attempts": {
+      "type": "integer",
+      "title": "重试次数",
+      "description": "失败提取的重试次数。",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "retry_delay": {
+      "type": "number",
+      "title": "重试延迟（秒）",
+      "description": "重试尝试之间的延迟时间（秒）。",
+      "default": 1.0,
+      "minimum": 0.1,
+      "maximum": 60.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 8
+    },
+    "prompt": {
+      "type": "string",
+      "title": "自定义提取提示",
+      "description": "用于实体和关系提取的自定义提示（可选）。",
+      "default": "",
+      "component": "TextArea",
+      "placeholder": "您是从文本中提取实体和关系的专家。请以结构化格式提取所有相关实体及其关系...",
+      "width": "full",
+      "order": 9
+    },
+    "extraction_types": {
+      "type": "object",
+      "title": "提取配置",
+      "description": "配置要提取的实体和关系类型。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 10,
+      "properties": {
+        "entities": {
+          "type": "boolean",
+          "title": "提取实体",
+          "description": "提取命名实体（人物、地点、组织等）。",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 1
+        },
+        "relationships": {
+          "type": "boolean",
+          "title": "提取关系",
+          "description": "提取实体之间的关系。",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 2
+        },
+        "concepts": {
+          "type": "boolean",
+          "title": "提取概念",
+          "description": "提取关键概念和主题。",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 3
+        },
+        "summaries": {
+          "type": "boolean",
+          "title": "生成摘要",
+          "description": "生成文档摘要。",
+          "default": false,
+          "component": "Switch",
+          "width": "half",
+          "order": 4
+        },
+        "entity_types": {
+          "type": "string",
+          "title": "实体类型",
+          "description": "要重点关注的实体类型，用逗号分隔（可选）。",
+          "default": "",
+          "component": "Input",
+          "placeholder": "人物, 组织, 地点, 事件, 产品",
+          "width": "full",
+          "order": 5
+        },
+        "relationship_types": {
+          "type": "string",
+          "title": "关系类型",
+          "description": "要重点关注的关系类型，用逗号分隔（可选）。",
+          "default": "",
+          "component": "Input",
+          "placeholder": "工作于, 位于, 属于, 相关于",
+          "width": "full",
+          "order": 6
+        }
+      }
+    },
+    "tools": {
+      "type": "string",
+      "title": "自定义工具（JSON）",
+      "description": "用于结构化提取的自定义工具定义（高级用法）。",
+      "default": "",
+      "component": "CodeEditor",
+      "width": "full",
+      "order": 11
+    },
+    "quality_settings": {
+      "type": "object",
+      "title": "质量设置",
+      "description": "微调提取质量和性能。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 12,
+      "properties": {
+        "confidence_threshold": {
+          "type": "number",
+          "title": "置信度阈值",
+          "description": "提取实体的最小置信度分数（0.0-1.0）。",
+          "default": 0.7,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 1
+        },
+        "deduplicate": {
+          "type": "boolean",
+          "title": "去重结果",
+          "description": "移除重复的实体和关系。",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 2
+        },
+        "normalize_entities": {
+          "type": "boolean",
+          "title": "规范化实体名称",
+          "description": "规范化实体名称以保持一致性。",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 3
+        },
+        "include_context": {
+          "type": "boolean",
+          "title": "包含上下文",
+          "description": "为提取的实体包含周围上下文。",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 4
+        }
+      }
+    }
+  }
+}

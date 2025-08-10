@@ -1,0 +1,7 @@
+{
+  "id": "__yao.utf8",
+  "title": "Plain Text Converter",
+  "description": "Processes plain text files (TXT, MD, etc.) by reading and normalizing UTF-8 content. This is the simplest converter that directly reads text files without any AI processing.",
+  "required": [],
+  "properties": {}
+}

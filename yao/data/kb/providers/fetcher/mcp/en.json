@@ -1,0 +1,221 @@
+{
+  "id": "__yao.mcp",
+  "title": "MCP Tool Fetcher",
+  "description": "Model Context Protocol (MCP) fetcher that uses external tools for content retrieval. Allows integration with custom fetching tools through the MCP interface.",
+  "required": ["id", "tool"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "title": "MCP Server ID",
+      "description": "Identifier of the MCP server to use for fetching content.",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 1
+    },
+    "tool": {
+      "type": "string",
+      "title": "Tool Name",
+      "description": "Name of the MCP tool to invoke for content fetching.",
+      "default": "fetch",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "arguments_mapping": {
+      "type": "object",
+      "title": "Arguments Mapping",
+      "description": "Mapping of fetch parameters to MCP tool arguments.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 3,
+      "properties": {
+        "url": {
+          "type": "string",
+          "title": "URL Argument",
+          "description": "MCP tool argument name for the URL to fetch.",
+          "default": "url",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "method": {
+          "type": "string",
+          "title": "Method Argument",
+          "description": "MCP tool argument name for HTTP method.",
+          "default": "method",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "headers": {
+          "type": "string",
+          "title": "Headers Argument",
+          "description": "MCP tool argument name for HTTP headers.",
+          "default": "headers",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "timeout": {
+          "type": "string",
+          "title": "Timeout Argument",
+          "description": "MCP tool argument name for request timeout.",
+          "default": "timeout",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        },
+        "user_agent": {
+          "type": "string",
+          "title": "User Agent Argument",
+          "description": "MCP tool argument name for user agent string.",
+          "default": "user_agent",
+          "component": "Input",
+          "width": "half",
+          "order": 5
+        },
+        "follow_redirects": {
+          "type": "string",
+          "title": "Follow Redirects Argument",
+          "description": "MCP tool argument name for redirect following option.",
+          "default": "follow_redirects",
+          "component": "Input",
+          "width": "half",
+          "order": 6
+        }
+      }
+    },
+    "result_mapping": {
+      "type": "object",
+      "title": "Result Mapping",
+      "description": "Mapping of MCP tool response fields to fetch results.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 4,
+      "properties": {
+        "content": {
+          "type": "string",
+          "title": "Content Field",
+          "description": "Response field containing the fetched content.",
+          "default": "content",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "url": {
+          "type": "string",
+          "title": "URL Field",
+          "description": "Response field containing the final URL (after redirects).",
+          "default": "url",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "status_code": {
+          "type": "string",
+          "title": "Status Code Field",
+          "description": "Response field containing the HTTP status code.",
+          "default": "status_code",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "headers": {
+          "type": "string",
+          "title": "Headers Field",
+          "description": "Response field containing the response headers.",
+          "default": "headers",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        },
+        "content_type": {
+          "type": "string",
+          "title": "Content Type Field",
+          "description": "Response field containing the content type.",
+          "default": "content_type",
+          "component": "Input",
+          "width": "half",
+          "order": 5
+        },
+        "content_length": {
+          "type": "string",
+          "title": "Content Length Field",
+          "description": "Response field containing the content length.",
+          "default": "content_length",
+          "component": "Input",
+          "width": "half",
+          "order": 6
+        },
+        "metadata": {
+          "type": "string",
+          "title": "Metadata Field",
+          "description": "Response field containing additional metadata.",
+          "default": "metadata",
+          "component": "Input",
+          "width": "half",
+          "order": 7
+        },
+        "error": {
+          "type": "string",
+          "title": "Error Field",
+          "description": "Response field containing error information.",
+          "default": "error",
+          "component": "Input",
+          "width": "half",
+          "order": 8
+        }
+      }
+    },
+    "notification_mapping": {
+      "type": "object",
+      "title": "Notification Mapping",
+      "description": "Mapping for MCP notification handling during fetching.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 5,
+      "properties": {
+        "progress": {
+          "type": "string",
+          "title": "Progress Notification",
+          "description": "Notification type for fetch progress updates.",
+          "default": "progress",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "status": {
+          "type": "string",
+          "title": "Status Notification",
+          "description": "Notification type for status changes.",
+          "default": "status",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "redirect": {
+          "type": "string",
+          "title": "Redirect Notification",
+          "description": "Notification type for redirect events.",
+          "default": "redirect",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "error": {
+          "type": "string",
+          "title": "Error Notification",
+          "description": "Notification type for error events.",
+          "default": "error",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        }
+      }
+    }
+  }
+}

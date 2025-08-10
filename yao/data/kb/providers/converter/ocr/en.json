@@ -1,0 +1,228 @@
+{
+  "id": "__yao.ocr",
+  "title": "OCR Text Recognition",
+  "description": "Optical Character Recognition for extracting text from images and PDF files. Supports various PDF conversion tools and configurable image processing options.",
+  "required": ["vision"],
+  "properties": {
+    "mode": {
+      "type": "string",
+      "title": "Processing Mode",
+      "description": "Processing mode for OCR operations.",
+      "default": "queue",
+      "enum": [
+        {
+          "label": "Queue Mode",
+          "value": "queue",
+          "description": "Process images sequentially in queue",
+          "default": true
+        },
+        {
+          "label": "Concurrent Mode",
+          "value": "concurrent",
+          "description": "Process images concurrently"
+        }
+      ],
+      "component": "Select",
+      "width": "half",
+      "order": 1
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "title": "Max Concurrency",
+      "description": "Maximum number of concurrent OCR processes.",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "compress_size": {
+      "type": "integer",
+      "title": "Compress Size (KB)",
+      "description": "Maximum image size in KB before compression.",
+      "default": 512,
+      "minimum": 100,
+      "maximum": 5120,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 3
+    },
+    "force_image_mode": {
+      "type": "boolean",
+      "title": "Force Image Mode",
+      "description": "Force processing PDF as images instead of extracting text directly.",
+      "default": false,
+      "component": "Switch",
+      "width": "half",
+      "order": 4
+    },
+    "pdf_tool": {
+      "type": "string",
+      "title": "PDF Conversion Tool",
+      "description": "Tool used to convert PDF pages to images.",
+      "default": "pdftoppm",
+      "enum": [
+        {
+          "label": "pdftoppm",
+          "value": "pdftoppm",
+          "description": "Fast and reliable PDF to image conversion",
+          "default": true
+        },
+        {
+          "label": "mutool",
+          "value": "mutool",
+          "description": "MuPDF toolkit for PDF processing"
+        },
+        {
+          "label": "ImageMagick",
+          "value": "imagemagick",
+          "description": "Versatile image processing toolkit"
+        }
+      ],
+      "component": "Select",
+      "width": "half",
+      "order": 5
+    },
+    "pdf_tool_path": {
+      "type": "string",
+      "title": "PDF Tool Path",
+      "description": "Custom path to the PDF conversion tool executable.",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 6
+    },
+    "pdf_dpi": {
+      "type": "integer",
+      "title": "PDF DPI",
+      "description": "Resolution in DPI when converting PDF to images.",
+      "default": 150,
+      "minimum": 72,
+      "maximum": 600,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "pdf_format": {
+      "type": "string",
+      "title": "PDF Image Format",
+      "description": "Image format for PDF conversion.",
+      "default": "png",
+      "enum": [
+        {
+          "label": "PNG",
+          "value": "png",
+          "description": "Lossless compression, best quality",
+          "default": true
+        },
+        {
+          "label": "JPEG",
+          "value": "jpeg",
+          "description": "Lossy compression, smaller file size"
+        }
+      ],
+      "component": "Select",
+      "width": "half",
+      "order": 8
+    },
+    "pdf_quality": {
+      "type": "integer",
+      "title": "PDF JPEG Quality",
+      "description": "JPEG quality when using JPEG format (0-100).",
+      "default": 90,
+      "minimum": 10,
+      "maximum": 100,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 9
+    },
+    "vision": {
+      "type": "object",
+      "title": "Vision Converter",
+      "description": "Vision AI converter configuration for text recognition.",
+      "required": true,
+      "component": "Nested",
+      "width": "full",
+      "order": 10,
+      "requiredFields": ["connector"],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "Vision Connector",
+          "description": "AI vision model connector for text recognition.",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI Vision",
+              "options": [
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "High-quality vision model with excellent OCR capabilities",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "Cost-effective vision model for basic OCR tasks"
+                }
+              ]
+            },
+            {
+              "groupLabel": "Alternative Models",
+              "options": [
+                {
+                  "label": "Claude 3.5 Sonnet",
+                  "value": "anthropic.claude-3-5-sonnet",
+                  "description": "Excellent vision understanding and text extraction"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "model": {
+          "type": "string",
+          "title": "Model Name",
+          "description": "Specific model name (optional, uses connector default).",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "prompt": {
+          "type": "string",
+          "title": "Custom Prompt",
+          "description": "Custom prompt for text extraction (optional).",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 3
+        },
+        "compress_size": {
+          "type": "integer",
+          "title": "Image Compress Size (KB)",
+          "description": "Maximum image size before compression for vision API.",
+          "default": 512,
+          "minimum": 100,
+          "maximum": 5120,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 4
+        },
+        "language": {
+          "type": "string",
+          "title": "Language",
+          "description": "Expected text language for better recognition.",
+          "default": "Auto",
+          "component": "Input",
+          "width": "half",
+          "order": 5
+        }
+      }
+    }
+  }
+}

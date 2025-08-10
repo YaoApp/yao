@@ -1,0 +1,155 @@
+{
+  "id": "__yao.whisper",
+  "title": "音频转录",
+  "description": "使用 AI 语音识别将音频文件转换为文本。支持自动语言检测、静音检测和长音频文件的分块处理。",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "音频连接器",
+      "description": "AI 音频转录连接器。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI 音频",
+          "options": [
+            {
+              "label": "Whisper",
+              "value": "openai.whisper-1",
+              "description": "高质量多语言音频转录",
+              "default": true
+            }
+          ]
+        },
+        {
+          "groupLabel": "其他模型",
+          "options": [
+            {
+              "label": "Azure 语音",
+              "value": "azure.speech",
+              "description": "Microsoft Azure 语音服务"
+            },
+            {
+              "label": "Google 语音",
+              "value": "google.speech",
+              "description": "Google Cloud 语音转文本"
+            }
+          ]
+        }
+      ],
+      "width": "half",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "模型名称",
+      "description": "具体模型名称（可选，使用连接器默认值）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "language": {
+      "type": "string",
+      "title": "语言",
+      "description": "预期音频语言（空 = 自动检测）。",
+      "default": "",
+      "component": "Input",
+      "placeholder": "例如：en, zh, es, fr",
+      "width": "half",
+      "order": 3
+    },
+    "chunk_duration": {
+      "type": "number",
+      "title": "分块持续时间（秒）",
+      "description": "每个音频分块的处理持续时间。",
+      "default": 30.0,
+      "minimum": 5.0,
+      "maximum": 300.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "mapping_duration": {
+      "type": "number",
+      "title": "映射持续时间（秒）",
+      "description": "时间戳映射精度的持续时间。",
+      "default": 5.0,
+      "minimum": 1.0,
+      "maximum": 30.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "silence_threshold": {
+      "type": "number",
+      "title": "静音阈值（dB）",
+      "description": "静音检测的音频级别阈值。",
+      "default": -40.0,
+      "minimum": -60.0,
+      "maximum": -10.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "silence_min_length": {
+      "type": "number",
+      "title": "最小静音长度（秒）",
+      "description": "被视为中断的最小静音持续时间。",
+      "default": 1.0,
+      "minimum": 0.1,
+      "maximum": 10.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "enable_silence_detection": {
+      "type": "boolean",
+      "title": "启用静音检测",
+      "description": "使用静音检测获得更好的分块边界。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 8
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "title": "最大并发数",
+      "description": "最大并发转录请求数。",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 9
+    },
+    "temp_dir": {
+      "type": "string",
+      "title": "临时目录",
+      "description": "音频处理的自定义临时目录（空 = 系统临时目录）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 10
+    },
+    "cleanup_temp": {
+      "type": "boolean",
+      "title": "清理临时文件",
+      "description": "处理后自动清理临时文件。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 11
+    },
+    "options": {
+      "type": "string",
+      "title": "附加选项（JSON）",
+      "description": "JSON 格式的附加模型特定选项。",
+      "default": "",
+      "component": "CodeEditor",
+      "width": "full",
+      "order": 12
+    }
+  }
+}

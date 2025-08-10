@@ -1,0 +1,221 @@
+{
+  "id": "__yao.mcp",
+  "title": "MCP 工具获取器",
+  "description": "模型上下文协议（MCP）获取器，使用外部工具进行内容检索。允许通过 MCP 接口与自定义获取工具集成。",
+  "required": ["id", "tool"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "title": "MCP 服务器 ID",
+      "description": "用于获取内容的 MCP 服务器标识符。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 1
+    },
+    "tool": {
+      "type": "string",
+      "title": "工具名称",
+      "description": "用于内容获取的 MCP 工具名称。",
+      "default": "fetch",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "arguments_mapping": {
+      "type": "object",
+      "title": "参数映射",
+      "description": "获取参数到 MCP 工具参数的映射。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 3,
+      "properties": {
+        "url": {
+          "type": "string",
+          "title": "URL 参数",
+          "description": "要获取的 URL 的 MCP 工具参数名称。",
+          "default": "url",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "method": {
+          "type": "string",
+          "title": "方法参数",
+          "description": "HTTP 方法的 MCP 工具参数名称。",
+          "default": "method",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "headers": {
+          "type": "string",
+          "title": "头部参数",
+          "description": "HTTP 头部的 MCP 工具参数名称。",
+          "default": "headers",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "timeout": {
+          "type": "string",
+          "title": "超时参数",
+          "description": "请求超时的 MCP 工具参数名称。",
+          "default": "timeout",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        },
+        "user_agent": {
+          "type": "string",
+          "title": "用户代理参数",
+          "description": "用户代理字符串的 MCP 工具参数名称。",
+          "default": "user_agent",
+          "component": "Input",
+          "width": "half",
+          "order": 5
+        },
+        "follow_redirects": {
+          "type": "string",
+          "title": "跟随重定向参数",
+          "description": "重定向跟随选项的 MCP 工具参数名称。",
+          "default": "follow_redirects",
+          "component": "Input",
+          "width": "half",
+          "order": 6
+        }
+      }
+    },
+    "result_mapping": {
+      "type": "object",
+      "title": "结果映射",
+      "description": "MCP 工具响应字段到获取结果的映射。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 4,
+      "properties": {
+        "content": {
+          "type": "string",
+          "title": "内容字段",
+          "description": "包含获取内容的响应字段。",
+          "default": "content",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "url": {
+          "type": "string",
+          "title": "URL 字段",
+          "description": "包含最终 URL（重定向后）的响应字段。",
+          "default": "url",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "status_code": {
+          "type": "string",
+          "title": "状态码字段",
+          "description": "包含 HTTP 状态码的响应字段。",
+          "default": "status_code",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "headers": {
+          "type": "string",
+          "title": "头部字段",
+          "description": "包含响应头部的响应字段。",
+          "default": "headers",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        },
+        "content_type": {
+          "type": "string",
+          "title": "内容类型字段",
+          "description": "包含内容类型的响应字段。",
+          "default": "content_type",
+          "component": "Input",
+          "width": "half",
+          "order": 5
+        },
+        "content_length": {
+          "type": "string",
+          "title": "内容长度字段",
+          "description": "包含内容长度的响应字段。",
+          "default": "content_length",
+          "component": "Input",
+          "width": "half",
+          "order": 6
+        },
+        "metadata": {
+          "type": "string",
+          "title": "元数据字段",
+          "description": "包含附加元数据的响应字段。",
+          "default": "metadata",
+          "component": "Input",
+          "width": "half",
+          "order": 7
+        },
+        "error": {
+          "type": "string",
+          "title": "错误字段",
+          "description": "包含错误信息的响应字段。",
+          "default": "error",
+          "component": "Input",
+          "width": "half",
+          "order": 8
+        }
+      }
+    },
+    "notification_mapping": {
+      "type": "object",
+      "title": "通知映射",
+      "description": "获取期间 MCP 通知处理的映射。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 5,
+      "properties": {
+        "progress": {
+          "type": "string",
+          "title": "进度通知",
+          "description": "获取进度更新的通知类型。",
+          "default": "progress",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "status": {
+          "type": "string",
+          "title": "状态通知",
+          "description": "状态变更的通知类型。",
+          "default": "status",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "redirect": {
+          "type": "string",
+          "title": "重定向通知",
+          "description": "重定向事件的通知类型。",
+          "default": "redirect",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "error": {
+          "type": "string",
+          "title": "错误通知",
+          "description": "错误事件的通知类型。",
+          "default": "error",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        }
+      }
+    }
+  }
+}
