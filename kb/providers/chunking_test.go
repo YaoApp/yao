@@ -400,3 +400,25 @@ func TestSemantic_Options(t *testing.T) {
 		}
 	})
 }
+
+func TestStructured_Schema(t *testing.T) {
+	s := &Structured{}
+	schema, err := s.Schema(nil, "en")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if schema == nil {
+		t.Error("Expected non-nil schema from factory.GetSchemaFromBindata")
+	}
+}
+
+func TestSemantic_Schema(t *testing.T) {
+	s := &Semantic{}
+	schema, err := s.Schema(nil, "en")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if schema == nil {
+		t.Error("Expected non-nil schema from factory.GetSchemaFromBindata")
+	}
+}
