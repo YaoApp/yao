@@ -11,6 +11,63 @@ import (
 
 // Collection Management Handlers
 
+// ProviderSettings represents the resolved provider configuration
+type ProviderSettings struct {
+	Dimension  int                    `json:"dimension"`
+	Connector  string                 `json:"connector"`
+	Properties map[string]interface{} `json:"properties"`
+}
+
+// getProviderSettings reads and resolves provider settings by provider ID and option value
+func getProviderSettings(providerID, optionValue, locale string) (*ProviderSettings, error) {
+	// Default locale to "en" if empty
+	if locale == "" {
+		locale = "en"
+	}
+
+	// Get the specific provider using KB API
+	provider, err := kb.GetProviderWithLanguage("embedding", providerID, locale)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get provider %s: %v", providerID, err)
+	}
+
+	// Find the target option
+	targetOption, found := provider.GetOption(optionValue)
+	if !found {
+		return nil, fmt.Errorf("option not found: %s for provider %s", optionValue, providerID)
+	}
+
+	// Extract settings from option properties
+	settings := &ProviderSettings{
+		Properties: make(map[string]interface{}),
+	}
+
+	// Copy all properties
+	if targetOption.Properties != nil {
+		for key, value := range targetOption.Properties {
+			settings.Properties[key] = value
+		}
+	}
+
+	// Extract dimension
+	if dim, ok := targetOption.Properties["dimensions"]; ok {
+		if dimInt, ok := dim.(int); ok {
+			settings.Dimension = dimInt
+		} else if dimFloat, ok := dim.(float64); ok {
+			settings.Dimension = int(dimFloat)
+		}
+	}
+
+	// Extract connector
+	if connector, ok := targetOption.Properties["connector"]; ok {
+		if connStr, ok := connector.(string); ok {
+			settings.Connector = connStr
+		}
+	}
+
+	return settings, nil
+}
+
 // CreateCollection creates a new collection
 func CreateCollection(c *gin.Context) {
 	var req CreateCollectionRequest
@@ -24,6 +81,28 @@ func CreateCollection(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
+	}
+
+	// Get provider settings by provider id and option value
+	providerSettings, err := getProviderSettings(req.Config.EmbeddingProvider, req.Config.EmbeddingOption, req.Config.Locale)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: fmt.Sprintf("Failed to resolve provider settings: %v", err),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Set dimension by provider settings and add original provider id and option value to metadata with prefix __
+	req.Config.Dimension = providerSettings.Dimension
+	if req.Metadata == nil {
+		req.Metadata = make(map[string]interface{})
+	}
+	req.Metadata["__embedding_provider"] = req.Config.EmbeddingProvider
+	req.Metadata["__embedding_option"] = req.Config.EmbeddingOption
+	if req.Config.Locale != "" {
+		req.Metadata["__locale"] = req.Config.Locale
 	}
 
 	// Validate request parameters
@@ -52,7 +131,7 @@ func CreateCollection(c *gin.Context) {
 	collectionConfig := types.CollectionConfig{
 		ID:       req.ID,
 		Metadata: req.Metadata,
-		Config:   req.Config,
+		Config:   req.Config.CreateCollectionOptions,
 	}
 
 	// Call the actual CreateCollection method
@@ -269,9 +348,17 @@ func UpdateCollectionMetadata(c *gin.Context) {
 
 // CreateCollectionRequest represents the request structure for creating a collection
 type CreateCollectionRequest struct {
-	ID       string                         `json:"id" binding:"required"`
-	Metadata map[string]interface{}         `json:"metadata"`
-	Config   *types.CreateCollectionOptions `json:"config" binding:"required"`
+	ID       string                  `json:"id" binding:"required"`
+	Metadata map[string]interface{}  `json:"metadata"`
+	Config   *CreateCollectionConfig `json:"config" binding:"required"`
+}
+
+// CreateCollectionConfig represents the request structure for creating a collection
+type CreateCollectionConfig struct {
+	EmbeddingProvider string `json:"embedding_provider" binding:"required"` // embedding provider id
+	EmbeddingOption   string `json:"embedding_option" binding:"required"`   // embedding option value
+	Locale            string `json:"locale,omitempty"`                      // locale for provider reading
+	*types.CreateCollectionOptions
 }
 
 // UpdateCollectionMetadataRequest represents the request structure for updating collection metadata
