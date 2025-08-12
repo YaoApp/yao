@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -20,44 +22,9 @@ type ProviderSettings struct {
 
 // CreateCollection creates a new collection
 func CreateCollection(c *gin.Context) {
-	var req CreateCollectionRequest
-
-	// Parse and bind JSON request
-	if err := c.ShouldBindJSON(&req); err != nil {
-		// Create a custom error with the same structure but specific message
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Invalid request format: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
-	}
-
-	// Get provider settings by provider id and option value
-	providerSettings, err := getProviderSettings(req.Config.EmbeddingProvider, req.Config.EmbeddingOption, req.Config.Locale)
+	// Prepare request and database data
+	req, collectionData, err := PrepareCreateCollection(c)
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: fmt.Sprintf("Failed to resolve provider settings: %v", err),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
-	}
-
-	// Set dimension by provider settings and add original provider id and option value to metadata with prefix __
-	req.Config.Dimension = providerSettings.Dimension
-	if req.Metadata == nil {
-		req.Metadata = make(map[string]interface{})
-	}
-	req.Metadata["__embedding_provider"] = req.Config.EmbeddingProvider
-	req.Metadata["__embedding_option"] = req.Config.EmbeddingOption
-	if req.Config.Locale != "" {
-		req.Metadata["__locale"] = req.Config.Locale
-	}
-
-	// Validate request parameters
-	if err := validateCreateCollectionRequest(&req); err != nil {
-		// Create a custom error with the same structure but specific message
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: err.Error(),
@@ -68,7 +35,6 @@ func CreateCollection(c *gin.Context) {
 
 	// Check if kb.Instance is available
 	if kb.Instance == nil {
-		// Create a custom error with the same structure but specific message
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: "Knowledge base not initialized",
@@ -77,7 +43,29 @@ func CreateCollection(c *gin.Context) {
 		return
 	}
 
-	// Create CollectionConfig
+	// Get KB config
+	config, err := kb.GetConfig()
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get KB config: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// First create database record
+	_, err = config.CreateCollection(maps.MapStrAny(collectionData))
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to save collection metadata: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Create CollectionConfig for GraphRag
 	collectionConfig := types.CollectionConfig{
 		ID:       req.ID,
 		Metadata: req.Metadata,
@@ -87,13 +75,24 @@ func CreateCollection(c *gin.Context) {
 	// Call the actual CreateCollection method
 	collectionID, err := kb.Instance.CreateCollection(c.Request.Context(), collectionConfig)
 	if err != nil {
-		// Create a custom error with the same structure but specific message
+		// Rollback: remove the database record
+		rollbackErr := config.RemoveCollection(req.ID)
+		if rollbackErr != nil {
+			log.Error("Failed to rollback collection database record: %v", rollbackErr)
+		}
+
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: "Failed to create collection: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
+	}
+
+	// Update status to active after successful creation
+	updateErr := config.UpdateCollection(req.ID, maps.MapStrAny{"status": "active"})
+	if updateErr != nil {
+		log.Error("Failed to update collection status to active: %v", updateErr)
 	}
 
 	successData := gin.H{
@@ -144,6 +143,13 @@ func RemoveCollection(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusNotFound, errorResp)
 		return
+	}
+
+	// Remove collection from database after successful GraphRag removal
+	if config, err := kb.GetConfig(); err == nil {
+		if err := config.RemoveCollection(collectionID); err != nil {
+			log.Error("Failed to remove collection from database: %v", err)
+		}
 	}
 
 	successData := gin.H{
@@ -287,6 +293,27 @@ func UpdateCollectionMetadata(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
+	}
+
+	// Update collection metadata in database after successful GraphRag update
+	if config, err := kb.GetConfig(); err == nil {
+		// Prepare update data from metadata
+		updateData := maps.MapStrAny{}
+		if name, ok := req.Metadata["name"]; ok {
+			updateData["name"] = name
+		}
+		if description, ok := req.Metadata["description"]; ok {
+			updateData["description"] = description
+		}
+		if status, ok := req.Metadata["status"]; ok {
+			updateData["status"] = status
+		}
+
+		if len(updateData) > 0 {
+			if err := config.UpdateCollection(collectionID, updateData); err != nil {
+				log.Error("Failed to update collection in database: %v", err)
+			}
+		}
 	}
 
 	successData := gin.H{
