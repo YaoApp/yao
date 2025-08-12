@@ -28,8 +28,11 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Document Management
 	group.POST("/collections/:collectionID/documents/file", AddFile)
+	group.POST("/collections/:collectionID/documents/file/async", AddFileAsync)
 	group.POST("/collections/:collectionID/documents/text", AddText)
+	group.POST("/collections/:collectionID/documents/text/async", AddTextAsync)
 	group.POST("/collections/:collectionID/documents/url", AddURL)
+	group.POST("/collections/:collectionID/documents/url/async", AddURLAsync)
 	group.GET("/documents", ListDocuments)
 	group.GET("/documents/scroll", ScrollDocuments)
 	group.GET("/documents/:docID", GetDocument)
