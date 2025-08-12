@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
@@ -11,29 +13,21 @@ import (
 
 // Document Management Handlers
 
-// AddFile adds a file to a collection
-func AddFile(c *gin.Context) {
+// Validator interface for request validation
+type Validator interface {
+	Validate() error
+}
 
-	var req AddFileRequest
-
-	// Check if kb.Instance is available
-	if kb.Instance == nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Knowledge base not initialized",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
+// validateRequest validates a request by parsing JSON and calling Validate()
+func validateRequest[T Validator](c *gin.Context, req T) error {
 	// Parse and bind JSON request
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(req); err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: "Invalid request format: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
+		return err
 	}
 
 	// Validate request
@@ -43,9 +37,41 @@ func AddFile(c *gin.Context) {
 			ErrorDescription: err.Error(),
 		}
 		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
+		return err
 	}
 
+	return nil
+}
+
+// checkKBInstance checks if kb.Instance is available
+func checkKBInstance(c *gin.Context) bool {
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return false
+	}
+	return true
+}
+
+// getUpsertOptions converts BaseUpsertRequest to UpsertOptions with optional file info
+func getUpsertOptions(c *gin.Context, req *BaseUpsertRequest, fileInfo ...string) (*types.UpsertOptions, error) {
+	upsertOptions, err := req.ToUpsertOptions(fileInfo...)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Failed to convert request to upsert options: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return nil, err
+	}
+	return upsertOptions, nil
+}
+
+// validateFileAndGetPath validates file manager, file existence and gets local path
+func validateFileAndGetPath(c *gin.Context, req *AddFileRequest) (string, string, error) {
 	// Get file manager
 	m, ok := attachment.Managers[req.Uploader]
 	if !ok {
@@ -54,7 +80,7 @@ func AddFile(c *gin.Context) {
 			ErrorDescription: "Invalid uploader: " + req.Uploader + " not found",
 		}
 		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return
+		return "", "", response.ErrInvalidRequest
 	}
 
 	// Check if the file exists
@@ -65,7 +91,7 @@ func AddFile(c *gin.Context) {
 			ErrorDescription: "File not found: " + req.FileID,
 		}
 		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return
+		return "", "", response.ErrInvalidRequest
 	}
 
 	// Get the options of the manager
@@ -76,17 +102,45 @@ func AddFile(c *gin.Context) {
 			ErrorDescription: "Failed to get local path: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return "", "", err
+	}
+
+	return path, contentType, nil
+}
+
+// handleAsync handles async processing for any handler function
+func handleAsync(c *gin.Context, syncHandler func(*gin.Context)) {
+	jobid := uuid.New().String()
+
+	// temporary solution to handle async operations ( TODO: use job queue )
+	go func() { syncHandler(c) }()
+
+	response.RespondWithSuccess(c, response.StatusCreated, gin.H{"job_id": jobid})
+}
+
+// AddFile adds a file to a collection
+func AddFile(c *gin.Context) {
+	var req AddFileRequest
+
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
+		return
+	}
+
+	// Validate request
+	if err := validateRequest(c, &req); err != nil {
+		return
+	}
+
+	// Validate file and get path
+	path, contentType, err := validateFileAndGetPath(c, &req)
+	if err != nil {
 		return
 	}
 
 	// Convert request to UpsertOptions
-	upsertOptions, err := req.BaseUpsertRequest.ToUpsertOptions(path, contentType)
+	upsertOptions, err := getUpsertOptions(c, &req.BaseUpsertRequest, path, contentType)
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Failed to convert request to upsert options: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
@@ -114,48 +168,53 @@ func AddFile(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusCreated, result)
 }
 
-// AddText adds text to a collection
-func AddText(c *gin.Context) {
-	var req AddTextRequest
+// AddFileAsync adds file to a collection asynchronously
+func AddFileAsync(c *gin.Context) {
+	var req AddFileRequest
 
-	// Parse and bind JSON request
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Invalid request format: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
 		return
 	}
 
 	// Validate request
-	if err := req.Validate(); err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+	if err := validateRequest(c, &req); err != nil {
+		return
+	}
+
+	// Validate file and get path
+	_, _, err := validateFileAndGetPath(c, &req)
+	if err != nil {
+		return
+	}
+
+	// Convert request to UpsertOptions (just for validation)
+	_, err = getUpsertOptions(c, &req.BaseUpsertRequest)
+	if err != nil {
+		return
+	}
+
+	// Handle async processing
+	handleAsync(c, AddFile)
+}
+
+// AddText adds text to a collection
+func AddText(c *gin.Context) {
+	var req AddTextRequest
+
+	// Validate request
+	if err := validateRequest(c, &req); err != nil {
 		return
 	}
 
 	// Check if kb.Instance is available
-	if kb.Instance == nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Knowledge base not initialized",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+	if !checkKBInstance(c) {
 		return
 	}
 
 	// Convert request to UpsertOptions
-	upsertOptions, err := req.BaseUpsertRequest.ToUpsertOptions()
+	upsertOptions, err := getUpsertOptions(c, &req.BaseUpsertRequest)
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Failed to convert request to upsert options: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
@@ -180,48 +239,47 @@ func AddText(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusCreated, result)
 }
 
-// AddURL adds a URL to a collection
-func AddURL(c *gin.Context) {
-	var req AddURLRequest
-
-	// Parse and bind JSON request
-	if err := c.ShouldBindJSON(&req); err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Invalid request format: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
-	}
+// AddTextAsync adds text to a collection asynchronously
+func AddTextAsync(c *gin.Context) {
+	var req AddTextRequest
 
 	// Validate request
-	if err := req.Validate(); err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+	if err := validateRequest(c, &req); err != nil {
 		return
 	}
 
 	// Check if kb.Instance is available
-	if kb.Instance == nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Knowledge base not initialized",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+	if !checkKBInstance(c) {
+		return
+	}
+
+	// Convert request to UpsertOptions (just for validation)
+	_, err := getUpsertOptions(c, &req.BaseUpsertRequest)
+	if err != nil {
+		return
+	}
+
+	// Handle async processing
+	handleAsync(c, AddText)
+}
+
+// AddURL adds a URL to a collection
+func AddURL(c *gin.Context) {
+	var req AddURLRequest
+
+	// Validate request
+	if err := validateRequest(c, &req); err != nil {
+		return
+	}
+
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
 		return
 	}
 
 	// Convert request to UpsertOptions
-	upsertOptions, err := req.BaseUpsertRequest.ToUpsertOptions()
+	upsertOptions, err := getUpsertOptions(c, &req.BaseUpsertRequest)
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Failed to convert request to upsert options: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
@@ -245,6 +303,30 @@ func AddURL(c *gin.Context) {
 	}
 
 	response.RespondWithSuccess(c, response.StatusCreated, result)
+}
+
+// AddURLAsync adds a URL to a collection asynchronously
+func AddURLAsync(c *gin.Context) {
+	var req AddURLRequest
+
+	// Validate request
+	if err := validateRequest(c, &req); err != nil {
+		return
+	}
+
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
+		return
+	}
+
+	// Convert request to UpsertOptions (just for validation)
+	_, err := getUpsertOptions(c, &req.BaseUpsertRequest)
+	if err != nil {
+		return
+	}
+
+	// Handle async processing
+	handleAsync(c, AddURL)
 }
 
 // ListDocuments lists documents with pagination

@@ -18,56 +18,6 @@ type ProviderSettings struct {
 	Properties map[string]interface{} `json:"properties"`
 }
 
-// getProviderSettings reads and resolves provider settings by provider ID and option value
-func getProviderSettings(providerID, optionValue, locale string) (*ProviderSettings, error) {
-	// Default locale to "en" if empty
-	if locale == "" {
-		locale = "en"
-	}
-
-	// Get the specific provider using KB API
-	provider, err := kb.GetProviderWithLanguage("embedding", providerID, locale)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get provider %s: %v", providerID, err)
-	}
-
-	// Find the target option
-	targetOption, found := provider.GetOption(optionValue)
-	if !found {
-		return nil, fmt.Errorf("option not found: %s for provider %s", optionValue, providerID)
-	}
-
-	// Extract settings from option properties
-	settings := &ProviderSettings{
-		Properties: make(map[string]interface{}),
-	}
-
-	// Copy all properties
-	if targetOption.Properties != nil {
-		for key, value := range targetOption.Properties {
-			settings.Properties[key] = value
-		}
-	}
-
-	// Extract dimension
-	if dim, ok := targetOption.Properties["dimensions"]; ok {
-		if dimInt, ok := dim.(int); ok {
-			settings.Dimension = dimInt
-		} else if dimFloat, ok := dim.(float64); ok {
-			settings.Dimension = int(dimFloat)
-		}
-	}
-
-	// Extract connector
-	if connector, ok := targetOption.Properties["connector"]; ok {
-		if connStr, ok := connector.(string); ok {
-			settings.Connector = connStr
-		}
-	}
-
-	return settings, nil
-}
-
 // CreateCollection creates a new collection
 func CreateCollection(c *gin.Context) {
 	var req CreateCollectionRequest
@@ -395,4 +345,54 @@ func validateUpdateCollectionMetadataRequest(req *UpdateCollectionMetadataReques
 	}
 
 	return nil
+}
+
+// getProviderSettings reads and resolves provider settings by provider ID and option value
+func getProviderSettings(providerID, optionValue, locale string) (*ProviderSettings, error) {
+	// Default locale to "en" if empty
+	if locale == "" {
+		locale = "en"
+	}
+
+	// Get the specific provider using KB API
+	provider, err := kb.GetProviderWithLanguage("embedding", providerID, locale)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get provider %s: %v", providerID, err)
+	}
+
+	// Find the target option
+	targetOption, found := provider.GetOption(optionValue)
+	if !found {
+		return nil, fmt.Errorf("option not found: %s for provider %s", optionValue, providerID)
+	}
+
+	// Extract settings from option properties
+	settings := &ProviderSettings{
+		Properties: make(map[string]interface{}),
+	}
+
+	// Copy all properties
+	if targetOption.Properties != nil {
+		for key, value := range targetOption.Properties {
+			settings.Properties[key] = value
+		}
+	}
+
+	// Extract dimension
+	if dim, ok := targetOption.Properties["dimensions"]; ok {
+		if dimInt, ok := dim.(int); ok {
+			settings.Dimension = dimInt
+		} else if dimFloat, ok := dim.(float64); ok {
+			settings.Dimension = int(dimFloat)
+		}
+	}
+
+	// Extract connector
+	if connector, ok := targetOption.Properties["connector"]; ok {
+		if connStr, ok := connector.(string); ok {
+			settings.Connector = connStr
+		}
+	}
+
+	return settings, nil
 }
