@@ -3,7 +3,10 @@ package kb
 import (
 	"fmt"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/gou/graphrag/utils"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/kb/providers/factory"
 	kbtypes "github.com/yaoapp/yao/kb/types"
@@ -398,4 +401,242 @@ func (r *UpdateSegmentsRequest) Validate() error {
 		return fmt.Errorf("segment_texts is required")
 	}
 	return nil
+}
+
+// PrepareCreateCollection prepares CreateCollection request and database data
+func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[string]interface{}, error) {
+	var req CreateCollectionRequest
+
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return nil, nil, fmt.Errorf("invalid request format: %w", err)
+	}
+
+	// Get provider settings first to resolve dimension
+	providerSettings, err := getProviderSettings(req.Config.EmbeddingProvider, req.Config.EmbeddingOption, req.Config.Locale)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve provider settings: %w", err)
+	}
+
+	// Set dimension from provider settings
+	req.Config.Dimension = providerSettings.Dimension
+
+	// Add metadata with provider information
+	if req.Metadata == nil {
+		req.Metadata = make(map[string]interface{})
+	}
+	req.Metadata["__embedding_provider"] = req.Config.EmbeddingProvider
+	req.Metadata["__embedding_option"] = req.Config.EmbeddingOption
+	if req.Config.Locale != "" {
+		req.Metadata["__locale"] = req.Config.Locale
+	}
+
+	// Now validate request parameters (after dimension and metadata are set)
+	if err := validateCreateCollectionRequest(&req); err != nil {
+		return nil, nil, err
+	}
+
+	// Prepare collection data for database
+	data := map[string]interface{}{
+		"collection_id":      req.ID,
+		"name":               req.Metadata["name"],
+		"description":        req.Metadata["description"],
+		"status":             "creating",
+		"embedding_provider": req.Config.EmbeddingProvider,
+		"embedding_option":   req.Config.EmbeddingOption,
+		"locale":             req.Config.Locale,
+		"distance":           req.Config.Distance,
+		"index_type":         req.Config.IndexType,
+	}
+
+	// Add optional HNSW parameters
+	if req.Config.M > 0 {
+		data["m"] = req.Config.M
+	}
+	if req.Config.EfConstruction > 0 {
+		data["ef_construction"] = req.Config.EfConstruction
+	}
+	if req.Config.EfSearch > 0 {
+		data["ef_search"] = req.Config.EfSearch
+	}
+
+	// Add optional IVF parameters
+	if req.Config.NumLists > 0 {
+		data["num_lists"] = req.Config.NumLists
+	}
+	if req.Config.NumProbes > 0 {
+		data["num_probes"] = req.Config.NumProbes
+	}
+
+	// Add context fields (permissions, user info, etc.)
+	addContextFields(c, data)
+
+	return &req, data, nil
+}
+
+// PrepareAddFile prepares AddFile request and database data
+func PrepareAddFile(c *gin.Context) (*AddFileRequest, map[string]interface{}, error) {
+	var req AddFileRequest
+
+	// Parse and validate request
+	if err := validateRequest(c, &req); err != nil {
+		return nil, nil, err
+	}
+
+	// Validate file and get path
+	path, contentType, err := validateFileAndGetPath(c, &req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get file info
+	m, _ := attachment.Managers[req.Uploader]
+	fileInfo, _ := m.Info(c.Request.Context(), req.FileID)
+
+	// Generate document ID if not provided
+	if req.DocID == "" {
+		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
+	}
+
+	// Prepare document data for database
+	data := map[string]interface{}{
+		"document_id":    req.DocID,
+		"collection_id":  req.CollectionID,
+		"name":           fileInfo.Filename,
+		"type":           "file",
+		"status":         "pending",
+		"uploader_id":    req.Uploader,
+		"file_name":      fileInfo.Filename,
+		"file_path":      path,
+		"file_mime_type": contentType,
+		"size":           int64(fileInfo.Bytes),
+	}
+
+	addBaseRequestFields(data, &req.BaseUpsertRequest)
+	addContextFields(c, data)
+
+	return &req, data, nil
+}
+
+// PrepareAddText prepares AddText request and database data
+func PrepareAddText(c *gin.Context) (*AddTextRequest, map[string]interface{}, error) {
+	var req AddTextRequest
+
+	// Parse and validate request
+	if err := validateRequest(c, &req); err != nil {
+		return nil, nil, err
+	}
+
+	// Generate document ID if not provided
+	if req.DocID == "" {
+		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
+	}
+
+	// Prepare document data for database
+	data := map[string]interface{}{
+		"document_id":   req.DocID,
+		"collection_id": req.CollectionID,
+		"name":          "Text Document",
+		"type":          "text",
+		"status":        "pending",
+		"text_content":  req.Text,
+		"size":          int64(len(req.Text)),
+	}
+
+	// Use title from metadata if available
+	if req.Metadata != nil {
+		if title, ok := req.Metadata["title"].(string); ok && title != "" {
+			data["name"] = title
+		}
+	}
+
+	addBaseRequestFields(data, &req.BaseUpsertRequest)
+	addContextFields(c, data)
+
+	return &req, data, nil
+}
+
+// PrepareAddURL prepares AddURL request and database data
+func PrepareAddURL(c *gin.Context) (*AddURLRequest, map[string]interface{}, error) {
+	var req AddURLRequest
+
+	// Parse and validate request
+	if err := validateRequest(c, &req); err != nil {
+		return nil, nil, err
+	}
+
+	// Generate document ID if not provided
+	if req.DocID == "" {
+		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
+	}
+
+	// Prepare document data for database
+	data := map[string]interface{}{
+		"document_id":   req.DocID,
+		"collection_id": req.CollectionID,
+		"name":          req.URL,
+		"type":          "url",
+		"status":        "pending",
+		"url":           req.URL,
+	}
+
+	// Use title from metadata if available
+	if req.Metadata != nil {
+		if title, ok := req.Metadata["title"].(string); ok && title != "" {
+			data["name"] = title
+			data["url_title"] = title
+		}
+	}
+
+	addBaseRequestFields(data, &req.BaseUpsertRequest)
+	addContextFields(c, data)
+
+	return &req, data, nil
+}
+
+// addBaseRequestFields adds common fields from BaseUpsertRequest
+func addBaseRequestFields(data map[string]interface{}, req *BaseUpsertRequest) {
+	if req.Locale != "" {
+		data["locale"] = req.Locale
+	}
+	if req.DocID != "" {
+		data["document_id"] = req.DocID
+	}
+	if req.Metadata != nil {
+		data["tags"] = req.Metadata
+	}
+
+	// Add provider configurations
+	if req.Converter != nil {
+		data["converter_provider_id"] = req.Converter.ProviderID
+		if req.Converter.Option != nil {
+			data["converter_properties"] = req.Converter.Option.Properties
+		}
+	}
+	if req.Fetcher != nil {
+		data["fetcher_provider_id"] = req.Fetcher.ProviderID
+		if req.Fetcher.Option != nil {
+			data["fetcher_properties"] = req.Fetcher.Option.Properties
+		}
+	}
+	if req.Chunking != nil {
+		data["chunking_provider_id"] = req.Chunking.ProviderID
+		if req.Chunking.Option != nil {
+			data["chunking_properties"] = req.Chunking.Option.Properties
+		}
+	}
+	if req.Extraction != nil {
+		data["extractor_provider_id"] = req.Extraction.ProviderID
+		if req.Extraction.Option != nil {
+			data["extractor_properties"] = req.Extraction.Option.Properties
+		}
+	}
+}
+
+// addContextFields adds context-specific fields like permissions, user info
+func addContextFields(c *gin.Context, data map[string]interface{}) {
+	// TODO: Add permission-related fields from Guard
+	// Example: data["user_id"] = c.GetString("user_id")
+	// Example: data["permissions"] = c.Get("permissions")
+	// Example: data["tenant_id"] = c.GetString("tenant_id")
 }

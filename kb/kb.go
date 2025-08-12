@@ -150,3 +150,17 @@ func GetProviderWithLanguage(typ string, id string, locale string) (*kbtypes.Pro
 
 	return knowledgeBase.Providers.GetProvider(typ, id, locale)
 }
+
+// GetConfig returns the knowledge base configuration
+func GetConfig() (*kbtypes.Config, error) {
+	if Instance == nil {
+		return nil, fmt.Errorf("knowledge base not initialized")
+	}
+
+	knowledgeBase, ok := Instance.(*KnowledgeBase)
+	if !ok {
+		return nil, fmt.Errorf("knowledge base not initialized")
+	}
+
+	return knowledgeBase.Config, nil
+}
