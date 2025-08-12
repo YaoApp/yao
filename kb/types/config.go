@@ -323,6 +323,16 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		c.Uploader = "__yao.attachment"
 	}
 
+	// Set default collection model if not configured
+	if c.CollectionModel == "" {
+		c.CollectionModel = "__yao.kb.collection"
+	}
+
+	// Set default document model if not configured
+	if c.DocumentModel == "" {
+		c.DocumentModel = "__yao.kb.document"
+	}
+
 	// Note: Features will be computed later after providers are loaded
 	return nil
 }

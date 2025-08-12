@@ -63,6 +63,12 @@ type Config struct {
 	// KV store name (Optional with default value)
 	Store string `json:"store,omitempty" yaml:"store,omitempty"` // Default: "__yao.kb.store"
 
+	// Bind Collection Model
+	CollectionModel string `json:"collection_model,omitempty" yaml:"collection_model,omitempty"` // Default: "__yao.kb.collection"
+
+	// Bind Document Model
+	DocumentModel string `json:"document_model,omitempty" yaml:"document_model,omitempty"` // Default: "__yao.kb.document"
+
 	// PDF parser configuration (Optional)
 	PDF *PDFConfig `json:"pdf,omitempty" yaml:"pdf,omitempty"`
 
