@@ -135,13 +135,17 @@ type UpdateSegmentsRequest struct {
 // If OptionID is provided, it looks up the option from the provider
 // If Option is provided directly, it uses the Option field
 // If neither is provided, it selects the default option from provider's Options
-func resolveProviderOption(config *ProviderConfig, locale string) (*kbtypes.ProviderOption, error) {
+func resolveProviderOption(config *ProviderConfig, providerType, locale string) (*kbtypes.ProviderOption, error) {
 	if config == nil {
 		return nil, fmt.Errorf("provider config is required")
 	}
 
 	if config.ProviderID == "" {
 		return nil, fmt.Errorf("provider_id is required")
+	}
+
+	if providerType == "" {
+		return nil, fmt.Errorf("provider_type is required")
 	}
 
 	// If Option is provided directly, use it
@@ -159,22 +163,15 @@ func resolveProviderOption(config *ProviderConfig, locale string) (*kbtypes.Prov
 		locale = "en"
 	}
 
-	// Find the provider using the new multi-language system
+	// Find the provider using the specified provider type
 	var provider *kbtypes.Provider
 	kbInstance := kb.Instance.(*kb.KnowledgeBase)
 
-	// Check all provider types to find the matching provider
-	providerTypes := []string{"chunking", "embedding", "converter", "extractor", "fetcher"}
-
-	for _, providerType := range providerTypes {
-		providers := kbInstance.Providers.GetProviders(providerType, locale)
-		for _, p := range providers {
-			if p.ID == config.ProviderID {
-				provider = p
-				break
-			}
-		}
-		if provider != nil {
+	// Get providers of the specific type
+	providers := kbInstance.Providers.GetProviders(providerType, locale)
+	for _, p := range providers {
+		if p.ID == config.ProviderID {
+			provider = p
 			break
 		}
 	}
@@ -232,7 +229,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	}
 
 	// Resolve and create chunking provider
-	chunkingOption, err := resolveProviderOption(r.Chunking, locale)
+	chunkingOption, err := resolveProviderOption(r.Chunking, "chunking", locale)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve chunking provider: %w", err)
 	}
@@ -251,7 +248,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	options.ChunkingOptions = chunkingOpts
 
 	// Resolve and create embedding provider
-	embeddingOption, err := resolveProviderOption(r.Embedding, locale)
+	embeddingOption, err := resolveProviderOption(r.Embedding, "embedding", locale)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve embedding provider: %w", err)
 	}
@@ -264,7 +261,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 
 	// Optional providers
 	if r.Extraction != nil {
-		extractionOption, err := resolveProviderOption(r.Extraction, locale)
+		extractionOption, err := resolveProviderOption(r.Extraction, "extractor", locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve extraction provider: %w", err)
 		}
@@ -277,7 +274,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	}
 
 	if r.Fetcher != nil {
-		fetcherOption, err := resolveProviderOption(r.Fetcher, locale)
+		fetcherOption, err := resolveProviderOption(r.Fetcher, "fetcher", locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve fetcher provider: %w", err)
 		}
@@ -292,7 +289,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	// Handle converter - auto-detect if not specified
 	if r.Converter != nil {
 		// User specified converter
-		converterOption, err := resolveProviderOption(r.Converter, locale)
+		converterOption, err := resolveProviderOption(r.Converter, "converter", locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve converter provider: %w", err)
 		}
@@ -315,7 +312,7 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 				ProviderID: converterID,
 			}
 
-			converterOption, err := resolveProviderOption(converterConfig, locale)
+			converterOption, err := resolveProviderOption(converterConfig, "converter", locale)
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve auto-detected converter provider: %w", err)
 			}
