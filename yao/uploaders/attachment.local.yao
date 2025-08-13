@@ -15,6 +15,7 @@
     "image/*",
     "video/*",
     "audio/*",
+    "application/octet-stream",
     "application/x-zip-compressed",
     "application/x-tar",
     "application/x-gzip",
