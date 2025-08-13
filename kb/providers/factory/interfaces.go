@@ -25,8 +25,8 @@ type Embedding interface {
 	Schema
 }
 
-// Extractor is a factory for extractor providers
-type Extractor interface {
+// Extraction is a factory for extraction providers
+type Extraction interface {
 	Make(option *kbtypes.ProviderOption) (types.Extraction, error)
 	Schema
 }

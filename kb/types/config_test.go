@@ -236,7 +236,7 @@ func TestConfig_ComputeFeatures(t *testing.T) {
 							{ID: "__yao.vision"},
 						},
 					},
-					Extractors: map[string][]*Provider{
+					Extractions: map[string][]*Provider{
 						"en": {{ID: "test"}},
 					},
 					Fetchers: map[string][]*Provider{

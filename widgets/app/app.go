@@ -642,14 +642,14 @@ func processXgen(process *process.Process) interface{} {
 				return ids
 			}
 
-			var chunkings, embeddings, converters, extractors, fetchers []string
+			var chunkings, embeddings, converters, extractions, fetchers []string
 			var searchers, rerankers, votes, weights, scores []string
 
 			if knowledgebase.Providers != nil {
 				chunkings = extractProviderIDs(knowledgebase.Providers.Chunkings)
 				embeddings = extractProviderIDs(knowledgebase.Providers.Embeddings)
 				converters = extractProviderIDs(knowledgebase.Providers.Converters)
-				extractors = extractProviderIDs(knowledgebase.Providers.Extractors)
+				extractions = extractProviderIDs(knowledgebase.Providers.Extractions)
 				fetchers = extractProviderIDs(knowledgebase.Providers.Fetchers)
 				searchers = extractProviderIDs(knowledgebase.Providers.Searchers)
 				rerankers = extractProviderIDs(knowledgebase.Providers.Rerankers)
@@ -659,18 +659,18 @@ func processXgen(process *process.Process) interface{} {
 			}
 
 			kbConfig = map[string]interface{}{
-				"features":   knowledgebase.Config.Features,
-				"chunkings":  chunkings,
-				"embeddings": embeddings,
-				"converters": converters,
-				"extractors": extractors,
-				"fetchers":   fetchers,
-				"searchers":  searchers,
-				"rerankers":  rerankers,
-				"votes":      votes,
-				"weights":    weights,
-				"scores":     scores,
-				"uploader":   knowledgebase.Config.Uploader, // Default: "__yao.attachment"
+				"features":    knowledgebase.Config.Features,
+				"chunkings":   chunkings,
+				"embeddings":  embeddings,
+				"converters":  converters,
+				"extractions": extractions,
+				"fetchers":    fetchers,
+				"searchers":   searchers,
+				"rerankers":   rerankers,
+				"votes":       votes,
+				"weights":     weights,
+				"scores":      scores,
+				"uploader":    knowledgebase.Config.Uploader, // Default: "__yao.attachment"
 			}
 		}
 	}

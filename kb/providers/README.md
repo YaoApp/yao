@@ -8,7 +8,7 @@ This directory contains all the providers for the Knowledge Base (KB) system. Pr
 - [Provider Types](#provider-types)
   - [Chunking Providers](#chunking-providers)
   - [Embedding Providers](#embedding-providers)
-  - [Extractor Providers](#extractor-providers)
+  - [Extraction Providers](#extraction-providers)
   - [Fetcher Providers](#fetcher-providers)
   - [Converter Providers](#converter-providers)
 - [Configuration Format](#configuration-format)
@@ -152,9 +152,9 @@ Uses local FastEmbed models for embedding generation without API calls.
 }
 ```
 
-### Extractor Providers
+### Extraction Providers
 
-#### OpenAI Extractor (`__yao.openai`)
+#### OpenAI Extraction (`__yao.openai`)
 
 Extracts entities and relationships from documents using OpenAI models for knowledge graph construction.
 
@@ -535,7 +535,7 @@ All providers provide sensible default values for optional fields. Required fiel
       "concurrent": 15
     }
   },
-  "extractor": {
+  "extraction": {
     "id": "__yao.openai",
     "properties": {
       "connector": "openai.gpt-4o-mini",

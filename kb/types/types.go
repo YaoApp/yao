@@ -91,16 +91,16 @@ type Config struct {
 // ProviderConfig holds providers organized by language
 type ProviderConfig struct {
 	// Provider configurations by language (e.g., "en", "zh-cn")
-	Chunkings  map[string][]*Provider `json:"-"` // Text splitting providers by language
-	Embeddings map[string][]*Provider `json:"-"` // Text vectorization providers by language
-	Converters map[string][]*Provider `json:"-"` // File processing converters by language
-	Extractors map[string][]*Provider `json:"-"` // Entity and relationship extractors by language
-	Fetchers   map[string][]*Provider `json:"-"` // File fetchers by language
-	Searchers  map[string][]*Provider `json:"-"` // Search providers by language
-	Rerankers  map[string][]*Provider `json:"-"` // Reranking providers by language
-	Votes      map[string][]*Provider `json:"-"` // Voting providers by language
-	Weights    map[string][]*Provider `json:"-"` // Weighting providers by language
-	Scores     map[string][]*Provider `json:"-"` // Scoring providers by language
+	Chunkings   map[string][]*Provider `json:"-"` // Text splitting providers by language
+	Embeddings  map[string][]*Provider `json:"-"` // Text vectorization providers by language
+	Converters  map[string][]*Provider `json:"-"` // File processing converters by language
+	Extractions map[string][]*Provider `json:"-"` // Entity and relationship extractions by language
+	Fetchers    map[string][]*Provider `json:"-"` // File fetchers by language
+	Searchers   map[string][]*Provider `json:"-"` // Search providers by language
+	Rerankers   map[string][]*Provider `json:"-"` // Reranking providers by language
+	Votes       map[string][]*Provider `json:"-"` // Voting providers by language
+	Weights     map[string][]*Provider `json:"-"` // Weighting providers by language
+	Scores      map[string][]*Provider `json:"-"` // Scoring providers by language
 }
 
 // VectorConfig represents vector database configuration
@@ -134,17 +134,17 @@ type FFmpegConfig struct {
 
 // LimitsConfig represents concurrency limits configuration
 type LimitsConfig struct {
-	Job       *QueueLimit `json:"job,omitempty" yaml:"job,omitempty"`             // Job queue limits
-	Chunking  *QueueLimit `json:"chunking,omitempty" yaml:"chunking,omitempty"`   // Chunking limits
-	Embedding *QueueLimit `json:"embedding,omitempty" yaml:"embedding,omitempty"` // Embedding limits
-	Converter *QueueLimit `json:"converter,omitempty" yaml:"converter,omitempty"` // Converter limits
-	Extractor *QueueLimit `json:"extractor,omitempty" yaml:"extractor,omitempty"` // Extractor limits
-	Fetcher   *QueueLimit `json:"fetcher,omitempty" yaml:"fetcher,omitempty"`     // Fetcher limits
-	Searcher  *QueueLimit `json:"searcher,omitempty" yaml:"searcher,omitempty"`   // Searcher limits
-	Reranker  *QueueLimit `json:"reranker,omitempty" yaml:"reranker,omitempty"`   // Reranker limits
-	Vote      *QueueLimit `json:"vote,omitempty" yaml:"vote,omitempty"`           // Vote limits
-	Weight    *QueueLimit `json:"weight,omitempty" yaml:"weight,omitempty"`       // Weight limits
-	Score     *QueueLimit `json:"score,omitempty" yaml:"score,omitempty"`         // Score limits
+	Job        *QueueLimit `json:"job,omitempty" yaml:"job,omitempty"`               // Job queue limits
+	Chunking   *QueueLimit `json:"chunking,omitempty" yaml:"chunking,omitempty"`     // Chunking limits
+	Embedding  *QueueLimit `json:"embedding,omitempty" yaml:"embedding,omitempty"`   // Embedding limits
+	Converter  *QueueLimit `json:"converter,omitempty" yaml:"converter,omitempty"`   // Converter limits
+	Extraction *QueueLimit `json:"extraction,omitempty" yaml:"extraction,omitempty"` // Extraction limits
+	Fetcher    *QueueLimit `json:"fetcher,omitempty" yaml:"fetcher,omitempty"`       // Fetcher limits
+	Searcher   *QueueLimit `json:"searcher,omitempty" yaml:"searcher,omitempty"`     // Searcher limits
+	Reranker   *QueueLimit `json:"reranker,omitempty" yaml:"reranker,omitempty"`     // Reranker limits
+	Vote       *QueueLimit `json:"vote,omitempty" yaml:"vote,omitempty"`             // Vote limits
+	Weight     *QueueLimit `json:"weight,omitempty" yaml:"weight,omitempty"`         // Weight limits
+	Score      *QueueLimit `json:"score,omitempty" yaml:"score,omitempty"`           // Score limits
 }
 
 // QueueLimit represents queue and concurrency limits
@@ -153,7 +153,7 @@ type QueueLimit struct {
 	QueueSize     int `json:"queue_size,omitempty" yaml:"queue_size,omitempty"`         // Queue size (0 means unlimited)
 }
 
-// Provider represents a service provider configuration (chunking, embedding, converter, extractor, fetcher, searcher, etc.)
+// Provider represents a service provider configuration (chunking, embedding, converter, extraction, fetcher, searcher, etc.)
 type Provider struct {
 	ID          string            `json:"id" yaml:"id"`                               // Required, unique id for the provider
 	Label       string            `json:"label" yaml:"label"`                         // Required, label for the provider, for display

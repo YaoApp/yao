@@ -52,16 +52,16 @@ func (p *ProviderOption) Parse(v interface{}) error {
 // LoadProviders loads providers from directories with language support
 func LoadProviders(basePath string) (*ProviderConfig, error) {
 	config := &ProviderConfig{
-		Chunkings:  make(map[string][]*Provider),
-		Embeddings: make(map[string][]*Provider),
-		Converters: make(map[string][]*Provider),
-		Extractors: make(map[string][]*Provider),
-		Fetchers:   make(map[string][]*Provider),
-		Searchers:  make(map[string][]*Provider),
-		Rerankers:  make(map[string][]*Provider),
-		Votes:      make(map[string][]*Provider),
-		Weights:    make(map[string][]*Provider),
-		Scores:     make(map[string][]*Provider),
+		Chunkings:   make(map[string][]*Provider),
+		Embeddings:  make(map[string][]*Provider),
+		Converters:  make(map[string][]*Provider),
+		Extractions: make(map[string][]*Provider),
+		Fetchers:    make(map[string][]*Provider),
+		Searchers:   make(map[string][]*Provider),
+		Rerankers:   make(map[string][]*Provider),
+		Votes:       make(map[string][]*Provider),
+		Weights:     make(map[string][]*Provider),
+		Scores:      make(map[string][]*Provider),
 	}
 
 	// Provider type directories to load
@@ -125,7 +125,7 @@ func loadProviderType(basePath, providerType string, config *ProviderConfig) err
 		case "converters":
 			config.Converters[language] = providers
 		case "extractions":
-			config.Extractors[language] = providers
+			config.Extractions[language] = providers
 		case "fetchers":
 			config.Fetchers[language] = providers
 		case "searchers":
@@ -184,8 +184,8 @@ func (pc *ProviderConfig) GetProviders(providerType, language string) []*Provide
 		providerMap = pc.Embeddings
 	case "converter":
 		providerMap = pc.Converters
-	case "extractor":
-		providerMap = pc.Extractors
+	case "extraction":
+		providerMap = pc.Extractions
 	case "fetcher":
 		providerMap = pc.Fetchers
 	case "searcher":

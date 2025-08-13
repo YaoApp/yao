@@ -278,7 +278,7 @@ func (c *Config) resolveProviderEnvVars() error {
 
 	// Resolve env vars for all provider types and languages
 	providerMaps := []map[string][]*Provider{
-		c.Providers.Chunkings, c.Providers.Embeddings, c.Providers.Converters, c.Providers.Extractors,
+		c.Providers.Chunkings, c.Providers.Embeddings, c.Providers.Converters, c.Providers.Extractions,
 		c.Providers.Fetchers, c.Providers.Searchers, c.Providers.Rerankers, c.Providers.Votes,
 		c.Providers.Weights, c.Providers.Scores,
 	}
@@ -372,7 +372,7 @@ func (c *Config) ComputeFeatures() Features {
 
 	// Advanced features
 	if c.Providers != nil {
-		features.EntityExtraction = c.hasProvidersInAnyLanguage(c.Providers.Extractors)
+		features.EntityExtraction = c.hasProvidersInAnyLanguage(c.Providers.Extractions)
 		features.WebFetching = c.hasProvidersInAnyLanguage(c.Providers.Fetchers)
 		features.CustomSearch = c.hasProvidersInAnyLanguage(c.Providers.Searchers)
 		features.ResultReranking = c.hasProvidersInAnyLanguage(c.Providers.Rerankers)

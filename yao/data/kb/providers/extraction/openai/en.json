@@ -1,6 +1,6 @@
 {
   "id": "__yao.openai",
-  "title": "OpenAI Entity Extractor",
+  "title": "OpenAI Entity Extraction",
   "description": "AI-powered entity and relationship extraction using OpenAI's language models. Extracts structured information from unstructured text with configurable prompts and tool calling capabilities.",
   "required": ["connector"],
   "properties": {

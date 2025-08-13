@@ -9,16 +9,16 @@ import (
 	kbtypes "github.com/yaoapp/yao/kb/types"
 )
 
-// ExtractorOpenAI is an OpenAI extractor provider
-type ExtractorOpenAI struct{}
+// ExtractionOpenAI is an OpenAI extraction provider
+type ExtractionOpenAI struct{}
 
-// AutoRegister registers the extractor providers
+// AutoRegister registers the extraction providers
 func init() {
-	factory.Extractors["__yao.openai"] = &ExtractorOpenAI{}
+	factory.Extractions["__yao.openai"] = &ExtractionOpenAI{}
 }
 
-// Make creates a new OpenAI extractor
-func (e *ExtractorOpenAI) Make(option *kbtypes.ProviderOption) (types.Extraction, error) {
+// Make creates a new OpenAI extraction
+func (e *ExtractionOpenAI) Make(option *kbtypes.ProviderOption) (types.Extraction, error) {
 	// Start with default values
 	options := openai.Options{
 		ConnectorName: "",          // Will be set from option
@@ -127,7 +127,7 @@ func (e *ExtractorOpenAI) Make(option *kbtypes.ProviderOption) (types.Extraction
 	return openai.NewOpenai(options)
 }
 
-// Schema returns the schema for the OpenAI extractor provider
-func (e *ExtractorOpenAI) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
-	return factory.GetSchemaFromBindata(factory.ProviderTypeExtractor, "openai", locale)
+// Schema returns the schema for the OpenAI extraction provider
+func (e *ExtractionOpenAI) Schema(provider *kbtypes.Provider, locale string) (*kbtypes.ProviderSchema, error) {
+	return factory.GetSchemaFromBindata(factory.ProviderTypeExtraction, "openai", locale)
 }
