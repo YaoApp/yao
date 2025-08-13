@@ -16,7 +16,6 @@ func (p *Provider) GetOption(id string) (*ProviderOption, bool) {
 		return nil, false
 	}
 
-	// Find the option by id
 	for _, option := range p.Options {
 		if option.Value == id {
 			return option, true
