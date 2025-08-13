@@ -17,8 +17,8 @@ const (
 	ProviderTypeConverter ProviderType = "converter"
 	// ProviderTypeEmbedding is a type for embedding providers
 	ProviderTypeEmbedding ProviderType = "embedding"
-	// ProviderTypeExtractor is a type for extractor providers
-	ProviderTypeExtractor ProviderType = "extractor"
+	// ProviderTypeExtraction is a type for extraction providers
+	ProviderTypeExtraction ProviderType = "extraction"
 	// ProviderTypeFetcher is a type for fetcher providers
 	ProviderTypeFetcher ProviderType = "fetcher"
 )
@@ -38,8 +38,8 @@ var Converters = map[string]Converter{}
 // Embeddings is a map of embedding providers
 var Embeddings = map[string]Embedding{}
 
-// Extractors is a map of extractor providers
-var Extractors = map[string]Extractor{}
+// Extractions is a map of extraction providers
+var Extractions = map[string]Extraction{}
 
 // Fetchers is a map of fetcher providers
 var Fetchers = map[string]Fetcher{}
@@ -104,15 +104,15 @@ func MakeEmbedding(id string, option *kbtypes.ProviderOption) (types.Embedding, 
 	return embedding.Make(option)
 }
 
-// === Extractor API ===
+// === Extraction API ===
 
-// MakeExtractor creates a new extractor provider
-func MakeExtractor(id string, option *kbtypes.ProviderOption) (types.Extraction, error) {
-	extractor, ok := Extractors[id]
+// MakeExtraction creates a new extraction provider
+func MakeExtraction(id string, option *kbtypes.ProviderOption) (types.Extraction, error) {
+	extraction, ok := Extractions[id]
 	if !ok {
-		return nil, fmt.Errorf("extractor provider %s not found", id)
+		return nil, fmt.Errorf("extraction provider %s not found", id)
 	}
-	return extractor.Make(option)
+	return extraction.Make(option)
 }
 
 // === Fetcher API ===
@@ -139,8 +139,8 @@ func GetSchema(typ ProviderType, provider *kbtypes.Provider, locale string) (*kb
 		schema, exists = Converters[provider.ID]
 	case ProviderTypeEmbedding:
 		schema, exists = Embeddings[provider.ID]
-	case ProviderTypeExtractor:
-		schema, exists = Extractors[provider.ID]
+	case ProviderTypeExtraction:
+		schema, exists = Extractions[provider.ID]
 	case ProviderTypeFetcher:
 		schema, exists = Fetchers[provider.ID]
 	}

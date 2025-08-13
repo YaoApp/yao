@@ -6,14 +6,14 @@ import (
 	kbtypes "github.com/yaoapp/yao/kb/types"
 )
 
-func TestExtractorOpenAI_Make(t *testing.T) {
-	extractor := &ExtractorOpenAI{}
+func TestExtractionOpenAI_Make(t *testing.T) {
+	extraction := &ExtractionOpenAI{}
 
-	// Note: OpenAI extractor requires connectors to be loaded
+	// Note: OpenAI extraction requires connectors to be loaded
 	// All tests will fail in test environment due to missing connectors
 
 	t.Run("nil option should return error due to missing connector", func(t *testing.T) {
-		_, err := extractor.Make(nil)
+		_, err := extraction.Make(nil)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -22,7 +22,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 
 	t.Run("empty option should return error due to missing connector", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -35,7 +35,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"connector": "openai.gpt-4o-mini",
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -49,7 +49,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"toolcall":  true,
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -63,7 +63,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"toolcall":  false,
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -84,7 +84,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"retry_delay":    2,
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -100,7 +100,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"concurrent":  3.0,    // float64 -> int
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -115,7 +115,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"retry_attempts": 2.0, // float64 -> int
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -137,7 +137,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				},
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -159,7 +159,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"tools":          "invalid",  // invalid type
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -175,7 +175,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				// Other properties should use defaults
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -191,7 +191,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				// No connector specified
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -205,7 +205,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"toolcall":  true,
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -219,7 +219,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"toolcall":  false,
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -237,7 +237,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				},
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -251,7 +251,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"temperature": 2.5, // Above normal range, will be validated by openai.NewOpenai
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -269,7 +269,7 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 				"retry_delay":    0, // Will be set to default by openai.NewOpenai
 			},
 		}
-		_, err := extractor.Make(option)
+		_, err := extraction.Make(option)
 		if err == nil {
 			t.Error("Expected error due to missing connector")
 		}
@@ -277,9 +277,9 @@ func TestExtractorOpenAI_Make(t *testing.T) {
 	})
 }
 
-func TestExtractorOpenAI_Schema(t *testing.T) {
-	extractor := &ExtractorOpenAI{}
-	schema, err := extractor.Schema(nil, "en")
+func TestExtractionOpenAI_Schema(t *testing.T) {
+	extraction := &ExtractionOpenAI{}
+	schema, err := extraction.Schema(nil, "en")
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}

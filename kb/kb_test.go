@@ -128,7 +128,7 @@ func TestProviderConfigGetProviders(t *testing.T) {
 	}
 
 	// Test getting providers for different types and languages
-	testCases := []string{"chunking", "embedding", "converter", "extractor", "fetcher"}
+	testCases := []string{"chunking", "embedding", "converter", "extraction", "fetcher"}
 
 	for _, providerType := range testCases {
 		// Test with "en"

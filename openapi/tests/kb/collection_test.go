@@ -41,6 +41,7 @@ func TestCreateCollection(t *testing.T) {
 		createData := map[string]interface{}{
 			"id": testCollectionID,
 			"metadata": map[string]interface{}{
+				"name":       "Test Collection " + testCollectionID, // Required: collection display name
 				"category":   "test",
 				"created_by": "test_user",
 			},
@@ -166,6 +167,7 @@ func TestRemoveCollection(t *testing.T) {
 		createData := map[string]interface{}{
 			"id": testCollectionID,
 			"metadata": map[string]interface{}{
+				"name":     "Test Remove Collection " + testCollectionID, // Required: collection display name
 				"category": "test_remove",
 			},
 			"config": map[string]interface{}{
@@ -497,6 +499,7 @@ func TestCollectionIntegration(t *testing.T) {
 		createData := map[string]interface{}{
 			"id": testCollectionID,
 			"metadata": map[string]interface{}{
+				"name":     "Integration Test Collection " + testCollectionID, // Required: collection display name
 				"category": "integration_test",
 				"purpose":  "full_lifecycle_test",
 			},

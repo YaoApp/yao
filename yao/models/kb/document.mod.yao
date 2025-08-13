@@ -241,18 +241,18 @@
       "nullable": true
     },
     {
-      "name": "extractor_provider_id",
+      "name": "extraction_provider_id",
       "type": "string",
-      "label": "Extractor Provider ID",
-      "comment": "Knowledge extractor provider ID (optional)",
+      "label": "Extraction Provider ID",
+      "comment": "Knowledge extraction provider ID (optional)",
       "length": 128,
       "nullable": true
     },
     {
-      "name": "extractor_properties",
+      "name": "extraction_properties",
       "type": "json",
-      "label": "Extractor Properties",
-      "comment": "Extractor provider configuration properties",
+      "label": "Extraction Properties",
+      "comment": "Extraction provider configuration properties",
       "nullable": true
     },
     {

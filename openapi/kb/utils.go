@@ -261,12 +261,12 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 
 	// Optional providers
 	if r.Extraction != nil {
-		extractionOption, err := resolveProviderOption(r.Extraction, "extractor", locale)
+		extractionOption, err := resolveProviderOption(r.Extraction, "extraction", locale)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve extraction provider: %w", err)
 		}
 
-		extraction, err := factory.MakeExtractor(r.Extraction.ProviderID, extractionOption)
+		extraction, err := factory.MakeExtraction(r.Extraction.ProviderID, extractionOption)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create extraction provider: %w", err)
 		}
@@ -623,9 +623,9 @@ func addBaseRequestFields(data map[string]interface{}, req *BaseUpsertRequest) {
 		}
 	}
 	if req.Extraction != nil {
-		data["extractor_provider_id"] = req.Extraction.ProviderID
+		data["extraction_provider_id"] = req.Extraction.ProviderID
 		if req.Extraction.Option != nil {
-			data["extractor_properties"] = req.Extraction.Option.Properties
+			data["extraction_properties"] = req.Extraction.Option.Properties
 		}
 	}
 }
