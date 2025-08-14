@@ -1,6 +1,8 @@
 package kb
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
@@ -8,15 +10,10 @@ import (
 	"github.com/yaoapp/yao/openapi/response"
 )
 
-// AddURL adds a URL to a collection
-func AddURL(c *gin.Context) {
-	// Check if kb.Instance is available
-	if !checkKBInstance(c) {
-		return
-	}
-
+// addURLWithRequest processes a URL addition with pre-parsed request
+func addURLWithRequest(c *gin.Context, req *AddURLRequest) {
 	// Prepare request and database data
-	req, documentData, err := PrepareAddURL(c)
+	_, documentData, err := PrepareAddURL(c, req)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -88,12 +85,60 @@ func AddURL(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusCreated, result)
 }
 
+// AddURL adds a URL to a collection
+func AddURL(c *gin.Context) {
+	var req AddURLRequest
+
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
+		return
+	}
+
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Process the request
+	addURLWithRequest(c, &req)
+}
+
 // AddURLAsync adds a URL to a collection asynchronously
 func AddURLAsync(c *gin.Context) {
 	var req AddURLRequest
 
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
 	// Validate request
-	if err := validateRequest(c, &req); err != nil {
+	if err := req.Validate(); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
@@ -108,6 +153,9 @@ func AddURLAsync(c *gin.Context) {
 		return
 	}
 
-	// Handle async processing
-	handleAsync(c, AddURL)
+	// Handle async processing with parsed request
+	handleAsyncWithRequest(c, &req, func(ctx context.Context, r *AddURLRequest) {
+		// Temporary placeholder - would need ProcessAddURLRequest function
+		log.Info("Async URL processing placeholder for: %s", r.URL)
+	})
 }
