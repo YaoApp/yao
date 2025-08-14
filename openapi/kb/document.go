@@ -1,7 +1,6 @@
 package kb
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +10,26 @@ import (
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
+
+// SimpleJob represents a simple job for async operations
+// TODO: replace with proper job system later
+type SimpleJob struct {
+	ID string
+}
+
+// NewJob creates a new simple job
+func NewJob() *SimpleJob {
+	return &SimpleJob{
+		ID: uuid.New().String(),
+	}
+}
+
+// Run executes the job function asynchronously and returns job ID
+func (j *SimpleJob) Run(fn func()) string {
+	// temporary solution to handle async operations ( TODO: use job queue )
+	go fn()
+	return j.ID
+}
 
 // Document Management Handlers
 
@@ -131,15 +150,4 @@ func validateFileAndGetPath(c *gin.Context, req *AddFileRequest) (string, string
 	}
 
 	return path, contentType, nil
-}
-
-// handleAsyncWithRequest handles async processing for handlers that need parsed request data
-func handleAsyncWithRequest[T any](c *gin.Context, req T, handler func(context.Context, T)) {
-	jobid := uuid.New().String()
-
-	// temporary solution to handle async operations ( TODO: use job queue )
-	// Use context.Background() to avoid Gin context expiration in async operations
-	go func() { handler(context.Background(), req) }()
-
-	response.RespondWithSuccess(c, response.StatusCreated, gin.H{"job_id": jobid})
 }
