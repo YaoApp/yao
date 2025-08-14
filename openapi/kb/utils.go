@@ -80,16 +80,14 @@ func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[stri
 }
 
 // PrepareAddFile prepares AddFile request and database data
-func PrepareAddFile(c *gin.Context) (*AddFileRequest, map[string]interface{}, error) {
-	var req AddFileRequest
-
-	// Parse and validate request
-	if err := validateRequest(c, &req); err != nil {
+func PrepareAddFile(c *gin.Context, req *AddFileRequest) (*AddFileRequest, map[string]interface{}, error) {
+	// Validate request
+	if err := req.Validate(); err != nil {
 		return nil, nil, err
 	}
 
 	// Validate file and get path
-	path, contentType, err := validateFileAndGetPath(c, &req)
+	path, contentType, err := validateFileAndGetPath(c, req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,15 +118,13 @@ func PrepareAddFile(c *gin.Context) (*AddFileRequest, map[string]interface{}, er
 	req.BaseUpsertRequest.AddBaseFields(data)
 	addContextFields(c, data)
 
-	return &req, data, nil
+	return req, data, nil
 }
 
 // PrepareAddText prepares AddText request and database data
-func PrepareAddText(c *gin.Context) (*AddTextRequest, map[string]interface{}, error) {
-	var req AddTextRequest
-
-	// Parse and validate request
-	if err := validateRequest(c, &req); err != nil {
+func PrepareAddText(c *gin.Context, req *AddTextRequest) (*AddTextRequest, map[string]interface{}, error) {
+	// Validate request
+	if err := req.Validate(); err != nil {
 		return nil, nil, err
 	}
 
@@ -158,15 +154,13 @@ func PrepareAddText(c *gin.Context) (*AddTextRequest, map[string]interface{}, er
 	req.BaseUpsertRequest.AddBaseFields(data)
 	addContextFields(c, data)
 
-	return &req, data, nil
+	return req, data, nil
 }
 
 // PrepareAddURL prepares AddURL request and database data
-func PrepareAddURL(c *gin.Context) (*AddURLRequest, map[string]interface{}, error) {
-	var req AddURLRequest
-
-	// Parse and validate request
-	if err := validateRequest(c, &req); err != nil {
+func PrepareAddURL(c *gin.Context, req *AddURLRequest) (*AddURLRequest, map[string]interface{}, error) {
+	// Validate request
+	if err := req.Validate(); err != nil {
 		return nil, nil, err
 	}
 
@@ -196,7 +190,7 @@ func PrepareAddURL(c *gin.Context) (*AddURLRequest, map[string]interface{}, erro
 	req.BaseUpsertRequest.AddBaseFields(data)
 	addContextFields(c, data)
 
-	return &req, data, nil
+	return req, data, nil
 }
 
 // addContextFields adds context-specific fields like permissions, user info

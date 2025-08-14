@@ -1,89 +1,125 @@
 package kb
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/graphrag/utils"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
-// AddFile adds a file to a collection
-func AddFile(c *gin.Context) {
+// AddFileProcess processes a file addition request with business logic only
+// This function is Gin-agnostic and can be used for both sync and async operations
+func AddFileProcess(ctx context.Context, req *AddFileRequest) error {
 	// Check if kb.Instance is available
-	if !checkKBInstance(c) {
-		return
+	if kb.Instance == nil {
+		return fmt.Errorf("knowledge base not initialized")
 	}
 
-	// Prepare request and database data
-	req, documentData, err := PrepareAddFile(c)
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return err
+	}
+
+	// Get file manager
+	m, ok := attachment.Managers[req.Uploader]
+	if !ok {
+		return fmt.Errorf("invalid uploader: %s not found", req.Uploader)
+	}
+
+	// Check if the file exists
+	exists := m.Exists(ctx, req.FileID)
+	if !exists {
+		return fmt.Errorf("file not found: %s", req.FileID)
+	}
+
+	// Get file info and path
+	path, contentType, err := m.LocalPath(ctx, req.FileID)
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
+		return fmt.Errorf("failed to get local path: %w", err)
+	}
+
+	fileInfo, err := m.Info(ctx, req.FileID)
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Generate document ID if not provided
+	if req.DocID == "" {
+		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
 	}
 
 	// Get KB config
 	config, err := kb.GetConfig()
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to get KB config: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
+		return fmt.Errorf("failed to get KB config: %w", err)
 	}
+
+	// Prepare document data for database
+	documentData := map[string]interface{}{
+		"document_id":    req.DocID,
+		"collection_id":  req.CollectionID,
+		"name":           fileInfo.Filename,
+		"type":           "file",
+		"status":         "pending",
+		"uploader_id":    req.Uploader,
+		"file_name":      fileInfo.Filename,
+		"file_path":      path,
+		"file_mime_type": contentType,
+		"size":           int64(fileInfo.Bytes),
+	}
+
+	// Add base request fields
+	req.BaseUpsertRequest.AddBaseFields(documentData)
 
 	// First create database record
 	_, err = config.CreateDocument(maps.MapStrAny(documentData))
 	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to save document metadata: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
+		return fmt.Errorf("failed to save document metadata: %w", err)
 	}
 
 	// Convert request to UpsertOptions
-	path, contentType, err := validateFileAndGetPath(c, req)
+	upsertOptions, err := req.BaseUpsertRequest.ToUpsertOptions(path, contentType)
 	if err != nil {
 		// Rollback: remove the database record
-		if err := config.RemoveDocument(req.DocID); err != nil {
-			log.Error("Failed to rollback document database record: %v", err)
+		if rollbackErr := config.RemoveDocument(req.DocID); rollbackErr != nil {
+			log.Error("Failed to rollback document database record: %v", rollbackErr)
 		}
-		return
+		return fmt.Errorf("failed to convert request to upsert options: %w", err)
 	}
 
-	upsertOptions, err := getUpsertOptions(c, &req.BaseUpsertRequest, path, contentType)
+	// Perform upsert operation with file path
+	_, err = kb.Instance.AddFile(ctx, path, upsertOptions)
 	if err != nil {
-		// Rollback: remove the database record
-		if err := config.RemoveDocument(req.DocID); err != nil {
-			log.Error("Failed to rollback document database record: %v", err)
-		}
-		return
-	}
-
-	// Perform upsert operation with file ID
-	_, err = kb.Instance.AddFile(c.Request.Context(), req.FileID, upsertOptions)
-	if err != nil {
-		// Update status to error and return error response
+		// Update status to error
 		config.UpdateDocument(req.DocID, maps.MapStrAny{"status": "error", "error_message": err.Error()})
-
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to add file: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
+		return fmt.Errorf("failed to add file: %w", err)
 	}
 
 	// Update status to completed after successful processing
 	if err := config.UpdateDocument(req.DocID, maps.MapStrAny{"status": "completed"}); err != nil {
 		log.Error("Failed to update document status to completed: %v", err)
+	}
+
+	return nil
+}
+
+// addFileWithRequest processes a file addition with pre-parsed request using Gin context
+func addFileWithRequest(c *gin.Context, req *AddFileRequest) {
+	// Use the business logic function
+	err := AddFileProcess(c.Request.Context(), req)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
 	}
 
 	// Return success response
@@ -97,6 +133,39 @@ func AddFile(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusCreated, result)
 }
 
+// AddFile adds a file to a collection
+func AddFile(c *gin.Context) {
+	var req AddFileRequest
+
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
+		return
+	}
+
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Process the request
+	addFileWithRequest(c, &req)
+}
+
 // AddFileAsync adds file to a collection asynchronously
 func AddFileAsync(c *gin.Context) {
 	var req AddFileRequest
@@ -106,8 +175,23 @@ func AddFileAsync(c *gin.Context) {
 		return
 	}
 
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
 	// Validate request
-	if err := validateRequest(c, &req); err != nil {
+	if err := req.Validate(); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
@@ -123,6 +207,12 @@ func AddFileAsync(c *gin.Context) {
 		return
 	}
 
-	// Handle async processing
-	handleAsync(c, AddFile)
+	// Handle async processing with parsed request
+	// Use context.Background() for async operations to avoid Gin context expiration
+	handleAsyncWithRequest(c, &req, func(ctx context.Context, r *AddFileRequest) {
+		err := AddFileProcess(ctx, r)
+		if err != nil {
+			log.Error("Async file processing failed: %v", err)
+		}
+	})
 }

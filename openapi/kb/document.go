@@ -1,6 +1,7 @@
 package kb
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -65,31 +66,6 @@ func RemoveDocs(c *gin.Context) {
 // Validator interface for request validation
 type Validator interface {
 	Validate() error
-}
-
-// validateRequest validates a request by parsing JSON and calling Validate()
-func validateRequest[T Validator](c *gin.Context, req T) error {
-	// Parse and bind JSON request
-	if err := c.ShouldBindJSON(req); err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Invalid request format: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return err
-	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return err
-	}
-
-	return nil
 }
 
 // checkKBInstance checks if kb.Instance is available
@@ -157,12 +133,13 @@ func validateFileAndGetPath(c *gin.Context, req *AddFileRequest) (string, string
 	return path, contentType, nil
 }
 
-// handleAsync handles async processing for any handler function
-func handleAsync(c *gin.Context, syncHandler func(*gin.Context)) {
+// handleAsyncWithRequest handles async processing for handlers that need parsed request data
+func handleAsyncWithRequest[T any](c *gin.Context, req T, handler func(context.Context, T)) {
 	jobid := uuid.New().String()
 
 	// temporary solution to handle async operations ( TODO: use job queue )
-	go func() { syncHandler(c) }()
+	// Use context.Background() to avoid Gin context expiration in async operations
+	go func() { handler(context.Background(), req) }()
 
 	response.RespondWithSuccess(c, response.StatusCreated, gin.H{"job_id": jobid})
 }
