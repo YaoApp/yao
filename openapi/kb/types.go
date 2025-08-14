@@ -244,10 +244,6 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	}
 	options.ChunkingOptions = chunkingOpts
 
-	fmt.Println("========== debug  options ==========")
-	fmt.Printf("%+v\n", chunkingOpts)
-	fmt.Println("========== options ==========")
-
 	// Resolve and create embedding provider
 	embeddingOption, err := r.Embedding.ProviderOption("embedding", locale)
 	if err != nil {
