@@ -25,7 +25,9 @@ func TestStructured_Options(t *testing.T) {
 			Overlap:        20,
 			MaxDepth:       3,
 			SizeMultiplier: 3,
-			MaxConcurrent:  10,
+			MaxConcurrent:  1,
+			Separator:      "",
+			EnableDebug:    false,
 		}
 
 		if options.Size != expected.Size {
@@ -157,8 +159,8 @@ func TestStructured_Options(t *testing.T) {
 		if options.SizeMultiplier != 3 {
 			t.Errorf("Expected SizeMultiplier 3 (default), got %d", options.SizeMultiplier)
 		}
-		if options.MaxConcurrent != 10 {
-			t.Errorf("Expected MaxConcurrent 10 (default), got %d", options.MaxConcurrent)
+		if options.MaxConcurrent != 1 {
+			t.Errorf("Expected MaxConcurrent 1 (default), got %d", options.MaxConcurrent)
 		}
 	})
 
@@ -210,8 +212,8 @@ func TestSemantic_Options(t *testing.T) {
 		if options.SizeMultiplier != 3 {
 			t.Errorf("Expected SizeMultiplier 3, got %d", options.SizeMultiplier)
 		}
-		if options.MaxConcurrent != 10 {
-			t.Errorf("Expected MaxConcurrent 10, got %d", options.MaxConcurrent)
+		if options.MaxConcurrent != 1 {
+			t.Errorf("Expected MaxConcurrent 1, got %d", options.MaxConcurrent)
 		}
 
 		// Check semantic options
@@ -224,11 +226,14 @@ func TestSemantic_Options(t *testing.T) {
 		if options.SemanticOptions.MaxRetry != 3 {
 			t.Errorf("Expected MaxRetry 3, got %d", options.SemanticOptions.MaxRetry)
 		}
-		if options.SemanticOptions.MaxConcurrent != 10 {
-			t.Errorf("Expected MaxConcurrent 10, got %d", options.SemanticOptions.MaxConcurrent)
+		if options.SemanticOptions.MaxConcurrent != 1 {
+			t.Errorf("Expected MaxConcurrent 1, got %d", options.SemanticOptions.MaxConcurrent)
 		}
-		if options.SemanticOptions.Toolcall != false {
-			t.Errorf("Expected Toolcall false, got %v", options.SemanticOptions.Toolcall)
+		if options.SemanticOptions.Toolcall != true {
+			t.Errorf("Expected Toolcall true, got %v", options.SemanticOptions.Toolcall)
+		}
+		if options.SemanticOptions.Connector != "openai.gpt-4o-mini" {
+			t.Errorf("Expected Connector 'openai.gpt-4o-mini', got '%s'", options.SemanticOptions.Connector)
 		}
 	})
 
@@ -263,13 +268,15 @@ func TestSemantic_Options(t *testing.T) {
 	t.Run("semantic specific properties", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"connector":               "openai.gpt-4o-mini",
-				"toolcall":                true,
-				"context_size":            2400,
-				"options":                 `{"temperature": 0.7}`,
-				"prompt":                  "Custom system prompt",
-				"max_retry":               5,
-				"semantic_max_concurrent": 15,
+				"semantic": map[string]interface{}{
+					"connector":               "openai.gpt-4o-mini",
+					"toolcall":                true,
+					"context_size":            2400,
+					"options":                 `{"temperature": 0.7}`,
+					"prompt":                  "Custom system prompt",
+					"max_retry":               5,
+					"semantic_max_concurrent": 15,
+				},
 			},
 		}
 
@@ -324,8 +331,10 @@ func TestSemantic_Options(t *testing.T) {
 	t.Run("explicit context size overrides auto-calculation", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"size":         400,  // Would auto-calculate to 2400
-				"context_size": 3000, // Explicit override
+				"size": 400, // Would auto-calculate to 2400
+				"semantic": map[string]interface{}{
+					"context_size": 3000, // Explicit override
+				},
 			},
 		}
 
@@ -342,10 +351,12 @@ func TestSemantic_Options(t *testing.T) {
 	t.Run("float64 values for semantic properties", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"size":                    500.0,
-				"context_size":            3000.0,
-				"max_retry":               4.0,
-				"semantic_max_concurrent": 12.0,
+				"size": 500.0,
+				"semantic": map[string]interface{}{
+					"context_size":            3000.0,
+					"max_retry":               4.0,
+					"semantic_max_concurrent": 12.0,
+				},
 			},
 		}
 
@@ -371,10 +382,12 @@ func TestSemantic_Options(t *testing.T) {
 	t.Run("mixed valid and invalid properties", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"size":      500,       // valid
-				"connector": 123,       // invalid type for string
-				"toolcall":  "invalid", // invalid type for bool
-				"max_retry": 3,         // valid
+				"size": 500, // valid
+				"semantic": map[string]interface{}{
+					"connector": 123,       // invalid type for string
+					"toolcall":  "invalid", // invalid type for bool
+					"max_retry": 3,         // valid
+				},
 			},
 		}
 
@@ -392,11 +405,11 @@ func TestSemantic_Options(t *testing.T) {
 		}
 
 		// Invalid properties should use defaults
-		if options.SemanticOptions.Connector != "" {
-			t.Errorf("Expected Connector '' (default), got '%s'", options.SemanticOptions.Connector)
+		if options.SemanticOptions.Connector != "openai.gpt-4o-mini" {
+			t.Errorf("Expected Connector 'openai.gpt-4o-mini' (default), got '%s'", options.SemanticOptions.Connector)
 		}
-		if options.SemanticOptions.Toolcall != false {
-			t.Errorf("Expected Toolcall false (default), got %v", options.SemanticOptions.Toolcall)
+		if options.SemanticOptions.Toolcall != true {
+			t.Errorf("Expected Toolcall true (default), got %v", options.SemanticOptions.Toolcall)
 		}
 	})
 }
