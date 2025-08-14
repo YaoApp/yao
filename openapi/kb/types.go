@@ -244,6 +244,10 @@ func (r *BaseUpsertRequest) ToUpsertOptions(fileInfo ...string) (*types.UpsertOp
 	}
 	options.ChunkingOptions = chunkingOpts
 
+	fmt.Println("========== debug  options ==========")
+	fmt.Printf("%+v\n", chunkingOpts)
+	fmt.Println("========== options ==========")
+
 	// Resolve and create embedding provider
 	embeddingOption, err := r.Embedding.ProviderOption("embedding", locale)
 	if err != nil {
@@ -405,31 +409,58 @@ func (r *BaseUpsertRequest) AddBaseFields(data map[string]interface{}) {
 	if r.DocID != "" {
 		data["document_id"] = r.DocID
 	}
+
+	// Extract fields from metadata
 	if r.Metadata != nil {
-		data["tags"] = r.Metadata
+		// Extract specific fields from metadata
+		if description, ok := r.Metadata["description"]; ok && description != nil {
+			data["description"] = description
+		}
+		if cover, ok := r.Metadata["cover"]; ok && cover != nil {
+			data["cover"] = cover
+		}
+		if tags, ok := r.Metadata["tags"]; ok && tags != nil {
+			data["tags"] = tags
+		}
+		if name, ok := r.Metadata["name"]; ok && name != nil {
+			data["name"] = name
+		}
+		// Note: Other metadata fields like size, type, etc. are handled by specific request types
 	}
 
 	// Add provider configurations
 	if r.Converter != nil {
 		data["converter_provider_id"] = r.Converter.ProviderID
+		if r.Converter.OptionID != "" {
+			data["converter_option_id"] = r.Converter.OptionID
+		}
 		if r.Converter.Option != nil {
 			data["converter_properties"] = r.Converter.Option.Properties
 		}
 	}
 	if r.Fetcher != nil {
 		data["fetcher_provider_id"] = r.Fetcher.ProviderID
+		if r.Fetcher.OptionID != "" {
+			data["fetcher_option_id"] = r.Fetcher.OptionID
+		}
 		if r.Fetcher.Option != nil {
 			data["fetcher_properties"] = r.Fetcher.Option.Properties
 		}
 	}
 	if r.Chunking != nil {
 		data["chunking_provider_id"] = r.Chunking.ProviderID
+		if r.Chunking.OptionID != "" {
+			data["chunking_option_id"] = r.Chunking.OptionID
+		}
 		if r.Chunking.Option != nil {
 			data["chunking_properties"] = r.Chunking.Option.Properties
 		}
 	}
 	if r.Extraction != nil {
 		data["extraction_provider_id"] = r.Extraction.ProviderID
+		if r.Extraction.OptionID != "" {
+			data["extraction_option_id"] = r.Extraction.OptionID
+		}
 		if r.Extraction.Option != nil {
 			data["extraction_properties"] = r.Extraction.Option.Properties
 		}

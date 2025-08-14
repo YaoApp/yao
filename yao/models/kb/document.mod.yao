@@ -148,6 +148,14 @@
       "nullable": false
     },
     {
+      "name": "cover",
+      "type": "string",
+      "label": "Cover Image",
+      "comment": "Document cover image URL",
+      "length": 512,
+      "nullable": true
+    },
+    {
       "name": "file_name",
       "type": "string",
       "label": "File Name",
@@ -203,6 +211,14 @@
       "nullable": true
     },
     {
+      "name": "converter_option_id",
+      "type": "string",
+      "label": "Converter Option ID",
+      "comment": "Document converter provider option ID (for file type)",
+      "length": 128,
+      "nullable": true
+    },
+    {
       "name": "converter_properties",
       "type": "json",
       "label": "Converter Properties",
@@ -214,6 +230,14 @@
       "type": "string",
       "label": "Fetcher Provider ID",
       "comment": "URL fetcher provider ID (for url type)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "fetcher_option_id",
+      "type": "string",
+      "label": "Fetcher Option ID",
+      "comment": "URL fetcher provider option ID (for url type)",
       "length": 128,
       "nullable": true
     },
@@ -234,6 +258,14 @@
       "index": true
     },
     {
+      "name": "chunking_option_id",
+      "type": "string",
+      "label": "Chunking Option ID",
+      "comment": "Text chunking provider option ID",
+      "length": 128,
+      "nullable": true
+    },
+    {
       "name": "chunking_properties",
       "type": "json",
       "label": "Chunking Properties",
@@ -245,6 +277,14 @@
       "type": "string",
       "label": "Extraction Provider ID",
       "comment": "Knowledge extraction provider ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "extraction_option_id",
+      "type": "string",
+      "label": "Extraction Option ID",
+      "comment": "Knowledge extraction provider option ID (optional)",
       "length": 128,
       "nullable": true
     },

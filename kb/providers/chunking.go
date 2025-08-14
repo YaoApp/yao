@@ -35,7 +35,9 @@ func (s *Structured) Options(option *kbtypes.ProviderOption) (*types.ChunkingOpt
 			Overlap:        20,
 			MaxDepth:       3,
 			SizeMultiplier: 3,
-			MaxConcurrent:  10,
+			MaxConcurrent:  1,
+			Separator:      "",
+			EnableDebug:    false,
 		}, nil
 	}
 
@@ -45,7 +47,9 @@ func (s *Structured) Options(option *kbtypes.ProviderOption) (*types.ChunkingOpt
 		Overlap:        20,
 		MaxDepth:       3,
 		SizeMultiplier: 3,
-		MaxConcurrent:  10,
+		MaxConcurrent:  1,
+		Separator:      "",
+		EnableDebug:    false,
 	}
 
 	// Extract values from Properties map
@@ -89,6 +93,18 @@ func (s *Structured) Options(option *kbtypes.ProviderOption) (*types.ChunkingOpt
 				options.MaxConcurrent = int(maxConcurrentFloat)
 			}
 		}
+
+		if separator, ok := option.Properties["separator"]; ok {
+			if separatorStr, ok := separator.(string); ok {
+				options.Separator = separatorStr
+			}
+		}
+
+		if enableDebug, ok := option.Properties["enable_debug"]; ok {
+			if enableDebugBool, ok := enableDebug.(bool); ok {
+				options.EnableDebug = enableDebugBool
+			}
+		}
 	}
 
 	return options, nil
@@ -115,12 +131,13 @@ func (s *Semantic) Options(option *kbtypes.ProviderOption) (*types.ChunkingOptio
 			Overlap:        50,
 			MaxDepth:       3,
 			SizeMultiplier: 3,
-			MaxConcurrent:  10,
+			MaxConcurrent:  1,
 			SemanticOptions: &types.SemanticOptions{
+				Connector:     "openai.gpt-4o-mini",
 				ContextSize:   1800, // Default L1 Size (ChunkSize * 6)
 				MaxRetry:      3,
-				MaxConcurrent: 10,
-				Toolcall:      false,
+				MaxConcurrent: 1,
+				Toolcall:      true,
 			},
 		}, nil
 	}
@@ -131,12 +148,13 @@ func (s *Semantic) Options(option *kbtypes.ProviderOption) (*types.ChunkingOptio
 		Overlap:        50,
 		MaxDepth:       3,
 		SizeMultiplier: 3,
-		MaxConcurrent:  10,
+		MaxConcurrent:  1,
 		SemanticOptions: &types.SemanticOptions{
+			Connector:     "openai.gpt-4o-mini",
 			ContextSize:   1800, // Default L1 Size (ChunkSize * 6)
 			MaxRetry:      3,
-			MaxConcurrent: 10,
-			Toolcall:      false,
+			MaxConcurrent: 1,
+			Toolcall:      true,
 		},
 	}
 
@@ -186,52 +204,56 @@ func (s *Semantic) Options(option *kbtypes.ProviderOption) (*types.ChunkingOptio
 			}
 		}
 
-		// Semantic-specific options
-		if connector, ok := option.Properties["connector"]; ok {
-			if connectorStr, ok := connector.(string); ok {
-				options.SemanticOptions.Connector = connectorStr
-			}
-		}
+		// Handle nested semantic options
+		if semanticProps, ok := option.Properties["semantic"]; ok {
+			if semanticMap, ok := semanticProps.(map[string]interface{}); ok {
+				if connector, ok := semanticMap["connector"]; ok {
+					if connectorStr, ok := connector.(string); ok {
+						options.SemanticOptions.Connector = connectorStr
+					}
+				}
 
-		if toolcall, ok := option.Properties["toolcall"]; ok {
-			if toolcallBool, ok := toolcall.(bool); ok {
-				options.SemanticOptions.Toolcall = toolcallBool
-			}
-		}
+				if toolcall, ok := semanticMap["toolcall"]; ok {
+					if toolcallBool, ok := toolcall.(bool); ok {
+						options.SemanticOptions.Toolcall = toolcallBool
+					}
+				}
 
-		if contextSize, ok := option.Properties["context_size"]; ok {
-			if contextSizeInt, ok := contextSize.(int); ok {
-				options.SemanticOptions.ContextSize = contextSizeInt
-			} else if contextSizeFloat, ok := contextSize.(float64); ok {
-				options.SemanticOptions.ContextSize = int(contextSizeFloat)
-			}
-		}
+				if contextSize, ok := semanticMap["context_size"]; ok {
+					if contextSizeInt, ok := contextSize.(int); ok {
+						options.SemanticOptions.ContextSize = contextSizeInt
+					} else if contextSizeFloat, ok := contextSize.(float64); ok {
+						options.SemanticOptions.ContextSize = int(contextSizeFloat)
+					}
+				}
 
-		if optionsStr, ok := option.Properties["options"]; ok {
-			if optionsString, ok := optionsStr.(string); ok {
-				options.SemanticOptions.Options = optionsString
-			}
-		}
+				if maxRetry, ok := semanticMap["max_retry"]; ok {
+					if maxRetryInt, ok := maxRetry.(int); ok {
+						options.SemanticOptions.MaxRetry = maxRetryInt
+					} else if maxRetryFloat, ok := maxRetry.(float64); ok {
+						options.SemanticOptions.MaxRetry = int(maxRetryFloat)
+					}
+				}
 
-		if prompt, ok := option.Properties["prompt"]; ok {
-			if promptStr, ok := prompt.(string); ok {
-				options.SemanticOptions.Prompt = promptStr
-			}
-		}
+				if semanticMaxConcurrent, ok := semanticMap["semantic_max_concurrent"]; ok {
+					if semanticMaxConcurrentInt, ok := semanticMaxConcurrent.(int); ok {
+						options.SemanticOptions.MaxConcurrent = semanticMaxConcurrentInt
+					} else if semanticMaxConcurrentFloat, ok := semanticMaxConcurrent.(float64); ok {
+						options.SemanticOptions.MaxConcurrent = int(semanticMaxConcurrentFloat)
+					}
+				}
 
-		if maxRetry, ok := option.Properties["max_retry"]; ok {
-			if maxRetryInt, ok := maxRetry.(int); ok {
-				options.SemanticOptions.MaxRetry = maxRetryInt
-			} else if maxRetryFloat, ok := maxRetry.(float64); ok {
-				options.SemanticOptions.MaxRetry = int(maxRetryFloat)
-			}
-		}
+				if prompt, ok := semanticMap["prompt"]; ok {
+					if promptStr, ok := prompt.(string); ok {
+						options.SemanticOptions.Prompt = promptStr
+					}
+				}
 
-		if semanticMaxConcurrent, ok := option.Properties["semantic_max_concurrent"]; ok {
-			if semanticMaxConcurrentInt, ok := semanticMaxConcurrent.(int); ok {
-				options.SemanticOptions.MaxConcurrent = semanticMaxConcurrentInt
-			} else if semanticMaxConcurrentFloat, ok := semanticMaxConcurrent.(float64); ok {
-				options.SemanticOptions.MaxConcurrent = int(semanticMaxConcurrentFloat)
+				if optionsStr, ok := semanticMap["options"]; ok {
+					if optionsJSON, ok := optionsStr.(string); ok {
+						options.SemanticOptions.Options = optionsJSON
+					}
+				}
 			}
 		}
 	}
