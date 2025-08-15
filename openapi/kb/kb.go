@@ -44,8 +44,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.DELETE("/documents/:docID/segments", RemoveSegmentsByDocID)
 	group.GET("/segments", GetSegments)
 	group.GET("/segments/:segmentID", GetSegment)
-	group.GET("/documents/:docID/segments", ListSegments)
-	group.GET("/documents/:docID/segments/scroll", ScrollSegments)
+	group.GET("/documents/:docID/segments", ScrollSegments)
 
 	// Segment Voting, Scoring, Weighting
 	group.PUT("/segments/vote", UpdateVote)
