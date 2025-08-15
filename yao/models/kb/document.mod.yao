@@ -156,6 +156,15 @@
       "nullable": true
     },
     {
+      "name": "file_id",
+      "type": "string",
+      "label": "File ID",
+      "comment": "File identifier for attachment system (for file type)",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "file_name",
       "type": "string",
       "label": "File Name",

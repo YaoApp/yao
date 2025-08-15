@@ -68,6 +68,7 @@ func AddFileProcess(ctx context.Context, req *AddFileRequest, jobID ...string) e
 		"type":           "file",
 		"status":         "pending",
 		"uploader_id":    req.Uploader,
+		"file_id":        req.FileID,
 		"file_name":      fileInfo.Filename,
 		"file_path":      path,
 		"file_mime_type": contentType,
