@@ -34,7 +34,6 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/collections/:collectionID/documents/url", AddURL)
 	group.POST("/collections/:collectionID/documents/url/async", AddURLAsync)
 	group.GET("/documents", ListDocuments)
-	group.GET("/documents/scroll", ScrollDocuments)
 	group.GET("/documents/:docID", GetDocument)
 	group.DELETE("/documents", RemoveDocs)
 

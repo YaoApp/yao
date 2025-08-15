@@ -22,7 +22,7 @@ var (
 		"description": true, "status": true, "type": true, "size": true,
 		"segment_count": true, "job_id": true, "uploader_id": true, "tags": true,
 		"locale": true, "system": true, "sort": true, "cover": true,
-		"file_name": true, "file_path": true, "file_mime_type": true,
+		"file_id": true, "file_name": true, "file_mime_type": true,
 		"url": true, "url_title": true, "text_content": true,
 		"converter_provider_id": true, "converter_option_id": true, "converter_properties": true,
 		"fetcher_provider_id": true, "fetcher_option_id": true, "fetcher_properties": true,
@@ -35,6 +35,8 @@ var (
 	defaultDocumentFields = []interface{}{
 		"id", "document_id", "collection_id", "name", "description",
 		"cover", "tags", "type", "size", "segment_count", "status", "locale",
+		"file_id", "file_name", "file_mime_type", "uploader_id",
+		"url", "url_title", "text_content", // 添加 URL 和文本内容字段
 		"error_message", "created_at", "updated_at",
 	}
 
@@ -289,35 +291,71 @@ func ListDocuments(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// ScrollDocuments scrolls through documents with iterator-style pagination
-func ScrollDocuments(c *gin.Context) {
-	// TODO: Implement scroll documents logic
-	// Query parameters: cursor, limit, filter, etc.
-	c.JSON(http.StatusOK, gin.H{
-		"documents": []interface{}{},
-		"cursor":    "",
-		"hasMore":   false,
-	})
-}
-
 // GetDocument gets document details by document ID
 func GetDocument(c *gin.Context) {
-	// TODO: Implement get document logic
-	// Note: This might need to be implemented based on your document storage structure
-	// as the GraphRag interface doesn't directly provide a GetDocument method
-	docID := c.Param("docID")
-	if docID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Document ID is required"})
+	// Check if kb.Instance is available
+	if !checkKBInstance(c) {
 		return
 	}
 
-	// TODO: Implement actual document retrieval logic
-	// This could involve querying your document storage or getting document metadata
-	c.JSON(http.StatusOK, gin.H{
-		"docID":   docID,
-		"message": "Document details retrieved",
-		// Add actual document fields here when implementing
-	})
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get KB instance and config
+	kbInstance := kb.Instance.(*kb.KnowledgeBase)
+	config := kbInstance.Config
+
+	// Parse select parameter - same logic as ListDocuments
+	var selectFields []interface{}
+	if selectParam := strings.TrimSpace(c.Query("select")); selectParam != "" {
+		requestedFields := strings.Split(selectParam, ",")
+		for _, field := range requestedFields {
+			field = strings.TrimSpace(field)
+			if field != "" && availableDocumentFields[field] {
+				selectFields = append(selectFields, field)
+			}
+		}
+		// If no valid fields found, use default
+		if len(selectFields) == 0 {
+			selectFields = defaultDocumentFields
+		}
+	} else {
+		selectFields = defaultDocumentFields
+	}
+
+	// Build query parameters
+	param := model.QueryParam{
+		Select: selectFields,
+	}
+
+	// Query single document using KB config
+	result, err := config.FindDocument(docID, param)
+	if err != nil {
+		if strings.Contains(err.Error(), "document not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Document not found: " + docID,
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+			return
+		}
+
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get document: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // RemoveDocs removes documents by IDs
