@@ -172,8 +172,8 @@ func GetSegment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"segment": nil})
 }
 
-// ListSegments lists segments with pagination
-func ListSegments(c *gin.Context) {
+// ScrollSegments scrolls segments with iterator-style pagination
+func ScrollSegments(c *gin.Context) {
 	// Parse docID from URL path parameter
 	docID := c.Param("docID")
 	if docID == "" {
@@ -195,8 +195,8 @@ func ListSegments(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters for pagination and filtering
-	options := &types.ListSegmentsOptions{
+	// Parse query parameters for scroll options
+	options := &types.ScrollSegmentsOptions{
 		IncludeMetadata: true, // Default to include metadata
 	}
 
@@ -210,11 +210,9 @@ func ListSegments(c *gin.Context) {
 		options.Limit = 100 // Default limit
 	}
 
-	// Parse offset (default: 0)
-	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
-			options.Offset = offset
-		}
+	// Parse scroll_id parameter for continuing pagination
+	if scrollID := strings.TrimSpace(c.Query("scroll_id")); scrollID != "" {
+		options.ScrollID = scrollID
 	}
 
 	// Parse order_by parameter
@@ -267,12 +265,12 @@ func ListSegments(c *gin.Context) {
 		options.Filter = filter
 	}
 
-	// Call GraphRag ListSegments method
-	result, err := kb.Instance.ListSegments(c.Request.Context(), docID, options)
+	// Call GraphRag ScrollSegments method
+	result, err := kb.Instance.ScrollSegments(c.Request.Context(), docID, options)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to list segments: " + err.Error(),
+			ErrorDescription: "Failed to scroll segments: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
@@ -280,10 +278,4 @@ func ListSegments(c *gin.Context) {
 
 	// Return success response
 	response.RespondWithSuccess(c, response.StatusOK, result)
-}
-
-// ScrollSegments scrolls segments with iterator-style pagination
-func ScrollSegments(c *gin.Context) {
-	// TODO: Implement scroll segments logic
-	c.JSON(http.StatusOK, gin.H{"segments": []interface{}{}, "cursor": ""})
 }
