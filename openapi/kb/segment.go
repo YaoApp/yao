@@ -2,8 +2,11 @@ package kb
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -171,8 +174,112 @@ func GetSegment(c *gin.Context) {
 
 // ListSegments lists segments with pagination
 func ListSegments(c *gin.Context) {
-	// TODO: Implement list segments with pagination logic
-	c.JSON(http.StatusOK, gin.H{"segments": []interface{}{}, "total": 0, "page": 1})
+	// Parse docID from URL path parameter
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "docID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Parse query parameters for pagination and filtering
+	options := &types.ListSegmentsOptions{
+		IncludeMetadata: true, // Default to include metadata
+	}
+
+	// Parse limit (default: 100)
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 {
+			options.Limit = limit
+		}
+	}
+	if options.Limit == 0 {
+		options.Limit = 100 // Default limit
+	}
+
+	// Parse offset (default: 0)
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if offset, err := strconv.Atoi(offsetStr); err == nil && offset >= 0 {
+			options.Offset = offset
+		}
+	}
+
+	// Parse order_by parameter
+	if orderBy := strings.TrimSpace(c.Query("order_by")); orderBy != "" {
+		options.OrderBy = strings.Split(orderBy, ",")
+		// Trim spaces from each field
+		for i, field := range options.OrderBy {
+			options.OrderBy[i] = strings.TrimSpace(field)
+		}
+	}
+
+	// Parse fields parameter
+	if fields := strings.TrimSpace(c.Query("fields")); fields != "" {
+		options.Fields = strings.Split(fields, ",")
+		// Trim spaces from each field
+		for i, field := range options.Fields {
+			options.Fields[i] = strings.TrimSpace(field)
+		}
+	}
+
+	// Parse include options
+	if includeNodes := c.Query("include_nodes"); includeNodes == "true" {
+		options.IncludeNodes = true
+	}
+	if includeRelationships := c.Query("include_relationships"); includeRelationships == "true" {
+		options.IncludeRelationships = true
+	}
+	if includeMetadata := c.Query("include_metadata"); includeMetadata == "false" {
+		options.IncludeMetadata = false
+	}
+
+	// Parse filter parameters (basic implementation for common filters)
+	filter := make(map[string]interface{})
+	if score := c.Query("score"); score != "" {
+		if scoreVal, err := strconv.ParseFloat(score, 64); err == nil {
+			filter["score"] = scoreVal
+		}
+	}
+	if weight := c.Query("weight"); weight != "" {
+		if weightVal, err := strconv.ParseFloat(weight, 64); err == nil {
+			filter["weight"] = weightVal
+		}
+	}
+	if vote := c.Query("vote"); vote != "" {
+		if voteVal, err := strconv.Atoi(vote); err == nil {
+			filter["vote"] = voteVal
+		}
+	}
+	if len(filter) > 0 {
+		options.Filter = filter
+	}
+
+	// Call GraphRag ListSegments method
+	result, err := kb.Instance.ListSegments(c.Request.Context(), docID, options)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to list segments: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Return success response
+	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
 // ScrollSegments scrolls segments with iterator-style pagination
