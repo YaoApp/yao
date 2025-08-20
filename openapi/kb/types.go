@@ -2,6 +2,7 @@ package kb
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/yao/kb"
@@ -124,8 +125,23 @@ type AddSegmentsRequest struct {
 
 // UpdateSegmentsRequest represents the request for UpdateSegments API
 type UpdateSegmentsRequest struct {
-	BaseUpsertRequest
+	// Segment texts to update
 	SegmentTexts []types.SegmentText `json:"segment_texts" binding:"required"`
+}
+
+// UpdateVoteRequest represents the request for UpdateVote API
+type UpdateVoteRequest struct {
+	Segments []types.SegmentVote `json:"segments" binding:"required"`
+}
+
+// UpdateScoreRequest represents the request for UpdateScore API
+type UpdateScoreRequest struct {
+	Segments []types.SegmentScore `json:"segments" binding:"required"`
+}
+
+// UpdateWeightRequest represents the request for UpdateWeight API
+type UpdateWeightRequest struct {
+	Segments []types.SegmentWeight `json:"segments" binding:"required"`
 }
 
 // ProviderOption resolves a ProviderConfig to a *kbtypes.ProviderOption
@@ -386,13 +402,18 @@ func (r *AddSegmentsRequest) Validate() error {
 	return nil
 }
 
-// Validate validates the UpdateSegmentsRequest fields
-func (r *UpdateSegmentsRequest) Validate() error {
-	if err := r.BaseUpsertRequest.Validate(); err != nil {
-		return err
+// Validate validates the UpdateWeightRequest fields
+func (r *UpdateWeightRequest) Validate() error {
+	if len(r.Segments) == 0 {
+		return fmt.Errorf("segments is required")
 	}
-	if len(r.SegmentTexts) == 0 {
-		return fmt.Errorf("segment_texts is required")
+	for i, segment := range r.Segments {
+		if strings.TrimSpace(segment.ID) == "" {
+			return fmt.Errorf("segments[%d].id cannot be empty", i)
+		}
+		if segment.Weight < 0 {
+			return fmt.Errorf("segments[%d].weight cannot be negative", i)
+		}
 	}
 	return nil
 }
@@ -450,6 +471,15 @@ func (r *BaseUpsertRequest) AddBaseFields(data map[string]interface{}) {
 		}
 		if r.Chunking.Option != nil {
 			data["chunking_properties"] = r.Chunking.Option.Properties
+		}
+	}
+	if r.Embedding != nil {
+		data["embedding_provider_id"] = r.Embedding.ProviderID
+		if r.Embedding.OptionID != "" {
+			data["embedding_option_id"] = r.Embedding.OptionID
+		}
+		if r.Embedding.Option != nil {
+			data["embedding_properties"] = r.Embedding.Option.Properties
 		}
 	}
 	if r.Extraction != nil {

@@ -201,6 +201,52 @@ func CollectionExists(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, successData)
 }
 
+// GetCollection retrieves a collection by ID
+func GetCollection(c *gin.Context) {
+	collectionID := c.Param("collectionID")
+	if collectionID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Collection ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Use the dedicated GetCollection method
+	collection, err := kb.Instance.GetCollection(c.Request.Context(), collectionID)
+	if err != nil {
+		// Check if it's a "not found" error
+		if err.Error() == fmt.Sprintf("collection with ID '%s' not found", collectionID) {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Collection not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+			return
+		}
+
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get collection: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, collection)
+}
+
 // GetCollections retrieves collections with optional filtering
 func GetCollections(c *gin.Context) {
 	// Check if kb.Instance is available
@@ -332,9 +378,9 @@ type CreateCollectionRequest struct {
 
 // CreateCollectionConfig represents the request structure for creating a collection
 type CreateCollectionConfig struct {
-	EmbeddingProvider string `json:"embedding_provider" binding:"required"` // embedding provider id
-	EmbeddingOption   string `json:"embedding_option" binding:"required"`   // embedding option value
-	Locale            string `json:"locale,omitempty"`                      // locale for provider reading
+	EmbeddingProviderID string `json:"embedding_provider_id" binding:"required"` // embedding provider id
+	EmbeddingOptionID   string `json:"embedding_option_id" binding:"required"`   // embedding option id
+	Locale              string `json:"locale,omitempty"`                         // locale for provider reading
 	*types.CreateCollectionOptions
 }
 

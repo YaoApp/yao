@@ -94,20 +94,26 @@
       "nullable": false
     },
     {
-      "name": "embedding_provider",
+      "name": "embedding_provider_id",
       "type": "string",
-      "label": "Embedding Provider",
-      "comment": "Embedding provider ID",
+      "label": "Embedding Provider ID",
+      "comment": "Knowledge embedding provider ID (optional)",
       "length": 128,
-      "nullable": false,
-      "index": true
+      "nullable": true
     },
     {
-      "name": "embedding_option",
+      "name": "embedding_option_id",
       "type": "string",
-      "label": "Embedding Option",
-      "comment": "Embedding model option value",
+      "label": "Embedding Option ID",
+      "comment": "Knowledge embedding provider option ID (optional)",
       "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "embedding_properties",
+      "type": "json",
+      "label": "Embedding Properties",
+      "comment": "Embedding provider configuration properties",
       "nullable": true
     },
     {
