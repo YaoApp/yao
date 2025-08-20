@@ -18,7 +18,7 @@ func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[stri
 	}
 
 	// Get provider settings first to resolve dimension
-	providerSettings, err := getProviderSettings(req.Config.EmbeddingProvider, req.Config.EmbeddingOption, req.Config.Locale)
+	providerSettings, err := getProviderSettings(req.Config.EmbeddingProviderID, req.Config.EmbeddingOptionID, req.Config.Locale)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to resolve provider settings: %w", err)
 	}
@@ -26,12 +26,23 @@ func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[stri
 	// Set dimension from provider settings
 	req.Config.Dimension = providerSettings.Dimension
 
+	// Store embedding properties if available
+	var embeddingProperties map[string]interface{} = nil
+	if providerSettings.Properties != nil {
+		embeddingProperties = providerSettings.Properties
+	}
+
 	// Add metadata with provider information
 	if req.Metadata == nil {
 		req.Metadata = make(map[string]interface{})
 	}
-	req.Metadata["__embedding_provider"] = req.Config.EmbeddingProvider
-	req.Metadata["__embedding_option"] = req.Config.EmbeddingOption
+	req.Metadata["__embedding_provider"] = req.Config.EmbeddingProviderID
+	req.Metadata["__embedding_option"] = req.Config.EmbeddingOptionID
+
+	if embeddingProperties != nil {
+		req.Metadata["__embedding_properties"] = embeddingProperties
+	}
+
 	if req.Config.Locale != "" {
 		req.Metadata["__locale"] = req.Config.Locale
 	}
@@ -43,15 +54,16 @@ func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[stri
 
 	// Prepare collection data for database
 	data := map[string]interface{}{
-		"collection_id":      req.ID,
-		"name":               req.Metadata["name"],
-		"description":        req.Metadata["description"],
-		"status":             "creating",
-		"embedding_provider": req.Config.EmbeddingProvider,
-		"embedding_option":   req.Config.EmbeddingOption,
-		"locale":             req.Config.Locale,
-		"distance":           req.Config.Distance,
-		"index_type":         req.Config.IndexType,
+		"collection_id":         req.ID,
+		"name":                  req.Metadata["name"],
+		"description":           req.Metadata["description"],
+		"status":                "creating",
+		"embedding_provider_id": req.Config.EmbeddingProviderID,
+		"embedding_option_id":   req.Config.EmbeddingOptionID,
+		"embedding_properties":  embeddingProperties,
+		"locale":                req.Config.Locale,
+		"distance":              req.Config.Distance,
+		"index_type":            req.Config.IndexType,
 	}
 
 	// Add optional HNSW parameters

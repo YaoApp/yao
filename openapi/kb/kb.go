@@ -22,6 +22,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Collection Management
 	group.POST("/collections", CreateCollection)
 	group.DELETE("/collections/:collectionID", RemoveCollection)
+	group.GET("/collections/:collectionID", GetCollection)
 	group.GET("/collections/:collectionID/exists", CollectionExists)
 	group.GET("/collections", GetCollections)
 	group.PUT("/collections/:collectionID/metadata", UpdateCollectionMetadata)
@@ -39,12 +40,14 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Segment Management
 	group.POST("/documents/:docID/segments", AddSegments)
-	group.PUT("/segments", UpdateSegments)
-	group.DELETE("/segments", RemoveSegments)
+	group.PUT("/documents/:docID/segments", UpdateSegments)
 	group.DELETE("/documents/:docID/segments", RemoveSegmentsByDocID)
+	group.GET("/documents/:docID/segments", ScrollSegments)
+
+	// Global segment operations (not tied to specific document)
+	group.DELETE("/segments", RemoveSegments)
 	group.GET("/segments", GetSegments)
 	group.GET("/segments/:segmentID", GetSegment)
-	group.GET("/documents/:docID/segments", ScrollSegments)
 
 	// Segment Voting, Scoring, Weighting
 	group.PUT("/segments/vote", UpdateVote)

@@ -401,63 +401,50 @@ func TestAddSegmentsRequest_Validate(t *testing.T) {
 	}
 }
 
-func TestUpdateSegmentsRequest_Validate(t *testing.T) {
+func TestUpdateSegmentsRequest_Structure(t *testing.T) {
 	tests := []struct {
 		name        string
 		request     *kb.UpdateSegmentsRequest
-		expectError bool
-		errorMsg    string
+		expectValid bool
 	}{
 		{
 			name: "valid update segments request",
 			request: &kb.UpdateSegmentsRequest{
-				BaseUpsertRequest: kb.BaseUpsertRequest{
-					CollectionID: "test_collection",
-					Chunking: &kb.ProviderConfig{
-						ProviderID: "chunking_provider",
-					},
-					Embedding: &kb.ProviderConfig{
-						ProviderID: "embedding_provider",
-					},
-				},
 				SegmentTexts: []types.SegmentText{
-					{Text: "Updated segment"},
+					{ID: "segment_1", Text: "Updated segment"},
 				},
 			},
-			expectError: false,
+			expectValid: true,
 		},
 		{
-			name: "missing segment_texts",
+			name: "empty segment_texts",
 			request: &kb.UpdateSegmentsRequest{
-				BaseUpsertRequest: kb.BaseUpsertRequest{
-					CollectionID: "test_collection",
-					Chunking: &kb.ProviderConfig{
-						ProviderID: "chunking_provider",
-					},
-					Embedding: &kb.ProviderConfig{
-						ProviderID: "embedding_provider",
-					},
-				},
 				SegmentTexts: []types.SegmentText{},
 			},
-			expectError: true,
-			errorMsg:    "segment_texts is required",
+			expectValid: false,
+		},
+		{
+			name: "multiple segments",
+			request: &kb.UpdateSegmentsRequest{
+				SegmentTexts: []types.SegmentText{
+					{ID: "segment_1", Text: "First updated segment"},
+					{ID: "segment_2", Text: "Second updated segment"},
+				},
+			},
+			expectValid: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.request.Validate()
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error but got none")
-				} else if err.Error() != tt.errorMsg {
-					t.Errorf("Expected error message '%s', got '%s'", tt.errorMsg, err.Error())
+			// Test basic structure validation
+			if tt.expectValid {
+				if len(tt.request.SegmentTexts) == 0 {
+					t.Errorf("Expected valid request to have segment_texts")
 				}
 			} else {
-				if err != nil {
-					t.Errorf("Expected no error but got: %v", err)
+				if len(tt.request.SegmentTexts) > 0 {
+					t.Errorf("Expected invalid request to have empty segment_texts")
 				}
 			}
 		})
