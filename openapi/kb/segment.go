@@ -279,6 +279,17 @@ func UpdateSegments(c *gin.Context) {
 
 // RemoveSegments removes segments by IDs
 func RemoveSegments(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
 	// Parse segment_ids from query parameter (comma-separated string)
 	segmentIDsParam := strings.TrimSpace(c.Query("segment_ids"))
 	if segmentIDsParam == "" {
@@ -386,14 +397,56 @@ func RemoveSegmentsByDocID(c *gin.Context) {
 
 // GetSegments gets segments by IDs
 func GetSegments(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// TODO: Implement document permission validation for docID
 	// TODO: Implement get segments logic
-	c.JSON(http.StatusOK, gin.H{"segments": []interface{}{}})
+	c.JSON(http.StatusOK, gin.H{
+		"segments":    []interface{}{},
+		"document_id": docID,
+	})
 }
 
 // GetSegment gets a single segment by ID
 func GetSegment(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// TODO: Implement document permission validation for docID
 	// TODO: Implement get single segment logic
-	c.JSON(http.StatusOK, gin.H{"segment": nil})
+	c.JSON(http.StatusOK, gin.H{
+		"segment":     nil,
+		"document_id": docID,
+		"segment_id":  segmentID,
+	})
 }
 
 // ScrollSegments scrolls segments with iterator-style pagination
@@ -501,5 +554,205 @@ func ScrollSegments(c *gin.Context) {
 	}
 
 	// Return success response
+	response.RespondWithSuccess(c, response.StatusOK, result)
+}
+
+// AddSegmentsAsync adds segments to a document asynchronously
+func AddSegmentsAsync(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	var req AddSegmentsRequest
+
+	// Parse and bind JSON request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Set docID from URL parameter
+	req.DocID = docID
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// TODO: Implement document permission validation for docID
+
+	// Create and run job
+	job := NewJob()
+	jobID := job.Run(func() {
+		// TODO: Implement async add segments logic
+		// This should call the same logic as AddSegments but in background
+		// err := AddSegmentsProcess(context.Background(), &req, job.ID)
+		// For now, just simulate async processing
+		// if err != nil {
+		//     log.Error("Async segments addition failed: %v", err)
+		// }
+	})
+
+	// Return job ID for status tracking
+	result := gin.H{
+		"job_id":      jobID,
+		"message":     "Segments addition started",
+		"document_id": docID,
+	}
+
+	response.RespondWithSuccess(c, response.StatusCreated, result)
+}
+
+// UpdateSegmentsAsync updates segments in a document asynchronously
+func UpdateSegmentsAsync(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Parse request body for segments data
+	var requestBody map[string]interface{}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// TODO: Validate request body
+	// TODO: Implement document permission validation for docID
+
+	// Create and run job
+	job := NewJob()
+	jobID := job.Run(func() {
+		// TODO: Implement async update segments logic
+		// This should call the same logic as UpdateSegments but in background
+		// err := UpdateSegmentsProcess(context.Background(), docID, requestBody, job.ID)
+		// For now, just simulate async processing
+		// if err != nil {
+		//     log.Error("Async segments update failed: %v", err)
+		// }
+	})
+
+	// Return job ID for status tracking
+	result := gin.H{
+		"job_id":      jobID,
+		"message":     "Segments update started",
+		"document_id": docID,
+	}
+
+	response.RespondWithSuccess(c, response.StatusCreated, result)
+}
+
+// GetSegmentParents gets the parent segments for a specific segment
+func GetSegmentParents(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Parse query parameters for parent options
+	options := make(map[string]interface{})
+
+	// Include metadata (default: true)
+	if includeMetadata := c.Query("include_metadata"); includeMetadata == "false" {
+		options["include_metadata"] = false
+	} else {
+		options["include_metadata"] = true
+	}
+
+	// Depth level (default: 1 - direct parents only)
+	depth := 1
+	if depthStr := c.Query("depth"); depthStr != "" {
+		if d, err := strconv.Atoi(depthStr); err == nil && d > 0 {
+			depth = d
+		}
+	}
+	options["depth"] = depth
+
+	// TODO: Implement document permission validation for docID
+	// TODO: Implement get segment parents logic
+	// TODO: Call kb.Instance.GetSegmentParents(c.Request.Context(), segmentID, options)
+
+	// Return mock response for now
+	result := gin.H{
+		"parents":     []interface{}{},
+		"document_id": docID,
+		"segment_id":  segmentID,
+		"depth":       depth,
+		"total":       0,
+	}
+
 	response.RespondWithSuccess(c, response.StatusOK, result)
 }
