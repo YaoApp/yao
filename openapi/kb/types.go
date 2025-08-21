@@ -144,6 +144,16 @@ type UpdateWeightRequest struct {
 	Segments []types.SegmentWeight `json:"segments" binding:"required"`
 }
 
+// UpdateScoresRequest represents the request for batch score updates
+type UpdateScoresRequest struct {
+	Scores []types.SegmentScore `json:"scores" binding:"required"`
+}
+
+// UpdateWeightsRequest represents the request for batch weight updates
+type UpdateWeightsRequest struct {
+	Weights []types.SegmentWeight `json:"weights" binding:"required"`
+}
+
 // ProviderOption resolves a ProviderConfig to a *kbtypes.ProviderOption
 // If OptionID is provided, it looks up the option from the provider
 // If Option is provided directly, it uses the Option field
@@ -413,6 +423,22 @@ func (r *UpdateWeightRequest) Validate() error {
 		}
 		if segment.Weight < 0 {
 			return fmt.Errorf("segments[%d].weight cannot be negative", i)
+		}
+	}
+	return nil
+}
+
+// Validate validates the UpdateWeightsRequest fields
+func (r *UpdateWeightsRequest) Validate() error {
+	if len(r.Weights) == 0 {
+		return fmt.Errorf("weights is required")
+	}
+	for i, weight := range r.Weights {
+		if strings.TrimSpace(weight.ID) == "" {
+			return fmt.Errorf("weights[%d].id cannot be empty", i)
+		}
+		if weight.Weight < 0 {
+			return fmt.Errorf("weights[%d].weight cannot be negative", i)
 		}
 	}
 	return nil

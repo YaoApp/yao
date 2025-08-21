@@ -46,16 +46,16 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/documents/:docID/segments/:segmentID/parents", GetSegmentParents)
 	group.POST("/documents/:docID/segments", AddSegments)
 	group.POST("/documents/:docID/segments/async", AddSegmentsAsync)
-	group.POST("/documents/:docID/segments/:segmentID/extract", ExtractSegmentEntities)
-	group.POST("/documents/:docID/segments/:segmentID/extract/async", ExtractSegmentEntitiesAsync)
+	group.POST("/documents/:docID/segments/:segmentID/extract", ExtractSegmentGraph)
+	group.POST("/documents/:docID/segments/:segmentID/extract/async", ExtractSegmentGraphAsync)
 	group.PUT("/documents/:docID/segments", UpdateSegments)
 	group.PUT("/documents/:docID/segments/async", UpdateSegmentsAsync)
 	group.DELETE("/documents/:docID/segments", RemoveSegments)
 	group.DELETE("/documents/:docID/segments/all", RemoveSegmentsByDocID)
 
-	// Segment score and weight management
-	group.PUT("/documents/:docID/segments/:segmentID/score", UpdateScore)
-	group.PUT("/documents/:docID/segments/:segmentID/weight", UpdateWeight)
+	// Segment score and weight management (batch operations)
+	group.PUT("/documents/:docID/segments/scores", UpdateScores)
+	group.PUT("/documents/:docID/segments/weights", UpdateWeights)
 
 	// Segment votes management
 	group.GET("/documents/:docID/segments/:segmentID/votes", ScrollVotes)
