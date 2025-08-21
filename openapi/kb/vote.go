@@ -37,9 +37,9 @@ func ScrollVotes(c *gin.Context) {
 
 	// Parse query parameters for scroll options
 	options := map[string]interface{}{
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"limit":       100, // Default limit
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"limit":      100, // Default limit
 	}
 
 	// Parse limit (default: 100)
@@ -139,10 +139,10 @@ func GetVotes(c *gin.Context) {
 
 	// Return mock response for now
 	result := gin.H{
-		"votes":       []interface{}{},
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"total":       0,
+		"votes":      []interface{}{},
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"total":      0,
 	}
 
 	if len(filter) > 0 {
@@ -193,10 +193,10 @@ func GetVote(c *gin.Context) {
 	// TODO: Implement document permission validation for docID
 	// TODO: Implement get vote detail logic
 	c.JSON(http.StatusOK, gin.H{
-		"vote":        nil,
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"vote_id":     voteID,
+		"vote":       nil,
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"vote_id":    voteID,
 	})
 }
 
@@ -227,10 +227,10 @@ func AddVotes(c *gin.Context) {
 	// TODO: Implement document permission validation for docID
 	// TODO: Implement add vote logic
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "Vote added successfully",
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"vote_id":     "placeholder-vote-id",
+		"message":    "Vote added successfully",
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"vote_id":    "placeholder-vote-id",
 	})
 }
 
@@ -275,7 +275,7 @@ func UpdateVotes(c *gin.Context) {
 
 	result := gin.H{
 		"message":       "Votes updated successfully",
-		"document_id":   docID,
+		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"updated_count": len(voteIDs),
 	}
@@ -346,7 +346,7 @@ func RemoveVotes(c *gin.Context) {
 
 	result := gin.H{
 		"message":       "Votes removed successfully",
-		"document_id":   docID,
+		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"vote_ids":      validVoteIDs,
 		"removed_count": len(validVoteIDs),
