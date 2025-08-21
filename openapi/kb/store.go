@@ -10,20 +10,63 @@ import (
 
 // Segment Voting, Scoring, Weighting Handlers
 
-// UpdateVote updates votes for segments
-func UpdateVote(c *gin.Context) {
-	// TODO: Implement update vote logic
-	c.JSON(http.StatusOK, gin.H{"message": "Vote updated"})
-}
-
-// UpdateScore updates scores for segments
+// UpdateScore updates score for a specific segment
 func UpdateScore(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// TODO: Implement document permission validation for docID
 	// TODO: Implement update score logic
-	c.JSON(http.StatusOK, gin.H{"message": "Score updated"})
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Score updated successfully",
+		"document_id": docID,
+		"segment_id":  segmentID,
+	})
 }
 
-// UpdateWeight updates weights for segments
+// UpdateWeight updates weight for a specific segment
 func UpdateWeight(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
 	var req UpdateWeightRequest
 
 	// Parse and bind JSON request
@@ -69,7 +112,9 @@ func UpdateWeight(c *gin.Context) {
 
 	// Return success response
 	result := gin.H{
-		"message":       "Segment weights updated successfully",
+		"message":       "Segment weight updated successfully",
+		"document_id":   docID,
+		"segment_id":    segmentID,
 		"segments":      req.Segments,
 		"updated_count": updatedCount,
 	}

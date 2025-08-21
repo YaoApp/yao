@@ -20,39 +20,58 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
 	// Collection Management
-	group.POST("/collections", CreateCollection)
-	group.DELETE("/collections/:collectionID", RemoveCollection)
+	group.GET("/collections", GetCollections)
 	group.GET("/collections/:collectionID", GetCollection)
 	group.GET("/collections/:collectionID/exists", CollectionExists)
-	group.GET("/collections", GetCollections)
+	group.POST("/collections", CreateCollection)
 	group.PUT("/collections/:collectionID/metadata", UpdateCollectionMetadata)
+	group.DELETE("/collections/:collectionID", RemoveCollection)
 
 	// Document Management
+	group.GET("/documents", ListDocuments)
+	group.GET("/documents/:docID", GetDocument)
 	group.POST("/collections/:collectionID/documents/file", AddFile)
 	group.POST("/collections/:collectionID/documents/file/async", AddFileAsync)
 	group.POST("/collections/:collectionID/documents/text", AddText)
 	group.POST("/collections/:collectionID/documents/text/async", AddTextAsync)
 	group.POST("/collections/:collectionID/documents/url", AddURL)
 	group.POST("/collections/:collectionID/documents/url/async", AddURLAsync)
-	group.GET("/documents", ListDocuments)
-	group.GET("/documents/:docID", GetDocument)
 	group.DELETE("/documents", RemoveDocs)
 
 	// Segment Management
-	group.POST("/documents/:docID/segments", AddSegments)
-	group.PUT("/documents/:docID/segments", UpdateSegments)
-	group.DELETE("/documents/:docID/segments", RemoveSegmentsByDocID)
 	group.GET("/documents/:docID/segments", ScrollSegments)
+	group.GET("/documents/:docID/segments/search", GetSegments)
+	group.GET("/documents/:docID/segments/:segmentID", GetSegment)
+	group.GET("/documents/:docID/segments/:segmentID/graph", GetSegmentGraph)
+	group.GET("/documents/:docID/segments/:segmentID/parents", GetSegmentParents)
+	group.POST("/documents/:docID/segments", AddSegments)
+	group.POST("/documents/:docID/segments/async", AddSegmentsAsync)
+	group.POST("/documents/:docID/segments/:segmentID/extract", ExtractSegmentEntities)
+	group.POST("/documents/:docID/segments/:segmentID/extract/async", ExtractSegmentEntitiesAsync)
+	group.PUT("/documents/:docID/segments", UpdateSegments)
+	group.PUT("/documents/:docID/segments/async", UpdateSegmentsAsync)
+	group.DELETE("/documents/:docID/segments", RemoveSegments)
+	group.DELETE("/documents/:docID/segments/all", RemoveSegmentsByDocID)
 
-	// Global segment operations (not tied to specific document)
-	group.DELETE("/segments", RemoveSegments)
-	group.GET("/segments", GetSegments)
-	group.GET("/segments/:segmentID", GetSegment)
+	// Segment score and weight management
+	group.PUT("/documents/:docID/segments/:segmentID/score", UpdateScore)
+	group.PUT("/documents/:docID/segments/:segmentID/weight", UpdateWeight)
 
-	// Segment Voting, Scoring, Weighting
-	group.PUT("/segments/vote", UpdateVote)
-	group.PUT("/segments/score", UpdateScore)
-	group.PUT("/segments/weight", UpdateWeight)
+	// Segment votes management
+	group.GET("/documents/:docID/segments/:segmentID/votes", ScrollVotes)
+	group.GET("/documents/:docID/segments/:segmentID/votes/search", GetVotes)
+	group.GET("/documents/:docID/segments/:segmentID/votes/:voteID", GetVote)
+	group.POST("/documents/:docID/segments/:segmentID/votes", AddVotes)
+	group.PUT("/documents/:docID/segments/:segmentID/votes", UpdateVotes)
+	group.DELETE("/documents/:docID/segments/:segmentID/votes", RemoveVotes)
+
+	// Segment hits management
+	group.GET("/documents/:docID/segments/:segmentID/hits", ScrollHits)
+	group.GET("/documents/:docID/segments/:segmentID/hits/search", GetHits)
+	group.GET("/documents/:docID/segments/:segmentID/hits/:hitID", GetHit)
+	group.POST("/documents/:docID/segments/:segmentID/hits", AddHits)
+	group.PUT("/documents/:docID/segments/:segmentID/hits", UpdateHits)
+	group.DELETE("/documents/:docID/segments/:segmentID/hits", RemoveHits)
 
 	// Search Management
 	group.POST("/search", Search)
