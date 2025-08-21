@@ -132,9 +132,6 @@ func UpdateSegments(c *gin.Context) {
 		return
 	}
 
-	fmt.Println("--------------------------------")
-	fmt.Println(document)
-
 	var req UpdateSegmentsRequest
 	// Parse and bind JSON request
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -249,11 +246,6 @@ func UpdateSegments(c *gin.Context) {
 
 		upsertOptions.Extraction = extractionProvider
 	}
-
-	fmt.Println("--- UpdateSegments ---")
-	fmt.Println(req.SegmentTexts)
-	fmt.Println(upsertOptions.DocID)
-	fmt.Println(upsertOptions.CollectionID)
 
 	// Perform update segments operation
 	updatedCount, err := kb.Instance.UpdateSegments(c.Request.Context(), req.SegmentTexts, upsertOptions)
