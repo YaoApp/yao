@@ -70,7 +70,7 @@ func UpdateScores(c *gin.Context) {
 
 	result := gin.H{
 		"message":       "Scores updated successfully",
-		"document_id":   docID,
+		"doc_id":        docID,
 		"scores":        req.Scores,
 		"updated_count": len(req.Scores),
 	}

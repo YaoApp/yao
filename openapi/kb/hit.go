@@ -37,9 +37,9 @@ func ScrollHits(c *gin.Context) {
 
 	// Parse query parameters for scroll options
 	options := map[string]interface{}{
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"limit":       100, // Default limit
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"limit":      100, // Default limit
 	}
 
 	// Parse limit (default: 100)
@@ -145,10 +145,10 @@ func GetHits(c *gin.Context) {
 
 	// Return mock response for now
 	result := gin.H{
-		"hits":        []interface{}{},
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"total":       0,
+		"hits":       []interface{}{},
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"total":      0,
 	}
 
 	if len(filter) > 0 {
@@ -199,10 +199,10 @@ func GetHit(c *gin.Context) {
 	// TODO: Implement document permission validation for docID
 	// TODO: Implement get hit detail logic
 	c.JSON(http.StatusOK, gin.H{
-		"hit":         nil,
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"hit_id":      hitID,
+		"hit":        nil,
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"hit_id":     hitID,
 	})
 }
 
@@ -233,10 +233,10 @@ func AddHits(c *gin.Context) {
 	// TODO: Implement document permission validation for docID
 	// TODO: Implement add hit logic
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "Hit added successfully",
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"hit_id":      "placeholder-hit-id",
+		"message":    "Hit added successfully",
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"hit_id":     "placeholder-hit-id",
 	})
 }
 
@@ -281,7 +281,7 @@ func UpdateHits(c *gin.Context) {
 
 	result := gin.H{
 		"message":       "Hits updated successfully",
-		"document_id":   docID,
+		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"updated_count": len(hitIDs),
 	}
@@ -352,7 +352,7 @@ func RemoveHits(c *gin.Context) {
 
 	result := gin.H{
 		"message":       "Hits removed successfully",
-		"document_id":   docID,
+		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"hit_ids":       validHitIDs,
 		"removed_count": len(validHitIDs),

@@ -74,7 +74,7 @@ func GetSegmentGraph(c *gin.Context) {
 	result := gin.H{
 		"entities":      []interface{}{},
 		"relationships": []interface{}{},
-		"document_id":   docID,
+		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"options":       options,
 	}
@@ -130,7 +130,7 @@ func ExtractSegmentGraph(c *gin.Context) {
 	// Return mock response for now
 	result := gin.H{
 		"message":             "Entities and relationships extracted successfully",
-		"document_id":         docID,
+		"doc_id":              docID,
 		"segment_id":          segmentID,
 		"entities_count":      0,
 		"relationships_count": 0,
@@ -196,10 +196,10 @@ func ExtractSegmentGraphAsync(c *gin.Context) {
 
 	// Return job ID for status tracking
 	result := gin.H{
-		"job_id":      jobID,
-		"message":     "Graph extraction started",
-		"document_id": docID,
-		"segment_id":  segmentID,
+		"job_id":     jobID,
+		"message":    "Graph extraction started",
+		"doc_id":     docID,
+		"segment_id": segmentID,
 	}
 
 	response.RespondWithSuccess(c, response.StatusCreated, result)

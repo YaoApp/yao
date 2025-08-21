@@ -56,7 +56,7 @@ func UpdateWeights(c *gin.Context) {
 	// TODO: Implement document permission validation for docID
 
 	// Perform batch update weight operation
-	updatedCount, err := kb.Instance.UpdateWeight(c.Request.Context(), req.Weights)
+	updatedCount, err := kb.Instance.UpdateWeight(c.Request.Context(), docID, req.Weights)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -69,7 +69,7 @@ func UpdateWeights(c *gin.Context) {
 	// Return success response
 	result := gin.H{
 		"message":       "Segment weights updated successfully",
-		"document_id":   docID,
+		"doc_id":        docID,
 		"weights":       req.Weights,
 		"updated_count": updatedCount,
 	}

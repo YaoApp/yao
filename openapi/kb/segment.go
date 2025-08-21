@@ -331,7 +331,7 @@ func RemoveSegments(c *gin.Context) {
 	}
 
 	// Perform remove segments operation
-	removedCount, err := kb.Instance.RemoveSegments(c.Request.Context(), validSegmentIDs)
+	removedCount, err := kb.Instance.RemoveSegments(c.Request.Context(), docID, validSegmentIDs)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -411,8 +411,8 @@ func GetSegments(c *gin.Context) {
 	// TODO: Implement document permission validation for docID
 	// TODO: Implement get segments logic
 	c.JSON(http.StatusOK, gin.H{
-		"segments":    []interface{}{},
-		"document_id": docID,
+		"segments": []interface{}{},
+		"doc_id":   docID,
 	})
 }
 
@@ -440,13 +440,55 @@ func GetSegment(c *gin.Context) {
 		return
 	}
 
+	// Check if KB instance exists
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base instance is not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
 	// TODO: Implement document permission validation for docID
-	// TODO: Implement get single segment logic
-	c.JSON(http.StatusOK, gin.H{
-		"segment":     nil,
-		"document_id": docID,
-		"segment_id":  segmentID,
-	})
+
+	// Get the segment using KB interface
+	segment, err := kb.Instance.GetSegment(c.Request.Context(), docID, segmentID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: fmt.Sprintf("Failed to get segment: %v", err),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	if segment == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Verify that the segment belongs to the specified document
+	if segment.DocumentID != docID {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Segment does not belong to the specified document",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	result := gin.H{
+		"segment":    segment,
+		"doc_id":     docID,
+		"segment_id": segmentID,
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
 // ScrollSegments scrolls segments with iterator-style pagination
@@ -621,9 +663,9 @@ func AddSegmentsAsync(c *gin.Context) {
 
 	// Return job ID for status tracking
 	result := gin.H{
-		"job_id":      jobID,
-		"message":     "Segments addition started",
-		"document_id": docID,
+		"job_id":  jobID,
+		"message": "Segments addition started",
+		"doc_id":  docID,
 	}
 
 	response.RespondWithSuccess(c, response.StatusCreated, result)
@@ -680,9 +722,9 @@ func UpdateSegmentsAsync(c *gin.Context) {
 
 	// Return job ID for status tracking
 	result := gin.H{
-		"job_id":      jobID,
-		"message":     "Segments update started",
-		"document_id": docID,
+		"job_id":  jobID,
+		"message": "Segments update started",
+		"doc_id":  docID,
 	}
 
 	response.RespondWithSuccess(c, response.StatusCreated, result)
@@ -747,11 +789,11 @@ func GetSegmentParents(c *gin.Context) {
 
 	// Return mock response for now
 	result := gin.H{
-		"parents":     []interface{}{},
-		"document_id": docID,
-		"segment_id":  segmentID,
-		"depth":       depth,
-		"total":       0,
+		"parents":    []interface{}{},
+		"doc_id":     docID,
+		"segment_id": segmentID,
+		"depth":      depth,
+		"total":      0,
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
