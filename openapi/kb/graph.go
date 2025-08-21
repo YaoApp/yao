@@ -82,8 +82,8 @@ func GetSegmentGraph(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
-// ExtractSegmentEntities re-extracts entities and relationships for a specific segment (synchronous)
-func ExtractSegmentEntities(c *gin.Context) {
+// ExtractSegmentGraph re-extracts entities and relationships for a specific segment (synchronous)
+func ExtractSegmentGraph(c *gin.Context) {
 	// Extract docID from URL path
 	docID := c.Param("docID")
 	if docID == "" {
@@ -124,8 +124,8 @@ func ExtractSegmentEntities(c *gin.Context) {
 	}
 
 	// TODO: Implement document permission validation for docID
-	// TODO: Implement extract segment entities logic
-	// TODO: Call kb.Instance.ExtractSegmentEntities(c.Request.Context(), segmentID, extractOptions)
+	// TODO: Implement extract segment graph logic
+	// TODO: Call kb.Instance.ExtractSegmentGraph(c.Request.Context(), segmentID, extractOptions)
 
 	// Return mock response for now
 	result := gin.H{
@@ -140,8 +140,8 @@ func ExtractSegmentEntities(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
-// ExtractSegmentEntitiesAsync re-extracts entities and relationships for a specific segment (asynchronous)
-func ExtractSegmentEntitiesAsync(c *gin.Context) {
+// ExtractSegmentGraphAsync re-extracts entities and relationships for a specific segment (asynchronous)
+func ExtractSegmentGraphAsync(c *gin.Context) {
 	// Extract docID from URL path
 	docID := c.Param("docID")
 	if docID == "" {
@@ -186,18 +186,18 @@ func ExtractSegmentEntitiesAsync(c *gin.Context) {
 	// Create and run job
 	job := NewJob()
 	jobID := job.Run(func() {
-		// TODO: Implement async extract segment entities logic
-		// err := ExtractSegmentEntitiesProcess(context.Background(), segmentID, extractOptions, job.ID)
+		// TODO: Implement async extract segment graph logic
+		// err := ExtractSegmentGraphProcess(context.Background(), segmentID, extractOptions, job.ID)
 		// For now, just simulate async processing
 		// if err != nil {
-		//     log.Error("Async entity extraction failed: %v", err)
+		//     log.Error("Async graph extraction failed: %v", err)
 		// }
 	})
 
 	// Return job ID for status tracking
 	result := gin.H{
 		"job_id":      jobID,
-		"message":     "Entity extraction started",
+		"message":     "Graph extraction started",
 		"document_id": docID,
 		"segment_id":  segmentID,
 	}
