@@ -1,7 +1,6 @@
 package kb
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -203,10 +202,37 @@ func GetVote(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement get vote detail logic
-	c.JSON(http.StatusOK, gin.H{
-		"vote":       nil,
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call GraphRag GetVote method
+	vote, err := kb.Instance.GetVote(c.Request.Context(), docID, segmentID, voteID)
+	if err != nil {
+		if err.Error() == "vote not found" {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Vote not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to get vote: " + err.Error(),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, gin.H{
+		"vote":       vote,
 		"doc_id":     docID,
 		"segment_id": segmentID,
 		"vote_id":    voteID,

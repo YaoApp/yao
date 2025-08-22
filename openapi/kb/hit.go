@@ -1,7 +1,6 @@
 package kb
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 
@@ -206,10 +205,37 @@ func GetHit(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement get hit detail logic
-	c.JSON(http.StatusOK, gin.H{
-		"hit":        nil,
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call GraphRag GetHit method
+	hit, err := kb.Instance.GetHit(c.Request.Context(), docID, segmentID, hitID)
+	if err != nil {
+		if err.Error() == "hit not found" {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Hit not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to get hit: " + err.Error(),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, gin.H{
+		"hit":        hit,
 		"doc_id":     docID,
 		"segment_id": segmentID,
 		"hit_id":     hitID,
