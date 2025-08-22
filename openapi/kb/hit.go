@@ -1,11 +1,12 @@
 package kb
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -79,17 +80,47 @@ func ScrollHits(c *gin.Context) {
 		options["filter"] = filter
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement scroll hits logic with GraphRag or database
-	// TODO: Call kb.Instance.ScrollHits(c.Request.Context(), segmentID, options)
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
 
-	// Return mock response for now
-	result := gin.H{
-		"hits":      []interface{}{},
-		"scroll_id": nil,
-		"has_more":  false,
-		"total":     0,
-		"options":   options,
+	// Convert options to ScrollHitsOptions
+	scrollOptions := &types.ScrollHitsOptions{
+		SegmentID: segmentID,
+		Limit:     options["limit"].(int),
+	}
+
+	// Set cursor if provided
+	if scrollID, exists := options["scroll_id"]; exists && scrollID != nil {
+		scrollOptions.Cursor = scrollID.(string)
+	}
+
+	// Set filters if provided
+	if filter, exists := options["filter"]; exists && filter != nil {
+		filterMap := filter.(map[string]interface{})
+		if source, ok := filterMap["source"]; ok {
+			scrollOptions.Source = source.(string)
+		}
+		if scenario, ok := filterMap["scenario"]; ok {
+			scrollOptions.Scenario = scenario.(string)
+		}
+	}
+
+	// Call GraphRag ScrollHits method
+	result, err := kb.Instance.ScrollHits(c.Request.Context(), docID, scrollOptions)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to scroll hits: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
@@ -131,34 +162,12 @@ func GetHits(c *gin.Context) {
 		filter["session_id"] = sessionID
 	}
 
-	// Parse limit parameter (optional, for basic limiting without pagination)
-	var limit int
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-			limit = l
-		}
+	// TODO: Search functionality not implemented yet - reserved for future use
+	errorResp := &response.ErrorResponse{
+		Code:             response.ErrServerError.Code,
+		ErrorDescription: "Search hits functionality is reserved but not implemented yet",
 	}
-
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement get hits logic (simple query without pagination)
-	// TODO: Call kb.Instance.GetHits(c.Request.Context(), segmentID, filter, limit)
-
-	// Return mock response for now
-	result := gin.H{
-		"hits":       []interface{}{},
-		"doc_id":     docID,
-		"segment_id": segmentID,
-		"total":      0,
-	}
-
-	if len(filter) > 0 {
-		result["filter"] = filter
-	}
-	if limit > 0 {
-		result["limit"] = limit
-	}
-
-	response.RespondWithSuccess(c, response.StatusOK, result)
+	response.RespondWithError(c, response.StatusNotImplemented, errorResp)
 }
 
 // GetHit gets a specific hit by ID
@@ -196,17 +205,44 @@ func GetHit(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement get hit detail logic
-	c.JSON(http.StatusOK, gin.H{
-		"hit":        nil,
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call GraphRag GetHit method
+	hit, err := kb.Instance.GetHit(c.Request.Context(), docID, segmentID, hitID)
+	if err != nil {
+		if err.Error() == "hit not found" {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Hit not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to get hit: " + err.Error(),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, gin.H{
+		"hit":        hit,
 		"doc_id":     docID,
 		"segment_id": segmentID,
 		"hit_id":     hitID,
 	})
 }
 
-// AddHits adds new hits to a segment
+// AddHits adds new hits to a segment using UpdateHits implementation
 func AddHits(c *gin.Context) {
 	// Extract docID from URL path
 	docID := c.Param("docID")
@@ -230,14 +266,80 @@ func AddHits(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement add hit logic
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "Hit added successfully",
-		"doc_id":     docID,
-		"segment_id": segmentID,
-		"hit_id":     "placeholder-hit-id",
-	})
+	// Parse request body for hit data
+	var req UpdateHitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate request
+	if len(req.Segments) == 0 {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "At least one hit is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Ensure all hits are for the correct segment
+	for i := range req.Segments {
+		req.Segments[i].ID = segmentID
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Build options with default reaction from payload or create basic fallback
+	var options types.UpdateHitOptions
+	if req.DefaultReaction != nil {
+		// Use the default reaction provided in the request
+		options.Reaction = req.DefaultReaction
+	} else {
+		// Create basic fallback context for segments that don't have reaction
+		options.Reaction = &types.SegmentReaction{
+			Source:   "api",
+			Scenario: "hit",
+			Context: map[string]interface{}{
+				"method":    c.Request.Method,
+				"path":      c.Request.URL.Path,
+				"client_ip": c.ClientIP(),
+			},
+		}
+	}
+
+	// Call GraphRag UpdateHits method
+	updatedCount, err := kb.Instance.UpdateHits(c.Request.Context(), docID, req.Segments, options)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to add hits: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	result := gin.H{
+		"message":       "Hits added successfully",
+		"doc_id":        docID,
+		"segment_id":    segmentID,
+		"hits":          req.Segments,
+		"updated_count": updatedCount,
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
 // UpdateHits updates hits in batch
@@ -347,15 +449,42 @@ func RemoveHits(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement batch remove hit logic
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Build HitRemoval structs
+	var hitRemovals []types.HitRemoval
+	for _, hitID := range validHitIDs {
+		hitRemovals = append(hitRemovals, types.HitRemoval{
+			SegmentID: segmentID,
+			HitID:     hitID,
+		})
+	}
+
+	// Call GraphRag RemoveHits method
+	removedCount, err := kb.Instance.RemoveHits(c.Request.Context(), docID, hitRemovals)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to remove hits: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
 
 	result := gin.H{
 		"message":       "Hits removed successfully",
 		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"hit_ids":       validHitIDs,
-		"removed_count": len(validHitIDs),
+		"removed_count": removedCount,
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)

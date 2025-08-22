@@ -131,7 +131,14 @@ type UpdateSegmentsRequest struct {
 
 // UpdateVoteRequest represents the request for UpdateVote API
 type UpdateVoteRequest struct {
-	Segments []types.SegmentVote `json:"segments" binding:"required"`
+	Segments        []types.SegmentVote    `json:"segments" binding:"required"`
+	DefaultReaction *types.SegmentReaction `json:"default_reaction,omitempty"` // Optional default context for segments that don't have reaction
+}
+
+// UpdateHitRequest represents the request for UpdateHit API
+type UpdateHitRequest struct {
+	Segments        []types.SegmentHit     `json:"segments" binding:"required"`
+	DefaultReaction *types.SegmentReaction `json:"default_reaction,omitempty"` // Optional default context for segments that don't have reaction
 }
 
 // UpdateScoreRequest represents the request for UpdateScore API

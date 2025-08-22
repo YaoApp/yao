@@ -55,8 +55,8 @@ func UpdateWeights(c *gin.Context) {
 
 	// TODO: Implement document permission validation for docID
 
-	// Perform batch update weight operation
-	updatedCount, err := kb.Instance.UpdateWeight(c.Request.Context(), docID, req.Weights)
+	// Call GraphRag UpdateWeights method (without Compute option)
+	updatedCount, err := kb.Instance.UpdateWeights(c.Request.Context(), docID, req.Weights)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
