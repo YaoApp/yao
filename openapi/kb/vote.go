@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -76,17 +78,50 @@ func ScrollVotes(c *gin.Context) {
 		options["filter"] = filter
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement scroll votes logic with GraphRag or database
-	// TODO: Call kb.Instance.ScrollVotes(c.Request.Context(), segmentID, options)
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
 
-	// Return mock response for now
-	result := gin.H{
-		"votes":     []interface{}{},
-		"scroll_id": nil,
-		"has_more":  false,
-		"total":     0,
-		"options":   options,
+	// Convert options to ScrollVotesOptions
+	scrollOptions := &types.ScrollVotesOptions{
+		SegmentID: segmentID,
+		Limit:     options["limit"].(int),
+	}
+
+	// Set cursor if provided
+	if scrollID, exists := options["scroll_id"]; exists && scrollID != nil {
+		scrollOptions.Cursor = scrollID.(string)
+	}
+
+	// Set filters if provided
+	if filter, exists := options["filter"]; exists && filter != nil {
+		filterMap := filter.(map[string]interface{})
+		if voteType, ok := filterMap["vote_type"]; ok {
+			scrollOptions.VoteType = types.VoteType(voteType.(string))
+		}
+		if source, ok := filterMap["source"]; ok {
+			scrollOptions.Source = source.(string)
+		}
+		if scenario, ok := filterMap["scenario"]; ok {
+			scrollOptions.Scenario = scenario.(string)
+		}
+	}
+
+	// Call GraphRag ScrollVotes method
+	result, err := kb.Instance.ScrollVotes(c.Request.Context(), docID, scrollOptions)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to scroll votes: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
@@ -125,34 +160,12 @@ func GetVotes(c *gin.Context) {
 		filter["user_id"] = userID
 	}
 
-	// Parse limit parameter (optional, for basic limiting without pagination)
-	var limit int
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
-			limit = l
-		}
+	// TODO: Search functionality not implemented yet - reserved for future use
+	errorResp := &response.ErrorResponse{
+		Code:             response.ErrServerError.Code,
+		ErrorDescription: "Search votes functionality is reserved but not implemented yet",
 	}
-
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement get votes logic (simple query without pagination)
-	// TODO: Call kb.Instance.GetVotes(c.Request.Context(), segmentID, filter, limit)
-
-	// Return mock response for now
-	result := gin.H{
-		"votes":      []interface{}{},
-		"doc_id":     docID,
-		"segment_id": segmentID,
-		"total":      0,
-	}
-
-	if len(filter) > 0 {
-		result["filter"] = filter
-	}
-	if limit > 0 {
-		result["limit"] = limit
-	}
-
-	response.RespondWithSuccess(c, response.StatusOK, result)
+	response.RespondWithError(c, response.StatusNotImplemented, errorResp)
 }
 
 // GetVote gets a specific vote by ID
@@ -200,7 +213,7 @@ func GetVote(c *gin.Context) {
 	})
 }
 
-// AddVotes adds new votes to a segment
+// AddVotes adds new votes to a segment using UpdateVotes implementation
 func AddVotes(c *gin.Context) {
 	// Extract docID from URL path
 	docID := c.Param("docID")
@@ -224,14 +237,80 @@ func AddVotes(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement add vote logic
-	c.JSON(http.StatusOK, gin.H{
-		"message":    "Vote added successfully",
-		"doc_id":     docID,
-		"segment_id": segmentID,
-		"vote_id":    "placeholder-vote-id",
-	})
+	// Parse request body for vote data
+	var req UpdateVoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request format: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate request
+	if len(req.Segments) == 0 {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "At least one vote is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Ensure all votes are for the correct segment
+	for i := range req.Segments {
+		req.Segments[i].ID = segmentID
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Build options with default reaction from payload or create basic fallback
+	var options types.UpdateVoteOptions
+	if req.DefaultReaction != nil {
+		// Use the default reaction provided in the request
+		options.Reaction = req.DefaultReaction
+	} else {
+		// Create basic fallback context for segments that don't have reaction
+		options.Reaction = &types.SegmentReaction{
+			Source:   "api",
+			Scenario: "vote",
+			Context: map[string]interface{}{
+				"method":    c.Request.Method,
+				"path":      c.Request.URL.Path,
+				"client_ip": c.ClientIP(),
+			},
+		}
+	}
+
+	// Call GraphRag UpdateVotes method
+	updatedCount, err := kb.Instance.UpdateVotes(c.Request.Context(), docID, req.Segments, options)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to add votes: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	result := gin.H{
+		"message":       "Votes added successfully",
+		"doc_id":        docID,
+		"segment_id":    segmentID,
+		"votes":         req.Segments,
+		"updated_count": updatedCount,
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
 // UpdateVotes updates votes in batch
@@ -341,15 +420,42 @@ func RemoveVotes(c *gin.Context) {
 		return
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement batch remove vote logic
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Build VoteRemoval structs
+	var voteRemovals []types.VoteRemoval
+	for _, voteID := range validVoteIDs {
+		voteRemovals = append(voteRemovals, types.VoteRemoval{
+			SegmentID: segmentID,
+			VoteID:    voteID,
+		})
+	}
+
+	// Call GraphRag RemoveVotes method
+	removedCount, err := kb.Instance.RemoveVotes(c.Request.Context(), docID, voteRemovals)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to remove votes: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
 
 	result := gin.H{
 		"message":       "Votes removed successfully",
 		"doc_id":        docID,
 		"segment_id":    segmentID,
 		"vote_ids":      validVoteIDs,
-		"removed_count": len(validVoteIDs),
+		"removed_count": removedCount,
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)

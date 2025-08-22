@@ -62,7 +62,6 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/documents/:docID/segments/:segmentID/votes/search", GetVotes)
 	group.GET("/documents/:docID/segments/:segmentID/votes/:voteID", GetVote)
 	group.POST("/documents/:docID/segments/:segmentID/votes", AddVotes)
-	group.PUT("/documents/:docID/segments/:segmentID/votes", UpdateVotes)
 	group.DELETE("/documents/:docID/segments/:segmentID/votes", RemoveVotes)
 
 	// Segment hits management
@@ -70,7 +69,6 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/documents/:docID/segments/:segmentID/hits/search", GetHits)
 	group.GET("/documents/:docID/segments/:segmentID/hits/:hitID", GetHit)
 	group.POST("/documents/:docID/segments/:segmentID/hits", AddHits)
-	group.PUT("/documents/:docID/segments/:segmentID/hits", UpdateHits)
 	group.DELETE("/documents/:docID/segments/:segmentID/hits", RemoveHits)
 
 	// Search Management

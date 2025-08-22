@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -64,15 +65,22 @@ func UpdateScores(c *gin.Context) {
 		}
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement batch update scores logic
-	// TODO: Call kb.Instance.UpdateScores(c.Request.Context(), docID, req.Scores)
+	// Call GraphRag UpdateScores method (without Compute option)
+	updatedCount, err := kb.Instance.UpdateScores(c.Request.Context(), docID, req.Scores)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to update scores: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
 
 	result := gin.H{
 		"message":       "Scores updated successfully",
 		"doc_id":        docID,
 		"scores":        req.Scores,
-		"updated_count": len(req.Scores),
+		"updated_count": updatedCount,
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
