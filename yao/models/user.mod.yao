@@ -1,0 +1,396 @@
+{
+  "name": "User",
+  "label": "User",
+  "description": "User profile and information storage",
+  "tags": ["user", "profile", "auth", "mfa"],
+  "table": {
+    "name": "user",
+    "comment": "User profile and information storage"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "label": "User ID",
+      "comment": "Global unique user identifier",
+      "length": 255,
+      "unique": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // OIDC Standard Claims
+    // Reference: https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+    // ============================================================================
+    {
+      "name": "preferred_username",
+      "type": "string",
+      "label": "Preferred Username",
+      "comment": "OIDC preferred username",
+      "length": 100,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "label": "Email",
+      "comment": "OIDC email address",
+      "length": 255,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "email_verified",
+      "type": "boolean",
+      "label": "Email Verified",
+      "comment": "OIDC email verification status",
+      "default": false,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Full Name",
+      "comment": "OIDC full name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "given_name",
+      "type": "string",
+      "label": "Given Name",
+      "comment": "OIDC given name(s) or first name(s)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "family_name",
+      "type": "string",
+      "label": "Family Name",
+      "comment": "OIDC surname(s) or last name(s)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "middle_name",
+      "type": "string",
+      "label": "Middle Name",
+      "comment": "OIDC middle name(s)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "nickname",
+      "type": "string",
+      "label": "Nickname",
+      "comment": "OIDC casual name",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "profile",
+      "type": "string",
+      "label": "Profile",
+      "comment": "OIDC profile page URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "picture",
+      "type": "string",
+      "label": "Picture",
+      "comment": "OIDC profile picture URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "website",
+      "type": "string",
+      "label": "Website",
+      "comment": "OIDC web page or blog URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "gender",
+      "type": "string",
+      "label": "Gender",
+      "comment": "OIDC gender",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "birthdate",
+      "type": "string",
+      "label": "Birthdate",
+      "comment": "OIDC birthday (YYYY-MM-DD format)",
+      "length": 10,
+      "nullable": true
+    },
+    {
+      "name": "zoneinfo",
+      "type": "string",
+      "label": "Zone Info",
+      "comment": "OIDC time zone info",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "locale",
+      "type": "string",
+      "label": "Locale",
+      "comment": "OIDC locale (language-country)",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "phone_number",
+      "type": "string",
+      "label": "Phone Number",
+      "comment": "OIDC phone number",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "phone_number_verified",
+      "type": "boolean",
+      "label": "Phone Number Verified",
+      "comment": "OIDC phone verification status",
+      "default": false,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "address",
+      "type": "json",
+      "label": "Address",
+      "comment": "OIDC physical mailing address (structured)",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // User Preferences & Extensions
+    // ============================================================================
+    {
+      "name": "theme",
+      "type": "string",
+      "label": "Theme",
+      "comment": "User interface theme preference",
+      "length": 50,
+      "default": "auto",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Extended user metadata and custom fields",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Authentication Fields
+    // ============================================================================
+    {
+      "name": "password_hash",
+      "type": "string",
+      "label": "Password Hash",
+      "comment": "Hashed password for authentication",
+      "length": 255,
+      "nullable": true,
+      "crypt": "PASSWORD"
+    },
+
+    // ============================================================================
+    // User Management Fields
+    // ============================================================================
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "User account status",
+      "option": [
+        "pending", // New user awaiting email verification or admin approval
+        "active", // Normal user with full access to all features
+        "disabled", // Disabled by admin, cannot login but data retained
+        "suspended", // Temporarily banned due to policy violations
+        "locked", // System locked due to failed login attempts or security risks
+        "password_expired", // Password expired, requires reset before login
+        "email_unverified", // Email not verified, limited functionality
+        "archived" // Long-term inactive or former employee, data archived
+      ],
+      "default": "pending",
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "role_id",
+      "type": "string",
+      "label": "Role ID",
+      "comment": "User role identifier (references user_role.role_id)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "type_id",
+      "type": "string",
+      "label": "Type ID",
+      "comment": "User type identifier (references user_type.type_id)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Multi-Factor Authentication (MFA) Fields
+    // ============================================================================
+    {
+      "name": "mfa_enabled",
+      "type": "boolean",
+      "label": "MFA Enabled",
+      "comment": "Whether multi-factor authentication is enabled",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "mfa_secret",
+      "type": "string",
+      "label": "MFA Secret",
+      "comment": "TOTP shared secret key (Base32 encoded)",
+      "length": 255,
+      "nullable": true,
+      "crypt": "AES"
+    },
+    {
+      "name": "mfa_issuer",
+      "type": "string",
+      "label": "MFA Issuer",
+      "comment": "Issuer name displayed in authenticator app",
+      "length": 100,
+      "nullable": true,
+      "default": "Yao App Engine"
+    },
+    {
+      "name": "mfa_algorithm",
+      "type": "enum",
+      "label": "MFA Algorithm",
+      "comment": "TOTP algorithm (SHA1, SHA256, SHA512)",
+      "option": ["SHA1", "SHA256", "SHA512"],
+      "default": "SHA256",
+      "nullable": true
+    },
+    {
+      "name": "mfa_digits",
+      "type": "integer",
+      "label": "MFA Digits",
+      "comment": "Number of digits in TOTP code (6 or 8)",
+      "default": 6,
+      "nullable": true
+    },
+    {
+      "name": "mfa_period",
+      "type": "integer",
+      "label": "MFA Period",
+      "comment": "TOTP time period in seconds (usually 30)",
+      "default": 30,
+      "nullable": true
+    },
+    {
+      "name": "mfa_recovery_hash",
+      "type": "string",
+      "label": "MFA Recovery Hash",
+      "comment": "Hashed recovery code for MFA backup authentication",
+      "length": 1024,
+      "nullable": true
+    },
+    {
+      "name": "mfa_enabled_at",
+      "type": "timestamp",
+      "label": "MFA Enabled At",
+      "comment": "When multi-factor authentication was enabled",
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // User Activity Tracking Fields
+    // ============================================================================
+    {
+      "name": "last_login_at",
+      "type": "timestamp",
+      "label": "Last Login At",
+      "comment": "Last login timestamp",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "last_login_ip",
+      "type": "string",
+      "label": "Last Login IP",
+      "comment": "Last login IP address",
+      "length": 46,
+      "nullable": true
+    },
+    {
+      "name": "mfa_last_verified_at",
+      "type": "timestamp",
+      "label": "MFA Last Verified At",
+      "comment": "Last time multi-factor authentication was verified",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "password_changed_at",
+      "type": "timestamp",
+      "label": "Password Changed At",
+      "comment": "When password was last changed",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_user_mfa",
+      "columns": ["mfa_enabled", "mfa_enabled_at"],
+      "type": "index",
+      "comment": "Index on multi-factor authentication status and time"
+    },
+    {
+      "name": "idx_user_verification",
+      "columns": ["email_verified", "phone_number_verified"],
+      "type": "index",
+      "comment": "Index on verification status for filtering"
+    }
+  ],
+  "relations": {
+    "role": {
+      "type": "hasOne",
+      "model": "__yao.user_role",
+      "key": "role_id",
+      "foreign": "role_id"
+    },
+    "type": {
+      "type": "hasOne",
+      "model": "__yao.user_type",
+      "key": "type_id",
+      "foreign": "type_id"
+    }
+  },
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

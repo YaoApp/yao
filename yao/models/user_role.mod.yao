@@ -1,0 +1,217 @@
+{
+  "name": "User Role",
+  "label": "User Role",
+  "description": "User role and permission management",
+  "tags": ["user", "role", "permission", "auth"],
+  "table": {
+    "name": "user_role",
+    "comment": "User role and permission management"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "role_id",
+      "type": "string",
+      "label": "Role ID",
+      "comment": "Unique role identifier (admin, user, moderator, etc.)",
+      "length": 50,
+      "unique": true,
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Display name of the role",
+      "length": 100,
+      "nullable": false
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Detailed description of the role and its purpose",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Permission Fields
+    // ============================================================================
+    {
+      "name": "permissions",
+      "type": "json",
+      "label": "Permissions",
+      "comment": "JSON object containing all permissions and access rights",
+      "nullable": true
+    },
+    {
+      "name": "restricted_permissions",
+      "type": "json",
+      "label": "Restricted Permissions",
+      "comment": "JSON array of explicitly denied permissions",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Hierarchy Fields
+    // ============================================================================
+    {
+      "name": "parent_role_id",
+      "type": "string",
+      "label": "Parent Role ID",
+      "comment": "Parent role for inheritance (optional)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "level",
+      "type": "integer",
+      "label": "Level",
+      "comment": "Role hierarchy level (higher = more permissions)",
+      "default": 0,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Management Fields
+    // ============================================================================
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "label": "Is Active",
+      "comment": "Whether this role is currently active",
+      "default": true,
+      "index": true
+    },
+    {
+      "name": "is_default",
+      "type": "boolean",
+      "label": "Is Default",
+      "comment": "Whether this is the default role for new users",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "is_system",
+      "type": "boolean",
+      "label": "Is System",
+      "comment": "Whether this is a system role (cannot be deleted)",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "sort_order",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Display order for sorting",
+      "default": 0,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Display Fields
+    // ============================================================================
+    {
+      "name": "color",
+      "type": "string",
+      "label": "Color",
+      "comment": "Color code for UI display (hex format)",
+      "length": 7,
+      "nullable": true
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "label": "Icon",
+      "comment": "Icon identifier for UI display",
+      "length": 50,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Access Control Fields
+    // ============================================================================
+    {
+      "name": "max_users",
+      "type": "integer",
+      "label": "Max Users",
+      "comment": "Maximum number of users that can have this role (0 = unlimited)",
+      "default": 0,
+      "nullable": true
+    },
+    {
+      "name": "requires_approval",
+      "type": "boolean",
+      "label": "Requires Approval",
+      "comment": "Whether assigning this role requires admin approval",
+      "default": false
+    },
+    {
+      "name": "auto_revoke_days",
+      "type": "integer",
+      "label": "Auto Revoke Days",
+      "comment": "Days after which this role is automatically revoked (0 = never)",
+      "default": 0,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Extended Configuration
+    // ============================================================================
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional role configuration and settings",
+      "nullable": true
+    },
+    {
+      "name": "conditions",
+      "type": "json",
+      "label": "Conditions",
+      "comment": "Conditions that must be met to assign/maintain this role",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_user_role_active",
+      "columns": ["is_active", "sort_order"],
+      "type": "index",
+      "comment": "Index for active roles with ordering"
+    },
+    {
+      "name": "idx_user_role_hierarchy",
+      "columns": ["parent_role_id", "level"],
+      "type": "index",
+      "comment": "Index for role hierarchy queries"
+    },
+    {
+      "name": "idx_user_role_system",
+      "columns": ["is_system", "is_active"],
+      "type": "index",
+      "comment": "Index for system role queries"
+    },
+    {
+      "name": "idx_user_role_default",
+      "columns": ["is_default", "is_active"],
+      "type": "index",
+      "comment": "Index for finding default active role"
+    }
+  ],
+  "relations": {},
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

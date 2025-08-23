@@ -10,25 +10,25 @@ import (
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 )
 
-// XgenV0 XGen 0.9
-func XgenV0() *assetfs.AssetFS {
+// CuiV0 CUI 0.9
+func CuiV0() *assetfs.AssetFS {
 	assetInfo := func(path string) (os.FileInfo, error) {
 		return os.Stat(path)
 	}
 	for k := range _bintree.Children {
-		k = "xgen/v0.9"
+		k = "cui/v0.9"
 		return &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: assetInfo, Prefix: k, Fallback: "index.html"}
 	}
 	panic("unreachable")
 }
 
-// XgenV1 XGen 1.0
-func XgenV1() *assetfs.AssetFS {
+// CuiV1 CUI 1.0
+func CuiV1() *assetfs.AssetFS {
 	assetInfo := func(path string) (os.FileInfo, error) {
 		return os.Stat(path)
 	}
 	for k := range _bintree.Children {
-		k = "xgen/v1.0"
+		k = "cui/v1.0"
 		return &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: assetInfo, Prefix: k, Fallback: "index.html"}
 	}
 	panic("unreachable")
@@ -40,25 +40,25 @@ func Setup() *assetfs.AssetFS {
 		return os.Stat(path)
 	}
 	for k := range _bintree.Children {
-		k = "xgen/setup"
+		k = "cui/setup"
 		return &assetfs.AssetFS{Asset: Asset, AssetDir: AssetDir, AssetInfo: assetInfo, Prefix: k, Fallback: "index.html"}
 	}
 	panic("unreachable")
 }
 
-// ReplaceXGen bindata file
-func ReplaceXGen(search, replace string) error {
-	err := replaceXGenIndex(search, replace)
+// ReplaceCUI bindata file
+func ReplaceCUI(search, replace string) error {
+	err := replaceCUIIndex(search, replace)
 	if err != nil {
 		return err
 	}
 
-	err = replaceXGenUmi(search, replace)
+	err = replaceCUIUmi(search, replace)
 	if err != nil {
 		return err
 	}
 
-	return replaceXGenLayouts(search, replace)
+	return replaceCUILayouts(search, replace)
 }
 
 // Read file from bin
@@ -81,10 +81,10 @@ func RemoveApp() {
 	delete(_bindata, "yao/release/app.yaz")
 }
 
-// ReplaceXGenIndex bindata file
-func replaceXGenIndex(search, replace string) error {
+// ReplaceCUIIndex bindata file
+func replaceCUIIndex(search, replace string) error {
 
-	content, err := bindataRead(_xgenV10IndexHtml, "xgen/v1.0/index.html")
+	content, err := bindataRead(_cuiV10IndexHtml, "cui/v1.0/index.html")
 	if err != nil {
 		return err
 	}
@@ -100,14 +100,14 @@ func replaceXGenIndex(search, replace string) error {
 		return err
 	}
 
-	_xgenV10IndexHtml = b.Bytes()
+	_cuiV10IndexHtml = b.Bytes()
 	return nil
 }
 
-// replaceXGenUmi bindata file
-func replaceXGenUmi(search, replace string) error {
+// replaceCUIUmi bindata file
+func replaceCUIUmi(search, replace string) error {
 
-	content, err := bindataRead(_xgenV10UmiJs, "xgen/v1.0/umi.js")
+	content, err := bindataRead(_cuiV10UmiJs, "cui/v1.0/umi.js")
 	if err != nil {
 		return err
 	}
@@ -123,14 +123,14 @@ func replaceXGenUmi(search, replace string) error {
 		return err
 	}
 
-	_xgenV10UmiJs = b.Bytes()
+	_cuiV10UmiJs = b.Bytes()
 	return nil
 }
 
-// replaceXGenLayouts bindata file
-func replaceXGenLayouts(search, replace string) error {
+// replaceCUILayouts bindata file
+func replaceCUILayouts(search, replace string) error {
 
-	content, err := bindataRead(_xgenV10Layouts__indexAsyncJs, "xgen/v1.0/layouts__index.async.js")
+	content, err := bindataRead(_cuiV10Layouts__indexAsyncJs, "cui/v1.0/layouts__index.async.js")
 	if err != nil {
 		return err
 	}
@@ -146,6 +146,6 @@ func replaceXGenLayouts(search, replace string) error {
 		return err
 	}
 
-	_xgenV10Layouts__indexAsyncJs = b.Bytes()
+	_cuiV10Layouts__indexAsyncJs = b.Bytes()
 	return nil
 }

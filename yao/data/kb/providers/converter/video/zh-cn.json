@@ -1,0 +1,217 @@
+{
+  "id": "__yao.video",
+  "title": "视频处理",
+  "description": "通过提取关键帧和音频进行 AI 分析来处理视频文件。支持基于 FFmpeg 的视频处理，具有可配置的 GPU 加速和质量设置。",
+  "required": [],
+  "properties": {
+    "keyframe_interval": {
+      "type": "number",
+      "title": "关键帧间隔（秒）",
+      "description": "用于分析的提取关键帧之间的时间间隔。",
+      "default": 10.0,
+      "minimum": 1.0,
+      "maximum": 300.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "max_keyframes": {
+      "type": "integer",
+      "title": "最大关键帧数",
+      "description": "从视频中提取的最大关键帧数。",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 1000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "temp_dir": {
+      "type": "string",
+      "title": "临时目录",
+      "description": "视频处理的自定义临时目录（空 = 系统临时目录）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 3
+    },
+    "cleanup_temp": {
+      "type": "boolean",
+      "title": "清理临时文件",
+      "description": "处理后自动清理临时文件。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 4
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "title": "最大并发数",
+      "description": "最大并发视频处理操作数。",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "text_optimization": {
+      "type": "boolean",
+      "title": "文本优化",
+      "description": "启用文本优化以获得更好的内容提取。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 6
+    },
+    "deduplication_ratio": {
+      "type": "number",
+      "title": "去重比率",
+      "description": "移除重复或相似关键帧的阈值（0.0-1.0）。",
+      "default": 0.8,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "ffmpeg_path": {
+      "type": "string",
+      "title": "FFmpeg 路径",
+      "description": "FFmpeg 可执行文件的自定义路径（空 = 使用系统 PATH）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 8
+    },
+    "ffprobe_path": {
+      "type": "string",
+      "title": "FFprobe 路径",
+      "description": "FFprobe 可执行文件的自定义路径（空 = 使用系统 PATH）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 9
+    },
+    "enable_gpu": {
+      "type": "boolean",
+      "title": "启用 GPU 加速",
+      "description": "如果可用，使用 GPU 加速进行视频处理。",
+      "default": false,
+      "component": "Switch",
+      "width": "half",
+      "order": 10
+    },
+    "gpu_index": {
+      "type": "integer",
+      "title": "GPU 索引",
+      "description": "要使用的 GPU 设备索引（-1 = 自动检测，0+ = 特定 GPU）。",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 7,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 11
+    },
+    "max_threads": {
+      "type": "integer",
+      "title": "最大线程数",
+      "description": "FFmpeg 处理的最大线程数（-1 = 自动）。",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 32,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 12
+    },
+    "vision": {
+      "type": "object",
+      "title": "视觉转换器（可选）",
+      "description": "用于分析提取关键帧的视觉 AI 转换器。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 13,
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "视觉连接器",
+          "description": "用于关键帧分析的 AI 视觉模型连接器。",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI 视觉模型",
+              "options": [
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "用于详细帧分析的高质量视觉模型",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "基础帧分析的经济型视觉模型"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "prompt": {
+          "type": "string",
+          "title": "视觉提示",
+          "description": "关键帧分析的自定义提示。",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 2
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "音频转换器（可选）",
+      "description": "用于处理视频音轨的音频转换器。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 14,
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "音频连接器",
+          "description": "AI 音频转录连接器。",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI 音频",
+              "options": [
+                {
+                  "label": "Whisper",
+                  "value": "openai.whisper-1",
+                  "description": "高质量音频转录",
+                  "default": true
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "language": {
+          "type": "string",
+          "title": "音频语言",
+          "description": "预期音频语言（空 = 自动检测）。",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        }
+      }
+    }
+  }
+}

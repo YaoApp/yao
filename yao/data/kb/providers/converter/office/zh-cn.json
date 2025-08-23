@@ -1,0 +1,179 @@
+{
+  "id": "__yao.office",
+  "title": "Office 文档转换器",
+  "description": "转换 Microsoft Office 文档（DOCX、PPTX）为文本。支持使用 AI 视觉和音频处理提取文本、图像和多媒体内容。",
+  "required": ["vision"],
+  "properties": {
+    "max_concurrency": {
+      "type": "integer",
+      "title": "最大并发数",
+      "description": "最大并发 Office 处理操作数。",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "temp_dir": {
+      "type": "string",
+      "title": "临时目录",
+      "description": "文件处理的自定义临时目录（空 = 系统临时目录）。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "cleanup_temp": {
+      "type": "boolean",
+      "title": "清理临时文件",
+      "description": "处理后自动清理临时文件。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 3
+    },
+    "vision": {
+      "type": "object",
+      "title": "视觉转换器",
+      "description": "用于处理文档中图像和视觉内容的视觉 AI 转换器。",
+      "required": true,
+      "component": "Nested",
+      "width": "full",
+      "order": 4,
+      "requiredFields": ["connector"],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "视觉连接器",
+          "description": "用于图像分析的 AI 视觉模型连接器。",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI 视觉模型",
+              "options": [
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "用于详细图像分析的高质量视觉模型",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "基础图像处理的经济型视觉模型"
+                }
+              ]
+            },
+            {
+              "groupLabel": "其他模型",
+              "options": [
+                {
+                  "label": "Claude 3.5 Sonnet",
+                  "value": "anthropic.claude-3-5-sonnet",
+                  "description": "出色的视觉理解和内容分析能力"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "model": {
+          "type": "string",
+          "title": "模型名称",
+          "description": "具体模型名称（可选，使用连接器默认值）。",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "prompt": {
+          "type": "string",
+          "title": "自定义提示",
+          "description": "图像分析的自定义提示（可选）。",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 3
+        }
+      }
+    },
+    "video": {
+      "type": "object",
+      "title": "视频转换器（可选）",
+      "description": "用于处理演示文稿中视频内容的视频转换器。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 5,
+      "properties": {
+        "keyframe_interval": {
+          "type": "number",
+          "title": "关键帧间隔（秒）",
+          "description": "提取关键帧之间的间隔。",
+          "default": 10.0,
+          "minimum": 1.0,
+          "maximum": 60.0,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 1
+        },
+        "max_keyframes": {
+          "type": "integer",
+          "title": "最大关键帧数",
+          "description": "要提取的最大关键帧数。",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 2
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "音频转换器（可选）",
+      "description": "用于处理演示文稿中音频内容的音频转换器。",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 6,
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "音频连接器",
+          "description": "AI 音频转录连接器。",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI 音频",
+              "options": [
+                {
+                  "label": "Whisper",
+                  "value": "openai.whisper-1",
+                  "description": "高质量音频转录",
+                  "default": true
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "language": {
+          "type": "string",
+          "title": "语言",
+          "description": "预期音频语言（空则自动检测）。",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        }
+      }
+    }
+  }
+}

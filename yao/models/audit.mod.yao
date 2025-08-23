@@ -1,0 +1,241 @@
+{
+  "name": "audit",
+  "label": "Audit Log",
+  "description": "Audit log table for storing system operation audit records",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": {
+    "name": "audit_log",
+    "comment": "Audit log table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Audit ID",
+      "comment": "Unique audit record identifier"
+    },
+    {
+      "name": "event_id",
+      "type": "string",
+      "label": "Event ID",
+      "comment": "Unique event identifier for correlation",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "operation",
+      "type": "string",
+      "label": "Operation",
+      "comment": "Operation name (login, delete, modify, etc.)",
+      "length": 100,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "label": "Category",
+      "comment": "Audit category (authentication, authorization, data, system)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "severity",
+      "type": "enum",
+      "label": "Severity",
+      "comment": "Event severity level",
+      "option": ["low", "medium", "high", "critical"],
+      "default": "medium",
+      "index": true
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "label": "User ID",
+      "comment": "User or service account identifier",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "user_name",
+      "type": "string",
+      "label": "User Name",
+      "comment": "User display name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "session_id",
+      "type": "string",
+      "label": "Session ID",
+      "comment": "Session identifier",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "client_ip",
+      "type": "string",
+      "label": "Client IP",
+      "comment": "Client IP address",
+      "length": 45,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "user_agent",
+      "type": "string",
+      "label": "User Agent",
+      "comment": "Client user agent information",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "target_resource",
+      "type": "string",
+      "label": "Target Resource",
+      "comment": "Target resource being operated on",
+      "length": 500,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "resource_type",
+      "type": "string",
+      "label": "Resource Type",
+      "comment": "Type of resource (file, table, config, etc.)",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "label": "Source",
+      "comment": "Operation source (UI, API, CLI, system)",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "application",
+      "type": "string",
+      "label": "Application",
+      "comment": "Application or service name",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "hostname",
+      "type": "string",
+      "label": "Hostname",
+      "comment": "Hostname of the operation source",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "success",
+      "type": "boolean",
+      "label": "Success",
+      "comment": "Whether the operation was successful",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "exit_code",
+      "type": "integer",
+      "label": "Exit Code",
+      "comment": "System call return code",
+      "nullable": true
+    },
+    {
+      "name": "response_time",
+      "type": "integer",
+      "label": "Response Time",
+      "comment": "Operation response time in milliseconds",
+      "nullable": true
+    },
+    {
+      "name": "request_id",
+      "type": "string",
+      "label": "Request ID",
+      "comment": "HTTP request identifier",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "trace_id",
+      "type": "string",
+      "label": "Trace ID",
+      "comment": "Distributed tracing identifier",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "data_before",
+      "type": "json",
+      "label": "Data Before",
+      "comment": "Data state before operation",
+      "nullable": true
+    },
+    {
+      "name": "data_after",
+      "type": "json",
+      "label": "Data After",
+      "comment": "Data state after operation",
+      "nullable": true
+    },
+    {
+      "name": "details",
+      "type": "json",
+      "label": "Details",
+      "comment": "Additional operation details and parameters",
+      "nullable": true
+    },
+    {
+      "name": "error_message",
+      "type": "text",
+      "label": "Error Message",
+      "comment": "Error message if operation failed",
+      "nullable": true
+    },
+    {
+      "name": "tags",
+      "type": "json",
+      "label": "Tags",
+      "comment": "Additional tags for categorization",
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "idx_user_operation",
+      "columns": ["user_id", "operation"],
+      "type": "index"
+    },
+    {
+      "name": "idx_resource_operation",
+      "columns": ["target_resource", "operation"],
+      "type": "index"
+    },
+    {
+      "name": "idx_time_user",
+      "columns": ["created_at", "user_id"],
+      "type": "index"
+    }
+  ],
+  "option": {
+    "timestamps": true,
+    "soft_deletes": false
+  }
+}

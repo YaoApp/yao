@@ -30,6 +30,16 @@ func LoadAndExport(cfg config.Config) error {
 
 // Load load login
 func Load(cfg config.Config) error {
+
+	// Ignore if the login directory does not exist
+	exists, err := application.App.Exists("logins")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	exts := []string{"*.login.yao", "*.login.json", "*.login.jsonc"}
 	return application.App.Walk("logins", func(root, file string, isdir bool) error {
 		if isdir {

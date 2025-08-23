@@ -115,7 +115,7 @@ func (data Data) Exec(stmt string) (interface{}, []Identifier, error) {
 	v := &Visitor{}
 	ast.Walk(&node, v)
 
-	res, err := expr.Run(program, data)
+	res, err := expr.Run(program, map[string]interface{}(data))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -187,6 +187,7 @@ func (data Data) ReplaceUse(tokens Tokens, value string) (string, []StringValue)
 		values = append(values, v)
 		return v.Value
 	})
+
 	return res, values
 }
 

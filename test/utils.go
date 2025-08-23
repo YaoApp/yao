@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
@@ -18,9 +19,12 @@ import (
 	"github.com/yaoapp/gou/query/gou"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/server/http"
+	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/runtime"
@@ -30,6 +34,123 @@ import (
 
 var testServer *http.Server = nil
 
+// SystemModels system models for testing
+var testSystemModels = map[string]string{
+	"__yao.assistant":          "yao/models/assistant.mod.yao",
+	"__yao.attachment":         "yao/models/attachment.mod.yao",
+	"__yao.audit":              "yao/models/audit.mod.yao",
+	"__yao.chat":               "yao/models/chat.mod.yao",
+	"__yao.config":             "yao/models/config.mod.yao",
+	"__yao.dsl":                "yao/models/dsl.mod.yao",
+	"__yao.history":            "yao/models/history.mod.yao",
+	"__yao.kb.collection":      "yao/models/kb/collection.mod.yao",
+	"__yao.kb.document":        "yao/models/kb/document.mod.yao",
+	"__yao.user":               "yao/models/user.mod.yao",
+	"__yao.user_role":          "yao/models/user_role.mod.yao",
+	"__yao.user_type":          "yao/models/user_type.mod.yao",
+	"__yao.user_oauth_account": "yao/models/user_oauth_account.mod.yao",
+}
+
+var testSystemStores = map[string]string{
+	"__yao.store":        "yao/stores/store.badger.yao",
+	"__yao.cache":        "yao/stores/cache.lru.yao",
+	"__yao.oauth.store":  "yao/stores/oauth/store.badger.yao",
+	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao",
+	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
+	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao",
+	"__yao.kb.store":     "yao/stores/kb/store.badger.yao",
+	"__yao.kb.cache":     "yao/stores/kb/cache.lru.yao",
+}
+
+func loadSystemStores(t *testing.T, cfg config.Config) error {
+	for id, path := range testSystemStores {
+		raw, err := data.Read(path)
+		if err != nil {
+			return err
+		}
+
+		// Replace template variables in the JSON string
+		source := string(raw)
+		if strings.Contains(source, "YAO_APP_ROOT") || strings.Contains(source, "YAO_DATA_ROOT") {
+			vars := map[string]string{
+				"YAO_APP_ROOT":  cfg.Root,
+				"YAO_DATA_ROOT": cfg.DataRoot,
+			}
+			source = replaceVars(source, vars)
+		}
+
+		// Load store with the processed source
+		_, err = store.LoadSource([]byte(source), id, filepath.Join("__system", path))
+		if err != nil {
+			log.Error("load system store %s error: %s", id, err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+// replaceVars replaces template variables in the JSON string
+// Supports {{ VAR_NAME }} syntax
+func replaceVars(jsonStr string, vars map[string]string) string {
+	result := jsonStr
+	for key, value := range vars {
+		// Replace both {{ KEY }} and {{KEY}} patterns
+		patterns := []string{
+			"{{ " + key + " }}",
+			"{{" + key + "}}",
+		}
+		for _, pattern := range patterns {
+			result = strings.ReplaceAll(result, pattern, value)
+		}
+	}
+	return result
+}
+
+// loadSystemModels load system models for testing
+func loadSystemModels(t *testing.T, cfg config.Config) error {
+	for id, path := range testSystemModels {
+		content, err := data.Read(path)
+		if err != nil {
+			return err
+		}
+
+		// Parse model
+		var data map[string]interface{}
+		err = application.Parse(path, content, &data)
+		if err != nil {
+			return err
+		}
+
+		// Set prefix
+		if table, ok := data["table"].(map[string]interface{}); ok {
+			if name, ok := table["name"].(string); ok {
+				table["name"] = share.App.Prefix + name
+				content, err = jsoniter.Marshal(data)
+				if err != nil {
+					log.Error("failed to marshal model data: %v", err)
+					return fmt.Errorf("failed to marshal model data: %v", err)
+				}
+			}
+		}
+
+		// Load Model
+		mod, err := model.LoadSource(content, id, filepath.Join("__system", path))
+		if err != nil {
+			log.Error("load system model %s error: %s", id, err.Error())
+			return err
+		}
+
+		// Auto migrate
+		err = mod.Migrate(false, model.WithDonotInsertValues(true))
+		if err != nil {
+			log.Error("migrate system model %s error: %s", id, err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Prepare test environment
 func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 
@@ -37,6 +158,10 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 	if len(rootEnv) > 0 {
 		appRootEnv = rootEnv[0]
 	}
+
+	// Remove the data store
+	var path = filepath.Join(os.Getenv(appRootEnv), "data", "stores")
+	os.RemoveAll(path)
 
 	root := os.Getenv(appRootEnv)
 	var app application.Application
@@ -127,16 +252,26 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 		t.Fatal(err)
 	}
 
+	// Set default prefix
+	if share.App.Prefix == "" {
+		share.App.Prefix = "yao_"
+	}
+
 	utils.Init()
 	dbconnect(t, cfg)
 	load(t, cfg)
 	startRuntime(t, cfg)
+
 }
 
 // Clean the test environment
 func Clean() {
 	dbclose()
 	runtime.Stop()
+
+	// Remove the data store
+	var path = filepath.Join(os.Getenv("YAO_TEST_APPLICATION"), "data", "stores")
+	os.RemoveAll(path)
 }
 
 // Start the test server
@@ -216,6 +351,7 @@ func startRuntime(t *testing.T, cfg config.Config) {
 
 func load(t *testing.T, cfg config.Config) {
 	loadFS(t, cfg)
+	loadStore(t, cfg)
 	loadScript(t, cfg)
 	loadModel(t, cfg)
 	loadConnector(t, cfg)
@@ -259,8 +395,14 @@ func loadModel(t *testing.T, cfg config.Config) {
 	model.WithCrypt([]byte(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey)), "AES")
 	model.WithCrypt([]byte(`{}`), "PASSWORD")
 
+	// Load system models
+	err := loadSystemModels(t, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	exts := []string{"*.mod.yao", "*.mod.json", "*.mod.jsonc"}
-	err := application.App.Walk("models", func(root, file string, isdir bool) error {
+	err = application.App.Walk("models", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
@@ -271,6 +413,23 @@ func loadModel(t *testing.T, cfg config.Config) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+// loadStore load system stores for testing
+func loadStore(t *testing.T, cfg config.Config) {
+	err := loadSystemStores(t, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	exts := []string{"*.yao", "*.json", "*.jsonc"}
+	err = application.App.Walk("stores", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		_, err := store.Load(file, share.ID(root, file))
+		return err
+	}, exts...)
 }
 
 func loadQuery(t *testing.T, cfg config.Config) {

@@ -129,7 +129,7 @@ bindata:
 	cp -r .tmp/yao-init .tmp/data/init
 	cp -r ui .tmp/data/
 	cp -r ui .tmp/data/public
-	cp -r xgen .tmp/data/
+	cp -r cui .tmp/data/
 	cp -r yao .tmp/data/
 	cp -r sui/libsui .tmp/data/
 	find .tmp/data -name ".DS_Store" -type f -delete
@@ -142,11 +142,11 @@ bindata:
 artifacts-linux: clean
 	mkdir -p dist/release
 
-#	Building XGEN v1.0
+#	Building CUI v1.0
 	export NODE_ENV=production
-# 	rm -f ../xgen-v1.0/pnpm-lock.yaml
-	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
-	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+# 	rm -f ../cui-v1.0/pnpm-lock.yaml
+	echo "BASE=__yao_admin_root" > ../cui-v1.0/packages/cui/.env
+	cd ../cui-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #	Init Application
 	cd ../yao-init && rm -rf .git
@@ -162,11 +162,11 @@ artifacts-linux: clean
 #	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
-#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
-#   ** new repository: https://github.com/YaoApp/dui.git **
-	mkdir -p .tmp/data/xgen
+#   ** CUI will be renamed to CUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/cui.git **
+	mkdir -p .tmp/data/cui
 	cp -r ./ui .tmp/data/ui
-	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r ../cui-v1.0/packages/cui/dist .tmp/data/cui/v1.0
 	cp -r ../yao-init .tmp/data/init
 	cp -r yao .tmp/data/
 	cp -r sui/libsui .tmp/data/
@@ -175,6 +175,8 @@ artifacts-linux: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -197,11 +199,11 @@ artifacts-macos: clean
 
 	mkdir -p dist/release
 
-#	Building XGEN v1.0
+#	Building CUI v1.0
 	export NODE_ENV=production
-#   rm -f ../xgen-v1.0/pnpm-lock.yaml
-	echo "BASE=__yao_admin_root" > ../xgen-v1.0/packages/xgen/.env
-	cd ../xgen-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+#   rm -f ../cui-v1.0/pnpm-lock.yaml
+	echo "BASE=__yao_admin_root" > ../cui-v1.0/packages/cui/.env
+	cd ../cui-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #	Init Application
 	cd ../yao-init && rm -rf .git
@@ -209,19 +211,10 @@ artifacts-macos: clean
 	cd ../yao-init && rm -rf LICENSE
 #	 cd ../yao-init && rm -rf README.md
 
-#   Yao Builder
-#   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
-#	mkdir -p .tmp/data/builder
-#	curl -o .tmp/yao-builder-latest.tar.gz https://release-sv.yaoapps.com/archives/yao-builder-latest.tar.gz
-#	tar -zxvf .tmp/yao-builder-latest.tar.gz -C .tmp/data/builder
-#	rm -rf .tmp/yao-builder-latest.tar.gz
-
 #	Packing
-#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
-#   ** new repository: https://github.com/YaoApp/dui.git **
-	mkdir -p .tmp/data/xgen
+	mkdir -p .tmp/data/cui
 	cp -r ./ui .tmp/data/ui
-	cp -r ../xgen-v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r ../cui-v1.0/packages/cui/dist .tmp/data/cui/v1.0
 	cp -r ../yao-init .tmp/data/init
 	cp -r yao .tmp/data/
 	cp -r sui/libsui .tmp/data/
@@ -230,6 +223,8 @@ artifacts-macos: clean
 
 #	Replace PRVERSION
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
@@ -242,9 +237,6 @@ artifacts-macos: clean
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-dev-darwin-amd64 version
 
-# 	Reset const 
-#	cp -f share/const.goe share/const.go
-#	rm -f share/const.goe
 
 .PHONY: debug
 debug: clean
@@ -275,18 +267,19 @@ release: clean
 	mkdir -p dist/release
 	mkdir .tmp
 
-#	Building XGEN v0.9
-	mkdir -p .tmp/xgen/v0.9/dist
-	echo "XGEN v0.9" > .tmp/xgen/v0.9/dist/index.html
+#	Building CUI v0.9
+	mkdir -p .tmp/cui/v0.9/dist
+	echo "CUI v0.9" > .tmp/cui/v0.9/dist/index.html
 
-#	Building XGEN v1.0
-#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
-#   ** new repository: https://github.com/YaoApp/dui.git **
+#	Building CUI v1.0
+#   ** CUI will be renamed to CUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/cui.git **
 	export NODE_ENV=production
-	git clone https://github.com/sjzsdu/xgen.git .tmp/xgen/v1.0
-# 	cd .tmp/xgen/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
-	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
-	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+	git clone https://github.com/YaoApp/cui.git .tmp/cui/v1.0
+# 	cd .tmp/cui/v1.0 && git checkout 5002c3fded585aaa69a4366135b415ea3234964e
+	echo "BASE=__yao_admin_root" > .tmp/cui/v1.0/packages/cui/.env
+	cd .tmp/cui/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+	CUI_COMMIT=$$(cd .tmp/cui/v1.0 && git rev-parse --short HEAD)
 
 #	Checkout init
 	git clone https://github.com/YaoApp/yao-init.git .tmp/yao-init
@@ -303,57 +296,57 @@ release: clean
 #	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
-	mkdir -p .tmp/data/xgen
+	cp -f data/bindata.go data/bindata.go.bak
+	mkdir -p .tmp/data/cui
 	cp -r ./ui .tmp/data/ui
 	cp -r ./yao .tmp/data/yao
 	cp -r ./sui/libsui .tmp/data/libsui
-	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
-	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r .tmp/cui/v0.9/dist .tmp/data/cui/v0.9
+	cp -r .tmp/cui/v1.0/packages/cui/dist .tmp/data/cui/v1.0
 	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
-	rm -rf .tmp/data
-	rm -rf .tmp/xgen
+
 
 #	Replace PRVERSION
+	cp -f share/const.go share/const.go.bak
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd .tmp/cui/v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
 
+# 	Clean up and restore bindata.go and const.go
+	cp data/bindata.go.bak data/bindata.go
+	cp share/const.go.bak share/const.go
+	rm data/bindata.go.bak
+	rm share/const.go.bak
+	rm -rf .tmp
+
 #   MacOS Application Signing
 	@if [ "$(OS)" = "Darwin" ]; then \
 	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
 	fi
 
-# 	Reset const 
-	cp -f share/const.goe share/const.go
-	rm share/const.goe
 
 .PHONY: linux-release
 linux-release: clean
 	mkdir -p dist/release
 	mkdir .tmp
 
-#	Building XGEN v0.9
-	git clone https://github.com/YaoApp/xgen-deprecated.git .tmp/xgen/v0.9
-	sed -ie "s/url('\/icon/url('\/xiang\/icon/g" .tmp/xgen/v0.9/public/icon/md_icon.css
-	cd .tmp/xgen/v0.9 && yarn install && yarn build
-	mkdir -p .tmp/xgen/v0.9
-	cp -r xgen/v0.9 .tmp/xgen/v0.9/dist
-
-#	Building XGEN v1.0
-#   ** XGEN will be renamed to DUI in the feature. and move to the new repository. **
-#   ** new repository: https://github.com/YaoApp/dui.git **
+#	Building CUI v1.0
+#   ** CUI will be renamed to CUI in the feature. and move to the new repository. **
+#   ** new repository: https://github.com/YaoApp/cui.git **
 	export NODE_ENV=production
-	git clone https://github.com/sjzsdu/xgen.git .tmp/xgen/v1.0
-	rm -f .tmp/xgen/v1.0/pnpm-lock.yaml
-	echo "BASE=__yao_admin_root" > .tmp/xgen/v1.0/packages/xgen/.env
-	cd .tmp/xgen/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+	git clone https://github.com/YaoApp/cui.git .tmp/cui/v1.0
+	rm -f .tmp/cui/v1.0/pnpm-lock.yaml
+	echo "BASE=__yao_admin_root" > .tmp/cui/v1.0/packages/cui/.env
+	cd .tmp/cui/v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
 
 #   Setup UI
-	cd .tmp/xgen/v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
+	cd .tmp/cui/v1.0/packages/setup  && pnpm install --no-frozen-lockfile && pnpm run build
 
 
 #	Checkout init
@@ -371,16 +364,16 @@ linux-release: clean
 # 	rm -rf .tmp/yao-builder-latest.tar.gz
 
 #	Packing
-	mkdir -p .tmp/data/xgen
+	mkdir -p .tmp/data/cui
 	cp -r ./ui .tmp/data/ui
 	cp -r ./yao .tmp/data/yao
-	cp -r .tmp/xgen/v0.9/dist .tmp/data/xgen/v0.9
-	cp -r .tmp/xgen/v1.0/packages/setup/build .tmp/data/xgen/setup
-	cp -r .tmp/xgen/v1.0/packages/xgen/dist .tmp/data/xgen/v1.0
+	cp -r .tmp/cui/v0.9/dist .tmp/data/cui/v0.9
+	cp -r .tmp/cui/v1.0/packages/setup/build .tmp/data/cui/setup
+	cp -r .tmp/cui/v1.0/packages/cui/dist .tmp/data/cui/v1.0
 	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 	rm -rf .tmp/data
-	rm -rf .tmp/xgen
+	rm -rf .tmp/cui
 
 #   Making artifacts
 	mkdir -p dist

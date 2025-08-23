@@ -1,0 +1,187 @@
+{
+  "name": "assistant",
+  "label": "Assistant",
+  "description": "Assistant table for storing AI assistant configurations and metadata",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": {
+    "name": "assistant",
+    "comment": "Assistant table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Assistant ID",
+      "comment": "Unique assistant identifier"
+    },
+    {
+      "name": "assistant_id",
+      "type": "string",
+      "label": "Assistant ID",
+      "comment": "Assistant identifier",
+      "length": 200,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "Assistant type",
+      "length": 200,
+      "default": "assistant",
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Assistant name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "avatar",
+      "type": "string",
+      "label": "Avatar",
+      "comment": "Assistant avatar URL",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "connector",
+      "type": "string",
+      "label": "Connector",
+      "comment": "Assistant connector",
+      "length": 200,
+      "nullable": false
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "label": "Description",
+      "comment": "Assistant description",
+      "length": 600,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "label": "Path",
+      "comment": "Assistant storage path",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort",
+      "comment": "Assistant sort order",
+      "default": 9999,
+      "index": true
+    },
+    {
+      "name": "built_in",
+      "type": "boolean",
+      "label": "Built In",
+      "comment": "Whether this is a built-in assistant",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "placeholder",
+      "type": "json",
+      "label": "Placeholder",
+      "comment": "Assistant placeholder",
+      "nullable": true
+    },
+    {
+      "name": "options",
+      "type": "json",
+      "label": "Options",
+      "comment": "Assistant options",
+      "nullable": true
+    },
+    {
+      "name": "prompts",
+      "type": "json",
+      "label": "Prompts",
+      "comment": "Assistant prompts",
+      "nullable": true
+    },
+    {
+      "name": "workflow",
+      "type": "json",
+      "label": "Workflow",
+      "comment": "Assistant workflow",
+      "nullable": true
+    },
+    {
+      "name": "knowledge",
+      "type": "json",
+      "label": "Knowledge",
+      "comment": "Assistant knowledge",
+      "nullable": true
+    },
+    {
+      "name": "tools",
+      "type": "json",
+      "label": "Tools",
+      "comment": "Assistant tools",
+      "nullable": true
+    },
+    {
+      "name": "tags",
+      "type": "json",
+      "label": "Tags",
+      "comment": "Assistant tags",
+      "nullable": true
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "Assistant readonly status",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "permissions",
+      "type": "json",
+      "label": "Permissions",
+      "comment": "Assistant permissions",
+      "nullable": true
+    },
+    {
+      "name": "locales",
+      "type": "json",
+      "label": "Locales",
+      "comment": "Assistant i18n locales",
+      "nullable": true
+    },
+    {
+      "name": "automated",
+      "type": "boolean",
+      "label": "Automated",
+      "comment": "Assistant automated status",
+      "default": true,
+      "index": true
+    },
+    {
+      "name": "mentionable",
+      "type": "boolean",
+      "label": "Mentionable",
+      "comment": "Whether this assistant can appear in @ mention list",
+      "default": true,
+      "index": true
+    }
+  ],
+  "relations": {},
+  "indexes": [],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

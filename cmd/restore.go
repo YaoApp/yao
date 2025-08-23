@@ -60,10 +60,16 @@ var restoreCmd = &cobra.Command{
 		})
 
 		// 加载数据模型
-		err = engine.Load(config.Conf, engine.LoadOption{Action: "restore"})
+		loadWarnings, err := engine.Load(config.Conf, engine.LoadOption{Action: "restore"})
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
+		}
+
+		if len(loadWarnings) > 0 {
+			for _, warning := range loadWarnings {
+				fmt.Println(color.YellowString("[%s] %s", warning.Widget, warning.Error))
+			}
 		}
 
 		// Restore models

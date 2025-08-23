@@ -196,7 +196,7 @@ func TestLoad_Clone(t *testing.T) {
 		Automated:   true,
 		Options:     map[string]interface{}{"key": "value"},
 		Prompts:     []Prompt{{Role: "system", Content: "test"}},
-		Flows:       []map[string]interface{}{{"step": "test"}},
+		Workflow:    map[string]interface{}{"step": "test"},
 	}
 
 	// Clone the assistant
@@ -218,15 +218,15 @@ func TestLoad_Clone(t *testing.T) {
 	assert.Equal(t, original.Automated, clone.Automated)
 	assert.Equal(t, original.Options, clone.Options)
 	assert.Equal(t, original.Prompts, clone.Prompts)
-	assert.Equal(t, original.Flows, clone.Flows)
+	assert.Equal(t, original.Workflow, clone.Workflow)
 
 	// Verify deep copy by modifying original
 	original.Tags[0] = "modified"
 	original.Options["key"] = "modified"
-	original.Flows[0]["step"] = "modified"
+	original.Workflow["step"] = "modified"
 	assert.NotEqual(t, original.Tags[0], clone.Tags[0])
 	assert.NotEqual(t, original.Options["key"], clone.Options["key"])
-	assert.NotEqual(t, original.Flows[0]["step"], clone.Flows[0]["step"])
+	assert.NotEqual(t, original.Workflow["step"], clone.Workflow["step"])
 
 	// Test nil case
 	var nilAssistant *Assistant
@@ -322,7 +322,7 @@ type mockStore struct {
 	data map[string]map[string]interface{}
 }
 
-func (m *mockStore) GetAssistant(id string) (map[string]interface{}, error) {
+func (m *mockStore) GetAssistant(id string, locale ...string) (map[string]interface{}, error) {
 	if data, ok := m.data[id]; ok {
 		return data, nil
 	}
@@ -367,20 +367,22 @@ func (m *mockStore) ListFiles(query map[string]interface{}) ([]map[string]interf
 }
 func (m *mockStore) DeleteAllChats(id string) error            { return nil }
 func (m *mockStore) DeleteChat(id string, chatID string) error { return nil }
-func (m *mockStore) GetAssistants(filter store.AssistantFilter) (*store.AssistantResponse, error) {
+func (m *mockStore) GetAssistants(filter store.AssistantFilter, locale ...string) (*store.AssistantResponse, error) {
 	return nil, nil
 }
-func (m *mockStore) GetChat(id string, chatID string) (*store.ChatInfo, error) { return nil, nil }
-func (m *mockStore) GetChatWithFilter(id string, chatID string, filter store.ChatFilter) (*store.ChatInfo, error) {
+func (m *mockStore) GetChat(id string, chatID string, locale ...string) (*store.ChatInfo, error) {
 	return nil, nil
 }
-func (m *mockStore) GetChats(id string, filter store.ChatFilter) (*store.ChatGroupResponse, error) {
+func (m *mockStore) GetChatWithFilter(id string, chatID string, filter store.ChatFilter, locale ...string) (*store.ChatInfo, error) {
 	return nil, nil
 }
-func (m *mockStore) GetHistory(id string, chatID string) ([]map[string]interface{}, error) {
+func (m *mockStore) GetChats(id string, filter store.ChatFilter, locale ...string) (*store.ChatGroupResponse, error) {
 	return nil, nil
 }
-func (m *mockStore) GetHistoryWithFilter(id string, chatID string, filter store.ChatFilter) ([]map[string]interface{}, error) {
+func (m *mockStore) GetHistory(id string, chatID string, locale ...string) ([]map[string]interface{}, error) {
+	return nil, nil
+}
+func (m *mockStore) GetHistoryWithFilter(id string, chatID string, filter store.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	return nil, nil
 }
 func (m *mockStore) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
@@ -391,4 +393,53 @@ func (m *mockStore) SaveHistory(sid string, messages []map[string]interface{}, c
 }
 func (m *mockStore) UpdateChatTitle(sid string, cid string, title string) error   { return nil }
 func (m *mockStore) DeleteAssistants(filter store.AssistantFilter) (int64, error) { return 0, nil }
-func (m *mockStore) GetAssistantTags() ([]string, error)                          { return []string{}, nil }
+func (m *mockStore) GetAssistantTags(locale ...string) ([]store.Tag, error) {
+	return []store.Tag{}, nil
+}
+
+// Attachment related methods
+func (m *mockStore) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
+	return attachment["file_id"], nil
+}
+
+func (m *mockStore) DeleteAttachment(fileID string) error {
+	return nil
+}
+
+func (m *mockStore) GetAttachments(filter store.AttachmentFilter, locale ...string) (*store.AttachmentResponse, error) {
+	return &store.AttachmentResponse{}, nil
+}
+
+func (m *mockStore) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (m *mockStore) DeleteAttachments(filter store.AttachmentFilter) (int64, error) {
+	return 0, nil
+}
+
+// Knowledge related methods
+func (m *mockStore) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
+	return knowledge["collection_id"], nil
+}
+
+func (m *mockStore) DeleteKnowledge(collectionID string) error {
+	return nil
+}
+
+func (m *mockStore) GetKnowledges(filter store.KnowledgeFilter, locale ...string) (*store.KnowledgeResponse, error) {
+	return &store.KnowledgeResponse{}, nil
+}
+
+func (m *mockStore) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
+	return nil, nil
+}
+
+func (m *mockStore) DeleteKnowledges(filter store.KnowledgeFilter) (int64, error) {
+	return 0, nil
+}
+
+// Close closes the store and releases any resources
+func (m *mockStore) Close() error {
+	return nil
+}

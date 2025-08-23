@@ -1,0 +1,82 @@
+{
+  "id": "__yao.structured",
+  "title": "Hierarchical Text Splitting",
+  "description": "Splits documents into multiple layers of text segments with configurable sizes and overlaps. Creates parent-child relationships between segments at different depths, allowing for both detailed and broader context retrieval in search applications.",
+  "required": ["size", "overlap", "max_depth"],
+  "properties": {
+    "size": {
+      "type": "integer",
+      "title": "Segment Size",
+      "description": "Target characters per text segment.",
+      "default": 300,
+      "minimum": 50,
+      "maximum": 4000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "overlap": {
+      "type": "integer",
+      "title": "Overlap",
+      "description": "Overlapping characters between adjacent segments.",
+      "default": 20,
+      "minimum": 0,
+      "maximum": 1000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "max_depth": {
+      "type": "integer",
+      "title": "Max Depth",
+      "description": "Maximum hierarchy depth to traverse for splitting.",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 3
+    },
+    "separator": {
+      "type": "string",
+      "title": "Custom Separator",
+      "description": "Custom separator pattern (regex supported).",
+      "default": "",
+      "placeholder": "e.g. \\n\\n, ---",
+      "component": "Input",
+      "width": "half",
+      "order": 4
+    },
+    "enable_debug": {
+      "type": "boolean",
+      "title": "Enable Debug Mode",
+      "description": "Output detailed splitting information for debugging.",
+      "default": false,
+      "component": "Switch",
+      "width": "half",
+      "order": 5
+    },
+    "size_multiplier": {
+      "type": "integer",
+      "title": "Size Multiplier",
+      "description": "Multiplier to adjust effective size at deeper levels.",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "max_concurrent": {
+      "type": "integer",
+      "title": "Max Concurrent",
+      "description": "Parallelism when splitting documents.",
+      "default": 1,
+      "minimum": 1,
+      "maximum": "{{ $limit.max_concurrent }}",
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    }
+  }
+}

@@ -1,0 +1,140 @@
+{
+  "id": "__yao.mcp",
+  "title": "MCP Tool Converter",
+  "description": "Model Context Protocol (MCP) converter that uses external tools for content conversion. Allows integration with custom conversion tools through the MCP interface.",
+  "required": ["id", "tool"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "title": "MCP Server ID",
+      "description": "Identifier of the MCP server to use for conversion.",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 1
+    },
+    "tool": {
+      "type": "string",
+      "title": "Tool Name",
+      "description": "Name of the MCP tool to invoke for conversion.",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "arguments_mapping": {
+      "type": "object",
+      "title": "Arguments Mapping",
+      "description": "Mapping of conversion parameters to MCP tool arguments.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 3,
+      "properties": {
+        "file_path": {
+          "type": "string",
+          "title": "File Path Argument",
+          "description": "MCP tool argument name for the input file path.",
+          "default": "file_path",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "content": {
+          "type": "string",
+          "title": "Content Argument",
+          "description": "MCP tool argument name for file content.",
+          "default": "content",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "format": {
+          "type": "string",
+          "title": "Format Argument",
+          "description": "MCP tool argument name for output format specification.",
+          "default": "format",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        },
+        "options": {
+          "type": "string",
+          "title": "Options Argument",
+          "description": "MCP tool argument name for additional options.",
+          "default": "options",
+          "component": "Input",
+          "width": "half",
+          "order": 4
+        }
+      }
+    },
+    "result_mapping": {
+      "type": "object",
+      "title": "Result Mapping",
+      "description": "Mapping of MCP tool response fields to conversion results.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 4,
+      "properties": {
+        "content": {
+          "type": "string",
+          "title": "Content Field",
+          "description": "Response field containing the converted content.",
+          "default": "content",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "metadata": {
+          "type": "string",
+          "title": "Metadata Field",
+          "description": "Response field containing conversion metadata.",
+          "default": "metadata",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "error": {
+          "type": "string",
+          "title": "Error Field",
+          "description": "Response field containing error information.",
+          "default": "error",
+          "component": "Input",
+          "width": "half",
+          "order": 3
+        }
+      }
+    },
+    "notification_mapping": {
+      "type": "object",
+      "title": "Notification Mapping",
+      "description": "Mapping for MCP notification handling during conversion.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 5,
+      "properties": {
+        "progress": {
+          "type": "string",
+          "title": "Progress Notification",
+          "description": "Notification type for conversion progress updates.",
+          "default": "progress",
+          "component": "Input",
+          "width": "half",
+          "order": 1
+        },
+        "status": {
+          "type": "string",
+          "title": "Status Notification",
+          "description": "Notification type for status changes.",
+          "default": "status",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        }
+      }
+    }
+  }
+}

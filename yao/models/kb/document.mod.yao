@@ -1,0 +1,350 @@
+{
+  "name": "document",
+  "label": "Document",
+  "description": "Document table for storing Knowledge Base documents",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "kb_document",
+    "comment": "Knowledge Base Document table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "document_id",
+      "type": "string",
+      "label": "Document ID",
+      "comment": "Unique string identifier for the document (from API)",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "collection_id",
+      "type": "string",
+      "label": "Collection ID",
+      "comment": "Reference to the collection this document belongs to",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Document Name",
+      "comment": "Display name of the document",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Document description",
+      "nullable": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Document processing status",
+      "option": [
+        "pending", // Document created, waiting to start processing
+        "converting", // Converting file to text using converter provider
+        "chunking", // Splitting text into chunks using chunking provider
+        "extracting", // Extracting entities and relationships (optional)
+        "embedding", // Creating embeddings for chunks and entities
+        "storing", // Storing documents to vector and graph databases
+        "completed", // All processing steps finished successfully
+        "maintenance", // Under maintenance, read-only mode
+        "restoring", // Backup restore in progress, no access
+        "error" // Processing failed, check error_message field
+      ],
+      "default": "pending",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "enum",
+      "label": "Document Type",
+      "comment": "Type of document content",
+      "option": ["file", "text", "url"],
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "size",
+      "type": "integer",
+      "label": "Document Size",
+      "comment": "Size of document in bytes",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "segment_count",
+      "type": "integer",
+      "label": "Segment Count",
+      "comment": "Number of segments generated from this document",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "job_id",
+      "type": "string",
+      "label": "Job ID",
+      "comment": "Processing job identifier for tracking document processing tasks",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "uploader_id",
+      "type": "string",
+      "label": "Uploader ID",
+      "comment": "Uploader identifier used for file management and attachment system",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "tags",
+      "type": "json",
+      "label": "Tags",
+      "comment": "Document tags for categorization and filtering",
+      "nullable": true
+    },
+    {
+      "name": "locale",
+      "type": "string",
+      "label": "Locale",
+      "comment": "Locale setting for provider reading and processing",
+      "length": 10,
+      "nullable": true,
+      "default": "en"
+    },
+    {
+      "name": "system",
+      "type": "boolean",
+      "label": "System Document",
+      "comment": "Whether this is a system document",
+      "default": false,
+      "nullable": false
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Sort order for display",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "cover",
+      "type": "string",
+      "label": "Cover Image",
+      "comment": "Document cover image URL",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "file_id",
+      "type": "string",
+      "label": "File ID",
+      "comment": "File identifier for attachment system (for file type)",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "file_name",
+      "type": "string",
+      "label": "File Name",
+      "comment": "Original file name (for file type)",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "file_path",
+      "type": "string",
+      "label": "File Path",
+      "comment": "Storage path of the file (for file type)",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "file_mime_type",
+      "type": "string",
+      "label": "File MIME Type",
+      "comment": "MIME type of the file (for file type)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "url",
+      "type": "string",
+      "label": "URL",
+      "comment": "Source URL (for url type)",
+      "length": 2048,
+      "nullable": true
+    },
+    {
+      "name": "url_title",
+      "type": "string",
+      "label": "URL Title",
+      "comment": "Title extracted from URL (for url type)",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "text_content",
+      "type": "text",
+      "label": "Text Content",
+      "comment": "Raw text content (for text type or processed content)",
+      "nullable": true
+    },
+    {
+      "name": "converter_provider_id",
+      "type": "string",
+      "label": "Converter Provider ID",
+      "comment": "Document converter provider ID (for file type)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "converter_option_id",
+      "type": "string",
+      "label": "Converter Option ID",
+      "comment": "Document converter provider option ID (for file type)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "converter_properties",
+      "type": "json",
+      "label": "Converter Properties",
+      "comment": "Converter provider configuration properties",
+      "nullable": true
+    },
+    {
+      "name": "fetcher_provider_id",
+      "type": "string",
+      "label": "Fetcher Provider ID",
+      "comment": "URL fetcher provider ID (for url type)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "fetcher_option_id",
+      "type": "string",
+      "label": "Fetcher Option ID",
+      "comment": "URL fetcher provider option ID (for url type)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "fetcher_properties",
+      "type": "json",
+      "label": "Fetcher Properties",
+      "comment": "Fetcher provider configuration properties",
+      "nullable": true
+    },
+    {
+      "name": "chunking_provider_id",
+      "type": "string",
+      "label": "Chunking Provider ID",
+      "comment": "Text chunking provider ID",
+      "length": 128,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "chunking_option_id",
+      "type": "string",
+      "label": "Chunking Option ID",
+      "comment": "Text chunking provider option ID",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "chunking_properties",
+      "type": "json",
+      "label": "Chunking Properties",
+      "comment": "Chunking provider configuration properties (includes split_mode, chunk_size, chunk_overlap, etc.)",
+      "nullable": true
+    },
+    {
+      "name": "embedding_provider_id",
+      "type": "string",
+      "label": "Embedding Provider ID",
+      "comment": "Knowledge embedding provider ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "embedding_option_id",
+      "type": "string",
+      "label": "Embedding Option ID",
+      "comment": "Knowledge embedding provider option ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "embedding_properties",
+      "type": "json",
+      "label": "Embedding Properties",
+      "comment": "Embedding provider configuration properties",
+      "nullable": true
+    },
+    {
+      "name": "extraction_provider_id",
+      "type": "string",
+      "label": "Extraction Provider ID",
+      "comment": "Knowledge extraction provider ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "extraction_option_id",
+      "type": "string",
+      "label": "Extraction Option ID",
+      "comment": "Knowledge extraction provider option ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "extraction_properties",
+      "type": "json",
+      "label": "Extraction Properties",
+      "comment": "Extraction provider configuration properties",
+      "nullable": true
+    },
+    {
+      "name": "processed_at",
+      "type": "timestamp",
+      "label": "Processed At",
+      "comment": "Timestamp when document processing completed",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "error_message",
+      "type": "text",
+      "label": "Error Message",
+      "comment": "Error message if processing failed",
+      "nullable": true
+    }
+  ],
+  "option": {
+    "permission": true,
+    "timestamps": true
+  }
+}

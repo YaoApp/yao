@@ -1,0 +1,186 @@
+{
+  "id": "__yao.openai",
+  "title": "OpenAI 嵌入模型",
+  "description": "OpenAI 的文本嵌入模型，用于将文本转换为高维向量。支持各种嵌入模型，具有可配置的维度和并发处理。",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "OpenAI 连接器",
+      "description": "用于嵌入 API 访问的 OpenAI 连接器。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI 模型",
+          "options": [
+            {
+              "label": "text-embedding-3-small",
+              "value": "openai.text-embedding-3-small",
+              "description": "最新的小型嵌入模型，1536 维度，经济高效",
+              "default": true
+            },
+            {
+              "label": "text-embedding-3-large",
+              "value": "openai.text-embedding-3-large",
+              "description": "最新的大型嵌入模型，3072 维度，最高质量"
+            },
+            {
+              "label": "text-embedding-ada-002",
+              "value": "openai.text-embedding-ada-002",
+              "description": "上一代模型，1536 维度，可靠稳定"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Azure OpenAI",
+          "options": [
+            {
+              "label": "Azure text-embedding-3-small",
+              "value": "azure.text-embedding-3-small",
+              "description": "Azure 托管的嵌入模型，1536 维度"
+            },
+            {
+              "label": "Azure text-embedding-3-large",
+              "value": "azure.text-embedding-3-large",
+              "description": "Azure 托管的大型嵌入模型，3072 维度"
+            }
+          ]
+        }
+      ],
+      "width": "full",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "模型名称（可选）",
+      "description": "覆盖连接器默认值的特定模型名称。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "使用连接器默认",
+          "value": "",
+          "description": "使用所选连接器的默认模型",
+          "default": true
+        },
+        {
+          "label": "text-embedding-3-small",
+          "value": "text-embedding-3-small",
+          "description": "1536 维度，经济高效"
+        },
+        {
+          "label": "text-embedding-3-large",
+          "value": "text-embedding-3-large",
+          "description": "3072 维度，最高质量"
+        },
+        {
+          "label": "text-embedding-ada-002",
+          "value": "text-embedding-ada-002",
+          "description": "1536 维度，上一代"
+        }
+      ],
+      "width": "half",
+      "order": 2
+    },
+    "dimensions": {
+      "type": "integer",
+      "title": "嵌入维度",
+      "description": "嵌入向量的维度数量。",
+      "default": 1536,
+      "component": "Select",
+      "enum": [
+        {
+          "label": "1536 (text-embedding-3-small 默认)",
+          "value": 1536,
+          "description": "text-embedding-3-small 的标准维度",
+          "default": true
+        },
+        {
+          "label": "3072 (text-embedding-3-large 默认)",
+          "value": 3072,
+          "description": "text-embedding-3-large 的完整维度"
+        },
+        {
+          "label": "1024",
+          "value": 1024,
+          "description": "降低维度以减少存储空间"
+        },
+        {
+          "label": "512",
+          "value": 512,
+          "description": "紧凑维度以提高内存效率"
+        },
+        {
+          "label": "256",
+          "value": 256,
+          "description": "最小维度用于基本相似性"
+        }
+      ],
+      "width": "half",
+      "order": 3
+    },
+    "concurrent": {
+      "type": "integer",
+      "title": "并发请求数",
+      "description": "要处理的并发嵌入请求数量。",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 100,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "batch_size": {
+      "type": "integer",
+      "title": "批处理大小",
+      "description": "每个 API 请求中嵌入的文本数量。",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 2048,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "retry_attempts": {
+      "type": "integer",
+      "title": "重试次数",
+      "description": "失败请求的重试次数。",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "timeout": {
+      "type": "integer",
+      "title": "超时时间（秒）",
+      "description": "请求超时时间，以秒为单位。",
+      "default": 30,
+      "minimum": 5,
+      "maximum": 300,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "normalize": {
+      "type": "boolean",
+      "title": "规范化向量",
+      "description": "将嵌入向量规范化为单位长度。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 8
+    },
+    "truncate_input": {
+      "type": "boolean",
+      "title": "截断长输入",
+      "description": "自动截断超过令牌限制的输入文本。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 9
+    }
+  }
+}

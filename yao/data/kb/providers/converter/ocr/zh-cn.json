@@ -1,0 +1,228 @@
+{
+  "id": "__yao.ocr",
+  "title": "OCR 文字识别",
+  "description": "光学字符识别，用于从图像和 PDF 文件中提取文本。支持多种 PDF 转换工具和可配置的图像处理选项。",
+  "required": ["vision"],
+  "properties": {
+    "mode": {
+      "type": "string",
+      "title": "处理模式",
+      "description": "OCR 操作的处理模式。",
+      "default": "queue",
+      "enum": [
+        {
+          "label": "队列模式",
+          "value": "queue",
+          "description": "按队列顺序处理图像",
+          "default": true
+        },
+        {
+          "label": "并发模式",
+          "value": "concurrent",
+          "description": "并发处理图像"
+        }
+      ],
+      "component": "Select",
+      "width": "half",
+      "order": 1
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "title": "最大并发数",
+      "description": "最大并发 OCR 进程数。",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "compress_size": {
+      "type": "integer",
+      "title": "压缩大小 (KB)",
+      "description": "压缩前图像的最大大小（KB）。",
+      "default": 512,
+      "minimum": 100,
+      "maximum": 5120,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 3
+    },
+    "force_image_mode": {
+      "type": "boolean",
+      "title": "强制图像模式",
+      "description": "强制将 PDF 作为图像处理，而不是直接提取文本。",
+      "default": false,
+      "component": "Switch",
+      "width": "half",
+      "order": 4
+    },
+    "pdf_tool": {
+      "type": "string",
+      "title": "PDF 转换工具",
+      "description": "用于将 PDF 页面转换为图像的工具。",
+      "default": "pdftoppm",
+      "enum": [
+        {
+          "label": "pdftoppm",
+          "value": "pdftoppm",
+          "description": "快速可靠的 PDF 到图像转换",
+          "default": true
+        },
+        {
+          "label": "mutool",
+          "value": "mutool",
+          "description": "MuPDF 工具包用于 PDF 处理"
+        },
+        {
+          "label": "ImageMagick",
+          "value": "imagemagick",
+          "description": "多功能图像处理工具包"
+        }
+      ],
+      "component": "Select",
+      "width": "half",
+      "order": 5
+    },
+    "pdf_tool_path": {
+      "type": "string",
+      "title": "PDF 工具路径",
+      "description": "PDF 转换工具可执行文件的自定义路径。",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 6
+    },
+    "pdf_dpi": {
+      "type": "integer",
+      "title": "PDF DPI",
+      "description": "将 PDF 转换为图像时的分辨率（DPI）。",
+      "default": 150,
+      "minimum": 72,
+      "maximum": 600,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "pdf_format": {
+      "type": "string",
+      "title": "PDF 图像格式",
+      "description": "PDF 转换的图像格式。",
+      "default": "png",
+      "enum": [
+        {
+          "label": "PNG",
+          "value": "png",
+          "description": "无损压缩，最佳质量",
+          "default": true
+        },
+        {
+          "label": "JPEG",
+          "value": "jpeg",
+          "description": "有损压缩，文件更小"
+        }
+      ],
+      "component": "Select",
+      "width": "half",
+      "order": 8
+    },
+    "pdf_quality": {
+      "type": "integer",
+      "title": "PDF JPEG 质量",
+      "description": "使用 JPEG 格式时的质量 (0-100)。",
+      "default": 90,
+      "minimum": 10,
+      "maximum": 100,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 9
+    },
+    "vision": {
+      "type": "object",
+      "title": "视觉转换器",
+      "description": "用于文本识别的视觉 AI 转换器配置。",
+      "required": true,
+      "component": "Nested",
+      "width": "full",
+      "order": 10,
+      "requiredFields": ["connector"],
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "视觉连接器",
+          "description": "用于文本识别的 AI 视觉模型连接器。",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI 视觉模型",
+              "options": [
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "高质量视觉模型，具有出色的 OCR 能力",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "基础 OCR 任务的经济型视觉模型"
+                }
+              ]
+            },
+            {
+              "groupLabel": "其他模型",
+              "options": [
+                {
+                  "label": "Claude 3.5 Sonnet",
+                  "value": "anthropic.claude-3-5-sonnet",
+                  "description": "出色的视觉理解和文本提取能力"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "model": {
+          "type": "string",
+          "title": "模型名称",
+          "description": "具体模型名称（可选，使用连接器默认值）。",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        },
+        "prompt": {
+          "type": "string",
+          "title": "自定义提示",
+          "description": "文本提取的自定义提示（可选）。",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 3
+        },
+        "compress_size": {
+          "type": "integer",
+          "title": "图像压缩大小 (KB)",
+          "description": "视觉 API 压缩前的最大图像大小。",
+          "default": 512,
+          "minimum": 100,
+          "maximum": 5120,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 4
+        },
+        "language": {
+          "type": "string",
+          "title": "语言",
+          "description": "预期文本语言，以便更好地识别。",
+          "default": "Auto",
+          "component": "Input",
+          "width": "half",
+          "order": 5
+        }
+      }
+    }
+  }
+}

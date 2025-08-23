@@ -1,0 +1,191 @@
+{
+  "name": "collection",
+  "label": "Collection",
+  "description": "Collection table for storing Knowledge Base collections",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "kb_collection",
+    "comment": "Knowledge Base Collection table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "collection_id",
+      "type": "string",
+      "label": "Collection ID",
+      "comment": "Unique string identifier for the collection (from API)",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Collection Name",
+      "comment": "Display name of the collection",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Collection description",
+      "nullable": true
+    },
+
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Collection status",
+      "option": [
+        "creating", // Collection being initialized
+        "active", // Normal operation, ready for read/write
+        "maintenance", // Under maintenance, read-only mode
+        "restoring", // Backup restore in progress, no access
+        "error", // Collection has errors, needs attention
+        "disabled" // Manually disabled, no access
+      ],
+      "default": "creating",
+      "nullable": false,
+      "index": true
+    },
+
+    {
+      "name": "system",
+      "type": "boolean",
+      "label": "System Collection",
+      "comment": "Whether this is a system collection",
+      "default": false,
+      "nullable": false
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Sort order for display",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "cover",
+      "type": "string",
+      "label": "Cover Image",
+      "comment": "Collection cover image URL",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "document_count",
+      "type": "integer",
+      "label": "Document Count",
+      "comment": "Number of documents in the collection",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "embedding_provider_id",
+      "type": "string",
+      "label": "Embedding Provider ID",
+      "comment": "Knowledge embedding provider ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "embedding_option_id",
+      "type": "string",
+      "label": "Embedding Option ID",
+      "comment": "Knowledge embedding provider option ID (optional)",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "embedding_properties",
+      "type": "json",
+      "label": "Embedding Properties",
+      "comment": "Embedding provider configuration properties",
+      "nullable": true
+    },
+    {
+      "name": "locale",
+      "type": "string",
+      "label": "Locale",
+      "comment": "Locale setting for the collection",
+      "length": 10,
+      "nullable": true,
+      "default": "en"
+    },
+    {
+      "name": "distance",
+      "type": "enum",
+      "label": "Distance Metric",
+      "comment": "Vector distance calculation method",
+      "option": ["cosine", "euclidean", "dot"],
+      "default": "cosine",
+      "nullable": false
+    },
+    {
+      "name": "index_type",
+      "type": "enum",
+      "label": "Index Type",
+      "comment": "Vector index algorithm type",
+      "option": ["hnsw", "ivf", "flat"],
+      "default": "hnsw",
+      "nullable": false
+    },
+    {
+      "name": "m",
+      "type": "integer",
+      "label": "HNSW M Parameter",
+      "comment": "HNSW algorithm M parameter (bidirectional links per node)",
+      "nullable": true,
+      "default": 16
+    },
+    {
+      "name": "ef_construction",
+      "type": "integer",
+      "label": "HNSW EF Construction",
+      "comment": "HNSW algorithm EF construction parameter",
+      "nullable": true,
+      "default": 200
+    },
+    {
+      "name": "ef_search",
+      "type": "integer",
+      "label": "HNSW EF Search",
+      "comment": "HNSW algorithm EF search parameter",
+      "nullable": true,
+      "default": 64
+    },
+    {
+      "name": "num_lists",
+      "type": "integer",
+      "label": "IVF Number of Lists",
+      "comment": "IVF algorithm number of clusters",
+      "nullable": true,
+      "default": 100
+    },
+    {
+      "name": "num_probes",
+      "type": "integer",
+      "label": "IVF Number of Probes",
+      "comment": "IVF algorithm number of clusters to search",
+      "nullable": true,
+      "default": 10
+    }
+  ],
+  "option": {
+    "permission": true,
+    "timestamps": true
+  }
+}

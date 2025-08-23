@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"path/filepath"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,11 +14,13 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/neo/assistant"
 	chatctx "github.com/yaoapp/yao/neo/context"
 	"github.com/yaoapp/yao/neo/message"
 	"github.com/yaoapp/yao/neo/store"
+	"github.com/yaoapp/yao/openapi/oauth"
 )
 
 // API registers the Neo API endpoints
@@ -36,7 +38,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	router.OPTIONS(path+"/chats", neo.optionsHandler)
 	router.OPTIONS(path+"/chats/:id", neo.optionsHandler)
 	router.OPTIONS(path+"/history", neo.optionsHandler)
-	router.OPTIONS(path+"/upload", neo.optionsHandler)
+	router.OPTIONS(path+"/upload/:storage", neo.optionsHandler)
 	router.OPTIONS(path+"/download", neo.optionsHandler)
 	router.OPTIONS(path+"/mentions", neo.optionsHandler)
 	router.OPTIONS(path+"/generate", neo.optionsHandler)
@@ -122,7 +124,7 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Upload file example:
 	// curl -X POST 'http://localhost:5099/api/__yao/neo/upload?chat_id=chat_123&token=xxx' \
 	//   -F 'file=@/path/to/file.txt'
-	router.POST(path+"/upload", append(middlewares, neo.handleUpload)...)
+	router.POST(path+"/upload/:storage", append(middlewares, neo.handleUpload)...)
 
 	// Download file example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/download?file_id=file_123&disposition=attachment&token=xxx' \
@@ -133,15 +135,6 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/mentions?keywords=assistant&token=xxx'
 	router.GET(path+"/mentions", append(middlewares, neo.handleMentions)...)
-
-	// Generation endpoints
-	// Generate custom content example:
-	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate?content=Generate+something&type=custom&system_prompt=You+are+a+helpful+assistant&chat_id=chat_123&token=xxx'
-	// curl -X POST 'http://localhost:5099/api/__yao/neo/generate' \
-	//   -H 'Content-Type: application/json' \
-	//   -d '{"content": "Generate something", "type": "custom", "system_prompt": "You are a helpful assistant", "chat_id": "chat_123", "token": "xxx"}'
-	router.GET(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
-	router.POST(path+"/generate", append(middlewares, neo.handleGenerateCustom)...)
 
 	// Generate title example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/generate/title?content=Chat+content&chat_id=chat_123&token=xxx'
@@ -186,20 +179,241 @@ func (neo *DSL) handleUpload(c *gin.Context) {
 		sid = uuid.New().String()
 	}
 
-	// Set the context
-	ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
-	defer cancel()
+	uid, isGuest, err := neo.UserOrGuestID(sid)
+	if err != nil {
+		c.JSON(401, gin.H{"message": fmt.Sprintf("Unauthorized, %s", err.Error()), "code": 401})
+		c.Done()
+		return
+	}
+
+	if uid == nil || uid == "" {
+		c.JSON(401, gin.H{"message": "Unauthorized", "code": 401})
+		c.Done()
+		return
+	}
+
+	// Storage name must be chat, knowledge or assets
+	storage := c.Param("storage")
+	if storage != "chat" && storage != "knowledge" && storage != "assets" {
+		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get the manager
+	var manager, ok = attachment.Managers[storage]
+	if !ok {
+		c.JSON(400, gin.H{"message": "Invalid storage: " + storage, "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get Option from form data
+	var option UploadOption
+	err = c.ShouldBind(&option)
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.Done()
+		return
+	}
+
+	// Validate the option with the storage
+	option.UserID = fmt.Sprintf("%v", uid)
+
+	// Build multi-level groups based on storage type and IDs
+	var groups []string
+	switch storage {
+	case "chat":
+		if option.ChatID == "" {
+			c.JSON(400, gin.H{"message": "chat_id is required", "code": 400})
+			c.Done()
+			return
+		}
+		// Build groups: ["users", "user123", "chats", "chat456"]
+		groups = []string{"users", option.UserID, "chats", option.ChatID}
+		if option.AssistantID != "" {
+			// Add assistant level: ["users", "user123", "chats", "chat456", "assistants", "assistant789"]
+			groups = append(groups, "assistants", option.AssistantID)
+		}
+	case "knowledge":
+		if option.CollectionID == "" {
+			c.JSON(400, gin.H{"message": "collection_id is required", "code": 400})
+			c.Done()
+			return
+		}
+		// Build groups: ["knowledge", "collection123", "users", "user456"]
+		groups = []string{"knowledge", option.CollectionID, "users", option.UserID}
+	case "assets":
+		// Build groups: ["assets", "users", "user123"]
+		groups = []string{"assets", "users", option.UserID}
+	}
+
+	// Set the groups in the attachment upload option
+	option.UploadOption.Groups = groups
+
+	// Get the file
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
+		c.Done()
+		return
+	}
+
+	// Open the file
+	reader, err := file.Open()
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+	defer func() {
+		reader.Close()
+		os.Remove(file.Filename)
+	}()
 
 	// Upload the file
-	file, err := neo.Upload(ctx, c)
+	header := attachment.GetHeader(c.Request.Header, file.Header, file.Size)
+	res, err := manager.Upload(c.Request.Context(), header, reader, option.UploadOption)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
 	}
 
-	c.JSON(200, file)
+	// if storage is chat or knowledge, save the file to the store
+	if storage == "chat" || storage == "knowledge" {
+
+		attachment := map[string]interface{}{
+			"file_id":      res.ID,
+			"uid":          uid,
+			"guest":        isGuest,
+			"manager":      storage,
+			"public":       option.Public,
+			"name":         option.OriginalFilename,
+			"content_type": res.ContentType,
+			"bytes":        res.Bytes,
+			"gzip":         option.Gzip,
+			"status":       res.Status,
+		}
+
+		// Set the scope
+		if option.Scope != nil {
+			attachment["scope"] = option.Scope
+		}
+
+		// Set the collection_id
+		if option.CollectionID != "" {
+			attachment["collection_id"] = option.CollectionID
+		}
+
+		_, err = neo.Store.SaveAttachment(attachment)
+		if err != nil {
+			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+			c.Done()
+			return
+		}
+	}
+
+	c.JSON(200, map[string]interface{}{"data": res})
 	c.Done()
+}
+
+// handleDownload handles the download request
+func (neo *DSL) handleDownload(c *gin.Context) {
+	sid := c.GetString("__sid")
+	if sid == "" {
+		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	uid, _, err := neo.UserOrGuestID(sid)
+	if err != nil {
+		c.JSON(401, gin.H{"message": fmt.Sprintf("Unauthorized, %s", err.Error()), "code": 401})
+		c.Done()
+		return
+	}
+
+	if uid == nil || uid == "" {
+		c.JSON(401, gin.H{"message": "Unauthorized", "code": 401})
+		c.Done()
+		return
+	}
+
+	fileID := c.Query("file_id")
+	if fileID == "" {
+		c.JSON(400, gin.H{"message": "file_id is required", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get the attachment
+	attach, err := neo.Store.GetAttachment(fileID)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+
+	// Validate the permission ( Will be supported scope validation in the future )
+	if (attach["public"] == 0 || attach["public"] == false) && attach["uid"] != uid {
+		c.JSON(403, gin.H{"message": "Forbidden", "code": 403})
+		c.Done()
+		return
+	}
+
+	storage, ok := attach["manager"].(string)
+	if !ok {
+		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
+		c.Done()
+		return
+	}
+
+	// Get the manager
+	manager, ok := attachment.Managers[storage]
+	if !ok {
+		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
+		c.Done()
+		return
+	}
+
+	name, ok := attach["name"].(string)
+	if !ok {
+		c.JSON(400, gin.H{"message": "Invalid name", "code": 400})
+		c.Done()
+		return
+	}
+
+	name = strings.TrimSuffix(name, ".gz")
+	contentType, ok := attach["content_type"].(string)
+	if !ok {
+		c.JSON(400, gin.H{"message": "Invalid content type", "code": 400})
+		c.Done()
+		return
+	}
+
+	handle, err := manager.Download(c.Request.Context(), fileID)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		c.Done()
+		return
+	}
+	defer handle.Reader.Close()
+
+	// Set the response headers
+	encoded := url.PathEscape(name)
+	disposition := fmt.Sprintf(`attachment; filename="%s"`, encoded)
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", disposition)
+
+	// Copy the file content to response
+	_, err = io.Copy(c.Writer, handle.Reader)
+	if err != nil {
+		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
+		return
+	}
+	c.Done()
+
 }
 
 // handleChat handles the chat request
@@ -231,6 +445,30 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
 	defer cancel()
 	defer ctx.Release() // Release the context after the request is done
+
+	// Set the assistant ID
+	assistantID := c.Query("assistant_id")
+	if assistantID != "" {
+		ctx = chatctx.WithAssistantID(ctx, assistantID)
+	}
+
+	// Set the silent mode
+	silent := c.Query("silent")
+	if silent == "true" || silent == "1" {
+		ctx = chatctx.WithSilent(ctx, true)
+	}
+
+	// Set the history visible
+	historyVisible := c.Query("history_visible")
+	if historyVisible != "" {
+		ctx = chatctx.WithHistoryVisible(ctx, historyVisible == "true" || historyVisible == "1")
+	}
+
+	// Set the client type
+	clientType := c.Query("client_type")
+	if clientType != "" {
+		ctx = chatctx.WithClientType(ctx, clientType)
+	}
 
 	err := neo.Answer(ctx, content, c)
 
@@ -270,7 +508,12 @@ func (neo *DSL) handleChatList(c *gin.Context) {
 		}
 	}
 
-	response, err := neo.Store.GetChats(sid, filter)
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	response, err := neo.Store.GetChats(sid, filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -300,49 +543,6 @@ func (neo *DSL) handleChatHistory(c *gin.Context) {
 
 	c.JSON(200, map[string]interface{}{"data": history})
 	c.Done()
-}
-
-// handleDownload handles the download request
-func (neo *DSL) handleDownload(c *gin.Context) {
-	sid := c.GetString("__sid")
-	if sid == "" {
-		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
-		c.Done()
-		return
-	}
-
-	fileID := c.Query("file_id")
-	if fileID == "" {
-		c.JSON(400, gin.H{"message": "file_id is required", "code": 400})
-		c.Done()
-		return
-	}
-
-	// Set the context
-	ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
-	defer cancel()
-
-	// Download the file
-	fileResponse, err := neo.Download(ctx, c)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		c.Done()
-		return
-	}
-	defer fileResponse.Reader.Close()
-
-	// Set response headers
-	c.Header("Content-Type", fileResponse.ContentType)
-	if disposition := c.Query("disposition"); disposition == "attachment" {
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(fileID)+fileResponse.Extension))
-	}
-
-	// Copy the file content to response
-	_, err = io.Copy(c.Writer, fileResponse.Reader)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		return
-	}
 }
 
 // getCorsHandlers returns CORS middleware handlers
@@ -382,8 +582,9 @@ func (neo *DSL) corsMiddleware(allowsMap map[string]bool) gin.HandlerFunc {
 		// Set CORS headers
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Disposition, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Header("Access-Control-Expose-Headers", "Content-Type, Content-Disposition, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -400,9 +601,10 @@ func (neo *DSL) optionsHandler(c *gin.Context) {
 	if origin != "" {
 		c.Header("Access-Control-Allow-Origin", origin)
 		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Disposition, Authorization, Accept, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Max-Age", "86400") // 24 hours
+		c.Header("Access-Control-Expose-Headers", "Content-Type, Content-Disposition, Authorization, Accept, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
 	}
 	c.AbortWithStatus(204)
 }
@@ -447,6 +649,13 @@ func (neo *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
 
 // defaultGuard is the default authentication handler
 func (neo *DSL) defaultGuard(c *gin.Context) {
+
+	// Check if the request is for OpenAPI OAuth
+	if oauth.OAuth != nil {
+		neo.guardOpenapiOauth(c)
+		return
+	}
+
 	token := strings.TrimSpace(strings.TrimPrefix(c.Query("token"), "Bearer "))
 	if token == "" {
 		c.JSON(403, gin.H{"message": "token is required", "code": 403})
@@ -459,6 +668,55 @@ func (neo *DSL) defaultGuard(c *gin.Context) {
 	c.Next()
 }
 
+// Openapi Oauth
+func (neo *DSL) guardOpenapiOauth(c *gin.Context) {
+	s := oauth.OAuth
+	token := neo.getAccessToken(c)
+	if token == "" {
+		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
+		c.Abort()
+		return
+	}
+
+	// Validate the token
+	_, err := s.VerifyToken(token)
+	if err != nil {
+		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
+		c.Abort()
+		return
+	}
+
+	// Get the session ID
+	sid := neo.getSessionID(c)
+	if sid == "" {
+		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
+		c.Abort()
+		return
+	}
+
+	c.Set("__sid", sid)
+}
+
+func (neo *DSL) getAccessToken(c *gin.Context) string {
+	token := c.GetHeader("Authorization")
+	if token == "" || token == "Bearer undefined" {
+		cookie, err := c.Cookie("__Host-access_token")
+		if err != nil {
+			return ""
+		}
+		token = cookie
+	}
+	return strings.TrimPrefix(token, "Bearer ")
+}
+
+func (neo *DSL) getSessionID(c *gin.Context) string {
+	sid, err := c.Cookie("__Host-session_id")
+	if err != nil {
+		return ""
+	}
+	return sid
+}
+
 // handleChatLatest handles getting the latest chat
 func (neo *DSL) handleChatLatest(c *gin.Context) {
 	sid := c.GetString("__sid")
@@ -468,8 +726,13 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		return
 	}
 
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
 	// Get the chats
-	chats, err := neo.Store.GetChats(sid, store.ChatFilter{Page: 1})
+	chats, err := neo.Store.GetChats(sid, store.ChatFilter{Page: 1}, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -479,7 +742,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 	// Create a new chat
 	if len(chats.Groups) == 0 || len(chats.Groups[0].Chats) == 0 {
 
-		assistantID := neo.Use
+		assistantID := neo.Use.Default
 		queryAssistantID := c.Query("assistant_id")
 		if queryAssistantID != "" {
 			assistantID = queryAssistantID
@@ -494,11 +757,11 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		}
 
 		c.JSON(200, map[string]interface{}{"data": map[string]interface{}{
-			"placeholder":          ast.GetPlaceholder(),
+			"placeholder":          ast.GetPlaceholder(locale),
 			"assistant_id":         ast.ID,
-			"assistant_name":       ast.Name,
+			"assistant_name":       ast.GetName(locale),
 			"assistant_avatar":     ast.Avatar,
-			"assistant_deleteable": neo.Use != ast.ID,
+			"assistant_deleteable": neo.Use.Default != ast.ID,
 		}})
 		c.Done()
 		return
@@ -512,7 +775,7 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 		return
 	}
 
-	chat, err := neo.Store.GetChat(sid, chatID)
+	chat, err := neo.Store.GetChat(sid, chatID, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -521,20 +784,20 @@ func (neo *DSL) handleChatLatest(c *gin.Context) {
 
 	// assistant_id is nil return the default assistant
 	if chat.Chat["assistant_id"] == nil {
-		chat.Chat["assistant_id"] = neo.Use
+		chat.Chat["assistant_id"] = neo.Use.Default
 
 		// Get the assistant info
-		ast, err := assistant.Get(neo.Use)
+		ast, err := assistant.Get(neo.Use.Default)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
 			return
 		}
-		chat.Chat["assistant_name"] = ast.Name
+		chat.Chat["assistant_name"] = ast.GetName(locale)
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
-	chat.Chat["assistant_deleteable"] = neo.Use != chat.Chat["assistant_id"]
+	chat.Chat["assistant_deleteable"] = neo.Use.Default != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
@@ -555,7 +818,13 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 		return
 	}
 
-	chat, err := neo.Store.GetChat(sid, chatID)
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	// Get the chat details
+	chat, err := neo.Store.GetChat(sid, chatID, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -564,20 +833,20 @@ func (neo *DSL) handleChatDetail(c *gin.Context) {
 
 	// assistant_id is nil return the default assistant
 	if chat.Chat["assistant_id"] == nil {
-		chat.Chat["assistant_id"] = neo.Use
+		chat.Chat["assistant_id"] = neo.Use.Default
 
 		// Get the assistant info
-		ast, err := assistant.Get(neo.Use)
+		ast, err := assistant.Get(neo.Use.Default)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
 			return
 		}
-		chat.Chat["assistant_name"] = ast.Name
+		chat.Chat["assistant_name"] = ast.GetName(locale)
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
-	chat.Chat["assistant_deleteable"] = neo.Use != chat.Chat["assistant_id"]
+	chat.Chat["assistant_deleteable"] = neo.Use.Default != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
@@ -589,6 +858,11 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
 		c.Done()
 		return
+	}
+
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
 	}
 
 	// Get keywords from query parameter
@@ -603,7 +877,7 @@ func (neo *DSL) handleMentions(c *gin.Context) {
 		PageSize:    20,
 	}
 
-	response, err := neo.Store.GetAssistants(filter)
+	response, err := neo.Store.GetAssistants(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -651,20 +925,6 @@ func (neo *DSL) handleChatUpdate(c *gin.Context) {
 		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
 		c.Done()
 		return
-	}
-
-	// If content is not empty, Generate the chat title
-	if body.Content != "" {
-		ctx, cancel := chatctx.NewWithCancel(sid, c.Query("chat_id"), "")
-		defer cancel()
-
-		title, err := neo.GenerateChatTitle(ctx, body.Content, c, true)
-		if err != nil {
-			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-			c.Done()
-			return
-		}
-		body.Title = title
 	}
 
 	if body.Title == "" {
@@ -731,237 +991,90 @@ func (neo *DSL) handleChatsDeleteAll(c *gin.Context) {
 	c.Done()
 }
 
-// generateResponse is a helper struct to handle both SSE and HTTP responses
-type generateResponse struct {
-	c       *gin.Context
-	sid     string
-	content string
-	result  interface{}
-	err     error
-}
-
-// validate checks common validation rules
-func (r *generateResponse) validate() bool {
-	if r.sid == "" {
-		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-			r.c.Header("Cache-Control", "no-cache")
-			r.c.Header("Connection", "keep-alive")
-			msg := message.New().
-				Error("sid is required").
-				Done()
-			msg.Write(r.c.Writer)
-		} else {
-			r.c.JSON(400, gin.H{"message": "sid is required", "code": 400})
-		}
-		return false
-	}
-
-	if r.content == "" {
-		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-			r.c.Header("Cache-Control", "no-cache")
-			r.c.Header("Connection", "keep-alive")
-			msg := message.New().
-				Error("content is required").
-				Done()
-			msg.Write(r.c.Writer)
-		} else {
-			r.c.JSON(400, gin.H{"message": "content is required", "code": 400})
-		}
-		return false
-	}
-
-	return true
-}
-
-// send handles both SSE and HTTP responses
-func (r *generateResponse) send(key string) {
-	if r.err != nil {
-		if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-			r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-			r.c.Header("Cache-Control", "no-cache")
-			r.c.Header("Connection", "keep-alive")
-			msg := message.New().
-				Error(r.err.Error()).
-				Done()
-			msg.Write(r.c.Writer)
-		} else {
-			r.c.JSON(500, gin.H{"message": r.err.Error(), "code": 500})
-		}
-		return
-	}
-
-	if strings.Contains(r.c.GetHeader("Accept"), "text/event-stream") {
-		r.c.Header("Content-Type", "text/event-stream;charset=utf-8")
-		r.c.Header("Cache-Control", "no-cache")
-		r.c.Header("Connection", "keep-alive")
-		msg := message.New().
-			Map(gin.H{key: r.result}).
-			Done()
-		msg.Write(r.c.Writer)
-	} else {
-		r.c.JSON(200, gin.H{key: r.result})
-	}
-}
-
 // handleGenerateTitle handles generating a chat title
 func (neo *DSL) handleGenerateTitle(c *gin.Context) {
-	var content string
-	if c.Request.Method == "GET" {
-		content = c.Query("content")
-	} else {
-		var body struct {
-			Content string `json:"content"`
-		}
-		if err := c.BindJSON(&body); err != nil {
-			// For SSE requests, send error message in SSE format
-			if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-				c.Header("Content-Type", "text/event-stream;charset=utf-8")
-				c.Header("Cache-Control", "no-cache")
-				c.Header("Connection", "keep-alive")
-				msg := message.New().Error("invalid request body").Done()
-				msg.Write(c.Writer)
-				return
-			}
-			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-			return
-		}
-		content = body.Content
+	// Set headers for SSE
+	c.Header("Content-Type", "text/event-stream;charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	sid := c.GetString("__sid")
+	if sid == "" {
+		sid = uuid.New().String()
 	}
 
-	resp := &generateResponse{
-		c:       c,
-		sid:     c.GetString("__sid"),
-		content: content,
-	}
-
-	// For SSE requests, set headers before validation
-	if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-		c.Header("Content-Type", "text/event-stream;charset=utf-8")
-		c.Header("Cache-Control", "no-cache")
-		c.Header("Connection", "keep-alive")
-	}
-
-	if !resp.validate() {
+	content := c.Query("content")
+	if content == "" {
+		msg := message.New().Error("content is required").Done()
+		msg.Write(c.Writer)
 		return
 	}
 
-	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
-	defer cancel()
+	chatID := fmt.Sprintf("generate_title_%d", time.Now().UnixNano())
 
-	// Use silent mode for regular HTTP requests, streaming for SSE
-	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
-	resp.result, resp.err = neo.GenerateChatTitle(ctx, resp.content, c, silent)
-	resp.send("result")
+	// Set the context with validated chat_id
+	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
+	defer cancel()
+	defer ctx.Release() // Release the context after the request is done
+
+	// Set the assistant ID
+	ctx = chatctx.WithHistoryVisible(ctx, false)
+	ctx = chatctx.WithAssistantID(ctx, neo.Use.Title)
+
+	err := neo.Answer(ctx, content, c)
+
+	// Error handling
+	if err != nil {
+		message.New().Done().Error(err).Write(c.Writer)
+		c.Done()
+		return
+	}
 }
 
 // handleGeneratePrompts handles generating prompts
 func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
-	var content string
-	if c.Request.Method == "GET" {
-		content = c.Query("content")
-	} else {
-		var body struct {
-			Content string `json:"content"`
-		}
-		if err := c.BindJSON(&body); err != nil {
-			// For SSE requests, send error message in SSE format
-			if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-				c.Header("Content-Type", "text/event-stream;charset=utf-8")
-				c.Header("Cache-Control", "no-cache")
-				c.Header("Connection", "keep-alive")
-				msg := message.New().Error("invalid request body").Done()
-				msg.Write(c.Writer)
-				return
-			}
-			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-			return
-		}
-		content = body.Content
+	// Set headers for SSE
+	c.Header("Content-Type", "text/event-stream;charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+
+	sid := c.GetString("__sid")
+	if sid == "" {
+		sid = uuid.New().String()
 	}
 
-	resp := &generateResponse{
-		c:       c,
-		sid:     c.GetString("__sid"),
-		content: content,
-	}
-
-	// For SSE requests, set headers before validation
-	if strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
-		c.Header("Content-Type", "text/event-stream;charset=utf-8")
-		c.Header("Cache-Control", "no-cache")
-		c.Header("Connection", "keep-alive")
-	}
-
-	if !resp.validate() {
+	content := c.Query("content")
+	if content == "" {
+		msg := message.New().Error("content is required").Done()
+		msg.Write(c.Writer)
 		return
 	}
 
-	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
+	chatID := fmt.Sprintf("generate_prompts_%d", time.Now().UnixNano())
+
+	// Set the context with validated chat_id
+	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
 	defer cancel()
+	defer ctx.Release() // Release the context after the request is done
 
-	// Use silent mode for regular HTTP requests, streaming for SSE
-	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
-	resp.result, resp.err = neo.GeneratePrompts(ctx, resp.content, c, silent)
-	resp.send("result")
-}
+	// Set the assistant ID
+	ctx = chatctx.WithHistoryVisible(ctx, false)
+	ctx = chatctx.WithAssistantID(ctx, neo.Use.Prompt)
+	err := neo.Answer(ctx, content, c)
 
-// handleGenerateCustom handles generating custom content
-func (neo *DSL) handleGenerateCustom(c *gin.Context) {
-	var content, genType, systemPrompt string
-
-	if c.Request.Method == "GET" {
-		content = c.Query("content")
-		genType = c.Query("type")
-		systemPrompt = c.Query("system_prompt")
-	} else {
-		var body struct {
-			Content      string `json:"content"`
-			Type         string `json:"type"`
-			SystemPrompt string `json:"system_prompt"`
-		}
-		if err := c.BindJSON(&body); err != nil {
-			c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
-			return
-		}
-		content = body.Content
-		genType = body.Type
-		systemPrompt = body.SystemPrompt
-	}
-
-	resp := &generateResponse{
-		c:       c,
-		sid:     c.GetString("__sid"),
-		content: content,
-	}
-	if !resp.validate() {
+	// Error handling
+	if err != nil {
+		message.New().Done().Error(err).Write(c.Writer)
+		c.Done()
 		return
 	}
-
-	// Additional validations for custom generation
-	if genType == "" {
-		c.JSON(400, gin.H{"message": "type is required", "code": 400})
-		return
-	}
-	if systemPrompt == "" {
-		c.JSON(400, gin.H{"message": "system_prompt is required", "code": 400})
-		return
-	}
-
-	ctx, cancel := chatctx.NewWithCancel(resp.sid, c.Query("chat_id"), "")
-	defer cancel()
-
-	// Use silent mode for regular HTTP requests, streaming for SSE
-	silent := !strings.Contains(c.GetHeader("Accept"), "text/event-stream")
-	resp.result, resp.err = neo.GenerateWithAI(ctx, resp.content, genType, systemPrompt, c, silent)
-	resp.send("result")
 }
 
 // handleAssistantList handles listing assistants
 func (neo *DSL) handleAssistantList(c *gin.Context) {
 	// Parse filter parameters
 	filter := store.AssistantFilter{
+		Type:     "assistant",
 		Page:     1,
 		PageSize: 20,
 	}
@@ -1028,7 +1141,12 @@ func (neo *DSL) handleAssistantList(c *gin.Context) {
 		filter.AssistantID = assistantID
 	}
 
-	response, err := neo.Store.GetAssistants(filter)
+	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	response, err := neo.Store.GetAssistants(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -1106,11 +1224,18 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 
 	filter := store.AssistantFilter{
 		AssistantID: assistantID,
+		Type:        "assistant",
 		Page:        1,
 		PageSize:    1,
 	}
 
-	response, err := neo.Store.GetAssistants(filter)
+	locale := "en-us" // Default locale
+	// Translate the response
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	response, err := neo.Store.GetAssistants(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -1129,14 +1254,14 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 
 // handleAssistantSave handles creating or updating an assistant
 func (neo *DSL) handleAssistantSave(c *gin.Context) {
-	var assistant map[string]interface{}
-	if err := c.BindJSON(&assistant); err != nil {
+	var assistantData map[string]interface{}
+	if err := c.BindJSON(&assistantData); err != nil {
 		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
 		c.Done()
 		return
 	}
 
-	id, err := neo.Store.SaveAssistant(assistant)
+	id, err := neo.Store.SaveAssistant(assistantData)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -1144,11 +1269,24 @@ func (neo *DSL) handleAssistantSave(c *gin.Context) {
 	}
 
 	// Update the assistant map with the returned ID if it's not already set
-	if _, ok := assistant["assistant_id"]; !ok {
-		assistant["assistant_id"] = id
+	if _, ok := assistantData["assistant_id"]; !ok {
+		assistantData["assistant_id"] = id
 	}
 
-	c.JSON(200, gin.H{"message": "ok", "data": assistant})
+	// Remove the assistant from cache to ensure fresh data on next load
+	cache := assistant.GetCache()
+	if cache != nil {
+		cache.Remove(id.(string))
+	}
+
+	// Reload the assistant to ensure it's available in cache with updated data
+	_, err = assistant.Get(id.(string))
+	if err != nil {
+		// Just log the error, don't fail the request
+		fmt.Printf("Error reloading assistant %s: %v\n", id, err)
+	}
+
+	c.JSON(200, gin.H{"message": "ok", "data": assistantData})
 	c.Done()
 }
 
@@ -1166,6 +1304,12 @@ func (neo *DSL) handleAssistantDelete(c *gin.Context) {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
 		return
+	}
+
+	// Remove the assistant from cache to ensure it's fully deleted
+	cache := assistant.GetCache()
+	if cache != nil {
+		cache.Remove(assistantID)
 	}
 
 	c.JSON(200, gin.H{"message": "ok"})
@@ -1207,7 +1351,12 @@ func (neo *DSL) handleAssistantTags(c *gin.Context) {
 		return
 	}
 
-	tags, err := neo.Store.GetAssistantTags()
+	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	tags, err := neo.Store.GetAssistantTags(locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()

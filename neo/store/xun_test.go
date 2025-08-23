@@ -128,10 +128,14 @@ func TestNewXunConnector(t *testing.T) {
 	defer sch.DropTableIfExists("__unit_test_conversation_history")
 	defer sch.DropTableIfExists("__unit_test_conversation_chat")
 	defer sch.DropTableIfExists("__unit_test_conversation_assistant")
+	defer sch.DropTableIfExists("__unit_test_conversation_knowledge")
+	defer sch.DropTableIfExists("__unit_test_conversation_attachment")
 
 	sch.DropTableIfExists("__unit_test_conversation_history")
 	sch.DropTableIfExists("__unit_test_conversation_chat")
 	sch.DropTableIfExists("__unit_test_conversation_assistant")
+	sch.DropTableIfExists("__unit_test_conversation_knowledge")
+	sch.DropTableIfExists("__unit_test_conversation_attachment")
 
 	// Add a small delay to ensure table is created
 	time.Sleep(100 * time.Millisecond)
@@ -614,8 +618,8 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"tags":        []string{"tag1", "tag2", "tag3"},
 		"options":     map[string]interface{}{"model": "gpt-4"},
 		"prompts":     []string{"prompt1", "prompt2"},
-		"flows":       []string{"flow1", "flow2"},
-		"files":       []string{"file1", "file2"},
+		"workflow":    []string{"flow1", "flow2"},
+		"knowledge":   []string{"file1", "file2"},
 		"tools":       []map[string]interface{}{{"name": "tool1"}, {"name": "tool2"}},
 		"permissions": map[string]interface{}{"read": true, "write": true},
 		"placeholder": map[string]interface{}{
@@ -645,8 +649,8 @@ func TestXunAssistantCRUD(t *testing.T) {
 		"tags":        nil,
 		"options":     nil,
 		"prompts":     nil,
-		"flows":       nil,
-		"files":       nil,
+		"workflow":    nil,
+		"knowledge":   nil,
 		"tools":       nil,
 		"permissions": nil,
 		"placeholder": nil,
@@ -668,8 +672,8 @@ func TestXunAssistantCRUD(t *testing.T) {
 	assert.Nil(t, assistant3Data["tags"])
 	assert.Nil(t, assistant3Data["options"])
 	assert.Nil(t, assistant3Data["prompts"])
-	assert.Nil(t, assistant3Data["flows"])
-	assert.Nil(t, assistant3Data["files"])
+	assert.Nil(t, assistant3Data["workflow"])
+	assert.Nil(t, assistant3Data["knowledge"])
 	assert.Nil(t, assistant3Data["tools"])
 	assert.Nil(t, assistant3Data["permissions"])
 	assert.Nil(t, assistant3Data["placeholder"])
@@ -680,7 +684,7 @@ func TestXunAssistantCRUD(t *testing.T) {
 	nonExistentData, err := store.GetAssistant("non-existent-id")
 	assert.Error(t, err)
 	assert.Nil(t, nonExistentData)
-	assert.Contains(t, err.Error(), "not found")
+	assert.Contains(t, err.Error(), "is empty")
 
 	// Test GetAssistants to verify JSON fields are properly stored
 	resp, err := store.GetAssistants(AssistantFilter{})
@@ -983,7 +987,8 @@ func TestGetAssistantTags(t *testing.T) {
 	}
 
 	for _, tag := range tags {
-		if !expectedTags[tag] {
+		value := tag.Value
+		if !expectedTags[value] {
 			t.Errorf("Unexpected tag found: %s", tag)
 		}
 	}
@@ -1244,4 +1249,622 @@ func TestXunGetChatsWithSilent(t *testing.T) {
 		totalNonSilentChats += len(group.Chats)
 	}
 	assert.Equal(t, 3, totalNonSilentChats, "Non-silent filter should only return non-silent chats")
+}
+
+func TestXunAttachmentCRUD(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+
+	// Drop attachment table before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean up any existing data
+	_, err = store.DeleteAttachments(AttachmentFilter{})
+	assert.Nil(t, err)
+
+	// Test SaveAttachment (Create)
+	attachment := map[string]interface{}{
+		"file_id":      "test-file-123",
+		"uid":          "user-123",
+		"manager":      "local",
+		"content_type": "image/jpeg",
+		"name":         "test-image.jpg",
+		"guest":        false,
+		"public":       true,
+		"gzip":         false,
+		"bytes":        102400,
+		"scope":        []string{"user", "admin"},
+		"status":       "uploaded",
+		"progress":     "100%",
+		"error":        nil,
+	}
+
+	v, err := store.SaveAttachment(attachment)
+	assert.Nil(t, err)
+	fileID := v.(string)
+	assert.Equal(t, "test-file-123", fileID)
+
+	// Test GetAttachment
+	attachmentData, err := store.GetAttachment(fileID)
+	assert.Nil(t, err)
+	assert.NotNil(t, attachmentData)
+	assert.Equal(t, "test-file-123", attachmentData["file_id"])
+	assert.Equal(t, "user-123", attachmentData["uid"])
+	assert.Equal(t, "local", attachmentData["manager"])
+	assert.Equal(t, "image/jpeg", attachmentData["content_type"])
+	assert.Equal(t, "test-image.jpg", attachmentData["name"])
+	assert.Equal(t, int64(1), attachmentData["public"])
+	assert.Equal(t, []interface{}{"user", "admin"}, attachmentData["scope"])
+	assert.Equal(t, "uploaded", attachmentData["status"])
+	assert.Equal(t, "100%", attachmentData["progress"])
+	assert.Nil(t, attachmentData["error"])
+
+	// Test SaveAttachment (Update)
+	attachment["name"] = "updated-image.jpg"
+	attachment["bytes"] = 204800
+	attachment["status"] = "indexing"
+	attachment["progress"] = "Processing..."
+	attachment["error"] = "Connection timeout"
+	v, err = store.SaveAttachment(attachment)
+	assert.Nil(t, err)
+	assert.Equal(t, "test-file-123", v.(string))
+
+	// Verify update
+	attachmentData, err = store.GetAttachment(fileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "updated-image.jpg", attachmentData["name"])
+	assert.Equal(t, int64(204800), attachmentData["bytes"])
+	assert.Equal(t, "indexing", attachmentData["status"])
+	assert.Equal(t, "Processing...", attachmentData["progress"])
+	assert.Equal(t, "Connection timeout", attachmentData["error"])
+
+	// Test GetAttachments with filters
+	resp, err := store.GetAttachments(AttachmentFilter{
+		UID:      "user-123",
+		Manager:  "local",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.Data))
+	assert.Equal(t, "test-file-123", resp.Data[0]["file_id"])
+
+	// Test with non-existent file
+	nonExistentData, err := store.GetAttachment("non-existent-file")
+	assert.Error(t, err)
+	assert.Nil(t, nonExistentData)
+	assert.Contains(t, err.Error(), "is empty")
+
+	// Test DeleteAttachment
+	err = store.DeleteAttachment(fileID)
+	assert.Nil(t, err)
+
+	// Verify deletion
+	_, err = store.GetAttachment(fileID)
+	assert.Error(t, err)
+}
+
+func TestXunKnowledgeCRUD(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_knowledge")
+
+	// Drop knowledge table before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_knowledge")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean up any existing data
+	_, err = store.DeleteKnowledges(KnowledgeFilter{})
+	assert.Nil(t, err)
+
+	// Test SaveKnowledge (Create)
+	knowledge := map[string]interface{}{
+		"collection_id": "test-collection-123",
+		"name":          "Test Knowledge Collection",
+		"description":   "A test knowledge collection for unit tests",
+		"uid":           "user-123",
+		"public":        true,
+		"readonly":      false,
+		"system":        false,
+		"sort":          100,
+		"cover":         "cover-image.jpg",
+		"scope":         []string{"user", "admin"},
+		"option":        map[string]interface{}{"embedding": "openai", "chunk_size": 1000},
+	}
+
+	v, err := store.SaveKnowledge(knowledge)
+	assert.Nil(t, err)
+	collectionID := v.(string)
+	assert.Equal(t, "test-collection-123", collectionID)
+
+	// Test GetKnowledge
+	knowledgeData, err := store.GetKnowledge(collectionID)
+	assert.Nil(t, err)
+	assert.NotNil(t, knowledgeData)
+	assert.Equal(t, "test-collection-123", knowledgeData["collection_id"])
+	assert.Equal(t, "Test Knowledge Collection", knowledgeData["name"])
+	assert.Equal(t, "A test knowledge collection for unit tests", knowledgeData["description"])
+	assert.Equal(t, "user-123", knowledgeData["uid"])
+	assert.Equal(t, int64(1), knowledgeData["public"])
+	assert.Equal(t, int64(100), knowledgeData["sort"])
+	assert.Equal(t, []interface{}{"user", "admin"}, knowledgeData["scope"])
+	assert.Equal(t, map[string]interface{}{"embedding": "openai", "chunk_size": float64(1000)}, knowledgeData["option"])
+
+	// Test SaveKnowledge (Update)
+	knowledge["name"] = "Updated Knowledge Collection"
+	knowledge["description"] = "Updated description"
+	knowledge["sort"] = 200
+	v, err = store.SaveKnowledge(knowledge)
+	assert.Nil(t, err)
+	assert.Equal(t, "test-collection-123", v.(string))
+
+	// Verify update
+	knowledgeData, err = store.GetKnowledge(collectionID)
+	assert.Nil(t, err)
+	assert.Equal(t, "Updated Knowledge Collection", knowledgeData["name"])
+	assert.Equal(t, "Updated description", knowledgeData["description"])
+	assert.Equal(t, int64(200), knowledgeData["sort"])
+
+	// Test knowledge without sort field (should get default value 9999)
+	knowledgeWithoutSort := map[string]interface{}{
+		"collection_id": "test-collection-456",
+		"name":          "Test Knowledge Without Sort",
+		"description":   "Test knowledge without explicit sort value",
+		"uid":           "user-123",
+	}
+	v2, err := store.SaveKnowledge(knowledgeWithoutSort)
+	assert.Nil(t, err)
+
+	// Verify default sort value
+	knowledgeData2, err := store.GetKnowledge(v2.(string))
+	assert.Nil(t, err)
+	assert.Equal(t, int64(9999), knowledgeData2["sort"])
+
+	// Test GetKnowledges with filters
+	resp, err := store.GetKnowledges(KnowledgeFilter{
+		UID:      "user-123",
+		Keywords: "Updated",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(resp.Data))
+	assert.Equal(t, "test-collection-123", resp.Data[0]["collection_id"])
+
+	// Test with non-existent collection
+	nonExistentData, err := store.GetKnowledge("non-existent-collection")
+	assert.Error(t, err)
+	assert.Nil(t, nonExistentData)
+	assert.Contains(t, err.Error(), "is empty")
+
+	// Test DeleteKnowledge
+	err = store.DeleteKnowledge(collectionID)
+	assert.Nil(t, err)
+	err = store.DeleteKnowledge(v2.(string))
+	assert.Nil(t, err)
+
+	// Verify deletion
+	_, err = store.GetKnowledge(collectionID)
+	assert.Error(t, err)
+}
+
+func TestXunKnowledgeFiltering(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_knowledge")
+
+	// Drop knowledge table before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_knowledge")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test data for filtering tests
+	testKnowledges := []map[string]interface{}{}
+	for i := 0; i < 15; i++ {
+		knowledge := map[string]interface{}{
+			"collection_id": fmt.Sprintf("test-collection-%d", i),
+			"name":          fmt.Sprintf("Collection %d", i),
+			"description":   fmt.Sprintf("Description for collection %d", i),
+			"uid":           fmt.Sprintf("user-%d", i%3),
+			"public":        i%2 == 0,
+			"readonly":      i%3 == 0,
+			"system":        i%4 == 0,
+			"sort":          100 + i*10, // Different sort values for testing ordering
+			"cover":         fmt.Sprintf("cover%d.jpg", i),
+		}
+		id, err := store.SaveKnowledge(knowledge)
+		assert.Nil(t, err)
+		knowledge["collection_id"] = id
+		testKnowledges = append(testKnowledges, knowledge)
+	}
+
+	// Test sorting functionality - should return results ordered by sort ASC then created_at DESC
+	respAll, err := store.GetKnowledges(KnowledgeFilter{
+		Page:     1,
+		PageSize: 15,
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 15, len(respAll.Data))
+
+	// Verify sort order - first item should have the smallest sort value
+	firstSort := respAll.Data[0]["sort"].(int64)
+	lastSort := respAll.Data[len(respAll.Data)-1]["sort"].(int64)
+	assert.LessOrEqual(t, firstSort, lastSort, "Results should be ordered by sort ASC")
+
+	// More specific sort order verification
+	for i := 1; i < len(respAll.Data); i++ {
+		prevSort := respAll.Data[i-1]["sort"].(int64)
+		currSort := respAll.Data[i]["sort"].(int64)
+		assert.LessOrEqual(t, prevSort, currSort, "Sort order should be ascending")
+	}
+
+	// Test filtering by UID
+	resp, err := store.GetKnowledges(KnowledgeFilter{
+		UID:      "user-0",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by public status
+	publicTrue := true
+	resp, err = store.GetKnowledges(KnowledgeFilter{
+		Public:   &publicTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by readonly status
+	readonlyTrue := true
+	resp, err = store.GetKnowledges(KnowledgeFilter{
+		Readonly: &readonlyTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by system status
+	systemTrue := true
+	resp, err = store.GetKnowledges(KnowledgeFilter{
+		System:   &systemTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by keywords
+	resp, err = store.GetKnowledges(KnowledgeFilter{
+		Keywords: "Collection 1",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test DeleteKnowledges with filter
+	count, err := store.DeleteKnowledges(KnowledgeFilter{
+		UID: "user-0",
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetKnowledges(KnowledgeFilter{
+		UID: "user-0",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Clean up all test data
+	_, err = store.DeleteKnowledges(KnowledgeFilter{})
+	assert.Nil(t, err)
+}
+
+func TestXunAttachmentFiltering(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+
+	// Drop attachment table before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create test data for filtering tests
+	testAttachments := []map[string]interface{}{}
+	for i := 0; i < 15; i++ {
+		attachment := map[string]interface{}{
+			"file_id":       fmt.Sprintf("test-file-%d", i),
+			"uid":           fmt.Sprintf("user-%d", i%3),
+			"manager":       fmt.Sprintf("manager%d", i%2),
+			"content_type":  fmt.Sprintf("type/%d", i%4),
+			"name":          fmt.Sprintf("file%d.txt", i),
+			"guest":         i%2 == 0,
+			"public":        i%3 == 0,
+			"gzip":          i%4 == 0,
+			"bytes":         1024 * (i + 1),
+			"collection_id": fmt.Sprintf("collection-%d", i%5),
+		}
+		id, err := store.SaveAttachment(attachment)
+		assert.Nil(t, err)
+		attachment["file_id"] = id
+		testAttachments = append(testAttachments, attachment)
+	}
+
+	// Test filtering by UID
+	resp, err := store.GetAttachments(AttachmentFilter{
+		UID:      "user-0",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by manager
+	resp, err = store.GetAttachments(AttachmentFilter{
+		Manager:  "manager0",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by content_type
+	resp, err = store.GetAttachments(AttachmentFilter{
+		ContentType: "type/0",
+		Page:        1,
+		PageSize:    10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by guest status
+	guestTrue := true
+	resp, err = store.GetAttachments(AttachmentFilter{
+		Guest:    &guestTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by public status
+	publicTrue := true
+	resp, err = store.GetAttachments(AttachmentFilter{
+		Public:   &publicTrue,
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test filtering by keywords
+	resp, err = store.GetAttachments(AttachmentFilter{
+		Keywords: "file1",
+		Page:     1,
+		PageSize: 10,
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, len(resp.Data), 0)
+
+	// Test DeleteAttachments with filter
+	count, err := store.DeleteAttachments(AttachmentFilter{
+		Manager: "manager0",
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, count, int64(0))
+
+	// Verify deletion
+	resp, err = store.GetAttachments(AttachmentFilter{
+		Manager: "manager0",
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(resp.Data))
+
+	// Clean up all test data
+	_, err = store.DeleteAttachments(AttachmentFilter{})
+	assert.Nil(t, err)
+}
+
+func TestXunAttachmentStatusFields(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+	defer capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+
+	// Drop attachment table before test
+	err := capsule.Schema().DropTableIfExists("__unit_test_conversation_attachment")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add a small delay to ensure table is created
+	time.Sleep(100 * time.Millisecond)
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+		Prefix:    "__unit_test_conversation_",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Clean up any existing data
+	_, err = store.DeleteAttachments(AttachmentFilter{})
+	assert.Nil(t, err)
+
+	// Test all possible enum status values
+	statusValues := []string{"uploading", "uploaded", "indexing", "indexed", "upload_failed", "index_failed"}
+
+	for i, status := range statusValues {
+		// Create attachment with specific status
+		attachment := map[string]interface{}{
+			"file_id":      fmt.Sprintf("test-file-%s-%d", status, i),
+			"uid":          "user-123",
+			"manager":      "local",
+			"content_type": "image/jpeg",
+			"name":         fmt.Sprintf("test-%s.jpg", status),
+			"guest":        false,
+			"public":       true,
+			"gzip":         false,
+			"bytes":        102400,
+			"status":       status,
+			"progress":     fmt.Sprintf("%s in progress", status),
+			"error":        nil,
+		}
+
+		// Set error message for failed statuses
+		if status == "upload_failed" || status == "index_failed" {
+			attachment["error"] = fmt.Sprintf("%s error occurred", status)
+		}
+
+		v, err := store.SaveAttachment(attachment)
+		assert.Nil(t, err)
+		fileID := v.(string)
+
+		// Verify the attachment was saved with correct status
+		attachmentData, err := store.GetAttachment(fileID)
+		assert.Nil(t, err)
+		assert.Equal(t, status, attachmentData["status"])
+		assert.Equal(t, fmt.Sprintf("%s in progress", status), attachmentData["progress"])
+
+		if status == "upload_failed" || status == "index_failed" {
+			assert.Equal(t, fmt.Sprintf("%s error occurred", status), attachmentData["error"])
+		} else {
+			assert.Nil(t, attachmentData["error"])
+		}
+	}
+
+	// Test default status value (should be "uploading")
+	attachmentWithoutStatus := map[string]interface{}{
+		"file_id":      "test-file-default",
+		"uid":          "user-123",
+		"manager":      "local",
+		"content_type": "image/jpeg",
+		"name":         "test-default.jpg",
+		"guest":        false,
+		"public":       true,
+		"gzip":         false,
+		"bytes":        102400,
+		// status not specified - should use default
+	}
+
+	v, err := store.SaveAttachment(attachmentWithoutStatus)
+	assert.Nil(t, err)
+	fileID := v.(string)
+
+	// Verify default status
+	attachmentData, err := store.GetAttachment(fileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "uploading", attachmentData["status"]) // Should be default value
+	assert.Nil(t, attachmentData["progress"])              // Should be null
+	assert.Nil(t, attachmentData["error"])                 // Should be null
+
+	// Test updating status workflow: uploading -> uploaded -> indexing -> indexed
+	workflowAttachment := map[string]interface{}{
+		"file_id":      "test-file-workflow",
+		"uid":          "user-123",
+		"manager":      "local",
+		"content_type": "text/plain",
+		"name":         "workflow-test.txt",
+		"status":       "uploading",
+		"progress":     "Starting upload...",
+	}
+
+	v, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+	workflowFileID := v.(string)
+
+	// Update to uploaded
+	workflowAttachment["status"] = "uploaded"
+	workflowAttachment["progress"] = "Upload completed, starting indexing..."
+	_, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+
+	attachmentData, err = store.GetAttachment(workflowFileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "uploaded", attachmentData["status"])
+	assert.Equal(t, "Upload completed, starting indexing...", attachmentData["progress"])
+
+	// Update to indexing
+	workflowAttachment["status"] = "indexing"
+	workflowAttachment["progress"] = "Indexing in progress..."
+	_, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+
+	attachmentData, err = store.GetAttachment(workflowFileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "indexing", attachmentData["status"])
+	assert.Equal(t, "Indexing in progress...", attachmentData["progress"])
+
+	// Update to indexed (final state)
+	workflowAttachment["status"] = "indexed"
+	workflowAttachment["progress"] = "Indexing completed"
+	_, err = store.SaveAttachment(workflowAttachment)
+	assert.Nil(t, err)
+
+	attachmentData, err = store.GetAttachment(workflowFileID)
+	assert.Nil(t, err)
+	assert.Equal(t, "indexed", attachmentData["status"])
+	assert.Equal(t, "Indexing completed", attachmentData["progress"])
+
+	// Clean up test data
+	_, err = store.DeleteAttachments(AttachmentFilter{})
+	assert.Nil(t, err)
 }

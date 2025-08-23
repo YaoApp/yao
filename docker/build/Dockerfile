@@ -2,14 +2,14 @@
 #  Yao Build Environment (Ubuntu 24.04 AMD64)
 #
 #  Build:
-#  docker build --platform linux/amd64 -t yaoapp/yao-build:0.10.4 .
+#  docker build --platform linux/amd64 -t yaoapp/yao-build:0.10.5 .
 #
 #  Usage:
-#  docker run --rm -it -v /local/path/dist:/data yaoapp/yao-build:0.10.4
+#  docker run --rm -it -v /local/path/dist:/data yaoapp/yao-build:0.10.5
 #
 #  Tests:
-#  docker run --rm -it yaoapp/yao-build:0.10.4 /bin/bash
-#  docker run --rm -it -v ./test:/data yaoapp/yao-build:0.10.4 /bin/bash
+#  docker run --rm -it yaoapp/yao-build:0.10.5 /bin/bash
+#  docker run --rm -it -v ./test:/data yaoapp/yao-build:0.10.5 /bin/bash
 #
 # ===========================================
 FROM ubuntu:24.04
@@ -29,10 +29,10 @@ RUN apt-get update && \
     apt-get install -y git && \
     apt-get install -y unzip 
 
-# Install Go 1.23.3 
-RUN wget https://golang.org/dl/go1.23.3.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.23.3.linux-amd64.tar.gz && \
-    rm go1.23.3.linux-amd64.tar.gz
+# Install Go 1.24.3 
+RUN wget https://golang.org/dl/go1.24.3.linux-amd64.tar.gz && \
+    tar -C /usr/local -xzf go1.24.3.linux-amd64.tar.gz && \
+    rm go1.24.3.linux-amd64.tar.gz
 
 # Install Node.js 18.x
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
@@ -40,6 +40,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
 
 RUN npm install -g pnpm
 
+# Install AWS CLI
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.22.7.zip" -o "awscliv2.zip" && \ 
+    unzip awscliv2.zip && \ 
+    ./aws/install && \ 
+    rm -rf awscliv2.zip && \ 
+    rm -rf aws && \
+    aws --version
+
+# RUN npm install -g pnpm
 RUN chmod +x /app/build.sh
 
 VOLUME [ "/data" ]

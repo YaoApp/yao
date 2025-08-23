@@ -12,6 +12,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/session"
@@ -20,8 +21,11 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/kb"
+	kbtypes "github.com/yaoapp/yao/kb/types"
 	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/neo/assistant"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/login"
 )
@@ -63,10 +67,6 @@ func Load(cfg config.Config) error {
 	}
 
 	data, err := application.App.Read(file)
-	if err != nil {
-		return err
-	}
-
 	if err != nil {
 		return err
 	}
@@ -162,12 +162,11 @@ func exportAPI() error {
 
 	process = "yao.app.Menu"
 	args := []interface{}{}
-	if Setting.Menu.Process != "" {
-		if Setting.Menu.Args != nil {
-			args = Setting.Menu.Args
-		}
+	if Setting.Menu.Args != nil {
+		args = Setting.Menu.Args
 	}
 
+	args = append(args, "$query.locale")
 	path = api.Path{
 		Label:       "App Menu",
 		Description: "App Menu",
@@ -389,36 +388,21 @@ func processIcons(process *process.Process) interface{} {
 
 func processMenu(p *process.Process) interface{} {
 
-	if Setting.Menu.Process != "" {
-
-		return process.
-			New(Setting.Menu.Process, p.Args...).
-			WithGlobal(p.Global).
-			WithSID(p.Sid).
-			Run()
+	if Setting.Menu.Process == "" {
+		exception.New("menu.process is required", 400).Throw()
 	}
 
-	args := map[string]interface{}{
-		"select": []string{"id", "name", "icon", "parent", "path", "blocks", "visible_menu"},
-		"withs": map[string]interface{}{
-			"children": map[string]interface{}{
-				"query": map[string]interface{}{
-					"select": []string{"id", "name", "icon", "parent", "path", "blocks", "visible_menu"},
-				},
-			},
-		},
-		"wheres": []map[string]interface{}{
-			{"column": "status", "value": "enabled"},
-			{"column": "parent", "op": "null"},
-		},
-		"limit":  200,
-		"orders": []map[string]interface{}{{"column": "rank", "option": "asc"}},
+	handle, err := process.Of(Setting.Menu.Process, p.Args...)
+	if err != nil {
+		exception.New(err.Error(), 400).Throw()
 	}
-	return process.
-		New("models.xiang.menu.get", args).
-		WithGlobal(p.Global).
-		WithSID(p.Sid).
-		Run()
+
+	err = handle.WithGlobal(p.Global).WithSID(p.Sid).Execute()
+	if err != nil {
+		exception.New(err.Error(), 500).Throw()
+	}
+	defer handle.Dispose()
+	return handle.Value()
 }
 
 func processSetting(process *process.Process) interface{} {
@@ -469,6 +453,7 @@ func processXgen(process *process.Process) interface{} {
 	}
 
 	// Set User ENV
+	lang := config.Conf.Lang
 	if process.NumOfArgs() > 0 {
 		payload := process.ArgsMap(0, map[string]interface{}{
 			"now":  time.Now().Unix(),
@@ -479,8 +464,7 @@ func processXgen(process *process.Process) interface{} {
 		if v, ok := payload["sid"].(string); ok && v != "" {
 			sid = v
 		}
-
-		lang := strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
+		lang = strings.ToLower(fmt.Sprintf("%v", payload["lang"]))
 		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
@@ -574,6 +558,119 @@ func processXgen(process *process.Process) interface{} {
 				"assistant_name":       ast.Name,
 				"assistant_avatar":     ast.Avatar,
 				"assistant_deleteable": false,
+				"placeholder":          ast.GetPlaceholder(lang),
+			}
+		}
+
+		// Available connectors
+		agent["connectors"] = connector.AIConnectors
+
+		// Available storages
+		agent["storages"] = map[string]interface{}{
+			"chat": map[string]interface{}{
+				"max_size":      neo.Neo.UploadSetting.Chat.MaxSize,
+				"chunk_size":    neo.Neo.UploadSetting.Chat.ChunkSize,
+				"allowed_types": neo.Neo.UploadSetting.Chat.AllowedTypes,
+				"gzip":          neo.Neo.UploadSetting.Chat.Gzip,
+			},
+			"assets": map[string]interface{}{
+				"max_size":      neo.Neo.UploadSetting.Assets.MaxSize,
+				"chunk_size":    neo.Neo.UploadSetting.Assets.ChunkSize,
+				"allowed_types": neo.Neo.UploadSetting.Assets.AllowedTypes,
+				"gzip":          neo.Neo.UploadSetting.Assets.Gzip,
+			},
+			"knowledge": map[string]interface{}{
+				"max_size":      neo.Neo.UploadSetting.Knowledge.MaxSize,
+				"chunk_size":    neo.Neo.UploadSetting.Knowledge.ChunkSize,
+				"allowed_types": neo.Neo.UploadSetting.Knowledge.AllowedTypes,
+				"gzip":          neo.Neo.UploadSetting.Knowledge.Gzip,
+			},
+		}
+	}
+
+	// OpenAPI Settings
+	openapiConfig := map[string]interface{}{}
+	if openapi.Server != nil {
+		openapiConfig = map[string]interface{}{
+			"baseURL": openapi.Server.Config.BaseURL,
+		}
+	}
+
+	// Knowledge Base Settings
+	kbConfig := map[string]interface{}{}
+	if kb.Instance != nil {
+		if knowledgebase, ok := kb.Instance.(*kb.KnowledgeBase); ok && knowledgebase.Config != nil {
+			// Use the current language setting for provider selection
+			currentLang := lang
+			if currentLang == "" {
+				currentLang = "en" // Default to English
+			}
+
+			// Helper function to extract provider IDs from multi-language providers
+			extractProviderIDs := func(providerMap map[string][]*kbtypes.Provider) []string {
+				ids := []string{}
+				if providerMap == nil {
+					return ids
+				}
+
+				// Try current language first
+				if providers, exists := providerMap[currentLang]; exists {
+					for _, provider := range providers {
+						ids = append(ids, provider.ID)
+					}
+					return ids
+				}
+
+				// Fallback to English
+				if currentLang != "en" {
+					if providers, exists := providerMap["en"]; exists {
+						for _, provider := range providers {
+							ids = append(ids, provider.ID)
+						}
+						return ids
+					}
+				}
+
+				// If no providers found for current language or English, return all available
+				for _, providers := range providerMap {
+					for _, provider := range providers {
+						ids = append(ids, provider.ID)
+					}
+					break // Just take the first available language
+				}
+
+				return ids
+			}
+
+			var chunkings, embeddings, converters, extractions, fetchers []string
+			var searchers, rerankers, votes, weights, scores []string
+
+			if knowledgebase.Providers != nil {
+				chunkings = extractProviderIDs(knowledgebase.Providers.Chunkings)
+				embeddings = extractProviderIDs(knowledgebase.Providers.Embeddings)
+				converters = extractProviderIDs(knowledgebase.Providers.Converters)
+				extractions = extractProviderIDs(knowledgebase.Providers.Extractions)
+				fetchers = extractProviderIDs(knowledgebase.Providers.Fetchers)
+				searchers = extractProviderIDs(knowledgebase.Providers.Searchers)
+				rerankers = extractProviderIDs(knowledgebase.Providers.Rerankers)
+				votes = extractProviderIDs(knowledgebase.Providers.Votes)
+				weights = extractProviderIDs(knowledgebase.Providers.Weights)
+				scores = extractProviderIDs(knowledgebase.Providers.Scores)
+			}
+
+			kbConfig = map[string]interface{}{
+				"features":    knowledgebase.Config.Features,
+				"chunkings":   chunkings,
+				"embeddings":  embeddings,
+				"converters":  converters,
+				"extractions": extractions,
+				"fetchers":    fetchers,
+				"searchers":   searchers,
+				"rerankers":   rerankers,
+				"votes":       votes,
+				"weights":     weights,
+				"scores":      scores,
+				"uploader":    knowledgebase.Config.Uploader, // Default: "__yao.attachment"
 			}
 		}
 	}
@@ -581,15 +678,26 @@ func processXgen(process *process.Process) interface{} {
 	xgenSetting := map[string]interface{}{
 		"name":        Setting.Name,
 		"description": Setting.Description,
+		"developer":   share.App.Developer,
 		"version":     Setting.Version,
-		"theme":       Setting.Theme,
-		"lang":        Setting.Lang,
-		"mode":        mode,
-		"apiPrefix":   "__yao",
-		"token":       Setting.Token,
-		"optional":    Setting.Optional,
-		"login":       xgenLogin,
-		"agent":       agent,
+		"yao": map[string]interface{}{
+			"version":   share.VERSION,
+			"prversion": share.PRVERSION,
+		},
+		"cui": map[string]interface{}{
+			"version":   share.CUI,
+			"prversion": share.PRCUI,
+		},
+		"theme":     Setting.Theme,
+		"lang":      Setting.Lang,
+		"mode":      mode,
+		"apiPrefix": "__yao",
+		"token":     Setting.Token,
+		"optional":  Setting.Optional,
+		"login":     xgenLogin,
+		"agent":     agent,
+		"openapi":   openapiConfig,
+		"kb":        kbConfig,
 	}
 
 	if Setting.Logo != "" {
@@ -623,7 +731,7 @@ func (dsl *DSL) replaceAdminRoot() error {
 	// 	return err
 	// }
 
-	return data.ReplaceXGen("__yao_admin_root", root)
+	return data.ReplaceCUI("__yao_admin_root", root)
 }
 
 // icons

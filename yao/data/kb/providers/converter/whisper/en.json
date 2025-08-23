@@ -1,0 +1,155 @@
+{
+  "id": "__yao.whisper",
+  "title": "Audio Transcription",
+  "description": "Converts audio files to text using AI speech recognition. Supports automatic language detection, silence detection, and chunk-based processing for long audio files.",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "Audio Connector",
+      "description": "AI audio transcription connector.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI Audio",
+          "options": [
+            {
+              "label": "Whisper",
+              "value": "openai.whisper-1",
+              "description": "High-quality multilingual audio transcription",
+              "default": true
+            }
+          ]
+        },
+        {
+          "groupLabel": "Alternative Models",
+          "options": [
+            {
+              "label": "Azure Speech",
+              "value": "azure.speech",
+              "description": "Microsoft Azure Speech Services"
+            },
+            {
+              "label": "Google Speech",
+              "value": "google.speech",
+              "description": "Google Cloud Speech-to-Text"
+            }
+          ]
+        }
+      ],
+      "width": "half",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "Model Name",
+      "description": "Specific model name (optional, uses connector default).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 2
+    },
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Expected audio language (empty = auto-detect).",
+      "default": "",
+      "component": "Input",
+      "placeholder": "e.g., en, zh, es, fr",
+      "width": "half",
+      "order": 3
+    },
+    "chunk_duration": {
+      "type": "number",
+      "title": "Chunk Duration (seconds)",
+      "description": "Duration of each audio chunk for processing.",
+      "default": 30.0,
+      "minimum": 5.0,
+      "maximum": 300.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "mapping_duration": {
+      "type": "number",
+      "title": "Mapping Duration (seconds)",
+      "description": "Duration for timestamp mapping accuracy.",
+      "default": 5.0,
+      "minimum": 1.0,
+      "maximum": 30.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "silence_threshold": {
+      "type": "number",
+      "title": "Silence Threshold (dB)",
+      "description": "Audio level threshold for silence detection.",
+      "default": -40.0,
+      "minimum": -60.0,
+      "maximum": -10.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "silence_min_length": {
+      "type": "number",
+      "title": "Min Silence Length (seconds)",
+      "description": "Minimum silence duration to consider as break.",
+      "default": 1.0,
+      "minimum": 0.1,
+      "maximum": 10.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "enable_silence_detection": {
+      "type": "boolean",
+      "title": "Enable Silence Detection",
+      "description": "Use silence detection for better chunk boundaries.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 8
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "title": "Max Concurrency",
+      "description": "Maximum concurrent transcription requests.",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 9
+    },
+    "temp_dir": {
+      "type": "string",
+      "title": "Temporary Directory",
+      "description": "Custom temporary directory for audio processing (empty = system temp).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 10
+    },
+    "cleanup_temp": {
+      "type": "boolean",
+      "title": "Cleanup Temporary Files",
+      "description": "Automatically clean up temporary files after processing.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 11
+    },
+    "options": {
+      "type": "string",
+      "title": "Additional Options (JSON)",
+      "description": "Additional model-specific options in JSON format.",
+      "default": "",
+      "component": "CodeEditor",
+      "width": "full",
+      "order": 12
+    }
+  }
+}

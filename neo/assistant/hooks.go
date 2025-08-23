@@ -27,7 +27,7 @@ func (ast *Assistant) HookCreate(c *gin.Context, context chatctx.Context, input 
 		return nil, err
 	}
 
-	response := &ResHookInit{}
+	response := &ResHookInit{Result: nil}
 	switch v := v.(type) {
 	case map[string]interface{}:
 		if res, ok := v["assistant_id"].(string); ok {
@@ -46,6 +46,11 @@ func (ast *Assistant) HookCreate(c *gin.Context, context chatctx.Context, input 
 				return nil, err
 			}
 			response.Input = vv
+		}
+
+		// result
+		if result, has := v["result"]; has {
+			response.Result = result
 		}
 
 		if res, ok := v["next"].(map[string]interface{}); ok {
@@ -70,70 +75,6 @@ func (ast *Assistant) HookCreate(c *gin.Context, context chatctx.Context, input 
 	return response, nil
 }
 
-// HookStream Handle streaming response from LLM
-func (ast *Assistant) HookStream(c *gin.Context, context chatctx.Context, input []message.Message, msg *message.Message, contents *chatMessage.Contents) (*ResHookStream, error) {
-
-	// Create timeout context
-	ctx, cancel := ast.createTimeoutContext(5 * time.Second)
-	defer cancel()
-
-	v, err := ast.call(ctx, "Stream", c, contents, context, input, msg, contents.JSON())
-	if err != nil {
-		if err.Error() == HookErrorMethodNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	response := &ResHookStream{}
-	switch v := v.(type) {
-	case map[string]interface{}:
-		if res, ok := v["output"].(string); ok {
-			vv := []message.Data{}
-			err := jsoniter.UnmarshalFromString(res, &vv)
-			if err != nil {
-				return nil, err
-			}
-			response.Output = vv
-		}
-
-		if res, ok := v["output"].([]interface{}); ok {
-			vv := []message.Data{}
-			raw, _ := jsoniter.MarshalToString(res)
-			err := jsoniter.UnmarshalFromString(raw, &vv)
-			if err != nil {
-				return nil, err
-			}
-			response.Output = vv
-		}
-
-		if res, ok := v["next"].(map[string]interface{}); ok {
-			response.Next = &NextAction{}
-			if name, ok := res["action"].(string); ok {
-				response.Next.Action = name
-			}
-			if payload, ok := res["payload"].(map[string]interface{}); ok {
-				response.Next.Payload = payload
-			}
-		}
-
-		// Custom silent from hook
-		if res, ok := v["silent"].(bool); ok {
-			response.Silent = res
-		}
-
-	case string:
-		vv := []message.Data{}
-		err := jsoniter.UnmarshalFromString(v, &vv)
-		if err != nil {
-			return nil, err
-		}
-		response.Output = vv
-	}
-
-	return response, nil
-}
-
 // HookRetry Handle retry of assistant response
 func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input []message.Message, contents *chatMessage.Contents, errmsg string) (interface{}, error) {
 	ctx := ast.createBackgroundContext()
@@ -153,25 +94,34 @@ func (ast *Assistant) HookRetry(c *gin.Context, context chatctx.Context, input [
 	v, err := ast.call(ctx, "Retry", c, contents, context, lastInput.String(), output, errmsg)
 	if err != nil {
 		if err.Error() == HookErrorMethodNotFound {
-			return "", nil
+			return nil, nil
 		}
-		return "", err
+		return nil, err
 	}
 
 	switch v := v.(type) {
-	case string:
+	case string, bool:
 		return v, nil
+
 	case map[string]interface{}:
-		var next NextAction
-		raw, _ := jsoniter.MarshalToString(v)
-		err := jsoniter.UnmarshalFromString(raw, &next)
-		if err != nil {
-			return "", err
+
+		// Has Action
+		if _, has := v["action"]; has {
+			var next NextAction
+			raw, _ := jsoniter.MarshalToString(v)
+			err := jsoniter.UnmarshalFromString(raw, &next)
+			if err != nil {
+				return nil, err
+			}
+			return &next, nil
 		}
-		return next, nil
+
+		// Ignore the error, and return the specific result
+		return v, nil
+
 	}
 
-	return "", nil
+	return nil, nil
 }
 
 // HookDone Handle completion of assistant response

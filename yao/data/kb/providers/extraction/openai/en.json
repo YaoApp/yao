@@ -1,0 +1,296 @@
+{
+  "id": "__yao.openai",
+  "title": "OpenAI Entity Extraction",
+  "description": "AI-powered entity and relationship extraction using OpenAI's language models. Extracts structured information from unstructured text with configurable prompts and tool calling capabilities.",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "OpenAI Connector",
+      "description": "OpenAI connector for extraction API access.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI Models",
+          "options": [
+            {
+              "label": "GPT-4o",
+              "value": "openai.gpt-4o",
+              "description": "Latest GPT-4o model, excellent for complex extraction tasks",
+              "default": true
+            },
+            {
+              "label": "GPT-4o Mini",
+              "value": "openai.gpt-4o-mini",
+              "description": "Cost-effective GPT-4o Mini for basic extraction"
+            },
+            {
+              "label": "GPT-4 Turbo",
+              "value": "openai.gpt-4-turbo",
+              "description": "GPT-4 Turbo with enhanced performance"
+            },
+            {
+              "label": "GPT-3.5 Turbo",
+              "value": "openai.gpt-3.5-turbo",
+              "description": "Fast and economical for simple extractions"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Azure OpenAI",
+          "options": [
+            {
+              "label": "Azure GPT-4o",
+              "value": "azure.gpt-4o",
+              "description": "Azure hosted GPT-4o model"
+            },
+            {
+              "label": "Azure GPT-4",
+              "value": "azure.gpt-4",
+              "description": "Azure hosted GPT-4 model"
+            }
+          ]
+        }
+      ],
+      "width": "full",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "Model Name (Optional)",
+      "description": "Specific model name to override connector default.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "Use Connector Default",
+          "value": "",
+          "description": "Use the default model from the selected connector",
+          "default": true
+        },
+        {
+          "label": "gpt-4o",
+          "value": "gpt-4o",
+          "description": "Latest GPT-4o model"
+        },
+        {
+          "label": "gpt-4o-mini",
+          "value": "gpt-4o-mini",
+          "description": "Cost-effective GPT-4o Mini"
+        },
+        {
+          "label": "gpt-4-turbo",
+          "value": "gpt-4-turbo",
+          "description": "GPT-4 Turbo model"
+        },
+        {
+          "label": "gpt-3.5-turbo",
+          "value": "gpt-3.5-turbo",
+          "description": "GPT-3.5 Turbo model"
+        }
+      ],
+      "width": "half",
+      "order": 2
+    },
+    "toolcall": {
+      "type": "boolean",
+      "title": "Enable Tool Calling",
+      "description": "Use structured tool calling for more reliable extraction.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 3
+    },
+    "temperature": {
+      "type": "number",
+      "title": "Temperature",
+      "description": "Controls randomness in extraction (0.0 = deterministic, 1.0 = creative).",
+      "default": 0.1,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "max_tokens": {
+      "type": "integer",
+      "title": "Max Tokens",
+      "description": "Maximum number of tokens in the response.",
+      "default": 4000,
+      "minimum": 100,
+      "maximum": 32000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "concurrent": {
+      "type": "integer",
+      "title": "Concurrent Requests",
+      "description": "Number of concurrent extraction requests to process.",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 50,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "retry_attempts": {
+      "type": "integer",
+      "title": "Retry Attempts",
+      "description": "Number of retry attempts for failed extractions.",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "retry_delay": {
+      "type": "number",
+      "title": "Retry Delay (seconds)",
+      "description": "Delay between retry attempts in seconds.",
+      "default": 1.0,
+      "minimum": 0.1,
+      "maximum": 60.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 8
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Custom Extraction Prompt",
+      "description": "Custom prompt for entity and relationship extraction (optional).",
+      "default": "",
+      "component": "TextArea",
+      "placeholder": "You are an expert at extracting entities and relationships from text. Extract all relevant entities and their relationships in a structured format...",
+      "width": "full",
+      "order": 9
+    },
+    "extraction_types": {
+      "type": "object",
+      "title": "Extraction Configuration",
+      "description": "Configure what types of entities and relationships to extract.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 10,
+      "properties": {
+        "entities": {
+          "type": "boolean",
+          "title": "Extract Entities",
+          "description": "Extract named entities (people, places, organizations, etc.).",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 1
+        },
+        "relationships": {
+          "type": "boolean",
+          "title": "Extract Relationships",
+          "description": "Extract relationships between entities.",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 2
+        },
+        "concepts": {
+          "type": "boolean",
+          "title": "Extract Concepts",
+          "description": "Extract key concepts and themes.",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 3
+        },
+        "summaries": {
+          "type": "boolean",
+          "title": "Generate Summaries",
+          "description": "Generate document summaries.",
+          "default": false,
+          "component": "Switch",
+          "width": "half",
+          "order": 4
+        },
+        "entity_types": {
+          "type": "string",
+          "title": "Entity Types",
+          "description": "Comma-separated list of entity types to focus on (optional).",
+          "default": "",
+          "component": "Input",
+          "placeholder": "PERSON, ORGANIZATION, LOCATION, EVENT, PRODUCT",
+          "width": "full",
+          "order": 5
+        },
+        "relationship_types": {
+          "type": "string",
+          "title": "Relationship Types",
+          "description": "Comma-separated list of relationship types to focus on (optional).",
+          "default": "",
+          "component": "Input",
+          "placeholder": "WORKS_FOR, LOCATED_IN, PART_OF, RELATED_TO",
+          "width": "full",
+          "order": 6
+        }
+      }
+    },
+    "tools": {
+      "type": "string",
+      "title": "Custom Tools (JSON)",
+      "description": "Custom tool definitions for structured extraction (advanced usage).",
+      "default": "",
+      "component": "CodeEditor",
+      "width": "full",
+      "order": 11
+    },
+    "quality_settings": {
+      "type": "object",
+      "title": "Quality Settings",
+      "description": "Fine-tune extraction quality and performance.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 12,
+      "properties": {
+        "confidence_threshold": {
+          "type": "number",
+          "title": "Confidence Threshold",
+          "description": "Minimum confidence score for extracted entities (0.0-1.0).",
+          "default": 0.7,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "component": "InputNumber",
+          "width": "half",
+          "order": 1
+        },
+        "deduplicate": {
+          "type": "boolean",
+          "title": "Deduplicate Results",
+          "description": "Remove duplicate entities and relationships.",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 2
+        },
+        "normalize_entities": {
+          "type": "boolean",
+          "title": "Normalize Entity Names",
+          "description": "Normalize entity names for consistency.",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 3
+        },
+        "include_context": {
+          "type": "boolean",
+          "title": "Include Context",
+          "description": "Include surrounding context for extracted entities.",
+          "default": true,
+          "component": "Switch",
+          "width": "half",
+          "order": 4
+        }
+      }
+    }
+  }
+}

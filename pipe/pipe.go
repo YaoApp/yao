@@ -15,9 +15,18 @@ var pipes = map[string]*Pipe{}
 // Load the pipe
 func Load(cfg config.Config) error {
 
+	// Ignore if the pipes directory does not exist
+	exists, err := application.App.Exists("pipes")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	exts := []string{"*.pip.yao", "*.pipe.yao"}
 	errs := []error{}
-	err := application.App.Walk("pipes", func(root, file string, isdir bool) error {
+	err = application.App.Walk("pipes", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}

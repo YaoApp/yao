@@ -31,6 +31,7 @@ func testPrepare() {
 	process.Register("utils.str.Join", str.ProcessJoin)
 	process.Register("utils.str.JoinPath", str.ProcessJoinPath)
 	process.Register("utils.str.UUID", str.ProcessUUID)
+	process.Register("utils.str.Pinyin", str.ProcessPinyin)
 
 	process.Register("utils.now.Time", datetime.ProcessTime)
 	process.Register("utils.now.Date", datetime.ProcessDate)

@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/xun/dbal/schema"
+	"github.com/yaoapp/yao/neo/i18n"
 )
 
 // Package conversation provides functionality for managing chat conversations and assistants.
@@ -23,11 +25,15 @@ import (
 // - Organizing chats with pagination and date-based grouping
 // - Handling chat metadata like titles and creation dates
 // - Managing AI assistants with their configurations and metadata
+// - Managing file attachments with metadata and access control
+// - Managing knowledge collections for AI assistants
 // - Supporting data expiration through TTL settings
 type Xun struct {
-	query   query.Query
-	schema  schema.Schema
-	setting Setting
+	query       query.Query
+	schema      schema.Schema
+	setting     Setting
+	cleanTicker *time.Ticker
+	cleanStop   chan bool
 }
 
 // Public interface methods:
@@ -44,6 +50,14 @@ type Xun struct {
 // DeleteAssistant deletes an assistant by assistant_id
 // GetAssistants retrieves a paginated list of assistants with filtering
 // GetAssistant retrieves a single assistant by assistant_id
+// SaveAttachment creates or updates an attachment
+// DeleteAttachment deletes an attachment by file_id
+// GetAttachments retrieves a paginated list of attachments with filtering
+// GetAttachment retrieves a single attachment by file_id
+// SaveKnowledge creates or updates a knowledge collection
+// DeleteKnowledge deletes a knowledge collection by collection_id
+// GetKnowledges retrieves a paginated list of knowledge collections with filtering
+// GetKnowledge retrieves a single knowledge collection by collection_id
 
 // NewXun create a new xun store
 func NewXun(setting Setting) (Store, error) {
@@ -102,6 +116,50 @@ func (conv *Xun) clean() {
 	}
 }
 
+// startAutoClean starts the automatic cleanup routine
+func (conv *Xun) startAutoClean() {
+	if conv.cleanTicker != nil {
+		conv.stopAutoClean() // Stop existing ticker if any
+	}
+
+	conv.cleanTicker = time.NewTicker(1 * time.Hour) // Clean every hour
+	conv.cleanStop = make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-conv.cleanTicker.C:
+				conv.clean()
+			case <-conv.cleanStop:
+				return
+			}
+		}
+	}()
+
+	log.Trace("Started automatic cleanup for: %s", conv.setting.Prefix)
+}
+
+// stopAutoClean stops the automatic cleanup routine
+func (conv *Xun) stopAutoClean() {
+	if conv.cleanTicker != nil {
+		conv.cleanTicker.Stop()
+		conv.cleanTicker = nil
+	}
+
+	if conv.cleanStop != nil {
+		close(conv.cleanStop)
+		conv.cleanStop = nil
+	}
+
+	log.Trace("Stopped automatic cleanup for: %s", conv.setting.Prefix)
+}
+
+// Close stops the automatic cleanup and closes resources
+func (conv *Xun) Close() error {
+	conv.stopAutoClean()
+	return nil
+}
+
 // Rename Init to initialize to avoid conflicts
 func (conv *Xun) initialize() error {
 	// Initialize history table
@@ -117,6 +175,21 @@ func (conv *Xun) initialize() error {
 	// Initialize assistant table
 	if err := conv.initAssistantTable(); err != nil {
 		return err
+	}
+
+	// Initialize attachment table
+	if err := conv.initAttachmentTable(); err != nil {
+		return err
+	}
+
+	// Initialize knowledge table
+	if err := conv.initKnowledgeTable(); err != nil {
+		return err
+	}
+
+	// Start automatic cleanup if TTL is enabled
+	if conv.setting.TTL > 0 {
+		conv.startAutoClean()
 	}
 
 	return nil
@@ -145,7 +218,7 @@ func (conv *Xun) initHistoryTable() error {
 			table.String("assistant_avatar", 200).Null()
 			table.JSON("mentions").Null()
 			table.Boolean("silent").SetDefault(false).Index()
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 			table.TimestampTz("expired_at").Null().Index()
 		})
@@ -188,7 +261,7 @@ func (conv *Xun) initChatTable() error {
 			table.String("assistant_id", 200).Null().Index()
 			table.String("sid", 255).Index()
 			table.Boolean("silent").SetDefault(false).Index()
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
 
@@ -230,22 +303,23 @@ func (conv *Xun) initAssistantTable() error {
 			table.String("name", 200).Null()                          // assistant name
 			table.String("avatar", 200).Null()                        // assistant avatar
 			table.String("connector", 200).NotNull()                  // assistant connector
-			table.Text("description").Null()                          // assistant description
+			table.String("description", 600).Null().Index()           // assistant description
 			table.String("path", 200).Null()                          // assistant storage path
 			table.Integer("sort").SetDefault(9999).Index()            // assistant sort order
 			table.Boolean("built_in").SetDefault(false).Index()       // whether this is a built-in assistant
 			table.JSON("placeholder").Null()                          // assistant placeholder
 			table.JSON("options").Null()                              // assistant options
 			table.JSON("prompts").Null()                              // assistant prompts
-			table.JSON("flows").Null()                                // assistant flows
-			table.JSON("files").Null()                                // assistant files
+			table.JSON("workflow").Null()                             // assistant workflow
+			table.JSON("knowledge").Null()                            // assistant knowledge
 			table.JSON("tools").Null()                                // assistant tools
 			table.JSON("tags").Null()                                 // assistant tags
 			table.Boolean("readonly").SetDefault(false).Index()       // assistant readonly
 			table.JSON("permissions").Null()                          // assistant permissions
+			table.JSON("locales").Null()                              // assistant i18n
 			table.Boolean("automated").SetDefault(true).Index()       // assistant autoable
 			table.Boolean("mentionable").SetDefault(true).Index()     // Whether this assistant can appear in @ mention list
-			table.TimestampTz("created_at").SetDefaultRaw("NOW()").Index()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
 			table.TimestampTz("updated_at").Null().Index()
 		})
 
@@ -261,7 +335,106 @@ func (conv *Xun) initAssistantTable() error {
 		return err
 	}
 
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "path", "sort", "built_in", "placeholder", "options", "prompts", "flows", "files", "tools", "tags", "mentionable", "created_at", "updated_at"}
+	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "path", "sort", "built_in", "placeholder", "options", "prompts", "workflow", "knowledge", "tools", "tags", "readonly", "permissions", "locales", "automated", "mentionable", "created_at", "updated_at"}
+	for _, field := range fields {
+		if !tab.HasColumn(field) {
+			return fmt.Errorf("%s is required", field)
+		}
+	}
+
+	return nil
+}
+
+func (conv *Xun) initAttachmentTable() error {
+	attachmentTable := conv.getAttachmentTable()
+	has, err := conv.schema.HasTable(attachmentTable)
+	if err != nil {
+		return err
+	}
+
+	// Create the attachment table
+	if !has {
+		err = conv.schema.CreateTable(attachmentTable, func(table schema.Blueprint) {
+			table.ID("id")
+			table.String("file_id", 255).Unique().Index()
+			table.String("uid", 255).Index()
+			table.Boolean("guest").SetDefault(false).Index()
+			table.String("manager", 200).Index()
+			table.String("content_type", 200).Index()
+			table.String("name", 500).Index()
+			table.Boolean("public").SetDefault(false).Index()
+			table.JSON("scope").Null()
+			table.Boolean("gzip").SetDefault(false).Index()
+			table.BigInteger("bytes").Index()
+			table.String("collection_id", 200).Null().Index()
+			table.Enum("status", []string{"uploading", "uploaded", "indexing", "indexed", "upload_failed", "index_failed"}).SetDefault("uploading").Index() // Status field enum
+			table.String("progress", 200).Null()                                                                                                            // Progress information
+			table.String("error", 600).Null()                                                                                                               // Error information
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
+			table.TimestampTz("updated_at").Null().Index()
+		})
+
+		if err != nil {
+			return err
+		}
+		log.Trace("Create the attachment table: %s", attachmentTable)
+	}
+
+	// Validate the table
+	tab, err := conv.schema.GetTable(attachmentTable)
+	if err != nil {
+		return err
+	}
+
+	fields := []string{"id", "file_id", "uid", "guest", "manager", "content_type", "name", "public", "scope", "gzip", "bytes", "collection_id", "status", "progress", "error", "created_at", "updated_at"}
+	for _, field := range fields {
+		if !tab.HasColumn(field) {
+			return fmt.Errorf("%s is required", field)
+		}
+	}
+
+	return nil
+}
+
+func (conv *Xun) initKnowledgeTable() error {
+	knowledgeTable := conv.getKnowledgeTable()
+	has, err := conv.schema.HasTable(knowledgeTable)
+	if err != nil {
+		return err
+	}
+
+	// Create the knowledge table
+	if !has {
+		err = conv.schema.CreateTable(knowledgeTable, func(table schema.Blueprint) {
+			table.ID("id")
+			table.String("collection_id", 200).Unique().Index()
+			table.String("name", 200).Index()
+			table.String("description", 600).Null().Index() // knowledge description
+			table.String("uid", 255).Index()
+			table.Boolean("public").SetDefault(false).Index()
+			table.JSON("scope").Null()
+			table.Boolean("readonly").SetDefault(false).Index()
+			table.JSON("option").Null()
+			table.Boolean("system").SetDefault(false).Index()
+			table.Integer("sort").SetDefault(9999).Index() // knowledge sort order
+			table.String("cover", 500).Null()
+			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
+			table.TimestampTz("updated_at").Null().Index()
+		})
+
+		if err != nil {
+			return err
+		}
+		log.Trace("Create the knowledge table: %s", knowledgeTable)
+	}
+
+	// Validate the table
+	tab, err := conv.schema.GetTable(knowledgeTable)
+	if err != nil {
+		return err
+	}
+
+	fields := []string{"id", "collection_id", "name", "description", "uid", "public", "scope", "readonly", "option", "system", "sort", "cover", "created_at", "updated_at"}
 	for _, field := range fields {
 		if !tab.HasColumn(field) {
 			return fmt.Errorf("%s is required", field)
@@ -301,6 +474,26 @@ func (conv *Xun) getAssistantTable() string {
 	return conv.setting.Prefix + "assistant"
 }
 
+func (conv *Xun) getAttachmentTable() string {
+	return conv.setting.Prefix + "attachment"
+}
+
+func (conv *Xun) getKnowledgeTable() string {
+	return conv.setting.Prefix + "knowledge"
+}
+
+func (conv *Xun) newQueryAttachment() query.Query {
+	qb := conv.query.New()
+	qb.Table(conv.getAttachmentTable())
+	return qb
+}
+
+func (conv *Xun) newQueryKnowledge() query.Query {
+	qb := conv.query.New()
+	qb.Table(conv.getKnowledgeTable())
+	return qb
+}
+
 // UpdateChatTitle update the chat title
 func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 	userID, err := conv.getUserID(sid)
@@ -319,18 +512,18 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // GetChats get the chat list with grouping by date
-func (conv *Xun) GetChats(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+func (conv *Xun) GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
 	// Default behavior: exclude silent chats
 	if filter.Silent == nil {
 		silentFalse := false
 		filter.Silent = &silentFalse
 	}
 
-	return conv.getChatsWithFilter(sid, filter)
+	return conv.getChatsWithFilter(sid, filter, locale...)
 }
 
 // getChatsWithFilter get the chats with filter options
-func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupResponse, error) {
+func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -445,8 +638,13 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 
 		for _, assistant := range assistants {
 			if id := assistant.Get("assistant_id"); id != nil {
+				name := assistant.Get("name")
+				if len(locale) > 0 {
+					lang := strings.ToLower(locale[0])
+					name = i18n.Translate(id.(string), lang, name).(string)
+				}
 				assistantMap[fmt.Sprintf("%v", id)] = map[string]interface{}{
-					"name":   assistant.Get("name"),
+					"name":   name,
 					"avatar": assistant.Get("avatar"),
 				}
 			}
@@ -469,7 +667,12 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 		// Add assistant details if available
 		if assistantID := row.Get("assistant_id"); assistantID != nil && assistantID != "" {
 			if assistant, ok := assistantMap[fmt.Sprintf("%v", assistantID)]; ok {
-				chat["assistant_name"] = assistant["name"]
+				name := assistant["name"]
+				if len(locale) > 0 {
+					lang := strings.ToLower(locale[0])
+					name = i18n.Translate(assistantID.(string), lang, name).(string)
+				}
+				chat["assistant_name"] = name
 				chat["assistant_avatar"] = assistant["avatar"]
 			}
 		}
@@ -513,12 +716,17 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 		}
 	}
 
-	// Convert to ordered slice
+	// Convert to ordered slice and apply i18n
 	result := []ChatGroup{}
 	for _, label := range []string{"Today", "Yesterday", "This Week", "Last Week", "Even Earlier"} {
 		if len(groups[label]) > 0 {
+			translatedLabel := label
+			if len(locale) > 0 {
+				lang := strings.ToLower(locale[0])
+				translatedLabel = i18n.TranslateGlobal(lang, label).(string)
+			}
 			result = append(result, ChatGroup{
-				Label: label,
+				Label: translatedLabel,
 				Chats: groups[label],
 			})
 		}
@@ -534,7 +742,7 @@ func (conv *Xun) getChatsWithFilter(sid string, filter ChatFilter) (*ChatGroupRe
 }
 
 // GetHistory get the history
-func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, error) {
+func (conv *Xun) GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -565,13 +773,20 @@ func (conv *Xun) GetHistory(sid string, cid string) ([]map[string]interface{}, e
 
 	res := []map[string]interface{}{}
 	for _, row := range rows {
+		assistantName := row.Get("assistant_name")
+		assistantID := row.Get("assistant_id")
+		if len(locale) > 0 && assistantID != nil {
+			lang := strings.ToLower(locale[0])
+			assistantName = i18n.Translate(assistantID.(string), lang, assistantName).(string)
+		}
+
 		message := map[string]interface{}{
 			"role":             row.Get("role"),
 			"name":             row.Get("name"),
 			"content":          row.Get("content"),
 			"context":          row.Get("context"),
 			"assistant_id":     row.Get("assistant_id"),
-			"assistant_name":   row.Get("assistant_name"),
+			"assistant_name":   assistantName,
 			"assistant_avatar": row.Get("assistant_avatar"),
 			"mentions":         row.Get("mentions"),
 			"uid":              row.Get("uid"),
@@ -607,6 +822,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 
 	// Get silent flag from context
 	var silent bool = false
+	var historyVisible bool = true
 	if context != nil {
 		if silentVal, ok := context["silent"]; ok {
 			switch v := silentVal.(type) {
@@ -618,6 +834,20 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 				silent = v != 0
 			case float64:
 				silent = v != 0
+			}
+		}
+
+		// Get history visible from context
+		if historyVisibleVal, ok := context["history_visible"]; ok {
+			switch v := historyVisibleVal.(type) {
+			case bool:
+				historyVisible = v
+			case string:
+				historyVisible = v == "true" || v == "1" || v == "yes"
+			case int:
+				historyVisible = v != 0
+			case float64:
+				historyVisible = v != 0
 			}
 		}
 	}
@@ -639,7 +869,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 				"chat_id":      cid,
 				"sid":          userID,
 				"assistant_id": assistantID,
-				"silent":       silent,
+				"silent":       silent || historyVisible == false,
 				"created_at":   time.Now(),
 			})
 
@@ -653,7 +883,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 			Where("sid", userID).
 			Update(map[string]interface{}{
 				"assistant_id": assistantID,
-				"silent":       silent,
+				"silent":       silent || historyVisible == false,
 			})
 		if err != nil {
 			return err
@@ -661,7 +891,6 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 	}
 
 	// Save message history
-	defer conv.clean()
 	var expiredAt interface{} = nil
 	values := []map[string]interface{}{}
 	if conv.setting.TTL > 0 {
@@ -752,7 +981,7 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 }
 
 // GetChat get the chat info and its history
-func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
+func (conv *Xun) GetChat(sid string, cid string, locale ...string) (*ChatInfo, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -791,14 +1020,20 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 			return nil, err
 		}
 
+		name := assistant.Get("name")
+		if len(locale) > 0 {
+			lang := strings.ToLower(locale[0])
+			name = i18n.Translate(assistantID.(string), lang, name).(string)
+		}
+
 		if assistant != nil {
-			chat["assistant_name"] = assistant.Get("name")
+			chat["assistant_name"] = name
 			chat["assistant_avatar"] = assistant.Get("avatar")
 		}
 	}
 
 	// Get chat history with default filter (silent=false)
-	history, err := conv.GetHistory(sid, cid)
+	history, err := conv.GetHistory(sid, cid, locale...)
 	if err != nil {
 		return nil, err
 	}
@@ -810,7 +1045,7 @@ func (conv *Xun) GetChat(sid string, cid string) (*ChatInfo, error) {
 }
 
 // GetChatWithFilter get the chat info and its history with filter options
-func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*ChatInfo, error) {
+func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -856,7 +1091,7 @@ func (conv *Xun) GetChatWithFilter(sid string, cid string, filter ChatFilter) (*
 	}
 
 	// Get chat history with filter
-	history, err := conv.GetHistoryWithFilter(sid, cid, filter)
+	history, err := conv.GetHistoryWithFilter(sid, cid, filter, locale...)
 	if err != nil {
 		return nil, err
 	}
@@ -948,7 +1183,7 @@ func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, e
 	}
 
 	// Process JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder", "locales"}
 	for _, field := range jsonFields {
 		if val, ok := assistantCopy[field]; ok && val != nil {
 			// If it's a string, try to parse it first
@@ -963,7 +1198,11 @@ func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, e
 
 	// Generate assistant_id if not provided
 	if _, ok := assistantCopy["assistant_id"]; !ok {
-		assistantCopy["assistant_id"] = uuid.New().String()
+		var err error
+		assistantCopy["assistant_id"], err = conv.GenerateAssistantID()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Check if assistant exists
@@ -1030,7 +1269,7 @@ func (conv *Xun) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves assistants with pagination and filtering
-func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, error) {
+func (conv *Xun) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
 	qb := conv.query.New().
 		Table(conv.getAssistantTable())
 
@@ -1056,6 +1295,11 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
 				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
 		})
+	}
+
+	// Apply type filter if provided
+	if filter.Type != "" {
+		qb.Where("type", filter.Type)
 	}
 
 	// Apply connector filter if provided
@@ -1135,7 +1379,7 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 
 	// Convert rows to map slice and parse JSON fields
 	data := make([]map[string]interface{}, len(rows))
-	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder"}
 	for i, row := range rows {
 		data[i] = row
 		// Only parse JSON fields if they are selected or no select filter is provided
@@ -1158,6 +1402,15 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 		}
 	}
 
+	// Translate Data
+	if len(locale) > 0 {
+		lang := strings.ToLower(locale[0])
+		for i, row := range data {
+			assistantID := row["assistant_id"].(string)
+			data[i] = i18n.Translate(assistantID, lang, row).(map[string]interface{})
+		}
+	}
+
 	return &AssistantResponse{
 		Data:     data,
 		Page:     filter.Page,
@@ -1170,7 +1423,7 @@ func (conv *Xun) GetAssistants(filter AssistantFilter) (*AssistantResponse, erro
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error) {
+func (conv *Xun) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
 	row, err := conv.query.New().
 		Table(conv.getAssistantTable()).
 		Where("assistant_id", assistantID).
@@ -1185,13 +1438,16 @@ func (conv *Xun) GetAssistant(assistantID string) (map[string]interface{}, error
 
 	data := row.ToMap()
 	if data == nil || len(data) == 0 {
-		return nil, fmt.Errorf("assistant %s not found", assistantID)
+		return nil, fmt.Errorf("the assistant %s is empty", assistantID)
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "flows", "files", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder"}
 	conv.parseJSONFields(data, jsonFields)
-
+	if len(locale) > 0 {
+		lang := strings.ToLower(locale[0])
+		return i18n.Translate(assistantID, lang, data).(map[string]interface{}), nil
+	}
 	return data, nil
 }
 
@@ -1257,9 +1513,9 @@ func (conv *Xun) DeleteAssistants(filter AssistantFilter) (int64, error) {
 }
 
 // GetAssistantTags retrieves all unique tags from assistants
-func (conv *Xun) GetAssistantTags() ([]string, error) {
+func (conv *Xun) GetAssistantTags(locale ...string) ([]Tag, error) {
 	q := conv.newQuery().Table(conv.getAssistantTable())
-	rows, err := q.Select("tags").GroupBy("tags").Get()
+	rows, err := q.Select("tags").Where("type", "assistant").GroupBy("tags").Get()
 	if err != nil {
 		return nil, err
 	}
@@ -1276,16 +1532,24 @@ func (conv *Xun) GetAssistantTags() ([]string, error) {
 		}
 	}
 
+	lang := "en"
+	if len(locale) > 0 {
+		lang = locale[0]
+	}
+
 	// Convert map keys to slice
-	tags := make([]string, 0, len(tagSet))
+	tags := make([]Tag, 0, len(tagSet))
 	for tag := range tagSet {
-		tags = append(tags, tag)
+		tags = append(tags, Tag{
+			Value: tag,
+			Label: i18n.TranslateGlobal(lang, tag).(string),
+		})
 	}
 	return tags, nil
 }
 
 // GetHistoryWithFilter get the history with filter options
-func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter) ([]map[string]interface{}, error) {
+func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	userID, err := conv.getUserID(sid)
 	if err != nil {
 		return nil, err
@@ -1353,4 +1617,637 @@ func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter ChatFilter)
 	}
 
 	return res, nil
+}
+
+// GenerateAssistantID generates a random-looking 6-digit ID
+func (conv *Xun) GenerateAssistantID() (string, error) {
+	maxAttempts := 10 // Maximum number of attempts to generate a unique ID
+	for i := 0; i < maxAttempts; i++ {
+		// Generate a random number using timestamp and some bit operations
+		timestamp := time.Now().UnixNano()
+		random := (timestamp ^ (timestamp >> 12)) % 1000000
+		hash := fmt.Sprintf("%06d", random)
+
+		// Check if this ID already exists
+		exists, err := conv.query.New().
+			Table(conv.getAssistantTable()).
+			Where("assistant_id", hash).
+			Exists()
+
+		if err != nil {
+			return "", err
+		}
+
+		if !exists {
+			return hash, nil
+		}
+
+		// If ID exists, wait a bit and try again
+		time.Sleep(time.Millisecond)
+	}
+
+	return "", fmt.Errorf("failed to generate unique ID after %d attempts", maxAttempts)
+}
+
+// SaveAttachment saves attachment information
+func (conv *Xun) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
+	// Validate required fields
+	requiredFields := []string{"file_id", "uid", "manager", "content_type", "name"}
+	for _, field := range requiredFields {
+		if _, ok := attachment[field]; !ok {
+			return nil, fmt.Errorf("field %s is required", field)
+		}
+		if attachment[field] == nil || attachment[field] == "" {
+			return nil, fmt.Errorf("field %s cannot be empty", field)
+		}
+	}
+
+	// Create a copy of the attachment map to avoid modifying the original
+	attachmentCopy := make(map[string]interface{})
+	for k, v := range attachment {
+		attachmentCopy[k] = v
+	}
+
+	// Process JSON fields
+	jsonFields := []string{"scope"}
+	for _, field := range jsonFields {
+		if val, ok := attachmentCopy[field]; ok && val != nil {
+			// If it's a string, try to parse it first
+			if strVal, ok := val.(string); ok && strVal != "" {
+				var parsed interface{}
+				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
+					attachmentCopy[field] = parsed
+				}
+			}
+		}
+	}
+
+	// Check if attachment exists
+	exists, err := conv.query.New().
+		Table(conv.getAttachmentTable()).
+		Where("file_id", attachmentCopy["file_id"]).
+		Exists()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JSON fields to strings for storage
+	for _, field := range jsonFields {
+		if val, ok := attachmentCopy[field]; ok && val != nil {
+			jsonStr, err := jsoniter.MarshalToString(val)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal %s to JSON: %v", field, err)
+			}
+			attachmentCopy[field] = jsonStr
+		}
+	}
+
+	// Update or insert
+	if exists {
+		attachmentCopy["updated_at"] = time.Now()
+		_, err := conv.query.New().
+			Table(conv.getAttachmentTable()).
+			Where("file_id", attachmentCopy["file_id"]).
+			Update(attachmentCopy)
+		if err != nil {
+			return nil, err
+		}
+		return attachmentCopy["file_id"], nil
+	}
+
+	attachmentCopy["created_at"] = time.Now()
+	err = conv.query.New().
+		Table(conv.getAttachmentTable()).
+		Insert(attachmentCopy)
+	if err != nil {
+		return nil, err
+	}
+	return attachmentCopy["file_id"], nil
+}
+
+// DeleteAttachment deletes an attachment by file_id
+func (conv *Xun) DeleteAttachment(fileID string) error {
+	// Check if attachment exists
+	exists, err := conv.query.New().
+		Table(conv.getAttachmentTable()).
+		Where("file_id", fileID).
+		Exists()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("attachment %s not found", fileID)
+	}
+
+	_, err = conv.query.New().
+		Table(conv.getAttachmentTable()).
+		Where("file_id", fileID).
+		Delete()
+	return err
+}
+
+// GetAttachments retrieves attachments with pagination and filtering
+func (conv *Xun) GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error) {
+	qb := conv.query.New().
+		Table(conv.getAttachmentTable())
+
+	// Apply UID filter if provided
+	if filter.UID != "" {
+		qb.Where("uid", filter.UID)
+	}
+
+	// Apply guest filter if provided
+	if filter.Guest != nil {
+		qb.Where("guest", *filter.Guest)
+	}
+
+	// Apply manager filter if provided
+	if filter.Manager != "" {
+		qb.Where("manager", filter.Manager)
+	}
+
+	// Apply content_type filter if provided
+	if filter.ContentType != "" {
+		qb.Where("content_type", filter.ContentType)
+	}
+
+	// Apply name filter if provided
+	if filter.Name != "" {
+		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Name))
+	}
+
+	// Apply public filter if provided
+	if filter.Public != nil {
+		qb.Where("public", *filter.Public)
+	}
+
+	// Apply gzip filter if provided
+	if filter.Gzip != nil {
+		qb.Where("gzip", *filter.Gzip)
+	}
+
+	// Apply collection_id filter if provided
+	if filter.CollectionID != "" {
+		qb.Where("collection_id", filter.CollectionID)
+	}
+
+	// Apply status filter if provided
+	if filter.Status != "" {
+		qb.Where("status", filter.Status)
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+	}
+
+	// Set defaults for pagination
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+
+	// Get total count
+	total, err := qb.Clone().Count()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	totalPages := int(math.Ceil(float64(total) / float64(filter.PageSize)))
+	nextPage := filter.Page + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+	prevPage := filter.Page - 1
+	if prevPage < 1 {
+		prevPage = 0
+	}
+
+	// Apply select fields if provided
+	if filter.Select != nil && len(filter.Select) > 0 {
+		selectFields := make([]interface{}, len(filter.Select))
+		for i, field := range filter.Select {
+			selectFields[i] = field
+		}
+		qb.Select(selectFields...)
+	}
+
+	// Get paginated results
+	rows, err := qb.OrderBy("created_at", "desc").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Get()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert rows to map slice and parse JSON fields
+	data := make([]map[string]interface{}, len(rows))
+	jsonFields := []string{"scope"}
+	for i, row := range rows {
+		data[i] = row
+		// Only parse JSON fields if they are selected or no select filter is provided
+		if filter.Select == nil || len(filter.Select) == 0 {
+			conv.parseJSONFields(data[i], jsonFields)
+		} else {
+			// Parse only selected JSON fields
+			selectedJSONFields := []string{}
+			for _, field := range jsonFields {
+				for _, selected := range filter.Select {
+					if selected == field {
+						selectedJSONFields = append(selectedJSONFields, field)
+						break
+					}
+				}
+			}
+			if len(selectedJSONFields) > 0 {
+				conv.parseJSONFields(data[i], selectedJSONFields)
+			}
+		}
+	}
+
+	return &AttachmentResponse{
+		Data:     data,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		PageCnt:  totalPages,
+		Next:     nextPage,
+		Prev:     prevPage,
+		Total:    total,
+	}, nil
+}
+
+// GetAttachment retrieves a single attachment by file_id
+func (conv *Xun) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
+	row, err := conv.query.New().
+		Table(conv.getAttachmentTable()).
+		Where("file_id", fileID).
+		First()
+	if err != nil {
+		return nil, err
+	}
+
+	if row == nil {
+		return nil, fmt.Errorf("attachment %s not found", fileID)
+	}
+
+	data := row.ToMap()
+	if data == nil || len(data) == 0 {
+		return nil, fmt.Errorf("the attachment %s is empty", fileID)
+	}
+
+	// Parse JSON fields
+	jsonFields := []string{"scope"}
+	conv.parseJSONFields(data, jsonFields)
+
+	return data, nil
+}
+
+// DeleteAttachments deletes attachments based on filter conditions
+func (conv *Xun) DeleteAttachments(filter AttachmentFilter) (int64, error) {
+	qb := conv.query.New().
+		Table(conv.getAttachmentTable())
+
+	// Apply UID filter if provided
+	if filter.UID != "" {
+		qb.Where("uid", filter.UID)
+	}
+
+	// Apply guest filter if provided
+	if filter.Guest != nil {
+		qb.Where("guest", *filter.Guest)
+	}
+
+	// Apply manager filter if provided
+	if filter.Manager != "" {
+		qb.Where("manager", filter.Manager)
+	}
+
+	// Apply content_type filter if provided
+	if filter.ContentType != "" {
+		qb.Where("content_type", filter.ContentType)
+	}
+
+	// Apply name filter if provided
+	if filter.Name != "" {
+		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Name))
+	}
+
+	// Apply public filter if provided
+	if filter.Public != nil {
+		qb.Where("public", *filter.Public)
+	}
+
+	// Apply gzip filter if provided
+	if filter.Gzip != nil {
+		qb.Where("gzip", *filter.Gzip)
+	}
+
+	// Apply collection_id filter if provided
+	if filter.CollectionID != "" {
+		qb.Where("collection_id", filter.CollectionID)
+	}
+
+	// Apply status filter if provided
+	if filter.Status != "" {
+		qb.Where("status", filter.Status)
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+	}
+
+	// Execute delete and return number of deleted records
+	return qb.Delete()
+}
+
+// SaveKnowledge saves knowledge collection information
+func (conv *Xun) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
+	// Validate required fields
+	requiredFields := []string{"collection_id", "name", "uid"}
+	for _, field := range requiredFields {
+		if _, ok := knowledge[field]; !ok {
+			return nil, fmt.Errorf("field %s is required", field)
+		}
+		if knowledge[field] == nil || knowledge[field] == "" {
+			return nil, fmt.Errorf("field %s cannot be empty", field)
+		}
+	}
+
+	// Create a copy of the knowledge map to avoid modifying the original
+	knowledgeCopy := make(map[string]interface{})
+	for k, v := range knowledge {
+		knowledgeCopy[k] = v
+	}
+
+	// Process JSON fields
+	jsonFields := []string{"scope", "option"}
+	for _, field := range jsonFields {
+		if val, ok := knowledgeCopy[field]; ok && val != nil {
+			// If it's a string, try to parse it first
+			if strVal, ok := val.(string); ok && strVal != "" {
+				var parsed interface{}
+				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
+					knowledgeCopy[field] = parsed
+				}
+			}
+		}
+	}
+
+	// Check if knowledge exists
+	exists, err := conv.query.New().
+		Table(conv.getKnowledgeTable()).
+		Where("collection_id", knowledgeCopy["collection_id"]).
+		Exists()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JSON fields to strings for storage
+	for _, field := range jsonFields {
+		if val, ok := knowledgeCopy[field]; ok && val != nil {
+			jsonStr, err := jsoniter.MarshalToString(val)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal %s to JSON: %v", field, err)
+			}
+			knowledgeCopy[field] = jsonStr
+		}
+	}
+
+	// Update or insert
+	if exists {
+		knowledgeCopy["updated_at"] = time.Now()
+		_, err := conv.query.New().
+			Table(conv.getKnowledgeTable()).
+			Where("collection_id", knowledgeCopy["collection_id"]).
+			Update(knowledgeCopy)
+		if err != nil {
+			return nil, err
+		}
+		return knowledgeCopy["collection_id"], nil
+	}
+
+	knowledgeCopy["created_at"] = time.Now()
+	err = conv.query.New().
+		Table(conv.getKnowledgeTable()).
+		Insert(knowledgeCopy)
+	if err != nil {
+		return nil, err
+	}
+	return knowledgeCopy["collection_id"], nil
+}
+
+// DeleteKnowledge deletes a knowledge collection by collection_id
+func (conv *Xun) DeleteKnowledge(collectionID string) error {
+	// Check if knowledge exists
+	exists, err := conv.query.New().
+		Table(conv.getKnowledgeTable()).
+		Where("collection_id", collectionID).
+		Exists()
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fmt.Errorf("knowledge collection %s not found", collectionID)
+	}
+
+	_, err = conv.query.New().
+		Table(conv.getKnowledgeTable()).
+		Where("collection_id", collectionID).
+		Delete()
+	return err
+}
+
+// GetKnowledges retrieves knowledge collections with pagination and filtering
+func (conv *Xun) GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error) {
+	qb := conv.query.New().
+		Table(conv.getKnowledgeTable())
+
+	// Apply UID filter if provided
+	if filter.UID != "" {
+		qb.Where("uid", filter.UID)
+	}
+
+	// Apply name filter if provided
+	if filter.Name != "" {
+		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Name))
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where(func(qb query.Query) {
+			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+		})
+	}
+
+	// Apply public filter if provided
+	if filter.Public != nil {
+		qb.Where("public", *filter.Public)
+	}
+
+	// Apply readonly filter if provided
+	if filter.Readonly != nil {
+		qb.Where("readonly", *filter.Readonly)
+	}
+
+	// Apply system filter if provided
+	if filter.System != nil {
+		qb.Where("system", *filter.System)
+	}
+
+	// Set defaults for pagination
+	if filter.PageSize <= 0 {
+		filter.PageSize = 20
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+
+	// Get total count
+	total, err := qb.Clone().Count()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate pagination
+	offset := (filter.Page - 1) * filter.PageSize
+	totalPages := int(math.Ceil(float64(total) / float64(filter.PageSize)))
+	nextPage := filter.Page + 1
+	if nextPage > totalPages {
+		nextPage = 0
+	}
+	prevPage := filter.Page - 1
+	if prevPage < 1 {
+		prevPage = 0
+	}
+
+	// Apply select fields if provided
+	if filter.Select != nil && len(filter.Select) > 0 {
+		selectFields := make([]interface{}, len(filter.Select))
+		for i, field := range filter.Select {
+			selectFields[i] = field
+		}
+		qb.Select(selectFields...)
+	}
+
+	// Get paginated results
+	rows, err := qb.OrderBy("sort", "asc").
+		OrderBy("created_at", "desc").
+		Offset(offset).
+		Limit(filter.PageSize).
+		Get()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert rows to map slice and parse JSON fields
+	data := make([]map[string]interface{}, len(rows))
+	jsonFields := []string{"scope", "option"}
+	for i, row := range rows {
+		data[i] = row
+		// Only parse JSON fields if they are selected or no select filter is provided
+		if filter.Select == nil || len(filter.Select) == 0 {
+			conv.parseJSONFields(data[i], jsonFields)
+		} else {
+			// Parse only selected JSON fields
+			selectedJSONFields := []string{}
+			for _, field := range jsonFields {
+				for _, selected := range filter.Select {
+					if selected == field {
+						selectedJSONFields = append(selectedJSONFields, field)
+						break
+					}
+				}
+			}
+			if len(selectedJSONFields) > 0 {
+				conv.parseJSONFields(data[i], selectedJSONFields)
+			}
+		}
+	}
+
+	return &KnowledgeResponse{
+		Data:     data,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		PageCnt:  totalPages,
+		Next:     nextPage,
+		Prev:     prevPage,
+		Total:    total,
+	}, nil
+}
+
+// GetKnowledge retrieves a single knowledge collection by collection_id
+func (conv *Xun) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
+	row, err := conv.query.New().
+		Table(conv.getKnowledgeTable()).
+		Where("collection_id", collectionID).
+		First()
+	if err != nil {
+		return nil, err
+	}
+
+	if row == nil {
+		return nil, fmt.Errorf("knowledge collection %s not found", collectionID)
+	}
+
+	data := row.ToMap()
+	if data == nil || len(data) == 0 {
+		return nil, fmt.Errorf("the knowledge collection %s is empty", collectionID)
+	}
+
+	// Parse JSON fields
+	jsonFields := []string{"scope", "option"}
+	conv.parseJSONFields(data, jsonFields)
+
+	return data, nil
+}
+
+// DeleteKnowledges deletes knowledge collections based on filter conditions
+func (conv *Xun) DeleteKnowledges(filter KnowledgeFilter) (int64, error) {
+	qb := conv.query.New().
+		Table(conv.getKnowledgeTable())
+
+	// Apply UID filter if provided
+	if filter.UID != "" {
+		qb.Where("uid", filter.UID)
+	}
+
+	// Apply name filter if provided
+	if filter.Name != "" {
+		qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Name))
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where(func(qb query.Query) {
+			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+		})
+	}
+
+	// Apply public filter if provided
+	if filter.Public != nil {
+		qb.Where("public", *filter.Public)
+	}
+
+	// Apply readonly filter if provided
+	if filter.Readonly != nil {
+		qb.Where("readonly", *filter.Readonly)
+	}
+
+	// Apply system filter if provided
+	if filter.System != nil {
+		qb.Where("system", *filter.System)
+	}
+
+	// Execute delete and return number of deleted records
+	return qb.Delete()
 }

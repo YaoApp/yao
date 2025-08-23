@@ -12,23 +12,35 @@ import (
 // Context the context
 type Context struct {
 	context.Context
-	Sid         string                 `json:"sid" yaml:"-"`           // Session ID
-	ChatID      string                 `json:"chat_id,omitempty"`      // Chat ID, use to select chat
-	AssistantID string                 `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
-	Stack       string                 `json:"stack,omitempty"`        // will be removed in the future
-	Path        string                 `json:"pathname,omitempty"`     // wiil be rename to path
-	FormData    map[string]interface{} `json:"formdata,omitempty"`
-	Field       *Field                 `json:"field,omitempty"`
-	Namespace   string                 `json:"namespace,omitempty"`
-	Config      map[string]interface{} `json:"config,omitempty"`
-	Signal      interface{}            `json:"signal,omitempty"`
-	Silent      bool                   `json:"silent,omitempty"`      // Silent mode
-	Retry       bool                   `json:"retry,omitempty"`       // Retry mode
-	RetryTimes  uint8                  `json:"retry_times,omitempty"` // Retry times
-	Upload      *FileUpload            `json:"upload,omitempty"`
-	Version     bool                   `json:"version,omitempty"` // Version support
-	RAG         bool                   `json:"rag,omitempty"`     // RAG support
-	SharedSpace plan.Space             `json:"-"`                 // Shared space
+	Sid         string `json:"sid" yaml:"-"`           // Session ID
+	ChatID      string `json:"chat_id,omitempty"`      // Chat ID, use to select chat
+	AssistantID string `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
+
+	// CUI Context
+	Namespace string                 `json:"namespace,omitempty"`
+	Stack     string                 `json:"stack,omitempty"`    // will be removed in the future
+	Path      string                 `json:"pathname,omitempty"` // wiil be rename to path
+	FormData  map[string]interface{} `json:"formdata,omitempty"`
+	Field     *Field                 `json:"field,omitempty"`
+	Config    map[string]interface{} `json:"config,omitempty"`
+	Signal    interface{}            `json:"signal,omitempty"`
+
+	// Locale information
+	Locale string `json:"locale,omitempty"` // Locale
+	Theme  string `json:"theme,omitempty"`  // Theme
+
+	Silent         bool   `json:"silent,omitempty"`          // Silent mode
+	ClientType     string `json:"client_type,omitempty"`     // The request client type. SDK, Desktop, Web, JSSDK, etc. the default is Web
+	HistoryVisible bool   `json:"history_visible,omitempty"` // History visible, default is true, if false, the history will not be displayed in the UI
+	Retry          bool   `json:"retry,omitempty"`           // Retry mode
+	RetryTimes     uint8  `json:"retry_times,omitempty"`     // Retry times
+
+	Vision    bool `json:"vision,omitempty"`    // Vision support
+	Search    bool `json:"search,omitempty"`    // Search support
+	Knowledge bool `json:"knowledge,omitempty"` // Knowledge support
+
+	Args        []interface{} `json:"args,omitempty"` // Arguments for call
+	SharedSpace plan.Space    `json:"-"`              // Shared space
 }
 
 // Field the context field
@@ -48,10 +60,59 @@ type FileUpload struct {
 	TempFile string `json:"temp_file,omitempty"`
 }
 
+const (
+
+	// ClientTypeAgent is the client type for Agent
+	ClientTypeAgent = "agent"
+
+	// ClientTypeWeb is the client type for Web (Default UI)
+	ClientTypeWeb = "web"
+
+	// ClientTypeAndroid is the client type for Android
+	ClientTypeAndroid = "android"
+
+	// ClientTypeIOS is the client type for IOS
+	ClientTypeIOS = "ios"
+
+	// ClientTypeJSSDK is the client type for JSSDK
+	ClientTypeJSSDK = "jssdk"
+
+	// ClientTypeMacOS is the client type for MacOS Desktop
+	ClientTypeMacOS = "macos"
+
+	// ClientTypeWindows is the client type for Windows Desktop
+	ClientTypeWindows = "windows"
+
+	// ClientTypeLinux is the client type for Linux Desktop
+	ClientTypeLinux = "linux"
+)
+
+// SupportedClientTypes is the supported client types
+var SupportedClientTypes = map[string]bool{
+	ClientTypeAgent:   true,
+	ClientTypeWeb:     true,
+	ClientTypeAndroid: true,
+	ClientTypeIOS:     true,
+	ClientTypeJSSDK:   true,
+	ClientTypeMacOS:   true,
+	ClientTypeWindows: true,
+	ClientTypeLinux:   true,
+}
+
 // New create a new context
 func New(sid, cid, payload string) Context {
 
-	ctx := Context{Context: context.Background(), Sid: sid, ChatID: cid, SharedSpace: plan.NewMemorySharedSpace()}
+	// Validate the client type
+	ctx := Context{
+		Context:        context.Background(),
+		SharedSpace:    plan.NewMemorySharedSpace(),
+		Sid:            sid,
+		ChatID:         cid,
+		HistoryVisible: true,
+		ClientType:     ClientTypeWeb,
+		Silent:         false,
+	}
+
 	if payload == "" {
 		return ctx
 	}
@@ -68,6 +129,41 @@ func New(sid, cid, payload string) Context {
 func NewWithCancel(sid, cid, payload string) (Context, context.CancelFunc) {
 	ctx := New(sid, cid, payload)
 	return WithCancel(ctx)
+}
+
+// WithAssistantID set the assistant ID
+func WithAssistantID(ctx Context, assistantID string) Context {
+	ctx.AssistantID = assistantID
+	return ctx
+}
+
+// WithSilent set the silent mode
+func WithSilent(ctx Context, silent bool) Context {
+	ctx.Silent = silent
+	return ctx
+}
+
+// WithClientType set the client type
+func WithClientType(ctx Context, clientType string) Context {
+	// Validate the client type
+	if !SupportedClientTypes[clientType] {
+		log.Error("[Neo] Invalid client type: %s", clientType)
+		return ctx
+	}
+	ctx.ClientType = clientType
+	return ctx
+}
+
+// WithLocale set the locale
+func WithLocale(ctx Context, locale string) Context {
+	ctx.Locale = locale
+	return ctx
+}
+
+// WithHistoryVisible set the history visible
+func WithHistoryVisible(ctx Context, historyVisible bool) Context {
+	ctx.HistoryVisible = historyVisible
+	return ctx
 }
 
 // NewWithTimeout create a new context with timeout
@@ -100,9 +196,10 @@ func (ctx *Context) Release() {
 // Map the context to a map
 func (ctx *Context) Map() map[string]interface{} {
 	data := map[string]interface{}{
-		"sid":     ctx.Sid,
-		"rag":     ctx.RAG,
-		"version": ctx.Version,
+		"sid":       ctx.Sid,
+		"knowledge": ctx.Knowledge,
+		"vision":    ctx.Vision,
+		"search":    ctx.Search,
 	}
 
 	if ctx.ChatID != "" {
@@ -120,9 +217,20 @@ func (ctx *Context) Map() map[string]interface{} {
 		data["silent"] = ctx.Silent
 	}
 
+	// History visible
+	data["history_visible"] = ctx.HistoryVisible
+
+	// Client type
+	data["client_type"] = ctx.ClientType
+
 	// Retry mode
 	if ctx.Retry {
 		data["retry"] = ctx.Retry
+	}
+
+	// Arguments for call
+	if ctx.Args != nil && len(ctx.Args) > 0 {
+		data["args"] = ctx.Args
 	}
 
 	// Retry times
@@ -146,9 +254,12 @@ func (ctx *Context) Map() map[string]interface{} {
 	if ctx.Signal != nil {
 		data["signal"] = ctx.Signal
 	}
-	if ctx.Upload != nil {
-		data["upload"] = ctx.Upload
-	}
+
+	// Locale
+	data["locale"] = ctx.Locale
+
+	// Theme
+	data["theme"] = ctx.Theme
 
 	return data
 }

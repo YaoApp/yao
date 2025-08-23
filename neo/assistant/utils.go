@@ -8,7 +8,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/watchfultele/jsonrepair"
+	"github.com/kaptinlin/jsonrepair"
 )
 
 func getTimestamp(v interface{}) (int64, error) {
@@ -33,8 +33,14 @@ func getTimestamp(v interface{}) (int64, error) {
 			return ts, nil
 		}
 
+	case time.Time:
+		return v.UnixNano(), nil
+
+	case nil:
+		return 0, nil
 	}
-	return 0, fmt.Errorf("invalid timestamp type")
+
+	return 0, fmt.Errorf("invalid timestamp type %T", v)
 }
 
 func stringToTimestamp(v string) (int64, error) {

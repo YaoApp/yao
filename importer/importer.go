@@ -20,6 +20,11 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// *********************************************************************************
+// !! Importer has been deprecated.
+// !! Do not use this in your project.
+// *********************************************************************************
+
 // Importers 导入器
 var Importers = map[string]*Importer{}
 

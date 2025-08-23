@@ -4,16 +4,14 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/fatih/color"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
-	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/neo/assistant"
-	"github.com/yaoapp/yao/neo/rag"
+	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/store"
-	"github.com/yaoapp/yao/neo/vision"
-	"github.com/yaoapp/yao/neo/vision/driver"
 )
 
 // Neo the neo AI assistant
@@ -23,10 +21,8 @@ var Neo *DSL
 func Load(cfg config.Config) error {
 
 	setting := DSL{
-		ID:      "neo",
-		Prompts: []assistant.Prompt{},
-		Option:  map[string]interface{}{},
-		Allows:  []string{},
+		ID:     "neo",
+		Allows: []string{},
 		StoreSetting: store.Setting{
 			Prefix:    "yao_neo_",
 			Connector: "default",
@@ -44,7 +40,22 @@ func Load(cfg config.Config) error {
 	}
 
 	if setting.StoreSetting.MaxSize == 0 {
-		setting.StoreSetting.MaxSize = 100
+		setting.StoreSetting.MaxSize = 20 // default is 20
+	}
+
+	// Default Assistant, Neo is the developer name, Mohe is the brand name of the assistant
+	if setting.Use == nil {
+		setting.Use = &Use{Default: "mohe"} // Neo is the developer name, Mohe is the brand name of the assistant
+	}
+
+	// Title Assistant
+	if setting.Use.Title == "" {
+		setting.Use.Title = setting.Use.Default
+	}
+
+	// Prompt Assistant
+	if setting.Use.Prompt == "" {
+		setting.Use.Prompt = setting.Use.Default
 	}
 
 	Neo = &setting
@@ -55,11 +66,29 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Initialize RAG
-	initRAG()
+	// Initialize Connectors
+	err = initConnectors()
+	if err != nil {
+		return err
+	}
 
-	// Initialize Vision
-	initVision()
+	// Initialize Global I18n
+	err = initGlobalI18n()
+	if err != nil {
+		return err
+	}
+
+	// Initialize Auth
+	err = initAuth()
+	if err != nil {
+		return err
+	}
+
+	// Initialize Upload
+	err = initUpload()
+	if err != nil {
+		return err
+	}
 
 	// Initialize Assistant
 	err = initAssistant()
@@ -70,19 +99,185 @@ func Load(cfg config.Config) error {
 	return nil
 }
 
-// initRAG initialize the RAG instance
-func initRAG() {
-	if Neo.RAGSetting.Engine.Driver == "" {
-		return
-	}
-	instance, err := rag.New(Neo.RAGSetting)
-	if err != nil {
-		color.Red("[Neo] Failed to initialize RAG: %v", err)
-		log.Error("[Neo] Failed to initialize RAG: %v", err)
-		return
+// initAuth initialize the auth
+func initAuth() error {
+	if Neo.AuthSetting == nil {
+		Neo.AuthSetting = &Auth{
+			Models:        &AuthModels{User: "admin.user", Guest: "guest"},
+			Fields:        &AuthFields{ID: "id", Roles: "roles", Permission: "permission"},
+			SessionFields: &AuthSessionFields{ID: "user_id", Roles: "user_roles", Guest: "guest_id"},
+		}
 	}
 
-	Neo.RAG = instance
+	if Neo.AuthSetting.Models == nil {
+		Neo.AuthSetting.Models = &AuthModels{User: "admin.user", Guest: "guest"}
+	}
+
+	if Neo.AuthSetting.Fields == nil {
+		Neo.AuthSetting.Fields = &AuthFields{ID: "id", Roles: "roles", Permission: "permission"}
+	}
+
+	if Neo.AuthSetting.SessionFields == nil {
+		Neo.AuthSetting.SessionFields = &AuthSessionFields{ID: "user_id", Roles: "user_roles", Guest: "guest_id"}
+	}
+
+	if Neo.AuthSetting.Models.User == "" {
+		Neo.AuthSetting.Models.User = "admin.user"
+	}
+
+	if Neo.AuthSetting.Models.Guest == "" {
+		Neo.AuthSetting.Models.Guest = "guest"
+	}
+
+	if Neo.AuthSetting.Fields.Roles == "" {
+		Neo.AuthSetting.Fields.Roles = "roles"
+	}
+
+	if Neo.AuthSetting.Fields.Permission == "" {
+		Neo.AuthSetting.Fields.Permission = "permission"
+	}
+
+	if Neo.AuthSetting.Fields.ID == "" {
+		Neo.AuthSetting.Fields.ID = "id"
+	}
+
+	if Neo.AuthSetting.Fields.ID == "" {
+		Neo.AuthSetting.Fields.ID = "id"
+	}
+
+	if Neo.AuthSetting.SessionFields.ID == "" {
+		Neo.AuthSetting.SessionFields.ID = "user_id"
+	}
+
+	if Neo.AuthSetting.SessionFields.Roles == "" {
+		Neo.AuthSetting.SessionFields.Roles = "user_roles"
+	}
+
+	if Neo.AuthSetting.SessionFields.Guest == "" {
+		Neo.AuthSetting.SessionFields.Guest = "guest_id"
+	}
+
+	// Validate User Model and Fields
+	if !model.Exists(Neo.AuthSetting.Models.User) {
+		return fmt.Errorf("model %s not found", Neo.AuthSetting.Models.User)
+	}
+	user := model.Select(Neo.AuthSetting.Models.User)
+	shouldHave := []string{Neo.AuthSetting.Fields.ID, Neo.AuthSetting.Fields.Roles, Neo.AuthSetting.Fields.Permission}
+	for _, name := range shouldHave {
+		if _, has := user.Columns[name]; !has {
+			return fmt.Errorf("model %s should have column %s", Neo.AuthSetting.Models.User, name)
+		}
+	}
+
+	return nil
+}
+
+// initUpload initialize the upload
+func initUpload() error {
+
+	if Neo.UploadSetting == nil {
+		_, err := attachment.RegisterDefault("chat")
+		if err != nil {
+			return err
+		}
+		_, err = attachment.RegisterDefault("knowledge")
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// If the chat upload setting is not set, use the default chat upload setting.
+	if Neo.UploadSetting.Chat == nil {
+		_, err := attachment.RegisterDefault("chat")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use the chat upload setting for knowledge upload, if the knowledge upload setting is not set.
+	if Neo.UploadSetting.Knowledge == nil {
+		if Neo.UploadSetting.Chat == nil {
+			_, err := attachment.RegisterDefault("knowledge")
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := attachment.Register("knowledge", Neo.UploadSetting.Chat.Driver, *Neo.UploadSetting.Chat)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Use custom chat upload setting
+	if Neo.UploadSetting.Chat != nil {
+		Neo.UploadSetting.Chat.ReplaceEnv(config.Conf.DataRoot)
+		_, err := attachment.Register("chat", Neo.UploadSetting.Chat.Driver, *Neo.UploadSetting.Chat) // Register the chat upload manager
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use custom knowledge upload setting
+	if Neo.UploadSetting.Knowledge != nil {
+		Neo.UploadSetting.Knowledge.ReplaceEnv(config.Conf.DataRoot)
+		_, err := attachment.Register("knowledge", Neo.UploadSetting.Knowledge.Driver, *Neo.UploadSetting.Knowledge)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use the chat upload setting for asset upload, if the asset upload setting is not set. (public assets)
+	if Neo.UploadSetting.Assets == nil {
+		_, err := attachment.RegisterDefault("assets")
+		if err != nil {
+			return err
+		}
+	}
+
+	// Use custom asset upload setting
+	if Neo.UploadSetting.Assets != nil {
+		Neo.UploadSetting.Assets.ReplaceEnv(config.Conf.DataRoot)
+		_, err := attachment.Register("assets", Neo.UploadSetting.Assets.Driver, *Neo.UploadSetting.Assets)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// initGlobalI18n initialize the global i18n
+func initGlobalI18n() error {
+	locales, err := i18n.GetLocales("neo")
+	if err != nil {
+		return err
+	}
+	i18n.Locales["__global__"] = locales.Flatten()
+	return nil
+}
+
+// initConnectors initialize the connectors
+func initConnectors() error {
+	path := filepath.Join("neo", "connectors.yml")
+	if exists, _ := application.App.Exists(path); !exists {
+		return nil
+	}
+
+	// Open the connectors
+	bytes, err := application.App.Read(path)
+	if err != nil {
+		return err
+	}
+
+	var connectors map[string]assistant.ConnectorSetting = map[string]assistant.ConnectorSetting{}
+	err = application.Parse("connectors.yml", bytes, &connectors)
+	if err != nil {
+		return err
+	}
+
+	Neo.Connectors = connectors
+	return nil
 }
 
 // initStore initialize the store
@@ -116,44 +311,11 @@ func initStore() error {
 	return fmt.Errorf("%s store connector %s not support", Neo.ID, Neo.StoreSetting.Connector)
 }
 
-// initVision initialize the Vision instance
-func initVision() {
-	if Neo.VisionSetting.Storage.Driver == "" {
-		return
-	}
-
-	cfg := &driver.Config{
-		Storage: Neo.VisionSetting.Storage,
-		Model:   Neo.VisionSetting.Model,
-	}
-
-	instance, err := vision.New(cfg)
-	if err != nil {
-		color.Red("[Neo] Failed to initialize Vision: %v", err)
-		log.Error("[Neo] Failed to initialize Vision: %v", err)
-		return
-	}
-
-	Neo.Vision = instance
-}
-
 // initAssistant initialize the assistant
 func initAssistant() error {
 
 	// Set Storage
 	assistant.SetStorage(Neo.Store)
-
-	// Assistant RAG
-	if Neo.RAG != nil {
-		assistant.SetRAG(
-			Neo.RAG.Engine(),
-			Neo.RAG.FileUpload(),
-			Neo.RAG.Vectorizer(),
-			assistant.RAGSetting{
-				IndexPrefix: Neo.RAGSetting.IndexPrefix,
-			},
-		)
-	}
 
 	// Assistant Vision
 	if Neo.Vision != nil {
@@ -163,9 +325,6 @@ func initAssistant() error {
 	if Neo.Connectors != nil {
 		assistant.SetConnectorSettings(Neo.Connectors)
 	}
-
-	// Default Connector
-	assistant.SetConnector(Neo.Connector)
 
 	// Load Built-in Assistants
 	err := assistant.LoadBuiltIn()
@@ -185,14 +344,8 @@ func initAssistant() error {
 
 // defaultAssistant get the default assistant
 func defaultAssistant() (*assistant.Assistant, error) {
-	if Neo.Use != "" {
-		return assistant.Get(Neo.Use)
+	if Neo.Use == nil || Neo.Use.Default == "" {
+		return nil, fmt.Errorf("default assistant not found")
 	}
-
-	name := Neo.Name
-	if name == "" {
-		name = "Neo"
-	}
-
-	return assistant.GetByConnector(Neo.Connector, name)
+	return assistant.Get(Neo.Use.Default)
 }

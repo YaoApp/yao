@@ -1,0 +1,130 @@
+{
+  "name": "history",
+  "label": "Chat History",
+  "description": "Chat history table for storing detailed chat message information",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": {
+    "name": "history",
+    "comment": "Chat history table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Record ID",
+      "comment": "Unique record identifier"
+    },
+    {
+      "name": "sid",
+      "type": "string",
+      "label": "Session ID",
+      "comment": "Session identifier",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "cid",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Chat identifier",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "uid",
+      "type": "string",
+      "label": "User ID",
+      "comment": "User identifier",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "label": "Role",
+      "comment": "Message role (user/assistant/system)",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Role Name",
+      "comment": "Role display name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "content",
+      "type": "text",
+      "label": "Message Content",
+      "comment": "Text content of the message",
+      "nullable": true
+    },
+    {
+      "name": "context",
+      "type": "json",
+      "label": "Context",
+      "comment": "Message context data",
+      "nullable": true
+    },
+    {
+      "name": "assistant_id",
+      "type": "string",
+      "label": "Assistant ID",
+      "comment": "Assistant identifier",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "assistant_name",
+      "type": "string",
+      "label": "Assistant Name",
+      "comment": "Assistant display name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "assistant_avatar",
+      "type": "string",
+      "label": "Assistant Avatar",
+      "comment": "Assistant avatar URL",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "mentions",
+      "type": "json",
+      "label": "Mentions",
+      "comment": "Mention information in the message",
+      "nullable": true
+    },
+    {
+      "name": "silent",
+      "type": "boolean",
+      "label": "Silent Mode",
+      "comment": "Whether this is a silent message",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "expired_at",
+      "type": "timestamp",
+      "label": "Expired At",
+      "comment": "Record expiration time",
+      "nullable": true,
+      "index": true
+    }
+  ],
+  "relations": {},
+  "indexes": [],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

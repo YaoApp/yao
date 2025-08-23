@@ -45,3 +45,8 @@ db
 !get-yao.sh
 !docker/base/**
 __debug*
+data/bindata.go.bak
+share/const.go.bak
+share/const.goe
+.cursor
+openapi/*.md

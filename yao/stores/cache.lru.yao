@@ -1,0 +1,11 @@
+{
+  "label": "System Cache Store",
+  "description": "LRU cache store for common caching in Yao system",
+  "tags": ["system", "cache", "lru", "memory"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 2,
+  "name": "System Cache Store",
+  "type": "lru",
+  "option": { "size": 8192 }
+}

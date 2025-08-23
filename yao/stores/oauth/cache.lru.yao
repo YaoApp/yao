@@ -1,0 +1,13 @@
+{
+  "label": "OAuth Cache Store",
+  "description": "LRU cache store for OAuth tokens, sessions and temporary data",
+  "tags": ["oauth", "cache", "lru", "token"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 11,
+  "name": "OAuth Cache Store",
+  "type": "lru",
+  "option": {
+    "size": 8192
+  }
+}

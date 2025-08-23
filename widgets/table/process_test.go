@@ -637,7 +637,47 @@ func TestProcessRead(t *testing.T) {
 
 	res := process.New("yao.table.Read", "pet").Run()
 	assert.NotNil(t, res)
-	assert.Equal(t, "::Pet Admin", res.(map[string]interface{})["name"])
+	assert.Contains(t, res.(string), "::Pet Admin")
+}
+
+func TestProcessList(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
+	clear(t)
+	testData(t)
+
+	args := []interface{}{}
+	res, err := process.New("yao.table.list", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tables, ok := res.(map[string]*DSL)
+	assert.True(t, ok, "Expected map[string]*DSL")
+	assert.NotEmpty(t, tables, "Tables should not be empty")
+	assert.Contains(t, tables, "pet", "Should contain the pet table")
+}
+
+func TestProcessDSL(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	prepare(t)
+	clear(t)
+	testData(t)
+
+	args := []interface{}{"pet"}
+	res, err := process.New("yao.table.dsl", args...).Exec()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dsl, ok := res.(*DSL)
+	assert.True(t, ok, "Expected map[string]interface{}")
+	assert.NotEmpty(t, dsl, "DSL should not be empty")
+	assert.Contains(t, dsl.Name, "Pet Admin", "DSL should contain name")
 }
 
 func testData(t *testing.T) {

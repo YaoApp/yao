@@ -1,0 +1,7 @@
+{
+  "id": "__yao.utf8",
+  "title": "纯文本转换器",
+  "description": "通过读取和规范化 UTF-8 内容来处理纯文本文件（TXT、MD 等）。这是最简单的转换器，直接读取文本文件而无需任何 AI 处理。",
+  "required": [],
+  "properties": {}
+}

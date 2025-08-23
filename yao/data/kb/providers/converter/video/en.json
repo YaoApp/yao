@@ -1,0 +1,217 @@
+{
+  "id": "__yao.video",
+  "title": "Video Processing",
+  "description": "Processes video files by extracting keyframes and audio for AI analysis. Supports FFmpeg-based video processing with configurable GPU acceleration and quality settings.",
+  "required": [],
+  "properties": {
+    "keyframe_interval": {
+      "type": "number",
+      "title": "Keyframe Interval (seconds)",
+      "description": "Time interval between extracted keyframes for analysis.",
+      "default": 10.0,
+      "minimum": 1.0,
+      "maximum": 300.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 1
+    },
+    "max_keyframes": {
+      "type": "integer",
+      "title": "Max Keyframes",
+      "description": "Maximum number of keyframes to extract from the video.",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 1000,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 2
+    },
+    "temp_dir": {
+      "type": "string",
+      "title": "Temporary Directory",
+      "description": "Custom temporary directory for video processing (empty = system temp).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 3
+    },
+    "cleanup_temp": {
+      "type": "boolean",
+      "title": "Cleanup Temporary Files",
+      "description": "Automatically clean up temporary files after processing.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 4
+    },
+    "max_concurrency": {
+      "type": "integer",
+      "title": "Max Concurrency",
+      "description": "Maximum number of concurrent video processing operations.",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 20,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "text_optimization": {
+      "type": "boolean",
+      "title": "Text Optimization",
+      "description": "Enable text optimization for better content extraction.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 6
+    },
+    "deduplication_ratio": {
+      "type": "number",
+      "title": "Deduplication Ratio",
+      "description": "Threshold for removing duplicate or similar keyframes (0.0-1.0).",
+      "default": 0.8,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "ffmpeg_path": {
+      "type": "string",
+      "title": "FFmpeg Path",
+      "description": "Custom path to FFmpeg executable (empty = use system PATH).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 8
+    },
+    "ffprobe_path": {
+      "type": "string",
+      "title": "FFprobe Path",
+      "description": "Custom path to FFprobe executable (empty = use system PATH).",
+      "default": "",
+      "component": "Input",
+      "width": "half",
+      "order": 9
+    },
+    "enable_gpu": {
+      "type": "boolean",
+      "title": "Enable GPU Acceleration",
+      "description": "Use GPU acceleration for video processing if available.",
+      "default": false,
+      "component": "Switch",
+      "width": "half",
+      "order": 10
+    },
+    "gpu_index": {
+      "type": "integer",
+      "title": "GPU Index",
+      "description": "GPU device index to use (-1 = auto-detect, 0+ = specific GPU).",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 7,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 11
+    },
+    "max_threads": {
+      "type": "integer",
+      "title": "Max Threads",
+      "description": "Maximum number of threads for FFmpeg processing (-1 = auto).",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 32,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 12
+    },
+    "vision": {
+      "type": "object",
+      "title": "Vision Converter (Optional)",
+      "description": "Vision AI converter for analyzing extracted keyframes.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 13,
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "Vision Connector",
+          "description": "AI vision model connector for keyframe analysis.",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI Vision",
+              "options": [
+                {
+                  "label": "GPT-4o",
+                  "value": "openai.gpt-4o",
+                  "description": "High-quality vision model for detailed frame analysis",
+                  "default": true
+                },
+                {
+                  "label": "GPT-4o Mini",
+                  "value": "openai.gpt-4o-mini",
+                  "description": "Cost-effective vision model for basic frame analysis"
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "prompt": {
+          "type": "string",
+          "title": "Vision Prompt",
+          "description": "Custom prompt for keyframe analysis.",
+          "default": "",
+          "component": "TextArea",
+          "width": "full",
+          "order": 2
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "Audio Converter (Optional)",
+      "description": "Audio converter for processing video soundtrack.",
+      "required": false,
+      "component": "Nested",
+      "width": "full",
+      "order": 14,
+      "properties": {
+        "connector": {
+          "type": "string",
+          "title": "Audio Connector",
+          "description": "AI audio transcription connector.",
+          "default": "",
+          "component": "Select",
+          "enum": [
+            {
+              "groupLabel": "OpenAI Audio",
+              "options": [
+                {
+                  "label": "Whisper",
+                  "value": "openai.whisper-1",
+                  "description": "High-quality audio transcription",
+                  "default": true
+                }
+              ]
+            }
+          ],
+          "width": "half",
+          "order": 1
+        },
+        "language": {
+          "type": "string",
+          "title": "Audio Language",
+          "description": "Expected audio language (empty = auto-detect).",
+          "default": "",
+          "component": "Input",
+          "width": "half",
+          "order": 2
+        }
+      }
+    }
+  }
+}

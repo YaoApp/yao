@@ -1,0 +1,75 @@
+{
+  "name": "config",
+  "label": "Configuration",
+  "description": "Configuration table for storing system settings and parameters",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": {
+    "name": "config",
+    "comment": "Configuration table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Config ID",
+      "comment": "Unique configuration identifier"
+    },
+    {
+      "name": "key",
+      "type": "string",
+      "label": "Key",
+      "comment": "Configuration key",
+      "length": 255,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "value",
+      "type": "json",
+      "label": "Value",
+      "comment": "Configuration value",
+      "nullable": true
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "label": "Description",
+      "comment": "Configuration description",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "label": "Category",
+      "comment": "Configuration category",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "Configuration value type",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "Whether configuration is readonly",
+      "default": false,
+      "index": true
+    }
+  ],
+  "relations": {},
+  "indexes": [],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

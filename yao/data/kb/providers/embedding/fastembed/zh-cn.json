@@ -1,0 +1,232 @@
+{
+  "id": "__yao.fastembed",
+  "title": "FastEmbed 嵌入模型",
+  "description": "FastEmbed 本地和远程嵌入模型，用于高性能文本向量化。支持各种开源模型和可配置的托管选项。",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "FastEmbed 连接器",
+      "description": "用于嵌入模型访问的 FastEmbed 连接器。",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "本地模型",
+          "options": [
+            {
+              "label": "BAAI/bge-small-en-v1.5",
+              "value": "fastembed.bge-small-en-v1.5",
+              "description": "384 维度，英语优化，快速推理",
+              "default": true
+            },
+            {
+              "label": "BAAI/bge-base-en-v1.5",
+              "value": "fastembed.bge-base-en-v1.5",
+              "description": "768 维度，英语优化，平衡性能"
+            },
+            {
+              "label": "BAAI/bge-large-en-v1.5",
+              "value": "fastembed.bge-large-en-v1.5",
+              "description": "1024 维度，英语优化，最高质量"
+            }
+          ]
+        },
+        {
+          "groupLabel": "多语言模型",
+          "options": [
+            {
+              "label": "BAAI/bge-small-zh-v1.5",
+              "value": "fastembed.bge-small-zh-v1.5",
+              "description": "384 维度，中文优化"
+            },
+            {
+              "label": "sentence-transformers/all-MiniLM-L6-v2",
+              "value": "fastembed.all-MiniLM-L6-v2",
+              "description": "384 维度，多语言支持"
+            },
+            {
+              "label": "sentence-transformers/all-mpnet-base-v2",
+              "value": "fastembed.all-mpnet-base-v2",
+              "description": "768 维度，多语言，高质量"
+            }
+          ]
+        },
+        {
+          "groupLabel": "远程 API",
+          "options": [
+            {
+              "label": "自定义 API 端点",
+              "value": "fastembed.custom",
+              "description": "连接到自定义 FastEmbed API 端点"
+            }
+          ]
+        }
+      ],
+      "width": "full",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "模型名称（可选）",
+      "description": "覆盖连接器默认值的特定模型名称。",
+      "default": "",
+      "component": "Input",
+      "placeholder": "例如：BAAI/bge-small-en-v1.5",
+      "width": "half",
+      "order": 2
+    },
+    "dimensions": {
+      "type": "integer",
+      "title": "嵌入维度",
+      "description": "嵌入向量的维度数量。",
+      "default": 384,
+      "component": "Select",
+      "enum": [
+        {
+          "label": "384 (BGE Small 默认)",
+          "value": 384,
+          "description": "小型模型的标准维度",
+          "default": true
+        },
+        {
+          "label": "768 (BGE Base 默认)",
+          "value": 768,
+          "description": "基础模型的标准维度"
+        },
+        {
+          "label": "1024 (BGE Large 默认)",
+          "value": 1024,
+          "description": "大型模型的标准维度"
+        },
+        {
+          "label": "512",
+          "value": 512,
+          "description": "特定模型的自定义维度"
+        },
+        {
+          "label": "256",
+          "value": 256,
+          "description": "降低维度以提高内存效率"
+        }
+      ],
+      "width": "half",
+      "order": 3
+    },
+    "concurrent": {
+      "type": "integer",
+      "title": "并发请求数",
+      "description": "要处理的并发嵌入请求数量。",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 100,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "host": {
+      "type": "string",
+      "title": "API 主机（可选）",
+      "description": "远程 FastEmbed 服务的自定义 API 主机。",
+      "default": "",
+      "component": "Input",
+      "placeholder": "https://api.example.com",
+      "width": "half",
+      "order": 5
+    },
+    "key": {
+      "type": "string",
+      "title": "API 密钥（可选）",
+      "description": "用于远程服务身份验证的 API 密钥。",
+      "default": "",
+      "component": "Input",
+      "placeholder": "your-api-key-here",
+      "width": "half",
+      "order": 6
+    },
+    "batch_size": {
+      "type": "integer",
+      "title": "批处理大小",
+      "description": "每批嵌入的文本数量。",
+      "default": 32,
+      "minimum": 1,
+      "maximum": 512,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "max_length": {
+      "type": "integer",
+      "title": "最大令牌长度",
+      "description": "输入文本的最大令牌长度。",
+      "default": 512,
+      "minimum": 64,
+      "maximum": 8192,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 8
+    },
+    "normalize": {
+      "type": "boolean",
+      "title": "规范化向量",
+      "description": "将嵌入向量规范化为单位长度。",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 9
+    },
+    "cache_dir": {
+      "type": "string",
+      "title": "模型缓存目录",
+      "description": "缓存下载模型的目录（空 = 默认缓存）。",
+      "default": "",
+      "component": "Input",
+      "placeholder": "/path/to/model/cache",
+      "width": "half",
+      "order": 10
+    },
+    "device": {
+      "type": "string",
+      "title": "计算设备",
+      "description": "用于模型推理的设备。",
+      "default": "cpu",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "CPU",
+          "value": "cpu",
+          "description": "使用 CPU 进行推理（兼容所有系统）",
+          "default": true
+        },
+        {
+          "label": "CUDA (GPU)",
+          "value": "cuda",
+          "description": "使用 NVIDIA GPU 进行更快推理"
+        },
+        {
+          "label": "MPS (Apple Silicon)",
+          "value": "mps",
+          "description": "使用 Apple Silicon GPU 加速"
+        },
+        {
+          "label": "自动",
+          "value": "auto",
+          "description": "自动选择最佳可用设备"
+        }
+      ],
+      "width": "half",
+      "order": 11
+    },
+    "threads": {
+      "type": "integer",
+      "title": "CPU 线程数",
+      "description": "要使用的 CPU 线程数（-1 = 自动）。",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 32,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 12
+    }
+  }
+}

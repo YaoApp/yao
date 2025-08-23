@@ -14,8 +14,17 @@ import (
 func Load(cfg config.Config) error {
 	messages := []string{}
 
+	// Ignore if the apis directory does not exist
+	exists, err := application.App.Exists("apis")
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
 	exts := []string{"*.http.yao", "*.http.json", "*.http.jsonc"}
-	err := application.App.Walk("apis", func(root, file string, isdir bool) error {
+	err = application.App.Walk("apis", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}

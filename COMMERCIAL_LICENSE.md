@@ -1,3 +1,5 @@
+> **DEPRECATED**: This license is no longer in effect. Please refer to the [LICENSE](LICENSE) file for current licensing terms.
+
 # Commercial License for Yao
 
 This document outlines the terms for the commercial license of the **Yao** project. While the Yao project is primarily licensed under the **Apache License, Version 2.0**, certain commercial use cases require a separate commercial license.

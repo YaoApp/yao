@@ -1,0 +1,323 @@
+name: Unit Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Version"
+  push:
+    branches: [main]
+
+env:
+  YAO_DEV: ${{ github.WORKSPACE }}
+  YAO_ENV: development
+  YAO_ROOT: ${{ github.WORKSPACE }}/../app
+  YAO_HOST: 0.0.0.0
+  YAO_PORT: 5099
+  YAO_SESSION: "memory"
+  YAO_LOG: "./logs/application.log"
+  YAO_LOG_MODE: "TEXT"
+  YAO_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
+  YAO_DB_AESKEY: "ZLX=T&f6refeCh-ro*r@"
+  OSS_TEST_ID: ${{ secrets.OSS_TEST_ID}}
+  OSS_TEST_SECRET: ${{ secrets.OSS_TEST_SECRET}}
+  ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+  MYSQL_TEST_HOST: "127.0.0.1"
+  MYSQL_TEST_PORT: "3308"
+  MYSQL_TEST_USER: test
+  MYSQL_TEST_PASS: "123456"
+
+  SQLITE_DB: "./app/db/yao.db"
+
+  REDIS_TEST_HOST: "127.0.0.1"
+  REDIS_TEST_PORT: "6379"
+  REDIS_TEST_DB: "2"
+
+  MONGO_TEST_HOST: "127.0.0.1"
+  MONGO_TEST_PORT: "27017"
+  MONGO_TEST_USER: "root"
+  MONGO_TEST_PASS: "123456"
+
+  OPENAI_TEST_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_MIRROR: https://api.openai.com
+
+  TAB_NAME: "::PET ADMIN"
+  PAGE_SIZE: "20"
+  PAGE_LINK: "https://yaoapps.com"
+  PAGE_ICON: "icon-trash"
+
+  DEMO_APP: ${{ github.WORKSPACE }}/../app
+
+  # Application Setting
+
+  ## Path
+  YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+  YAO_SUI_TEST_APPLICATION: ${{ github.WORKSPACE }}/../yao-startup-webapp
+
+  ## Runtime
+  YAO_RUNTIME_MIN: 3
+  YAO_RUNTIME_MAX: 6
+  YAO_RUNTIME_HEAP_LIMIT: 1500000000
+  YAO_RUNTIME_HEAP_RELEASE: 10000000
+  YAO_RUNTIME_HEAP_AVAILABLE: 550000000
+  YAO_RUNTIME_PRECOMPILE: true
+
+  # Neo4j
+  NEO4J_TEST_URL: "neo4j://localhost:7686"
+  NEO4J_TEST_USER: "neo4j"
+  NEO4J_TEST_PASS: "Yao2026Neo4j"
+
+  # Qdrant
+  QDRANT_TEST_HOST: "127.0.0.1"
+  QDRANT_TEST_PORT: "6334"
+
+  # S3
+  S3_API: ${{ secrets.S3_API }}
+  S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+  S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+  S3_PUBLIC_URL: ${{ secrets.S3_PUBLIC_URL }}
+
+
+  # === Openapi Signin Configs ===
+  ## Google
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+  ## Microsoft
+  MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+  MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+
+  ## Apple
+  APPLE_SERVICE_ID: ${{ secrets.APPLE_SERVICE_ID }}
+  APPLE_PRIVATE_KEY_PATH: "apple/signin_client_secret_key.p8"
+  APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  ## Github
+  GITHUBUSER_CLIENT_ID: ${{ secrets.GITHUBUSER_CLIENT_ID }}
+  GITHUBUSER_CLIENT_SECRET: ${{ secrets.GITHUBUSER_CLIENT_SECRET }}
+
+  ## Cloudflare Turnstile
+  CLOUDFLARE_TURNSTILE_SITEKEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITEKEY }}
+  CLOUDFLARE_TURNSTILE_SECRET: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET }}
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333 # HTTP API
+          - 6334:6334 # gRPC
+
+      fastembed:
+        image: yaoapp/fastembed:latest-amd64
+        env:
+          FASTEMBED_PASSWORD: Yao@2026
+        ports:
+          - 6001:8000
+
+      neo4j:
+        image: neo4j:latest
+        ports:
+          - "7687:7687"
+        env:
+          NEO4J_AUTH: neo4j/Yao2026Neo4j
+
+      mcp-everything:
+        image: yaoapp/mcp-everything:latest
+        ports:
+          - "3021:3021"
+          - "3022:3022"
+
+    strategy:
+      matrix:
+        go: [1.24]
+        db: [MySQL8.0, MySQL5.7, SQLite3]
+        redis: [4, 5, 6]
+        mongo: ["6.0"]
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")  # Get the directory where the ZIP file is located
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Yao Startup Webapp
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-startup-webapp
+          submodules: true
+          token: ${{ secrets.YAO_TEST_TOKEN }}
+          path: yao-startup-webapp
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Kun, Xun, Gou, V8Go, Extension
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+          mv yao-startup-webapp ../
+          ls -l .
+          ls -l ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Apple Private Key
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Install FFmpeg 7.x
+        run: |
+          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          tar -xf ffmpeg-master-latest-linux64-gpl.tar.xz
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/
+          sudo chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+      - name: Test FFmpeg
+        run: ffmpeg -version
+
+      - name: Install pdftoppm, mutool, imagemagick
+        run: |
+          sudo apt update
+          sudo apt install -y poppler-utils mupdf-tools imagemagick
+
+      - name: Test pdftoppm, mutool, imagemagick
+        run: |
+          pdftoppm -v
+          mutool -v
+          convert -version
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: ${{ matrix.redis }}
+
+      - name: Start MongoDB
+        uses: supercharge/mongodb-github-action@1.8.0
+        with:
+          mongodb-version: ${{ matrix.mongo }}
+          mongodb-username: root
+          mongodb-password: 123456
+          mongodb-db: test
+
+      - name: Setup MySQL8.0 (connector)
+        uses: ./.github/actions/setup-db
+        with:
+          kind: "MySQL8.0"
+          db: "test"
+          user: "test"
+          password: "123456"
+          port: "3308"
+
+      - name: Setup ${{ matrix.db }}
+        uses: ./.github/actions/setup-db
+        with:
+          kind: "${{ matrix.db }}"
+          db: "xiang"
+          user: "xiang"
+          password: ${{ secrets.UNIT_PASS }}
+
+      - name: Setup Go Tools
+        run: |
+          make tools
+
+      - name: Setup ENV & Host
+        env:
+          PASSWORD: ${{ secrets.UNIT_PASS }}
+        run: |
+          sudo echo "127.0.0.1 local.iqka.com" | sudo tee -a /etc/hosts 
+          echo "YAO_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
+          echo "GITHUB_WORKSPACE:\n" && ls -l $GITHUB_WORKSPACE
+
+          if [ "$DB_DRIVER" = "mysql" ]; then
+            echo "YAO_DB_PRIMARY=$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
+          elif [ "$DB_DRIVER" = "postgres" ]; then
+            echo "YAO_DB_PRIMARY=postgres://$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
+          else
+            echo "YAO_DB_PRIMARY=$YAO_ROOT/$DB_HOST" >> $GITHUB_ENV
+          fi
+
+          echo ".:\n" && ls -l .
+          echo "..:\n" && ls -l ..
+          echo "../app:\n" && ls -l ../app
+          ping -c 1 -t 1 local.iqka.com
+
+      - name: Test Prepare
+        run: |
+          make vet
+          make fmt-check
+          make misspell-check
+
+      - name: Inspect
+        run: |
+          go run . run utils.env.Get MONGO_TEST_HOST
+          go run . run utils.env.Get REDIS_TEST_HOST
+          go run . inspect
+
+      - name: Run test
+        run: |
+          make test
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos

@@ -9,14 +9,24 @@ on:
 jobs:
   build:
     runs-on: "ubuntu-latest"
-    strategy:
-      matrix:
-        go: [1.23.4]
+    container:
+      image: yaoapp/yao-build:0.10.5
+
+    env:
+      CF_ACCESS_KEY_ID: ${{ secrets.CF_ACCESS_KEY_ID }}
+      CF_SECRET_ACCESS_KEY: ${{ secrets.CF_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Configure R2 For Cloudflare
+        run: |
+          aws configure set aws_access_key_id $CF_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $CF_SECRET_ACCESS_KEY
+          aws configure set default.region us-east-1 # Update with your R2 region if different
+          aws configure set default.s3.signature_version s3v4
+          aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+          aws --version
 
       - name: Install pnpm
         run: npm install -g pnpm

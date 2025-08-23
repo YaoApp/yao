@@ -1,0 +1,179 @@
+{
+  "name": "attachment",
+  "label": "Attachment",
+  "description": "Attachment table for storing file attachments with metadata and access control",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": {
+    "name": "attachment",
+    "comment": "Attachment table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "Attachment ID",
+      "comment": "Unique attachment identifier"
+    },
+    {
+      "name": "file_id",
+      "type": "string",
+      "label": "File ID",
+      "comment": "File identifier",
+      "length": 255,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "uploader",
+      "type": "string",
+      "label": "Uploader",
+      "comment": "File uploader type",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "content_type",
+      "type": "string",
+      "label": "Content Type",
+      "comment": "File content type",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "File name",
+      "length": 500,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "url",
+      "type": "string",
+      "label": "URL",
+      "comment": "File URL",
+      "length": 1000,
+      "nullable": true,
+      "index": false
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "label": "Description",
+      "comment": "File description",
+      "length": 1000,
+      "nullable": true,
+      "index": false
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "File type",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "user_path",
+      "type": "string",
+      "label": "User Path",
+      "comment": "User-specified complete file path",
+      "length": 1000,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "label": "Storage Path",
+      "comment": "Actual storage path for the file",
+      "length": 1000,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "groups",
+      "type": "json",
+      "label": "Groups",
+      "comment": "File groups",
+      "nullable": true
+    },
+    {
+      "name": "gzip",
+      "type": "boolean",
+      "label": "Gzip",
+      "comment": "Whether file is gzipped",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "bytes",
+      "type": "bigInteger",
+      "label": "Bytes",
+      "comment": "File size in bytes",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "File processing status",
+      "option": [
+        "uploading",
+        "uploaded",
+        "indexing",
+        "indexed",
+        "upload_failed",
+        "index_failed"
+      ],
+      "default": "uploading",
+      "index": true
+    },
+    {
+      "name": "progress",
+      "type": "string",
+      "label": "Progress",
+      "comment": "Processing progress information",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "type": "string",
+      "label": "Error",
+      "comment": "Error information",
+      "length": 600,
+      "nullable": true
+    },
+    {
+      "name": "client_id",
+      "type": "string",
+      "label": "Client ID",
+      "comment": "Client identifier",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "openid",
+      "type": "string",
+      "label": "OpenID",
+      "comment": "OpenID identifier",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    }
+  ],
+  "relations": {},
+  "indexes": [],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

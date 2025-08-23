@@ -290,6 +290,11 @@ func jsSend(info *v8go.FunctionCallbackInfo) *v8go.Value {
 			return bridge.JsException(info.Context(), err.Error())
 		}
 
+		// Set the role to assistant
+		if msg.Role == "" {
+			msg.Role = "assistant"
+		}
+
 		// Append the message to the contents
 		if saveHistory {
 			msg.AppendTo(global.Contents)
@@ -299,6 +304,11 @@ func jsSend(info *v8go.FunctionCallbackInfo) *v8go.Value {
 
 	case map[string]interface{}:
 		msg := message.New().Map(v)
+		if msg.Role == "" {
+			msg.Role = "assistant"
+		}
+
+		// Append the message to the contents
 		if saveHistory {
 			msg.AppendTo(global.Contents)
 		}
@@ -332,10 +342,6 @@ func jsReplace(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	replaced, _ := sui.Data(data).Replace(tmpl)
-	if err != nil {
-		return bridge.JsException(info.Context(), err.Error())
-	}
-
 	jsReplaced, err := bridge.JsValue(info.Context(), replaced)
 	if err != nil {
 		return bridge.JsException(info.Context(), err.Error())

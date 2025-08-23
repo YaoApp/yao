@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/neo/i18n"
 	"github.com/yaoapp/yao/neo/store"
 	neovision "github.com/yaoapp/yao/neo/vision"
 	"github.com/yaoapp/yao/openai"
@@ -25,6 +26,7 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var rag *RAG = nil
+var search interface{} = nil
 var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *neovision.Vision = nil
 var defaultConnector string = "" // default connector
@@ -41,12 +43,22 @@ func LoadBuiltIn() error {
 		return err
 	}
 
+	// Get all existing built-in assistants
+	deletedBuiltIn := map[string]bool{}
+
 	// Remove the built-in assistants
 	if storage != nil {
+
 		builtIn := true
-		_, err := storage.DeleteAssistants(store.AssistantFilter{BuiltIn: &builtIn})
+		res, err := storage.GetAssistants(store.AssistantFilter{BuiltIn: &builtIn, Select: []string{"assistant_id", "id"}})
 		if err != nil {
 			return err
+		}
+
+		// Get all existing built-in assistants
+		for _, assistant := range res.Data {
+			assistantID := assistant["assistant_id"].(string)
+			deletedBuiltIn[assistantID] = true
 		}
 	}
 
@@ -78,21 +90,7 @@ func LoadBuiltIn() error {
 			assistant.Sort = sort
 		}
 		if assistant.Tags == nil {
-			assistant.Tags = []string{"Built-in"}
-		}
-
-		// Check if the assistant has Built-in tag
-		hasBuiltIn := false
-		for _, tag := range assistant.Tags {
-			if tag == "Built-in" {
-				hasBuiltIn = true
-				break
-			}
-		}
-
-		// add Built-in tag if not exists
-		if !hasBuiltIn {
-			assistant.Tags = append(assistant.Tags, "Built-in")
+			assistant.Tags = []string{}
 		}
 
 		// Save the assistant
@@ -110,6 +108,22 @@ func LoadBuiltIn() error {
 		sort++
 		loaded.Put(assistant)
 
+		// Remove the built-in assistant from the store
+		if _, ok := deletedBuiltIn[assistant.ID]; ok {
+			delete(deletedBuiltIn, assistant.ID)
+		}
+	}
+
+	// Remove deleted built-in assistants
+	if len(deletedBuiltIn) > 0 {
+		assistantIDs := []string{}
+		for assistantID := range deletedBuiltIn {
+			assistantIDs = append(assistantIDs, assistantID)
+		}
+		_, err := storage.DeleteAssistants(store.AssistantFilter{AssistantIDs: assistantIDs})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -160,6 +174,11 @@ func ClearCache() {
 		loaded.Clear()
 		loaded = nil
 	}
+}
+
+// GetCache returns the loaded cache
+func GetCache() *Cache {
+	return loaded
 }
 
 // LoadStore create a new assistant from store
@@ -254,8 +273,10 @@ func LoadPath(path string) (*Assistant, error) {
 	// assistant_id
 	id := strings.ReplaceAll(strings.TrimPrefix(path, "/assistants/"), "/", ".")
 	data["assistant_id"] = id
-	data["type"] = "assistant"
 	data["path"] = path
+	if _, has := data["type"]; !has {
+		data["type"] = "assistant"
+	}
 
 	updatedAt := int64(0)
 
@@ -293,8 +314,12 @@ func LoadPath(path string) (*Assistant, error) {
 		updatedAt = max(updatedAt, ts)
 	}
 
-	// load flow
-
+	// i18ns
+	locales, err := i18n.GetLocales(path)
+	if err != nil {
+		return nil, err
+	}
+	data["locales"] = locales
 	return loadMap(data)
 }
 
@@ -435,14 +460,69 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Description = v
 	}
 
-	// prompts
-	if v, ok := data["prompts"].(string); ok {
-		var prompts []Prompt
-		err := yaml.Unmarshal([]byte(v), &prompts)
+	// locales
+	if locales, ok := data["locales"].(i18n.Map); ok {
+		assistant.Locales = locales
+		i18n.Locales[id] = locales.FlattenWithGlobal()
+	}
+
+	// Search options
+	if v, ok := data["search"].(map[string]interface{}); ok {
+		assistant.Search = &SearchOption{}
+		raw, err := jsoniter.Marshal(v)
 		if err != nil {
 			return nil, err
 		}
-		assistant.Prompts = prompts
+
+		// Unmarshal the raw data
+		err = jsoniter.Unmarshal(raw, assistant.Search)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Knowledge options
+	if v, ok := data["knowledge"].(map[string]interface{}); ok {
+		assistant.Knowledge = &KnowledgeOption{}
+		raw, err := jsoniter.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+		// Unmarshal the raw data
+		err = jsoniter.Unmarshal(raw, assistant.Knowledge)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// prompts
+	if prompts, has := data["prompts"]; has {
+
+		switch v := prompts.(type) {
+		case []Prompt:
+			assistant.Prompts = v
+
+		case string:
+			var prompts []Prompt
+			err := yaml.Unmarshal([]byte(v), &prompts)
+			if err != nil {
+				return nil, err
+			}
+			assistant.Prompts = prompts
+
+		default:
+			raw, err := jsoniter.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+
+			var prompts []Prompt
+			err = jsoniter.Unmarshal(raw, &prompts)
+			if err != nil {
+				return nil, err
+			}
+			assistant.Prompts = prompts
+		}
 	}
 
 	// tools

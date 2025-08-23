@@ -1,0 +1,163 @@
+{
+  "name": "User Type",
+  "label": "User Type",
+  "description": "User type classification and configuration",
+  "tags": ["user", "type", "classification", "config"],
+  "table": {
+    "name": "user_type",
+    "comment": "User type classification and configuration"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "type_id",
+      "type": "string",
+      "label": "Type ID",
+      "comment": "Unique type identifier (admin, customer, guest, etc.)",
+      "length": 50,
+      "unique": true,
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Display name of the user type",
+      "length": 100,
+      "nullable": false
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Detailed description of the user type",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Configuration Fields
+    // ============================================================================
+    {
+      "name": "default_role_id",
+      "type": "string",
+      "label": "Default Role ID",
+      "comment": "Default role assigned to users of this type",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "schema",
+      "type": "json",
+      "label": "Schema",
+      "comment": "JSON schema defining metadata structure and UI configuration",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional configuration and settings for this user type",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Management Fields
+    // ============================================================================
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "label": "Is Active",
+      "comment": "Whether this user type is currently active",
+      "default": true,
+      "index": true
+    },
+    {
+      "name": "is_default",
+      "type": "boolean",
+      "label": "Is Default",
+      "comment": "Whether this is the default user type for new registrations",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "sort_order",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Display order for sorting",
+      "default": 0,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Access Control Fields
+    // ============================================================================
+    {
+      "name": "max_sessions",
+      "type": "integer",
+      "label": "Max Sessions",
+      "comment": "Maximum concurrent sessions allowed for this user type",
+      "nullable": true
+    },
+    {
+      "name": "session_timeout",
+      "type": "integer",
+      "label": "Session Timeout",
+      "comment": "Session timeout in minutes (0 = no timeout)",
+      "default": 0,
+      "nullable": true
+    },
+    {
+      "name": "password_policy",
+      "type": "json",
+      "label": "Password Policy",
+      "comment": "Password requirements and policies for this user type",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Feature Flags
+    // ============================================================================
+    {
+      "name": "features",
+      "type": "json",
+      "label": "Features",
+      "comment": "Feature flags and capabilities available to this user type",
+      "nullable": true
+    },
+    {
+      "name": "limits",
+      "type": "json",
+      "label": "Limits",
+      "comment": "Usage limits and quotas for this user type",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_user_type_active",
+      "columns": ["is_active", "sort_order"],
+      "type": "index",
+      "comment": "Index for active user types with ordering"
+    },
+    {
+      "name": "idx_user_type_default",
+      "columns": ["is_default", "is_active"],
+      "type": "index",
+      "comment": "Index for finding default active user type"
+    }
+  ],
+  "relations": {},
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

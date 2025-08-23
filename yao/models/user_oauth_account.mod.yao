@@ -1,0 +1,255 @@
+{
+  "name": "User OAuth Account",
+  "label": "User OAuth Account",
+  "description": "User's third-party OAuth account information storage",
+  "tags": ["user", "oauth", "social", "external", "provider"],
+  "table": {
+    "name": "user_oauth_account",
+    "comment": "User's third-party OAuth account information storage"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "label": "User ID",
+      "comment": "Reference to main user account",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "provider",
+      "type": "string",
+      "label": "Provider",
+      "comment": "OAuth provider name (google, apple, github, etc.)",
+      "length": 50,
+      "nullable": false,
+      "index": true
+    },
+
+    // ============================================================================
+    // OIDC Standard Claims from Provider
+    // Reference: https://openid.net/specs/openid-connect-core-1_0.html#StandardClaims
+    // ============================================================================
+    {
+      "name": "sub",
+      "type": "string",
+      "label": "Subject",
+      "comment": "OIDC subject identifier (sub claim) from provider",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "preferred_username",
+      "type": "string",
+      "label": "Preferred Username",
+      "comment": "OIDC preferred username from provider",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "label": "Email",
+      "comment": "OIDC email address from provider",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "email_verified",
+      "type": "boolean",
+      "label": "Email Verified",
+      "comment": "OIDC email verification status from provider",
+      "default": false,
+      "nullable": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Full Name",
+      "comment": "OIDC full name from provider",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "given_name",
+      "type": "string",
+      "label": "Given Name",
+      "comment": "OIDC given name(s) or first name(s) from provider",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "family_name",
+      "type": "string",
+      "label": "Family Name",
+      "comment": "OIDC surname(s) or last name(s) from provider",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "middle_name",
+      "type": "string",
+      "label": "Middle Name",
+      "comment": "OIDC middle name(s) from provider",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "nickname",
+      "type": "string",
+      "label": "Nickname",
+      "comment": "OIDC casual name from provider",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "profile",
+      "type": "string",
+      "label": "Profile",
+      "comment": "OIDC profile page URL from provider",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "picture",
+      "type": "string",
+      "label": "Picture",
+      "comment": "OIDC profile picture URL from provider",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "website",
+      "type": "string",
+      "label": "Website",
+      "comment": "OIDC web page or blog URL from provider",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "gender",
+      "type": "string",
+      "label": "Gender",
+      "comment": "OIDC gender from provider",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "birthdate",
+      "type": "string",
+      "label": "Birthdate",
+      "comment": "OIDC birthday from provider (YYYY-MM-DD format)",
+      "length": 10,
+      "nullable": true
+    },
+    {
+      "name": "zoneinfo",
+      "type": "string",
+      "label": "Zone Info",
+      "comment": "OIDC time zone info from provider",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "locale",
+      "type": "string",
+      "label": "Locale",
+      "comment": "OIDC locale from provider (language-country)",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "phone_number",
+      "type": "string",
+      "label": "Phone Number",
+      "comment": "OIDC phone number from provider",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "phone_number_verified",
+      "type": "boolean",
+      "label": "Phone Number Verified",
+      "comment": "OIDC phone verification status from provider",
+      "default": false,
+      "nullable": true
+    },
+    {
+      "name": "address",
+      "type": "json",
+      "label": "Address",
+      "comment": "OIDC physical mailing address from provider (structured)",
+      "nullable": true
+    },
+
+    {
+      "name": "raw",
+      "type": "json",
+      "label": "Raw",
+      "comment": "OIDC original user info response from provider",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Account Management Fields
+    // ============================================================================
+    {
+      "name": "last_login_at",
+      "type": "timestamp",
+      "label": "Last Login At",
+      "comment": "Last login via this OAuth provider",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "is_active",
+      "type": "boolean",
+      "label": "Is Active",
+      "comment": "Whether this OAuth account is still active",
+      "default": true,
+      "index": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_user_oauth_user_provider",
+      "columns": ["user_id", "provider"],
+      "type": "unique",
+      "comment": "Unique constraint: one account per provider per user"
+    },
+    {
+      "name": "idx_user_oauth_provider_sub",
+      "columns": ["provider", "sub"],
+      "type": "unique",
+      "comment": "Unique constraint: one record per provider sub claim"
+    },
+    {
+      "name": "idx_user_oauth_email",
+      "columns": ["provider", "email"],
+      "type": "index",
+      "comment": "Index for email lookups by provider"
+    },
+    {
+      "name": "idx_user_oauth_active",
+      "columns": ["is_active", "last_login_at"],
+      "type": "index",
+      "comment": "Index for active account queries"
+    }
+  ],
+  "relations": {},
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

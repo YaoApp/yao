@@ -1,0 +1,186 @@
+{
+  "id": "__yao.openai",
+  "title": "OpenAI Embeddings",
+  "description": "OpenAI's text embedding models for converting text into high-dimensional vectors. Supports various embedding models with configurable dimensions and concurrent processing.",
+  "required": ["connector"],
+  "properties": {
+    "connector": {
+      "type": "string",
+      "title": "OpenAI Connector",
+      "description": "OpenAI connector for embedding API access.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "groupLabel": "OpenAI Models",
+          "options": [
+            {
+              "label": "text-embedding-3-small",
+              "value": "openai.text-embedding-3-small",
+              "description": "Latest small embedding model, 1536 dimensions, cost-effective",
+              "default": true
+            },
+            {
+              "label": "text-embedding-3-large",
+              "value": "openai.text-embedding-3-large",
+              "description": "Latest large embedding model, 3072 dimensions, highest quality"
+            },
+            {
+              "label": "text-embedding-ada-002",
+              "value": "openai.text-embedding-ada-002",
+              "description": "Previous generation model, 1536 dimensions, reliable"
+            }
+          ]
+        },
+        {
+          "groupLabel": "Azure OpenAI",
+          "options": [
+            {
+              "label": "Azure text-embedding-3-small",
+              "value": "azure.text-embedding-3-small",
+              "description": "Azure hosted embedding model, 1536 dimensions"
+            },
+            {
+              "label": "Azure text-embedding-3-large",
+              "value": "azure.text-embedding-3-large",
+              "description": "Azure hosted large embedding model, 3072 dimensions"
+            }
+          ]
+        }
+      ],
+      "width": "full",
+      "order": 1
+    },
+    "model": {
+      "type": "string",
+      "title": "Model Name (Optional)",
+      "description": "Specific model name to override connector default.",
+      "default": "",
+      "component": "Select",
+      "enum": [
+        {
+          "label": "Use Connector Default",
+          "value": "",
+          "description": "Use the default model from the selected connector",
+          "default": true
+        },
+        {
+          "label": "text-embedding-3-small",
+          "value": "text-embedding-3-small",
+          "description": "1536 dimensions, cost-effective"
+        },
+        {
+          "label": "text-embedding-3-large",
+          "value": "text-embedding-3-large",
+          "description": "3072 dimensions, highest quality"
+        },
+        {
+          "label": "text-embedding-ada-002",
+          "value": "text-embedding-ada-002",
+          "description": "1536 dimensions, previous generation"
+        }
+      ],
+      "width": "half",
+      "order": 2
+    },
+    "dimensions": {
+      "type": "integer",
+      "title": "Embedding Dimensions",
+      "description": "Number of dimensions for the embedding vectors.",
+      "default": 1536,
+      "component": "Select",
+      "enum": [
+        {
+          "label": "1536 (text-embedding-3-small default)",
+          "value": 1536,
+          "description": "Standard dimension for text-embedding-3-small",
+          "default": true
+        },
+        {
+          "label": "3072 (text-embedding-3-large default)",
+          "value": 3072,
+          "description": "Full dimension for text-embedding-3-large"
+        },
+        {
+          "label": "1024",
+          "value": 1024,
+          "description": "Reduced dimension for smaller storage"
+        },
+        {
+          "label": "512",
+          "value": 512,
+          "description": "Compact dimension for memory efficiency"
+        },
+        {
+          "label": "256",
+          "value": 256,
+          "description": "Minimal dimension for basic similarity"
+        }
+      ],
+      "width": "half",
+      "order": 3
+    },
+    "concurrent": {
+      "type": "integer",
+      "title": "Concurrent Requests",
+      "description": "Number of concurrent embedding requests to process.",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 100,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 4
+    },
+    "batch_size": {
+      "type": "integer",
+      "title": "Batch Size",
+      "description": "Number of texts to embed in each API request.",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 2048,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 5
+    },
+    "retry_attempts": {
+      "type": "integer",
+      "title": "Retry Attempts",
+      "description": "Number of retry attempts for failed requests.",
+      "default": 3,
+      "minimum": 0,
+      "maximum": 10,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 6
+    },
+    "timeout": {
+      "type": "integer",
+      "title": "Timeout (seconds)",
+      "description": "Request timeout in seconds.",
+      "default": 30,
+      "minimum": 5,
+      "maximum": 300,
+      "component": "InputNumber",
+      "width": "half",
+      "order": 7
+    },
+    "normalize": {
+      "type": "boolean",
+      "title": "Normalize Vectors",
+      "description": "Normalize embedding vectors to unit length.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 8
+    },
+    "truncate_input": {
+      "type": "boolean",
+      "title": "Truncate Long Input",
+      "description": "Automatically truncate input text that exceeds token limits.",
+      "default": true,
+      "component": "Switch",
+      "width": "half",
+      "order": 9
+    }
+  }
+}

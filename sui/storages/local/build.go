@@ -68,7 +68,7 @@ func (tmpl *Template) Build(option *core.BuildOption) ([]string, error) {
 	}
 
 	// Build all pages
-	ctx := core.NewGlobalBuildContext()
+	ctx := core.NewGlobalBuildContext(tmpl)
 	pages, err := tmpl.Pages()
 	if err != nil {
 		return warnings, err
@@ -149,7 +149,7 @@ func (tmpl *Template) Trans(option *core.BuildOption) ([]string, error) {
 	var err error
 	warnings := []string{}
 
-	ctx := core.NewGlobalBuildContext()
+	ctx := core.NewGlobalBuildContext(tmpl)
 	pages, err := tmpl.Pages()
 	if err != nil {
 		return warnings, err

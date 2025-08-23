@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
@@ -14,6 +15,8 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	chatctx "github.com/yaoapp/yao/neo/context"
+	"github.com/yaoapp/yao/neo/i18n"
+	"github.com/yaoapp/yao/neo/message"
 	chatMessage "github.com/yaoapp/yao/neo/message"
 )
 
@@ -85,15 +88,17 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 	}
 	options := ast.withOptions(userOptions)
 
-	// Add RAG and Version support
-	ctx.RAG = rag != nil
-	ctx.Version = ast.vision
+	// Add RAG、Vision and Search support
+	// ctx.RAG = rag != nil
+	ctx.Knowledge = false
+	ctx.Vision = ast.vision
+	ctx.Search = ast.search && search != nil
 
 	// Run init hook
 	res, err := ast.HookCreate(c, ctx, input, options, contents)
 	if err != nil {
 		chatMessage.New().
-			Assistant(ast.ID, ast.Name, ast.Avatar).
+			// Assistant(ast.ID, ast.Name, ast.Avatar).
 			Error(err).
 			Done().
 			Write(c.Writer)
@@ -110,18 +115,28 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 		input = res.Input
 	}
 
-	// Handle next action
-	// It's not used, return the new assistant_id and chat_id
-	// if res != nil && res.Next != nil {
-	// 	return res.Next.Execute(c, ctx, contents)
-	// }
+	// Has result return directly
+	if res != nil && res.Result != nil {
+		output := chatMessage.New().
+			// Assistant(ast.ID, ast.Name, ast.Avatar).
+			SetResult(res.Result).
+			Done()
+
+		// Has callback function
+		if len(callback) > 0 {
+			output.Callback(callback[0]).Write(c.Writer)
+			return res.Result, nil
+		}
+		output.Write(c.Writer)
+		return res.Result, nil
+	}
 
 	// Switch to the new assistant if necessary
 	if res != nil && res.AssistantID != "" && res.AssistantID != ctx.AssistantID {
 		newAst, err := Get(res.AssistantID)
 		if err != nil {
 			chatMessage.New().
-				Assistant(ast.ID, ast.Name, ast.Avatar).
+				// Assistant(ast.ID, ast.Name, ast.Avatar).
 				Error(err).
 				Done().
 				Write(c.Writer)
@@ -155,38 +170,6 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 // Execute the next action
 func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *chatMessage.Contents, callback ...interface{}) (interface{}, error) {
 	switch next.Action {
-
-	// It's not used, because the process could be executed in the hook script
-	// It may remove in the future
-	// case "process":
-	// 	if next.Payload == nil {
-	// 		return fmt.Errorf("payload is required")
-	// 	}
-
-	// 	name, ok := next.Payload["name"].(string)
-	// 	if !ok {
-	// 		return fmt.Errorf("process name should be string")
-	// 	}
-
-	// 	args := []interface{}{}
-	// 	if v, ok := next.Payload["args"].([]interface{}); ok {
-	// 		args = v
-	// 	}
-
-	// 	// Add context and writer to args
-	// 	args = append(args, ctx, c.Writer)
-	// 	p, err := process.Of(name, args...)
-	// 	if err != nil {
-	// 		return fmt.Errorf("get process error: %s", err.Error())
-	// 	}
-
-	// 	err = p.Execute()
-	// 	if err != nil {
-	// 		return fmt.Errorf("execute process error: %s", err.Error())
-	// 	}
-	// 	defer p.Release()
-
-	// 	return nil
 
 	case "assistant":
 		if next.Payload == nil {
@@ -261,19 +244,6 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 		if err != nil {
 			return nil, fmt.Errorf("with history error: %s", err.Error())
 		}
-
-		// Create a new Text
-		// Send loading message and mark as new
-		if !ctx.Silent {
-			msg := chatMessage.New().Map(map[string]interface{}{
-				"new":   true,
-				"role":  "assistant",
-				"type":  "loading",
-				"props": map[string]interface{}{"placeholder": "Calling " + assistant.Name},
-			})
-			msg.Assistant(assistant.ID, assistant.Name, assistant.Avatar)
-			msg.Write(c.Writer)
-		}
 		newContents := chatMessage.NewContents()
 
 		// Update the context id
@@ -289,8 +259,29 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 }
 
 // GetPlaceholder returns the placeholder of the assistant
-func (ast *Assistant) GetPlaceholder() *Placeholder {
-	return ast.Placeholder
+func (ast *Assistant) GetPlaceholder(locale string) *Placeholder {
+
+	prompts := []string{}
+	if ast.Placeholder.Prompts != nil {
+		prompts = i18n.Translate(ast.ID, locale, ast.Placeholder.Prompts).([]string)
+	}
+	title := i18n.Translate(ast.ID, locale, ast.Placeholder.Title).(string)
+	description := i18n.Translate(ast.ID, locale, ast.Placeholder.Description).(string)
+	return &Placeholder{
+		Title:       title,
+		Description: description,
+		Prompts:     prompts,
+	}
+}
+
+// GetName returns the name of the assistant
+func (ast *Assistant) GetName(locale string) string {
+	return i18n.Translate(ast.ID, locale, ast.Name).(string)
+}
+
+// GetDescription returns the description of the assistant
+func (ast *Assistant) GetDescription(locale string) string {
+	return i18n.Translate(ast.ID, locale, ast.Description).(string)
 }
 
 // Call implements the call functionality
@@ -306,10 +297,15 @@ func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, err
 
 	// Check if the method exists
 	if !scriptCtx.Global().Has(method) {
+		color.Red("Assistant Call: %s Method %s not found", ast.ID, method)
 		return nil, fmt.Errorf(HookErrorMethodNotFound)
 	}
 
-	return scriptCtx.CallWith(ctx, method, payload.Payload)
+	if payload.Args == nil || len(payload.Args) == 0 {
+		return scriptCtx.CallWith(ctx, method)
+	}
+
+	return scriptCtx.CallWith(ctx, method, payload.Args...)
 }
 
 // handleChatStream manages the streaming chat interaction with the AI
@@ -323,10 +319,6 @@ func (ast *Assistant) handleChatStream(c *gin.Context, ctx chatctx.Context, mess
 	go func() {
 		var res interface{} = nil
 		res, err = ast.streamChat(c, ctx, messages, options, clientBreak, contents, callback...)
-		if err != nil {
-			chatMessage.New().Error(err).Done().Write(c.Writer)
-			err = fmt.Errorf("stream chat error %s", err.Error())
-		}
 		result = res
 		done <- true
 	}()
@@ -368,6 +360,8 @@ func (ast *Assistant) streamChat(
 
 	toolsCount := 0
 	currentMessageID := ""
+	tokenID := ""
+	beganAt := int64(0)
 	var retry error = nil
 	var result interface{} = nil // To save the result
 	var content string = ""      // To save the content
@@ -412,6 +406,7 @@ func (ast *Assistant) streamChat(
 			// for api reasoning_content response
 			if msg.Type == "think" {
 				if isFirstThink {
+					msg.Begin = time.Now().UnixNano()
 					msg.Text = "<think>\n" + msg.Text // add the think begin tag
 					isFirstThink = false
 					isThinking = true
@@ -425,15 +420,22 @@ func (ast *Assistant) streamChat(
 				end.ID = currentMessageID
 				end.Retry = ctx.Retry
 				end.Silent = ctx.Silent
+				end.End = time.Now().UnixNano()
+				end.Begin = beganAt
+				end.ToolID = tokenID
 
 				end.Callback(cb).Write(c.Writer)
 				end.AppendTo(contents)
-				contents.UpdateType("think", map[string]interface{}{"text": contents.Text()}, currentMessageID)
+				contents.UpdateType("think", map[string]interface{}{"text": contents.Text()}, chatMessage.Extra{ID: currentMessageID, End: time.Now().UnixNano()})
 				isThinking = false
 
 				// Clear the token and make a new line
-				contents.NewText([]byte{}, currentMessageID)
-				contents.ClearToken()
+				contents.NewText([]byte{}, chatMessage.Extra{ID: currentMessageID})
+
+				// Clear the token
+				contents.ClearToken(tokenID)
+				beganAt = 0
+				tokenID = ""
 			}
 
 			// for native tool_calls response, keep the first tool_calls_native message
@@ -458,11 +460,12 @@ func (ast *Assistant) streamChat(
 					}
 
 					toolsCount++
-
+					msg.Begin = time.Now().UnixNano()
 				}
 
 				if msg.IsEndTool {
 					msg.Text = msg.Text + "\n</tool>\n" // add the tool_calls close tag
+					msg.End = time.Now().UnixNano()
 				}
 			}
 
@@ -471,53 +474,41 @@ func (ast *Assistant) streamChat(
 			// Chunk the delta
 			if delta != "" {
 
-				msg.AppendTo(contents) // Append content and send message
+				msg.AppendTo(contents) // Append content
 
 				// Scan the tokens
-				contents.ScanTokens(currentMessageID, func(token string, id string, begin bool, text string, tails string) {
-					currentMessageID = id
-					msg.ID = id
-					msg.Type = token
-					msg.Text = ""                                    // clear the text
-					msg.Props = map[string]interface{}{"text": text} // Update props
+				contents.ScanTokens(currentMessageID, tokenID, beganAt, func(params message.ScanCallbackParams) {
+					currentMessageID = params.MessageID
+					msg.ID = params.MessageID
+					msg.Type = params.Token
+					msg.Text = ""                                                                 // clear the text
+					msg.Props = map[string]interface{}{"text": params.Text, "id": params.TokenID} // Update props
+					msg.Begin = params.BeganAt
+					msg.End = params.EndAt
+					msg.ToolID = params.TokenID
 
 					// End of the token clear the text
-					if begin {
+					if params.Begin {
+						tokenID = params.TokenID
+						beganAt = params.BeganAt
+						return
+					}
+
+					if params.End {
+						tokenID = ""
+						beganAt = 0
 						return
 					}
 
 					// New message with the tails
-					if tails != "" {
-						newMsg, err := chatMessage.NewString(tails, id)
+					if params.Tails != "" {
+						newMsg, err := chatMessage.NewString(params.Tails, params.MessageID)
 						if err != nil {
 							return
 						}
 						messages = append(messages, *newMsg)
 					}
 				})
-
-				// Handle stream
-				// The stream hook is not used, because there's no need to handle the stream output
-				// if some thing need to be handled in future, we can use the stream hook again
-				// ------------------------------------------------------------------------------
-				// res, err := ast.HookStream(c, ctx, messages, msg, contents)
-				// if err == nil && res != nil {
-
-				// 	if res.Next != nil {
-				// 		err = res.Next.Execute(c, ctx, contents)
-				// 		if err != nil {
-				// 			chatMessage.New().Error(err.Error()).Done().Write(c.Writer)
-				// 		}
-
-				// 		done <- true
-				// 		return 0 // break
-				// 	}
-
-				// 	if res.Silent {
-				// 		return 1 // continue
-				// 	}
-				// }
-				// ------------------------------------------------------------------------------
 
 				// Write the message to the stream
 				msgType := msg.Type
@@ -540,9 +531,16 @@ func (ast *Assistant) streamChat(
 				output.Retry = ctx.Retry   // Retry mode
 				output.Silent = ctx.Silent // Silent mode
 				if isFirst {
-					output.Assistant(ast.ID, ast.Name, ast.Avatar)
+					output.Assistant(ast.ID, ast.GetName(ctx.Locale), ast.Avatar)
 					isFirst = false
 				}
+
+				if msg.Type == "think" || msg.Type == "tool" {
+					output.Begin = msg.Begin
+					output.End = msg.End
+					output.ToolID = msg.ToolID
+				}
+
 				output.Callback(cb).Write(c.Writer)
 			}
 
@@ -554,7 +552,7 @@ func (ast *Assistant) streamChat(
 					chatMessage.New().
 						Map(map[string]interface{}{
 							"assistant_id":     ast.ID,
-							"assistant_name":   ast.Name,
+							"assistant_name":   ast.GetName(ctx.Locale),
 							"assistant_avatar": ast.Avatar,
 							"text":             delta,
 							"type":             "text",
@@ -603,11 +601,16 @@ func (ast *Assistant) streamChat(
 				}
 
 				// has result
-				if res != nil && res.Result != nil && cb != nil {
-					output.Result = res.Result // Add the result to the output  message
+				if res != nil && res.Result != nil {
+					output.SetResult(res.Result)
+					if cb != nil {
+						output.Callback(cb).Write(c.Writer)
+						return 0 // break
+					}
 				}
 
-				output.Callback(cb).Write(c.Writer)
+				// Send the result to the client
+				output.Write(c.Writer)
 				return 0 // break
 			}
 
@@ -622,30 +625,45 @@ func (ast *Assistant) streamChat(
 		ctx.RetryTimes = ctx.RetryTimes + 1 // Increment the retry times
 		ctx.Retry = true                    // Set the retry mode
 
+		// The maximum retry times is 9
+		if ctx.RetryTimes > 9 {
+			color.Red("Maximum retry times is 9, please check the error and fix it")
+			// chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			return nil, retry
+		}
+
 		// Hook retry
 		promptAny, retryErr := ast.HookRetry(c, ctx, messages, contents, exception.Trim(retry))
 		if retryErr != nil {
 			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
-			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			// chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
 		if promptAny == nil {
-			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
-		var prompt string = ""
+		// Default prompt
+		var prompt string = fmt.Sprintf("Try to fix the error following the error message. error:\n %s", exception.Trim(retry))
 		switch v := promptAny.(type) {
-		case NextAction:
+		case bool: // Ignore the error, and return the specific result
+			if v == false {
+				return nil, retry
+			}
+
+		case map[string]interface{}: // Ignore the error, and return the specific result
+			return v, nil
+
+		case NextAction: // Execute the next action
 			result, err := v.Execute(c, ctx, contents, cb)
 			if err != nil {
-				chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
+				// chatMessage.New().Error(err.Error()).Done().Callback(cb).Write(c.Writer)
 				return nil, retry
 			}
 			return result, nil
 
-		case string:
+		case string: // Add the prompt to the messages
 			prompt = v
 		}
 
@@ -653,7 +671,7 @@ func (ast *Assistant) streamChat(
 		retryMessages, retryErr := ast.retryMessages(messages, prompt)
 		if retryErr != nil {
 			color.Red("%s, try to fix the error %d times, but failed with %s", exception.Trim(retry), ctx.RetryTimes, exception.Trim(retryErr))
-			chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
+			// chatMessage.New().Error(retry.Error()).Done().Callback(cb).Write(c.Writer)
 			return nil, retry
 		}
 
@@ -690,7 +708,7 @@ func (ast *Assistant) streamChat(
 func (ast *Assistant) retryMessages(messages []chatMessage.Message, prompt string) ([]chatMessage.Message, error) {
 
 	// Get the last user message
-	var lastIndex int
+	var lastIndex int = -1
 	for i := len(messages) - 1; i >= 0; i-- {
 		if messages[i].Role == "user" {
 			messages[i].Text = prompt
@@ -699,7 +717,7 @@ func (ast *Assistant) retryMessages(messages []chatMessage.Message, prompt strin
 		}
 	}
 
-	if lastIndex == 0 {
+	if lastIndex == -1 {
 		return nil, fmt.Errorf("no user message found")
 	}
 
@@ -723,7 +741,7 @@ func (ast *Assistant) saveChatHistory(ctx chatctx.Context, messages []chatMessag
 				"content":          contents.JSON(),
 				"name":             ast.ID,
 				"assistant_id":     ast.ID,
-				"assistant_name":   ast.Name,
+				"assistant_name":   ast.GetName(ctx.Locale),
 				"assistant_avatar": ast.Avatar,
 			},
 		}
@@ -947,7 +965,13 @@ func (ast *Assistant) Chat(ctx context.Context, messages []chatMessage.Message, 
 // 5. Merges consecutive assistant messages from the same assistant
 func formatMessages(messages []map[string]interface{}) []map[string]interface{} {
 	// Filter out duplicate messages with identical content, role, and name
-	filteredMessages := []map[string]interface{}{}
+	filteredMessages := []map[string]interface{}{
+		{
+			"role":    "system",
+			"name":    "SYSTEM_TIME",
+			"content": "System Time: " + time.Now().Format(time.RFC3339) + "\n\n" + "It's the system time, please use it for reference.",
+		},
+	}
 	seen := make(map[string]bool)
 
 	for _, msg := range messages {
@@ -1069,6 +1093,7 @@ func formatMessages(messages []map[string]interface{}) []map[string]interface{} 
 		lastMessage = msg
 	}
 
+	// Development log for DUI platform
 	return mergedMessages
 }
 
@@ -1084,12 +1109,22 @@ func (ast *Assistant) requestMessages(ctx context.Context, messages []chatMessag
 
 		role := message.Role
 		if role == "" {
+			if os.Getenv("YAO_AGENT_PRINT_REQUEST_MESSAGES") == "true" {
+				raw, _ := jsoniter.MarshalToString(message)
+				color.Red("Request Message Error, role is empty:")
+				fmt.Println(raw)
+			}
 			return nil, fmt.Errorf("role must be string")
 		}
 
 		content := message.String()
 		if content == "" {
-			return nil, fmt.Errorf("content must be string")
+			// fmt.Println("--------------------------------")
+			// fmt.Println("Request Message Error")
+			// utils.Dump(message)
+			// fmt.Println("--------------------------------")
+			// return nil, fmt.Errorf("content must be string")
+			continue
 		}
 
 		newMessage := map[string]interface{}{
