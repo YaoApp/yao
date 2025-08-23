@@ -232,7 +232,14 @@ func (neo *DSL) handleChat(c *gin.Context) {
 	defer cancel()
 	defer ctx.Release() // Release the context after the request is done
 
-	neo.Answer(ctx, content, c)
+	err := neo.Answer(ctx, content, c)
+
+	// Error handling
+	if err != nil {
+		message.New().Done().Error(err).Write(c.Writer)
+		c.Done()
+		return
+	}
 }
 
 // handleChatList handles the chat list request

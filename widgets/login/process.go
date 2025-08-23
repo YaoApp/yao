@@ -146,5 +146,6 @@ func auth(field string, value string, password string, sid string) maps.Map {
 			"items":   items,
 		},
 		"studio": studio,
+		"sid":    sid,
 	}
 }
