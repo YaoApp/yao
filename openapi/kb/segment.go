@@ -756,37 +756,113 @@ func GetSegmentParents(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters for parent options
-	options := make(map[string]interface{})
-
-	// Include metadata (default: true)
-	if includeMetadata := c.Query("include_metadata"); includeMetadata == "false" {
-		options["include_metadata"] = false
-	} else {
-		options["include_metadata"] = true
-	}
-
-	// Depth level (default: 1 - direct parents only)
-	depth := 1
-	if depthStr := c.Query("depth"); depthStr != "" {
-		if d, err := strconv.Atoi(depthStr); err == nil && d > 0 {
-			depth = d
-		}
-	}
-	options["depth"] = depth
-
 	// TODO: Implement document permission validation for docID
-	// TODO: Implement get segment parents logic
-	// TODO: Call kb.Instance.GetSegmentParents(c.Request.Context(), segmentID, options)
 
-	// Return mock response for now
+	// Call GraphRag GetSegmentParents method
+	segmentTree, err := kb.Instance.GetSegmentParents(c.Request.Context(), docID, segmentID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get segment parents: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	if segmentTree == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Verify that the target segment belongs to the specified document
+	if segmentTree.Segment != nil && segmentTree.Segment.DocumentID != docID {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Segment does not belong to the specified document",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Parse query parameters for response formatting
+	includeMetadata := true
+	if includeMetadataStr := c.Query("include_metadata"); includeMetadataStr == "false" {
+		includeMetadata = false
+	}
+
+	// Format response based on query parameters
+	responseData := formatSegmentTreeResponse(segmentTree, includeMetadata)
+
+	// Add additional response information
 	result := gin.H{
-		"parents":    []interface{}{},
+		"tree":       responseData,
 		"doc_id":     docID,
 		"segment_id": segmentID,
-		"depth":      depth,
-		"total":      0,
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
+}
+
+// formatSegmentTreeResponse formats a SegmentTree for API response
+func formatSegmentTreeResponse(tree *types.SegmentTree, includeMetadata bool) map[string]interface{} {
+	if tree == nil || tree.Segment == nil {
+		return nil
+	}
+
+	// Format the segment data
+	segmentData := map[string]interface{}{
+		"id":            tree.Segment.ID,
+		"text":          tree.Segment.Text,
+		"collection_id": tree.Segment.CollectionID,
+		"document_id":   tree.Segment.DocumentID,
+		"depth":         tree.Depth,
+		"weight":        tree.Segment.Weight,
+		"score":         tree.Segment.Score,
+		"positive":      tree.Segment.Positive,
+		"negative":      tree.Segment.Negative,
+		"hit":           tree.Segment.Hit,
+		"created_at":    tree.Segment.CreatedAt,
+		"updated_at":    tree.Segment.UpdatedAt,
+		"version":       tree.Segment.Version,
+	}
+
+	// Include score dimensions if available
+	if len(tree.Segment.ScoreDimensions) > 0 {
+		segmentData["score_dimensions"] = tree.Segment.ScoreDimensions
+	}
+
+	// Include metadata if requested
+	if includeMetadata && tree.Segment.Metadata != nil {
+		segmentData["metadata"] = tree.Segment.Metadata
+	}
+
+	// Include nodes and relationships if available
+	if len(tree.Segment.Nodes) > 0 {
+		segmentData["nodes"] = tree.Segment.Nodes
+	}
+	if len(tree.Segment.Relationships) > 0 {
+		segmentData["relationships"] = tree.Segment.Relationships
+	}
+
+	// Format parent tree recursively (only one parent in document hierarchy)
+	var parent map[string]interface{}
+	if tree.Parent != nil {
+		parent = formatSegmentTreeResponse(tree.Parent, includeMetadata)
+	}
+
+	result := map[string]interface{}{
+		"segment": segmentData,
+		"depth":   tree.Depth,
+	}
+
+	// Only add parent if it exists
+	if parent != nil {
+		result["parent"] = parent
+	}
+
+	return result
 }
