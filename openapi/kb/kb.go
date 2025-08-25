@@ -42,16 +42,20 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/documents/:docID/segments", ScrollSegments)
 	group.GET("/documents/:docID/segments/search", GetSegments)
 	group.GET("/documents/:docID/segments/:segmentID", GetSegment)
-	group.GET("/documents/:docID/segments/:segmentID/graph", GetSegmentGraph)
 	group.GET("/documents/:docID/segments/:segmentID/parents", GetSegmentParents)
 	group.POST("/documents/:docID/segments", AddSegments)
 	group.POST("/documents/:docID/segments/async", AddSegmentsAsync)
-	group.POST("/documents/:docID/segments/:segmentID/extract", ExtractSegmentGraph)
-	group.POST("/documents/:docID/segments/:segmentID/extract/async", ExtractSegmentGraphAsync)
 	group.PUT("/documents/:docID/segments", UpdateSegments)
 	group.PUT("/documents/:docID/segments/async", UpdateSegmentsAsync)
 	group.DELETE("/documents/:docID/segments", RemoveSegments)
 	group.DELETE("/documents/:docID/segments/all", RemoveSegmentsByDocID)
+
+	// Segment Graph Management
+	group.GET("/documents/:docID/segments/:segmentID/graph", GetSegmentGraph)
+	group.GET("/documents/:docID/segments/:segmentID/entities", GetSegmentEntities)
+	group.GET("/documents/:docID/segments/:segmentID/relationships", GetSegmentRelationships)
+	group.POST("/documents/:docID/segments/:segmentID/extract", ExtractSegmentGraph)
+	group.POST("/documents/:docID/segments/:segmentID/extract/async", ExtractSegmentGraphAsync)
 
 	// Segment score and weight management (batch operations)
 	group.PUT("/documents/:docID/segments/scores", UpdateScores)
