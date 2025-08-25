@@ -1,8 +1,15 @@
 package kb
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/gou/graphrag/utils"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/kb/providers/factory"
+	kbtypes "github.com/yaoapp/yao/kb/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -42,41 +49,149 @@ func GetSegmentGraph(c *gin.Context) {
 		return
 	}
 
-	// Parse query parameters for graph options
-	options := make(map[string]interface{})
+	// Parse query parameters for filtering options
+	includeEntities := c.DefaultQuery("include_entities", "true") != "false"
+	includeRelationships := c.DefaultQuery("include_relationships", "true") != "false"
 
-	// Include entities (default: true)
-	if includeEntities := c.Query("include_entities"); includeEntities == "false" {
-		options["include_entities"] = false
-	} else {
-		options["include_entities"] = true
+	// Call the GraphRag instance to get segment graph
+	segmentGraph, err := kb.Instance.GetSegmentGraph(c.Request.Context(), docID, segmentID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             "segment_not_found",
+			ErrorDescription: fmt.Sprintf("Failed to get segment graph: %v", err),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
 	}
 
-	// Include relationships (default: true)
-	if includeRelationships := c.Query("include_relationships"); includeRelationships == "false" {
-		options["include_relationships"] = false
-	} else {
-		options["include_relationships"] = true
-	}
-
-	// Include metadata (default: true)
-	if includeMetadata := c.Query("include_metadata"); includeMetadata == "false" {
-		options["include_metadata"] = false
-	} else {
-		options["include_metadata"] = true
-	}
-
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement get segment graph logic
-	// TODO: Call kb.Instance.GetSegmentGraph(c.Request.Context(), segmentID, options)
-
-	// Return mock response for now
+	// Prepare the response based on query parameters
 	result := gin.H{
-		"entities":      []interface{}{},
-		"relationships": []interface{}{},
-		"doc_id":        docID,
-		"segment_id":    segmentID,
-		"options":       options,
+		"doc_id":     segmentGraph.DocID,
+		"segment_id": segmentGraph.SegmentID,
+	}
+
+	// Add entities if requested
+	if includeEntities {
+		result["entities"] = segmentGraph.Entities
+		result["entities_count"] = len(segmentGraph.Entities)
+	}
+
+	// Add relationships if requested
+	if includeRelationships {
+		result["relationships"] = segmentGraph.Relationships
+		result["relationships_count"] = len(segmentGraph.Relationships)
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, result)
+}
+
+// GetSegmentEntities gets the entities for a specific segment
+func GetSegmentEntities(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call the GraphRag instance to get segment entities
+	entities, err := kb.Instance.GetSegmentEntities(c.Request.Context(), docID, segmentID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             "segment_entities_error",
+			ErrorDescription: fmt.Sprintf("Failed to get segment entities: %v", err),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Prepare the response
+	result := gin.H{
+		"doc_id":         docID,
+		"segment_id":     segmentID,
+		"entities":       entities,
+		"entities_count": len(entities),
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, result)
+}
+
+// GetSegmentRelationships gets the relationships for a specific segment
+func GetSegmentRelationships(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call the GraphRag instance to get segment relationships
+	relationships, err := kb.Instance.GetSegmentRelationships(c.Request.Context(), docID, segmentID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             "segment_relationships_error",
+			ErrorDescription: fmt.Sprintf("Failed to get segment relationships: %v", err),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Prepare the response
+	result := gin.H{
+		"doc_id":              docID,
+		"segment_id":          segmentID,
+		"relationships":       relationships,
+		"relationships_count": len(relationships),
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
@@ -116,24 +231,131 @@ func ExtractSegmentGraph(c *gin.Context) {
 		return
 	}
 
-	// Parse extraction options from request body (optional)
+	// Parse CollectionID from docID to find the right collection
+	collectionID, _ := utils.ExtractCollectionIDFromDocID(docID)
+	if collectionID == "" {
+		collectionID = "default"
+	}
+
+	// Get Extraction Provider ID from document
+	knowledgeBase := kb.Instance.(*kb.KnowledgeBase)
+	document, err := knowledgeBase.Config.FindDocument(docID, model.QueryParam{Select: []interface{}{
+		"collection_id",
+		"extraction_provider_id", "extraction_option_id", "extraction_properties",
+		"locale",
+	}})
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Failed to find document: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Parse extraction options from request body (optional, will override document config)
 	var extractOptions map[string]interface{}
 	if err := c.ShouldBindJSON(&extractOptions); err != nil {
 		// If no body provided, use default options
 		extractOptions = make(map[string]interface{})
 	}
 
-	// TODO: Implement document permission validation for docID
-	// TODO: Implement extract segment graph logic
-	// TODO: Call kb.Instance.ExtractSegmentGraph(c.Request.Context(), segmentID, extractOptions)
+	// Build ExtractionOptions from document configuration
+	var options *types.ExtractionOptions
+	if document != nil {
+		options = &types.ExtractionOptions{}
 
-	// Return mock response for now
-	result := gin.H{
+		// Get extraction provider from document
+		if extractionProviderID, ok := document["extraction_provider_id"].(string); ok && extractionProviderID != "" {
+			// Get extraction option ID from document
+			var extractionOptionID string
+			if optionID, ok := document["extraction_option_id"].(string); ok {
+				extractionOptionID = optionID
+			}
+
+			// Get extraction properties from document
+			var extractionProperties map[string]interface{}
+			if props, ok := document["extraction_properties"].(map[string]interface{}); ok {
+				extractionProperties = props
+			}
+
+			// Create extraction provider configuration
+			extractionConfig := &ProviderConfig{
+				ProviderID: extractionProviderID,
+				OptionID:   extractionOptionID,
+				// Don't set Option directly when OptionID is provided
+				// Let ProviderOption method resolve it from the provider
+			}
+
+			// If we have custom properties but no OptionID, set them directly
+			if extractionOptionID == "" && len(extractionProperties) > 0 {
+				extractionConfig.Option = &kbtypes.ProviderOption{
+					Properties: extractionProperties,
+				}
+			}
+
+			// Get locale from document (default to "en" if not set)
+			locale := "en"
+			if docLocale, ok := document["locale"].(string); ok && docLocale != "" {
+				locale = docLocale
+			}
+
+			// Get provider option using the same pattern as ToUpsertOptions
+			extractionOption, err := extractionConfig.ProviderOption("extraction", locale)
+			if err != nil {
+				errorResp := &response.ErrorResponse{
+					Code:             "extraction_provider_error",
+					ErrorDescription: fmt.Sprintf("Failed to resolve extraction provider: %v", err),
+				}
+				response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+				return
+			}
+
+			// Use factory to create extraction provider
+			extractor, err := factory.MakeExtraction(extractionProviderID, extractionOption)
+			if err != nil {
+				errorResp := &response.ErrorResponse{
+					Code:             "extraction_provider_error",
+					ErrorDescription: fmt.Sprintf("Failed to create extraction provider %s: %v", extractionProviderID, err),
+				}
+				response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+				return
+			}
+
+			// Set the extractor in options
+			options.Use = extractor
+		}
+	}
+
+	// Allow request body to override extraction options
+	if len(extractOptions) > 0 {
+		if options == nil {
+			options = &types.ExtractionOptions{}
+		}
+		// TODO: Map extractOptions from request body to override document settings if needed
+		// For now, document settings take precedence
+	}
+
+	// Call ExtractSegmentGraph
+	extractionResult, err := kb.Instance.ExtractSegmentGraph(c.Request.Context(), docID, segmentID, options)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             "extraction_failed",
+			ErrorDescription: fmt.Sprintf("Failed to extract segment graph: %v", err),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Build response
+	result := map[string]interface{}{
 		"message":             "Entities and relationships extracted successfully",
-		"doc_id":              docID,
-		"segment_id":          segmentID,
-		"entities_count":      0,
-		"relationships_count": 0,
+		"doc_id":              extractionResult.DocID,
+		"segment_id":          extractionResult.SegmentID,
+		"entities_count":      len(extractionResult.ExtractedEntities),
+		"relationships_count": len(extractionResult.ExtractedRelationships),
+		"entities":            extractionResult.ExtractedEntities,
+		"relationships":       extractionResult.ExtractedRelationships,
 		"extraction_options":  extractOptions,
 	}
 
