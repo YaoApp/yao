@@ -145,17 +145,34 @@ func RemoveCollection(c *gin.Context) {
 		return
 	}
 
-	// Remove collection from database after successful GraphRag removal
+	// Remove collection and all its documents from database after successful GraphRag removal
+	documentsRemoved := 0
 	if config, err := kb.GetConfig(); err == nil {
+		// First, count documents in this collection (for reporting)
+		if count, err := config.DocumentCount(collectionID); err == nil {
+			documentsRemoved = count
+		}
+
+		// Remove all documents belonging to this collection
+		if err := config.RemoveDocumentsByCollectionID(collectionID); err != nil {
+			log.Error("Failed to remove documents from collection %s: %v", collectionID, err)
+		} else {
+			log.Info("Removed %d documents from collection %s", documentsRemoved, collectionID)
+		}
+
+		// Then remove the collection itself
 		if err := config.RemoveCollection(collectionID); err != nil {
 			log.Error("Failed to remove collection from database: %v", err)
+		} else {
+			log.Info("Successfully removed collection %s and %d documents", collectionID, documentsRemoved)
 		}
 	}
 
 	successData := gin.H{
-		"message":       "Collection removed successfully",
-		"collection_id": collectionID,
-		"removed":       removed,
+		"message":           "Collection removed successfully",
+		"collection_id":     collectionID,
+		"removed":           removed,
+		"documents_removed": documentsRemoved,
 	}
 	response.RespondWithSuccess(c, response.StatusOK, successData)
 }

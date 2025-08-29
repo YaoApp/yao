@@ -112,6 +112,25 @@ func AddFileProcess(ctx context.Context, req *AddFileRequest, jobID ...string) e
 		log.Error("Failed to update document status to completed: %v", err)
 	}
 
+	// Update segment count for the document
+	if segmentCount, err := kb.Instance.SegmentCount(ctx, req.DocID); err != nil {
+		log.Error("Failed to get segment count for document %s: %v", req.DocID, err)
+	} else {
+		log.Info("Got segment count %d for document %s", segmentCount, req.DocID)
+		if err := config.UpdateSegmentCount(req.DocID, segmentCount); err != nil {
+			log.Error("Failed to update segment count for document %s: %v", req.DocID, err)
+		} else {
+			log.Info("Successfully updated segment count to %d for document %s", segmentCount, req.DocID)
+		}
+	}
+
+	// Update document count for the collection
+	if err := config.UpdateDocumentCount(req.CollectionID); err != nil {
+		log.Error("Failed to update document count for collection %s: %v", req.CollectionID, err)
+	} else {
+		log.Info("Successfully updated document count for collection %s", req.CollectionID)
+	}
+
 	return nil
 }
 

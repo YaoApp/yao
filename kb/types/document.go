@@ -108,3 +108,52 @@ func (c *Config) RemoveDocument(documentID string) error {
 	_, err := mod.DeleteWhere(param)
 	return err
 }
+
+// RemoveDocumentsByCollectionID removes all documents belonging to a collection
+func (c *Config) RemoveDocumentsByCollectionID(collectionID string) error {
+	modelName := c.DocumentModel
+	if modelName == "" {
+		modelName = "__yao.kb.document"
+	}
+
+	mod := model.Select(modelName)
+	if mod == nil {
+		return fmt.Errorf("document model not found: %s", modelName)
+	}
+
+	param := model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "collection_id", Value: collectionID},
+		},
+	}
+
+	_, err := mod.DeleteWhere(param)
+	return err
+}
+
+// UpdateSegmentCount updates the segment_count field for a document
+func (c *Config) UpdateSegmentCount(documentID string, count int) error {
+	modelName := c.DocumentModel
+	if modelName == "" {
+		modelName = "__yao.kb.document"
+	}
+
+	mod := model.Select(modelName)
+	if mod == nil {
+		return fmt.Errorf("document model not found: %s", modelName)
+	}
+
+	param := model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "document_id", Value: documentID},
+		},
+		Limit: 1,
+	}
+
+	data := maps.MapStrAny{
+		"segment_count": count,
+	}
+
+	_, err := mod.UpdateWhere(param, data)
+	return err
+}
