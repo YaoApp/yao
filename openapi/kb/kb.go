@@ -54,6 +54,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/documents/:docID/segments/:segmentID/graph", GetSegmentGraph)
 	group.GET("/documents/:docID/segments/:segmentID/entities", GetSegmentEntities)
 	group.GET("/documents/:docID/segments/:segmentID/relationships", GetSegmentRelationships)
+	group.GET("/documents/:docID/segments/:segmentID/relationships/by-entities", GetSegmentRelationshipsByEntities)
 	group.POST("/documents/:docID/segments/:segmentID/extract", ExtractSegmentGraph)
 	group.POST("/documents/:docID/segments/:segmentID/extract/async", ExtractSegmentGraphAsync)
 
