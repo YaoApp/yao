@@ -53,33 +53,41 @@ func GetSegmentGraph(c *gin.Context) {
 	includeEntities := c.DefaultQuery("include_entities", "true") != "false"
 	includeRelationships := c.DefaultQuery("include_relationships", "true") != "false"
 
-	// Call the GraphRag instance to get segment graph
-	segmentGraph, err := kb.Instance.GetSegmentGraph(c.Request.Context(), docID, segmentID)
-	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             "segment_not_found",
-			ErrorDescription: fmt.Sprintf("Failed to get segment graph: %v", err),
-		}
-		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return
-	}
-
-	// Prepare the response based on query parameters
+	// Prepare the response
 	result := gin.H{
-		"doc_id":     segmentGraph.DocID,
-		"segment_id": segmentGraph.SegmentID,
+		"doc_id":     docID,
+		"segment_id": segmentID,
 	}
 
-	// Add entities if requested
+	// Get entities if requested
 	if includeEntities {
-		result["entities"] = segmentGraph.Entities
-		result["entities_count"] = len(segmentGraph.Entities)
+		entities, err := kb.Instance.GetSegmentEntities(c.Request.Context(), docID, segmentID)
+		if err != nil {
+			errorResp := &response.ErrorResponse{
+				Code:             "segment_entities_error",
+				ErrorDescription: fmt.Sprintf("Failed to get segment entities: %v", err),
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+			return
+		}
+		result["entities"] = entities
+		result["entities_count"] = len(entities)
 	}
 
-	// Add relationships if requested
+	// Get relationships if requested (using entity-based query for better results)
 	if includeRelationships {
-		result["relationships"] = segmentGraph.Relationships
-		result["relationships_count"] = len(segmentGraph.Relationships)
+		relationships, err := kb.Instance.GetSegmentRelationshipsByEntities(c.Request.Context(), docID, segmentID)
+		if err != nil {
+			errorResp := &response.ErrorResponse{
+				Code:             "segment_relationships_error",
+				ErrorDescription: fmt.Sprintf("Failed to get segment relationships: %v", err),
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+			return
+		}
+		result["relationships"] = relationships
+		result["relationships_count"] = len(relationships)
+		result["query_type"] = "by_entities" // Indicate we're using entity-based relationship query
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
@@ -192,6 +200,63 @@ func GetSegmentRelationships(c *gin.Context) {
 		"segment_id":          segmentID,
 		"relationships":       relationships,
 		"relationships_count": len(relationships),
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, result)
+}
+
+// GetSegmentRelationshipsByEntities gets all relationships connected to entities in this segment
+func GetSegmentRelationshipsByEntities(c *gin.Context) {
+	// Extract docID from URL path
+	docID := c.Param("docID")
+	if docID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Document ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Extract segmentID from URL path
+	segmentID := c.Param("segmentID")
+	if segmentID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Segment ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check if kb.Instance is available
+	if kb.Instance == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Knowledge base not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Call the GraphRag instance to get segment relationships by entities
+	relationships, err := kb.Instance.GetSegmentRelationshipsByEntities(c.Request.Context(), docID, segmentID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             "segment_relationships_by_entities_error",
+			ErrorDescription: fmt.Sprintf("Failed to get segment relationships by entities: %v", err),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Prepare the response
+	result := gin.H{
+		"doc_id":              docID,
+		"segment_id":          segmentID,
+		"relationships":       relationships,
+		"relationships_count": len(relationships),
+		"query_type":          "by_entities", // Indicate this is entity-based query
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
@@ -347,16 +412,17 @@ func ExtractSegmentGraph(c *gin.Context) {
 		return
 	}
 
-	// Build response
+	// Build response using the simplified SegmentExtractionResult structure
 	result := map[string]interface{}{
 		"message":             "Entities and relationships extracted successfully",
 		"doc_id":              extractionResult.DocID,
 		"segment_id":          extractionResult.SegmentID,
-		"entities_count":      len(extractionResult.ExtractedEntities),
-		"relationships_count": len(extractionResult.ExtractedRelationships),
-		"entities":            extractionResult.ExtractedEntities,
-		"relationships":       extractionResult.ExtractedRelationships,
+		"entities_count":      extractionResult.EntitiesCount,      // Use count from structure
+		"relationships_count": extractionResult.RelationshipsCount, // Use count from structure
+		"extraction_model":    extractionResult.ExtractionModel,
 		"extraction_options":  extractOptions,
+		// Note: Detailed entities and relationships are no longer returned
+		// Frontend should use separate APIs (GetSegmentEntities/GetSegmentRelationships) if needed
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, result)
