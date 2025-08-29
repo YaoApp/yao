@@ -20,7 +20,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
 	// Collection Management
-	group.GET("/collections", GetCollections)
+	group.GET("/collections", ListCollections)
 	group.GET("/collections/:collectionID", GetCollection)
 	group.GET("/collections/:collectionID/exists", CollectionExists)
 	group.POST("/collections", CreateCollection)

@@ -70,6 +70,15 @@
       "nullable": false
     },
     {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly Collection",
+      "comment": "Whether this collection is read-only",
+      "index": true,
+      "default": false,
+      "nullable": false
+    },
+    {
       "name": "sort",
       "type": "integer",
       "label": "Sort Order",

@@ -21,7 +21,7 @@ var (
 		"id": true, "document_id": true, "collection_id": true, "name": true,
 		"description": true, "status": true, "type": true, "size": true,
 		"segment_count": true, "job_id": true, "uploader_id": true, "tags": true,
-		"locale": true, "system": true, "sort": true, "cover": true,
+		"locale": true, "system": true, "readonly": true, "sort": true, "cover": true,
 		"file_id": true, "file_name": true, "file_mime_type": true,
 		"url": true, "url_title": true, "text_content": true,
 		"converter_provider_id": true, "converter_option_id": true, "converter_properties": true,
@@ -35,7 +35,7 @@ var (
 	defaultDocumentFields = []interface{}{
 		"id", "document_id", "collection_id", "name", "description",
 		"cover", "tags", "type", "size", "segment_count", "status", "locale",
-		"file_id", "file_name", "file_mime_type", "uploader_id",
+		"system", "readonly", "file_id", "file_name", "file_mime_type", "uploader_id",
 		"url", "url_title", "text_content", // 添加 URL 和文本内容字段
 		"error_message", "created_at", "updated_at",
 	}

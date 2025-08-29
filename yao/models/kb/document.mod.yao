@@ -93,6 +93,7 @@
       "name": "segment_count",
       "type": "integer",
       "label": "Segment Count",
+      "index": true,
       "comment": "Number of segments generated from this document",
       "default": 0,
       "nullable": false
@@ -136,6 +137,14 @@
       "type": "boolean",
       "label": "System Document",
       "comment": "Whether this is a system document",
+      "default": false,
+      "nullable": false
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly Document",
+      "comment": "Whether this document is read-only",
       "default": false,
       "nullable": false
     },

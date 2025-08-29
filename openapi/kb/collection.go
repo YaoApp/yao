@@ -2,9 +2,13 @@ package kb
 
 import (
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/graphrag/types"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/kb"
@@ -12,6 +16,37 @@ import (
 )
 
 // Collection Management Handlers
+
+// Collection field definitions
+var (
+	// availableCollectionFields defines all available fields for security filtering
+	availableCollectionFields = map[string]bool{
+		"id": true, "collection_id": true, "name": true, "description": true,
+		"status": true, "system": true, "readonly": true, "sort": true, "cover": true,
+		"document_count": true, "embedding_provider_id": true, "embedding_option_id": true,
+		"embedding_properties": true, "locale": true, "dimension": true,
+		"distance_metric": true, "hnsw_m": true, "ef_construction": true,
+		"ef_search": true, "num_lists": true, "num_probes": true,
+		"created_at": true, "updated_at": true,
+	}
+
+	// defaultCollectionFields defines the default compact field list
+	defaultCollectionFields = []interface{}{
+		"id", "collection_id", "name", "description", "status", "system", "readonly",
+		"sort", "cover", "document_count", "embedding_provider_id", "embedding_option_id",
+		"locale", "dimension", "distance_metric", "created_at", "updated_at",
+	}
+
+	// validCollectionSortFields defines valid fields for sorting
+	validCollectionSortFields = map[string]bool{
+		"created_at":     true,
+		"updated_at":     true,
+		"name":           true,
+		"sort":           true,
+		"document_count": true,
+		"status":         true,
+	}
+)
 
 // ProviderSettings represents the resolved provider configuration
 type ProviderSettings struct {
@@ -264,8 +299,8 @@ func GetCollection(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, collection)
 }
 
-// GetCollections retrieves collections with optional filtering
-func GetCollections(c *gin.Context) {
+// ListCollections lists collections with pagination
+func ListCollections(c *gin.Context) {
 	// Check if kb.Instance is available
 	if kb.Instance == nil {
 		errorResp := &response.ErrorResponse{
@@ -276,30 +311,194 @@ func GetCollections(c *gin.Context) {
 		return
 	}
 
-	// Build filter from query parameters
-	filter := make(map[string]interface{})
-
-	// Extract all query parameters as potential filter conditions
-	// This allows filtering by any metadata field, e.g.:
-	// GET /collections?category=documents&status=active
-	for key, values := range c.Request.URL.Query() {
-		if len(values) > 0 {
-			// Use the first value if multiple values are provided
-			filter[key] = values[0]
+	// Parse pagination parameters
+	page := 1
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
 		}
 	}
 
-	collections, err := kb.Instance.GetCollections(c.Request.Context(), filter)
+	pagesize := 20
+	if pagesizeStr := c.Query("pagesize"); pagesizeStr != "" {
+		if ps, err := strconv.Atoi(pagesizeStr); err == nil && ps > 0 && ps <= 100 {
+			pagesize = ps
+		}
+	}
+
+	// Get KB config
+	config, err := kb.GetConfig()
 	if err != nil {
-		// Create a custom error with the same structure but specific message
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
-			ErrorDescription: err.Error(),
+			ErrorDescription: "Failed to get KB config: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
-	response.RespondWithSuccess(c, response.StatusOK, collections)
+
+	// Parse select parameter
+	var selectFields []interface{}
+	if selectParam := strings.TrimSpace(c.Query("select")); selectParam != "" {
+		requestedFields := strings.Split(selectParam, ",")
+		for _, field := range requestedFields {
+			field = strings.TrimSpace(field)
+			if field != "" && availableCollectionFields[field] {
+				selectFields = append(selectFields, field)
+			}
+		}
+		// If no valid fields found, use default
+		if len(selectFields) == 0 {
+			selectFields = defaultCollectionFields
+		}
+	} else {
+		selectFields = defaultCollectionFields
+	}
+
+	// Build query parameters
+	param := model.QueryParam{
+		Select: selectFields,
+	}
+
+	// Add filters
+	var wheres []model.QueryWhere
+
+	// Filter by keywords (search in name and description)
+	if keywords := strings.TrimSpace(c.Query("keywords")); keywords != "" {
+		wheres = append(wheres, model.QueryWhere{
+			Column: "name",
+			Value:  "%" + keywords + "%",
+			OP:     "like",
+		})
+		wheres = append(wheres, model.QueryWhere{
+			Column: "description",
+			Value:  "%" + keywords + "%",
+			OP:     "like",
+			Wheres: []model.QueryWhere{},
+			Method: "orwhere",
+		})
+	}
+
+	// Filter by status (support multiple values separated by comma)
+	if statusParam := strings.TrimSpace(c.Query("status")); statusParam != "" {
+		statusList := strings.Split(statusParam, ",")
+		var statusValues []interface{}
+		for _, status := range statusList {
+			status = strings.TrimSpace(status)
+			if status != "" {
+				statusValues = append(statusValues, status)
+			}
+		}
+
+		if len(statusValues) > 0 {
+			if len(statusValues) == 1 {
+				// Single status
+				wheres = append(wheres, model.QueryWhere{
+					Column: "status",
+					Value:  statusValues[0],
+				})
+			} else {
+				// Multiple status - use IN clause
+				wheres = append(wheres, model.QueryWhere{
+					Column: "status",
+					Value:  statusValues,
+					OP:     "in",
+				})
+			}
+		}
+	}
+
+	// Filter by system flag
+	if systemParam := strings.TrimSpace(c.Query("system")); systemParam != "" {
+		switch systemParam {
+		case "true", "1":
+			wheres = append(wheres, model.QueryWhere{
+				Column: "system",
+				Value:  true,
+			})
+		case "false", "0":
+			wheres = append(wheres, model.QueryWhere{
+				Column: "system",
+				Value:  false,
+			})
+		}
+	}
+
+	// Filter by embedding_provider_id
+	if providerID := strings.TrimSpace(c.Query("embedding_provider_id")); providerID != "" {
+		wheres = append(wheres, model.QueryWhere{
+			Column: "embedding_provider_id",
+			Value:  providerID,
+		})
+	}
+
+	param.Wheres = wheres
+
+	// Add ordering
+	sortParam := strings.TrimSpace(c.Query("sort"))
+	if sortParam == "" {
+		sortParam = "created_at desc" // Default sort
+	}
+
+	// Parse sort parameter (format: "field1 direction1,field2 direction2")
+	var orders []model.QueryOrder
+	sortItems := strings.Split(sortParam, ",")
+
+	for _, sortItem := range sortItems {
+		sortItem = strings.TrimSpace(sortItem)
+		if sortItem == "" {
+			continue
+		}
+
+		// Parse each sort item (format: "field direction")
+		sortParts := strings.Fields(sortItem)
+		sortField := "created_at" // Default field
+		sortOrder := "desc"       // Default order
+
+		if len(sortParts) >= 1 {
+			sortField = sortParts[0]
+		}
+		if len(sortParts) >= 2 {
+			sortOrder = strings.ToLower(sortParts[1])
+		}
+
+		// Validate sort field
+		if !validCollectionSortFields[sortField] {
+			continue // Skip invalid fields
+		}
+
+		// Validate sort order
+		if sortOrder != "asc" && sortOrder != "desc" {
+			sortOrder = "desc" // Default order
+		}
+
+		orders = append(orders, model.QueryOrder{
+			Column: sortField,
+			Option: sortOrder,
+		})
+	}
+
+	// If no valid orders found, use default
+	if len(orders) == 0 {
+		orders = []model.QueryOrder{
+			{Column: "created_at", Option: "desc"},
+		}
+	}
+
+	param.Orders = orders
+
+	// Query collections using KB config
+	result, err := config.SearchCollections(param, page, pagesize)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to search collections: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // UpdateCollectionMetadata updates the metadata of an existing collection
