@@ -333,6 +333,22 @@ func RemoveSegments(c *gin.Context) {
 		return
 	}
 
+	// Update segment count for the document if segments were removed
+	if removedCount > 0 {
+		// Get KB config for database operations
+		config, err := kb.GetConfig()
+		if err == nil {
+			// Get current segment count and update document
+			if segmentCount, err := kb.Instance.SegmentCount(c.Request.Context(), docID); err == nil {
+				if err := config.UpdateSegmentCount(docID, segmentCount); err != nil {
+					// Log error but don't fail the operation
+					// TODO: Add proper logging
+					// log.Error("Failed to update segment count for document %s: %v", docID, err)
+				}
+			}
+		}
+	}
+
 	// Return success response
 	result := gin.H{
 		"message":       "Segments removed successfully",
@@ -375,6 +391,20 @@ func RemoveSegmentsByDocID(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
+	}
+
+	// Update segment count for the document (should be 0 after removing all segments)
+	if removedCount > 0 {
+		// Get KB config for database operations
+		config, err := kb.GetConfig()
+		if err == nil {
+			// After removing all segments, count should be 0
+			if err := config.UpdateSegmentCount(docID, 0); err != nil {
+				// Log error but don't fail the operation
+				// TODO: Add proper logging
+				// log.Error("Failed to update segment count for document %s: %v", docID, err)
+			}
+		}
 	}
 
 	// Return success response
