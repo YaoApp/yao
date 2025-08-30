@@ -1,11 +1,15 @@
 package kb
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/graphrag/utils"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/attachment"
+	"github.com/yaoapp/yao/kb"
+	kbtypes "github.com/yaoapp/yao/kb/types"
 )
 
 // PrepareCreateCollection prepares CreateCollection request and database data
@@ -211,4 +215,66 @@ func addContextFields(c *gin.Context, data map[string]interface{}) {
 	// Example: data["user_id"] = c.GetString("user_id")
 	// Example: data["permissions"] = c.Get("permissions")
 	// Example: data["tenant_id"] = c.GetString("tenant_id")
+}
+
+// UpdateCollectionWithSync updates collection metadata in database and syncs to GraphRag
+func UpdateCollectionWithSync(collectionID string, data maps.MapStrAny, config *kbtypes.Config) error {
+	// Create a copy of data for GraphRag to avoid contamination from database operations
+	// This is necessary because Gou's UpdateWhere method modifies the input data parameter
+	originalData := make(maps.MapStrAny)
+	for k, v := range data {
+		originalData[k] = v
+	}
+
+	// Update collection in database
+	if err := config.UpdateCollection(collectionID, data); err != nil {
+		return fmt.Errorf("failed to update collection in database: %w", err)
+	}
+
+	// Sync to GraphRag metadata if kb.Instance is available
+	if kb.Instance != nil {
+		// Convert the original (unmodified) data to map[string]interface{}
+		metadata := make(map[string]interface{})
+		for k, v := range originalData {
+			metadata[k] = v
+		}
+
+		// Update GraphRag metadata
+		ctx := context.Background()
+		if err := kb.Instance.UpdateCollectionMetadata(ctx, collectionID, metadata); err != nil {
+			return fmt.Errorf("failed to sync collection metadata to GraphRag: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// UpdateDocumentCountWithSync updates document count in database and syncs to GraphRag metadata
+func UpdateDocumentCountWithSync(collectionID string, config *kbtypes.Config) error {
+	// Update document count in database
+	if err := config.UpdateDocumentCount(collectionID); err != nil {
+		return fmt.Errorf("failed to update document count in database: %w", err)
+	}
+
+	// Sync to GraphRag metadata if kb.Instance is available
+	if kb.Instance != nil {
+		// Get the updated document count
+		count, err := config.DocumentCount(collectionID)
+		if err != nil {
+			return fmt.Errorf("failed to get document count for sync: %w", err)
+		}
+
+		// Prepare metadata for GraphRag
+		metadata := map[string]interface{}{
+			"document_count": count,
+		}
+
+		// Update GraphRag metadata
+		ctx := context.Background()
+		if err := kb.Instance.UpdateCollectionMetadata(ctx, collectionID, metadata); err != nil {
+			return fmt.Errorf("failed to sync document count to GraphRag: %w", err)
+		}
+	}
+
+	return nil
 }

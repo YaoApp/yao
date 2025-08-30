@@ -444,9 +444,9 @@ func RemoveDocs(c *gin.Context) {
 		dbDeletedCount++
 	}
 
-	// Update document counts for affected collections
+	// Update document counts for affected collections and sync to GraphRag
 	for collectionID := range collectionsToUpdate {
-		if err := config.UpdateDocumentCount(collectionID); err != nil {
+		if err := UpdateDocumentCountWithSync(collectionID, config); err != nil {
 			// Log error but don't fail the operation
 			// TODO: Add proper logging
 			// log.Error("Failed to update document count for collection %s: %v", collectionID, err)

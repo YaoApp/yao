@@ -124,8 +124,8 @@ func CreateCollection(c *gin.Context) {
 		return
 	}
 
-	// Update status to active after successful creation
-	updateErr := config.UpdateCollection(req.ID, maps.MapStrAny{"status": "active"})
+	// Update status to active after successful creation and sync to GraphRag
+	updateErr := UpdateCollectionWithSync(req.ID, maps.MapStrAny{"status": "active"}, config)
 	if updateErr != nil {
 		log.Error("Failed to update collection status to active: %v", updateErr)
 	}
@@ -558,6 +558,7 @@ func UpdateCollectionMetadata(c *gin.Context) {
 	}
 
 	// Update collection metadata in database after successful GraphRag update
+	// Note: Only update database here, don't sync to GraphRag again (already done above)
 	if config, err := kb.GetConfig(); err == nil {
 		// Prepare update data from metadata
 		updateData := maps.MapStrAny{}
@@ -572,6 +573,7 @@ func UpdateCollectionMetadata(c *gin.Context) {
 		}
 
 		if len(updateData) > 0 {
+			// Only update database, don't sync to GraphRag again to avoid duplicate updates
 			if err := config.UpdateCollection(collectionID, updateData); err != nil {
 				log.Error("Failed to update collection in database: %v", err)
 			}
