@@ -1,0 +1,240 @@
+{
+  "name": "job",
+  "label": "Job",
+  "description": "Job table for managing task execution and scheduling",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "job",
+    "comment": "Job main table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "job_id",
+      "type": "string",
+      "label": "Job ID",
+      "comment": "Unique string identifier for the job",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Job Name",
+      "comment": "Display name of the job",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "label": "Icon",
+      "comment": "Icon identifier for the job",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Job description",
+      "nullable": true
+    },
+    {
+      "name": "category_id",
+      "type": "string",
+      "label": "Category ID",
+      "comment": "Reference to the category this job belongs to",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Job overall status",
+      "option": [
+        "draft", // Job is being configured, not ready to run
+        "ready", // Job is ready to be executed
+        "running", // Job has active execution(s)
+        "paused", // Job execution is temporarily paused
+        "completed", // Job finished successfully (for 'once' jobs)
+        "failed", // Job failed and won't retry anymore
+        "disabled" // Job is disabled by user/system
+      ],
+      "default": "draft",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "process_type",
+      "type": "enum",
+      "label": "Process Type",
+      "comment": "Job execution process type",
+      "option": [
+        "goroutine", // Execute using Go goroutine (lightweight, fast)
+        "process" // Execute as independent process (isolated, heavyweight)
+      ],
+      "default": "goroutine",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "schedule_type",
+      "type": "enum",
+      "label": "Schedule Type",
+      "comment": "Job scheduling pattern",
+      "option": [
+        "once", // Execute once and finish
+        "cron", // Execute based on cron schedule
+        "daemon" // Run continuously as daemon process
+      ],
+      "default": "once",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "schedule_expression",
+      "type": "string",
+      "label": "Schedule Expression",
+      "comment": "Cron expression for scheduled jobs",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "max_retry_count",
+      "type": "integer",
+      "label": "Max Retry Count",
+      "comment": "Maximum number of retry attempts on failure",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "default_timeout",
+      "type": "integer",
+      "label": "Default Timeout",
+      "comment": "Default execution timeout in seconds (can be overridden per execution)",
+      "nullable": true
+    },
+    {
+      "name": "priority",
+      "type": "integer",
+      "label": "Priority",
+      "comment": "Job execution priority (higher number = higher priority)",
+      "default": 0,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "created_by",
+      "type": "string",
+      "label": "Created By",
+      "comment": "User who created this job",
+      "length": 128,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "next_run_at",
+      "type": "timestamp",
+      "label": "Next Run At",
+      "comment": "Timestamp for next scheduled execution",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "last_run_at",
+      "type": "timestamp",
+      "label": "Last Run At",
+      "comment": "Timestamp of last execution",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "current_execution_id",
+      "type": "string",
+      "label": "Current Execution ID",
+      "comment": "Reference to current/latest execution instance",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "config",
+      "type": "json",
+      "label": "Configuration",
+      "comment": "Job configuration parameters",
+      "nullable": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Sort order for display",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "label": "Enabled",
+      "comment": "Whether this job is enabled for execution",
+      "default": true,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "system",
+      "type": "boolean",
+      "label": "System Job",
+      "comment": "Whether this is a system job",
+      "default": false,
+      "nullable": false
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "Whether this job is read-only",
+      "default": false,
+      "nullable": false
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_job_category_status",
+      "columns": ["category_id", "status"],
+      "comment": "Composite index for category and status queries"
+    },
+    {
+      "name": "idx_job_process_type_status",
+      "columns": ["process_type", "status"],
+      "comment": "Composite index for process type and status queries"
+    },
+    {
+      "name": "idx_job_schedule_type_next_run",
+      "columns": ["schedule_type", "next_run_at"],
+      "comment": "Composite index for scheduled job queries"
+    },
+    {
+      "name": "idx_job_created_by_status",
+      "columns": ["created_by", "status"],
+      "comment": "Composite index for user job queries"
+    }
+  ],
+  "option": {
+    "permission": true,
+    "timestamps": true
+  }
+}

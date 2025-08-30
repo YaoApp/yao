@@ -1,0 +1,249 @@
+{
+  "name": "execution",
+  "label": "Job Execution",
+  "description": "Job execution table for tracking individual execution instances",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "job_execution",
+    "comment": "Job Execution table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "execution_id",
+      "type": "string",
+      "label": "Execution ID",
+      "comment": "Unique string identifier for the execution instance",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "job_id",
+      "type": "string",
+      "label": "Job ID",
+      "comment": "Reference to the job this execution belongs to",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Execution instance status",
+      "option": [
+        "queued", // Execution is queued and waiting to start
+        "initializing", // Execution is being initialized
+        "running", // Execution is currently in progress
+        "completed", // Execution finished successfully
+        "failed", // Execution failed with errors
+        "cancelled", // Execution was cancelled by user/system
+        "timeout", // Execution timed out
+        "killed" // Execution was forcefully terminated
+      ],
+      "default": "queued",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "trigger_category",
+      "type": "enum",
+      "label": "Trigger Category",
+      "comment": "High-level trigger category",
+      "option": [
+        "manual", // User manually triggered
+        "scheduled", // Time-based scheduling (cron, interval)
+        "event", // Event-driven triggers
+        "api", // External API calls
+        "system", // System-initiated triggers
+        "dependency" // Dependency-based triggers
+      ],
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "trigger_source",
+      "type": "string",
+      "label": "Trigger Source",
+      "comment": "Specific trigger source identifier (extensible)",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "trigger_context",
+      "type": "json",
+      "label": "Trigger Context",
+      "comment": "Additional trigger context and metadata",
+      "nullable": true
+    },
+    {
+      "name": "scheduled_at",
+      "type": "timestamp",
+      "label": "Scheduled At",
+      "comment": "When this execution was scheduled to run (for scheduled jobs)",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "worker_id",
+      "type": "string",
+      "label": "Worker ID",
+      "comment": "Worker instance handling this execution",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "process_id",
+      "type": "string",
+      "label": "Process ID",
+      "comment": "Process ID for heavyweight executions",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "retry_attempt",
+      "type": "integer",
+      "label": "Retry Attempt",
+      "comment": "Which retry attempt this is (0 for first attempt)",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "parent_execution_id",
+      "type": "string",
+      "label": "Parent Execution ID",
+      "comment": "Reference to parent execution if this is a retry",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "started_at",
+      "type": "timestamp",
+      "label": "Started At",
+      "comment": "Timestamp when execution started",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "ended_at",
+      "type": "timestamp",
+      "label": "Ended At",
+      "comment": "Timestamp when execution ended",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "timeout_seconds",
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "comment": "Actual timeout used for this execution (inherited from job or overridden)",
+      "nullable": true
+    },
+    {
+      "name": "duration",
+      "type": "integer",
+      "label": "Duration",
+      "comment": "Execution duration in milliseconds",
+      "nullable": true
+    },
+    {
+      "name": "progress",
+      "type": "integer",
+      "label": "Progress",
+      "comment": "Execution progress percentage (0-100)",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "config_snapshot",
+      "type": "json",
+      "label": "Config Snapshot",
+      "comment": "Snapshot of job configuration at execution time",
+      "nullable": true
+    },
+    {
+      "name": "result",
+      "type": "json",
+      "label": "Result",
+      "comment": "Execution result data",
+      "nullable": true
+    },
+    {
+      "name": "error_info",
+      "type": "json",
+      "label": "Error Info",
+      "comment": "Structured error information if execution failed",
+      "nullable": true
+    },
+    {
+      "name": "stack_trace",
+      "type": "text",
+      "label": "Stack Trace",
+      "comment": "Stack trace information when execution fails",
+      "nullable": true
+    },
+    {
+      "name": "metrics",
+      "type": "json",
+      "label": "Metrics",
+      "comment": "Execution metrics like memory usage, CPU time, etc.",
+      "nullable": true
+    },
+    {
+      "name": "context",
+      "type": "json",
+      "label": "Context",
+      "comment": "Additional execution context and metadata",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_execution_job_started",
+      "columns": ["job_id", "started_at"],
+      "comment": "Composite index for job execution history queries"
+    },
+    {
+      "name": "idx_execution_status_started",
+      "columns": ["status", "started_at"],
+      "comment": "Composite index for status-based queries with time ordering"
+    },
+    {
+      "name": "idx_execution_worker_started",
+      "columns": ["worker_id", "started_at"],
+      "comment": "Composite index for worker execution history"
+    },
+    {
+      "name": "idx_execution_trigger_started",
+      "columns": ["trigger_category", "started_at"],
+      "comment": "Composite index for trigger category analysis"
+    },
+    {
+      "name": "idx_execution_trigger_source",
+      "columns": ["trigger_source", "started_at"],
+      "comment": "Composite index for trigger source analysis"
+    },
+    {
+      "name": "idx_execution_parent_retry",
+      "columns": ["parent_execution_id", "retry_attempt"],
+      "comment": "Composite index for retry chain tracking"
+    }
+  ],
+  "option": {
+    "permission": true,
+    "timestamps": true
+  }
+}

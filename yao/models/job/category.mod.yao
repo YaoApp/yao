@@ -1,0 +1,91 @@
+{
+  "name": "category",
+  "label": "Job Category",
+  "description": "Job category table for organizing different types of jobs",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "job_category",
+    "comment": "Job Category table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "category_id",
+      "type": "string",
+      "label": "Category ID",
+      "comment": "Unique string identifier for the category",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Category Name",
+      "comment": "Display name of the category",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "label": "Icon",
+      "comment": "Icon identifier for the category",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Category description",
+      "nullable": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Sort order for display",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "system",
+      "type": "boolean",
+      "label": "System Category",
+      "comment": "Whether this is a system category",
+      "default": false,
+      "nullable": false
+    },
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "label": "Enabled",
+      "comment": "Whether this category is enabled",
+      "default": true,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "readonly",
+      "type": "boolean",
+      "label": "Readonly",
+      "comment": "Whether this category is read-only",
+      "default": false,
+      "nullable": false
+    }
+  ],
+  "option": {
+    "permission": true,
+    "timestamps": true
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "name": "log",
+  "label": "Job Log",
+  "description": "Job log table for tracking job execution logs and events",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "job_log",
+    "comment": "Job Log table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "job_id",
+      "type": "string",
+      "label": "Job ID",
+      "comment": "Reference to the job this log belongs to",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "level",
+      "type": "enum",
+      "label": "Log Level",
+      "comment": "Log level indicating severity",
+      "option": [
+        "debug", // Debug information for development
+        "info", // General information about execution
+        "warning", // Warning messages for potential issues
+        "error", // Error messages for failures
+        "fatal", // Fatal errors that stop execution
+        "retry" // Retry attempt information
+      ],
+      "default": "info",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "message",
+      "type": "text",
+      "label": "Message",
+      "comment": "Log message content",
+      "nullable": false
+    },
+    {
+      "name": "context",
+      "type": "json",
+      "label": "Context",
+      "comment": "Additional context data for the log entry",
+      "nullable": true
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "label": "Source",
+      "comment": "Source component or module that generated the log",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "execution_id",
+      "type": "string",
+      "label": "Execution ID",
+      "comment": "Unique identifier for this execution run (useful for retry scenarios)",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "step",
+      "type": "string",
+      "label": "Step",
+      "comment": "Execution step or phase when this log was generated",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "progress",
+      "type": "integer",
+      "label": "Progress",
+      "comment": "Progress percentage at the time of this log (0-100)",
+      "nullable": true
+    },
+    {
+      "name": "duration",
+      "type": "integer",
+      "label": "Duration",
+      "comment": "Duration in milliseconds for the operation (if applicable)",
+      "nullable": true
+    },
+    {
+      "name": "error_code",
+      "type": "string",
+      "label": "Error Code",
+      "comment": "Error code for error-level logs",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "stack_trace",
+      "type": "text",
+      "label": "Stack Trace",
+      "comment": "Stack trace for error logs",
+      "nullable": true
+    },
+    {
+      "name": "worker_id",
+      "type": "string",
+      "label": "Worker ID",
+      "comment": "Worker instance that generated this log",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "process_id",
+      "type": "string",
+      "label": "Process ID",
+      "comment": "Process ID for heavyweight jobs",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "timestamp",
+      "type": "timestamp",
+      "label": "Timestamp",
+      "comment": "Timestamp when the log was generated",
+      "nullable": false,
+      "index": true,
+      "default": "now()"
+    },
+    {
+      "name": "sequence",
+      "type": "integer",
+      "label": "Sequence",
+      "comment": "Sequence number within the job execution for ordering",
+      "nullable": false,
+      "default": 0
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_log_job_timestamp",
+      "columns": ["job_id", "timestamp"],
+      "comment": "Composite index for job log queries ordered by time"
+    },
+    {
+      "name": "idx_log_job_level",
+      "columns": ["job_id", "level"],
+      "comment": "Composite index for filtering logs by job and level"
+    },
+    {
+      "name": "idx_log_execution_sequence",
+      "columns": ["execution_id", "sequence"],
+      "comment": "Composite index for ordering logs within an execution"
+    },
+    {
+      "name": "idx_log_level_timestamp",
+      "columns": ["level", "timestamp"],
+      "comment": "Composite index for filtering logs by level and time"
+    },
+    {
+      "name": "idx_log_worker_timestamp",
+      "columns": ["worker_id", "timestamp"],
+      "comment": "Composite index for worker-specific log queries"
+    }
+  ],
+  "option": {
+    "permission": true,
+    "timestamps": true
+  }
+}
