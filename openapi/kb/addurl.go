@@ -102,8 +102,8 @@ func AddURLProcess(ctx context.Context, req *AddURLRequest, jobID ...string) err
 		}
 	}
 
-	// Update document count for the collection
-	if err := config.UpdateDocumentCount(req.CollectionID); err != nil {
+	// Update document count for the collection and sync to GraphRag
+	if err := UpdateDocumentCountWithSync(req.CollectionID, config); err != nil {
 		log.Error("Failed to update document count for collection %s: %v", req.CollectionID, err)
 	} else {
 		log.Info("Successfully updated document count for collection %s", req.CollectionID)
