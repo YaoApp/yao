@@ -4,3 +4,6 @@ package job
 type ProgressManager interface {
 	Set(progress int, message string) error
 }
+
+// JobManager the job manager
+type JobManager interface{}
