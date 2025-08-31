@@ -87,8 +87,9 @@ type Job struct {
 	Executions []Execution `json:"executions,omitempty"`
 	Logs       []Log       `json:"logs,omitempty"`
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx           context.Context
+	cancel        context.CancelFunc
+	workerManager *WorkerManager // For testing: allows using custom worker manager
 }
 
 // Category represents job categories for organization

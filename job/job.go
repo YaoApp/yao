@@ -1,6 +1,12 @@
 package job
 
-import jsoniter "github.com/json-iterator/go"
+import (
+	"fmt"
+	"time"
+
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/model"
+)
 
 // Once create a new job
 func Once(mode ModeType, data map[string]interface{}) (*Job, error) {
@@ -36,13 +42,70 @@ func Daemon(mode ModeType, data map[string]interface{}) (*Job, error) {
 	return makeJob(raw)
 }
 
+// SetWorkerManager sets a custom worker manager for this job (for testing)
+func (j *Job) SetWorkerManager(wm *WorkerManager) {
+	j.workerManager = wm
+}
+
 // Start start the job
 func (j *Job) Start() error {
-	return nil
+	// Get handler from registry (thread-safe)
+	handler, exists := getHandler(j.JobID)
+	if !exists {
+		return fmt.Errorf("no handler registered for job %s", j.JobID)
+	}
+
+	// Update job status to ready
+	j.Status = "ready"
+	if err := SaveJob(j); err != nil {
+		return fmt.Errorf("failed to update job status: %w", err)
+	}
+
+	// Submit to worker manager (use custom one if set, otherwise global)
+	var wm *WorkerManager
+	if j.workerManager != nil {
+		wm = j.workerManager
+	} else {
+		wm = GetWorkerManager()
+		// Start worker manager if not already started
+		if wm.GetActiveWorkers() == 0 {
+			wm.Start()
+		}
+	}
+
+	return wm.SubmitJob(j, handler)
 }
 
 // Cancel cancel the job
 func (j *Job) Cancel() error {
+	// Update job status
+	j.Status = "disabled"
+	if err := SaveJob(j); err != nil {
+		return fmt.Errorf("failed to update job status: %w", err)
+	}
+
+	// If there's a current execution, mark it as cancelled
+	if j.CurrentExecutionID != nil {
+		execution, err := GetExecution(*j.CurrentExecutionID, model.QueryParam{})
+		if err == nil && (execution.Status == "queued" || execution.Status == "running") {
+			execution.Status = "cancelled"
+			execution.EndedAt = &time.Time{}
+			*execution.EndedAt = time.Now()
+			SaveExecution(execution)
+
+			// Log cancellation
+			logEntry := &Log{
+				JobID:       j.JobID,
+				Level:       "info",
+				Message:     "Job execution cancelled by user",
+				ExecutionID: j.CurrentExecutionID,
+				Timestamp:   time.Now(),
+				Sequence:    0,
+			}
+			SaveLog(logEntry)
+		}
+	}
+
 	return nil
 }
 
