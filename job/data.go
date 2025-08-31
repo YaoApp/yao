@@ -110,8 +110,11 @@ func SaveJob(job *Job) error {
 		// Create new job
 		if job.JobID == "" {
 			job.JobID = uuid.New().String()
-			data["job_id"] = job.JobID
 		}
+
+		// Remove ID field from data to let database auto-increment
+		delete(data, "id")
+		data["job_id"] = job.JobID
 		data["created_at"] = now
 		data["updated_at"] = now
 
@@ -129,7 +132,7 @@ func SaveJob(job *Job) error {
 
 		param := model.QueryParam{
 			Wheres: []model.QueryWhere{
-				{Column: "id", Value: job.ID},
+				{Column: "job_id", Value: job.JobID},
 			},
 			Limit: 1,
 		}
@@ -289,8 +292,11 @@ func SaveCategory(category *Category) error {
 		// Create new category
 		if category.CategoryID == "" {
 			category.CategoryID = uuid.New().String()
-			data["category_id"] = category.CategoryID
 		}
+
+		// Remove ID field from data to let database auto-increment
+		delete(data, "id")
+		data["category_id"] = category.CategoryID
 		data["created_at"] = now
 		data["updated_at"] = now
 
@@ -308,7 +314,7 @@ func SaveCategory(category *Category) error {
 
 		param := model.QueryParam{
 			Wheres: []model.QueryWhere{
-				{Column: "id", Value: category.ID},
+				{Column: "category_id", Value: category.CategoryID},
 			},
 			Limit: 1,
 		}
@@ -398,7 +404,7 @@ func ListLogs(jobID string, param model.QueryParam, page int, pagesize int) (map
 	return mod.Paginate(param, page, pagesize)
 }
 
-// SaveLog save log
+// SaveLog save log (always creates new log entry)
 func SaveLog(log *Log) error {
 	mod := model.Select("__yao.job.log")
 	if mod == nil {
@@ -408,38 +414,21 @@ func SaveLog(log *Log) error {
 	data := structToMap(log)
 	now := time.Now()
 
-	if log.ID == 0 {
-		// Create new log
-		data["created_at"] = now
-		data["updated_at"] = now
-		if log.Timestamp.IsZero() {
-			log.Timestamp = now
-			data["timestamp"] = now
-		}
-
-		id, err := mod.Create(data)
-		if err != nil {
-			return fmt.Errorf("failed to create log: %w", err)
-		}
-		log.ID = uint(id)
-	} else {
-		// Update existing log (rare case)
-		data["updated_at"] = now
-		delete(data, "id")
-		delete(data, "created_at")
-
-		param := model.QueryParam{
-			Wheres: []model.QueryWhere{
-				{Column: "id", Value: log.ID},
-			},
-			Limit: 1,
-		}
-
-		_, err := mod.UpdateWhere(param, data)
-		if err != nil {
-			return fmt.Errorf("failed to update log: %w", err)
-		}
+	// Always create new log entry
+	// Remove ID field from data to let database auto-increment
+	delete(data, "id")
+	data["created_at"] = now
+	data["updated_at"] = now
+	if log.Timestamp.IsZero() {
+		log.Timestamp = now
+		data["timestamp"] = now
 	}
+
+	id, err := mod.Create(data)
+	if err != nil {
+		return fmt.Errorf("failed to create log: %w", err)
+	}
+	log.ID = uint(id)
 
 	return nil
 }
@@ -604,8 +593,11 @@ func SaveExecution(execution *Execution) error {
 		// Create new execution
 		if execution.ExecutionID == "" {
 			execution.ExecutionID = uuid.New().String()
-			data["execution_id"] = execution.ExecutionID
 		}
+
+		// Remove ID field from data to let database auto-increment
+		delete(data, "id")
+		data["execution_id"] = execution.ExecutionID
 		data["created_at"] = now
 		data["updated_at"] = now
 
@@ -623,7 +615,7 @@ func SaveExecution(execution *Execution) error {
 
 		param := model.QueryParam{
 			Wheres: []model.QueryWhere{
-				{Column: "id", Value: execution.ID},
+				{Column: "execution_id", Value: execution.ExecutionID},
 			},
 			Limit: 1,
 		}
