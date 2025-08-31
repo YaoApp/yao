@@ -78,15 +78,15 @@
       "index": true
     },
     {
-      "name": "process_type",
+      "name": "mode",
       "type": "enum",
-      "label": "Process Type",
-      "comment": "Job execution process type",
+      "label": "Mode",
+      "comment": "Job execution mode",
       "option": [
-        "goroutine", // Execute using Go goroutine (lightweight, fast)
-        "process" // Execute as independent process (isolated, heavyweight)
+        "GOROUTINE", // Execute using Go goroutine (lightweight, fast)
+        "PROCESS" // Execute as independent process (isolated, heavyweight)
       ],
-      "default": "goroutine",
+      "default": "GOROUTINE",
       "nullable": false,
       "index": true
     },
