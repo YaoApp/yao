@@ -684,8 +684,9 @@ func mapToStruct(m maps.MapStr, v interface{}) error {
 	// Clean up the map data to handle database type conversions
 	cleanMap := make(map[string]interface{})
 	for key, value := range m {
-		// Convert numeric values to proper types for boolean fields
-		if key == "enabled" || key == "system" || key == "readonly" {
+		switch key {
+		case "enabled", "system", "readonly":
+			// Convert numeric values to proper types for boolean fields
 			switch val := value.(type) {
 			case int:
 				cleanMap[key] = val != 0
@@ -698,7 +699,19 @@ func mapToStruct(m maps.MapStr, v interface{}) error {
 			default:
 				cleanMap[key] = value
 			}
-		} else {
+		case "created_at", "updated_at", "next_run_at", "last_run_at", "scheduled_at", "started_at", "finished_at", "timestamp":
+			// Handle time fields - convert database time format to RFC3339
+			if str, ok := value.(string); ok && str != "" {
+				// Try to parse database time format "2006-01-02 15:04:05"
+				if t, err := time.Parse("2006-01-02 15:04:05", str); err == nil {
+					cleanMap[key] = t.Format(time.RFC3339)
+				} else {
+					cleanMap[key] = value
+				}
+			} else {
+				cleanMap[key] = value
+			}
+		default:
 			cleanMap[key] = value
 		}
 	}
