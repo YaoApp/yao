@@ -449,7 +449,7 @@ func TestWorkerManager(t *testing.T) {
 	}
 
 	if len(executions) == 0 {
-		t.Error("Expected at least one execution")
+		t.Fatal("Expected at least one execution")
 	}
 
 	// Check execution status

@@ -240,8 +240,7 @@ func TestWorkerErrorHandling(t *testing.T) {
 		t.Fatalf("Failed to get executions: %v", err)
 	}
 	if len(executions) == 0 {
-		t.Error("Expected at least one execution")
-		return
+		t.Fatal("Expected at least one execution")
 	}
 
 	execution := executions[0]
