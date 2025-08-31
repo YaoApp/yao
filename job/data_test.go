@@ -168,7 +168,7 @@ func TestCategoryCRUD(t *testing.T) {
 		t.Fatalf("Failed to get categories: %v", err)
 	}
 	if len(categories) == 0 {
-		t.Error("Expected to find the test category")
+		t.Fatal("Expected to find the test category")
 	}
 	if categories[0].Name != testCategory.Name {
 		t.Errorf("Expected category name '%s', got '%s'", testCategory.Name, categories[0].Name)
