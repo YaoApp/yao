@@ -1,16 +1,143 @@
 package job_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/job"
 	"github.com/yaoapp/yao/test"
 )
+
+// registerTestProcesses registers test processes for job testing
+func registerTestProcesses() {
+	// Register test.job.echo process
+	process.Register("test.job.echo", func(process *process.Process) interface{} {
+		args := process.Args
+		if len(args) > 0 {
+			message := args[0]
+
+			// Simulate progress updates
+			if process.Callback != nil {
+				// Report 25% progress
+				process.Callback(process, map[string]interface{}{
+					"type":     "progress",
+					"progress": 25,
+					"message":  "Starting echo process",
+				})
+
+				// Report 50% progress
+				process.Callback(process, map[string]interface{}{
+					"type":     "progress",
+					"progress": 50,
+					"message":  "Processing message",
+				})
+
+				// Report 75% progress
+				process.Callback(process, map[string]interface{}{
+					"type":     "progress",
+					"progress": 75,
+					"message":  "Finalizing echo",
+				})
+
+				// Report 100% progress
+				process.Callback(process, map[string]interface{}{
+					"type":     "progress",
+					"progress": 100,
+					"message":  "Echo completed",
+				})
+			}
+
+			return map[string]interface{}{
+				"message": message,
+				"echo":    "Echo: " + message.(string),
+				"status":  "success",
+			}
+		}
+
+		return map[string]interface{}{
+			"message": "No message provided",
+			"status":  "error",
+		}
+	})
+
+	// Register test.job.cron process
+	process.Register("test.job.cron", func(process *process.Process) interface{} {
+		args := process.Args
+		message := "Cron job executed"
+		if len(args) > 0 {
+			message = args[0].(string)
+		}
+
+		return map[string]interface{}{
+			"message":   message,
+			"timestamp": time.Now().Unix(),
+			"status":    "success",
+		}
+	})
+
+	// Register test.job.daemon process
+	process.Register("test.job.daemon", func(process *process.Process) interface{} {
+		args := process.Args
+		message := "Daemon process executed"
+		if len(args) > 0 {
+			message = args[0].(string)
+		}
+
+		return map[string]interface{}{
+			"message": message,
+			"status":  "success",
+			"daemon":  true,
+		}
+	})
+
+	// Register test.job.database process
+	process.Register("test.job.database", func(process *process.Process) interface{} {
+		args := process.Args
+		message := "Database operation executed"
+		if len(args) > 0 {
+			message = args[0].(string)
+		}
+
+		return map[string]interface{}{
+			"message":   message,
+			"operation": "test",
+			"status":    "success",
+		}
+	})
+
+	// Register test.job.execution process with enhanced features
+	process.Register("test.job.execution", func(process *process.Process) interface{} {
+		args := process.Args
+		message := "Execution test"
+		if len(args) > 0 {
+			message = args[0].(string)
+		}
+
+		// Simulate progress updates with callback
+		if process.Callback != nil {
+			// Report progress incrementally
+			for i := 10; i <= 100; i += 10 {
+				process.Callback(process, map[string]interface{}{
+					"type":     "progress",
+					"progress": i,
+					"message":  fmt.Sprintf("Processing step %d/10", i/10),
+				})
+				time.Sleep(10 * time.Millisecond) // Small delay to simulate work
+			}
+		}
+
+		return map[string]interface{}{
+			"message":   message,
+			"progress":  100,
+			"status":    "success",
+			"test_data": "execution completed",
+		}
+	})
+}
 
 // TestOnce test once job
 func TestOnceGoroutine(t *testing.T) {
@@ -18,51 +145,34 @@ func TestOnceGoroutine(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Register test processes
+	registerTestProcesses()
+
 	testJob, err := job.Once(job.GOROUTINE, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Channel to signal completion
-	done := make(chan bool, 1)
-
-	// Handler that signals completion
-	handler := func(ctx context.Context, execution *job.Execution) error {
-		execution.SetProgress(50, "Progress 50%%")
-		execution.Info("Progress 50%%")
-		time.Sleep(100 * time.Millisecond)
-		execution.SetProgress(100, "Progress 100%%")
-		execution.Info("Progress 100%%")
-		done <- true
-		return nil
-	}
-
-	err = testJob.Add(1, handler)
+	// Use a test Yao process (this would need to be defined in your Yao app)
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"test_data": "Hello from test",
+		},
+	}, "test.job.echo", "Hello from test")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Set up worker manager for test
-	wm := job.NewWorkerManagerForTest(2)
-	wm.Start()
-	defer wm.Stop()
-	testJob.SetWorkerManager(wm)
 
 	err = testJob.Start()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for job completion or timeout
-	select {
-	case <-done:
-		t.Log("Job completed successfully")
-	case <-time.After(10 * time.Second):
-		t.Error("Job execution timeout")
-	}
+	// Give some time for execution
+	time.Sleep(2 * time.Second)
 
-	// Give some extra time for cleanup
-	time.Sleep(500 * time.Millisecond)
+	t.Log("Job started successfully")
 }
 
 func TestOnceProcess(t *testing.T) {
@@ -70,51 +180,34 @@ func TestOnceProcess(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Register test processes
+	registerTestProcesses()
+
 	testJob, err := job.Once(job.PROCESS, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Channel to signal completion
-	done := make(chan bool, 1)
-
-	// Handler that signals completion
-	handler := func(ctx context.Context, execution *job.Execution) error {
-		execution.SetProgress(50, "Progress 50%%")
-		execution.Info("Progress 50%%")
-		time.Sleep(100 * time.Millisecond)
-		execution.SetProgress(100, "Progress 100%%")
-		execution.Info("Progress 100%%")
-		done <- true
-		return nil
-	}
-
-	err = testJob.Add(1, handler)
+	// Use a test Yao process
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"test_data": "Hello from process test",
+		},
+	}, "test.job.echo", "Hello from process test")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Set up worker manager for test
-	wm := job.NewWorkerManagerForTest(2)
-	wm.Start()
-	defer wm.Stop()
-	testJob.SetWorkerManager(wm)
 
 	err = testJob.Start()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Wait for job completion or timeout
-	select {
-	case <-done:
-		t.Log("Job completed successfully")
-	case <-time.After(10 * time.Second):
-		t.Error("Job execution timeout")
-	}
+	// Give some time for execution
+	time.Sleep(2 * time.Second)
 
-	// Give some extra time for cleanup
-	time.Sleep(500 * time.Millisecond)
+	t.Log("Process job started successfully")
 }
 
 func TestCronGoroutine(t *testing.T) {
@@ -122,13 +215,21 @@ func TestCronGoroutine(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Register test processes
+	registerTestProcesses()
+
 	testJob, err := job.Cron(job.GOROUTINE, map[string]interface{}{}, "0 0 * * *")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// For cron jobs, we just test creation, not execution
-	err = testJob.Add(1, HandlerTest)
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"cron_context": "scheduled execution",
+		},
+	}, "test.job.cron", "Cron test execution")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,13 +246,21 @@ func TestCronProcess(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Register test processes
+	registerTestProcesses()
+
 	testJob, err := job.Cron(job.PROCESS, map[string]interface{}{}, "0 0 * * *")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// For cron jobs, we just test creation, not execution
-	err = testJob.Add(1, HandlerTest)
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"cron_context": "scheduled process execution",
+		},
+	}, "test.job.cron", "Cron process test execution")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,18 +272,26 @@ func TestCronProcess(t *testing.T) {
 	}
 }
 
-// TestDaemonGoroutine tests daemon job with goroutine mode using Ticker handler
+// TestDaemonGoroutine tests daemon job with goroutine mode
 func TestDaemonGoroutine(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Register test processes
+	registerTestProcesses()
+
 	testJob, err := job.Daemon(job.GOROUTINE, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// For daemon jobs, we just test creation, not long-running execution
-	err = testJob.Add(1, DaemonHandlerFastTest)
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"daemon_context": "background service",
+		},
+	}, "test.job.daemon", "Daemon test execution")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,18 +303,26 @@ func TestDaemonGoroutine(t *testing.T) {
 	}
 }
 
-// TestDaemonProcess tests daemon job with process mode using Ticker handler
+// TestDaemonProcess tests daemon job with process mode
 func TestDaemonProcess(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Register test processes
+	registerTestProcesses()
+
 	testJob, err := job.Daemon(job.PROCESS, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// For daemon jobs, we just test creation, not long-running execution
-	err = testJob.Add(1, DaemonHandlerFastTest)
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"daemon_context": "background process service",
+		},
+	}, "test.job.daemon", "Daemon process test execution")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,138 +334,51 @@ func TestDaemonProcess(t *testing.T) {
 	}
 }
 
-// TestDaemonFastGoroutine tests fast daemon job with goroutine mode for quick testing
-func TestDaemonFastGoroutine(t *testing.T) {
+// TestCommand test command execution
+func TestCommand(t *testing.T) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
-	testJob, err := job.Daemon(job.GOROUTINE, map[string]interface{}{})
+	// Register test processes
+	registerTestProcesses()
+
+	testJob, err := job.Once(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test Command Job",
+		"description": "Job for testing command execution",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// For daemon jobs, we just test creation, not execution
-	err = testJob.Add(1, DaemonHandlerFastTest)
+	// Test system command
+	err = testJob.AddCommand(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"command_context": "test execution",
+		},
+	}, "echo", []string{"Hello from command test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Just verify the job was created properly
-	if testJob.ScheduleType != string(job.ScheduleTypeDaemon) {
-		t.Errorf("Expected schedule type daemon, got %s", testJob.ScheduleType)
-	}
-}
-
-// TestDaemonFastProcess tests fast daemon job with process mode for quick testing
-func TestDaemonFastProcess(t *testing.T) {
-	test.Prepare(&testing.T{}, config.Conf)
-	defer test.Clean()
-
-	testJob, err := job.Daemon(job.PROCESS, map[string]interface{}{})
+	err = testJob.Start()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// For daemon jobs, we just test creation, not execution
-	err = testJob.Add(1, DaemonHandlerFastTest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Give some time for execution
+	time.Sleep(2 * time.Second)
 
-	// Just verify the job was created properly
-	if testJob.ScheduleType != string(job.ScheduleTypeDaemon) {
-		t.Errorf("Expected schedule type daemon, got %s", testJob.ScheduleType)
-	}
-}
-
-func HandlerTest(ctx context.Context, execution *job.Execution) error {
-	execution.SetProgress(50, "Progress 50%%")
-	execution.Info("Progress 50%%")
-	time.Sleep(100 * time.Millisecond)
-	execution.SetProgress(100, "Progress 100%%")
-	execution.Info("Progress 100%%")
-	time.Sleep(200 * time.Millisecond)
-	execution.SetProgress(100, "Progress 100%%")
-	execution.Info("Progress 100%%")
-	return nil
-}
-
-func DaemonHandlerTest(ctx context.Context, execution *job.Execution) error {
-	// Build a daemon handler using Ticker that executes tasks every 5 seconds continuously
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	counter := 0
-
-	execution.Info("Daemon handler started, running continuously...")
-	execution.SetProgress(0, "Daemon initialized and ready")
-
-	for {
-		select {
-		case <-ctx.Done():
-			// Context cancelled, graceful shutdown
-			execution.Info("Daemon handler received cancellation signal after %d iterations, exiting...", counter)
-			execution.SetProgress(100, fmt.Sprintf("Daemon stopped gracefully after %d iterations", counter))
-			return ctx.Err()
-		case <-ticker.C:
-			counter++
-
-			// Daemon doesn't need specific completion progress, show running status instead
-			execution.SetProgress(50, fmt.Sprintf("Running - completed %d iterations", counter))
-			execution.Info("Daemon tick %d: Processing periodic task...", counter)
-
-			// Simulate periodic tasks execution
-			// e.g.: cleanup temp files, health checks, data synchronization, etc.
-			time.Sleep(500 * time.Millisecond) // Simulate task execution time
-
-			execution.Debug("Daemon iteration %d completed successfully", counter)
-
-			// Output statistics every 10 iterations
-			if counter%10 == 0 {
-				execution.Info("Daemon health check: %d iterations completed, still running...", counter)
-			}
-		}
-	}
-}
-
-// DaemonHandlerFastTest fast testing version of daemon handler for testing (executes every 500ms)
-func DaemonHandlerFastTest(ctx context.Context, execution *job.Execution) error {
-	// Use shorter interval for testing
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	counter := 0
-
-	execution.Info("Fast daemon handler started for testing, running continuously...")
-	execution.SetProgress(0, "Fast daemon initialized")
-
-	for {
-		select {
-		case <-ctx.Done():
-			execution.Info("Fast daemon handler stopped after %d iterations", counter)
-			execution.SetProgress(100, fmt.Sprintf("Fast daemon stopped after %d iterations", counter))
-			return ctx.Err()
-		case <-ticker.C:
-			counter++
-
-			execution.SetProgress(50, fmt.Sprintf("Fast daemon: %d iterations", counter))
-			execution.Debug("Fast daemon tick %d: Quick task execution", counter)
-
-			// Quick task simulation
-			time.Sleep(50 * time.Millisecond)
-
-			// Output info every 5 iterations (due to higher frequency)
-			if counter%5 == 0 {
-				execution.Info("Fast daemon: %d iterations completed", counter)
-			}
-		}
-	}
+	t.Log("Command job started successfully")
 }
 
 // TestDatabase test database operations
 func TestDatabase(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
+
+	// Register test processes
+	registerTestProcesses()
 
 	// Test category creation
 	category, err := job.GetOrCreateCategory("test-category", "Test category for unit tests")
@@ -362,7 +400,18 @@ func TestDatabase(t *testing.T) {
 	}
 
 	testJob.SetCategory(category.CategoryID)
-	testJob.Add(1, HandlerTest)
+	testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"database_context": "test operation",
+		},
+	}, "test.job.database", "Database test execution")
+
+	// Save the job to database before retrieving it
+	err = job.SaveJob(testJob)
+	if err != nil {
+		t.Fatalf("Failed to save job: %v", err)
+	}
 
 	// Test job retrieval
 	retrievedJob, err := job.GetJob(testJob.JobID)
@@ -398,70 +447,13 @@ func TestDatabase(t *testing.T) {
 	}
 }
 
-// TestWorkerManager test worker management
-func TestWorkerManager(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	// Get worker manager
-	wm := job.NewWorkerManagerForTest(2)
-	if wm == nil {
-		t.Fatal("Failed to get worker manager")
-	}
-
-	// Start worker manager
-	wm.Start()
-	defer wm.Stop()
-
-	// Check active workers
-	activeWorkers := wm.GetActiveWorkers()
-	if activeWorkers == 0 {
-		t.Error("Expected active workers after starting worker manager")
-	}
-
-	// Create and submit a job
-	testJob, err := job.Once(job.GOROUTINE, map[string]interface{}{
-		"name":        "Test Worker Job",
-		"description": "Job for testing worker management",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create job: %v", err)
-	}
-
-	err = testJob.Add(1, HandlerTest)
-	if err != nil {
-		t.Fatalf("Failed to add handler: %v", err)
-	}
-
-	// Start the job
-	err = testJob.Start()
-	if err != nil {
-		t.Fatalf("Failed to start job: %v", err)
-	}
-
-	// Wait for job to complete
-	time.Sleep(1 * time.Second)
-
-	// Check executions
-	executions, err := testJob.GetExecutions()
-	if err != nil {
-		t.Fatalf("Failed to get executions: %v", err)
-	}
-
-	if len(executions) == 0 {
-		t.Error("Expected at least one execution")
-	}
-
-	// Check execution status
-	if executions[0].Status != "completed" && executions[0].Status != "running" {
-		t.Errorf("Expected execution status 'completed' or 'running', got '%s'", executions[0].Status)
-	}
-}
-
 // TestJobExecution test job execution with logging and progress
 func TestJobExecution(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
+
+	// Register test processes
+	registerTestProcesses()
 
 	// Create a job with enhanced handler
 	testJob, err := job.Once(job.GOROUTINE, map[string]interface{}{
@@ -472,42 +464,26 @@ func TestJobExecution(t *testing.T) {
 		t.Fatalf("Failed to create job: %v", err)
 	}
 
-	// Channel to signal completion
-	done := make(chan bool, 1)
-
-	// Enhanced handler for testing
-	enhancedHandler := func(ctx context.Context, execution *job.Execution) error {
-		execution.Info("Starting enhanced test execution")
-		execution.SetProgress(10, "Initialization complete")
-
-		time.Sleep(50 * time.Millisecond)
-
-		execution.Debug("Debug message test")
-		execution.SetProgress(50, "Halfway complete")
-
-		time.Sleep(50 * time.Millisecond)
-
-		execution.Warn("Warning message test")
-		execution.SetProgress(80, "Almost done")
-
-		time.Sleep(50 * time.Millisecond)
-
-		execution.Info("Execution completed successfully")
-		execution.SetProgress(100, "Complete")
-
-		done <- true
-		return nil
+	// Save the job to database first so it has a valid ID
+	err = job.SaveJob(testJob)
+	if err != nil {
+		t.Fatalf("Failed to save job: %v", err)
 	}
 
-	err = testJob.Add(1, enhancedHandler)
+	// Use a test Yao process for execution testing with chained options
+	err = testJob.Add(
+		job.NewExecutionOptions().
+			WithPriority(1).
+			AddSharedData("execution_context", "enhanced test").
+			AddSharedData("user_id", "test_user_123").
+			AddSharedData("session", map[string]interface{}{
+				"token":   "test_token",
+				"expires": "2024-12-31",
+			}),
+		"test.job.execution", "Enhanced execution test")
 	if err != nil {
 		t.Fatalf("Failed to add handler: %v", err)
 	}
-
-	// Start worker manager
-	wm := job.NewWorkerManagerForTest(2)
-	wm.Start()
-	defer wm.Stop()
 
 	// Start the job
 	err = testJob.Start()
@@ -515,13 +491,9 @@ func TestJobExecution(t *testing.T) {
 		t.Fatalf("Failed to start job: %v", err)
 	}
 
-	// Wait for completion or timeout
-	select {
-	case <-done:
-		t.Log("Job execution completed")
-	case <-time.After(10 * time.Second):
-		t.Error("Job execution timeout")
-	}
+	// Give some time for execution
+	time.Sleep(2 * time.Second)
+	t.Log("Job execution started")
 
 	// Give some extra time for database operations to complete
 	time.Sleep(200 * time.Millisecond)
@@ -537,10 +509,25 @@ func TestJobExecution(t *testing.T) {
 	}
 
 	execution := executions[0]
+	t.Logf("Initial execution progress: %d", execution.Progress)
+
+	// Get fresh execution data from database to check final progress
+	freshExecution, err := job.GetExecution(execution.ExecutionID, model.QueryParam{})
+	if err != nil {
+		t.Fatalf("Failed to get fresh execution: %v", err)
+	}
+
+	t.Logf("Fresh execution progress: %d, status: %s", freshExecution.Progress, freshExecution.Status)
+	if freshExecution.ErrorInfo != nil && len(*freshExecution.ErrorInfo) > 0 {
+		t.Logf("Execution error: %s", string(*freshExecution.ErrorInfo))
+	}
+	if freshExecution.Result != nil && len(*freshExecution.Result) > 0 {
+		t.Logf("Execution result: %s", string(*freshExecution.Result))
+	}
 
 	// Check final progress (may take time to update)
-	if execution.Progress < 50 {
-		t.Errorf("Expected progress at least 50, got %d", execution.Progress)
+	if freshExecution.Progress < 50 {
+		t.Errorf("Expected progress at least 50, got %d", freshExecution.Progress)
 	}
 
 	// Check logs

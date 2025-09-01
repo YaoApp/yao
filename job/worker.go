@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"os/exec"
 	"runtime"
 	"sync"
 	"time"
@@ -40,7 +38,6 @@ type Worker struct {
 type WorkRequest struct {
 	Job       *Job
 	Execution *Execution
-	Handler   HandlerFunc
 	Context   context.Context
 }
 
@@ -48,12 +45,27 @@ type WorkRequest struct {
 var globalWorkerManager *WorkerManager
 var workerManagerOnce sync.Once
 
+// init initializes the global worker manager
+func init() {
+	// Start the global worker manager on package initialization
+	wm := GetWorkerManager()
+	wm.Start()
+}
+
 // GetWorkerManager returns the global worker manager instance
 func GetWorkerManager() *WorkerManager {
 	workerManagerOnce.Do(func() {
-		globalWorkerManager = NewWorkerManager(runtime.NumCPU() * 2) // Default to 2x CPU cores
+		globalWorkerManager = NewWorkerManager(getDefaultMaxWorkers()) // Use configurable default
 	})
 	return globalWorkerManager
+}
+
+// getDefaultMaxWorkers returns the default max workers count
+// This can be configured via environment variables or config files
+func getDefaultMaxWorkers() int {
+	// Use CPU count * 4 as default for optimal concurrency
+	// This provides good balance between resource utilization and system load
+	return runtime.NumCPU() * 4
 }
 
 // NewWorkerManagerForTest creates a new worker manager for testing (not singleton)
@@ -66,7 +78,7 @@ func NewWorkerManager(maxWorkers int) *WorkerManager {
 	return &WorkerManager{
 		maxWorkers:    maxWorkers,
 		activeWorkers: make(map[string]*Worker),
-		workQueue:     make(chan *WorkRequest, maxWorkers*2), // Buffer for queue
+		workQueue:     make(chan *WorkRequest, maxWorkers*4), // Allow 200% overload (4x buffer)
 		workerPool:    make(chan chan *WorkRequest, maxWorkers),
 		quit:          make(chan bool),
 	}
@@ -122,41 +134,36 @@ func (wm *WorkerManager) Stop() {
 	log.Info("Worker manager stopped")
 }
 
-// SubmitJob submits a job for execution
-func (wm *WorkerManager) SubmitJob(job *Job, handler HandlerFunc) error {
-	// Create execution record
-	execution := &Execution{
-		ExecutionID:     uuid.New().String(),
-		JobID:           job.JobID,
-		Status:          "queued",
-		TriggerCategory: "manual", // Default trigger
-		RetryAttempt:    0,
-		Progress:        0,
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
-	}
+// SubmitJob submits a job execution for processing with context (non-blocking)
+func (wm *WorkerManager) SubmitJob(ctx context.Context, job *Job, execution *Execution) error {
+	// Check queue capacity before submitting
+	queueLen := len(wm.workQueue)
+	queueCap := cap(wm.workQueue)
 
-	// Save execution to database
-	if err := SaveExecution(execution); err != nil {
-		return fmt.Errorf("failed to save execution: %w", err)
+	// Allow reasonable backlog but prevent unlimited accumulation
+	// Reject only when queue is completely full to maximize throughput
+	if queueLen >= queueCap {
+		return fmt.Errorf("work queue is full (%d/%d), please retry later", queueLen, queueCap)
 	}
 
 	// Create work request
 	workRequest := &WorkRequest{
 		Job:       job,
 		Execution: execution,
-		Handler:   handler,
-		Context:   context.Background(),
+		Context:   ctx,
 	}
 
-	// Submit to work queue
-	select {
-	case wm.workQueue <- workRequest:
-		log.Debug("Job %s submitted to work queue", job.JobID)
-		return nil
-	default:
-		return fmt.Errorf("work queue is full")
-	}
+	// Submit asynchronously to avoid blocking
+	go func() {
+		select {
+		case wm.workQueue <- workRequest:
+			log.Debug("Job %s execution %s submitted to work queue", job.JobID, execution.ExecutionID)
+		case <-ctx.Done():
+			log.Warn("Job %s execution %s submission cancelled", job.JobID, execution.ExecutionID)
+		}
+	}()
+
+	return nil
 }
 
 // dispatch dispatches work requests to available workers
@@ -183,6 +190,11 @@ func (wm *WorkerManager) GetActiveWorkers() int {
 	wm.mu.RLock()
 	defer wm.mu.RUnlock()
 	return len(wm.activeWorkers)
+}
+
+// GetQueueStatus returns queue length and capacity for monitoring
+func (wm *WorkerManager) GetQueueStatus() (length int, capacity int) {
+	return len(wm.workQueue), cap(wm.workQueue)
 }
 
 // NewWorker creates a new worker
@@ -358,67 +370,60 @@ func (w *Worker) processWork(work *WorkRequest) {
 		log.Warn("Failed to save final job status (database may be closed): %v", err)
 	}
 
+	// Clean up execution context from job
+	if work.Job.executionContexts != nil {
+		work.Job.executionMutex.Lock()
+		delete(work.Job.executionContexts, work.Execution.ExecutionID)
+		work.Job.executionMutex.Unlock()
+	}
+
 	log.Debug("Worker %s finished processing job %s", w.ID, work.Job.JobID)
 }
 
 // executeInGoroutine executes job in goroutine mode
 func (w *Worker) executeInGoroutine(ctx context.Context, work *WorkRequest, progress *Progress) error {
-	// Execute handler directly in current goroutine
-	return work.Handler(ctx, work.Execution)
+	// Execute based on execution config type
+	if work.Execution.ExecutionConfig == nil {
+		return fmt.Errorf("execution config is nil")
+	}
+
+	// Create goroutine executor
+	goroutineExecutor := &Goroutine{}
+
+	switch work.Execution.ExecutionConfig.Type {
+	case ExecutionTypeProcess:
+		return goroutineExecutor.ExecuteYaoProcess(ctx, work, progress)
+
+	case ExecutionTypeCommand:
+		return goroutineExecutor.ExecuteSystemCommand(ctx, work, progress)
+
+	default:
+		return fmt.Errorf("unsupported execution type: %s", work.Execution.ExecutionConfig.Type)
+	}
 }
 
 // executeInProcess executes job in process mode
 func (w *Worker) executeInProcess(ctx context.Context, work *WorkRequest, progress *Progress) error {
-	// For process mode, we would typically spawn a separate process
-	// For now, we'll simulate this with a goroutine but with process isolation concepts
+	// Execute based on execution config type using independent process
+	if work.Execution.ExecutionConfig == nil {
+		return fmt.Errorf("execution config is nil")
+	}
 
-	// Set process ID (simulated)
+	// Set process ID (will be actual process ID)
 	processID := fmt.Sprintf("proc_%s", uuid.New().String()[:8])
 	work.Execution.ProcessID = &processID
 
-	// Create a separate goroutine to simulate process isolation
-	done := make(chan error, 1)
+	// Create process executor
+	processExecutor := &Process{}
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				done <- fmt.Errorf("process panic: %v", r)
-			}
-		}()
+	switch work.Execution.ExecutionConfig.Type {
+	case ExecutionTypeProcess:
+		return processExecutor.ExecuteYaoProcess(ctx, work, progress)
 
-		// Execute handler
-		err := work.Handler(ctx, work.Execution)
-		done <- err
-	}()
+	case ExecutionTypeCommand:
+		return processExecutor.ExecuteSystemCommand(ctx, work, progress)
 
-	// Wait for completion or timeout
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
+	default:
+		return fmt.Errorf("unsupported execution type: %s", work.Execution.ExecutionConfig.Type)
 	}
-}
-
-// executeInRealProcess executes job in a real separate process (future implementation)
-func (w *Worker) executeInRealProcess(ctx context.Context, work *WorkRequest, progress *Progress) error {
-	// This would be used for true process isolation
-	// For now, it's a placeholder for future implementation
-
-	// Create command to execute job in separate process
-	cmd := exec.CommandContext(ctx, os.Args[0], "job-execute", work.Execution.ExecutionID)
-
-	// Set environment variables
-	cmd.Env = append(os.Environ(),
-		fmt.Sprintf("JOB_ID=%s", work.Job.JobID),
-		fmt.Sprintf("EXECUTION_ID=%s", work.Execution.ExecutionID),
-	)
-
-	// Execute command
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("process execution failed: %v, output: %s", err, string(output))
-	}
-
-	return nil
 }

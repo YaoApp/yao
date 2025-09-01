@@ -22,9 +22,10 @@ func TestJobCRUD(t *testing.T) {
 		t.Fatalf("Failed to create test category: %v", err)
 	}
 
-	// Test job creation
+	// Test job creation with unique ID
+	timestamp := time.Now().UnixNano()
 	testJob := &job.Job{
-		JobID:         "test-job-crud-001",
+		JobID:         fmt.Sprintf("test-job-crud-%d", timestamp),
 		Name:          "Test CRUD Job",
 		CategoryID:    category.CategoryID,
 		Status:        "draft",
@@ -40,6 +41,12 @@ func TestJobCRUD(t *testing.T) {
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
+	
+	// Ensure cleanup even if test fails
+	defer func() {
+		job.RemoveJobs([]string{testJob.JobID})
+		job.RemoveCategories([]string{category.CategoryID})
+	}()
 
 	// Test SaveJob (Create)
 	err = job.SaveJob(testJob)
@@ -136,9 +143,10 @@ func TestCategoryCRUD(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	// Test category creation
+	// Test category creation with unique ID
+	timestamp := time.Now().UnixNano()
 	testCategory := &job.Category{
-		CategoryID:  "test-category-crud-001",
+		CategoryID:  fmt.Sprintf("test-category-crud-%d", timestamp),
 		Name:        "Test CRUD Category",
 		Description: stringPtr("Test category for CRUD operations"),
 		Sort:        1,
@@ -148,6 +156,11 @@ func TestCategoryCRUD(t *testing.T) {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
+	
+	// Ensure cleanup even if test fails
+	defer func() {
+		job.RemoveCategories([]string{testCategory.CategoryID})
+	}()
 
 	// Test SaveCategory (Create)
 	err := job.SaveCategory(testCategory)
@@ -249,9 +262,10 @@ func TestExecutionCRUD(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	// Create test job first
+	// Create test job first with unique ID
+	timestamp := time.Now().UnixNano()
 	testJob := &job.Job{
-		JobID:         "test-execution-job-001",
+		JobID:         fmt.Sprintf("test-execution-job-%d", timestamp),
 		Name:          "Test Execution Job",
 		CategoryID:    "default",
 		Status:        "ready",
@@ -268,9 +282,15 @@ func TestExecutionCRUD(t *testing.T) {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
 
-	// Test execution creation
+	// Ensure cleanup even if test fails
+	defer func() {
+		job.RemoveJobs([]string{testJob.JobID})
+	}()
+
+	// Test execution creation with unique ID
+	executionTimestamp := time.Now().UnixNano() + 1 // Ensure different from job timestamp
 	testExecution := &job.Execution{
-		ExecutionID:     "test-execution-crud-001",
+		ExecutionID:     fmt.Sprintf("test-execution-crud-%d", executionTimestamp),
 		JobID:           testJob.JobID,
 		Status:          "queued",
 		TriggerCategory: "manual",
@@ -359,9 +379,10 @@ func TestLogCRUD(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	// Create test job first
+	// Create test job first with unique ID
+	timestamp := time.Now().UnixNano()
 	testJob := &job.Job{
-		JobID:         "test-log-job-001",
+		JobID:         fmt.Sprintf("test-log-job-%d", timestamp),
 		Name:          "Test Log Job",
 		CategoryID:    "default",
 		Status:        "ready",
@@ -377,6 +398,11 @@ func TestLogCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
+	
+	// Ensure cleanup even if test fails
+	defer func() {
+		job.RemoveJobs([]string{testJob.JobID})
+	}()
 
 	// Test log creation
 	testLog := &job.Log{

@@ -1,11 +1,15 @@
 package job
 
 import (
+	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/log"
 )
 
 // Once create a new job
@@ -42,17 +46,39 @@ func Daemon(mode ModeType, data map[string]interface{}) (*Job, error) {
 	return makeJob(raw)
 }
 
-// SetWorkerManager sets a custom worker manager for this job (for testing)
-func (j *Job) SetWorkerManager(wm *WorkerManager) {
-	j.workerManager = wm
-}
-
 // Start start the job
 func (j *Job) Start() error {
-	// Get handler from registry (thread-safe)
-	handler, exists := getHandler(j.JobID)
-	if !exists {
-		return fmt.Errorf("no handler registered for job %s", j.JobID)
+	// Get executions for this job
+	executions, err := j.GetExecutions()
+	if err != nil {
+		return fmt.Errorf("failed to get executions: %w", err)
+	}
+
+	if len(executions) == 0 {
+		return fmt.Errorf("no executions found for job %s", j.JobID)
+	}
+
+	// Sort executions by priority (higher priority first)
+	sort.Slice(executions, func(i, j int) bool {
+		priorityI := 0
+		if executions[i].ExecutionOptions != nil {
+			priorityI = executions[i].ExecutionOptions.Priority
+		}
+		priorityJ := 0
+		if executions[j].ExecutionOptions != nil {
+			priorityJ = executions[j].ExecutionOptions.Priority
+		}
+		return priorityI > priorityJ
+	})
+
+	// Initialize job context for cancellation
+	if j.ctx == nil {
+		j.ctx, j.cancel = context.WithCancel(context.Background())
+	}
+
+	// Initialize execution contexts map
+	if j.executionContexts == nil {
+		j.executionContexts = make(map[string]context.CancelFunc)
 	}
 
 	// Update job status to ready
@@ -61,32 +87,62 @@ func (j *Job) Start() error {
 		return fmt.Errorf("failed to update job status: %w", err)
 	}
 
-	// Submit to worker manager (use custom one if set, otherwise global)
-	var wm *WorkerManager
-	if j.workerManager != nil {
-		wm = j.workerManager
-	} else {
-		wm = GetWorkerManager()
-		// Start worker manager if not already started
-		if wm.GetActiveWorkers() == 0 {
-			wm.Start()
+	// Get global worker manager (should be already started)
+	wm := GetWorkerManager()
+
+	// Submit executions and ensure all are added successfully
+	var submitErrors []string
+	for _, execution := range executions {
+		// Create execution-specific context derived from job context
+		execCtx, execCancel := context.WithCancel(j.ctx)
+
+		// Store execution cancel function
+		j.executionMutex.Lock()
+		j.executionContexts[execution.ExecutionID] = execCancel
+		j.executionMutex.Unlock()
+
+		// Submit execution (non-blocking)
+		if err := wm.SubmitJob(execCtx, j, execution); err != nil {
+			// Clean up on error
+			execCancel()
+			j.executionMutex.Lock()
+			delete(j.executionContexts, execution.ExecutionID)
+			j.executionMutex.Unlock()
+
+			submitErrors = append(submitErrors, fmt.Sprintf("execution %s: %v", execution.ExecutionID, err))
+			log.Error("Failed to submit execution %s: %v", execution.ExecutionID, err)
 		}
 	}
 
-	return wm.SubmitJob(j, handler)
+	// Return error if any submissions failed
+	if len(submitErrors) > 0 {
+		return fmt.Errorf("failed to submit some executions: %s", strings.Join(submitErrors, "; "))
+	}
+
+	return nil
 }
 
-// Cancel cancel the job
-func (j *Job) Cancel() error {
+// Stop stops the job and cancels all running executions
+func (j *Job) Stop() error {
 	// Update job status
 	j.Status = "disabled"
 	if err := SaveJob(j); err != nil {
 		return fmt.Errorf("failed to update job status: %w", err)
 	}
 
-	// If there's a current execution, mark it as cancelled
-	if j.CurrentExecutionID != nil {
-		execution, err := GetExecution(*j.CurrentExecutionID, model.QueryParam{})
+	// Cancel all running executions using job context
+	if j.cancel != nil {
+		j.cancel()
+		log.Info("Job %s cancelled, all executions will be stopped", j.JobID)
+	}
+
+	// Cancel individual execution contexts and clean up
+	j.executionMutex.Lock()
+	for executionID, cancelFunc := range j.executionContexts {
+		cancelFunc()
+
+		// Update execution status in database
+		execution, err := GetExecution(executionID, model.QueryParam{})
 		if err == nil && (execution.Status == "queued" || execution.Status == "running") {
 			execution.Status = "cancelled"
 			execution.EndedAt = &time.Time{}
@@ -98,14 +154,42 @@ func (j *Job) Cancel() error {
 				JobID:       j.JobID,
 				Level:       "info",
 				Message:     "Job execution cancelled by user",
-				ExecutionID: j.CurrentExecutionID,
+				ExecutionID: &executionID,
 				Timestamp:   time.Now(),
 				Sequence:    0,
 			}
 			SaveLog(logEntry)
 		}
 	}
+	// Clear execution contexts
+	j.executionContexts = make(map[string]context.CancelFunc)
+	j.executionMutex.Unlock()
 
+	return nil
+}
+
+// Destroy destroys the job and cleans up all resources
+func (j *Job) Destroy() error {
+	// Stop the job first
+	if err := j.Stop(); err != nil {
+		log.Warn("Failed to stop job during destroy: %v", err)
+	}
+
+	// Handlers are now stored with executions, no global registry to clean
+
+	// Update job status to deleted
+	j.Status = "deleted"
+	if err := SaveJob(j); err != nil {
+		log.Warn("Failed to update job status to deleted: %v", err)
+	}
+
+	// Clear job references
+	if j.cancel != nil {
+		j.cancel()
+		j.cancel = nil
+	}
+
+	log.Info("Job %s destroyed successfully", j.JobID)
 	return nil
 }
 
@@ -173,5 +257,38 @@ func makeJob(data []byte) (*Job, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Set default values if not provided
+	if job.CategoryID == "" {
+		job.CategoryID = "default"
+	}
+	if job.Status == "" {
+		job.Status = "draft"
+	}
+	if job.MaxWorkerNums == 0 {
+		job.MaxWorkerNums = 1 // Default to 1 worker
+	}
+	if job.Priority == 0 {
+		job.Priority = 1 // Default job priority
+	}
+	if job.CreatedBy == "" {
+		job.CreatedBy = "system"
+	}
+
 	return &job, nil
+}
+
+// RestoreJobsFromDatabase restores jobs from database on system startup
+func RestoreJobsFromDatabase() ([]*Job, error) {
+	// Get all active jobs from database
+	activeJobs, err := GetActiveJobs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active jobs: %w", err)
+	}
+
+	// No need to restore handlers since we only use Yao processes and commands
+	// Both are fully serializable and self-contained
+
+	log.Info("Restored %d jobs from database", len(activeJobs))
+	return activeJobs, nil
 }
