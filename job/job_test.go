@@ -495,9 +495,6 @@ func TestJobExecution(t *testing.T) {
 	time.Sleep(2 * time.Second)
 	t.Log("Job execution started")
 
-	// Give some extra time for database operations to complete
-	time.Sleep(200 * time.Millisecond)
-
 	// Check executions
 	executions, err := testJob.GetExecutions()
 	if err != nil {
