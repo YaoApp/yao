@@ -41,7 +41,7 @@ func TestJobCRUD(t *testing.T) {
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
-	
+
 	// Ensure cleanup even if test fails
 	defer func() {
 		job.RemoveJobs([]string{testJob.JobID})
@@ -156,7 +156,7 @@ func TestCategoryCRUD(t *testing.T) {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
-	
+
 	// Ensure cleanup even if test fails
 	defer func() {
 		job.RemoveCategories([]string{testCategory.CategoryID})
@@ -398,7 +398,7 @@ func TestLogCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test job: %v", err)
 	}
-	
+
 	// Ensure cleanup even if test fails
 	defer func() {
 		job.RemoveJobs([]string{testJob.JobID})
