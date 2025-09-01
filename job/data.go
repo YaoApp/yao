@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/xun/dbal"
 )
@@ -532,7 +533,7 @@ func GetExecutions(jobID string) ([]*Execution, error) {
 			{Column: "job_id", Value: jobID},
 		},
 		Orders: []model.QueryOrder{
-			{Column: "started_at", Option: "desc"},
+			{Column: "created_at", Option: "desc"},
 		},
 	}
 
@@ -662,6 +663,15 @@ func GetExecution(executionID string, param model.QueryParam) (*Execution, error
 	return execution, nil
 }
 
+// getMapKeys returns the keys of a map for debugging
+func getMapKeys(m maps.MapStrAny) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // SaveExecution save or update execution
 func SaveExecution(execution *Execution) error {
 	mod := model.Select("__yao.job.execution")
@@ -670,6 +680,29 @@ func SaveExecution(execution *Execution) error {
 	}
 
 	data := structToMap(execution)
+
+	// SQLite compatibility: ensure JSON fields are strings
+	if data["config_snapshot"] != nil {
+		if rawMsg, ok := data["config_snapshot"].(*jsoniter.RawMessage); ok && rawMsg != nil {
+			data["config_snapshot"] = string(*rawMsg)
+		}
+	}
+	if data["execution_options"] != nil {
+		if rawMsg, ok := data["execution_options"].(*jsoniter.RawMessage); ok && rawMsg != nil {
+			data["execution_options"] = string(*rawMsg)
+		}
+	}
+	if data["result"] != nil {
+		if rawMsg, ok := data["result"].(*jsoniter.RawMessage); ok && rawMsg != nil {
+			data["result"] = string(*rawMsg)
+		}
+	}
+	if data["error_info"] != nil {
+		if rawMsg, ok := data["error_info"].(*jsoniter.RawMessage); ok && rawMsg != nil {
+			data["error_info"] = string(*rawMsg)
+		}
+	}
+
 	now := time.Now()
 
 	if execution.ID == 0 {
@@ -703,9 +736,14 @@ func SaveExecution(execution *Execution) error {
 			Limit: 1,
 		}
 
-		_, err := mod.UpdateWhere(param, data)
+		affected, err := mod.UpdateWhere(param, data)
 		if err != nil {
 			return fmt.Errorf("failed to update execution: %w", err)
+		}
+
+		// Check if the update actually affected any rows
+		if affected == 0 {
+			log.Warn("Update execution %s affected 0 rows - execution may have been deleted", execution.ExecutionID)
 		}
 	}
 
@@ -787,13 +825,27 @@ func mapToStruct(m maps.MapStr, v interface{}) error {
 			default:
 				cleanMap[key] = value
 			}
-		case "created_at", "updated_at", "next_run_at", "last_run_at", "scheduled_at", "started_at", "finished_at", "timestamp":
-			// Handle time fields - convert database time format to RFC3339
+		case "created_at", "updated_at", "next_run_at", "last_run_at", "scheduled_at", "started_at", "finished_at", "ended_at", "timestamp":
+			// Handle time fields - support multiple time formats for SQLite/MySQL compatibility
 			if str, ok := value.(string); ok && str != "" {
-				// Try to parse database time format "2006-01-02 15:04:05"
-				if t, err := time.Parse("2006-01-02 15:04:05", str); err == nil {
-					cleanMap[key] = t.Format(time.RFC3339)
-				} else {
+				// Try multiple time formats
+				formats := []string{
+					"2006-01-02 15:04:05",                 // MySQL format
+					"2006-01-02T15:04:05Z07:00",           // RFC3339
+					"2006-01-02T15:04:05.999999999Z07:00", // RFC3339 with nanoseconds
+					time.RFC3339,
+					time.RFC3339Nano,
+				}
+
+				for _, format := range formats {
+					if t, err := time.Parse(format, str); err == nil {
+						cleanMap[key] = t.Format(time.RFC3339)
+						break
+					}
+				}
+
+				// If no format worked, keep original value
+				if cleanMap[key] == nil {
 					cleanMap[key] = value
 				}
 			} else {
