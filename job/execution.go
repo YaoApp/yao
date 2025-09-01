@@ -1,70 +1,70 @@
 package job
 
 import (
+	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 )
 
-// handlerRegistry stores registered handlers for jobs
-var handlerRegistry = make(map[string]HandlerFunc)
-var handlerRegistryMutex sync.RWMutex
-
-// SetHandler sets a handler for a job ID (for testing)
-func SetHandler(jobID string, handler HandlerFunc) {
-	handlerRegistryMutex.Lock()
-	defer handlerRegistryMutex.Unlock()
-	handlerRegistry[jobID] = handler
+// Add adds a new execution with Yao process (default execution type)
+func (j *Job) Add(options *ExecutionOptions, processName string, args ...interface{}) error {
+	return j.addExecution(options, &ExecutionConfig{
+		Type:        ExecutionTypeProcess,
+		ProcessName: processName,
+		ProcessArgs: args,
+	})
 }
 
-// getHandler gets a handler for a job ID (thread-safe)
-func getHandler(jobID string) (HandlerFunc, bool) {
-	handlerRegistryMutex.RLock()
-	defer handlerRegistryMutex.RUnlock()
-	handler, exists := handlerRegistry[jobID]
-	return handler, exists
+// AddCommand adds a new execution with system command
+func (j *Job) AddCommand(options *ExecutionOptions, command string, args []string, env map[string]string) error {
+	return j.addExecution(options, &ExecutionConfig{
+		Type:        ExecutionTypeCommand,
+		Command:     command,
+		CommandArgs: args,
+		Environment: env,
+	})
 }
 
-// Add add a new execution to the job with handler
-func (j *Job) Add(priority int, handler HandlerFunc) error {
-	// Set job priority
-	j.Priority = priority
-
-	// Auto-create or get category if not set
-	if j.CategoryID == "" {
-		category, err := GetOrCreateCategory("default", "Default job category")
-		if err != nil {
-			log.Warn("Failed to create default category: %v", err)
-			j.CategoryID = "default"
-		} else {
-			j.CategoryID = category.CategoryID
+// addExecution is the internal method to create execution records
+func (j *Job) addExecution(options *ExecutionOptions, config *ExecutionConfig) error {
+	// Set default options if nil
+	if options == nil {
+		options = &ExecutionOptions{
+			Priority:   0,
+			SharedData: make(map[string]interface{}),
 		}
 	}
 
-	// Set default values
-	if j.Status == "" {
-		j.Status = "draft"
-	}
-	if j.MaxWorkerNums == 0 {
-		j.MaxWorkerNums = 1
-	}
-	if j.CreatedBy == "" {
-		j.CreatedBy = "system"
-	}
-
-	// Save job to database first
-	err := SaveJob(j)
+	// Serialize ExecutionConfig to JSON for ConfigSnapshot
+	configBytes, err := jsoniter.Marshal(config)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to serialize execution config: %w", err)
+	}
+	configSnapshot := json.RawMessage(configBytes)
+
+	// Create new execution record with options and config
+	execution := &Execution{
+		ExecutionID:      "", // Will be generated in SaveExecution
+		JobID:            j.JobID,
+		Status:           "queued",
+		TriggerCategory:  "manual",
+		RetryAttempt:     0,
+		Progress:         0,
+		ExecutionConfig:  config,          // Keep in memory for runtime use
+		ConfigSnapshot:   &configSnapshot, // Store in database
+		ExecutionOptions: options,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
-	// Store handler in registry using the final JobID (thread-safe)
-	handlerRegistryMutex.Lock()
-	handlerRegistry[j.JobID] = handler
-	handlerRegistryMutex.Unlock()
+	// Save execution to database
+	if err := SaveExecution(execution); err != nil {
+		return fmt.Errorf("failed to create execution record: %w", err)
+	}
 
 	return nil
 }

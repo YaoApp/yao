@@ -160,12 +160,28 @@
       "nullable": true
     },
     {
+      "name": "priority",
+      "type": "integer",
+      "label": "Priority",
+      "comment": "Execution priority (higher number = higher priority)",
+      "default": 0,
+      "nullable": false,
+      "index": true
+    },
+    {
       "name": "progress",
       "type": "integer",
       "label": "Progress",
       "comment": "Execution progress percentage (0-100)",
       "default": 0,
       "nullable": false
+    },
+    {
+      "name": "execution_options",
+      "type": "json",
+      "label": "Execution Options",
+      "comment": "Execution options including priority and shared data",
+      "nullable": true
     },
     {
       "name": "config_snapshot",

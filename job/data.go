@@ -103,6 +103,14 @@ func SaveJob(job *Job) error {
 		return fmt.Errorf("job model not found")
 	}
 
+	// Ensure category exists before saving job
+	if job.CategoryID != "" {
+		_, err := ensureCategoryExists(job.CategoryID)
+		if err != nil {
+			return fmt.Errorf("failed to ensure category exists: %w", err)
+		}
+	}
+
 	data := structToMap(job)
 	now := time.Now()
 
@@ -377,6 +385,64 @@ func GetOrCreateCategory(name, description string) (*Category, error) {
 	return category, nil
 }
 
+// ensureCategoryExists ensures a category exists by category_id, creates default if needed
+func ensureCategoryExists(categoryID string) (*Category, error) {
+	mod := model.Select("__yao.job.category")
+	if mod == nil {
+		return nil, fmt.Errorf("job category model not found")
+	}
+
+	// Try to find existing category by category_id
+	param := model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "category_id", Value: categoryID},
+		},
+		Limit: 1,
+	}
+
+	results, err := mod.Get(param)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(results) > 0 {
+		// Category exists
+		category := &Category{}
+		if err := mapToStruct(results[0], category); err != nil {
+			return nil, err
+		}
+		return category, nil
+	}
+
+	// Create default category if it doesn't exist
+	var categoryName, categoryDesc string
+	if categoryID == "default" {
+		categoryName = "Default"
+		categoryDesc = "Default job category"
+	} else {
+		categoryName = categoryID
+		categoryDesc = fmt.Sprintf("Auto-created category: %s", categoryID)
+	}
+
+	category := &Category{
+		CategoryID:  categoryID,
+		Name:        categoryName,
+		Description: &categoryDesc,
+		Sort:        0,
+		System:      categoryID == "default", // Mark default as system category
+		Enabled:     true,
+		Readonly:    false,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	if err := SaveCategory(category); err != nil {
+		return nil, err
+	}
+
+	return category, nil
+}
+
 // ========================
 // Logs methods
 // ========================
@@ -481,6 +547,15 @@ func GetExecutions(jobID string) ([]*Execution, error) {
 		if err := mapToStruct(result, execution); err != nil {
 			continue
 		}
+
+		// Restore ExecutionConfig from ConfigSnapshot if available
+		if execution.ConfigSnapshot != nil && len(*execution.ConfigSnapshot) > 0 {
+			var config ExecutionConfig
+			if err := jsoniter.Unmarshal(*execution.ConfigSnapshot, &config); err == nil {
+				execution.ExecutionConfig = &config
+			}
+		}
+
 		executions = append(executions, execution)
 	}
 
@@ -576,6 +651,14 @@ func GetExecution(executionID string, param model.QueryParam) (*Execution, error
 		return nil, err
 	}
 
+	// Restore ExecutionConfig from ConfigSnapshot if available
+	if execution.ConfigSnapshot != nil && len(*execution.ConfigSnapshot) > 0 {
+		var config ExecutionConfig
+		if err := jsoniter.Unmarshal(*execution.ConfigSnapshot, &config); err == nil {
+			execution.ExecutionConfig = &config
+		}
+	}
+
 	return execution, nil
 }
 
@@ -624,6 +707,11 @@ func SaveExecution(execution *Execution) error {
 		if err != nil {
 			return fmt.Errorf("failed to update execution: %w", err)
 		}
+	}
+
+	// Update related Job information after execution changes
+	if err := updateJobProgress(execution.JobID); err != nil {
+		return fmt.Errorf("failed to update job progress: %w", err)
 	}
 
 	return nil
@@ -722,4 +810,86 @@ func mapToStruct(m maps.MapStr, v interface{}) error {
 		return err
 	}
 	return jsoniter.Unmarshal(data, v)
+}
+
+// updateJobProgress updates job progress and status based on its executions
+func updateJobProgress(jobID string) error {
+	// Skip if jobID is empty
+	if jobID == "" {
+		return nil
+	}
+
+	// Get all executions for this job
+	executions, err := GetExecutions(jobID)
+	if err != nil {
+		return fmt.Errorf("failed to get executions for job %s: %w", jobID, err)
+	}
+
+	if len(executions) == 0 {
+		return nil // No executions to process
+	}
+
+	// Calculate overall job progress and status
+	totalExecutions := len(executions)
+	completedCount := 0
+	failedCount := 0
+	runningCount := 0
+	totalProgress := 0
+
+	for _, execution := range executions {
+		totalProgress += execution.Progress
+
+		switch execution.Status {
+		case "completed":
+			completedCount++
+		case "failed":
+			failedCount++
+		case "running":
+			runningCount++
+		}
+	}
+
+	// Calculate average progress
+	averageProgress := totalProgress / totalExecutions
+
+	// Determine job status
+	var jobStatus string
+	if completedCount == totalExecutions {
+		jobStatus = "completed"
+	} else if failedCount > 0 && runningCount == 0 && completedCount+failedCount == totalExecutions {
+		jobStatus = "failed"
+	} else if runningCount > 0 || completedCount > 0 {
+		jobStatus = "running"
+	} else {
+		jobStatus = "ready" // All executions are queued
+	}
+
+	// Update job in database
+	jobMod := model.Select("__yao.job")
+	if jobMod == nil {
+		return fmt.Errorf("job model not found")
+	}
+
+	updateData := map[string]interface{}{
+		"status":     jobStatus,
+		"updated_at": time.Now(),
+	}
+
+	// Add progress field if Job model supports it
+	// Note: This assumes Job model has a progress field, you may need to add it to the schema
+	updateData["progress"] = averageProgress
+
+	param := model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "job_id", Value: jobID},
+		},
+		Limit: 1,
+	}
+
+	_, err = jobMod.UpdateWhere(param, updateData)
+	if err != nil {
+		return fmt.Errorf("failed to update job progress: %w", err)
+	}
+
+	return nil
 }

@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 )
 
@@ -51,8 +52,59 @@ const (
 	Trace
 )
 
-// HandlerFunc the job handler function
-type HandlerFunc func(ctx context.Context, execution *Execution) error
+// ExecutionType represents different execution methods
+type ExecutionType string
+
+// Execution type constants
+const (
+	ExecutionTypeProcess ExecutionType = "process" // Yao process (default)
+	ExecutionTypeCommand ExecutionType = "command" // System command
+)
+
+// ExecutionOptions holds common execution options
+type ExecutionOptions struct {
+	Priority   int                    `json:"priority"`    // Execution priority (higher = more important)
+	SharedData map[string]interface{} `json:"shared_data"` // Shared data (session, context, etc.)
+}
+
+// NewExecutionOptions creates a new ExecutionOptions with default values
+func NewExecutionOptions() *ExecutionOptions {
+	return &ExecutionOptions{
+		Priority:   0,
+		SharedData: make(map[string]interface{}),
+	}
+}
+
+// WithPriority sets the priority and returns the options for chaining
+func (o *ExecutionOptions) WithPriority(priority int) *ExecutionOptions {
+	o.Priority = priority
+	return o
+}
+
+// WithSharedData sets shared data and returns the options for chaining
+func (o *ExecutionOptions) WithSharedData(data map[string]interface{}) *ExecutionOptions {
+	o.SharedData = data
+	return o
+}
+
+// AddSharedData adds a key-value pair to shared data and returns the options for chaining
+func (o *ExecutionOptions) AddSharedData(key string, value interface{}) *ExecutionOptions {
+	if o.SharedData == nil {
+		o.SharedData = make(map[string]interface{})
+	}
+	o.SharedData[key] = value
+	return o
+}
+
+// ExecutionConfig holds execution configuration based on type
+type ExecutionConfig struct {
+	Type        ExecutionType     `json:"type"`
+	ProcessName string            `json:"process_name,omitempty"` // Yao process name
+	ProcessArgs []interface{}     `json:"process_args,omitempty"` // Yao process arguments
+	Command     string            `json:"command,omitempty"`      // System command
+	CommandArgs []string          `json:"command_args,omitempty"` // Command arguments
+	Environment map[string]string `json:"environment,omitempty"`  // Environment variables
+}
 
 // Job represents the main job entity
 type Job struct {
@@ -87,9 +139,12 @@ type Job struct {
 	Executions []Execution `json:"executions,omitempty"`
 	Logs       []Log       `json:"logs,omitempty"`
 
-	ctx           context.Context
-	cancel        context.CancelFunc
-	workerManager *WorkerManager // For testing: allows using custom worker manager
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// Job-level cancellation for running executions
+	executionContexts map[string]context.CancelFunc // executionID -> cancel function
+	executionMutex    sync.RWMutex
 }
 
 // Category represents job categories for organization
@@ -112,31 +167,33 @@ type Category struct {
 
 // Execution represents individual job execution instances
 type Execution struct {
-	ID                uint             `json:"id"`
-	ExecutionID       string           `json:"execution_id"`
-	JobID             string           `json:"job_id"`
-	Status            string           `json:"status"` // default: "queued"
-	TriggerCategory   string           `json:"trigger_category"`
-	TriggerSource     *string          `json:"trigger_source,omitempty"`      // nullable: true
-	TriggerContext    *json.RawMessage `json:"trigger_context,omitempty"`     // nullable: true
-	ScheduledAt       *time.Time       `json:"scheduled_at,omitempty"`        // nullable: true
-	WorkerID          *string          `json:"worker_id,omitempty"`           // nullable: true
-	ProcessID         *string          `json:"process_id,omitempty"`          // nullable: true
-	RetryAttempt      int              `json:"retry_attempt"`                 // default: 0
-	ParentExecutionID *string          `json:"parent_execution_id,omitempty"` // nullable: true
-	StartedAt         *time.Time       `json:"started_at,omitempty"`          // nullable: true
-	EndedAt           *time.Time       `json:"ended_at,omitempty"`            // nullable: true
-	TimeoutSeconds    *int             `json:"timeout_seconds,omitempty"`     // nullable: true
-	Duration          *int             `json:"duration,omitempty"`            // nullable: true
-	Progress          int              `json:"progress"`                      // default: 0
-	ConfigSnapshot    *json.RawMessage `json:"config_snapshot,omitempty"`     // nullable: true
-	Result            *json.RawMessage `json:"result,omitempty"`              // nullable: true
-	ErrorInfo         *json.RawMessage `json:"error_info,omitempty"`          // nullable: true
-	StackTrace        *string          `json:"stack_trace,omitempty"`         // nullable: true
-	Metrics           *json.RawMessage `json:"metrics,omitempty"`             // nullable: true
-	Context           *json.RawMessage `json:"context,omitempty"`             // nullable: true
-	CreatedAt         time.Time        `json:"created_at"`
-	UpdatedAt         time.Time        `json:"updated_at"`
+	ID                uint              `json:"id"`
+	ExecutionID       string            `json:"execution_id"`
+	JobID             string            `json:"job_id"`
+	Status            string            `json:"status"` // default: "queued"
+	TriggerCategory   string            `json:"trigger_category"`
+	TriggerSource     *string           `json:"trigger_source,omitempty"`      // nullable: true
+	TriggerContext    *json.RawMessage  `json:"trigger_context,omitempty"`     // nullable: true
+	ScheduledAt       *time.Time        `json:"scheduled_at,omitempty"`        // nullable: true
+	WorkerID          *string           `json:"worker_id,omitempty"`           // nullable: true
+	ProcessID         *string           `json:"process_id,omitempty"`          // nullable: true
+	RetryAttempt      int               `json:"retry_attempt"`                 // default: 0
+	ParentExecutionID *string           `json:"parent_execution_id,omitempty"` // nullable: true
+	StartedAt         *time.Time        `json:"started_at,omitempty"`          // nullable: true
+	EndedAt           *time.Time        `json:"ended_at,omitempty"`            // nullable: true
+	TimeoutSeconds    *int              `json:"timeout_seconds,omitempty"`     // nullable: true
+	Duration          *int              `json:"duration,omitempty"`            // nullable: true
+	Progress          int               `json:"progress"`                      // default: 0
+	ExecutionConfig   *ExecutionConfig  `json:"execution_config,omitempty"`    // Execution configuration
+	ExecutionOptions  *ExecutionOptions `json:"execution_options,omitempty"`   // Execution options (priority, shared data)
+	ConfigSnapshot    *json.RawMessage  `json:"config_snapshot,omitempty"`     // nullable: true
+	Result            *json.RawMessage  `json:"result,omitempty"`              // nullable: true
+	ErrorInfo         *json.RawMessage  `json:"error_info,omitempty"`          // nullable: true
+	StackTrace        *string           `json:"stack_trace,omitempty"`         // nullable: true
+	Metrics           *json.RawMessage  `json:"metrics,omitempty"`             // nullable: true
+	Context           *json.RawMessage  `json:"context,omitempty"`             // nullable: true
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
 
 	// Relationships
 	Job             *Job        `json:"job,omitempty"`
