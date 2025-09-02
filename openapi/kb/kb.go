@@ -11,12 +11,9 @@ import (
 func init() {
 	// Register kb process handlers
 	process.RegisterGroup("kb", map[string]process.Handler{
-		"documents.addfile":     ProcessAddFile,
-		"documents.addtext":     ProcessAddText,
-		"documents.addurl":      ProcessAddURL,
-		"documents.processfile": ProcessProcessFile,
-		"documents.processtext": ProcessProcessText,
-		"documents.processurl":  ProcessProcessURL,
+		"documents.addfile": ProcessAddFile,
+		"documents.addtext": ProcessAddText,
+		"documents.addurl":  ProcessAddURL,
 	})
 }
 
