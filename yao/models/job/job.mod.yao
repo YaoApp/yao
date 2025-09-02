@@ -60,6 +60,14 @@
       "index": true
     },
     {
+      "name": "max_worker_nums",
+      "type": "integer",
+      "label": "Max Worker Numbers",
+      "comment": "Maximum number of concurrent workers for this job",
+      "default": 1,
+      "nullable": false
+    },
+    {
       "name": "status",
       "type": "enum",
       "label": "Status",
@@ -218,9 +226,9 @@
       "comment": "Composite index for category and status queries"
     },
     {
-      "name": "idx_job_process_type_status",
-      "columns": ["process_type", "status"],
-      "comment": "Composite index for process type and status queries"
+      "name": "idx_job_mode_status",
+      "columns": ["mode", "status"],
+      "comment": "Composite index for mode and status queries"
     },
     {
       "name": "idx_job_schedule_type_next_run",

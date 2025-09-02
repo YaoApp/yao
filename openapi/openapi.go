@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/openapi/dsl"
 	"github.com/yaoapp/yao/openapi/file"
 	"github.com/yaoapp/yao/openapi/hello"
+	"github.com/yaoapp/yao/openapi/job"
 	"github.com/yaoapp/yao/openapi/kb"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -94,6 +95,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Knowledge Base handlers
 	kb.Attach(group.Group("/kb"), openapi.OAuth)
+
+	// Job Management handlers
+	job.Attach(group.Group("/job"), openapi.OAuth)
 
 	// Chat handlers
 	chat.Attach(group.Group("/chat"), openapi.OAuth)

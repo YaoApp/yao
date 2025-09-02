@@ -13,6 +13,41 @@ import (
 )
 
 // ========================
+// Field Lists for SELECT queries
+// ========================
+
+// JobFields defines the fields to select for job queries
+var JobFields = []interface{}{
+	"id", "job_id", "name", "icon", "description", "category_id",
+	"max_worker_nums", "status", "mode", "schedule_type", "schedule_expression",
+	"max_retry_count", "default_timeout", "priority", "created_by",
+	"next_run_at", "last_run_at", "current_execution_id", "config",
+	"sort", "enabled", "system", "readonly", "created_at", "updated_at",
+}
+
+// CategoryFields defines the fields to select for category queries
+var CategoryFields = []interface{}{
+	"id", "category_id", "name", "icon", "description",
+	"sort", "system", "enabled", "readonly", "created_at", "updated_at",
+}
+
+// ExecutionFields defines the fields to select for execution queries
+var ExecutionFields = []interface{}{
+	"id", "execution_id", "job_id", "status", "trigger_category", "trigger_source",
+	"trigger_context", "scheduled_at", "worker_id", "process_id", "retry_attempt",
+	"parent_execution_id", "started_at", "ended_at", "timeout_seconds", "duration",
+	"progress", "execution_config", "execution_options", "config_snapshot",
+	"result", "error_info", "stack_trace", "metrics", "context", "created_at", "updated_at",
+}
+
+// LogFields defines the fields to select for log queries
+var LogFields = []interface{}{
+	"id", "job_id", "level", "message", "context", "source", "execution_id",
+	"step", "progress", "duration", "error_code", "stack_trace",
+	"worker_id", "process_id", "timestamp", "sequence", "created_at", "updated_at",
+}
+
+// ========================
 // Jobs methods
 // ========================
 
@@ -22,7 +57,109 @@ func ListJobs(param model.QueryParam, page int, pagesize int) (maps.MapStrAny, e
 	if mod == nil {
 		return nil, fmt.Errorf("job model not found")
 	}
-	return mod.Paginate(param, page, pagesize)
+
+	// Set select fields if not already specified
+	if len(param.Select) == 0 {
+		param.Select = JobFields
+	}
+
+	// Debug logging
+	log.Debug("ListJobs called with param: %+v, page: %d, pagesize: %d", param, page, pagesize)
+
+	result, err := mod.Paginate(param, page, pagesize)
+	if err != nil {
+		log.Error("ListJobs query error: %v", err)
+		return nil, err
+	}
+
+	// Extract jobs data
+	log.Debug("ListJobs raw result: %+v", result)
+
+	jobsData, ok := result["data"].([]maps.MapStrAny)
+	if !ok {
+		log.Debug("Data type conversion failed, result[\"data\"] type: %T, value: %+v", result["data"], result["data"])
+		// Try alternative type conversion
+		if dataSlice, ok := result["data"].([]interface{}); ok {
+			jobsData = make([]maps.MapStrAny, len(dataSlice))
+			for i, item := range dataSlice {
+				if mapItem, ok := item.(maps.MapStrAny); ok {
+					jobsData[i] = mapItem
+				} else if mapItem, ok := item.(map[string]interface{}); ok {
+					jobsData[i] = maps.MapStrAny(mapItem)
+				} else {
+					log.Debug("Item %d type conversion failed: %T", i, item)
+					return result, nil
+				}
+			}
+		} else {
+			log.Debug("Alternative conversion also failed")
+			return result, nil
+		}
+	}
+
+	if len(jobsData) == 0 {
+		log.Debug("No jobs found in data")
+		return result, nil
+	}
+
+	// Collect unique category IDs
+	categoryIDs := make(map[string]bool)
+	for _, job := range jobsData {
+		if categoryID, exists := job["category_id"]; exists && categoryID != nil {
+			if categoryIDStr, ok := categoryID.(string); ok && categoryIDStr != "" {
+				categoryIDs[categoryIDStr] = true
+			}
+		}
+	}
+
+	// Query categories if we have category IDs
+	categoryMap := make(map[string]string)
+	if len(categoryIDs) > 0 {
+		categoryIDList := make([]string, 0, len(categoryIDs))
+		for categoryID := range categoryIDs {
+			categoryIDList = append(categoryIDList, categoryID)
+		}
+
+		categoryMod := model.Select("__yao.job.category")
+		if categoryMod != nil {
+			categoryParam := model.QueryParam{
+				Select: []interface{}{"category_id", "name"},
+				Wheres: []model.QueryWhere{
+					{Column: "category_id", OP: "in", Value: categoryIDList},
+				},
+			}
+
+			categories, err := categoryMod.Get(categoryParam)
+			if err != nil {
+				log.Warn("Failed to fetch categories: %v", err)
+			} else {
+				for _, category := range categories {
+					if categoryID, ok := category["category_id"].(string); ok {
+						if categoryName, ok := category["name"].(string); ok {
+							categoryMap[categoryID] = categoryName
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Add category_name to jobs
+	for i, job := range jobsData {
+		if categoryID, exists := job["category_id"]; exists && categoryID != nil {
+			if categoryIDStr, ok := categoryID.(string); ok {
+				if categoryName, exists := categoryMap[categoryIDStr]; exists {
+					jobsData[i]["category_name"] = categoryName
+				} else {
+					jobsData[i]["category_name"] = nil
+				}
+			}
+		}
+	}
+
+	result["data"] = jobsData
+	log.Debug("ListJobs result with categories: %+v", result)
+	return result, nil
 }
 
 // GetActiveJobs get active jobs (running, ready status)
@@ -33,6 +170,7 @@ func GetActiveJobs() ([]*Job, error) {
 	}
 
 	param := model.QueryParam{
+		Select: JobFields,
 		Wheres: []model.QueryWhere{
 			{Column: "status", OP: "in", Value: []string{"ready", "running"}},
 			{Column: "enabled", Value: true},
@@ -185,6 +323,7 @@ func GetJob(jobID string) (*Job, error) {
 	}
 
 	param := model.QueryParam{
+		Select: JobFields,
 		Wheres: []model.QueryWhere{
 			{Column: "job_id", Value: jobID},
 		},
@@ -199,8 +338,33 @@ func GetJob(jobID string) (*Job, error) {
 		return nil, fmt.Errorf("job not found: %s", jobID)
 	}
 
+	jobData := results[0]
+
+	// Query category name if category_id exists
+	if categoryID, exists := jobData["category_id"]; exists && categoryID != nil {
+		if categoryIDStr, ok := categoryID.(string); ok && categoryIDStr != "" {
+			categoryMod := model.Select("__yao.job.category")
+			if categoryMod != nil {
+				categoryParam := model.QueryParam{
+					Select: []interface{}{"name"},
+					Wheres: []model.QueryWhere{
+						{Column: "category_id", Value: categoryIDStr},
+					},
+					Limit: 1,
+				}
+
+				categoryResults, err := categoryMod.Get(categoryParam)
+				if err == nil && len(categoryResults) > 0 {
+					if categoryName, ok := categoryResults[0]["name"].(string); ok {
+						jobData["category_name"] = categoryName
+					}
+				}
+			}
+		}
+	}
+
 	job := &Job{}
-	if err := mapToStruct(results[0], job); err != nil {
+	if err := mapToStruct(jobData, job); err != nil {
 		return nil, err
 	}
 
@@ -216,6 +380,11 @@ func GetCategories(param model.QueryParam) ([]*Category, error) {
 	mod := model.Select("__yao.job.category")
 	if mod == nil {
 		return nil, fmt.Errorf("job category model not found")
+	}
+
+	// Set select fields if not already specified
+	if len(param.Select) == 0 {
+		param.Select = CategoryFields
 	}
 
 	results, err := mod.Get(param)
@@ -523,6 +692,11 @@ func ListLogs(jobID string, param model.QueryParam, page int, pagesize int) (map
 		return nil, fmt.Errorf("job log model not found")
 	}
 
+	// Set select fields if not already specified
+	if len(param.Select) == 0 {
+		param.Select = LogFields
+	}
+
 	// Add job_id filter
 	param.Wheres = append(param.Wheres, model.QueryWhere{
 		Column: "job_id",
@@ -597,6 +771,7 @@ func GetExecutions(jobID string) ([]*Execution, error) {
 	}
 
 	param := model.QueryParam{
+		Select: ExecutionFields,
 		Wheres: []model.QueryWhere{
 			{Column: "job_id", Value: jobID},
 		},
@@ -699,6 +874,11 @@ func GetExecution(executionID string, param model.QueryParam) (*Execution, error
 	mod := model.Select("__yao.job.execution")
 	if mod == nil {
 		return nil, fmt.Errorf("job execution model not found")
+	}
+
+	// Set select fields if not already specified
+	if len(param.Select) == 0 {
+		param.Select = ExecutionFields
 	}
 
 	param.Wheres = append(param.Wheres, model.QueryWhere{
