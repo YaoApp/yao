@@ -320,6 +320,14 @@ func makeJob(data []byte) (*Job, error) {
 		job.CreatedBy = "system"
 	}
 
+	// Set default enabled to true if not specified
+	// Note: Go's zero value for bool is false, so we need to explicitly check if it was set
+	// Since we can't distinguish between explicitly set false and zero value,
+	// we'll assume new jobs should be enabled by default
+	if !job.System && !job.Readonly {
+		job.Enabled = true
+	}
+
 	return &job, nil
 }
 
