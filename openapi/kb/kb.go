@@ -2,10 +2,23 @@ package kb
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
+
+func init() {
+	// Register kb process handlers
+	process.RegisterGroup("kb", map[string]process.Handler{
+		"documents.addfile":     ProcessAddFile,
+		"documents.addtext":     ProcessAddText,
+		"documents.addurl":      ProcessAddURL,
+		"documents.processfile": ProcessProcessFile,
+		"documents.processtext": ProcessProcessText,
+		"documents.processurl":  ProcessProcessURL,
+	})
+}
 
 // Attach attaches the Knowledge Base API to the router
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {

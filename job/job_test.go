@@ -164,7 +164,7 @@ func TestOnceGoroutine(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testJob.Start()
+	err = testJob.Push()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestOnceProcess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testJob.Start()
+	err = testJob.Push()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func TestCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = testJob.Start()
+	err = testJob.Push()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +486,7 @@ func TestJobExecution(t *testing.T) {
 	}
 
 	// Start the job
-	err = testJob.Start()
+	err = testJob.Push()
 	if err != nil {
 		t.Fatalf("Failed to start job: %v", err)
 	}
@@ -542,4 +542,139 @@ func TestJobExecution(t *testing.T) {
 	} else {
 		t.Log("No log items found, this may be expected if logging is async")
 	}
+}
+
+// TestOnceAndSave test OnceAndSave method
+func TestOnceAndSave(t *testing.T) {
+	// Setup
+	test.Prepare(&testing.T{}, config.Conf)
+	defer test.Clean()
+
+	// Register test processes
+	registerTestProcesses()
+
+	// Test OnceAndSave - should create and save job in one step
+	testJob, err := job.OnceAndSave(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test OnceAndSave Job",
+		"description": "Job created and saved with OnceAndSave method",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create and save job: %v", err)
+	}
+
+	// Job should have a valid JobID after OnceAndSave
+	if testJob.JobID == "" {
+		t.Error("Expected job to have JobID after OnceAndSave")
+	}
+
+	// Verify job was saved to database
+	retrievedJob, err := job.GetJob(testJob.JobID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve saved job: %v", err)
+	}
+
+	if retrievedJob.Name != "Test OnceAndSave Job" {
+		t.Errorf("Expected job name 'Test OnceAndSave Job', got '%s'", retrievedJob.Name)
+	}
+
+	// Add execution and push
+	err = testJob.Add(&job.ExecutionOptions{
+		Priority: 1,
+		SharedData: map[string]interface{}{
+			"test_data": "OnceAndSave test",
+		},
+	}, "test.job.echo", "OnceAndSave test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = testJob.Push()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Give some time for execution
+	time.Sleep(2 * time.Second)
+
+	t.Log("OnceAndSave job completed successfully")
+}
+
+// TestCronAndSave test CronAndSave method
+func TestCronAndSave(t *testing.T) {
+	// Setup
+	test.Prepare(&testing.T{}, config.Conf)
+	defer test.Clean()
+
+	// Register test processes
+	registerTestProcesses()
+
+	// Test CronAndSave - should create and save cron job in one step
+	testJob, err := job.CronAndSave(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test CronAndSave Job",
+		"description": "Cron job created and saved with CronAndSave method",
+	}, "0 0 * * *")
+	if err != nil {
+		t.Fatalf("Failed to create and save cron job: %v", err)
+	}
+
+	// Job should have a valid JobID after CronAndSave
+	if testJob.JobID == "" {
+		t.Error("Expected cron job to have JobID after CronAndSave")
+	}
+
+	// Verify cron job was saved to database
+	retrievedJob, err := job.GetJob(testJob.JobID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve saved cron job: %v", err)
+	}
+
+	if retrievedJob.ScheduleType != string(job.ScheduleTypeCron) {
+		t.Errorf("Expected schedule type cron, got %s", retrievedJob.ScheduleType)
+	}
+
+	if retrievedJob.Name != "Test CronAndSave Job" {
+		t.Errorf("Expected job name 'Test CronAndSave Job', got '%s'", retrievedJob.Name)
+	}
+
+	t.Log("CronAndSave job created and saved successfully")
+}
+
+// TestDaemonAndSave test DaemonAndSave method
+func TestDaemonAndSave(t *testing.T) {
+	// Setup
+	test.Prepare(&testing.T{}, config.Conf)
+	defer test.Clean()
+
+	// Register test processes
+	registerTestProcesses()
+
+	// Test DaemonAndSave - should create and save daemon job in one step
+	testJob, err := job.DaemonAndSave(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test DaemonAndSave Job",
+		"description": "Daemon job created and saved with DaemonAndSave method",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create and save daemon job: %v", err)
+	}
+
+	// Job should have a valid JobID after DaemonAndSave
+	if testJob.JobID == "" {
+		t.Error("Expected daemon job to have JobID after DaemonAndSave")
+	}
+
+	// Verify daemon job was saved to database
+	retrievedJob, err := job.GetJob(testJob.JobID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve saved daemon job: %v", err)
+	}
+
+	if retrievedJob.ScheduleType != string(job.ScheduleTypeDaemon) {
+		t.Errorf("Expected schedule type daemon, got %s", retrievedJob.ScheduleType)
+	}
+
+	if retrievedJob.Name != "Test DaemonAndSave Job" {
+		t.Errorf("Expected job name 'Test DaemonAndSave Job', got '%s'", retrievedJob.Name)
+	}
+
+	t.Log("DaemonAndSave job created and saved successfully")
 }

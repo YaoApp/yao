@@ -671,22 +671,13 @@ func AddSegmentsAsync(c *gin.Context) {
 
 	// TODO: Implement document permission validation for docID
 
-	// Create and run job
-	job := NewJob()
-	jobID := job.Run(func() {
-		// TODO: Implement async add segments logic
-		// This should call the same logic as AddSegments but in background
-		// err := AddSegmentsProcess(context.Background(), &req, job.ID)
-		// For now, just simulate async processing
-		// if err != nil {
-		//     log.Error("Async segments addition failed: %v", err)
-		// }
-	})
+	// TODO: Implement async add segments logic using Job system
+	// This should call the same logic as AddSegments but in background
 
-	// Return job ID for status tracking
+	// Temporary response until async implementation is completed
 	result := gin.H{
-		"job_id":  jobID,
-		"message": "Segments addition started",
+		"message": "Async segments addition not yet implemented",
+		"status":  "pending_implementation",
 		"doc_id":  docID,
 	}
 
@@ -730,22 +721,13 @@ func UpdateSegmentsAsync(c *gin.Context) {
 	// TODO: Validate request body
 	// TODO: Implement document permission validation for docID
 
-	// Create and run job
-	job := NewJob()
-	jobID := job.Run(func() {
-		// TODO: Implement async update segments logic
-		// This should call the same logic as UpdateSegments but in background
-		// err := UpdateSegmentsProcess(context.Background(), docID, requestBody, job.ID)
-		// For now, just simulate async processing
-		// if err != nil {
-		//     log.Error("Async segments update failed: %v", err)
-		// }
-	})
+	// TODO: Implement async update segments logic using Job system
+	// This should call the same logic as UpdateSegments but in background
 
-	// Return job ID for status tracking
+	// Temporary response until async implementation is completed
 	result := gin.H{
-		"job_id":  jobID,
-		"message": "Segments update started",
+		"message": "Async segments update not yet implemented",
+		"status":  "pending_implementation",
 		"doc_id":  docID,
 	}
 

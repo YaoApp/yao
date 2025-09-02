@@ -471,21 +471,13 @@ func ExtractSegmentGraphAsync(c *gin.Context) {
 
 	// TODO: Implement document permission validation for docID
 
-	// Create and run job
-	job := NewJob()
-	jobID := job.Run(func() {
-		// TODO: Implement async extract segment graph logic
-		// err := ExtractSegmentGraphProcess(context.Background(), segmentID, extractOptions, job.ID)
-		// For now, just simulate async processing
-		// if err != nil {
-		//     log.Error("Async graph extraction failed: %v", err)
-		// }
-	})
+	// TODO: Implement async extract segment graph logic using Job system
+	// err := ExtractSegmentGraphProcess(context.Background(), segmentID, extractOptions, job.ID)
 
-	// Return job ID for status tracking
+	// Temporary response until async implementation is completed
 	result := gin.H{
-		"job_id":     jobID,
-		"message":    "Graph extraction started",
+		"message":    "Async graph extraction not yet implemented",
+		"status":     "pending_implementation",
 		"doc_id":     docID,
 		"segment_id": segmentID,
 	}
