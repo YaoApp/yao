@@ -303,9 +303,9 @@ func makeJob(data []byte) (*Job, error) {
 		return nil, err
 	}
 
-	// Set default values if not provided
-	if job.CategoryID == "" {
-		job.CategoryID = "default"
+	// Set default CategoryName if both CategoryID and CategoryName are empty
+	if job.CategoryID == "" && job.CategoryName == "" {
+		job.CategoryName = "Default"
 	}
 	if job.Status == "" {
 		job.Status = "draft"

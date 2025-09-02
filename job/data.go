@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
@@ -104,12 +104,13 @@ func SaveJob(job *Job) error {
 		return fmt.Errorf("job model not found")
 	}
 
-	// Ensure category exists before saving job
-	if job.CategoryID != "" {
-		_, err := ensureCategoryExists(job.CategoryID)
+	// If no CategoryID but CategoryName is provided, get or create category ID
+	if job.CategoryID == "" && job.CategoryName != "" {
+		categoryID, err := getCategoryIDByName(job.CategoryName)
 		if err != nil {
-			return fmt.Errorf("failed to ensure category exists: %w", err)
+			return fmt.Errorf("failed to get category ID by name '%s': %w", job.CategoryName, err)
 		}
+		job.CategoryID = categoryID
 	}
 
 	data := structToMap(job)
@@ -118,7 +119,11 @@ func SaveJob(job *Job) error {
 	if job.ID == 0 {
 		// Create new job
 		if job.JobID == "" {
-			job.JobID = uuid.New().String()
+			var err error
+			job.JobID, err = generateJobID()
+			if err != nil {
+				return fmt.Errorf("failed to generate job ID: %w", err)
+			}
 		}
 
 		// Remove ID field from data to let database auto-increment
@@ -298,9 +303,35 @@ func SaveCategory(category *Category) error {
 	now := time.Now()
 
 	if category.ID == 0 {
-		// Create new category
+		// Create new category - but first check if name already exists
+		if category.Name != "" {
+			// Check if category with same name already exists
+			param := model.QueryParam{
+				Wheres: []model.QueryWhere{
+					{Column: "name", Value: category.Name},
+				},
+				Limit: 1,
+			}
+			results, err := mod.Get(param)
+			if err != nil {
+				return fmt.Errorf("failed to check existing category: %w", err)
+			}
+			if len(results) > 0 {
+				// Category with same name exists, update current category with existing data
+				if err := mapToStruct(results[0], category); err != nil {
+					return fmt.Errorf("failed to map existing category: %w", err)
+				}
+				return nil // Return the existing category
+			}
+		}
+
+		// No existing category found, create new one
 		if category.CategoryID == "" {
-			category.CategoryID = uuid.New().String()
+			var err error
+			category.CategoryID, err = generateCategoryID()
+			if err != nil {
+				return fmt.Errorf("failed to generate category ID: %w", err)
+			}
 		}
 
 		// Remove ID field from data to let database auto-increment
@@ -311,6 +342,22 @@ func SaveCategory(category *Category) error {
 
 		id, err := mod.Create(data)
 		if err != nil {
+			// If creation failed due to duplicate name, try to find existing category
+			if category.Name != "" {
+				param := model.QueryParam{
+					Wheres: []model.QueryWhere{
+						{Column: "name", Value: category.Name},
+					},
+					Limit: 1,
+				}
+				results, findErr := mod.Get(param)
+				if findErr == nil && len(results) > 0 {
+					// Found existing category, use it
+					if mapErr := mapToStruct(results[0], category); mapErr == nil {
+						return nil // Successfully found and mapped existing category
+					}
+				}
+			}
 			return fmt.Errorf("failed to create category: %w", err)
 		}
 		category.ID = uint(id)
@@ -367,8 +414,13 @@ func GetOrCreateCategory(name, description string) (*Category, error) {
 	}
 
 	// Create new category
+	categoryID, err := generateCategoryID()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate category ID: %w", err)
+	}
+
 	category := &Category{
-		CategoryID:  uuid.New().String(),
+		CategoryID:  categoryID,
 		Name:        name,
 		Description: &description,
 		Sort:        0,
@@ -386,17 +438,26 @@ func GetOrCreateCategory(name, description string) (*Category, error) {
 	return category, nil
 }
 
-// ensureCategoryExists ensures a category exists by category_id, creates default if needed
-func ensureCategoryExists(categoryID string) (*Category, error) {
+// getCategoryIDByName gets category ID by name, creates category if not exists
+func getCategoryIDByName(categoryName string) (string, error) {
+	category, err := ensureCategoryExists(categoryName)
+	if err != nil {
+		return "", err
+	}
+	return category.CategoryID, nil
+}
+
+// ensureCategoryExists ensures a category exists by name, creates if needed
+func ensureCategoryExists(categoryName string) (*Category, error) {
 	mod := model.Select("__yao.job.category")
 	if mod == nil {
 		return nil, fmt.Errorf("job category model not found")
 	}
 
-	// Try to find existing category by category_id
+	// Try to find existing category by name (since external calls pass category name)
 	param := model.QueryParam{
 		Wheres: []model.QueryWhere{
-			{Column: "category_id", Value: categoryID},
+			{Column: "name", Value: categoryName},
 		},
 		Limit: 1,
 	}
@@ -407,7 +468,7 @@ func ensureCategoryExists(categoryID string) (*Category, error) {
 	}
 
 	if len(results) > 0 {
-		// Category exists
+		// Category exists, return it
 		category := &Category{}
 		if err := mapToStruct(results[0], category); err != nil {
 			return nil, err
@@ -415,14 +476,21 @@ func ensureCategoryExists(categoryID string) (*Category, error) {
 		return category, nil
 	}
 
-	// Create default category if it doesn't exist
-	var categoryName, categoryDesc string
-	if categoryID == "default" {
-		categoryName = "Default"
+	// Category doesn't exist, create it
+	var categoryID, categoryDesc string
+
+	if categoryName == "Default" {
+		// Keep "default" as the category ID for the default category
+		categoryID = "default"
 		categoryDesc = "Default job category"
 	} else {
-		categoryName = categoryID
-		categoryDesc = fmt.Sprintf("Auto-created category: %s", categoryID)
+		// For other categories, generate a new unique ID
+		var err error
+		categoryID, err = generateCategoryID()
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate category ID: %w", err)
+		}
+		categoryDesc = fmt.Sprintf("Auto-created category: %s", categoryName)
 	}
 
 	category := &Category{
@@ -430,7 +498,7 @@ func ensureCategoryExists(categoryID string) (*Category, error) {
 		Name:        categoryName,
 		Description: &categoryDesc,
 		Sort:        0,
-		System:      categoryID == "default", // Mark default as system category
+		System:      categoryName == "Default", // Mark default as system category
 		Enabled:     true,
 		Readonly:    false,
 		CreatedAt:   time.Now(),
@@ -708,7 +776,11 @@ func SaveExecution(execution *Execution) error {
 	if execution.ID == 0 {
 		// Create new execution
 		if execution.ExecutionID == "" {
-			execution.ExecutionID = uuid.New().String()
+			var err error
+			execution.ExecutionID, err = generateExecutionID()
+			if err != nil {
+				return fmt.Errorf("failed to generate execution ID: %w", err)
+			}
 		}
 
 		// Remove ID field from data to let database auto-increment
@@ -779,6 +851,136 @@ func GetProgress(executionID string, cb func(progress *Progress)) (*Progress, er
 	}
 
 	return progress, nil
+}
+
+// ========================
+// ID Generation methods
+// ========================
+
+// generateJobID generates a unique job_id using nanoid with duplicate checking
+func generateJobID() (string, error) {
+	const maxRetries = 10
+	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
+	const length = 12
+
+	mod := model.Select("__yao.job")
+	if mod == nil {
+		return "", fmt.Errorf("job model not found")
+	}
+
+	for i := 0; i < maxRetries; i++ {
+		// Generate new ID using nanoid
+		id, err := gonanoid.Generate(alphabet, length)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate nanoid: %w", err)
+		}
+
+		// Check if ID already exists
+		param := model.QueryParam{
+			Select: []interface{}{"id"}, // Just get primary key, minimal data
+			Wheres: []model.QueryWhere{
+				{Column: "job_id", Value: id},
+			},
+			Limit: 1,
+		}
+
+		results, err := mod.Get(param)
+		if err != nil {
+			return "", fmt.Errorf("failed to check job_id existence: %w", err)
+		}
+
+		if len(results) == 0 {
+			return id, nil // Found unique ID
+		}
+
+		// ID exists, retry with new generation
+	}
+
+	return "", fmt.Errorf("failed to generate unique job_id after %d retries", maxRetries)
+}
+
+// generateCategoryID generates a unique category_id using nanoid with duplicate checking
+func generateCategoryID() (string, error) {
+	const maxRetries = 10
+	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
+	const length = 12
+
+	mod := model.Select("__yao.job.category")
+	if mod == nil {
+		return "", fmt.Errorf("job category model not found")
+	}
+
+	for i := 0; i < maxRetries; i++ {
+		// Generate new ID using nanoid
+		id, err := gonanoid.Generate(alphabet, length)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate nanoid: %w", err)
+		}
+
+		// Check if ID already exists
+		param := model.QueryParam{
+			Select: []interface{}{"id"}, // Just get primary key, minimal data
+			Wheres: []model.QueryWhere{
+				{Column: "category_id", Value: id},
+			},
+			Limit: 1,
+		}
+
+		results, err := mod.Get(param)
+		if err != nil {
+			return "", fmt.Errorf("failed to check category_id existence: %w", err)
+		}
+
+		if len(results) == 0 {
+			return id, nil // Found unique ID
+		}
+
+		// ID exists, retry with new generation
+	}
+
+	return "", fmt.Errorf("failed to generate unique category_id after %d retries", maxRetries)
+}
+
+// generateExecutionID generates a unique execution_id using nanoid with duplicate checking
+func generateExecutionID() (string, error) {
+	const maxRetries = 10
+	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"
+	const length = 16 // Slightly longer for executions as they are more frequent
+
+	mod := model.Select("__yao.job.execution")
+	if mod == nil {
+		return "", fmt.Errorf("job execution model not found")
+	}
+
+	for i := 0; i < maxRetries; i++ {
+		// Generate new ID using nanoid
+		id, err := gonanoid.Generate(alphabet, length)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate nanoid: %w", err)
+		}
+
+		// Check if ID already exists
+		param := model.QueryParam{
+			Select: []interface{}{"id"}, // Just get primary key, minimal data
+			Wheres: []model.QueryWhere{
+				{Column: "execution_id", Value: id},
+			},
+			Limit: 1,
+		}
+
+		results, err := mod.Get(param)
+		if err != nil {
+			return "", fmt.Errorf("failed to check execution_id existence: %w", err)
+		}
+
+		if len(results) == 0 {
+			return id, nil // Found unique ID
+		}
+
+		// ID exists, retry with new generation
+	}
+
+	return "", fmt.Errorf("failed to generate unique execution_id after %d retries", maxRetries)
 }
 
 // ========================
