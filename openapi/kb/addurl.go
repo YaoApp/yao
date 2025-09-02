@@ -308,7 +308,7 @@ func AddURLAsync(c *gin.Context) {
 
 	err = j.Add(&job.ExecutionOptions{
 		Priority: 1,
-	}, "kb.documents.processurl", jobData)
+	}, "kb.documents.addurl", jobData)
 	if err != nil {
 		log.Error("AddURLAsync: Failed to add job execution: %v", err)
 		// Rollback: remove document record
@@ -400,40 +400,6 @@ func ProcessAddURL(process *process.Process) interface{} {
 	err = HandleURLContent(ctx, req)
 	if err != nil {
 		exception.New("failed to process URL: %s", 500, err.Error()).Throw()
-	}
-
-	// Return result
-	return maps.MapStrAny{
-		"doc_id": req.DocID,
-	}
-}
-
-// ProcessProcessURL documents.processurl Knowledge Base process URL content processor (async version)
-// Args[0] map: Request parameters {"collection_id": "collection", "url": "https://example.com", ...}
-// Return: map: Response data {"doc_id": "document_id"}
-func ProcessProcessURL(process *process.Process) interface{} {
-	process.ValidateArgNums(1)
-
-	// Get parameters
-	reqMap := process.ArgsMap(0)
-
-	// Check knowledge base instance
-	if kb.Instance == nil {
-		exception.New("knowledge base not initialized", 500).Throw()
-	}
-
-	// Convert parameters to AddURLRequest structure
-	req := parseAddURLRequest(reqMap)
-
-	// This is async version - document record should already exist
-	// Just process the URL content
-	ctx := process.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	err := HandleURLContent(ctx, req)
-	if err != nil {
-		exception.New("failed to process URL content: %s", 500, err.Error()).Throw()
 	}
 
 	// Return result

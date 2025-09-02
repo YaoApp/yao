@@ -308,7 +308,7 @@ func AddTextAsync(c *gin.Context) {
 
 	err = j.Add(&job.ExecutionOptions{
 		Priority: 1,
-	}, "kb.documents.processtext", jobData)
+	}, "kb.documents.addtext", jobData)
 	if err != nil {
 		log.Error("AddTextAsync: Failed to add job execution: %v", err)
 		// Rollback: remove document record
@@ -400,40 +400,6 @@ func ProcessAddText(process *process.Process) interface{} {
 	err = HandleTextContent(ctx, req)
 	if err != nil {
 		exception.New("failed to process text: %s", 500, err.Error()).Throw()
-	}
-
-	// Return result
-	return maps.MapStrAny{
-		"doc_id": req.DocID,
-	}
-}
-
-// ProcessProcessText documents.processtext Knowledge Base process text content processor (async version)
-// Args[0] map: Request parameters {"collection_id": "collection", "text": "content", ...}
-// Return: map: Response data {"doc_id": "document_id"}
-func ProcessProcessText(process *process.Process) interface{} {
-	process.ValidateArgNums(1)
-
-	// Get parameters
-	reqMap := process.ArgsMap(0)
-
-	// Check knowledge base instance
-	if kb.Instance == nil {
-		exception.New("knowledge base not initialized", 500).Throw()
-	}
-
-	// Convert parameters to AddTextRequest structure
-	req := parseAddTextRequest(reqMap)
-
-	// This is async version - document record should already exist
-	// Just process the text content
-	ctx := process.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	err := HandleTextContent(ctx, req)
-	if err != nil {
-		exception.New("failed to process text content: %s", 500, err.Error()).Throw()
 	}
 
 	// Return result
