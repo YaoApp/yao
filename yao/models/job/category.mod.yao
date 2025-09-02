@@ -33,7 +33,7 @@
       "comment": "Display name of the category",
       "length": 255,
       "nullable": false,
-      "index": true
+      "unique": true
     },
     {
       "name": "icon",

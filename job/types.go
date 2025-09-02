@@ -114,6 +114,7 @@ type Job struct {
 	Icon               *string                `json:"icon,omitempty"`        // nullable: true
 	Description        *string                `json:"description,omitempty"` // nullable: true
 	CategoryID         string                 `json:"category_id"`
+	CategoryName       string                 `json:"category_name,omitempty"`
 	MaxWorkerNums      int                    `json:"max_worker_nums"`               // default: 1
 	Status             string                 `json:"status"`                        // default: "draft"
 	Mode               ModeType               `json:"mode"`                          // default: "goroutine"

@@ -261,11 +261,26 @@ func AddURLAsync(c *gin.Context) {
 
 	log.Info("AddURLAsync: Generated doc_id: %s", req.DocID)
 
-	// Step 1: Create and save Job in one step to get JobID
-	j, err := job.OnceAndSave(job.GOROUTINE, map[string]interface{}{
-		"name":        "KB Add URL",
-		"description": "Add URL to knowledge base collection",
-	})
+	// Step 1: Get job options with defaults
+	jobName, jobDescription, jobIcon, jobCategory := req.GetJobOptions(
+		"Knowledge Base Web Content Processing",                       // default name
+		"Fetching and indexing web content for knowledge base search", // default description
+		"library_add",    // default icon (Material Icon)
+		"Knowledge Base", // default category
+	)
+
+	// Create job data
+	jobCreateData := map[string]interface{}{
+		"name":          jobName,
+		"description":   jobDescription,
+		"category_name": jobCategory, // Pass category name directly, let SaveJob handle it
+	}
+	if jobIcon != "" {
+		jobCreateData["icon"] = jobIcon
+	}
+
+	// Create and save Job in one step to get JobID
+	j, err := job.OnceAndSave(job.GOROUTINE, jobCreateData)
 	if err != nil {
 		log.Error("AddURLAsync: Job creation and save failed: %v", err)
 		errorResp := &response.ErrorResponse{
@@ -510,6 +525,24 @@ func parseAddURLRequest(reqMap map[string]interface{}) *AddURLRequest {
 			converter.OptionID = optionID
 		}
 		req.Converter = converter
+	}
+
+	// Handle job options
+	if jobMap, ok := reqMap["job"].(map[string]interface{}); ok {
+		job := &JobOptions{}
+		if name, ok := jobMap["name"].(string); ok {
+			job.Name = name
+		}
+		if description, ok := jobMap["description"].(string); ok {
+			job.Description = description
+		}
+		if icon, ok := jobMap["icon"].(string); ok {
+			job.Icon = icon
+		}
+		if category, ok := jobMap["category"].(string); ok {
+			job.Category = category
+		}
+		req.Job = job
 	}
 
 	return req

@@ -78,6 +78,14 @@ type ProviderConfig struct {
 	Option     *kbtypes.ProviderOption `json:"option,omitempty"`
 }
 
+// JobOptions contains job options for async operations
+type JobOptions struct {
+	Name        string `json:"name,omitempty"`        // Job name (optional, defaults will be used)
+	Description string `json:"description,omitempty"` // Job description (optional, defaults will be used)
+	Icon        string `json:"icon,omitempty"`        // Job icon (optional, Material Icon name)
+	Category    string `json:"category,omitempty"`    // Job category (optional, defaults will be used)
+}
+
 // BaseUpsertRequest contains common fields for all upsert operations
 type BaseUpsertRequest struct {
 	// Collection ID - this will be mapped to UpsertOptions.CollectionID
@@ -96,6 +104,9 @@ type BaseUpsertRequest struct {
 	// Upsert options
 	DocID    string                 `json:"doc_id,omitempty"`
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+
+	// Job options for async operations
+	Job *JobOptions `json:"job,omitempty"`
 }
 
 // AddFileRequest represents the request for AddFile API
@@ -449,6 +460,31 @@ func (r *UpdateWeightsRequest) Validate() error {
 		}
 	}
 	return nil
+}
+
+// GetJobOptions returns job options with defaults
+func (r *BaseUpsertRequest) GetJobOptions(defaultName, defaultDescription, defaultIcon, defaultCategory string) (string, string, string, string) {
+	name := defaultName
+	description := defaultDescription
+	icon := defaultIcon
+	category := defaultCategory
+
+	if r.Job != nil {
+		if r.Job.Name != "" {
+			name = r.Job.Name
+		}
+		if r.Job.Description != "" {
+			description = r.Job.Description
+		}
+		if r.Job.Icon != "" {
+			icon = r.Job.Icon
+		}
+		if r.Job.Category != "" {
+			category = r.Job.Category
+		}
+	}
+
+	return name, description, icon, category
 }
 
 // AddBaseFields adds common fields from BaseUpsertRequest to data map
