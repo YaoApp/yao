@@ -23,6 +23,21 @@ func Once(mode ModeType, data map[string]interface{}) (*Job, error) {
 	return makeJob(raw)
 }
 
+// OnceAndSave create a new job and save it immediately
+func OnceAndSave(mode ModeType, data map[string]interface{}) (*Job, error) {
+	job, err := Once(mode, data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = SaveJob(job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save job: %w", err)
+	}
+
+	return job, nil
+}
+
 // Cron create a new job
 func Cron(mode ModeType, data map[string]interface{}, expression string) (*Job, error) {
 	data["mode"] = mode
@@ -33,6 +48,21 @@ func Cron(mode ModeType, data map[string]interface{}, expression string) (*Job, 
 		return nil, err
 	}
 	return makeJob(raw)
+}
+
+// CronAndSave create a new cron job and save it immediately
+func CronAndSave(mode ModeType, data map[string]interface{}, expression string) (*Job, error) {
+	job, err := Cron(mode, data, expression)
+	if err != nil {
+		return nil, err
+	}
+
+	err = SaveJob(job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save job: %w", err)
+	}
+
+	return job, nil
 }
 
 // Daemon create a new job
@@ -46,8 +76,23 @@ func Daemon(mode ModeType, data map[string]interface{}) (*Job, error) {
 	return makeJob(raw)
 }
 
-// Start start the job
-func (j *Job) Start() error {
+// DaemonAndSave create a new daemon job and save it immediately
+func DaemonAndSave(mode ModeType, data map[string]interface{}) (*Job, error) {
+	job, err := Daemon(mode, data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = SaveJob(job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save job: %w", err)
+	}
+
+	return job, nil
+}
+
+// Push pushes the job to execution queue (renamed from Start for better semantics)
+func (j *Job) Push() error {
 	// Get executions for this job
 	executions, err := j.GetExecutions()
 	if err != nil {

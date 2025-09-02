@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/attachment"
@@ -51,26 +50,6 @@ var (
 		"processed_at":  true,
 	}
 )
-
-// SimpleJob represents a simple job for async operations
-// TODO: replace with proper job system later
-type SimpleJob struct {
-	ID string
-}
-
-// NewJob creates a new simple job
-func NewJob() *SimpleJob {
-	return &SimpleJob{
-		ID: uuid.New().String(),
-	}
-}
-
-// Run executes the job function asynchronously and returns job ID
-func (j *SimpleJob) Run(fn func()) string {
-	// temporary solution to handle async operations ( TODO: use job queue )
-	go fn()
-	return j.ID
-}
 
 // Document Management Handlers
 
