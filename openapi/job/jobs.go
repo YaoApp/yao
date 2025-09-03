@@ -52,20 +52,40 @@ func ListJobs(c *gin.Context) {
 		})
 	}
 
+	// Add keywords filter if provided (search in name and description)
+	if keywords := c.Query("keywords"); keywords != "" {
+		param.Wheres = append(param.Wheres, model.QueryWhere{
+			Wheres: []model.QueryWhere{
+				{
+					Column: "name",
+					Value:  "%" + keywords + "%",
+					OP:     "like",
+				},
+				{
+					Column: "description",
+					Value:  "%" + keywords + "%",
+					OP:     "like",
+					Method: "orwhere",
+				},
+			},
+		})
+	}
+
 	// Add enabled filter (default to show all for debugging)
-	enabled := c.Query("enabled")
-	if enabled == "true" {
+	switch enabled := c.Query("enabled"); enabled {
+	case "true", "1", "yes", "on":
 		param.Wheres = append(param.Wheres, model.QueryWhere{
 			Column: "enabled",
 			Value:  true,
 		})
-	} else if enabled == "false" {
+	case "false", "0", "no", "off":
 		param.Wheres = append(param.Wheres, model.QueryWhere{
 			Column: "enabled",
 			Value:  false,
 		})
+	default:
+		// Default: show all records regardless of enabled status
 	}
-	// Default: show all records regardless of enabled status
 
 	// Call job.ListJobs function
 	result, err := job.ListJobs(param, page, pagesize)
