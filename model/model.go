@@ -34,6 +34,7 @@ var systemModels = map[string]string{
 	"__yao.kb.collection":      "yao/models/kb/collection.mod.yao",
 	"__yao.kb.document":        "yao/models/kb/document.mod.yao",
 	"__yao.organization":       "yao/models/organization.mod.yao",
+	"__yao.organization_user":  "yao/models/organization_user.mod.yao",
 	"__yao.user":               "yao/models/user.mod.yao",
 	"__yao.user_role":          "yao/models/user_role.mod.yao",
 	"__yao.user_type":          "yao/models/user_type.mod.yao",

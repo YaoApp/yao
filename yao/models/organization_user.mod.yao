@@ -1,0 +1,234 @@
+{
+  "name": "Organization User",
+  "label": "Organization User",
+  "description": "Association table for organization members and their roles",
+  "tags": ["organization", "user", "association", "membership", "roles"],
+  "table": {
+    "name": "organization_user",
+    "comment": "Association table for organization members and their roles"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "org_id",
+      "type": "string",
+      "label": "Organization ID",
+      "comment": "Organization identifier (references organization.org_id)",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "label": "User ID",
+      "comment": "User identifier (references user.user_id)",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+
+    // ============================================================================
+    // Role & Permission Fields
+    // ============================================================================
+    {
+      "name": "role",
+      "type": "enum",
+      "label": "Role",
+      "comment": "User role within the organization",
+      "option": [
+        "owner", // Organization owner (full control, billing, delete org)
+        "admin", // Administrator (manage users, settings, but not billing)
+        "member" // Regular member (basic access according to org permissions)
+      ],
+      "default": "member",
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Membership status",
+      "option": [
+        "pending", // Invitation sent, not accepted yet
+        "active", // Active member
+        "inactive", // Temporarily inactive
+        "suspended" // Suspended by admin
+      ],
+      "default": "pending",
+      "index": true,
+      "nullable": false
+    },
+
+    // ============================================================================
+    // Invitation & Join Information
+    // ============================================================================
+    {
+      "name": "invited_by",
+      "type": "string",
+      "label": "Invited By",
+      "comment": "User ID who sent the invitation",
+      "length": 255,
+      "nullable": true
+    },
+    {
+      "name": "invited_at",
+      "type": "timestamp",
+      "label": "Invited At",
+      "comment": "When the invitation was sent",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "joined_at",
+      "type": "timestamp",
+      "label": "Joined At",
+      "comment": "When the user accepted and joined the organization",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "invitation_token",
+      "type": "string",
+      "label": "Invitation Token",
+      "comment": "Unique token for invitation acceptance",
+      "length": 100,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "invitation_expires_at",
+      "type": "timestamp",
+      "label": "Invitation Expires At",
+      "comment": "When the invitation expires",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Permission Overrides
+    // ============================================================================
+    {
+      "name": "permissions",
+      "type": "json",
+      "label": "Permissions",
+      "comment": "Custom permissions override for this user in this organization",
+      "nullable": true
+    },
+    {
+      "name": "restrictions",
+      "type": "json",
+      "label": "Restrictions",
+      "comment": "Additional restrictions for this user in this organization",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Activity Tracking
+    // ============================================================================
+    {
+      "name": "last_active_at",
+      "type": "timestamp",
+      "label": "Last Active At",
+      "comment": "When the user was last active in this organization",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "login_count",
+      "type": "integer",
+      "label": "Login Count",
+      "comment": "Number of times user has accessed this organization",
+      "default": 0,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Metadata
+    // ============================================================================
+    {
+      "name": "notes",
+      "type": "text",
+      "label": "Notes",
+      "comment": "Internal notes about this membership",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata for this membership",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_org_user_unique",
+      "columns": ["org_id", "user_id"],
+      "type": "unique",
+      "comment": "Unique constraint: one user can have only one membership per organization"
+    },
+    {
+      "name": "idx_org_user_role",
+      "columns": ["org_id", "role", "status"],
+      "type": "index",
+      "comment": "Index for finding users by role and status within organization"
+    },
+    {
+      "name": "idx_user_orgs",
+      "columns": ["user_id", "status", "role"],
+      "type": "index",
+      "comment": "Index for finding all organizations for a user"
+    },
+    {
+      "name": "idx_org_invitations",
+      "columns": ["org_id", "status", "invited_at"],
+      "type": "index",
+      "comment": "Index for managing invitations"
+    },
+    {
+      "name": "idx_invitation_token",
+      "columns": ["invitation_token", "invitation_expires_at"],
+      "type": "index",
+      "comment": "Index for invitation token lookup and expiration"
+    },
+    {
+      "name": "idx_org_activity",
+      "columns": ["org_id", "last_active_at"],
+      "type": "index",
+      "comment": "Index for organization activity tracking"
+    }
+  ],
+  "relations": {
+    "organization": {
+      "type": "hasOne",
+      "model": "__yao.organization",
+      "key": "org_id",
+      "foreign": "org_id"
+    },
+    "user": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "user_id",
+      "foreign": "user_id"
+    },
+    "inviter": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "invited_by",
+      "foreign": "user_id"
+    }
+  },
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}
