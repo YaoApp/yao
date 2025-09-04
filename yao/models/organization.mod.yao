@@ -1,0 +1,460 @@
+{
+  "name": "Organization",
+  "label": "Organization",
+  "description": "Organization structure and information storage",
+  "tags": ["organization", "structure", "business", "verification"],
+  "table": {
+    "name": "organization",
+    "comment": "Organization structure and information storage"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "org_id",
+      "type": "string",
+      "label": "Organization ID",
+      "comment": "Global unique organization identifier",
+      "length": 255,
+      "unique": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Organization Basic Information
+    // ============================================================================
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Organization Name",
+      "comment": "Official organization name",
+      "length": 200,
+      "nullable": false
+    },
+    {
+      "name": "display_name",
+      "type": "string",
+      "label": "Display Name",
+      "comment": "Organization display name or brand name",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Organization description",
+      "nullable": true
+    },
+    {
+      "name": "website",
+      "type": "string",
+      "label": "Website",
+      "comment": "Organization website URL",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "logo",
+      "type": "string",
+      "label": "Logo",
+      "comment": "Organization logo URL",
+      "length": 500,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Organization Ownership
+    // ============================================================================
+    {
+      "name": "owner_id",
+      "type": "string",
+      "label": "Owner ID",
+      "comment": "Organization owner user identifier (references user.user_id)",
+      "length": 255,
+      "nullable": false,
+      "index": true
+    },
+
+    // ============================================================================
+    // Contact Information (Optional)
+    // ============================================================================
+    {
+      "name": "contact_email",
+      "type": "string",
+      "label": "Contact Email",
+      "comment": "Organization contact email address",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "contact_phone",
+      "type": "string",
+      "label": "Contact Phone",
+      "comment": "Organization contact phone number",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Organization Verification
+    // ============================================================================
+    {
+      "name": "is_verified",
+      "type": "boolean",
+      "label": "Is Verified",
+      "comment": "Whether organization is verified",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "verified_at",
+      "type": "timestamp",
+      "label": "Verified At",
+      "comment": "When organization was verified",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "verified_by",
+      "type": "string",
+      "label": "Verified By",
+      "comment": "Who verified this organization",
+      "length": 255,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Organization Unique Code & Type
+    // ============================================================================
+    {
+      "name": "org_code",
+      "type": "string",
+      "label": "Organization Code",
+      "comment": "Unique organization identification code",
+      "length": 100,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "org_code_type",
+      "type": "enum",
+      "label": "Organization Code Type",
+      "comment": "Type of organization identification code",
+      "option": [
+        // ============================================================================
+        // Global Universal Standards (Apple & International Compatible)
+        // ============================================================================
+        "DUNS", // Dun & Bradstreet Universal Numbering System (Apple Required)
+        "LEI", // Legal Entity Identifier (Global Financial Standard)
+        "GS1", // Global Standards One Company Prefix
+
+        // ============================================================================
+        // North America
+        // ============================================================================
+        "EIN", // US Employer Identification Number
+        "SSN", // US Social Security Number (for sole proprietors)
+        "ITIN", // US Individual Taxpayer Identification Number
+        "BN", // Canada Business Number
+        "NAICS", // North American Industry Classification System
+        "SIC", // Standard Industrial Classification
+
+        // ============================================================================
+        // European Union & Europe
+        // ============================================================================
+        "VAT", // Value Added Tax Number (EU-wide)
+        "EORI", // Economic Operators Registration and Identification (EU)
+        "NACE", // European Statistical Classification of Economic Activities
+        "CRN", // Company Registration Number (UK)
+        "UTR", // Unique Taxpayer Reference (UK)
+        "SIREN", // French Business Identification (9 digits)
+        "SIRET", // French Establishment Identification (14 digits)
+        "KVK", // Netherlands Chamber of Commerce Number
+        "HRB", // German Commercial Register Number
+        "UID", // Austrian/Swiss VAT Identification Number
+        "ORG_NR", // Norwegian Organization Number
+        "CVR", // Danish Central Business Register
+        "Y_TUNNUS", // Finnish Business ID
+        "ORG_NR_SE", // Swedish Organization Number
+        "CIF", // Spain Tax Identification Code
+        "NIF", // Portugal/Spain Tax Identification Number
+        "REGON", // Poland National Business Registry
+        "NIP", // Poland Tax Identification Number
+        "INN", // Russia Tax Identification Number
+        "OGRN", // Russia Primary State Registration Number
+        "KPP", // Russia Tax Registration Reason Code
+
+        // ============================================================================
+        // Asia Pacific
+        // ============================================================================
+        "ABN", // Australian Business Number
+        "ACN", // Australian Company Number
+        "NZBN", // New Zealand Business Number
+        "BRN", // Singapore Business Registration Number
+        "UEN", // Singapore Unique Entity Number
+        "ACRA", // Singapore Accounting and Corporate Regulatory Authority
+        "GST_IN", // India Goods and Services Tax Number
+        "PAN", // India Permanent Account Number
+        "CIN", // India Corporate Identity Number
+        "TAN", // India Tax Deduction Account Number
+        "HKBR", // Hong Kong Business Registration Number
+        "CR_NO", // Hong Kong Company Registration Number
+        "BUSINESS_CODE_JP", // Japan Corporate Number
+        "HOJIN_NO", // Japan Legal Person Number
+        "BRN_KR", // South Korea Business Registration Number
+        "CRN_KR", // South Korea Corporate Registration Number
+
+        // ============================================================================
+        // Latin America
+        // ============================================================================
+        "CNPJ", // Brazil National Registry of Legal Entities
+        "CPF", // Brazil Individual Taxpayer Registry
+        "RUC_PE", // Peru Tax Registry
+        "RUC_EC", // Ecuador Tax Registry
+        "RUT_CL", // Chile Tax Registry
+        "RUT_UY", // Uruguay Tax Registry
+        "CUIT", // Argentina Tax ID
+        "RIF", // Venezuela Tax Registry
+        "NIT_CO", // Colombia Tax ID
+        "RFC", // Mexico Tax Registry
+
+        // ============================================================================
+        // Middle East & Africa
+        // ============================================================================
+        "TRN", // UAE Tax Registration Number
+        "CR_SA", // Saudi Arabia Commercial Registration
+        "VAT_SA", // Saudi Arabia VAT Number
+        "TIN_ZA", // South Africa Tax Reference Number
+        "CK_ZA", // South Africa Company Registration Number
+
+        // ============================================================================
+        // Generic & Others
+        // ============================================================================
+        "TIN", // Tax Identification Number (Generic)
+        "GST", // Goods and Services Tax Number (Generic)
+        "BUSINESS_LICENSE", // Business License Number (Generic)
+        "TRADE_LICENSE", // Trade License Number (Generic)
+        "OTHER" // Other/Custom code type
+      ],
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Organization Status & Management
+    // ============================================================================
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Organization status",
+      "option": [
+        "pending", // New organization awaiting verification
+        "active", // Active organization with full access
+        "inactive", // Temporarily inactive
+        "suspended", // Suspended due to policy violations
+        "archived" // Archived organization
+      ],
+      "default": "pending",
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "type_id",
+      "type": "string",
+      "label": "Type ID",
+      "comment": "Organization type identifier for limits and permissions (references user_type.type_id)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "enum",
+      "label": "Organization Type",
+      "comment": "Type of organization",
+      "option": [
+        "corporation",
+        "llc",
+        "partnership",
+        "sole_proprietorship",
+        "nonprofit",
+        "government",
+        "educational",
+        "other"
+      ],
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Address Information
+    // ============================================================================
+    {
+      "name": "address",
+      "type": "json",
+      "label": "Address",
+      "comment": "Organization physical address (structured JSON with full details)",
+      "nullable": true
+    },
+    {
+      "name": "street_address",
+      "type": "string",
+      "label": "Street Address",
+      "comment": "Street address line (for quick access and indexing)",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "city",
+      "type": "string",
+      "label": "City",
+      "comment": "Organization city",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "state_province",
+      "type": "string",
+      "label": "State/Province",
+      "comment": "State, province, or administrative region",
+      "length": 100,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "postal_code",
+      "type": "string",
+      "label": "Postal Code",
+      "comment": "ZIP code, postal code, or equivalent",
+      "length": 20,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "country",
+      "type": "string",
+      "label": "Country",
+      "comment": "Organization country (ISO 3166-1 alpha-2)",
+      "length": 2,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "country_name",
+      "type": "string",
+      "label": "Country Name",
+      "comment": "Full country name for display",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "region",
+      "type": "string",
+      "label": "Region",
+      "comment": "Geographic region (e.g., North America, Europe, Asia-Pacific)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "zoneinfo",
+      "type": "string",
+      "label": "Zone Info",
+      "comment": "Organization primary timezone (IANA Time Zone Database format)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Organization Settings
+    // ============================================================================
+    {
+      "name": "settings",
+      "type": "json",
+      "label": "Settings",
+      "comment": "Organization configuration settings",
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Extended organization metadata and custom fields",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_org_owner_status",
+      "columns": ["owner_id", "status"],
+      "type": "index",
+      "comment": "Index on owner and status for filtering"
+    },
+    {
+      "name": "idx_org_verification",
+      "columns": ["is_verified", "verified_at"],
+      "type": "index",
+      "comment": "Index on verification status and time"
+    },
+    {
+      "name": "idx_org_code_type",
+      "columns": ["org_code_type", "org_code"],
+      "type": "index",
+      "comment": "Index on organization code type and code"
+    },
+    {
+      "name": "idx_org_location",
+      "columns": ["country", "state_province", "city"],
+      "type": "index",
+      "comment": "Index on country, state/province and city for geographic queries"
+    },
+    {
+      "name": "idx_org_region_type",
+      "columns": ["region", "type"],
+      "type": "index",
+      "comment": "Index on geographic region and organization type"
+    },
+    {
+      "name": "idx_org_postal_zoneinfo",
+      "columns": ["postal_code", "zoneinfo"],
+      "type": "index",
+      "comment": "Index on postal code and zoneinfo for location services"
+    },
+    {
+      "name": "idx_org_type_status",
+      "columns": ["type_id", "status"],
+      "type": "index",
+      "comment": "Index on organization type and status for limits and permissions"
+    }
+  ],
+  "relations": {
+    "owner": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "owner_id",
+      "foreign": "user_id"
+    },
+    "user_type": {
+      "type": "hasOne",
+      "model": "__yao.user_type",
+      "key": "type_id",
+      "foreign": "type_id"
+    }
+  },
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}
