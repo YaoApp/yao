@@ -453,6 +453,21 @@
       "model": "__yao.user_type",
       "key": "type_id",
       "foreign": "type_id"
+    },
+    "members": {
+      "type": "hasMany",
+      "model": "__yao.organization_user",
+      "key": "org_id",
+      "foreign": "org_id"
+    },
+    "users": {
+      "type": "hasManyThrough",
+      "model": "__yao.user",
+      "through": "__yao.organization_user",
+      "key": "org_id",
+      "foreign": "org_id",
+      "throughKey": "user_id",
+      "throughForeign": "user_id"
     }
   },
   "values": [],

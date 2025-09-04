@@ -396,6 +396,27 @@
       "model": "__yao.user_type",
       "key": "type_id",
       "foreign": "type_id"
+    },
+    "owned_organizations": {
+      "type": "hasMany",
+      "model": "__yao.organization",
+      "key": "user_id",
+      "foreign": "owner_id"
+    },
+    "organization_memberships": {
+      "type": "hasMany",
+      "model": "__yao.organization_user",
+      "key": "user_id",
+      "foreign": "user_id"
+    },
+    "organizations": {
+      "type": "hasManyThrough",
+      "model": "__yao.organization",
+      "through": "__yao.organization_user",
+      "key": "user_id",
+      "foreign": "user_id",
+      "throughKey": "org_id",
+      "throughForeign": "org_id"
     }
   },
   "values": [],
