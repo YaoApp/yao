@@ -12,6 +12,98 @@ import (
 	"github.com/yaoapp/kun/log"
 )
 
+// init initializes the job package
+func init() {
+	// Initialize and start health checker
+	initHealthChecker()
+
+	// Initialize and start data cleaner
+	initDataCleaner()
+
+	log.Info("Job package initialized with health checker and data cleaner")
+}
+
+// initHealthChecker initializes the health checker
+func initHealthChecker() {
+	// Get health check interval from configuration or use default
+	interval := getHealthCheckInterval()
+	globalHealthChecker = NewHealthChecker(interval)
+
+	// Start health check goroutine
+	go globalHealthChecker.Start()
+
+	log.Info("Job health checker started with %v interval", interval)
+}
+
+// getHealthCheckInterval returns the configured health check interval or default
+func getHealthCheckInterval() time.Duration {
+	// Default interval: 5 minutes (balanced between detection speed and resource usage)
+	// This is suitable for most job monitoring scenarios:
+	// - Short jobs (< 5min): Health check won't interfere much
+	// - Medium jobs (5min - 1h): Good detection without excessive overhead
+	// - Long jobs (> 1h): Timely detection of issues
+	defaultInterval := 5 * time.Minute
+
+	// TODO: Add configuration support from environment variables or config file
+	// For example:
+	// if envInterval := os.Getenv("YAO_JOB_HEALTH_CHECK_INTERVAL"); envInterval != "" {
+	//     if duration, err := time.ParseDuration(envInterval); err == nil {
+	//         return duration
+	//     }
+	// }
+
+	return defaultInterval
+}
+
+// StopHealthChecker stops the health checker
+func StopHealthChecker() {
+	if globalHealthChecker != nil {
+		globalHealthChecker.Stop()
+		log.Info("Job health checker stopped")
+	}
+}
+
+// RestartHealthChecker restarts the health checker with a new interval
+// This is useful for testing or dynamic configuration changes
+func RestartHealthChecker(interval time.Duration) {
+	// Stop existing health checker
+	StopHealthChecker()
+
+	// Create and start new health checker with specified interval
+	globalHealthChecker = NewHealthChecker(interval)
+	go globalHealthChecker.Start()
+
+	log.Info("Job health checker restarted with %v interval", interval)
+}
+
+// initDataCleaner initializes the data cleaner
+func initDataCleaner() {
+	// Create data cleaner with 90 days retention
+	retentionDays := 90
+	globalDataCleaner = NewDataCleaner(retentionDays)
+
+	// Start data cleaner goroutine
+	go globalDataCleaner.Start()
+
+	log.Info("Job data cleaner started with %d days retention", retentionDays)
+}
+
+// StopDataCleaner stops the data cleaner
+func StopDataCleaner() {
+	if globalDataCleaner != nil {
+		globalDataCleaner.Stop()
+		log.Info("Job data cleaner stopped")
+	}
+}
+
+// ForceCleanup forces an immediate data cleanup (useful for testing)
+func ForceCleanup() error {
+	if globalDataCleaner != nil {
+		return globalDataCleaner.performCleanup()
+	}
+	return fmt.Errorf("data cleaner not initialized")
+}
+
 // Once create a new job
 func Once(mode ModeType, data map[string]interface{}) (*Job, error) {
 	data["mode"] = mode
