@@ -145,9 +145,10 @@
       "name": "zoneinfo",
       "type": "string",
       "label": "Zone Info",
-      "comment": "OIDC time zone info",
+      "comment": "OIDC time zone info (IANA Time Zone Database format)",
       "length": 50,
-      "nullable": true
+      "nullable": true,
+      "index": true
     },
     {
       "name": "locale",
@@ -375,6 +376,12 @@
       "columns": ["email_verified", "phone_number_verified"],
       "type": "index",
       "comment": "Index on verification status for filtering"
+    },
+    {
+      "name": "idx_user_locale_zoneinfo",
+      "columns": ["locale", "zoneinfo"],
+      "type": "index",
+      "comment": "Index on locale and zoneinfo for internationalization queries"
     }
   ],
   "relations": {
