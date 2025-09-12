@@ -512,6 +512,7 @@ func createPublicConfig(fullConfig *Config) Config {
 				publicProvider := Provider{
 					ID:        provider.ID,
 					Title:     provider.Title,
+					Label:     provider.Label,
 					Logo:      provider.Logo,
 					Color:     provider.Color,
 					TextColor: provider.TextColor,

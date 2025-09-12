@@ -76,6 +76,7 @@ type YaoClientConfig struct {
 // Provider represents a third party login provider
 type Provider struct {
 	ID                    string           `json:"id,omitempty"`
+	Label                 string           `json:"label,omitempty"`
 	Title                 string           `json:"title,omitempty"`
 	Logo                  string           `json:"logo,omitempty"`
 	Color                 string           `json:"color,omitempty"`
