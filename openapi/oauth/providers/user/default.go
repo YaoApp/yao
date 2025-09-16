@@ -11,6 +11,8 @@ const (
 	ErrRoleNotFound             = "role not found"
 	ErrTypeNotFound             = "type not found"
 	ErrOAuthAccountNotFound     = "oauth account not found"
+	ErrTeamNotFound             = "team not found"
+	ErrMemberNotFound           = "member not found"
 	ErrInvalidIdentifierType    = "invalid identifier type: %s"
 	ErrNoPasswordHash           = "no password hash found"
 	ErrFailedToGenerateUserID   = "failed to generate user_id: %w"
@@ -21,18 +23,26 @@ const (
 	ErrFailedToGetRole         = "failed to get role: %w"
 	ErrFailedToGetType         = "failed to get type: %w"
 	ErrFailedToGetOAuthAccount = "failed to get oauth account: %w"
+	ErrFailedToGetTeam         = "failed to get team: %w"
+	ErrFailedToGetMember       = "failed to get member: %w"
 	ErrFailedToCreateUser      = "failed to create user: %w"
 	ErrFailedToCreateRole      = "failed to create role: %w"
 	ErrFailedToCreateType      = "failed to create type: %w"
 	ErrFailedToCreateOAuth     = "failed to create oauth account: %w"
+	ErrFailedToCreateTeam      = "failed to create team: %w"
+	ErrFailedToCreateMember    = "failed to create member: %w"
 	ErrFailedToUpdateUser      = "failed to update user: %w"
 	ErrFailedToUpdateRole      = "failed to update role: %w"
 	ErrFailedToUpdateType      = "failed to update type: %w"
 	ErrFailedToUpdateOAuth     = "failed to update oauth account: %w"
+	ErrFailedToUpdateTeam      = "failed to update team: %w"
+	ErrFailedToUpdateMember    = "failed to update member: %w"
 	ErrFailedToDeleteUser      = "failed to delete user: %w"
 	ErrFailedToDeleteRole      = "failed to delete role: %w"
 	ErrFailedToDeleteType      = "failed to delete type: %w"
 	ErrFailedToDeleteOAuth     = "failed to delete oauth account: %w"
+	ErrFailedToDeleteTeam      = "failed to delete team: %w"
+	ErrFailedToDeleteMember    = "failed to delete member: %w"
 
 	// MFA related errors
 	ErrMFANotEnabled             = "MFA is not enabled for this user"
@@ -116,6 +126,40 @@ var (
 		"password_policy", "features", "limits", "created_at", "updated_at",
 	}
 
+	// DefaultTeamFields contains basic team fields
+	DefaultTeamFields = []interface{}{
+		"id", "team_id", "name", "display_name", "description", "website", "logo",
+		"owner_id", "status", "type_id", "type", "is_verified", "verified_at",
+		"created_at", "updated_at",
+	}
+
+	// DefaultTeamDetailFields contains all team fields including contact info and metadata
+	DefaultTeamDetailFields = []interface{}{
+		"id", "team_id", "name", "display_name", "description", "website", "logo",
+		"owner_id", "contact_email", "contact_phone", "is_verified", "verified_at", "verified_by",
+		"team_code", "team_code_type", "status", "type_id", "type", "address", "street_address",
+		"city", "state_province", "postal_code", "country", "country_name", "region", "zoneinfo",
+		"settings", "metadata", "created_at", "updated_at",
+	}
+
+	// DefaultMemberFields contains basic member fields
+	DefaultMemberFields = []interface{}{
+		"id", "team_id", "user_id", "member_type", "role_id", "status",
+		"invited_by", "invited_at", "joined_at", "last_active_at", "login_count",
+		"created_at", "updated_at",
+	}
+
+	// DefaultMemberDetailFields contains all member fields including robot config and permissions
+	DefaultMemberDetailFields = []interface{}{
+		"id", "team_id", "user_id", "member_type", "role_id", "status",
+		"robot_name", "robot_description", "robot_avatar", "robot_config", "agents", "tools",
+		"mcp_servers", "data_access_permissions", "system_prompt", "is_active_robot",
+		"schedule_config", "random_activity", "activity_frequency", "last_robot_activity",
+		"robot_status", "invited_by", "invited_at", "joined_at", "invitation_token",
+		"invitation_expires_at", "permissions", "restrictions", "last_active_at",
+		"login_count", "notes", "metadata", "created_at", "updated_at",
+	}
+
 	// DefaultMFAOptions contains default MFA configuration
 	DefaultMFAOptions = &types.MFAOptions{
 		Issuer:         "Yao App Engine",
@@ -135,6 +179,8 @@ type DefaultUser struct {
 	roleModel         string
 	typeModel         string
 	oauthAccountModel string
+	teamModel         string
+	memberModel       string
 	cache             store.Store
 
 	// ID Generation Configuration
@@ -159,6 +205,14 @@ type DefaultUser struct {
 	typeFields       []interface{} // configurable
 	typeDetailFields []interface{} // configurable
 
+	// Team Field lists
+	teamFields       []interface{} // configurable
+	teamDetailFields []interface{} // configurable
+
+	// Member Field lists
+	memberFields       []interface{} // configurable
+	memberDetailFields []interface{} // configurable
+
 	// MFA Configuration
 	mfaOptions *types.MFAOptions // configurable MFA settings
 }
@@ -180,6 +234,8 @@ type DefaultUserOptions struct {
 	RoleModel         string // bind to a specific role model
 	TypeModel         string // bind to a specific type model
 	OAuthAccountModel string // bind to a specific oauth account model
+	TeamModel         string // bind to a specific team model
+	MemberModel       string // bind to a specific member model
 	Cache             store.Store
 
 	// ID Generation Strategy
@@ -202,6 +258,14 @@ type DefaultUserOptions struct {
 	// Type field lists (use defaults if not specified)
 	TypeFields       []interface{} // basic type fields
 	TypeDetailFields []interface{} // detailed type fields including configuration and metadata
+
+	// Team field lists (use defaults if not specified)
+	TeamFields       []interface{} // basic team fields
+	TeamDetailFields []interface{} // detailed team fields including contact info and metadata
+
+	// Member field lists (use defaults if not specified)
+	MemberFields       []interface{} // basic member fields
+	MemberDetailFields []interface{} // detailed member fields including robot config and permissions
 
 	// MFA configuration (use defaults if not specified)
 	MFAOptions *types.MFAOptions // MFA settings
@@ -228,6 +292,16 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 	oauthAccountModel := options.OAuthAccountModel
 	if oauthAccountModel == "" {
 		oauthAccountModel = "__yao.user.oauth_account"
+	}
+
+	teamModel := options.TeamModel
+	if teamModel == "" {
+		teamModel = "__yao.team"
+	}
+
+	memberModel := options.MemberModel
+	if memberModel == "" {
+		memberModel = "__yao.member"
 	}
 
 	// Set ID generation strategy with defaults
@@ -283,6 +357,28 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		typeDetailFields = DefaultTypeDetailFields
 	}
 
+	// Set team field lists with defaults if not specified
+	teamFields := options.TeamFields
+	if teamFields == nil {
+		teamFields = DefaultTeamFields
+	}
+
+	teamDetailFields := options.TeamDetailFields
+	if teamDetailFields == nil {
+		teamDetailFields = DefaultTeamDetailFields
+	}
+
+	// Set member field lists with defaults if not specified
+	memberFields := options.MemberFields
+	if memberFields == nil {
+		memberFields = DefaultMemberFields
+	}
+
+	memberDetailFields := options.MemberDetailFields
+	if memberDetailFields == nil {
+		memberDetailFields = DefaultMemberDetailFields
+	}
+
 	// Set MFA options with defaults if not specified
 	mfaOptions := options.MFAOptions
 	if mfaOptions == nil {
@@ -295,6 +391,8 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		roleModel:         roleModel,
 		typeModel:         typeModel,
 		oauthAccountModel: oauthAccountModel,
+		teamModel:         teamModel,
+		memberModel:       memberModel,
 		cache:             options.Cache,
 		idStrategy:        idStrategy,
 		idPrefix:          idPrefix,
@@ -314,6 +412,14 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		// Type field lists
 		typeFields:       typeFields,
 		typeDetailFields: typeDetailFields,
+
+		// Team field lists
+		teamFields:       teamFields,
+		teamDetailFields: teamDetailFields,
+
+		// Member field lists
+		memberFields:       memberFields,
+		memberDetailFields: memberDetailFields,
 
 		// MFA Configuration
 		mfaOptions: mfaOptions,

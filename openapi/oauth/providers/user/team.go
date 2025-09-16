@@ -1,0 +1,370 @@
+package user
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/maps"
+)
+
+// Team Resource
+
+// GetTeam retrieves team information by team_id
+func (u *DefaultUser) GetTeam(ctx context.Context, teamID string) (maps.MapStrAny, error) {
+	m := model.Select(u.teamModel)
+	teams, err := m.Get(model.QueryParam{
+		Select: u.teamFields,
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	if len(teams) == 0 {
+		return nil, fmt.Errorf(ErrTeamNotFound)
+	}
+
+	return teams[0], nil
+}
+
+// GetTeamDetail retrieves detailed team information by team_id
+func (u *DefaultUser) GetTeamDetail(ctx context.Context, teamID string) (maps.MapStrAny, error) {
+	m := model.Select(u.teamModel)
+	teams, err := m.Get(model.QueryParam{
+		Select: u.teamDetailFields,
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	if len(teams) == 0 {
+		return nil, fmt.Errorf(ErrTeamNotFound)
+	}
+
+	return teams[0], nil
+}
+
+// TeamExists checks if a team exists by team_id (lightweight query)
+func (u *DefaultUser) TeamExists(ctx context.Context, teamID string) (bool, error) {
+	m := model.Select(u.teamModel)
+	teams, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1, // Only need to know if at least one exists
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	return len(teams) > 0, nil
+}
+
+// CreateTeam creates a new team
+func (u *DefaultUser) CreateTeam(ctx context.Context, teamData maps.MapStrAny) (string, error) {
+	// Generate team_id if not provided
+	if _, exists := teamData["team_id"]; !exists {
+		teamID, err := u.GenerateUserID(ctx, true) // Reuse user ID generation logic for team ID
+		if err != nil {
+			return "", fmt.Errorf("failed to generate team_id: %w", err)
+		}
+		teamData["team_id"] = teamID
+	}
+
+	// Validate required fields
+	if _, exists := teamData["name"]; !exists {
+		return "", fmt.Errorf("name is required in teamData")
+	}
+	if _, exists := teamData["owner_id"]; !exists {
+		return "", fmt.Errorf("owner_id is required in teamData")
+	}
+
+	// Set default values if not provided
+	if _, exists := teamData["status"]; !exists {
+		teamData["status"] = "pending"
+	}
+	if _, exists := teamData["is_verified"]; !exists {
+		teamData["is_verified"] = false
+	}
+
+	m := model.Select(u.teamModel)
+	id, err := m.Create(teamData)
+	if err != nil {
+		return "", fmt.Errorf(ErrFailedToCreateTeam, err)
+	}
+
+	// Return the team_id as string (preferred approach)
+	if teamID, ok := teamData["team_id"].(string); ok {
+		return teamID, nil
+	}
+
+	// Fallback: convert the returned int id to string
+	return fmt.Sprintf("%d", id), nil
+}
+
+// UpdateTeam updates an existing team
+func (u *DefaultUser) UpdateTeam(ctx context.Context, teamID string, teamData maps.MapStrAny) error {
+	// Remove sensitive fields that should not be updated directly
+	sensitiveFields := []string{"id", "team_id", "created_at", "verified_at", "verified_by"}
+	for _, field := range sensitiveFields {
+		delete(teamData, field)
+	}
+
+	// Skip update if no valid fields remain
+	if len(teamData) == 0 {
+		return nil
+	}
+
+	m := model.Select(u.teamModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1, // Safety: ensure only one record is updated
+	}, teamData)
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateTeam, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrTeamNotFound)
+	}
+
+	return nil
+}
+
+// DeleteTeam soft deletes a team
+func (u *DefaultUser) DeleteTeam(ctx context.Context, teamID string) error {
+	// First check if team exists
+	m := model.Select(u.teamModel)
+	teams, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id", "team_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	if len(teams) == 0 {
+		return fmt.Errorf(ErrTeamNotFound)
+	}
+
+	// Proceed with soft delete
+	affected, err := m.DeleteWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1, // Safety: ensure only one record is deleted
+	})
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToDeleteTeam, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrTeamNotFound)
+	}
+
+	return nil
+}
+
+// GetTeams retrieves teams by query parameters
+func (u *DefaultUser) GetTeams(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error) {
+	// Set default select fields if not provided
+	if param.Select == nil {
+		param.Select = u.teamFields
+	}
+
+	m := model.Select(u.teamModel)
+	teams, err := m.Get(param)
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	return teams, nil
+}
+
+// PaginateTeams retrieves paginated list of teams
+func (u *DefaultUser) PaginateTeams(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error) {
+	// Set default select fields if not provided
+	if param.Select == nil {
+		param.Select = u.teamFields
+	}
+
+	m := model.Select(u.teamModel)
+	result, err := m.Paginate(param, page, pagesize)
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	return result, nil
+}
+
+// CountTeams returns total count of teams with optional filters
+func (u *DefaultUser) CountTeams(ctx context.Context, param model.QueryParam) (int64, error) {
+	// Use Paginate with a small page size to get the total count
+	// This is more reliable than manual COUNT(*) queries
+	m := model.Select(u.teamModel)
+	result, err := m.Paginate(param, 1, 1) // Get first page with 1 item to get total
+	if err != nil {
+		return 0, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	// Extract total from pagination result
+	if total, ok := result["total"].(int64); ok {
+		return total, nil
+	}
+
+	// Handle different total types returned by Paginate
+	if totalInterface, ok := result["total"]; ok {
+		switch v := totalInterface.(type) {
+		case int:
+			return int64(v), nil
+		case int32:
+			return int64(v), nil
+		case int64:
+			return v, nil
+		case uint:
+			return int64(v), nil
+		case uint32:
+			return int64(v), nil
+		case uint64:
+			return int64(v), nil
+		default:
+			return 0, fmt.Errorf("unexpected total type: %T", totalInterface)
+		}
+	}
+
+	return 0, fmt.Errorf("total not found in pagination result")
+}
+
+// GetTeamsByOwner retrieves teams owned by a specific user
+func (u *DefaultUser) GetTeamsByOwner(ctx context.Context, ownerID string) ([]maps.MapStr, error) {
+	param := model.QueryParam{
+		Select: u.teamFields,
+		Wheres: []model.QueryWhere{
+			{Column: "owner_id", Value: ownerID},
+		},
+		Orders: []model.QueryOrder{
+			{Column: "created_at", Option: "desc"},
+		},
+	}
+
+	return u.GetTeams(ctx, param)
+}
+
+// GetTeamsByStatus retrieves teams by status
+func (u *DefaultUser) GetTeamsByStatus(ctx context.Context, status string) ([]maps.MapStr, error) {
+	param := model.QueryParam{
+		Select: u.teamFields,
+		Wheres: []model.QueryWhere{
+			{Column: "status", Value: status},
+		},
+		Orders: []model.QueryOrder{
+			{Column: "created_at", Option: "desc"},
+		},
+	}
+
+	return u.GetTeams(ctx, param)
+}
+
+// UpdateTeamStatus updates team status
+func (u *DefaultUser) UpdateTeamStatus(ctx context.Context, teamID string, status string) error {
+	updateData := maps.MapStrAny{
+		"status": status,
+	}
+
+	return u.UpdateTeam(ctx, teamID, updateData)
+}
+
+// VerifyTeam marks a team as verified
+func (u *DefaultUser) VerifyTeam(ctx context.Context, teamID string, verifiedBy string) error {
+	updateData := maps.MapStrAny{
+		"is_verified": true,
+		"verified_by": verifiedBy,
+		"verified_at": time.Now(), // Set current timestamp explicitly
+	}
+
+	// Direct model update to bypass sensitive field filtering
+	m := model.Select(u.teamModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1,
+	}, updateData)
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateTeam, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrTeamNotFound)
+	}
+
+	return nil
+}
+
+// UnverifyTeam removes verification from a team
+func (u *DefaultUser) UnverifyTeam(ctx context.Context, teamID string) error {
+	updateData := maps.MapStrAny{
+		"is_verified": false,
+		"verified_by": nil,
+		"verified_at": nil,
+	}
+
+	// Direct model update to bypass sensitive field filtering
+	m := model.Select(u.teamModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+		Limit: 1,
+	}, updateData)
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateTeam, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrTeamNotFound)
+	}
+
+	return nil
+}
+
+// TransferTeamOwnership transfers team ownership to another user
+func (u *DefaultUser) TransferTeamOwnership(ctx context.Context, teamID string, newOwnerID string) error {
+	// First verify the new owner exists
+	exists, err := u.UserExists(ctx, newOwnerID)
+	if err != nil {
+		return fmt.Errorf("failed to verify new owner: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("new owner user not found: %s", newOwnerID)
+	}
+
+	updateData := maps.MapStrAny{
+		"owner_id": newOwnerID,
+	}
+
+	return u.UpdateTeam(ctx, teamID, updateData)
+}
