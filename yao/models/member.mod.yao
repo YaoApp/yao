@@ -31,10 +31,27 @@
       "name": "user_id",
       "type": "string",
       "label": "User ID",
-      "comment": "User identifier (references user.user_id)",
+      "comment": "User identifier (references user.user_id) - null for robot members",
       "length": 255,
-      "nullable": false,
+      "nullable": true,
       "index": true
+    },
+
+    // ============================================================================
+    // Member Type & Configuration
+    // ============================================================================
+    {
+      "name": "member_type",
+      "type": "enum",
+      "label": "Member Type",
+      "comment": "Type of member: user (human) or robot (automated)",
+      "option": [
+        "user", // Human user member
+        "robot" // Automated robot member
+      ],
+      "default": "user",
+      "index": true,
+      "nullable": false
     },
 
     // ============================================================================
@@ -63,6 +80,136 @@
       "default": "pending",
       "index": true,
       "nullable": false
+    },
+
+    // ============================================================================
+    // Robot Identity Fields (only for robot members)
+    // ============================================================================
+    {
+      "name": "robot_name",
+      "type": "string",
+      "label": "Robot Name",
+      "comment": "Display name for robot member (only used when member_type is robot)",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "robot_description",
+      "type": "text",
+      "label": "Robot Description",
+      "comment": "Description of robot's purpose and capabilities (only used when member_type is robot)",
+      "nullable": true
+    },
+    {
+      "name": "robot_avatar",
+      "type": "string",
+      "label": "Robot Avatar",
+      "comment": "Avatar/icon URL for robot member (only used when member_type is robot)",
+      "length": 500,
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Robot Configuration Fields (only for robot members)
+    // ============================================================================
+    {
+      "name": "robot_config",
+      "type": "json",
+      "label": "Robot Configuration",
+      "comment": "Robot-specific configuration including behavior settings and capabilities",
+      "nullable": true
+    },
+    {
+      "name": "agents",
+      "type": "json",
+      "label": "Accessible Agents",
+      "comment": "List of accessible AI agents (public service NPCs) that robot can interact with",
+      "nullable": true
+    },
+    {
+      "name": "tools",
+      "type": "json",
+      "label": "Available Tools",
+      "comment": "List of available tools and functions that robot can use",
+      "nullable": true
+    },
+    {
+      "name": "mcp_servers",
+      "type": "json",
+      "label": "MCP Servers",
+      "comment": "List of accessible MCP servers (system integrated command servers)",
+      "nullable": true
+    },
+    {
+      "name": "data_access_permissions",
+      "type": "json",
+      "label": "Data Access Permissions",
+      "comment": "Specific data access permissions for robot member",
+      "nullable": true
+    },
+    {
+      "name": "system_prompt",
+      "type": "text",
+      "label": "System Prompt",
+      "comment": "System prompt/instructions for robot member",
+      "nullable": true
+    },
+
+    // ============================================================================
+    // Robot Scheduling & Automation
+    // ============================================================================
+    {
+      "name": "is_active_robot",
+      "type": "boolean",
+      "label": "Is Active Robot",
+      "comment": "Whether robot member is currently active and can perform automated tasks",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "schedule_config",
+      "type": "json",
+      "label": "Schedule Configuration",
+      "comment": "Cron-like scheduling configuration for automated robot tasks",
+      "nullable": true
+    },
+    {
+      "name": "random_activity",
+      "type": "boolean",
+      "label": "Random Activity",
+      "comment": "Whether robot can perform random activities to find tasks",
+      "default": false
+    },
+    {
+      "name": "activity_frequency",
+      "type": "json",
+      "label": "Activity Frequency",
+      "comment": "Configuration for random activity frequency and patterns",
+      "nullable": true
+    },
+    {
+      "name": "last_robot_activity",
+      "type": "timestamp",
+      "label": "Last Robot Activity",
+      "comment": "When the robot last performed an automated activity",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "robot_status",
+      "type": "enum",
+      "label": "Robot Status",
+      "comment": "Current operational status of robot member",
+      "option": [
+        "idle", // Robot is idle, waiting for tasks
+        "working", // Robot is currently executing tasks
+        "paused", // Robot is temporarily paused
+        "error", // Robot encountered an error
+        "maintenance" // Robot is under maintenance
+      ],
+      "default": "idle",
+      "index": true,
+      "nullable": true
     },
 
     // ============================================================================
@@ -171,19 +318,49 @@
       "name": "idx_team_user_unique",
       "columns": ["team_id", "user_id"],
       "type": "unique",
-      "comment": "Unique constraint: one user can have only one membership per team"
+      "comment": "Unique constraint: one user can have only one membership per team (user_id can be null for robots)"
     },
     {
-      "name": "idx_team_user_role",
-      "columns": ["team_id", "role_id", "status"],
+      "name": "idx_team_robot_unique",
+      "columns": ["team_id", "robot_name", "member_type"],
+      "type": "unique",
+      "comment": "Unique constraint: one robot name per team (only applies to robot members)"
+    },
+    {
+      "name": "idx_team_member_type_role",
+      "columns": ["team_id", "member_type", "role_id", "status"],
       "type": "index",
-      "comment": "Index for finding users by role and status within team"
+      "comment": "Index for finding members by type, role and status within team"
     },
     {
       "name": "idx_user_teams",
-      "columns": ["user_id", "status", "role_id"],
+      "columns": ["user_id", "member_type", "status", "role_id"],
       "type": "index",
-      "comment": "Index for finding all teams for a user"
+      "comment": "Index for finding all teams for a user by member type"
+    },
+    {
+      "name": "idx_robot_members",
+      "columns": ["member_type", "is_active_robot", "robot_status"],
+      "type": "index",
+      "comment": "Index for finding active robot members"
+    },
+    {
+      "name": "idx_robot_activity",
+      "columns": ["member_type", "last_robot_activity", "random_activity"],
+      "type": "index",
+      "comment": "Index for robot activity scheduling"
+    },
+    {
+      "name": "idx_robot_type_status",
+      "columns": ["member_type", "robot_status", "is_active_robot"],
+      "type": "index",
+      "comment": "Index for finding robot members by status"
+    },
+    {
+      "name": "idx_robot_name",
+      "columns": ["member_type", "robot_name"],
+      "type": "index",
+      "comment": "Index for finding robot members by name"
     },
     {
       "name": "idx_team_invitations",
