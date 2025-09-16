@@ -1,14 +1,14 @@
 {
-  "name": "assistant",
+  "name": "Assistant",
   "label": "Assistant",
   "description": "Assistant table for storing AI assistant configurations and metadata",
-  "tags": ["system"],
+  "tags": ["agent", "system"],
   "builtin": true,
   "readonly": true,
   "sort": 9999,
   "table": {
-    "name": "assistant",
-    "comment": "Assistant table"
+    "name": "agent_assistant",
+    "comment": "Agent assistant table"
   },
   "columns": [
     {
@@ -181,7 +181,27 @@
       "index": true
     }
   ],
-  "relations": {},
-  "indexes": [],
+  "relations": {
+    "chats": {
+      "type": "hasMany",
+      "model": "__yao.agent.chat",
+      "key": "assistant_id",
+      "foreign": "assistant_id"
+    }
+  },
+  "indexes": [
+    {
+      "name": "idx_agent_assistant_type_builtin",
+      "columns": ["type", "built_in"],
+      "type": "index",
+      "comment": "Index for assistant type and built-in status"
+    },
+    {
+      "name": "idx_agent_assistant_sort",
+      "columns": ["sort", "automated"],
+      "type": "index",
+      "comment": "Index for assistant sorting and automation"
+    }
+  ],
   "option": { "timestamps": true, "soft_deletes": false }
 }

@@ -1,6 +1,6 @@
 {
-  "name": "User OAuth Account",
-  "label": "User OAuth Account",
+  "name": "OAuth Account",
+  "label": "OAuth Account",
   "description": "User's third-party OAuth account information storage",
   "tags": ["user", "oauth", "social", "external", "provider"],
   "table": {
@@ -225,31 +225,38 @@
   ],
   "indexes": [
     {
-      "name": "idx_user_oauth_user_provider",
+      "name": "idx_oauth_account_user_provider",
       "columns": ["user_id", "provider"],
       "type": "unique",
       "comment": "Unique constraint: one account per provider per user"
     },
     {
-      "name": "idx_user_oauth_provider_sub",
+      "name": "idx_oauth_account_provider_sub",
       "columns": ["provider", "sub"],
       "type": "unique",
       "comment": "Unique constraint: one record per provider sub claim"
     },
     {
-      "name": "idx_user_oauth_email",
+      "name": "idx_oauth_account_email",
       "columns": ["provider", "email"],
       "type": "index",
       "comment": "Index for email lookups by provider"
     },
     {
-      "name": "idx_user_oauth_active",
+      "name": "idx_oauth_account_active",
       "columns": ["is_active", "last_login_at"],
       "type": "index",
       "comment": "Index for active account queries"
     }
   ],
-  "relations": {},
+  "relations": {
+    "user": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "user_id",
+      "foreign": "user_id"
+    }
+  },
   "values": [],
   "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }

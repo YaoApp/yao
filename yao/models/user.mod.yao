@@ -243,7 +243,7 @@
       "name": "role_id",
       "type": "string",
       "label": "Role ID",
-      "comment": "User role identifier (references user_role.role_id)",
+      "comment": "User role identifier (references role.role_id)",
       "length": 50,
       "nullable": true,
       "index": true
@@ -252,7 +252,7 @@
       "name": "type_id",
       "type": "string",
       "label": "Type ID",
-      "comment": "User type identifier (references user_type.type_id)",
+      "comment": "User type identifier (references user.type.type_id)",
       "length": 50,
       "nullable": true,
       "index": true
@@ -387,36 +387,42 @@
   "relations": {
     "role": {
       "type": "hasOne",
-      "model": "__yao.user_role",
+      "model": "__yao.role",
       "key": "role_id",
       "foreign": "role_id"
     },
     "type": {
       "type": "hasOne",
-      "model": "__yao.user_type",
+      "model": "__yao.user.type",
       "key": "type_id",
       "foreign": "type_id"
     },
-    "owned_organizations": {
+    "oauth_accounts": {
       "type": "hasMany",
-      "model": "__yao.organization",
-      "key": "user_id",
-      "foreign": "owner_id"
-    },
-    "organization_memberships": {
-      "type": "hasMany",
-      "model": "__yao.organization_user",
+      "model": "__yao.user.oauth_account",
       "key": "user_id",
       "foreign": "user_id"
     },
-    "organizations": {
+    "owned_teams": {
+      "type": "hasMany",
+      "model": "__yao.team",
+      "key": "user_id",
+      "foreign": "owner_id"
+    },
+    "team_memberships": {
+      "type": "hasMany",
+      "model": "__yao.member",
+      "key": "user_id",
+      "foreign": "user_id"
+    },
+    "teams": {
       "type": "hasManyThrough",
-      "model": "__yao.organization",
-      "through": "__yao.organization_user",
+      "model": "__yao.team",
+      "through": "__yao.member",
       "key": "user_id",
       "foreign": "user_id",
-      "throughKey": "org_id",
-      "throughForeign": "org_id"
+      "throughKey": "team_id",
+      "throughForeign": "team_id"
     }
   },
   "values": [],

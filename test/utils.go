@@ -36,25 +36,25 @@ var testServer *http.Server = nil
 
 // SystemModels system models for testing
 var testSystemModels = map[string]string{
-	"__yao.assistant":          "yao/models/assistant.mod.yao",
+	"__yao.agent.assistant":    "yao/models/agent/assistant.mod.yao",
+	"__yao.agent.chat":         "yao/models/agent/chat.mod.yao",
+	"__yao.agent.history":      "yao/models/agent/history.mod.yao",
 	"__yao.attachment":         "yao/models/attachment.mod.yao",
 	"__yao.audit":              "yao/models/audit.mod.yao",
-	"__yao.chat":               "yao/models/chat.mod.yao",
 	"__yao.config":             "yao/models/config.mod.yao",
 	"__yao.dsl":                "yao/models/dsl.mod.yao",
-	"__yao.history":            "yao/models/history.mod.yao",
 	"__yao.job.category":       "yao/models/job/category.mod.yao",
 	"__yao.job":                "yao/models/job/job.mod.yao",
 	"__yao.job.execution":      "yao/models/job/execution.mod.yao",
 	"__yao.job.log":            "yao/models/job/log.mod.yao",
 	"__yao.kb.collection":      "yao/models/kb/collection.mod.yao",
 	"__yao.kb.document":        "yao/models/kb/document.mod.yao",
-	"__yao.organization":       "yao/models/organization.mod.yao",
-	"__yao.organization_user":  "yao/models/organization_user.mod.yao",
+	"__yao.team":               "yao/models/team.mod.yao",
+	"__yao.member":             "yao/models/member.mod.yao",
 	"__yao.user":               "yao/models/user.mod.yao",
-	"__yao.user_role":          "yao/models/user_role.mod.yao",
-	"__yao.user_type":          "yao/models/user_type.mod.yao",
-	"__yao.user_oauth_account": "yao/models/user_oauth_account.mod.yao",
+	"__yao.role":               "yao/models/role.mod.yao",
+	"__yao.user.type":          "yao/models/user/type.mod.yao",
+	"__yao.user.oauth_account": "yao/models/user/oauth_account.mod.yao",
 }
 
 var testSystemStores = map[string]string{
