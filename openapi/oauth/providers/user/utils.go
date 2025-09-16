@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -165,4 +166,87 @@ func generateRandomPassword(length int) (string, error) {
 	}
 
 	return string(bytes), nil
+}
+
+// parseTimeFromDB parses time values from database fields, handling different formats and types
+func parseTimeFromDB(value interface{}) (*time.Time, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	switch v := value.(type) {
+	case time.Time:
+		return &v, nil
+	case string:
+		if v == "" {
+			return nil, nil
+		}
+		// Try parsing common time formats - assume local timezone for database timestamps
+		if parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05", v, time.Local); err == nil {
+			return &parsedTime, nil
+		}
+		if parsedTime, err := time.Parse(time.RFC3339, v); err == nil {
+			return &parsedTime, nil
+		}
+		if parsedTime, err := time.ParseInLocation("2006-01-02T15:04:05", v, time.Local); err == nil {
+			return &parsedTime, nil
+		}
+		if parsedTime, err := time.ParseInLocation("2006-01-02 15:04:05.000000", v, time.Local); err == nil {
+			return &parsedTime, nil
+		}
+		return nil, fmt.Errorf("unable to parse time format: %s", v)
+	default:
+		return nil, fmt.Errorf("unsupported time type: %T", value)
+	}
+}
+
+// parseIntFromDB parses integer values from database fields, handling different integer types
+func parseIntFromDB(value interface{}) (int64, error) {
+	if value == nil {
+		return 0, fmt.Errorf("value is nil")
+	}
+
+	switch v := value.(type) {
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	case int32:
+		return int64(v), nil
+	case uint:
+		return int64(v), nil
+	case uint32:
+		return int64(v), nil
+	case uint64:
+		// Check for overflow
+		if v > 9223372036854775807 { // max int64
+			return 0, fmt.Errorf("value too large for int64: %d", v)
+		}
+		return int64(v), nil
+	case float64:
+		// Handle cases where database returns numbers as floats
+		return int64(v), nil
+	case string:
+		// Try to parse string as integer
+		if parsed, err := fmt.Sscanf(v, "%d", new(int64)); err == nil && parsed == 1 {
+			var result int64
+			fmt.Sscanf(v, "%d", &result)
+			return result, nil
+		}
+		return 0, fmt.Errorf("unable to parse string as integer: %s", v)
+	default:
+		return 0, fmt.Errorf("unsupported integer type: %T", value)
+	}
+}
+
+// checkTimeExpired checks if a time field from database indicates expiration
+func checkTimeExpired(value interface{}) (bool, error) {
+	parsedTime, err := parseTimeFromDB(value)
+	if err != nil {
+		return false, err
+	}
+	if parsedTime == nil {
+		return false, nil // No expiry time set
+	}
+	return time.Now().After(*parsedTime), nil
 }

@@ -228,16 +228,15 @@ func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationToken stri
 	member := members[0]
 
 	// Check if invitation has expired
-	if expiresAt, ok := member["invitation_expires_at"]; ok {
-		if expiryTime, ok := expiresAt.(time.Time); ok {
-			if time.Now().After(expiryTime) {
-				return fmt.Errorf("invitation has expired")
-			}
-		}
+	if expired, err := checkTimeExpired(member["invitation_expires_at"]); err == nil && expired {
+		return fmt.Errorf("invitation has expired")
 	}
 
 	// Update member status to active
-	memberID := member["id"].(int64)
+	memberID, err := parseIntFromDB(member["id"])
+	if err != nil {
+		return fmt.Errorf("invalid member ID: %w", err)
+	}
 	updateData := maps.MapStrAny{
 		"status":           "active",
 		"joined_at":        time.Now(),
@@ -489,15 +488,10 @@ func (u *DefaultUser) UpdateMemberLastActivity(ctx context.Context, teamID strin
 		return err
 	}
 
-	loginCount := 0
+	loginCount := int64(0)
 	if count := member["login_count"]; count != nil {
-		switch v := count.(type) {
-		case int:
-			loginCount = v
-		case int64:
-			loginCount = int(v)
-		case int32:
-			loginCount = int(v)
+		if parsedCount, err := parseIntFromDB(count); err == nil {
+			loginCount = parsedCount
 		}
 	}
 	updateData["login_count"] = loginCount + 1
