@@ -722,6 +722,7 @@ func TestMemberInvitationExpiry(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create member with expired invitation
+	expiredTime := time.Now().Add(-2 * time.Hour) // Expired 2 hours ago to be safe
 	memberData := maps.MapStrAny{
 		"team_id":               teamID,
 		"user_id":               inviteeUser,
@@ -729,9 +730,9 @@ func TestMemberInvitationExpiry(t *testing.T) {
 		"role_id":               "user",
 		"status":                "pending",
 		"invited_by":            ownerUser,
-		"invited_at":            time.Now(),
+		"invited_at":            expiredTime.Add(-1 * time.Hour), // Invited 3 hours ago
 		"invitation_token":      "expired-token-" + testUUID,
-		"invitation_expires_at": time.Now().Add(-1 * time.Hour), // Expired 1 hour ago
+		"invitation_expires_at": expiredTime, // Expired 2 hours ago
 	}
 
 	_, err = testProvider.CreateMember(ctx, memberData)

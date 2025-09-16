@@ -52,29 +52,9 @@ func (u *DefaultUser) CountUsers(ctx context.Context, param model.QueryParam) (i
 		return 0, fmt.Errorf(ErrFailedToGetUser, err)
 	}
 
-	// Extract total from pagination result
-	if total, ok := result["total"].(int64); ok {
-		return total, nil
-	}
-
-	// Handle different total types returned by Paginate
+	// Extract total from pagination result using utility function
 	if totalInterface, ok := result["total"]; ok {
-		switch v := totalInterface.(type) {
-		case int:
-			return int64(v), nil
-		case int32:
-			return int64(v), nil
-		case int64:
-			return v, nil
-		case uint:
-			return int64(v), nil
-		case uint32:
-			return int64(v), nil
-		case uint64:
-			return int64(v), nil
-		default:
-			return 0, fmt.Errorf("unexpected total type: %T", totalInterface)
-		}
+		return parseIntFromDB(totalInterface)
 	}
 
 	return 0, fmt.Errorf("total not found in pagination result")
