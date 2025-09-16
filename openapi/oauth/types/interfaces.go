@@ -248,6 +248,70 @@ type UserProvider interface {
 	SetTypeConfiguration(ctx context.Context, typeID string, config maps.MapStrAny) error
 
 	// ============================================================================
+	// Team Resource
+	// ============================================================================
+
+	// Team Basic Operations
+	GetTeam(ctx context.Context, teamID string) (maps.MapStrAny, error)
+	GetTeamDetail(ctx context.Context, teamID string) (maps.MapStrAny, error)
+	TeamExists(ctx context.Context, teamID string) (bool, error)
+	CreateTeam(ctx context.Context, teamData maps.MapStrAny) (string, error)
+	UpdateTeam(ctx context.Context, teamID string, teamData maps.MapStrAny) error
+	DeleteTeam(ctx context.Context, teamID string) error
+
+	// Team List and Search
+	GetTeams(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error)
+	PaginateTeams(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
+	CountTeams(ctx context.Context, param model.QueryParam) (int64, error)
+
+	// Team Query Methods
+	GetTeamsByOwner(ctx context.Context, ownerID string) ([]maps.MapStr, error)
+	GetTeamsByStatus(ctx context.Context, status string) ([]maps.MapStr, error)
+
+	// Team Management
+	UpdateTeamStatus(ctx context.Context, teamID string, status string) error
+	VerifyTeam(ctx context.Context, teamID string, verifiedBy string) error
+	UnverifyTeam(ctx context.Context, teamID string) error
+	TransferTeamOwnership(ctx context.Context, teamID string, newOwnerID string) error
+
+	// ============================================================================
+	// Member Resource
+	// ============================================================================
+
+	// Member Basic Operations
+	GetMember(ctx context.Context, teamID string, userID string) (maps.MapStrAny, error)
+	GetMemberDetail(ctx context.Context, teamID string, userID string) (maps.MapStrAny, error)
+	GetMemberByID(ctx context.Context, memberID int64) (maps.MapStrAny, error)
+	MemberExists(ctx context.Context, teamID string, userID string) (bool, error)
+	CreateMember(ctx context.Context, memberData maps.MapStrAny) (int64, error)
+	UpdateMember(ctx context.Context, teamID string, userID string, memberData maps.MapStrAny) error
+	UpdateMemberByID(ctx context.Context, memberID int64, memberData maps.MapStrAny) error
+	RemoveMember(ctx context.Context, teamID string, userID string) error
+
+	// Member Invitation Management
+	AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (int64, error)
+	AcceptInvitation(ctx context.Context, invitationToken string) error
+
+	// Robot Member Operations
+	CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (int64, error)
+	UpdateRobotActivity(ctx context.Context, memberID int64, robotStatus string) error
+	GetActiveRobotMembers(ctx context.Context) ([]maps.MapStr, error)
+
+	// Member Query Methods
+	GetTeamMembers(ctx context.Context, teamID string) ([]maps.MapStr, error)
+	GetUserTeams(ctx context.Context, userID string) ([]maps.MapStr, error)
+	GetTeamMembersByStatus(ctx context.Context, teamID string, status string) ([]maps.MapStr, error)
+	GetTeamRobotMembers(ctx context.Context, teamID string) ([]maps.MapStr, error)
+
+	// Member Management
+	UpdateMemberRole(ctx context.Context, teamID string, userID string, roleID string) error
+	UpdateMemberStatus(ctx context.Context, teamID string, userID string, status string) error
+	UpdateMemberLastActivity(ctx context.Context, teamID string, userID string) error
+
+	// Member List and Search
+	PaginateMembers(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
+
+	// ============================================================================
 	// Utils
 	// ============================================================================
 
