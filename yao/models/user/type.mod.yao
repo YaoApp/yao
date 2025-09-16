@@ -1,6 +1,6 @@
 {
-  "name": "User Type",
-  "label": "User Type",
+  "name": "Type",
+  "label": "Type",
   "description": "User type classification and configuration",
   "tags": ["user", "type", "classification", "config"],
   "table": {
@@ -51,7 +51,7 @@
       "name": "default_role_id",
       "type": "string",
       "label": "Default Role ID",
-      "comment": "Default role assigned to users of this type",
+      "comment": "Default role assigned to users of this type (references role.role_id)",
       "length": 50,
       "nullable": true,
       "index": true
@@ -145,19 +145,32 @@
   ],
   "indexes": [
     {
-      "name": "idx_user_type_active",
+      "name": "idx_type_active",
       "columns": ["is_active", "sort_order"],
       "type": "index",
       "comment": "Index for active user types with ordering"
     },
     {
-      "name": "idx_user_type_default",
+      "name": "idx_type_default",
       "columns": ["is_default", "is_active"],
       "type": "index",
       "comment": "Index for finding default active user type"
     }
   ],
-  "relations": {},
+  "relations": {
+    "default_role": {
+      "type": "hasOne",
+      "model": "__yao.role",
+      "key": "default_role_id",
+      "foreign": "role_id"
+    },
+    "users": {
+      "type": "hasMany",
+      "model": "__yao.user",
+      "key": "type_id",
+      "foreign": "type_id"
+    }
+  },
   "values": [],
   "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }

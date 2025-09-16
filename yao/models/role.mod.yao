@@ -1,11 +1,11 @@
 {
-  "name": "User Role",
-  "label": "User Role",
-  "description": "User role and permission management",
-  "tags": ["user", "role", "permission", "auth"],
+  "name": "Role",
+  "label": "Role",
+  "description": "Role and permission management",
+  "tags": ["role", "permission", "auth", "rbac"],
   "table": {
-    "name": "user_role",
-    "comment": "User role and permission management"
+    "name": "role",
+    "comment": "Role and permission management"
   },
   "columns": [
     // ============================================================================
@@ -187,31 +187,44 @@
   ],
   "indexes": [
     {
-      "name": "idx_user_role_active",
+      "name": "idx_role_active",
       "columns": ["is_active", "sort_order"],
       "type": "index",
       "comment": "Index for active roles with ordering"
     },
     {
-      "name": "idx_user_role_hierarchy",
+      "name": "idx_role_hierarchy",
       "columns": ["parent_role_id", "level"],
       "type": "index",
       "comment": "Index for role hierarchy queries"
     },
     {
-      "name": "idx_user_role_system",
+      "name": "idx_role_system",
       "columns": ["is_system", "is_active"],
       "type": "index",
       "comment": "Index for system role queries"
     },
     {
-      "name": "idx_user_role_default",
+      "name": "idx_role_default",
       "columns": ["is_default", "is_active"],
       "type": "index",
       "comment": "Index for finding default active role"
     }
   ],
-  "relations": {},
+  "relations": {
+    "members": {
+      "type": "hasMany",
+      "model": "__yao.member",
+      "key": "role_id",
+      "foreign": "role_id"
+    },
+    "users": {
+      "type": "hasMany",
+      "model": "__yao.user",
+      "key": "role_id",
+      "foreign": "role_id"
+    }
+  },
   "values": [],
   "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }

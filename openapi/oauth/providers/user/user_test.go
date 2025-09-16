@@ -98,7 +98,7 @@ func cleanupTestData() {
 
 	// Use DestroyWhere (hard delete) to avoid soft delete complications
 	// Clean OAuth accounts first (due to foreign key constraints)
-	oauthModel := model.Select("__yao.user_oauth_account")
+	oauthModel := model.Select("__yao.user.oauth_account")
 	oauthPatterns := []string{
 		"%oauth_test%", "%_list_%", "%oauthlist%", "%oautherror%",
 		"%google_%", "%github_%", "%apple_%", "%_delete_%",
@@ -113,7 +113,7 @@ func cleanupTestData() {
 	}
 
 	// Clean roles (should be done before users due to potential role_id references)
-	roleModel := model.Select("__yao.user_role")
+	roleModel := model.Select("__yao.role")
 	rolePatterns := []string{
 		"test%", "%testrole%", "%listrole%", "%permrole%", "%adminrole%", "%userrole%",
 		"%inactiverole%", "%systemrole%", "%validrole%", "%emptyupdate%", "%emptyperm%",
@@ -128,7 +128,7 @@ func cleanupTestData() {
 	}
 
 	// Clean types (should be done before users due to potential type_id references)
-	typeModel := model.Select("__yao.user_type")
+	typeModel := model.Select("__yao.user.type")
 	typePatterns := []string{
 		"test%", "%testtype%", "%listtype%", "%configtype%", "%basictype%", "%premiumtype%",
 		"%inactivetype%", "%validtype%", "%emptyupdate%", "%emptyconfig%", "%scopetype%",

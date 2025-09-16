@@ -217,17 +217,17 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 
 	roleModel := options.RoleModel
 	if roleModel == "" {
-		roleModel = "__yao.user_role"
+		roleModel = "__yao.role"
 	}
 
 	typeModel := options.TypeModel
 	if typeModel == "" {
-		typeModel = "__yao.user_type"
+		typeModel = "__yao.user.type"
 	}
 
 	oauthAccountModel := options.OAuthAccountModel
 	if oauthAccountModel == "" {
-		oauthAccountModel = "__yao.user_oauth_account"
+		oauthAccountModel = "__yao.user.oauth_account"
 	}
 
 	// Set ID generation strategy with defaults

@@ -1,14 +1,14 @@
 {
-  "name": "history",
+  "name": "History",
   "label": "Chat History",
   "description": "Chat history table for storing detailed chat message information",
-  "tags": ["system"],
+  "tags": ["agent", "system"],
   "builtin": true,
   "readonly": true,
   "sort": 9999,
   "table": {
-    "name": "history",
-    "comment": "Chat history table"
+    "name": "agent_history",
+    "comment": "Agent chat history table"
   },
   "columns": [
     {
@@ -124,7 +124,51 @@
       "index": true
     }
   ],
-  "relations": {},
-  "indexes": [],
+  "relations": {
+    "chat": {
+      "type": "hasOne",
+      "model": "__yao.agent.chat",
+      "key": "cid",
+      "foreign": "chat_id"
+    },
+    "assistant": {
+      "type": "hasOne",
+      "model": "__yao.agent.assistant",
+      "key": "assistant_id",
+      "foreign": "assistant_id"
+    },
+    "user": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "uid",
+      "foreign": "user_id"
+    }
+  },
+  "indexes": [
+    {
+      "name": "idx_agent_history_session_chat",
+      "columns": ["sid", "cid"],
+      "type": "index",
+      "comment": "Index for session and chat queries"
+    },
+    {
+      "name": "idx_agent_history_user_role",
+      "columns": ["uid", "role"],
+      "type": "index",
+      "comment": "Index for user and role queries"
+    },
+    {
+      "name": "idx_agent_history_assistant",
+      "columns": ["assistant_id", "created_at"],
+      "type": "index",
+      "comment": "Index for assistant history queries"
+    },
+    {
+      "name": "idx_agent_history_expired",
+      "columns": ["expired_at", "silent"],
+      "type": "index",
+      "comment": "Index for expiration and cleanup"
+    }
+  ],
   "option": { "timestamps": true, "soft_deletes": false }
 }

@@ -1,11 +1,11 @@
 {
-  "name": "Organization",
-  "label": "Organization",
-  "description": "Organization structure and information storage",
-  "tags": ["organization", "structure", "business", "verification"],
+  "name": "Team",
+  "label": "Team",
+  "description": "Team structure and information storage",
+  "tags": ["team", "structure", "business", "verification"],
   "table": {
-    "name": "organization",
-    "comment": "Organization structure and information storage"
+    "name": "team",
+    "comment": "Team structure and information storage"
   },
   "columns": [
     // ============================================================================
@@ -19,23 +19,23 @@
       "primary": true
     },
     {
-      "name": "org_id",
+      "name": "team_id",
       "type": "string",
-      "label": "Organization ID",
-      "comment": "Global unique organization identifier",
+      "label": "Team ID",
+      "comment": "Global unique team identifier",
       "length": 255,
       "unique": true,
       "index": true
     },
 
     // ============================================================================
-    // Organization Basic Information
+    // Team Basic Information
     // ============================================================================
     {
       "name": "name",
       "type": "string",
-      "label": "Organization Name",
-      "comment": "Official organization name",
+      "label": "Team Name",
+      "comment": "Official team name",
       "length": 200,
       "nullable": false
     },
@@ -43,7 +43,7 @@
       "name": "display_name",
       "type": "string",
       "label": "Display Name",
-      "comment": "Organization display name or brand name",
+      "comment": "Team display name or brand name",
       "length": 200,
       "nullable": true
     },
@@ -51,14 +51,14 @@
       "name": "description",
       "type": "text",
       "label": "Description",
-      "comment": "Organization description",
+      "comment": "Team description",
       "nullable": true
     },
     {
       "name": "website",
       "type": "string",
       "label": "Website",
-      "comment": "Organization website URL",
+      "comment": "Team website URL",
       "length": 500,
       "nullable": true
     },
@@ -66,19 +66,19 @@
       "name": "logo",
       "type": "string",
       "label": "Logo",
-      "comment": "Organization logo URL",
+      "comment": "Team logo URL",
       "length": 500,
       "nullable": true
     },
 
     // ============================================================================
-    // Organization Ownership
+    // Team Ownership
     // ============================================================================
     {
       "name": "owner_id",
       "type": "string",
       "label": "Owner ID",
-      "comment": "Organization owner user identifier (references user.user_id)",
+      "comment": "Team owner user identifier (references user.user_id)",
       "length": 255,
       "nullable": false,
       "index": true
@@ -91,7 +91,7 @@
       "name": "contact_email",
       "type": "string",
       "label": "Contact Email",
-      "comment": "Organization contact email address",
+      "comment": "Team contact email address",
       "length": 255,
       "nullable": true,
       "index": true
@@ -100,20 +100,20 @@
       "name": "contact_phone",
       "type": "string",
       "label": "Contact Phone",
-      "comment": "Organization contact phone number",
+      "comment": "Team contact phone number",
       "length": 50,
       "nullable": true,
       "index": true
     },
 
     // ============================================================================
-    // Organization Verification
+    // Team Verification
     // ============================================================================
     {
       "name": "is_verified",
       "type": "boolean",
       "label": "Is Verified",
-      "comment": "Whether organization is verified",
+      "comment": "Whether team is verified",
       "default": false,
       "index": true
     },
@@ -121,7 +121,7 @@
       "name": "verified_at",
       "type": "timestamp",
       "label": "Verified At",
-      "comment": "When organization was verified",
+      "comment": "When team was verified",
       "nullable": true,
       "index": true
     },
@@ -129,29 +129,29 @@
       "name": "verified_by",
       "type": "string",
       "label": "Verified By",
-      "comment": "Who verified this organization",
+      "comment": "Who verified this team",
       "length": 255,
       "nullable": true
     },
 
     // ============================================================================
-    // Organization Unique Code & Type
+    // Team Unique Code & Type
     // ============================================================================
     {
-      "name": "org_code",
+      "name": "team_code",
       "type": "string",
-      "label": "Organization Code",
-      "comment": "Unique organization identification code",
+      "label": "Team Code",
+      "comment": "Unique team identification code",
       "length": 100,
       "nullable": true,
       "unique": true,
       "index": true
     },
     {
-      "name": "org_code_type",
+      "name": "team_code_type",
       "type": "enum",
-      "label": "Organization Code Type",
-      "comment": "Type of organization identification code",
+      "label": "Team Code Type",
+      "comment": "Type of team identification code",
       "option": [
         // ============================================================================
         // Global Universal Standards (Apple & International Compatible)
@@ -252,19 +252,19 @@
     },
 
     // ============================================================================
-    // Organization Status & Management
+    // Team Status & Management
     // ============================================================================
     {
       "name": "status",
       "type": "enum",
       "label": "Status",
-      "comment": "Organization status",
+      "comment": "Team status",
       "option": [
-        "pending", // New organization awaiting verification
-        "active", // Active organization with full access
+        "pending", // New team awaiting verification
+        "active", // Active team with full access
         "inactive", // Temporarily inactive
         "suspended", // Suspended due to policy violations
-        "archived" // Archived organization
+        "archived" // Archived team
       ],
       "default": "pending",
       "index": true,
@@ -274,7 +274,7 @@
       "name": "type_id",
       "type": "string",
       "label": "Type ID",
-      "comment": "Organization type identifier for limits and permissions (references user_type.type_id)",
+      "comment": "Team type identifier for limits and permissions (references user.type.type_id)",
       "length": 50,
       "nullable": true,
       "index": true
@@ -282,8 +282,8 @@
     {
       "name": "type",
       "type": "enum",
-      "label": "Organization Type",
-      "comment": "Type of organization",
+      "label": "Team Type",
+      "comment": "Type of team",
       "option": [
         "corporation",
         "llc",
@@ -305,7 +305,7 @@
       "name": "address",
       "type": "json",
       "label": "Address",
-      "comment": "Organization physical address (structured JSON with full details)",
+      "comment": "Team physical address (structured JSON with full details)",
       "nullable": true
     },
     {
@@ -320,7 +320,7 @@
       "name": "city",
       "type": "string",
       "label": "City",
-      "comment": "Organization city",
+      "comment": "Team city",
       "length": 100,
       "nullable": true,
       "index": true
@@ -347,7 +347,7 @@
       "name": "country",
       "type": "string",
       "label": "Country",
-      "comment": "Organization country (ISO 3166-1 alpha-2)",
+      "comment": "Team country (ISO 3166-1 alpha-2)",
       "length": 2,
       "nullable": true,
       "index": true
@@ -373,72 +373,72 @@
       "name": "zoneinfo",
       "type": "string",
       "label": "Zone Info",
-      "comment": "Organization primary timezone (IANA Time Zone Database format)",
+      "comment": "Team primary timezone (IANA Time Zone Database format)",
       "length": 50,
       "nullable": true,
       "index": true
     },
 
     // ============================================================================
-    // Organization Settings
+    // Team Settings
     // ============================================================================
     {
       "name": "settings",
       "type": "json",
       "label": "Settings",
-      "comment": "Organization configuration settings",
+      "comment": "Team configuration settings",
       "nullable": true
     },
     {
       "name": "metadata",
       "type": "json",
       "label": "Metadata",
-      "comment": "Extended organization metadata and custom fields",
+      "comment": "Extended team metadata and custom fields",
       "nullable": true
     }
   ],
   "indexes": [
     {
-      "name": "idx_org_owner_status",
+      "name": "idx_team_owner_status",
       "columns": ["owner_id", "status"],
       "type": "index",
       "comment": "Index on owner and status for filtering"
     },
     {
-      "name": "idx_org_verification",
+      "name": "idx_team_verification",
       "columns": ["is_verified", "verified_at"],
       "type": "index",
       "comment": "Index on verification status and time"
     },
     {
-      "name": "idx_org_code_type",
-      "columns": ["org_code_type", "org_code"],
+      "name": "idx_team_code_type",
+      "columns": ["team_code_type", "team_code"],
       "type": "index",
-      "comment": "Index on organization code type and code"
+      "comment": "Index on team code type and code"
     },
     {
-      "name": "idx_org_location",
+      "name": "idx_team_location",
       "columns": ["country", "state_province", "city"],
       "type": "index",
       "comment": "Index on country, state/province and city for geographic queries"
     },
     {
-      "name": "idx_org_region_type",
+      "name": "idx_team_region_type",
       "columns": ["region", "type"],
       "type": "index",
-      "comment": "Index on geographic region and organization type"
+      "comment": "Index on geographic region and team type"
     },
     {
-      "name": "idx_org_postal_zoneinfo",
+      "name": "idx_team_postal_zoneinfo",
       "columns": ["postal_code", "zoneinfo"],
       "type": "index",
       "comment": "Index on postal code and zoneinfo for location services"
     },
     {
-      "name": "idx_org_type_status",
+      "name": "idx_team_type_status",
       "columns": ["type_id", "status"],
       "type": "index",
-      "comment": "Index on organization type and status for limits and permissions"
+      "comment": "Index on team type and status for limits and permissions"
     }
   ],
   "relations": {
@@ -450,22 +450,22 @@
     },
     "user_type": {
       "type": "hasOne",
-      "model": "__yao.user_type",
+      "model": "__yao.user.type",
       "key": "type_id",
       "foreign": "type_id"
     },
     "members": {
       "type": "hasMany",
-      "model": "__yao.organization_user",
-      "key": "org_id",
-      "foreign": "org_id"
+      "model": "__yao.member",
+      "key": "team_id",
+      "foreign": "team_id"
     },
     "users": {
       "type": "hasManyThrough",
       "model": "__yao.user",
-      "through": "__yao.organization_user",
-      "key": "org_id",
-      "foreign": "org_id",
+      "through": "__yao.member",
+      "key": "team_id",
+      "foreign": "team_id",
       "throughKey": "user_id",
       "throughForeign": "user_id"
     }

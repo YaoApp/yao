@@ -1,14 +1,14 @@
 {
-  "name": "chat",
+  "name": "Chat",
   "label": "Chat",
   "description": "Chat table for storing chat metadata and information",
-  "tags": ["system"],
+  "tags": ["agent", "system"],
   "builtin": true,
   "readonly": true,
   "sort": 9999,
   "table": {
-    "name": "chat",
-    "comment": "Chat table"
+    "name": "agent_chat",
+    "comment": "Agent chat table"
   },
   "columns": [
     {
@@ -62,7 +62,33 @@
       "index": true
     }
   ],
-  "relations": {},
-  "indexes": [],
+  "relations": {
+    "assistant": {
+      "type": "hasOne",
+      "model": "__yao.agent.assistant",
+      "key": "assistant_id",
+      "foreign": "assistant_id"
+    },
+    "history": {
+      "type": "hasMany",
+      "model": "__yao.agent.history",
+      "key": "chat_id",
+      "foreign": "cid"
+    }
+  },
+  "indexes": [
+    {
+      "name": "idx_agent_chat_session_assistant",
+      "columns": ["sid", "assistant_id"],
+      "type": "index",
+      "comment": "Index for session and assistant queries"
+    },
+    {
+      "name": "idx_agent_chat_silent",
+      "columns": ["silent", "created_at"],
+      "type": "index",
+      "comment": "Index for silent mode filtering"
+    }
+  ],
   "option": { "timestamps": true, "soft_deletes": false }
 }
