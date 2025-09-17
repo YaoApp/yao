@@ -22,13 +22,14 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	attachAccount(group, oauth)      // Account settings
 	attachThirdParty(group, oauth)   // Third party login
 	attachMFA(group, oauth)          // MFA settings
-	attachBalance(group, oauth)      // User balance management
+	attachCredits(group, oauth)      // User credits management
 	attachSubscription(group, oauth) // User subscription management
 	attachAPIKeys(group, oauth)      // User API keys management
 	attachUsage(group, oauth)        // User usage management
 	attachBilling(group, oauth)      // User billing management
-	attachInvite(group, oauth)       // User invite management
+	attachReferral(group, oauth)     // User referral management
 	attachTeam(group, oauth)         // User team management
+	attachInvitations(group, oauth)  // Invitation response management
 	attachPrivacy(group, oauth)      // User privacy management
 
 	// User Management
@@ -39,6 +40,8 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team := group.Group("/teams")
 	team.Use(oauth.Guard)
+
+	// Team CRUD
 	team.GET("/", placeholder)            // Get user teams
 	team.GET("/:team_id", placeholder)    // Get user team details
 	team.POST("/", placeholder)           // Create user team
@@ -48,9 +51,24 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	// Member Management
 	team.GET("/:team_id/members", placeholder)               // Get user team members
 	team.GET("/:team_id/members/:member_id", placeholder)    // Get user team member details
-	team.POST("/:team_id/members/:type", placeholder)        // Create user team member
+	team.POST("/:team_id/members/direct", placeholder)       // Add member directly (for bots/system)
 	team.PUT("/:team_id/members/:member_id", placeholder)    // Update user team member
 	team.DELETE("/:team_id/members/:member_id", placeholder) // Remove user team member
+
+	// Member Invitation Management
+	team.POST("/:team_id/invitations", placeholder)                      // Send team invitation
+	team.GET("/:team_id/invitations", placeholder)                       // Get team invitations
+	team.GET("/:team_id/invitations/:invitation_id", placeholder)        // Get invitation details
+	team.PUT("/:team_id/invitations/:invitation_id/resend", placeholder) // Resend invitation
+	team.DELETE("/:team_id/invitations/:invitation_id", placeholder)     // Cancel invitation
+}
+
+// Invitation Response Management (Cross-module invitation handling)
+func attachInvitations(group *gin.RouterGroup, oauth types.OAuth) {
+	// Public endpoints for invitation recipients
+	group.GET("/invitations/:token", placeholder)                      // Get invitation info by token (public)
+	group.POST("/invitations/:token/accept", oauth.Guard, placeholder) // Accept invitation (requires login)
+	group.POST("/invitations/:token/decline", placeholder)             // Decline invitation (public)
 }
 
 // User Privacy
@@ -76,30 +94,31 @@ func attachPreferences(group *gin.RouterGroup, oauth types.OAuth) {
 func attachBilling(group *gin.RouterGroup, oauth types.OAuth) {
 	billing := group.Group("/billing")
 	billing.Use(oauth.Guard)
-	billing.PUT("/history", placeholder) // Update user billing history
+	billing.GET("/history", placeholder)  // Get user billing history
+	billing.GET("/invoices", placeholder) // Get user invoices list
 }
 
-// Invite Management
-func attachInvite(group *gin.RouterGroup, oauth types.OAuth) {
-	invite := group.Group("/invite")
-	invite.Use(oauth.Guard)
+// Referral Management
+func attachReferral(group *gin.RouterGroup, oauth types.OAuth) {
+	referral := group.Group("/referral")
+	referral.Use(oauth.Guard)
 
-	invite.GET("/code", placeholder)        // Get user invite code
-	invite.GET("/statistics", placeholder)  // Get user invite statistics
-	invite.GET("/history", placeholder)     // Get user invite history
-	invite.GET("/commissions", placeholder) // Get user invite commissions
+	referral.GET("/code", placeholder)        // Get user referral code
+	referral.GET("/statistics", placeholder)  // Get user referral statistics
+	referral.GET("/history", placeholder)     // Get user referral history
+	referral.GET("/commissions", placeholder) // Get user referral commissions
 }
 
-// User Balance Management
-func attachBalance(group *gin.RouterGroup, oauth types.OAuth) {
-	balance := group.Group("/balance")
-	balance.Use(oauth.Guard)
+// User Credits Management
+func attachCredits(group *gin.RouterGroup, oauth types.OAuth) {
+	credits := group.Group("/credits")
+	credits.Use(oauth.Guard)
 
-	balance.GET("/", placeholder)        // Get user balance info
-	balance.GET("/history", placeholder) // Get balance change history
+	credits.GET("/", placeholder)        // Get user credits info
+	credits.GET("/history", placeholder) // Get credits change history
 
 	// Top-up Management
-	topup := balance.Group("/topup")
+	topup := credits.Group("/topup")
 	topup.GET("/", placeholder)           // Get topup records
 	topup.POST("/", placeholder)          // Create topup order
 	topup.GET("/:order_id", placeholder)  // Get topup order status

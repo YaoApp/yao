@@ -78,16 +78,16 @@ This module provides comprehensive user management APIs including authentication
 | DELETE | `/user/api-keys/:key_id`            | Required | Delete API key                     |
 | POST   | `/user/api-keys/:key_id/regenerate` | Required | Regenerate API key                 |
 
-### Balance & Credits
+### Credits & Top-up
 
 | Method | Endpoint                        | Auth     | Description                |
 | ------ | ------------------------------- | -------- | -------------------------- |
-| GET    | `/user/balance`                 | Required | Get user balance info      |
-| GET    | `/user/balance/history`         | Required | Get balance change history |
-| GET    | `/user/balance/topup`           | Required | Get topup records          |
-| POST   | `/user/balance/topup`           | Required | Create topup order         |
-| GET    | `/user/balance/topup/:order_id` | Required | Get topup order status     |
-| POST   | `/user/balance/topup/card-code` | Required | Redeem card code           |
+| GET    | `/user/credits`                 | Required | Get user credits info      |
+| GET    | `/user/credits/history`         | Required | Get credits change history |
+| GET    | `/user/credits/topup`           | Required | Get topup records          |
+| POST   | `/user/credits/topup`           | Required | Create topup order         |
+| GET    | `/user/credits/topup/:order_id` | Required | Get topup order status     |
+| POST   | `/user/credits/topup/card-code` | Required | Redeem card code           |
 
 ### Subscription Management
 
@@ -105,33 +105,61 @@ This module provides comprehensive user management APIs including authentication
 
 ### Billing & Invoices
 
-| Method | Endpoint                | Auth     | Description                 |
-| ------ | ----------------------- | -------- | --------------------------- |
-| PUT    | `/user/billing/history` | Required | Update user billing history |
+| Method | Endpoint                 | Auth     | Description              |
+| ------ | ------------------------ | -------- | ------------------------ |
+| GET    | `/user/billing/history`  | Required | Get user billing history |
+| GET    | `/user/billing/invoices` | Required | Get user invoices list   |
 
 ### Referral & Invitations
 
-| Method | Endpoint                   | Auth     | Description                 |
-| ------ | -------------------------- | -------- | --------------------------- |
-| GET    | `/user/invite/code`        | Required | Get user invite code        |
-| GET    | `/user/invite/statistics`  | Required | Get user invite statistics  |
-| GET    | `/user/invite/history`     | Required | Get user invite history     |
-| GET    | `/user/invite/commissions` | Required | Get user invite commissions |
+| Method | Endpoint                     | Auth     | Description                   |
+| ------ | ---------------------------- | -------- | ----------------------------- |
+| GET    | `/user/referral/code`        | Required | Get user referral code        |
+| GET    | `/user/referral/statistics`  | Required | Get user referral statistics  |
+| GET    | `/user/referral/history`     | Required | Get user referral history     |
+| GET    | `/user/referral/commissions` | Required | Get user referral commissions |
 
 ### Team Management
 
-| Method | Endpoint                                  | Auth     | Description                  |
-| ------ | ----------------------------------------- | -------- | ---------------------------- |
-| GET    | `/user/teams`                             | Required | Get user teams               |
-| POST   | `/user/teams`                             | Required | Create user team             |
-| GET    | `/user/teams/:team_id`                    | Required | Get user team details        |
-| PUT    | `/user/teams/:team_id`                    | Required | Update user team             |
-| DELETE | `/user/teams/:team_id`                    | Required | Delete user team             |
-| GET    | `/user/teams/:team_id/members`            | Required | Get user team members        |
-| GET    | `/user/teams/:team_id/members/:member_id` | Required | Get user team member details |
-| POST   | `/user/teams/:team_id/members/:type`      | Required | Create user team member      |
-| PUT    | `/user/teams/:team_id/members/:member_id` | Required | Update user team member      |
-| DELETE | `/user/teams/:team_id/members/:member_id` | Required | Remove user team member      |
+#### Team CRUD
+
+| Method | Endpoint               | Auth     | Description           |
+| ------ | ---------------------- | -------- | --------------------- |
+| GET    | `/user/teams`          | Required | Get user teams        |
+| POST   | `/user/teams`          | Required | Create user team      |
+| GET    | `/user/teams/:team_id` | Required | Get user team details |
+| PUT    | `/user/teams/:team_id` | Required | Update user team      |
+| DELETE | `/user/teams/:team_id` | Required | Delete user team      |
+
+#### Member Management
+
+| Method | Endpoint                                  | Auth     | Description                       |
+| ------ | ----------------------------------------- | -------- | --------------------------------- |
+| GET    | `/user/teams/:team_id/members`            | Required | Get user team members             |
+| GET    | `/user/teams/:team_id/members/:member_id` | Required | Get user team member details      |
+| POST   | `/user/teams/:team_id/members/direct`     | Required | Add member directly (bots/system) |
+| PUT    | `/user/teams/:team_id/members/:member_id` | Required | Update user team member           |
+| DELETE | `/user/teams/:team_id/members/:member_id` | Required | Remove user team member           |
+
+#### Team Invitations
+
+| Method | Endpoint                                                 | Auth     | Description            |
+| ------ | -------------------------------------------------------- | -------- | ---------------------- |
+| POST   | `/user/teams/:team_id/invitations`                       | Required | Send team invitation   |
+| GET    | `/user/teams/:team_id/invitations`                       | Required | Get team invitations   |
+| GET    | `/user/teams/:team_id/invitations/:invitation_id`        | Required | Get invitation details |
+| PUT    | `/user/teams/:team_id/invitations/:invitation_id/resend` | Required | Resend invitation      |
+| DELETE | `/user/teams/:team_id/invitations/:invitation_id`        | Required | Cancel invitation      |
+
+### Invitation Response (Cross-module)
+
+_Universal invitation response endpoints that handle invitations from any module (teams, organizations, etc.)_
+
+| Method | Endpoint                           | Auth     | Description                  |
+| ------ | ---------------------------------- | -------- | ---------------------------- |
+| GET    | `/user/invitations/:token`         | Public   | Get invitation info by token |
+| POST   | `/user/invitations/:token/accept`  | Required | Accept invitation            |
+| POST   | `/user/invitations/:token/decline` | Public   | Decline invitation           |
 
 ### User Preferences
 
@@ -170,3 +198,17 @@ This module provides comprehensive user management APIs including authentication
 - Rate limiting may apply to sensitive operations (password reset, verification codes)
 - This module is designed to eventually replace the `signin` module
 - OAuth callbacks support both GET (Google, GitHub) and POST (Apple, WeChat) methods
+
+## Architecture
+
+### Modular Design
+
+- **Team Management**: Handles team CRUD, member management, and invitation sending
+- **Invitation Response**: Universal cross-module invitation handling (accept/decline)
+- **Dual Member Addition**: Supports both direct addition (bots/system) and invitation flow (users)
+
+### Invitation Flow
+
+1. **Send Invitation**: `POST /user/teams/:team_id/invitations`
+2. **Manage Invitations**: View, resend, or cancel via team-specific endpoints
+3. **Respond to Invitation**: Universal endpoints handle acceptance/decline regardless of source module
