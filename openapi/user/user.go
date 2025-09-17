@@ -202,7 +202,7 @@ func attachAccount(group *gin.RouterGroup, oauth types.OAuth) {
 
 // MFA settings
 func attachMFA(group *gin.RouterGroup, oauth types.OAuth) {
-	mfa := group.Group("/2fa")
+	mfa := group.Group("/mfa")
 	mfa.Use(oauth.Guard)
 
 	// TOTP Management

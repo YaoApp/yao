@@ -42,18 +42,18 @@ This module provides comprehensive user management APIs including authentication
 
 | Method | Endpoint                                   | Auth     | Description                              |
 | ------ | ------------------------------------------ | -------- | ---------------------------------------- |
-| GET    | `/user/2fa/totp`                           | Required | Get TOTP QR code and setup info          |
-| POST   | `/user/2fa/totp/enable`                    | Required | Enable TOTP with verification            |
-| POST   | `/user/2fa/totp/disable`                   | Required | Disable TOTP with verification           |
-| POST   | `/user/2fa/totp/verify`                    | Required | Verify TOTP code                         |
-| GET    | `/user/2fa/totp/recovery-codes`            | Required | Get TOTP recovery codes                  |
-| POST   | `/user/2fa/totp/recovery-codes/regenerate` | Required | Regenerate recovery codes                |
-| POST   | `/user/2fa/totp/reset`                     | Required | Reset TOTP (requires email verification) |
-| GET    | `/user/2fa/sms`                            | Required | Get SMS MFA status                       |
-| POST   | `/user/2fa/sms/enable`                     | Required | Enable SMS MFA                           |
-| POST   | `/user/2fa/sms/disable`                    | Required | Disable SMS MFA                          |
-| POST   | `/user/2fa/sms/verification-code`          | Required | Send SMS verification code               |
-| POST   | `/user/2fa/sms/verify`                     | Required | Verify SMS code                          |
+| GET    | `/user/mfa/totp`                           | Required | Get TOTP QR code and setup info          |
+| POST   | `/user/mfa/totp/enable`                    | Required | Enable TOTP with verification            |
+| POST   | `/user/mfa/totp/disable`                   | Required | Disable TOTP with verification           |
+| POST   | `/user/mfa/totp/verify`                    | Required | Verify TOTP code                         |
+| GET    | `/user/mfa/totp/recovery-codes`            | Required | Get TOTP recovery codes                  |
+| POST   | `/user/mfa/totp/recovery-codes/regenerate` | Required | Regenerate recovery codes                |
+| POST   | `/user/mfa/totp/reset`                     | Required | Reset TOTP (requires email verification) |
+| GET    | `/user/mfa/sms`                            | Required | Get SMS MFA status                       |
+| POST   | `/user/mfa/sms/enable`                     | Required | Enable SMS MFA                           |
+| POST   | `/user/mfa/sms/disable`                    | Required | Disable SMS MFA                          |
+| POST   | `/user/mfa/sms/verification-code`          | Required | Send SMS verification code               |
+| POST   | `/user/mfa/sms/verify`                     | Required | Verify SMS code                          |
 
 ### OAuth & Third-Party Integration
 
