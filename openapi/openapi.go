@@ -16,6 +16,8 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/signin"
+	"github.com/yaoapp/yao/openapi/team"
+	"github.com/yaoapp/yao/openapi/user"
 )
 
 // Server is the OpenAPI server
@@ -108,5 +110,12 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// Captcha handlers
 	captcha.Attach(group.Group("/captcha"), openapi.OAuth)
 
+	// User handlers
+	user.Attach(group.Group("/user"), openapi.OAuth)
+
+	// Team handlers
+	team.Attach(group.Group("/team"), openapi.OAuth)
+
 	// Custom handlers (Defined by developer)
+
 }
