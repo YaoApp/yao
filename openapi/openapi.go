@@ -63,6 +63,12 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 		return nil, err
 	}
 
+	// Load user configurations
+	err = user.Load(appConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create the OpenAPI server
 	Server = &OpenAPI{Config: &config, OAuth: oauthService}
 	return Server, nil
