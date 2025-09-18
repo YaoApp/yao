@@ -10,9 +10,9 @@ import (
 // Attach attaches the signin handlers to the router
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
-	// User Authentication
-	group.GET("/login", placeholder)                // Get login page config (public)
-	group.POST("/login", placeholder)               // User login (public)
+	// User Authentication (migrated from /signin)
+	group.GET("/login", getLoginConfig)             // Get login page config (public) - migrated from /signin
+	group.POST("/login", login)                     // User login (public) - migrated from /signin
 	group.POST("/register", placeholder)            // User register (public)
 	group.POST("/logout", oauth.Guard, placeholder) // User logout
 
@@ -229,11 +229,11 @@ func attachThirdParty(group *gin.RouterGroup, oauth types.OAuth) {
 	thirdParty.GET("/providers", oauth.Guard, placeholder)    // Get linked OAuth providers
 	thirdParty.DELETE("/:provider", oauth.Guard, placeholder) // Unlink OAuth provider
 
-	thirdParty.GET("/providers/available", placeholder)             // Get available OAuth providers
-	thirdParty.GET("/:provider/authorize", placeholder)             // Get OAuth authorization URL
-	thirdParty.POST("/:provider/connect", oauth.Guard, placeholder) // Connect OAuth provider
-	thirdParty.POST("/:provider/authorize/prepare", placeholder)    // Get OAuth authorization URL
-	thirdParty.POST("/:provider/callback", placeholder)             // Handle OAuth callback
+	thirdParty.GET("/providers/available", placeholder)              // Get available OAuth providers
+	thirdParty.GET("/:provider/authorize", getOAuthAuthorizationURL) // Get OAuth authorization URL - migrated from /signin/oauth/:provider/authorize
+	thirdParty.POST("/:provider/connect", oauth.Guard, placeholder)  // Connect OAuth provider
+	thirdParty.POST("/:provider/authorize/prepare", authbackPrepare) // OAuth authorization prepare - migrated from /signin/oauth/:provider/authorize/prepare
+	thirdParty.POST("/:provider/callback", authback)                 // Handle OAuth callback - migrated from /signin/oauth/:provider/authback
 
 }
 
