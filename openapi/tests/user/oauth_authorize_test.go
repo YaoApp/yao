@@ -230,7 +230,7 @@ func TestUserOAuthAuthorizationURLParameters(t *testing.T) {
 							// Parse the authorization URL and check parameters
 							parsedURL, err := url.Parse(authURLStr)
 							assert.NoError(t, err, "Authorization URL should be valid")
-							
+
 							// Check if redirect_uri parameter matches
 							redirectURI := parsedURL.Query().Get("redirect_uri")
 							assert.Equal(t, tc.redirectURI, redirectURI, "Authorization URL should contain custom redirect_uri")
