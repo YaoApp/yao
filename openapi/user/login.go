@@ -2,7 +2,9 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/session"
@@ -178,4 +180,29 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 // generateSessionID generates a session ID
 func generateSessionID() string {
 	return session.ID()
+}
+
+// SendLoginCookies sends all necessary cookies for a successful login
+// This includes access token, refresh token, and session ID cookies with appropriate security settings
+func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID string) {
+	// Format tokens with Bearer prefix
+	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
+	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
+
+	// Calculate expiration times
+	expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
+	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
+
+	// Send access token cookie
+	response.SendAccessTokenCookieWithExpiry(c, accessToken, expires)
+
+	// Send refresh token cookie
+	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+
+	// Send session ID cookie with the same expiration as access token
+	// Using HTTP-only flag for security
+	options := response.NewSecureCookieOptions().
+		WithExpires(expires).
+		WithSameSite("Strict")
+	response.SendSecureCookieWithOptions(c, "session_id", sessionID, options)
 }

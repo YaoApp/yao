@@ -184,15 +184,8 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	// Authorize Cookie
-	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
-	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
-
-	// Send Cookie
-	expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
-	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
-	response.SendAccessTokenCookieWithExpiry(c, accessToken, expires)
-	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+	// Send all login cookies (access token, refresh token, and session ID)
+	SendLoginCookies(c, loginResponse, sid)
 
 	// Send IDToken to the client
 	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{"id_token": loginResponse.IDToken})

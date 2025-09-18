@@ -214,15 +214,8 @@ func authback(c *gin.Context) {
 		return
 	}
 
-	// Authorize Cookie
-	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
-	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
-
-	// Send Cookie
-	expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
-	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
-	response.SendAccessTokenCookieWithExpiry(c, accessToken, expires)
-	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+	// Send all login cookies (access token, refresh token, and session ID)
+	SendLoginCookies(c, loginResponse, sid)
 
 	// Send IDToken to the client
 	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{"id_token": loginResponse.IDToken})
@@ -672,4 +665,29 @@ func isPrivateIPv6(ip net.IP) bool {
 		return true
 	}
 	return false
+}
+
+// SendLoginCookies sends all necessary cookies for a successful login
+// This includes access token, refresh token, and session ID cookies with appropriate security settings
+func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID string) {
+	// Format tokens with Bearer prefix
+	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
+	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
+
+	// Calculate expiration times
+	expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
+	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
+
+	// Send access token cookie
+	response.SendAccessTokenCookieWithExpiry(c, accessToken, expires)
+
+	// Send refresh token cookie
+	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+
+	// Send session ID cookie with the same expiration as access token
+	// Using HTTP-only flag for security
+	options := response.NewSecureCookieOptions().
+		WithExpires(expires).
+		WithSameSite("Strict")
+	response.SendSecureCookieWithOptions(c, "session_id", sessionID, options)
 }
