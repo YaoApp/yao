@@ -3,12 +3,14 @@ package user
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -49,6 +51,56 @@ func getLoginConfig(c *gin.Context) {
 func login(c *gin.Context) {
 	// This is a placeholder - the original signin function was empty
 	// You may need to implement the actual login logic here
+}
+
+// getCaptcha is the handler for get captcha image for login
+func getCaptcha(c *gin.Context) {
+	var option helper.CaptchaOption = helper.NewCaptchaOption()
+
+	err := c.ShouldBindQuery(&option)
+	if err != nil {
+		response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		})
+		return
+	}
+
+	// Set the type to image
+	option.Type = "image"
+	id, content := helper.CaptchaMake(option)
+
+	// Return in the format expected by the frontend
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{
+		"captcha_id":    id,
+		"captcha_image": content,
+		"expires_in":    300, // 5 minutes
+	})
+}
+
+// refreshCaptcha is the handler for refresh captcha image
+func refreshCaptcha(c *gin.Context) {
+	var option helper.CaptchaOption = helper.NewCaptchaOption()
+
+	err := c.ShouldBindQuery(&option)
+	if err != nil {
+		response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		})
+		return
+	}
+
+	// Set the type to image
+	option.Type = "image"
+	id, content := helper.CaptchaMake(option)
+
+	// Return in the format expected by the frontend
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{
+		"captcha_id":    id,
+		"captcha_image": content,
+		"expires_in":    300, // 5 minutes
+	})
 }
 
 // LoginThirdParty is the handler for third party login

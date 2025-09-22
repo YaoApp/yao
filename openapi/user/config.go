@@ -216,9 +216,9 @@ func loadProviders(_ string) error {
 	return nil
 }
 
-// loadSigninConfigs loads all signin configurations from the openapi/user directory
+// loadSigninConfigs loads all signin configurations from the openapi/signin directory
 func loadSigninConfigs(_ string) error {
-	// Use Walk to find all configuration files in the signin directory
+	// Use Walk to find all configuration files in the user directory
 	err := application.App.Walk("openapi/user", func(root, filename string, isdir bool) error {
 		if isdir {
 			return nil
@@ -236,7 +236,7 @@ func loadSigninConfigs(_ string) error {
 
 		// Extract locale from filename (basename without extension)
 		baseName := filepath.Base(filename)
-		locale := strings.TrimSuffix(baseName, ".yao")
+		locale := strings.ToLower(strings.TrimSuffix(baseName, ".yao"))
 
 		// Read configuration
 		configRaw, err := application.App.Read(filename)
@@ -252,8 +252,7 @@ func loadSigninConfigs(_ string) error {
 		}
 
 		// Process ENV variables in the configuration
-		config.ClientID = replaceENVVar(config.ClientID)
-		config.ClientSecret = replaceENVVar(config.ClientSecret)
+		processConfigENVVariables(&config)
 
 		// Store full configuration
 		fullConfigs[locale] = &config
@@ -296,30 +295,26 @@ func GetPublicConfig(locale string) *Config {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 
+	// Normalize language code to lowercase
+	if locale != "" {
+		locale = strings.ToLower(locale)
+	}
+
 	// Try to get the specific locale configuration
 	if config, exists := publicConfigs[locale]; exists {
 		return config
 	}
 
-	// Fallback to default configuration
+	// Fallback to default config's public version
 	if defaultConfig != nil {
-		// Create a copy of default config for public use
-		publicDefault := *defaultConfig
-		publicDefault.ClientSecret = "" // Remove sensitive data
-
-		// Remove captcha secret from public config
-		if publicDefault.Form != nil && publicDefault.Form.Captcha != nil && publicDefault.Form.Captcha.Options != nil {
-			// Create a copy of captcha options without the secret
-			captchaOptions := make(map[string]interface{})
-			for k, v := range publicDefault.Form.Captcha.Options {
-				if k != "secret" {
-					captchaOptions[k] = v
+		// Find the public version of the default config
+		for lang, fullConfig := range fullConfigs {
+			if fullConfig == defaultConfig {
+				if publicConfig, exists := publicConfigs[lang]; exists {
+					return publicConfig
 				}
 			}
-			publicDefault.Form.Captcha.Options = captchaOptions
 		}
-
-		return &publicDefault
 	}
 
 	// If no default, try to get any available configuration
@@ -416,4 +411,47 @@ func normalizeDuration(expiresIn string) (string, error) {
 	}
 
 	return normalized, nil
+}
+
+// processConfigENVVariables processes environment variables in the signin configuration
+func processConfigENVVariables(config *Config) {
+	var missingEnvVars []string
+
+	// Process client_id and client_secret
+	if strings.HasPrefix(config.ClientID, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ClientID, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ClientID = replaceENVVar(config.ClientID)
+
+	if strings.HasPrefix(config.ClientSecret, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ClientSecret, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ClientSecret = replaceENVVar(config.ClientSecret)
+
+	// Process form captcha options
+	if config.Form != nil && config.Form.Captcha != nil && config.Form.Captcha.Options != nil {
+		for key, value := range config.Form.Captcha.Options {
+			if strValue, ok := value.(string); ok {
+				// Check if ENV variable exists before replacement
+				if strings.HasPrefix(strValue, "$ENV.") {
+					envVar := strings.TrimPrefix(strValue, "$ENV.")
+					if _, exists := os.LookupEnv(envVar); !exists {
+						missingEnvVars = append(missingEnvVars, envVar)
+					}
+				}
+				config.Form.Captcha.Options[key] = replaceENVVar(strValue)
+			}
+		}
+	}
+
+	// Log warning for missing environment variables (optional, can be removed if log package not available)
+	if len(missingEnvVars) > 0 {
+		fmt.Printf("Warning: The following environment variables are not set in user configuration: %v\n", missingEnvVars)
+	}
 }
