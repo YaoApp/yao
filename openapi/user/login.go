@@ -193,6 +193,9 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		return nil, err
 	}
 
+	// Get MFA enabled status from user data
+	mfaEnabled := toBool(user["mfa_enabled"])
+
 	return &LoginResponse{
 		AccessToken:           accessToken,
 		IDToken:               oidcToken,
@@ -200,6 +203,7 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		ExpiresIn:             yaoClientConfig.ExpiresIn,
 		RefreshTokenExpiresIn: yaoClientConfig.RefreshTokenExpiresIn,
 		TokenType:             "Bearer",
+		MFAEnabled:            mfaEnabled,
 		Scope:                 strings.Join(scopes, " "),
 	}, nil
 }
