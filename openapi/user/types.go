@@ -169,6 +169,7 @@ type LoginResponse struct {
 	ExpiresIn             int    `json:"expires_in,omitempty"`
 	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
 	TokenType             string `json:"token_type,omitempty"`
+	MFAEnabled            bool   `json:"mfa_enabled,omitempty"`
 	Scope                 string `json:"scope,omitempty"`
 }
 
@@ -179,6 +180,7 @@ type LoginSuccessResponse struct {
 	SessionID             string `json:"session_id,omitempty"`
 	RefreshToken          string `json:"refresh_token,omitempty"`
 	ExpiresIn             int    `json:"expires_in,omitempty"`
+	MFAEnabled            bool   `json:"mfa_enabled"`
 	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
 }
 
@@ -198,3 +200,27 @@ const (
 	UserInfoSourceIDToken     = "id_token"     // Extract user info from ID token (JWT)
 	UserInfoSourceAccessToken = "access_token" // Extract user info from access token response
 )
+
+// toBool converts various types to boolean
+// Supports: bool, int, int64, float64, string
+// Returns false for nil or unsupported types
+func toBool(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+
+	switch val := v.(type) {
+	case bool:
+		return val
+	case int:
+		return val != 0
+	case int64:
+		return val != 0
+	case float64:
+		return val != 0
+	case string:
+		return val == "true" || val == "1"
+	default:
+		return false
+	}
+}

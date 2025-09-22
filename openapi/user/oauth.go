@@ -195,6 +195,7 @@ func authback(c *gin.Context) {
 		RefreshToken:          loginResponse.RefreshToken,
 		ExpiresIn:             loginResponse.ExpiresIn,
 		RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
+		MFAEnabled:            loginResponse.MFAEnabled,
 	})
 }
 
