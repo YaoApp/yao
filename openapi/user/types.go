@@ -172,6 +172,16 @@ type LoginResponse struct {
 	Scope                 string `json:"scope,omitempty"`
 }
 
+// LoginSuccessResponse represents the response for login success
+type LoginSuccessResponse struct {
+	IDToken               string `json:"id_token,omitempty"`
+	AccessToken           string `json:"access_token,omitempty"`
+	SessionID             string `json:"session_id,omitempty"`
+	RefreshToken          string `json:"refresh_token,omitempty"`
+	ExpiresIn             int    `json:"expires_in,omitempty"`
+	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
+}
+
 // Built-in preset mapping types
 const (
 	MappingGoogle    = "google"

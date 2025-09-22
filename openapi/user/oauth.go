@@ -188,7 +188,14 @@ func authback(c *gin.Context) {
 	SendLoginCookies(c, loginResponse, sid)
 
 	// Send IDToken to the client
-	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{"id_token": loginResponse.IDToken})
+	response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+		SessionID:             sid,
+		IDToken:               loginResponse.IDToken,
+		AccessToken:           loginResponse.AccessToken,
+		RefreshToken:          loginResponse.RefreshToken,
+		ExpiresIn:             loginResponse.ExpiresIn,
+		RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
+	})
 }
 
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider
