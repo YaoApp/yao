@@ -15,7 +15,6 @@ import (
 	"github.com/yaoapp/yao/openapi/kb"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
-	"github.com/yaoapp/yao/openapi/signin"
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/user"
 )
@@ -53,12 +52,6 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 
 	// Create the OAuth service
 	oauthService, err := oauth.NewService(oauthConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Load signin configurations
-	err = signin.Load(appConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -109,9 +102,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Chat handlers
 	chat.Attach(group.Group("/chat"), openapi.OAuth)
-
-	// Signin handlers
-	signin.Attach(group, openapi.OAuth)
 
 	// Captcha handlers
 	captcha.Attach(group.Group("/captcha"), openapi.OAuth)
