@@ -201,26 +201,40 @@ const (
 	UserInfoSourceAccessToken = "access_token" // Extract user info from access token response
 )
 
-// toBool converts various types to boolean
-// Supports: bool, int, int64, float64, string
-// Returns false for nil or unsupported types
-func toBool(v interface{}) bool {
-	if v == nil {
-		return false
-	}
+// ==== Team API Types ====
 
-	switch val := v.(type) {
-	case bool:
-		return val
-	case int:
-		return val != 0
-	case int64:
-		return val != 0
-	case float64:
-		return val != 0
-	case string:
-		return val == "true" || val == "1"
-	default:
-		return false
-	}
+// TeamResponse represents a team in API responses
+type TeamResponse struct {
+	ID          int64  `json:"id"`
+	TeamID      string `json:"team_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	OwnerID     string `json:"owner_id"`
+	Status      string `json:"status"`
+	IsVerified  bool   `json:"is_verified"`
+	VerifiedBy  string `json:"verified_by,omitempty"`
+	VerifiedAt  string `json:"verified_at,omitempty"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+// TeamDetailResponse represents detailed team information
+type TeamDetailResponse struct {
+	TeamResponse
+	// Add additional fields that are only included in detailed responses
+	Settings map[string]interface{} `json:"settings,omitempty"`
+}
+
+// CreateTeamRequest represents the request to create a team
+type CreateTeamRequest struct {
+	Name        string                 `json:"name" binding:"required"`
+	Description string                 `json:"description,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
+}
+
+// UpdateTeamRequest represents the request to update a team
+type UpdateTeamRequest struct {
+	Name        string                 `json:"name,omitempty"`
+	Description string                 `json:"description,omitempty"`
+	Settings    map[string]interface{} `json:"settings,omitempty"`
 }

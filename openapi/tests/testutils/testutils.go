@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi"
+	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 )
@@ -618,6 +619,7 @@ type TokenInfo struct {
 	ExpiresIn    int
 	Scope        string
 	ClientID     string
+	UserID       string
 }
 
 // ObtainAccessToken obtains an access token for testing OAuth endpoints that require authentication.
@@ -630,19 +632,33 @@ func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirect
 		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
 	}
 
-	// Step 1: Get authorization code with PKCE parameters
-	authInfo := ObtainAuthorizationCode(t, serverURL, clientID, redirectURI, scope)
+	// Step 1: Create a test user and set up fingerprint mapping
+	testUserID, subject := createTestUser(t, server, clientID)
 
-	// Step 2: Exchange authorization code for access token with PKCE code verifier
-	ctx := context.Background()
-	token, err := server.OAuth.Token(ctx, "authorization_code", authInfo.Code, clientID, authInfo.CodeVerifier)
-	if err != nil {
-		t.Fatalf("Failed to exchange authorization code for token: %v", err)
+	// Step 2: Create access token directly using the OAuth service
+	// This bypasses the authorization flow and creates a token for our test user
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
 	}
 
-	// Verify we got a valid token
-	if token.AccessToken == "" {
-		t.Fatal("Token response missing access token")
+	accessToken, err := oauthService.MakeAccessToken(clientID, scope, subject, 3600)
+	if err != nil {
+		t.Fatalf("Failed to create access token: %v", err)
+	}
+
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, scope, subject, 7200)
+	if err != nil {
+		t.Fatalf("Failed to create refresh token: %v", err)
+	}
+
+	// Create a synthetic token response
+	token := &types.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		Scope:        scope,
 	}
 
 	tokenInfo := &TokenInfo{
@@ -652,10 +668,11 @@ func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirect
 		ExpiresIn:    token.ExpiresIn,
 		Scope:        token.Scope,
 		ClientID:     clientID,
+		UserID:       testUserID, // Include the test user ID
 	}
 
-	t.Logf("Obtained access token: %s (type: %s, expires_in: %d)",
-		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn)
+	t.Logf("Obtained access token: %s (type: %s, expires_in: %d, user_id: %s)",
+		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn, tokenInfo.UserID)
 	return tokenInfo
 }
 
@@ -681,3 +698,31 @@ func generateCodeChallenge(codeVerifier string) string {
 	// Base64 URL encode the hash without padding
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
 }
+
+// createTestUser creates a test user and sets up proper fingerprint mapping for OAuth authentication
+func createTestUser(t *testing.T, server *openapi.OpenAPI, clientID string) (string, string) {
+	if server.OAuth == nil {
+		t.Fatal("OAuth service not initialized")
+	}
+
+	// Generate a unique test user ID
+	testUserID := fmt.Sprintf("test_user_%d", time.Now().UnixNano())
+
+	// Access the global OAuth service to set up fingerprint mapping
+	// The OAuth interface doesn't expose Subject method, so we need to access the concrete service
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	// Create subject (fingerprint) for this user using the concrete OAuth service
+	// This will set up the proper fingerprint mapping: clientID:subject -> userID
+	subject, err := oauthService.Subject(clientID, testUserID)
+	if err != nil {
+		t.Fatalf("Failed to create user subject: %v", err)
+	}
+
+	t.Logf("Created test user: %s with subject: %s", testUserID, subject)
+	return testUserID, subject
+}
+
