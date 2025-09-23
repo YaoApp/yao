@@ -348,6 +348,22 @@ func (u *DefaultUser) RemoveMember(ctx context.Context, teamID string, userID st
 	return nil
 }
 
+// RemoveAllTeamMembers removes all members from a team (used when deleting team)
+func (u *DefaultUser) RemoveAllTeamMembers(ctx context.Context, teamID string) error {
+	m := model.Select(u.memberModel)
+	_, err := m.DeleteWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to delete all team members: %w", err)
+	}
+
+	return nil
+}
+
 // GetTeamMembers retrieves all members of a team
 func (u *DefaultUser) GetTeamMembers(ctx context.Context, teamID string) ([]maps.MapStr, error) {
 	param := model.QueryParam{

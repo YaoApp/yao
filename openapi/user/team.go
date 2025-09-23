@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -200,27 +201,10 @@ func GinTeamCreate(c *gin.Context) {
 		return
 	}
 
-	// Get user provider instance
-	provider, err := getUserProvider()
-	if err != nil {
-		log.Error("Failed to get user provider: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to initialize user provider",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
 	// Prepare team data
 	teamData := maps.MapStrAny{
 		"name":        req.Name,
 		"description": req.Description,
-		"owner_id":    authInfo.UserID,
-		"status":      "active",
-		"is_verified": false,
-		"created_at":  time.Now(),
-		"updated_at":  time.Now(),
 	}
 
 	// Add settings if provided
@@ -228,8 +212,8 @@ func GinTeamCreate(c *gin.Context) {
 		teamData["settings"] = req.Settings
 	}
 
-	// Create team
-	teamID, err := provider.CreateTeam(c.Request.Context(), teamData)
+	// Call business logic
+	teamID, err := teamCreate(c.Request.Context(), authInfo.UserID, teamData)
 	if err != nil {
 		log.Error("Failed to create team: %v", err)
 		errorResp := &response.ErrorResponse{
@@ -241,6 +225,14 @@ func GinTeamCreate(c *gin.Context) {
 	}
 
 	// Get the created team details
+	provider, err := getUserProvider()
+	if err != nil {
+		log.Error("Failed to get user provider: %v", err)
+		// Return basic response if we can't get details
+		c.JSON(http.StatusCreated, gin.H{"team_id": teamID})
+		return
+	}
+
 	createdTeam, err := provider.GetTeamDetail(c.Request.Context(), teamID)
 	if err != nil {
 		log.Error("Failed to get created team details: %v", err)
@@ -288,54 +280,8 @@ func GinTeamUpdate(c *gin.Context) {
 		return
 	}
 
-	// Get user provider instance
-	provider, err := getUserProvider()
-	if err != nil {
-		log.Error("Failed to get user provider: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to initialize user provider",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Check if team exists and user owns it
-	teamData, err := provider.GetTeam(c.Request.Context(), teamID)
-	if err != nil {
-		log.Error("Failed to get team: %v", err)
-		// Check if it's a "team not found" error
-		if err.Error() == "team not found" {
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrInvalidRequest.Code,
-				ErrorDescription: "Team not found",
-			}
-			response.RespondWithError(c, response.StatusNotFound, errorResp)
-		} else {
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to get team",
-			}
-			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		}
-		return
-	}
-
-	// Check ownership
-	ownerID := toString(teamData["owner_id"])
-	if ownerID != authInfo.UserID {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrAccessDenied.Code,
-			ErrorDescription: "Access denied: you don't own this team",
-		}
-		response.RespondWithError(c, response.StatusForbidden, errorResp)
-		return
-	}
-
 	// Prepare update data
-	updateData := maps.MapStrAny{
-		"updated_at": time.Now(),
-	}
+	updateData := maps.MapStrAny{}
 
 	if req.Name != "" {
 		updateData["name"] = req.Name
@@ -347,19 +293,41 @@ func GinTeamUpdate(c *gin.Context) {
 		updateData["settings"] = req.Settings
 	}
 
-	// Update team
-	err = provider.UpdateTeam(c.Request.Context(), teamID, updateData)
+	// Call business logic
+	err := teamUpdate(c.Request.Context(), authInfo.UserID, teamID, updateData)
 	if err != nil {
 		log.Error("Failed to update team: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to update team",
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Team not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "access denied") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to update team",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
 
 	// Get updated team details
+	provider, err := getUserProvider()
+	if err != nil {
+		log.Error("Failed to get user provider: %v", err)
+		c.JSON(http.StatusOK, gin.H{"message": "Team updated successfully"})
+		return
+	}
+
 	updatedTeam, err := provider.GetTeamDetail(c.Request.Context(), teamID)
 	if err != nil {
 		log.Error("Failed to get updated team details: %v", err)
@@ -395,59 +363,30 @@ func GinTeamDelete(c *gin.Context) {
 		return
 	}
 
-	// Get user provider instance
-	provider, err := getUserProvider()
+	// Call business logic
+	err := teamDelete(c.Request.Context(), authInfo.UserID, teamID)
 	if err != nil {
-		log.Error("Failed to get user provider: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to initialize user provider",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Check if team exists and user owns it
-	teamData, err := provider.GetTeam(c.Request.Context(), teamID)
-	if err != nil {
-		log.Error("Failed to get team: %v", err)
-		// Check if it's a "team not found" error
-		if err.Error() == "team not found" {
+		log.Error("Failed to delete team: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrInvalidRequest.Code,
 				ErrorDescription: "Team not found",
 			}
 			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "access denied") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
 		} else {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to get team",
+				ErrorDescription: "Failed to delete team",
 			}
 			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		}
-		return
-	}
-
-	// Check ownership
-	ownerID := toString(teamData["owner_id"])
-	if ownerID != authInfo.UserID {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrAccessDenied.Code,
-			ErrorDescription: "Access denied: you don't own this team",
-		}
-		response.RespondWithError(c, response.StatusForbidden, errorResp)
-		return
-	}
-
-	// Delete team
-	err = provider.DeleteTeam(c.Request.Context(), teamID)
-	if err != nil {
-		log.Error("Failed to delete team: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to delete team",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
 
@@ -721,6 +660,26 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 		return "", fmt.Errorf("failed to create team: %w", err)
 	}
 
+	// Add the creator as an owner member of the team
+	ownerMemberData := maps.MapStrAny{
+		"team_id":     teamID,
+		"user_id":     userID,
+		"member_type": "user",
+		"role_id":     "owner",
+		"status":      "active",
+		"joined_at":   time.Now(),
+		"created_at":  time.Now(),
+		"updated_at":  time.Now(),
+	}
+
+	_, err = provider.CreateMember(ctx, ownerMemberData)
+	if err != nil {
+		// Log the error but don't fail the team creation
+		log.Error("Failed to add owner as team member: %v", err)
+		// Consider whether to rollback team creation or continue
+		// For now, we'll continue as the team is already created
+	}
+
 	return teamID, nil
 }
 
@@ -776,7 +735,14 @@ func teamDelete(ctx context.Context, userID, teamID string) error {
 		return fmt.Errorf("access denied: user does not own this team")
 	}
 
-	// Delete team
+	// First, remove all team members
+	err = provider.RemoveAllTeamMembers(ctx, teamID)
+	if err != nil {
+		// Log error but don't fail team deletion - members might not exist
+		log.Error("Failed to remove team members during team deletion: %v", err)
+	}
+
+	// Then delete the team
 	err = provider.DeleteTeam(ctx, teamID)
 	if err != nil {
 		return fmt.Errorf("failed to delete team: %w", err)
