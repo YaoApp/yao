@@ -348,3 +348,51 @@ func (u *DefaultUser) TransferTeamOwnership(ctx context.Context, teamID string, 
 
 	return u.UpdateTeam(ctx, teamID, updateData)
 }
+
+// IsTeamOwner checks if a user is the owner of a team
+func (u *DefaultUser) IsTeamOwner(ctx context.Context, teamID string, userID string) (bool, error) {
+	teamData, err := u.GetTeam(ctx, teamID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get team: %w", err)
+	}
+
+	ownerID, ok := teamData["owner_id"].(string)
+	if !ok {
+		return false, fmt.Errorf("invalid owner_id type in team data")
+	}
+
+	return ownerID == userID, nil
+}
+
+// IsTeamMember checks if a user is a member of a team (includes owner)
+func (u *DefaultUser) IsTeamMember(ctx context.Context, teamID string, userID string) (bool, error) {
+	// First check if user is the owner
+	isOwner, err := u.IsTeamOwner(ctx, teamID, userID)
+	if err != nil {
+		return false, err
+	}
+	if isOwner {
+		return true, nil
+	}
+
+	// Then check if user is a member
+	return u.MemberExists(ctx, teamID, userID)
+}
+
+// CheckTeamAccess checks user's access level to a team
+// Returns: (isOwner bool, isMember bool, error)
+func (u *DefaultUser) CheckTeamAccess(ctx context.Context, teamID string, userID string) (bool, bool, error) {
+	// Check if user is the owner
+	isOwner, err := u.IsTeamOwner(ctx, teamID, userID)
+	if err != nil {
+		return false, false, err
+	}
+
+	// Check if user is a member (this will return true for owner as well, but we already know that)
+	isMember, err := u.IsTeamMember(ctx, teamID, userID)
+	if err != nil {
+		return false, false, err
+	}
+
+	return isOwner, isMember, nil
+}

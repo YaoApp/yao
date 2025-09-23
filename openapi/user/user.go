@@ -62,11 +62,11 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.DELETE("/:team_id", GinTeamDelete) // Delete user team
 
 	// Member Management
-	team.GET("/:team_id/members", placeholder)               // Get user team members
-	team.GET("/:team_id/members/:member_id", placeholder)    // Get user team member details
-	team.POST("/:team_id/members/direct", placeholder)       // Add member directly (for bots/system)
-	team.PUT("/:team_id/members/:member_id", placeholder)    // Update user team member
-	team.DELETE("/:team_id/members/:member_id", placeholder) // Remove user team member
+	team.GET("/:team_id/members", GinMemberList)                 // Get user team members
+	team.GET("/:team_id/members/:member_id", GinMemberGet)       // Get user team member details
+	team.POST("/:team_id/members/direct", GinMemberCreateDirect) // Add member directly (for bots/system)
+	team.PUT("/:team_id/members/:member_id", GinMemberUpdate)    // Update user team member
+	team.DELETE("/:team_id/members/:member_id", GinMemberDelete) // Remove user team member
 
 	// Member Invitation Management
 	team.POST("/:team_id/invitations", placeholder)                      // Send team invitation
