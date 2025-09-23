@@ -145,8 +145,8 @@ var (
 	// DefaultMemberFields contains basic member fields
 	DefaultMemberFields = []interface{}{
 		"id", "team_id", "user_id", "member_type", "role_id", "status",
-		"invited_by", "invited_at", "joined_at", "last_active_at", "login_count",
-		"created_at", "updated_at",
+		"invitation_id", "invited_by", "invited_at", "joined_at", "invitation_token", "invitation_expires_at",
+		"last_active_at", "login_count", "message", "created_at", "updated_at",
 	}
 
 	// DefaultMemberDetailFields contains all member fields including robot config and permissions
@@ -155,7 +155,7 @@ var (
 		"robot_name", "robot_description", "robot_avatar", "robot_config", "agents", "tools",
 		"mcp_servers", "data_access_permissions", "system_prompt", "is_active_robot",
 		"schedule_config", "random_activity", "activity_frequency", "last_robot_activity",
-		"robot_status", "invited_by", "invited_at", "joined_at", "invitation_token",
+		"robot_status", "invitation_id", "invited_by", "invited_at", "joined_at", "invitation_token",
 		"invitation_expires_at", "permissions", "restrictions", "last_active_at",
 		"login_count", "notes", "metadata", "created_at", "updated_at",
 	}

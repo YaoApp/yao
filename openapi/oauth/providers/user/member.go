@@ -79,6 +79,28 @@ func (u *DefaultUser) GetMemberByID(ctx context.Context, memberID int64) (maps.M
 	return members[0], nil
 }
 
+// GetMemberByInvitationID retrieves member information by invitation_id
+func (u *DefaultUser) GetMemberByInvitationID(ctx context.Context, invitationID string) (maps.MapStrAny, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: u.memberFields,
+		Wheres: []model.QueryWhere{
+			{Column: "invitation_id", Value: invitationID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	if len(members) == 0 {
+		return nil, fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return members[0], nil
+}
+
 // MemberExists checks if a member exists by team_id and user_id
 func (u *DefaultUser) MemberExists(ctx context.Context, teamID string, userID string) (bool, error) {
 	m := model.Select(u.memberModel)
@@ -116,12 +138,23 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 		memberData["status"] = "pending"
 	}
 
-	// For user members, user_id is required
+	// For user members, user_id is required unless it's an invitation (status=pending)
 	memberType := memberData["member_type"].(string)
-	if memberType == "user" {
+	status, _ := memberData["status"].(string)
+
+	if memberType == "user" && status != "pending" {
 		if _, exists := memberData["user_id"]; !exists {
-			return 0, fmt.Errorf("user_id is required for user members")
+			return 0, fmt.Errorf("user_id is required for active user members")
 		}
+	}
+
+	// Generate invitation_id for pending invitations
+	if status == "pending" && memberData["invitation_id"] == nil {
+		invitationID, err := u.generateInvitationID()
+		if err != nil {
+			return 0, fmt.Errorf("failed to generate invitation ID: %w", err)
+		}
+		memberData["invitation_id"] = invitationID
 	}
 
 	m := model.Select(u.memberModel)
@@ -523,6 +556,60 @@ func (u *DefaultUser) UpdateRobotActivity(ctx context.Context, memberID int64, r
 	}
 
 	return u.UpdateMemberByID(ctx, memberID, updateData)
+}
+
+// UpdateMemberByInvitationID updates a member by invitation_id
+func (u *DefaultUser) UpdateMemberByInvitationID(ctx context.Context, invitationID string, memberData maps.MapStrAny) error {
+	// Remove sensitive fields that should not be updated directly
+	// Note: user_id is allowed for invitation acceptance (pending -> active transition)
+	sensitiveFields := []string{"id", "team_id", "created_at", "invitation_id"}
+	for _, field := range sensitiveFields {
+		delete(memberData, field)
+	}
+
+	// Skip update if no valid fields remain
+	if len(memberData) == 0 {
+		return nil
+	}
+
+	m := model.Select(u.memberModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "invitation_id", Value: invitationID},
+		},
+		Limit: 1,
+	}, memberData)
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateMember, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return nil
+}
+
+// RemoveMemberByInvitationID removes a member by invitation_id
+func (u *DefaultUser) RemoveMemberByInvitationID(ctx context.Context, invitationID string) error {
+	m := model.Select(u.memberModel)
+	affected, err := m.DeleteWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "invitation_id", Value: invitationID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToDeleteMember, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return nil
 }
 
 // PaginateMembers retrieves paginated list of members
