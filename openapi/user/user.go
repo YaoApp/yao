@@ -4,8 +4,20 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
+
+func init() {
+	// Register user process handlers
+	process.RegisterGroup("user", map[string]process.Handler{
+		"team.list":   ProcessTeamList,
+		"team.get":    ProcessTeamGet,
+		"team.create": ProcessTeamCreate,
+		"team.update": ProcessTeamUpdate,
+		"team.delete": ProcessTeamDelete,
+	})
+}
 
 // Attach attaches the signin handlers to the router
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
@@ -43,11 +55,11 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.Use(oauth.Guard)
 
 	// Team CRUD
-	team.GET("/", placeholder)            // Get user teams
-	team.GET("/:team_id", placeholder)    // Get user team details
-	team.POST("/", placeholder)           // Create user team
-	team.PUT("/:team_id", placeholder)    // Update user team
-	team.DELETE("/:team_id", placeholder) // Delete user team
+	team.GET("/", GinTeamList)              // Get user teams
+	team.GET("/:team_id", GinTeamGet)       // Get user team details
+	team.POST("/", GinTeamCreate)           // Create user team
+	team.PUT("/:team_id", GinTeamUpdate)    // Update user team
+	team.DELETE("/:team_id", GinTeamDelete) // Delete user team
 
 	// Member Management
 	team.GET("/:team_id/members", placeholder)               // Get user team members

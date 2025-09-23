@@ -574,6 +574,15 @@ type TokenClaims struct {
 	JTI       string    `json:"jti,omitempty"`   // JWT ID (for JWT tokens)
 }
 
+// AuthorizedInfo represents authorized information
+type AuthorizedInfo struct {
+	Subject   string `json:"sub,omitempty"`        // Subject identifier
+	ClientID  string `json:"client_id"`            // OAuth client ID
+	Scope     string `json:"scope,omitempty"`      // Access scope
+	SessionID string `json:"session_id,omitempty"` // Session ID
+	UserID    string `json:"user_id,omitempty"`    // User ID
+}
+
 // JWTClaims represents JWT-specific claims structure
 type JWTClaims struct {
 	jwt.StandardClaims
