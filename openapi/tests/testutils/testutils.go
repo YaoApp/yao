@@ -725,4 +725,3 @@ func createTestUser(t *testing.T, server *openapi.OpenAPI, clientID string) (str
 	t.Logf("Created test user: %s with subject: %s", testUserID, subject)
 	return testUserID, subject
 }
-
