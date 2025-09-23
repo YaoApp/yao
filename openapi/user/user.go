@@ -69,11 +69,11 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.DELETE("/:team_id/members/:member_id", GinMemberDelete) // Remove user team member
 
 	// Member Invitation Management
-	team.POST("/:team_id/invitations", placeholder)                      // Send team invitation
-	team.GET("/:team_id/invitations", placeholder)                       // Get team invitations
-	team.GET("/:team_id/invitations/:invitation_id", placeholder)        // Get invitation details
-	team.PUT("/:team_id/invitations/:invitation_id/resend", placeholder) // Resend invitation
-	team.DELETE("/:team_id/invitations/:invitation_id", placeholder)     // Cancel invitation
+	team.POST("/:team_id/invitations", GinInvitationCreate)                      // Send team invitation
+	team.GET("/:team_id/invitations", GinInvitationList)                         // Get team invitations
+	team.GET("/:team_id/invitations/:invitation_id", GinInvitationGet)           // Get invitation details
+	team.PUT("/:team_id/invitations/:invitation_id/resend", GinInvitationResend) // Resend invitation
+	team.DELETE("/:team_id/invitations/:invitation_id", GinInvitationDelete)     // Cancel invitation
 }
 
 // Invitation Response Management (Cross-module invitation handling)

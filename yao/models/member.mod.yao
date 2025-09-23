@@ -216,6 +216,16 @@
     // Invitation & Join Information
     // ============================================================================
     {
+      "name": "invitation_id",
+      "type": "string",
+      "label": "Invitation ID",
+      "comment": "Unique invitation identifier for pending invitations (business ID for invitations)",
+      "length": 100,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
       "name": "invited_by",
       "type": "string",
       "label": "Invited By",
@@ -316,9 +326,9 @@
   "indexes": [
     {
       "name": "idx_team_user_unique",
-      "columns": ["team_id", "user_id"],
+      "columns": ["team_id", "user_id", "invitation_id"],
       "type": "unique",
-      "comment": "Unique constraint: one user can have only one membership per team (user_id can be null for robots)"
+      "comment": "Unique constraint: one user can have only one membership per team, with unique invitation_id for pending invitations"
     },
     {
       "name": "idx_team_robot_unique",
@@ -367,6 +377,12 @@
       "columns": ["team_id", "status", "invited_at"],
       "type": "index",
       "comment": "Index for managing invitations"
+    },
+    {
+      "name": "idx_invitation_id",
+      "columns": ["invitation_id", "status", "invitation_expires_at"],
+      "type": "index",
+      "comment": "Index for invitation ID lookup and status"
     },
     {
       "name": "idx_invitation_token",

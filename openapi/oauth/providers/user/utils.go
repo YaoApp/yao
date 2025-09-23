@@ -86,6 +86,35 @@ func (u *DefaultUser) generateUserID() (string, error) {
 	return id, nil
 }
 
+// generateInvitationID generates a new invitation_id based on configured strategy (internal use)
+func (u *DefaultUser) generateInvitationID() (string, error) {
+	var id string
+	var err error
+
+	switch u.idStrategy {
+	case UUIDStrategy:
+		id, err = generateUUID()
+	case NanoIDStrategy:
+		id, err = generateNanoID(12) // 12 characters, URL-safe, readable
+	case NumericStrategy:
+		id, err = generateNumericID(12) // 12 characters, numeric, readable (default)
+	default:
+		id, err = generateNumericID(12) // 12 characters, URL-safe, readable
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	// Add prefix if configured (could be different from user prefix)
+	prefix := "inv_" // Default invitation prefix
+	if u.idPrefix != "" {
+		prefix = u.idPrefix + "inv_"
+	}
+
+	return prefix + id, nil
+}
+
 // userIDExists checks if a user_id already exists in the database
 func (u *DefaultUser) userIDExists(ctx context.Context, userID string) (bool, error) {
 	m := model.Select(u.model)

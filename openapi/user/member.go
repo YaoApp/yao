@@ -570,7 +570,7 @@ func ProcessMemberDelete(process *process.Process) interface{} {
 // memberList handles the business logic for listing team members
 func memberList(ctx context.Context, userID, teamID string, page, pagesize int, status string) (maps.MapStr, error) {
 	// Check if user has access to the team (read permission: owner or member)
-	isOwner, isMember, err := checkTeamAccess(ctx, userID, teamID)
+	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -617,7 +617,7 @@ func memberList(ctx context.Context, userID, teamID string, page, pagesize int, 
 // memberGet handles the business logic for getting a specific team member
 func memberGet(ctx context.Context, userID, teamID, memberID string) (maps.MapStrAny, error) {
 	// Check if user has access to the team (read permission: owner or member)
-	isOwner, isMember, err := checkTeamAccess(ctx, userID, teamID)
+	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +646,7 @@ func memberGet(ctx context.Context, userID, teamID, memberID string) (maps.MapSt
 // memberCreateDirect handles the business logic for creating a team member directly
 func memberCreateDirect(ctx context.Context, userID, teamID string, memberData maps.MapStrAny) (int64, error) {
 	// Check if user has access to the team (write permission: owner only)
-	isOwner, _, err := checkTeamAccess(ctx, userID, teamID)
+	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -694,7 +694,7 @@ func memberCreateDirect(ctx context.Context, userID, teamID string, memberData m
 // memberUpdate handles the business logic for updating a team member
 func memberUpdate(ctx context.Context, userID, teamID, memberUserID string, updateData maps.MapStrAny) error {
 	// Check if user has access to the team (write permission: owner only)
-	isOwner, _, err := checkTeamAccess(ctx, userID, teamID)
+	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
 		return err
 	}
@@ -731,7 +731,7 @@ func memberUpdate(ctx context.Context, userID, teamID, memberUserID string, upda
 // memberDelete handles the business logic for deleting a team member
 func memberDelete(ctx context.Context, userID, teamID, memberID string) error {
 	// Check if user has access to the team (write permission: owner only)
-	isOwner, _, err := checkTeamAccess(ctx, userID, teamID)
+	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
 		return err
 	}
@@ -767,14 +767,14 @@ func memberDelete(ctx context.Context, userID, teamID, memberID string) error {
 
 // checkTeamAccess checks if user has access to the team
 // Returns: (isOwner bool, isMember bool, error)
-func checkTeamAccess(ctx context.Context, userID, teamID string) (bool, bool, error) {
+func checkTeamAccess(ctx context.Context, teamID, userID string) (bool, bool, error) {
 	// Get user provider instance
 	provider, err := getUserProvider()
 	if err != nil {
 		return false, false, fmt.Errorf("failed to get user provider: %w", err)
 	}
 
-	// Use UserProvider's CheckTeamAccess method
+	// Use UserProvider's CheckTeamAccess method - note parameter order: (ctx, teamID, userID)
 	return provider.CheckTeamAccess(ctx, teamID, userID)
 }
 

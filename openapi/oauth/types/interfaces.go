@@ -274,6 +274,11 @@ type UserProvider interface {
 	UnverifyTeam(ctx context.Context, teamID string) error
 	TransferTeamOwnership(ctx context.Context, teamID string, newOwnerID string) error
 
+	// Team Permission Checks
+	IsTeamOwner(ctx context.Context, teamID string, userID string) (bool, error)
+	IsTeamMember(ctx context.Context, teamID string, userID string) (bool, error)
+	CheckTeamAccess(ctx context.Context, teamID string, userID string) (isOwner bool, isMember bool, err error)
+
 	// ============================================================================
 	// Member Resource
 	// ============================================================================
@@ -282,11 +287,15 @@ type UserProvider interface {
 	GetMember(ctx context.Context, teamID string, userID string) (maps.MapStrAny, error)
 	GetMemberDetail(ctx context.Context, teamID string, userID string) (maps.MapStrAny, error)
 	GetMemberByID(ctx context.Context, memberID int64) (maps.MapStrAny, error)
+	GetMemberByInvitationID(ctx context.Context, invitationID string) (maps.MapStrAny, error)
 	MemberExists(ctx context.Context, teamID string, userID string) (bool, error)
 	CreateMember(ctx context.Context, memberData maps.MapStrAny) (int64, error)
 	UpdateMember(ctx context.Context, teamID string, userID string, memberData maps.MapStrAny) error
 	UpdateMemberByID(ctx context.Context, memberID int64, memberData maps.MapStrAny) error
+	UpdateMemberByInvitationID(ctx context.Context, invitationID string, memberData maps.MapStrAny) error
 	RemoveMember(ctx context.Context, teamID string, userID string) error
+	RemoveMemberByInvitationID(ctx context.Context, invitationID string) error
+	RemoveAllTeamMembers(ctx context.Context, teamID string) error
 
 	// Member Invitation Management
 	AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (int64, error)

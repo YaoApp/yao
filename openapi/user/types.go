@@ -280,3 +280,40 @@ type UpdateMemberRequest struct {
 	Settings     map[string]interface{} `json:"settings,omitempty"`
 	LastActivity string                 `json:"last_activity,omitempty"`
 }
+
+// ==== Invitation API Types ====
+
+// InvitationResponse represents a team invitation in API responses
+type InvitationResponse struct {
+	ID                  int64                  `json:"id"`
+	TeamID              string                 `json:"team_id"`
+	UserID              string                 `json:"user_id"`
+	MemberType          string                 `json:"member_type"`
+	RoleID              string                 `json:"role_id"`
+	Status              string                 `json:"status"`
+	InvitedBy           string                 `json:"invited_by"`
+	InvitedAt           string                 `json:"invited_at"`
+	InvitationToken     string                 `json:"invitation_token,omitempty"`
+	InvitationExpiresAt string                 `json:"invitation_expires_at,omitempty"`
+	Message             string                 `json:"message,omitempty"`
+	Settings            map[string]interface{} `json:"settings,omitempty"`
+	CreatedAt           string                 `json:"created_at"`
+	UpdatedAt           string                 `json:"updated_at"`
+}
+
+// InvitationDetailResponse represents detailed invitation information
+type InvitationDetailResponse struct {
+	InvitationResponse
+	// Add additional fields that are only included in detailed responses
+	UserInfo map[string]interface{} `json:"user_info,omitempty"`
+	TeamInfo map[string]interface{} `json:"team_info,omitempty"`
+}
+
+// CreateInvitationRequest represents the request to send a team invitation
+type CreateInvitationRequest struct {
+	UserID     string                 `json:"user_id,omitempty"`     // Optional for unregistered users
+	MemberType string                 `json:"member_type,omitempty"` // "user" or "robot"
+	RoleID     string                 `json:"role_id" binding:"required"`
+	Message    string                 `json:"message,omitempty"`
+	Settings   map[string]interface{} `json:"settings,omitempty"`
+}

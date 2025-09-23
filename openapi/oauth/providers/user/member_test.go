@@ -648,15 +648,16 @@ func TestMemberErrorHandling(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "role_id is required")
 
-		// Missing user_id for user member
+		// Missing user_id for active user member
 		memberData = maps.MapStrAny{
 			"team_id":     "test-team",
 			"role_id":     "user",
 			"member_type": "user",
+			"status":      "active", // Explicitly set to active to trigger validation
 		}
 		_, err = testProvider.CreateMember(ctx, memberData)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "user_id is required for user members")
+		assert.Contains(t, err.Error(), "user_id is required for active user members")
 	})
 
 	t.Run("UpdateMember_EmptyData", func(t *testing.T) {
@@ -743,6 +744,251 @@ func TestMemberInvitationExpiry(t *testing.T) {
 		err := testProvider.AcceptInvitation(ctx, "expired-token-"+testUUID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation has expired")
+	})
+}
+
+func TestMemberInvitationIDOperations(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test users
+	ownerUser := createTestUser(ctx, t, "owner"+testUUID)
+	inviteeUser := createTestUser(ctx, t, "invitee"+testUUID)
+
+	// Create test team
+	teamMap := maps.MapStrAny{
+		"name":         "Invitation ID Test Team " + testUUID,
+		"display_name": "Invitation ID Test " + testUUID,
+		"description":  "A test team for invitation_id testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+		"type":         "corporation",
+		"type_id":      "business",
+		"metadata":     map[string]interface{}{"test": true},
+	}
+
+	teamID, err := testProvider.CreateTeam(ctx, teamMap)
+	assert.NoError(t, err)
+
+	var invitationID string
+
+	// Test CreateMember with pending status (should generate invitation_id)
+	t.Run("CreateMember_GeneratesInvitationID", func(t *testing.T) {
+		memberData := maps.MapStrAny{
+			"team_id":     teamID,
+			"user_id":     nil, // Simulate invitation to unregistered user
+			"member_type": "user",
+			"role_id":     "user",
+			"status":      "pending",
+			"invited_by":  ownerUser,
+		}
+
+		memberID, err := testProvider.CreateMember(ctx, memberData)
+		assert.NoError(t, err)
+		assert.Greater(t, memberID, int64(0))
+
+		// Get the created member to verify invitation_id was generated
+		member, err := testProvider.GetMemberByID(ctx, memberID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member["invitation_id"])
+		assert.NotEmpty(t, member["invitation_id"])
+
+		invitationID = member["invitation_id"].(string)
+		t.Logf("Generated invitation_id: %s", invitationID)
+		assert.True(t, strings.Contains(invitationID, "inv_"), "invitation_id should contain inv_ prefix, got: "+invitationID)
+	})
+
+	// Test GetMemberByInvitationID
+	t.Run("GetMemberByInvitationID", func(t *testing.T) {
+		member, err := testProvider.GetMemberByInvitationID(ctx, invitationID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member)
+		assert.Equal(t, invitationID, member["invitation_id"])
+		assert.Equal(t, teamID, member["team_id"])
+		assert.Equal(t, "pending", member["status"])
+		assert.Equal(t, ownerUser, member["invited_by"])
+	})
+
+	// Test GetMemberByInvitationID with non-existent invitation
+	t.Run("GetMemberByInvitationID_NotFound", func(t *testing.T) {
+		_, err := testProvider.GetMemberByInvitationID(ctx, "non-existent-invitation-id")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "member not found")
+	})
+
+	// Test UpdateMemberByInvitationID
+	t.Run("UpdateMemberByInvitationID", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"user_id":   inviteeUser, // Now associate with a user
+			"status":    "active",
+			"joined_at": time.Now(),
+			"notes":     "Invitation accepted",
+		}
+
+		err := testProvider.UpdateMemberByInvitationID(ctx, invitationID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberByInvitationID(ctx, invitationID)
+		assert.NoError(t, err)
+		assert.Equal(t, inviteeUser, member["user_id"])
+		assert.Equal(t, "active", member["status"])
+		assert.NotNil(t, member["joined_at"])
+
+		// Test updating sensitive fields (should be ignored except user_id which is allowed)
+		sensitiveData := maps.MapStrAny{
+			"id":            999,
+			"team_id":       "new-team",
+			"invitation_id": "new-invitation-id",
+		}
+
+		err = testProvider.UpdateMemberByInvitationID(ctx, invitationID, sensitiveData)
+		assert.NoError(t, err) // Should not error, just ignore sensitive fields
+
+		// Verify sensitive fields were not updated
+		member, err = testProvider.GetMemberByInvitationID(ctx, invitationID)
+		assert.NoError(t, err)
+		assert.Equal(t, invitationID, member["invitation_id"]) // Should remain unchanged
+		assert.Equal(t, teamID, member["team_id"])             // Should remain unchanged
+		assert.Equal(t, inviteeUser, member["user_id"])        // Should remain as updated value
+	})
+
+	// Test UpdateMemberByInvitationID with non-existent invitation
+	t.Run("UpdateMemberByInvitationID_NotFound", func(t *testing.T) {
+		updateData := maps.MapStrAny{"notes": "test"}
+		err := testProvider.UpdateMemberByInvitationID(ctx, "non-existent-invitation-id", updateData)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "member not found")
+	})
+
+	// Test UpdateMemberByInvitationID with empty data (should not error)
+	t.Run("UpdateMemberByInvitationID_EmptyData", func(t *testing.T) {
+		err := testProvider.UpdateMemberByInvitationID(ctx, invitationID, maps.MapStrAny{})
+		assert.NoError(t, err) // Should not error, just do nothing
+	})
+
+	// Test RemoveMemberByInvitationID (at the end)
+	t.Run("RemoveMemberByInvitationID", func(t *testing.T) {
+		err := testProvider.RemoveMemberByInvitationID(ctx, invitationID)
+		assert.NoError(t, err)
+
+		// Verify member was removed
+		_, err = testProvider.GetMemberByInvitationID(ctx, invitationID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "member not found")
+	})
+
+	// Test RemoveMemberByInvitationID with non-existent invitation
+	t.Run("RemoveMemberByInvitationID_NotFound", func(t *testing.T) {
+		err := testProvider.RemoveMemberByInvitationID(ctx, "non-existent-invitation-id")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "member not found")
+	})
+}
+
+func TestCreateMemberInvitationIDGeneration(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test user
+	ownerUser := createTestUser(ctx, t, "owner"+testUUID)
+
+	// Create test team
+	teamMap := maps.MapStrAny{
+		"name":         "ID Generation Test Team " + testUUID,
+		"display_name": "ID Generation Test " + testUUID,
+		"description":  "A test team for invitation_id generation testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+	}
+
+	teamID, err := testProvider.CreateTeam(ctx, teamMap)
+	assert.NoError(t, err)
+
+	// Test invitation_id generation for pending members
+	t.Run("CreateMember_PendingStatus_GeneratesInvitationID", func(t *testing.T) {
+		memberData := maps.MapStrAny{
+			"team_id":     teamID,
+			"user_id":     nil, // No user_id for pending invitation
+			"member_type": "user",
+			"role_id":     "user",
+			"status":      "pending",
+			"invited_by":  ownerUser,
+		}
+
+		memberID, err := testProvider.CreateMember(ctx, memberData)
+		assert.NoError(t, err)
+
+		// Get the created member
+		member, err := testProvider.GetMemberByID(ctx, memberID)
+		assert.NoError(t, err)
+
+		// Verify invitation_id was generated
+		assert.NotNil(t, member["invitation_id"])
+		assert.NotEmpty(t, member["invitation_id"])
+
+		invitationID := member["invitation_id"].(string)
+		t.Logf("Generated invitation_id: %s", invitationID)
+		assert.True(t, strings.Contains(invitationID, "inv_"), "invitation_id should contain inv_ prefix, got: "+invitationID)
+		assert.True(t, len(invitationID) > 4, "invitation_id should be longer than just the prefix")
+	})
+
+	// Test that active members don't get invitation_id
+	t.Run("CreateMember_ActiveStatus_NoInvitationID", func(t *testing.T) {
+		activeUser := createTestUser(ctx, t, "active"+testUUID)
+
+		memberData := maps.MapStrAny{
+			"team_id":     teamID,
+			"user_id":     activeUser,
+			"member_type": "user",
+			"role_id":     "user",
+			"status":      "active",
+		}
+
+		memberID, err := testProvider.CreateMember(ctx, memberData)
+		assert.NoError(t, err)
+
+		// Get the created member
+		member, err := testProvider.GetMemberByID(ctx, memberID)
+		assert.NoError(t, err)
+
+		// Verify invitation_id is nil for active members
+		assert.Nil(t, member["invitation_id"])
+	})
+
+	// Test explicit invitation_id is preserved
+	t.Run("CreateMember_ExplicitInvitationID_Preserved", func(t *testing.T) {
+		explicitInvitationID := "inv_explicit_test_" + testUUID
+
+		memberData := maps.MapStrAny{
+			"team_id":       teamID,
+			"user_id":       nil,
+			"member_type":   "user",
+			"role_id":       "user",
+			"status":        "pending",
+			"invited_by":    ownerUser,
+			"invitation_id": explicitInvitationID,
+		}
+
+		memberID, err := testProvider.CreateMember(ctx, memberData)
+		assert.NoError(t, err)
+
+		// Get the created member
+		member, err := testProvider.GetMemberByID(ctx, memberID)
+		assert.NoError(t, err)
+
+		// Verify explicit invitation_id was preserved
+		assert.Equal(t, explicitInvitationID, member["invitation_id"])
 	})
 }
 
