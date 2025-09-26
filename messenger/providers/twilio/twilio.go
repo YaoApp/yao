@@ -162,7 +162,7 @@ func (p *Provider) sendSMS(ctx context.Context, message *types.Message) error {
 	}
 
 	for _, to := range message.To {
-		err := p.sendSMSToRecipient(to, message)
+		err := p.sendSMSToRecipient(ctx, to, message)
 		if err != nil {
 			return fmt.Errorf("failed to send SMS to %s: %w", to, err)
 		}
@@ -171,7 +171,7 @@ func (p *Provider) sendSMS(ctx context.Context, message *types.Message) error {
 }
 
 // sendSMSToRecipient sends SMS to a single recipient
-func (p *Provider) sendSMSToRecipient(to string, message *types.Message) error {
+func (p *Provider) sendSMSToRecipient(ctx context.Context, to string, message *types.Message) error {
 	apiURL := fmt.Sprintf("%s/Accounts/%s/Messages.json", p.baseURL, p.accountSID)
 
 	// Prepare form data
@@ -185,7 +185,7 @@ func (p *Provider) sendSMSToRecipient(to string, message *types.Message) error {
 		data.Set("From", p.fromPhone)
 	}
 
-	return p.sendTwilioRequest(apiURL, data)
+	return p.sendTwilioRequest(ctx, apiURL, data)
 }
 
 // sendWhatsApp sends a WhatsApp message via Twilio
@@ -195,7 +195,7 @@ func (p *Provider) sendWhatsApp(ctx context.Context, message *types.Message) err
 	}
 
 	for _, to := range message.To {
-		err := p.sendWhatsAppToRecipient(to, message)
+		err := p.sendWhatsAppToRecipient(ctx, to, message)
 		if err != nil {
 			return fmt.Errorf("failed to send WhatsApp message to %s: %w", to, err)
 		}
@@ -204,7 +204,7 @@ func (p *Provider) sendWhatsApp(ctx context.Context, message *types.Message) err
 }
 
 // sendWhatsAppToRecipient sends WhatsApp message to a single recipient
-func (p *Provider) sendWhatsAppToRecipient(to string, message *types.Message) error {
+func (p *Provider) sendWhatsAppToRecipient(ctx context.Context, to string, message *types.Message) error {
 	apiURL := fmt.Sprintf("%s/Accounts/%s/Messages.json", p.baseURL, p.accountSID)
 
 	// Ensure phone numbers have WhatsApp prefix
@@ -224,7 +224,7 @@ func (p *Provider) sendWhatsAppToRecipient(to string, message *types.Message) er
 	data.Set("To", toWhatsApp)
 	data.Set("Body", message.Body)
 
-	return p.sendTwilioRequest(apiURL, data)
+	return p.sendTwilioRequest(ctx, apiURL, data)
 }
 
 // sendEmail sends an email via Twilio SendGrid API
@@ -288,7 +288,7 @@ func (p *Provider) sendEmail(ctx context.Context, message *types.Message) error 
 
 	// Send via SendGrid API
 	apiURL := "https://api.sendgrid.com/v3/mail/send"
-	req, err := http.NewRequest("POST", apiURL, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -311,9 +311,9 @@ func (p *Provider) sendEmail(ctx context.Context, message *types.Message) error 
 }
 
 // sendTwilioRequest sends a request to Twilio API
-func (p *Provider) sendTwilioRequest(apiURL string, data url.Values) error {
+func (p *Provider) sendTwilioRequest(ctx context.Context, apiURL string, data url.Values) error {
 	// Add custom metadata as status callback parameters
-	req, err := http.NewRequest("POST", apiURL, strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
