@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,8 +14,8 @@ import (
 	"github.com/yaoapp/yao/messenger/types"
 )
 
-// SMTPProvider implements the Provider interface for SMTP email sending
-type SMTPProvider struct {
+// Provider implements the Provider interface for SMTP email sending
+type Provider struct {
 	config   types.ProviderConfig
 	host     string
 	port     int
@@ -26,8 +27,8 @@ type SMTPProvider struct {
 }
 
 // NewSMTPProvider creates a new SMTP provider
-func NewSMTPProvider(config types.ProviderConfig) (*SMTPProvider, error) {
-	provider := &SMTPProvider{
+func NewSMTPProvider(config types.ProviderConfig) (*Provider, error) {
+	provider := &Provider{
 		config: config,
 		useTLS: true, // Default to TLS
 	}
@@ -95,7 +96,7 @@ func NewSMTPProvider(config types.ProviderConfig) (*SMTPProvider, error) {
 }
 
 // Send sends a message using SMTP
-func (p *SMTPProvider) Send(ctx context.Context, message *types.Message) error {
+func (p *Provider) Send(ctx context.Context, message *types.Message) error {
 	if message.Type != types.MessageTypeEmail {
 		return fmt.Errorf("SMTP provider only supports email messages")
 	}
@@ -111,7 +112,7 @@ func (p *SMTPProvider) Send(ctx context.Context, message *types.Message) error {
 }
 
 // SendBatch sends multiple messages in batch
-func (p *SMTPProvider) SendBatch(ctx context.Context, messages []*types.Message) error {
+func (p *Provider) SendBatch(ctx context.Context, messages []*types.Message) error {
 	for _, message := range messages {
 		if err := p.Send(ctx, message); err != nil {
 			return fmt.Errorf("failed to send message to %v: %w", message.To, err)
@@ -121,17 +122,17 @@ func (p *SMTPProvider) SendBatch(ctx context.Context, messages []*types.Message)
 }
 
 // GetType returns the provider type
-func (p *SMTPProvider) GetType() string {
+func (p *Provider) GetType() string {
 	return "smtp"
 }
 
 // GetName returns the provider name
-func (p *SMTPProvider) GetName() string {
+func (p *Provider) GetName() string {
 	return p.config.Name
 }
 
 // Validate validates the provider configuration
-func (p *SMTPProvider) Validate() error {
+func (p *Provider) Validate() error {
 	if p.host == "" {
 		return fmt.Errorf("host is required")
 	}
@@ -151,12 +152,12 @@ func (p *SMTPProvider) Validate() error {
 }
 
 // Close closes the provider connection (no-op for SMTP)
-func (p *SMTPProvider) Close() error {
+func (p *Provider) Close() error {
 	return nil
 }
 
 // buildMessage builds the email message content
-func (p *SMTPProvider) buildMessage(message *types.Message) (string, error) {
+func (p *Provider) buildMessage(message *types.Message) (string, error) {
 	var content strings.Builder
 
 	// From header
@@ -211,8 +212,21 @@ func (p *SMTPProvider) buildMessage(message *types.Message) (string, error) {
 	return content.String(), nil
 }
 
+// extractEmailAddress extracts the email address from a string that may contain display name
+// e.g., "John Doe <john@example.com>" -> "john@example.com"
+func extractEmailAddress(address string) string {
+	// Regular expression to match email addresses in angle brackets
+	re := regexp.MustCompile(`<([^>]+)>`)
+	matches := re.FindStringSubmatch(address)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	// If no angle brackets, assume the whole string is the email address
+	return strings.TrimSpace(address)
+}
+
 // sendEmail sends the email using SMTP
-func (p *SMTPProvider) sendEmail(ctx context.Context, to []string, content string) error {
+func (p *Provider) sendEmail(ctx context.Context, to []string, content string) error {
 	addr := fmt.Sprintf("%s:%d", p.host, p.port)
 
 	// Create auth
@@ -222,14 +236,13 @@ func (p *SMTPProvider) sendEmail(ctx context.Context, to []string, content strin
 	if p.useSSL {
 		// Use SSL/TLS connection
 		return p.sendWithTLS(ctx, addr, auth, to, content)
-	} else {
-		// Use standard SMTP with STARTTLS and context support
-		return p.sendWithContext(ctx, addr, auth, to, content)
 	}
+	// Use standard SMTP with STARTTLS and context support
+	return p.sendWithContext(ctx, addr, auth, to, content)
 }
 
 // sendWithContext sends email using standard SMTP with context support
-func (p *SMTPProvider) sendWithContext(ctx context.Context, addr string, auth smtp.Auth, to []string, content string) error {
+func (p *Provider) sendWithContext(ctx context.Context, addr string, auth smtp.Auth, to []string, content string) error {
 	// Create a dialer with timeout from context
 	d := &net.Dialer{
 		Timeout: 30 * time.Second,
@@ -264,8 +277,9 @@ func (p *SMTPProvider) sendWithContext(ctx context.Context, addr string, auth sm
 		return fmt.Errorf("SMTP authentication failed: %w", err)
 	}
 
-	// Set sender
-	if err = client.Mail(p.from); err != nil {
+	// Set sender (extract pure email address from potentially formatted from address)
+	fromEmail := extractEmailAddress(p.from)
+	if err = client.Mail(fromEmail); err != nil {
 		return fmt.Errorf("failed to set sender: %w", err)
 	}
 
@@ -291,18 +305,30 @@ func (p *SMTPProvider) sendWithContext(ctx context.Context, addr string, auth sm
 }
 
 // sendWithTLS sends email with explicit TLS connection
-func (p *SMTPProvider) sendWithTLS(ctx context.Context, addr string, auth smtp.Auth, to []string, content string) error {
-	// Create TLS connection
+func (p *Provider) sendWithTLS(ctx context.Context, addr string, auth smtp.Auth, to []string, content string) error {
+	// Create TLS connection with context support
 	tlsConfig := &tls.Config{
 		ServerName:         p.host,
 		InsecureSkipVerify: false,
 	}
 
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
+	// Use dialer with context for TLS connection
+	d := &net.Dialer{
+		Timeout: 30 * time.Second,
+	}
+
+	conn, err := tls.DialWithDialer(d, "tcp", addr, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create TLS connection: %w", err)
 	}
 	defer conn.Close()
+
+	// Check if context is cancelled
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("connection cancelled: %w", ctx.Err())
+	default:
+	}
 
 	// Create SMTP client
 	client, err := smtp.NewClient(conn, p.host)
@@ -318,8 +344,9 @@ func (p *SMTPProvider) sendWithTLS(ctx context.Context, addr string, auth smtp.A
 		}
 	}
 
-	// Set sender
-	if err := client.Mail(p.from); err != nil {
+	// Set sender (extract pure email address from potentially formatted from address)
+	fromEmail := extractEmailAddress(p.from)
+	if err := client.Mail(fromEmail); err != nil {
 		return fmt.Errorf("failed to set sender: %w", err)
 	}
 

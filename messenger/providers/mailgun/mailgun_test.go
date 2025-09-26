@@ -436,7 +436,8 @@ func TestSend_WithScheduledTime(t *testing.T) {
 		// Verify scheduled time is set
 		deliveryTime := r.FormValue("o:deliverytime")
 		assert.NotEmpty(t, deliveryTime)
-		assert.Contains(t, deliveryTime, "GMT") // RFC1123Z format includes GMT
+		// RFC1123Z format includes timezone offset (e.g., "+0000", "+0800")
+		assert.Regexp(t, `[+-]\d{4}`, deliveryTime)
 
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{"message": "Queued"})
