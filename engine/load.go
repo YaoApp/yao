@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/messenger"
 	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/neo"
@@ -172,6 +173,13 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 	if err != nil {
 		// printErr(cfg.Mode, "Uploader", err)
 		warnings = append(warnings, Warning{Widget: "Uploader", Error: err})
+	}
+
+	// Load Messengers
+	err = messenger.Load(cfg)
+	if err != nil {
+		// printErr(cfg.Mode, "Messenger", err)
+		warnings = append(warnings, Warning{Widget: "Messenger", Error: err})
 	}
 
 	// Load Plugins
@@ -434,6 +442,12 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = attachment.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Uploader", err)
+	}
+
+	// Load Messengers
+	err = messenger.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "Messenger", err)
 	}
 
 	// Load Plugins

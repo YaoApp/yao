@@ -2,6 +2,7 @@ package twilio
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -94,23 +95,23 @@ func NewTwilioProvider(config types.ProviderConfig) (*Provider, error) {
 }
 
 // Send sends a message using appropriate Twilio service based on message type
-func (p *Provider) Send(message *types.Message) error {
+func (p *Provider) Send(ctx context.Context, message *types.Message) error {
 	switch message.Type {
 	case types.MessageTypeSMS:
-		return p.sendSMS(message)
+		return p.sendSMS(ctx, message)
 	case types.MessageTypeWhatsApp:
-		return p.sendWhatsApp(message)
+		return p.sendWhatsApp(ctx, message)
 	case types.MessageTypeEmail:
-		return p.sendEmail(message)
+		return p.sendEmail(ctx, message)
 	default:
 		return fmt.Errorf("unsupported message type: %s", message.Type)
 	}
 }
 
 // SendBatch sends multiple messages in batch
-func (p *Provider) SendBatch(messages []*types.Message) error {
+func (p *Provider) SendBatch(ctx context.Context, messages []*types.Message) error {
 	for _, message := range messages {
-		if err := p.Send(message); err != nil {
+		if err := p.Send(ctx, message); err != nil {
 			return fmt.Errorf("failed to send message to %v: %w", message.To, err)
 		}
 	}
@@ -155,7 +156,7 @@ func (p *Provider) Close() error {
 }
 
 // sendSMS sends an SMS message via Twilio
-func (p *Provider) sendSMS(message *types.Message) error {
+func (p *Provider) sendSMS(ctx context.Context, message *types.Message) error {
 	if p.fromPhone == "" && p.messagingServiceSID == "" {
 		return fmt.Errorf("either from_phone or messaging_service_sid is required for SMS")
 	}
@@ -188,7 +189,7 @@ func (p *Provider) sendSMSToRecipient(to string, message *types.Message) error {
 }
 
 // sendWhatsApp sends a WhatsApp message via Twilio
-func (p *Provider) sendWhatsApp(message *types.Message) error {
+func (p *Provider) sendWhatsApp(ctx context.Context, message *types.Message) error {
 	if p.fromPhone == "" {
 		return fmt.Errorf("from_phone is required for WhatsApp messages")
 	}
@@ -227,7 +228,7 @@ func (p *Provider) sendWhatsAppToRecipient(to string, message *types.Message) er
 }
 
 // sendEmail sends an email via Twilio SendGrid API
-func (p *Provider) sendEmail(message *types.Message) error {
+func (p *Provider) sendEmail(ctx context.Context, message *types.Message) error {
 	if p.sendGridAPIKey == "" {
 		return fmt.Errorf("sendgrid_api_key is required for email messages")
 	}

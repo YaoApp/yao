@@ -1,11 +1,14 @@
 package smtp
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/smtp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/yao/messenger/types"
 )
@@ -92,7 +95,7 @@ func NewSMTPProvider(config types.ProviderConfig) (*SMTPProvider, error) {
 }
 
 // Send sends a message using SMTP
-func (p *SMTPProvider) Send(message *types.Message) error {
+func (p *SMTPProvider) Send(ctx context.Context, message *types.Message) error {
 	if message.Type != types.MessageTypeEmail {
 		return fmt.Errorf("SMTP provider only supports email messages")
 	}
@@ -104,13 +107,13 @@ func (p *SMTPProvider) Send(message *types.Message) error {
 	}
 
 	// Send the email
-	return p.sendEmail(message.To, content)
+	return p.sendEmail(ctx, message.To, content)
 }
 
 // SendBatch sends multiple messages in batch
-func (p *SMTPProvider) SendBatch(messages []*types.Message) error {
+func (p *SMTPProvider) SendBatch(ctx context.Context, messages []*types.Message) error {
 	for _, message := range messages {
-		if err := p.Send(message); err != nil {
+		if err := p.Send(ctx, message); err != nil {
 			return fmt.Errorf("failed to send message to %v: %w", message.To, err)
 		}
 	}
@@ -209,24 +212,86 @@ func (p *SMTPProvider) buildMessage(message *types.Message) (string, error) {
 }
 
 // sendEmail sends the email using SMTP
-func (p *SMTPProvider) sendEmail(to []string, content string) error {
+func (p *SMTPProvider) sendEmail(ctx context.Context, to []string, content string) error {
 	addr := fmt.Sprintf("%s:%d", p.host, p.port)
 
 	// Create auth
 	auth := smtp.PlainAuth("", p.username, p.password, p.host)
 
-	// Send email
+	// Send email with context support
 	if p.useSSL {
 		// Use SSL/TLS connection
-		return p.sendWithTLS(addr, auth, to, content)
+		return p.sendWithTLS(ctx, addr, auth, to, content)
 	} else {
-		// Use standard SMTP with STARTTLS
-		return smtp.SendMail(addr, auth, p.from, to, []byte(content))
+		// Use standard SMTP with STARTTLS and context support
+		return p.sendWithContext(ctx, addr, auth, to, content)
 	}
 }
 
+// sendWithContext sends email using standard SMTP with context support
+func (p *SMTPProvider) sendWithContext(ctx context.Context, addr string, auth smtp.Auth, to []string, content string) error {
+	// Create a dialer with timeout from context
+	d := &net.Dialer{
+		Timeout: 30 * time.Second,
+	}
+
+	// Connect with context
+	conn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to SMTP server: %w", err)
+	}
+	defer conn.Close()
+
+	// Create SMTP client
+	client, err := smtp.NewClient(conn, p.host)
+	if err != nil {
+		return fmt.Errorf("failed to create SMTP client: %w", err)
+	}
+	defer client.Quit()
+
+	// Start TLS if supported
+	if p.useTLS {
+		tlsConfig := &tls.Config{
+			ServerName: p.host,
+		}
+		if err = client.StartTLS(tlsConfig); err != nil {
+			return fmt.Errorf("failed to start TLS: %w", err)
+		}
+	}
+
+	// Authenticate
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("SMTP authentication failed: %w", err)
+	}
+
+	// Set sender
+	if err = client.Mail(p.from); err != nil {
+		return fmt.Errorf("failed to set sender: %w", err)
+	}
+
+	// Set recipients
+	for _, recipient := range to {
+		if err = client.Rcpt(recipient); err != nil {
+			return fmt.Errorf("failed to set recipient %s: %w", recipient, err)
+		}
+	}
+
+	// Send data
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("failed to get data writer: %w", err)
+	}
+
+	_, err = w.Write([]byte(content))
+	if err != nil {
+		return fmt.Errorf("failed to write message content: %w", err)
+	}
+
+	return w.Close()
+}
+
 // sendWithTLS sends email with explicit TLS connection
-func (p *SMTPProvider) sendWithTLS(addr string, auth smtp.Auth, to []string, content string) error {
+func (p *SMTPProvider) sendWithTLS(ctx context.Context, addr string, auth smtp.Auth, to []string, content string) error {
 	// Create TLS connection
 	tlsConfig := &tls.Config{
 		ServerName:         p.host,
