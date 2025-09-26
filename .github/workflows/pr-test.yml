@@ -103,6 +103,36 @@ env:
   CLOUDFLARE_TURNSTILE_SITEKEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITEKEY }}
   CLOUDFLARE_TURNSTILE_SECRET: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET }}
 
+  # === Messaging Services ===
+  ## Mailgun
+  MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+  MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+  MAILGUN_FROM: "Yaobots Tests <unit-test@mailgun.yaobots.com>"
+
+  ## SMTP Server（ Mailgun ）
+  SMTP_HOST: "smtp.mailgun.org"
+  SMTP_PORT: "465"
+  SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+  SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+  SMTP_FROM: "Yaobots SMTP Tests <unit-test@mailgun.yaobots.com>"
+
+  ## SMTP Server（ Gmail ）
+  RELIABLE_SMTP_HOST: "smtp.gmail.com"
+  RELIABLE_SMTP_PORT: "465"
+  RELIABLE_SMTP_USERNAME: ${{ secrets.RELIABLE_SMTP_USERNAME }}
+  RELIABLE_SMTP_PASSWORD: ${{ secrets.RELIABLE_SMTP_PASSWORD }}
+  RELIABLE_SMTP_FROM: "Yaobots Gmail Tests <shadow.iqka@gmail.com>"
+
+  ## Twilio
+  TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+  TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+  TWILIO_API_SID: ${{ secrets.TWILIO_API_SID }}
+  TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
+  TWILIO_SENDGRID_API_SID: ${{ secrets.TWILIO_SENDGRID_API_SID }}
+  TWILIO_SENDGRID_API_KEY: ${{ secrets.TWILIO_SENDGRID_API_KEY }}
+  TWILIO_FROM_PHONE: "+17035701412"
+  TWILIO_FROM_EMAIL: "unit-test@sendgrid.yaobots.com"
+
 jobs:
   UnitTest:
     runs-on: ubuntu-latest
