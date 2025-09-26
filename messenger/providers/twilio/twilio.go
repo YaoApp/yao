@@ -18,6 +18,8 @@ type Provider struct {
 	config              types.ProviderConfig
 	accountSID          string
 	authToken           string
+	apiSID              string
+	apiKey              string
 	fromPhone           string
 	fromEmail           string
 	fromName            string
@@ -52,8 +54,15 @@ func NewTwilioProvider(config types.ProviderConfig) (*Provider, error) {
 
 	if authToken, ok := options["auth_token"].(string); ok {
 		provider.authToken = authToken
-	} else {
-		return nil, fmt.Errorf("Twilio provider requires 'auth_token' option")
+	}
+
+	// Optional API Key authentication (preferred over auth_token)
+	if apiSID, ok := options["api_sid"].(string); ok {
+		provider.apiSID = apiSID
+	}
+
+	if apiKey, ok := options["api_key"].(string); ok {
+		provider.apiKey = apiKey
 	}
 
 	// Optional options for different services
@@ -123,9 +132,20 @@ func (p *Provider) Validate() error {
 	if p.accountSID == "" {
 		return fmt.Errorf("account_sid is required")
 	}
-	if p.authToken == "" {
-		return fmt.Errorf("auth_token is required")
+
+	// Either auth_token or both api_sid and api_key must be provided
+	hasAuthToken := p.authToken != ""
+	hasAPIKeys := p.apiSID != "" && p.apiKey != ""
+
+	if !hasAuthToken && !hasAPIKeys {
+		return fmt.Errorf("either 'auth_token' or both 'api_sid' and 'api_key' are required")
 	}
+
+	// If API keys are partially configured, require both
+	if (p.apiSID != "" && p.apiKey == "") || (p.apiSID == "" && p.apiKey != "") {
+		return fmt.Errorf("both 'api_sid' and 'api_key' must be provided together")
+	}
+
 	return nil
 }
 
@@ -297,7 +317,12 @@ func (p *Provider) sendTwilioRequest(apiURL string, data url.Values) error {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
-	req.SetBasicAuth(p.accountSID, p.authToken)
+	// Use API Key authentication if available, otherwise fall back to Auth Token
+	if p.apiSID != "" && p.apiKey != "" {
+		req.SetBasicAuth(p.apiSID, p.apiKey)
+	} else {
+		req.SetBasicAuth(p.accountSID, p.authToken)
+	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Send request
