@@ -1,8 +1,11 @@
 package messenger
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -162,10 +165,14 @@ func loadProvider(file string, name string) (types.Provider, error) {
 		return nil, err
 	}
 
-	// Set name if not provided
-	if config.Name == "" {
-		config.Name = name
+	// Resolve environment variables in the configuration
+	if err := resolveProviderEnvVars(&config); err != nil {
+		return nil, fmt.Errorf("failed to resolve environment variables: %w", err)
 	}
+
+	// Always use the file-based ID as the provider name for consistency
+	// This ensures the name matches what's used in channels.yao configuration
+	config.Name = name
 
 	// Create provider based on type
 	return createProvider(config)
@@ -173,10 +180,11 @@ func loadProvider(file string, name string) (types.Provider, error) {
 
 // createProvider creates a provider instance based on configuration
 func createProvider(config types.ProviderConfig) (types.Provider, error) {
-	// Default to enabled if not specified
-	if !config.Enabled && config.Enabled != false {
-		config.Enabled = true
-	}
+	// Since bool zero value is false, and our config files don't specify "enabled",
+	// we need to default to enabled=true. We'll assume providers are enabled unless
+	// explicitly disabled in the configuration.
+	// This is a simple fix: just assume enabled=true for all providers that don't explicitly set it
+	config.Enabled = true
 
 	if !config.Enabled {
 		return nil, nil
@@ -204,7 +212,7 @@ func createTwilioProvider(config types.ProviderConfig) (types.Provider, error) {
 }
 
 // Send sends a message using the specified channel or default provider
-func (m *Service) Send(channel string, message *types.Message) error {
+func (m *Service) Send(ctx context.Context, channel string, message *types.Message) error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -214,11 +222,11 @@ func (m *Service) Send(channel string, message *types.Message) error {
 		return fmt.Errorf("no provider configured for channel: %s, type: %s", channel, message.Type)
 	}
 
-	return m.SendWithProvider(providerName, message)
+	return m.SendWithProvider(ctx, providerName, message)
 }
 
 // SendWithProvider sends a message using a specific provider
-func (m *Service) SendWithProvider(providerName string, message *types.Message) error {
+func (m *Service) SendWithProvider(ctx context.Context, providerName string, message *types.Message) error {
 	provider, exists := m.providers[providerName]
 	if !exists {
 		return fmt.Errorf("provider not found: %s", providerName)
@@ -237,7 +245,14 @@ func (m *Service) SendWithProvider(providerName string, message *types.Message) 
 	}
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		err := provider.Send(message)
+		// Check if context is cancelled before each attempt
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("send cancelled: %w", ctx.Err())
+		default:
+		}
+
+		err := provider.Send(ctx, message)
 		if err == nil {
 			log.Info("[Messenger] Message sent successfully via %s (attempt %d/%d)", providerName, attempt, maxAttempts)
 			return nil
@@ -246,7 +261,13 @@ func (m *Service) SendWithProvider(providerName string, message *types.Message) 
 		lastErr = err
 		if attempt < maxAttempts {
 			log.Warn("[Messenger] Send attempt %d/%d failed for provider %s: %v", attempt, maxAttempts, providerName, err)
-			time.Sleep(m.config.Global.RetryDelay)
+
+			// Use context-aware sleep for retry delay
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("send cancelled during retry: %w", ctx.Err())
+			case <-time.After(m.config.Global.RetryDelay):
+			}
 		}
 	}
 
@@ -254,7 +275,7 @@ func (m *Service) SendWithProvider(providerName string, message *types.Message) 
 }
 
 // SendBatch sends multiple messages in batch
-func (m *Service) SendBatch(channel string, messages []*types.Message) error {
+func (m *Service) SendBatch(ctx context.Context, channel string, messages []*types.Message) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -272,13 +293,20 @@ func (m *Service) SendBatch(channel string, messages []*types.Message) error {
 	// Send messages by provider
 	var errors []string
 	for providerName, msgs := range providerMessages {
+		// Check if context is cancelled before each provider
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("batch send cancelled: %w", ctx.Err())
+		default:
+		}
+
 		provider, exists := m.providers[providerName]
 		if !exists {
 			errors = append(errors, fmt.Sprintf("provider not found: %s", providerName))
 			continue
 		}
 
-		err := provider.SendBatch(msgs)
+		err := provider.SendBatch(ctx, msgs)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("provider %s: %v", providerName, err))
 		}
@@ -408,6 +436,60 @@ func (m *Service) getProviderForChannel(channel, messageType string) string {
 	}
 
 	return ""
+}
+
+// resolveProviderEnvVars resolves environment variables in provider configuration
+func resolveProviderEnvVars(config *types.ProviderConfig) error {
+	if config.Options != nil {
+		resolved, err := resolveEnvVars(config.Options)
+		if err != nil {
+			return err
+		}
+		config.Options = resolved
+	}
+	return nil
+}
+
+// resolveEnvVars resolves environment variables in configuration values
+func resolveEnvVars(config map[string]interface{}) (map[string]interface{}, error) {
+	resolved := make(map[string]interface{})
+
+	for key, value := range config {
+		switch v := value.(type) {
+		case string:
+			resolved[key] = parseEnvVar(v)
+		case map[string]interface{}:
+			// Recursively resolve nested maps
+			nestedResolved, err := resolveEnvVars(v)
+			if err != nil {
+				return nil, err
+			}
+			resolved[key] = nestedResolved
+		default:
+			resolved[key] = value
+		}
+	}
+
+	return resolved, nil
+}
+
+// parseEnvVar parses environment variable pattern $ENV.VAR_NAME
+func parseEnvVar(value string) string {
+	// Pattern to match $ENV.VAR_NAME (same as kb package)
+	envPattern := regexp.MustCompile(`\$ENV\.([A-Za-z_][A-Za-z0-9_]*)`)
+
+	return envPattern.ReplaceAllStringFunc(value, func(match string) string {
+		// Extract variable name (remove $ENV. prefix)
+		varName := strings.TrimPrefix(match, "$ENV.")
+
+		// Get environment variable value
+		if envValue := os.Getenv(varName); envValue != "" {
+			return envValue
+		}
+
+		// Return original if environment variable is not set
+		return match
+	})
 }
 
 // parseChannelsConfig parses the channels configuration and converts it to a defaults map

@@ -1,3 +1,161 @@
+// Package test provides comprehensive testing utilities for the Yao application framework.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// All tests in the Yao ecosystem MUST use these utility functions for proper test environment setup.
+// These are preparation and cleanup utility functions, NOT actual test cases.
+//
+// TESTING GUIDELINES FOR AI ASSISTANTS:
+// 1. DO NOT modify configuration files (app.yao, models/*.mod.yao, etc.) to make tests pass
+// 2. DO NOT bypass validation or security checks to make tests pass
+// 3. If tests fail, investigate the root cause - it may be a real program bug that needs fixing
+// 4. Tests should verify actual functionality, not just pass assertions
+// 5. Use realistic test data that represents real-world usage scenarios
+// 6. When tests fail, check: environment setup, missing dependencies, configuration issues, actual code bugs
+// 7. Fix the underlying issue in the code, not the test or configuration
+// 8. ALWAYS use test.Prepare() and test.Clean() for consistent test environment
+//
+// STANDARD USAGE PATTERN FOR ALL YAO TESTS:
+//
+//	func TestYourFunction(t *testing.T) {
+//	    // Step 1: Prepare test environment
+//	    test.Prepare(t, config.Conf)
+//	    defer test.Clean()
+//
+//	    // Step 2: Your actual test code here...
+//	    // The test environment will have:
+//	    // - Database connections established
+//	    // - All models migrated and ready
+//	    // - Scripts, connectors, stores loaded
+//	    // - Messenger providers configured
+//	    // - File systems mounted
+//	    // - V8 runtime started
+//	}
+//
+// ADVANCED USAGE WITH HTTP SERVER:
+//
+//	func TestAPIEndpoint(t *testing.T) {
+//	    test.Prepare(t, config.Conf)
+//	    defer test.Stop() // Use Stop() instead of Clean() for server tests
+//
+//	    // Start HTTP server for API testing
+//	    test.Start(t, map[string]gin.HandlerFunc{
+//	        "bearer-jwt": test.GuardBearerJWT,
+//	    }, config.Conf)
+//
+//	    port := test.Port(t)
+//	    // Make HTTP requests to http://localhost:{port}/api/...
+//	}
+//
+// PREREQUISITES:
+// Before running any tests, you MUST execute in your terminal:
+//
+//	source $YAO_SOURCE_ROOT/env.local.sh
+//
+// This loads required environment variables including:
+// - YAO_TEST_APPLICATION: Path to test application directory
+// - Database connection parameters
+// - Other configuration needed for testing
+//
+// WHAT test.Prepare() DOES:
+// 1. Loads application from YAO_TEST_APPLICATION directory
+// 2. Parses app.yao/app.json configuration with environment variable substitution
+// 3. Establishes database connections (SQLite3 or MySQL based on config)
+// 4. Loads and migrates all system models (users, roles, attachments, etc.)
+// 5. Loads file systems, stores, connectors, scripts
+// 6. Loads messenger providers and validates configurations
+// 7. Starts V8 JavaScript runtime
+// 8. Registers query engines for database operations
+// 9. Creates temporary data directories for test isolation
+//
+// WHAT test.Clean() DOES:
+// 1. Stops V8 runtime and releases resources
+// 2. Closes all database connections
+// 3. Removes temporary test data stores
+// 4. Resets global state to prevent test interference
+//
+// WHAT test.Start() DOES:
+// 1. Creates Gin HTTP server with API routes
+// 2. Applies authentication guards (optional)
+// 3. Starts server on random available port
+// 4. Returns immediately, server runs in background
+//
+// WHAT test.Stop() DOES:
+// 1. Gracefully shuts down HTTP server
+// 2. Performs same cleanup as test.Clean()
+//
+// TESTING DIFFERENT MODULES:
+//
+// For Model Testing:
+//
+//	func TestUserModel(t *testing.T) {
+//	    test.Prepare(t, config.Conf)
+//	    defer test.Clean()
+//
+//	    // Models are auto-migrated and ready to use
+//	    user := model.New("user")
+//	    id, err := user.Create(map[string]interface{}{
+//	        "name": "Test User",
+//	        "email": "test@example.com",
+//	    })
+//	    // ... test model operations
+//	}
+//
+// For Script Testing:
+//
+//	func TestJavaScript(t *testing.T) {
+//	    test.Prepare(t, config.Conf)
+//	    defer test.Clean()
+//
+//	    // Scripts are loaded and V8 runtime is ready
+//	    result, err := process.New("scripts.myfunction").Exec()
+//	    // ... test script execution
+//	}
+//
+// For Connector Testing:
+//
+//	func TestDatabaseConnector(t *testing.T) {
+//	    test.Prepare(t, config.Conf)
+//	    defer test.Clean()
+//
+//	    // Connectors are loaded and ready
+//	    conn := connector.Select("mysql")
+//	    // ... test connector operations
+//	}
+//
+// For Messenger Testing:
+//
+//	func TestEmailSending(t *testing.T) {
+//	    test.Prepare(t, config.Conf)
+//	    defer test.Clean()
+//
+//	    // Messenger providers are loaded and validated
+//	    // Test messenger functionality here
+//	    // Note: Actual messenger service creation is handled by the messenger package
+//	}
+//
+// ERROR HANDLING:
+// If any step in test.Prepare() fails, the test will fail immediately with a descriptive error.
+// This ensures tests only run in a properly configured environment.
+//
+// TEST ISOLATION:
+// Each test gets:
+// - Fresh database connections
+// - Isolated temporary directories
+// - Clean global state
+// - Independent data stores
+//
+// PERFORMANCE CONSIDERATIONS:
+// - test.Prepare() is relatively expensive (database setup, migrations, etc.)
+// - Consider using subtests or table-driven tests to amortize setup costs
+// - For integration tests, prefer fewer, more comprehensive tests over many small ones
+//
+// DEBUGGING FAILED TESTS:
+// 1. Check environment variables are set correctly
+// 2. Verify test application directory exists and is readable
+// 3. Check database connectivity and permissions
+// 4. Look for configuration file syntax errors
+// 5. Examine log output for detailed error messages
+// 6. Ensure all required dependencies are available
 package test
 
 import (
@@ -361,6 +519,7 @@ func load(t *testing.T, cfg config.Config) {
 	loadScript(t, cfg)
 	loadModel(t, cfg)
 	loadConnector(t, cfg)
+	loadMessenger(t, cfg)
 	loadQuery(t, cfg)
 }
 
@@ -436,6 +595,98 @@ func loadStore(t *testing.T, cfg config.Config) {
 		_, err := store.Load(file, share.ID(root, file))
 		return err
 	}, exts...)
+}
+
+// loadMessenger validates messenger configurations for testing without creating circular imports.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// This function is called automatically by test.Prepare() and should NOT be called directly.
+// It validates messenger provider configurations to ensure they are syntactically correct.
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Checks if messengers/ directory exists (optional, skips if not found)
+// 2. Validates messengers/providers/ directory and all provider files
+// 3. Parses each provider configuration file to ensure valid JSON/YAML syntax
+// 4. Does NOT create actual messenger service instances (avoids circular imports)
+// 5. Allows messenger package tests to use test.Prepare() safely
+//
+// CIRCULAR IMPORT PREVENTION:
+// This function intentionally does NOT import the messenger package or create messenger instances.
+// Instead, it only validates that configuration files are parseable.
+// The actual messenger service creation is handled by the messenger package itself.
+//
+// SUPPORTED PROVIDER FILE FORMATS:
+// - *.yao (YAML with .yao extension)
+// - *.json (Standard JSON)
+// - *.jsonc (JSON with comments)
+//
+// VALIDATION PERFORMED:
+// - File readability and accessibility
+// - JSON/YAML syntax validation
+// - Basic structure verification
+// - Environment variable substitution compatibility
+//
+// ERROR HANDLING:
+// If any provider file cannot be read or parsed, the test fails immediately.
+// This ensures messenger configurations are valid before tests run.
+func loadMessenger(t *testing.T, cfg config.Config) {
+	// Check if messengers directory exists
+	exists, err := application.App.Exists("messengers")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !exists {
+		// Skip loading messenger if directory doesn't exist
+		// This is normal for applications that don't use messaging features
+		return
+	}
+
+	// For testing purposes, we just need to ensure the messenger directory
+	// and provider files exist and can be parsed. We don't need to create
+	// the full messenger service instance since that would require importing
+	// the messenger package (which would cause circular imports).
+
+	// Load provider configurations for validation
+	providersPath := "messengers/providers"
+	providerExists, err := application.App.Exists(providersPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !providerExists {
+		// No providers directory is acceptable - messenger might not be configured
+		return
+	}
+
+	// Walk through provider files to validate they can be parsed
+	exts := []string{"*.yao", "*.json", "*.jsonc"}
+	err = application.App.Walk(providersPath, func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		raw, err := application.App.Read(file)
+		if err != nil {
+			return fmt.Errorf("failed to read messenger provider %s: %w", file, err)
+		}
+
+		// Try to parse the provider config to ensure it's valid
+		var config map[string]interface{}
+		err = application.Parse(file, raw, &config)
+		if err != nil {
+			return fmt.Errorf("failed to parse messenger provider %s: %w", file, err)
+		}
+
+		// Basic validation - ensure required fields are present
+		if config["connector"] == nil {
+			return fmt.Errorf("messenger provider %s missing required 'connector' field", file)
+		}
+
+		return nil
+	}, exts...)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func loadQuery(t *testing.T, cfg config.Config) {
