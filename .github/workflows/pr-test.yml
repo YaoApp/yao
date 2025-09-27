@@ -132,6 +132,7 @@ env:
   TWILIO_SENDGRID_API_KEY: ${{ secrets.TWILIO_SENDGRID_API_KEY }}
   TWILIO_FROM_PHONE: "+17035701412"
   TWILIO_FROM_EMAIL: "unit-test@sendgrid.yaobots.com"
+  TWILIO_TEST_PHONE: ${{ secrets.TWILIO_TEST_PHONE }}
 
 jobs:
   UnitTest:

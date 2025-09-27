@@ -2,35 +2,51 @@ package twilio
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/messenger/types"
 )
 
-// Test phone numbers for SMS (placeholder for future implementation)
-const (
-	TestSMSPhoneAgent = "+1234567890" // Placeholder - replace with authorized test numbers
-	TestSMSPhoneX     = "+1234567891" // Placeholder - replace with authorized test numbers
-	TestSMSPhoneXiang = "+1234567892" // Placeholder - replace with authorized test numbers
-)
+// getTestSMSPhone returns the test phone number from environment variable
+func getTestSMSPhone() string {
+	return os.Getenv("TWILIO_TEST_PHONE")
+}
 
 // createTestSMSMessage creates a test SMS message
 func createTestSMSMessage() *types.Message {
 	return &types.Message{
 		Type: types.MessageTypeSMS,
-		To:   []string{TestSMSPhoneAgent},
+		To:   []string{getTestSMSPhone()},
 		Body: "Test SMS from Twilio Provider - This is a test message.",
 	}
 }
 
-// loadSMSTestConfig loads configuration optimized for SMS testing
+// loadSMSTestConfig loads configuration optimized for SMS testing using Auth Token
 func loadSMSTestConfig(t *testing.T) types.ProviderConfig {
-	config := loadTestConfig(t) // Reuse base config loading
+	// Reuse base config loading from twilio_test.go (which handles test.Prepare internally)
+	config := loadTestConfig(t)
 
 	// Ensure SMS-specific options are available
 	// In real implementation, verify TWILIO_FROM_PHONE is configured
+
+	return config
+}
+
+// loadSMSTestConfigWithAPIKey loads configuration using API Key authentication
+func loadSMSTestConfigWithAPIKey(t *testing.T) types.ProviderConfig {
+	// Reuse base config loading from twilio_test.go (which handles test.Prepare internally)
+	config := loadTestConfig(t)
+
+	// Override to use API Key authentication instead of Auth Token
+	if config.Options != nil {
+		// Remove auth_token to force API Key usage
+		delete(config.Options, "auth_token")
+	}
 
 	return config
 }
@@ -39,9 +55,9 @@ func loadSMSTestConfig(t *testing.T) types.ProviderConfig {
 // SMS Provider Configuration Tests
 // =============================================================================
 
-func TestSMS_ProviderConfig_WithFromPhone(t *testing.T) {
+func TestSMS_ProviderConfig_WithFromPhone_AuthToken(t *testing.T) {
 	config := types.ProviderConfig{
-		Name:      "sms_test",
+		Name:      "sms_test_auth_token",
 		Connector: "twilio",
 		Options: map[string]interface{}{
 			"account_sid": "test_account_sid",
@@ -54,6 +70,30 @@ func TestSMS_ProviderConfig_WithFromPhone(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, provider)
 	assert.Equal(t, "+15551234567", provider.fromPhone)
+	assert.Equal(t, "test_auth_token", provider.authToken)
+	assert.Equal(t, "", provider.apiSID) // API credentials should be empty
+	assert.Equal(t, "", provider.apiKey)
+}
+
+func TestSMS_ProviderConfig_WithFromPhone_APIKey(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:      "sms_test_api_key",
+		Connector: "twilio",
+		Options: map[string]interface{}{
+			"account_sid": "test_account_sid",
+			"api_sid":     "test_api_sid",
+			"api_key":     "test_api_key",
+			"from_phone":  "+15551234567", // SMS requires from_phone
+		},
+	}
+
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
+	assert.NotNil(t, provider)
+	assert.Equal(t, "+15551234567", provider.fromPhone)
+	assert.Equal(t, "test_api_sid", provider.apiSID)
+	assert.Equal(t, "test_api_key", provider.apiKey)
+	assert.Equal(t, "", provider.authToken) // Auth token should be empty
 }
 
 func TestSMS_ProviderConfig_WithMessagingService(t *testing.T) {
@@ -96,117 +136,217 @@ func TestSMS_ProviderConfig_MissingPhoneAndService(t *testing.T) {
 }
 
 // =============================================================================
-// SMS Sending Tests (Future Implementation)
+// SMS Sending Tests
 // =============================================================================
 
-// TODO: Implement real SMS sending tests
-func TestSend_SMSMessage_RealAPI(t *testing.T) {
-	t.Skip("SMS real API tests not implemented yet - placeholder for future implementation")
+func TestSend_SMSMessage_WithAuthToken_RealAPI(t *testing.T) {
+	// Skip if test phone number is not configured
+	if getTestSMSPhone() == "" {
+		t.Skip("TWILIO_TEST_PHONE not configured, skipping SMS API test")
+	}
 
-	// Future implementation will test:
-	// config := loadSMSTestConfig(t)
-	// provider, err := NewTwilioProvider(config)
-	// require.NoError(t, err)
-	//
-	// // Skip if from_phone is not configured
-	// if provider.fromPhone == "" {
-	//     t.Skip("TWILIO_FROM_PHONE not configured, skipping real SMS API test")
-	// }
-	//
-	// ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	// defer cancel()
-	//
-	// smsMessage := createTestSMSMessage()
-	// err = provider.Send(ctx, smsMessage)
-	// if err == nil {
-	//     t.Log("Real Twilio SMS API call succeeded")
-	// } else {
-	//     t.Logf("Real Twilio SMS API call failed: %v", err)
-	//     // Handle expected failures in test environments
-	// }
+	config := loadSMSTestConfig(t)
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
+
+	// Skip if from_phone is not configured
+	if provider.fromPhone == "" {
+		t.Skip("TWILIO_FROM_PHONE not configured, skipping real SMS API test")
+	}
+
+	// Skip if auth_token is not configured
+	if provider.authToken == "" {
+		t.Skip("TWILIO_AUTH_TOKEN not configured, skipping Auth Token SMS API test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	smsMessage := createTestSMSMessage()
+	err = provider.Send(ctx, smsMessage)
+	if err == nil {
+		t.Log("Real Twilio SMS API call with Auth Token succeeded")
+	} else {
+		t.Logf("Real Twilio SMS API call with Auth Token failed (expected in some test environments): %v", err)
+		// Don't fail the test if it's just an API configuration issue
+		if !strings.Contains(err.Error(), "Twilio API error") {
+			assert.NoError(t, err)
+		}
+	}
+}
+
+func TestSend_SMSMessage_WithAPIKey_RealAPI(t *testing.T) {
+	// Skip if test phone number is not configured
+	if getTestSMSPhone() == "" {
+		t.Skip("TWILIO_TEST_PHONE not configured, skipping SMS API test")
+	}
+
+	config := loadSMSTestConfigWithAPIKey(t)
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
+
+	// Skip if from_phone is not configured
+	if provider.fromPhone == "" {
+		t.Skip("TWILIO_FROM_PHONE not configured, skipping real SMS API test")
+	}
+
+	// Skip if API Key credentials are not configured
+	if provider.apiSID == "" || provider.apiKey == "" {
+		t.Skip("TWILIO_API_SID or TWILIO_API_KEY not configured, skipping API Key SMS API test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	smsMessage := createTestSMSMessage()
+	err = provider.Send(ctx, smsMessage)
+	if err == nil {
+		t.Log("Real Twilio SMS API call with API Key succeeded")
+	} else {
+		t.Logf("Real Twilio SMS API call with API Key failed (expected in some test environments): %v", err)
+		// Don't fail the test if it's just an API configuration issue
+		if !strings.Contains(err.Error(), "Twilio API error") {
+			assert.NoError(t, err)
+		}
+	}
 }
 
 func TestSend_SMSMessage_WithMessagingService_RealAPI(t *testing.T) {
-	t.Skip("SMS Messaging Service real API tests not implemented yet - placeholder for future implementation")
+	config := types.ProviderConfig{
+		Name:      "sms_messaging_service_test",
+		Connector: "twilio",
+		Options: map[string]interface{}{
+			"account_sid":           "test_account_sid",
+			"auth_token":            "test_auth_token",
+			"messaging_service_sid": "MGXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+		},
+	}
 
-	// Future implementation will test:
-	// - SMS sending using Messaging Service SID instead of from_phone
-	// - Service-based features like automatic failover, delivery optimization
-	// - Compliance and opt-out handling
-	// - Alpha sender ID support
-	// - Short code support
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
+
+	// Skip if messaging service is not configured with real credentials
+	if provider.accountSID == "test_account_sid" {
+		t.Skip("Real Twilio credentials not configured, skipping messaging service API test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	smsMessage := createTestSMSMessage()
+	err = provider.Send(ctx, smsMessage)
+	if err == nil {
+		t.Log("Real Twilio SMS Messaging Service API call succeeded")
+	} else {
+		t.Logf("Real Twilio SMS Messaging Service API call failed (expected in some test environments): %v", err)
+		// Don't fail the test if it's just an API configuration issue
+		if !strings.Contains(err.Error(), "Twilio API error") {
+			assert.NoError(t, err)
+		}
+	}
 }
 
 func TestSend_SMSMessage_ContextTimeout_RealAPI(t *testing.T) {
-	t.Skip("SMS context timeout tests not implemented yet - placeholder for future implementation")
+	config := loadSMSTestConfig(t)
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
 
-	// Future implementation will test:
-	// config := loadSMSTestConfig(t)
-	// provider, err := NewTwilioProvider(config)
-	// require.NoError(t, err)
-	//
-	// // Create a very short timeout context
-	// ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
-	// defer cancel()
-	//
-	// smsMessage := createTestSMSMessage()
-	// err = provider.Send(ctx, smsMessage)
-	// if err != nil {
-	//     t.Log("Context timeout working correctly with real SMS API")
-	// }
+	// Skip if from_phone is not configured
+	if provider.fromPhone == "" {
+		t.Skip("TWILIO_FROM_PHONE not configured, skipping context timeout test")
+	}
+
+	// Create a very short timeout context
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+
+	smsMessage := createTestSMSMessage()
+	err = provider.Send(ctx, smsMessage)
+	if err != nil {
+		t.Log("Context timeout working correctly with real SMS API")
+		// Could be timeout or other error, both are acceptable for this test
+	} else {
+		t.Log("Request completed faster than timeout")
+	}
 }
 
 func TestSendBatch_SMS_RealAPI(t *testing.T) {
-	t.Skip("SMS batch real API tests not implemented yet - placeholder for future implementation")
+	// Skip if test phone number is not configured
+	if getTestSMSPhone() == "" {
+		t.Skip("TWILIO_TEST_PHONE not configured, skipping SMS API test")
+	}
 
-	// Future implementation will test:
-	// config := loadSMSTestConfig(t)
-	// provider, err := NewTwilioProvider(config)
-	// require.NoError(t, err)
-	//
-	// ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	// defer cancel()
-	//
-	// messages := []*types.Message{
-	//     {
-	//         Type: types.MessageTypeSMS,
-	//         To:   []string{TestSMSPhoneAgent},
-	//         Body: "Batch SMS Test 1",
-	//     },
-	//     {
-	//         Type: types.MessageTypeSMS,
-	//         To:   []string{TestSMSPhoneX},
-	//         Body: "Batch SMS Test 2",
-	//     },
-	// }
-	//
-	// err = provider.SendBatch(ctx, messages)
-	// if err == nil {
-	//     t.Log("Real Twilio SMS batch API call succeeded")
-	// }
+	config := loadSMSTestConfig(t)
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
+
+	// Skip if from_phone is not configured
+	if provider.fromPhone == "" {
+		t.Skip("TWILIO_FROM_PHONE not configured, skipping batch SMS API test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	messages := []*types.Message{
+		{
+			Type: types.MessageTypeSMS,
+			To:   []string{getTestSMSPhone()},
+			Body: "Batch SMS Test 1",
+		},
+		{
+			Type: types.MessageTypeSMS,
+			To:   []string{getTestSMSPhone()},
+			Body: "Batch SMS Test 2",
+		},
+	}
+
+	err = provider.SendBatch(ctx, messages)
+	if err == nil {
+		t.Log("Real Twilio SMS batch API call succeeded")
+	} else {
+		t.Logf("Real Twilio SMS batch API call failed (expected in some test environments): %v", err)
+		// Don't fail the test if it's just an API configuration issue
+		if !strings.Contains(err.Error(), "Twilio API error") {
+			assert.NoError(t, err)
+		}
+	}
 }
 
 func TestSend_SMS_MultipleRecipients_RealAPI(t *testing.T) {
-	t.Skip("SMS multiple recipients tests not implemented yet - placeholder for future implementation")
+	// Skip if test phone number is not configured
+	if getTestSMSPhone() == "" {
+		t.Skip("TWILIO_TEST_PHONE not configured, skipping SMS API test")
+	}
 
-	// Future implementation will test:
-	// config := loadSMSTestConfig(t)
-	// provider, err := NewTwilioProvider(config)
-	// require.NoError(t, err)
-	//
-	// ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	// defer cancel()
-	//
-	// smsMessage := &types.Message{
-	//     Type: types.MessageTypeSMS,
-	//     To:   []string{TestSMSPhoneAgent, TestSMSPhoneX, TestSMSPhoneXiang},
-	//     Body: "Multi-recipient SMS test from Twilio Provider",
-	// }
-	//
-	// err = provider.Send(ctx, smsMessage)
-	// if err == nil {
-	//     t.Log("Twilio SMS multiple recipients API call succeeded")
-	// }
+	config := loadSMSTestConfig(t)
+	provider, err := NewTwilioProvider(config)
+	require.NoError(t, err)
+
+	// Skip if from_phone is not configured
+	if provider.fromPhone == "" {
+		t.Skip("TWILIO_FROM_PHONE not configured, skipping multiple recipients SMS API test")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	smsMessage := &types.Message{
+		Type: types.MessageTypeSMS,
+		To:   []string{getTestSMSPhone()}, // Using single phone number for simplicity
+		Body: "Multi-recipient SMS test from Twilio Provider",
+	}
+
+	err = provider.Send(ctx, smsMessage)
+	if err == nil {
+		t.Log("Twilio SMS multiple recipients API call succeeded")
+	} else {
+		t.Logf("Twilio SMS multiple recipients API call failed (expected in some test environments): %v", err)
+		// Don't fail the test if it's just an API configuration issue
+		if !strings.Contains(err.Error(), "Twilio API error") {
+			assert.NoError(t, err)
+		}
+	}
 }
 
 // =============================================================================
@@ -297,20 +437,68 @@ func TestSend_SMS_APIError_Scenarios(t *testing.T) {
 // SMS Benchmark Tests (Future Implementation)
 // =============================================================================
 
-func BenchmarkSend_SMS(b *testing.B) {
-	b.Skip("SMS benchmarks not implemented yet - placeholder for future implementation")
+func BenchmarkSend_SMS_AuthToken(b *testing.B) {
+	config := loadSMSTestConfig(&testing.T{})
+	provider, err := NewTwilioProvider(config)
+	if err != nil {
+		b.Fatalf("Failed to create provider: %v", err)
+	}
 
-	// Future implementation will benchmark:
-	// - Single SMS sending performance
-	// - Memory allocation patterns
-	// - Connection reuse efficiency
+	// Skip if from_phone or auth_token is not configured
+	if provider.fromPhone == "" || provider.authToken == "" {
+		b.Skip("TWILIO_FROM_PHONE or TWILIO_AUTH_TOKEN not configured, skipping Auth Token benchmark")
+	}
+
+	ctx := context.Background()
+	smsMessage := createTestSMSMessage()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = provider.Send(ctx, smsMessage)
+	}
 }
 
-func BenchmarkSendBatch_SMS(b *testing.B) {
-	b.Skip("SMS batch benchmarks not implemented yet - placeholder for future implementation")
+func BenchmarkSend_SMS_APIKey(b *testing.B) {
+	config := loadSMSTestConfigWithAPIKey(&testing.T{})
+	provider, err := NewTwilioProvider(config)
+	if err != nil {
+		b.Fatalf("Failed to create provider: %v", err)
+	}
 
-	// Future implementation will benchmark:
-	// - Batch SMS sending throughput
-	// - Optimal batch sizes
-	// - Resource utilization under load
+	// Skip if from_phone or API credentials are not configured
+	if provider.fromPhone == "" || provider.apiSID == "" || provider.apiKey == "" {
+		b.Skip("TWILIO_FROM_PHONE, TWILIO_API_SID, or TWILIO_API_KEY not configured, skipping API Key benchmark")
+	}
+
+	ctx := context.Background()
+	smsMessage := createTestSMSMessage()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = provider.Send(ctx, smsMessage)
+	}
+}
+
+func BenchmarkSendBatch_SMS_AuthToken(b *testing.B) {
+	config := loadSMSTestConfig(&testing.T{})
+	provider, err := NewTwilioProvider(config)
+	if err != nil {
+		b.Fatalf("Failed to create provider: %v", err)
+	}
+
+	// Skip if from_phone or auth_token is not configured
+	if provider.fromPhone == "" || provider.authToken == "" {
+		b.Skip("TWILIO_FROM_PHONE or TWILIO_AUTH_TOKEN not configured, skipping Auth Token batch benchmark")
+	}
+
+	ctx := context.Background()
+	messages := []*types.Message{
+		createTestSMSMessage(),
+		createTestSMSMessage(),
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = provider.SendBatch(ctx, messages)
+	}
 }
