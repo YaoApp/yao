@@ -128,6 +128,41 @@ func (p *Provider) GetName() string {
 	return p.config.Name
 }
 
+// GetPublicInfo returns public information about the provider
+func (p *Provider) GetPublicInfo() types.ProviderPublicInfo {
+	description := "Twilio multi-channel communication provider"
+	if p.config.Description != "" {
+		description = p.config.Description
+	}
+
+	capabilities := []string{}
+	if p.fromPhone != "" || p.messagingServiceSID != "" {
+		capabilities = append(capabilities, "sms")
+	}
+	if p.fromPhone != "" {
+		capabilities = append(capabilities, "whatsapp")
+	}
+	if p.sendGridAPIKey != "" {
+		capabilities = append(capabilities, "email")
+	}
+	if len(capabilities) == 0 {
+		capabilities = []string{"sms", "whatsapp", "email"} // Default capabilities
+	}
+
+	return types.ProviderPublicInfo{
+		Name:         p.config.Name,
+		Type:         "twilio",
+		Description:  description,
+		Capabilities: capabilities,
+		Features: types.Features{
+			SupportsWebhooks:   true,
+			SupportsReceiving:  false,
+			SupportsTracking:   true,
+			SupportsScheduling: true,
+		},
+	}
+}
+
 // Validate validates the provider configuration
 func (p *Provider) Validate() error {
 	if p.accountSID == "" {

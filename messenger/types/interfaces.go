@@ -22,6 +22,9 @@ type Provider interface {
 	// GetName returns the provider name/identifier
 	GetName() string
 
+	// GetPublicInfo returns public information about the provider (name, description, type)
+	GetPublicInfo() ProviderPublicInfo
+
 	// Validate validates the provider configuration
 	Validate() error
 
@@ -45,6 +48,9 @@ type Messenger interface {
 
 	// GetProviders returns all providers for a channel type
 	GetProviders(channelType string) []Provider
+
+	// GetAllProviders returns all providers
+	GetAllProviders() []Provider
 
 	// GetChannels returns all available channels
 	GetChannels() []string

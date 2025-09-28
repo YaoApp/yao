@@ -685,3 +685,86 @@ func BenchmarkBuildMessage(b *testing.B) {
 		}
 	}
 }
+
+func TestProvider_GetPublicInfo(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:        "test-mailer",
+		Connector:   "mailer",
+		Description: "Test SMTP Provider",
+		Options: map[string]interface{}{
+			"smtp": map[string]interface{}{
+				"host":     "smtp.example.com",
+				"port":     587,
+				"username": "test@example.com",
+				"password": "testpass",
+				"from":     "test@example.com",
+			},
+		},
+	}
+
+	provider, err := NewMailerProvider(config)
+	require.NoError(t, err)
+
+	info := provider.GetPublicInfo()
+
+	// Verify public information
+	assert.Equal(t, "test-mailer", info.Name)
+	assert.Equal(t, "mailer", info.Type)
+	assert.Equal(t, "Test SMTP Provider", info.Description)
+	assert.Equal(t, false, info.Features.SupportsWebhooks)
+	assert.Equal(t, false, info.Features.SupportsReceiving) // No IMAP config
+	assert.Equal(t, false, info.Features.SupportsTracking)
+	assert.Equal(t, false, info.Features.SupportsScheduling)
+
+	// Verify capabilities
+	assert.Contains(t, info.Capabilities, "email")
+}
+
+func TestProvider_GetPublicInfo_DefaultDescription(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:      "test-mailer-no-desc",
+		Connector: "mailer",
+		Options: map[string]interface{}{
+			"smtp": map[string]interface{}{
+				"host":     "smtp.example.com",
+				"port":     587,
+				"username": "test@example.com",
+				"password": "testpass",
+				"from":     "test@example.com",
+			},
+		},
+	}
+
+	provider, err := NewMailerProvider(config)
+	require.NoError(t, err)
+
+	info := provider.GetPublicInfo()
+
+	// Should use default description when none provided
+	assert.Equal(t, "SMTP email provider", info.Description)
+}
+
+func TestProvider_TriggerWebhook(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:      "test-mailer",
+		Connector: "mailer",
+		Options: map[string]interface{}{
+			"smtp": map[string]interface{}{
+				"host":     "smtp.example.com",
+				"port":     587,
+				"username": "test@example.com",
+				"password": "testpass",
+				"from":     "test@example.com",
+			},
+		},
+	}
+
+	provider, err := NewMailerProvider(config)
+	require.NoError(t, err)
+
+	// TriggerWebhook should return an error for SMTP providers
+	msg, err := provider.TriggerWebhook(nil)
+	assert.Error(t, err)
+	assert.Nil(t, msg)
+	assert.Contains(t, err.Error(), "TriggerWebhook not supported for SMTP/mailer provider")
+}

@@ -368,6 +368,18 @@ func (m *Service) GetProvidersByMessageType() map[types.MessageType][]types.Prov
 	return result
 }
 
+// GetAllProviders returns all providers
+func (m *Service) GetAllProviders() []types.Provider {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	providers := make([]types.Provider, 0, len(m.providers))
+	for _, provider := range m.providers {
+		providers = append(providers, provider)
+	}
+	return providers
+}
+
 // GetChannels returns all available channels
 func (m *Service) GetChannels() []string {
 	m.mutex.RLock()
