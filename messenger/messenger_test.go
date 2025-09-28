@@ -303,6 +303,55 @@ func TestGetProvidersByMessageType(t *testing.T) {
 	}
 }
 
+func TestGetAllProviders(t *testing.T) {
+	// Setup test environment variables
+	setupTestEnvironment()
+
+	test.Prepare(t, config.Conf, "YAO_TEST_APPLICATION")
+	defer test.Clean()
+
+	err := Load(config.Conf)
+	require.NoError(t, err, "Load should succeed")
+
+	service, ok := Instance.(*Service)
+	require.True(t, ok, "Instance should be of type *Service")
+
+	// Test getting all providers
+	allProviders := service.GetAllProviders()
+
+	t.Logf("Total providers: %d", len(allProviders))
+
+	// Should have at least some providers
+	assert.GreaterOrEqual(t, len(allProviders), 1, "Should have at least one provider")
+
+	// Verify each provider has required methods
+	for _, provider := range allProviders {
+		assert.NotEmpty(t, provider.GetName(), "Provider should have a name")
+		assert.NotEmpty(t, provider.GetType(), "Provider should have a type")
+
+		// Test GetPublicInfo returns valid data
+		publicInfo := provider.GetPublicInfo()
+		assert.NotEmpty(t, publicInfo.Name, "Public info should have name")
+		assert.NotEmpty(t, publicInfo.Type, "Public info should have type")
+		assert.NotEmpty(t, publicInfo.Description, "Public info should have description")
+		assert.NotNil(t, publicInfo.Capabilities, "Public info should have capabilities")
+	}
+
+	// Verify that all providers are accessible
+	emailProviders := service.GetProviders("email")
+
+	// Note: Some providers may support multiple message types, so this is just a sanity check
+	assert.GreaterOrEqual(t, len(allProviders), len(emailProviders), "Total should be >= email providers")
+
+	// Each provider should be unique by name
+	providerNames := make(map[string]bool)
+	for _, provider := range allProviders {
+		providerName := provider.GetName()
+		assert.False(t, providerNames[providerName], "Provider names should be unique: %s", providerName)
+		providerNames[providerName] = true
+	}
+}
+
 func TestValidateMessage(t *testing.T) {
 	// Setup test environment variables
 	setupTestEnvironment()

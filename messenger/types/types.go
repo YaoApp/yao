@@ -117,3 +117,20 @@ type SendResult struct {
 	SentAt    time.Time              `json:"sent_at"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
+
+// ProviderPublicInfo defines the public information structure for providers
+type ProviderPublicInfo struct {
+	Name         string   `json:"name"`
+	Type         string   `json:"type"`
+	Description  string   `json:"description"`
+	Capabilities []string `json:"capabilities"`
+	Features     Features `json:"features"`
+}
+
+// Features defines the features supported by a provider
+type Features struct {
+	SupportsWebhooks   bool `json:"supports_webhooks"`
+	SupportsReceiving  bool `json:"supports_receiving"`
+	SupportsTracking   bool `json:"supports_tracking"`
+	SupportsScheduling bool `json:"supports_scheduling"`
+}

@@ -209,6 +209,27 @@ func (p *Provider) GetName() string {
 	return p.config.Name
 }
 
+// GetPublicInfo returns public information about the provider
+func (p *Provider) GetPublicInfo() types.ProviderPublicInfo {
+	description := "SMTP email provider"
+	if p.config.Description != "" {
+		description = p.config.Description
+	}
+	
+	return types.ProviderPublicInfo{
+		Name:         p.config.Name,
+		Type:         "mailer",
+		Description:  description,
+		Capabilities: []string{"email"},
+		Features: types.Features{
+			SupportsWebhooks:   false,
+			SupportsReceiving:  p.SupportsReceiving(),
+			SupportsTracking:   false,
+			SupportsScheduling: false,
+		},
+	}
+}
+
 // Validate validates the provider configuration
 func (p *Provider) Validate() error {
 	if p.host == "" {

@@ -169,3 +169,55 @@ func TestProvider_TriggerWebhook_InvalidInput(t *testing.T) {
 	assert.Nil(t, msg)
 	assert.Contains(t, err.Error(), "expected *gin.Context")
 }
+
+func TestProvider_GetPublicInfo(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:        "test-mailgun",
+		Connector:   "mailgun",
+		Description: "Test Mailgun Provider",
+		Options: map[string]interface{}{
+			"domain":  "test.mailgun.org",
+			"api_key": "test-api-key",
+			"from":    "test@test.mailgun.org",
+		},
+	}
+
+	provider, err := NewMailgunProvider(config)
+	require.NoError(t, err)
+
+	info := provider.GetPublicInfo()
+
+	// Verify public information
+	assert.Equal(t, "test-mailgun", info.Name)
+	assert.Equal(t, "mailgun", info.Type)
+	assert.Equal(t, "Test Mailgun Provider", info.Description)
+	assert.Equal(t, true, info.Features.SupportsWebhooks)
+	assert.Equal(t, true, info.Features.SupportsTracking)
+	assert.Equal(t, true, info.Features.SupportsScheduling)
+	assert.Equal(t, false, info.Features.SupportsReceiving)
+
+	// Verify capabilities
+	assert.Contains(t, info.Capabilities, "email")
+	assert.Contains(t, info.Capabilities, "webhooks")
+	assert.Contains(t, info.Capabilities, "tracking")
+}
+
+func TestProvider_GetPublicInfo_DefaultDescription(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:      "test-mailgun-no-desc",
+		Connector: "mailgun",
+		Options: map[string]interface{}{
+			"domain":  "test.mailgun.org",
+			"api_key": "test-api-key",
+			"from":    "test@test.mailgun.org",
+		},
+	}
+
+	provider, err := NewMailgunProvider(config)
+	require.NoError(t, err)
+
+	info := provider.GetPublicInfo()
+
+	// Should use default description when none provided
+	assert.Equal(t, "Mailgun email service provider", info.Description)
+}

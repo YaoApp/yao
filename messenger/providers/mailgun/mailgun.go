@@ -96,6 +96,27 @@ func (p *Provider) GetName() string {
 	return p.config.Name
 }
 
+// GetPublicInfo returns public information about the provider
+func (p *Provider) GetPublicInfo() types.ProviderPublicInfo {
+	description := "Mailgun email service provider"
+	if p.config.Description != "" {
+		description = p.config.Description
+	}
+	
+	return types.ProviderPublicInfo{
+		Name:         p.config.Name,
+		Type:         "mailgun",
+		Description:  description,
+		Capabilities: []string{"email", "webhooks", "tracking"},
+		Features: types.Features{
+			SupportsWebhooks:   true,
+			SupportsReceiving:  false,
+			SupportsTracking:   true,
+			SupportsScheduling: true,
+		},
+	}
+}
+
 // Validate validates the provider configuration
 func (p *Provider) Validate() error {
 	if p.domain == "" {
