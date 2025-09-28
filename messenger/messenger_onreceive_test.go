@@ -2,16 +2,44 @@ package messenger
 
 import (
 	"context"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/test"
 )
+
+// createMockGinContext creates a mock gin.Context for testing webhook functionality
+func createMockGinContext(formData map[string]interface{}) *gin.Context {
+	// Create form values
+	values := url.Values{}
+	for key, value := range formData {
+		if str, ok := value.(string); ok {
+			values.Set(key, str)
+		}
+	}
+
+	// Create request with form data
+	req := httptest.NewRequest("POST", "/webhook/test", strings.NewReader(values.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	// Create response recorder
+	w := httptest.NewRecorder()
+
+	// Create gin context
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	return c
+}
 
 // Test OnReceive functionality
 func TestService_OnReceive(t *testing.T) {
@@ -143,7 +171,6 @@ func TestService_TriggerWebhook(t *testing.T) {
 	}
 
 	// Test with non-existent provider
-	ctx := context.Background()
 	webhookData := map[string]interface{}{
 		"from":    "test@example.com",
 		"to":      "recipient@example.com",
@@ -151,194 +178,105 @@ func TestService_TriggerWebhook(t *testing.T) {
 		"body":    "Test message body",
 	}
 
-	err = service.TriggerWebhook(ctx, "nonexistent", webhookData)
+	mockCtx := createMockGinContext(webhookData)
+	err = service.TriggerWebhook("nonexistent", mockCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "provider not found")
 
 	// Test with existing provider (if any are loaded)
 	if len(providers) > 0 {
-		// Get the first provider name
+		// Find a provider that supports TriggerWebhook (not SMTP/mailer)
 		var providerName string
-		for name := range providers {
-			providerName = name
-			break
+		var provider types.Provider
+		for name, p := range providers {
+			if p.GetType() != "mailer" { // Skip SMTP providers as they don't support TriggerWebhook
+				providerName = name
+				provider = p
+				break
+			}
 		}
 
-		// Register a handler to capture the triggered message
-		var receivedMessage *types.Message
-		var mu sync.Mutex
+		if providerName != "" {
+			// Register a handler to capture the triggered message
+			var receivedMessage *types.Message
+			var mu sync.Mutex
 
-		handler := func(ctx context.Context, message *types.Message) error {
-			mu.Lock()
-			defer mu.Unlock()
-			receivedMessage = message
-			t.Logf("Webhook handler: Received message from %s with subject: %s", message.From, message.Subject)
-			return nil
-		}
+			handler := func(ctx context.Context, message *types.Message) error {
+				mu.Lock()
+				defer mu.Unlock()
+				receivedMessage = message
+				t.Logf("Webhook handler: Received message from %s with subject: %s", message.From, message.Subject)
+				return nil
+			}
 
-		err = service.OnReceive(handler)
-		assert.NoError(t, err)
-
-		// Trigger webhook
-		err = service.TriggerWebhook(ctx, providerName, webhookData)
-		// Note: This might fail if the provider's Receive method has validation,
-		// but it should not panic and should attempt to trigger handlers
-		if err != nil {
-			t.Logf("TriggerWebhook returned error (may be expected): %v", err)
-		}
-
-		// Give some time for async processing
-		time.Sleep(100 * time.Millisecond)
-
-		// Check if handler was triggered
-		mu.Lock()
-		if receivedMessage != nil {
-			assert.Equal(t, "test@example.com", receivedMessage.From)
-			assert.Equal(t, "Test Subject", receivedMessage.Subject)
-			assert.Equal(t, "Test message body", receivedMessage.Body)
-			assert.Contains(t, receivedMessage.To, "recipient@example.com")
-		}
-		mu.Unlock()
-	}
-}
-
-func TestService_ConvertWebhookToMessage(t *testing.T) {
-	// Prepare test environment
-	test.Prepare(t, config.Conf, "YAO_TEST_APPLICATION")
-	defer test.Clean()
-
-	// Load real providers
-	providers, err := loadProviders()
-	require.NoError(t, err)
-
-	// Create a test service
-	service := &Service{
-		config:          &types.Config{},
-		providers:       providers,
-		providersByType: make(map[types.MessageType][]types.Provider),
-		channels:        make(map[string]types.Channel),
-		defaults:        make(map[string]string),
-		receivers:       make(map[string]context.CancelFunc),
-		messageHandlers: make([]types.MessageHandler, 0),
-	}
-
-	tests := []struct {
-		name         string
-		providerName string
-		data         map[string]interface{}
-		expectedType types.MessageType
-	}{
-		{
-			name:         "Email webhook data",
-			providerName: "test-mailer",
-			data: map[string]interface{}{
-				"type":    "email",
-				"from":    "sender@example.com",
-				"to":      "recipient@example.com",
-				"subject": "Test Email",
-				"body":    "Email body content",
-				"html":    "<p>Email HTML content</p>",
-			},
-			expectedType: types.MessageTypeEmail,
-		},
-		{
-			name:         "SMS webhook data",
-			providerName: "test-twilio",
-			data: map[string]interface{}{
-				"type":  "sms",
-				"from":  "+1234567890",
-				"to":    "+0987654321",
-				"body":  "SMS message content",
-				"phone": "+0987654321",
-			},
-			expectedType: types.MessageTypeSMS,
-		},
-		{
-			name:         "WhatsApp webhook data",
-			providerName: "test-twilio",
-			data: map[string]interface{}{
-				"type":     "whatsapp",
-				"from":     "+1234567890",
-				"to":       "+0987654321",
-				"body":     "WhatsApp message content",
-				"whatsapp": "+0987654321",
-			},
-			expectedType: types.MessageTypeWhatsApp,
-		},
-		{
-			name:         "Array recipients",
-			providerName: "test-mailer",
-			data: map[string]interface{}{
-				"from":    "sender@example.com",
-				"to":      []string{"recipient1@example.com", "recipient2@example.com"},
-				"subject": "Test Email",
-				"body":    "Email body content",
-			},
-			expectedType: types.MessageTypeEmail,
-		},
-		{
-			name:         "Interface array recipients",
-			providerName: "test-mailer",
-			data: map[string]interface{}{
-				"from":    "sender@example.com",
-				"to":      []interface{}{"recipient1@example.com", "recipient2@example.com"},
-				"subject": "Test Email",
-				"body":    "Email body content",
-			},
-			expectedType: types.MessageTypeEmail,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			message, err := service.convertWebhookToMessage(tt.providerName, tt.data)
+			err = service.OnReceive(handler)
 			assert.NoError(t, err)
-			assert.NotNil(t, message)
 
-			// Check basic fields
-			if from, ok := tt.data["from"].(string); ok {
-				assert.Equal(t, from, message.From)
-			}
-			if subject, ok := tt.data["subject"].(string); ok {
-				assert.Equal(t, subject, message.Subject)
-			}
-			if body, ok := tt.data["body"].(string); ok {
-				assert.Equal(t, body, message.Body)
-			}
-			if html, ok := tt.data["html"].(string); ok {
-				assert.Equal(t, html, message.HTML)
-			}
-
-			// Check recipients
-			if to, ok := tt.data["to"]; ok {
-				switch v := to.(type) {
-				case string:
-					assert.Contains(t, message.To, v)
-				case []string:
-					for _, recipient := range v {
-						assert.Contains(t, message.To, recipient)
-					}
-				case []interface{}:
-					for _, recipient := range v {
-						if str, ok := recipient.(string); ok {
-							assert.Contains(t, message.To, str)
-						}
-					}
+			// Create appropriate webhook data based on provider type
+			var mockCtx *gin.Context
+			switch provider.GetType() {
+			case "mailgun":
+				// Mailgun expects specific event fields
+				mailgunData := map[string]interface{}{
+					"event":     "delivered",
+					"recipient": "recipient@example.com",
+					"sender":    "test@example.com",
+					"subject":   "Test Subject",
 				}
+				mockCtx = createMockGinContext(mailgunData)
+			case "twilio":
+				// Twilio expects SMS/WhatsApp fields
+				twilioData := map[string]interface{}{
+					"MessageSid": "test-message-sid",
+					"SmsStatus":  "received",
+					"From":       "+1234567890",
+					"To":         "+0987654321",
+					"Body":       "Test message body",
+				}
+				mockCtx = createMockGinContext(twilioData)
+			default:
+				mockCtx = createMockGinContext(webhookData)
 			}
 
-			// Check message type
-			if tt.data["type"] != nil {
-				assert.Equal(t, tt.expectedType, message.Type)
+			// Trigger webhook
+			err = service.TriggerWebhook(providerName, mockCtx)
+			// Note: This might fail if the provider's TriggerWebhook method has validation,
+			// but it should not panic and should attempt to trigger handlers
+			if err != nil {
+				t.Logf("TriggerWebhook returned error (may be expected): %v", err)
 			}
 
-			// Check metadata
-			assert.NotNil(t, message.Metadata)
-			assert.Equal(t, tt.providerName, message.Metadata["provider"])
-			assert.Equal(t, tt.data, message.Metadata["webhook_data"])
-		})
+			// Give some time for async processing
+			time.Sleep(100 * time.Millisecond)
+
+			// Check if handler was triggered
+			mu.Lock()
+			if receivedMessage != nil {
+				assert.NotNil(t, receivedMessage)
+				assert.NotEmpty(t, receivedMessage.Subject)
+				t.Logf("Received message: From=%s, Subject=%s, Body=%s", receivedMessage.From, receivedMessage.Subject, receivedMessage.Body)
+
+				// Verify provider-specific content
+				switch provider.GetType() {
+				case "mailgun":
+					assert.Contains(t, receivedMessage.Subject, "Email Delivered")
+					assert.Contains(t, receivedMessage.Body, "recipient@example.com")
+				case "twilio":
+					assert.Contains(t, receivedMessage.Subject, "Incoming Message")
+					assert.Contains(t, receivedMessage.Body, "Test message body")
+				}
+			} else {
+				t.Log("No message received - this may be expected for some provider configurations")
+			}
+			mu.Unlock()
+		} else {
+			t.Log("No providers support TriggerWebhook - skipping webhook test")
+		}
 	}
 }
+
+// Note: TestService_ConvertWebhookToMessage has been removed as the method is deprecated
+// Webhook processing is now handled by provider-specific TriggerWebhook implementations
 
 func TestService_TriggerOnReceiveHandlers_ErrorHandling(t *testing.T) {
 	// Create a test service
@@ -430,37 +368,82 @@ func TestMessenger_OnReceiveIntegration(t *testing.T) {
 
 	// Test TriggerWebhook with real providers (if any exist)
 	if len(service.providers) > 0 {
-		// Get the first provider name
+		// Find a provider that supports TriggerWebhook (not SMTP/mailer)
 		var providerName string
-		for name := range service.providers {
-			providerName = name
-			break
+		var provider types.Provider
+		for name, p := range service.providers {
+			if p.GetType() != "mailer" { // Skip SMTP providers as they don't support TriggerWebhook
+				providerName = name
+				provider = p
+				break
+			}
 		}
 
-		webhookData := map[string]interface{}{
-			"from":    "integration@example.com",
-			"to":      "test@example.com",
-			"subject": "Integration Test",
-			"body":    "Integration test message",
-		}
+		if providerName != "" {
+			// Create appropriate webhook data based on provider type
+			var mockCtx *gin.Context
+			switch provider.GetType() {
+			case "mailgun":
+				// Mailgun expects specific event fields
+				mailgunData := map[string]interface{}{
+					"event":     "delivered",
+					"recipient": "test@example.com",
+					"sender":    "integration@example.com",
+					"subject":   "Integration Test",
+				}
+				mockCtx = createMockGinContext(mailgunData)
+			case "twilio":
+				// Twilio expects SMS/WhatsApp fields
+				twilioData := map[string]interface{}{
+					"MessageSid": "integration-test-sid",
+					"SmsStatus":  "received",
+					"From":       "integration@example.com",
+					"To":         "test@example.com",
+					"Body":       "Integration test message",
+				}
+				mockCtx = createMockGinContext(twilioData)
+			default:
+				webhookData := map[string]interface{}{
+					"from":    "integration@example.com",
+					"to":      "test@example.com",
+					"subject": "Integration Test",
+					"body":    "Integration test message",
+				}
+				mockCtx = createMockGinContext(webhookData)
+			}
 
-		ctx := context.Background()
-		err = service.TriggerWebhook(ctx, providerName, webhookData)
-		// Error is acceptable as provider might reject test data
-		if err != nil {
-			t.Logf("TriggerWebhook returned error (may be expected): %v", err)
-		}
+			err = service.TriggerWebhook(providerName, mockCtx)
+			// Error is acceptable as provider might reject test data
+			if err != nil {
+				t.Logf("TriggerWebhook returned error (may be expected): %v", err)
+			}
 
-		// Give some time for processing
-		time.Sleep(100 * time.Millisecond)
+			// Give some time for processing
+			time.Sleep(100 * time.Millisecond)
 
-		// Check if handler was triggered
-		mu.Lock()
-		if receivedMessage != nil {
-			assert.Equal(t, "integration@example.com", receivedMessage.From)
-			assert.Equal(t, "Integration Test", receivedMessage.Subject)
+			// Check if handler was triggered
+			mu.Lock()
+			if receivedMessage != nil {
+				assert.NotNil(t, receivedMessage)
+				assert.NotEmpty(t, receivedMessage.Subject)
+				t.Logf("Integration test received message: From=%s, Subject=%s", receivedMessage.From, receivedMessage.Subject)
+
+				// Verify provider-specific content
+				switch provider.GetType() {
+				case "mailgun":
+					assert.Contains(t, receivedMessage.Subject, "Email Delivered")
+					assert.Contains(t, receivedMessage.Body, "test@example.com")
+				case "twilio":
+					assert.Contains(t, receivedMessage.Subject, "Incoming Message")
+					assert.Equal(t, "integration@example.com", receivedMessage.From)
+				}
+			} else {
+				t.Log("No message received in integration test - this may be expected")
+			}
+			mu.Unlock()
+		} else {
+			t.Log("No providers support TriggerWebhook - skipping integration webhook test")
 		}
-		mu.Unlock()
 	}
 
 	// Clean up - remove handler

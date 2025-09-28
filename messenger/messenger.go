@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
@@ -716,99 +717,33 @@ func (m *Service) RemoveReceiveHandler(handler types.MessageHandler) error {
 
 // TriggerWebhook processes incoming webhook data and triggers OnReceive handlers
 // This is used by OPENAPI endpoints to handle incoming messages
-func (m *Service) TriggerWebhook(ctx context.Context, providerName string, data map[string]interface{}) error {
+func (m *Service) TriggerWebhook(providerName string, c interface{}) error {
 	// Get the provider to process the webhook data
 	provider, exists := m.providers[providerName]
 	if !exists {
 		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// First, let the provider process the webhook data
-	// This may convert webhook data into a standardized message format
-	err := provider.Receive(ctx, data)
+	// Let the provider process the webhook data and convert to Message
+	message, err := provider.TriggerWebhook(c)
 	if err != nil {
-		log.Warn("[Messenger] Provider %s failed to process webhook data: %v", providerName, err)
-		// Continue to trigger handlers even if provider processing fails
+		log.Warn("[Messenger] Provider %s failed to process webhook: %v", providerName, err)
+		return err
 	}
 
-	// Try to convert webhook data to a Message for OnReceive handlers
-	message, err := m.convertWebhookToMessage(providerName, data)
-	if err != nil {
-		log.Warn("[Messenger] Failed to convert webhook data to message: %v", err)
-		return err
+	// Create context from gin.Context if available, otherwise use background
+	var ctx context.Context
+	if ginCtx, ok := c.(*gin.Context); ok {
+		ctx = ginCtx.Request.Context()
+	} else {
+		ctx = context.Background()
 	}
 
 	// Trigger all registered OnReceive handlers
 	return m.triggerOnReceiveHandlers(ctx, message)
 }
 
-// convertWebhookToMessage attempts to convert webhook data to a standardized Message
-func (m *Service) convertWebhookToMessage(providerName string, data map[string]interface{}) (*types.Message, error) {
-	message := &types.Message{
-		Metadata: make(map[string]interface{}),
-	}
-
-	// Add provider information
-	message.Metadata["provider"] = providerName
-	message.Metadata["webhook_data"] = data
-
-	// Try to extract common fields from webhook data
-	if subject, ok := data["subject"].(string); ok {
-		message.Subject = subject
-	}
-	if from, ok := data["from"].(string); ok {
-		message.From = from
-	}
-	if body, ok := data["body"].(string); ok {
-		message.Body = body
-	}
-	if html, ok := data["html"].(string); ok {
-		message.HTML = html
-	}
-
-	// Handle "to" field which might be string or array
-	if to, ok := data["to"]; ok {
-		switch v := to.(type) {
-		case string:
-			message.To = []string{v}
-		case []string:
-			message.To = v
-		case []interface{}:
-			for _, item := range v {
-				if str, ok := item.(string); ok {
-					message.To = append(message.To, str)
-				}
-			}
-		}
-	}
-
-	// Determine message type based on provider or data
-	if msgType, ok := data["type"].(string); ok {
-		message.Type = types.MessageType(strings.ToLower(msgType))
-	} else {
-		// Default based on provider type
-		provider, exists := m.providers[providerName]
-		if exists {
-			switch strings.ToLower(provider.GetType()) {
-			case "mailer", "smtp", "mailgun":
-				message.Type = types.MessageTypeEmail
-			case "twilio":
-				// Could be SMS, WhatsApp, or Email - try to determine from data
-				if phone, ok := data["phone"].(string); ok && phone != "" {
-					message.Type = types.MessageTypeSMS
-				} else if whatsapp, ok := data["whatsapp"].(string); ok && whatsapp != "" {
-					message.Type = types.MessageTypeWhatsApp
-				} else {
-					message.Type = types.MessageTypeEmail
-				}
-			default:
-				message.Type = types.MessageTypeEmail // Default fallback
-			}
-		}
-	}
-
-	return message, nil
-}
+// Note: convertWebhookToMessage has been removed as it's replaced by provider-specific TriggerWebhook implementations
 
 // triggerOnReceiveHandlers calls all registered OnReceive handlers
 func (m *Service) triggerOnReceiveHandlers(ctx context.Context, message *types.Message) error {
