@@ -177,8 +177,8 @@ func TestProviderTypes(t *testing.T) {
 		providerName string
 		expectedType string
 	}{
-		{"primary", "smtp"},      // Generated from primary.smtp.yao
-		{"reliable", "smtp"},     // Generated from reliable.smtp.yao
+		{"primary", "mailer"},    // Generated from primary.mailer.yao
+		{"reliable", "mailer"},   // Generated from reliable.mailer.yao
 		{"marketing", "mailgun"}, // Generated from marketing.mailgun.yao
 		{"unified", "twilio"},    // Generated from unified.twilio.yao
 	}

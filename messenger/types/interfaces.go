@@ -2,6 +2,9 @@ package types
 
 import "context"
 
+// MessageHandler defines a callback function for handling received messages
+type MessageHandler func(ctx context.Context, message *Message) error
+
 // Provider defines the interface for message providers
 type Provider interface {
 	// Send sends a message using the provider
@@ -45,6 +48,17 @@ type Messenger interface {
 
 	// GetChannels returns all available channels
 	GetChannels() []string
+
+	// OnReceive registers a message handler for received messages
+	// Multiple handlers can be registered and will be called in order
+	OnReceive(handler MessageHandler) error
+
+	// RemoveReceiveHandler removes a previously registered message handler
+	RemoveReceiveHandler(handler MessageHandler) error
+
+	// TriggerWebhook processes incoming webhook data and triggers OnReceive handlers
+	// This is used by OPENAPI endpoints to handle incoming messages
+	TriggerWebhook(ctx context.Context, providerName string, data map[string]interface{}) error
 
 	// Close closes all provider connections
 	Close() error
