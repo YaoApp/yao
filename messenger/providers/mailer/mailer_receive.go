@@ -29,35 +29,8 @@ type MailReceiver struct {
 	lastCheckUID uint32    // Track last processed UID to avoid duplicates
 }
 
-// Receive processes incoming messages/responses from mailer provider
-func (p *Provider) Receive(ctx context.Context, data map[string]interface{}) error {
-	// Check if this provider supports receiving
-	if !p.SupportsReceiving() {
-		log.Printf("Mailer provider '%s' does not support receiving (IMAP not configured)", p.GetName())
-		return fmt.Errorf("provider does not support receiving: IMAP not configured")
-	}
-
-	// This method handles webhook-style data (for services like SendGrid, Mailgun)
-	// For direct IMAP email receiving, use StartMailReceiver
-
-	// Parse common webhook data
-	if messageType, ok := data["type"].(string); ok {
-		switch messageType {
-		case "bounce":
-			return p.handleBounce(ctx, data)
-		case "delivery":
-			return p.handleDelivery(ctx, data)
-		case "complaint":
-			return p.handleComplaint(ctx, data)
-		default:
-			log.Printf("Mailer provider received unknown message type: %s", messageType)
-		}
-	}
-
-	// For now, just log the received data
-	fmt.Printf("Mailer provider received data: %+v\n", data)
-	return nil
-}
+// Note: The Receive method has been removed as it's replaced by TriggerWebhook
+// For direct IMAP email receiving, use StartMailReceiver
 
 // StartMailReceiver starts an IMAP-based email receiver with polling or IDLE support
 func (p *Provider) StartMailReceiver(ctx context.Context, handler func(*types.Message) error) error {
@@ -433,31 +406,9 @@ func (r *MailReceiver) formatAddresses(addrs []*imap.Address) []string {
 	return result
 }
 
-// handleBounce processes email bounce notifications
-func (p *Provider) handleBounce(ctx context.Context, data map[string]interface{}) error {
-	// TODO: Implement bounce handling logic
-	// - Update delivery status
-	// - Mark email as bounced
-	// - Potentially disable recipient
-	return nil
-}
-
-// handleDelivery processes email delivery confirmations
-func (p *Provider) handleDelivery(ctx context.Context, data map[string]interface{}) error {
-	// TODO: Implement delivery confirmation logic
-	// - Update delivery status
-	// - Log successful delivery
-	return nil
-}
-
-// handleComplaint processes spam complaints
-func (p *Provider) handleComplaint(ctx context.Context, data map[string]interface{}) error {
-	// TODO: Implement complaint handling logic
-	// - Mark sender as complained
-	// - Update reputation metrics
-	// - Potentially disable recipient
-	return nil
-}
+// Note: handleBounce, handleDelivery, and handleComplaint functions have been removed
+// as they were only used by the deprecated Receive method.
+// Webhook processing is now handled by TriggerWebhook method which is not implemented for SMTP providers.
 
 // extractMessageBody extracts plain text and HTML body from IMAP message
 func (r *MailReceiver) extractMessageBody(imapMsg *imap.Message) (plainText, htmlText string) {

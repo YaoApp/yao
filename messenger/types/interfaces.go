@@ -13,8 +13,8 @@ type Provider interface {
 	// SendBatch sends multiple messages in batch
 	SendBatch(ctx context.Context, messages []*Message) error
 
-	// Receive processes incoming messages/responses from the provider
-	Receive(ctx context.Context, data map[string]interface{}) error
+	// TriggerWebhook processes webhook requests and converts to Message
+	TriggerWebhook(c interface{}) (*Message, error)
 
 	// GetType returns the provider type (smtp, twilio, mailgun, etc.)
 	GetType() string
@@ -58,7 +58,7 @@ type Messenger interface {
 
 	// TriggerWebhook processes incoming webhook data and triggers OnReceive handlers
 	// This is used by OPENAPI endpoints to handle incoming messages
-	TriggerWebhook(ctx context.Context, providerName string, data map[string]interface{}) error
+	TriggerWebhook(providerName string, c interface{}) error
 
 	// Close closes all provider connections
 	Close() error

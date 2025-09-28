@@ -229,6 +229,11 @@ func (p *Provider) Validate() error {
 	return nil
 }
 
+// TriggerWebhook processes webhook requests - not supported for SMTP
+func (p *Provider) TriggerWebhook(c interface{}) (*types.Message, error) {
+	return nil, fmt.Errorf("TriggerWebhook not supported for SMTP/mailer provider")
+}
+
 // Close closes the provider connection (no-op for SMTP)
 func (p *Provider) Close() error {
 	return nil
