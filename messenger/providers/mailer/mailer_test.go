@@ -1,4 +1,4 @@
-package smtp
+package mailer
 
 import (
 	"context"
@@ -22,6 +22,13 @@ const (
 )
 
 // Test helper functions
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 
 func createTestMessage(msgType types.MessageType) *types.Message {
 	message := &types.Message{
@@ -56,15 +63,17 @@ func loadPrimaryTestConfig(t *testing.T) types.ProviderConfig {
 
 	config := types.ProviderConfig{
 		Name:      "primary",
-		Connector: "smtp",
+		Connector: "mailer",
 		Options: map[string]interface{}{
-			"host":     os.Getenv("SMTP_HOST"),
-			"port":     os.Getenv("SMTP_PORT"),
-			"username": os.Getenv("SMTP_USERNAME"),
-			"password": os.Getenv("SMTP_PASSWORD"),
-			"from":     os.Getenv("SMTP_FROM"),
-			"use_tls":  useTLS,
-			"use_ssl":  useSSL,
+			"smtp": map[string]interface{}{
+				"host":     os.Getenv("SMTP_HOST"),
+				"port":     os.Getenv("SMTP_PORT"),
+				"username": os.Getenv("SMTP_USERNAME"),
+				"password": os.Getenv("SMTP_PASSWORD"),
+				"from":     os.Getenv("SMTP_FROM"),
+				"use_tls":  useTLS,
+				"use_ssl":  useSSL,
+			},
 		},
 	}
 
@@ -80,26 +89,36 @@ func loadReliableTestConfig(t *testing.T) types.ProviderConfig {
 	// Create test config directly using environment variables for reliable SMTP
 	config := types.ProviderConfig{
 		Name:      "reliable",
-		Connector: "smtp",
+		Connector: "mailer",
 		Options: map[string]interface{}{
-			"host":     os.Getenv("RELIABLE_SMTP_HOST"),
-			"port":     587, // Hardcoded in reliable.smtp.yao
-			"username": os.Getenv("RELIABLE_SMTP_USERNAME"),
-			"password": os.Getenv("RELIABLE_SMTP_PASSWORD"),
-			"from":     os.Getenv("RELIABLE_SMTP_FROM"),
-			"use_tls":  true,
+			"smtp": map[string]interface{}{
+				"host":     os.Getenv("RELIABLE_SMTP_HOST"),
+				"port":     587, // Hardcoded in reliable.mailer.yao
+				"username": os.Getenv("RELIABLE_SMTP_USERNAME"),
+				"password": os.Getenv("RELIABLE_SMTP_PASSWORD"),
+				"from":     os.Getenv("RELIABLE_SMTP_FROM"),
+				"use_tls":  true,
+			},
+			"imap": map[string]interface{}{
+				"host":     getEnvOrDefault("RELIABLE_IMAP_HOST", os.Getenv("RELIABLE_SMTP_HOST")),
+				"port":     getEnvOrDefault("RELIABLE_IMAP_PORT", "993"),
+				"username": getEnvOrDefault("RELIABLE_IMAP_USERNAME", os.Getenv("RELIABLE_SMTP_USERNAME")),
+				"password": getEnvOrDefault("RELIABLE_IMAP_PASSWORD", os.Getenv("RELIABLE_SMTP_PASSWORD")),
+				"use_ssl":  true,
+				"mailbox":  "INBOX",
+			},
 		},
 	}
 
 	return config
 }
 
-// Test NewSMTPProvider
+// Test NewMailerProvider
 
-func TestNewSMTPProvider_Primary(t *testing.T) {
+func TestNewMailerProvider_Primary(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 	assert.NotNil(t, provider)
 
@@ -118,10 +137,10 @@ func TestNewSMTPProvider_Primary(t *testing.T) {
 	}
 }
 
-func TestNewSMTPProvider_Reliable(t *testing.T) {
+func TestNewMailerProvider_Reliable(t *testing.T) {
 	config := loadReliableTestConfig(t)
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 	assert.NotNil(t, provider)
 
@@ -135,20 +154,20 @@ func TestNewSMTPProvider_Reliable(t *testing.T) {
 	assert.True(t, provider.useTLS)
 }
 
-func TestNewSMTPProvider_MissingOptions(t *testing.T) {
+func TestNewMailerProvider_MissingOptions(t *testing.T) {
 	config := types.ProviderConfig{
 		Name:      "test",
 		Connector: "smtp",
 		Options:   nil,
 	}
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	assert.Error(t, err)
 	assert.Nil(t, provider)
-	assert.Contains(t, err.Error(), "SMTP provider requires options")
+	assert.Contains(t, err.Error(), "mailer provider requires options")
 }
 
-func TestNewSMTPProvider_MissingHost(t *testing.T) {
+func TestNewMailerProvider_MissingHost(t *testing.T) {
 	config := types.ProviderConfig{
 		Name:      "test",
 		Connector: "smtp",
@@ -160,13 +179,13 @@ func TestNewSMTPProvider_MissingHost(t *testing.T) {
 		},
 	}
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	assert.Error(t, err)
 	assert.Nil(t, provider)
-	assert.Contains(t, err.Error(), "SMTP provider requires 'host' option")
+	assert.Contains(t, err.Error(), "mailer provider requires 'smtp' configuration")
 }
 
-func TestNewSMTPProvider_MissingUsername(t *testing.T) {
+func TestNewMailerProvider_MissingUsername(t *testing.T) {
 	config := types.ProviderConfig{
 		Name:      "test",
 		Connector: "smtp",
@@ -178,13 +197,13 @@ func TestNewSMTPProvider_MissingUsername(t *testing.T) {
 		},
 	}
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	assert.Error(t, err)
 	assert.Nil(t, provider)
-	assert.Contains(t, err.Error(), "SMTP provider requires 'username' option")
+	assert.Contains(t, err.Error(), "mailer provider requires 'smtp' configuration")
 }
 
-func TestNewSMTPProvider_MissingPassword(t *testing.T) {
+func TestNewMailerProvider_MissingPassword(t *testing.T) {
 	config := types.ProviderConfig{
 		Name:      "test",
 		Connector: "smtp",
@@ -196,13 +215,13 @@ func TestNewSMTPProvider_MissingPassword(t *testing.T) {
 		},
 	}
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	assert.Error(t, err)
 	assert.Nil(t, provider)
-	assert.Contains(t, err.Error(), "SMTP provider requires 'password' option")
+	assert.Contains(t, err.Error(), "mailer provider requires 'smtp' configuration")
 }
 
-func TestNewSMTPProvider_MissingFrom(t *testing.T) {
+func TestNewMailerProvider_MissingFrom(t *testing.T) {
 	config := types.ProviderConfig{
 		Name:      "test",
 		Connector: "smtp",
@@ -214,25 +233,25 @@ func TestNewSMTPProvider_MissingFrom(t *testing.T) {
 		},
 	}
 
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	assert.Error(t, err)
 	assert.Nil(t, provider)
-	assert.Contains(t, err.Error(), "SMTP provider requires 'from' option")
+	assert.Contains(t, err.Error(), "mailer provider requires 'smtp' configuration")
 }
 
 // Test Provider Interface Methods
 
 func TestGetType(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
-	assert.Equal(t, "smtp", provider.GetType())
+	assert.Equal(t, "mailer", provider.GetType())
 }
 
 func TestGetName(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	assert.Equal(t, "primary", provider.GetName())
@@ -240,7 +259,7 @@ func TestGetName(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	err = provider.Validate()
@@ -249,7 +268,7 @@ func TestValidate(t *testing.T) {
 
 func TestValidate_MissingHost(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	provider.host = ""
@@ -260,7 +279,7 @@ func TestValidate_MissingHost(t *testing.T) {
 
 func TestValidate_InvalidPort(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	provider.port = 0
@@ -271,7 +290,7 @@ func TestValidate_InvalidPort(t *testing.T) {
 
 func TestValidate_MissingUsername(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	provider.username = ""
@@ -282,7 +301,7 @@ func TestValidate_MissingUsername(t *testing.T) {
 
 func TestValidate_MissingPassword(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	provider.password = ""
@@ -293,7 +312,7 @@ func TestValidate_MissingPassword(t *testing.T) {
 
 func TestValidate_MissingFrom(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	provider.from = ""
@@ -304,7 +323,7 @@ func TestValidate_MissingFrom(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	err = provider.Close()
@@ -315,7 +334,7 @@ func TestClose(t *testing.T) {
 
 func TestSend_NonEmailMessage(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -328,7 +347,7 @@ func TestSend_NonEmailMessage(t *testing.T) {
 
 func TestSend_EmailMessage_RealAPI_Primary(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	// Use context with reasonable timeout for SMTP operations
@@ -370,7 +389,7 @@ func TestSend_EmailMessage_RealAPI_Primary(t *testing.T) {
 
 func TestSend_EmailMessage_RealAPI_Reliable(t *testing.T) {
 	config := loadReliableTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	// Use context with reasonable timeout for SMTP operations
@@ -413,7 +432,7 @@ func TestSend_EmailMessage_RealAPI_Reliable(t *testing.T) {
 
 func TestSend_ContextTimeout_RealAPI(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	// Create a very short timeout context to test timeout functionality
@@ -442,7 +461,7 @@ func TestSend_ContextTimeout_RealAPI(t *testing.T) {
 
 func TestSendBatch_RealAPI(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	// Use context with reasonable timeout for SMTP batch operations
@@ -481,7 +500,7 @@ func TestSendBatch_RealAPI(t *testing.T) {
 
 func TestSend_MultipleRecipients_RealAPI(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	// Use context with reasonable timeout for SMTP operations
@@ -516,7 +535,7 @@ func TestSend_MultipleRecipients_RealAPI(t *testing.T) {
 
 func TestSend_WithCustomFrom(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -541,7 +560,7 @@ func TestSend_WithCustomFrom(t *testing.T) {
 
 func TestSend_PlainTextOnly(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -566,7 +585,7 @@ func TestSend_PlainTextOnly(t *testing.T) {
 
 func TestSend_HTMLOnly(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -591,7 +610,7 @@ func TestSend_HTMLOnly(t *testing.T) {
 
 func TestSend_MultipartMessage(t *testing.T) {
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -616,14 +635,14 @@ func TestSend_MultipartMessage(t *testing.T) {
 
 // Benchmark Tests
 
-func BenchmarkNewSMTPProvider(b *testing.B) {
+func BenchmarkNewMailerProvider(b *testing.B) {
 	// Setup
 	t := &testing.T{}
 	config := loadPrimaryTestConfig(t)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		provider, err := NewSMTPProvider(config)
+		provider, err := NewMailerProvider(config)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -634,7 +653,7 @@ func BenchmarkNewSMTPProvider(b *testing.B) {
 func BenchmarkValidate(b *testing.B) {
 	t := &testing.T{}
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -651,7 +670,7 @@ func BenchmarkValidate(b *testing.B) {
 func BenchmarkBuildMessage(b *testing.B) {
 	t := &testing.T{}
 	config := loadPrimaryTestConfig(t)
-	provider, err := NewSMTPProvider(config)
+	provider, err := NewMailerProvider(config)
 	if err != nil {
 		b.Fatal(err)
 	}

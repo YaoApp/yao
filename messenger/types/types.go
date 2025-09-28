@@ -48,7 +48,7 @@ type ProviderConfig struct {
 	types.MetaInfo
 	Name        string                 `json:"name"`
 	Description string                 `json:"description,omitempty"`
-	Connector   string                 `json:"connector"`         // Provider type: smtp, twilio, mailgun
+	Connector   string                 `json:"connector"`         // Provider type: mailer, twilio, mailgun
 	Options     map[string]interface{} `json:"options,omitempty"` // Provider-specific options
 	Enabled     bool                   `json:"enabled,omitempty"` // Whether the provider is enabled (default: true)
 }

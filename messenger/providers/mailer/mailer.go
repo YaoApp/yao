@@ -1,4 +1,4 @@
-package smtp
+package mailer
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/yaoapp/yao/messenger/types"
 )
 
-// Provider implements the Provider interface for SMTP email sending
+// Provider implements the Provider interface for SMTP email sending and IMAP receiving
 type Provider struct {
 	config   types.ProviderConfig
 	host     string
@@ -24,10 +24,18 @@ type Provider struct {
 	from     string
 	useTLS   bool
 	useSSL   bool
+
+	// IMAP configuration for receiving emails
+	imapHost     string
+	imapPort     int
+	imapUsername string
+	imapPassword string
+	imapUseSSL   bool
+	imapMailbox  string
 }
 
-// NewSMTPProvider creates a new SMTP provider
-func NewSMTPProvider(config types.ProviderConfig) (*Provider, error) {
+// NewMailerProvider creates a new Mailer provider
+func NewMailerProvider(config types.ProviderConfig) (*Provider, error) {
 	provider := &Provider{
 		config: config,
 		useTLS: true, // Default to TLS
@@ -36,17 +44,23 @@ func NewSMTPProvider(config types.ProviderConfig) (*Provider, error) {
 	// Extract options
 	options := config.Options
 	if options == nil {
-		return nil, fmt.Errorf("SMTP provider requires options")
+		return nil, fmt.Errorf("mailer provider requires options")
 	}
 
-	// Required options
-	if host, ok := options["host"].(string); ok {
+	// Parse SMTP configuration (required)
+	smtpConfig, ok := options["smtp"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("mailer provider requires 'smtp' configuration")
+	}
+
+	// Required SMTP options
+	if host, ok := smtpConfig["host"].(string); ok {
 		provider.host = host
 	} else {
-		return nil, fmt.Errorf("SMTP provider requires 'host' option")
+		return nil, fmt.Errorf("SMTP configuration requires 'host' option")
 	}
 
-	if port, ok := options["port"]; ok {
+	if port, ok := smtpConfig["port"]; ok {
 		switch p := port.(type) {
 		case int:
 			provider.port = p
@@ -56,40 +70,104 @@ func NewSMTPProvider(config types.ProviderConfig) (*Provider, error) {
 			var err error
 			provider.port, err = strconv.Atoi(p)
 			if err != nil {
-				return nil, fmt.Errorf("invalid port: %s", p)
+				return nil, fmt.Errorf("invalid SMTP port: %s", p)
 			}
 		default:
-			return nil, fmt.Errorf("invalid port type")
+			return nil, fmt.Errorf("invalid SMTP port type")
 		}
 	} else {
 		provider.port = 587 // Default SMTP port
 	}
 
-	if username, ok := options["username"].(string); ok {
+	if username, ok := smtpConfig["username"].(string); ok {
 		provider.username = username
 	} else {
-		return nil, fmt.Errorf("SMTP provider requires 'username' option")
+		return nil, fmt.Errorf("SMTP configuration requires 'username' option")
 	}
 
-	if password, ok := options["password"].(string); ok {
+	if password, ok := smtpConfig["password"].(string); ok {
 		provider.password = password
 	} else {
-		return nil, fmt.Errorf("SMTP provider requires 'password' option")
+		return nil, fmt.Errorf("SMTP configuration requires 'password' option")
 	}
 
-	if from, ok := options["from"].(string); ok {
+	if from, ok := smtpConfig["from"].(string); ok {
 		provider.from = from
 	} else {
-		return nil, fmt.Errorf("SMTP provider requires 'from' option")
+		return nil, fmt.Errorf("SMTP configuration requires 'from' option")
 	}
 
-	// Optional options
-	if useTLS, ok := options["use_tls"].(bool); ok {
+	// Optional SMTP options
+	if useTLS, ok := smtpConfig["use_tls"].(bool); ok {
 		provider.useTLS = useTLS
 	}
 
-	if useSSL, ok := options["use_ssl"].(bool); ok {
+	if useSSL, ok := smtpConfig["use_ssl"].(bool); ok {
 		provider.useSSL = useSSL
+	}
+
+	// IMAP configuration (optional for receiving emails)
+	if imapConfig, ok := options["imap"].(map[string]interface{}); ok {
+		// IMAP is configured, parse it
+		if imapHost, ok := imapConfig["host"].(string); ok {
+			provider.imapHost = imapHost
+		} else {
+			// Default to same host as SMTP if not specified
+			provider.imapHost = provider.host
+		}
+
+		if imapPort, ok := imapConfig["port"]; ok {
+			switch p := imapPort.(type) {
+			case int:
+				provider.imapPort = p
+			case float64:
+				provider.imapPort = int(p)
+			case string:
+				var err error
+				provider.imapPort, err = strconv.Atoi(p)
+				if err != nil {
+					return nil, fmt.Errorf("invalid IMAP port: %s", p)
+				}
+			default:
+				return nil, fmt.Errorf("invalid IMAP port type")
+			}
+		} else {
+			provider.imapPort = 993 // Default IMAP SSL port
+		}
+
+		if imapUsername, ok := imapConfig["username"].(string); ok {
+			provider.imapUsername = imapUsername
+		} else {
+			// Default to same username as SMTP if not specified
+			provider.imapUsername = provider.username
+		}
+
+		if imapPassword, ok := imapConfig["password"].(string); ok {
+			provider.imapPassword = imapPassword
+		} else {
+			// Default to same password as SMTP if not specified
+			provider.imapPassword = provider.password
+		}
+
+		if imapUseSSL, ok := imapConfig["use_ssl"].(bool); ok {
+			provider.imapUseSSL = imapUseSSL
+		} else {
+			provider.imapUseSSL = true // Default to SSL for IMAP
+		}
+
+		if imapMailbox, ok := imapConfig["mailbox"].(string); ok {
+			provider.imapMailbox = imapMailbox
+		} else {
+			provider.imapMailbox = "INBOX" // Default mailbox
+		}
+	} else {
+		// IMAP not configured - this provider only supports sending
+		provider.imapHost = ""
+		provider.imapPort = 0
+		provider.imapUsername = ""
+		provider.imapPassword = ""
+		provider.imapUseSSL = false
+		provider.imapMailbox = ""
 	}
 
 	return provider, nil
@@ -123,7 +201,7 @@ func (p *Provider) SendBatch(ctx context.Context, messages []*types.Message) err
 
 // GetType returns the provider type
 func (p *Provider) GetType() string {
-	return "smtp"
+	return "mailer"
 }
 
 // GetName returns the provider name
@@ -154,6 +232,11 @@ func (p *Provider) Validate() error {
 // Close closes the provider connection (no-op for SMTP)
 func (p *Provider) Close() error {
 	return nil
+}
+
+// SupportsReceiving returns true if this provider supports receiving emails via IMAP
+func (p *Provider) SupportsReceiving() bool {
+	return p.imapHost != "" && p.imapPort > 0
 }
 
 // buildMessage builds the email message content
