@@ -102,7 +102,7 @@ func (p *Provider) GetPublicInfo() types.ProviderPublicInfo {
 	if p.config.Description != "" {
 		description = p.config.Description
 	}
-	
+
 	return types.ProviderPublicInfo{
 		Name:         p.config.Name,
 		Type:         "mailgun",
