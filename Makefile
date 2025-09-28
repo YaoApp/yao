@@ -10,7 +10,7 @@ NOW := $(shell date +"%FT%T%z")
 OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests|openai|aigc|neo|share*')
+TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|tests|openai|aigc|neo|twilio|share*')
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
