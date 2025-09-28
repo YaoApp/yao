@@ -180,7 +180,7 @@ func CloseLog() {
 	if LogOutput != nil {
 		err := LogOutput.Close()
 		if err != nil {
-			log.Error(err.Error())
+			log.Error("Failed to close log output: %v", err)
 			return
 		}
 	}

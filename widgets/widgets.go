@@ -83,7 +83,7 @@ func Load(cfg config.Config) error {
 	}
 
 	if len(messages) > 0 {
-		err = fmt.Errorf(strings.Join(messages, ";\n"))
+		err = fmt.Errorf("%s", strings.Join(messages, ";\n"))
 		return err
 	}
 

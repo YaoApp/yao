@@ -83,12 +83,12 @@ func (node *Node) YaoProcess(ctx *Context, input Input) (any, error) {
 	// Execute the process
 	process, err := process.Of(node.Process.Name, args...)
 	if err != nil {
-		return nil, node.Errorf(ctx, err.Error())
+		return nil, node.Errorf(ctx, "%v", err)
 	}
 
 	res, err := process.WithGlobal(ctx.global).WithSID(ctx.sid).Exec()
 	if err != nil {
-		return nil, node.Errorf(ctx, err.Error())
+		return nil, node.Errorf(ctx, "%v", err)
 	}
 
 	output, err := ctx.parseNodeOutput(node, res)
@@ -270,12 +270,12 @@ func (node *Node) renderCli(ctx *Context, input Input) (any, error) {
 
 	lines, err := cli.New(option).Render(input)
 	if err != nil {
-		return nil, node.Errorf(ctx, err.Error())
+		return nil, node.Errorf(ctx, "%v", err)
 	}
 
 	output, err := ctx.parseNodeOutput(node, lines)
 	if err != nil {
-		return nil, node.Errorf(ctx, err.Error())
+		return nil, node.Errorf(ctx, "%v", err)
 	}
 	return output, nil
 }

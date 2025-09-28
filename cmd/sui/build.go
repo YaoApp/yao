@@ -54,7 +54,7 @@ var BuildCmd = &cobra.Command{
 
 		sui, has := core.SUIs[id]
 		if !has {
-			fmt.Fprintf(os.Stderr, color.RedString(("the sui " + id + " does not exist")))
+			fmt.Fprint(os.Stderr, color.RedString("the sui "+id+" does not exist"))
 			return
 		}
 		sui.WithSid(sid)

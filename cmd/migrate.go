@@ -56,43 +56,43 @@ var migrateCmd = &cobra.Command{
 				return
 			}
 
-			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
+			fmt.Print(color.WhiteString(fmt.Sprintf(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name)) + "\t")
 			if resetModel {
 				err := mod.DropTable()
 				if err != nil {
-					fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+					fmt.Print(color.RedString(fmt.Sprintf(L("FAILURE\n%s"), err.Error())) + "\n")
 					return
 				}
 			}
 
 			err := mod.Migrate(false)
 			if err != nil {
-				fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+				fmt.Print(color.RedString(fmt.Sprintf(L("FAILURE\n%s"), err.Error())) + "\n")
 				return
 			}
 
-			fmt.Printf(color.GreenString(L("SUCCESS")) + "\n")
+			fmt.Print(color.GreenString(L("SUCCESS")) + "\n")
 			return
 		}
 
 		// Do Stuff Here
 		for _, mod := range model.Models {
-			fmt.Printf(color.WhiteString(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name) + "\t")
+			fmt.Print(color.WhiteString(fmt.Sprintf(L("Update schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name)) + "\t")
 
 			if resetModel {
 				err := mod.DropTable()
 				if err != nil {
-					fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+					fmt.Print(color.RedString(fmt.Sprintf(L("FAILURE\n%s"), err.Error())) + "\n")
 					continue
 				}
 			}
 
 			err := mod.Migrate(false)
 			if err != nil {
-				fmt.Printf(color.RedString(L("FAILURE\n%s"), err.Error()) + "\n")
+				fmt.Print(color.RedString(fmt.Sprintf(L("FAILURE\n%s"), err.Error())) + "\n")
 				continue
 			}
-			fmt.Printf(color.GreenString(L("SUCCESS")) + "\n")
+			fmt.Print(color.GreenString(L("SUCCESS")) + "\n")
 		}
 
 		// After Migrate Hook

@@ -461,7 +461,7 @@ func (imp *Importer) Run(src from.Source, mapping *Mapping) interface{} {
 	if imp.Output != "" {
 		res, err := process.New(imp.Output, output).WithSID(imp.Sid).Exec()
 		if err != nil {
-			log.With(log.F{"output": imp.Output}).Error(err.Error())
+			log.With(log.F{"output": imp.Output}).Error("%v", err)
 			return output
 		}
 		return res

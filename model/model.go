@@ -72,7 +72,7 @@ func Load(cfg config.Config) error {
 		for _, message := range messages {
 			log.Error("Load filesystem models error: %s", message)
 		}
-		return fmt.Errorf(strings.Join(messages, ";\n"))
+		return fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 
 	// Load database models ( ignore error)

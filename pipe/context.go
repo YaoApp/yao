@@ -67,7 +67,7 @@ func (ctx *Context) resume(args ...any) (any, error) {
 	node := ctx.current
 	output, err := ctx.parseNodeOutput(node, args)
 	if err != nil {
-		return nil, node.Errorf(ctx, err.Error())
+		return nil, node.Errorf(ctx, "%v", err)
 	}
 
 	// Next node

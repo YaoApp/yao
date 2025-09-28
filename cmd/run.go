@@ -53,7 +53,7 @@ var runCmd = &cobra.Command{
 				color.White(share.BUILDNAME + " help\n")
 				return
 			}
-			fmt.Printf(L("Not enough arguments\n"))
+			fmt.Print(L("Not enough arguments\n"))
 			return
 		}
 

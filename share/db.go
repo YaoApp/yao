@@ -63,8 +63,8 @@ func DBClose() error {
 
 	if len(messages) > 0 {
 		msg := fmt.Sprintf("[DBClose] %s ", strings.Join(messages, ";"))
-		log.Error(msg)
-		return fmt.Errorf(msg)
+		log.Error("%s", msg)
+		return fmt.Errorf("%s", msg)
 	}
 
 	return nil

@@ -71,7 +71,7 @@ func New(id string, file string, source []byte) *DSL {
 func LoadAndExport(cfg config.Config) error {
 	err := Load(cfg)
 	if err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 	}
 	return Export()
 }
@@ -102,7 +102,7 @@ func Load(cfg config.Config) error {
 	}, exts...)
 
 	if len(messages) > 0 {
-		return fmt.Errorf(strings.Join(messages, ";\n"))
+		return fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 
 	return err
