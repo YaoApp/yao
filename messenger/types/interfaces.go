@@ -10,6 +10,9 @@ type Provider interface {
 	// SendBatch sends multiple messages in batch
 	SendBatch(ctx context.Context, messages []*Message) error
 
+	// Receive processes incoming messages/responses from the provider
+	Receive(ctx context.Context, data map[string]interface{}) error
+
 	// GetType returns the provider type (smtp, twilio, mailgun, etc.)
 	GetType() string
 

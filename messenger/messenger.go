@@ -13,8 +13,8 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/messenger/providers/mailer"
 	"github.com/yaoapp/yao/messenger/providers/mailgun"
-	"github.com/yaoapp/yao/messenger/providers/smtp"
 	"github.com/yaoapp/yao/messenger/providers/twilio"
 	"github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/share"
@@ -34,6 +34,7 @@ type Service struct {
 	providersByType map[types.MessageType][]types.Provider // Providers grouped by message type
 	channels        map[string]types.Channel
 	defaults        map[string]string
+	receivers       map[string]context.CancelFunc // Active mail receivers by provider name
 	mutex           sync.RWMutex
 }
 
@@ -104,10 +105,15 @@ func Load(cfg config.Config) error {
 		providersByType: providersByType,
 		channels:        make(map[string]types.Channel),
 		defaults:        config.Defaults,
+		receivers:       make(map[string]context.CancelFunc),
 	}
 
 	// Set global instance
 	Instance = service
+
+	// Auto-start mail receivers for mailer providers that support receiving
+	service.startMailReceivers()
+
 	return nil
 }
 
@@ -195,8 +201,10 @@ func createProvider(config types.ProviderConfig) (types.Provider, error) {
 
 	// Create provider based on connector
 	switch connector {
-	case "smtp":
-		return smtp.NewSMTPProvider(config)
+	case "mailer":
+		return mailer.NewMailerProvider(config)
+	case "smtp": // Keep backward compatibility
+		return mailer.NewMailerProvider(config)
 	case "twilio":
 		return createTwilioProvider(config)
 	case "mailgun":
@@ -544,7 +552,7 @@ func (m *Service) supportsChannelType(provider types.Provider, channelType strin
 
 	switch channelType {
 	case "email":
-		return providerType == "smtp" || providerType == "mailgun" || providerType == "twilio"
+		return providerType == "mailer" || providerType == "smtp" || providerType == "mailgun" || providerType == "twilio"
 	case "sms":
 		return providerType == "twilio"
 	case "whatsapp":
@@ -559,7 +567,9 @@ func getSupportedMessageTypes(provider types.Provider) []types.MessageType {
 	providerType := strings.ToLower(provider.GetType())
 
 	switch providerType {
-	case "smtp":
+	case "mailer":
+		return []types.MessageType{types.MessageTypeEmail}
+	case "smtp": // Keep backward compatibility
 		return []types.MessageType{types.MessageTypeEmail}
 	case "mailgun":
 		return []types.MessageType{types.MessageTypeEmail}
@@ -569,4 +579,92 @@ func getSupportedMessageTypes(provider types.Provider) []types.MessageType {
 	default:
 		return []types.MessageType{}
 	}
+}
+
+// startMailReceivers automatically starts mail receivers for mailer providers that support receiving
+func (m *Service) startMailReceivers() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	for name, provider := range m.providers {
+		// Only handle mailer providers
+		if provider.GetType() != "mailer" {
+			continue
+		}
+
+		// Check if this mailer provider supports receiving
+		if mailerProvider, ok := provider.(*mailer.Provider); ok {
+			if mailerProvider.SupportsReceiving() {
+				log.Info("[Messenger] Starting mail receiver for provider: %s", name)
+
+				// Create context for this receiver
+				ctx, cancel := context.WithCancel(context.Background())
+
+				// Start the mail receiver in a goroutine
+				go func(providerName string, mp *mailer.Provider) {
+					err := mp.StartMailReceiver(ctx, func(msg *types.Message) error {
+						log.Info("[Messenger] Received email via %s: Subject=%s, From=%s", providerName, msg.Subject, msg.From)
+
+						// Here you can add custom message processing logic
+						// For now, just log the received message
+						return nil
+					})
+
+					if err != nil {
+						log.Error("[Messenger] Mail receiver for %s stopped with error: %v", providerName, err)
+					} else {
+						log.Info("[Messenger] Mail receiver for %s stopped gracefully", providerName)
+					}
+				}(name, mailerProvider)
+
+				// Store the cancel function for later cleanup
+				m.receivers[name] = cancel
+
+				log.Info("[Messenger] Mail receiver started for provider: %s", name)
+			} else {
+				log.Debug("[Messenger] Provider %s does not support receiving (IMAP not configured)", name)
+			}
+		}
+	}
+}
+
+// StopMailReceivers stops all active mail receivers
+func (m *Service) StopMailReceivers() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	for name, cancel := range m.receivers {
+		log.Info("[Messenger] Stopping mail receiver for provider: %s", name)
+		cancel()
+	}
+
+	// Clear the receivers map
+	m.receivers = make(map[string]context.CancelFunc)
+	log.Info("[Messenger] All mail receivers stopped")
+}
+
+// StopMailReceiver stops a specific mail receiver by provider name
+func (m *Service) StopMailReceiver(providerName string) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	if cancel, exists := m.receivers[providerName]; exists {
+		log.Info("[Messenger] Stopping mail receiver for provider: %s", providerName)
+		cancel()
+		delete(m.receivers, providerName)
+	} else {
+		log.Warn("[Messenger] No active mail receiver found for provider: %s", providerName)
+	}
+}
+
+// GetActiveReceivers returns the names of all active mail receivers
+func (m *Service) GetActiveReceivers() []string {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	var receivers []string
+	for name := range m.receivers {
+		receivers = append(receivers, name)
+	}
+	return receivers
 }
