@@ -96,7 +96,7 @@ func (r *Request) Render() (string, int, error) {
 
 		message := fmt.Sprintf("[SUI] The page %s is not cached. file=%s DisableCache=%v", r.Request.URL.Path, r.File, r.Request.DisableCache())
 		go fmt.Println(color.YellowString(message))
-		go log.Warn(message)
+		go log.Warn("%s", message)
 
 		var status int
 		var err error

@@ -139,7 +139,7 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL, query map[string]interface{}) (
 	}
 
 	if len(messages) > 0 {
-		return nil, fmt.Errorf(strings.Join(messages, ";\n"))
+		return nil, fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 	res["list"] = lists
 	return res, nil

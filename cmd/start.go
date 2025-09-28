@@ -488,7 +488,7 @@ func printApis(silent bool) {
 	}
 
 	if len(websocket.Upgraders) > 0 {
-		fmt.Printf(color.CyanString("\n%s(%d)\n", "WebSocket", len(websocket.Upgraders)))
+		fmt.Print(color.CyanString(fmt.Sprintf("\n%s(%d)\n", "WebSocket", len(websocket.Upgraders))))
 		for name, upgrader := range websocket.Upgraders { // WebSocket
 			fmt.Println(
 				colorMehtod("GET"),

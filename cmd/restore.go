@@ -125,7 +125,7 @@ func restoreModels(basePath string, migOpts []model.MigrateOption) {
 	// Migrate models
 	for _, mod := range model.Models {
 		fmt.Printf("\r%s", strings.Repeat(" ", 80))
-		fmt.Printf(color.GreenString(L("\rUpdate schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
+		fmt.Print(color.GreenString(fmt.Sprintf(L("\rUpdate schema model: %s (%s) "), mod.Name, mod.MetaData.Table.Name)))
 		err := mod.Migrate(true, migOpts...)
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
@@ -140,7 +140,7 @@ func restoreModels(basePath string, migOpts []model.MigrateOption) {
 		name := strings.Join(namer[:len(namer)-2], ".")
 		if mod, has := model.Models[name]; has {
 			fmt.Printf("\r%s", strings.Repeat(" ", 80))
-			fmt.Printf(color.GreenString(L("\rRestore model: %s (%s) "), mod.Name, mod.MetaData.Table.Name))
+			fmt.Print(color.GreenString(fmt.Sprintf(L("\rRestore model: %s (%s) "), mod.Name, mod.MetaData.Table.Name)))
 			err := mod.Import(filepath.Join(basePath, file.Name()))
 			if err != nil {
 				fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))

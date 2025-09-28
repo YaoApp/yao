@@ -142,7 +142,7 @@ func (fields *FieldsDSL) Xgen(layout *LayoutDSL) (map[string]interface{}, error)
 	}
 
 	if len(messages) > 0 {
-		return nil, fmt.Errorf(strings.Join(messages, ";\n"))
+		return nil, fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 	res["form"] = forms
 	return res, nil

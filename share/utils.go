@@ -20,7 +20,7 @@ func Walk(root string, typeName string, cb func(root, filename string)) error {
 	root = path.Join(root, "/")
 	err := filepath.Walk(root, func(filename string, info os.FileInfo, err error) error {
 		if err != nil {
-			log.With(log.F{"root": root, "type": typeName, "filename": filename}).Error(err.Error())
+			log.With(log.F{"root": root, "type": typeName, "filename": filename}).Error("Walk error: %v", err)
 			return err
 		}
 		if strings.HasSuffix(filename, typeName) {
