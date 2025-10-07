@@ -21,6 +21,23 @@ import (
 
 // Team Management Handlers
 
+// Public Team Configuration Endpoint
+// GinTeamConfig handles GET /teams/config - Get team configuration (public)
+func GinTeamConfig(c *gin.Context) {
+	locale := c.Query("locale")
+	if locale == "" {
+		locale = "en" // default locale
+	}
+
+	config := GetTeamConfig(locale)
+	if config == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Team configuration not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
+}
+
 // GinTeamList handles GET /teams - Get user teams
 func GinTeamList(c *gin.Context) {
 	// Get authorized user info
@@ -105,7 +122,7 @@ func GinTeamList(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// GinTeamGet handles GET /teams/:team_id - Get user team details
+// GinTeamGet handles GET /teams/:id - Get user team details
 func GinTeamGet(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
@@ -118,7 +135,7 @@ func GinTeamGet(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -246,7 +263,7 @@ func GinTeamCreate(c *gin.Context) {
 	c.JSON(http.StatusCreated, team)
 }
 
-// GinTeamUpdate handles PUT /teams/:team_id - Update user team
+// GinTeamUpdate handles PUT /teams/:id - Update user team
 func GinTeamUpdate(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
@@ -259,7 +276,7 @@ func GinTeamUpdate(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -340,7 +357,7 @@ func GinTeamUpdate(c *gin.Context) {
 	c.JSON(http.StatusOK, team)
 }
 
-// GinTeamDelete handles DELETE /teams/:team_id - Delete user team
+// GinTeamDelete handles DELETE /teams/:id - Delete user team
 func GinTeamDelete(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
@@ -353,7 +370,7 @@ func GinTeamDelete(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -30,6 +31,8 @@ var (
 	providers = make(map[string]*Provider)
 	// Default configuration (marked with default: true)
 	defaultConfig *Config
+	// Team configurations by locale
+	teamConfigs = make(map[string]*TeamConfig)
 	// Mutex for thread safety
 	configMutex sync.RWMutex
 )
@@ -44,11 +47,18 @@ func Load(appConfig config.Config) error {
 	publicConfigs = make(map[string]*Config)
 	providers = make(map[string]*Provider)
 	defaultConfig = nil
+	teamConfigs = make(map[string]*TeamConfig)
 
-	// Load signin configurations
+	// Load signin configurations from openapi/user/signin directory
 	err := loadSigninConfigs(appConfig.Root)
 	if err != nil {
 		return fmt.Errorf("failed to load signin configs: %v", err)
+	}
+
+	// Load team configurations from openapi/user/team directory
+	err = loadTeamConfigs(appConfig.Root)
+	if err != nil {
+		return fmt.Errorf("failed to load team configs: %v", err)
 	}
 
 	// Load providers first
@@ -93,6 +103,25 @@ func loadClientConfig() error {
 	// Process ENV variables in client config
 	clientConfig.ClientID = replaceENVVar(clientConfig.ClientID)
 	clientConfig.ClientSecret = replaceENVVar(clientConfig.ClientSecret)
+
+	// Check if required values are missing or unresolved
+	if clientConfig.ClientID == "" {
+		return fmt.Errorf("client_id is required but not set")
+	}
+
+	// Check if ClientID still contains unresolved environment variable references
+	if strings.HasPrefix(clientConfig.ClientID, "$ENV.") || strings.HasPrefix(clientConfig.ClientID, "${") || strings.HasPrefix(clientConfig.ClientID, "$") {
+		envVarName := extractEnvVarName(clientConfig.ClientID)
+		return fmt.Errorf("environment variable '%s' is required but not set", envVarName)
+	}
+
+	// ClientSecret is optional - if it contains unresolved environment variable references, set it to empty
+	// This allows the system to generate a new secret during client registration
+	if clientConfig.ClientSecret != "" && (strings.HasPrefix(clientConfig.ClientSecret, "$ENV.") || strings.HasPrefix(clientConfig.ClientSecret, "${") || strings.HasPrefix(clientConfig.ClientSecret, "$")) {
+		// Log a warning but don't fail - the system will generate a new secret
+		log.Warn("Client secret environment variable not set, will generate new secret during registration")
+		clientConfig.ClientSecret = ""
+	}
 
 	// Validate client config
 	err = validateClientConfig(&clientConfig)
@@ -216,21 +245,16 @@ func loadProviders(_ string) error {
 	return nil
 }
 
-// loadSigninConfigs loads all signin configurations from the openapi/signin directory
+// loadSigninConfigs loads all signin configurations from the openapi/user/signin directory
 func loadSigninConfigs(_ string) error {
-	// Use Walk to find all configuration files in the user directory
-	err := application.App.Walk("openapi/user", func(root, filename string, isdir bool) error {
+	// Use Walk to find all configuration files in the signin directory
+	err := application.App.Walk("openapi/user/signin", func(root, filename string, isdir bool) error {
 		if isdir {
 			return nil
 		}
 
 		// Only process .yao files
 		if !strings.HasSuffix(filename, ".yao") {
-			return nil
-		}
-
-		// Skip providers directory and client.yao file
-		if strings.Contains(filename, "providers/") || filepath.Base(filename) == "client.yao" {
 			return nil
 		}
 
@@ -241,14 +265,14 @@ func loadSigninConfigs(_ string) error {
 		// Read configuration
 		configRaw, err := application.App.Read(filename)
 		if err != nil {
-			return fmt.Errorf("failed to read config %s: %v", filename, err)
+			return fmt.Errorf("failed to read signin config %s: %v", filename, err)
 		}
 
 		// Parse the configuration
 		var config Config
 		err = application.Parse(filename, configRaw, &config)
 		if err != nil {
-			return fmt.Errorf("failed to parse config %s: %v", filename, err)
+			return fmt.Errorf("failed to parse signin config %s: %v", filename, err)
 		}
 
 		// Process ENV variables in the configuration
@@ -285,6 +309,49 @@ func loadSigninConfigs(_ string) error {
 
 	if err != nil {
 		return fmt.Errorf("failed to walk signin directory: %v", err)
+	}
+
+	return nil
+}
+
+// loadTeamConfigs loads all team configurations from the openapi/user/team directory
+func loadTeamConfigs(_ string) error {
+	// Use Walk to find all configuration files in the team directory
+	err := application.App.Walk("openapi/user/team", func(root, filename string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		// Only process .yao files
+		if !strings.HasSuffix(filename, ".yao") {
+			return nil
+		}
+
+		// Extract locale from filename (basename without extension)
+		baseName := filepath.Base(filename)
+		locale := strings.ToLower(strings.TrimSuffix(baseName, ".yao"))
+
+		// Read configuration
+		configRaw, err := application.App.Read(filename)
+		if err != nil {
+			return fmt.Errorf("failed to read team config %s: %v", filename, err)
+		}
+
+		// Parse the configuration
+		var teamConfig TeamConfig
+		err = application.Parse(filename, configRaw, &teamConfig)
+		if err != nil {
+			return fmt.Errorf("failed to parse team config %s: %v", filename, err)
+		}
+
+		// Store team configuration
+		teamConfigs[locale] = &teamConfig
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk team directory: %v", err)
 	}
 
 	return nil
@@ -343,6 +410,53 @@ func GetYaoClientConfig() *YaoClientConfig {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 	return yaoClientConfig
+}
+
+// GetTeamConfig returns the team configuration for a given locale
+func GetTeamConfig(locale string) *TeamConfig {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	// Normalize language code to lowercase
+	if locale != "" {
+		locale = strings.ToLower(locale)
+	}
+
+	// Try to get the specific locale configuration
+	if config, exists := teamConfigs[locale]; exists {
+		return config
+	}
+
+	// If no specific locale, try to get any available configuration
+	for _, config := range teamConfigs {
+		return config
+	}
+
+	return nil
+}
+
+// extractEnvVarName extracts the environment variable name from a string like "$ENV.VAR_NAME"
+func extractEnvVarName(value string) string {
+	if value == "" {
+		return "unknown"
+	}
+
+	// Handle $ENV.VAR_NAME format
+	if strings.HasPrefix(value, "$ENV.") {
+		return strings.TrimPrefix(value, "$ENV.")
+	}
+
+	// Handle ${VAR_NAME} format
+	if strings.HasPrefix(value, "${") && strings.HasSuffix(value, "}") {
+		return value[2 : len(value)-1]
+	}
+
+	// Handle $VAR_NAME format
+	if strings.HasPrefix(value, "$") {
+		return value[1:]
+	}
+
+	return "unknown"
 }
 
 // replaceENVVar replaces environment variables in a string

@@ -317,3 +317,25 @@ type CreateInvitationRequest struct {
 	Message    string                 `json:"message,omitempty"`
 	Settings   map[string]interface{} `json:"settings,omitempty"`
 }
+
+// ==== Team Configuration Types ====
+
+// TeamConfig represents the team configuration loaded from DSL files
+type TeamConfig struct {
+	Roles  []*TeamRole   `json:"roles,omitempty"`
+	Invite *InviteConfig `json:"invite,omitempty"`
+}
+
+// TeamRole represents a team role configuration
+type TeamRole struct {
+	RoleID      string `json:"role_id"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+}
+
+// InviteConfig represents the invitation configuration
+type InviteConfig struct {
+	Channel   string            `json:"channel,omitempty"`
+	Expiry    string            `json:"expiry,omitempty"`
+	Templates map[string]string `json:"templates,omitempty"`
+}
