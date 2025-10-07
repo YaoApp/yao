@@ -10,11 +10,11 @@ import (
 func TestConfigValidationLogic(t *testing.T) {
 	// Test cases for different configuration scenarios
 	testCases := []struct {
-		name           string
-		clientID       string
-		clientSecret   string
-		shouldPass     bool
-		expectedError  string
+		name          string
+		clientID      string
+		clientSecret  string
+		shouldPass    bool
+		expectedError string
 	}{
 		{
 			name:          "valid_direct_values",
@@ -58,13 +58,13 @@ func TestConfigValidationLogic(t *testing.T) {
 			// This is a conceptual test - in practice, we'd test the actual validation logic
 			t.Logf("Testing scenario: %s", tc.name)
 			t.Logf("ClientID: %s, ClientSecret: %s", tc.clientID, tc.clientSecret)
-			
+
 			if tc.shouldPass {
 				t.Logf("Expected: Should pass validation")
 			} else {
 				t.Logf("Expected: Should fail with error: %s", tc.expectedError)
 			}
-			
+
 			// This test documents the expected behavior
 			assert.True(t, true, "Validation logic should be tested through integration tests")
 		})
@@ -90,7 +90,7 @@ func TestEnvVarNameExtraction(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Logf("Input: %s, Expected: %s", tc.input, tc.expected)
-			
+
 			// This test documents the expected behavior of extractEnvVarName
 			// In practice, we'd need to make the function public or test it through integration
 			assert.True(t, true, "Function behavior should be tested through integration tests")

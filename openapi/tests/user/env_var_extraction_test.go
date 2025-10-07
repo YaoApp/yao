@@ -10,7 +10,7 @@ import (
 func TestExtractEnvVarName(t *testing.T) {
 	// Import the user package to access the function
 	// Note: This test assumes the function is exported or we can test it indirectly
-	
+
 	testCases := []struct {
 		input    string
 		expected string
@@ -28,7 +28,7 @@ func TestExtractEnvVarName(t *testing.T) {
 			// Since extractEnvVarName is not exported, we'll test the behavior indirectly
 			// by checking if the error message contains the correct variable name
 			t.Logf("Testing input: %s, expected: %s", tc.input, tc.expected)
-			
+
 			// This is a conceptual test - in practice, we'd need to make the function public
 			// or test it through the public API
 			assert.True(t, true, "Function behavior should be tested through integration tests")
@@ -40,7 +40,7 @@ func TestExtractEnvVarName(t *testing.T) {
 func TestEnvVarNameExtractionIntegration(t *testing.T) {
 	// This test verifies that the error message correctly identifies the missing environment variable
 	// by checking the actual error message format
-	
+
 	// Test with a custom environment variable name
 	testCases := []struct {
 		name     string
@@ -53,7 +53,7 @@ func TestEnvVarNameExtractionIntegration(t *testing.T) {
 			expected: "SIGNIN_CLIENT_ID",
 		},
 		{
-			name:     "CUSTOM_CLIENT_ID", 
+			name:     "CUSTOM_CLIENT_ID",
 			envVar:   "CUSTOM_CLIENT_ID",
 			expected: "CUSTOM_CLIENT_ID",
 		},
