@@ -52,28 +52,33 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 // User Team Management
 func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team := group.Group("/teams")
+
+	// Public endpoints (no authentication required)
+	team.GET("/config", GinTeamConfig) // Get team configuration (public)
+
+	// Protected endpoints (authentication required)
 	team.Use(oauth.Guard)
 
-	// Team CRUD
-	team.GET("/", GinTeamList)              // Get user teams
-	team.GET("/:team_id", GinTeamGet)       // Get user team details
-	team.POST("/", GinTeamCreate)           // Create user team
-	team.PUT("/:team_id", GinTeamUpdate)    // Update user team
-	team.DELETE("/:team_id", GinTeamDelete) // Delete user team
+	// Team CRUD - Standard REST endpoints
+	team.GET("/", GinTeamList)         // GET /teams - List user teams
+	team.POST("/", GinTeamCreate)      // POST /teams - Create new team
+	team.GET("/:id", GinTeamGet)       // GET /teams/:id - Get team details
+	team.PUT("/:id", GinTeamUpdate)    // PUT /teams/:id - Update team
+	team.DELETE("/:id", GinTeamDelete) // DELETE /teams/:id - Delete team
 
-	// Member Management
-	team.GET("/:team_id/members", GinMemberList)                 // Get user team members
-	team.GET("/:team_id/members/:member_id", GinMemberGet)       // Get user team member details
-	team.POST("/:team_id/members/direct", GinMemberCreateDirect) // Add member directly (for bots/system)
-	team.PUT("/:team_id/members/:member_id", GinMemberUpdate)    // Update user team member
-	team.DELETE("/:team_id/members/:member_id", GinMemberDelete) // Remove user team member
+	// Team Members - Nested resource endpoints
+	team.GET("/:id/members", GinMemberList)                 // GET /teams/:id/members - List team members
+	team.POST("/:id/members", GinMemberCreateDirect)        // POST /teams/:id/members - Add team member
+	team.GET("/:id/members/:member_id", GinMemberGet)       // GET /teams/:id/members/:member_id - Get member details
+	team.PUT("/:id/members/:member_id", GinMemberUpdate)    // PUT /teams/:id/members/:member_id - Update member
+	team.DELETE("/:id/members/:member_id", GinMemberDelete) // DELETE /teams/:id/members/:member_id - Remove member
 
-	// Member Invitation Management
-	team.POST("/:team_id/invitations", GinInvitationCreate)                      // Send team invitation
-	team.GET("/:team_id/invitations", GinInvitationList)                         // Get team invitations
-	team.GET("/:team_id/invitations/:invitation_id", GinInvitationGet)           // Get invitation details
-	team.PUT("/:team_id/invitations/:invitation_id/resend", GinInvitationResend) // Resend invitation
-	team.DELETE("/:team_id/invitations/:invitation_id", GinInvitationDelete)     // Cancel invitation
+	// Team Invitations - Nested resource endpoints
+	team.GET("/:id/invitations", GinInvitationList)                         // GET /teams/:id/invitations - List invitations
+	team.POST("/:id/invitations", GinInvitationCreate)                      // POST /teams/:id/invitations - Send invitation
+	team.GET("/:id/invitations/:invitation_id", GinInvitationGet)           // GET /teams/:id/invitations/:invitation_id - Get invitation
+	team.PUT("/:id/invitations/:invitation_id/resend", GinInvitationResend) // PUT /teams/:id/invitations/:invitation_id/resend - Resend invitation
+	team.DELETE("/:id/invitations/:invitation_id", GinInvitationDelete)     // DELETE /teams/:id/invitations/:invitation_id - Cancel invitation
 }
 
 // Invitation Response Management (Cross-module invitation handling)
@@ -248,6 +253,22 @@ func attachThirdParty(group *gin.RouterGroup, oauth types.OAuth) {
 	thirdParty.POST("/:provider/authorize/prepare", authbackPrepare) // OAuth authorization prepare - migrated from /signin/oauth/:provider/authorize/prepare
 	thirdParty.POST("/:provider/callback", authback)                 // Handle OAuth callback - migrated from /signin/oauth/:provider/authback
 
+}
+
+// getTeamConfig returns the team configuration
+func getTeamConfig(c *gin.Context) {
+	locale := c.Query("locale")
+	if locale == "" {
+		locale = "en" // default locale
+	}
+
+	config := GetTeamConfig(locale)
+	if config == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Team configuration not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
 }
 
 func placeholder(c *gin.Context) {

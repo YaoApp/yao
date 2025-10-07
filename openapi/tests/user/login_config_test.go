@@ -30,16 +30,16 @@ func TestUserLoginConfig(t *testing.T) {
 
 	// Note: user.Load is automatically called by openapi.Load in testutils.Prepare
 
-	// Test API endpoints
+	// Test API endpoints for signin configuration
 	testCases := []struct {
 		name       string
 		endpoint   string
 		expectCode int
 	}{
-		{"get config without locale", "/user/login", 200},
-		{"get config with en locale", "/user/login?locale=en", 200},
-		{"get config with zh-cn locale", "/user/login?locale=zh-cn", 200},
-		{"get config with invalid locale", "/user/login?locale=invalid", 200}, // should fallback to default
+		{"get login config without locale", "/user/login", 200},
+		{"get login config with en locale", "/user/login?locale=en", 200},
+		{"get login config with zh-cn locale", "/user/login?locale=zh-cn", 200},
+		{"get login config with invalid locale", "/user/login?locale=invalid", 200}, // should fallback to default
 	}
 
 	for _, tc := range testCases {
