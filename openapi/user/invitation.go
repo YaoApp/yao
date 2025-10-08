@@ -16,6 +16,8 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/messenger"
+	messengertypes "github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -35,7 +37,7 @@ func GinInvitationList(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -105,7 +107,7 @@ func GinInvitationGet(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	invitationID := c.Param("invitation_id")
 	if teamID == "" || invitationID == "" {
 		errorResp := &response.ErrorResponse{
@@ -161,7 +163,7 @@ func GinInvitationCreate(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -185,14 +187,35 @@ func GinInvitationCreate(c *gin.Context) {
 	// Prepare invitation data
 	invitationData := maps.MapStrAny{
 		"user_id":     req.UserID,
+		"email":       req.Email,
 		"member_type": req.MemberType,
 		"role_id":     req.RoleID,
 		"message":     req.Message,
+		"expiry":      req.Expiry,
 	}
 
-	// Add settings if provided
+	// Add send_email setting from top-level field
+	if req.SendEmail != nil {
+		if invitationData["settings"] == nil {
+			invitationData["settings"] = make(map[string]interface{})
+		}
+		if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
+			settings["send_email"] = *req.SendEmail
+		}
+	}
+
+	// Add other settings if provided
 	if req.Settings != nil {
-		invitationData["settings"] = req.Settings
+		if invitationData["settings"] == nil {
+			invitationData["settings"] = req.Settings
+		} else {
+			// Merge settings
+			if existingSettings, ok := invitationData["settings"].(map[string]interface{}); ok {
+				for k, v := range req.Settings {
+					existingSettings[k] = v
+				}
+			}
+		}
 	}
 
 	// Call business logic
@@ -218,6 +241,12 @@ func GinInvitationCreate(c *gin.Context) {
 				ErrorDescription: err.Error(),
 			}
 			response.RespondWithError(c, response.StatusConflict, errorResp)
+		} else if strings.Contains(err.Error(), "email is required") || strings.Contains(err.Error(), "is required") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		} else {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrServerError.Code,
@@ -245,7 +274,7 @@ func GinInvitationResend(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	invitationID := c.Param("invitation_id")
 	if teamID == "" || invitationID == "" {
 		errorResp := &response.ErrorResponse{
@@ -305,7 +334,7 @@ func GinInvitationDelete(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	invitationID := c.Param("invitation_id")
 	if teamID == "" || invitationID == "" {
 		errorResp := &response.ErrorResponse{
@@ -370,23 +399,16 @@ func ProcessInvitationList(process *process.Process) interface{} {
 	page := 1
 	pagesize := 20
 
-	if p, ok := queryMap["page"]; ok {
-		if pageInt, ok := p.(int); ok && pageInt > 0 {
-			page = pageInt
-		}
+	if p := int(toInt64(queryMap["page"])); p > 0 {
+		page = p
 	}
 
-	if ps, ok := queryMap["pagesize"]; ok {
-		if pagesizeInt, ok := ps.(int); ok && pagesizeInt > 0 && pagesizeInt <= 100 {
-			pagesize = pagesizeInt
-		}
+	if ps := int(toInt64(queryMap["pagesize"])); ps > 0 && ps <= 100 {
+		pagesize = ps
 	}
 
 	// Get status filter
-	status := ""
-	if s, ok := queryMap["status"].(string); ok {
-		status = s
-	}
+	status := toString(queryMap["status"])
 
 	// Get context
 	ctx := process.Context
@@ -635,6 +657,9 @@ func invitationGet(ctx context.Context, userID, teamID, invitationID string) (ma
 }
 
 // invitationCreate handles the business logic for creating a team invitation
+// Supports two scenarios:
+// 1. Email invitation: provide email and role, send invitation link via email
+// 2. Link invitation: create invitation link for display in frontend, customizable expiry
 func invitationCreate(ctx context.Context, userID, teamID string, invitationData maps.MapStrAny) (string, error) {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
@@ -653,8 +678,31 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 		return "", fmt.Errorf("failed to get user provider: %w", err)
 	}
 
+	// Get team information for email template
+	team, err := provider.GetTeam(ctx, teamID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get team information: %w", err)
+	}
+	teamName := toString(team["name"])
+
+	// Get inviter information for email template
+	inviter, err := provider.GetUser(ctx, userID)
+	if err != nil {
+		log.Warn("Failed to get inviter information: %v", err)
+		inviter = maps.MapStrAny{"name": "Team Admin"}
+	}
+	inviterName := toString(inviter["name"])
+	if inviterName == "" {
+		inviterName = toString(inviter["email"])
+	}
+
 	// Check if user is already a member or has pending invitation (if user_id is provided)
 	var inviteeUserID string
+	var inviteeEmail string
+
+	// Get email from invitation data first
+	inviteeEmail = toString(invitationData["email"])
+
 	if invitationData["user_id"] != nil && invitationData["user_id"] != "" {
 		inviteeUserID = toString(invitationData["user_id"])
 		exists, err := provider.MemberExists(ctx, teamID, inviteeUserID)
@@ -664,15 +712,47 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 		if exists {
 			return "", fmt.Errorf("user is already a member or has a pending invitation")
 		}
+
+		// If email not provided, get it from user profile
+		if inviteeEmail == "" {
+			user, err := provider.GetUser(ctx, inviteeUserID)
+			if err != nil {
+				return "", fmt.Errorf("failed to get user information: %w", err)
+			}
+			inviteeEmail = toString(user["email"])
+
+			// Update invitation data with email from user profile
+			if inviteeEmail != "" {
+				invitationData["email"] = inviteeEmail
+			}
+		}
 	} else {
-		// For unregistered users, set user_id to nil (NULL in database)
+		// For invitations without user_id (general invitation link or unregistered users)
+		// Set user_id to nil (NULL in database)
 		invitationData["user_id"] = nil
+	}
+
+	// Check send_email requirement early
+	shouldSendEmail := false
+	if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
+		shouldSendEmail = toBool(settings["send_email"])
+	}
+
+	// If send_email is true, email must be provided
+	if shouldSendEmail && inviteeEmail == "" {
+		return "", fmt.Errorf("email is required when send_email is true")
 	}
 
 	// Generate invitation token
 	token, err := generateInvitationToken()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate invitation token: %w", err)
+	}
+
+	// Calculate expiry duration
+	expiryDuration, err := getInvitationExpiry(invitationData)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse expiry duration: %w", err)
 	}
 
 	// Set invitation-specific fields
@@ -684,7 +764,7 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 	invitationData["invited_by"] = userID
 	invitationData["invited_at"] = time.Now()
 	invitationData["invitation_token"] = token
-	invitationData["invitation_expires_at"] = time.Now().Add(7 * 24 * time.Hour) // 7 days expiry
+	invitationData["invitation_expires_at"] = time.Now().Add(expiryDuration)
 	invitationData["created_at"] = time.Now()
 	invitationData["updated_at"] = time.Now()
 
@@ -703,8 +783,17 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 	// Get the generated invitation_id
 	invitationID := toString(createdMember["invitation_id"])
 
-	// TODO: Send invitation email/notification here
-	// This would typically involve calling an email service or notification system
+	// Send email if requested (shouldSendEmail was already determined earlier)
+	if shouldSendEmail {
+		err = sendInvitationEmail(ctx, inviteeEmail, inviterName, teamName, token, invitationID, invitationData)
+		if err != nil {
+			log.Error("Failed to send invitation email: %v", err)
+			// Don't fail the invitation creation if email fails
+			// The invitation link can still be shared manually
+		} else {
+			log.Info("Invitation email sent to %s for team %s (invitation_id: %s)", inviteeEmail, teamName, invitationID)
+		}
+	}
 
 	return invitationID, nil
 }
@@ -744,17 +833,43 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID string) 
 		return fmt.Errorf("invitation is no longer pending and cannot be resent")
 	}
 
+	// Get team information for email template
+	team, err := provider.GetTeam(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("failed to get team information: %w", err)
+	}
+	teamName := toString(team["name"])
+
+	// Get inviter information for email template
+	inviter, err := provider.GetUser(ctx, userID)
+	if err != nil {
+		log.Warn("Failed to get inviter information: %v", err)
+		inviter = maps.MapStrAny{"name": "Team Admin"}
+	}
+	inviterName := toString(inviter["name"])
+	if inviterName == "" {
+		inviterName = toString(inviter["email"])
+	}
+
 	// Generate new invitation token
 	newToken, err := generateInvitationToken()
 	if err != nil {
 		return fmt.Errorf("failed to generate new invitation token: %w", err)
 	}
 
+	// Calculate expiry duration (use existing expiry from original invitation data)
+	expiryDuration, err := getInvitationExpiry(invitationData)
+	if err != nil {
+		log.Warn("Failed to parse expiry duration: %v, using default", err)
+		expiryDuration = 7 * 24 * time.Hour
+	}
+
 	// Update invitation with new token and extended expiry
+	newExpiryTime := time.Now().Add(expiryDuration)
 	updateData := maps.MapStrAny{
 		"invitation_token":      newToken,
-		"invitation_expires_at": time.Now().Add(7 * 24 * time.Hour), // Extend for another 7 days
-		"invited_at":            time.Now(),                         // Update invitation time
+		"invitation_expires_at": newExpiryTime,
+		"invited_at":            time.Now(), // Update invitation time
 		"updated_at":            time.Now(),
 	}
 
@@ -764,8 +879,30 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID string) 
 		return fmt.Errorf("failed to update invitation: %w", err)
 	}
 
-	// TODO: Send new invitation email/notification here
-	// This would typically involve calling an email service or notification system
+	// Update the invitation data for email sending
+	invitationData["invitation_token"] = newToken
+	invitationData["invitation_expires_at"] = newExpiryTime
+
+	// Get email from invitation data
+	var inviteeEmail string
+	if inviteeUserID := toString(invitationData["user_id"]); inviteeUserID != "" {
+		// Get user email for registered user
+		user, err := provider.GetUser(ctx, inviteeUserID)
+		if err != nil {
+			log.Warn("Failed to get user information: %v", err)
+		} else {
+			inviteeEmail = toString(user["email"])
+		}
+	}
+
+	// Send new invitation email if email is available
+	if inviteeEmail != "" {
+		err = sendInvitationEmail(ctx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
+		if err != nil {
+			log.Error("Failed to resend invitation email: %v", err)
+			// Don't fail the resend if email fails
+		}
+	}
 
 	return nil
 }
@@ -825,6 +962,116 @@ func generateInvitationToken() (string, error) {
 	}
 	// Use URL-safe base64 encoding and remove padding
 	return strings.TrimRight(base64.URLEncoding.EncodeToString(bytes), "="), nil
+}
+
+// getInvitationExpiry calculates the expiry duration for an invitation
+// Priority: 1. Request expiry parameter, 2. Team config, 3. Default (7 days)
+func getInvitationExpiry(invitationData maps.MapStrAny) (time.Duration, error) {
+	// Default expiry: 7 days
+	defaultExpiry := 7 * 24 * time.Hour
+
+	// Check if expiry is provided in request
+	expiry := toString(invitationData["expiry"])
+	if expiry != "" {
+		normalizedDuration, err := normalizeDuration(expiry)
+		if err != nil {
+			return 0, fmt.Errorf("invalid expiry format: %w", err)
+		}
+		duration, err := time.ParseDuration(normalizedDuration)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse expiry duration: %w", err)
+		}
+		return duration, nil
+	}
+
+	// Get team config expiry (from global config)
+	// Try to get locale from invitation data settings
+	locale := "en"
+	if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
+		if loc := toString(settings["locale"]); loc != "" {
+			locale = loc
+		}
+	}
+
+	teamConfig := GetTeamConfig(locale)
+	if teamConfig != nil && teamConfig.Invite != nil && teamConfig.Invite.Expiry != "" {
+		normalizedDuration, err := normalizeDuration(teamConfig.Invite.Expiry)
+		if err != nil {
+			log.Warn("Invalid expiry format in team config: %v, using default", err)
+			return defaultExpiry, nil
+		}
+		duration, err := time.ParseDuration(normalizedDuration)
+		if err != nil {
+			log.Warn("Failed to parse team config expiry: %v, using default", err)
+			return defaultExpiry, nil
+		}
+		return duration, nil
+	}
+
+	return defaultExpiry, nil
+}
+
+// sendInvitationEmail sends an invitation email using messenger service
+func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, token, invitationID string, invitationData maps.MapStrAny) error {
+	// Check if messenger is available
+	if messenger.Instance == nil {
+		return fmt.Errorf("messenger service not available")
+	}
+
+	// Get locale from invitation data settings
+	locale := "en"
+	if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
+		if loc := toString(settings["locale"]); loc != "" {
+			locale = loc
+		}
+	}
+
+	// Get team config for email template and channel
+	teamConfig := GetTeamConfig(locale)
+	if teamConfig == nil || teamConfig.Invite == nil {
+		return fmt.Errorf("team configuration not found for locale: %s", locale)
+	}
+
+	// Get email template ID from team config
+	emailTemplate := ""
+	if teamConfig.Invite.Templates != nil {
+		if tpl, ok := teamConfig.Invite.Templates["mail"]; ok {
+			emailTemplate = tpl
+		}
+	}
+	if emailTemplate == "" {
+		return fmt.Errorf("email template not configured in team config")
+	}
+
+	// Get channel from team config (default to "default")
+	channel := "default"
+	if teamConfig.Invite.Channel != "" {
+		channel = teamConfig.Invite.Channel
+	}
+
+	// Get custom message from invitation data
+	customMessage := toString(invitationData["message"])
+
+	// Prepare template data for messenger
+	templateData := messengertypes.TemplateData{
+		"to":            email,
+		"inviter_name":  inviterName,
+		"team_name":     teamName,
+		"invitation_id": invitationID,
+		"token":         token,
+		"message":       customMessage,
+		"role_id":       toString(invitationData["role_id"]),
+		"expires_at":    toString(invitationData["invitation_expires_at"]),
+	}
+
+	// Send email using messenger template
+	err := messenger.Instance.SendT(ctx, channel, emailTemplate, templateData)
+	if err != nil {
+		return fmt.Errorf("failed to send invitation email: %w", err)
+	}
+
+	log.Info("Invitation email sent to %s for team %s (invitation_id: %s)", email, teamName, invitationID)
+	return nil
 }
 
 // mapToInvitationResponse converts a map to InvitationResponse

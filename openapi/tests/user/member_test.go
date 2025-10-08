@@ -266,7 +266,7 @@ func TestMemberGet(t *testing.T) {
 	}
 }
 
-// TestMemberCreateDirect tests the POST /user/teams/:team_id/members/direct endpoint
+// TestMemberCreateDirect tests the POST /user/teams/:team_id/members endpoint
 func TestMemberCreateDirect(t *testing.T) {
 	// Initialize test environment
 	serverURL := testutils.Prepare(t)
@@ -404,7 +404,7 @@ func TestMemberCreateDirect(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/direct"
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members"
 
 			var req *http.Request
 			var err error
@@ -818,7 +818,7 @@ func TestMemberPermissionVerification(t *testing.T) {
 		},
 		{
 			"owner can create members",
-			"/user/teams/" + teamID + "/members/direct",
+			"/user/teams/" + teamID + "/members",
 			"POST",
 			ownerToken.AccessToken,
 			201, // Will create successfully
@@ -826,7 +826,7 @@ func TestMemberPermissionVerification(t *testing.T) {
 		},
 		{
 			"member cannot create members",
-			"/user/teams/" + teamID + "/members/direct",
+			"/user/teams/" + teamID + "/members",
 			"POST",
 			nonOwnerToken.AccessToken,
 			403,
@@ -952,7 +952,7 @@ func createTestMember(t *testing.T, serverURL, baseURL, teamID, accessToken, use
 	bodyBytes, err := json.Marshal(createMemberBody)
 	assert.NoError(t, err, "Should marshal member creation body")
 
-	req, err := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/direct", bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members", bytes.NewBuffer(bodyBytes))
 	assert.NoError(t, err, "Should create member creation request")
 
 	req.Header.Set("Content-Type", "application/json")

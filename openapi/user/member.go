@@ -33,7 +33,7 @@ func GinMemberList(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -103,7 +103,7 @@ func GinMemberGet(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	memberID := c.Param("member_id")
 	if teamID == "" || memberID == "" {
 		errorResp := &response.ErrorResponse{
@@ -146,7 +146,7 @@ func GinMemberGet(c *gin.Context) {
 	c.JSON(http.StatusOK, member)
 }
 
-// GinMemberCreateDirect handles POST /teams/:team_id/members/direct - Add member directly
+// GinMemberCreateDirect handles POST /teams/:team_id/members - Add member directly to team
 func GinMemberCreateDirect(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
@@ -159,7 +159,7 @@ func GinMemberCreateDirect(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	if teamID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -242,7 +242,7 @@ func GinMemberUpdate(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	memberID := c.Param("member_id")
 	if teamID == "" || memberID == "" {
 		errorResp := &response.ErrorResponse{
@@ -323,7 +323,7 @@ func GinMemberDelete(c *gin.Context) {
 		return
 	}
 
-	teamID := c.Param("team_id")
+	teamID := c.Param("id")
 	memberID := c.Param("member_id")
 	if teamID == "" || memberID == "" {
 		errorResp := &response.ErrorResponse{
