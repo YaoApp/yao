@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/yao/messenger/providers/mailer"
 	"github.com/yaoapp/yao/messenger/providers/mailgun"
 	"github.com/yaoapp/yao/messenger/providers/twilio"
+	"github.com/yaoapp/yao/messenger/template"
 	"github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/share"
 )
@@ -71,6 +72,13 @@ func Load(cfg config.Config) error {
 	providers, err := loadProviders()
 	if err != nil {
 		return err
+	}
+
+	// Load templates
+	err = template.LoadTemplates()
+	if err != nil {
+		log.Warn("[Messenger] Failed to load templates: %v", err)
+		// Don't fail messenger loading if templates fail
 	}
 
 	// Create messenger configuration
@@ -212,7 +220,7 @@ func createProvider(config types.ProviderConfig) (types.Provider, error) {
 	case "twilio":
 		return createTwilioProvider(config)
 	case "mailgun":
-		return mailgun.NewMailgunProvider(config)
+		return createMailgunProvider(config)
 	default:
 		return nil, fmt.Errorf("unsupported connector: %s", connector)
 	}
@@ -220,7 +228,12 @@ func createProvider(config types.ProviderConfig) (types.Provider, error) {
 
 // createTwilioProvider creates a unified Twilio provider that handles all message types
 func createTwilioProvider(config types.ProviderConfig) (types.Provider, error) {
-	return twilio.NewTwilioProvider(config)
+	return twilio.NewTwilioProviderWithTemplateManager(config, template.Global)
+}
+
+// createMailgunProvider creates a Mailgun provider with template manager
+func createMailgunProvider(config types.ProviderConfig) (types.Provider, error) {
+	return mailgun.NewMailgunProviderWithTemplateManager(config, template.Global)
 }
 
 // Send sends a message using the specified channel or default provider
@@ -284,6 +297,81 @@ func (m *Service) SendWithProvider(ctx context.Context, providerName string, mes
 	}
 
 	return fmt.Errorf("failed to send message after %d attempts: %w", maxAttempts, lastErr)
+}
+
+// SendT sends a message using a template
+func (m *Service) SendT(ctx context.Context, channel string, templateID string, data types.TemplateData) error {
+	// Get providers for the channel
+	providers := m.GetProviders(channel)
+	if len(providers) == 0 {
+		return fmt.Errorf("no providers available for channel: %s", channel)
+	}
+
+	// Use the first available provider's SendT method
+	provider := providers[0]
+	return provider.SendT(ctx, templateID, data)
+}
+
+// SendTWithProvider sends a message using a template and specific provider
+func (m *Service) SendTWithProvider(ctx context.Context, providerName string, templateID string, data types.TemplateData) error {
+	// Get provider
+	provider, exists := m.providers[providerName]
+	if !exists {
+		return fmt.Errorf("provider not found: %s", providerName)
+	}
+
+	// Use the provider's SendT method directly
+	return provider.SendT(ctx, templateID, data)
+}
+
+// SendTBatch sends multiple messages using templates in batch
+func (m *Service) SendTBatch(ctx context.Context, channel string, templateID string, dataList []types.TemplateData) error {
+	// Get providers for the channel
+	providers := m.GetProviders(channel)
+	if len(providers) == 0 {
+		return fmt.Errorf("no providers available for channel: %s", channel)
+	}
+
+	// Use the first available provider's SendTBatch method
+	provider := providers[0]
+	return provider.SendTBatch(ctx, templateID, dataList)
+}
+
+// SendTBatchWithProvider sends multiple messages using templates and specific provider in batch
+func (m *Service) SendTBatchWithProvider(ctx context.Context, providerName string, templateID string, dataList []types.TemplateData) error {
+	// Get provider
+	provider, exists := m.providers[providerName]
+	if !exists {
+		return fmt.Errorf("provider not found: %s", providerName)
+	}
+
+	// Use the provider's SendTBatch method directly
+	return provider.SendTBatch(ctx, templateID, dataList)
+}
+
+// SendTBatchMixed sends multiple messages using different templates with different data
+func (m *Service) SendTBatchMixed(ctx context.Context, channel string, templateRequests []types.TemplateRequest) error {
+	// Get providers for the channel
+	providers := m.GetProviders(channel)
+	if len(providers) == 0 {
+		return fmt.Errorf("no providers available for channel: %s", channel)
+	}
+
+	// Use the first available provider's SendTBatchMixed method
+	provider := providers[0]
+	return provider.SendTBatchMixed(ctx, templateRequests)
+}
+
+// SendTBatchMixedWithProvider sends multiple messages using different templates with different data and specific provider
+func (m *Service) SendTBatchMixedWithProvider(ctx context.Context, providerName string, templateRequests []types.TemplateRequest) error {
+	// Get provider
+	provider, exists := m.providers[providerName]
+	if !exists {
+		return fmt.Errorf("provider not found: %s", providerName)
+	}
+
+	// Use the provider's SendTBatchMixed method directly
+	return provider.SendTBatchMixed(ctx, templateRequests)
 }
 
 // SendBatch sends multiple messages in batch

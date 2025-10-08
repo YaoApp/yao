@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yaoapp/yao/messenger/template"
 	"github.com/yaoapp/yao/messenger/types"
 )
 
@@ -32,13 +33,22 @@ type Provider struct {
 	imapPassword string
 	imapUseSSL   bool
 	imapMailbox  string
+
+	// Template manager for template support
+	templateManager types.TemplateManager
 }
 
 // NewMailerProvider creates a new Mailer provider
 func NewMailerProvider(config types.ProviderConfig) (*Provider, error) {
+	return NewMailerProviderWithTemplateManager(config, template.Global)
+}
+
+// NewMailerProviderWithTemplateManager creates a new Mailer provider with template manager
+func NewMailerProviderWithTemplateManager(config types.ProviderConfig, templateManager types.TemplateManager) (*Provider, error) {
 	provider := &Provider{
-		config: config,
-		useTLS: true, // Default to TLS
+		config:          config,
+		useTLS:          true, // Default to TLS
+		templateManager: templateManager,
 	}
 
 	// Extract options
@@ -197,6 +207,77 @@ func (p *Provider) SendBatch(ctx context.Context, messages []*types.Message) err
 		}
 	}
 	return nil
+}
+
+// SendT sends a message using a template
+func (p *Provider) SendT(ctx context.Context, templateID string, data types.TemplateData) error {
+	// Get template from provider's template manager (mailer supports mail templates)
+	template, err := p.getTemplate(templateID, types.TemplateTypeMail)
+	if err != nil {
+		return fmt.Errorf("template not found: %w", err)
+	}
+
+	// Convert template to message
+	message, err := template.ToMessage(data)
+	if err != nil {
+		return fmt.Errorf("failed to convert template to message: %w", err)
+	}
+
+	// Send message using existing Send method
+	return p.Send(ctx, message)
+}
+
+// SendTBatch sends multiple messages using templates in batch
+func (p *Provider) SendTBatch(ctx context.Context, templateID string, dataList []types.TemplateData) error {
+	// Get template from provider's template manager (mailer supports mail templates)
+	template, err := p.getTemplate(templateID, types.TemplateTypeMail)
+	if err != nil {
+		return fmt.Errorf("template not found: %w", err)
+	}
+
+	// Convert templates to messages
+	messages := make([]*types.Message, 0, len(dataList))
+	for _, data := range dataList {
+		message, err := template.ToMessage(data)
+		if err != nil {
+			return fmt.Errorf("failed to convert template to message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+
+	// Send messages using existing SendBatch method
+	return p.SendBatch(ctx, messages)
+}
+
+// SendTBatchMixed sends multiple messages using different templates with different data
+func (p *Provider) SendTBatchMixed(ctx context.Context, templateRequests []types.TemplateRequest) error {
+	// Convert template requests to messages
+	messages := make([]*types.Message, 0, len(templateRequests))
+	for _, req := range templateRequests {
+		// Get template from provider's template manager (mailer supports mail templates)
+		template, err := p.getTemplate(req.TemplateID, types.TemplateTypeMail)
+		if err != nil {
+			return fmt.Errorf("template not found: %s, %w", req.TemplateID, err)
+		}
+
+		// Convert template to message
+		message, err := template.ToMessage(req.Data)
+		if err != nil {
+			return fmt.Errorf("failed to convert template %s to message: %w", req.TemplateID, err)
+		}
+		messages = append(messages, message)
+	}
+
+	// Send messages using existing SendBatch method
+	return p.SendBatch(ctx, messages)
+}
+
+// getTemplate gets a template by ID and type from the provider's template manager
+func (p *Provider) getTemplate(templateID string, templateType types.TemplateType) (*types.Template, error) {
+	if p.templateManager == nil {
+		return nil, fmt.Errorf("template manager not available")
+	}
+	return p.templateManager.GetTemplate(templateID, templateType)
 }
 
 // GetType returns the provider type
