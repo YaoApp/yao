@@ -818,8 +818,15 @@ func mapToTeamDetailResponse(data maps.MapStr) TeamDetailResponse {
 
 	// Add settings if available
 	if settings, ok := data["settings"]; ok {
-		if settingsMap, ok := settings.(map[string]interface{}); ok {
-			team.Settings = settingsMap
+		if teamSettings, ok := settings.(*TeamSettings); ok {
+			team.Settings = teamSettings
+		} else if settingsMap, ok := settings.(map[string]interface{}); ok {
+			// Convert map to TeamSettings (for backward compatibility)
+			teamSettings := &TeamSettings{
+				Theme:      toString(settingsMap["theme"]),
+				Visibility: toString(settingsMap["visibility"]),
+			}
+			team.Settings = teamSettings
 		}
 	}
 

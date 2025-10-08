@@ -797,8 +797,28 @@ func mapToMemberResponse(data maps.MapStr) MemberResponse {
 
 	// Add settings if available
 	if settings, ok := data["settings"]; ok {
-		if settingsMap, ok := settings.(map[string]interface{}); ok {
-			member.Settings = settingsMap
+		if memSettings, ok := settings.(*MemberSettings); ok {
+			member.Settings = memSettings
+		} else if settingsMap, ok := settings.(map[string]interface{}); ok {
+			// Convert map to MemberSettings (for backward compatibility)
+			memSettings := &MemberSettings{
+				Notifications: toBool(settingsMap["notifications"]),
+			}
+			// Handle permissions array
+			if perms, ok := settingsMap["permissions"]; ok {
+				if permsSlice, ok := perms.([]interface{}); ok {
+					permissions := make([]string, 0, len(permsSlice))
+					for _, p := range permsSlice {
+						if permStr, ok := p.(string); ok {
+							permissions = append(permissions, permStr)
+						}
+					}
+					memSettings.Permissions = permissions
+				} else if permsStrSlice, ok := perms.([]string); ok {
+					memSettings.Permissions = permsStrSlice
+				}
+			}
+			member.Settings = memSettings
 		}
 	}
 

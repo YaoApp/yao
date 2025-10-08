@@ -194,28 +194,20 @@ func GinInvitationCreate(c *gin.Context) {
 		"expiry":      req.Expiry,
 	}
 
-	// Add send_email setting from top-level field
-	if req.SendEmail != nil {
-		if invitationData["settings"] == nil {
-			invitationData["settings"] = make(map[string]interface{})
-		}
-		if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
-			settings["send_email"] = *req.SendEmail
-		}
+	// Prepare settings
+	settings := &InvitationSettings{}
+	if req.Settings != nil {
+		settings = req.Settings
 	}
 
-	// Add other settings if provided
-	if req.Settings != nil {
-		if invitationData["settings"] == nil {
-			invitationData["settings"] = req.Settings
-		} else {
-			// Merge settings
-			if existingSettings, ok := invitationData["settings"].(map[string]interface{}); ok {
-				for k, v := range req.Settings {
-					existingSettings[k] = v
-				}
-			}
-		}
+	// Add send_email from top-level field (for backward compatibility)
+	if req.SendEmail != nil {
+		settings.SendEmail = *req.SendEmail
+	}
+
+	// Add settings to invitation data
+	if settings.SendEmail || settings.Locale != "" {
+		invitationData["settings"] = settings
 	}
 
 	// Call business logic
@@ -734,8 +726,11 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 
 	// Check send_email requirement early
 	shouldSendEmail := false
-	if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
-		shouldSendEmail = toBool(settings["send_email"])
+	if settings, ok := invitationData["settings"].(*InvitationSettings); ok && settings != nil {
+		shouldSendEmail = settings.SendEmail
+	} else if settingsMap, ok := invitationData["settings"].(map[string]interface{}); ok {
+		// Fallback for map format (for backward compatibility)
+		shouldSendEmail = toBool(settingsMap["send_email"])
 	}
 
 	// If send_email is true, email must be provided
@@ -987,8 +982,13 @@ func getInvitationExpiry(invitationData maps.MapStrAny) (time.Duration, error) {
 	// Get team config expiry (from global config)
 	// Try to get locale from invitation data settings
 	locale := "en"
-	if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
-		if loc := toString(settings["locale"]); loc != "" {
+	if settings, ok := invitationData["settings"].(*InvitationSettings); ok && settings != nil {
+		if settings.Locale != "" {
+			locale = settings.Locale
+		}
+	} else if settingsMap, ok := invitationData["settings"].(map[string]interface{}); ok {
+		// Fallback for map format (for backward compatibility)
+		if loc := toString(settingsMap["locale"]); loc != "" {
 			locale = loc
 		}
 	}
@@ -1020,8 +1020,13 @@ func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, toke
 
 	// Get locale from invitation data settings
 	locale := "en"
-	if settings, ok := invitationData["settings"].(map[string]interface{}); ok {
-		if loc := toString(settings["locale"]); loc != "" {
+	if settings, ok := invitationData["settings"].(*InvitationSettings); ok && settings != nil {
+		if settings.Locale != "" {
+			locale = settings.Locale
+		}
+	} else if settingsMap, ok := invitationData["settings"].(map[string]interface{}); ok {
+		// Fallback for map format (for backward compatibility)
+		if loc := toString(settingsMap["locale"]); loc != "" {
 			locale = loc
 		}
 	}
@@ -1094,8 +1099,15 @@ func mapToInvitationResponse(data maps.MapStr) InvitationResponse {
 
 	// Add settings if available
 	if settings, ok := data["settings"]; ok {
-		if settingsMap, ok := settings.(map[string]interface{}); ok {
-			invitation.Settings = settingsMap
+		if invSettings, ok := settings.(*InvitationSettings); ok {
+			invitation.Settings = invSettings
+		} else if settingsMap, ok := settings.(map[string]interface{}); ok {
+			// Convert map to InvitationSettings
+			invSettings := &InvitationSettings{
+				SendEmail: toBool(settingsMap["send_email"]),
+				Locale:    toString(settingsMap["locale"]),
+			}
+			invitation.Settings = invSettings
 		}
 	}
 
