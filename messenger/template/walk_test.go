@@ -15,7 +15,7 @@ func TestWalkTemplates(t *testing.T) {
 
 	// Test Walk function directly
 	t.Log("Testing Walk function directly...")
-	
+
 	// Check if templates directory exists
 	exists, err := application.App.Exists("messengers/templates")
 	if err != nil {
@@ -25,13 +25,13 @@ func TestWalkTemplates(t *testing.T) {
 		t.Log("Templates directory not found")
 		return
 	}
-	
+
 	t.Log("Templates directory exists")
-	
+
 	// Test Walk with different extensions
 	exts := []string{"*.mail.html", "*.sms.txt", "*.whatsapp.html"}
 	t.Logf("Testing Walk with extensions: %v", exts)
-	
+
 	fileCount := 0
 	err = application.App.Walk("messengers/templates", func(root, file string, isdir bool) error {
 		t.Logf("Walk callback: root=%s, file=%s, isdir=%v", root, file, isdir)
@@ -40,10 +40,10 @@ func TestWalkTemplates(t *testing.T) {
 		}
 		return nil
 	}, exts...)
-	
+
 	if err != nil {
 		t.Fatalf("Walk failed: %v", err)
 	}
-	
+
 	t.Logf("Walk completed, found %d files", fileCount)
 }

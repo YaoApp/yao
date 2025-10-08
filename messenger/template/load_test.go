@@ -16,18 +16,18 @@ func TestLoadTemplate(t *testing.T) {
 	// Test loading a specific template
 	file := "messengers/templates/en/invite_member.mail.html"
 	templateID := share.ID("messengers/templates", file)
-	
+
 	t.Logf("Testing loadTemplate with file: %s, templateID: %s", file, templateID)
-	
+
 	template, err := loadTemplate(file, templateID)
 	if err != nil {
 		t.Fatalf("Failed to load template: %v", err)
 	}
-	
+
 	if template == nil {
 		t.Fatal("Template is nil")
 	}
-	
+
 	t.Logf("Loaded template: ID=%s, Type=%s, Language=%s", template.ID, template.Type, template.Language)
 	t.Logf("Subject: %s", template.Subject)
 	t.Logf("Body length: %d", len(template.Body))

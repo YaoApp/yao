@@ -16,7 +16,7 @@ func TestDebugTemplateLoading(t *testing.T) {
 
 	// Test direct template loading
 	t.Log("Testing direct template loading...")
-	
+
 	// Try to load a specific template file using application.App
 	content, err := application.App.Read("messengers/templates/en/invite_member.mail.html")
 	if err != nil {
@@ -25,7 +25,7 @@ func TestDebugTemplateLoading(t *testing.T) {
 		t.Logf("Template file content length: %d", len(content))
 		t.Logf("First 200 chars: %s", content[:min(200, len(content))])
 	}
-	
+
 	// Test template parsing
 	subject, body, html, err := parseTemplateContent(string(content), types.TemplateTypeMail)
 	if err != nil {
