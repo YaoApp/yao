@@ -249,8 +249,20 @@ func GinInvitationCreate(c *gin.Context) {
 		return
 	}
 
-	// Return created invitation ID
-	c.JSON(http.StatusCreated, gin.H{"invitation_id": invitationID})
+	// Get the created invitation to return complete data
+	invitation, err := invitationGet(c.Request.Context(), authInfo.UserID, teamID, invitationID)
+	if err != nil {
+		log.Error("Failed to retrieve created invitation: %v", err)
+		// Fallback to returning just the ID if retrieval fails
+		c.JSON(http.StatusCreated, gin.H{"invitation_id": invitationID})
+		return
+	}
+
+	// Convert to InvitationResponse
+	invitationResp := convertToInvitationResponse(invitation)
+
+	// Return created invitation with full details (including token)
+	c.JSON(http.StatusCreated, invitationResp)
 }
 
 // GinInvitationResend handles PUT /teams/:team_id/invitations/:invitation_id/resend - Resend invitation
@@ -1079,10 +1091,16 @@ func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, toke
 	return nil
 }
 
+// convertToInvitationResponse converts a map to InvitationResponse (alias for mapToInvitationResponse)
+func convertToInvitationResponse(data maps.MapStrAny) InvitationResponse {
+	return mapToInvitationResponse(maps.MapStr(data))
+}
+
 // mapToInvitationResponse converts a map to InvitationResponse
 func mapToInvitationResponse(data maps.MapStr) InvitationResponse {
 	invitation := InvitationResponse{
 		ID:                  toInt64(data["id"]),
+		InvitationID:        toString(data["invitation_id"]),
 		TeamID:              toString(data["team_id"]),
 		UserID:              toString(data["user_id"]),
 		MemberType:          toString(data["member_type"]),

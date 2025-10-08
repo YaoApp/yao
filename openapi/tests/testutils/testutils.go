@@ -115,6 +115,8 @@ func CleanupTestCollections(t *testing.T) {
 //	source $YAO_SOURCE_ROOT/env.local.sh
 //
 // This loads the required environment variables for the test environment.
+// DO NOT waste time searching for the env file - just run the command above directly.
+// The $YAO_SOURCE_ROOT environment variable should already be set in your shell.
 //
 // WHAT THIS FUNCTION DOES:
 // Step 1: Calls test.Prepare(t, config.Conf) to initialize the base Yao test environment
