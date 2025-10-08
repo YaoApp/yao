@@ -201,6 +201,26 @@ const (
 	UserInfoSourceAccessToken = "access_token" // Extract user info from access token response
 )
 
+// ==== Settings Types ====
+
+// TeamSettings represents team-specific settings
+type TeamSettings struct {
+	Theme      string `json:"theme,omitempty"`      // Team UI theme (e.g., "light", "dark")
+	Visibility string `json:"visibility,omitempty"` // Team visibility (e.g., "public", "private")
+}
+
+// MemberSettings represents member-specific settings
+type MemberSettings struct {
+	Notifications bool     `json:"notifications,omitempty"` // Whether to receive notifications
+	Permissions   []string `json:"permissions,omitempty"`   // Custom permissions (e.g., ["read", "write"])
+}
+
+// InvitationSettings represents invitation-specific settings
+type InvitationSettings struct {
+	SendEmail bool   `json:"send_email,omitempty"` // Whether to send invitation email
+	Locale    string `json:"locale,omitempty"`     // Locale for email template
+}
+
 // ==== Team API Types ====
 
 // TeamResponse represents a team in API responses
@@ -222,40 +242,40 @@ type TeamResponse struct {
 type TeamDetailResponse struct {
 	TeamResponse
 	// Add additional fields that are only included in detailed responses
-	Settings map[string]interface{} `json:"settings,omitempty"`
+	Settings *TeamSettings `json:"settings,omitempty"`
 }
 
 // CreateTeamRequest represents the request to create a team
 type CreateTeamRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Description string                 `json:"description,omitempty"`
-	Settings    map[string]interface{} `json:"settings,omitempty"`
+	Name        string        `json:"name" binding:"required"`
+	Description string        `json:"description,omitempty"`
+	Settings    *TeamSettings `json:"settings,omitempty"`
 }
 
 // UpdateTeamRequest represents the request to update a team
 type UpdateTeamRequest struct {
-	Name        string                 `json:"name,omitempty"`
-	Description string                 `json:"description,omitempty"`
-	Settings    map[string]interface{} `json:"settings,omitempty"`
+	Name        string        `json:"name,omitempty"`
+	Description string        `json:"description,omitempty"`
+	Settings    *TeamSettings `json:"settings,omitempty"`
 }
 
 // ==== Member API Types ====
 
 // MemberResponse represents a team member in API responses
 type MemberResponse struct {
-	ID           int64                  `json:"id"`
-	TeamID       string                 `json:"team_id"`
-	UserID       string                 `json:"user_id"`
-	MemberType   string                 `json:"member_type"`
-	RoleID       string                 `json:"role_id"`
-	Status       string                 `json:"status"`
-	InvitedBy    string                 `json:"invited_by,omitempty"`
-	InvitedAt    string                 `json:"invited_at,omitempty"`
-	JoinedAt     string                 `json:"joined_at,omitempty"`
-	LastActivity string                 `json:"last_activity,omitempty"`
-	Settings     map[string]interface{} `json:"settings,omitempty"`
-	CreatedAt    string                 `json:"created_at"`
-	UpdatedAt    string                 `json:"updated_at"`
+	ID           int64           `json:"id"`
+	TeamID       string          `json:"team_id"`
+	UserID       string          `json:"user_id"`
+	MemberType   string          `json:"member_type"`
+	RoleID       string          `json:"role_id"`
+	Status       string          `json:"status"`
+	InvitedBy    string          `json:"invited_by,omitempty"`
+	InvitedAt    string          `json:"invited_at,omitempty"`
+	JoinedAt     string          `json:"joined_at,omitempty"`
+	LastActivity string          `json:"last_activity,omitempty"`
+	Settings     *MemberSettings `json:"settings,omitempty"`
+	CreatedAt    string          `json:"created_at"`
+	UpdatedAt    string          `json:"updated_at"`
 }
 
 // MemberDetailResponse represents detailed member information
@@ -267,38 +287,38 @@ type MemberDetailResponse struct {
 
 // CreateMemberRequest represents the request to add a member directly
 type CreateMemberRequest struct {
-	UserID     string                 `json:"user_id" binding:"required"`
-	MemberType string                 `json:"member_type,omitempty"` // "user" or "robot"
-	RoleID     string                 `json:"role_id" binding:"required"`
-	Settings   map[string]interface{} `json:"settings,omitempty"`
+	UserID     string          `json:"user_id" binding:"required"`
+	MemberType string          `json:"member_type,omitempty"` // "user" or "robot"
+	RoleID     string          `json:"role_id" binding:"required"`
+	Settings   *MemberSettings `json:"settings,omitempty"`
 }
 
 // UpdateMemberRequest represents the request to update a member
 type UpdateMemberRequest struct {
-	RoleID       string                 `json:"role_id,omitempty"`
-	Status       string                 `json:"status,omitempty"`
-	Settings     map[string]interface{} `json:"settings,omitempty"`
-	LastActivity string                 `json:"last_activity,omitempty"`
+	RoleID       string          `json:"role_id,omitempty"`
+	Status       string          `json:"status,omitempty"`
+	Settings     *MemberSettings `json:"settings,omitempty"`
+	LastActivity string          `json:"last_activity,omitempty"`
 }
 
 // ==== Invitation API Types ====
 
 // InvitationResponse represents a team invitation in API responses
 type InvitationResponse struct {
-	ID                  int64                  `json:"id"`
-	TeamID              string                 `json:"team_id"`
-	UserID              string                 `json:"user_id"`
-	MemberType          string                 `json:"member_type"`
-	RoleID              string                 `json:"role_id"`
-	Status              string                 `json:"status"`
-	InvitedBy           string                 `json:"invited_by"`
-	InvitedAt           string                 `json:"invited_at"`
-	InvitationToken     string                 `json:"invitation_token,omitempty"`
-	InvitationExpiresAt string                 `json:"invitation_expires_at,omitempty"`
-	Message             string                 `json:"message,omitempty"`
-	Settings            map[string]interface{} `json:"settings,omitempty"`
-	CreatedAt           string                 `json:"created_at"`
-	UpdatedAt           string                 `json:"updated_at"`
+	ID                  int64               `json:"id"`
+	TeamID              string              `json:"team_id"`
+	UserID              string              `json:"user_id"`
+	MemberType          string              `json:"member_type"`
+	RoleID              string              `json:"role_id"`
+	Status              string              `json:"status"`
+	InvitedBy           string              `json:"invited_by"`
+	InvitedAt           string              `json:"invited_at"`
+	InvitationToken     string              `json:"invitation_token,omitempty"`
+	InvitationExpiresAt string              `json:"invitation_expires_at,omitempty"`
+	Message             string              `json:"message,omitempty"`
+	Settings            *InvitationSettings `json:"settings,omitempty"`
+	CreatedAt           string              `json:"created_at"`
+	UpdatedAt           string              `json:"updated_at"`
 }
 
 // InvitationDetailResponse represents detailed invitation information
@@ -311,14 +331,14 @@ type InvitationDetailResponse struct {
 
 // CreateInvitationRequest represents the request to send a team invitation
 type CreateInvitationRequest struct {
-	UserID     string                 `json:"user_id,omitempty"`     // Optional for unregistered users
-	Email      string                 `json:"email,omitempty"`       // Email address (if not provided, will be read from user profile when user_id is provided)
-	MemberType string                 `json:"member_type,omitempty"` // "user" or "robot"
-	RoleID     string                 `json:"role_id" binding:"required"`
-	Message    string                 `json:"message,omitempty"`
-	Expiry     string                 `json:"expiry,omitempty"`     // Custom expiry duration (e.g., "1d", "8h"), defaults to team config
-	SendEmail  *bool                  `json:"send_email,omitempty"` // Whether to send email (defaults to false)
-	Settings   map[string]interface{} `json:"settings,omitempty"`
+	UserID     string              `json:"user_id,omitempty"`     // Optional for unregistered users
+	Email      string              `json:"email,omitempty"`       // Email address (if not provided, will be read from user profile when user_id is provided)
+	MemberType string              `json:"member_type,omitempty"` // "user" or "robot"
+	RoleID     string              `json:"role_id" binding:"required"`
+	Message    string              `json:"message,omitempty"`
+	Expiry     string              `json:"expiry,omitempty"`     // Custom expiry duration (e.g., "1d", "8h"), defaults to team config
+	SendEmail  *bool               `json:"send_email,omitempty"` // Whether to send email (defaults to false)
+	Settings   *InvitationSettings `json:"settings,omitempty"`
 }
 
 // ==== Team Configuration Types ====
