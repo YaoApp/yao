@@ -3,6 +3,7 @@ package user_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -1000,6 +1001,16 @@ func getTeamID(team map[string]interface{}) string {
 	}
 	if teamID, ok := team["team_id"].(string); ok {
 		return teamID
+	}
+	// Handle numeric team_id
+	if teamID, ok := team["team_id"].(float64); ok {
+		return fmt.Sprintf("%.0f", teamID)
+	}
+	if teamID, ok := team["team_id"].(int64); ok {
+		return fmt.Sprintf("%d", teamID)
+	}
+	if teamID, ok := team["team_id"].(int); ok {
+		return fmt.Sprintf("%d", teamID)
 	}
 	return ""
 }

@@ -312,9 +312,12 @@ type InvitationDetailResponse struct {
 // CreateInvitationRequest represents the request to send a team invitation
 type CreateInvitationRequest struct {
 	UserID     string                 `json:"user_id,omitempty"`     // Optional for unregistered users
+	Email      string                 `json:"email,omitempty"`       // Email address (if not provided, will be read from user profile when user_id is provided)
 	MemberType string                 `json:"member_type,omitempty"` // "user" or "robot"
 	RoleID     string                 `json:"role_id" binding:"required"`
 	Message    string                 `json:"message,omitempty"`
+	Expiry     string                 `json:"expiry,omitempty"`     // Custom expiry duration (e.g., "1d", "8h"), defaults to team config
+	SendEmail  *bool                  `json:"send_email,omitempty"` // Whether to send email (defaults to false)
 	Settings   map[string]interface{} `json:"settings,omitempty"`
 }
 

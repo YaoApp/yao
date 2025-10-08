@@ -486,6 +486,7 @@ func replaceENVVar(value string) string {
 }
 
 // normalizeDuration normalizes various duration formats to Go's time.ParseDuration format
+// Supports: s (seconds), m (minutes), h (hours), d (days)
 func normalizeDuration(expiresIn string) (string, error) {
 	if expiresIn == "" {
 		return "", fmt.Errorf("empty duration")
@@ -493,9 +494,10 @@ func normalizeDuration(expiresIn string) (string, error) {
 
 	// Common patterns and their conversions
 	patterns := map[string]func(int) string{
-		"s": func(n int) string { return fmt.Sprintf("%ds", n) }, // seconds
-		"m": func(n int) string { return fmt.Sprintf("%dm", n) }, // minutes
-		"h": func(n int) string { return fmt.Sprintf("%dh", n) }, // hours
+		"s": func(n int) string { return fmt.Sprintf("%ds", n) },    // seconds
+		"m": func(n int) string { return fmt.Sprintf("%dm", n) },    // minutes
+		"h": func(n int) string { return fmt.Sprintf("%dh", n) },    // hours
+		"d": func(n int) string { return fmt.Sprintf("%dh", n*24) }, // days -> hours
 	}
 
 	// Extract number and unit using regex
@@ -514,7 +516,7 @@ func normalizeDuration(expiresIn string) (string, error) {
 	unit := matches[2]
 	converter, exists := patterns[unit]
 	if !exists {
-		return "", fmt.Errorf("unsupported time unit: %s", unit)
+		return "", fmt.Errorf("unsupported time unit: %s (supported: s, m, h, d)", unit)
 	}
 
 	normalized := converter(number)
