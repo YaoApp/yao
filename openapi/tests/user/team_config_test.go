@@ -114,9 +114,12 @@ func TestTeamConfigAPI(t *testing.T) {
 		baseURL = openapi.Server.Config.BaseURL
 	}
 
-	// Register a test client first (needed for user.Load validation)
+	// Register a test client and get access token (team config endpoint now requires authentication)
 	testClient := testutils.RegisterTestClient(t, "Team Config Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token for authentication
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Test API endpoints for team configuration
 	testCases := []struct {
@@ -133,7 +136,13 @@ func TestTeamConfigAPI(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			requestURL := serverURL + baseURL + tc.endpoint
-			resp, err := http.Get(requestURL)
+
+			// Create request with Authorization header
+			req, err := http.NewRequest("GET", requestURL, nil)
+			assert.NoError(t, err, "Should create HTTP request")
+			req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+			resp, err := http.DefaultClient.Do(req)
 			assert.NoError(t, err, "HTTP request should succeed")
 
 			if resp != nil {

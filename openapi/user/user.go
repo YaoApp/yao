@@ -53,11 +53,11 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team := group.Group("/teams")
 
-	// Public endpoints (no authentication required)
-	team.GET("/config", GinTeamConfig) // Get team configuration (public)
-
 	// Protected endpoints (authentication required)
 	team.Use(oauth.Guard)
+
+	// Team Configuration
+	team.GET("/config", GinTeamConfig) // Get team configuration (requires authentication)
 
 	// Team CRUD - Standard REST endpoints
 	team.GET("/", GinTeamList)         // GET /teams - List user teams

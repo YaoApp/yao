@@ -306,6 +306,7 @@ type UpdateMemberRequest struct {
 // InvitationResponse represents a team invitation in API responses
 type InvitationResponse struct {
 	ID                  int64               `json:"id"`
+	InvitationID        string              `json:"invitation_id"`
 	TeamID              string              `json:"team_id"`
 	UserID              string              `json:"user_id"`
 	MemberType          string              `json:"member_type"`
@@ -354,11 +355,14 @@ type TeamRole struct {
 	RoleID      string `json:"role_id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
+	Default     bool   `json:"default"` // Whether this role is the default role
+	Hidden      bool   `json:"hidden"`  // Whether this role is hidden from UI
 }
 
 // InviteConfig represents the invitation configuration
 type InviteConfig struct {
 	Channel   string            `json:"channel,omitempty"`
 	Expiry    string            `json:"expiry,omitempty"`
+	BaseURL   string            `json:"base_url,omitempty"` // Base URL for invitation links
 	Templates map[string]string `json:"templates,omitempty"`
 }
