@@ -13,6 +13,15 @@ type Provider interface {
 	// SendBatch sends multiple messages in batch
 	SendBatch(ctx context.Context, messages []*Message) error
 
+	// SendT sends a message using a template (optional - providers may return "not implemented" error)
+	SendT(ctx context.Context, templateID string, data TemplateData) error
+
+	// SendTBatch sends multiple messages using the same template with different data (optional - providers may return "not implemented" error)
+	SendTBatch(ctx context.Context, templateID string, dataList []TemplateData) error
+
+	// SendTBatchMixed sends multiple messages using different templates with different data (optional - providers may return "not implemented" error)
+	SendTBatchMixed(ctx context.Context, templateRequests []TemplateRequest) error
+
 	// TriggerWebhook processes webhook requests and converts to Message
 	TriggerWebhook(c interface{}) (*Message, error)
 
@@ -39,6 +48,24 @@ type Messenger interface {
 
 	// SendWithProvider sends a message using a specific provider
 	SendWithProvider(ctx context.Context, providerName string, message *Message) error
+
+	// SendT sends a message using a template
+	SendT(ctx context.Context, channel string, templateID string, data TemplateData) error
+
+	// SendTWithProvider sends a message using a template and specific provider
+	SendTWithProvider(ctx context.Context, providerName string, templateID string, data TemplateData) error
+
+	// SendTBatch sends multiple messages using the same template with different data
+	SendTBatch(ctx context.Context, channel string, templateID string, dataList []TemplateData) error
+
+	// SendTBatchWithProvider sends multiple messages using the same template with different data and specific provider
+	SendTBatchWithProvider(ctx context.Context, providerName string, templateID string, dataList []TemplateData) error
+
+	// SendTBatchMixed sends multiple messages using different templates with different data
+	SendTBatchMixed(ctx context.Context, channel string, templateRequests []TemplateRequest) error
+
+	// SendTBatchMixedWithProvider sends multiple messages using different templates with different data and specific provider
+	SendTBatchMixedWithProvider(ctx context.Context, providerName string, templateRequests []TemplateRequest) error
 
 	// SendBatch sends multiple messages in batch
 	SendBatch(ctx context.Context, channel string, messages []*Message) error
