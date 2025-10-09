@@ -246,13 +246,13 @@ func parseMailTemplate(content string) (subject, body, html string, err error) {
 		return "", "", "", fmt.Errorf("failed to parse mail template HTML: %w", err)
 	}
 
-	// Extract subject from <Subject> tag
-	subject = strings.TrimSpace(doc.Find("Subject").Text())
+	// Extract subject from <Subject> or <subject> tag (HTML parsers normalize to lowercase)
+	subject = strings.TrimSpace(doc.Find("subject").Text())
 
-	// Extract body content from <Content> tag (using custom tag to avoid HTML parser auto-conversion)
-	bodySelection := doc.Find("Content")
+	// Extract body content from <content> tag (HTML parsers normalize to lowercase)
+	bodySelection := doc.Find("content")
 	if bodySelection.Length() == 0 {
-		return "", "", "", fmt.Errorf("no <Content> tag found in mail template")
+		return "", "", "", fmt.Errorf("no <content> tag found in mail template")
 	}
 
 	// Get the HTML content of the Content tag

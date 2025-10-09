@@ -25,12 +25,13 @@ func TestTemplateRender(t *testing.T) {
 		t.Fatalf("Failed to get template: %v", err)
 	}
 
-	// Test data
+	// Test data - matching actual template variables
 	data := types.TemplateData{
-		"to":           []string{"test@example.com"},
-		"team_name":    "Awesome Team",
-		"inviter_name": "Alice Johnson",
-		"invite_link":  "https://example.com/invite/abc123",
+		"to":              []string{"test@example.com"},
+		"team_name":       "Awesome Team",
+		"inviter_name":    "Alice Johnson",
+		"invitation_link": "https://example.com/invite/abc123",
+		"expires_at":      "2025-10-16 12:00:00 UTC",
 	}
 
 	// Test rendering
@@ -73,12 +74,13 @@ func TestTemplateToMessage(t *testing.T) {
 		t.Fatalf("Failed to get template: %v", err)
 	}
 
-	// Test data
+	// Test data - matching actual template variables
 	data := types.TemplateData{
-		"to":           []string{"test@example.com", "user@example.com"},
-		"team_name":    "Awesome Team",
-		"inviter_name": "Alice Johnson",
-		"invite_link":  "https://example.com/invite/abc123",
+		"to":              []string{"test@example.com", "user@example.com"},
+		"team_name":       "Awesome Team",
+		"inviter_name":    "Alice Johnson",
+		"invitation_link": "https://example.com/invite/abc123",
+		"expires_at":      "2025-10-16 12:00:00 UTC",
 	}
 
 	// Convert template to message
@@ -87,9 +89,9 @@ func TestTemplateToMessage(t *testing.T) {
 		t.Fatalf("Failed to convert template to message: %v", err)
 	}
 
-	// Verify message properties
-	if message.Type != types.MessageType("mail") {
-		t.Errorf("Expected message type 'mail', got %s", message.Type)
+	// Verify message properties - email type, not "mail"
+	if message.Type != types.MessageTypeEmail {
+		t.Errorf("Expected message type 'email', got %s", message.Type)
 	}
 	if len(message.To) != 2 {
 		t.Errorf("Expected 2 recipients, got %d", len(message.To))
