@@ -419,7 +419,7 @@ func GetTeamConfig(locale string) *TeamConfig {
 
 	// Normalize language code to lowercase
 	if locale != "" {
-		locale = strings.ToLower(locale)
+		locale = strings.TrimSpace(strings.ToLower(locale))
 	}
 
 	// Try to get the specific locale configuration
@@ -427,7 +427,12 @@ func GetTeamConfig(locale string) *TeamConfig {
 		return config
 	}
 
-	// If no specific locale, try to get any available configuration
+	// If no specific locale, try to get "en" as default
+	if config, exists := teamConfigs["en"]; exists {
+		return config
+	}
+
+	// If "en" is not available, try to get any available configuration
 	for _, config := range teamConfigs {
 		return config
 	}

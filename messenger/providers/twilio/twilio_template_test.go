@@ -40,7 +40,7 @@ func TestSendT_TemplateNotImplemented(t *testing.T) {
 	}
 
 	// Test that SendT returns "template manager not available" error
-	err = provider.SendT(ctx, "en.invite_member", templateData)
+	err = provider.SendT(ctx, "en.invite_member", types.TemplateTypeSMS, templateData)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "template manager not available")
 }
@@ -78,7 +78,7 @@ func TestSendT_ContextTimeout(t *testing.T) {
 	}
 
 	// Test that SendT handles context timeout
-	err = provider.SendT(ctx, "en.invite_member", templateData)
+	err = provider.SendT(ctx, "en.invite_member", types.TemplateTypeSMS, templateData)
 	assert.Error(t, err)
 
 	// Verify it's a context timeout error or template manager error

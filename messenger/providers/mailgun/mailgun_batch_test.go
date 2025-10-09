@@ -46,7 +46,7 @@ func TestSendTBatch_Success(t *testing.T) {
 	}
 
 	// Test SendTBatch - should fail because template manager is nil
-	err = provider.SendTBatch(context.Background(), "en.invite_member", dataList)
+	err = provider.SendTBatch(context.Background(), "en.invite_member", types.TemplateTypeMail, dataList)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "template manager not available")
 }
@@ -87,7 +87,7 @@ func TestSendTBatch_ContextTimeout(t *testing.T) {
 	time.Sleep(2 * time.Nanosecond)
 
 	// Test SendTBatch with expired context
-	err = provider.SendTBatch(ctx, "en.invite_member", dataList)
+	err = provider.SendTBatch(ctx, "en.invite_member", types.TemplateTypeMail, dataList)
 	assert.Error(t, err)
 	// Error could be either "template manager not available" or "context deadline exceeded"
 	t.Logf("Error: %v", err)

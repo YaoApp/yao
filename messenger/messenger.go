@@ -300,69 +300,305 @@ func (m *Service) SendWithProvider(ctx context.Context, providerName string, mes
 }
 
 // SendT sends a message using a template
-func (m *Service) SendT(ctx context.Context, channel string, templateID string, data types.TemplateData) error {
-	// Get providers for the channel
-	providers := m.GetProviders(channel)
-	if len(providers) == 0 {
-		return fmt.Errorf("no providers available for channel: %s", channel)
+// messageType is optional - if not specified, the first available template type will be used
+func (m *Service) SendT(ctx context.Context, channel string, templateID string, data types.TemplateData, messageType ...types.MessageType) error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	// Determine which message type to use
+	var msgType types.MessageType
+	if len(messageType) > 0 {
+		// Use specified message type
+		msgType = messageType[0]
+	} else {
+		// Get available template types and use the first one
+		availableTypes := template.Global.GetAvailableTypes(templateID)
+		if len(availableTypes) == 0 {
+			return fmt.Errorf("template not found: %s", templateID)
+		}
+		// Convert TemplateType to MessageType
+		msgType = templateTypeToMessageType(availableTypes[0])
 	}
 
-	// Use the first available provider's SendT method
-	provider := providers[0]
-	return provider.SendT(ctx, templateID, data)
+	// Get provider for this channel and message type
+	providerName := m.getProviderForChannel(channel, string(msgType))
+	if providerName == "" {
+		return fmt.Errorf("no provider configured for channel %s with message type %s", channel, msgType)
+	}
+
+	// Get the provider
+	provider, exists := m.providers[providerName]
+	if !exists {
+		return fmt.Errorf("provider not found: %s", providerName)
+	}
+
+	// Convert MessageType back to TemplateType
+	templateType := messageTypeToTemplateType(msgType)
+
+	// Call provider's SendT method
+	return provider.SendT(ctx, templateID, templateType, data)
+}
+
+// templateTypeToMessageType converts TemplateType to MessageType
+func templateTypeToMessageType(templateType types.TemplateType) types.MessageType {
+	switch templateType {
+	case types.TemplateTypeMail:
+		return types.MessageTypeEmail
+	case types.TemplateTypeSMS:
+		return types.MessageTypeSMS
+	case types.TemplateTypeWhatsApp:
+		return types.MessageTypeWhatsApp
+	default:
+		return ""
+	}
+}
+
+// messageTypeToTemplateType converts MessageType to TemplateType
+func messageTypeToTemplateType(messageType types.MessageType) types.TemplateType {
+	switch messageType {
+	case types.MessageTypeEmail:
+		return types.TemplateTypeMail
+	case types.MessageTypeSMS:
+		return types.TemplateTypeSMS
+	case types.MessageTypeWhatsApp:
+		return types.TemplateTypeWhatsApp
+	default:
+		return ""
+	}
 }
 
 // SendTWithProvider sends a message using a template and specific provider
-func (m *Service) SendTWithProvider(ctx context.Context, providerName string, templateID string, data types.TemplateData) error {
+// messageType is optional - if not specified, the first available template type will be used
+func (m *Service) SendTWithProvider(ctx context.Context, providerName string, templateID string, data types.TemplateData, messageType ...types.MessageType) error {
 	// Get provider
 	provider, exists := m.providers[providerName]
 	if !exists {
 		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// Use the provider's SendT method directly
-	return provider.SendT(ctx, templateID, data)
+	// Determine which message type to use
+	var msgType types.MessageType
+	if len(messageType) > 0 {
+		// Use specified message type
+		msgType = messageType[0]
+	} else {
+		// Get available template types and use the first one
+		availableTypes := template.Global.GetAvailableTypes(templateID)
+		if len(availableTypes) == 0 {
+			return fmt.Errorf("template not found: %s", templateID)
+		}
+		// Convert TemplateType to MessageType
+		msgType = templateTypeToMessageType(availableTypes[0])
+	}
+
+	// Convert MessageType to TemplateType
+	templateType := messageTypeToTemplateType(msgType)
+
+	// Call provider's SendT method
+	return provider.SendT(ctx, templateID, templateType, data)
 }
 
 // SendTBatch sends multiple messages using templates in batch
-func (m *Service) SendTBatch(ctx context.Context, channel string, templateID string, dataList []types.TemplateData) error {
-	// Get providers for the channel
-	providers := m.GetProviders(channel)
-	if len(providers) == 0 {
-		return fmt.Errorf("no providers available for channel: %s", channel)
+// messageType is optional - if not specified, the first available template type will be used
+func (m *Service) SendTBatch(ctx context.Context, channel string, templateID string, dataList []types.TemplateData, messageType ...types.MessageType) error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	if len(dataList) == 0 {
+		return nil
 	}
 
-	// Use the first available provider's SendTBatch method
-	provider := providers[0]
-	return provider.SendTBatch(ctx, templateID, dataList)
+	// Determine which message type to use
+	var msgType types.MessageType
+	if len(messageType) > 0 {
+		// Use specified message type
+		msgType = messageType[0]
+	} else {
+		// Get available template types and use the first one
+		availableTypes := template.Global.GetAvailableTypes(templateID)
+		if len(availableTypes) == 0 {
+			return fmt.Errorf("template not found: %s", templateID)
+		}
+		// Convert TemplateType to MessageType
+		msgType = templateTypeToMessageType(availableTypes[0])
+	}
+
+	// Get provider for this channel and message type
+	providerName := m.getProviderForChannel(channel, string(msgType))
+	if providerName == "" {
+		return fmt.Errorf("no provider configured for channel %s with message type %s", channel, msgType)
+	}
+
+	// Get the provider
+	provider, exists := m.providers[providerName]
+	if !exists {
+		return fmt.Errorf("provider not found: %s", providerName)
+	}
+
+	// Convert MessageType to TemplateType
+	templateType := messageTypeToTemplateType(msgType)
+
+	// Get the template
+	tmpl, err := template.Global.GetTemplate(templateID, templateType)
+	if err != nil {
+		return fmt.Errorf("template not found: %w", err)
+	}
+
+	// Convert all template data to messages
+	messages := make([]*types.Message, 0, len(dataList))
+	for _, data := range dataList {
+		message, err := tmpl.ToMessage(data)
+		if err != nil {
+			return fmt.Errorf("failed to convert template to message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+
+	// Send batch using the provider
+	return provider.SendBatch(ctx, messages)
 }
 
 // SendTBatchWithProvider sends multiple messages using templates and specific provider in batch
-func (m *Service) SendTBatchWithProvider(ctx context.Context, providerName string, templateID string, dataList []types.TemplateData) error {
+// messageType is optional - if not specified, the first available template type will be used
+func (m *Service) SendTBatchWithProvider(ctx context.Context, providerName string, templateID string, dataList []types.TemplateData, messageType ...types.MessageType) error {
 	// Get provider
 	provider, exists := m.providers[providerName]
 	if !exists {
 		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// Use the provider's SendTBatch method directly
-	return provider.SendTBatch(ctx, templateID, dataList)
+	if len(dataList) == 0 {
+		return nil
+	}
+
+	// Determine which message type to use
+	var msgType types.MessageType
+	if len(messageType) > 0 {
+		// Use specified message type
+		msgType = messageType[0]
+	} else {
+		// Get available template types and use the first one
+		availableTypes := template.Global.GetAvailableTypes(templateID)
+		if len(availableTypes) == 0 {
+			return fmt.Errorf("template not found: %s", templateID)
+		}
+		// Convert TemplateType to MessageType
+		msgType = templateTypeToMessageType(availableTypes[0])
+	}
+
+	// Convert MessageType to TemplateType
+	templateType := messageTypeToTemplateType(msgType)
+
+	// Get the template
+	tmpl, err := template.Global.GetTemplate(templateID, templateType)
+	if err != nil {
+		return fmt.Errorf("template not found: %w", err)
+	}
+
+	// Convert all template data to messages
+	messages := make([]*types.Message, 0, len(dataList))
+	for _, data := range dataList {
+		message, err := tmpl.ToMessage(data)
+		if err != nil {
+			return fmt.Errorf("failed to convert template to message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+
+	// Send batch using the provider
+	return provider.SendBatch(ctx, messages)
 }
 
 // SendTBatchMixed sends multiple messages using different templates with different data
+// Each TemplateRequest can optionally specify its MessageType
 func (m *Service) SendTBatchMixed(ctx context.Context, channel string, templateRequests []types.TemplateRequest) error {
-	// Get providers for the channel
-	providers := m.GetProviders(channel)
-	if len(providers) == 0 {
-		return fmt.Errorf("no providers available for channel: %s", channel)
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	if len(templateRequests) == 0 {
+		return nil
 	}
 
-	// Use the first available provider's SendTBatchMixed method
-	provider := providers[0]
-	return provider.SendTBatchMixed(ctx, templateRequests)
+	// Group messages by provider
+	providerMessages := make(map[string][]*types.Message)
+
+	// Process each template request
+	for _, request := range templateRequests {
+		// Determine message type
+		var msgType types.MessageType
+		if request.MessageType != nil {
+			// Use specified message type
+			msgType = *request.MessageType
+		} else {
+			// Get available template types and use the first one
+			availableTypes := template.Global.GetAvailableTypes(request.TemplateID)
+			if len(availableTypes) == 0 {
+				return fmt.Errorf("template not found: %s", request.TemplateID)
+			}
+			// Convert TemplateType to MessageType
+			msgType = templateTypeToMessageType(availableTypes[0])
+		}
+
+		// Get provider for this channel and message type
+		providerName := m.getProviderForChannel(channel, string(msgType))
+		if providerName == "" {
+			return fmt.Errorf("no provider configured for channel %s with message type %s", channel, msgType)
+		}
+
+		// Verify provider exists
+		if _, exists := m.providers[providerName]; !exists {
+			return fmt.Errorf("provider not found: %s", providerName)
+		}
+
+		// Convert MessageType to TemplateType
+		templateType := messageTypeToTemplateType(msgType)
+
+		// Get the template
+		tmpl, err := template.Global.GetTemplate(request.TemplateID, templateType)
+		if err != nil {
+			return fmt.Errorf("template %s not found: %w", request.TemplateID, err)
+		}
+
+		// Convert template to message
+		message, err := tmpl.ToMessage(request.Data)
+		if err != nil {
+			return fmt.Errorf("failed to convert template %s to message: %w", request.TemplateID, err)
+		}
+
+		// Add to provider's message list
+		providerMessages[providerName] = append(providerMessages[providerName], message)
+	}
+
+	// Send batches to each provider
+	var errors []string
+	for providerName, messages := range providerMessages {
+		// Check if context is cancelled
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("batch send cancelled: %w", ctx.Err())
+		default:
+		}
+
+		provider, exists := m.providers[providerName]
+		if !exists {
+			errors = append(errors, fmt.Sprintf("provider not found: %s", providerName))
+			continue
+		}
+
+		err := provider.SendBatch(ctx, messages)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("provider %s: %v", providerName, err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("batch send errors: %s", strings.Join(errors, "; "))
+	}
+	return nil
 }
 
 // SendTBatchMixedWithProvider sends multiple messages using different templates with different data and specific provider
+// Each TemplateRequest can optionally specify its MessageType
 func (m *Service) SendTBatchMixedWithProvider(ctx context.Context, providerName string, templateRequests []types.TemplateRequest) error {
 	// Get provider
 	provider, exists := m.providers[providerName]
@@ -370,8 +606,49 @@ func (m *Service) SendTBatchMixedWithProvider(ctx context.Context, providerName 
 		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// Use the provider's SendTBatchMixed method directly
-	return provider.SendTBatchMixed(ctx, templateRequests)
+	if len(templateRequests) == 0 {
+		return nil
+	}
+
+	// Convert all template requests to messages
+	messages := make([]*types.Message, 0, len(templateRequests))
+
+	for _, request := range templateRequests {
+		// Determine message type
+		var msgType types.MessageType
+		if request.MessageType != nil {
+			// Use specified message type
+			msgType = *request.MessageType
+		} else {
+			// Get available template types and use the first one
+			availableTypes := template.Global.GetAvailableTypes(request.TemplateID)
+			if len(availableTypes) == 0 {
+				return fmt.Errorf("template not found: %s", request.TemplateID)
+			}
+			// Convert TemplateType to MessageType
+			msgType = templateTypeToMessageType(availableTypes[0])
+		}
+
+		// Convert MessageType to TemplateType
+		templateType := messageTypeToTemplateType(msgType)
+
+		// Get the template
+		tmpl, err := template.Global.GetTemplate(request.TemplateID, templateType)
+		if err != nil {
+			return fmt.Errorf("template %s not found: %w", request.TemplateID, err)
+		}
+
+		// Convert template to message
+		message, err := tmpl.ToMessage(request.Data)
+		if err != nil {
+			return fmt.Errorf("failed to convert template %s to message: %w", request.TemplateID, err)
+		}
+
+		messages = append(messages, message)
+	}
+
+	// Send batch using the provider
+	return provider.SendBatch(ctx, messages)
 }
 
 // SendBatch sends multiple messages in batch

@@ -20,6 +20,7 @@ import (
 	messengertypes "github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/share"
 )
 
 // Team Invitation Management Handlers
@@ -118,6 +119,9 @@ func GinInvitationGet(c *gin.Context) {
 		return
 	}
 
+	// Extract base URL from request
+	requestBaseURL := getRequestBaseURL(c)
+
 	// Call business logic
 	invitationData, err := invitationGet(c.Request.Context(), authInfo.UserID, teamID, invitationID)
 	if err != nil {
@@ -145,8 +149,8 @@ func GinInvitationGet(c *gin.Context) {
 		return
 	}
 
-	// Convert to response format
-	invitation := mapToInvitationDetailResponse(invitationData)
+	// Convert to response format (with requestBaseURL for building full invitation link)
+	invitation := mapToInvitationDetailResponse(invitationData, requestBaseURL)
 	c.JSON(http.StatusOK, invitation)
 }
 
@@ -184,14 +188,18 @@ func GinInvitationCreate(c *gin.Context) {
 		return
 	}
 
+	// Extract base URL from request
+	requestBaseURL := getRequestBaseURL(c)
+
 	// Prepare invitation data
 	invitationData := maps.MapStrAny{
-		"user_id":     req.UserID,
-		"email":       req.Email,
-		"member_type": req.MemberType,
-		"role_id":     req.RoleID,
-		"message":     req.Message,
-		"expiry":      req.Expiry,
+		"user_id":          req.UserID,
+		"email":            req.Email,
+		"member_type":      req.MemberType,
+		"role_id":          req.RoleID,
+		"message":          req.Message,
+		"expiry":           req.Expiry,
+		"request_base_url": requestBaseURL,
 	}
 
 	// Prepare settings
@@ -203,6 +211,11 @@ func GinInvitationCreate(c *gin.Context) {
 	// Add send_email from top-level field (for backward compatibility)
 	if req.SendEmail != nil {
 		settings.SendEmail = *req.SendEmail
+	}
+
+	// Add locale from top-level field (for backward compatibility)
+	if req.Locale != "" {
+		settings.Locale = req.Locale
 	}
 
 	// Add settings to invitation data
@@ -258,8 +271,8 @@ func GinInvitationCreate(c *gin.Context) {
 		return
 	}
 
-	// Convert to InvitationResponse
-	invitationResp := convertToInvitationResponse(invitation)
+	// Convert to InvitationResponse (with requestBaseURL for building full invitation link)
+	invitationResp := convertToInvitationResponse(invitation, requestBaseURL)
 
 	// Return created invitation with full details (including token)
 	c.JSON(http.StatusCreated, invitationResp)
@@ -290,7 +303,7 @@ func GinInvitationResend(c *gin.Context) {
 	}
 
 	// Call business logic
-	err := invitationResend(c.Request.Context(), authInfo.UserID, teamID, invitationID)
+	err := invitationResend(c.Request.Context(), authInfo.UserID, teamID, invitationID, getRequestBaseURL(c))
 	if err != nil {
 		log.Error("Failed to resend invitation: %v", err)
 		// Check error type for appropriate response
@@ -526,8 +539,8 @@ func ProcessInvitationResend(process *process.Process) interface{} {
 		ctx = context.Background()
 	}
 
-	// Call business logic
-	err := invitationResend(ctx, userIDStr, teamID, invitationID)
+	// Call business logic (no requestBaseURL available in process context)
+	err := invitationResend(ctx, userIDStr, teamID, invitationID, "")
 	if err != nil {
 		exception.New("failed to resend invitation: %s", 500, err.Error()).Throw()
 	}
@@ -572,6 +585,75 @@ func ProcessInvitationDelete(process *process.Process) interface{} {
 }
 
 // Private Business Logic Functions (internal use only)
+
+// getAdminRoot returns the admin root path from share.App configuration
+// Similar to service.setupAdminRoot but without caching to avoid circular dependencies
+func getAdminRoot() string {
+	adminRoot := "/yao/"
+	if share.App.AdminRoot != "" {
+		root := strings.TrimPrefix(share.App.AdminRoot, "/")
+		root = strings.TrimSuffix(root, "/")
+		adminRoot = fmt.Sprintf("/%s/", root)
+	}
+	return adminRoot
+}
+
+// getRequestBaseURL extracts the base URL from the gin context request
+// Returns: scheme://host (e.g., "https://example.com" or "http://localhost:8000")
+func getRequestBaseURL(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	// Check X-Forwarded-Proto header
+	if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+		scheme = proto
+	}
+
+	host := c.Request.Host
+	if host == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("%s://%s", scheme, host)
+}
+
+// buildInvitationLink constructs a full invitation link from invitation_id, token and team configuration
+// This is a centralized function to ensure consistency across email sending and link generation
+// Format:
+//   - With team config baseURL: {base_url}/{invitation_id}/{token}
+//   - With requestBaseURL (from HTTP request): {scheme}://{host}{AdminRoot}team/invite/{invitation_id}/{token}
+//   - Without any baseURL (fallback): {AdminRoot}team/invite/{invitation_id}/{token}
+func buildInvitationLink(invitationID, token string, teamConfig *TeamConfig, requestBaseURL string) string {
+	// Priority 1: Use team config baseURL if specified
+	if teamConfig != nil && teamConfig.Invite != nil && teamConfig.Invite.BaseURL != "" {
+		baseURL := teamConfig.Invite.BaseURL
+		// Ensure baseURL ends with /
+		if !strings.HasSuffix(baseURL, "/") {
+			baseURL = baseURL + "/"
+		}
+		return fmt.Sprintf("%s%s/%s", baseURL, invitationID, token)
+	}
+
+	// Get admin root from configuration
+	adminRoot := getAdminRoot()
+	// Ensure adminRoot doesn't end with / for URL construction
+	adminRoot = strings.TrimSuffix(adminRoot, "/")
+
+	// Priority 2: Use request baseURL with AdminRoot
+	if requestBaseURL != "" {
+		// Ensure requestBaseURL doesn't end with /
+		requestBaseURL = strings.TrimSuffix(requestBaseURL, "/")
+		return fmt.Sprintf("%s%s/team/invite/%s/%s", requestBaseURL, adminRoot, invitationID, token)
+	}
+
+	// Priority 3: Fallback to relative path with AdminRoot
+	return fmt.Sprintf("%s/team/invite/%s/%s", adminRoot, invitationID, token)
+}
 
 // invitationList handles the business logic for listing team invitations
 func invitationList(ctx context.Context, userID, teamID string, page, pagesize int, status string) (maps.MapStr, error) {
@@ -762,6 +844,10 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 		return "", fmt.Errorf("failed to parse expiry duration: %w", err)
 	}
 
+	// Save request_base_url and settings before database operation (they will be lost in DB)
+	requestBaseURL := toString(invitationData["request_base_url"])
+	savedSettings := invitationData["settings"] // Save settings reference
+
 	// Set invitation-specific fields
 	invitationData["team_id"] = teamID
 	if invitationData["member_type"] == nil || invitationData["member_type"] == "" {
@@ -792,21 +878,34 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 
 	// Send email if requested (shouldSendEmail was already determined earlier)
 	if shouldSendEmail {
-		err = sendInvitationEmail(ctx, inviteeEmail, inviterName, teamName, token, invitationID, invitationData)
-		if err != nil {
-			log.Error("Failed to send invitation email: %v", err)
-			// Don't fail the invitation creation if email fails
-			// The invitation link can still be shared manually
-		} else {
-			log.Info("Invitation email sent to %s for team %s (invitation_id: %s)", inviteeEmail, teamName, invitationID)
-		}
+		// Use the saved requestBaseURL and settings (not from invitationData, as they were lost in DB operation)
+		// Send email asynchronously to improve user experience
+		go func() {
+			// Use background context for async operation
+			bgCtx := context.Background()
+
+			// Ensure request_base_url and settings are in invitationData for email sending
+			emailData := maps.MapStrAny{}
+			for k, v := range invitationData {
+				emailData[k] = v
+			}
+			emailData["request_base_url"] = requestBaseURL
+			emailData["settings"] = savedSettings // Restore settings
+
+			err := sendInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, token, invitationID, emailData)
+			if err != nil {
+				log.Error("Failed to send invitation email: %v", err)
+			} else {
+				log.Info("Invitation email sent to %s for team %s (invitation_id: %s)", inviteeEmail, teamName, invitationID)
+			}
+		}()
 	}
 
 	return invitationID, nil
 }
 
 // invitationResend handles the business logic for resending a team invitation
-func invitationResend(ctx context.Context, userID, teamID, invitationID string) error {
+func invitationResend(ctx context.Context, userID, teamID, invitationID, requestBaseURL string) error {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -889,6 +988,7 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID string) 
 	// Update the invitation data for email sending
 	invitationData["invitation_token"] = newToken
 	invitationData["invitation_expires_at"] = newExpiryTime
+	invitationData["request_base_url"] = requestBaseURL
 
 	// Get email from invitation data
 	var inviteeEmail string
@@ -902,13 +1002,18 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID string) 
 		}
 	}
 
-	// Send new invitation email if email is available
+	// Send new invitation email if email is available (asynchronously)
 	if inviteeEmail != "" {
-		err = sendInvitationEmail(ctx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
-		if err != nil {
-			log.Error("Failed to resend invitation email: %v", err)
-			// Don't fail the resend if email fails
-		}
+		go func() {
+			// Use background context for async operation
+			bgCtx := context.Background()
+			err := sendInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
+			if err != nil {
+				log.Error("Failed to resend invitation email: %v", err)
+			} else {
+				log.Info("Invitation email resent to %s for team %s (invitation_id: %s)", inviteeEmail, teamName, invitationID)
+			}
+		}()
 	}
 
 	return nil
@@ -1044,6 +1149,7 @@ func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, toke
 	}
 
 	// Get team config for email template and channel
+	// Note: GetTeamConfig will normalize locale internally (trim, lowercase, etc.)
 	teamConfig := GetTeamConfig(locale)
 	if teamConfig == nil || teamConfig.Invite == nil {
 		return fmt.Errorf("team configuration not found for locale: %s", locale)
@@ -1069,35 +1175,41 @@ func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, toke
 	// Get custom message from invitation data
 	customMessage := toString(invitationData["message"])
 
+	// Get request base URL from invitation data (if provided)
+	requestBaseURL := toString(invitationData["request_base_url"])
+
+	// Build invitation link using centralized helper function
+	invitationLink := buildInvitationLink(invitationID, token, teamConfig, requestBaseURL)
+
 	// Prepare template data for messenger
 	templateData := messengertypes.TemplateData{
-		"to":            email,
-		"inviter_name":  inviterName,
-		"team_name":     teamName,
-		"invitation_id": invitationID,
-		"token":         token,
-		"message":       customMessage,
-		"role_id":       toString(invitationData["role_id"]),
-		"expires_at":    toString(invitationData["invitation_expires_at"]),
+		"to":              email,
+		"inviter_name":    inviterName,
+		"team_name":       teamName,
+		"invitation_id":   invitationID,
+		"invitation_link": invitationLink, // Full invitation link
+		"token":           token,          // Keep token for backward compatibility
+		"message":         customMessage,
+		"role_id":         toString(invitationData["role_id"]),
+		"expires_at":      toString(invitationData["invitation_expires_at"]),
 	}
 
 	// Send email using messenger template
-	err := messenger.Instance.SendT(ctx, channel, emailTemplate, templateData)
+	err := messenger.Instance.SendT(ctx, channel, emailTemplate, templateData, messengertypes.MessageTypeEmail)
 	if err != nil {
 		return fmt.Errorf("failed to send invitation email: %w", err)
 	}
 
-	log.Info("Invitation email sent to %s for team %s (invitation_id: %s)", email, teamName, invitationID)
 	return nil
 }
 
 // convertToInvitationResponse converts a map to InvitationResponse (alias for mapToInvitationResponse)
-func convertToInvitationResponse(data maps.MapStrAny) InvitationResponse {
-	return mapToInvitationResponse(maps.MapStr(data))
+func convertToInvitationResponse(data maps.MapStrAny, requestBaseURL string) InvitationResponse {
+	return mapToInvitationResponse(maps.MapStr(data), requestBaseURL)
 }
 
 // mapToInvitationResponse converts a map to InvitationResponse
-func mapToInvitationResponse(data maps.MapStr) InvitationResponse {
+func mapToInvitationResponse(data maps.MapStr, requestBaseURL string) InvitationResponse {
 	invitation := InvitationResponse{
 		ID:                  toInt64(data["id"]),
 		InvitationID:        toString(data["invitation_id"]),
@@ -1116,9 +1228,13 @@ func mapToInvitationResponse(data maps.MapStr) InvitationResponse {
 	}
 
 	// Add settings if available
+	locale := "en" // Default locale
 	if settings, ok := data["settings"]; ok {
 		if invSettings, ok := settings.(*InvitationSettings); ok {
 			invitation.Settings = invSettings
+			if invSettings.Locale != "" {
+				locale = invSettings.Locale
+			}
 		} else if settingsMap, ok := settings.(map[string]interface{}); ok {
 			// Convert map to InvitationSettings
 			invSettings := &InvitationSettings{
@@ -1126,16 +1242,25 @@ func mapToInvitationResponse(data maps.MapStr) InvitationResponse {
 				Locale:    toString(settingsMap["locale"]),
 			}
 			invitation.Settings = invSettings
+			if invSettings.Locale != "" {
+				locale = invSettings.Locale
+			}
 		}
+	}
+
+	// Build invitation link if token is available
+	if invitation.InvitationToken != "" && invitation.InvitationID != "" {
+		teamConfig := GetTeamConfig(locale)
+		invitation.InvitationLink = buildInvitationLink(invitation.InvitationID, invitation.InvitationToken, teamConfig, requestBaseURL)
 	}
 
 	return invitation
 }
 
 // mapToInvitationDetailResponse converts a map to InvitationDetailResponse
-func mapToInvitationDetailResponse(data maps.MapStr) InvitationDetailResponse {
+func mapToInvitationDetailResponse(data maps.MapStr, requestBaseURL string) InvitationDetailResponse {
 	invitation := InvitationDetailResponse{
-		InvitationResponse: mapToInvitationResponse(data),
+		InvitationResponse: mapToInvitationResponse(data, requestBaseURL),
 	}
 
 	// Add user info if available (could be joined from user table)

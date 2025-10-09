@@ -48,7 +48,7 @@ func TestSendT_TemplateNotImplemented(t *testing.T) {
 	}
 
 	// Test that SendT returns "template not found" error (template system is working)
-	err = provider.SendT(ctx, "en.invite_member.mail", templateData)
+	err = provider.SendT(ctx, "en.invite_member.mail", types.TemplateTypeMail, templateData)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "template not found")
 }
@@ -88,7 +88,7 @@ func TestSendT_ContextTimeout(t *testing.T) {
 		"invite_link":  "https://example.com/invite/123",
 	}
 
-	err = provider.SendT(ctx, "en.invite_member.mail", templateData)
+	err = provider.SendT(ctx, "en.invite_member.mail", types.TemplateTypeMail, templateData)
 	assert.Error(t, err)
 
 	// Verify it's a context timeout error or not implemented error
@@ -173,6 +173,6 @@ func BenchmarkSendT(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// This will return "not implemented" error, but we're measuring the overhead
-		_ = provider.SendT(ctx, "en.invite_member.mail", templateData)
+		_ = provider.SendT(ctx, "en.invite_member.mail", types.TemplateTypeMail, templateData)
 	}
 }
