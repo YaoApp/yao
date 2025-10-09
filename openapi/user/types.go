@@ -315,6 +315,7 @@ type InvitationResponse struct {
 	InvitedBy           string              `json:"invited_by"`
 	InvitedAt           string              `json:"invited_at"`
 	InvitationToken     string              `json:"invitation_token,omitempty"`
+	InvitationLink      string              `json:"invitation_link,omitempty"` // Full invitation link
 	InvitationExpiresAt string              `json:"invitation_expires_at,omitempty"`
 	Message             string              `json:"message,omitempty"`
 	Settings            *InvitationSettings `json:"settings,omitempty"`
@@ -339,6 +340,7 @@ type CreateInvitationRequest struct {
 	Message    string              `json:"message,omitempty"`
 	Expiry     string              `json:"expiry,omitempty"`     // Custom expiry duration (e.g., "1d", "8h"), defaults to team config
 	SendEmail  *bool               `json:"send_email,omitempty"` // Whether to send email (defaults to false)
+	Locale     string              `json:"locale,omitempty"`     // Language code for email template (e.g., "zh-CN", "en")
 	Settings   *InvitationSettings `json:"settings,omitempty"`
 }
 

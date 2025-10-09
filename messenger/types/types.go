@@ -128,6 +128,7 @@ type Features struct {
 
 // TemplateRequest represents a request to send a message using a specific template
 type TemplateRequest struct {
-	TemplateID string       `json:"template_id"`
-	Data       TemplateData `json:"data"`
+	TemplateID  string       `json:"template_id"`
+	Data        TemplateData `json:"data"`
+	MessageType *MessageType `json:"message_type,omitempty"` // Optional: if not specified, will use first available template type
 }

@@ -15,6 +15,20 @@ const (
 	TemplateTypeWhatsApp TemplateType = "whatsapp"
 )
 
+// templateTypeToMessageType converts TemplateType to MessageType
+func templateTypeToMessageType(templateType TemplateType) MessageType {
+	switch templateType {
+	case TemplateTypeMail:
+		return MessageTypeEmail
+	case TemplateTypeSMS:
+		return MessageTypeSMS
+	case TemplateTypeWhatsApp:
+		return MessageTypeWhatsApp
+	default:
+		return ""
+	}
+}
+
 // Template represents a message template
 type Template struct {
 	ID       string       `json:"id"`
@@ -71,9 +85,12 @@ func (t *Template) ToMessage(data TemplateData) (*Message, error) {
 		return nil, fmt.Errorf("template data must include 'to' field with recipients")
 	}
 
+	// Convert TemplateType to MessageType
+	messageType := templateTypeToMessageType(t.Type)
+
 	// Create message
 	message := &Message{
-		Type:    MessageType(t.Type),
+		Type:    messageType,
 		Subject: subject,
 		Body:    body,
 		HTML:    html,

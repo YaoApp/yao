@@ -29,6 +29,10 @@ func GinTeamConfig(c *gin.Context) {
 		locale = "en" // default locale
 	}
 
+	// Clean locale: remove whitespace and special characters
+	locale = strings.TrimSpace(locale)
+	locale = strings.Trim(locale, "?&=")
+
 	config := GetTeamConfig(locale)
 	if config == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Team configuration not found"})

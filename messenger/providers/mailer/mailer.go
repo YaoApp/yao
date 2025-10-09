@@ -210,9 +210,9 @@ func (p *Provider) SendBatch(ctx context.Context, messages []*types.Message) err
 }
 
 // SendT sends a message using a template
-func (p *Provider) SendT(ctx context.Context, templateID string, data types.TemplateData) error {
-	// Get template from provider's template manager (mailer supports mail templates)
-	template, err := p.getTemplate(templateID, types.TemplateTypeMail)
+func (p *Provider) SendT(ctx context.Context, templateID string, templateType types.TemplateType, data types.TemplateData) error {
+	// Get template from provider's template manager with specified type
+	template, err := p.getTemplate(templateID, templateType)
 	if err != nil {
 		return fmt.Errorf("template not found: %w", err)
 	}
@@ -228,9 +228,9 @@ func (p *Provider) SendT(ctx context.Context, templateID string, data types.Temp
 }
 
 // SendTBatch sends multiple messages using templates in batch
-func (p *Provider) SendTBatch(ctx context.Context, templateID string, dataList []types.TemplateData) error {
-	// Get template from provider's template manager (mailer supports mail templates)
-	template, err := p.getTemplate(templateID, types.TemplateTypeMail)
+func (p *Provider) SendTBatch(ctx context.Context, templateID string, templateType types.TemplateType, dataList []types.TemplateData) error {
+	// Get template from provider's template manager with specified type
+	template, err := p.getTemplate(templateID, templateType)
 	if err != nil {
 		return fmt.Errorf("template not found: %w", err)
 	}

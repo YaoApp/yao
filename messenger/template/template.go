@@ -52,6 +52,31 @@ func (m *Manager) GetAllTemplates() map[string]map[types.TemplateType]*types.Tem
 	return result
 }
 
+// GetAvailableTypes returns all available template types for a given templateID
+// Returns types in a consistent order: mail, sms, whatsapp
+func (m *Manager) GetAvailableTypes(templateID string) []types.TemplateType {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	if templates, exists := m.templates[templateID]; exists {
+		// Return in preferred order
+		var result []types.TemplateType
+		preferredOrder := []types.TemplateType{
+			types.TemplateTypeMail,
+			types.TemplateTypeSMS,
+			types.TemplateTypeWhatsApp,
+		}
+
+		for _, templateType := range preferredOrder {
+			if _, exists := templates[templateType]; exists {
+				result = append(result, templateType)
+			}
+		}
+		return result
+	}
+	return []types.TemplateType{}
+}
+
 // ReloadTemplates reloads all templates from disk
 func (m *Manager) ReloadTemplates() error {
 	m.mutex.Lock()
@@ -224,16 +249,16 @@ func parseMailTemplate(content string) (subject, body, html string, err error) {
 	// Extract subject from <Subject> tag
 	subject = strings.TrimSpace(doc.Find("Subject").Text())
 
-	// Extract body content from <body> tag
-	bodySelection := doc.Find("body")
+	// Extract body content from <Content> tag (using custom tag to avoid HTML parser auto-conversion)
+	bodySelection := doc.Find("Content")
 	if bodySelection.Length() == 0 {
-		return "", "", "", fmt.Errorf("no <body> tag found in mail template")
+		return "", "", "", fmt.Errorf("no <Content> tag found in mail template")
 	}
 
-	// Get the HTML content of the body tag
+	// Get the HTML content of the Content tag
 	body, err = bodySelection.Html()
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to extract body HTML: %w", err)
+		return "", "", "", fmt.Errorf("failed to extract content HTML: %w", err)
 	}
 
 	body = strings.TrimSpace(body)
