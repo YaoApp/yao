@@ -228,6 +228,11 @@ var testSystemStores = map[string]string{
 
 func loadSystemStores(t *testing.T, cfg config.Config) error {
 	for id, path := range testSystemStores {
+		// Check if store already exists, skip if already loaded
+		if _, err := store.Get(id); err == nil {
+			continue
+		}
+
 		raw, err := data.Read(path)
 		if err != nil {
 			return err
@@ -273,6 +278,11 @@ func replaceVars(jsonStr string, vars map[string]string) string {
 // loadSystemModels load system models for testing
 func loadSystemModels(t *testing.T, cfg config.Config) error {
 	for id, path := range testSystemModels {
+		// Check if model already exists, skip if already loaded
+		if _, exists := model.Models[id]; exists {
+			continue
+		}
+
 		content, err := data.Read(path)
 		if err != nil {
 			return err

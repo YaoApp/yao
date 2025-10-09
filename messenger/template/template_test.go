@@ -73,11 +73,12 @@ func TestTemplate_Render(t *testing.T) {
 		return
 	}
 
-	// Test data
+	// Test data - matching actual template variables
 	data := types.TemplateData{
-		"team_name":    "Awesome Team",
-		"inviter_name": "Alice Johnson",
-		"invite_link":  "https://example.com/invite/abc123",
+		"team_name":       "Awesome Team",
+		"inviter_name":    "Alice Johnson",
+		"invitation_link": "https://example.com/invite/abc123",
+		"expires_at":      "2025-10-16 12:00:00 UTC",
 	}
 
 	// Render template
@@ -93,6 +94,7 @@ func TestTemplate_Render(t *testing.T) {
 	assert.Contains(t, subject, "Awesome Team")
 	assert.Contains(t, body, "Alice Johnson")
 	assert.Contains(t, body, "https://example.com/invite/abc123")
+	assert.Contains(t, body, "2025-10-16 12:00:00 UTC")
 
 	t.Logf("Rendered subject: %s", subject)
 	t.Logf("Rendered body: %s", body)
@@ -114,12 +116,13 @@ func TestTemplate_ToMessage(t *testing.T) {
 		return
 	}
 
-	// Test data with recipients
+	// Test data with recipients - matching actual template variables
 	data := types.TemplateData{
-		"to":           []string{"test@example.com", "user@example.com"},
-		"team_name":    "Awesome Team",
-		"inviter_name": "Alice Johnson",
-		"invite_link":  "https://example.com/invite/abc123",
+		"to":              []string{"test@example.com", "user@example.com"},
+		"team_name":       "Awesome Team",
+		"inviter_name":    "Alice Johnson",
+		"invitation_link": "https://example.com/invite/abc123",
+		"expires_at":      "2025-10-16 12:00:00 UTC",
 	}
 
 	// Convert template to message
@@ -128,7 +131,7 @@ func TestTemplate_ToMessage(t *testing.T) {
 
 	// Verify message properties
 	assert.NotNil(t, message)
-	assert.Equal(t, types.MessageType("mail"), message.Type)
+	assert.Equal(t, types.MessageTypeEmail, message.Type) // Changed from "mail" to MessageTypeEmail
 	assert.NotEmpty(t, message.Subject)
 	assert.NotEmpty(t, message.Body)
 	assert.NotEmpty(t, message.HTML)
@@ -140,6 +143,7 @@ func TestTemplate_ToMessage(t *testing.T) {
 	assert.Contains(t, message.Subject, "Awesome Team")
 	assert.Contains(t, message.Body, "Alice Johnson")
 	assert.Contains(t, message.Body, "https://example.com/invite/abc123")
+	assert.Contains(t, message.Body, "2025-10-16 12:00:00 UTC")
 
 	t.Logf("Generated message: Subject=%s, To=%v", message.Subject, message.To)
 }
@@ -160,12 +164,13 @@ func TestTemplate_SMSTemplate(t *testing.T) {
 		return
 	}
 
-	// Test data
+	// Test data - matching actual template variables
 	data := types.TemplateData{
-		"to":           []string{"+1234567890"},
-		"team_name":    "Awesome Team",
-		"inviter_name": "Alice Johnson",
-		"invite_link":  "https://example.com/invite/abc123",
+		"to":              []string{"+1234567890"},
+		"team_name":       "Awesome Team",
+		"inviter_name":    "Alice Johnson",
+		"invitation_link": "https://example.com/invite/abc123",
+		"expires_at":      "2025-10-16 12:00:00 UTC",
 	}
 
 	// Convert template to message
