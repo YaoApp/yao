@@ -178,14 +178,6 @@ func authback(c *gin.Context) {
 	// LoginThirdParty(providerID, userInfo)
 	loginResponse, err := LoginThirdParty(providerID, userInfo, userIPAddress(c))
 	if err != nil {
-
-		// Redirect to MFA required page
-		if err == response.ErrMFARequired {
-			response.RespondWithError(c, response.StatusUnauthorized, response.ErrMFARequired)
-			return
-		}
-
-		// Other errors
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: "Failed to login: " + err.Error(),
@@ -197,20 +189,16 @@ func authback(c *gin.Context) {
 	// Send all login cookies (access token, refresh token, and session ID)
 	SendLoginCookies(c, loginResponse, sid)
 
-	// Get Teams
-	numTeams, err := countUserTeams(c.Request.Context(), loginResponse.UserID)
-	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Failed to count teams: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+	// MFA Response
+	if loginResponse.Status == LoginStatusMFA {
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			SessionID:         sid,
+			MFAEnabled:        loginResponse.MFAEnabled,
+			Status:            loginResponse.Status,
+			MFAToken:          loginResponse.MFAToken,
+			MFATokenExpiresIn: loginResponse.MFATokenExpiresIn,
+		})
 		return
-	}
-
-	status := LoginStatusSuccess
-	if numTeams > 0 {
-		status = LoginStatusTeamSelection
 	}
 
 	// Send IDToken to the client
@@ -222,7 +210,7 @@ func authback(c *gin.Context) {
 		ExpiresIn:             loginResponse.ExpiresIn,
 		RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
 		MFAEnabled:            loginResponse.MFAEnabled,
-		Status:                status,
+		Status:                loginResponse.Status,
 	})
 }
 

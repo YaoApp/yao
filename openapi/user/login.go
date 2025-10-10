@@ -135,16 +135,6 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, ip st
 		return nil, err
 	}
 
-	// If MFA Enabled, should return MFA required response
-	mfaEnabled, err := userProvider.IsMFAEnabled(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	if mfaEnabled {
-		return nil, response.ErrMFARequired
-	}
-
 	return LoginByUserID(userID, ip)
 }
 
@@ -164,6 +154,28 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	user, err := userProvider.GetUserWithScopes(ctx, userid)
 	if err != nil {
 		return nil, err
+	}
+
+	// Get MFA enabled status from user data
+	mfaEnabled := toBool(user["mfa_enabled"])
+
+	// If MFA enabled, generate MFA token
+	if mfaEnabled {
+
+		// Sign temporary access token for MFA
+		var mfaExpire int = 10 * 60 // 10 minutes
+		mfaToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, userid, mfaExpire)
+		if err != nil {
+			return nil, err
+		}
+
+		return &LoginResponse{
+			UserID:            userid,
+			MFAToken:          mfaToken,
+			MFATokenExpiresIn: mfaExpire,
+			MFAEnabled:        mfaEnabled,
+			Status:            LoginStatusMFA,
+		}, nil
 	}
 
 	// Update Last Login
@@ -203,8 +215,16 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		return nil, err
 	}
 
-	// Get MFA enabled status from user data
-	mfaEnabled := toBool(user["mfa_enabled"])
+	// Count User Teams
+	numTeams, err := countUserTeams(ctx, userid)
+	if err != nil {
+		return nil, err
+	}
+
+	status := LoginStatusSuccess
+	if numTeams > 0 {
+		status = LoginStatusTeamSelection
+	}
 
 	return &LoginResponse{
 		UserID:                userid,
@@ -217,6 +237,7 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		TokenType:             "Bearer",
 		MFAEnabled:            mfaEnabled,
 		Scope:                 strings.Join(scopes, " "),
+		Status:                status,
 	}, nil
 }
 
@@ -228,12 +249,26 @@ func generateSessionID() string {
 // SendLoginCookies sends all necessary cookies for a successful login
 // This includes access token, refresh token, and session ID cookies with appropriate security settings
 func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID string) {
-	// Format tokens with Bearer prefix
+
+	// Send session ID cookie
+	expires := time.Now().Add(time.Duration(yaoClientConfig.ExpiresIn) * time.Second)
+	options := response.NewSecureCookieOptions().
+		WithExpires(expires).
+		WithSameSite("Strict")
+	response.SendSecureCookieWithOptions(c, "session_id", sessionID, options)
+
+	// MFA Temporary Access Token
+	if loginResponse.Status == LoginStatusMFA {
+		mfaToken := fmt.Sprintf("Bearer %s", loginResponse.MFAToken)
+		response.SendAccessTokenCookieWithExpiry(c, mfaToken, expires)
+		return
+	}
+
+	// Normal Access Token
 	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
 	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
 
 	// Calculate expiration times
-	expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
 	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
 
 	// Send access token cookie
@@ -241,11 +276,4 @@ func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID st
 
 	// Send refresh token cookie
 	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
-
-	// Send session ID cookie with the same expiration as access token
-	// Using HTTP-only flag for security
-	options := response.NewSecureCookieOptions().
-		WithExpires(expires).
-		WithSameSite("Strict")
-	response.SendSecureCookieWithOptions(c, "session_id", sessionID, options)
 }

@@ -2,16 +2,23 @@ package user
 
 import (
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
-	"github.com/yaoapp/yao/openapi/response"
 )
+
+// LoginStatus represents the login status
+type LoginStatus string
 
 const (
 	// LoginStatusSuccess is the success status
-	LoginStatusSuccess = "ok"
+	LoginStatusSuccess LoginStatus = "ok"
 	// LoginStatusMFA is the MFA status
-	LoginStatusMFA = "mfa_required"
+	LoginStatusMFA LoginStatus = "mfa_required"
 	// LoginStatusTeamSelection is the team selection status
-	LoginStatusTeamSelection = "team_selection_required"
+	LoginStatusTeamSelection LoginStatus = "team_selection_required"
+)
+
+const (
+	// ScopeMFAVerification is the MFA verification scope for temporary access token
+	ScopeMFAVerification = "mfa_verification"
 )
 
 // Config represents the signin page configuration
@@ -173,29 +180,33 @@ type OIDCAddress = oauthtypes.OIDCAddress
 
 // LoginResponse represents the response for login
 type LoginResponse struct {
-	UserID                string `json:"user_id,omitempty"`
-	Subject               string `json:"subject,omitempty"`
-	AccessToken           string `json:"access_token"`
-	IDToken               string `json:"id_token,omitempty"`
-	RefreshToken          string `json:"refresh_token,omitempty"`
-	ExpiresIn             int    `json:"expires_in,omitempty"`
-	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
-	TokenType             string `json:"token_type,omitempty"`
-	MFAEnabled            bool   `json:"mfa_enabled,omitempty"`
-	Scope                 string `json:"scope,omitempty"`
+	UserID                string      `json:"user_id,omitempty"`
+	Subject               string      `json:"subject,omitempty"`
+	AccessToken           string      `json:"access_token"`
+	IDToken               string      `json:"id_token,omitempty"`
+	RefreshToken          string      `json:"refresh_token,omitempty"`
+	ExpiresIn             int         `json:"expires_in,omitempty"`
+	RefreshTokenExpiresIn int         `json:"refresh_token_expires_in,omitempty"`
+	TokenType             string      `json:"token_type,omitempty"`
+	MFAToken              string      `json:"mfa_token,omitempty"`            // MFA token verification code
+	MFATokenExpiresIn     int         `json:"mfa_token_expires_in,omitempty"` // MFA token verification code expires in
+	MFAEnabled            bool        `json:"mfa_enabled,omitempty"`
+	Scope                 string      `json:"scope,omitempty"`
+	Status                LoginStatus `json:"status,omitempty"`
 }
 
 // LoginSuccessResponse represents the response for login success
 type LoginSuccessResponse struct {
-	IDToken               string                  `json:"id_token,omitempty"`
-	AccessToken           string                  `json:"access_token,omitempty"`
-	SessionID             string                  `json:"session_id,omitempty"`
-	RefreshToken          string                  `json:"refresh_token,omitempty"`
-	ExpiresIn             int                     `json:"expires_in,omitempty"`
-	MFAEnabled            bool                    `json:"mfa_enabled"`
-	RefreshTokenExpiresIn int                     `json:"refresh_token_expires_in,omitempty"`
-	Status                string                  `json:"status,omitempty"`
-	Error                 *response.ErrorResponse `json:"error,omitempty"`
+	IDToken               string      `json:"id_token,omitempty"`
+	AccessToken           string      `json:"access_token,omitempty"`
+	MFAToken              string      `json:"mfa_token,omitempty"`            // MFA token verification code
+	MFATokenExpiresIn     int         `json:"mfa_token_expires_in,omitempty"` // MFA token verification code expires in
+	SessionID             string      `json:"session_id,omitempty"`
+	RefreshToken          string      `json:"refresh_token,omitempty"`
+	ExpiresIn             int         `json:"expires_in,omitempty"`
+	MFAEnabled            bool        `json:"mfa_enabled"`
+	RefreshTokenExpiresIn int         `json:"refresh_token_expires_in,omitempty"`
+	Status                LoginStatus `json:"status,omitempty"`
 }
 
 // Built-in preset mapping types
