@@ -87,7 +87,7 @@ func GinMemberList(c *gin.Context) {
 	}
 
 	// Return the paginated result
-	c.JSON(http.StatusOK, result)
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 // GinMemberGet handles GET /teams/:team_id/members/:member_id - Get team member details
@@ -143,7 +143,7 @@ func GinMemberGet(c *gin.Context) {
 
 	// Convert to response format
 	member := mapToMemberDetailResponse(memberData)
-	c.JSON(http.StatusOK, member)
+	response.RespondWithSuccess(c, http.StatusOK, member)
 }
 
 // GinMemberCreateDirect handles POST /teams/:team_id/members - Add member directly to team
@@ -226,7 +226,7 @@ func GinMemberCreateDirect(c *gin.Context) {
 	}
 
 	// Return created member ID
-	c.JSON(http.StatusCreated, gin.H{"member_id": memberID})
+	response.RespondWithSuccess(c, http.StatusCreated, gin.H{"member_id": memberID})
 }
 
 // GinMemberUpdate handles PUT /teams/:team_id/members/:member_id - Update team member
@@ -307,7 +307,7 @@ func GinMemberUpdate(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Member updated successfully"})
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Member updated successfully"})
 }
 
 // GinMemberDelete handles DELETE /teams/:team_id/members/:member_id - Remove team member
@@ -361,7 +361,7 @@ func GinMemberDelete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully"})
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Member removed successfully"})
 }
 
 // Yao Process Handlers (for Yao application calls)

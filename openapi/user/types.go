@@ -331,6 +331,27 @@ type InvitationDetailResponse struct {
 	TeamInfo map[string]interface{} `json:"team_info,omitempty"`
 }
 
+// PublicInvitationResponse represents a public team invitation (for invitation recipients)
+// This type excludes sensitive information like tokens, database IDs, and timestamps
+type PublicInvitationResponse struct {
+	InvitationID        string       `json:"invitation_id"`
+	TeamName            string       `json:"team_name"`
+	TeamLogo            string       `json:"team_logo"`        // Always return, empty string if not set
+	TeamDescription     string       `json:"team_description"` // Always return, empty string if not set
+	RoleLabel           string       `json:"role_label,omitempty"`
+	Status              string       `json:"status"`
+	InvitedAt           string       `json:"invited_at"`
+	InvitationExpiresAt string       `json:"invitation_expires_at,omitempty"`
+	Message             string       `json:"message,omitempty"`
+	InviterInfo         *InviterInfo `json:"inviter_info,omitempty"` // Inviter's public info
+}
+
+// InviterInfo represents public information about the person who sent the invitation
+type InviterInfo struct {
+	Name    string `json:"name,omitempty"`
+	Picture string `json:"picture"` // Always return, empty string if not set
+}
+
 // CreateInvitationRequest represents the request to send a team invitation
 type CreateInvitationRequest struct {
 	UserID     string              `json:"user_id,omitempty"`     // Optional for unregistered users
