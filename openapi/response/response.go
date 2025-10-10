@@ -112,6 +112,8 @@ var (
 	ErrInvalidClientMetadata    = &ErrorResponse{Code: "invalid_client_metadata", ErrorDescription: "The client metadata is invalid or contains unsupported values."}
 	ErrInvalidSoftwareStatement = &ErrorResponse{Code: "invalid_software_statement", ErrorDescription: "The software statement is invalid or cannot be verified."}
 	ErrUnapprovedSoftware       = &ErrorResponse{Code: "unapproved_software", ErrorDescription: "The software statement represents software that has been replaced or is otherwise invalid."}
+	ErrMFARequired              = &ErrorResponse{Code: "mfa_required", ErrorDescription: "Multi-factor authentication is required to access this resource."}
+	ErrTeamSelectionRequired    = &ErrorResponse{Code: "team_selection_required", ErrorDescription: "Team selection is required to access this resource."}
 
 	// Configuration and service errors
 	ErrInvalidConfiguration     = types.ErrInvalidConfiguration
