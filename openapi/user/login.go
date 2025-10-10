@@ -164,17 +164,17 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 
 		// Sign temporary access token for MFA
 		var mfaExpire int = 10 * 60 // 10 minutes
-		mfaToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, userid, mfaExpire)
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, userid, mfaExpire)
 		if err != nil {
 			return nil, err
 		}
 
 		return &LoginResponse{
-			UserID:            userid,
-			MFAToken:          mfaToken,
-			MFATokenExpiresIn: mfaExpire,
-			MFAEnabled:        mfaEnabled,
-			Status:            LoginStatusMFA,
+			UserID:      userid,
+			AccessToken: accessToken,
+			ExpiresIn:   mfaExpire,
+			MFAEnabled:  mfaEnabled,
+			Status:      LoginStatusMFA,
 		}, nil
 	}
 
@@ -259,7 +259,8 @@ func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID st
 
 	// MFA Temporary Access Token
 	if loginResponse.Status == LoginStatusMFA {
-		mfaToken := fmt.Sprintf("Bearer %s", loginResponse.MFAToken)
+		mfaToken := fmt.Sprintf("Bearer %s", loginResponse.AccessToken)
+		expires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
 		response.SendAccessTokenCookieWithExpiry(c, mfaToken, expires)
 		return
 	}
@@ -272,7 +273,7 @@ func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID st
 	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
 
 	// Send access token cookie
-	response.SendAccessTokenCookieWithExpiry(c, accessToken, expires)
+	response.SendAccessTokenCookieWithExpiry(c, accessToken, time.Now().Add(time.Duration(loginResponse.ExpiresIn)*time.Second))
 
 	// Send refresh token cookie
 	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)

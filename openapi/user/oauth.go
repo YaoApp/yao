@@ -192,11 +192,11 @@ func authback(c *gin.Context) {
 	// MFA Response
 	if loginResponse.Status == LoginStatusMFA {
 		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
-			SessionID:         sid,
-			MFAEnabled:        loginResponse.MFAEnabled,
-			Status:            loginResponse.Status,
-			MFAToken:          loginResponse.MFAToken,
-			MFATokenExpiresIn: loginResponse.MFATokenExpiresIn,
+			SessionID:   sid,
+			MFAEnabled:  loginResponse.MFAEnabled,
+			Status:      loginResponse.Status,
+			AccessToken: loginResponse.AccessToken,
+			ExpiresIn:   loginResponse.ExpiresIn,
 		})
 		return
 	}

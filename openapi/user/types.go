@@ -188,8 +188,6 @@ type LoginResponse struct {
 	ExpiresIn             int         `json:"expires_in,omitempty"`
 	RefreshTokenExpiresIn int         `json:"refresh_token_expires_in,omitempty"`
 	TokenType             string      `json:"token_type,omitempty"`
-	MFAToken              string      `json:"mfa_token,omitempty"`            // MFA token verification code
-	MFATokenExpiresIn     int         `json:"mfa_token_expires_in,omitempty"` // MFA token verification code expires in
 	MFAEnabled            bool        `json:"mfa_enabled,omitempty"`
 	Scope                 string      `json:"scope,omitempty"`
 	Status                LoginStatus `json:"status,omitempty"`
@@ -199,8 +197,6 @@ type LoginResponse struct {
 type LoginSuccessResponse struct {
 	IDToken               string      `json:"id_token,omitempty"`
 	AccessToken           string      `json:"access_token,omitempty"`
-	MFAToken              string      `json:"mfa_token,omitempty"`            // MFA token verification code
-	MFATokenExpiresIn     int         `json:"mfa_token_expires_in,omitempty"` // MFA token verification code expires in
 	SessionID             string      `json:"session_id,omitempty"`
 	RefreshToken          string      `json:"refresh_token,omitempty"`
 	ExpiresIn             int         `json:"expires_in,omitempty"`
