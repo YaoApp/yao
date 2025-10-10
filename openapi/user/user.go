@@ -264,22 +264,6 @@ func attachThirdParty(group *gin.RouterGroup, oauth types.OAuth) {
 
 }
 
-// getTeamConfig returns the team configuration
-func getTeamConfig(c *gin.Context) {
-	locale := c.Query("locale")
-	if locale == "" {
-		locale = "en" // default locale
-	}
-
-	config := GetTeamConfig(locale)
-	if config == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Team configuration not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, config)
-}
-
 func placeholder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Hello, World!"})
 }

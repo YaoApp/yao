@@ -163,6 +163,8 @@ type OIDCAddress = oauthtypes.OIDCAddress
 
 // LoginResponse represents the response for login
 type LoginResponse struct {
+	UserID                string `json:"user_id,omitempty"`
+	Subject               string `json:"subject,omitempty"`
 	AccessToken           string `json:"access_token"`
 	IDToken               string `json:"id_token,omitempty"`
 	RefreshToken          string `json:"refresh_token,omitempty"`

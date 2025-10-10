@@ -135,6 +135,16 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, ip st
 		return nil, err
 	}
 
+	// If MFA Enabled, should return MFA required response
+	mfaEnabled, err := userProvider.IsMFAEnabled(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	if mfaEnabled {
+		return nil, response.ErrMFARequired
+	}
+
 	return LoginByUserID(userID, ip)
 }
 
@@ -197,6 +207,8 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	mfaEnabled := toBool(user["mfa_enabled"])
 
 	return &LoginResponse{
+		UserID:                userid,
+		Subject:               subject,
 		AccessToken:           accessToken,
 		IDToken:               oidcToken,
 		RefreshToken:          refreshToken,

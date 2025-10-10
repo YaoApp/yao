@@ -176,6 +176,14 @@ func authback(c *gin.Context) {
 	// LoginThirdParty(providerID, userInfo)
 	loginResponse, err := LoginThirdParty(providerID, userInfo, userIPAddress(c))
 	if err != nil {
+
+		// Redirect to MFA required page
+		if err == response.ErrMFARequired {
+			response.RespondWithError(c, response.StatusUnauthorized, response.ErrMFARequired)
+			return
+		}
+
+		// Other errors
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: "Failed to login: " + err.Error(),
