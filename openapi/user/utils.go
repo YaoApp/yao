@@ -3,6 +3,7 @@ package user
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/yaoapp/gou/process"
@@ -146,4 +147,46 @@ func toTimeString(v interface{}) string {
 	default:
 		return ""
 	}
+}
+
+// Security Utilities
+
+// maskEmail masks an email address for privacy protection
+// Keeps the first and last character of the local part, masks the middle with ***
+// Examples:
+//   - "john.doe@example.com" -> "j***e@example.com"
+//   - "a@example.com" -> "a***@example.com"
+//   - "ab@example.com" -> "a***b@example.com"
+//
+// Returns empty string for invalid email or empty input
+func maskEmail(email string) string {
+	if email == "" {
+		return ""
+	}
+
+	// Split email into local and domain parts
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "" // Invalid email format
+	}
+
+	local := parts[0]
+	domain := parts[1]
+
+	// Mask the local part
+	var masked string
+	localLen := len(local)
+	switch localLen {
+	case 1:
+		// Single character: show it with ***
+		masked = local + "***"
+	case 2:
+		// Two characters: show first + *** + last
+		masked = string(local[0]) + "***" + string(local[1])
+	default:
+		// Three or more characters: show first + *** + last
+		masked = string(local[0]) + "***" + string(local[localLen-1])
+	}
+
+	return masked + "@" + domain
 }

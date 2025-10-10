@@ -21,7 +21,6 @@ import (
 
 // Team Management Handlers
 
-// Public Team Configuration Endpoint
 // GinTeamConfig handles GET /teams/config - Get team configuration (public)
 func GinTeamConfig(c *gin.Context) {
 	locale := c.Query("locale")
@@ -35,11 +34,15 @@ func GinTeamConfig(c *gin.Context) {
 
 	config := GetTeamConfig(locale)
 	if config == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Team configuration not found"})
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Team configuration not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
 		return
 	}
 
-	c.JSON(http.StatusOK, config)
+	response.RespondWithSuccess(c, http.StatusOK, config)
 }
 
 // GinTeamList handles GET /teams - Get user teams
@@ -123,7 +126,7 @@ func GinTeamList(c *gin.Context) {
 	}
 
 	// Return the paginated result directly (consistent with other modules)
-	c.JSON(http.StatusOK, result)
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 // GinTeamGet handles GET /teams/:id - Get user team details
@@ -195,7 +198,7 @@ func GinTeamGet(c *gin.Context) {
 
 	// Convert to response format
 	team := mapToTeamDetailResponse(teamData)
-	c.JSON(http.StatusOK, team)
+	response.RespondWithSuccess(c, http.StatusOK, team)
 }
 
 // GinTeamCreate handles POST /teams - Create user team
@@ -250,7 +253,7 @@ func GinTeamCreate(c *gin.Context) {
 	if err != nil {
 		log.Error("Failed to get user provider: %v", err)
 		// Return basic response if we can't get details
-		c.JSON(http.StatusCreated, gin.H{"team_id": teamID})
+		response.RespondWithSuccess(c, http.StatusCreated, gin.H{"team_id": teamID})
 		return
 	}
 
@@ -258,13 +261,13 @@ func GinTeamCreate(c *gin.Context) {
 	if err != nil {
 		log.Error("Failed to get created team details: %v", err)
 		// Return basic response if we can't get details
-		c.JSON(http.StatusCreated, gin.H{"team_id": teamID})
+		response.RespondWithSuccess(c, http.StatusCreated, gin.H{"team_id": teamID})
 		return
 	}
 
 	// Convert to response format
 	team := mapToTeamDetailResponse(createdTeam)
-	c.JSON(http.StatusCreated, team)
+	response.RespondWithSuccess(c, http.StatusCreated, team)
 }
 
 // GinTeamUpdate handles PUT /teams/:id - Update user team
@@ -345,20 +348,20 @@ func GinTeamUpdate(c *gin.Context) {
 	provider, err := getUserProvider()
 	if err != nil {
 		log.Error("Failed to get user provider: %v", err)
-		c.JSON(http.StatusOK, gin.H{"message": "Team updated successfully"})
+		response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Team updated successfully"})
 		return
 	}
 
 	updatedTeam, err := provider.GetTeamDetail(c.Request.Context(), teamID)
 	if err != nil {
 		log.Error("Failed to get updated team details: %v", err)
-		c.JSON(http.StatusOK, gin.H{"message": "Team updated successfully"})
+		response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Team updated successfully"})
 		return
 	}
 
 	// Convert to response format
 	team := mapToTeamDetailResponse(updatedTeam)
-	c.JSON(http.StatusOK, team)
+	response.RespondWithSuccess(c, http.StatusOK, team)
 }
 
 // GinTeamDelete handles DELETE /teams/:id - Delete user team
@@ -411,7 +414,7 @@ func GinTeamDelete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Team deleted successfully"})
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Team deleted successfully"})
 }
 
 // Yao Process Handlers (for Yao application calls)

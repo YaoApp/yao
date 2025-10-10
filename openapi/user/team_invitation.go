@@ -23,10 +23,10 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
-// Team Invitation Management Handlers
+// User Team Invitation Management Handlers
 
-// GinInvitationList handles GET /teams/:team_id/invitations - Get team invitations
-func GinInvitationList(c *gin.Context) {
+// GinTeamInvitationList handles GET /teams/:team_id/invitations - Get team invitations
+func GinTeamInvitationList(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
@@ -65,7 +65,7 @@ func GinInvitationList(c *gin.Context) {
 	}
 
 	// Call business logic
-	result, err := invitationList(c.Request.Context(), authInfo.UserID, teamID, page, pagesize, c.Query("status"))
+	result, err := teamInvitationList(c.Request.Context(), authInfo.UserID, teamID, page, pagesize, c.Query("status"))
 	if err != nil {
 		log.Error("Failed to get team invitations: %v", err)
 		// Check error type for appropriate response
@@ -92,11 +92,70 @@ func GinInvitationList(c *gin.Context) {
 	}
 
 	// Return the paginated result
-	c.JSON(http.StatusOK, result)
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
-// GinInvitationGet handles GET /teams/:team_id/invitations/:invitation_id - Get invitation details
-func GinInvitationGet(c *gin.Context) {
+// GinTeamInvitationGetPublic handles GET /user/teams/invitations/:invitation_id - Get invitation details (public)
+// This is a public endpoint that doesn't require authentication
+// Supports ?locale=zh-CN query parameter for internationalization
+func GinTeamInvitationGetPublic(c *gin.Context) {
+	invitationID := c.Param("invitation_id")
+	if invitationID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invitation ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get locale from query parameter or Accept-Language header
+	locale := c.Query("locale")
+	if locale == "" {
+		// Try to get from Accept-Language header
+		acceptLang := c.GetHeader("Accept-Language")
+		if acceptLang != "" {
+			// Parse Accept-Language header (e.g., "zh-CN,zh;q=0.9,en;q=0.8")
+			parts := strings.Split(acceptLang, ",")
+			if len(parts) > 0 {
+				langParts := strings.Split(parts[0], ";")
+				if len(langParts) > 0 {
+					locale = strings.TrimSpace(langParts[0])
+				}
+			}
+		}
+	}
+	// Default to "en" if no locale specified
+	if locale == "" {
+		locale = "en"
+	}
+
+	// Call business logic (no user authentication required for public access)
+	publicInvitation, err := teamInvitationGetPublic(c.Request.Context(), invitationID, locale)
+	if err != nil {
+		log.Error("Failed to get invitation details: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "expired") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Invitation not found or expired",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to retrieve invitation details",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	response.RespondWithSuccess(c, http.StatusOK, publicInvitation)
+}
+
+// GinTeamInvitationGet handles GET /teams/:team_id/invitations/:invitation_id - Get invitation details (admin only)
+func GinTeamInvitationGet(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
@@ -123,7 +182,7 @@ func GinInvitationGet(c *gin.Context) {
 	requestBaseURL := getRequestBaseURL(c)
 
 	// Call business logic
-	invitationData, err := invitationGet(c.Request.Context(), authInfo.UserID, teamID, invitationID)
+	invitationData, err := teamInvitationGet(c.Request.Context(), authInfo.UserID, teamID, invitationID)
 	if err != nil {
 		log.Error("Failed to get invitation details: %v", err)
 		// Check error type for appropriate response
@@ -150,12 +209,12 @@ func GinInvitationGet(c *gin.Context) {
 	}
 
 	// Convert to response format (with requestBaseURL for building full invitation link)
-	invitation := mapToInvitationDetailResponse(invitationData, requestBaseURL)
-	c.JSON(http.StatusOK, invitation)
+	invitation := mapToTeamInvitationDetailResponse(invitationData, requestBaseURL)
+	response.RespondWithSuccess(c, http.StatusOK, invitation)
 }
 
-// GinInvitationCreate handles POST /teams/:team_id/invitations - Send team invitation
-func GinInvitationCreate(c *gin.Context) {
+// GinTeamInvitationCreate handles POST /teams/:team_id/invitations - Send team invitation
+func GinTeamInvitationCreate(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
@@ -224,7 +283,7 @@ func GinInvitationCreate(c *gin.Context) {
 	}
 
 	// Call business logic
-	invitationID, err := invitationCreate(c.Request.Context(), authInfo.UserID, teamID, invitationData)
+	invitationID, err := teamInvitationCreate(c.Request.Context(), authInfo.UserID, teamID, invitationData)
 	if err != nil {
 		log.Error("Failed to create invitation: %v", err)
 		// Check error type for appropriate response
@@ -263,23 +322,23 @@ func GinInvitationCreate(c *gin.Context) {
 	}
 
 	// Get the created invitation to return complete data
-	invitation, err := invitationGet(c.Request.Context(), authInfo.UserID, teamID, invitationID)
+	invitation, err := teamInvitationGet(c.Request.Context(), authInfo.UserID, teamID, invitationID)
 	if err != nil {
 		log.Error("Failed to retrieve created invitation: %v", err)
 		// Fallback to returning just the ID if retrieval fails
-		c.JSON(http.StatusCreated, gin.H{"invitation_id": invitationID})
+		response.RespondWithSuccess(c, http.StatusCreated, gin.H{"invitation_id": invitationID})
 		return
 	}
 
 	// Convert to InvitationResponse (with requestBaseURL for building full invitation link)
-	invitationResp := convertToInvitationResponse(invitation, requestBaseURL)
+	invitationResp := convertToTeamInvitationResponse(invitation, requestBaseURL)
 
 	// Return created invitation with full details (including token)
-	c.JSON(http.StatusCreated, invitationResp)
+	response.RespondWithSuccess(c, http.StatusCreated, invitationResp)
 }
 
-// GinInvitationResend handles PUT /teams/:team_id/invitations/:invitation_id/resend - Resend invitation
-func GinInvitationResend(c *gin.Context) {
+// GinTeamInvitationResend handles PUT /teams/:team_id/invitations/:invitation_id/resend - Resend invitation
+func GinTeamInvitationResend(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
@@ -303,7 +362,7 @@ func GinInvitationResend(c *gin.Context) {
 	}
 
 	// Call business logic
-	err := invitationResend(c.Request.Context(), authInfo.UserID, teamID, invitationID, getRequestBaseURL(c))
+	err := teamInvitationResend(c.Request.Context(), authInfo.UserID, teamID, invitationID, getRequestBaseURL(c))
 	if err != nil {
 		log.Error("Failed to resend invitation: %v", err)
 		// Check error type for appropriate response
@@ -335,11 +394,11 @@ func GinInvitationResend(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Invitation resent successfully"})
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Invitation resent successfully"})
 }
 
-// GinInvitationDelete handles DELETE /teams/:team_id/invitations/:invitation_id - Cancel invitation
-func GinInvitationDelete(c *gin.Context) {
+// GinTeamInvitationDelete handles DELETE /teams/:team_id/invitations/:invitation_id - Cancel invitation
+func GinTeamInvitationDelete(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
@@ -363,7 +422,7 @@ func GinInvitationDelete(c *gin.Context) {
 	}
 
 	// Call business logic
-	err := invitationDelete(c.Request.Context(), authInfo.UserID, teamID, invitationID)
+	err := teamInvitationDelete(c.Request.Context(), authInfo.UserID, teamID, invitationID)
 	if err != nil {
 		log.Error("Failed to cancel invitation: %v", err)
 		// Check error type for appropriate response
@@ -389,16 +448,16 @@ func GinInvitationDelete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Invitation cancelled successfully"})
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Invitation cancelled successfully"})
 }
 
 // Yao Process Handlers (for Yao application calls)
 
-// ProcessInvitationList user.invitation.list Invitation list processor
+// ProcessTeamInvitationList user.team.invitation.list Team invitation list processor
 // Args[0] string: team_id
 // Args[1] map: Query parameters {"status": "pending", "page": 1, "pagesize": 20}
 // Return: map: Paginated invitation list
-func ProcessInvitationList(process *process.Process) interface{} {
+func ProcessTeamInvitationList(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// Get user_id from session
@@ -434,19 +493,19 @@ func ProcessInvitationList(process *process.Process) interface{} {
 	}
 
 	// Call business logic
-	result, err := invitationList(ctx, userIDStr, teamID, page, pagesize, status)
+	result, err := teamInvitationList(ctx, userIDStr, teamID, page, pagesize, status)
 	if err != nil {
-		exception.New("failed to list invitations: %s", 500, err.Error()).Throw()
+		exception.New("failed to list team invitations: %s", 500, err.Error()).Throw()
 	}
 
 	return result
 }
 
-// ProcessInvitationGet user.invitation.get Invitation get processor
+// ProcessTeamInvitationGet user.team.invitation.get Team invitation get processor
 // Args[0] string: team_id
 // Args[1] string: invitation_id
 // Return: map: Invitation details
-func ProcessInvitationGet(process *process.Process) interface{} {
+func ProcessTeamInvitationGet(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// Get user_id from session
@@ -466,19 +525,19 @@ func ProcessInvitationGet(process *process.Process) interface{} {
 	}
 
 	// Call business logic
-	result, err := invitationGet(ctx, userIDStr, teamID, invitationID)
+	result, err := teamInvitationGet(ctx, userIDStr, teamID, invitationID)
 	if err != nil {
-		exception.New("failed to get invitation: %s", 500, err.Error()).Throw()
+		exception.New("failed to get team invitation: %s", 500, err.Error()).Throw()
 	}
 
 	return result
 }
 
-// ProcessInvitationCreate user.invitation.create Invitation create processor
+// ProcessTeamInvitationCreate user.team.invitation.create Team invitation create processor
 // Args[0] string: team_id
 // Args[1] map: Invitation data {"user_id": "user123", "member_type": "user", "role_id": "member", "message": "...", "settings": {...}}
 // Return: map: {"invitation_id": "created_invitation_id"}
-func ProcessInvitationCreate(process *process.Process) interface{} {
+func ProcessTeamInvitationCreate(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// Get user_id from session
@@ -506,9 +565,9 @@ func ProcessInvitationCreate(process *process.Process) interface{} {
 	}
 
 	// Call business logic
-	invitationID, err := invitationCreate(ctx, userIDStr, teamID, invitationData)
+	invitationID, err := teamInvitationCreate(ctx, userIDStr, teamID, invitationData)
 	if err != nil {
-		exception.New("failed to create invitation: %s", 500, err.Error()).Throw()
+		exception.New("failed to create team invitation: %s", 500, err.Error()).Throw()
 	}
 
 	return map[string]interface{}{
@@ -516,11 +575,11 @@ func ProcessInvitationCreate(process *process.Process) interface{} {
 	}
 }
 
-// ProcessInvitationResend user.invitation.resend Invitation resend processor
+// ProcessTeamInvitationResend user.team.invitation.resend Team invitation resend processor
 // Args[0] string: team_id
 // Args[1] string: invitation_id
 // Return: map: {"message": "success"}
-func ProcessInvitationResend(process *process.Process) interface{} {
+func ProcessTeamInvitationResend(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// Get user_id from session
@@ -540,9 +599,9 @@ func ProcessInvitationResend(process *process.Process) interface{} {
 	}
 
 	// Call business logic (no requestBaseURL available in process context)
-	err := invitationResend(ctx, userIDStr, teamID, invitationID, "")
+	err := teamInvitationResend(ctx, userIDStr, teamID, invitationID, "")
 	if err != nil {
-		exception.New("failed to resend invitation: %s", 500, err.Error()).Throw()
+		exception.New("failed to resend team invitation: %s", 500, err.Error()).Throw()
 	}
 
 	return map[string]interface{}{
@@ -550,11 +609,11 @@ func ProcessInvitationResend(process *process.Process) interface{} {
 	}
 }
 
-// ProcessInvitationDelete user.invitation.delete Invitation delete processor
+// ProcessTeamInvitationDelete user.team.invitation.delete Team invitation delete processor
 // Args[0] string: team_id
 // Args[1] string: invitation_id
 // Return: map: {"message": "success"}
-func ProcessInvitationDelete(process *process.Process) interface{} {
+func ProcessTeamInvitationDelete(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 
 	// Get user_id from session
@@ -574,9 +633,9 @@ func ProcessInvitationDelete(process *process.Process) interface{} {
 	}
 
 	// Call business logic
-	err := invitationDelete(ctx, userIDStr, teamID, invitationID)
+	err := teamInvitationDelete(ctx, userIDStr, teamID, invitationID)
 	if err != nil {
-		exception.New("failed to delete invitation: %s", 500, err.Error()).Throw()
+		exception.New("failed to delete team invitation: %s", 500, err.Error()).Throw()
 	}
 
 	return map[string]interface{}{
@@ -622,13 +681,13 @@ func getRequestBaseURL(c *gin.Context) string {
 	return fmt.Sprintf("%s://%s", scheme, host)
 }
 
-// buildInvitationLink constructs a full invitation link from invitation_id, token and team configuration
+// buildTeamInvitationLink constructs a full invitation link from invitation_id, token and team configuration
 // This is a centralized function to ensure consistency across email sending and link generation
 // Format:
 //   - With team config baseURL: {base_url}/{invitation_id}/{token}
 //   - With requestBaseURL (from HTTP request): {scheme}://{host}{AdminRoot}team/invite/{invitation_id}/{token}
 //   - Without any baseURL (fallback): {AdminRoot}team/invite/{invitation_id}/{token}
-func buildInvitationLink(invitationID, token string, teamConfig *TeamConfig, requestBaseURL string) string {
+func buildTeamInvitationLink(invitationID, token string, teamConfig *TeamConfig, requestBaseURL string) string {
 	// Priority 1: Use team config baseURL if specified
 	if teamConfig != nil && teamConfig.Invite != nil && teamConfig.Invite.BaseURL != "" {
 		baseURL := teamConfig.Invite.BaseURL
@@ -655,8 +714,8 @@ func buildInvitationLink(invitationID, token string, teamConfig *TeamConfig, req
 	return fmt.Sprintf("%s/team/invite/%s/%s", adminRoot, invitationID, token)
 }
 
-// invitationList handles the business logic for listing team invitations
-func invitationList(ctx context.Context, userID, teamID string, page, pagesize int, status string) (maps.MapStr, error) {
+// teamInvitationList handles the business logic for listing team invitations
+func teamInvitationList(ctx context.Context, userID, teamID string, page, pagesize int, status string) (maps.MapStr, error) {
 	// Check if user has access to the team (read permission: owner or member)
 	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -704,8 +763,102 @@ func invitationList(ctx context.Context, userID, teamID string, page, pagesize i
 	return result, nil
 }
 
-// invitationGet handles the business logic for getting a specific team invitation
-func invitationGet(ctx context.Context, userID, teamID, invitationID string) (maps.MapStrAny, error) {
+// teamInvitationGetPublic handles the business logic for getting a specific team invitation (public access)
+// This function doesn't require authentication and is used for invitation recipients
+// locale parameter is used to get localized role labels
+func teamInvitationGetPublic(ctx context.Context, invitationID, locale string) (*PublicInvitationResponse, error) {
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Get invitation details using invitation_id (business key)
+	invitationData, err := provider.GetMemberByInvitationID(ctx, invitationID)
+	if err != nil {
+		return nil, fmt.Errorf("invitation not found: %w", err)
+	}
+
+	// Only return if it's a pending invitation
+	if toString(invitationData["status"]) != "pending" {
+		return nil, fmt.Errorf("invitation not found or no longer pending")
+	}
+
+	// Check if invitation has expired
+	expiresAt := invitationData["invitation_expires_at"]
+	if expiresAt != nil {
+		var expiryTime time.Time
+		switch v := expiresAt.(type) {
+		case time.Time:
+			expiryTime = v
+		case string:
+			parsed, err := time.Parse(time.RFC3339, v)
+			if err == nil {
+				expiryTime = parsed
+			}
+		}
+		if !expiryTime.IsZero() && time.Now().After(expiryTime) {
+			return nil, fmt.Errorf("invitation has expired")
+		}
+	}
+
+	// Get team information
+	teamID := toString(invitationData["team_id"])
+	team, err := provider.GetTeam(ctx, teamID)
+	if err != nil {
+		log.Warn("Failed to get team information: %v", err)
+		team = maps.MapStrAny{"name": "Team"}
+	}
+
+	// Get inviter information
+	inviterID := toString(invitationData["invited_by"])
+	var inviterInfo *InviterInfo
+	if inviterID != "" {
+		inviter, err := provider.GetUser(ctx, inviterID)
+		if err == nil {
+			inviterInfo = &InviterInfo{
+				Name:    toString(inviter["name"]),
+				Picture: toString(inviter["picture"]),
+			}
+			// Fallback to masked email if name is empty (for privacy protection)
+			if inviterInfo.Name == "" {
+				inviterInfo.Name = maskEmail(toString(inviter["email"]))
+			}
+		}
+	}
+
+	// Get role label from team config using provided locale
+	roleID := toString(invitationData["role_id"])
+	roleLabel := ""
+	teamConfig := GetTeamConfig(locale)
+	if teamConfig != nil && teamConfig.Roles != nil {
+		for _, role := range teamConfig.Roles {
+			if role.RoleID == roleID {
+				roleLabel = role.Label
+				break
+			}
+		}
+	}
+
+	// Build public response (exclude sensitive data like IDs)
+	publicResponse := &PublicInvitationResponse{
+		InvitationID:        toString(invitationData["invitation_id"]),
+		TeamName:            toString(team["name"]),
+		TeamLogo:            toString(team["logo"]),
+		TeamDescription:     toString(team["description"]),
+		RoleLabel:           roleLabel,
+		Status:              toString(invitationData["status"]),
+		InvitedAt:           toTimeString(invitationData["invited_at"]),
+		InvitationExpiresAt: toTimeString(invitationData["invitation_expires_at"]),
+		Message:             toString(invitationData["message"]),
+		InviterInfo:         inviterInfo,
+	}
+
+	return publicResponse, nil
+}
+
+// teamInvitationGet handles the business logic for getting a specific team invitation (admin access)
+func teamInvitationGet(ctx context.Context, userID, teamID, invitationID string) (maps.MapStrAny, error) {
 	// Check if user has access to the team (read permission: owner or member)
 	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -742,11 +895,11 @@ func invitationGet(ctx context.Context, userID, teamID, invitationID string) (ma
 	return invitationData, nil
 }
 
-// invitationCreate handles the business logic for creating a team invitation
+// teamInvitationCreate handles the business logic for creating a team invitation
 // Supports two scenarios:
 // 1. Email invitation: provide email and role, send invitation link via email
 // 2. Link invitation: create invitation link for display in frontend, customizable expiry
-func invitationCreate(ctx context.Context, userID, teamID string, invitationData maps.MapStrAny) (string, error) {
+func teamInvitationCreate(ctx context.Context, userID, teamID string, invitationData maps.MapStrAny) (string, error) {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -833,13 +986,13 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 	}
 
 	// Generate invitation token
-	token, err := generateInvitationToken()
+	token, err := generateTeamInvitationToken()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate invitation token: %w", err)
 	}
 
 	// Calculate expiry duration
-	expiryDuration, err := getInvitationExpiry(invitationData)
+	expiryDuration, err := getTeamInvitationExpiry(invitationData)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse expiry duration: %w", err)
 	}
@@ -892,7 +1045,7 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 			emailData["request_base_url"] = requestBaseURL
 			emailData["settings"] = savedSettings // Restore settings
 
-			err := sendInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, token, invitationID, emailData)
+			err := sendTeamInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, token, invitationID, emailData)
 			if err != nil {
 				log.Error("Failed to send invitation email: %v", err)
 			} else {
@@ -904,8 +1057,8 @@ func invitationCreate(ctx context.Context, userID, teamID string, invitationData
 	return invitationID, nil
 }
 
-// invitationResend handles the business logic for resending a team invitation
-func invitationResend(ctx context.Context, userID, teamID, invitationID, requestBaseURL string) error {
+// teamInvitationResend handles the business logic for resending a team invitation
+func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, requestBaseURL string) error {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -958,13 +1111,13 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID, request
 	}
 
 	// Generate new invitation token
-	newToken, err := generateInvitationToken()
+	newToken, err := generateTeamInvitationToken()
 	if err != nil {
 		return fmt.Errorf("failed to generate new invitation token: %w", err)
 	}
 
 	// Calculate expiry duration (use existing expiry from original invitation data)
-	expiryDuration, err := getInvitationExpiry(invitationData)
+	expiryDuration, err := getTeamInvitationExpiry(invitationData)
 	if err != nil {
 		log.Warn("Failed to parse expiry duration: %v, using default", err)
 		expiryDuration = 7 * 24 * time.Hour
@@ -1007,7 +1160,7 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID, request
 		go func() {
 			// Use background context for async operation
 			bgCtx := context.Background()
-			err := sendInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
+			err := sendTeamInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
 			if err != nil {
 				log.Error("Failed to resend invitation email: %v", err)
 			} else {
@@ -1019,8 +1172,8 @@ func invitationResend(ctx context.Context, userID, teamID, invitationID, request
 	return nil
 }
 
-// invitationDelete handles the business logic for cancelling a team invitation
-func invitationDelete(ctx context.Context, userID, teamID, invitationID string) error {
+// teamInvitationDelete handles the business logic for cancelling a team invitation
+func teamInvitationDelete(ctx context.Context, userID, teamID, invitationID string) error {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -1065,8 +1218,8 @@ func invitationDelete(ctx context.Context, userID, teamID, invitationID string) 
 
 // Private Helper Functions (internal use only)
 
-// generateInvitationToken generates a secure random token for invitations
-func generateInvitationToken() (string, error) {
+// generateTeamInvitationToken generates a secure random token for invitations
+func generateTeamInvitationToken() (string, error) {
 	bytes := make([]byte, 32) // 32 bytes = 256 bits
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -1076,9 +1229,9 @@ func generateInvitationToken() (string, error) {
 	return strings.TrimRight(base64.URLEncoding.EncodeToString(bytes), "="), nil
 }
 
-// getInvitationExpiry calculates the expiry duration for an invitation
+// getTeamInvitationExpiry calculates the expiry duration for an invitation
 // Priority: 1. Request expiry parameter, 2. Team config, 3. Default (7 days)
-func getInvitationExpiry(invitationData maps.MapStrAny) (time.Duration, error) {
+func getTeamInvitationExpiry(invitationData maps.MapStrAny) (time.Duration, error) {
 	// Default expiry: 7 days
 	defaultExpiry := 7 * 24 * time.Hour
 
@@ -1128,8 +1281,8 @@ func getInvitationExpiry(invitationData maps.MapStrAny) (time.Duration, error) {
 	return defaultExpiry, nil
 }
 
-// sendInvitationEmail sends an invitation email using messenger service
-func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, token, invitationID string, invitationData maps.MapStrAny) error {
+// sendTeamInvitationEmail sends an invitation email using messenger service
+func sendTeamInvitationEmail(ctx context.Context, email, inviterName, teamName, token, invitationID string, invitationData maps.MapStrAny) error {
 	// Check if messenger is available
 	if messenger.Instance == nil {
 		return fmt.Errorf("messenger service not available")
@@ -1179,7 +1332,7 @@ func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, toke
 	requestBaseURL := toString(invitationData["request_base_url"])
 
 	// Build invitation link using centralized helper function
-	invitationLink := buildInvitationLink(invitationID, token, teamConfig, requestBaseURL)
+	invitationLink := buildTeamInvitationLink(invitationID, token, teamConfig, requestBaseURL)
 
 	// Prepare template data for messenger
 	templateData := messengertypes.TemplateData{
@@ -1203,13 +1356,13 @@ func sendInvitationEmail(ctx context.Context, email, inviterName, teamName, toke
 	return nil
 }
 
-// convertToInvitationResponse converts a map to InvitationResponse (alias for mapToInvitationResponse)
-func convertToInvitationResponse(data maps.MapStrAny, requestBaseURL string) InvitationResponse {
-	return mapToInvitationResponse(maps.MapStr(data), requestBaseURL)
+// convertToTeamInvitationResponse converts a map to InvitationResponse (alias for mapToTeamInvitationResponse)
+func convertToTeamInvitationResponse(data maps.MapStrAny, requestBaseURL string) InvitationResponse {
+	return mapToTeamInvitationResponse(maps.MapStr(data), requestBaseURL)
 }
 
-// mapToInvitationResponse converts a map to InvitationResponse
-func mapToInvitationResponse(data maps.MapStr, requestBaseURL string) InvitationResponse {
+// mapToTeamInvitationResponse converts a map to InvitationResponse
+func mapToTeamInvitationResponse(data maps.MapStr, requestBaseURL string) InvitationResponse {
 	invitation := InvitationResponse{
 		ID:                  toInt64(data["id"]),
 		InvitationID:        toString(data["invitation_id"]),
@@ -1251,16 +1404,16 @@ func mapToInvitationResponse(data maps.MapStr, requestBaseURL string) Invitation
 	// Build invitation link if token is available
 	if invitation.InvitationToken != "" && invitation.InvitationID != "" {
 		teamConfig := GetTeamConfig(locale)
-		invitation.InvitationLink = buildInvitationLink(invitation.InvitationID, invitation.InvitationToken, teamConfig, requestBaseURL)
+		invitation.InvitationLink = buildTeamInvitationLink(invitation.InvitationID, invitation.InvitationToken, teamConfig, requestBaseURL)
 	}
 
 	return invitation
 }
 
-// mapToInvitationDetailResponse converts a map to InvitationDetailResponse
-func mapToInvitationDetailResponse(data maps.MapStr, requestBaseURL string) InvitationDetailResponse {
+// mapToTeamInvitationDetailResponse converts a map to InvitationDetailResponse
+func mapToTeamInvitationDetailResponse(data maps.MapStr, requestBaseURL string) InvitationDetailResponse {
 	invitation := InvitationDetailResponse{
-		InvitationResponse: mapToInvitationResponse(data, requestBaseURL),
+		InvitationResponse: mapToTeamInvitationResponse(data, requestBaseURL),
 	}
 
 	// Add user info if available (could be joined from user table)

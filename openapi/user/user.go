@@ -11,11 +11,16 @@ import (
 func init() {
 	// Register user process handlers
 	process.RegisterGroup("user", map[string]process.Handler{
-		"team.list":   ProcessTeamList,
-		"team.get":    ProcessTeamGet,
-		"team.create": ProcessTeamCreate,
-		"team.update": ProcessTeamUpdate,
-		"team.delete": ProcessTeamDelete,
+		"team.list":              ProcessTeamList,
+		"team.get":               ProcessTeamGet,
+		"team.create":            ProcessTeamCreate,
+		"team.update":            ProcessTeamUpdate,
+		"team.delete":            ProcessTeamDelete,
+		"team.invitation.list":   ProcessTeamInvitationList,
+		"team.invitation.get":    ProcessTeamInvitationGet,
+		"team.invitation.create": ProcessTeamInvitationCreate,
+		"team.invitation.resend": ProcessTeamInvitationResend,
+		"team.invitation.delete": ProcessTeamInvitationDelete,
 	})
 }
 
@@ -51,6 +56,10 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 // User Team Management
 func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
+	// Public endpoint for viewing team invitations (no auth required)
+	// Must be registered BEFORE the team group with auth guard
+	group.GET("/teams/invitations/:invitation_id", GinTeamInvitationGetPublic) // GET /user/teams/invitations/:invitation_id - Get invitation details (public)
+
 	team := group.Group("/teams")
 
 	// Protected endpoints (authentication required)
@@ -74,11 +83,11 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.DELETE("/:id/members/:member_id", GinMemberDelete) // DELETE /teams/:id/members/:member_id - Remove member
 
 	// Team Invitations - Nested resource endpoints
-	team.GET("/:id/invitations", GinInvitationList)                         // GET /teams/:id/invitations - List invitations
-	team.POST("/:id/invitations", GinInvitationCreate)                      // POST /teams/:id/invitations - Send invitation
-	team.GET("/:id/invitations/:invitation_id", GinInvitationGet)           // GET /teams/:id/invitations/:invitation_id - Get invitation
-	team.PUT("/:id/invitations/:invitation_id/resend", GinInvitationResend) // PUT /teams/:id/invitations/:invitation_id/resend - Resend invitation
-	team.DELETE("/:id/invitations/:invitation_id", GinInvitationDelete)     // DELETE /teams/:id/invitations/:invitation_id - Cancel invitation
+	team.GET("/:id/invitations", GinTeamInvitationList)                         // GET /teams/:id/invitations - List invitations
+	team.POST("/:id/invitations", GinTeamInvitationCreate)                      // POST /teams/:id/invitations - Send invitation
+	team.GET("/:id/invitations/:invitation_id", GinTeamInvitationGet)           // GET /teams/:id/invitations/:invitation_id - Get invitation (admin)
+	team.PUT("/:id/invitations/:invitation_id/resend", GinTeamInvitationResend) // PUT /teams/:id/invitations/:invitation_id/resend - Resend invitation
+	team.DELETE("/:id/invitations/:invitation_id", GinTeamInvitationDelete)     // DELETE /teams/:id/invitations/:invitation_id - Cancel invitation
 }
 
 // Invitation Response Management (Cross-module invitation handling)
