@@ -251,6 +251,80 @@ func (u *DefaultUser) GetTeamsByOwner(ctx context.Context, ownerID string) ([]ma
 	return u.GetTeams(ctx, param)
 }
 
+// GetTeamsByMember retrieves teams by member_id
+func (u *DefaultUser) GetTeamsByMember(ctx context.Context, memberID string) ([]maps.MapStr, error) {
+
+	// Set default select fields if not provided
+	param := model.QueryParam{
+		Select: []interface{}{"team_id", "user_id", "member_type"},
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: memberID},
+			{Column: "member_type", Value: "user"},
+			{Column: "status", Value: "active"},
+		},
+	}
+
+	if param.Select == nil {
+		param.Select = u.memberFields
+	}
+
+	m := model.Select(u.memberModel)
+	members, err := m.Get(param)
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	if len(members) == 0 {
+		return []maps.MapStr{}, nil
+	}
+
+	// Get team ids
+	teamIDs := []string{}
+	for _, member := range members {
+		teamIDs = append(teamIDs, member["team_id"].(string))
+	}
+
+	// Get teams
+	teams, err := u.GetTeams(ctx, model.QueryParam{
+		Select: u.teamFields,
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamIDs, Method: "in"},
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	return teams, nil
+}
+
+// CountTeamsByMember returns total count of teams by member_id
+func (u *DefaultUser) CountTeamsByMember(ctx context.Context, memberID string) (int64, error) {
+
+	param := model.QueryParam{
+		Select: []interface{}{"team_id", "user_id", "member_type"},
+		Wheres: []model.QueryWhere{
+			{Column: "user_id", Value: memberID},
+			{Column: "member_type", Value: "user"},
+			{Column: "status", Value: "active"},
+		},
+	}
+	// Use Paginate with a small page size to get the total count
+	// This is more reliable than manual COUNT(*) queries
+	m := model.Select(u.memberModel)
+	result, err := m.Paginate(param, 1, 1) // Get first page with 1 item to get total
+	if err != nil {
+		return 0, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	// Extract total from pagination result using utility function
+	if totalInterface, ok := result["total"]; ok {
+		return parseIntFromDB(totalInterface)
+	}
+
+	return 0, fmt.Errorf("total not found in pagination result")
+}
+
 // GetTeamsByStatus retrieves teams by status
 func (u *DefaultUser) GetTeamsByStatus(ctx context.Context, status string) ([]maps.MapStr, error) {
 	param := model.QueryParam{

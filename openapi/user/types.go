@@ -2,6 +2,16 @@ package user
 
 import (
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/response"
+)
+
+const (
+	// LoginStatusSuccess is the success status
+	LoginStatusSuccess = "ok"
+	// LoginStatusMFA is the MFA status
+	LoginStatusMFA = "mfa_required"
+	// LoginStatusTeamSelection is the team selection status
+	LoginStatusTeamSelection = "team_selection_required"
 )
 
 // Config represents the signin page configuration
@@ -177,13 +187,15 @@ type LoginResponse struct {
 
 // LoginSuccessResponse represents the response for login success
 type LoginSuccessResponse struct {
-	IDToken               string `json:"id_token,omitempty"`
-	AccessToken           string `json:"access_token,omitempty"`
-	SessionID             string `json:"session_id,omitempty"`
-	RefreshToken          string `json:"refresh_token,omitempty"`
-	ExpiresIn             int    `json:"expires_in,omitempty"`
-	MFAEnabled            bool   `json:"mfa_enabled"`
-	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
+	IDToken               string                  `json:"id_token,omitempty"`
+	AccessToken           string                  `json:"access_token,omitempty"`
+	SessionID             string                  `json:"session_id,omitempty"`
+	RefreshToken          string                  `json:"refresh_token,omitempty"`
+	ExpiresIn             int                     `json:"expires_in,omitempty"`
+	MFAEnabled            bool                    `json:"mfa_enabled"`
+	RefreshTokenExpiresIn int                     `json:"refresh_token_expires_in,omitempty"`
+	Status                string                  `json:"status,omitempty"`
+	Error                 *response.ErrorResponse `json:"error,omitempty"`
 }
 
 // Built-in preset mapping types

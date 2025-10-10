@@ -266,7 +266,9 @@ type UserProvider interface {
 
 	// Team Query Methods
 	GetTeamsByOwner(ctx context.Context, ownerID string) ([]maps.MapStr, error)
+	GetTeamsByMember(ctx context.Context, memberID string) ([]maps.MapStr, error)
 	GetTeamsByStatus(ctx context.Context, status string) ([]maps.MapStr, error)
+	CountTeamsByMember(ctx context.Context, memberID string) (int64, error)
 
 	// Team Management
 	UpdateTeamStatus(ctx context.Context, teamID string, status string) error
