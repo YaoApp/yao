@@ -26,7 +26,7 @@ func TestIntrospect(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token using the updated method with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
@@ -49,7 +49,7 @@ func TestIntrospect(t *testing.T) {
 
 		// Store expired token with negative expiresIn (already expired)
 		expiresIn := -3600 // Expired 1 hour ago
-		err := service.storeAccessToken(token, clientID, scope, subject, expiresIn)
+		err := service.storeAccessToken(token, clientID, scope, subject, expiresIn, nil)
 		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
@@ -72,7 +72,7 @@ func TestIntrospect(t *testing.T) {
 		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store minimal token data with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, "", "", 3600)
+		err := service.storeAccessToken(token, clientID, "", "", 3600, nil)
 		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
@@ -91,7 +91,7 @@ func TestIntrospect(t *testing.T) {
 		scope := "openid profile"
 
 		// Store token with expiration based on config
-		err := service.storeAccessToken(token, clientID, scope, "", 3600)
+		err := service.storeAccessToken(token, clientID, scope, "", 3600, nil)
 		assert.NoError(t, err)
 
 		response, err := service.Introspect(ctx, token)
@@ -119,7 +119,7 @@ func TestTokenExchange(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Test token exchange
@@ -174,7 +174,7 @@ func TestTokenExchange(t *testing.T) {
 
 		// Store expired token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, expiresIn)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, expiresIn, nil)
 		assert.NoError(t, err)
 
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "openid profile")
@@ -194,7 +194,7 @@ func TestTokenExchange(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Test with valid audience (should succeed since audience validation is not enforced)
@@ -212,7 +212,7 @@ func TestTokenExchange(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Test with empty audience
@@ -230,7 +230,7 @@ func TestTokenExchange(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Test with invalid scope (should succeed since scope validation is basic)
@@ -247,7 +247,7 @@ func TestTokenExchange(t *testing.T) {
 
 		// Store expired subject token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, expiresIn)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, expiresIn, nil)
 		assert.NoError(t, err)
 
 		response, err := service.TokenExchange(ctx, subjectToken, "urn:ietf:params:oauth:token-type:access_token", "https://api.example.com", "openid profile")
@@ -266,7 +266,7 @@ func TestTokenExchange(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Test without audience and scope
@@ -299,7 +299,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
@@ -317,7 +317,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
@@ -335,7 +335,7 @@ func TestValidateTokenAudience(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
@@ -354,7 +354,7 @@ func TestValidateTokenAudience(t *testing.T) {
 
 		// Store expired token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
-		err := service.storeAccessToken(token, clientID, scope, subject, expiresIn)
+		err := service.storeAccessToken(token, clientID, scope, subject, expiresIn, nil)
 		assert.NoError(t, err)
 
 		result, err := service.ValidateTokenAudience(ctx, token, expectedAudience)
@@ -413,7 +413,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
@@ -434,7 +434,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
@@ -455,7 +455,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
@@ -476,7 +476,7 @@ func TestValidateTokenBinding(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
@@ -498,7 +498,7 @@ func TestValidateTokenBinding(t *testing.T) {
 
 		// Store expired token with negative expiresIn
 		expiresIn := -3600 // Expired 1 hour ago
-		err := service.storeAccessToken(token, clientID, scope, subject, expiresIn)
+		err := service.storeAccessToken(token, clientID, scope, subject, expiresIn, nil)
 		assert.NoError(t, err)
 
 		binding := &types.TokenBinding{
@@ -670,7 +670,7 @@ func TestTokenIntegration(t *testing.T) {
 		// Step 2: Store token data with expiresIn parameter
 		scope := "openid profile email"
 		subject := testUsers[0].UserID
-		err = service.storeAccessToken(accessToken, clientID, scope, subject, 3600)
+		err = service.storeAccessToken(accessToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Step 3: Introspect token
@@ -756,7 +756,7 @@ func TestTokenEdgeCases(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store token with expiresIn parameter (it will handle data types correctly)
-		err := service.storeAccessToken(token, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(token, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Should handle gracefully
@@ -774,7 +774,7 @@ func TestTokenEdgeCases(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store subject token with expiresIn parameter
-		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600)
+		err := service.storeAccessToken(subjectToken, clientID, scope, subject, 3600, nil)
 		assert.NoError(t, err)
 
 		// Very long audience

@@ -240,7 +240,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope .
 
 	// Generate new access token with final scope
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn)
+	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn, nil)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -339,7 +339,7 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string, reque
 
 	// Generate new tokens with final scope and original subject
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn)
+	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn, nil)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -428,7 +428,7 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 
 	// Generate and store access token with proper scope and subject
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn)
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, nil)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -464,7 +464,7 @@ func (s *Service) handleClientCredentialsGrant(ctx context.Context, client *type
 
 	// Generate and store access token with client's scope (no user subject for client credentials)
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, "", expiresIn)
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, "", expiresIn, nil)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -507,7 +507,7 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 
 	// Generate and store new access token with proper scope and subject
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn)
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, nil)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,

@@ -315,7 +315,7 @@ func TestRevoke(t *testing.T) {
 		clientID := GetActualClientID(testClients[0].ClientID)
 
 		// Store token using the new method
-		err := service.storeAccessToken(token, clientID, "", "", 3600)
+		err := service.storeAccessToken(token, clientID, "", "", 3600, nil)
 		assert.NoError(t, err)
 
 		err = service.Revoke(ctx, token, "access_token")

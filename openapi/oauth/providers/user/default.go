@@ -128,14 +128,14 @@ var (
 
 	// DefaultTeamFields contains basic team fields
 	DefaultTeamFields = []interface{}{
-		"id", "team_id", "name", "display_name", "description", "website", "logo",
+		"team_id", "name", "display_name", "description", "website", "logo",
 		"owner_id", "status", "type_id", "type", "is_verified", "verified_at",
 		"created_at", "updated_at",
 	}
 
 	// DefaultTeamDetailFields contains all team fields including contact info and metadata
 	DefaultTeamDetailFields = []interface{}{
-		"id", "team_id", "name", "display_name", "description", "website", "logo",
+		"team_id", "name", "display_name", "description", "website", "logo",
 		"owner_id", "contact_email", "contact_phone", "is_verified", "verified_at", "verified_by",
 		"team_code", "team_code_type", "status", "type_id", "type", "address", "street_address",
 		"city", "state_province", "postal_code", "country", "country_name", "region", "zoneinfo",
@@ -144,14 +144,14 @@ var (
 
 	// DefaultMemberFields contains basic member fields
 	DefaultMemberFields = []interface{}{
-		"id", "team_id", "user_id", "member_type", "role_id", "status",
+		"team_id", "user_id", "member_type", "role_id", "status",
 		"invitation_id", "invited_by", "invited_at", "joined_at", "invitation_token", "invitation_expires_at",
 		"last_active_at", "login_count", "message", "created_at", "updated_at",
 	}
 
 	// DefaultMemberDetailFields contains all member fields including robot config and permissions
 	DefaultMemberDetailFields = []interface{}{
-		"id", "team_id", "user_id", "member_type", "role_id", "status",
+		"team_id", "user_id", "member_type", "role_id", "status",
 		"robot_name", "robot_description", "robot_avatar", "robot_config", "agents", "tools",
 		"mcp_servers", "data_access_permissions", "system_prompt", "is_active_robot",
 		"schedule_config", "random_activity", "activity_frequency", "last_robot_activity",
