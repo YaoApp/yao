@@ -572,11 +572,11 @@ type TokenClaims struct {
 	Issuer    string    `json:"iss,omitempty"`   // Token issuer
 	Audience  []string  `json:"aud,omitempty"`   // Token audience
 	JTI       string    `json:"jti,omitempty"`   // JWT ID (for JWT tokens)
-	
+
 	// Extended claims for multi-tenancy and team support
 	TeamID   string `json:"team_id,omitempty"`   // Team identifier
 	TenantID string `json:"tenant_id,omitempty"` // Tenant identifier
-	
+
 	// Extra claims for flexibility
 	Extra map[string]interface{} `json:"-"` // Additional custom claims (not serialized directly)
 }
@@ -588,7 +588,7 @@ type AuthorizedInfo struct {
 	Scope     string `json:"scope,omitempty"`      // Access scope
 	SessionID string `json:"session_id,omitempty"` // Session ID
 	UserID    string `json:"user_id,omitempty"`    // User ID
-	
+
 	// Extended fields for multi-tenancy and team support
 	TeamID   string `json:"team_id,omitempty"`   // Team identifier
 	TenantID string `json:"tenant_id,omitempty"` // Tenant identifier
@@ -600,7 +600,7 @@ type JWTClaims struct {
 	ClientID  string `json:"client_id"`       // OAuth client ID
 	Scope     string `json:"scope,omitempty"` // Access scope
 	TokenType string `json:"token_type"`      // Token type
-	
+
 	// Extended claims for multi-tenancy and team support
 	TeamID   string `json:"team_id,omitempty"`   // Team identifier
 	TenantID string `json:"tenant_id,omitempty"` // Tenant identifier
