@@ -464,7 +464,7 @@ func (s *Service) VerifyToken(token string) (*types.TokenClaims, error) {
 }
 
 // SignIDToken signs an ID token with specific parameters and stores it
-func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *types.OIDCUserInfo) (string, error) {
+func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *types.OIDCUserInfo, extraClaims ...map[string]interface{}) (string, error) {
 	if s.signingCerts == nil || s.signingCerts.SigningKey == nil {
 		return "", fmt.Errorf("signing certificates not initialized")
 	}
@@ -497,6 +497,13 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 		"exp": idTokenClaims.Exp,
 		"iat": idTokenClaims.Iat,
 		"jti": generateJTI(),
+	}
+
+	// Add extra claims if provided (e.g., team_id, tenant_id)
+	if len(extraClaims) > 0 {
+		for key, value := range extraClaims[0] {
+			claims[key] = value
+		}
 	}
 
 	// Add user information from userdata

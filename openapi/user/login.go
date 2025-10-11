@@ -265,15 +265,17 @@ func generateSessionID() string {
 }
 
 // SendLoginCookies sends all necessary cookies for a successful login
-// This includes access token, refresh token, and session ID cookies with appropriate security settings
+// This includes access token, refresh token, and optionally session ID cookies with appropriate security settings
 func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID string) {
 
-	// Send session ID cookie
-	expires := time.Now().Add(time.Duration(yaoClientConfig.ExpiresIn) * time.Second)
-	options := response.NewSecureCookieOptions().
-		WithExpires(expires).
-		WithSameSite("Strict")
-	response.SendSecureCookieWithOptions(c, "session_id", sessionID, options)
+	// Send session ID cookie only if sessionID is provided
+	if sessionID != "" {
+		expires := time.Now().Add(time.Duration(yaoClientConfig.ExpiresIn) * time.Second)
+		options := response.NewSecureCookieOptions().
+			WithExpires(expires).
+			WithSameSite("Strict")
+		response.SendSecureCookieWithOptions(c, "session_id", sessionID, options)
+	}
 
 	// MFA Temporary Access Token
 	if loginResponse.Status == LoginStatusMFA {

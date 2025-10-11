@@ -573,7 +573,7 @@ func TestTokenGeneration(t *testing.T) {
 
 	t.Run("generate refresh token", func(t *testing.T) {
 		// Updated to use new generateRefreshToken signature with scope and subject
-		token, err := service.generateRefreshToken(clientID, "openid profile", testUsers[0].UserID)
+		token, err := service.generateRefreshToken(clientID, "openid profile", testUsers[0].UserID, 0, nil)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, token)
 		assert.True(t, strings.HasPrefix(token, "rfk_"))

@@ -347,7 +347,7 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string, reque
 		}
 	}
 
-	newRefreshToken, err := s.generateRefreshToken(clientID, finalScope, originalSubject)
+	newRefreshToken, err := s.generateRefreshToken(clientID, finalScope, originalSubject, 0, nil)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -444,7 +444,7 @@ func (s *Service) handleAuthorizationCodeGrant(ctx context.Context, client *type
 
 	// Generate refresh token if supported
 	if types.Contains(client.GrantTypes, types.GrantTypeRefreshToken) {
-		refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject)
+		refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, nil)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -523,7 +523,7 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 
 	// Include refresh token if rotation is enabled
 	if s.config.Features.RefreshTokenRotationEnabled {
-		newRefreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject)
+		newRefreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, nil)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
