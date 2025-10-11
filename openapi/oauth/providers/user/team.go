@@ -316,6 +316,56 @@ func (u *DefaultUser) GetTeamsByMember(ctx context.Context, memberID string) ([]
 	return teams, nil
 }
 
+// GetTeamByMember retrieves a specific team by team_id and member_id, verifying membership
+// Returns the team with role information if the user is a member, or error if not
+func (u *DefaultUser) GetTeamByMember(ctx context.Context, teamID string, memberID string) (maps.MapStrAny, error) {
+	// First, verify the user is a member of this team
+	memberParam := model.QueryParam{
+		Select: []interface{}{"team_id", "user_id", "member_type", "role_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+			{Column: "user_id", Value: memberID},
+			{Column: "member_type", Value: "user"},
+			{Column: "status", Value: "active"},
+		},
+		Limit: 1,
+	}
+
+	memberModel := model.Select(u.memberModel)
+	members, err := memberModel.Get(memberParam)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify team membership: %w", err)
+	}
+
+	if len(members) == 0 {
+		return nil, fmt.Errorf("user is not a member of the team")
+	}
+
+	// Get role_id from member record
+	roleID := ""
+	if role, ok := members[0]["role_id"]; ok && role != nil {
+		roleID = fmt.Sprintf("%v", role)
+	}
+
+	// Get team details
+	teamData, err := u.GetTeamDetail(ctx, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get team details: %w", err)
+	}
+
+	// Add role_id to team data
+	teamData["role_id"] = roleID
+
+	// Check if user is the owner
+	ownerID := ""
+	if owner, ok := teamData["owner_id"]; ok && owner != nil {
+		ownerID = fmt.Sprintf("%v", owner)
+	}
+	teamData["is_owner"] = (ownerID == memberID)
+
+	return teamData, nil
+}
+
 // CountTeamsByMember returns total count of teams by member_id
 func (u *DefaultUser) CountTeamsByMember(ctx context.Context, memberID string) (int64, error) {
 

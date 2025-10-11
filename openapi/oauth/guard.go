@@ -58,6 +58,14 @@ func GetAuthorizedInfo(c *gin.Context) *types.AuthorizedInfo {
 		info.Scope = scope.(string)
 	}
 
+	if teamID, ok := c.Get("__team_id"); ok {
+		info.TeamID = teamID.(string)
+	}
+
+	if tenantID, ok := c.Get("__tenant_id"); ok {
+		info.TenantID = tenantID.(string)
+	}
+
 	return info
 }
 
@@ -80,6 +88,14 @@ func (s *Service) setAuthorizedInfo(c *gin.Context, claims *types.TokenClaims) {
 	c.Set("__subject", claims.Subject)
 	c.Set("__scope", claims.Scope)
 	c.Set("__client_id", claims.ClientID)
+
+	// Set team_id and tenant_id in context if available
+	if claims.TeamID != "" {
+		c.Set("__team_id", claims.TeamID)
+	}
+	if claims.TenantID != "" {
+		c.Set("__tenant_id", claims.TenantID)
+	}
 }
 
 func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {
@@ -111,6 +127,11 @@ func (s *Service) getAccessToken(c *gin.Context) string {
 		token = cookie
 	}
 	return strings.TrimPrefix(token, "Bearer ")
+}
+
+// GetAccessToken gets the access token from the request (public method)
+func (s *Service) GetAccessToken(c *gin.Context) string {
+	return s.getAccessToken(c)
 }
 
 func (s *Service) getRefreshToken(c *gin.Context) string {

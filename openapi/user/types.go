@@ -282,6 +282,11 @@ type UpdateTeamRequest struct {
 	Settings    *TeamSettings `json:"settings,omitempty"`
 }
 
+// TeamSelectionRequest represents the request to select a team
+type TeamSelectionRequest struct {
+	TeamID string `json:"team_id" binding:"required"`
+}
+
 // ==== Member API Types ====
 
 // MemberResponse represents a team member in API responses

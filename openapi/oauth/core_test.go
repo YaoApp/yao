@@ -372,7 +372,7 @@ func TestRefreshToken(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
-		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
+		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject, 0, nil)
 		assert.NoError(t, err)
 
 		response, err := service.RefreshToken(ctx, refreshToken, "openid profile")
@@ -391,7 +391,7 @@ func TestRefreshToken(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
-		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
+		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject, 0, nil)
 		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
@@ -443,7 +443,7 @@ func TestRefreshToken(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store refresh token with limited scope
-		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject)
+		err := service.storeRefreshTokenWithScope(refreshToken, clientID, originalScope, subject, 0, nil)
 		assert.NoError(t, err)
 
 		// Try to request scope that exceeds the original scope
@@ -490,7 +490,7 @@ func TestRotateRefreshToken(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store old refresh token with scope using storeRefreshTokenWithScope
-		err := service.storeRefreshTokenWithScope(oldToken, clientID, originalScope, subject)
+		err := service.storeRefreshTokenWithScope(oldToken, clientID, originalScope, subject, 0, nil)
 		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
@@ -651,7 +651,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
-		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject)
+		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject, 0, nil)
 		assert.NoError(t, err)
 
 		// Ensure rotation is enabled
@@ -686,7 +686,7 @@ func TestHandleRefreshTokenGrant(t *testing.T) {
 		subject := testUsers[0].UserID
 
 		// Store refresh token with scope using storeRefreshTokenWithScope
-		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject)
+		err := service.storeRefreshTokenWithScope(refreshToken, client.ClientID, originalScope, subject, 0, nil)
 		assert.NoError(t, err)
 
 		token, err := service.handleRefreshTokenGrant(ctx, client, refreshToken)
