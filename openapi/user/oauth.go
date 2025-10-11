@@ -1,7 +1,6 @@
 package user
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/openapi/utils"
@@ -458,24 +456,6 @@ func getUserInfo(providerID, state string) (string, error) {
 		return "", fmt.Errorf("user info not found")
 	}
 	return value.(string), nil
-}
-
-// getUserTeams gets the user teams
-func getUserTeams(ctx context.Context, userID string) ([]maps.MapStr, error) {
-	userProvider, err := oauth.OAuth.GetUserProvider()
-	if err != nil {
-		return nil, err
-	}
-	return userProvider.GetTeamsByMember(ctx, userID)
-}
-
-// countUserTeams counts the number of teams a user is a member of
-func countUserTeams(ctx context.Context, userID string) (int64, error) {
-	userProvider, err := oauth.OAuth.GetUserProvider()
-	if err != nil {
-		return 0, err
-	}
-	return userProvider.CountTeamsByMember(ctx, userID)
 }
 
 // removeUserInfo removes the user info from cache
