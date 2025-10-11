@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -45,7 +44,7 @@ func GinTeamConfig(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, config)
 }
 
-// GinTeamList handles GET /teams - Get user teams
+// GinTeamList handles GET /teams - Get user teams (all teams where user is a member)
 func GinTeamList(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
@@ -58,63 +57,8 @@ func GinTeamList(c *gin.Context) {
 		return
 	}
 
-	// Parse pagination parameters
-	page := 1
-	pagesize := 20
-
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-
-	if ps := c.Query("pagesize"); ps != "" {
-		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
-			pagesize = parsed
-		}
-	}
-
-	// Get user provider instance
-	provider, err := getUserProvider()
-	if err != nil {
-		log.Error("Failed to get user provider: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to initialize user provider",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Build query parameters
-	param := model.QueryParam{
-		Wheres: []model.QueryWhere{
-			{Column: "owner_id", Value: authInfo.UserID},
-		},
-		Orders: []model.QueryOrder{
-			{Column: "created_at", Option: "desc"},
-		},
-	}
-
-	// Add status filter if provided
-	if status := c.Query("status"); status != "" {
-		param.Wheres = append(param.Wheres, model.QueryWhere{
-			Column: "status",
-			Value:  status,
-		})
-	}
-
-	// Add name search if provided
-	if name := c.Query("name"); name != "" {
-		param.Wheres = append(param.Wheres, model.QueryWhere{
-			Column: "name",
-			Value:  "%" + name + "%",
-			OP:     "like",
-		})
-	}
-
-	// Get paginated teams
-	result, err := provider.PaginateTeams(c.Request.Context(), param, page, pagesize)
+	// Call business logic to get user teams with roles
+	teams, err := getUserTeams(c.Request.Context(), authInfo.UserID)
 	if err != nil {
 		log.Error("Failed to get user teams: %v", err)
 		errorResp := &response.ErrorResponse{
@@ -125,8 +69,8 @@ func GinTeamList(c *gin.Context) {
 		return
 	}
 
-	// Return the paginated result directly (consistent with other modules)
-	response.RespondWithSuccess(c, http.StatusOK, result)
+	// Return teams list directly (no pagination)
+	response.RespondWithSuccess(c, http.StatusOK, teams)
 }
 
 // GinTeamGet handles GET /teams/:id - Get user team details
@@ -838,4 +782,40 @@ func mapToTeamDetailResponse(data maps.MapStr) TeamDetailResponse {
 	}
 
 	return team
+}
+
+// Business Logic Functions for Team Membership
+
+// getUserTeams gets all teams where the user is a member (includes role information)
+func getUserTeams(ctx context.Context, userID string) ([]maps.MapStr, error) {
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Get teams with role information
+	teams, err := provider.GetTeamsByMember(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve user teams: %w", err)
+	}
+
+	return teams, nil
+}
+
+// getUserTeamsCount counts the number of teams a user is a member of
+func getUserTeamsCount(ctx context.Context, userID string) (int64, error) {
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Count teams
+	count, err := provider.CountTeamsByMember(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count user teams: %w", err)
+	}
+
+	return count, nil
 }

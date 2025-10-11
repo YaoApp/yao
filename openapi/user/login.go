@@ -216,7 +216,7 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	}
 
 	// Count User Teams
-	numTeams, err := countUserTeams(ctx, userid)
+	numTeams, err := getUserTeamsCount(ctx, userid)
 	if err != nil {
 		return nil, err
 	}

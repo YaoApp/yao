@@ -251,21 +251,17 @@ func (u *DefaultUser) GetTeamsByOwner(ctx context.Context, ownerID string) ([]ma
 	return u.GetTeams(ctx, param)
 }
 
-// GetTeamsByMember retrieves teams by member_id
+// GetTeamsByMember retrieves teams by member_id (includes role information and owner status)
 func (u *DefaultUser) GetTeamsByMember(ctx context.Context, memberID string) ([]maps.MapStr, error) {
 
-	// Set default select fields if not provided
+	// Query member records to get team_id and role_id
 	param := model.QueryParam{
-		Select: []interface{}{"team_id", "user_id", "member_type"},
+		Select: []interface{}{"team_id", "user_id", "member_type", "role_id"},
 		Wheres: []model.QueryWhere{
 			{Column: "user_id", Value: memberID},
 			{Column: "member_type", Value: "user"},
 			{Column: "status", Value: "active"},
 		},
-	}
-
-	if param.Select == nil {
-		param.Select = u.memberFields
 	}
 
 	m := model.Select(u.memberModel)
@@ -278,10 +274,17 @@ func (u *DefaultUser) GetTeamsByMember(ctx context.Context, memberID string) ([]
 		return []maps.MapStr{}, nil
 	}
 
-	// Get team ids
+	// Build team_id to role_id mapping
+	teamRoleMap := make(map[string]string)
 	teamIDs := []string{}
 	for _, member := range members {
-		teamIDs = append(teamIDs, member["team_id"].(string))
+		teamID := member["team_id"].(string)
+		roleID := ""
+		if role, ok := member["role_id"]; ok && role != nil {
+			roleID = fmt.Sprintf("%v", role)
+		}
+		teamRoleMap[teamID] = roleID
+		teamIDs = append(teamIDs, teamID)
 	}
 
 	// Get teams
@@ -293,6 +296,21 @@ func (u *DefaultUser) GetTeamsByMember(ctx context.Context, memberID string) ([]
 	})
 	if err != nil {
 		return nil, fmt.Errorf(ErrFailedToGetTeam, err)
+	}
+
+	// Append role_id and is_owner to each team
+	for i := range teams {
+		teamID := teams[i]["team_id"].(string)
+		if roleID, exists := teamRoleMap[teamID]; exists {
+			teams[i]["role_id"] = roleID
+		}
+
+		// Check if user is the owner of this team
+		ownerID := ""
+		if owner, ok := teams[i]["owner_id"]; ok && owner != nil {
+			ownerID = fmt.Sprintf("%v", owner)
+		}
+		teams[i]["is_owner"] = (ownerID == memberID)
 	}
 
 	return teams, nil
