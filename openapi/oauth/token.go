@@ -248,8 +248,13 @@ func (s *Service) ValidateTokenBinding(ctx context.Context, token string, bindin
 // ============================================================================
 
 // MakeAccessToken generates a new access token with specific parameters and stores it
-func (s *Service) MakeAccessToken(clientID, scope, subject string, expiresIn int) (string, error) {
-	return s.generateAccessTokenWithScope(clientID, scope, subject, expiresIn)
+// extraClaims: optional extra claims to add to the token (e.g., team_id, tenant_id)
+func (s *Service) MakeAccessToken(clientID, scope, subject string, expiresIn int, extraClaims ...map[string]interface{}) (string, error) {
+	var claims map[string]interface{}
+	if len(extraClaims) > 0 {
+		claims = extraClaims[0]
+	}
+	return s.generateAccessTokenWithScope(clientID, scope, subject, expiresIn, claims)
 }
 
 // MakeRefreshToken generates a new refresh token with specific parameters and stores it
@@ -338,19 +343,27 @@ func (s *Service) validateAudience(audience string) error {
 // generateAccessToken generates a new access token
 func (s *Service) generateAccessToken(clientID string) (string, error) {
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	return s.generateAccessTokenWithScope(clientID, "", "", expiresIn)
+	return s.generateAccessTokenWithScope(clientID, "", "", expiresIn, nil)
 }
 
 // generateAccessTokenWithScope generates a new access token with specific parameters and stores it
-func (s *Service) generateAccessTokenWithScope(clientID, scope, subject string, expiresIn int) (string, error) {
+func (s *Service) generateAccessTokenWithScope(clientID, scope, subject string, expiresIn int, extraClaims map[string]interface{}) (string, error) {
 	// Use the new signing mechanism based on configuration
-	accessToken, err := s.SignToken("access_token", clientID, scope, subject, expiresIn)
+	var accessToken string
+	var err error
+
+	if extraClaims != nil {
+		accessToken, err = s.SignToken("access_token", clientID, scope, subject, expiresIn, extraClaims)
+	} else {
+		accessToken, err = s.SignToken("access_token", clientID, scope, subject, expiresIn)
+	}
+
 	if err != nil {
 		return "", err
 	}
 
-	// Store access token with metadata
-	err = s.storeAccessToken(accessToken, clientID, scope, subject, expiresIn)
+	// Store access token with metadata (including extra claims)
+	err = s.storeAccessToken(accessToken, clientID, scope, subject, expiresIn, extraClaims)
 	if err != nil {
 		return "", err
 	}
@@ -359,7 +372,7 @@ func (s *Service) generateAccessTokenWithScope(clientID, scope, subject string, 
 }
 
 // storeAccessToken stores access token with metadata and specified expiration
-func (s *Service) storeAccessToken(accessToken, clientID string, scope string, subject string, expiresIn int) error {
+func (s *Service) storeAccessToken(accessToken, clientID string, scope string, subject string, expiresIn int, extraClaims map[string]interface{}) error {
 	now := time.Now()
 	expiresAt := now.Add(time.Duration(expiresIn) * time.Second).Unix()
 
@@ -371,6 +384,11 @@ func (s *Service) storeAccessToken(accessToken, clientID string, scope string, s
 		"token_type": "Bearer",
 		"issued_at":  now.Unix(),
 		"expires_at": expiresAt,
+	}
+
+	// Add extra claims if provided (e.g., team_id, tenant_id)
+	for key, value := range extraClaims {
+		tokenData[key] = value
 	}
 
 	ttl := time.Duration(expiresIn) * time.Second
