@@ -19,6 +19,8 @@ const (
 const (
 	// ScopeMFAVerification is the MFA verification scope for temporary access token
 	ScopeMFAVerification = "mfa_verification"
+	// ScopeTeamSelection is the team selection scope for temporary access token
+	ScopeTeamSelection = "team_selection"
 )
 
 // Config represents the signin page configuration

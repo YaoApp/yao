@@ -156,34 +156,6 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		return nil, err
 	}
 
-	// Get MFA enabled status from user data
-	mfaEnabled := toBool(user["mfa_enabled"])
-
-	// If MFA enabled, generate MFA token
-	if mfaEnabled {
-
-		// Sign temporary access token for MFA
-		var mfaExpire int = 10 * 60 // 10 minutes
-		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, userid, mfaExpire)
-		if err != nil {
-			return nil, err
-		}
-
-		return &LoginResponse{
-			UserID:      userid,
-			AccessToken: accessToken,
-			ExpiresIn:   mfaExpire,
-			MFAEnabled:  mfaEnabled,
-			Status:      LoginStatusMFA,
-		}, nil
-	}
-
-	// Update Last Login
-	err = userProvider.UpdateUserLastLogin(ctx, userid, ip)
-	if err != nil {
-		log.Warn("Failed to update last login: %s", err.Error())
-	}
-
 	yaoClientConfig := GetYaoClientConfig()
 	var scopes []string = yaoClientConfig.Scopes
 	if v, ok := user["scopes"].([]string); ok {
@@ -194,10 +166,67 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	if err != nil {
 		log.Warn("Failed to store user fingerprint: %s", err.Error())
 	}
-	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
-	oidcUserInfo.Sub = subject
+
+	// Get MFA enabled status from user data
+	mfaEnabled := toBool(user["mfa_enabled"])
+
+	// If MFA enabled, generate MFA token
+	if mfaEnabled {
+
+		// Sign temporary access token for MFA
+		var mfaExpire int = 10 * 60 // 10 minutes
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, subject, mfaExpire)
+		if err != nil {
+			return nil, err
+		}
+
+		return &LoginResponse{
+			UserID:      userid,
+			AccessToken: accessToken,
+			ExpiresIn:   mfaExpire,
+			MFAEnabled:  mfaEnabled,
+			TokenType:   "Bearer",
+			Scope:       ScopeMFAVerification,
+			Status:      LoginStatusMFA,
+		}, nil
+	}
+
+	// Update Last Login
+	err = userProvider.UpdateUserLastLogin(ctx, userid, ip)
+	if err != nil {
+		log.Warn("Failed to update last login: %s", err.Error())
+	}
+
+	// Count User Teams
+	numTeams, err := getUserTeamsCount(ctx, userid)
+	if err != nil {
+		return nil, err
+	}
+
+	// If user has teams, return team selection status with temporary access token
+	if numTeams > 0 {
+		// Sign temporary access token for Team Selection
+		var teamSelectionExpire int = 10 * 60 // 10 minutes
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeTeamSelection, subject, teamSelectionExpire)
+		if err != nil {
+			return nil, err
+		}
+
+		return &LoginResponse{
+			UserID:      userid,
+			Subject:     subject,
+			AccessToken: accessToken,
+			ExpiresIn:   teamSelectionExpire,
+			MFAEnabled:  mfaEnabled,
+			TokenType:   "Bearer",
+			Scope:       ScopeTeamSelection,
+			Status:      LoginStatusTeamSelection,
+		}, nil
+	}
 
 	// OIDC Token
+	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
+	oidcUserInfo.Sub = subject
 	oidcToken, err := oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
 	if err != nil {
 		return nil, err
@@ -215,17 +244,6 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		return nil, err
 	}
 
-	// Count User Teams
-	numTeams, err := getUserTeamsCount(ctx, userid)
-	if err != nil {
-		return nil, err
-	}
-
-	status := LoginStatusSuccess
-	if numTeams > 0 {
-		status = LoginStatusTeamSelection
-	}
-
 	return &LoginResponse{
 		UserID:                userid,
 		Subject:               subject,
@@ -237,7 +255,7 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		TokenType:             "Bearer",
 		MFAEnabled:            mfaEnabled,
 		Scope:                 strings.Join(scopes, " "),
-		Status:                status,
+		Status:                LoginStatusSuccess,
 	}, nil
 }
 
