@@ -689,6 +689,37 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 	teamData["created_at"] = time.Now()
 	teamData["updated_at"] = time.Now()
 
+	// Set default type_id from team config if not provided
+	if _, hasType := teamData["type_id"]; !hasType {
+		// Try to get locale from team data
+		locale := ""
+		if localeVal, ok := teamData["locale"].(string); ok && localeVal != "" {
+			locale = strings.TrimSpace(strings.ToLower(localeVal))
+		}
+
+		// Fallback: try common locale variations or use "en" as final fallback
+		// This ensures we always get a valid config even if locale is invalid
+		teamConfig := GetTeamConfig(locale)
+		if teamConfig == nil {
+			// Try fallback locales in order
+			fallbackLocales := []string{"en", "zh-cn"}
+			for _, fallback := range fallbackLocales {
+				teamConfig = GetTeamConfig(fallback)
+				if teamConfig != nil {
+					break
+				}
+			}
+		}
+
+		// Apply default type from config if available
+		if teamConfig != nil && teamConfig.Type != "" {
+			teamData["type_id"] = teamConfig.Type
+		}
+	}
+
+	// Clean up: remove locale from team data as it's not stored in database
+	delete(teamData, "locale")
+
 	// Create team
 	teamID, err := provider.CreateTeam(ctx, teamData)
 	if err != nil {

@@ -300,12 +300,12 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
 	oidcUserInfo.Sub = subject
 
-	// Prepare extra claims for team context
-	var extraClaims map[string]interface{}
+	// Prepare extra claims for access token
+	extraClaims := make(map[string]interface{})
+
+	// Add team context if available
 	if teamID != "" && team != nil {
-		extraClaims = map[string]interface{}{
-			"team_id": teamID,
-		}
+		extraClaims["team_id"] = teamID
 
 		// Add tenant_id if available from the team
 		if tenantID := toString(team["tenant_id"]); tenantID != "" {
@@ -344,10 +344,46 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 		oidcUserInfo.YaoTeam = teamInfo
 	}
 
+	// Add type information (use team type if in team context, otherwise use user type)
+	var typeID string
+	if teamID != "" && team != nil {
+		// Team context - use team's type
+		typeID = toString(team["type_id"])
+	} else {
+		// Personal context - use user's type
+		typeID = toString(user["type_id"])
+	}
+
+	if typeID != "" {
+		// Add type_id to extra claims for access token
+		extraClaims["type_id"] = typeID
+		oidcUserInfo.YaoTypeID = typeID
+
+		// Get type details
+		userProvider, err := oauth.OAuth.GetUserProvider()
+		if err == nil {
+			typeInfo, err := userProvider.GetType(ctx, typeID)
+			if err == nil && typeInfo != nil {
+				// Add type info to OIDC user info
+				typeDetails := &oauthtypes.OIDCTypeInfo{}
+				if typeIDVal := toString(typeInfo["type_id"]); typeIDVal != "" {
+					typeDetails.TypeID = typeIDVal
+				}
+				if name := toString(typeInfo["name"]); name != "" {
+					typeDetails.Name = name
+				}
+				if locale := toString(typeInfo["locale"]); locale != "" {
+					typeDetails.Locale = locale
+				}
+				oidcUserInfo.YaoType = typeDetails
+			}
+		}
+	}
+
 	// Sign OIDC Token
 	var oidcToken string
 	var err error
-	if extraClaims != nil {
+	if len(extraClaims) > 0 {
 		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo, extraClaims)
 	} else {
 		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
@@ -358,7 +394,7 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 
 	// Sign Access Token
 	var accessToken string
-	if extraClaims != nil {
+	if len(extraClaims) > 0 {
 		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn, extraClaims)
 	} else {
 		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn)
@@ -369,7 +405,7 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 
 	// Sign Refresh Token
 	var refreshToken string
-	if extraClaims != nil {
+	if len(extraClaims) > 0 {
 		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn, extraClaims)
 	} else {
 		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn)
