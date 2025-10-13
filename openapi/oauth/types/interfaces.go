@@ -247,6 +247,12 @@ type UserProvider interface {
 	GetTypeConfiguration(ctx context.Context, typeID string) (maps.MapStrAny, error)
 	SetTypeConfiguration(ctx context.Context, typeID string, config maps.MapStrAny) error
 
+	// Type Pricing and Status Management
+	GetTypePricing(ctx context.Context, typeID string) (maps.MapStrAny, error)
+	SetTypePricing(ctx context.Context, typeID string, pricing maps.MapStrAny) error
+	GetPublishedTypes(ctx context.Context, param model.QueryParam, locale ...string) ([]maps.MapStr, error)
+	UpdateTypeStatus(ctx context.Context, typeID string, status string) error
+
 	// ============================================================================
 	// Team Resource
 	// ============================================================================

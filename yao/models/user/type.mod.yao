@@ -107,6 +107,15 @@
       "default": "draft",
       "index": true
     },
+    {
+      "name": "locale",
+      "type": "string",
+      "label": "Locale",
+      "comment": "Language locale (e.g., en-us, zh-cn)",
+      "length": 10,
+      "default": "en-us",
+      "index": true
+    },
 
     // ============================================================================
     // Pricing & Subscription Fields

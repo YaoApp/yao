@@ -20,6 +20,7 @@ type TestTypeData struct {
 	IsDefault       bool                   `json:"is_default"`
 	SortOrder       int                    `json:"sort_order"`
 	Status          string                 `json:"status"`
+	Locale          string                 `json:"locale"`
 	DefaultRoleID   string                 `json:"default_role_id"`
 	MaxSessions     *int                   `json:"max_sessions"`
 	SessionTimeout  int                    `json:"session_timeout"`
@@ -832,6 +833,7 @@ func TestTypePricingOperations(t *testing.T) {
 	testTypes := []struct {
 		TypeID          string
 		Name            string
+		Locale          string
 		PriceDaily      int
 		PriceMonthly    int
 		PriceYearly     int
@@ -846,6 +848,7 @@ func TestTypePricingOperations(t *testing.T) {
 		{
 			TypeID:         "free_" + testUUID,
 			Name:           "Free Plan",
+			Locale:         "en-us",
 			PriceDaily:     0,
 			PriceMonthly:   0,
 			PriceYearly:    0,
@@ -858,6 +861,7 @@ func TestTypePricingOperations(t *testing.T) {
 		{
 			TypeID:         "pro_" + testUUID,
 			Name:           "Pro Plan",
+			Locale:         "en-us",
 			PriceDaily:     100,
 			PriceMonthly:   2900,
 			PriceYearly:    29900,
@@ -870,6 +874,7 @@ func TestTypePricingOperations(t *testing.T) {
 		{
 			TypeID:          "enterprise_" + testUUID,
 			Name:            "Enterprise Plan",
+			Locale:          "en-us",
 			PriceDaily:      0,
 			PriceMonthly:    0,
 			PriceYearly:     0,
@@ -884,6 +889,7 @@ func TestTypePricingOperations(t *testing.T) {
 		{
 			TypeID:         "beta_" + testUUID,
 			Name:           "Beta Plan",
+			Locale:         "en-us",
 			PriceDaily:     50,
 			PriceMonthly:   1500,
 			PriceYearly:    15000,
@@ -899,6 +905,7 @@ func TestTypePricingOperations(t *testing.T) {
 		typeData := maps.MapStrAny{
 			"type_id":          testType.TypeID,
 			"name":             testType.Name,
+			"locale":           testType.Locale,
 			"price_daily":      testType.PriceDaily,
 			"price_monthly":    testType.PriceMonthly,
 			"price_yearly":     testType.PriceYearly,
@@ -1122,5 +1129,91 @@ func TestTypePricingOperations(t *testing.T) {
 		err := testProvider.UpdateTypeStatus(ctx, "nonexistent_"+testUUID, "published")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "type not found")
+	})
+
+	// Test locale support
+	t.Run("GetTypePricing_WithLocale", func(t *testing.T) {
+		// Create a zh-cn version of pro plan with unique type_id
+		zhCNTypeData := maps.MapStrAny{
+			"type_id":         "pro_zh_" + testUUID,
+			"name":            "专业版",
+			"locale":          "zh-cn",
+			"price_daily":     7,
+			"price_monthly":   199,
+			"price_yearly":    1990,
+			"credits_monthly": 10000,
+			"introduction":    "适合专业用户和团队协作",
+			"sale_type":       "online",
+			"status":          "published",
+			"is_active":       true,
+		}
+		_, err := testProvider.CreateType(ctx, zhCNTypeData)
+		assert.NoError(t, err)
+
+		// Get pricing for English version
+		pricingEN, err := testProvider.GetTypePricing(ctx, "pro_"+testUUID)
+		assert.NoError(t, err)
+		assert.Equal(t, "Pro Plan", pricingEN["name"])
+		assert.Equal(t, "en-us", pricingEN["locale"])
+
+		// Get pricing for Chinese version
+		pricingCN, err := testProvider.GetTypePricing(ctx, "pro_zh_"+testUUID)
+		assert.NoError(t, err)
+		assert.Equal(t, "专业版", pricingCN["name"])
+		assert.Equal(t, "zh-cn", pricingCN["locale"])
+
+		// Verify different prices (Note: EN price was updated to 3900 in SetTypePricing test)
+		priceMonthlyEN := pricingEN["price_monthly"]
+		switch v := priceMonthlyEN.(type) {
+		case int:
+			assert.Equal(t, 3900, v) // Updated price from SetTypePricing test
+		case int32:
+			assert.Equal(t, int32(3900), v)
+		case int64:
+			assert.Equal(t, int64(3900), v)
+		}
+
+		priceMonthlyCN := pricingCN["price_monthly"]
+		switch v := priceMonthlyCN.(type) {
+		case int:
+			assert.Equal(t, 199, v)
+		case int32:
+			assert.Equal(t, int32(199), v)
+		case int64:
+			assert.Equal(t, int64(199), v)
+		}
+	})
+
+	// Test GetPublishedTypes with locale filter
+	t.Run("GetPublishedTypes_WithLocale", func(t *testing.T) {
+		param := model.QueryParam{}
+
+		// Get English versions
+		typesEN, err := testProvider.GetPublishedTypes(ctx, param, "en-us")
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, len(typesEN), 3) // At least free, pro, enterprise
+
+		enCount := 0
+		for _, typeRecord := range typesEN {
+			if strings.Contains(typeRecord["type_id"].(string), testUUID) {
+				assert.Equal(t, "en-us", typeRecord["locale"])
+				enCount++
+			}
+		}
+		assert.GreaterOrEqual(t, enCount, 3) // free, pro, enterprise
+
+		// Get Chinese version
+		typesCN, err := testProvider.GetPublishedTypes(ctx, param, "zh-cn")
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, len(typesCN), 1) // At least pro_zh
+
+		cnCount := 0
+		for _, typeRecord := range typesCN {
+			if strings.Contains(typeRecord["type_id"].(string), testUUID) {
+				assert.Equal(t, "zh-cn", typeRecord["locale"])
+				cnCount++
+			}
+		}
+		assert.GreaterOrEqual(t, cnCount, 1) // pro_zh
 	})
 }
