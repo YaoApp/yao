@@ -33,6 +33,8 @@ var (
 	defaultConfig *Config
 	// Team configurations by locale
 	teamConfigs = make(map[string]*TeamConfig)
+	// Register configurations by locale
+	registerConfigs = make(map[string]*RegisterConfig)
 	// Mutex for thread safety
 	configMutex sync.RWMutex
 )
@@ -48,11 +50,18 @@ func Load(appConfig config.Config) error {
 	providers = make(map[string]*Provider)
 	defaultConfig = nil
 	teamConfigs = make(map[string]*TeamConfig)
+	registerConfigs = make(map[string]*RegisterConfig)
 
 	// Load signin configurations from openapi/user/signin directory
 	err := loadSigninConfigs(appConfig.Root)
 	if err != nil {
 		return fmt.Errorf("failed to load signin configs: %v", err)
+	}
+
+	// Load register configurations from openapi/user/register directory
+	err = loadRegisterConfigs(appConfig.Root)
+	if err != nil {
+		return fmt.Errorf("failed to load register configs: %v", err)
 	}
 
 	// Load team configurations from openapi/user/team directory
@@ -357,6 +366,49 @@ func loadTeamConfigs(_ string) error {
 	return nil
 }
 
+// loadRegisterConfigs loads all register configurations from the openapi/user/register directory
+func loadRegisterConfigs(_ string) error {
+	// Use Walk to find all configuration files in the register directory
+	err := application.App.Walk("openapi/user/register", func(root, filename string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		// Only process .yao files
+		if !strings.HasSuffix(filename, ".yao") {
+			return nil
+		}
+
+		// Extract locale from filename (basename without extension)
+		baseName := filepath.Base(filename)
+		locale := strings.ToLower(strings.TrimSuffix(baseName, ".yao"))
+
+		// Read configuration
+		configRaw, err := application.App.Read(filename)
+		if err != nil {
+			return fmt.Errorf("failed to read register config %s: %v", filename, err)
+		}
+
+		// Parse the configuration
+		var config RegisterConfig
+		err = application.Parse(filename, configRaw, &config)
+		if err != nil {
+			return fmt.Errorf("failed to parse register config %s: %v", filename, err)
+		}
+
+		// Store register configuration
+		registerConfigs[locale] = &config
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk register directory: %v", err)
+	}
+
+	return nil
+}
+
 // GetPublicConfig returns the public configuration for a given locale
 func GetPublicConfig(locale string) *Config {
 	configMutex.RLock()
@@ -434,6 +486,34 @@ func GetTeamConfig(locale string) *TeamConfig {
 
 	// If "en" is not available, try to get any available configuration
 	for _, config := range teamConfigs {
+		return config
+	}
+
+	return nil
+}
+
+// GetRegisterConfig returns the register configuration for a given locale
+func GetRegisterConfig(locale string) *RegisterConfig {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	// Normalize language code to lowercase
+	if locale != "" {
+		locale = strings.TrimSpace(strings.ToLower(locale))
+	}
+
+	// Try to get the specific locale configuration
+	if config, exists := registerConfigs[locale]; exists {
+		return config
+	}
+
+	// If no specific locale, try to get "en" as default
+	if config, exists := registerConfigs["en"]; exists {
+		return config
+	}
+
+	// If "en" is not available, try to get any available configuration
+	for _, config := range registerConfigs {
 		return config
 	}
 
