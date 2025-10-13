@@ -468,24 +468,27 @@ func (u *DefaultUser) DeleteUser(ctx context.Context, userID string) error {
 
 // UpdateUserLastLogin updates the user's last login timestamp and context
 func (u *DefaultUser) UpdateUserLastLogin(ctx context.Context, userID string, loginCtx *types.LoginContext) error {
+	// Validate loginCtx is required
+	if loginCtx == nil {
+		return fmt.Errorf("loginCtx is required")
+	}
+
 	updateData := maps.MapStrAny{
 		"last_login_at": time.Now(),
 	}
 
-	// Add login context fields if provided
-	if loginCtx != nil {
-		if loginCtx.IP != "" {
-			updateData["last_login_ip"] = loginCtx.IP
-		}
-		if loginCtx.UserAgent != "" {
-			updateData["last_login_user_agent"] = loginCtx.UserAgent
-		}
-		if loginCtx.Device != "" {
-			updateData["last_login_device"] = loginCtx.Device
-		}
-		if loginCtx.Platform != "" {
-			updateData["last_login_platform"] = loginCtx.Platform
-		}
+	// Add login context fields
+	if loginCtx.IP != "" {
+		updateData["last_login_ip"] = loginCtx.IP
+	}
+	if loginCtx.UserAgent != "" {
+		updateData["last_login_user_agent"] = loginCtx.UserAgent
+	}
+	if loginCtx.Device != "" {
+		updateData["last_login_device"] = loginCtx.Device
+	}
+	if loginCtx.Platform != "" {
+		updateData["last_login_platform"] = loginCtx.Platform
 	}
 
 	return u.UpdateUser(ctx, userID, updateData)
