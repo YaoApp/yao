@@ -566,6 +566,42 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 		claims["updated_at"] = *userdata.UpdatedAt
 	}
 
+	// Add Yao custom fields with namespace
+	if userdata.YaoTenantID != "" {
+		claims["yao:tenant_id"] = userdata.YaoTenantID
+	}
+	if userdata.YaoTeamID != "" {
+		claims["yao:team_id"] = userdata.YaoTeamID
+	}
+	if userdata.YaoIsOwner != nil {
+		claims["yao:is_owner"] = *userdata.YaoIsOwner
+	}
+	// Add Yao team info if present
+	if userdata.YaoTeam != nil {
+		teamMap := make(map[string]interface{})
+		if userdata.YaoTeam.TeamID != "" {
+			teamMap["team_id"] = userdata.YaoTeam.TeamID
+		}
+		if userdata.YaoTeam.Logo != "" {
+			teamMap["logo"] = userdata.YaoTeam.Logo
+		}
+		if userdata.YaoTeam.Name != "" {
+			teamMap["name"] = userdata.YaoTeam.Name
+		}
+		if userdata.YaoTeam.OwnerID != "" {
+			teamMap["owner_id"] = userdata.YaoTeam.OwnerID
+		}
+		if userdata.YaoTeam.Description != "" {
+			teamMap["description"] = userdata.YaoTeam.Description
+		}
+		if userdata.YaoTeam.UpdatedAt != nil {
+			teamMap["updated_at"] = *userdata.YaoTeam.UpdatedAt
+		}
+		if len(teamMap) > 0 {
+			claims["yao:team"] = teamMap
+		}
+	}
+
 	// Add scope if provided (useful for determining which claims to include)
 	if scope != "" {
 		claims["scope"] = scope
