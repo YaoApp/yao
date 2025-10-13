@@ -221,9 +221,10 @@ func TestUserBasicOperations(t *testing.T) {
 		assert.Equal(t, "desktop", user["last_login_device"])
 		assert.Equal(t, "web", user["last_login_platform"])
 
-		// Test with nil loginCtx (should only update timestamp)
+		// Test with nil loginCtx (should return error)
 		err = testProvider.UpdateUserLastLogin(ctx, testUserID, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "loginCtx is required")
 
 		// Test with partial loginCtx (only IP)
 		partialCtx := &types.LoginContext{
