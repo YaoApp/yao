@@ -294,11 +294,12 @@ func (u *DefaultUser) SetTypeConfiguration(ctx context.Context, typeID string, c
 // GetTypePricing retrieves pricing information for a type
 func (u *DefaultUser) GetTypePricing(ctx context.Context, typeID string) (maps.MapStrAny, error) {
 	m := model.Select(u.typeModel)
+
 	types, err := m.Get(model.QueryParam{
 		Select: []interface{}{
 			"type_id", "name", "price_daily", "price_monthly", "price_yearly",
 			"credits_monthly", "introduction", "sale_type", "sale_link",
-			"sale_price_label", "sale_description", "status",
+			"sale_price_label", "sale_description", "status", "locale",
 		},
 		Wheres: []model.QueryWhere{
 			{Column: "type_id", Value: typeID},
@@ -317,8 +318,8 @@ func (u *DefaultUser) GetTypePricing(ctx context.Context, typeID string) (maps.M
 	return types[0], nil
 }
 
-// GetPublishedTypes retrieves all published types with pricing information
-func (u *DefaultUser) GetPublishedTypes(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error) {
+// GetPublishedTypes retrieves all published types with pricing information, optionally filtered by locale
+func (u *DefaultUser) GetPublishedTypes(ctx context.Context, param model.QueryParam, locale ...string) ([]maps.MapStr, error) {
 	// Add published status filter
 	param.Wheres = append(param.Wheres, model.QueryWhere{
 		Column: "status",
@@ -331,12 +332,20 @@ func (u *DefaultUser) GetPublishedTypes(ctx context.Context, param model.QueryPa
 		Value:  true,
 	})
 
+	// Add locale filter if provided
+	if len(locale) > 0 && locale[0] != "" {
+		param.Wheres = append(param.Wheres, model.QueryWhere{
+			Column: "locale",
+			Value:  locale[0],
+		})
+	}
+
 	// Set default select fields if not provided
 	if param.Select == nil {
 		param.Select = []interface{}{
 			"type_id", "name", "description", "price_daily", "price_monthly", "price_yearly",
 			"credits_monthly", "introduction", "sale_type", "sale_link",
-			"sale_price_label", "sale_description", "sort_order", "status", "is_active", "features", "limits",
+			"sale_price_label", "sale_description", "sort_order", "status", "locale", "is_active", "features", "limits",
 		}
 	}
 
