@@ -207,6 +207,9 @@ type LoginSuccessResponse struct {
 	Status                LoginStatus `json:"status,omitempty"`
 }
 
+// LoginContext is an alias for the oauth types LoginContext
+type LoginContext = oauthtypes.LoginContext
+
 // Built-in preset mapping types
 const (
 	MappingGoogle    = "google"

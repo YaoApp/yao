@@ -97,6 +97,43 @@ func (user OIDCUserInfo) Map() map[string]interface{} {
 		}
 	}
 
+	// Add Yao custom fields with namespace
+	if user.YaoTenantID != "" {
+		result["yao:tenant_id"] = user.YaoTenantID
+	}
+	if user.YaoTeamID != "" {
+		result["yao:team_id"] = user.YaoTeamID
+	}
+	if user.YaoIsOwner != nil {
+		result["yao:is_owner"] = user.YaoIsOwner
+	}
+
+	// Add Yao team info if present and has content
+	if user.YaoTeam != nil {
+		teamMap := make(map[string]interface{})
+		if user.YaoTeam.TeamID != "" {
+			teamMap["team_id"] = user.YaoTeam.TeamID
+		}
+		if user.YaoTeam.Logo != "" {
+			teamMap["logo"] = user.YaoTeam.Logo
+		}
+		if user.YaoTeam.Name != "" {
+			teamMap["name"] = user.YaoTeam.Name
+		}
+		if user.YaoTeam.OwnerID != "" {
+			teamMap["owner_id"] = user.YaoTeam.OwnerID
+		}
+		if user.YaoTeam.Description != "" {
+			teamMap["description"] = user.YaoTeam.Description
+		}
+		if converted := unixToMySQL(user.YaoTeam.UpdatedAt); converted != nil {
+			teamMap["updated_at"] = converted
+		}
+		if len(teamMap) > 0 {
+			result["yao:team"] = teamMap
+		}
+	}
+
 	// Include raw data if available
 	// if user.Raw != nil {
 	// 	// Merge raw data, but let structured fields take precedence
@@ -205,6 +242,45 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 			address.Country = country
 		}
 		userInfo.Address = address
+	}
+
+	// Yao custom fields with namespace
+	if tenantID, ok := user["yao:tenant_id"].(string); ok {
+		userInfo.YaoTenantID = tenantID
+	}
+	if teamID, ok := user["yao:team_id"].(string); ok {
+		userInfo.YaoTeamID = teamID
+	}
+	if isOwner, ok := user["yao:is_owner"].(bool); ok {
+		userInfo.YaoIsOwner = &isOwner
+	}
+
+	// Yao team info (nested object)
+	if teamData, ok := user["yao:team"].(map[string]interface{}); ok {
+		team := &OIDCTeamInfo{}
+		if teamID, ok := teamData["team_id"].(string); ok {
+			team.TeamID = teamID
+		}
+		if logo, ok := teamData["logo"].(string); ok {
+			team.Logo = logo
+		}
+		if name, ok := teamData["name"].(string); ok {
+			team.Name = name
+		}
+		if ownerID, ok := teamData["owner_id"].(string); ok {
+			team.OwnerID = ownerID
+		}
+		if description, ok := teamData["description"].(string); ok {
+			team.Description = description
+		}
+		if updatedAt, ok := teamData["updated_at"]; ok {
+			if converted := toUnixTimestamp(updatedAt); converted != nil {
+				if unixTime, ok := converted.(int64); ok {
+					team.UpdatedAt = &unixTime
+				}
+			}
+		}
+		userInfo.YaoTeam = team
 	}
 
 	return userInfo

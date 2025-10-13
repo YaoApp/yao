@@ -79,7 +79,7 @@ func getCaptcha(c *gin.Context) {
 }
 
 // LoginThirdParty is the handler for third party login
-func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, ip string) (*LoginResponse, error) {
+func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, loginCtx *LoginContext) (*LoginResponse, error) {
 
 	// Get provider
 	provider, err := GetProvider(providerID)
@@ -135,12 +135,11 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, ip st
 		return nil, err
 	}
 
-	return LoginByUserID(userID, ip)
+	return LoginByUserID(userID, loginCtx)
 }
 
-// LoginByUserID is the handler for login
-func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
-
+// LoginByUserID is the handler for login by user ID
+func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error) {
 	// Get User
 	userProvider, err := oauth.OAuth.GetUserProvider()
 	if err != nil {
@@ -172,7 +171,6 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 
 	// If MFA enabled, generate MFA token
 	if mfaEnabled {
-
 		// Sign temporary access token for MFA
 		var mfaExpire int = 10 * 60 // 10 minutes
 		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, subject, mfaExpire)
@@ -192,9 +190,11 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 	}
 
 	// Update Last Login
-	err = userProvider.UpdateUserLastLogin(ctx, userid, ip)
-	if err != nil {
-		log.Warn("Failed to update last login: %s", err.Error())
+	if loginCtx != nil {
+		err = userProvider.UpdateUserLastLogin(ctx, userid, loginCtx)
+		if err != nil {
+			log.Warn("Failed to update last login: %s", err.Error())
+		}
 	}
 
 	// Count User Teams
@@ -224,24 +224,146 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		}, nil
 	}
 
-	// OIDC Token
+	// Issue tokens without team context
+	return issueTokens(ctx, userid, "", nil, user, subject, scopes)
+}
+
+// LoginByTeamID is the handler for login by team ID (after team selection)
+func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*LoginResponse, error) {
+	// Get User
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Get user data with scopes
+	user, err := userProvider.GetUserWithScopes(ctx, userid)
+	if err != nil {
+		return nil, err
+	}
+
+	yaoClientConfig := GetYaoClientConfig()
+	var scopes []string = yaoClientConfig.Scopes
+	if v, ok := user["scopes"].([]string); ok {
+		scopes = v
+	}
+
+	// Get or create subject
+	subject, err := oauth.OAuth.Subject(yaoClientConfig.ClientID, userid)
+	if err != nil {
+		log.Warn("Failed to store user fingerprint: %s", err.Error())
+	}
+
+	// Handle personal account (no team)
+	if teamID == "" || teamID == "personal" {
+		return issueTokens(ctx, userid, "", nil, user, subject, scopes)
+	}
+
+	// Verify user is a member of the team and get team details
+	team, err := userProvider.GetTeamByMember(ctx, teamID, userid)
+	if err != nil {
+		return nil, fmt.Errorf("access denied: you are not a member of this team")
+	}
+
+	// Update Last Login
+	if loginCtx != nil {
+		err = userProvider.UpdateUserLastLogin(ctx, userid, loginCtx)
+		if err != nil {
+			log.Warn("Failed to update last login: %s", err.Error())
+		}
+	}
+
+	// Issue tokens with team context
+	return issueTokens(ctx, userid, teamID, team, user, subject, scopes)
+}
+
+// issueTokens is the core function that issues all necessary tokens (ID token, access token, refresh token)
+func issueTokens(ctx context.Context, userid string, teamID string, team map[string]interface{}, user map[string]interface{}, subject string, scopes []string) (*LoginResponse, error) {
+	yaoClientConfig := GetYaoClientConfig()
+
+	// Prepare OIDC user info
 	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
 	oidcUserInfo.Sub = subject
-	oidcToken, err := oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
-	if err != nil {
-		return nil, err
+
+	// Prepare extra claims for team context
+	var extraClaims map[string]interface{}
+	if teamID != "" && team != nil {
+		extraClaims = map[string]interface{}{
+			"team_id": teamID,
+		}
+
+		// Add tenant_id if available from the team
+		if tenantID := toString(team["tenant_id"]); tenantID != "" {
+			extraClaims["tenant_id"] = tenantID
+			oidcUserInfo.YaoTenantID = tenantID
+		}
+
+		// Add team info to OIDC user info
+		oidcUserInfo.YaoTeamID = teamID
+		teamInfo := &oauthtypes.OIDCTeamInfo{}
+		if teamIDVal := toString(team["team_id"]); teamIDVal != "" {
+			teamInfo.TeamID = teamIDVal
+		}
+		if logo := toString(team["logo"]); logo != "" {
+			teamInfo.Logo = logo
+		}
+		if name := toString(team["name"]); name != "" {
+			teamInfo.Name = name
+		}
+		if description := toString(team["description"]); description != "" {
+			teamInfo.Description = description
+		}
+
+		// Add owner_id if available from the team (only check once)
+		if ownerID := toString(team["owner_id"]); ownerID != "" {
+			extraClaims["owner_id"] = ownerID
+			teamInfo.OwnerID = ownerID
+
+			// Check if user is owner
+			if ownerID == userid {
+				isOwner := true
+				oidcUserInfo.YaoIsOwner = &isOwner
+			}
+		}
+
+		oidcUserInfo.YaoTeam = teamInfo
 	}
 
-	// Access Token
-	accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn)
+	// Sign OIDC Token
+	var oidcToken string
+	var err error
+	if extraClaims != nil {
+		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo, extraClaims)
+	} else {
+		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to sign OIDC token: %w", err)
 	}
 
-	// Refresh Token
-	refreshToken, err := oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn)
+	// Sign Access Token
+	var accessToken string
+	if extraClaims != nil {
+		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn, extraClaims)
+	} else {
+		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn)
+	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to sign access token: %w", err)
+	}
+
+	// Sign Refresh Token
+	var refreshToken string
+	if extraClaims != nil {
+		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn, extraClaims)
+	} else {
+		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
 	}
 
 	return &LoginResponse{
@@ -253,7 +375,7 @@ func LoginByUserID(userid string, ip string) (*LoginResponse, error) {
 		ExpiresIn:             yaoClientConfig.ExpiresIn,
 		RefreshTokenExpiresIn: yaoClientConfig.RefreshTokenExpiresIn,
 		TokenType:             "Bearer",
-		MFAEnabled:            mfaEnabled,
+		MFAEnabled:            toBool(user["mfa_enabled"]),
 		Scope:                 strings.Join(scopes, " "),
 		Status:                LoginStatusSuccess,
 	}, nil

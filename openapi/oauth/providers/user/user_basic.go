@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -465,11 +466,26 @@ func (u *DefaultUser) DeleteUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-// UpdateUserLastLogin updates the user's last login timestamp
-func (u *DefaultUser) UpdateUserLastLogin(ctx context.Context, userID string, ip string) error {
+// UpdateUserLastLogin updates the user's last login timestamp and context
+func (u *DefaultUser) UpdateUserLastLogin(ctx context.Context, userID string, loginCtx *types.LoginContext) error {
 	updateData := maps.MapStrAny{
 		"last_login_at": time.Now(),
-		"last_login_ip": ip,
+	}
+
+	// Add login context fields if provided
+	if loginCtx != nil {
+		if loginCtx.IP != "" {
+			updateData["last_login_ip"] = loginCtx.IP
+		}
+		if loginCtx.UserAgent != "" {
+			updateData["last_login_user_agent"] = loginCtx.UserAgent
+		}
+		if loginCtx.Device != "" {
+			updateData["last_login_device"] = loginCtx.Device
+		}
+		if loginCtx.Platform != "" {
+			updateData["last_login_platform"] = loginCtx.Platform
+		}
 	}
 
 	return u.UpdateUser(ctx, userID, updateData)
