@@ -415,6 +415,7 @@ type CreateInvitationRequest struct {
 type TeamConfig struct {
 	Roles  []*TeamRole   `json:"roles,omitempty"`
 	Invite *InviteConfig `json:"invite,omitempty"`
+	Type   string        `json:"type,omitempty"` // Default type for new teams
 }
 
 // TeamRole represents a team role configuration

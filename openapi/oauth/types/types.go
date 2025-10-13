@@ -694,6 +694,8 @@ type OIDCUserInfo struct {
 	YaoTeamID   string        `json:"yao:team_id,omitempty"`   // Yao team ID
 	YaoTeam     *OIDCTeamInfo `json:"yao:team,omitempty"`      // Yao team info
 	YaoIsOwner  *bool         `json:"yao:is_owner,omitempty"`  // Yao is owner
+	YaoTypeID   string        `json:"yao:type_id,omitempty"`   // Yao user type ID
+	YaoType     *OIDCTypeInfo `json:"yao:type,omitempty"`      // Yao user type info
 
 	// Raw response for debugging and custom processing
 	Raw map[string]interface{} `json:"raw,omitempty"` // Original provider response
@@ -707,6 +709,13 @@ type OIDCTeamInfo struct {
 	OwnerID     string `json:"owner_id,omitempty"`    // Team owner ID
 	Description string `json:"description,omitempty"` // Team description
 	UpdatedAt   *int64 `json:"updated_at,omitempty"`  // Team updated at (seconds since epoch)
+}
+
+// OIDCTypeInfo represents user type information based on OIDC standard
+type OIDCTypeInfo struct {
+	TypeID string `json:"type_id,omitempty"` // User type identifier
+	Name   string `json:"name,omitempty"`    // User type name
+	Locale string `json:"locale,omitempty"`  // User type locale
 }
 
 // OIDCAddress represents the OIDC address claim structure

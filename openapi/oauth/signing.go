@@ -576,6 +576,9 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 	if userdata.YaoIsOwner != nil {
 		claims["yao:is_owner"] = *userdata.YaoIsOwner
 	}
+	if userdata.YaoTypeID != "" {
+		claims["yao:type_id"] = userdata.YaoTypeID
+	}
 	// Add Yao team info if present
 	if userdata.YaoTeam != nil {
 		teamMap := make(map[string]interface{})
@@ -599,6 +602,22 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 		}
 		if len(teamMap) > 0 {
 			claims["yao:team"] = teamMap
+		}
+	}
+	// Add Yao type info if present
+	if userdata.YaoType != nil {
+		typeMap := make(map[string]interface{})
+		if userdata.YaoType.TypeID != "" {
+			typeMap["type_id"] = userdata.YaoType.TypeID
+		}
+		if userdata.YaoType.Name != "" {
+			typeMap["name"] = userdata.YaoType.Name
+		}
+		if userdata.YaoType.Locale != "" {
+			typeMap["locale"] = userdata.YaoType.Locale
+		}
+		if len(typeMap) > 0 {
+			claims["yao:type"] = typeMap
 		}
 	}
 
