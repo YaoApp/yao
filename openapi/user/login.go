@@ -110,6 +110,7 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 				"family_name": userinfo.FamilyName,
 				"picture":     userinfo.Picture,
 				"role_id":     provider.Register.Role,
+				"type_id":     provider.Register.Type,
 				"status":      "active",
 			}
 

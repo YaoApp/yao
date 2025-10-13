@@ -98,6 +98,87 @@
       "default": 0,
       "nullable": true
     },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Publishing status for plan management",
+      "option": ["draft", "published", "archived"],
+      "default": "draft",
+      "index": true
+    },
+
+    // ============================================================================
+    // Pricing & Subscription Fields
+    // ============================================================================
+    {
+      "name": "price_daily",
+      "type": "integer",
+      "label": "Daily Price",
+      "comment": "Daily subscription price in cents (e.g., 100 for $1.00)",
+      "nullable": true
+    },
+    {
+      "name": "price_monthly",
+      "type": "integer",
+      "label": "Monthly Price",
+      "comment": "Monthly subscription price in cents (e.g., 2900 for $29.00)",
+      "nullable": true
+    },
+    {
+      "name": "price_yearly",
+      "type": "integer",
+      "label": "Yearly Price",
+      "comment": "Yearly subscription price in cents (e.g., 29900 for $299.00)",
+      "nullable": true
+    },
+    {
+      "name": "credits_monthly",
+      "type": "integer",
+      "label": "Monthly Credits",
+      "comment": "Monthly credits/quota allocation",
+      "nullable": true
+    },
+    {
+      "name": "introduction",
+      "type": "text",
+      "label": "Introduction",
+      "comment": "Plan introduction (supports HTML/Markdown)",
+      "nullable": true
+    },
+    {
+      "name": "sale_type",
+      "type": "enum",
+      "label": "Sale Type",
+      "comment": "Sales method: online or offline",
+      "option": ["online", "offline"],
+      "default": "online",
+      "nullable": true
+    },
+    {
+      "name": "sale_link",
+      "type": "string",
+      "label": "Sale Link",
+      "comment": "Sales link URL (for offline purchases or external payment)",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "sale_price_label",
+      "type": "string",
+      "label": "Sale Price Label",
+      "comment": "Custom price label for offline sales (e.g., '$999 - $4999 /month')",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "sale_description",
+      "type": "string",
+      "label": "Sale Description",
+      "comment": "Brief description for offline sales (e.g., 'Pricing based on deployment scale')",
+      "length": 500,
+      "nullable": true
+    },
 
     // ============================================================================
     // Access Control Fields

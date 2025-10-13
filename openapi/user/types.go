@@ -81,6 +81,7 @@ type ThirdParty struct {
 type RegisterConfig struct {
 	Auto bool   `json:"auto,omitempty"`
 	Role string `json:"role,omitempty"`
+	Type string `json:"type,omitempty"` // User type id
 }
 
 // YaoClientConfig represents the Yao OpenAPI Client config
