@@ -13,20 +13,30 @@ import (
 
 // TestTypeData represents test type data structure
 type TestTypeData struct {
-	TypeID         string                 `json:"type_id"`
-	Name           string                 `json:"name"`
-	Description    string                 `json:"description"`
-	IsActive       bool                   `json:"is_active"`
-	IsDefault      bool                   `json:"is_default"`
-	SortOrder      int                    `json:"sort_order"`
-	DefaultRoleID  string                 `json:"default_role_id"`
-	MaxSessions    *int                   `json:"max_sessions"`
-	SessionTimeout int                    `json:"session_timeout"`
-	Schema         map[string]interface{} `json:"schema"`
-	Features       map[string]interface{} `json:"features"`
-	Limits         map[string]interface{} `json:"limits"`
-	PasswordPolicy map[string]interface{} `json:"password_policy"`
-	Metadata       map[string]interface{} `json:"metadata"`
+	TypeID          string                 `json:"type_id"`
+	Name            string                 `json:"name"`
+	Description     string                 `json:"description"`
+	IsActive        bool                   `json:"is_active"`
+	IsDefault       bool                   `json:"is_default"`
+	SortOrder       int                    `json:"sort_order"`
+	Status          string                 `json:"status"`
+	DefaultRoleID   string                 `json:"default_role_id"`
+	MaxSessions     *int                   `json:"max_sessions"`
+	SessionTimeout  int                    `json:"session_timeout"`
+	PriceDaily      int                    `json:"price_daily"`
+	PriceMonthly    int                    `json:"price_monthly"`
+	PriceYearly     int                    `json:"price_yearly"`
+	CreditsMonthly  int                    `json:"credits_monthly"`
+	Introduction    string                 `json:"introduction"`
+	SaleType        string                 `json:"sale_type"`
+	SaleLink        string                 `json:"sale_link"`
+	SalePriceLabel  string                 `json:"sale_price_label"`
+	SaleDescription string                 `json:"sale_description"`
+	Schema          map[string]interface{} `json:"schema"`
+	Features        map[string]interface{} `json:"features"`
+	Limits          map[string]interface{} `json:"limits"`
+	PasswordPolicy  map[string]interface{} `json:"password_policy"`
+	Metadata        map[string]interface{} `json:"metadata"`
 }
 
 func TestTypeBasicOperations(t *testing.T) {
@@ -808,5 +818,309 @@ func TestTypeErrorHandling(t *testing.T) {
 		count, err := testProvider.CountTypes(ctx, param)
 		assert.NoError(t, err)
 		assert.GreaterOrEqual(t, count, int64(0)) // Should handle complex filters without error
+	})
+}
+
+func TestTypePricingOperations(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test types with pricing information
+	testTypes := []struct {
+		TypeID          string
+		Name            string
+		PriceDaily      int
+		PriceMonthly    int
+		PriceYearly     int
+		CreditsMonthly  int
+		Introduction    string
+		SaleType        string
+		SaleLink        string
+		SalePriceLabel  string
+		SaleDescription string
+		Status          string
+	}{
+		{
+			TypeID:         "free_" + testUUID,
+			Name:           "Free Plan",
+			PriceDaily:     0,
+			PriceMonthly:   0,
+			PriceYearly:    0,
+			CreditsMonthly: 1000,
+			Introduction:   "Perfect for personal use and small projects",
+			SaleType:       "online",
+			SaleLink:       "",
+			Status:         "published",
+		},
+		{
+			TypeID:         "pro_" + testUUID,
+			Name:           "Pro Plan",
+			PriceDaily:     100,
+			PriceMonthly:   2900,
+			PriceYearly:    29900,
+			CreditsMonthly: 10000,
+			Introduction:   "Perfect for professionals and team collaboration",
+			SaleType:       "online",
+			SaleLink:       "",
+			Status:         "published",
+		},
+		{
+			TypeID:          "enterprise_" + testUUID,
+			Name:            "Enterprise Plan",
+			PriceDaily:      0,
+			PriceMonthly:    0,
+			PriceYearly:     0,
+			CreditsMonthly:  0,
+			Introduction:    "For large-scale deployments",
+			SaleType:        "offline",
+			SaleLink:        "https://example.com/contact-sales",
+			SalePriceLabel:  "$999 - $4999 /month",
+			SaleDescription: "Pricing based on deployment scale",
+			Status:          "published",
+		},
+		{
+			TypeID:         "beta_" + testUUID,
+			Name:           "Beta Plan",
+			PriceDaily:     50,
+			PriceMonthly:   1500,
+			PriceYearly:    15000,
+			CreditsMonthly: 5000,
+			Introduction:   "Beta testing plan",
+			SaleType:       "online",
+			Status:         "draft",
+		},
+	}
+
+	// Create all test types
+	for _, testType := range testTypes {
+		typeData := maps.MapStrAny{
+			"type_id":          testType.TypeID,
+			"name":             testType.Name,
+			"price_daily":      testType.PriceDaily,
+			"price_monthly":    testType.PriceMonthly,
+			"price_yearly":     testType.PriceYearly,
+			"credits_monthly":  testType.CreditsMonthly,
+			"introduction":     testType.Introduction,
+			"sale_type":        testType.SaleType,
+			"sale_link":        testType.SaleLink,
+			"sale_price_label": testType.SalePriceLabel,
+			"sale_description": testType.SaleDescription,
+			"status":           testType.Status,
+			"is_active":        true,
+		}
+
+		_, err := testProvider.CreateType(ctx, typeData)
+		assert.NoError(t, err)
+	}
+
+	// Test GetTypePricing
+	t.Run("GetTypePricing", func(t *testing.T) {
+		pricing, err := testProvider.GetTypePricing(ctx, "pro_"+testUUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, pricing)
+
+		assert.Equal(t, "pro_"+testUUID, pricing["type_id"])
+		assert.Equal(t, "Pro Plan", pricing["name"])
+
+		// Handle different numeric types from database
+		priceMonthlyInterface := pricing["price_monthly"]
+		switch v := priceMonthlyInterface.(type) {
+		case int:
+			assert.Equal(t, 2900, v)
+		case int32:
+			assert.Equal(t, int32(2900), v)
+		case int64:
+			assert.Equal(t, int64(2900), v)
+		default:
+			t.Errorf("unexpected price_monthly type: %T, value: %v", priceMonthlyInterface, priceMonthlyInterface)
+		}
+
+		assert.Equal(t, "online", pricing["sale_type"])
+		assert.Equal(t, "published", pricing["status"])
+	})
+
+	// Test GetTypePricing for offline sales type
+	t.Run("GetTypePricing_OfflineSales", func(t *testing.T) {
+		pricing, err := testProvider.GetTypePricing(ctx, "enterprise_"+testUUID)
+		assert.NoError(t, err)
+		assert.NotNil(t, pricing)
+
+		assert.Equal(t, "offline", pricing["sale_type"])
+		assert.Equal(t, "https://example.com/contact-sales", pricing["sale_link"])
+		assert.Equal(t, "$999 - $4999 /month", pricing["sale_price_label"])
+		assert.Equal(t, "Pricing based on deployment scale", pricing["sale_description"])
+	})
+
+	// Test SetTypePricing
+	t.Run("SetTypePricing", func(t *testing.T) {
+		newPricing := maps.MapStrAny{
+			"price_monthly":    3900,
+			"price_yearly":     39900,
+			"credits_monthly":  15000,
+			"introduction":     "Updated Pro Plan - Now with more features!",
+			"sale_price_label": "Special Offer",
+		}
+
+		err := testProvider.SetTypePricing(ctx, "pro_"+testUUID, newPricing)
+		assert.NoError(t, err)
+
+		// Verify pricing was updated
+		pricing, err := testProvider.GetTypePricing(ctx, "pro_"+testUUID)
+		assert.NoError(t, err)
+
+		priceMonthlyInterface := pricing["price_monthly"]
+		switch v := priceMonthlyInterface.(type) {
+		case int:
+			assert.Equal(t, 3900, v)
+		case int32:
+			assert.Equal(t, int32(3900), v)
+		case int64:
+			assert.Equal(t, int64(3900), v)
+		default:
+			t.Errorf("unexpected price_monthly type: %T, value: %v", priceMonthlyInterface, priceMonthlyInterface)
+		}
+
+		creditsInterface := pricing["credits_monthly"]
+		switch v := creditsInterface.(type) {
+		case int:
+			assert.Equal(t, 15000, v)
+		case int32:
+			assert.Equal(t, int32(15000), v)
+		case int64:
+			assert.Equal(t, int64(15000), v)
+		default:
+			t.Errorf("unexpected credits_monthly type: %T, value: %v", creditsInterface, creditsInterface)
+		}
+
+		assert.Equal(t, "Updated Pro Plan - Now with more features!", pricing["introduction"])
+	})
+
+	// Test UpdateTypeStatus
+	t.Run("UpdateTypeStatus", func(t *testing.T) {
+		// Update from draft to published
+		err := testProvider.UpdateTypeStatus(ctx, "beta_"+testUUID, "published")
+		assert.NoError(t, err)
+
+		// Verify status was updated
+		typeRecord, err := testProvider.GetType(ctx, "beta_"+testUUID)
+		assert.NoError(t, err)
+		assert.Equal(t, "published", typeRecord["status"])
+
+		// Test archive status
+		err = testProvider.UpdateTypeStatus(ctx, "beta_"+testUUID, "archived")
+		assert.NoError(t, err)
+
+		typeRecord, err = testProvider.GetType(ctx, "beta_"+testUUID)
+		assert.NoError(t, err)
+		assert.Equal(t, "archived", typeRecord["status"])
+	})
+
+	// Test UpdateTypeStatus with invalid status
+	t.Run("UpdateTypeStatus_InvalidStatus", func(t *testing.T) {
+		err := testProvider.UpdateTypeStatus(ctx, "pro_"+testUUID, "invalid_status")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid status")
+	})
+
+	// Test GetPublishedTypes
+	t.Run("GetPublishedTypes", func(t *testing.T) {
+		param := model.QueryParam{}
+		types, err := testProvider.GetPublishedTypes(ctx, param)
+		assert.NoError(t, err)
+		assert.NotNil(t, types)
+
+		// Should have at least the 3 published types we created
+		publishedCount := 0
+		for _, typeRecord := range types {
+			typeID := typeRecord["type_id"].(string)
+			if strings.Contains(typeID, testUUID) {
+				publishedCount++
+				// Verify status is published
+				assert.Equal(t, "published", typeRecord["status"])
+
+				// Verify is_active is true
+				isActive := typeRecord["is_active"]
+				switch v := isActive.(type) {
+				case bool:
+					assert.True(t, v)
+				case int, int32, int64:
+					assert.NotEqual(t, 0, v)
+				}
+			}
+		}
+		assert.GreaterOrEqual(t, publishedCount, 3) // free, pro, enterprise
+	})
+
+	// Test GetPublishedTypes ordering
+	t.Run("GetPublishedTypes_Ordering", func(t *testing.T) {
+		// Update sort order for testing
+		_ = testProvider.UpdateType(ctx, "free_"+testUUID, maps.MapStrAny{"sort_order": 10})
+		_ = testProvider.UpdateType(ctx, "pro_"+testUUID, maps.MapStrAny{"sort_order": 20})
+		_ = testProvider.UpdateType(ctx, "enterprise_"+testUUID, maps.MapStrAny{"sort_order": 30})
+
+		param := model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "type_id", OP: "like", Value: "%_" + testUUID},
+			},
+		}
+		types, err := testProvider.GetPublishedTypes(ctx, param)
+		assert.NoError(t, err)
+		assert.GreaterOrEqual(t, len(types), 3)
+
+		// Verify ordering by sort_order
+		if len(types) >= 2 {
+			prevSortOrder := -1
+			for _, typeRecord := range types {
+				sortOrderInterface := typeRecord["sort_order"]
+				var sortOrder int
+				switch v := sortOrderInterface.(type) {
+				case int:
+					sortOrder = v
+				case int32:
+					sortOrder = int(v)
+				case int64:
+					sortOrder = int(v)
+				default:
+					continue
+				}
+
+				if prevSortOrder >= 0 {
+					assert.GreaterOrEqual(t, sortOrder, prevSortOrder)
+				}
+				prevSortOrder = sortOrder
+			}
+		}
+	})
+
+	// Test SetTypePricing with empty data
+	t.Run("SetTypePricing_EmptyData", func(t *testing.T) {
+		emptyPricing := maps.MapStrAny{}
+		err := testProvider.SetTypePricing(ctx, "pro_"+testUUID, emptyPricing)
+		assert.NoError(t, err) // Should not error, just skip update
+	})
+
+	// Test GetTypePricing for non-existent type
+	t.Run("GetTypePricing_NotFound", func(t *testing.T) {
+		_, err := testProvider.GetTypePricing(ctx, "nonexistent_"+testUUID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type not found")
+	})
+
+	// Test SetTypePricing for non-existent type
+	t.Run("SetTypePricing_NotFound", func(t *testing.T) {
+		pricing := maps.MapStrAny{"price_monthly": 1000}
+		err := testProvider.SetTypePricing(ctx, "nonexistent_"+testUUID, pricing)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type not found")
+	})
+
+	// Test UpdateTypeStatus for non-existent type
+	t.Run("UpdateTypeStatus_NotFound", func(t *testing.T) {
+		err := testProvider.UpdateTypeStatus(ctx, "nonexistent_"+testUUID, "published")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "type not found")
 	})
 }

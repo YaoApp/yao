@@ -290,3 +290,167 @@ func (u *DefaultUser) SetTypeConfiguration(ctx context.Context, typeID string, c
 
 	return nil
 }
+
+// GetTypePricing retrieves pricing information for a type
+func (u *DefaultUser) GetTypePricing(ctx context.Context, typeID string) (maps.MapStrAny, error) {
+	m := model.Select(u.typeModel)
+	types, err := m.Get(model.QueryParam{
+		Select: []interface{}{
+			"type_id", "name", "price_daily", "price_monthly", "price_yearly",
+			"credits_monthly", "introduction", "sale_type", "sale_link",
+			"sale_price_label", "sale_description", "status",
+		},
+		Wheres: []model.QueryWhere{
+			{Column: "type_id", Value: typeID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetType, err)
+	}
+
+	if len(types) == 0 {
+		return nil, fmt.Errorf(ErrTypeNotFound)
+	}
+
+	return types[0], nil
+}
+
+// GetPublishedTypes retrieves all published types with pricing information
+func (u *DefaultUser) GetPublishedTypes(ctx context.Context, param model.QueryParam) ([]maps.MapStr, error) {
+	// Add published status filter
+	param.Wheres = append(param.Wheres, model.QueryWhere{
+		Column: "status",
+		Value:  "published",
+	})
+
+	// Add active filter
+	param.Wheres = append(param.Wheres, model.QueryWhere{
+		Column: "is_active",
+		Value:  true,
+	})
+
+	// Set default select fields if not provided
+	if param.Select == nil {
+		param.Select = []interface{}{
+			"type_id", "name", "description", "price_daily", "price_monthly", "price_yearly",
+			"credits_monthly", "introduction", "sale_type", "sale_link",
+			"sale_price_label", "sale_description", "sort_order", "status", "is_active", "features", "limits",
+		}
+	}
+
+	// Default ordering by sort_order
+	if param.Orders == nil {
+		param.Orders = []model.QueryOrder{
+			{Column: "sort_order", Option: "asc"},
+		}
+	}
+
+	m := model.Select(u.typeModel)
+	types, err := m.Get(param)
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetType, err)
+	}
+
+	return types, nil
+}
+
+// SetTypePricing updates pricing information for a type
+func (u *DefaultUser) SetTypePricing(ctx context.Context, typeID string, pricing maps.MapStrAny) error {
+	// Prepare update data - only allow pricing-related fields
+	updateData := maps.MapStrAny{}
+
+	if priceDaily, ok := pricing["price_daily"]; ok {
+		updateData["price_daily"] = priceDaily
+	}
+
+	if priceMonthly, ok := pricing["price_monthly"]; ok {
+		updateData["price_monthly"] = priceMonthly
+	}
+
+	if priceYearly, ok := pricing["price_yearly"]; ok {
+		updateData["price_yearly"] = priceYearly
+	}
+
+	if creditsMonthly, ok := pricing["credits_monthly"]; ok {
+		updateData["credits_monthly"] = creditsMonthly
+	}
+
+	if introduction, ok := pricing["introduction"]; ok {
+		updateData["introduction"] = introduction
+	}
+
+	if saleType, ok := pricing["sale_type"]; ok {
+		updateData["sale_type"] = saleType
+	}
+
+	if saleLink, ok := pricing["sale_link"]; ok {
+		updateData["sale_link"] = saleLink
+	}
+
+	if salePriceLabel, ok := pricing["sale_price_label"]; ok {
+		updateData["sale_price_label"] = salePriceLabel
+	}
+
+	if saleDescription, ok := pricing["sale_description"]; ok {
+		updateData["sale_description"] = saleDescription
+	}
+
+	// Skip update if no pricing fields provided
+	if len(updateData) == 0 {
+		return nil
+	}
+
+	m := model.Select(u.typeModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "type_id", Value: typeID},
+		},
+		Limit: 1, // Safety: ensure only one record is updated
+	}, updateData)
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateType, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrTypeNotFound)
+	}
+
+	return nil
+}
+
+// UpdateTypeStatus updates the status of a type (draft/published/archived)
+func (u *DefaultUser) UpdateTypeStatus(ctx context.Context, typeID string, status string) error {
+	// Validate status
+	validStatuses := map[string]bool{
+		"draft":     true,
+		"published": true,
+		"archived":  true,
+	}
+
+	if !validStatuses[status] {
+		return fmt.Errorf("invalid status: %s, must be one of: draft, published, archived", status)
+	}
+
+	m := model.Select(u.typeModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "type_id", Value: typeID},
+		},
+		Limit: 1,
+	}, maps.MapStrAny{
+		"status": status,
+	})
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateType, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrTypeNotFound)
+	}
+
+	return nil
+}

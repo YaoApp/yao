@@ -116,15 +116,18 @@ var (
 
 	// DefaultTypeFields contains basic type fields
 	DefaultTypeFields = []interface{}{
-		"id", "type_id", "name", "description", "is_active", "is_default", "sort_order",
-		"default_role_id", "max_sessions", "session_timeout", "created_at", "updated_at",
+		"id", "type_id", "name", "description", "is_active", "is_default", "sort_order", "status",
+		"default_role_id", "max_sessions", "session_timeout", "price_daily", "price_monthly",
+		"price_yearly", "credits_monthly", "created_at", "updated_at",
 	}
 
 	// DefaultTypeDetailFields contains all type fields including configuration and metadata
 	DefaultTypeDetailFields = []interface{}{
 		"id", "type_id", "name", "description", "default_role_id", "schema", "metadata",
-		"is_active", "is_default", "sort_order", "max_sessions", "session_timeout",
-		"password_policy", "features", "limits", "created_at", "updated_at",
+		"is_active", "is_default", "sort_order", "status", "max_sessions", "session_timeout",
+		"password_policy", "features", "limits", "price_daily", "price_monthly", "price_yearly",
+		"credits_monthly", "introduction", "sale_type", "sale_link", "sale_price_label",
+		"sale_description", "created_at", "updated_at",
 	}
 
 	// DefaultTeamFields contains basic team fields
