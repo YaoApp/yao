@@ -77,11 +77,23 @@ type ThirdParty struct {
 	Providers []*Provider `json:"providers,omitempty"`
 }
 
-// RegisterConfig represents the auto register configuration
+// ProviderRegisterConfig represents the auto register configuration in provider
+type ProviderRegisterConfig struct {
+	Auto bool `json:"auto,omitempty"`
+}
+
+// RegisterConfig represents the register configuration
 type RegisterConfig struct {
-	Auto bool   `json:"auto,omitempty"`
-	Role string `json:"role,omitempty"`
-	Type string `json:"type,omitempty"` // User type id
+	Title           string          `json:"title,omitempty"`
+	Description     string          `json:"description,omitempty"`
+	Default         bool            `json:"default,omitempty"`
+	SuccessURL      string          `json:"success_url,omitempty"`
+	FailureURL      string          `json:"failure_url,omitempty"`
+	AutoLogin       bool            `json:"auto_login,omitempty"`
+	Role            string          `json:"role,omitempty"`
+	Type            string          `json:"type,omitempty"` // User type id
+	Form            *FormConfig     `json:"form,omitempty"`
+	ConfirmPassword *PasswordConfig `json:"confirm_password,omitempty"`
 }
 
 // YaoClientConfig represents the Yao OpenAPI Client config
@@ -95,21 +107,21 @@ type YaoClientConfig struct {
 
 // Provider represents a third party login provider
 type Provider struct {
-	ID                    string           `json:"id,omitempty"`
-	Label                 string           `json:"label,omitempty"`
-	Title                 string           `json:"title,omitempty"`
-	Logo                  string           `json:"logo,omitempty"`
-	Color                 string           `json:"color,omitempty"`
-	TextColor             string           `json:"text_color,omitempty"`
-	ClientID              string           `json:"client_id,omitempty"`
-	ClientSecret          string           `json:"client_secret,omitempty"`
-	ClientSecretGenerator *SecretGenerator `json:"client_secret_generator,omitempty"`
-	Scopes                []string         `json:"scopes,omitempty"`
-	ResponseMode          string           `json:"response_mode,omitempty"`
-	UserInfoSource        string           `json:"user_info_source,omitempty"` // "endpoint" (default) | "id_token" | "access_token"
-	Endpoints             *Endpoints       `json:"endpoints,omitempty"`
-	Mapping               interface{}      `json:"mapping,omitempty"` // string (preset) | map[string]string (custom) | nil (generic)
-	Register              *RegisterConfig  `json:"register,omitempty"`
+	ID                    string                  `json:"id,omitempty"`
+	Label                 string                  `json:"label,omitempty"`
+	Title                 string                  `json:"title,omitempty"`
+	Logo                  string                  `json:"logo,omitempty"`
+	Color                 string                  `json:"color,omitempty"`
+	TextColor             string                  `json:"text_color,omitempty"`
+	ClientID              string                  `json:"client_id,omitempty"`
+	ClientSecret          string                  `json:"client_secret,omitempty"`
+	ClientSecretGenerator *SecretGenerator        `json:"client_secret_generator,omitempty"`
+	Scopes                []string                `json:"scopes,omitempty"`
+	ResponseMode          string                  `json:"response_mode,omitempty"`
+	UserInfoSource        string                  `json:"user_info_source,omitempty"` // "endpoint" (default) | "id_token" | "access_token"
+	Endpoints             *Endpoints              `json:"endpoints,omitempty"`
+	Mapping               interface{}             `json:"mapping,omitempty"` // string (preset) | map[string]string (custom) | nil (generic)
+	Register              *ProviderRegisterConfig `json:"register,omitempty"`
 }
 
 // SecretGenerator represents the client secret generator configuration

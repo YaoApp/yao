@@ -174,7 +174,14 @@ func authback(c *gin.Context) {
 
 	// LoginThirdParty(providerID, userInfo)
 	loginCtx := makeLoginContext(c)
-	loginResponse, err := LoginThirdParty(providerID, userInfo, loginCtx)
+
+	// Use locale from params, fallback to "en" if not provided
+	locale := params.Locale
+	if locale == "" {
+		locale = "en"
+	}
+
+	loginResponse, err := LoginThirdParty(providerID, userInfo, loginCtx, locale)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,

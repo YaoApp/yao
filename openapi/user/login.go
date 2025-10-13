@@ -79,12 +79,23 @@ func getCaptcha(c *gin.Context) {
 }
 
 // LoginThirdParty is the handler for third party login
-func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, loginCtx *LoginContext) (*LoginResponse, error) {
+func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, loginCtx *LoginContext, locale string) (*LoginResponse, error) {
 
 	// Get provider
 	provider, err := GetProvider(providerID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Get register configuration for role and type
+	registerConfig := GetRegisterConfig(locale)
+	if registerConfig == nil {
+		// If no register config found, try to get default register config
+		log.Warn("Register configuration not found for locale '%s', trying default locale 'en'", locale)
+		registerConfig = GetRegisterConfig("en")
+		if registerConfig == nil {
+			return nil, fmt.Errorf("register configuration not found. Please create register config files in openapi/user/register/")
+		}
 	}
 
 	// Check if user exists
@@ -109,8 +120,8 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 				"given_name":  userinfo.GivenName,
 				"family_name": userinfo.FamilyName,
 				"picture":     userinfo.Picture,
-				"role_id":     provider.Register.Role,
-				"type_id":     provider.Register.Type,
+				"role_id":     registerConfig.Role,
+				"type_id":     registerConfig.Type,
 				"status":      "active",
 			}
 
