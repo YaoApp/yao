@@ -6,6 +6,15 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// LoginContext represents the context information for login
+type LoginContext struct {
+	IP        string `json:"ip,omitempty"`         // Client IP address
+	UserAgent string `json:"user_agent,omitempty"` // Client user agent
+	Device    string `json:"device,omitempty"`     // Device type (e.g., "mobile", "desktop", "tablet")
+	Platform  string `json:"platform,omitempty"`   // Platform (e.g., "ios", "android", "web")
+	Location  string `json:"location,omitempty"`   // Geographic location (optional)
+}
+
 // MFAOptions contains configuration for MFA operations
 type MFAOptions struct {
 	Issuer         string // Issuer name displayed in authenticator app
@@ -680,8 +689,24 @@ type OIDCUserInfo struct {
 	// OIDC Address Claim (structured)
 	Address *OIDCAddress `json:"address,omitempty"` // Physical mailing address
 
+	// Additional custom claims with namespace
+	YaoTenantID string        `json:"yao:tenant_id,omitempty"` // Yao tenant ID
+	YaoTeamID   string        `json:"yao:team_id,omitempty"`   // Yao team ID
+	YaoTeam     *OIDCTeamInfo `json:"yao:team,omitempty"`      // Yao team info
+	YaoIsOwner  *bool         `json:"yao:is_owner,omitempty"`  // Yao is owner
+
 	// Raw response for debugging and custom processing
 	Raw map[string]interface{} `json:"raw,omitempty"` // Original provider response
+}
+
+// OIDCTeamInfo represents team information based on OIDC standard
+type OIDCTeamInfo struct {
+	TeamID      string `json:"team_id,omitempty"`     // Team identifier
+	Logo        string `json:"logo,omitempty"`        // Team logo
+	Name        string `json:"name,omitempty"`        // Team name
+	OwnerID     string `json:"owner_id,omitempty"`    // Team owner ID
+	Description string `json:"description,omitempty"` // Team description
+	UpdatedAt   *int64 `json:"updated_at,omitempty"`  // Team updated at (seconds since epoch)
 }
 
 // OIDCAddress represents the OIDC address claim structure

@@ -63,7 +63,8 @@ var (
 		"id", "user_id", "preferred_username", "email", "email_verified", "name", "given_name", "family_name",
 		"middle_name", "nickname", "profile", "picture", "website", "gender", "birthdate", "zoneinfo", "locale",
 		"phone_number", "phone_number_verified", "address", "theme", "status", "role_id", "type_id",
-		"mfa_enabled", "last_login_at", "metadata", "created_at", "updated_at",
+		"mfa_enabled", "last_login_at", "last_login_ip", "last_login_user_agent", "last_login_device",
+		"last_login_platform", "metadata", "created_at", "updated_at",
 	}
 
 	// DefaultBasicUserFields contains minimal fields for basic user info

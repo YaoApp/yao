@@ -2,7 +2,6 @@ package user
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -174,7 +173,8 @@ func authback(c *gin.Context) {
 	}
 
 	// LoginThirdParty(providerID, userInfo)
-	loginResponse, err := LoginThirdParty(providerID, userInfo, userIPAddress(c))
+	loginCtx := makeLoginContext(c)
+	loginResponse, err := LoginThirdParty(providerID, userInfo, loginCtx)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -504,155 +504,4 @@ func validateState(providerID, sid, state string) error {
 	}
 
 	return nil
-}
-
-// getUserRealIP is the function to get the real IP address of the user
-func userIPAddress(c *gin.Context) string {
-	// Define HTTP headers to check, ordered by priority
-	headers := []string{
-		"X-Real-IP",                // Nginx proxy_set_header X-Real-IP
-		"X-Forwarded-For",          // Standard proxy header
-		"X-Client-IP",              // Apache mod_remoteip, Squid
-		"X-Forwarded",              // Legacy proxy standard
-		"X-Cluster-Client-IP",      // Cluster environment
-		"Forwarded-For",            // Pre-RFC 7239 standard
-		"Forwarded",                // RFC 7239 standard
-		"CF-Connecting-IP",         // Cloudflare
-		"True-Client-IP",           // Akamai, CloudFlare Enterprise
-		"X-Original-Forwarded-For", // Original forwarded
-	}
-
-	// Check each header one by one
-	for _, header := range headers {
-		value := c.GetHeader(header)
-		if value == "" {
-			continue
-		}
-
-		// Handle cases that may contain multiple IPs (e.g., X-Forwarded-For: client, proxy1, proxy2)
-		ips := parseIPList(value)
-		for _, ip := range ips {
-			if isValidPublicIP(ip) {
-				return ip
-			}
-		}
-	}
-
-	// If none found, use the remote address of the connection
-	remoteAddr := c.Request.RemoteAddr
-	if ip := extractIPFromAddr(remoteAddr); ip != "" && isValidPublicIP(ip) {
-		return ip
-	}
-
-	// Final fallback, return RemoteAddr (may include port)
-	return extractIPFromAddr(remoteAddr)
-}
-
-// parseIPList parses IP list string, handles comma-separated multiple IPs
-func parseIPList(value string) []string {
-	var ips []string
-
-	// Handle RFC 7239 Forwarded header format: for=192.0.2.60;proto=http;by=203.0.113.43
-	if strings.Contains(value, "for=") {
-		parts := strings.Split(value, ";")
-		for _, part := range parts {
-			part = strings.TrimSpace(part)
-			if strings.HasPrefix(part, "for=") {
-				ip := strings.TrimPrefix(part, "for=")
-				// Remove possible quotes and brackets
-				ip = strings.Trim(ip, "\"[]")
-				if ip != "" {
-					ips = append(ips, ip)
-				}
-			}
-		}
-	} else {
-		// Handle comma-separated IP list
-		parts := strings.Split(value, ",")
-		for _, part := range parts {
-			ip := strings.TrimSpace(part)
-			if ip != "" {
-				ips = append(ips, ip)
-			}
-		}
-	}
-
-	return ips
-}
-
-// extractIPFromAddr extracts IP from address (which may include port)
-func extractIPFromAddr(addr string) string {
-	if addr == "" {
-		return ""
-	}
-
-	// Handle IPv6 format [::1]:8080
-	if strings.HasPrefix(addr, "[") {
-		if idx := strings.Index(addr, "]:"); idx != -1 {
-			return addr[1:idx]
-		}
-		return strings.Trim(addr, "[]")
-	}
-
-	// Handle IPv4 format 127.0.0.1:8080
-	if idx := strings.LastIndex(addr, ":"); idx != -1 {
-		return addr[:idx]
-	}
-
-	return addr
-}
-
-// isValidPublicIP checks if the IP is a valid public IP
-func isValidPublicIP(ipStr string) bool {
-	ip := net.ParseIP(ipStr)
-	if ip == nil {
-		return false
-	}
-
-	// Filter out private IPs, local IPs, etc.
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
-		return false
-	}
-
-	// Check if it's a private IP range
-	if ip.To4() != nil {
-		// IPv4 private address ranges
-		return !isPrivateIPv4(ip)
-	}
-	// IPv6 private address ranges
-	return !isPrivateIPv6(ip)
-}
-
-// isPrivateIPv4 checks if it's an IPv4 private address
-func isPrivateIPv4(ip net.IP) bool {
-	// 10.0.0.0/8
-	if ip[12] == 10 {
-		return true
-	}
-	// 172.16.0.0/12
-	if ip[12] == 172 && ip[13] >= 16 && ip[13] <= 31 {
-		return true
-	}
-	// 192.168.0.0/16
-	if ip[12] == 192 && ip[13] == 168 {
-		return true
-	}
-	// 169.254.0.0/16 (Link-Local)
-	if ip[12] == 169 && ip[13] == 254 {
-		return true
-	}
-	return false
-}
-
-// isPrivateIPv6 checks if it's an IPv6 private address
-func isPrivateIPv6(ip net.IP) bool {
-	// fc00::/7 (Unique Local)
-	if ip[0] >= 0xfc && ip[0] <= 0xfd {
-		return true
-	}
-	// fe80::/10 (Link-Local)
-	if ip[0] == 0xfe && (ip[1]&0xc0) == 0x80 {
-		return true
-	}
-	return false
 }

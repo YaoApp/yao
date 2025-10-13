@@ -167,7 +167,7 @@ type UserProvider interface {
 	CreateUser(ctx context.Context, userData maps.MapStrAny) (string, error)
 	UpdateUser(ctx context.Context, userID string, userData maps.MapStrAny) error
 	DeleteUser(ctx context.Context, userID string) error
-	UpdateUserLastLogin(ctx context.Context, userID string, ip string) error
+	UpdateUserLastLogin(ctx context.Context, userID string, loginCtx *LoginContext) error
 	UpdateUserStatus(ctx context.Context, userID string, status string) error
 
 	// User List and Search

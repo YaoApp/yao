@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 func TestUserBasicOperations(t *testing.T) {
@@ -202,13 +203,40 @@ func TestUserBasicOperations(t *testing.T) {
 
 	// Test UpdateUserLastLogin
 	t.Run("UpdateUserLastLogin", func(t *testing.T) {
-		err := testProvider.UpdateUserLastLogin(ctx, testUserID, "127.0.0.1")
+		loginCtx := &types.LoginContext{
+			IP:        "127.0.0.1",
+			UserAgent: "Mozilla/5.0 (Test Browser)",
+			Device:    "desktop",
+			Platform:  "web",
+		}
+		err := testProvider.UpdateUserLastLogin(ctx, testUserID, loginCtx)
 		assert.NoError(t, err)
 
-		// Verify last_login_at was updated
+		// Verify last_login_at and context were updated
 		user, err := testProvider.GetUser(ctx, testUserID)
 		assert.NoError(t, err)
 		assert.NotNil(t, user["last_login_at"])
+		assert.Equal(t, "127.0.0.1", user["last_login_ip"])
+		assert.Equal(t, "Mozilla/5.0 (Test Browser)", user["last_login_user_agent"])
+		assert.Equal(t, "desktop", user["last_login_device"])
+		assert.Equal(t, "web", user["last_login_platform"])
+
+		// Test with nil loginCtx (should only update timestamp)
+		err = testProvider.UpdateUserLastLogin(ctx, testUserID, nil)
+		assert.NoError(t, err)
+
+		// Test with partial loginCtx (only IP)
+		partialCtx := &types.LoginContext{
+			IP: "192.168.1.1",
+		}
+		err = testProvider.UpdateUserLastLogin(ctx, testUserID, partialCtx)
+		assert.NoError(t, err)
+
+		// Verify IP was updated but other fields remain from previous login
+		user, err = testProvider.GetUser(ctx, testUserID)
+		assert.NoError(t, err)
+		assert.Equal(t, "192.168.1.1", user["last_login_ip"])
+		assert.Equal(t, "Mozilla/5.0 (Test Browser)", user["last_login_user_agent"])
 	})
 
 	// Test UpdateUserStatus

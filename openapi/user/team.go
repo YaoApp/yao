@@ -15,7 +15,6 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
-	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -345,138 +344,16 @@ func GinTeamSelection(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// Handle personal account selection (no team_id or "personal")
-	var extraClaims map[string]interface{}
-	var selectedTeam map[string]interface{}
+	// Prepare login context with full device/platform information
+	loginCtx := makeLoginContext(c)
 
-	if req.TeamID == "" || req.TeamID == "personal" {
-		// Personal account - no team_id in token
-		extraClaims = nil
-	} else {
-		// Team account - verify membership and add team_id to token
-		provider, err := getUserProvider()
-		if err != nil {
-			log.Error("Failed to get user provider: %v", err)
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to initialize user provider",
-			}
-			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-			return
-		}
-
-		// Verify user is a member of the team and get team details in one call
-		selectedTeam, err = provider.GetTeamByMember(ctx, req.TeamID, authInfo.UserID)
-		if err != nil {
-			log.Error("Failed to verify team membership: %v", err)
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrAccessDenied.Code,
-				ErrorDescription: "Access denied: you are not a member of this team",
-			}
-			response.RespondWithError(c, response.StatusForbidden, errorResp)
-			return
-		}
-
-		// Prepare extra claims with team_id and tenant_id (if available)
-		extraClaims = map[string]interface{}{
-			"team_id": req.TeamID,
-		}
-
-		// Add tenant_id if available from the team
-		if tenantID := toString(selectedTeam["tenant_id"]); tenantID != "" {
-			extraClaims["tenant_id"] = tenantID
-		}
-	}
-
-	// Get user provider and user data
-	provider, err := getUserProvider()
+	// Login with selected team
+	loginResponse, err := LoginByTeamID(authInfo.UserID, req.TeamID, loginCtx)
 	if err != nil {
-		log.Error("Failed to get user provider: %v", err)
+		log.Error("Failed to login with team: %v", err)
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to initialize user provider",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Get user data with scopes
-	user, err := provider.GetUserWithScopes(ctx, authInfo.UserID)
-	if err != nil {
-		log.Error("Failed to get user: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to retrieve user information",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Get Yao client config
-	yaoClientConfig := GetYaoClientConfig()
-	var scopes []string = yaoClientConfig.Scopes
-	if v, ok := user["scopes"].([]string); ok {
-		scopes = v
-	}
-
-	// Get subject from auth info (it should be already stored)
-	subject := authInfo.Subject
-	if subject == "" {
-		// Fallback: create new subject if not available
-		subject, err = oauth.OAuth.Subject(yaoClientConfig.ClientID, authInfo.UserID)
-		if err != nil {
-			log.Warn("Failed to get subject: %s", err.Error())
-		}
-	}
-
-	// Sign OIDC Token (with or without team_id based on extraClaims)
-	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
-	oidcUserInfo.Sub = subject
-	var oidcToken string
-	if extraClaims != nil {
-		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo, extraClaims)
-	} else {
-		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
-	}
-	if err != nil {
-		log.Error("Failed to sign OIDC token: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to sign OIDC token",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Sign Access Token (with or without team_id based on extraClaims)
-	var accessToken string
-	if extraClaims != nil {
-		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn, extraClaims)
-	} else {
-		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn)
-	}
-	if err != nil {
-		log.Error("Failed to sign access token: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to sign access token",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Sign Refresh Token (with or without team_id based on extraClaims)
-	var refreshToken string
-	if extraClaims != nil {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn, extraClaims)
-	} else {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn)
-	}
-	if err != nil {
-		log.Error("Failed to sign refresh token: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to sign refresh token",
+			ErrorDescription: "Failed to login with team: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
@@ -489,20 +366,6 @@ func GinTeamSelection(c *gin.Context) {
 			// Log the error but don't fail the request
 			log.Warn("Failed to revoke temporary token: %v", err)
 		}
-	}
-
-	// Prepare login response
-	loginResponse := &LoginResponse{
-		UserID:                authInfo.UserID,
-		Subject:               subject,
-		AccessToken:           accessToken,
-		IDToken:               oidcToken,
-		RefreshToken:          refreshToken,
-		ExpiresIn:             yaoClientConfig.ExpiresIn,
-		RefreshTokenExpiresIn: yaoClientConfig.RefreshTokenExpiresIn,
-		TokenType:             "Bearer",
-		Scope:                 strings.Join(scopes, " "),
-		Status:                LoginStatusSuccess,
 	}
 
 	// Send secure cookies (access token, refresh token, and session ID)
