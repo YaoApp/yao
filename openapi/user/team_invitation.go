@@ -817,6 +817,7 @@ func teamInvitationGetPublic(ctx context.Context, invitationID, locale string) (
 		inviter, err := provider.GetUser(ctx, inviterID)
 		if err == nil {
 			inviterInfo = &InviterInfo{
+				UserID:  inviterID,
 				Name:    toString(inviter["name"]),
 				Picture: toString(inviter["picture"]),
 			}

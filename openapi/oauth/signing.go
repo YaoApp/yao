@@ -567,6 +567,9 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 	}
 
 	// Add Yao custom fields with namespace
+	if userdata.YaoUserID != "" {
+		claims["yao:user_id"] = userdata.YaoUserID
+	}
 	if userdata.YaoTenantID != "" {
 		claims["yao:tenant_id"] = userdata.YaoTenantID
 	}

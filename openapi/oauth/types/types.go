@@ -690,6 +690,7 @@ type OIDCUserInfo struct {
 	Address *OIDCAddress `json:"address,omitempty"` // Physical mailing address
 
 	// Additional custom claims with namespace
+	YaoUserID   string        `json:"yao:user_id,omitempty"`   // Yao user ID (original user ID)
 	YaoTenantID string        `json:"yao:tenant_id,omitempty"` // Yao tenant ID
 	YaoTeamID   string        `json:"yao:team_id,omitempty"`   // Yao team ID
 	YaoTeam     *OIDCTeamInfo `json:"yao:team,omitempty"`      // Yao team info

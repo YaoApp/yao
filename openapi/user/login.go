@@ -299,6 +299,7 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	// Prepare OIDC user info
 	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
 	oidcUserInfo.Sub = subject
+	oidcUserInfo.YaoUserID = userid // Add original user ID
 
 	// Prepare extra claims for access token
 	extraClaims := make(map[string]interface{})
