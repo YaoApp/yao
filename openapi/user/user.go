@@ -189,8 +189,8 @@ func attachProfile(group *gin.RouterGroup, oauth types.OAuth) {
 	profile := group.Group("/profile")
 	profile.Use(oauth.Guard)
 
-	profile.GET("/", placeholder) // Get user profile
-	profile.PUT("/", placeholder) // Update user profile
+	profile.GET("/", GinProfileGet) // Get user profile
+	profile.PUT("/", placeholder)   // Update user profile
 }
 
 // User management (CRUD)

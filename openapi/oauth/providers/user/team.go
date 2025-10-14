@@ -291,7 +291,7 @@ func (u *DefaultUser) GetTeamsByMember(ctx context.Context, memberID string) ([]
 	teams, err := u.GetTeams(ctx, model.QueryParam{
 		Select: u.teamFields,
 		Wheres: []model.QueryWhere{
-			{Column: "team_id", Value: teamIDs, Method: "in"},
+			{Column: "team_id", Value: teamIDs, OP: "in"},
 		},
 	})
 	if err != nil {

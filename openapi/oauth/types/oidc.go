@@ -265,6 +265,9 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 	}
 
 	// Yao custom fields with namespace
+	if userID, ok := user["yao:user_id"].(string); ok {
+		userInfo.YaoUserID = userID
+	}
 	if tenantID, ok := user["yao:tenant_id"].(string); ok {
 		userInfo.YaoTenantID = tenantID
 	}

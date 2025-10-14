@@ -392,6 +392,7 @@ type PublicInvitationResponse struct {
 
 // InviterInfo represents public information about the person who sent the invitation
 type InviterInfo struct {
+	UserID  string `json:"user_id"` // Inviter's user ID
 	Name    string `json:"name,omitempty"`
 	Picture string `json:"picture"` // Always return, empty string if not set
 }
