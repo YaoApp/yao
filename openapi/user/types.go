@@ -41,10 +41,12 @@ type Config struct {
 type FormConfig struct {
 	Username           *UsernameConfig `json:"username,omitempty"`
 	Password           *PasswordConfig `json:"password,omitempty"`
+	ConfirmPassword    *PasswordConfig `json:"confirm_password,omitempty"`
 	Captcha            *CaptchaConfig  `json:"captcha,omitempty"`
 	ForgotPasswordLink bool            `json:"forgot_password_link,omitempty"`
 	RememberMe         bool            `json:"remember_me,omitempty"`
 	RegisterLink       string          `json:"register_link,omitempty"`
+	LoginLink          string          `json:"login_link,omitempty"`
 	TermsOfServiceLink string          `json:"terms_of_service_link,omitempty"`
 	PrivacyPolicyLink  string          `json:"privacy_policy_link,omitempty"`
 }
@@ -84,16 +86,24 @@ type ProviderRegisterConfig struct {
 
 // RegisterConfig represents the register configuration
 type RegisterConfig struct {
-	Title           string          `json:"title,omitempty"`
-	Description     string          `json:"description,omitempty"`
-	Default         bool            `json:"default,omitempty"`
-	SuccessURL      string          `json:"success_url,omitempty"`
-	FailureURL      string          `json:"failure_url,omitempty"`
-	AutoLogin       bool            `json:"auto_login,omitempty"`
-	Role            string          `json:"role,omitempty"`
-	Type            string          `json:"type,omitempty"` // User type id
-	Form            *FormConfig     `json:"form,omitempty"`
-	ConfirmPassword *PasswordConfig `json:"confirm_password,omitempty"`
+	Title          string           `json:"title,omitempty"`
+	Description    string           `json:"description,omitempty"`
+	Default        bool             `json:"default,omitempty"`
+	SuccessURL     string           `json:"success_url,omitempty"`
+	FailureURL     string           `json:"failure_url,omitempty"`
+	AutoLogin      bool             `json:"auto_login,omitempty"`
+	Role           string           `json:"role,omitempty"`
+	Type           string           `json:"type,omitempty"` // User type id
+	Form           *FormConfig      `json:"form,omitempty"`
+	Messenger      *MessengerConfig `json:"messenger,omitempty"`
+	InviteRequired bool             `json:"invite_required,omitempty"`
+	ThirdParty     *ThirdParty      `json:"third_party,omitempty"` // Third party login configuration (copied from signin config)
+}
+
+// MessengerConfig represents the messenger configuration for user registration
+type MessengerConfig struct {
+	Channel   string            `json:"channel,omitempty"`
+	Templates map[string]string `json:"templates,omitempty"` // mail, sms templates
 }
 
 // YaoClientConfig represents the Yao OpenAPI Client config

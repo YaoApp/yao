@@ -396,6 +396,14 @@ func loadRegisterConfigs(_ string) error {
 			return fmt.Errorf("failed to parse register config %s: %v", filename, err)
 		}
 
+		// Process ENV variables in the configuration
+		processRegisterConfigENVVariables(&config)
+
+		// Copy third_party from signin config if available
+		if signinConfig, exists := fullConfigs[locale]; exists && signinConfig.ThirdParty != nil {
+			config.ThirdParty = signinConfig.ThirdParty
+		}
+
 		// Store register configuration
 		registerConfigs[locale] = &config
 
@@ -614,6 +622,33 @@ func normalizeDuration(expiresIn string) (string, error) {
 	return normalized, nil
 }
 
+// processFormConfigENVVariables processes environment variables in the form configuration
+func processFormConfigENVVariables(form *FormConfig) []string {
+	var missingEnvVars []string
+
+	if form == nil {
+		return missingEnvVars
+	}
+
+	// Process form captcha options
+	if form.Captcha != nil && form.Captcha.Options != nil {
+		for key, value := range form.Captcha.Options {
+			if strValue, ok := value.(string); ok {
+				// Check if ENV variable exists before replacement
+				if strings.HasPrefix(strValue, "$ENV.") {
+					envVar := strings.TrimPrefix(strValue, "$ENV.")
+					if _, exists := os.LookupEnv(envVar); !exists {
+						missingEnvVars = append(missingEnvVars, envVar)
+					}
+				}
+				form.Captcha.Options[key] = replaceENVVar(strValue)
+			}
+		}
+	}
+
+	return missingEnvVars
+}
+
 // processConfigENVVariables processes environment variables in the signin configuration
 func processConfigENVVariables(config *Config) {
 	var missingEnvVars []string
@@ -635,24 +670,23 @@ func processConfigENVVariables(config *Config) {
 	}
 	config.ClientSecret = replaceENVVar(config.ClientSecret)
 
-	// Process form captcha options
-	if config.Form != nil && config.Form.Captcha != nil && config.Form.Captcha.Options != nil {
-		for key, value := range config.Form.Captcha.Options {
-			if strValue, ok := value.(string); ok {
-				// Check if ENV variable exists before replacement
-				if strings.HasPrefix(strValue, "$ENV.") {
-					envVar := strings.TrimPrefix(strValue, "$ENV.")
-					if _, exists := os.LookupEnv(envVar); !exists {
-						missingEnvVars = append(missingEnvVars, envVar)
-					}
-				}
-				config.Form.Captcha.Options[key] = replaceENVVar(strValue)
-			}
-		}
-	}
+	// Process form configuration
+	formMissingVars := processFormConfigENVVariables(config.Form)
+	missingEnvVars = append(missingEnvVars, formMissingVars...)
 
-	// Log warning for missing environment variables (optional, can be removed if log package not available)
+	// Log warning for missing environment variables
 	if len(missingEnvVars) > 0 {
-		fmt.Printf("Warning: The following environment variables are not set in user configuration: %v\n", missingEnvVars)
+		fmt.Printf("Warning: The following environment variables are not set in signin configuration: %v\n", missingEnvVars)
+	}
+}
+
+// processRegisterConfigENVVariables processes environment variables in the register configuration
+func processRegisterConfigENVVariables(config *RegisterConfig) {
+	// Process form configuration
+	missingEnvVars := processFormConfigENVVariables(config.Form)
+
+	// Log warning for missing environment variables
+	if len(missingEnvVars) > 0 {
+		fmt.Printf("Warning: The following environment variables are not set in register configuration: %v\n", missingEnvVars)
 	}
 }
