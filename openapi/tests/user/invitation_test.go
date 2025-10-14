@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/openapi"
+	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/tests/testutils"
 	"github.com/yaoapp/yao/openapi/user"
 )
@@ -839,7 +841,366 @@ func TestInvitationDelete(t *testing.T) {
 	})
 }
 
+// TestInvitationAccept tests the POST /user/teams/invitations/:invitation_id/accept endpoint
+func TestInvitationAccept(t *testing.T) {
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Step 1: Create two users A and B in database
+	t.Logf("Step 1: Create users A and B")
+	userA := fmt.Sprintf("user_a_%s", testUUID)
+	userB := fmt.Sprintf("user_b_%s", testUUID)
+
+	// Create users and get actual user IDs returned by provider
+	actualUserA := createUserInDB(t, userA)
+	actualUserB := createUserInDB(t, userB)
+
+	// Use the actual user IDs returned by CreateUser
+	userA = actualUserA
+	userB = actualUserB
+	t.Logf("  - Created users: A=%s, B=%s", userA, userB)
+
+	// Step 2: Issue token for user A and create team
+	t.Logf("Step 2: Issue token for user A and create team")
+	clientA := testutils.RegisterTestClient(t, "User A Client "+testUUID, []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, clientA.ClientID)
+
+	tokenA := testutils.ObtainTokenForUser(t, clientA.ClientID, clientA.ClientSecret, userA, "openid profile")
+	teamID, invitationID := setupTeamAndInvitation(t, serverURL, baseURL, tokenA.AccessToken, userA, userB, testUUID)
+	t.Logf("  - Team created with ID: %s", teamID)
+	t.Logf("  - Invitation created with ID: %s", invitationID)
+
+	// Step 3: Issue token for user B
+	t.Logf("Step 3: Issue token for user B")
+	clientB := testutils.RegisterTestClient(t, "User B Client "+testUUID, []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, clientB.ClientID)
+
+	tokenB := testutils.ObtainTokenForUser(t, clientB.ClientID, clientB.ClientSecret, userB, "openid profile")
+
+	// Test successful accept invitation
+	t.Run("AcceptInvitation_Success", func(t *testing.T) {
+		// Get invitation details to retrieve token
+		getURL := fmt.Sprintf("%s%s/user/teams/%s/invitations/%s", serverURL, baseURL, teamID, invitationID)
+		getReq, err := http.NewRequest("GET", getURL, nil)
+		assert.NoError(t, err)
+		getReq.Header.Set("Authorization", "Bearer "+tokenA.AccessToken)
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		getResp, err := client.Do(getReq)
+		assert.NoError(t, err)
+		defer getResp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, getResp.StatusCode)
+
+		var invitation user.InvitationDetailResponse
+		err = json.NewDecoder(getResp.Body).Decode(&invitation)
+		assert.NoError(t, err)
+
+		invitationToken := invitation.InvitationToken
+		assert.NotEmpty(t, invitationToken)
+
+		// User B accepts the invitation
+		t.Logf("  - User B accepting invitation with token")
+		acceptData := map[string]interface{}{
+			"token": invitationToken,
+		}
+		jsonData, _ := json.Marshal(acceptData)
+
+		acceptURL := fmt.Sprintf("%s%s/user/teams/invitations/%s/accept", serverURL, baseURL, invitationID)
+		acceptReq, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq.Header.Set("Content-Type", "application/json")
+		acceptReq.Header.Set("Authorization", "Bearer "+tokenB.AccessToken)
+
+		acceptResp, err := client.Do(acceptReq)
+		assert.NoError(t, err)
+		defer acceptResp.Body.Close()
+
+		// Read response body first for better error message
+		var result map[string]interface{}
+		err = json.NewDecoder(acceptResp.Body).Decode(&result)
+		assert.NoError(t, err)
+
+		// Check status code and provide helpful error message if failed
+		if acceptResp.StatusCode != http.StatusOK {
+			t.Fatalf("Accept invitation failed: status=%d, body=%v", acceptResp.StatusCode, result)
+		}
+
+		// Check for standard LoginResponse fields
+		assert.Contains(t, result, "access_token")
+		assert.Contains(t, result, "refresh_token")
+		assert.Contains(t, result, "token_type")
+		assert.Contains(t, result, "expires_in")
+		assert.Contains(t, result, "user_id")
+		assert.Contains(t, result, "id_token")
+
+		// Verify user_id matches invitee
+		assert.Equal(t, userB, result["user_id"])
+
+		// Verify tokens are valid (non-empty)
+		assert.NotEmpty(t, result["access_token"])
+		assert.NotEmpty(t, result["refresh_token"])
+		assert.Equal(t, "Bearer", result["token_type"])
+		assert.Greater(t, int(result["expires_in"].(float64)), 0)
+	})
+
+	// Test accept invitation with invalid token
+	t.Run("AcceptInvitation_InvalidToken", func(t *testing.T) {
+		// Create new invitation for this test
+		_, invID := setupTeamAndInvitation(t, serverURL, baseURL, tokenA.AccessToken, userA, userB, testUUID+"_inv")
+
+		// Try to accept with invalid token
+		acceptData := map[string]interface{}{
+			"token": "invalid-token-12345",
+		}
+		jsonData, _ := json.Marshal(acceptData)
+
+		acceptURL := fmt.Sprintf("%s%s/user/teams/invitations/%s/accept", serverURL, baseURL, invID)
+		acceptReq, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq.Header.Set("Content-Type", "application/json")
+		acceptReq.Header.Set("Authorization", "Bearer "+tokenB.AccessToken)
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		acceptResp, err := client.Do(acceptReq)
+		assert.NoError(t, err)
+		defer acceptResp.Body.Close()
+
+		assert.Equal(t, http.StatusNotFound, acceptResp.StatusCode)
+	})
+
+	// Test accept invitation with non-existent invitation_id
+	t.Run("AcceptInvitation_NonExistentInvitation", func(t *testing.T) {
+		acceptData := map[string]interface{}{
+			"token": "some-token",
+		}
+		jsonData, _ := json.Marshal(acceptData)
+
+		acceptURL := fmt.Sprintf("%s%s/user/teams/invitations/non-existent-inv/accept", serverURL, baseURL)
+		acceptReq, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq.Header.Set("Content-Type", "application/json")
+		acceptReq.Header.Set("Authorization", "Bearer "+tokenB.AccessToken)
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		acceptResp, err := client.Do(acceptReq)
+		assert.NoError(t, err)
+		defer acceptResp.Body.Close()
+
+		assert.Equal(t, http.StatusNotFound, acceptResp.StatusCode)
+	})
+
+	// Test accept invitation without authentication
+	t.Run("AcceptInvitation_Unauthorized", func(t *testing.T) {
+		// Create new invitation for this test
+		_, invID := setupTeamAndInvitation(t, serverURL, baseURL, tokenA.AccessToken, userA, userB, testUUID+"_unauth")
+
+		acceptData := map[string]interface{}{
+			"token": "some-token",
+		}
+		jsonData, _ := json.Marshal(acceptData)
+
+		acceptURL := fmt.Sprintf("%s%s/user/teams/invitations/%s/accept", serverURL, baseURL, invID)
+		acceptReq, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq.Header.Set("Content-Type", "application/json")
+		// No Authorization header
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		acceptResp, err := client.Do(acceptReq)
+		assert.NoError(t, err)
+		defer acceptResp.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, acceptResp.StatusCode)
+	})
+
+	// Test accept invitation without token in request body
+	t.Run("AcceptInvitation_MissingToken", func(t *testing.T) {
+		// Create new invitation for this test
+		_, invID := setupTeamAndInvitation(t, serverURL, baseURL, tokenA.AccessToken, userA, userB, testUUID+"_missing")
+
+		acceptData := map[string]interface{}{
+			// Missing token field
+		}
+		jsonData, _ := json.Marshal(acceptData)
+
+		acceptURL := fmt.Sprintf("%s%s/user/teams/invitations/%s/accept", serverURL, baseURL, invID)
+		acceptReq, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq.Header.Set("Content-Type", "application/json")
+		acceptReq.Header.Set("Authorization", "Bearer "+tokenB.AccessToken)
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		acceptResp, err := client.Do(acceptReq)
+		assert.NoError(t, err)
+		defer acceptResp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, acceptResp.StatusCode)
+	})
+
+	// Test accept already accepted invitation
+	t.Run("AcceptInvitation_AlreadyAccepted", func(t *testing.T) {
+		// Create new invitation for this test
+		tID, invID := setupTeamAndInvitation(t, serverURL, baseURL, tokenA.AccessToken, userA, userB, testUUID+"_accepted")
+
+		// Get invitation token
+		getURL := fmt.Sprintf("%s%s/user/teams/%s/invitations/%s", serverURL, baseURL, tID, invID)
+		getReq, err := http.NewRequest("GET", getURL, nil)
+		assert.NoError(t, err)
+		getReq.Header.Set("Authorization", "Bearer "+tokenA.AccessToken)
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		getResp, err := client.Do(getReq)
+		assert.NoError(t, err)
+		defer getResp.Body.Close()
+
+		var invitation user.InvitationDetailResponse
+		json.NewDecoder(getResp.Body).Decode(&invitation)
+		invitationToken := invitation.InvitationToken
+
+		// Accept the invitation first time
+		acceptData := map[string]interface{}{
+			"token": invitationToken,
+		}
+		jsonData, _ := json.Marshal(acceptData)
+
+		acceptURL := fmt.Sprintf("%s%s/user/teams/invitations/%s/accept", serverURL, baseURL, invID)
+		acceptReq, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq.Header.Set("Content-Type", "application/json")
+		acceptReq.Header.Set("Authorization", "Bearer "+tokenB.AccessToken)
+
+		acceptResp, err := client.Do(acceptReq)
+		assert.NoError(t, err)
+		acceptResp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, acceptResp.StatusCode)
+
+		// Try to accept again (should fail)
+		acceptReq2, err := http.NewRequest("POST", acceptURL, bytes.NewBuffer(jsonData))
+		assert.NoError(t, err)
+		acceptReq2.Header.Set("Content-Type", "application/json")
+		acceptReq2.Header.Set("Authorization", "Bearer "+tokenB.AccessToken)
+
+		acceptResp2, err := client.Do(acceptReq2)
+		assert.NoError(t, err)
+		defer acceptResp2.Body.Close()
+
+		assert.Equal(t, http.StatusNotFound, acceptResp2.StatusCode)
+	})
+}
+
 // Helper functions
+
+// setupTeamAndInvitation creates a team and invitation for testing by calling HTTP APIs
+// This simulates the complete flow including OAuth Guard middleware
+// Returns teamID and invitationID
+func setupTeamAndInvitation(t *testing.T, serverURL, baseURL, accessToken, ownerUserID, inviteeUserID, testUUID string) (string, string) {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	// Step 1: Create team via HTTP API
+	teamName := fmt.Sprintf("Team_%s", testUUID)
+	teamData := map[string]interface{}{
+		"name":        teamName,
+		"description": "Test team for invitation acceptance",
+	}
+	teamJSON, _ := json.Marshal(teamData)
+
+	createTeamURL := fmt.Sprintf("%s%s/user/teams", serverURL, baseURL)
+	req, err := http.NewRequest("POST", createTeamURL, bytes.NewBuffer(teamJSON))
+	assert.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Failed to create team: status=%d, body=%s", resp.StatusCode, string(body))
+	}
+
+	var team map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&team)
+	assert.NoError(t, err)
+
+	teamID := getTeamID(team)
+
+	// Step 2: Create invitation via HTTP API
+	invitationData := map[string]interface{}{
+		"user_id":     inviteeUserID,
+		"email":       inviteeUserID + "@test.com", // Provide email so GetUser is not needed
+		"member_type": "user",
+		"role_id":     "user",
+		"message":     "Test invitation",
+	}
+	invJSON, _ := json.Marshal(invitationData)
+
+	createInvURL := fmt.Sprintf("%s%s/user/teams/%s/invitations", serverURL, baseURL, teamID)
+	invReq, err := http.NewRequest("POST", createInvURL, bytes.NewBuffer(invJSON))
+	assert.NoError(t, err)
+	invReq.Header.Set("Content-Type", "application/json")
+	invReq.Header.Set("Authorization", "Bearer "+accessToken)
+
+	invResp, err := client.Do(invReq)
+	assert.NoError(t, err)
+	defer invResp.Body.Close()
+
+	if invResp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(invResp.Body)
+		t.Fatalf("Failed to create invitation: status=%d, body=%s", invResp.StatusCode, string(body))
+	}
+
+	var invitation map[string]interface{}
+	err = json.NewDecoder(invResp.Body).Decode(&invitation)
+	assert.NoError(t, err)
+
+	invitationID, ok := invitation["invitation_id"].(string)
+	if !ok {
+		t.Fatalf("invitation_id not found in response")
+	}
+
+	return teamID, invitationID
+}
+
+// createUserInDB creates a user record directly in the database using userProvider
+// Returns the actual user_id created (which may differ from the requested userID)
+func createUserInDB(t *testing.T, userID string) string {
+	userData := map[string]interface{}{
+		"user_id": userID,
+		"name":    "Test User " + userID,
+		"email":   userID + "@test.com",
+		"status":  "enabled",
+	}
+
+	// Create user using userProvider.CreateUser
+	provider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		t.Fatalf("Failed to get user provider: %v", err)
+	}
+
+	ctx := context.Background()
+	createdUserID, err := provider.CreateUser(ctx, userData)
+	if err != nil {
+		t.Fatalf("Failed to create user via provider: %v", err)
+	}
+
+	if createdUserID != userID {
+		t.Logf("Note: Created user ID %s differs from requested %s", createdUserID, userID)
+	}
+
+	return createdUserID
+}
 
 // createTestInvitation creates a test invitation and returns its ID
 func createTestInvitation(t *testing.T, serverURL, baseURL, accessToken, teamID, userID string) string {

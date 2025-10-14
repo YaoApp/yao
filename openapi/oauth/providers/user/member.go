@@ -238,12 +238,13 @@ func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID strin
 }
 
 // AcceptInvitation accepts a team invitation
-func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationToken string) error {
-	// Find member by invitation token
+func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string, invitationToken string) error {
+	// Find member by invitation_id and token
 	m := model.Select(u.memberModel)
 	members, err := m.Get(model.QueryParam{
 		Select: []interface{}{"id", "team_id", "user_id", "status", "invitation_expires_at"},
 		Wheres: []model.QueryWhere{
+			{Column: "invitation_id", Value: invitationID},
 			{Column: "invitation_token", Value: invitationToken},
 			{Column: "status", Value: "pending"},
 		},

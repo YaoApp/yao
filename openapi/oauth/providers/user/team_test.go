@@ -372,14 +372,16 @@ func TestTeamMemberOperations(t *testing.T) {
 
 	// Test AcceptInvitation
 	t.Run("AcceptInvitation", func(t *testing.T) {
-		// First get the invitation token
+		// First get the invitation token and invitation_id
 		member, err := testProvider.GetMemberDetail(ctx, teamID, memberUser)
 		assert.NoError(t, err)
 		invitationToken := member["invitation_token"].(string)
 		assert.NotEmpty(t, invitationToken)
+		invitationID := member["invitation_id"].(string)
+		assert.NotEmpty(t, invitationID)
 
 		// Accept the invitation
-		err = testProvider.AcceptInvitation(ctx, invitationToken)
+		err = testProvider.AcceptInvitation(ctx, invitationID, invitationToken)
 		assert.NoError(t, err)
 
 		// Verify member status changed to active

@@ -58,7 +58,8 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	// Public endpoint for viewing team invitations (no auth required)
 	// Must be registered BEFORE the team group with auth guard
-	group.GET("/teams/invitations/:invitation_id", GinTeamInvitationGetPublic) // GET /user/teams/invitations/:invitation_id - Get invitation details (public)
+	group.GET("/teams/invitations/:invitation_id", GinTeamInvitationGetPublic)                   // GET /user/teams/invitations/:invitation_id - Get invitation details (public)
+	group.POST("/teams/invitations/:invitation_id/accept", oauth.Guard, GinTeamInvitationAccept) // POST /user/teams/invitations/:invitation_id/accept - Accept invitation and login
 
 	team := group.Group("/teams")
 
