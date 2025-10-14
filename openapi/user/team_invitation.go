@@ -528,25 +528,8 @@ func GinTeamInvitationAccept(c *gin.Context) {
 		return
 	}
 
-	// If invitation doesn't have a user_id (unregistered user invitation), update it with current user
-	if invitationData["user_id"] == nil || invitationData["user_id"] == "" {
-		updateData := maps.MapStrAny{
-			"user_id": userID,
-		}
-		err = provider.UpdateMemberByInvitationID(ctx, invitationID, updateData)
-		if err != nil {
-			log.Error("Failed to update invitation with user_id: %v", err)
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to process invitation",
-			}
-			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-			return
-		}
-	}
-
-	// Accept the invitation
-	err = provider.AcceptInvitation(ctx, invitationID, req.Token)
+	// Accept the invitation (will update user_id if invitation doesn't have one)
+	err = provider.AcceptInvitation(ctx, invitationID, req.Token, userID)
 	if err != nil {
 		log.Error("Failed to accept invitation: %v", err)
 		// Check error type for appropriate response

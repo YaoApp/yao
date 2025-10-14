@@ -381,7 +381,7 @@ func TestTeamMemberOperations(t *testing.T) {
 		assert.NotEmpty(t, invitationID)
 
 		// Accept the invitation
-		err = testProvider.AcceptInvitation(ctx, invitationID, invitationToken)
+		err = testProvider.AcceptInvitation(ctx, invitationID, invitationToken, "")
 		assert.NoError(t, err)
 
 		// Verify member status changed to active

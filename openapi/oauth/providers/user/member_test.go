@@ -278,7 +278,7 @@ func TestMemberInvitationFlow(t *testing.T) {
 
 	// Test AcceptInvitation
 	t.Run("AcceptInvitation", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, invitationID, invitationToken)
+		err := testProvider.AcceptInvitation(ctx, invitationID, invitationToken, "")
 		assert.NoError(t, err)
 
 		// Verify member status changed to active
@@ -295,14 +295,14 @@ func TestMemberInvitationFlow(t *testing.T) {
 
 	// Test AcceptInvitation with invalid token
 	t.Run("AcceptInvitation_InvalidToken", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, invitationID, "invalid-token")
+		err := testProvider.AcceptInvitation(ctx, invitationID, "invalid-token", "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation not found")
 	})
 
 	// Test AcceptInvitation with already accepted token
 	t.Run("AcceptInvitation_AlreadyAccepted", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, invitationID, invitationToken)
+		err := testProvider.AcceptInvitation(ctx, invitationID, invitationToken, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation not found")
 	})
@@ -750,7 +750,7 @@ func TestMemberInvitationExpiry(t *testing.T) {
 
 	// Test AcceptInvitation with expired token
 	t.Run("AcceptInvitation_ExpiredToken", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, invitationID, "expired-token-"+testUUID)
+		err := testProvider.AcceptInvitation(ctx, invitationID, "expired-token-"+testUUID, "")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation has expired")
 	})
