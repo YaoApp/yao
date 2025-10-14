@@ -116,24 +116,13 @@ func TestTeamList(t *testing.T) {
 				assert.NoError(t, err, "Should read response body")
 
 				if resp.StatusCode == 200 {
-					// Parse response as pagination result
-					var response map[string]interface{}
-					err = json.Unmarshal(body, &response)
-					assert.NoError(t, err, "Should parse JSON response")
+					// Parse response as array (TeamList returns array directly, not paginated)
+					var teams []interface{}
+					err = json.Unmarshal(body, &teams)
+					assert.NoError(t, err, "Should parse JSON response as array")
 
-					// Check pagination structure (consistent with other modules)
-					if data, ok := response["data"]; ok {
-						assert.IsType(t, []interface{}{}, data, "Should have data array")
-					}
-					if total, ok := response["total"]; ok {
-						assert.IsType(t, float64(0), total, "Should have total count")
-					}
-					if page, ok := response["page"]; ok {
-						assert.IsType(t, float64(0), page, "Should have page number")
-					}
-					if pagesize, ok := response["pagesize"]; ok {
-						assert.IsType(t, float64(0), pagesize, "Should have pagesize")
-					}
+					// Verify it's an array
+					assert.IsType(t, []interface{}{}, teams, "Response should be an array")
 				}
 
 				t.Logf("Team list test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
@@ -415,16 +404,13 @@ func TestTeamGet(t *testing.T) {
 
 				if resp.StatusCode == 200 {
 					if tc.teamID == "" {
-						// Parse response as team list (pagination result)
-						var response map[string]interface{}
-						err = json.Unmarshal(body, &response)
-						assert.NoError(t, err, "Should parse JSON response")
+						// Parse response as team list (returns array directly, not paginated)
+						var teams []interface{}
+						err = json.Unmarshal(body, &teams)
+						assert.NoError(t, err, "Should parse JSON response as array")
 
-						// Check pagination structure
-						assert.Contains(t, response, "data", "Should have data array")
-						assert.Contains(t, response, "total", "Should have total count")
-						assert.Contains(t, response, "page", "Should have page number")
-						assert.Contains(t, response, "pagesize", "Should have pagesize")
+						// Verify it's an array
+						assert.IsType(t, []interface{}{}, teams, "Response should be an array")
 					} else {
 						// Parse response as team detail object
 						var team map[string]interface{}

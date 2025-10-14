@@ -243,6 +243,7 @@ func TestMemberInvitationFlow(t *testing.T) {
 	assert.NoError(t, err)
 
 	var invitationToken string
+	var invitationID string
 
 	// Test AddMember (invitation-based)
 	t.Run("AddMember", func(t *testing.T) {
@@ -256,11 +257,13 @@ func TestMemberInvitationFlow(t *testing.T) {
 		assert.Equal(t, "pending", member["status"])
 		assert.Equal(t, ownerUser, member["invited_by"])
 
-		// Get invitation token for acceptance test
+		// Get invitation token and invitation_id for acceptance test
 		memberDetail, err := testProvider.GetMemberDetail(ctx, teamID, inviteeUser)
 		assert.NoError(t, err)
 		invitationToken = memberDetail["invitation_token"].(string)
 		assert.NotEmpty(t, invitationToken)
+		invitationID = memberDetail["invitation_id"].(string)
+		assert.NotEmpty(t, invitationID)
 
 		// Verify invitation expiry is set
 		assert.NotNil(t, memberDetail["invitation_expires_at"])
@@ -275,7 +278,7 @@ func TestMemberInvitationFlow(t *testing.T) {
 
 	// Test AcceptInvitation
 	t.Run("AcceptInvitation", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, invitationToken)
+		err := testProvider.AcceptInvitation(ctx, invitationID, invitationToken)
 		assert.NoError(t, err)
 
 		// Verify member status changed to active
@@ -292,14 +295,14 @@ func TestMemberInvitationFlow(t *testing.T) {
 
 	// Test AcceptInvitation with invalid token
 	t.Run("AcceptInvitation_InvalidToken", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, "invalid-token")
+		err := testProvider.AcceptInvitation(ctx, invitationID, "invalid-token")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation not found")
 	})
 
 	// Test AcceptInvitation with already accepted token
 	t.Run("AcceptInvitation_AlreadyAccepted", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, invitationToken)
+		err := testProvider.AcceptInvitation(ctx, invitationID, invitationToken)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation not found")
 	})
@@ -736,12 +739,18 @@ func TestMemberInvitationExpiry(t *testing.T) {
 		"invitation_expires_at": expiredTime, // Expired 2 hours ago
 	}
 
-	_, err = testProvider.CreateMember(ctx, memberData)
+	memberID, err := testProvider.CreateMember(ctx, memberData)
 	assert.NoError(t, err)
+
+	// Get the invitation_id
+	member, err := testProvider.GetMemberByID(ctx, memberID)
+	assert.NoError(t, err)
+	invitationID := member["invitation_id"].(string)
+	assert.NotEmpty(t, invitationID)
 
 	// Test AcceptInvitation with expired token
 	t.Run("AcceptInvitation_ExpiredToken", func(t *testing.T) {
-		err := testProvider.AcceptInvitation(ctx, "expired-token-"+testUUID)
+		err := testProvider.AcceptInvitation(ctx, invitationID, "expired-token-"+testUUID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invitation has expired")
 	})

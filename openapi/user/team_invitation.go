@@ -451,6 +451,159 @@ func GinTeamInvitationDelete(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Invitation cancelled successfully"})
 }
 
+// GinTeamInvitationAccept handles POST /user/teams/invitations/:invitation_id/accept - Accept invitation and login to team
+func GinTeamInvitationAccept(c *gin.Context) {
+	// Get authorized user info
+	authInfo := oauth.GetAuthorizedInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Use authInfo.UserID directly - it might be OAuth subject, but LoginByTeamID will handle user creation
+	userID := authInfo.UserID
+
+	invitationID := c.Param("invitation_id")
+	if invitationID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invitation ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Parse request body to get token
+	var req struct {
+		Token string `json:"token" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: token is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		log.Error("Failed to get user provider: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to process invitation",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get invitation details first to retrieve team_id
+	invitationData, err := provider.GetMemberByInvitationID(ctx, invitationID)
+	if err != nil {
+		log.Error("Failed to get invitation: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invitation not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Get team_id from invitation
+	teamID := toString(invitationData["team_id"])
+	if teamID == "" {
+		log.Error("Invalid invitation: missing team_id")
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Invalid invitation data",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// If invitation doesn't have a user_id (unregistered user invitation), update it with current user
+	if invitationData["user_id"] == nil || invitationData["user_id"] == "" {
+		updateData := maps.MapStrAny{
+			"user_id": userID,
+		}
+		err = provider.UpdateMemberByInvitationID(ctx, invitationID, updateData)
+		if err != nil {
+			log.Error("Failed to update invitation with user_id: %v", err)
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to process invitation",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+			return
+		}
+	}
+
+	// Accept the invitation
+	err = provider.AcceptInvitation(ctx, invitationID, req.Token)
+	if err != nil {
+		log.Error("Failed to accept invitation: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "already accepted") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Invitation not found or already accepted",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "expired") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Invitation has expired",
+			}
+			response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to accept invitation",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	// Prepare login context with full device/platform information
+	loginCtx := makeLoginContext(c)
+
+	// Login with the team that was just joined
+	// Note: userID must exist in database (user table)
+	loginResponse, err := LoginByTeamID(userID, teamID, loginCtx)
+	if err != nil {
+		log.Error("Failed to login with team: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Invitation accepted but failed to login: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Revoke the current token if it exists (similar to team selection)
+	currentToken := oauth.OAuth.GetAccessToken(c)
+	if currentToken != "" {
+		if err := oauth.OAuth.Revoke(ctx, currentToken, "access_token"); err != nil {
+			// Log the error but don't fail the request
+			log.Warn("Failed to revoke previous token: %v", err)
+		}
+	}
+
+	// Send secure cookies (access token, refresh token, and session ID)
+	SendLoginCookies(c, loginResponse, "")
+
+	// Return the new tokens in response body
+	response.RespondWithSuccess(c, http.StatusOK, loginResponse)
+}
+
 // Yao Process Handlers (for Yao application calls)
 
 // ProcessTeamInvitationList user.team.invitation.list Team invitation list processor

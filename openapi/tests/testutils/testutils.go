@@ -701,6 +701,107 @@ func generateCodeChallenge(codeVerifier string) string {
 	return base64.URLEncoding.WithPadding(base64.NoPadding).EncodeToString(hash[:])
 }
 
+// ObtainTokenForUser creates a token for a specific user ID.
+// This function creates the OAuth fingerprint mapping and issues tokens for the given userID.
+//
+// AI ASSISTANT INSTRUCTIONS:
+// Use this function when you need to issue a token for a pre-existing user ID.
+// This is useful for testing scenarios where user records already exist in the database.
+//
+// Usage pattern:
+//
+//	func TestWithExistingUser(t *testing.T) {
+//	    serverURL := Prepare(t)
+//	    defer Clean()
+//
+//	    // Create user in database first
+//	    userID := "user_123"
+//	    // ... create user record in DB ...
+//
+//	    // Register a test client
+//	    client := RegisterTestClient(t, "Test Client", []string{"https://localhost/callback"})
+//	    defer CleanupTestClient(t, client.ClientID)
+//
+//	    // Obtain token for the existing user
+//	    tokenInfo := ObtainTokenForUser(t, client.ClientID, client.ClientSecret, userID, "openid profile")
+//
+//	    // Now use tokenInfo.AccessToken to make authenticated requests
+//	}
+//
+// PARAMETERS:
+// - t: The test instance for error reporting
+// - clientID: The OAuth client ID (from RegisterTestClient)
+// - clientSecret: The OAuth client secret (from RegisterTestClient)
+// - userID: The user ID to issue the token for (must exist in database)
+// - scope: The requested OAuth scope (e.g., "openid profile email")
+//
+// RETURN VALUE:
+// Returns TokenInfo struct containing:
+// - AccessToken: The access token for API calls
+// - RefreshToken: The refresh token for token renewal
+// - TokenType: The token type (usually "Bearer")
+// - ExpiresIn: Token expiration time in seconds
+// - Scope: The granted scope
+// - ClientID: The client ID used to obtain the token
+// - UserID: The user ID the token was issued for
+//
+// WHAT THIS FUNCTION DOES:
+// 1. Creates a fingerprint mapping: clientID + subject -> userID
+// 2. Issues access and refresh tokens for the subject
+// 3. Returns all token information needed for authenticated API testing
+//
+// ERROR HANDLING:
+// If token creation fails, the test will fail immediately with a descriptive error message.
+func ObtainTokenForUser(t *testing.T, clientID, clientSecret, userID, scope string) *TokenInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	// Access the global OAuth service
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	// Create subject (fingerprint) for this user
+	// This sets up the fingerprint mapping: clientID:subject -> userID
+	subject, err := oauthService.Subject(clientID, userID)
+	if err != nil {
+		t.Fatalf("Failed to create user subject: %v", err)
+	}
+
+	t.Logf("Created fingerprint mapping: clientID=%s, userID=%s, subject=%s", clientID, userID, subject)
+
+	// Create access token
+	accessToken, err := oauthService.MakeAccessToken(clientID, scope, subject, 3600)
+	if err != nil {
+		t.Fatalf("Failed to create access token: %v", err)
+	}
+
+	// Create refresh token
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, scope, subject, 7200)
+	if err != nil {
+		t.Fatalf("Failed to create refresh token: %v", err)
+	}
+
+	tokenInfo := &TokenInfo{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		Scope:        scope,
+		ClientID:     clientID,
+		UserID:       userID,
+	}
+
+	t.Logf("Issued token for user %s (subject: %s)", userID, subject)
+	return tokenInfo
+}
+
 // createTestUser creates a test user and sets up proper fingerprint mapping for OAuth authentication
 func createTestUser(t *testing.T, server *openapi.OpenAPI, clientID string) (string, string) {
 	if server.OAuth == nil {
