@@ -238,7 +238,8 @@ func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID strin
 }
 
 // AcceptInvitation accepts a team invitation
-func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string, invitationToken string) error {
+// userID can be empty - if provided and invitation doesn't have user_id, it will be updated
+func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string, invitationToken string, userID string) error {
 	// Find member by invitation_id and token
 	m := model.Select(u.memberModel)
 	members, err := m.Get(model.QueryParam{
@@ -275,6 +276,11 @@ func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string,
 		"status":           "active",
 		"joined_at":        time.Now(),
 		"invitation_token": nil, // Clear the token
+	}
+
+	// If invitation doesn't have a user_id (unregistered user invitation), update it with provided userID
+	if userID != "" && (member["user_id"] == nil || member["user_id"] == "") {
+		updateData["user_id"] = userID
 	}
 
 	affected, err := m.UpdateWhere(model.QueryParam{

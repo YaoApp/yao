@@ -308,7 +308,7 @@ type UserProvider interface {
 
 	// Member Invitation Management
 	AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (int64, error)
-	AcceptInvitation(ctx context.Context, invitationID string, invitationToken string) error
+	AcceptInvitation(ctx context.Context, invitationID string, invitationToken string, userID string) error
 
 	// Robot Member Operations
 	CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (int64, error)
