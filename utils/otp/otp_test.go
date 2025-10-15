@@ -31,10 +31,10 @@ func TestGenerate(t *testing.T) {
 	option.Length = 8
 	_, alphaCode := Generate(option)
 	assert.Equal(t, 8, len(alphaCode), "Alphanumeric code should match length")
-	
+
 	// Verify alphanumeric
 	for _, c := range alphaCode {
-		assert.True(t, (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'), 
+		assert.True(t, (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'),
 			"Code should be alphanumeric uppercase")
 	}
 	t.Logf("Generated alphanumeric code: %s", alphaCode)
@@ -175,11 +175,11 @@ func TestOTPZeroValues(t *testing.T) {
 	// Test with zero/empty option values
 	option := Option{}
 	id, code := Generate(option)
-	
+
 	assert.NotEmpty(t, id, "Should generate ID even with zero values")
 	assert.NotEmpty(t, code, "Should generate code even with zero values")
 	assert.Equal(t, 6, len(code), "Should use default length")
-	
+
 	// Should be numeric by default
 	for _, c := range code {
 		assert.True(t, c >= '0' && c <= '9', "Should default to numeric")
@@ -189,11 +189,11 @@ func TestOTPZeroValues(t *testing.T) {
 func TestOTPInvalidType(t *testing.T) {
 	option := NewOption()
 	option.Type = "invalid_type"
-	
+
 	id, code := Generate(option)
 	assert.NotEmpty(t, id)
 	assert.NotEmpty(t, code)
-	
+
 	// Should fallback to numeric
 	for _, c := range code {
 		assert.True(t, c >= '0' && c <= '9', "Invalid type should fallback to numeric")
@@ -221,9 +221,8 @@ func BenchmarkGenerateAlphanumeric(b *testing.B) {
 	option := NewOption()
 	option.Type = "alphanumeric"
 	option.Length = 8
-	
+
 	for i := 0; i < b.N; i++ {
 		Generate(option)
 	}
 }
-
