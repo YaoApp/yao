@@ -87,14 +87,14 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 		return nil, err
 	}
 
-	// Get register configuration for role and type
-	registerConfig := GetRegisterConfig(locale)
-	if registerConfig == nil {
-		// If no register config found, try to get default register config
-		log.Warn("Register configuration not found for locale '%s', trying default locale 'en'", locale)
-		registerConfig = GetRegisterConfig("en")
-		if registerConfig == nil {
-			return nil, fmt.Errorf("register configuration not found. Please create register config files in openapi/user/register/")
+	// Get entry configuration for role and type
+	entryConfig := GetEntryConfig(locale)
+	if entryConfig == nil {
+		// If no entry config found, try to get default entry config
+		log.Warn("Entry configuration not found for locale '%s', trying default locale 'en'", locale)
+		entryConfig = GetEntryConfig("en")
+		if entryConfig == nil {
+			return nil, fmt.Errorf("entry configuration not found. Please create entry config files in openapi/user/entry/")
 		}
 	}
 
@@ -120,8 +120,8 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 				"given_name":  userinfo.GivenName,
 				"family_name": userinfo.FamilyName,
 				"picture":     userinfo.Picture,
-				"role_id":     registerConfig.Role,
-				"type_id":     registerConfig.Type,
+				"role_id":     entryConfig.Role,
+				"type_id":     entryConfig.Type,
 				"status":      "active",
 			}
 

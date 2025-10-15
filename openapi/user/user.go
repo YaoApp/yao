@@ -31,8 +31,8 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/login", getLoginConfig)             // Get login page config (public) - migrated from /signin
 	group.POST("/login", login)                     // User login (public) - migrated from /signin
 	group.GET("/login/captcha", getCaptcha)         // Get captcha for login (public)
-	group.GET("/register", getRegisterConfig)       // Get register page config (public)
-	group.POST("/register", register)               // User register (public)
+	group.GET("/entry", getEntryConfig)             // Get unified auth entry config (public)
+	group.POST("/entry", entry)                     // Unified auth entry (login/register) (public)
 	group.POST("/logout", oauth.Guard, placeholder) // User logout
 
 	// Logined User Settings
