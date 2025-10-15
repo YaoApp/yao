@@ -23,14 +23,8 @@ var (
 	// Client config
 	yaoClientConfig *YaoClientConfig
 
-	// Full configurations with sensitive data (for backend use)
-	fullConfigs = make(map[string]*Config)
-	// Public configurations without sensitive data (for frontend use)
-	publicConfigs = make(map[string]*Config)
 	// Global providers map (decoupled from locale-specific configs)
 	providers = make(map[string]*Provider)
-	// Default configuration (marked with default: true)
-	defaultConfig *Config
 	// Team configurations by locale
 	teamConfigs = make(map[string]*TeamConfig)
 	// Entry configurations by locale (unified login + register)
@@ -45,21 +39,12 @@ func Load(appConfig config.Config) error {
 	defer configMutex.Unlock()
 
 	// Clear existing configurations
-	fullConfigs = make(map[string]*Config)
-	publicConfigs = make(map[string]*Config)
 	providers = make(map[string]*Provider)
-	defaultConfig = nil
 	teamConfigs = make(map[string]*TeamConfig)
 	entryConfigs = make(map[string]*EntryConfig)
 
-	// Load signin configurations from openapi/user/signin directory
-	err := loadSigninConfigs(appConfig.Root)
-	if err != nil {
-		return fmt.Errorf("failed to load signin configs: %v", err)
-	}
-
 	// Load entry configurations from openapi/user/entry directory
-	err = loadEntryConfigs(appConfig.Root)
+	err := loadEntryConfigs(appConfig.Root)
 	if err != nil {
 		return fmt.Errorf("failed to load entry configs: %v", err)
 	}
@@ -254,75 +239,6 @@ func loadProviders(_ string) error {
 	return nil
 }
 
-// loadSigninConfigs loads all signin configurations from the openapi/user/signin directory
-func loadSigninConfigs(_ string) error {
-	// Use Walk to find all configuration files in the signin directory
-	err := application.App.Walk("openapi/user/signin", func(root, filename string, isdir bool) error {
-		if isdir {
-			return nil
-		}
-
-		// Only process .yao files
-		if !strings.HasSuffix(filename, ".yao") {
-			return nil
-		}
-
-		// Extract locale from filename (basename without extension)
-		baseName := filepath.Base(filename)
-		locale := strings.ToLower(strings.TrimSuffix(baseName, ".yao"))
-
-		// Read configuration
-		configRaw, err := application.App.Read(filename)
-		if err != nil {
-			return fmt.Errorf("failed to read signin config %s: %v", filename, err)
-		}
-
-		// Parse the configuration
-		var config Config
-		err = application.Parse(filename, configRaw, &config)
-		if err != nil {
-			return fmt.Errorf("failed to parse signin config %s: %v", filename, err)
-		}
-
-		// Process ENV variables in the configuration
-		processConfigENVVariables(&config)
-
-		// Store full configuration
-		fullConfigs[locale] = &config
-
-		// Create public configuration (without sensitive data)
-		publicConfig := config
-		publicConfig.ClientSecret = "" // Remove sensitive data
-
-		// Remove captcha secret from public config
-		if publicConfig.Form != nil && publicConfig.Form.Captcha != nil && publicConfig.Form.Captcha.Options != nil {
-			// Create a copy of captcha options without the secret
-			captchaOptions := make(map[string]interface{})
-			for k, v := range publicConfig.Form.Captcha.Options {
-				if k != "secret" {
-					captchaOptions[k] = v
-				}
-			}
-			publicConfig.Form.Captcha.Options = captchaOptions
-		}
-
-		publicConfigs[locale] = &publicConfig
-
-		// Set as default if marked
-		if config.Default {
-			defaultConfig = &config
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk signin directory: %v", err)
-	}
-
-	return nil
-}
-
 // loadTeamConfigs loads all team configurations from the openapi/user/team directory
 func loadTeamConfigs(_ string) error {
 	// Use Walk to find all configuration files in the team directory
@@ -361,41 +277,6 @@ func loadTeamConfigs(_ string) error {
 
 	if err != nil {
 		return fmt.Errorf("failed to walk team directory: %v", err)
-	}
-
-	return nil
-}
-
-// GetPublicConfig returns the public configuration for a given locale
-func GetPublicConfig(locale string) *Config {
-	configMutex.RLock()
-	defer configMutex.RUnlock()
-
-	// Normalize language code to lowercase
-	if locale != "" {
-		locale = strings.ToLower(locale)
-	}
-
-	// Try to get the specific locale configuration
-	if config, exists := publicConfigs[locale]; exists {
-		return config
-	}
-
-	// Fallback to default config's public version
-	if defaultConfig != nil {
-		// Find the public version of the default config
-		for lang, fullConfig := range fullConfigs {
-			if fullConfig == defaultConfig {
-				if publicConfig, exists := publicConfigs[lang]; exists {
-					return publicConfig
-				}
-			}
-		}
-	}
-
-	// If no default, try to get any available configuration
-	for _, config := range publicConfigs {
-		return config
 	}
 
 	return nil
@@ -568,37 +449,6 @@ func processFormConfigENVVariables(form *FormConfig) []string {
 	}
 
 	return missingEnvVars
-}
-
-// processConfigENVVariables processes environment variables in the signin configuration
-func processConfigENVVariables(config *Config) {
-	var missingEnvVars []string
-
-	// Process client_id and client_secret
-	if strings.HasPrefix(config.ClientID, "$ENV.") {
-		envVar := strings.TrimPrefix(config.ClientID, "$ENV.")
-		if _, exists := os.LookupEnv(envVar); !exists {
-			missingEnvVars = append(missingEnvVars, envVar)
-		}
-	}
-	config.ClientID = replaceENVVar(config.ClientID)
-
-	if strings.HasPrefix(config.ClientSecret, "$ENV.") {
-		envVar := strings.TrimPrefix(config.ClientSecret, "$ENV.")
-		if _, exists := os.LookupEnv(envVar); !exists {
-			missingEnvVars = append(missingEnvVars, envVar)
-		}
-	}
-	config.ClientSecret = replaceENVVar(config.ClientSecret)
-
-	// Process form configuration
-	formMissingVars := processFormConfigENVVariables(config.Form)
-	missingEnvVars = append(missingEnvVars, formMissingVars...)
-
-	// Log warning for missing environment variables
-	if len(missingEnvVars) > 0 {
-		fmt.Printf("Warning: The following environment variables are not set in signin configuration: %v\n", missingEnvVars)
-	}
 }
 
 // loadEntryConfigs loads all entry configurations from the openapi/user/entry directory

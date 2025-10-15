@@ -27,12 +27,10 @@ func init() {
 // Attach attaches the signin handlers to the router
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
-	// User Authentication (migrated from /signin)
-	group.GET("/login", getLoginConfig)             // Get login page config (public) - migrated from /signin
-	group.POST("/login", login)                     // User login (public) - migrated from /signin
-	group.GET("/login/captcha", getCaptcha)         // Get captcha for login (public)
+	// User Authentication
 	group.GET("/entry", getEntryConfig)             // Get unified auth entry config (public)
 	group.POST("/entry", entry)                     // Unified auth entry (login/register) (public)
+	group.GET("/entry/captcha", getCaptcha)         // Get captcha for login/register (public)
 	group.POST("/logout", oauth.Guard, placeholder) // User logout
 
 	// Logined User Settings

@@ -28,7 +28,7 @@ func TestUserLogin(t *testing.T) {
 
 	// Note: user.Load is automatically called by openapi.Load in testutils.Prepare
 
-	// Test login endpoint (currently empty implementation)
+	// Test entry endpoint (unified login/register, currently empty implementation)
 	testCases := []struct {
 		name       string
 		method     string
@@ -37,16 +37,16 @@ func TestUserLogin(t *testing.T) {
 		expectCode int
 	}{
 		{
-			"post login without credentials",
+			"post entry without credentials",
 			"POST",
-			"/user/login",
+			"/user/entry",
 			map[string]interface{}{},
 			200, // Currently empty implementation, may change when implemented
 		},
 		{
-			"post login with credentials",
+			"post entry with credentials",
 			"POST",
-			"/user/login",
+			"/user/entry",
 			map[string]interface{}{
 				"username": "testuser",
 				"password": "testpass",
@@ -54,9 +54,9 @@ func TestUserLogin(t *testing.T) {
 			200, // Currently empty implementation, may change when implemented
 		},
 		{
-			"post login with email",
+			"post entry with email",
 			"POST",
-			"/user/login",
+			"/user/entry",
 			map[string]interface{}{
 				"email":    "test@example.com",
 				"password": "testpass",
@@ -149,7 +149,7 @@ func TestUserLoginValidation(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			requestURL := serverURL + baseURL + "/user/login"
+			requestURL := serverURL + baseURL + "/user/entry"
 
 			var req *http.Request
 			var err error

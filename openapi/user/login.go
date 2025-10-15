@@ -15,45 +15,9 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
-	"github.com/yaoapp/yao/openapi/utils"
 )
 
-// getLoginConfig is the handler for get login configuration (mapped from /signin)
-func getLoginConfig(c *gin.Context) {
-	// Get locale from query parameter (optional)
-	locale := c.Query("locale")
-
-	// Get public configuration for the specified locale
-	config := GetPublicConfig(locale)
-
-	// Set session id if not exists
-	sid := utils.GetSessionID(c)
-	if sid == "" {
-		sid = generateSessionID()
-		response.SendSessionCookie(c, sid)
-	}
-
-	// If no configuration found, return error
-	if config == nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "No signin configuration found for the requested locale",
-		}
-		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return
-	}
-
-	// Return the public configuration
-	response.RespondWithSuccess(c, response.StatusOK, config)
-}
-
-// login is the handler for login (password login, mapped from /signin)
-func login(c *gin.Context) {
-	// This is a placeholder - the original signin function was empty
-	// You may need to implement the actual login logic here
-}
-
-// getCaptcha is the handler for get captcha image for login
+// getCaptcha is the handler for get captcha image for entry (login/register)
 func getCaptcha(c *gin.Context) {
 	var option helper.CaptchaOption = helper.NewCaptchaOption()
 
