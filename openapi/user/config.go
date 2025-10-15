@@ -33,8 +33,8 @@ var (
 	defaultConfig *Config
 	// Team configurations by locale
 	teamConfigs = make(map[string]*TeamConfig)
-	// Register configurations by locale
-	registerConfigs = make(map[string]*RegisterConfig)
+	// Entry configurations by locale (unified login + register)
+	entryConfigs = make(map[string]*EntryConfig)
 	// Mutex for thread safety
 	configMutex sync.RWMutex
 )
@@ -50,7 +50,7 @@ func Load(appConfig config.Config) error {
 	providers = make(map[string]*Provider)
 	defaultConfig = nil
 	teamConfigs = make(map[string]*TeamConfig)
-	registerConfigs = make(map[string]*RegisterConfig)
+	entryConfigs = make(map[string]*EntryConfig)
 
 	// Load signin configurations from openapi/user/signin directory
 	err := loadSigninConfigs(appConfig.Root)
@@ -58,10 +58,10 @@ func Load(appConfig config.Config) error {
 		return fmt.Errorf("failed to load signin configs: %v", err)
 	}
 
-	// Load register configurations from openapi/user/register directory
-	err = loadRegisterConfigs(appConfig.Root)
+	// Load entry configurations from openapi/user/entry directory
+	err = loadEntryConfigs(appConfig.Root)
 	if err != nil {
-		return fmt.Errorf("failed to load register configs: %v", err)
+		return fmt.Errorf("failed to load entry configs: %v", err)
 	}
 
 	// Load team configurations from openapi/user/team directory
@@ -366,57 +366,6 @@ func loadTeamConfigs(_ string) error {
 	return nil
 }
 
-// loadRegisterConfigs loads all register configurations from the openapi/user/register directory
-func loadRegisterConfigs(_ string) error {
-	// Use Walk to find all configuration files in the register directory
-	err := application.App.Walk("openapi/user/register", func(root, filename string, isdir bool) error {
-		if isdir {
-			return nil
-		}
-
-		// Only process .yao files
-		if !strings.HasSuffix(filename, ".yao") {
-			return nil
-		}
-
-		// Extract locale from filename (basename without extension)
-		baseName := filepath.Base(filename)
-		locale := strings.ToLower(strings.TrimSuffix(baseName, ".yao"))
-
-		// Read configuration
-		configRaw, err := application.App.Read(filename)
-		if err != nil {
-			return fmt.Errorf("failed to read register config %s: %v", filename, err)
-		}
-
-		// Parse the configuration
-		var config RegisterConfig
-		err = application.Parse(filename, configRaw, &config)
-		if err != nil {
-			return fmt.Errorf("failed to parse register config %s: %v", filename, err)
-		}
-
-		// Process ENV variables in the configuration
-		processRegisterConfigENVVariables(&config)
-
-		// Copy third_party from signin config if available
-		if signinConfig, exists := fullConfigs[locale]; exists && signinConfig.ThirdParty != nil {
-			config.ThirdParty = signinConfig.ThirdParty
-		}
-
-		// Store register configuration
-		registerConfigs[locale] = &config
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk register directory: %v", err)
-	}
-
-	return nil
-}
-
 // GetPublicConfig returns the public configuration for a given locale
 func GetPublicConfig(locale string) *Config {
 	configMutex.RLock()
@@ -494,34 +443,6 @@ func GetTeamConfig(locale string) *TeamConfig {
 
 	// If "en" is not available, try to get any available configuration
 	for _, config := range teamConfigs {
-		return config
-	}
-
-	return nil
-}
-
-// GetRegisterConfig returns the register configuration for a given locale
-func GetRegisterConfig(locale string) *RegisterConfig {
-	configMutex.RLock()
-	defer configMutex.RUnlock()
-
-	// Normalize language code to lowercase
-	if locale != "" {
-		locale = strings.TrimSpace(strings.ToLower(locale))
-	}
-
-	// Try to get the specific locale configuration
-	if config, exists := registerConfigs[locale]; exists {
-		return config
-	}
-
-	// If no specific locale, try to get "en" as default
-	if config, exists := registerConfigs["en"]; exists {
-		return config
-	}
-
-	// If "en" is not available, try to get any available configuration
-	for _, config := range registerConfigs {
 		return config
 	}
 
@@ -680,13 +601,108 @@ func processConfigENVVariables(config *Config) {
 	}
 }
 
-// processRegisterConfigENVVariables processes environment variables in the register configuration
-func processRegisterConfigENVVariables(config *RegisterConfig) {
+// loadEntryConfigs loads all entry configurations from the openapi/user/entry directory
+// Entry config merges signin and register configurations
+func loadEntryConfigs(_ string) error {
+	// Use Walk to find all configuration files in the entry directory
+	err := application.App.Walk("openapi/user/entry", func(root, filename string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		// Only process .yao files
+		if !strings.HasSuffix(filename, ".yao") {
+			return nil
+		}
+
+		// Extract locale from filename (basename without extension)
+		baseName := filepath.Base(filename)
+		locale := strings.ToLower(strings.TrimSuffix(baseName, ".yao"))
+
+		// Read configuration
+		configRaw, err := application.App.Read(filename)
+		if err != nil {
+			return fmt.Errorf("failed to read entry config %s: %v", filename, err)
+		}
+
+		// Parse the configuration
+		var config EntryConfig
+		err = application.Parse(filename, configRaw, &config)
+		if err != nil {
+			return fmt.Errorf("failed to parse entry config %s: %v", filename, err)
+		}
+
+		// Process ENV variables in the configuration
+		processEntryConfigENVVariables(&config)
+
+		// Store entry configuration
+		entryConfigs[locale] = &config
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk entry directory: %v", err)
+	}
+
+	return nil
+}
+
+// processEntryConfigENVVariables processes environment variables in the entry configuration
+func processEntryConfigENVVariables(config *EntryConfig) {
+	var missingEnvVars []string
+
+	// Process client_id and client_secret (from signin config)
+	if strings.HasPrefix(config.ClientID, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ClientID, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ClientID = replaceENVVar(config.ClientID)
+
+	if strings.HasPrefix(config.ClientSecret, "$ENV.") {
+		envVar := strings.TrimPrefix(config.ClientSecret, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.ClientSecret = replaceENVVar(config.ClientSecret)
+
 	// Process form configuration
-	missingEnvVars := processFormConfigENVVariables(config.Form)
+	formMissingVars := processFormConfigENVVariables(config.Form)
+	missingEnvVars = append(missingEnvVars, formMissingVars...)
 
 	// Log warning for missing environment variables
 	if len(missingEnvVars) > 0 {
-		fmt.Printf("Warning: The following environment variables are not set in register configuration: %v\n", missingEnvVars)
+		fmt.Printf("Warning: The following environment variables are not set in entry configuration: %v\n", missingEnvVars)
 	}
+}
+
+// GetEntryConfig returns the entry configuration for a given locale
+func GetEntryConfig(locale string) *EntryConfig {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	// Normalize language code to lowercase
+	if locale != "" {
+		locale = strings.TrimSpace(strings.ToLower(locale))
+	}
+
+	// Try to get the specific locale configuration
+	if config, exists := entryConfigs[locale]; exists {
+		return config
+	}
+
+	// If no specific locale, try to get "en" as default
+	if config, exists := entryConfigs["en"]; exists {
+		return config
+	}
+
+	// If "en" is not available, try to get any available configuration
+	for _, config := range entryConfigs {
+		return config
+	}
+
+	return nil
 }
