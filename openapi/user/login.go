@@ -10,16 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/utils/captcha"
 )
 
 // getCaptcha is the handler for get captcha image for entry (login/register)
 func getCaptcha(c *gin.Context) {
-	var option helper.CaptchaOption = helper.NewCaptchaOption()
+	var option captcha.Option = captcha.NewOption()
 
 	err := c.ShouldBindQuery(&option)
 	if err != nil {
@@ -32,7 +32,7 @@ func getCaptcha(c *gin.Context) {
 
 	// Set the type to image
 	option.Type = "image"
-	id, content := helper.CaptchaMake(option)
+	id, content := captcha.Generate(option)
 
 	// Return in the format expected by the frontend
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{
