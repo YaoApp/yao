@@ -170,8 +170,14 @@ func TestUserLoginConfigStructure(t *testing.T) {
 		// Test messenger configuration (for registration)
 		if config.Messenger != nil {
 			t.Logf("Messenger configuration found")
-			assert.IsType(t, "", config.Messenger.Channel, "Messenger channel should be string")
-			assert.IsType(t, map[string]string{}, config.Messenger.Templates, "Messenger templates should be map")
+			if config.Messenger.Mail != nil {
+				assert.IsType(t, "", config.Messenger.Mail.Channel, "Messenger mail channel should be string")
+				assert.IsType(t, "", config.Messenger.Mail.Template, "Messenger mail template should be string")
+			}
+			if config.Messenger.SMS != nil {
+				assert.IsType(t, "", config.Messenger.SMS.Channel, "Messenger SMS channel should be string")
+				assert.IsType(t, "", config.Messenger.SMS.Template, "Messenger SMS template should be string")
+			}
 		}
 	} else {
 		t.Log("No user configuration found")

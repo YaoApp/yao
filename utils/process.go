@@ -2,9 +2,11 @@ package utils
 
 import (
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/utils/captcha"
 	"github.com/yaoapp/yao/utils/datetime"
 	"github.com/yaoapp/yao/utils/fmt"
 	"github.com/yaoapp/yao/utils/json"
+	"github.com/yaoapp/yao/utils/otp"
 	"github.com/yaoapp/yao/utils/str"
 	"github.com/yaoapp/yao/utils/throw"
 	"github.com/yaoapp/yao/utils/tree"
@@ -108,4 +110,19 @@ func Init() {
 
 	// JSON
 	process.Register("utils.json.Validate", json.ProcessValidate)
+
+	// ****************************************
+	// * New Processes Version 0.10.5+
+	// ****************************************
+
+	// Captcha
+	process.Register("utils.captcha.Generate", captcha.ProcessGenerate)
+	process.Register("utils.captcha.Validate", captcha.ProcessValidate)
+	process.Register("utils.captcha.Get", captcha.ProcessGet)
+
+	// OTP
+	process.Register("utils.otp.Generate", otp.ProcessGenerate)
+	process.Register("utils.otp.Validate", otp.ProcessValidate)
+	process.Register("utils.otp.Get", otp.ProcessGet)
+	process.Register("utils.otp.Delete", otp.ProcessDelete)
 }

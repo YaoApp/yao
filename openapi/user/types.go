@@ -21,6 +21,8 @@ const (
 	ScopeMFAVerification = "mfa_verification"
 	// ScopeTeamSelection is the team selection scope for temporary access token
 	ScopeTeamSelection = "team_selection"
+	// ScopeEntryVerification is the entry verification scope for temporary access token (login or register)
+	ScopeEntryVerification = "entry_verification"
 )
 
 // FormConfig represents the form configuration
@@ -93,8 +95,14 @@ type EntryConfig struct {
 
 // MessengerConfig represents the messenger configuration for user registration
 type MessengerConfig struct {
-	Channel   string            `json:"channel,omitempty"`
-	Templates map[string]string `json:"templates,omitempty"` // mail, sms templates
+	Mail *MessengerChannelConfig `json:"mail,omitempty"` // Email verification config
+	SMS  *MessengerChannelConfig `json:"sms,omitempty"`  // SMS verification config
+}
+
+// MessengerChannelConfig represents a single messenger channel configuration
+type MessengerChannelConfig struct {
+	Channel  string `json:"channel,omitempty"`  // Messenger channel name (e.g., "default", "aws_ses")
+	Template string `json:"template,omitempty"` // Template name for this channel
 }
 
 // YaoClientConfig represents the Yao OpenAPI Client config
@@ -223,6 +231,27 @@ type LoginSuccessResponse struct {
 
 // LoginContext is an alias for the oauth types LoginContext
 type LoginContext = oauthtypes.LoginContext
+
+// ==== Entry Verification Types ====
+
+// EntryVerifyRequest represents the request to verify entry (login/register)
+type EntryVerifyRequest struct {
+	Username  string `json:"username" binding:"required"` // Email or mobile
+	CaptchaID string `json:"captcha_id,omitempty"`        // Captcha ID (for image captcha)
+	Captcha   string `json:"captcha,omitempty"`           // Captcha answer or token
+	Locale    string `json:"locale,omitempty"`            // Locale for localized responses
+}
+
+// EntryVerifyResponse represents the response for entry verification
+type EntryVerifyResponse struct {
+	Status           string `json:"status"`                      // "login" or "register"
+	AccessToken      string `json:"access_token"`                // Temporary token for next step
+	ExpiresIn        int    `json:"expires_in"`                  // Token expiration in seconds
+	TokenType        string `json:"token_type"`                  // Token type (Bearer)
+	Scope            string `json:"scope"`                       // Token scope
+	UserExists       bool   `json:"user_exists"`                 // Whether user exists
+	VerificationSent bool   `json:"verification_sent,omitempty"` // Whether verification code was sent (for register)
+}
 
 // Built-in preset mapping types
 const (
