@@ -22,19 +22,19 @@ func TestGetTeamConfigFunction(t *testing.T) {
 	assert.Nil(t, teamConfig, "Should return nil when no config is loaded")
 }
 
-// TestGetPublicConfigFunction tests the GetPublicConfig function
-func TestGetPublicConfigFunction(t *testing.T) {
+// TestGetEntryConfigFunction tests the GetEntryConfig function
+func TestGetEntryConfigFunction(t *testing.T) {
 	// Test with empty locale
-	publicConfig := user.GetPublicConfig("")
-	assert.Nil(t, publicConfig, "Should return nil when no config is loaded")
+	entryConfig := user.GetEntryConfig("")
+	assert.Nil(t, entryConfig, "Should return nil when no config is loaded")
 
 	// Test with specific locale
-	publicConfig = user.GetPublicConfig("en")
-	assert.Nil(t, publicConfig, "Should return nil when no config is loaded")
+	entryConfig = user.GetEntryConfig("en")
+	assert.Nil(t, entryConfig, "Should return nil when no config is loaded")
 
 	// Test with invalid locale
-	publicConfig = user.GetPublicConfig("invalid")
-	assert.Nil(t, publicConfig, "Should return nil when no config is loaded")
+	entryConfig = user.GetEntryConfig("invalid")
+	assert.Nil(t, entryConfig, "Should return nil when no config is loaded")
 }
 
 // TestGetYaoClientConfigFunction tests the GetYaoClientConfig function
