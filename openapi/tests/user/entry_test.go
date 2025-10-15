@@ -516,3 +516,144 @@ func createUserWithMobile(t *testing.T, userID, mobile string) {
 
 	t.Logf("Created user with mobile: user_id=%s, mobile=%s", createdUserID, mobile)
 }
+
+// TestEntryConfigDeepCopy tests that getting public entry config doesn't modify global config
+// This test verifies the fix for the bug where captcha secret was deleted from global config
+// when returning public config to the frontend.
+func TestEntryConfigDeepCopy(t *testing.T) {
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+	testEmail := fmt.Sprintf("test_%s@example.com", testUUID)
+
+	t.Run("GetEntryConfig_Multiple_Times_Should_Not_Corrupt_Global_Config", func(t *testing.T) {
+		// Step 1: Get entry config (first time)
+		resp1, err := http.Get(serverURL + baseURL + "/user/entry")
+		assert.NoError(t, err, "First GET /user/entry should succeed")
+		defer resp1.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp1.StatusCode, "First request should return 200 OK")
+
+		// Parse response to verify secret is not exposed
+		var config1 map[string]interface{}
+		err = json.NewDecoder(resp1.Body).Decode(&config1)
+		assert.NoError(t, err, "Should decode first config response")
+
+		// Verify captcha secret is not exposed in public config
+		if form, ok := config1["form"].(map[string]interface{}); ok {
+			if captcha, ok := form["captcha"].(map[string]interface{}); ok {
+				if options, ok := captcha["options"].(map[string]interface{}); ok {
+					_, hasSecret := options["secret"]
+					assert.False(t, hasSecret, "Public config should NOT expose captcha secret")
+					t.Logf("✓ First request: captcha secret properly hidden from public config")
+				}
+			}
+		}
+
+		// Step 2: Get entry config (second time) - this should still work
+		resp2, err := http.Get(serverURL + baseURL + "/user/entry")
+		assert.NoError(t, err, "Second GET /user/entry should succeed")
+		defer resp2.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp2.StatusCode, "Second request should return 200 OK")
+
+		// Parse second response
+		var config2 map[string]interface{}
+		err = json.NewDecoder(resp2.Body).Decode(&config2)
+		assert.NoError(t, err, "Should decode second config response")
+		t.Logf("✓ Second request: config retrieved successfully")
+
+		// Step 3: Get captcha for entry verification
+		captchaID, captchaAnswer := getCaptcha(t, serverURL, baseURL, "turnstile")
+		t.Logf("✓ Got captcha: ID=%s", captchaID)
+
+		// Step 4: Call entry verify endpoint - this should NOT fail with "Turnstile secret not configured"
+		// This is the critical test: if global config was corrupted, this will fail
+		verifyData := map[string]interface{}{
+			"username": testEmail,
+			"captcha":  captchaAnswer,
+		}
+
+		verifyJSON, err := json.Marshal(verifyData)
+		assert.NoError(t, err, "Should marshal verify request")
+
+		verifyResp, err := http.Post(
+			serverURL+baseURL+"/user/entry/verify",
+			"application/json",
+			bytes.NewReader(verifyJSON),
+		)
+		assert.NoError(t, err, "POST /user/entry/verify should succeed")
+		defer verifyResp.Body.Close()
+
+		// Read response body for debugging
+		verifyBody, err := io.ReadAll(verifyResp.Body)
+		assert.NoError(t, err, "Should read verify response body")
+
+		// Parse response
+		var verifyResult map[string]interface{}
+		err = json.Unmarshal(verifyBody, &verifyResult)
+		assert.NoError(t, err, "Should decode verify response")
+
+		// The key assertion: verify should NOT fail with "Turnstile secret not configured"
+		if verifyResp.StatusCode != http.StatusOK {
+			// Check if it's the bug we're testing for
+			if errorDesc, ok := verifyResult["error_description"].(string); ok {
+				assert.NotContains(t, errorDesc, "Turnstile secret not configured",
+					"CRITICAL BUG: Global config was corrupted! Captcha secret was deleted from global config when returning public config")
+				t.Logf("Error (expected for new user): %s", errorDesc)
+			}
+		} else {
+			t.Logf("✓ Entry verify succeeded: %v", verifyResult)
+		}
+
+		// Additional verification: Get config third time and verify again
+		resp3, err := http.Get(serverURL + baseURL + "/user/entry")
+		assert.NoError(t, err, "Third GET /user/entry should succeed")
+		defer resp3.Body.Close()
+		assert.Equal(t, http.StatusOK, resp3.StatusCode, "Third request should return 200 OK")
+		t.Logf("✓ Third request: config still works after verify")
+
+		// Final verify to ensure global config is still intact
+		verifyData2 := map[string]interface{}{
+			"username": testEmail,
+			"captcha":  captchaAnswer,
+		}
+
+		verifyJSON2, err := json.Marshal(verifyData2)
+		assert.NoError(t, err, "Should marshal second verify request")
+
+		verifyResp2, err := http.Post(
+			serverURL+baseURL+"/user/entry/verify",
+			"application/json",
+			bytes.NewReader(verifyJSON2),
+		)
+		assert.NoError(t, err, "Second POST /user/entry/verify should succeed")
+		defer verifyResp2.Body.Close()
+
+		verifyBody2, err := io.ReadAll(verifyResp2.Body)
+		assert.NoError(t, err, "Should read second verify response body")
+
+		var verifyResult2 map[string]interface{}
+		err = json.Unmarshal(verifyBody2, &verifyResult2)
+		assert.NoError(t, err, "Should decode second verify response")
+
+		// Final critical assertion
+		if verifyResp2.StatusCode != http.StatusOK {
+			if errorDesc, ok := verifyResult2["error_description"].(string); ok {
+				assert.NotContains(t, errorDesc, "Turnstile secret not configured",
+					"CRITICAL BUG STILL EXISTS: Global config was corrupted on second verify!")
+			}
+		}
+
+		t.Log("✅ SUCCESS: Deep copy fix is working correctly!")
+		t.Log("✅ Global config is NOT corrupted after multiple public config requests")
+	})
+}
