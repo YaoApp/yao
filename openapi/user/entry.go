@@ -42,21 +42,8 @@ func getEntryConfig(c *gin.Context) {
 		return
 	}
 
-	// Create public config without sensitive data
-	publicConfig := *config
-	publicConfig.ClientSecret = "" // Remove sensitive data
-
-	// Remove captcha secret from public config
-	if publicConfig.Form != nil && publicConfig.Form.Captcha != nil && publicConfig.Form.Captcha.Options != nil {
-		// Create a copy of captcha options without the secret
-		captchaOptions := make(map[string]interface{})
-		for k, v := range publicConfig.Form.Captcha.Options {
-			if k != "secret" {
-				captchaOptions[k] = v
-			}
-		}
-		publicConfig.Form.Captcha.Options = captchaOptions
-	}
+	// Create public config without sensitive data (deep copy to avoid modifying global config)
+	publicConfig := createPublicEntryConfig(config)
 
 	// Return the entry configuration
 	response.RespondWithSuccess(c, response.StatusOK, publicConfig)
@@ -190,13 +177,13 @@ func GinEntryVerify(c *gin.Context) {
 
 	// If user exists: return login status
 	if userExists {
-		verifyResp.Status = "login"
+		verifyResp.Status = EntryVerificationStatusLogin
 		response.RespondWithSuccess(c, response.StatusOK, verifyResp)
 		return
 	}
 
 	// User doesn't exist: send verification code and return register status
-	verifyResp.Status = "register"
+	verifyResp.Status = EntryVerificationStatusRegister
 
 	// Send verification code asynchronously
 	go func() {
@@ -394,10 +381,10 @@ func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernam
 
 	// Prepare template data
 	templateData := messengertypes.TemplateData{
-		"to":                username,
-		"verification_code": verificationCode,
-		"expires_in":        "10", // 10 minutes
-		"locale":            locale,
+		"to":         username,
+		"code":       verificationCode, // Variable name matches template: {{ code }}
+		"expires_in": "10",             // 10 minutes
+		"locale":     locale,
 	}
 
 	// Send verification code
@@ -407,4 +394,143 @@ func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernam
 	}
 
 	return nil
+}
+
+// createPublicEntryConfig creates a deep copy of EntryConfig without sensitive data
+// This prevents modifying the global config when removing secrets
+func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
+	if config == nil {
+		return nil
+	}
+
+	// Create a new config instance
+	publicConfig := &EntryConfig{
+		Title:          config.Title,
+		Description:    config.Description,
+		Default:        config.Default,
+		SuccessURL:     config.SuccessURL,
+		FailureURL:     config.FailureURL,
+		LogoutRedirect: config.LogoutRedirect,
+		ClientID:       config.ClientID,
+		ClientSecret:   "", // Remove sensitive data
+		AutoLogin:      config.AutoLogin,
+		Role:           config.Role,
+		Type:           config.Type,
+		InviteRequired: config.InviteRequired,
+	}
+
+	// Deep copy Form config
+	if config.Form != nil {
+		publicConfig.Form = &FormConfig{
+			ForgotPasswordLink: config.Form.ForgotPasswordLink,
+			RememberMe:         config.Form.RememberMe,
+			RegisterLink:       config.Form.RegisterLink,
+			LoginLink:          config.Form.LoginLink,
+			TermsOfServiceLink: config.Form.TermsOfServiceLink,
+			PrivacyPolicyLink:  config.Form.PrivacyPolicyLink,
+		}
+
+		// Deep copy Username config
+		if config.Form.Username != nil {
+			publicConfig.Form.Username = &UsernameConfig{
+				Placeholder: config.Form.Username.Placeholder,
+			}
+			if config.Form.Username.Fields != nil {
+				publicConfig.Form.Username.Fields = make([]string, len(config.Form.Username.Fields))
+				copy(publicConfig.Form.Username.Fields, config.Form.Username.Fields)
+			}
+		}
+
+		// Deep copy Password config
+		if config.Form.Password != nil {
+			publicConfig.Form.Password = &PasswordConfig{
+				Placeholder: config.Form.Password.Placeholder,
+			}
+		}
+
+		// Deep copy ConfirmPassword config
+		if config.Form.ConfirmPassword != nil {
+			publicConfig.Form.ConfirmPassword = &PasswordConfig{
+				Placeholder: config.Form.ConfirmPassword.Placeholder,
+			}
+		}
+
+		// Deep copy Captcha config (WITHOUT secret)
+		if config.Form.Captcha != nil {
+			publicConfig.Form.Captcha = &CaptchaConfig{
+				Type: config.Form.Captcha.Type,
+			}
+
+			// Deep copy Options, excluding "secret"
+			if config.Form.Captcha.Options != nil {
+				publicConfig.Form.Captcha.Options = make(map[string]interface{})
+				for k, v := range config.Form.Captcha.Options {
+					if k != "secret" {
+						publicConfig.Form.Captcha.Options[k] = v
+					}
+				}
+			}
+		}
+	}
+
+	// Deep copy Token config
+	if config.Token != nil {
+		publicConfig.Token = &TokenConfig{
+			ExpiresIn:           config.Token.ExpiresIn,
+			RememberMeExpiresIn: config.Token.RememberMeExpiresIn,
+		}
+	}
+
+	// Deep copy Messenger config (without sensitive data)
+	if config.Messenger != nil {
+		publicConfig.Messenger = &MessengerConfig{}
+
+		if config.Messenger.Mail != nil {
+			publicConfig.Messenger.Mail = &MessengerChannelConfig{
+				Channel:  config.Messenger.Mail.Channel,
+				Template: config.Messenger.Mail.Template,
+			}
+		}
+
+		if config.Messenger.SMS != nil {
+			publicConfig.Messenger.SMS = &MessengerChannelConfig{
+				Channel:  config.Messenger.SMS.Channel,
+				Template: config.Messenger.SMS.Template,
+			}
+		}
+	}
+
+	// Deep copy ThirdParty config
+	if config.ThirdParty != nil {
+		publicConfig.ThirdParty = &ThirdParty{}
+
+		if config.ThirdParty.Providers != nil {
+			publicConfig.ThirdParty.Providers = make([]*Provider, len(config.ThirdParty.Providers))
+			for i, provider := range config.ThirdParty.Providers {
+				if provider != nil {
+					// Create a copy of provider without sensitive data
+					publicConfig.ThirdParty.Providers[i] = &Provider{
+						ID:           provider.ID,
+						Label:        provider.Label,
+						Title:        provider.Title,
+						Logo:         provider.Logo,
+						Color:        provider.Color,
+						TextColor:    provider.TextColor,
+						ClientID:     provider.ClientID,
+						ResponseMode: provider.ResponseMode,
+						// ClientSecret is intentionally omitted for security
+						// ClientSecretGenerator is intentionally omitted for security
+					}
+
+					// Copy scopes if present
+					if provider.Scopes != nil {
+						publicConfig.ThirdParty.Providers[i].Scopes = make([]string, len(provider.Scopes))
+						copy(publicConfig.ThirdParty.Providers[i].Scopes, provider.Scopes)
+					}
+				}
+			}
+		}
+	}
+
+	return publicConfig
 }

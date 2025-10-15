@@ -7,6 +7,9 @@ import (
 // LoginStatus represents the login status
 type LoginStatus string
 
+// EntryVerificationStatus represents the entry verification status
+type EntryVerificationStatus string
+
 const (
 	// LoginStatusSuccess is the success status
 	LoginStatusSuccess LoginStatus = "ok"
@@ -14,6 +17,13 @@ const (
 	LoginStatusMFA LoginStatus = "mfa_required"
 	// LoginStatusTeamSelection is the team selection status
 	LoginStatusTeamSelection LoginStatus = "team_selection_required"
+)
+
+const (
+	// EntryVerificationStatusLogin is the login status
+	EntryVerificationStatusLogin EntryVerificationStatus = "login"
+	// EntryVerificationStatusRegister is the register status
+	EntryVerificationStatusRegister EntryVerificationStatus = "register"
 )
 
 const (
@@ -244,13 +254,13 @@ type EntryVerifyRequest struct {
 
 // EntryVerifyResponse represents the response for entry verification
 type EntryVerifyResponse struct {
-	Status           string `json:"status"`                      // "login" or "register"
-	AccessToken      string `json:"access_token"`                // Temporary token for next step
-	ExpiresIn        int    `json:"expires_in"`                  // Token expiration in seconds
-	TokenType        string `json:"token_type"`                  // Token type (Bearer)
-	Scope            string `json:"scope"`                       // Token scope
-	UserExists       bool   `json:"user_exists"`                 // Whether user exists
-	VerificationSent bool   `json:"verification_sent,omitempty"` // Whether verification code was sent (for register)
+	Status           EntryVerificationStatus `json:"status"`                      // "login" or "register"
+	AccessToken      string                  `json:"access_token"`                // Temporary token for next step
+	ExpiresIn        int                     `json:"expires_in"`                  // Token expiration in seconds
+	TokenType        string                  `json:"token_type"`                  // Token type (Bearer)
+	Scope            string                  `json:"scope"`                       // Token scope
+	UserExists       bool                    `json:"user_exists"`                 // Whether user exists
+	VerificationSent bool                    `json:"verification_sent,omitempty"` // Whether verification code was sent (for register)
 }
 
 // Built-in preset mapping types
