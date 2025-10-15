@@ -119,4 +119,3 @@ func generateRandomString(length int, charset string) string {
 
 	return string(result)
 }
-
