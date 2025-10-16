@@ -153,6 +153,11 @@ func (s *Service) getRefreshToken(c *gin.Context) string {
 	return strings.TrimPrefix(token, "Bearer ")
 }
 
+// GetRefreshToken gets the refresh token from the request (public method)
+func (s *Service) GetRefreshToken(c *gin.Context) string {
+	return s.getRefreshToken(c)
+}
+
 // Get Session ID from cookies, headers, or query string
 func (s *Service) getSessionID(c *gin.Context) string {
 

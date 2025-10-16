@@ -438,6 +438,40 @@ func generateSessionID() string {
 	return session.ID()
 }
 
+// GinLogout handles user logout
+func GinLogout(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	// Get access token and refresh token from cookies or headers
+	// These methods already handle Bearer prefix removal and cookie prefixes
+	accessToken := oauth.OAuth.GetAccessToken(c)
+	refreshToken := oauth.OAuth.GetRefreshToken(c)
+
+	// Revoke access token if present
+	if accessToken != "" {
+		err := oauth.OAuth.Revoke(ctx, accessToken, "access_token")
+		if err != nil {
+			log.Warn("Failed to revoke access token during logout: %v", err)
+		}
+	}
+
+	// Revoke refresh token if present
+	if refreshToken != "" {
+		err := oauth.OAuth.Revoke(ctx, refreshToken, "refresh_token")
+		if err != nil {
+			log.Warn("Failed to revoke refresh token during logout: %v", err)
+		}
+	}
+
+	// Clear all authentication cookies
+	response.DeleteAllAuthCookies(c)
+
+	// Return success response
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{
+		"message": "Logout successful",
+	})
+}
+
 // SendLoginCookies sends all necessary cookies for a successful login
 // This includes access token, refresh token, and optionally session ID cookies with appropriate security settings
 func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID string) {
