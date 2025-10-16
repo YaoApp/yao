@@ -17,6 +17,10 @@ const (
 	LoginStatusMFA LoginStatus = "mfa_required"
 	// LoginStatusTeamSelection is the team selection status
 	LoginStatusTeamSelection LoginStatus = "team_selection_required"
+	// LoginStatusInviteRequired is the invite required status (for registration response)
+	LoginStatusInviteRequired LoginStatus = "invite_required"
+	// LoginStatusInviteVerification is the invite verification status (for login response)
+	LoginStatusInviteVerification LoginStatus = "invite_verification_required"
 )
 
 const (
@@ -24,6 +28,8 @@ const (
 	EntryVerificationStatusLogin EntryVerificationStatus = "login"
 	// EntryVerificationStatusRegister is the register status
 	EntryVerificationStatusRegister EntryVerificationStatus = "register"
+	// EntryVerificationStatusInviteRequired is the invite required status (user registered but needs invite code)
+	EntryVerificationStatusInviteRequired EntryVerificationStatus = "invite_required"
 )
 
 const (
@@ -31,6 +37,8 @@ const (
 	ScopeMFAVerification = "mfa_verification"
 	// ScopeTeamSelection is the team selection scope for temporary access token
 	ScopeTeamSelection = "team_selection"
+	// ScopeInviteVerification is the invite verification scope for temporary access token
+	ScopeInviteVerification = "invite_verification"
 	// ScopeEntryVerification is the entry verification scope for temporary access token (login or register)
 	ScopeEntryVerification = "entry_verification"
 )
@@ -229,6 +237,8 @@ type LoginResponse struct {
 
 // LoginSuccessResponse represents the response for login success
 type LoginSuccessResponse struct {
+	UserID                string      `json:"user_id,omitempty"` // User ID (optional, for registration)
+	Message               string      `json:"message,omitempty"` // Success message (optional, for registration)
 	IDToken               string      `json:"id_token,omitempty"`
 	AccessToken           string      `json:"access_token,omitempty"`
 	SessionID             string      `json:"session_id,omitempty"`
@@ -254,13 +264,30 @@ type EntryVerifyRequest struct {
 
 // EntryVerifyResponse represents the response for entry verification
 type EntryVerifyResponse struct {
-	Status           EntryVerificationStatus `json:"status"`                      // "login" or "register"
+	Status           EntryVerificationStatus `json:"status"`                      // "login" or "register" or "invite_required"
 	AccessToken      string                  `json:"access_token"`                // Temporary token for next step
 	ExpiresIn        int                     `json:"expires_in"`                  // Token expiration in seconds
 	TokenType        string                  `json:"token_type"`                  // Token type (Bearer)
 	Scope            string                  `json:"scope"`                       // Token scope
 	UserExists       bool                    `json:"user_exists"`                 // Whether user exists
 	VerificationSent bool                    `json:"verification_sent,omitempty"` // Whether verification code was sent (for register)
+	OtpID            string                  `json:"otp_id,omitempty"`            // OTP ID for verification code (for register)
+}
+
+// EntryRegisterRequest represents the request to register a new user
+type EntryRegisterRequest struct {
+	Name             string `json:"name,omitempty"` // User's display name (optional)
+	Password         string `json:"password" binding:"required"`
+	ConfirmPassword  string `json:"confirm_password,omitempty"`
+	OtpID            string `json:"otp_id,omitempty"`            // OTP ID from entry verify response
+	VerificationCode string `json:"verification_code,omitempty"` // Verification code from email/SMS
+	Locale           string `json:"locale,omitempty"`
+}
+
+// EntryLoginRequest represents the request to login with username and password
+type EntryLoginRequest struct {
+	Password string `json:"password" binding:"required"`
+	Locale   string `json:"locale,omitempty"`
 }
 
 // Built-in preset mapping types

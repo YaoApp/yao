@@ -142,6 +142,45 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		log.Warn("Failed to store user fingerprint: %s", err.Error())
 	}
 
+	// Check user status first - handle all non-active statuses
+	status, _ := user["status"].(string)
+	switch status {
+	case "pending":
+		return nil, fmt.Errorf("account is pending activation. Please contact administrator")
+	case "email_unverified":
+		return nil, fmt.Errorf("email is not verified. Please verify your email address")
+	case "disabled":
+		return nil, fmt.Errorf("account is disabled. Please contact administrator")
+	case "suspended":
+		return nil, fmt.Errorf("account is suspended. Please contact administrator")
+	case "locked":
+		return nil, fmt.Errorf("account is locked. Please contact administrator")
+	case "archived":
+		return nil, fmt.Errorf("account is archived. Please contact administrator")
+	case "password_expired":
+		return nil, fmt.Errorf("password has expired. Please reset your password")
+	case "pending_invite":
+		// User needs to verify invitation code, generate temporary token
+		var inviteExpire int = 10 * 60 // 10 minutes
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeInviteVerification, subject, inviteExpire)
+		if err != nil {
+			return nil, err
+		}
+
+		return &LoginResponse{
+			UserID:      userid,
+			AccessToken: accessToken,
+			ExpiresIn:   inviteExpire,
+			TokenType:   "Bearer",
+			Scope:       ScopeInviteVerification,
+			Status:      LoginStatusInviteVerification,
+		}, nil
+	case "active":
+		// Continue with normal login flow
+	default:
+		return nil, fmt.Errorf("account status is invalid: %s", status)
+	}
+
 	// Get MFA enabled status from user data
 	mfaEnabled := toBool(user["mfa_enabled"])
 

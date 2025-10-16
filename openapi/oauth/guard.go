@@ -96,6 +96,13 @@ func (s *Service) setAuthorizedInfo(c *gin.Context, claims *types.TokenClaims) {
 	if claims.TenantID != "" {
 		c.Set("__tenant_id", claims.TenantID)
 	}
+
+	// Set custom claims from Extra field into context
+	if claims.Extra != nil {
+		for key, value := range claims.Extra {
+			c.Set("__"+key, value)
+		}
+	}
 }
 
 func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {

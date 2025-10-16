@@ -227,6 +227,7 @@
       "comment": "User account status",
       "option": [
         "pending", // New user awaiting email verification or admin approval
+        "pending_invite", // New user awaiting invitation code verification
         "active", // Normal user with full access to all features
         "disabled", // Disabled by admin, cannot login but data retained
         "suspended", // Temporarily banned due to policy violations
