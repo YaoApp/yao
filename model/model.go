@@ -27,6 +27,7 @@ var systemModels = map[string]string{
 	"__yao.audit":              "yao/models/audit.mod.yao",
 	"__yao.config":             "yao/models/config.mod.yao",
 	"__yao.dsl":                "yao/models/dsl.mod.yao",
+	"__yao.invitation":         "yao/models/invitation.mod.yao",
 	"__yao.job.category":       "yao/models/job/category.mod.yao",
 	"__yao.job":                "yao/models/job/job.mod.yao",
 	"__yao.job.execution":      "yao/models/job/execution.mod.yao",

@@ -1,0 +1,221 @@
+{
+  "name": "Invitation Code",
+  "label": "Invitation Code",
+  "description": "Official invitation code management for platform access control",
+  "tags": ["invitation", "code", "access", "beta", "registration"],
+  "table": {
+    "name": "invitation_code",
+    "comment": "Official invitation code management for platform access control"
+  },
+  "columns": [
+    // ============================================================================
+    // Basic Fields
+    // ============================================================================
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Primary key identifier",
+      "primary": true
+    },
+    {
+      "name": "code",
+      "type": "string",
+      "label": "Invitation Code",
+      "comment": "Unique invitation code string",
+      "length": 100,
+      "unique": true,
+      "index": true,
+      "nullable": false
+    },
+
+    // ============================================================================
+    // Ownership Information
+    // ============================================================================
+    {
+      "name": "owner_id",
+      "type": "string",
+      "label": "Owner ID",
+      "comment": "User ID who owns this invitation code (null = official/system generated)",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Usage Information
+    // ============================================================================
+    {
+      "name": "used_by",
+      "type": "string",
+      "label": "Used By",
+      "comment": "User ID who used this invitation code",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "used_at",
+      "type": "timestamp",
+      "label": "Used At",
+      "comment": "When the invitation code was used",
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Status Management
+    // ============================================================================
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Invitation code status",
+      "option": [
+        "draft", // Code created but not published yet
+        "active", // Code is active and available for use
+        "used", // Code has been used by a user
+        "expired", // Code has expired
+        "revoked", // Code has been manually revoked/disabled
+        "suspended" // Code temporarily suspended
+      ],
+      "default": "draft",
+      "index": true,
+      "nullable": false
+    },
+    {
+      "name": "is_published",
+      "type": "boolean",
+      "label": "Is Published",
+      "comment": "Whether the code is published and available for use",
+      "default": false,
+      "index": true
+    },
+    {
+      "name": "published_at",
+      "type": "timestamp",
+      "label": "Published At",
+      "comment": "When the invitation code was published",
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Expiration
+    // ============================================================================
+    {
+      "name": "expires_at",
+      "type": "timestamp",
+      "label": "Expires At",
+      "comment": "When the invitation code expires",
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
+    // Code Configuration
+    // ============================================================================
+    {
+      "name": "code_type",
+      "type": "enum",
+      "label": "Code Type",
+      "comment": "Type of invitation code",
+      "option": [
+        "official", // Official code issued by platform
+        "beta", // Beta testing code
+        "partner", // Partner/affiliate code
+        "promotional", // Promotional code
+        "custom" // Custom code type
+      ],
+      "default": "official",
+      "index": true
+    },
+
+    // ============================================================================
+    // Additional Information
+    // ============================================================================
+    {
+      "name": "description",
+      "type": "text",
+      "label": "Description",
+      "comment": "Description or notes about this invitation code",
+      "nullable": true
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "label": "Source",
+      "comment": "Source or channel where this code is distributed",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata and custom fields",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_invitation_code_status_published",
+      "columns": ["status", "is_published"],
+      "type": "index",
+      "comment": "Index on status and published flag for filtering active codes"
+    },
+    {
+      "name": "idx_invitation_code_owner_status",
+      "columns": ["owner_id", "status"],
+      "type": "index",
+      "comment": "Index on owner and status for owner's code management"
+    },
+    {
+      "name": "idx_invitation_code_type_status",
+      "columns": ["code_type", "status", "is_published"],
+      "type": "index",
+      "comment": "Index on code type and status for filtering by type"
+    },
+    {
+      "name": "idx_invitation_code_expires",
+      "columns": ["status", "expires_at"],
+      "type": "index",
+      "comment": "Index on status and expiration for cleanup jobs"
+    },
+    {
+      "name": "idx_invitation_code_available",
+      "columns": ["status", "is_published", "used_by"],
+      "type": "index",
+      "comment": "Index for finding available codes (not used yet)"
+    },
+    {
+      "name": "idx_invitation_code_published_at",
+      "columns": ["is_published", "published_at"],
+      "type": "index",
+      "comment": "Index on published flag and time for sorting"
+    },
+    {
+      "name": "idx_invitation_code_source",
+      "columns": ["source", "code_type", "status"],
+      "type": "index",
+      "comment": "Index on source and type for analytics"
+    }
+  ],
+  "relations": {
+    "owner": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "owner_id",
+      "foreign": "user_id"
+    },
+    "user": {
+      "type": "hasOne",
+      "model": "__yao.user",
+      "key": "used_by",
+      "foreign": "user_id"
+    }
+  },
+  "values": [],
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

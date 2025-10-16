@@ -33,10 +33,11 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/entry/verify", GinEntryVerify) // Verify login/register email or mobile (public)
 
 	// Register a new user
-	group.POST("/entry/register", oauth.Guard, GinEntryRegister) // Register a new user
-	group.POST("/entry/login", oauth.Guard, GinEntryLogin)       // Login a user
-	group.POST("/entry/otp", oauth.Guard, GinSendOTP)            // Send OTP
-	group.POST("/logout", oauth.Guard, GinLogout)                // User logout
+	group.POST("/entry/register", oauth.Guard, GinEntryRegister)     // Register a new user
+	group.POST("/entry/login", oauth.Guard, GinEntryLogin)           // Login a user
+	group.POST("/entry/invite/verify", oauth.Guard, GinVerifyInvite) // Verify invitation code (redeem)
+	group.POST("/entry/otp", oauth.Guard, GinSendOTP)                // Send OTP
+	group.POST("/logout", oauth.Guard, GinLogout)                    // User logout
 
 	// Logined User Settings
 	attachProfile(group, oauth)      // User profile management
