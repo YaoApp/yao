@@ -330,6 +330,16 @@ type UserProvider interface {
 	PaginateMembers(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)
 
 	// ============================================================================
+	// Invitation Code Resource (Official Platform Invitation Codes)
+	// ============================================================================
+	// Note: This is for official platform invitation codes required during beta testing.
+	// Not to be confused with user-to-user invitation functionality (coming later).
+
+	CreateInvitationCodes(ctx context.Context, codeData []maps.MapStrAny) ([]string, error)
+	UseInvitationCode(ctx context.Context, code string, userID string) error
+	DeleteInvitationCode(ctx context.Context, code string) error
+
+	// ============================================================================
 	// Utils
 	// ============================================================================
 

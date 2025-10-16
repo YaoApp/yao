@@ -386,22 +386,6 @@ func sendVerificationMessage(ctx context.Context, config *EntryConfig, usernameT
 	return nil
 }
 
-// sendEntryVerificationCode generates and sends a verification code to the user's email or mobile
-// Returns OTP ID and error
-func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernameType, username, locale string) (string, error) {
-	// Generate OTP
-	otpID, verificationCode := generateEntryOTP()
-	log.Debug("Generated OTP for %s: ID=%s", username, otpID)
-
-	// Send verification message
-	err := sendVerificationMessage(ctx, config, usernameType, username, verificationCode, locale)
-	if err != nil {
-		return "", err
-	}
-
-	return otpID, nil
-}
-
 // createPublicEntryConfig creates a deep copy of EntryConfig without sensitive data
 // This prevents modifying the global config when removing secrets
 func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
@@ -487,24 +471,7 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 		}
 	}
 
-	// Deep copy Messenger config (without sensitive data)
-	if config.Messenger != nil {
-		publicConfig.Messenger = &MessengerConfig{}
-
-		if config.Messenger.Mail != nil {
-			publicConfig.Messenger.Mail = &MessengerChannelConfig{
-				Channel:  config.Messenger.Mail.Channel,
-				Template: config.Messenger.Mail.Template,
-			}
-		}
-
-		if config.Messenger.SMS != nil {
-			publicConfig.Messenger.SMS = &MessengerChannelConfig{
-				Channel:  config.Messenger.SMS.Channel,
-				Template: config.Messenger.SMS.Template,
-			}
-		}
-	}
+	// Note: Messenger config is intentionally not copied to public config (backend only)
 
 	// Deep copy ThirdParty config
 	if config.ThirdParty != nil {
@@ -535,6 +502,18 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 					}
 				}
 			}
+		}
+	}
+
+	// Deep copy Invite config
+	if config.Invite != nil {
+		publicConfig.Invite = &InvitePageConfig{
+			Title:       config.Invite.Title,
+			Description: config.Invite.Description,
+			Placeholder: config.Invite.Placeholder,
+			ApplyLink:   config.Invite.ApplyLink,
+			ApplyPrompt: config.Invite.ApplyPrompt,
+			ApplyText:   config.Invite.ApplyText,
 		}
 	}
 
@@ -1068,6 +1047,134 @@ func GinEntryLogin(c *gin.Context) {
 			MFAEnabled:  loginResponse.MFAEnabled,
 		})
 	case LoginStatusSuccess:
+		// Success - return full token set
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			SessionID:             sid,
+			IDToken:               loginResponse.IDToken,
+			AccessToken:           loginResponse.AccessToken,
+			RefreshToken:          loginResponse.RefreshToken,
+			ExpiresIn:             loginResponse.ExpiresIn,
+			RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
+			MFAEnabled:            loginResponse.MFAEnabled,
+			Status:                loginResponse.Status,
+		})
+	}
+}
+
+// GinVerifyInvite is the handler for verifying and redeeming invitation code
+// This endpoint is called with the temporary access token (scope: invite_verification)
+// after user registration when invite is required
+func GinVerifyInvite(c *gin.Context) {
+	// Parse request body
+	var req struct {
+		InvitationCode string `json:"invitation_code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get authorized info from the temporary token
+	authInfo := oauth.GetAuthorizedInfo(c)
+	if authInfo == nil || authInfo.Scope != ScopeInviteVerification {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInsufficientScope.Code,
+			ErrorDescription: "Invalid or missing token scope. Expected invite_verification scope",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Get user ID from auth info
+	userID := authInfo.UserID
+	if userID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidToken.Code,
+			ErrorDescription: "User ID not found in token",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Get user provider
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		log.Error("Failed to get user provider: %s", err.Error())
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Internal server error",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Redeem invitation code
+	err = userProvider.UseInvitationCode(ctx, req.InvitationCode, userID)
+	if err != nil {
+		log.Error("Failed to use invitation code: %s", err.Error())
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: fmt.Sprintf("Failed to verify invitation code: %s", err.Error()),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Update user status to active
+	err = userProvider.UpdateUserStatus(ctx, userID, "active")
+	if err != nil {
+		log.Error("Failed to update user status: %s", err.Error())
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to activate user account",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Generate login context
+	loginCtx := makeLoginContext(c)
+
+	// Generate full login token
+	loginResponse, err := LoginByUserID(userID, loginCtx)
+	if err != nil {
+		log.Error("Failed to generate login token: %s", err.Error())
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to generate login credentials",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get or create session ID
+	sid := utils.GetSessionID(c)
+	if sid == "" {
+		sid = generateSessionID()
+	}
+
+	// Send session cookie
+	response.SendSessionCookie(c, sid)
+
+	// Handle different login statuses (in case MFA is enabled or team selection needed)
+	switch loginResponse.Status {
+	case LoginStatusMFA, LoginStatusTeamSelection:
+		// Return temporary token for next step verification
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			SessionID:   sid,
+			AccessToken: loginResponse.AccessToken,
+			ExpiresIn:   loginResponse.ExpiresIn,
+			MFAEnabled:  loginResponse.MFAEnabled,
+			Status:      loginResponse.Status,
+		})
+	default:
 		// Success - return full token set
 		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
 			SessionID:             sid,

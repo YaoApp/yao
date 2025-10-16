@@ -44,6 +44,15 @@ const (
 	ErrFailedToDeleteTeam      = "failed to delete team: %w"
 	ErrFailedToDeleteMember    = "failed to delete member: %w"
 
+	// Invitation Code related errors
+	ErrInvitationCodeNotFound       = "invitation code not found"
+	ErrInvitationCodeAlreadyUsed    = "invitation code has already been used"
+	ErrInvitationCodeExpired        = "invitation code has expired"
+	ErrInvitationCodeNotPublished   = "invitation code is not published"
+	ErrFailedToCreateInvitationCode = "failed to create invitation code: %w"
+	ErrFailedToUseInvitationCode    = "failed to use invitation code: %w"
+	ErrFailedToDeleteInvitationCode = "failed to delete invitation code: %w"
+
 	// MFA related errors
 	ErrMFANotEnabled             = "MFA is not enabled for this user"
 	ErrMFAAlreadyEnabled         = "MFA is already enabled for this user"
@@ -185,6 +194,7 @@ type DefaultUser struct {
 	oauthAccountModel string
 	teamModel         string
 	memberModel       string
+	invitationModel   string
 	cache             store.Store
 
 	// ID Generation Configuration
@@ -240,6 +250,7 @@ type DefaultUserOptions struct {
 	OAuthAccountModel string // bind to a specific oauth account model
 	TeamModel         string // bind to a specific team model
 	MemberModel       string // bind to a specific member model
+	InvitationModel   string // bind to a specific invitation code model
 	Cache             store.Store
 
 	// ID Generation Strategy
@@ -306,6 +317,11 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 	memberModel := options.MemberModel
 	if memberModel == "" {
 		memberModel = "__yao.member"
+	}
+
+	invitationModel := options.InvitationModel
+	if invitationModel == "" {
+		invitationModel = "__yao.invitation"
 	}
 
 	// Set ID generation strategy with defaults
@@ -397,6 +413,7 @@ func NewDefaultUser(options *DefaultUserOptions) *DefaultUser {
 		oauthAccountModel: oauthAccountModel,
 		teamModel:         teamModel,
 		memberModel:       memberModel,
+		invitationModel:   invitationModel,
 		cache:             options.Cache,
 		idStrategy:        idStrategy,
 		idPrefix:          idPrefix,
