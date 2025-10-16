@@ -290,6 +290,12 @@ type EntryLoginRequest struct {
 	Locale   string `json:"locale,omitempty"`
 }
 
+// EntrySendOTPResponse represents the response for sending OTP verification code
+type EntrySendOTPResponse struct {
+	OtpID     string `json:"otp_id"`               // OTP ID for verification
+	ExpiresIn int    `json:"expires_in,omitempty"` // OTP expiration in seconds
+}
+
 // Built-in preset mapping types
 const (
 	MappingGoogle    = "google"
