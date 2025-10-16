@@ -194,29 +194,30 @@ func authback(c *gin.Context) {
 	// Send all login cookies (access token, refresh token, and session ID)
 	SendLoginCookies(c, loginResponse, sid)
 
-	// MFA Response
-	if loginResponse.Status == LoginStatusMFA {
+	// Handle different login statuses
+	switch loginResponse.Status {
+	case LoginStatusInviteVerification, LoginStatusMFA, LoginStatusTeamSelection:
+		// Return temporary token for next step verification
 		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
 			SessionID:   sid,
-			MFAEnabled:  loginResponse.MFAEnabled,
 			Status:      loginResponse.Status,
 			AccessToken: loginResponse.AccessToken,
 			ExpiresIn:   loginResponse.ExpiresIn,
+			MFAEnabled:  loginResponse.MFAEnabled,
 		})
-		return
+	case LoginStatusSuccess:
+		// Send IDToken to the client (Success)
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			SessionID:             sid,
+			IDToken:               loginResponse.IDToken,
+			AccessToken:           loginResponse.AccessToken,
+			RefreshToken:          loginResponse.RefreshToken,
+			ExpiresIn:             loginResponse.ExpiresIn,
+			RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
+			MFAEnabled:            loginResponse.MFAEnabled,
+			Status:                loginResponse.Status,
+		})
 	}
-
-	// Send IDToken to the client
-	response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
-		SessionID:             sid,
-		IDToken:               loginResponse.IDToken,
-		AccessToken:           loginResponse.AccessToken,
-		RefreshToken:          loginResponse.RefreshToken,
-		ExpiresIn:             loginResponse.ExpiresIn,
-		RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
-		MFAEnabled:            loginResponse.MFAEnabled,
-		Status:                loginResponse.Status,
-	})
 }
 
 // getOAuthAuthorizationURL generates OAuth authorization URL for a provider

@@ -49,16 +49,6 @@ func getEntryConfig(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, publicConfig)
 }
 
-// entry is the handler for unified auth entry (login/register)
-// The backend determines whether this is a login or registration based on email existence
-func entry(c *gin.Context) {
-	// This is a placeholder - you may need to implement the actual login/register logic here
-	// The logic should:
-	// 1. Check if the email exists in the database
-	// 2. If exists: proceed with login flow
-	// 3. If not exists: proceed with registration flow
-}
-
 // GinEntryVerify is the handler for verifying entry (login/register)
 // It checks if the username exists and sends verification code if needed
 func GinEntryVerify(c *gin.Context) {
@@ -78,9 +68,6 @@ func GinEntryVerify(c *gin.Context) {
 	if locale == "" {
 		locale = c.Query("locale")
 	}
-	if locale == "" {
-		locale = "en" // Default locale
-	}
 
 	// Determine username type (email or mobile) - check this first before expensive operations
 	usernameType := determineUsernameType(req.Username)
@@ -93,12 +80,12 @@ func GinEntryVerify(c *gin.Context) {
 		return
 	}
 
-	// Get entry configuration
+	// Get entry configuration (GetEntryConfig has default fallback logic)
 	config := GetEntryConfig(locale)
 	if config == nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Entry configuration not found for locale: " + locale,
+			ErrorDescription: "Entry configuration not found",
 		}
 		response.RespondWithError(c, response.StatusNotFound, errorResp)
 		return
@@ -182,21 +169,25 @@ func GinEntryVerify(c *gin.Context) {
 		return
 	}
 
-	// User doesn't exist: send verification code and return register status
+	// User doesn't exist: generate OTP and send verification code
 	verifyResp.Status = EntryVerificationStatusRegister
 
-	// Send verification code asynchronously
+	// Generate OTP first
+	otpID, verificationCode := generateEntryOTP()
+	verifyResp.OtpID = otpID
+	verifyResp.VerificationSent = true
+
+	// Send verification message asynchronously
 	go func() {
 		ctx := context.Background()
-		err := sendEntryVerificationCode(ctx, config, usernameType, req.Username, locale)
+		err := sendVerificationMessage(ctx, config, usernameType, req.Username, verificationCode, locale)
 		if err != nil {
 			log.Error("Failed to send verification code to %s: %v", req.Username, err)
-		} else {
-			log.Info("Verification code sent to %s for registration", req.Username)
+			return
 		}
+		log.Info("Verification code sent to %s for registration (OTP ID: %s)", req.Username, otpID)
 	}()
 
-	verifyResp.VerificationSent = true
 	response.RespondWithSuccess(c, response.StatusOK, verifyResp)
 }
 
@@ -315,8 +306,19 @@ func checkUserExists(ctx context.Context, usernameType, username string) (bool, 
 	return true, userID, nil
 }
 
-// sendEntryVerificationCode sends a verification code to the user's email or mobile
-func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernameType, username, locale string) error {
+// generateEntryOTP generates an OTP code for entry verification
+// Returns OTP ID and verification code
+func generateEntryOTP() (string, string) {
+	otpOption := utilsotp.NewOption()
+	otpOption.Length = 6
+	otpOption.Type = "numeric"
+	otpOption.Expiration = 600 // 10 minutes
+
+	return utilsotp.Generate(otpOption)
+}
+
+// sendVerificationMessage sends a verification code message via email or SMS
+func sendVerificationMessage(ctx context.Context, config *EntryConfig, usernameType, username, verificationCode, locale string) error {
 	// Check if messenger is available
 	if messenger.Instance == nil {
 		return fmt.Errorf("messenger service not available")
@@ -326,18 +328,6 @@ func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernam
 	if config.Messenger == nil {
 		return fmt.Errorf("messenger configuration not found in entry config")
 	}
-
-	// Generate verification code using OTP (6-digit number, 10 minutes expiry)
-	otpOption := utilsotp.NewOption()
-	otpOption.Length = 6
-	otpOption.Type = "numeric"
-	otpOption.Expiration = 600 // 10 minutes
-
-	otpID, verificationCode := utilsotp.Generate(otpOption)
-
-	// Store OTP ID in context for later verification
-	// The OTP code is automatically stored in memory with expiration
-	log.Debug("Generated OTP for %s: ID=%s", username, otpID)
 
 	var channel string
 	var template string
@@ -382,8 +372,8 @@ func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernam
 	// Prepare template data
 	templateData := messengertypes.TemplateData{
 		"to":         username,
-		"code":       verificationCode, // Variable name matches template: {{ code }}
-		"expires_in": "10",             // 10 minutes
+		"code":       verificationCode,
+		"expires_in": "10", // 10 minutes
 		"locale":     locale,
 	}
 
@@ -394,6 +384,22 @@ func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernam
 	}
 
 	return nil
+}
+
+// sendEntryVerificationCode generates and sends a verification code to the user's email or mobile
+// Returns OTP ID and error
+func sendEntryVerificationCode(ctx context.Context, config *EntryConfig, usernameType, username, locale string) (string, error) {
+	// Generate OTP
+	otpID, verificationCode := generateEntryOTP()
+	log.Debug("Generated OTP for %s: ID=%s", username, otpID)
+
+	// Send verification message
+	err := sendVerificationMessage(ctx, config, usernameType, username, verificationCode, locale)
+	if err != nil {
+		return "", err
+	}
+
+	return otpID, nil
 }
 
 // createPublicEntryConfig creates a deep copy of EntryConfig without sensitive data
@@ -533,4 +539,471 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 	}
 
 	return publicConfig
+}
+
+// validatePassword validates password format (8+ characters, must contain letters and numbers, can have special characters)
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters long")
+	}
+
+	hasLetter := regexp.MustCompile(`[a-zA-Z]`).MatchString(password)
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
+
+	if !hasLetter {
+		return fmt.Errorf("password must contain at least one letter")
+	}
+
+	if !hasNumber {
+		return fmt.Errorf("password must contain at least one number")
+	}
+
+	return nil
+}
+
+// GinEntryRegister handles user registration
+func GinEntryRegister(c *gin.Context) {
+	// Get authorized info from the temporary token
+	authInfo := oauth.GetAuthorizedInfo(c)
+	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Invalid or missing entry verification token",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Parse request body
+	var req EntryRegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get entry configuration (GetEntryConfig has default fallback logic)
+	config := GetEntryConfig(req.Locale)
+	if config == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Entry configuration not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Validate password format
+	if err := validatePassword(req.Password); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate confirm password if provided
+	if req.ConfirmPassword != "" && req.Password != req.ConfirmPassword {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Password and confirm password do not match",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get username and username_type from token claims
+	// These were stored in the temporary token by GinEntryVerify
+	username, _ := c.Get("__username")
+	usernameType, _ := c.Get("__username_type")
+
+	usernameStr, ok := username.(string)
+	if !ok || usernameStr == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Username not found in token",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	usernameTypeStr, ok := usernameType.(string)
+	if !ok || usernameTypeStr == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Username type not found in token",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Validate password strength FIRST (pure format check, no external queries)
+	if err := validatePassword(req.Password); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Verify verification code (before database queries)
+	// This prevents malicious users from using this endpoint to detect existing users
+	if config.Messenger != nil {
+		// Check if messenger is configured for this username type
+		requiresVerification := false
+		if usernameTypeStr == "email" && config.Messenger.Mail != nil {
+			requiresVerification = true
+		} else if usernameTypeStr == "mobile" && config.Messenger.SMS != nil {
+			requiresVerification = true
+		}
+
+		if requiresVerification {
+			if req.OtpID == "" || req.VerificationCode == "" {
+				errorResp := &response.ErrorResponse{
+					Code:             response.ErrInvalidRequest.Code,
+					ErrorDescription: "OTP ID and verification code are required",
+				}
+				response.RespondWithError(c, response.StatusBadRequest, errorResp)
+				return
+			}
+
+			// Validate OTP code
+			if !utilsotp.Validate(req.OtpID, req.VerificationCode, true) {
+				errorResp := &response.ErrorResponse{
+					Code:             response.ErrInvalidRequest.Code,
+					ErrorDescription: "Invalid or expired verification code",
+				}
+				response.RespondWithError(c, response.StatusBadRequest, errorResp)
+				return
+			}
+		}
+	}
+
+	ctx := c.Request.Context()
+
+	// Check if user already exists (only after OTP verification)
+	userExists, _, err := checkUserExists(ctx, usernameTypeStr, usernameStr)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to check user existence: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	if userExists {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "User already exists",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get user provider
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get user provider: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Generate name if not provided
+	name := req.Name
+	if name == "" {
+		switch usernameTypeStr {
+		case "email":
+			// Extract name from email (part before @)
+			if idx := strings.Index(usernameStr, "@"); idx > 0 {
+				name = usernameStr[:idx]
+			} else {
+				name = usernameStr
+			}
+		case "mobile":
+			// Use last 4 digits of phone number
+			if len(usernameStr) >= 4 {
+				name = "User" + usernameStr[len(usernameStr)-4:]
+			} else {
+				name = "User" + usernameStr
+			}
+		}
+	}
+
+	// Prepare user data
+	userData := map[string]interface{}{
+		"name":     name,
+		"password": req.Password, // Yao will auto-hash this
+		"role_id":  config.Role,
+		"type_id":  config.Type,
+	}
+
+	// Set email or mobile
+	switch usernameTypeStr {
+	case "email":
+		userData["email"] = usernameStr
+		userData["email_verified"] = true // Verified via code
+	case "mobile":
+		userData["phone_number"] = usernameStr
+		userData["phone_number_verified"] = true // Verified via code
+	}
+
+	// Determine initial status
+	if config.InviteRequired {
+		userData["status"] = "pending_invite" // Waiting for invite code verification
+	} else {
+		userData["status"] = "active"
+	}
+
+	// Create user
+	userID, err := userProvider.CreateUser(ctx, userData)
+	if err != nil {
+		log.Error("Failed to create user: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to create user: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	log.Info("User registered successfully: %s (user_id: %s)", usernameStr, userID)
+
+	// If auto_login is false and invite not required, return success without tokens
+	if !config.AutoLogin && !config.InviteRequired {
+		resp := LoginSuccessResponse{
+			UserID:  userID,
+			Status:  LoginStatusSuccess,
+			Message: "Registration successful. You can now login.",
+		}
+		response.RespondWithSuccess(c, response.StatusOK, resp)
+		return
+	}
+
+	// Auto-login or invite_required: Generate tokens using LoginByUserID
+	// For invite_required, LoginByUserID will detect pending_invite status and return temporary token
+	loginCtx := makeLoginContext(c)
+	loginResponse, err := LoginByUserID(userID, loginCtx)
+	if err != nil {
+		log.Error("Failed to auto-login after registration: %v", err)
+		// Still return success for registration, but without tokens
+		resp := LoginSuccessResponse{
+			UserID:  userID,
+			Status:  LoginStatusSuccess,
+			Message: "Registration successful, but auto-login failed. Please login manually.",
+		}
+		response.RespondWithSuccess(c, response.StatusOK, resp)
+		return
+	}
+
+	// Get session ID
+	sid := utils.GetSessionID(c)
+	if sid == "" {
+		sid = generateSessionID()
+	}
+
+	// Handle different login statuses
+	switch loginResponse.Status {
+	case LoginStatusInviteVerification, LoginStatusMFA, LoginStatusTeamSelection:
+		// Return temporary token for next step verification (don't send cookies yet)
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			UserID:      userID,
+			SessionID:   sid,
+			Status:      loginResponse.Status,
+			AccessToken: loginResponse.AccessToken,
+			ExpiresIn:   loginResponse.ExpiresIn,
+			MFAEnabled:  loginResponse.MFAEnabled,
+			Message:     "Registration successful. Please complete the verification process.",
+		})
+	case LoginStatusSuccess:
+		// Success - send cookies and return full token set
+		SendLoginCookies(c, loginResponse, sid)
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			UserID:                userID,
+			SessionID:             sid,
+			IDToken:               loginResponse.IDToken,
+			AccessToken:           loginResponse.AccessToken,
+			RefreshToken:          loginResponse.RefreshToken,
+			ExpiresIn:             loginResponse.ExpiresIn,
+			RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
+			MFAEnabled:            loginResponse.MFAEnabled,
+			Status:                loginResponse.Status,
+			Message:               "Registration and login successful.",
+		})
+	}
+}
+
+// GinEntryLogin handles user login with username and password
+func GinEntryLogin(c *gin.Context) {
+	// Get authorized info from the temporary token
+	authInfo := oauth.GetAuthorizedInfo(c)
+	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Invalid or missing entry verification token",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Parse request body
+	var req EntryLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get username and username_type from token claims
+	username, _ := c.Get("__username")
+	usernameType, _ := c.Get("__username_type")
+	userIDFromToken, _ := c.Get("__user_id")
+
+	usernameStr, ok := username.(string)
+	if !ok || usernameStr == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Username not found in token",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	usernameTypeStr, ok := usernameType.(string)
+	if !ok || usernameTypeStr == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Username type not found in token",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Get user provider
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get user provider: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get user ID from token or query database
+	var userID string
+	if userIDFromToken != nil {
+		if id, ok := userIDFromToken.(string); ok && id != "" {
+			userID = id
+		}
+	}
+
+	// If user ID not in token, get it from database
+	if userID == "" {
+		_, userID, err = checkUserExists(ctx, usernameTypeStr, usernameStr)
+		if err != nil || userID == "" {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Invalid username or password",
+			}
+			response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+			return
+		}
+	}
+
+	// Get user auth data (includes password_hash)
+	user, err := userProvider.GetUserForAuth(ctx, userID, "user_id")
+	if err != nil {
+		log.Warn("Failed to get user for auth: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid username or password",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Get password hash
+	passwordHash, ok := user["password_hash"].(string)
+	if !ok || passwordHash == "" {
+		log.Warn("User %s has no password hash", userID)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid username or password",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Verify password
+	valid, err := userProvider.VerifyPassword(ctx, req.Password, passwordHash)
+	if err != nil || !valid {
+		log.Warn("Password verification failed for user %s", userID)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid username or password",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Login using LoginByUserID (all status checks are handled inside)
+	loginCtx := makeLoginContext(c)
+	loginResponse, err := LoginByUserID(userID, loginCtx)
+	if err != nil {
+		log.Error("Failed to login user %s: %v", userID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Get or generate session ID
+	sid := utils.GetSessionID(c)
+	if sid == "" {
+		sid = generateSessionID()
+	}
+
+	// Send login cookies
+	SendLoginCookies(c, loginResponse, sid)
+
+	// Handle different login statuses
+	switch loginResponse.Status {
+	case LoginStatusInviteVerification, LoginStatusMFA, LoginStatusTeamSelection:
+		// Return temporary token for next step verification
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			SessionID:   sid,
+			Status:      loginResponse.Status,
+			AccessToken: loginResponse.AccessToken,
+			ExpiresIn:   loginResponse.ExpiresIn,
+			MFAEnabled:  loginResponse.MFAEnabled,
+		})
+	case LoginStatusSuccess:
+		// Success - return full token set
+		response.RespondWithSuccess(c, response.StatusOK, LoginSuccessResponse{
+			SessionID:             sid,
+			IDToken:               loginResponse.IDToken,
+			AccessToken:           loginResponse.AccessToken,
+			RefreshToken:          loginResponse.RefreshToken,
+			ExpiresIn:             loginResponse.ExpiresIn,
+			RefreshTokenExpiresIn: loginResponse.RefreshTokenExpiresIn,
+			MFAEnabled:            loginResponse.MFAEnabled,
+			Status:                loginResponse.Status,
+		})
+	}
 }
