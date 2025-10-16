@@ -35,6 +35,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Register a new user
 	group.POST("/entry/register", oauth.Guard, GinEntryRegister) // Register a new user
 	group.POST("/entry/login", oauth.Guard, GinEntryLogin)       // Login a user
+	group.POST("/entry/otp", oauth.Guard, GinSendOTP)            // Send OTP
 	group.POST("/logout", oauth.Guard, placeholder)              // User logout
 
 	// Logined User Settings

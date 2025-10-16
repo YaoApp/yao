@@ -561,6 +561,80 @@ func validatePassword(password string) error {
 	return nil
 }
 
+// GinSendOTP handles resending OTP verification code
+func GinSendOTP(c *gin.Context) {
+	// Get authorized info from the temporary token
+	authInfo := oauth.GetAuthorizedInfo(c)
+	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Invalid or missing entry verification token",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Get username and username_type from token claims
+	username, _ := c.Get("__username")
+	usernameType, _ := c.Get("__username_type")
+
+	usernameStr, ok := username.(string)
+	if !ok || usernameStr == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Username not found in token",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	usernameTypeStr, ok := usernameType.(string)
+	if !ok || usernameTypeStr == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Username type not found in token",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Get locale from query parameter
+	locale := c.Query("locale")
+
+	// Get entry configuration
+	config := GetEntryConfig(locale)
+	if config == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Entry configuration not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Generate new OTP
+	otpID, verificationCode := generateEntryOTP()
+
+	// Send verification message asynchronously
+	go func() {
+		ctx := context.Background()
+		err := sendVerificationMessage(ctx, config, usernameTypeStr, usernameStr, verificationCode, locale)
+		if err != nil {
+			log.Error("Failed to resend verification code to %s: %v", usernameStr, err)
+			return
+		}
+		log.Info("Verification code resent to %s (OTP ID: %s)", usernameStr, otpID)
+	}()
+
+	// Prepare response
+	otpResponse := EntrySendOTPResponse{
+		OtpID:     otpID,
+		ExpiresIn: 600, // 10 minutes
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, otpResponse)
+}
+
 // GinEntryRegister handles user registration
 func GinEntryRegister(c *gin.Context) {
 	// Get authorized info from the temporary token
