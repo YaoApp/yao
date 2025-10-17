@@ -79,6 +79,12 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 		userID, err = userProvider.GetOAuthUserID(ctx, providerID, userinfo.Sub)
 		if err != nil && err.Error() == user.ErrOAuthAccountNotFound {
 
+			// Determine initial status based on invite requirement
+			status := "active"
+			if entryConfig.InviteRequired {
+				status = "pending_invite" // Waiting for invite code verification
+			}
+
 			userData := map[string]interface{}{
 				"name":        userinfo.Name,
 				"given_name":  userinfo.GivenName,
@@ -86,7 +92,7 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 				"picture":     userinfo.Picture,
 				"role_id":     entryConfig.Role,
 				"type_id":     entryConfig.Type,
-				"status":      "active",
+				"status":      status,
 			}
 
 			// Auto register user
