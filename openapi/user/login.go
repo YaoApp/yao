@@ -162,7 +162,14 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	case "pending_invite":
 		// User needs to verify invitation code, generate temporary token
 		var inviteExpire int = 10 * 60 // 10 minutes
-		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeInviteVerification, subject, inviteExpire)
+
+		// Prepare extra claims to preserve Remember Me state
+		extraClaims := make(map[string]interface{})
+		if loginCtx != nil && loginCtx.RememberMe {
+			extraClaims["remember_me"] = true
+		}
+
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeInviteVerification, subject, inviteExpire, extraClaims)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +195,14 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	if mfaEnabled {
 		// Sign temporary access token for MFA
 		var mfaExpire int = 10 * 60 // 10 minutes
-		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, subject, mfaExpire)
+
+		// Prepare extra claims to preserve Remember Me state
+		extraClaims := make(map[string]interface{})
+		if loginCtx != nil && loginCtx.RememberMe {
+			extraClaims["remember_me"] = true
+		}
+
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeMFAVerification, subject, mfaExpire, extraClaims)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +236,14 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	if numTeams > 0 {
 		// Sign temporary access token for Team Selection
 		var teamSelectionExpire int = 10 * 60 // 10 minutes
-		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeTeamSelection, subject, teamSelectionExpire)
+
+		// Prepare extra claims to preserve Remember Me state
+		extraClaims := make(map[string]interface{})
+		if loginCtx != nil && loginCtx.RememberMe {
+			extraClaims["remember_me"] = true
+		}
+
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeTeamSelection, subject, teamSelectionExpire, extraClaims)
 		if err != nil {
 			return nil, err
 		}
@@ -240,7 +261,7 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	}
 
 	// Issue tokens without team context
-	return issueTokens(ctx, userid, "", nil, user, subject, scopes)
+	return issueTokens(ctx, userid, "", nil, user, subject, scopes, loginCtx)
 }
 
 // LoginByTeamID is the handler for login by team ID (after team selection)
@@ -274,7 +295,7 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 
 	// Handle personal account (no team)
 	if teamID == "" || teamID == "personal" {
-		return issueTokens(ctx, userid, "", nil, user, subject, scopes)
+		return issueTokens(ctx, userid, "", nil, user, subject, scopes, loginCtx)
 	}
 
 	// Verify user is a member of the team and get team details
@@ -292,12 +313,97 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 	}
 
 	// Issue tokens with team context
-	return issueTokens(ctx, userid, teamID, team, user, subject, scopes)
+	return issueTokens(ctx, userid, teamID, team, user, subject, scopes, loginCtx)
 }
 
 // issueTokens is the core function that issues all necessary tokens (ID token, access token, refresh token)
-func issueTokens(ctx context.Context, userid string, teamID string, team map[string]interface{}, user map[string]interface{}, subject string, scopes []string) (*LoginResponse, error) {
+func issueTokens(ctx context.Context, userid string, teamID string, team map[string]interface{}, user map[string]interface{}, subject string, scopes []string, loginCtx *LoginContext) (*LoginResponse, error) {
 	yaoClientConfig := GetYaoClientConfig()
+
+	// Determine token expiration times based on Remember Me setting
+	var expiresIn, refreshTokenExpiresIn int
+
+	// Try to get token config from entry config first
+	locale := ""
+	entryConfig := GetEntryConfig(locale)
+
+	if loginCtx != nil && loginCtx.RememberMe {
+		// Remember Me mode: use extended token durations
+		if entryConfig != nil && entryConfig.Token != nil {
+			// Parse Remember Me access token expires_in
+			if entryConfig.Token.RememberMeExpiresIn != "" {
+				normalized, err := normalizeDuration(entryConfig.Token.RememberMeExpiresIn)
+				if err != nil {
+					log.Warn("Failed to parse remember_me_expires_in: %s, using default", err.Error())
+				} else {
+					duration, err := time.ParseDuration(normalized)
+					if err == nil {
+						expiresIn = int(duration.Seconds())
+					}
+				}
+			}
+
+			// Parse Remember Me refresh token expires_in
+			if entryConfig.Token.RememberMeRefreshTokenExpiresIn != "" {
+				normalized, err := normalizeDuration(entryConfig.Token.RememberMeRefreshTokenExpiresIn)
+				if err != nil {
+					log.Warn("Failed to parse remember_me_refresh_token_expires_in: %s, using default", err.Error())
+				} else {
+					duration, err := time.ParseDuration(normalized)
+					if err == nil {
+						refreshTokenExpiresIn = int(duration.Seconds())
+					}
+				}
+			}
+
+			// If refresh token not configured, default to 2x the access token duration
+			if refreshTokenExpiresIn == 0 && expiresIn > 0 {
+				refreshTokenExpiresIn = expiresIn * 2
+			}
+		}
+	} else {
+		// Normal login: use standard token durations from entry config
+		if entryConfig != nil && entryConfig.Token != nil {
+			// Parse access token expires_in
+			if entryConfig.Token.ExpiresIn != "" {
+				normalized, err := normalizeDuration(entryConfig.Token.ExpiresIn)
+				if err != nil {
+					log.Warn("Failed to parse expires_in: %s, using default", err.Error())
+				} else {
+					duration, err := time.ParseDuration(normalized)
+					if err == nil {
+						expiresIn = int(duration.Seconds())
+					}
+				}
+			}
+
+			// Parse refresh token expires_in
+			if entryConfig.Token.RefreshTokenExpiresIn != "" {
+				normalized, err := normalizeDuration(entryConfig.Token.RefreshTokenExpiresIn)
+				if err != nil {
+					log.Warn("Failed to parse refresh_token_expires_in: %s, using default", err.Error())
+				} else {
+					duration, err := time.ParseDuration(normalized)
+					if err == nil {
+						refreshTokenExpiresIn = int(duration.Seconds())
+					}
+				}
+			}
+
+			// If refresh token not configured, default to 24x the access token duration
+			if refreshTokenExpiresIn == 0 && expiresIn > 0 {
+				refreshTokenExpiresIn = expiresIn * 24
+			}
+		}
+	}
+
+	// Fall back to YaoClientConfig defaults if not set from entry config
+	if expiresIn == 0 {
+		expiresIn = yaoClientConfig.ExpiresIn
+	}
+	if refreshTokenExpiresIn == 0 {
+		refreshTokenExpiresIn = yaoClientConfig.RefreshTokenExpiresIn
+	}
 
 	// Prepare OIDC user info
 	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
@@ -388,9 +494,9 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	var oidcToken string
 	var err error
 	if len(extraClaims) > 0 {
-		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo, extraClaims)
+		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), expiresIn, oidcUserInfo, extraClaims)
 	} else {
-		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), yaoClientConfig.ExpiresIn, oidcUserInfo)
+		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), expiresIn, oidcUserInfo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign OIDC token: %w", err)
@@ -399,9 +505,9 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	// Sign Access Token
 	var accessToken string
 	if len(extraClaims) > 0 {
-		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn, extraClaims)
+		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, expiresIn, extraClaims)
 	} else {
-		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.ExpiresIn)
+		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, expiresIn)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign access token: %w", err)
@@ -410,9 +516,9 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	// Sign Refresh Token
 	var refreshToken string
 	if len(extraClaims) > 0 {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn, extraClaims)
+		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, refreshTokenExpiresIn, extraClaims)
 	} else {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, yaoClientConfig.RefreshTokenExpiresIn)
+		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, refreshTokenExpiresIn)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
@@ -424,8 +530,8 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 		AccessToken:           accessToken,
 		IDToken:               oidcToken,
 		RefreshToken:          refreshToken,
-		ExpiresIn:             yaoClientConfig.ExpiresIn,
-		RefreshTokenExpiresIn: yaoClientConfig.RefreshTokenExpiresIn,
+		ExpiresIn:             expiresIn,
+		RefreshTokenExpiresIn: refreshTokenExpiresIn,
 		TokenType:             "Bearer",
 		MFAEnabled:            toBool(user["mfa_enabled"]),
 		Scope:                 strings.Join(scopes, " "),

@@ -8,11 +8,12 @@ import (
 
 // LoginContext represents the context information for login
 type LoginContext struct {
-	IP        string `json:"ip,omitempty"`         // Client IP address
-	UserAgent string `json:"user_agent,omitempty"` // Client user agent
-	Device    string `json:"device,omitempty"`     // Device type (e.g., "mobile", "desktop", "tablet")
-	Platform  string `json:"platform,omitempty"`   // Platform (e.g., "ios", "android", "web")
-	Location  string `json:"location,omitempty"`   // Geographic location (optional)
+	IP         string `json:"ip,omitempty"`          // Client IP address
+	UserAgent  string `json:"user_agent,omitempty"`  // Client user agent
+	Device     string `json:"device,omitempty"`      // Device type (e.g., "mobile", "desktop", "tablet")
+	Platform   string `json:"platform,omitempty"`    // Platform (e.g., "ios", "android", "web")
+	Location   string `json:"location,omitempty"`    // Geographic location (optional)
+	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag for extended session
 }
 
 // MFAOptions contains configuration for MFA operations
@@ -599,8 +600,9 @@ type AuthorizedInfo struct {
 	UserID    string `json:"user_id,omitempty"`    // User ID
 
 	// Extended fields for multi-tenancy and team support
-	TeamID   string `json:"team_id,omitempty"`   // Team identifier
-	TenantID string `json:"tenant_id,omitempty"` // Tenant identifier
+	TeamID     string `json:"team_id,omitempty"`     // Team identifier
+	TenantID   string `json:"tenant_id,omitempty"`   // Tenant identifier
+	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag preserved from login
 }
 
 // JWTClaims represents JWT-specific claims structure

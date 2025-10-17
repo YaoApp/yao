@@ -347,6 +347,9 @@ func GinTeamSelection(c *gin.Context) {
 	// Prepare login context with full device/platform information
 	loginCtx := makeLoginContext(c)
 
+	// Preserve Remember Me state from temporary token
+	loginCtx.RememberMe = authInfo.RememberMe
+
 	// Login with selected team
 	loginResponse, err := LoginByTeamID(authInfo.UserID, req.TeamID, loginCtx)
 	if err != nil {

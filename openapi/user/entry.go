@@ -466,8 +466,10 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 	// Deep copy Token config
 	if config.Token != nil {
 		publicConfig.Token = &TokenConfig{
-			ExpiresIn:           config.Token.ExpiresIn,
-			RememberMeExpiresIn: config.Token.RememberMeExpiresIn,
+			ExpiresIn:                       config.Token.ExpiresIn,
+			RefreshTokenExpiresIn:           config.Token.RefreshTokenExpiresIn,
+			RememberMeExpiresIn:             config.Token.RememberMeExpiresIn,
+			RememberMeRefreshTokenExpiresIn: config.Token.RememberMeRefreshTokenExpiresIn,
 		}
 	}
 
@@ -1015,6 +1017,7 @@ func GinEntryLogin(c *gin.Context) {
 
 	// Login using LoginByUserID (all status checks are handled inside)
 	loginCtx := makeLoginContext(c)
+	loginCtx.RememberMe = req.RememberMe // Set Remember Me from request
 	loginResponse, err := LoginByUserID(userID, loginCtx)
 	if err != nil {
 		log.Error("Failed to login user %s: %v", userID, err)
@@ -1141,6 +1144,9 @@ func GinVerifyInvite(c *gin.Context) {
 
 	// Generate login context
 	loginCtx := makeLoginContext(c)
+
+	// Preserve Remember Me state from temporary token (authInfo is already available from above)
+	loginCtx.RememberMe = authInfo.RememberMe
 
 	// Generate full login token
 	loginResponse, err := LoginByUserID(userID, loginCtx)
