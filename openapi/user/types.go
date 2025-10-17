@@ -76,8 +76,10 @@ type CaptchaConfig struct {
 
 // TokenConfig represents the token configuration
 type TokenConfig struct {
-	ExpiresIn           string `json:"expires_in,omitempty"`
-	RememberMeExpiresIn string `json:"remember_me_expires_in,omitempty"`
+	ExpiresIn                       string `json:"expires_in,omitempty"`
+	RefreshTokenExpiresIn           string `json:"refresh_token_expires_in,omitempty"`
+	RememberMeExpiresIn             string `json:"remember_me_expires_in,omitempty"`
+	RememberMeRefreshTokenExpiresIn string `json:"remember_me_refresh_token_expires_in,omitempty"`
 }
 
 // ThirdParty represents the third party login configuration
@@ -297,8 +299,9 @@ type EntryRegisterRequest struct {
 
 // EntryLoginRequest represents the request to login with username and password
 type EntryLoginRequest struct {
-	Password string `json:"password" binding:"required"`
-	Locale   string `json:"locale,omitempty"`
+	Password   string `json:"password" binding:"required"`
+	RememberMe bool   `json:"remember_me,omitempty"`
+	Locale     string `json:"locale,omitempty"`
 }
 
 // EntrySendOTPResponse represents the response for sending OTP verification code

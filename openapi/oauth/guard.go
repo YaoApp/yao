@@ -66,6 +66,12 @@ func GetAuthorizedInfo(c *gin.Context) *types.AuthorizedInfo {
 		info.TenantID = tenantID.(string)
 	}
 
+	if rememberMe, ok := c.Get("__remember_me"); ok {
+		if rmBool, ok := rememberMe.(bool); ok {
+			info.RememberMe = rmBool
+		}
+	}
+
 	return info
 }
 
