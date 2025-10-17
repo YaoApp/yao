@@ -1166,8 +1166,8 @@ func GinVerifyInvite(c *gin.Context) {
 		sid = generateSessionID()
 	}
 
-	// Send session cookie
-	response.SendSessionCookie(c, sid)
+	// Send login cookies
+	SendLoginCookies(c, loginResponse, sid)
 
 	// Handle different login statuses (in case MFA is enabled or team selection needed)
 	switch loginResponse.Status {
