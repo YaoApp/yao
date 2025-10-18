@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/yao/openapi/kb"
 	"github.com/yaoapp/yao/openapi/messenger"
 	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/user"
@@ -59,6 +60,12 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 
 	// Load user configurations
 	err = user.Load(appConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load the ACL enforcer
+	_, err = acl.Load(&acl.Config{Enabled: true})
 	if err != nil {
 		return nil, err
 	}
