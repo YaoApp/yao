@@ -243,11 +243,16 @@ func importDataFromJSON(filename string, mod *model.Model, options ImportOption,
 		return nil
 	}
 
-	// Extract columns from first record
+	// Extract columns from first record, but only include columns that exist in model
 	columns := []string{}
 	for key := range records[0] {
-		columns = append(columns, key)
+		if _, exists := mod.Columns[key]; exists {
+			columns = append(columns, key)
+		}
 	}
+
+	// Sort columns for consistent ordering
+	sortColumns(columns)
 
 	// Convert to rows format
 	handler := createJSONImportHandler(mod, columns, options, result)
@@ -295,11 +300,16 @@ func importDataFromYao(filename string, mod *model.Model, options ImportOption, 
 		return nil
 	}
 
-	// Extract columns from first record
+	// Extract columns from first record, but only include columns that exist in model
 	columns := []string{}
 	for key := range records[0] {
-		columns = append(columns, key)
+		if _, exists := mod.Columns[key]; exists {
+			columns = append(columns, key)
+		}
 	}
+
+	// Sort columns for consistent ordering
+	sortColumns(columns)
 
 	// Convert to rows format
 	handler := createJSONImportHandler(mod, columns, options, result)
@@ -550,4 +560,17 @@ func parseJSONField(value interface{}, columnType string) interface{} {
 	}
 
 	return jsonValue
+}
+
+// sortColumns sorts column names alphabetically for consistent ordering
+func sortColumns(columns []string) {
+	// Simple bubble sort for small arrays
+	n := len(columns)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			if columns[j] > columns[j+1] {
+				columns[j], columns[j+1] = columns[j+1], columns[j]
+			}
+		}
+	}
 }
