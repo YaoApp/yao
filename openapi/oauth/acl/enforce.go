@@ -38,16 +38,16 @@ func (acl *ACL) Enforce(c *gin.Context) (bool, error) {
 	decision := acl.Scope.Check(request)
 
 	if !decision.Allowed {
-		// Return 403 Forbidden with details
-		c.JSON(403, map[string]interface{}{
-			"code":            403,
-			"message":         "Access denied",
-			"reason":          decision.Reason,
-			"required_scopes": decision.RequiredScopes,
-			"missing_scopes":  decision.MissingScopes,
-		})
-		c.Abort()
-		return false, nil
+		// Return error with details, let the caller handle the response
+		err := &Error{
+			Type:    ErrorTypePermissionDenied,
+			Message: decision.Reason,
+			Details: map[string]interface{}{
+				"required_scopes": decision.RequiredScopes,
+				"missing_scopes":  decision.MissingScopes,
+			},
+		}
+		return false, err
 	}
 
 	return true, nil
