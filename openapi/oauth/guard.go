@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -36,8 +37,9 @@ func (s *Service) Guard(c *gin.Context) {
 		s.tryAutoRefreshToken(c, claims)
 	}
 
-	// Set Authorized Info
-	s.setAuthorizedInfo(c, claims)
+	// Set Authorized Info in context
+	sessionID := s.getSessionID(c)
+	authorized.SetInfo(c, claims, sessionID, s.UserID)
 
 	// Check if ACL is enabled
 	if acl.Global == nil || !acl.Global.Enabled() {
@@ -59,77 +61,10 @@ func (s *Service) Guard(c *gin.Context) {
 	}
 }
 
-// GetAuthorizedInfo Get Authorized Info from context
+// GetAuthorizedInfo gets authorized info from context
+// Deprecated: Use authorized.GetInfo(c) instead
 func GetAuthorizedInfo(c *gin.Context) *types.AuthorizedInfo {
-	info := &types.AuthorizedInfo{}
-
-	if subject, ok := c.Get("__subject"); ok {
-		info.Subject = subject.(string)
-	}
-
-	if clientID, ok := c.Get("__client_id"); ok {
-		info.ClientID = clientID.(string)
-	}
-
-	if userID, ok := c.Get("__user_id"); ok {
-		info.UserID = userID.(string)
-	}
-
-	if scope, ok := c.Get("__scope"); ok {
-		info.Scope = scope.(string)
-	}
-
-	if teamID, ok := c.Get("__team_id"); ok {
-		info.TeamID = teamID.(string)
-	}
-
-	if tenantID, ok := c.Get("__tenant_id"); ok {
-		info.TenantID = tenantID.(string)
-	}
-
-	if rememberMe, ok := c.Get("__remember_me"); ok {
-		if rmBool, ok := rememberMe.(bool); ok {
-			info.RememberMe = rmBool
-		}
-	}
-
-	return info
-}
-
-// Set Authorized Info in context
-func (s *Service) setAuthorizedInfo(c *gin.Context, claims *types.TokenClaims) {
-	sid := s.getSessionID(c)
-
-	// Set __sid in context
-	if sid != "" {
-		c.Set("__sid", sid)
-	}
-
-	// Set __userID in context
-	userID, err := s.UserID(claims.ClientID, claims.Subject)
-	if err == nil && userID != "" {
-		c.Set("__user_id", userID)
-	}
-
-	// Set subject scope, client_id, user_id in context
-	c.Set("__subject", claims.Subject)
-	c.Set("__scope", claims.Scope)
-	c.Set("__client_id", claims.ClientID)
-
-	// Set team_id and tenant_id in context if available
-	if claims.TeamID != "" {
-		c.Set("__team_id", claims.TeamID)
-	}
-	if claims.TenantID != "" {
-		c.Set("__tenant_id", claims.TenantID)
-	}
-
-	// Set custom claims from Extra field into context
-	if claims.Extra != nil {
-		for key, value := range claims.Extra {
-			c.Set("__"+key, value)
-		}
-	}
+	return authorized.GetInfo(c)
 }
 
 func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {
