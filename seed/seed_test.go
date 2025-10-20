@@ -160,16 +160,6 @@ func TestSeedImportYao(t *testing.T) {
 	assert.NotNil(t, result)
 	resultMap, ok := result.(*ImportResult)
 	assert.True(t, ok, "Result should be ImportResult")
-
-	// Print detailed result for debugging
-	if resultMap.Total == 0 || resultMap.Success == 0 {
-		t.Logf("Import result: Total=%d, Success=%d, Failure=%d, Ignore=%d",
-			resultMap.Total, resultMap.Success, resultMap.Failure, resultMap.Ignore)
-		if len(resultMap.Errors) > 0 {
-			t.Logf("Errors: %+v", resultMap.Errors)
-		}
-	}
-
 	assert.Greater(t, resultMap.Total, 0, "Should import at least 1 record")
 	assert.Greater(t, resultMap.Success, 0, "Should have successful imports")
 
