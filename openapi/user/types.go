@@ -503,7 +503,8 @@ type CreateInvitationRequest struct {
 type TeamConfig struct {
 	Roles  []*TeamRole   `json:"roles,omitempty"`
 	Invite *InviteConfig `json:"invite,omitempty"`
-	Type   string        `json:"type,omitempty"` // Default type for new teams
+	Type   string        `json:"type,omitempty"` // Default subscription type for new teams
+	Role   string        `json:"role,omitempty"` // Default user role for team creator
 }
 
 // TeamRole represents a team role configuration
@@ -511,8 +512,9 @@ type TeamRole struct {
 	RoleID      string `json:"role_id"`
 	Label       string `json:"label"`
 	Description string `json:"description"`
-	Default     bool   `json:"default"` // Whether this role is the default role
-	Hidden      bool   `json:"hidden"`  // Whether this role is hidden from UI
+	Default     bool   `json:"default"`  // Whether this role is the default role
+	Hidden      bool   `json:"hidden"`   // Whether this role is hidden from UI
+	IsOwner     bool   `json:"is_owner"` // Whether this role represents team owner (deprecated, use config.Role instead)
 }
 
 // InviteConfig represents the invitation configuration

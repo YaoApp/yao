@@ -86,7 +86,7 @@ func TestTeamBasicOperations(t *testing.T) {
 		OwnerID:     ownerUserID,
 		Status:      "active",
 		Type:        "corporation",
-		TypeID:      "business",
+		TypeID:      "free",
 		Metadata:    map[string]interface{}{"test": true, "uuid": testUUID},
 	}
 
@@ -126,6 +126,7 @@ func TestTeamBasicOperations(t *testing.T) {
 		assert.Equal(t, testTeam.Name, team["name"])
 		assert.Equal(t, testTeam.DisplayName, team["display_name"])
 		assert.Equal(t, testTeam.OwnerID, team["owner_id"])
+		assert.Equal(t, testTeam.TypeID, team["type_id"])
 	})
 
 	// Test GetTeamDetail

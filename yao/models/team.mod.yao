@@ -271,6 +271,15 @@
       "nullable": false
     },
     {
+      "name": "role_id",
+      "type": "string",
+      "label": "Role ID",
+      "comment": "Team owner role identifier (references role.role_id)",
+      "length": 50,
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "type_id",
       "type": "string",
       "label": "Type ID",
@@ -439,6 +448,12 @@
       "columns": ["type_id", "status"],
       "type": "index",
       "comment": "Index on team type and status for limits and permissions"
+    },
+    {
+      "name": "idx_team_role_type",
+      "columns": ["role_id", "type_id"],
+      "type": "index",
+      "comment": "Index on team owner role and type for permission queries"
     }
   ],
   "relations": {
@@ -447,6 +462,12 @@
       "model": "__yao.user",
       "key": "owner_id",
       "foreign": "user_id"
+    },
+    "role": {
+      "type": "hasOne",
+      "model": "__yao.role",
+      "key": "role_id",
+      "foreign": "role_id"
     },
     "user_type": {
       "type": "hasOne",
