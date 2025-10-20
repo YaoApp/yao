@@ -34,6 +34,11 @@ type ErrorResponse struct {
 	ErrorDescription string `json:"error_description,omitempty"`
 	ErrorURI         string `json:"error_uri,omitempty"`
 	State            string `json:"state,omitempty"`
+
+	// Extended fields for ACL and permission errors (optional, following OAuth 2.0 extensibility)
+	Reason         string   `json:"reason,omitempty"`          // Detailed reason for denial
+	RequiredScopes []string `json:"required_scopes,omitempty"` // Required scopes for access
+	MissingScopes  []string `json:"missing_scopes,omitempty"`  // Scopes that are missing
 }
 
 // Error implements the error interface

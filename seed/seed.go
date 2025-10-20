@@ -95,9 +95,10 @@ func importDataFromCSV(filename string, mod *model.Model, options ImportOption, 
 		}
 
 		// Convert to interface slice and parse JSON fields
-		row := make([]interface{}, len(record))
-		for i, v := range record {
-			row[i] = parseJSONField(v, columnTypes[i])
+		// Ensure row length matches header length to prevent index out of range
+		row := make([]interface{}, len(header))
+		for i := 0; i < len(header) && i < len(record); i++ {
+			row[i] = parseJSONField(record[i], columnTypes[i])
 		}
 
 		chunk = append(chunk, row)
@@ -195,9 +196,10 @@ func importDataFromXLSX(filename string, mod *model.Model, options ImportOption,
 		}
 
 		// Convert to interface slice and parse JSON fields
-		row := make([]interface{}, len(record))
-		for i, v := range record {
-			row[i] = parseJSONField(v, columnTypes[i])
+		// Ensure row length matches header length to prevent index out of range
+		row := make([]interface{}, len(header))
+		for i := 0; i < len(header) && i < len(record); i++ {
+			row[i] = parseJSONField(record[i], columnTypes[i])
 		}
 
 		chunk = append(chunk, row)
@@ -425,7 +427,8 @@ func importBatch(mod *model.Model, columns []string, data [][]interface{}, start
 		for i, row := range data {
 			rowMap := maps.MakeMapStrAny()
 			for j, col := range columns {
-				if j < len(row) {
+				// Ensure we don't access beyond row length
+				if j < len(row) && j < len(columns) {
 					rowMap[col] = row[j]
 				}
 			}
@@ -446,7 +449,8 @@ func importEach(mod *model.Model, columns []string, data [][]interface{}, startL
 		// Convert row to map
 		rowMap := maps.MakeMapStrAny()
 		for j, col := range columns {
-			if j < len(row) {
+			// Ensure we don't access beyond row length
+			if j < len(row) && j < len(columns) {
 				rowMap[col] = row[j]
 			}
 		}

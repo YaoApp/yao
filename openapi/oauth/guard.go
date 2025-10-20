@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/response"
 )
 
 // Guard is the OAuth guard middleware
@@ -19,7 +20,7 @@ func (s *Service) Guard(c *gin.Context) {
 
 	// Validate the token
 	if token == "" {
-		c.JSON(http.StatusUnauthorized, types.ErrTokenMissing)
+		response.RespondWithError(c, http.StatusUnauthorized, types.ErrTokenMissing)
 		c.Abort()
 		return
 	}
@@ -27,7 +28,7 @@ func (s *Service) Guard(c *gin.Context) {
 	// Validate the token
 	claims, err := s.VerifyToken(token)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, types.ErrInvalidToken)
+		response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
 		c.Abort()
 		return
 	}
@@ -53,9 +54,10 @@ func (s *Service) Guard(c *gin.Context) {
 		return
 	}
 
-	// If permissions are not granted, return forbidden
+	// If permissions are not granted but no error returned, it's an unexpected state
+	// This should not happen with the current implementation
 	if !ok {
-		c.JSON(http.StatusForbidden, types.ErrForbidden)
+		response.RespondWithError(c, http.StatusForbidden, types.ErrForbidden)
 		c.Abort()
 		return
 	}
@@ -70,7 +72,7 @@ func GetAuthorizedInfo(c *gin.Context) *types.AuthorizedInfo {
 func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {
 	refreshToken := s.getRefreshToken(c)
 	if refreshToken == "" {
-		c.JSON(http.StatusUnauthorized, types.ErrRefreshTokenMissing)
+		response.RespondWithError(c, http.StatusUnauthorized, types.ErrRefreshTokenMissing)
 		c.Abort()
 		return
 	}
@@ -78,7 +80,7 @@ func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {
 	// Verify the refresh token
 	_, err := s.VerifyToken(refreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, types.ErrInvalidRefreshToken)
+		response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
 		c.Abort()
 		return
 	}
@@ -177,11 +179,32 @@ func (s *Service) handleACLError(c *gin.Context, err error) {
 
 		case acl.ErrorTypeInsufficientScope:
 			statusCode = http.StatusForbidden
-			errResponse = types.ErrInsufficientScope
+			// Include detailed scope information for insufficient scope errors
+			requiredScopes, _ := aclErr.Details["required_scopes"].([]string)
+			missingScopes, _ := aclErr.Details["missing_scopes"].([]string)
+
+			errResponse = &types.ErrorResponse{
+				Code:             "insufficient_scope",
+				ErrorDescription: "The access token does not have the required scope",
+				Reason:           aclErr.Message,
+				RequiredScopes:   requiredScopes,
+				MissingScopes:    missingScopes,
+			}
 
 		case acl.ErrorTypePermissionDenied:
 			statusCode = http.StatusForbidden
-			errResponse = types.ErrForbidden
+			// Include detailed information for permission denied errors
+			requiredScopes, _ := aclErr.Details["required_scopes"].([]string)
+			missingScopes, _ := aclErr.Details["missing_scopes"].([]string)
+
+			// Use standard ErrorResponse format with extended ACL fields
+			errResponse = &types.ErrorResponse{
+				Code:             "forbidden",
+				ErrorDescription: "You do not have permission to access this resource",
+				Reason:           aclErr.Message,
+				RequiredScopes:   requiredScopes,
+				MissingScopes:    missingScopes,
+			}
 
 		case acl.ErrorTypeResourceNotAllowed:
 			statusCode = http.StatusForbidden
@@ -211,12 +234,12 @@ func (s *Service) handleACLError(c *gin.Context, err error) {
 			errResponse = types.ErrACLInternalError
 		}
 
-		c.JSON(statusCode, errResponse)
+		response.RespondWithError(c, statusCode, errResponse)
 		c.Abort()
 		return
 	}
 
 	// If it's not an ACL error, treat it as an internal error
-	c.JSON(http.StatusInternalServerError, types.ErrACLInternalError)
+	response.RespondWithError(c, http.StatusInternalServerError, types.ErrACLInternalError)
 	c.Abort()
 }

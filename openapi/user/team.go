@@ -692,31 +692,39 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 	teamData["created_at"] = time.Now()
 	teamData["updated_at"] = time.Now()
 
-	// Set default type_id from team config if not provided
-	if _, hasType := teamData["type_id"]; !hasType {
-		// Try to get locale from team data
-		locale := ""
-		if localeVal, ok := teamData["locale"].(string); ok && localeVal != "" {
-			locale = strings.TrimSpace(strings.ToLower(localeVal))
-		}
+	// Get team config for setting defaults
+	locale := ""
+	if localeVal, ok := teamData["locale"].(string); ok && localeVal != "" {
+		locale = strings.TrimSpace(strings.ToLower(localeVal))
+	}
 
-		// Fallback: try common locale variations or use "en" as final fallback
-		// This ensures we always get a valid config even if locale is invalid
-		teamConfig := GetTeamConfig(locale)
-		if teamConfig == nil {
-			// Try fallback locales in order
-			fallbackLocales := []string{"en", "zh-cn"}
-			for _, fallback := range fallbackLocales {
-				teamConfig = GetTeamConfig(fallback)
-				if teamConfig != nil {
-					break
-				}
+	// Fallback: try common locale variations or use "en" as final fallback
+	// This ensures we always get a valid config even if locale is invalid
+	teamConfig := GetTeamConfig(locale)
+	if teamConfig == nil {
+		// Try fallback locales in order
+		fallbackLocales := []string{"en", "zh-cn"}
+		for _, fallback := range fallbackLocales {
+			teamConfig = GetTeamConfig(fallback)
+			if teamConfig != nil {
+				break
 			}
 		}
+	}
 
+	// Set default type_id from team config if not provided
+	if _, hasType := teamData["type_id"]; !hasType {
 		// Apply default type from config if available
 		if teamConfig != nil && teamConfig.Type != "" {
 			teamData["type_id"] = teamConfig.Type
+		}
+	}
+
+	// Set default role_id from team config if not provided
+	if _, hasRole := teamData["role_id"]; !hasRole {
+		// Apply default role from config if available
+		if teamConfig != nil && teamConfig.Role != "" {
+			teamData["role_id"] = teamConfig.Role
 		}
 	}
 
@@ -729,12 +737,18 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 		return "", fmt.Errorf("failed to create team: %w", err)
 	}
 
+	// Determine owner member role_id from team config
+	ownerRoleID := "owner" // fallback default
+	if teamConfig != nil && teamConfig.Role != "" {
+		ownerRoleID = teamConfig.Role
+	}
+
 	// Add the creator as an owner member of the team
 	ownerMemberData := maps.MapStrAny{
 		"team_id":     teamID,
 		"user_id":     userID,
 		"member_type": "user",
-		"role_id":     "owner",
+		"role_id":     ownerRoleID,
 		"status":      "active",
 		"joined_at":   time.Now(),
 		"created_at":  time.Now(),
