@@ -67,6 +67,9 @@ func importDataFromCSV(filename string, mod *model.Model, options ImportOption, 
 		return fmt.Errorf("failed to read CSV header: %v", err)
 	}
 
+	// Build column type map for JSON field detection
+	columnTypes := buildColumnTypeMap(mod, header)
+
 	// Prepare handler
 	handler := createImportHandler(mod, header, options, result)
 
@@ -91,10 +94,10 @@ func importDataFromCSV(filename string, mod *model.Model, options ImportOption, 
 			continue
 		}
 
-		// Convert to interface slice
+		// Convert to interface slice and parse JSON fields
 		row := make([]interface{}, len(record))
 		for i, v := range record {
-			row[i] = v
+			row[i] = parseJSONField(v, columnTypes[i])
 		}
 
 		chunk = append(chunk, row)
@@ -154,6 +157,9 @@ func importDataFromXLSX(filename string, mod *model.Model, options ImportOption,
 		return fmt.Errorf("failed to read header: %v", err)
 	}
 
+	// Build column type map for JSON field detection
+	columnTypes := buildColumnTypeMap(mod, header)
+
 	// Prepare handler
 	handler := createImportHandler(mod, header, options, result)
 
@@ -188,10 +194,10 @@ func importDataFromXLSX(filename string, mod *model.Model, options ImportOption,
 			continue
 		}
 
-		// Convert to interface slice
+		// Convert to interface slice and parse JSON fields
 		row := make([]interface{}, len(record))
 		for i, v := range record {
-			row[i] = v
+			row[i] = parseJSONField(v, columnTypes[i])
 		}
 
 		chunk = append(chunk, row)
@@ -501,3 +507,47 @@ func handleDuplicate(mod *model.Model, row maps.MapStrAny, line int, duplicateMo
 	return nil
 }
 
+// buildColumnTypeMap builds a map of column index to column type
+// Returns a slice where index matches the CSV/XLSX column position
+func buildColumnTypeMap(mod *model.Model, header []string) []string {
+	columnTypes := make([]string, len(header))
+	for i, colName := range header {
+		if col, exists := mod.Columns[colName]; exists {
+			columnTypes[i] = strings.ToLower(col.Type)
+		} else {
+			columnTypes[i] = ""
+		}
+	}
+	return columnTypes
+}
+
+// parseJSONField attempts to parse a value as JSON if the column type is json
+// Returns the parsed JSON object if successful, otherwise returns the original value
+func parseJSONField(value interface{}, columnType string) interface{} {
+	// Check if column type is JSON
+	if columnType != "json" && columnType != "jsonb" {
+		return value
+	}
+
+	// Try to parse string value as JSON
+	strValue, ok := value.(string)
+	if !ok || strValue == "" {
+		return value
+	}
+
+	// Trim whitespace
+	strValue = strings.TrimSpace(strValue)
+	if strValue == "" {
+		return value
+	}
+
+	// Try to parse as JSON
+	var jsonValue interface{}
+	if err := json.Unmarshal([]byte(strValue), &jsonValue); err != nil {
+		// If parsing fails, return original value (might be empty or malformed)
+		// Don't log error as this is expected for non-JSON strings
+		return value
+	}
+
+	return jsonValue
+}

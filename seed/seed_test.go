@@ -322,3 +322,144 @@ func TestSeedImportChunkSize(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Greater(t, len(roles), 0)
 }
+
+// TestSeedImportJSONFields tests that JSON fields are correctly parsed from CSV
+func TestSeedImportJSONFields(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Ensure __yao.role model exists
+	if !model.Exists("__yao.role") {
+		t.Skip("__yao.role model not loaded, skipping test")
+	}
+
+	// Clear existing roles
+	mod := model.Select("__yao.role")
+	_, _ = mod.DestroyWhere(model.QueryParam{})
+
+	// Import CSV file
+	p := process.New("seeds.import", "roles.csv", "__yao.role")
+	result := p.Run()
+
+	// Verify result
+	assert.NotNil(t, result)
+	resultMap, ok := result.(*ImportResult)
+	assert.True(t, ok, "Result should be ImportResult")
+	assert.Greater(t, resultMap.Success, 0, "Should have successful imports")
+
+	// Get imported data
+	roles, err := mod.Get(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "role_id", Value: "admin"},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(roles), "Should find admin role")
+
+	// Verify JSON fields are parsed as objects, not strings
+	adminRole := roles[0]
+
+	// Check permissions field (should be a map, not a string)
+	permissions := adminRole.Get("permissions")
+	assert.NotNil(t, permissions, "Permissions should not be nil")
+	permissionsMap, ok := permissions.(map[string]interface{})
+	assert.True(t, ok, "Permissions should be parsed as map[string]interface{}, got %T", permissions)
+	assert.NotNil(t, permissionsMap["users"], "Should have users permissions")
+
+	// Check metadata field (should be a map, not a string)
+	metadata := adminRole.Get("metadata")
+	assert.NotNil(t, metadata, "Metadata should not be nil")
+	metadataMap, ok := metadata.(map[string]interface{})
+	assert.True(t, ok, "Metadata should be parsed as map[string]interface{}, got %T", metadata)
+
+	// Verify nested values
+	if usersPerms, ok := permissionsMap["users"].([]interface{}); ok {
+		assert.Greater(t, len(usersPerms), 0, "Should have user permissions")
+		assert.Contains(t, usersPerms, "create", "Should have create permission")
+	}
+
+	if maxUsers, ok := metadataMap["max_users"].(float64); ok {
+		assert.Equal(t, float64(5), maxUsers, "Max users should be 5")
+	}
+}
+
+// TestSeedImportXLSXJSONFields tests that JSON fields are correctly parsed from XLSX
+func TestSeedImportXLSXJSONFields(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Ensure __yao.role model exists
+	if !model.Exists("__yao.role") {
+		t.Skip("__yao.role model not loaded, skipping test")
+	}
+
+	// Clear existing roles
+	mod := model.Select("__yao.role")
+	_, _ = mod.DestroyWhere(model.QueryParam{})
+
+	// Import XLSX file
+	p := process.New("seeds.import", "roles.xlsx", "__yao.role")
+	result := p.Run()
+
+	// Verify result
+	assert.NotNil(t, result)
+	resultMap, ok := result.(*ImportResult)
+	assert.True(t, ok, "Result should be ImportResult")
+	assert.Greater(t, resultMap.Success, 0, "Should have successful imports")
+
+	// Get imported data
+	roles, err := mod.Get(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "role_id", Value: "admin"},
+		},
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(roles), "Should find admin role")
+
+	// Verify JSON fields are parsed as objects, not strings
+	adminRole := roles[0]
+
+	// Check permissions field (should be a map, not a string)
+	permissions := adminRole.Get("permissions")
+	assert.NotNil(t, permissions, "Permissions should not be nil")
+	permissionsMap, ok := permissions.(map[string]interface{})
+	assert.True(t, ok, "Permissions should be parsed as map[string]interface{}, got %T", permissions)
+	assert.NotNil(t, permissionsMap["users"], "Should have users permissions")
+
+	// Check metadata field (should be a map, not a string)
+	metadata := adminRole.Get("metadata")
+	assert.NotNil(t, metadata, "Metadata should not be nil")
+	metadataMap, ok := metadata.(map[string]interface{})
+	assert.True(t, ok, "Metadata should be parsed as map[string]interface{}, got %T", metadata)
+
+	// Verify nested values from XLSX
+	if usersPerms, ok := permissionsMap["users"].([]interface{}); ok {
+		assert.Greater(t, len(usersPerms), 0, "Should have user permissions")
+		assert.Contains(t, usersPerms, "create", "Should have create permission")
+	}
+
+	if maxUsers, ok := metadataMap["max_users"].(float64); ok {
+		assert.Equal(t, float64(5), maxUsers, "Max users should be 5")
+	}
+
+	// Also verify other roles to ensure all JSON fields are parsed
+	allRoles, err := mod.Get(model.QueryParam{})
+	assert.Nil(t, err)
+	assert.Greater(t, len(allRoles), 1, "Should have multiple roles")
+
+	// Check that all roles have properly parsed JSON fields
+	for _, role := range allRoles {
+		roleID := role.Get("role_id")
+		permissions := role.Get("permissions")
+		if permissions != nil {
+			_, ok := permissions.(map[string]interface{})
+			assert.True(t, ok, "Role %s permissions should be parsed as map, got %T", roleID, permissions)
+		}
+
+		metadata := role.Get("metadata")
+		if metadata != nil {
+			_, ok := metadata.(map[string]interface{})
+			assert.True(t, ok, "Role %s metadata should be parsed as map, got %T", roleID, metadata)
+		}
+	}
+}
