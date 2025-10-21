@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/tests/testutils"
 )
 
 // setupGinContext creates a test gin context with authorized info
@@ -89,13 +90,16 @@ func TestEnforce(t *testing.T) {
 		}
 
 		// Setup test context with no scopes
-		c, w := setupGinContext("GET", "/test/endpoint", []string{})
+		c, _ := setupGinContext("GET", "/test/endpoint", []string{})
 
-		// Enforce should check permissions
+		// Enforce should deny access and return error (no scope for unmatched endpoint)
 		allowed, err := aclEnforcer.Enforce(c)
-		assert.NoError(t, err)
+		assert.False(t, allowed, "Should deny access for unmatched endpoint")
+		assert.Error(t, err, "Should return error when access is denied")
 
-		t.Logf("Access decision: allowed=%v, status=%d", allowed, w.Code)
+		if err != nil {
+			t.Logf("Access correctly denied: %v", err)
+		}
 	})
 
 	t.Run("EnforceWithScopes", func(t *testing.T) {
@@ -111,18 +115,15 @@ func TestEnforce(t *testing.T) {
 			return
 		}
 
-		// Setup test context with scopes
-		c, w := setupGinContext("GET", "/api/users", []string{"read:users", "write:users"})
+		// Setup test context with scopes for unmatched endpoint
+		c, _ := setupGinContext("GET", "/api/users", []string{"read:users", "write:users"})
 
-		// Enforce should check permissions
+		// Enforce should deny (unmatched endpoint, default policy: deny)
 		allowed, err := aclEnforcer.Enforce(c)
-		assert.NoError(t, err)
+		assert.False(t, allowed, "Should deny access for unmatched endpoint")
+		assert.Error(t, err, "Should return error when access is denied")
 
-		t.Logf("Access with scopes: allowed=%v, status=%d", allowed, w.Code)
-
-		if !allowed && w.Code == 403 {
-			t.Log("Access correctly denied with 403 response")
-		}
+		t.Logf("Access correctly denied: %v", err)
 	})
 
 	t.Run("EnforceChecksContext", func(t *testing.T) {
@@ -151,17 +152,19 @@ func TestEnforce(t *testing.T) {
 		assert.Equal(t, "test-client", authInfo.ClientID)
 		assert.Contains(t, authInfo.Scope, "collections:create")
 
-		// Enforce
+		// Enforce - should deny because required scope is "collections:write:all"
 		allowed, err := aclEnforcer.Enforce(c)
-		assert.NoError(t, err)
+		assert.False(t, allowed, "Should deny access without required scope")
+		assert.Error(t, err, "Should return error for missing required scopes")
 
-		t.Logf("Enforce with collections scopes: allowed=%v", allowed)
+		t.Logf("Access correctly denied: %v", err)
 	})
 }
 
-// TestEnforceResponseFormat tests the response format when access is denied
-func TestEnforceResponseFormat(t *testing.T) {
-	t.Run("DeniedAccessResponse", func(t *testing.T) {
+// TestEnforceReturnValues tests Enforce return values when access is denied
+// Note: HTTP response format is handled by Guard middleware, not by Enforce
+func TestEnforceReturnValues(t *testing.T) {
+	t.Run("DeniedAccessReturnValues", func(t *testing.T) {
 		config := &acl.Config{
 			Enabled: true,
 		}
@@ -173,28 +176,22 @@ func TestEnforceResponseFormat(t *testing.T) {
 			return
 		}
 
-		// Setup context with insufficient scopes for a protected endpoint
-		c, w := setupGinContext("POST", "/protected/admin", []string{"read:basic"})
+		// Setup context with scopes for an unmatched endpoint
+		c, _ := setupGinContext("POST", "/protected/admin", []string{"read:basic"})
 
-		// Enforce
+		// Enforce should return false and an error
 		allowed, err := aclEnforcer.Enforce(c)
-		assert.NoError(t, err)
+		assert.False(t, allowed, "Should deny access")
+		assert.Error(t, err, "Should return error when access is denied")
 
-		// If access is denied, check response format
-		if !allowed {
-			assert.Equal(t, 403, w.Code, "Should return 403 Forbidden")
-
-			// Response should be JSON
-			contentType := w.Header().Get("Content-Type")
-			assert.Contains(t, contentType, "application/json")
-
-			// Response body should contain error details
-			body := w.Body.String()
-			assert.Contains(t, body, "Access denied")
-
-			t.Logf("Denied access response format correct: %s", body)
-		} else {
-			t.Log("Access was allowed (no scope configuration for this endpoint)")
+		// Verify error contains ACL error information
+		if err != nil {
+			aclErr, ok := err.(*acl.Error)
+			assert.True(t, ok, "Error should be ACL Error type")
+			if aclErr != nil {
+				assert.NotEmpty(t, aclErr.Message, "Error should have message")
+				t.Logf("Access correctly denied with error: %v", aclErr.Message)
+			}
 		}
 	})
 }
@@ -246,6 +243,9 @@ func TestGetScopes(t *testing.T) {
 
 // TestEnforceIntegration tests the complete enforcement flow
 func TestEnforceIntegration(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean()
+
 	t.Run("CompleteFlow", func(t *testing.T) {
 		// Create enabled ACL
 		config := &acl.Config{
@@ -312,9 +312,9 @@ func TestEnforceIntegration(t *testing.T) {
 			{
 				name:     "WildcardAllowedRead",
 				method:   "GET",
-				path:     "/kb/documents/doc-123",
+				path:     "/kb/some-other-resource/item-123",
 				scopes:   []string{},
-				expected: "allow", // GET /kb/* allow from scopes.yml
+				expected: "allow", // GET /kb/* allow from scopes.yml (wildcard match, no specific scope defined)
 			},
 			{
 				name:     "UnmatchedEndpoint",
@@ -327,17 +327,20 @@ func TestEnforceIntegration(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				c, w := setupGinContext(tc.method, tc.path, tc.scopes)
+				c, _ := setupGinContext(tc.method, tc.path, tc.scopes)
 
 				allowed, err := aclEnforcer.Enforce(c)
-				assert.NoError(t, err)
 
-				t.Logf("%s %s with scopes %v: allowed=%v, status=%d",
-					tc.method, tc.path, tc.scopes, allowed, w.Code)
+				t.Logf("%s %s with scopes %v: allowed=%v",
+					tc.method, tc.path, tc.scopes, allowed)
 
-				// Verify response is properly formatted
-				if !allowed {
-					assert.Equal(t, 403, w.Code)
+				// Verify Enforce return values (not HTTP response format)
+				if tc.expected == "allow" {
+					assert.True(t, allowed, "Should allow access")
+					assert.NoError(t, err, "Should not return error when access is allowed")
+				} else {
+					assert.False(t, allowed, "Should deny access")
+					assert.Error(t, err, "Should return error when access is denied")
 				}
 			})
 		}
@@ -395,13 +398,14 @@ func TestEnforceEdgeCases(t *testing.T) {
 			return
 		}
 
-		// Test with special characters in path
+		// Test with special characters in path (unmatched endpoint)
 		c, _ := setupGinContext("GET", "/api/users/%20with%20spaces", []string{"read:users"})
 
 		allowed, err := aclEnforcer.Enforce(c)
-		assert.NoError(t, err)
+		assert.False(t, allowed, "Should deny unmatched endpoint")
+		assert.Error(t, err, "Should return error for unmatched endpoint")
 
-		t.Logf("Path with special chars: allowed=%v", allowed)
+		t.Logf("Path with special chars correctly denied: %v", err)
 	})
 
 	t.Run("VeryLongScope", func(t *testing.T) {
@@ -416,13 +420,14 @@ func TestEnforceEdgeCases(t *testing.T) {
 			return
 		}
 
-		// Test with very long scope name
+		// Test with very long scope name (unmatched endpoint)
 		longScope := "very:long:scope:name:with:many:segments:to:test:handling:of:long:strings"
 		c, _ := setupGinContext("GET", "/test", []string{longScope})
 
 		allowed, err := aclEnforcer.Enforce(c)
-		assert.NoError(t, err)
+		assert.False(t, allowed, "Should deny unmatched endpoint")
+		assert.Error(t, err, "Should return error for unmatched endpoint")
 
-		t.Logf("Long scope handling: allowed=%v", allowed)
+		t.Logf("Long scope correctly handled: %v", err)
 	})
 }
