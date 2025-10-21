@@ -45,7 +45,8 @@ type Error struct {
 	Type       ErrorType
 	Message    string
 	Details    map[string]interface{}
-	RetryAfter int // seconds to wait before retrying (for rate limit errors)
+	RetryAfter int              // seconds to wait before retrying (for rate limit errors)
+	Stage      EnforcementStage // stage where the permission check failed
 }
 
 // Error implements the error interface

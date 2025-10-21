@@ -509,3 +509,97 @@ func TestScopeAtomic_ComplexScenarios(t *testing.T) {
 		}
 	})
 }
+
+// TestScopeAtomic_DataConstraints tests data access constraints (OwnerOnly, TeamOnly)
+func TestScopeAtomic_DataConstraints(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean()
+
+	manager, err := acl.LoadScopes()
+	assert.NoError(t, err)
+	assert.NotNil(t, manager)
+
+	t.Run("Constraints_OwnerOnly", func(t *testing.T) {
+		// Test endpoints with owner: true constraint
+		// According to collections.yml: collections:read:own has owner: true
+		request := &acl.AccessRequest{
+			Method: "GET",
+			Path:   "/kb/collections/own",
+			Scopes: []string{"collections:read:own"},
+		}
+
+		decision := manager.Check(request)
+		assert.NotNil(t, decision)
+		t.Logf("✓ OwnerOnly endpoint: Allowed=%v, Reason=%s", decision.Allowed, decision.Reason)
+
+		if decision.Allowed && decision.MatchedEndpoint != nil {
+			assert.True(t, decision.MatchedEndpoint.OwnerOnly,
+				"Endpoint with owner:true should set OwnerOnly flag")
+			t.Logf("  OwnerOnly=%v", decision.MatchedEndpoint.OwnerOnly)
+		}
+	})
+
+	t.Run("Constraints_TeamOnly", func(t *testing.T) {
+		// Test endpoints with team: true constraint
+		// According to collections.yml: collections:read:team has team: true
+		request := &acl.AccessRequest{
+			Method: "GET",
+			Path:   "/kb/collections/team",
+			Scopes: []string{"collections:read:team"},
+		}
+
+		decision := manager.Check(request)
+		assert.NotNil(t, decision)
+		t.Logf("✓ TeamOnly endpoint: Allowed=%v, Reason=%s", decision.Allowed, decision.Reason)
+
+		if decision.Allowed && decision.MatchedEndpoint != nil {
+			assert.True(t, decision.MatchedEndpoint.TeamOnly,
+				"Endpoint with team:true should set TeamOnly flag")
+			t.Logf("  TeamOnly=%v", decision.MatchedEndpoint.TeamOnly)
+		}
+	})
+
+	t.Run("Constraints_NoRestrictions", func(t *testing.T) {
+		// Test endpoints without constraints
+		// collections:read:all has no owner/team flags
+		request := &acl.AccessRequest{
+			Method: "GET",
+			Path:   "/kb/collections",
+			Scopes: []string{"collections:read:all"},
+		}
+
+		decision := manager.Check(request)
+		assert.NotNil(t, decision)
+		t.Logf("✓ No constraints endpoint: Allowed=%v, Reason=%s", decision.Allowed, decision.Reason)
+
+		if decision.Allowed && decision.MatchedEndpoint != nil {
+			assert.False(t, decision.MatchedEndpoint.OwnerOnly,
+				"Endpoint without owner flag should have OwnerOnly=false")
+			assert.False(t, decision.MatchedEndpoint.TeamOnly,
+				"Endpoint without team flag should have TeamOnly=false")
+			t.Logf("  OwnerOnly=%v, TeamOnly=%v",
+				decision.MatchedEndpoint.OwnerOnly,
+				decision.MatchedEndpoint.TeamOnly)
+		}
+	})
+
+	t.Run("Constraints_ProfileOwner", func(t *testing.T) {
+		// Test user profile endpoint with owner constraint
+		// According to profile.yml: profile:read:own has owner: true
+		request := &acl.AccessRequest{
+			Method: "GET",
+			Path:   "/user/profile",
+			Scopes: []string{"profile:read:own"},
+		}
+
+		decision := manager.Check(request)
+		assert.NotNil(t, decision)
+		t.Logf("✓ Profile endpoint: Allowed=%v, Reason=%s", decision.Allowed, decision.Reason)
+
+		if decision.Allowed && decision.MatchedEndpoint != nil {
+			assert.True(t, decision.MatchedEndpoint.OwnerOnly,
+				"Profile endpoint should have OwnerOnly constraint")
+			t.Logf("  OwnerOnly=%v", decision.MatchedEndpoint.OwnerOnly)
+		}
+	})
+}
