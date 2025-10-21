@@ -1,12 +1,14 @@
 package acl_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -76,6 +78,9 @@ func TestEnforce(t *testing.T) {
 	})
 
 	t.Run("EnforceWithEnabledACLNoScope", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
 		// Create enabled ACL
 		config := &acl.Config{
 			Enabled: true,
@@ -103,6 +108,9 @@ func TestEnforce(t *testing.T) {
 	})
 
 	t.Run("EnforceWithScopes", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
 		// Create enabled ACL
 		config := &acl.Config{
 			Enabled: true,
@@ -127,6 +135,9 @@ func TestEnforce(t *testing.T) {
 	})
 
 	t.Run("EnforceChecksContext", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
 		// Test that Enforce extracts info from context correctly
 		config := &acl.Config{
 			Enabled: true,
@@ -159,12 +170,125 @@ func TestEnforce(t *testing.T) {
 
 		t.Logf("Access correctly denied: %v", err)
 	})
+
+	t.Run("EnforceUpdatesConstraints", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
+		// Get user provider and set up test data
+		ctx := context.Background()
+		provider, err := oauth.OAuth.GetUserProvider()
+		if err != nil || provider == nil {
+			t.Skip("Skipping: user provider not available")
+			return
+		}
+
+		// Set up test data
+		testData := setupACLTestData(t, ctx, provider)
+		defer cleanupACLTestData(t, ctx, provider, testData)
+
+		// Use global ACL instance
+		aclEnforcer := acl.Global
+		if aclEnforcer == nil || !aclEnforcer.Enabled() {
+			t.Skip("Skipping: ACL not enabled")
+			return
+		}
+
+		// Test case 1: OwnerOnly constraint (profile:read:own has owner: true)
+		t.Run("OwnerOnlyConstraint", func(t *testing.T) {
+			c, _ := setupGinContext("GET", "/user/profile", []string{"profile:read:own"})
+
+			allowed, err := aclEnforcer.Enforce(c)
+			assert.NoError(t, err, "Should not return error")
+			assert.True(t, allowed, "Should allow access with profile:read:own")
+
+			// Get updated authorized info from context
+			authInfo := authorized.GetInfo(c)
+			assert.NotNil(t, authInfo, "AuthInfo should not be nil")
+
+			// Verify OwnerOnly constraint was set
+			assert.True(t, authInfo.Constraints.OwnerOnly,
+				"OwnerOnly should be true for profile:read:own endpoint")
+			assert.False(t, authInfo.Constraints.TeamOnly,
+				"TeamOnly should be false for profile endpoint")
+
+			t.Logf("✓ OwnerOnly constraint correctly set: OwnerOnly=%v, TeamOnly=%v",
+				authInfo.Constraints.OwnerOnly, authInfo.Constraints.TeamOnly)
+		})
+
+		// Test case 2: TeamOnly constraint (collections:read:team has team: true)
+		t.Run("TeamOnlyConstraint", func(t *testing.T) {
+			c, _ := setupGinContext("GET", "/kb/collections/team", []string{"collections:read:team"})
+
+			allowed, err := aclEnforcer.Enforce(c)
+			assert.NoError(t, err, "Should not return error")
+			assert.True(t, allowed, "Should allow access with collections:read:team")
+
+			// Get updated authorized info from context
+			authInfo := authorized.GetInfo(c)
+			assert.NotNil(t, authInfo, "AuthInfo should not be nil")
+
+			// Verify TeamOnly constraint was set
+			assert.True(t, authInfo.Constraints.TeamOnly,
+				"TeamOnly should be true for collections:read:team endpoint")
+			assert.False(t, authInfo.Constraints.OwnerOnly,
+				"OwnerOnly should be false for team endpoint")
+
+			t.Logf("✓ TeamOnly constraint correctly set: OwnerOnly=%v, TeamOnly=%v",
+				authInfo.Constraints.OwnerOnly, authInfo.Constraints.TeamOnly)
+		})
+
+		// Test case 3: No constraints (collections:read:all has no owner/team flags)
+		t.Run("NoConstraints", func(t *testing.T) {
+			c, _ := setupGinContext("GET", "/kb/collections", []string{"collections:read:all"})
+
+			allowed, err := aclEnforcer.Enforce(c)
+			assert.NoError(t, err, "Should not return error")
+			assert.True(t, allowed, "Should allow access with collections:read:all")
+
+			// Get updated authorized info from context
+			authInfo := authorized.GetInfo(c)
+			assert.NotNil(t, authInfo, "AuthInfo should not be nil")
+
+			// Verify no constraints were set
+			assert.False(t, authInfo.Constraints.OwnerOnly,
+				"OwnerOnly should be false for unrestricted endpoint")
+			assert.False(t, authInfo.Constraints.TeamOnly,
+				"TeamOnly should be false for unrestricted endpoint")
+
+			t.Logf("✓ No constraints for unrestricted endpoint: OwnerOnly=%v, TeamOnly=%v",
+				authInfo.Constraints.OwnerOnly, authInfo.Constraints.TeamOnly)
+		})
+
+		// Test case 4: Both constraints (if such endpoint exists)
+		t.Run("BothOwnerAndTeamConstraints", func(t *testing.T) {
+			c, _ := setupGinContext("GET", "/kb/collections/own", []string{"collections:read:own"})
+
+			allowed, err := aclEnforcer.Enforce(c)
+			assert.NoError(t, err, "Should not return error")
+			assert.True(t, allowed, "Should allow access with collections:read:own")
+
+			// Get updated authorized info from context
+			authInfo := authorized.GetInfo(c)
+			assert.NotNil(t, authInfo, "AuthInfo should not be nil")
+
+			// Verify OwnerOnly constraint was set (collections:read:own has owner: true)
+			assert.True(t, authInfo.Constraints.OwnerOnly,
+				"OwnerOnly should be true for collections:read:own endpoint")
+
+			t.Logf("✓ Owner constraint for own collections: OwnerOnly=%v, TeamOnly=%v",
+				authInfo.Constraints.OwnerOnly, authInfo.Constraints.TeamOnly)
+		})
+	})
 }
 
 // TestEnforceReturnValues tests Enforce return values when access is denied
 // Note: HTTP response format is handled by Guard middleware, not by Enforce
 func TestEnforceReturnValues(t *testing.T) {
 	t.Run("DeniedAccessReturnValues", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
 		config := &acl.Config{
 			Enabled: true,
 		}
@@ -241,23 +365,249 @@ func TestGetScopes(t *testing.T) {
 	})
 }
 
+// setupACLTestRoles creates test roles with permissions for ACL testing
+func setupACLTestRoles(t *testing.T, ctx context.Context, provider types.UserProvider) {
+	roles := []struct {
+		roleID      string
+		name        string
+		description string
+		permissions []string
+		restricted  []string
+	}{
+		{
+			roleID:      "system:root",
+			name:        "System Root",
+			description: "System root role with full access",
+			permissions: []string{"*:*:*"},
+			restricted:  []string{},
+		},
+		{
+			roleID:      "acl_test_user",
+			name:        "ACL Test User Role",
+			description: "Role for ACL user testing",
+			permissions: []string{
+				"profile:read:own",
+				"profile:write:own",
+				"collections:read:all",
+				"collections:write:all",
+			},
+			restricted: []string{},
+		},
+		{
+			roleID:      "acl_test_team",
+			name:        "ACL Test Team Role",
+			description: "Role for ACL team testing",
+			permissions: []string{
+				"team:read:all",
+				"team:write:all",
+				"collections:read:team",
+			},
+			restricted: []string{},
+		},
+		{
+			roleID:      "acl_test_member",
+			name:        "ACL Test Member Role",
+			description: "Role for ACL member testing",
+			permissions: []string{
+				"member:read:own",
+				"member:write:own",
+				"collections:read:own",
+			},
+			restricted: []string{
+				"admin:access",
+			},
+		},
+	}
+
+	for _, role := range roles {
+		// Create role
+		roleData := map[string]interface{}{
+			"role_id":     role.roleID,
+			"name":        role.name,
+			"description": role.description,
+			"status":      "active",
+		}
+		_, err := provider.CreateRole(ctx, roleData)
+		if err != nil {
+			t.Logf("Warning: Failed to create role %s (may already exist): %v", role.roleID, err)
+		}
+
+		// Set role permissions
+		permissions := map[string]interface{}{
+			"permissions":            role.permissions,
+			"restricted_permissions": role.restricted,
+		}
+		err = provider.SetRolePermissions(ctx, role.roleID, permissions)
+		if err != nil {
+			t.Logf("Warning: Failed to set permissions for role %s: %v", role.roleID, err)
+		}
+	}
+
+	t.Log("Set up ACL test roles and permissions")
+}
+
+// cleanupACLTestRoles removes test roles created for ACL testing
+func cleanupACLTestRoles(t *testing.T, ctx context.Context, provider types.UserProvider) {
+	roles := []string{"system:root", "acl_test_user", "acl_test_team", "acl_test_member"}
+	for _, roleID := range roles {
+		err := provider.DeleteRole(ctx, roleID)
+		if err != nil {
+			t.Logf("Warning: Failed to delete test role %s: %v", roleID, err)
+		}
+	}
+	t.Log("Cleaned up ACL test roles")
+}
+
+// setupACLTestData creates test users, teams, members and roles for ACL testing
+func setupACLTestData(t *testing.T, ctx context.Context, provider types.UserProvider) *ACLTestData {
+	data := &ACLTestData{
+		UserIDs:   make([]string, 0),
+		TeamIDs:   make([]string, 0),
+		MemberIDs: make([]int64, 0),
+	}
+
+	// Set up roles first
+	setupACLTestRoles(t, ctx, provider)
+
+	// Create test users with different roles
+	users := []struct {
+		userID   string
+		email    string
+		username string
+		roleID   string
+	}{
+		{"test-user", "testuser@acl.test", "testuser", "system:root"},          // For test-client in setupGinContext
+		{"acl-user-1", "acluser1@acl.test", "acluser1", "acl_test_user"},       // Regular user
+		{"acl-owner", "aclowner@acl.test", "aclowner", "acl_test_user"},        // Team owner
+		{"acl-member-1", "aclmember1@acl.test", "aclmember1", "acl_test_user"}, // Team member
+	}
+
+	for _, u := range users {
+		userData := map[string]interface{}{
+			"user_id":            u.userID,
+			"email":              u.email,
+			"preferred_username": u.username,
+			"password_hash":      "test_hash",
+			"status":             "active",
+			"role_id":            u.roleID,
+		}
+		userID, err := provider.CreateUser(ctx, userData)
+		if err != nil {
+			t.Logf("Warning: Failed to create user %s: %v", u.userID, err)
+		} else {
+			data.UserIDs = append(data.UserIDs, userID)
+		}
+	}
+
+	// Create test team
+	teamData := map[string]interface{}{
+		"name":        "ACL Test Team",
+		"description": "Team for ACL testing",
+		"owner_id":    "acl-owner",
+		"status":      "active",
+		"role_id":     "acl_test_team",
+	}
+	teamID, err := provider.CreateTeam(ctx, teamData)
+	if err != nil {
+		t.Logf("Warning: Failed to create team: %v", err)
+	} else {
+		data.TeamIDs = append(data.TeamIDs, teamID)
+
+		// Create team members
+		members := []struct {
+			userID string
+			roleID string
+		}{
+			{"acl-owner", "acl_test_member"},    // Owner as member
+			{"acl-member-1", "acl_test_member"}, // Regular member
+		}
+
+		for _, m := range members {
+			memberData := map[string]interface{}{
+				"team_id":     teamID,
+				"user_id":     m.userID,
+				"role_id":     m.roleID,
+				"member_type": "user",
+				"status":      "active",
+			}
+			memberID, err := provider.CreateMember(ctx, memberData)
+			if err != nil {
+				t.Logf("Warning: Failed to create member %s: %v", m.userID, err)
+			} else {
+				data.MemberIDs = append(data.MemberIDs, memberID)
+			}
+		}
+	}
+
+	t.Logf("Created ACL test data: %d users, %d teams, %d members",
+		len(data.UserIDs), len(data.TeamIDs), len(data.MemberIDs))
+	return data
+}
+
+// cleanupACLTestData removes all test data created for ACL testing
+func cleanupACLTestData(t *testing.T, ctx context.Context, provider types.UserProvider, data *ACLTestData) {
+	if data == nil {
+		return
+	}
+
+	// Remove teams (this will cascade remove members)
+	for _, teamID := range data.TeamIDs {
+		err := provider.DeleteTeam(ctx, teamID)
+		if err != nil {
+			t.Logf("Warning: Failed to delete test team %s: %v", teamID, err)
+		}
+	}
+
+	// Remove users
+	for _, userID := range data.UserIDs {
+		err := provider.DeleteUser(ctx, userID)
+		if err != nil {
+			t.Logf("Warning: Failed to delete test user %s: %v", userID, err)
+		}
+	}
+
+	// Remove roles
+	cleanupACLTestRoles(t, ctx, provider)
+
+	t.Logf("Cleaned up ACL test data: %d users, %d teams",
+		len(data.UserIDs), len(data.TeamIDs))
+}
+
+// ACLTestData holds test data created for ACL testing
+type ACLTestData struct {
+	UserIDs   []string
+	TeamIDs   []string
+	MemberIDs []int64
+}
+
 // TestEnforceIntegration tests the complete enforcement flow
+// Note: This test only validates scope-based ACL when RoleManager is not configured
+// For full role-based testing, see role package tests
 func TestEnforceIntegration(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean()
 
-	t.Run("CompleteFlow", func(t *testing.T) {
-		// Create enabled ACL
-		config := &acl.Config{
-			Enabled: true,
-		}
+	t.Run("ScopeBasedFlow", func(t *testing.T) {
+		// Use the global ACL instance created by testutils.Prepare
+		// This tests the real configuration loaded from the application
+		aclEnforcer := acl.Global
 
-		aclEnforcer, err := acl.New(config)
-
-		if err != nil {
-			t.Skipf("Skipping integration test: ACL initialization failed: %v", err)
+		if aclEnforcer == nil || !aclEnforcer.Enabled() {
+			t.Skip("Skipping integration test: ACL is not enabled")
 			return
 		}
+
+		// Get user provider and set up complete test data
+		ctx := context.Background()
+		provider, err := oauth.OAuth.GetUserProvider()
+		if err != nil || provider == nil {
+			t.Skip("Skipping: user provider not available")
+			return
+		}
+
+		// Set up test data and ensure cleanup
+		testData := setupACLTestData(t, ctx, provider)
+		defer cleanupACLTestData(t, ctx, provider, testData)
 
 		// Test cases with real endpoints from yao-dev-app scopes configuration
 		testCases := []struct {
@@ -265,7 +615,7 @@ func TestEnforceIntegration(t *testing.T) {
 			method   string
 			path     string
 			scopes   []string
-			expected string // "allow" or "deny" or "unknown"
+			expected string // "allow" or "deny"
 		}{
 			{
 				name:     "PublicEndpoint",
@@ -314,7 +664,7 @@ func TestEnforceIntegration(t *testing.T) {
 				method:   "GET",
 				path:     "/kb/some-other-resource/item-123",
 				scopes:   []string{},
-				expected: "allow", // GET /kb/* allow from scopes.yml (wildcard match, no specific scope defined)
+				expected: "allow", // GET /kb/* allow from scopes.yml
 			},
 			{
 				name:     "UnmatchedEndpoint",
@@ -334,7 +684,7 @@ func TestEnforceIntegration(t *testing.T) {
 				t.Logf("%s %s with scopes %v: allowed=%v",
 					tc.method, tc.path, tc.scopes, allowed)
 
-				// Verify Enforce return values (not HTTP response format)
+				// Verify Enforce return values
 				if tc.expected == "allow" {
 					assert.True(t, allowed, "Should allow access")
 					assert.NoError(t, err, "Should not return error when access is allowed")
@@ -387,6 +737,9 @@ func TestEnforceEdgeCases(t *testing.T) {
 	})
 
 	t.Run("SpecialCharactersInPath", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
 		config := &acl.Config{
 			Enabled: true,
 		}
@@ -409,6 +762,9 @@ func TestEnforceEdgeCases(t *testing.T) {
 	})
 
 	t.Run("VeryLongScope", func(t *testing.T) {
+		testutils.Prepare(t)
+		defer testutils.Clean()
+
 		config := &acl.Config{
 			Enabled: true,
 		}

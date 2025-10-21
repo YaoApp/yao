@@ -47,4 +47,3 @@ share/const.go.bak
 share/const.goe
 .cursor
 openapi/*.md
-openapi/oauth/acl/*.md

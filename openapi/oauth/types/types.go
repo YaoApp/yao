@@ -596,6 +596,18 @@ type TokenClaims struct {
 	Extra map[string]interface{} `json:"-"` // Additional custom claims (not serialized directly)
 }
 
+// DataConstraints represents data access constraints
+// These constraints are set by ACL enforcement and used by API handlers to filter data
+type DataConstraints struct {
+	OwnerOnly bool `json:"owner_only,omitempty"` // Only access owner's data (filter by UserID)
+	TeamOnly  bool `json:"team_only,omitempty"`  // Only access team's data (filter by TeamID)
+
+	// Future constraints can be added here:
+	// DepartmentOnly bool `json:"department_only,omitempty"` // Only access department's data
+	// ProjectOnly    bool `json:"project_only,omitempty"`    // Only access project's data
+	// RegionOnly     bool `json:"region_only,omitempty"`     // Only access region's data
+}
+
 // AuthorizedInfo represents authorized information
 type AuthorizedInfo struct {
 	Subject   string `json:"sub,omitempty"`        // Subject identifier
@@ -608,6 +620,9 @@ type AuthorizedInfo struct {
 	TeamID     string `json:"team_id,omitempty"`     // Team identifier
 	TenantID   string `json:"tenant_id,omitempty"`   // Tenant identifier
 	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag preserved from login
+
+	// Data access constraints (set by ACL enforcement)
+	Constraints DataConstraints `json:"constraints,omitempty"`
 }
 
 // JWTClaims represents JWT-specific claims structure

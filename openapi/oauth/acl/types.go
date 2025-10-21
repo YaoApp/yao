@@ -148,6 +148,32 @@ type EndpointInfo struct {
 	TeamOnly  bool // Team only
 }
 
+// GetConstraints returns all data access constraints as a map
+// This allows flexible extension without changing method signatures
+func (e *EndpointInfo) GetConstraints() map[string]interface{} {
+	if e == nil {
+		return map[string]interface{}{}
+	}
+
+	constraints := make(map[string]interface{})
+
+	if e.OwnerOnly {
+		constraints["owner_only"] = true
+	}
+
+	if e.TeamOnly {
+		constraints["team_only"] = true
+	}
+
+	// Future constraints can be added here without breaking existing code
+	// Example:
+	// if e.DepartmentOnly {
+	//     constraints["department_only"] = true
+	// }
+
+	return constraints
+}
+
 // EndpointPolicy represents the endpoint policy
 type EndpointPolicy int
 
@@ -193,3 +219,25 @@ type AccessDecision struct {
 	UserScopes     []string // User's scopes
 	MissingScopes  []string // Missing scopes
 }
+
+// ============ Enforcement Stage (permission check stages) ============
+
+// EnforcementStage represents the stage where permission check failed
+type EnforcementStage string
+
+const (
+	// EnforcementStageClient indicates client permission check failed
+	EnforcementStageClient EnforcementStage = "client"
+
+	// EnforcementStageScope indicates scope permission check failed
+	EnforcementStageScope EnforcementStage = "scope"
+
+	// EnforcementStageTeam indicates team permission check failed
+	EnforcementStageTeam EnforcementStage = "team"
+
+	// EnforcementStageMember indicates member permission check failed
+	EnforcementStageMember EnforcementStage = "member"
+
+	// EnforcementStageUser indicates user permission check failed
+	EnforcementStageUser EnforcementStage = "user"
+)

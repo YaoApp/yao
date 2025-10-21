@@ -400,7 +400,8 @@ func (m *ScopeManager) Check(req *AccessRequest) *AccessDecision {
 		hasScope := false
 		for _, required := range endpoint.RequiredScopes {
 			for _, userScope := range expandedScopes {
-				if userScope == required {
+				// Check for exact match or wildcard match
+				if userScope == required || m.matchesWildcardScope(userScope, required) {
 					hasScope = true
 					break
 				}
@@ -424,6 +425,77 @@ func (m *ScopeManager) Check(req *AccessRequest) *AccessDecision {
 
 	decision.Allowed = false
 	decision.Reason = "unknown policy"
+	return decision
+}
+
+// CheckRestricted checks if the endpoint is restricted by any of the given scopes
+// Returns true if the endpoint is restricted (should be denied)
+func (m *ScopeManager) CheckRestricted(req *AccessRequest) *AccessDecision {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	decision := &AccessDecision{
+		Allowed:    true, // Default to allowed (not restricted)
+		UserScopes: req.Scopes,
+	}
+
+	// 1. Check if it's a public endpoint - public endpoints cannot be restricted
+	publicKey := req.Method + " " + req.Path
+	if _, ok := m.publicPaths[publicKey]; ok {
+		decision.Allowed = true
+		decision.Reason = "public endpoint"
+		return decision
+	}
+
+	// 2. Find matching endpoint
+	endpoint, pattern := m.matchEndpoint(req.Method, req.Path)
+	if endpoint == nil {
+		// No match found - not restricted
+		decision.Allowed = true
+		decision.Reason = "no restriction match"
+		return decision
+	}
+
+	decision.MatchedEndpoint = endpoint
+	decision.MatchedPattern = pattern
+
+	// 3. Check if any user scope matches the endpoint's required scopes
+	// If it matches, this endpoint IS restricted by these scopes
+	switch endpoint.Policy {
+	case PolicyDeny:
+		// Explicit deny policy - this is restricted
+		decision.Allowed = false
+		decision.Reason = "policy: deny (restricted)"
+		return decision
+
+	case PolicyRequireScopes:
+		// Expand user scopes (include aliases)
+		expandedScopes := m.expandUserScopes(req.Scopes)
+
+		// Check if this endpoint requires any of the user's scopes
+		// If yes, this endpoint is restricted by these scopes
+		for _, required := range endpoint.RequiredScopes {
+			for _, userScope := range expandedScopes {
+				// Check for exact match or wildcard match
+				if userScope == required || m.matchesWildcardScope(userScope, required) {
+					// This endpoint is restricted by this scope
+					decision.Allowed = false
+					decision.Reason = "endpoint restricted by scope: " + required
+					decision.RequiredScopes = []string{required}
+					return decision
+				}
+			}
+		}
+
+		// No restriction match
+		decision.Allowed = true
+		decision.Reason = "no restriction match"
+		return decision
+	}
+
+	// Default: not restricted
+	decision.Allowed = true
+	decision.Reason = "not restricted"
 	return decision
 }
 
@@ -505,6 +577,41 @@ func (m *ScopeManager) expandUserScopes(scopes []string) []string {
 	return expanded
 }
 
+// matchesWildcardScope checks if a user scope (potentially with wildcards) matches a required scope
+// Supports patterns like:
+//   - *:*:* matches everything
+//   - resource:*:* matches resource:action:level
+//   - resource:action:* matches resource:action:level
+func (m *ScopeManager) matchesWildcardScope(userScope, requiredScope string) bool {
+	// No wildcard, no match (exact match already checked)
+	if !strings.Contains(userScope, "*") {
+		return false
+	}
+
+	// Split both scopes into parts
+	userParts := strings.Split(userScope, ":")
+	requiredParts := strings.Split(requiredScope, ":")
+
+	// If lengths don't match and user scope isn't full wildcard, no match
+	if len(userParts) != len(requiredParts) {
+		return false
+	}
+
+	// Check each part
+	for i := range userParts {
+		if userParts[i] == "*" {
+			// Wildcard matches anything
+			continue
+		}
+		if userParts[i] != requiredParts[i] {
+			// Not a match
+			return false
+		}
+	}
+
+	return true
+}
+
 // findMissingScopes finds which scopes are missing
 func (m *ScopeManager) findMissingScopes(userScopes, requiredScopes []string) []string {
 	userScopeSet := make(map[string]bool)
@@ -514,7 +621,21 @@ func (m *ScopeManager) findMissingScopes(userScopes, requiredScopes []string) []
 
 	var missing []string
 	for _, required := range requiredScopes {
-		if !userScopeSet[required] {
+		// Check exact match
+		if userScopeSet[required] {
+			continue
+		}
+
+		// Check wildcard match
+		matched := false
+		for _, userScope := range userScopes {
+			if m.matchesWildcardScope(userScope, required) {
+				matched = true
+				break
+			}
+		}
+
+		if !matched {
 			missing = append(missing, required)
 		}
 	}
