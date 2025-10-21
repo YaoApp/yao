@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // DefaultConfig is the default configuration for the ACL
@@ -13,7 +16,9 @@ var DefaultConfig = Config{
 
 // Config is the configuration for the ACL
 type Config struct {
-	Enabled bool `json:"enabled"`
+	Enabled  bool               `json:"enabled"`
+	Cache    store.Store        `json:"-"`
+	Provider types.UserProvider `json:"-"`
 }
 
 // ACL is the ACL checker

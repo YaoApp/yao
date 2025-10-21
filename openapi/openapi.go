@@ -65,7 +65,7 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 	}
 
 	// Load the ACL enforcer
-	_, err = acl.Load(&acl.Config{Enabled: true})
+	_, err = acl.Load(&acl.Config{Enabled: true, Cache: oauthConfig.Cache, Provider: oauthConfig.UserProvider})
 	if err != nil {
 		return nil, err
 	}
