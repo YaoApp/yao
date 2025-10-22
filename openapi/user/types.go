@@ -34,13 +34,13 @@ const (
 
 const (
 	// ScopeMFAVerification is the MFA verification scope for temporary access token
-	ScopeMFAVerification = "mfa_verification"
+	ScopeMFAVerification = "builtin:mfa:verification"
 	// ScopeTeamSelection is the team selection scope for temporary access token
-	ScopeTeamSelection = "team_selection"
+	ScopeTeamSelection = "builtin:teams:selection"
 	// ScopeInviteVerification is the invite verification scope for temporary access token
-	ScopeInviteVerification = "invite_verification"
+	ScopeInviteVerification = "builtin:invite:verification"
 	// ScopeEntryVerification is the entry verification scope for temporary access token (login or register)
-	ScopeEntryVerification = "entry_verification"
+	ScopeEntryVerification = "builtin:entry:verification"
 )
 
 // FormConfig represents the form configuration

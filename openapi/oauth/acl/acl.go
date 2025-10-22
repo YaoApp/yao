@@ -33,6 +33,13 @@ func New(config *Config) (Enforcer, error) {
 		// Init Role Manager
 		role.RoleManager = role.NewManager(config.Cache, config.Provider)
 		log.Info("[ACL] Role manager loaded successfully")
+
+		// Log PathPrefix configuration
+		if config.PathPrefix != "" {
+			log.Info("[ACL] Path prefix configured: %s (will be stripped from request paths)", config.PathPrefix)
+		} else {
+			log.Info("[ACL] No path prefix configured")
+		}
 	}
 
 	return acl, nil

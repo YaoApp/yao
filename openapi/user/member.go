@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -22,8 +23,8 @@ import (
 
 // GinMemberList handles GET /teams/:team_id/members - Get team members
 func GinMemberList(c *gin.Context) {
-	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
+
+	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidClient.Code,
