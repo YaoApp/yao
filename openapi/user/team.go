@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -76,7 +77,7 @@ func GinTeamList(c *gin.Context) {
 // GinTeamGet handles GET /teams/:id - Get user team details
 func GinTeamGet(c *gin.Context) {
 	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
+	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidClient.Code,
@@ -129,16 +130,16 @@ func GinTeamGet(c *gin.Context) {
 		return
 	}
 
-	// Check if user owns this team
-	ownerID := toString(teamData["owner_id"])
-	if ownerID != authInfo.UserID {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrAccessDenied.Code,
-			ErrorDescription: "Access denied: you don't own this team",
-		}
-		response.RespondWithError(c, response.StatusForbidden, errorResp)
-		return
-	}
+	// // Check if user owns this team
+	// ownerID := toString(teamData["owner_id"])
+	// if ownerID != authInfo.UserID {
+	// 	errorResp := &response.ErrorResponse{
+	// 		Code:             response.ErrAccessDenied.Code,
+	// 		ErrorDescription: "Access denied: you don't own this team",
+	// 	}
+	// 	response.RespondWithError(c, response.StatusForbidden, errorResp)
+	// 	return
+	// }
 
 	// Convert to response format
 	team := mapToTeamDetailResponse(teamData)

@@ -16,9 +16,10 @@ var DefaultConfig = Config{
 
 // Config is the configuration for the ACL
 type Config struct {
-	Enabled  bool               `json:"enabled"`
-	Cache    store.Store        `json:"-"`
-	Provider types.UserProvider `json:"-"`
+	Enabled    bool               `json:"enabled"`
+	PathPrefix string             `json:"path_prefix"` // BaseURL prefix to strip from request paths (e.g., "/v1")
+	Cache      store.Store        `json:"-"`
+	Provider   types.UserProvider `json:"-"`
 }
 
 // ACL is the ACL checker
@@ -236,6 +237,7 @@ type AccessDecision struct {
 	// Matched endpoint info
 	MatchedEndpoint *EndpointInfo
 	MatchedPattern  string // Matched path pattern
+	MatchedScope    string // Which scope was actually matched (for constraint lookup)
 
 	// Permission check details
 	RequiredScopes []string // Required scopes

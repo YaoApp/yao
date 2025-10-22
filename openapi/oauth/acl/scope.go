@@ -5,11 +5,44 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/kun/log"
 	"gopkg.in/yaml.v3"
 )
+
+// builtinScopes stores scopes registered by code (before configuration loading)
+var builtinScopes = make(map[string]*ScopeDefinition)
+var builtinScopesMutex sync.RWMutex
+
+// Register registers built-in scopes that will be automatically loaded
+// This should be called in init() functions before the ACL system is initialized
+// Supports registering multiple scopes at once
+//
+// Example:
+//
+//	acl.Register(
+//	    &acl.ScopeDefinition{
+//	        Name:        "builtin:mfa:verification",
+//	        Description: "MFA verification - temporary access for MFA setup",
+//	        Endpoints:   []string{"POST /user/mfa/totp/enable", "POST /user/mfa/totp/verify"},
+//	    },
+//	    &acl.ScopeDefinition{
+//	        Name:        "builtin:team:selection",
+//	        Description: "Team selection scope",
+//	        Endpoints:   []string{"POST /user/teams/select"},
+//	    },
+//	)
+func Register(scopes ...*ScopeDefinition) {
+	builtinScopesMutex.Lock()
+	defer builtinScopesMutex.Unlock()
+
+	for _, scope := range scopes {
+		builtinScopes[scope.Name] = scope
+		log.Trace("[ACL] Registered builtin scope: %s (%d endpoints)", scope.Name, len(scope.Endpoints))
+	}
+}
 
 // LoadScopes loads the scope configuration from the openapi/scopes directory
 func LoadScopes() (*ScopeManager, error) {
@@ -22,6 +55,20 @@ func LoadScopes() (*ScopeManager, error) {
 		scopes:        make(map[string]*ScopeDefinition),
 	}
 
+	// Step 1: Load builtin scopes first (registered by code)
+	builtinScopesMutex.RLock()
+	builtinCount := len(builtinScopes)
+	for name, scopeDef := range builtinScopes {
+		// Create a copy to avoid mutation
+		defCopy := *scopeDef
+		manager.scopes[name] = &defCopy
+	}
+	builtinScopesMutex.RUnlock()
+
+	if builtinCount > 0 {
+		log.Info("[ACL] Loaded %d builtin scopes from code registration", builtinCount)
+	}
+
 	// Check if scopes directory exists
 	scopesDir := filepath.Join("openapi", "scopes")
 	exists, err := application.App.Exists(scopesDir)
@@ -30,30 +77,38 @@ func LoadScopes() (*ScopeManager, error) {
 	}
 	if !exists {
 		log.Warn("[ACL] Scopes directory not found, using default deny policy")
+		// Still build indexes for builtin scopes
+		if builtinCount > 0 {
+			if err := manager.buildIndexes(); err != nil {
+				return nil, fmt.Errorf("failed to build indexes for builtin scopes: %w", err)
+			}
+		}
 		return manager, nil
 	}
 
-	// Load global configuration (scopes.yml)
+	// Step 2: Load global configuration (scopes.yml)
 	if err := manager.loadGlobalConfig(); err != nil {
 		return nil, fmt.Errorf("failed to load global config: %w", err)
 	}
 
-	// Load alias configuration (alias.yml)
+	// Step 3: Load alias configuration (alias.yml)
 	if err := manager.loadAliasConfig(); err != nil {
 		return nil, fmt.Errorf("failed to load alias config: %w", err)
 	}
 
-	// Load scope definitions from subdirectories
+	// Step 4: Load scope definitions from subdirectories
+	// This will merge with builtin scopes (file scopes override builtin if same name)
 	if err := manager.loadScopeDefinitions(); err != nil {
 		return nil, fmt.Errorf("failed to load scope definitions: %w", err)
 	}
 
-	// Build runtime indexes
+	// Step 5: Build runtime indexes
 	if err := manager.buildIndexes(); err != nil {
 		return nil, fmt.Errorf("failed to build indexes: %w", err)
 	}
 
-	log.Info("[ACL] Loaded %d scopes, %d aliases", len(manager.scopeIndex), len(manager.aliasIndex))
+	log.Info("[ACL] Loaded %d scopes (%d builtin, %d from files), %d aliases",
+		len(manager.scopeIndex), builtinCount, len(manager.scopes)-builtinCount, len(manager.aliasIndex))
 	return manager, nil
 }
 
@@ -359,11 +414,55 @@ func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []str
 			Endpoint: info,
 		})
 	} else if strings.Contains(path, ":") {
-		// Parameter path
-		matcher.paramPaths[path] = info
+		// Parameter path - merge with existing if present (support multiple scopes per endpoint)
+		if existing := matcher.paramPaths[path]; existing != nil {
+			// Endpoint already exists, merge scopes and constraints
+			existing.RequiredScopes = append(existing.RequiredScopes, info.RequiredScopes...)
+			// Merge constraints (OR logic: if any scope requires it, set to true)
+			existing.OwnerOnly = existing.OwnerOnly || info.OwnerOnly
+			existing.CreatorOnly = existing.CreatorOnly || info.CreatorOnly
+			existing.EditorOnly = existing.EditorOnly || info.EditorOnly
+			existing.TeamOnly = existing.TeamOnly || info.TeamOnly
+			// Merge extra constraints
+			if info.Extra != nil {
+				if existing.Extra == nil {
+					existing.Extra = make(map[string]interface{})
+				}
+				for key, value := range info.Extra {
+					existing.Extra[key] = value
+				}
+			}
+			log.Trace("[ACL] Merged endpoint %s %s: scopes=%v, owner=%v, team=%v",
+				method, path, existing.RequiredScopes, existing.OwnerOnly, existing.TeamOnly)
+		} else {
+			matcher.paramPaths[path] = info
+			log.Trace("[ACL] Added endpoint %s %s: scopes=%v, owner=%v, team=%v",
+				method, path, info.RequiredScopes, info.OwnerOnly, info.TeamOnly)
+		}
 	} else {
-		// Exact path
-		matcher.exactPaths[path] = info
+		// Exact path - merge with existing if present (support multiple scopes per endpoint)
+		if existing := matcher.exactPaths[path]; existing != nil {
+			// Endpoint already exists, merge scopes and constraints
+			existing.RequiredScopes = append(existing.RequiredScopes, info.RequiredScopes...)
+			existing.OwnerOnly = existing.OwnerOnly || info.OwnerOnly
+			existing.CreatorOnly = existing.CreatorOnly || info.CreatorOnly
+			existing.EditorOnly = existing.EditorOnly || info.EditorOnly
+			existing.TeamOnly = existing.TeamOnly || info.TeamOnly
+			if info.Extra != nil {
+				if existing.Extra == nil {
+					existing.Extra = make(map[string]interface{})
+				}
+				for key, value := range info.Extra {
+					existing.Extra[key] = value
+				}
+			}
+			log.Trace("[ACL] Merged endpoint %s %s: scopes=%v, owner=%v, team=%v",
+				method, path, existing.RequiredScopes, existing.OwnerOnly, existing.TeamOnly)
+		} else {
+			matcher.exactPaths[path] = info
+			log.Trace("[ACL] Added endpoint %s %s: scopes=%v, owner=%v, team=%v",
+				method, path, info.RequiredScopes, info.OwnerOnly, info.TeamOnly)
+		}
 	}
 
 	return nil
@@ -417,27 +516,29 @@ func (m *ScopeManager) Check(req *AccessRequest) *AccessDecision {
 
 		// Check if user has any required scope (OR relationship)
 		decision.RequiredScopes = endpoint.RequiredScopes
-		hasScope := false
+		var matchedScope string
 		for _, required := range endpoint.RequiredScopes {
 			for _, userScope := range expandedScopes {
 				// Check for exact match or wildcard match
 				if userScope == required || m.matchesWildcardScope(userScope, required) {
-					hasScope = true
+					matchedScope = required
 					break
 				}
 			}
-			if hasScope {
+			if matchedScope != "" {
 				break
 			}
 		}
 
-		if !hasScope {
+		if matchedScope == "" {
 			decision.Allowed = false
 			decision.Reason = "missing required scopes"
 			decision.MissingScopes = m.findMissingScopes(expandedScopes, endpoint.RequiredScopes)
 			return decision
 		}
 
+		// Record which scope was matched
+		decision.MatchedScope = matchedScope
 		decision.Allowed = true
 		decision.Reason = "scope matched"
 		return decision
@@ -661,6 +762,42 @@ func (m *ScopeManager) findMissingScopes(userScopes, requiredScopes []string) []
 	}
 
 	return missing
+}
+
+// GetScopeConstraints returns the constraints for a specific scope
+// This allows getting the original constraints for a matched scope,
+// instead of using merged constraints from multiple scopes
+func (m *ScopeManager) GetScopeConstraints(scopeName string, method, path string) *EndpointInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// Get the scope definition
+	scopeDef := m.scopes[scopeName]
+	if scopeDef == nil {
+		return nil
+	}
+
+	// Create an EndpointInfo with this scope's constraints
+	info := &EndpointInfo{
+		Method:         method,
+		Path:           path,
+		Policy:         PolicyRequireScopes,
+		RequiredScopes: []string{scopeName},
+		OwnerOnly:      scopeDef.Owner,
+		CreatorOnly:    scopeDef.Creator,
+		EditorOnly:     scopeDef.Editor,
+		TeamOnly:       scopeDef.Team,
+	}
+
+	// Copy extra constraints
+	if len(scopeDef.Extra) > 0 {
+		info.Extra = make(map[string]interface{})
+		for key, value := range scopeDef.Extra {
+			info.Extra[key] = value
+		}
+	}
+
+	return info
 }
 
 // Reload reloads the scope configuration

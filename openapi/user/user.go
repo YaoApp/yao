@@ -5,10 +5,55 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 func init() {
+	// Register builtin scopes for temporary tokens (before ACL initialization)
+	// These scopes grant limited access to specific endpoints for special purposes
+	acl.Register(
+		// MFA verification scope - allows users to complete MFA setup during login
+		&acl.ScopeDefinition{
+			Name:        ScopeMFAVerification,
+			Description: "MFA verification - temporary access for completing MFA challenge",
+			Endpoints: []string{
+				"POST /user/mfa/totp/verify",
+				"POST /user/mfa/sms/verify",
+				"GET /user/mfa/totp",
+			},
+		},
+		// Team selection scope - allows users to select a team and issue new tokens
+		&acl.ScopeDefinition{
+			Name:        ScopeTeamSelection,
+			Description: "Team selection - temporary access for selecting a team after login",
+			Endpoints: []string{
+				"POST /user/teams/select",
+				"GET /user/teams/config",
+			},
+		},
+		// Invite verification scope - allows users to accept team invitations
+		&acl.ScopeDefinition{
+			Name:        ScopeInviteVerification,
+			Description: "Invite verification - temporary access for accepting team invitations",
+			Endpoints: []string{
+				"POST /user/teams/invitations/:invitation_id/accept",
+				"GET /user/teams/invitations/:invitation_id",
+			},
+		},
+		// Entry verification scope - allows users to complete registration or login verification
+		&acl.ScopeDefinition{
+			Name:        ScopeEntryVerification,
+			Description: "Entry verification - temporary access for completing registration or login verification",
+			Endpoints: []string{
+				"POST /user/entry/register",
+				"POST /user/entry/login",
+				"POST /user/entry/invite/verify",
+				"POST /user/entry/otp",
+			},
+		},
+	)
+
 	// Register user process handlers
 	process.RegisterGroup("user", map[string]process.Handler{
 		"team.list":              ProcessTeamList,
