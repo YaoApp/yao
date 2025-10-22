@@ -346,9 +346,25 @@ func HandleRequest(c *gin.Context) {
         // e.g., WHERE user_id = authInfo.UserID
     }
 
+    if authInfo.Constraints.CreatorOnly {
+        // Only return data created by current user
+        // e.g., WHERE created_by = authInfo.UserID
+    }
+
+    if authInfo.Constraints.EditorOnly {
+        // Only return data last edited by current user
+        // e.g., WHERE updated_by = authInfo.UserID
+    }
+
     if authInfo.Constraints.TeamOnly {
         // Only return data owned by current team
         // e.g., WHERE team_id = authInfo.TeamID
+    }
+
+    // Check extra constraints
+    if dept, ok := authInfo.Constraints.Extra["department_only"].(bool); ok && dept {
+        // Apply department filter
+        // e.g., WHERE department_id = authInfo.DepartmentID
     }
 
     // Process request...
@@ -362,13 +378,14 @@ After successful ACL enforcement, the `AuthorizedInfo` is automatically updated 
 ```go
 // DataConstraints represents data access constraints
 type DataConstraints struct {
-    OwnerOnly bool  // Only access owner's data (filter by UserID)
-    TeamOnly  bool  // Only access team's data (filter by TeamID)
+    // Built-in constraints
+    OwnerOnly   bool // Only access owner's data (current owner)
+    CreatorOnly bool // Only access creator's data (who created the resource)
+    EditorOnly  bool // Only access editor's data (who last updated the resource)
+    TeamOnly    bool // Only access team's data (filter by TeamID)
 
-    // Future constraints:
-    // DepartmentOnly bool
-    // ProjectOnly    bool
-    // RegionOnly     bool
+    // Extra constraints (user-defined, flexible extension)
+    Extra map[string]interface{} // Custom constraints like department_only, region_only, etc.
 }
 
 type AuthorizedInfo struct {
@@ -394,78 +411,79 @@ type AuthorizedInfo struct {
 The constraint system uses a map-based approach for easy extension:
 
 ```go
-// Step 1: Add field to DataConstraints (types/types.go)
+// The constraint system is already extensible through the Extra map!
+// For custom constraints, use the Extra field directly - no code changes needed.
+
+// Current structure (already supports custom constraints):
 type DataConstraints struct {
-    OwnerOnly      bool
-    TeamOnly       bool
-    DepartmentOnly bool  // New constraint
+    // Built-in constraints (pre-defined)
+    OwnerOnly   bool
+    CreatorOnly bool
+    EditorOnly  bool
+    TeamOnly    bool
+
+    // Extra constraints (user-defined, flexible)
+    Extra map[string]interface{}
 }
 
-// Step 2: Add field to EndpointInfo (acl/types.go)
-type EndpointInfo struct {
-    OwnerOnly      bool
-    TeamOnly       bool
-    DepartmentOnly bool  // New constraint
+// Define custom constraints in scope YAML:
+// collections:read:department:
+//   description: "Read collections in user's department"
+//   extra:
+//     department_only: true
+//     region: "us-west"
+//     project_ids: ["proj1", "proj2"]
+//   endpoints:
+//     - GET /kb/collections/department
+
+// Access in handler code:
+func GetCollections(c *gin.Context) {
+    authInfo := authorized.GetInfo(c)
+
+    query := db.Query("SELECT * FROM collections")
+
+    // Check built-in constraints
+    if authInfo.Constraints.OwnerOnly {
+        query = query.Where("user_id = ?", authInfo.UserID)
+    }
+
+    // Check extra constraints (no code changes needed!)
+    if dept, ok := authInfo.Constraints.Extra["department_only"].(bool); ok && dept {
+        query = query.Where("department_id = ?", authInfo.DepartmentID)
+    }
+
+    if region, ok := authInfo.Constraints.Extra["region"].(string); ok {
+        query = query.Where("region = ?", region)
+    }
+
+    if projectIDs, ok := authInfo.Constraints.Extra["project_ids"].([]interface{}); ok {
+        query = query.Where("project_id IN (?)", projectIDs)
+    }
+
+    // Execute query...
 }
 
-// Step 3: Update GetConstraints to include new constraint (acl/types.go)
-func (e *EndpointInfo) GetConstraints() map[string]interface{} {
-    constraints := make(map[string]interface{})
-
-    if e.OwnerOnly {
-        constraints["owner_only"] = true
-    }
-
-    if e.TeamOnly {
-        constraints["team_only"] = true
-    }
-
-    if e.DepartmentOnly {
-        constraints["department_only"] = true  // New
-    }
-
-    return constraints
-}
-
-// Step 4: Update GetConstraints reader (authorized/utils.go)
-func GetConstraints(c *gin.Context) types.DataConstraints {
-    constraints := types.DataConstraints{}
-
-    if ownerOnly, ok := c.Get("__owner_only"); ok {
-        if ownerOnlyBool, ok := ownerOnly.(bool); ok {
-            constraints.OwnerOnly = ownerOnlyBool
-        }
-    }
-
-    if teamOnly, ok := c.Get("__team_only"); ok {
-        if teamOnlyBool, ok := teamOnly.(bool); ok {
-            constraints.TeamOnly = teamOnlyBool
-        }
-    }
-
-    if departmentOnly, ok := c.Get("__department_only"); ok {
-        if deptBool, ok := departmentOnly.(bool); ok {
-            constraints.DepartmentOnly = deptBool  // New
-        }
-    }
-
-    return constraints
-}
-
-// No changes needed to enforce.go or handler code!
+// ONLY if you need a new BUILT-IN constraint (used frequently across the system):
+// Follow these steps to add it alongside OwnerOnly, CreatorOnly, etc.
+// But for most cases, using Extra is sufficient and more flexible!
 ```
 
 **Example Endpoint Configuration**:
 
 ```yaml
 # openapi/scopes/collections/read.yml
-collections:read:
-  name: "collections:read"
-  description: "Read collections"
-  owner: true # This sets OwnerOnly = true
+collections:read:own:
+  name: "collections:read:own"
+  description: "Read own collections"
+  owner: true # Sets OwnerOnly = true
+  creator: true # Sets CreatorOnly = true
+  editor: true # Sets EditorOnly = true
+  extra: # Sets Extra constraints
+    department_only: true
+    region: "us-west"
   endpoints:
-    - "GET /api/collections"
-    - "GET /api/collections/:id"
+    - "GET /api/collections/own"
+    - "GET /api/collections/own/:id"
 ```
 
 **Example API Handler**:
@@ -476,17 +494,25 @@ func GetCollections(c *gin.Context) {
 
     query := db.Query("SELECT * FROM collections")
 
-    // Apply data access constraints
+    // Apply built-in data access constraints
     if authInfo.Constraints.OwnerOnly {
         query = query.Where("user_id = ?", authInfo.UserID)
+    } else if authInfo.Constraints.CreatorOnly {
+        query = query.Where("created_by = ?", authInfo.UserID)
+    } else if authInfo.Constraints.EditorOnly {
+        query = query.Where("updated_by = ?", authInfo.UserID)
     } else if authInfo.Constraints.TeamOnly {
         query = query.Where("team_id = ?", authInfo.TeamID)
     }
 
-    // Future: Handle additional constraints
-    // if authInfo.Constraints.DepartmentOnly {
-    //     query = query.Where("department_id = ?", authInfo.DepartmentID)
-    // }
+    // Apply extra constraints
+    if dept, ok := authInfo.Constraints.Extra["department_only"].(bool); ok && dept {
+        query = query.Where("department_id = ?", authInfo.DepartmentID)
+    }
+
+    if region, ok := authInfo.Constraints.Extra["region"].(string); ok {
+        query = query.Where("region = ?", region)
+    }
 
     // Execute query and return results
     collections, _ := query.Get()
@@ -601,16 +627,32 @@ A: Use restricted scopes when you want to:
 - Temporarily revoke access to certain endpoints without changing the base role
 - Implement exceptions to general permissions
 
-**Q: How do OwnerOnly and TeamOnly constraints work?**  
+**Q: How do data constraints work?**  
 A: After successful ACL enforcement:
 
-1. The system checks if the matched endpoint has `owner: true` or `team: true` in its scope definition
-2. These flags are automatically set in `AuthorizedInfo.Constraints` (`authInfo.Constraints.OwnerOnly`, `authInfo.Constraints.TeamOnly`)
-3. API handlers can read these flags from `authorized.GetInfo(c)` and apply data filters
+1. The system checks if the matched endpoint has constraint flags in its scope definition (`owner`, `creator`, `editor`, `team`, `extra`)
+2. These flags are automatically set in `AuthorizedInfo.Constraints`
+3. API handlers read these flags from `authorized.GetInfo(c)` and apply data filters
 4. Example: If `authInfo.Constraints.OwnerOnly = true`, the API should only return records where `user_id = authInfo.UserID`
 
-**Q: Can both OwnerOnly and TeamOnly be true at the same time?**  
-A: Yes, if a scope definition has both `owner: true` and `team: true`. In this case, the API handler should typically use the more restrictive filter (`authInfo.Constraints.OwnerOnly`).
+**Q: What's the difference between Owner, Creator, and Editor constraints?**  
+A:
 
-**Q: What happens if OwnerOnly is true but UserID is empty?**  
-A: This would be an edge case for pure client credential grants. The API handler should handle this gracefully (e.g., return empty results or an appropriate error).
+- **OwnerOnly**: Filters by current owner (who owns it now) - can be transferred
+- **CreatorOnly**: Filters by original creator (who created it) - immutable
+- **EditorOnly**: Filters by last editor (who last updated it) - changes on each edit
+
+**Q: Can multiple constraints be true at the same time?**  
+A: Yes, a scope can have multiple constraints. The API handler should apply filters based on the most restrictive or appropriate constraint for the use case.
+
+**Q: How do I use Extra constraints?**  
+A: Define them in the scope configuration YAML under `extra:`, then access them in your handler:
+
+```go
+if dept, ok := authInfo.Constraints.Extra["department_only"].(bool); ok && dept {
+    query = query.Where("department_id = ?", userDepartmentID)
+}
+```
+
+**Q: What happens if constraints are set but the user context is missing?**  
+A: For client credential grants with no user context, the API handler should handle this gracefully (e.g., return empty results or an appropriate error).

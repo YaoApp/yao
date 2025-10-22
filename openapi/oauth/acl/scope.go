@@ -240,7 +240,10 @@ func (m *ScopeManager) buildIndexes() error {
 			Name:        name,
 			Description: def.Description,
 			Owner:       def.Owner,
+			Creator:     def.Creator,
+			Editor:      def.Editor,
 			Team:        def.Team,
+			Extra:       def.Extra,
 			Endpoints:   def.Endpoints,
 		}
 	}
@@ -315,15 +318,32 @@ func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []str
 		RequiredScopes: scopes,
 	}
 
-	// Set owner/team constraints from scope definitions
+	// Set constraints from scope definitions
 	if len(scopes) > 0 {
 		for _, scopeName := range scopes {
 			if def := m.scopes[scopeName]; def != nil {
+				// Built-in constraints
 				if def.Owner {
 					info.OwnerOnly = true
 				}
+				if def.Creator {
+					info.CreatorOnly = true
+				}
+				if def.Editor {
+					info.EditorOnly = true
+				}
 				if def.Team {
 					info.TeamOnly = true
+				}
+
+				// Merge extra constraints
+				if len(def.Extra) > 0 {
+					if info.Extra == nil {
+						info.Extra = make(map[string]interface{})
+					}
+					for key, value := range def.Extra {
+						info.Extra[key] = value
+					}
 				}
 			}
 		}

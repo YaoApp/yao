@@ -434,12 +434,13 @@ func TestGetTeamRole(t *testing.T) {
 		require.NoError(t, err)
 		defer provider.DeleteTeam(ctx, teamID)
 
-		// Get team role (should return default)
+		// Get team role (should return error when no role_id assigned)
 		roleID, err := manager.GetTeamRole(ctx, teamID)
-		assert.NoError(t, err)
-		assert.Equal(t, "team:default", roleID)
+		assert.Error(t, err, "Should return error when team has no role_id")
+		assert.Contains(t, err.Error(), "has no role_id assigned", "Error message should indicate missing role_id")
+		assert.Empty(t, roleID, "Role ID should be empty when error occurs")
 
-		t.Logf("Successfully returned default role for team without role_id: %s", roleID)
+		t.Logf("Correctly returns error for team without role_id: %v", err)
 	})
 
 	t.Run("GetRoleForNonExistentTeam", func(t *testing.T) {

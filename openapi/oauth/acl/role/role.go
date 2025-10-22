@@ -188,8 +188,7 @@ func (m *Manager) getTeamRole(ctx context.Context, teamID string) (string, error
 	// Note: Teams might not have a role_id field, adjust based on your schema
 	roleID, ok := teamInfo["role_id"].(string)
 	if !ok || roleID == "" {
-		// If team doesn't have a role, return a default team role
-		return "team:default", nil
+		return "", fmt.Errorf("team %s has no role_id assigned", teamID)
 	}
 
 	return roleID, nil

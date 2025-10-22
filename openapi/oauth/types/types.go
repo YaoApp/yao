@@ -599,13 +599,15 @@ type TokenClaims struct {
 // DataConstraints represents data access constraints
 // These constraints are set by ACL enforcement and used by API handlers to filter data
 type DataConstraints struct {
-	OwnerOnly bool `json:"owner_only,omitempty"` // Only access owner's data (filter by UserID)
-	TeamOnly  bool `json:"team_only,omitempty"`  // Only access team's data (filter by TeamID)
+	// Built-in constraints
+	OwnerOnly   bool `json:"owner_only,omitempty"`   // Only access owner's data (current owner)
+	CreatorOnly bool `json:"creator_only,omitempty"` // Only access creator's data (who created)
+	EditorOnly  bool `json:"editor_only,omitempty"`  // Only access editor's data (who last updated)
+	TeamOnly    bool `json:"team_only,omitempty"`    // Only access team's data (filter by TeamID)
 
-	// Future constraints can be added here:
-	// DepartmentOnly bool `json:"department_only,omitempty"` // Only access department's data
-	// ProjectOnly    bool `json:"project_only,omitempty"`    // Only access project's data
-	// RegionOnly     bool `json:"region_only,omitempty"`     // Only access region's data
+	// Extra constraints (user-defined, flexible extension)
+	// Examples: department_only, region_only, project_only
+	Extra map[string]interface{} `json:"extra,omitempty"` // Extra constraints
 }
 
 // AuthorizedInfo represents authorized information

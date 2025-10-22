@@ -78,11 +78,14 @@ type AliasConfig map[string][]string
 
 // ScopeDefinition represents a scope definition (from subdirectory yml files)
 type ScopeDefinition struct {
-	Name        string   `json:"name" yaml:"name"`               // Scope name (e.g. collections:read:all)
-	Description string   `json:"description" yaml:"description"` // Description
-	Owner       bool     `json:"owner" yaml:"owner"`             // Owner only
-	Team        bool     `json:"team" yaml:"team"`               // Team only
-	Endpoints   []string `json:"endpoints" yaml:"endpoints"`     // Endpoint list (format: METHOD /path)
+	Name        string                 `json:"name" yaml:"name"`                       // Scope name (e.g. collections:read:all)
+	Description string                 `json:"description" yaml:"description"`         // Description
+	Owner       bool                   `json:"owner" yaml:"owner"`                     // Owner only (current owner)
+	Creator     bool                   `json:"creator" yaml:"creator"`                 // Creator only (who created)
+	Editor      bool                   `json:"editor" yaml:"editor"`                   // Editor only (who last updated)
+	Team        bool                   `json:"team" yaml:"team"`                       // Team only
+	Extra       map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"` // Extra constraints
+	Endpoints   []string               `json:"endpoints" yaml:"endpoints"`             // Endpoint list (format: METHOD /path)
 }
 
 // ============ Runtime Structures (optimized for querying) ============
@@ -143,9 +146,16 @@ type EndpointInfo struct {
 	// If Policy is require-scopes, the scopes required to access
 	RequiredScopes []string // Scope list (OR relationship, any one satisfied)
 
-	// Resource constraints
-	OwnerOnly bool // Owner only
-	TeamOnly  bool // Team only
+	// Built-in resource constraints (common cases)
+	OwnerOnly   bool // Owner only (current owner of the resource)
+	CreatorOnly bool // Creator only (who created the resource)
+	EditorOnly  bool // Editor only (who last updated the resource)
+	TeamOnly    bool // Team only
+
+	// Extra constraints (user-defined, flexible extension)
+	// Examples: "department_only", "region_only", "project_only"
+	// Value can be bool, string, or other types for complex constraints
+	Extra map[string]interface{} `json:"extra,omitempty" yaml:"extra,omitempty"`
 }
 
 // GetConstraints returns all data access constraints as a map
@@ -157,19 +167,29 @@ func (e *EndpointInfo) GetConstraints() map[string]interface{} {
 
 	constraints := make(map[string]interface{})
 
+	// Built-in constraints
 	if e.OwnerOnly {
 		constraints["owner_only"] = true
+	}
+
+	if e.CreatorOnly {
+		constraints["creator_only"] = true
+	}
+
+	if e.EditorOnly {
+		constraints["editor_only"] = true
 	}
 
 	if e.TeamOnly {
 		constraints["team_only"] = true
 	}
 
-	// Future constraints can be added here without breaking existing code
-	// Example:
-	// if e.DepartmentOnly {
-	//     constraints["department_only"] = true
-	// }
+	// Merge extra constraints
+	if e.Extra != nil {
+		for key, value := range e.Extra {
+			constraints[key] = value
+		}
+	}
 
 	return constraints
 }
@@ -188,11 +208,14 @@ const (
 
 // Scope represents a permission scope
 type Scope struct {
-	Name        string   // Scope name
-	Description string   // Description
-	Owner       bool     // Owner only
-	Team        bool     // Team only
-	Endpoints   []string // Associated endpoint list
+	Name        string                 // Scope name
+	Description string                 // Description
+	Owner       bool                   // Owner only (current owner)
+	Creator     bool                   // Creator only (who created)
+	Editor      bool                   // Editor only (who last updated)
+	Team        bool                   // Team only
+	Extra       map[string]interface{} // Extra constraints
+	Endpoints   []string               // Associated endpoint list
 }
 
 // ============ Request Context (permission check context) ============

@@ -118,7 +118,8 @@ collections:read:all:
     - GET /kb/collections/:collectionID/exists
 
 collections:read:own:
-  owner: true
+  owner: true     # Only show collections owned by current user
+  creator: true   # Only show collections created by current user
   description: "Read knowledge base for own collections"
   endpoints:
     - GET /kb/collections/own
@@ -127,6 +128,7 @@ collections:read:own:
 
 collections:write:own:
   owner: true
+  editor: true    # Only allow editing by last editor
   description: "Write knowledge base for own collections"
   endpoints:
     - POST /kb/collections/own
@@ -134,21 +136,33 @@ collections:write:own:
     - DELETE /kb/collections/own/:collectionID
 
 collections:read:team:
-  team: true
+  team: true      # Only show team collections
   description: "Read knowledge base for team collections"
   endpoints:
     - GET /kb/collections/team
     - GET /kb/collections/team/:collectionID
+
+collections:read:department:
+  extra:          # Custom constraints
+    department_only: true
+    region: "us-west"
+  description: "Read collections for department in specific region"
+  endpoints:
+    - GET /kb/collections/department
+    - GET /kb/collections/department/:collectionID
 ```
 
 #### Scope Definition Fields
 
-| Field         | Type   | Required | Default | Description                                                                      |
-| ------------- | ------ | -------- | ------- | -------------------------------------------------------------------------------- |
-| `description` | string | No       | ""      | Human-readable description of the scope                                          |
-| `owner`       | bool   | No       | false   | If `true`, data access is restricted to owner only (sets `OwnerOnly` constraint) |
-| `team`        | bool   | No       | false   | If `true`, data access is restricted to team only (sets `TeamOnly` constraint)   |
-| `endpoints`   | array  | Yes      | -       | List of API endpoints this scope grants access to                                |
+| Field         | Type   | Required | Default | Description                                                                        |
+| ------------- | ------ | -------- | ------- | ---------------------------------------------------------------------------------- |
+| `description` | string | No       | ""      | Human-readable description of the scope                                            |
+| `owner`       | bool   | No       | false   | If `true`, data access is restricted to owner only (sets `OwnerOnly` constraint)   |
+| `creator`     | bool   | No       | false   | If `true`, data access is restricted to creator only (sets `CreatorOnly` constraint) |
+| `editor`      | bool   | No       | false   | If `true`, data access is restricted to editor only (sets `EditorOnly` constraint)   |
+| `team`        | bool   | No       | false   | If `true`, data access is restricted to team only (sets `TeamOnly` constraint)     |
+| `extra`       | map    | No       | {}      | User-defined custom constraints (key-value pairs)                                  |
+| `endpoints`   | array  | Yes      | -       | List of API endpoints this scope grants access to                                  |
 
 #### Endpoint Format
 

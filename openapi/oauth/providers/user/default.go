@@ -142,7 +142,7 @@ var (
 	// DefaultTeamFields contains basic team fields
 	DefaultTeamFields = []interface{}{
 		"team_id", "name", "display_name", "description", "website", "logo",
-		"owner_id", "status", "type_id", "type", "is_verified", "verified_at",
+		"owner_id", "status", "role_id", "type_id", "type", "is_verified", "verified_at",
 		"created_at", "updated_at",
 	}
 
@@ -150,7 +150,7 @@ var (
 	DefaultTeamDetailFields = []interface{}{
 		"team_id", "name", "display_name", "description", "website", "logo",
 		"owner_id", "contact_email", "contact_phone", "is_verified", "verified_at", "verified_by",
-		"team_code", "team_code_type", "status", "type_id", "type", "address", "street_address",
+		"team_code", "team_code_type", "status", "role_id", "type_id", "type", "address", "street_address",
 		"city", "state_province", "postal_code", "country", "country_name", "region", "zoneinfo",
 		"settings", "metadata", "created_at", "updated_at",
 	}
