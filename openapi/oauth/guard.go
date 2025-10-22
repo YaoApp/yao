@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -50,6 +51,7 @@ func (s *Service) Guard(c *gin.Context) {
 	// Check permissions and enforce rate limits when ACL is configured
 	ok, err := acl.Global.Enforce(c)
 	if err != nil {
+		log.Error("[OAuth] ACL enforcement failed: %v", err)
 		s.handleACLError(c, err)
 		return
 	}

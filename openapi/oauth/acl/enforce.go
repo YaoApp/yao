@@ -164,7 +164,7 @@ func (acl *ACL) enforceClient(ctx context.Context, authInfo *types.AuthorizedInf
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get client role: %v", err),
+			Message: fmt.Sprintf("failed to get client role [client_id=%s]: %v", authInfo.ClientID, err),
 			Stage:   EnforcementStageClient,
 		}
 	}
@@ -174,7 +174,7 @@ func (acl *ACL) enforceClient(ctx context.Context, authInfo *types.AuthorizedInf
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get client scopes: %v", err),
+			Message: fmt.Sprintf("failed to get client scopes [client_id=%s, role=%s]: %v", authInfo.ClientID, clientRole, err),
 			Stage:   EnforcementStageClient,
 		}
 	}
@@ -193,6 +193,9 @@ func (acl *ACL) enforceClient(ctx context.Context, authInfo *types.AuthorizedInf
 			Message: decision.Reason,
 			Stage:   EnforcementStageClient,
 			Details: map[string]interface{}{
+				"client_id":       authInfo.ClientID,
+				"method":          request.Method,
+				"path":            request.Path,
 				"required_scopes": decision.RequiredScopes,
 				"missing_scopes":  decision.MissingScopes,
 			},
@@ -214,6 +217,9 @@ func (acl *ACL) enforceClient(ctx context.Context, authInfo *types.AuthorizedInf
 				Message: "access denied by restriction: " + restrictDecision.Reason,
 				Stage:   EnforcementStageClient,
 				Details: map[string]interface{}{
+					"client_id":         authInfo.ClientID,
+					"method":            request.Method,
+					"path":              request.Path,
 					"restricted_scopes": restrictedScopes,
 					"matched_pattern":   restrictDecision.MatchedPattern,
 				},
@@ -259,6 +265,10 @@ func (acl *ACL) enforceScope(_ context.Context, authInfo *types.AuthorizedInfo, 
 			Message: decision.Reason,
 			Stage:   EnforcementStageScope,
 			Details: map[string]interface{}{
+				"client_id":       authInfo.ClientID,
+				"user_id":         authInfo.UserID,
+				"method":          request.Method,
+				"path":            request.Path,
 				"required_scopes": decision.RequiredScopes,
 				"missing_scopes":  decision.MissingScopes,
 			},
@@ -277,7 +287,7 @@ func (acl *ACL) enforceUser(ctx context.Context, authInfo *types.AuthorizedInfo,
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get user role: %v", err),
+			Message: fmt.Sprintf("failed to get user role [user_id=%s]: %v", authInfo.UserID, err),
 			Stage:   EnforcementStageUser,
 		}
 	}
@@ -287,7 +297,7 @@ func (acl *ACL) enforceUser(ctx context.Context, authInfo *types.AuthorizedInfo,
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get user scopes: %v", err),
+			Message: fmt.Sprintf("failed to get user scopes [user_id=%s, role=%s]: %v", authInfo.UserID, userRole, err),
 			Stage:   EnforcementStageUser,
 		}
 	}
@@ -306,6 +316,9 @@ func (acl *ACL) enforceUser(ctx context.Context, authInfo *types.AuthorizedInfo,
 			Message: decision.Reason,
 			Stage:   EnforcementStageUser,
 			Details: map[string]interface{}{
+				"user_id":         authInfo.UserID,
+				"method":          request.Method,
+				"path":            request.Path,
 				"required_scopes": decision.RequiredScopes,
 				"missing_scopes":  decision.MissingScopes,
 			},
@@ -327,6 +340,9 @@ func (acl *ACL) enforceUser(ctx context.Context, authInfo *types.AuthorizedInfo,
 				Message: "access denied by restriction: " + restrictDecision.Reason,
 				Stage:   EnforcementStageUser,
 				Details: map[string]interface{}{
+					"user_id":           authInfo.UserID,
+					"method":            request.Method,
+					"path":              request.Path,
 					"restricted_scopes": restrictedScopes,
 					"matched_pattern":   restrictDecision.MatchedPattern,
 				},
@@ -346,7 +362,7 @@ func (acl *ACL) enforceTeam(ctx context.Context, authInfo *types.AuthorizedInfo,
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get team role: %v", err),
+			Message: fmt.Sprintf("failed to get team role [team_id=%s]: %v", authInfo.TeamID, err),
 			Stage:   EnforcementStageTeam,
 		}
 	}
@@ -356,7 +372,7 @@ func (acl *ACL) enforceTeam(ctx context.Context, authInfo *types.AuthorizedInfo,
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get team scopes: %v", err),
+			Message: fmt.Sprintf("failed to get team scopes [team_id=%s, role=%s]: %v", authInfo.TeamID, teamRole, err),
 			Stage:   EnforcementStageTeam,
 		}
 	}
@@ -375,6 +391,10 @@ func (acl *ACL) enforceTeam(ctx context.Context, authInfo *types.AuthorizedInfo,
 			Message: decision.Reason,
 			Stage:   EnforcementStageTeam,
 			Details: map[string]interface{}{
+				"team_id":         authInfo.TeamID,
+				"user_id":         authInfo.UserID,
+				"method":          request.Method,
+				"path":            request.Path,
 				"required_scopes": decision.RequiredScopes,
 				"missing_scopes":  decision.MissingScopes,
 			},
@@ -396,6 +416,10 @@ func (acl *ACL) enforceTeam(ctx context.Context, authInfo *types.AuthorizedInfo,
 				Message: "access denied by restriction: " + restrictDecision.Reason,
 				Stage:   EnforcementStageTeam,
 				Details: map[string]interface{}{
+					"team_id":           authInfo.TeamID,
+					"user_id":           authInfo.UserID,
+					"method":            request.Method,
+					"path":              request.Path,
 					"restricted_scopes": restrictedScopes,
 					"matched_pattern":   restrictDecision.MatchedPattern,
 				},
@@ -415,7 +439,7 @@ func (acl *ACL) enforceMember(ctx context.Context, authInfo *types.AuthorizedInf
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get member role: %v", err),
+			Message: fmt.Sprintf("failed to get member role [team_id=%s, user_id=%s]: %v", authInfo.TeamID, authInfo.UserID, err),
 			Stage:   EnforcementStageMember,
 		}
 	}
@@ -425,7 +449,7 @@ func (acl *ACL) enforceMember(ctx context.Context, authInfo *types.AuthorizedInf
 	if err != nil {
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
-			Message: fmt.Sprintf("failed to get member scopes: %v", err),
+			Message: fmt.Sprintf("failed to get member scopes [team_id=%s, user_id=%s, role=%s]: %v", authInfo.TeamID, authInfo.UserID, memberRole, err),
 			Stage:   EnforcementStageMember,
 		}
 	}
@@ -444,6 +468,10 @@ func (acl *ACL) enforceMember(ctx context.Context, authInfo *types.AuthorizedInf
 			Message: decision.Reason,
 			Stage:   EnforcementStageMember,
 			Details: map[string]interface{}{
+				"team_id":         authInfo.TeamID,
+				"user_id":         authInfo.UserID,
+				"method":          request.Method,
+				"path":            request.Path,
 				"required_scopes": decision.RequiredScopes,
 				"missing_scopes":  decision.MissingScopes,
 			},
@@ -465,6 +493,10 @@ func (acl *ACL) enforceMember(ctx context.Context, authInfo *types.AuthorizedInf
 				Message: "access denied by restriction: " + restrictDecision.Reason,
 				Stage:   EnforcementStageMember,
 				Details: map[string]interface{}{
+					"team_id":           authInfo.TeamID,
+					"user_id":           authInfo.UserID,
+					"method":            request.Method,
+					"path":              request.Path,
 					"restricted_scopes": restrictedScopes,
 					"matched_pattern":   restrictDecision.MatchedPattern,
 				},

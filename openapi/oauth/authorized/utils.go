@@ -55,9 +55,22 @@ func GetInfo(c *gin.Context) *types.AuthorizedInfo {
 func GetConstraints(c *gin.Context) types.DataConstraints {
 	constraints := types.DataConstraints{}
 
+	// Built-in constraints
 	if ownerOnly, ok := c.Get("__owner_only"); ok {
 		if ownerOnlyBool, ok := ownerOnly.(bool); ok {
 			constraints.OwnerOnly = ownerOnlyBool
+		}
+	}
+
+	if creatorOnly, ok := c.Get("__creator_only"); ok {
+		if creatorOnlyBool, ok := creatorOnly.(bool); ok {
+			constraints.CreatorOnly = creatorOnlyBool
+		}
+	}
+
+	if editorOnly, ok := c.Get("__editor_only"); ok {
+		if editorOnlyBool, ok := editorOnly.(bool); ok {
+			constraints.EditorOnly = editorOnlyBool
 		}
 	}
 
@@ -67,12 +80,12 @@ func GetConstraints(c *gin.Context) types.DataConstraints {
 		}
 	}
 
-	// Future constraints can be read here:
-	// if departmentOnly, ok := c.Get("__department_only"); ok {
-	//     if deptBool, ok := departmentOnly.(bool); ok {
-	//         constraints.DepartmentOnly = deptBool
-	//     }
-	// }
+	// Extra constraints
+	if extraConstraints, ok := c.Get("__extra_constraints"); ok {
+		if extra, ok := extraConstraints.(map[string]interface{}); ok {
+			constraints.Extra = extra
+		}
+	}
 
 	return constraints
 }
