@@ -130,6 +130,9 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 		return 0, fmt.Errorf("role_id is required in memberData")
 	}
 
+	// Add __yao_team_id to the member data
+	memberData["__yao_team_id"] = memberData["team_id"]
+
 	// Set default values if not provided
 	if _, exists := memberData["member_type"]; !exists {
 		memberData["member_type"] = "user"

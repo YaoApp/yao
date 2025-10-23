@@ -341,6 +341,9 @@ func (m *ScopeManager) buildIndexes() error {
 
 // addEndpointRule adds an endpoint rule to the index
 func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []string) error {
+	// Normalize path: remove trailing slash (except for root path)
+	path = normalizePath(path)
+
 	// Get or create PathMatcher for this method
 	matcher := m.endpointIndex[method]
 	if matcher == nil {
@@ -478,16 +481,19 @@ func (m *ScopeManager) Check(req *AccessRequest) *AccessDecision {
 		UserScopes: req.Scopes,
 	}
 
+	// Normalize the request path
+	normalizedPath := normalizePath(req.Path)
+
 	// 1. Check if it's a public endpoint
-	publicKey := req.Method + " " + req.Path
+	publicKey := req.Method + " " + normalizedPath
 	if _, ok := m.publicPaths[publicKey]; ok {
 		decision.Allowed = true
 		decision.Reason = "public endpoint"
 		return decision
 	}
 
-	// 2. Find matching endpoint
-	endpoint, pattern := m.matchEndpoint(req.Method, req.Path)
+	// 2. Find matching endpoint (matchEndpoint will normalize the path again, but it's idempotent)
+	endpoint, pattern := m.matchEndpoint(req.Method, normalizedPath)
 	if endpoint == nil {
 		// No match found, use default policy
 		decision.Allowed = m.defaultAction == "allow"
@@ -560,16 +566,19 @@ func (m *ScopeManager) CheckRestricted(req *AccessRequest) *AccessDecision {
 		UserScopes: req.Scopes,
 	}
 
+	// Normalize the request path
+	normalizedPath := normalizePath(req.Path)
+
 	// 1. Check if it's a public endpoint - public endpoints cannot be restricted
-	publicKey := req.Method + " " + req.Path
+	publicKey := req.Method + " " + normalizedPath
 	if _, ok := m.publicPaths[publicKey]; ok {
 		decision.Allowed = true
 		decision.Reason = "public endpoint"
 		return decision
 	}
 
-	// 2. Find matching endpoint
-	endpoint, pattern := m.matchEndpoint(req.Method, req.Path)
+	// 2. Find matching endpoint (matchEndpoint will normalize the path again, but it's idempotent)
+	endpoint, pattern := m.matchEndpoint(req.Method, normalizedPath)
 	if endpoint == nil {
 		// No match found - not restricted
 		decision.Allowed = true
@@ -622,6 +631,9 @@ func (m *ScopeManager) CheckRestricted(req *AccessRequest) *AccessDecision {
 
 // matchEndpoint finds the matching endpoint for a request
 func (m *ScopeManager) matchEndpoint(method, path string) (*EndpointInfo, string) {
+	// Normalize path: remove trailing slash (except for root path)
+	path = normalizePath(path)
+
 	matcher := m.endpointIndex[method]
 	if matcher == nil {
 		return nil, ""
@@ -822,4 +834,21 @@ func (m *ScopeManager) Reload() error {
 	m.scopes = newManager.scopes
 
 	return nil
+}
+
+// normalizePath normalizes a path by removing trailing slashes (except for root path "/")
+// This ensures consistent path matching regardless of whether the request or definition has a trailing slash
+// Examples:
+//   - "/user/teams/" -> "/user/teams"
+//   - "/user/teams" -> "/user/teams"
+//   - "/" -> "/"
+//   - "" -> ""
+func normalizePath(path string) string {
+	// Empty path or root path - return as is
+	if path == "" || path == "/" {
+		return path
+	}
+
+	// Remove trailing slash
+	return strings.TrimSuffix(path, "/")
 }
