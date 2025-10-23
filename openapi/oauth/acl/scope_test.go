@@ -98,10 +98,10 @@ func TestPathMatchingExactPaths(t *testing.T) {
 
 	// Add endpoints with different trailing slash patterns
 	testCases := []struct {
-		method        string
-		definedPath   string
-		requestPaths  []string
-		shouldMatch   bool
+		method       string
+		definedPath  string
+		requestPaths []string
+		shouldMatch  bool
 	}{
 		{
 			method:       "POST",
@@ -147,4 +147,3 @@ func TestPathMatchingExactPaths(t *testing.T) {
 		}
 	}
 }
-
