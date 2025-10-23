@@ -1040,6 +1040,13 @@ func teamInvitationGet(ctx context.Context, userID, teamID, invitationID string)
 // 1. Email invitation: provide email and role, send invitation link via email
 // 2. Link invitation: create invitation link for display in frontend, customizable expiry
 func teamInvitationCreate(ctx context.Context, userID, teamID string, invitationData maps.MapStrAny) (string, error) {
+	// Remove empty string fields (should not be inserted to database)
+	for _, field := range []string{"user_id", "email", "message", "display_name", "bio"} {
+		if invitationData[field] == "" {
+			delete(invitationData, field)
+		}
+	}
+
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
