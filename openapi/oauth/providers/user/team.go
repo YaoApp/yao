@@ -82,6 +82,7 @@ func (u *DefaultUser) CreateTeam(ctx context.Context, teamData maps.MapStrAny) (
 			return "", fmt.Errorf("failed to generate team_id: %w", err)
 		}
 		teamData["team_id"] = teamID
+		teamData["__yao_team_id"] = teamID // Add __yao_team_id to the team data
 	}
 
 	// Validate required fields

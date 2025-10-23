@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -149,14 +150,16 @@ func GinTeamGet(c *gin.Context) {
 // GinTeamCreate handles POST /teams - Create user team
 func GinTeamCreate(c *gin.Context) {
 	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
-	if authInfo == nil || authInfo.UserID == "" {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidClient.Code,
-			ErrorDescription: "User not authenticated",
+	authInfo := authorized.GetInfo(c)
+	if authInfo.Constraints.OwnerOnly {
+		if authInfo == nil || authInfo.UserID == "" {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidClient.Code,
+				ErrorDescription: "User not authenticated",
+			}
+			response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+			return
 		}
-		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
-		return
 	}
 
 	// Parse request body
@@ -171,10 +174,10 @@ func GinTeamCreate(c *gin.Context) {
 	}
 
 	// Prepare team data
-	teamData := maps.MapStrAny{
+	teamData := authInfo.WithCreateScope(maps.MapStrAny{
 		"name":        req.Name,
 		"description": req.Description,
-	}
+	})
 
 	// Add settings if provided
 	if req.Settings != nil {
@@ -745,7 +748,7 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 	}
 
 	// Add the creator as an owner member of the team
-	ownerMemberData := maps.MapStrAny{
+	ownerMemberData := types.CopyCreateScope(teamData, maps.MapStrAny{
 		"team_id":     teamID,
 		"user_id":     userID,
 		"member_type": "user",
@@ -754,7 +757,7 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 		"joined_at":   time.Now(),
 		"created_at":  time.Now(),
 		"updated_at":  time.Now(),
-	}
+	})
 
 	_, err = provider.CreateMember(ctx, ownerMemberData)
 	if err != nil {
