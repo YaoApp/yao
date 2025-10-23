@@ -129,6 +129,9 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.PUT("/:id", GinTeamUpdate)    // PUT /teams/:id - Update team
 	team.DELETE("/:id", GinTeamDelete) // DELETE /teams/:id - Delete team
 
+	// Get Current Team
+	team.GET("/current", GinTeamCurrent)
+
 	// Team Members - Nested resource endpoints
 	team.GET("/:id/members", GinMemberList)                 // GET /teams/:id/members - List team members
 	team.POST("/:id/members", GinMemberCreateDirect)        // POST /teams/:id/members - Add team member

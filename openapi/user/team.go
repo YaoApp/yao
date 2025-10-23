@@ -49,7 +49,7 @@ func GinTeamConfig(c *gin.Context) {
 // GinTeamList handles GET /teams - Get user teams (all teams where user is a member)
 func GinTeamList(c *gin.Context) {
 	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
+	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidClient.Code,
@@ -309,6 +309,61 @@ func GinTeamUpdate(c *gin.Context) {
 
 	// Convert to response format
 	team := mapToTeamDetailResponse(updatedTeam)
+	response.RespondWithSuccess(c, http.StatusOK, team)
+}
+
+// GinTeamCurrent handles GET /teams/current - Get current team
+func GinTeamCurrent(c *gin.Context) {
+
+	authInfo := authorized.GetInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	// Get current team
+	teamID := authInfo.TeamID
+
+	// If no team ID, get the user teams from provider first
+	if teamID == "" {
+		// Get user teams
+		teams, err := getOwnerTeams(c.Request.Context(), authInfo.UserID)
+		if err != nil {
+			log.Error("Failed to get owner teams: %v", err)
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to get owner teams",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+
+		if len(teams) == 0 {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "No owner team found for user",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+			return
+		}
+
+		teamID = teams[0]["team_id"].(string)
+	}
+
+	// Get team details
+	team, err := teamGet(c.Request.Context(), authInfo.UserID, teamID)
+	if err != nil {
+		log.Error("Failed to get team details: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get team details",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+	}
+
 	response.RespondWithSuccess(c, http.StatusOK, team)
 }
 
@@ -672,10 +727,14 @@ func teamGet(ctx context.Context, userID, teamID string) (maps.MapStrAny, error)
 		return nil, fmt.Errorf("failed to retrieve team details: %w", err)
 	}
 
-	// Check if user owns this team
-	ownerID := toString(teamData["owner_id"])
-	if ownerID != userID {
-		return nil, fmt.Errorf("access denied: user does not own this team")
+	// Validate if user is a member of the team
+	exists, err := provider.MemberExists(ctx, teamID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve team member record: %w", err)
+	}
+
+	if !exists {
+		return nil, fmt.Errorf("user is not a member of this team")
 	}
 
 	return teamData, nil
@@ -919,6 +978,24 @@ func getUserTeams(ctx context.Context, userID string) ([]maps.MapStr, error) {
 		return nil, fmt.Errorf("failed to retrieve user teams: %w", err)
 	}
 
+	return teams, nil
+}
+
+// getOwnerTeams gets all teams where the user is the owner
+func getOwnerTeams(ctx context.Context, userID string) ([]maps.MapStr, error) {
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Get owner team
+	teams, err := provider.GetTeamsByOwner(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve owner team: %w", err)
+	}
+
+	// Return the first team as the owner team
 	return teams, nil
 }
 
