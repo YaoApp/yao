@@ -278,7 +278,8 @@ func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string,
 	updateData := maps.MapStrAny{
 		"status":           "active",
 		"joined_at":        time.Now(),
-		"invitation_token": nil, // Clear the token
+		"invitation_token": nil,    // Clear the token
+		"__yao_updated_by": userID, // Set the updated by user ID
 	}
 
 	// If invitation doesn't have a user_id (unregistered user invitation), update it with provided userID

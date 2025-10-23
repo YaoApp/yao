@@ -19,6 +19,7 @@ import (
 	"github.com/yaoapp/yao/messenger"
 	messengertypes "github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/openapi/oauth"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/share"
 )
@@ -216,14 +217,16 @@ func GinTeamInvitationGet(c *gin.Context) {
 // GinTeamInvitationCreate handles POST /teams/:team_id/invitations - Send team invitation
 func GinTeamInvitationCreate(c *gin.Context) {
 	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
-	if authInfo == nil || authInfo.UserID == "" {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidClient.Code,
-			ErrorDescription: "User not authenticated",
+	authInfo := authorized.GetInfo(c)
+	if authInfo.Constraints.OwnerOnly || authInfo.Constraints.TeamOnly {
+		if authInfo == nil || authInfo.UserID == "" {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidClient.Code,
+				ErrorDescription: "User not authenticated",
+			}
+			response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+			return
 		}
-		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
-		return
 	}
 
 	teamID := c.Param("id")
@@ -251,7 +254,7 @@ func GinTeamInvitationCreate(c *gin.Context) {
 	requestBaseURL := getRequestBaseURL(c)
 
 	// Prepare invitation data
-	invitationData := maps.MapStrAny{
+	invitationData := authInfo.WithCreateScope(maps.MapStrAny{
 		"user_id":          req.UserID,
 		"email":            req.Email,
 		"member_type":      req.MemberType,
@@ -259,7 +262,7 @@ func GinTeamInvitationCreate(c *gin.Context) {
 		"message":          req.Message,
 		"expiry":           req.Expiry,
 		"request_base_url": requestBaseURL,
-	}
+	})
 
 	// Prepare settings
 	settings := &InvitationSettings{}
@@ -454,7 +457,7 @@ func GinTeamInvitationDelete(c *gin.Context) {
 // GinTeamInvitationAccept handles POST /user/teams/invitations/:invitation_id/accept - Accept invitation and login to team
 func GinTeamInvitationAccept(c *gin.Context) {
 	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
+	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidClient.Code,
