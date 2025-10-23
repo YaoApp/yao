@@ -55,6 +55,35 @@
     },
 
     // ============================================================================
+    // Member Profile Fields (Team-specific identity)
+    // ============================================================================
+    {
+      "name": "display_name",
+      "type": "string",
+      "label": "Display Name",
+      "comment": "Display name for this member within the team (can differ from user.name)",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "bio",
+      "type": "text",
+      "label": "Bio",
+      "comment": "Personal bio/description for this member within the team",
+      "nullable": true
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "label": "Email",
+      "comment": "Email for this member within the team (can differ from user.email)",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+
+    // ============================================================================
     // Role & Permission Fields
     // ============================================================================
     {
@@ -395,6 +424,12 @@
       "columns": ["team_id", "last_active_at"],
       "type": "index",
       "comment": "Index for team activity tracking"
+    },
+    {
+      "name": "idx_team_display_name",
+      "columns": ["team_id", "display_name"],
+      "type": "index",
+      "comment": "Index for searching members by display name within team"
     }
   ],
   "relations": {

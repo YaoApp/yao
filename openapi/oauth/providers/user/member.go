@@ -160,6 +160,20 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 		memberData["invitation_id"] = invitationID
 	}
 
+	// Copy profile fields from user if not provided (for user members with user_id)
+	if memberType == "user" && memberData["user_id"] != nil && memberData["user_id"] != "" {
+		if userID, ok := memberData["user_id"].(string); ok {
+			u.copyMemberProfileFromUser(ctx, userID, memberData)
+		}
+	} else if memberType == "user" {
+		// If no user_id, still need to clean empty fields
+		for _, field := range []string{"display_name", "bio", "email"} {
+			if memberData[field] == nil || memberData[field] == "" {
+				delete(memberData, field)
+			}
+		}
+	}
+
 	m := model.Select(u.memberModel)
 	id, err := m.Create(memberData)
 	if err != nil {
@@ -243,10 +257,10 @@ func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID strin
 // AcceptInvitation accepts a team invitation
 // userID can be empty - if provided and invitation doesn't have user_id, it will be updated
 func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string, invitationToken string, userID string) error {
-	// Find member by invitation_id and token
+	// Find member by invitation_id and token (including profile fields)
 	m := model.Select(u.memberModel)
 	members, err := m.Get(model.QueryParam{
-		Select: []interface{}{"id", "team_id", "user_id", "status", "invitation_expires_at"},
+		Select: []interface{}{"id", "team_id", "user_id", "status", "invitation_expires_at", "display_name", "bio", "email"},
 		Wheres: []model.QueryWhere{
 			{Column: "invitation_id", Value: invitationID},
 			{Column: "invitation_token", Value: invitationToken},
@@ -280,12 +294,27 @@ func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string,
 		"joined_at":        time.Now(),
 		"invitation_token": nil,    // Clear the token
 		"__yao_updated_by": userID, // Set the updated by user ID
+		"display_name":     member["display_name"],
+		"bio":              member["bio"],
+		"email":            member["email"],
 	}
 
 	// If invitation doesn't have a user_id (unregistered user invitation), update it with provided userID
-	if userID != "" && (member["user_id"] == nil || member["user_id"] == "") {
+	if (member["user_id"] == nil || member["user_id"] == "") && userID != "" {
 		updateData["user_id"] = userID
 	}
+
+	// Determine final user_id for profile copying
+	finalUserID := ""
+	if uid, ok := member["user_id"].(string); ok && uid != "" {
+		finalUserID = uid
+	} else if uid, ok := updateData["user_id"].(string); ok && uid != "" {
+		finalUserID = uid
+	}
+
+	// Copy profile fields from user if they are empty in updateData
+	// copyMemberProfileFromUser will also remove empty fields
+	u.copyMemberProfileFromUser(ctx, finalUserID, updateData)
 
 	affected, err := m.UpdateWhere(model.QueryParam{
 		Wheres: []model.QueryWhere{
@@ -637,4 +666,53 @@ func (u *DefaultUser) PaginateMembers(ctx context.Context, param model.QueryPara
 	}
 
 	return result, nil
+}
+
+// copyMemberProfileFromUser copies member profile fields from user if not set in updateData
+// Fields: display_name (from user.name), bio (n/a), email (from user.email)
+// Only copies if the field is nil or empty in updateData
+// Removes fields with nil or empty string values from updateData
+func (u *DefaultUser) copyMemberProfileFromUser(ctx context.Context, userID string, updateData maps.MapStrAny) {
+	if userID == "" {
+		// Remove empty fields if no user_id
+		for _, field := range []string{"display_name", "bio", "email"} {
+			if updateData[field] == nil || updateData[field] == "" {
+				delete(updateData, field)
+			}
+		}
+		return
+	}
+
+	// Check if we need to copy any fields
+	needsCopy := false
+	if updateData["display_name"] == nil || updateData["display_name"] == "" {
+		needsCopy = true
+	}
+	if updateData["email"] == nil || updateData["email"] == "" {
+		needsCopy = true
+	}
+	// bio field doesn't exist in user table, no need to check
+
+	if needsCopy {
+		// Get user profile using interface method
+		user, err := u.GetUser(ctx, userID)
+		if err == nil && user != nil {
+			// Copy display_name from user.name if not set
+			if (updateData["display_name"] == nil || updateData["display_name"] == "") && user["name"] != nil && user["name"] != "" {
+				updateData["display_name"] = user["name"]
+			}
+
+			// Copy email from user.email if not set
+			if (updateData["email"] == nil || updateData["email"] == "") && user["email"] != nil && user["email"] != "" {
+				updateData["email"] = user["email"]
+			}
+		}
+	}
+
+	// Remove fields with nil or empty string values (should not be inserted to database)
+	for _, field := range []string{"display_name", "bio", "email"} {
+		if updateData[field] == nil || updateData[field] == "" {
+			delete(updateData, field)
+		}
+	}
 }

@@ -314,7 +314,7 @@ func GinTeamUpdate(c *gin.Context) {
 
 // GinTeamCurrent handles GET /teams/current - Get current team
 func GinTeamCurrent(c *gin.Context) {
-
+	// Get authorized user info
 	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
@@ -325,23 +325,13 @@ func GinTeamCurrent(c *gin.Context) {
 		return
 	}
 
-	// Get current team
-	teamID := authInfo.TeamID
+	// Get current team ID (from token or first owner team)
+	teamID, err := getCurrentTeamID(c.Request.Context(), authInfo.TeamID, authInfo.UserID)
+	if err != nil {
+		log.Error("Failed to get current team ID: %v", err)
 
-	// If no team ID, get the user teams from provider first
-	if teamID == "" {
-		// Get user teams
-		teams, err := getOwnerTeams(c.Request.Context(), authInfo.UserID)
-		if err != nil {
-			log.Error("Failed to get owner teams: %v", err)
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to get owner teams",
-			}
-			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		}
-
-		if len(teams) == 0 {
+		// Return 404 if user has no team
+		if err.Error() == "no owner team found for user" {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrInvalidRequest.Code,
 				ErrorDescription: "No owner team found for user",
@@ -350,7 +340,13 @@ func GinTeamCurrent(c *gin.Context) {
 			return
 		}
 
-		teamID = teams[0]["team_id"].(string)
+		// Return 500 for other errors
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get current team ID",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
 	}
 
 	// Get team details
@@ -362,6 +358,7 @@ func GinTeamCurrent(c *gin.Context) {
 			ErrorDescription: "Failed to get team details",
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
 	}
 
 	response.RespondWithSuccess(c, http.StatusOK, team)
@@ -711,6 +708,34 @@ func teamList(ctx context.Context, userID string, param model.QueryParam, page, 
 	}
 
 	return result, nil
+}
+
+// getCurrentTeamID resolves the current team ID for a user
+// If teamID is provided, it returns it directly
+// If teamID is empty, it gets the first owner team for the user
+func getCurrentTeamID(ctx context.Context, teamID, userID string) (string, error) {
+	// If team ID is already provided, return it
+	if teamID != "" {
+		return teamID, nil
+	}
+
+	// Get owner teams for the user
+	teams, err := getOwnerTeams(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get owner teams: %w", err)
+	}
+
+	// Check if user has any owner teams
+	if len(teams) == 0 {
+		return "", fmt.Errorf("no owner team found for user")
+	}
+
+	// Return the first team ID
+	if teamIDVal, ok := teams[0]["team_id"].(string); ok {
+		return teamIDVal, nil
+	}
+
+	return "", fmt.Errorf("invalid team_id format")
 }
 
 // teamGet handles the business logic for getting a specific user team
