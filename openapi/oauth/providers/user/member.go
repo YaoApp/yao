@@ -186,8 +186,8 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 // CreateRobotMember creates a new robot member
 func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (int64, error) {
 	// Validate required fields for robot members
-	if _, exists := robotData["robot_name"]; !exists {
-		return 0, fmt.Errorf("robot_name is required for robot members")
+	if _, exists := robotData["display_name"]; !exists {
+		return 0, fmt.Errorf("display_name is required for robot members")
 	}
 	if _, exists := robotData["role_id"]; !exists {
 		return 0, fmt.Errorf("role_id is required for robot members")
@@ -200,12 +200,20 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 		"user_id":     nil,      // Robots don't have user_id
 	}
 
+	// Copy shared profile fields (used by both users and robots)
+	profileFields := []string{
+		"display_name", "bio", "avatar",
+	}
+	for _, field := range profileFields {
+		if value, exists := robotData[field]; exists {
+			memberData[field] = value
+		}
+	}
+
 	// Copy robot-specific fields
 	robotFields := []string{
-		"role_id", "robot_name", "robot_description", "robot_avatar",
-		"robot_config", "agents", "tools", "mcp_servers", "data_access_permissions",
-		"system_prompt", "is_active_robot", "schedule_config", "random_activity",
-		"activity_frequency", "robot_status",
+		"role_id", "system_prompt", "manager_id", "robot_config", "agents", "mcp_servers",
+		"language_model", "cost_limit", "autonomous_mode", "robot_status",
 	}
 
 	for _, field := range robotFields {
@@ -217,6 +225,11 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 	// Set default robot status if not provided
 	if _, exists := memberData["robot_status"]; !exists {
 		memberData["robot_status"] = "idle"
+	}
+
+	// Set default autonomous mode if not provided
+	if _, exists := memberData["autonomous_mode"]; !exists {
+		memberData["autonomous_mode"] = false
 	}
 
 	return u.CreateMember(ctx, memberData)
@@ -511,7 +524,7 @@ func (u *DefaultUser) GetTeamRobotMembers(ctx context.Context, teamID string) ([
 			{Column: "member_type", Value: "robot"},
 		},
 		Orders: []model.QueryOrder{
-			{Column: "robot_name", Option: "asc"},
+			{Column: "display_name", Option: "asc"},
 		},
 	}
 
@@ -530,7 +543,7 @@ func (u *DefaultUser) GetActiveRobotMembers(ctx context.Context) ([]maps.MapStr,
 		Select: u.memberDetailFields,
 		Wheres: []model.QueryWhere{
 			{Column: "member_type", Value: "robot"},
-			{Column: "is_active_robot", Value: true},
+			{Column: "autonomous_mode", Value: true},
 			{Column: "status", Value: "active"},
 		},
 		Orders: []model.QueryOrder{
@@ -669,13 +682,13 @@ func (u *DefaultUser) PaginateMembers(ctx context.Context, param model.QueryPara
 }
 
 // copyMemberProfileFromUser copies member profile fields from user if not set in updateData
-// Fields: display_name (from user.name), bio (n/a), email (from user.email)
+// Fields: display_name (from user.name), bio (n/a), avatar (from user.picture), email (from user.email)
 // Only copies if the field is nil or empty in updateData
 // Removes fields with nil or empty string values from updateData
 func (u *DefaultUser) copyMemberProfileFromUser(ctx context.Context, userID string, updateData maps.MapStrAny) {
 	if userID == "" {
 		// Remove empty fields if no user_id
-		for _, field := range []string{"display_name", "bio", "email"} {
+		for _, field := range []string{"display_name", "bio", "avatar", "email"} {
 			if updateData[field] == nil || updateData[field] == "" {
 				delete(updateData, field)
 			}
@@ -686,6 +699,9 @@ func (u *DefaultUser) copyMemberProfileFromUser(ctx context.Context, userID stri
 	// Check if we need to copy any fields
 	needsCopy := false
 	if updateData["display_name"] == nil || updateData["display_name"] == "" {
+		needsCopy = true
+	}
+	if updateData["avatar"] == nil || updateData["avatar"] == "" {
 		needsCopy = true
 	}
 	if updateData["email"] == nil || updateData["email"] == "" {
@@ -702,6 +718,11 @@ func (u *DefaultUser) copyMemberProfileFromUser(ctx context.Context, userID stri
 				updateData["display_name"] = user["name"]
 			}
 
+			// Copy avatar from user.picture if not set
+			if (updateData["avatar"] == nil || updateData["avatar"] == "") && user["picture"] != nil && user["picture"] != "" {
+				updateData["avatar"] = user["picture"]
+			}
+
 			// Copy email from user.email if not set
 			if (updateData["email"] == nil || updateData["email"] == "") && user["email"] != nil && user["email"] != "" {
 				updateData["email"] = user["email"]
@@ -710,7 +731,7 @@ func (u *DefaultUser) copyMemberProfileFromUser(ctx context.Context, userID stri
 	}
 
 	// Remove fields with nil or empty string values (should not be inserted to database)
-	for _, field := range []string{"display_name", "bio", "email"} {
+	for _, field := range []string{"display_name", "bio", "avatar", "email"} {
 		if updateData[field] == nil || updateData[field] == "" {
 			delete(updateData, field)
 		}
