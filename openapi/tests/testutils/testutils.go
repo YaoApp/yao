@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -153,8 +154,14 @@ func Prepare(t *testing.T) string {
 	// Step 1: Initialize base test environment with all Yao dependencies
 	test.Prepare(t, config.Conf)
 
+	// Load Neo
+	err := neo.Load(config.Conf)
+	if err != nil {
+		t.Fatalf("Failed to load Neo: %v", err)
+	}
+
 	// Step 1.5: Initialize Knowledge Base (must be done before OpenAPI load)
-	_, err := kb.Load(config.Conf)
+	_, err = kb.Load(config.Conf)
 	if err != nil {
 		// KB loading failure is not fatal for tests, just log it
 		t.Logf("Warning: Failed to load Knowledge Base: %v", err)
