@@ -34,8 +34,8 @@ func TestInvitationCreate(t *testing.T) {
 	client := testutils.RegisterTestClient(t, "Invitation Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, client.ClientID)
 
-	// Get access token
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	// Get access token with root permissions (creates real user in DB with system:root role)
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
@@ -332,8 +332,8 @@ func TestInvitationList(t *testing.T) {
 	client := testutils.RegisterTestClient(t, "Invitation List Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, client.ClientID)
 
-	// Get access token
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	// Get access token with root permissions
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
@@ -474,8 +474,8 @@ func TestInvitationGet(t *testing.T) {
 	client := testutils.RegisterTestClient(t, "Invitation Get Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, client.ClientID)
 
-	// Get access token
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	// Get access token with root permissions
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
@@ -580,8 +580,8 @@ func TestInvitationResend(t *testing.T) {
 	client := testutils.RegisterTestClient(t, "Invitation Resend Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, client.ClientID)
 
-	// Get access token
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	// Get access token with root permissions
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
@@ -663,8 +663,8 @@ func TestMultipleInvitationCreation(t *testing.T) {
 	client := testutils.RegisterTestClient(t, "Multiple Invitation Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, client.ClientID)
 
-	// Get access token
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	// Get access token with root permissions
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
@@ -758,8 +758,8 @@ func TestInvitationDelete(t *testing.T) {
 	client := testutils.RegisterTestClient(t, "Invitation Delete Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, client.ClientID)
 
-	// Get access token
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+	// Get access token with root permissions
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
 
 	// Use UUID to ensure unique identifiers
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]

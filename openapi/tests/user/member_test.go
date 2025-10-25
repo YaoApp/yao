@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -133,7 +134,7 @@ func TestMemberList(t *testing.T) {
 						if len(data) > 0 {
 							member := data[0].(map[string]interface{})
 							assert.Equal(t, tokenInfo.UserID, member["user_id"], "Owner should be in member list")
-							assert.Equal(t, "owner", member["role_id"], "Creator should have owner role")
+							assert.Equal(t, "owner:free", member["role_id"], "Creator should have owner:free role")
 						}
 					}
 				}
@@ -1008,7 +1009,7 @@ func getOwnerMemberID(t *testing.T, serverURL, baseURL, teamID, accessToken stri
 	// Find the owner member and return their user_id
 	for _, item := range data {
 		member := item.(map[string]interface{})
-		if role, ok := member["role_id"].(string); ok && role == "owner" {
+		if role, ok := member["role_id"].(string); ok && strings.HasPrefix(role, "owner") {
 			userID, ok := member["user_id"].(string)
 			if !ok {
 				t.Fatal("Owner member missing user_id")

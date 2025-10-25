@@ -117,7 +117,7 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.Use(oauth.Guard)
 
 	// Team Configuration
-	team.GET("/config", GinTeamConfig) // Get team configuration (requires authentication)
+	team.GET("/config", GinTeamConfig) // Get team configuration (public version, sensitive fields hidden)
 
 	// Team Selection
 	team.POST("/select", GinTeamSelection) // POST /teams/select - Select a team and issue tokens with team_id (requires authentication)

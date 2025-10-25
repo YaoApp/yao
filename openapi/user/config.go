@@ -330,6 +330,54 @@ func GetTeamConfig(locale string) *TeamConfig {
 	return nil
 }
 
+// GetTeamConfigPublic returns the public team configuration for a given locale
+// This method hides sensitive fields (agents, email_domains.whitelist) without destroying the loaded data
+func GetTeamConfigPublic(locale string) *TeamConfig {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	// Get the original config
+	originalConfig := GetTeamConfig(locale)
+	if originalConfig == nil {
+		return nil
+	}
+
+	// Create a deep copy of the config to avoid modifying the original
+	publicConfig := &TeamConfig{
+		Type:   originalConfig.Type,
+		Role:   originalConfig.Role,
+		Roles:  originalConfig.Roles,  // Shallow copy is OK for roles (read-only)
+		Invite: originalConfig.Invite, // Shallow copy is OK for invite config (read-only)
+	}
+
+	// Handle robot config - create a copy without sensitive fields
+	if originalConfig.Robot != nil {
+		publicConfig.Robot = &RobotConfig{
+			Roles: originalConfig.Robot.Roles, // Shallow copy of string slice
+			// Agents is intentionally omitted (sensitive)
+			Defaults: originalConfig.Robot.Defaults, // Shallow copy is OK (read-only)
+		}
+
+		// Copy email domains without whitelist
+		if originalConfig.Robot.EmailDomains != nil {
+			publicConfig.Robot.EmailDomains = make([]*RobotEmailDomain, len(originalConfig.Robot.EmailDomains))
+			for i, domain := range originalConfig.Robot.EmailDomains {
+				publicConfig.Robot.EmailDomains[i] = &RobotEmailDomain{
+					Name:            domain.Name,
+					Messenger:       domain.Messenger,
+					Domain:          domain.Domain,
+					PrefixMinLength: domain.PrefixMinLength,
+					PrefixMaxLength: domain.PrefixMaxLength,
+					ReservedWords:   domain.ReservedWords,
+					// Whitelist is intentionally omitted (sensitive)
+				}
+			}
+		}
+	}
+
+	return publicConfig
+}
+
 // extractEnvVarName extracts the environment variable name from a string like "$ENV.VAR_NAME"
 func extractEnvVarName(value string) string {
 	if value == "" {

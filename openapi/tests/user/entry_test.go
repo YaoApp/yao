@@ -74,7 +74,7 @@ func TestEntryVerifyWithExistingUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Verify response for existing user (login flow)
-		assert.Equal(t, "login", result.Status)
+		assert.Equal(t, user.EntryVerificationStatus("login"), result.Status)
 		assert.True(t, result.UserExists)
 		assert.NotEmpty(t, result.AccessToken)
 		assert.Equal(t, "Bearer", result.TokenType)
@@ -132,7 +132,7 @@ func TestEntryVerifyWithNewUser(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Verify response for new user (register flow)
-		assert.Equal(t, "register", result.Status)
+		assert.Equal(t, user.EntryVerificationStatus("register"), result.Status)
 		assert.False(t, result.UserExists)
 		assert.NotEmpty(t, result.AccessToken)
 		assert.Equal(t, "Bearer", result.TokenType)
@@ -266,7 +266,7 @@ func TestEntryVerifyWithMobile(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Verify response for existing user with mobile
-		assert.Equal(t, "login", result.Status)
+		assert.Equal(t, user.EntryVerificationStatus("login"), result.Status)
 		assert.True(t, result.UserExists)
 		assert.NotEmpty(t, result.AccessToken)
 
@@ -305,7 +305,7 @@ func TestEntryVerifyWithMobile(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Verify response for new mobile user
-		assert.Equal(t, "register", result.Status)
+		assert.Equal(t, user.EntryVerificationStatus("register"), result.Status)
 		assert.False(t, result.UserExists)
 		assert.True(t, result.VerificationSent)
 

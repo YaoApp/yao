@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -624,6 +625,130 @@ type TokenInfo struct {
 	UserID       string
 }
 
+// ObtainAccessTokenWithRootPermission creates a complete test user with root permissions and obtains an access token.
+// This simulates a real user login flow:
+// 1. Creates a role with root permissions if it doesn't exist
+// 2. Creates a real user in the database with this role
+// 3. Issues a token with system:root scope for full permissions
+func ObtainAccessTokenWithRootPermission(t *testing.T, serverURL, clientID, clientSecret, redirectURI, scope string) *TokenInfo {
+	testMutex.RLock()
+	server := openapi.Server
+	testMutex.RUnlock()
+
+	if server == nil || server.OAuth == nil {
+		t.Fatal("OpenAPI server not initialized. Call Prepare(t) first.")
+	}
+
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized")
+	}
+
+	userProvider, err := oauthService.GetUserProvider()
+	if err != nil || userProvider == nil {
+		t.Fatal("UserProvider not available")
+	}
+
+	ctx := context.Background()
+
+	// Step 1: Ensure system:root role exists in database (delete and recreate if exists)
+	// Note: This is the default client role used by ACL
+	roleID := "system:root"
+	t.Logf("Setting up role %s in database", roleID)
+
+	// Check if role already exists and delete it for clean state
+	_, err = userProvider.GetRole(ctx, roleID)
+	if err == nil {
+		// Role exists, delete it first
+		t.Logf("Role %s already exists, deleting for clean state", roleID)
+		err = userProvider.DeleteRole(ctx, roleID)
+		if err != nil {
+			t.Logf("Warning: Failed to delete existing role: %v", err)
+		}
+	}
+
+	// Clear role cache to ensure fresh data
+	if oauthService.GetCache() != nil {
+		cache := oauthService.GetCache()
+		// Clear all role-related cache with the correct prefix
+		cache.Del("acl:role:scopes:" + roleID)
+		cache.Del("acl:role:scopes:restricted:" + roleID)
+		t.Logf("Cleared ACL role cache for %s", roleID)
+	}
+
+	// Create the role with system:root permissions
+	// Pass permissions as []string directly
+	roleData := map[string]interface{}{
+		"role_id":     roleID,
+		"name":        "System Root",
+		"description": "System root role with full system access",
+		"permissions": []string{"system:root"},
+		"is_active":   true,
+	}
+
+	_, err = userProvider.CreateRole(ctx, roleData)
+	if err != nil {
+		t.Fatalf("Failed to create test role: %v", err)
+	}
+	t.Logf("Successfully created role %s with system:root permissions", roleID)
+
+	// Step 2: Create a real test user in the database
+	testUserID := fmt.Sprintf("test_user_root_%d", time.Now().UnixNano())
+	userData := map[string]interface{}{
+		"user_id": testUserID,
+		"status":  "active",
+		"role_id": roleID, // Assign test_root role (which has system:root scope)
+	}
+
+	_, err = userProvider.CreateUser(ctx, userData)
+	if err != nil {
+		t.Fatalf("Failed to create test user in database: %v", err)
+	}
+	t.Logf("Created test user %s with role %s in database", testUserID, roleID)
+
+	// Step 3: Create subject (fingerprint) for OAuth
+	subject, err := oauthService.Subject(clientID, testUserID)
+	if err != nil {
+		t.Fatalf("Failed to create user subject: %v", err)
+	}
+	t.Logf("Created subject mapping: clientID=%s, userID=%s, subject=%s", clientID, testUserID, subject)
+
+	// Step 4: Create access token with system:root scope for full permissions
+	fullScope := scope
+	if scope != "" && !strings.Contains(scope, "system:root") {
+		fullScope = scope + " system:root"
+	} else if scope == "" {
+		fullScope = "system:root"
+	}
+
+	extraClaims := map[string]interface{}{
+		"user_id": testUserID,
+	}
+
+	accessToken, err := oauthService.MakeAccessToken(clientID, fullScope, subject, 3600, extraClaims)
+	if err != nil {
+		t.Fatalf("Failed to create access token: %v", err)
+	}
+
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, fullScope, subject, 7200, extraClaims)
+	if err != nil {
+		t.Fatalf("Failed to create refresh token: %v", err)
+	}
+
+	tokenInfo := &TokenInfo{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		Scope:        fullScope,
+		ClientID:     clientID,
+		UserID:       testUserID,
+	}
+
+	t.Logf("Issued token for user %s with scope: %s", testUserID, fullScope)
+	return tokenInfo
+}
+
 // ObtainAccessToken obtains an access token for testing OAuth endpoints that require authentication.
 func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirectURI, scope string) *TokenInfo {
 	testMutex.RLock()
@@ -644,37 +769,36 @@ func ObtainAccessToken(t *testing.T, serverURL, clientID, clientSecret, redirect
 		t.Fatal("Global OAuth service not initialized")
 	}
 
-	accessToken, err := oauthService.MakeAccessToken(clientID, scope, subject, 3600)
+	// Step 3: Add system:root to scope for full permissions in tests
+	fullScope := scope
+	if scope != "" && !strings.Contains(scope, "system:root") {
+		fullScope = scope + " system:root"
+	} else if scope == "" {
+		fullScope = "system:root"
+	}
+
+	// Step 4: Create access token with system:root scope
+	accessToken, err := oauthService.MakeAccessToken(clientID, fullScope, subject, 3600)
 	if err != nil {
 		t.Fatalf("Failed to create access token: %v", err)
 	}
 
-	refreshToken, err := oauthService.MakeRefreshToken(clientID, scope, subject, 7200)
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, fullScope, subject, 7200)
 	if err != nil {
 		t.Fatalf("Failed to create refresh token: %v", err)
 	}
 
-	// Create a synthetic token response
-	token := &types.Token{
+	tokenInfo := &TokenInfo{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    3600,
-		Scope:        scope,
-	}
-
-	tokenInfo := &TokenInfo{
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		TokenType:    token.TokenType,
-		ExpiresIn:    token.ExpiresIn,
-		Scope:        token.Scope,
+		Scope:        fullScope,
 		ClientID:     clientID,
-		UserID:       testUserID, // Include the test user ID
+		UserID:       testUserID,
 	}
 
-	t.Logf("Obtained access token: %s (type: %s, expires_in: %d, user_id: %s)",
-		tokenInfo.AccessToken, tokenInfo.TokenType, tokenInfo.ExpiresIn, tokenInfo.UserID)
+	t.Logf("Obtained access token with scope: %s (user_id: %s)", fullScope, testUserID)
 	return tokenInfo
 }
 
@@ -767,6 +891,41 @@ func ObtainTokenForUser(t *testing.T, clientID, clientSecret, userID, scope stri
 		t.Fatal("Global OAuth service not initialized")
 	}
 
+	// Get user provider to assign root role
+	userProvider, err := oauthService.GetUserProvider()
+	if err != nil || userProvider == nil {
+		t.Fatal("UserProvider not available")
+	}
+
+	ctx := context.Background()
+
+	// Ensure system:root role exists (create if needed)
+	roleID := "system:root"
+	_, err = userProvider.GetRole(ctx, roleID)
+	if err != nil {
+		// Role doesn't exist, create it
+		t.Logf("Creating system:root role for user %s", userID)
+		roleData := map[string]interface{}{
+			"role_id":     roleID,
+			"name":        "System Root",
+			"description": "System root role with full system access",
+			"permissions": []string{"system:root"},
+			"is_active":   true,
+		}
+		_, err = userProvider.CreateRole(ctx, roleData)
+		if err != nil {
+			t.Logf("Warning: Failed to create system:root role: %v", err)
+		}
+	}
+
+	// Assign system:root role to the user
+	err = userProvider.SetUserRole(ctx, userID, roleID)
+	if err != nil {
+		t.Logf("Warning: Failed to assign system:root role to user: %v", err)
+	} else {
+		t.Logf("Assigned system:root role to user %s", userID)
+	}
+
 	// Create subject (fingerprint) for this user
 	// This sets up the fingerprint mapping: clientID:subject -> userID
 	subject, err := oauthService.Subject(clientID, userID)
@@ -776,14 +935,22 @@ func ObtainTokenForUser(t *testing.T, clientID, clientSecret, userID, scope stri
 
 	t.Logf("Created fingerprint mapping: clientID=%s, userID=%s, subject=%s", clientID, userID, subject)
 
-	// Create access token
-	accessToken, err := oauthService.MakeAccessToken(clientID, scope, subject, 3600)
+	// Add system:root to scope for full permissions
+	fullScope := scope
+	if scope != "" && !strings.Contains(scope, "system:root") {
+		fullScope = scope + " system:root"
+	} else if scope == "" {
+		fullScope = "system:root"
+	}
+
+	// Create access token with system:root scope
+	accessToken, err := oauthService.MakeAccessToken(clientID, fullScope, subject, 3600)
 	if err != nil {
 		t.Fatalf("Failed to create access token: %v", err)
 	}
 
 	// Create refresh token
-	refreshToken, err := oauthService.MakeRefreshToken(clientID, scope, subject, 7200)
+	refreshToken, err := oauthService.MakeRefreshToken(clientID, fullScope, subject, 7200)
 	if err != nil {
 		t.Fatalf("Failed to create refresh token: %v", err)
 	}
@@ -793,12 +960,12 @@ func ObtainTokenForUser(t *testing.T, clientID, clientSecret, userID, scope stri
 		RefreshToken: refreshToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    3600,
-		Scope:        scope,
+		Scope:        fullScope,
 		ClientID:     clientID,
 		UserID:       userID,
 	}
 
-	t.Logf("Issued token for user %s (subject: %s)", userID, subject)
+	t.Logf("Issued token for user %s with scope: %s (subject: %s)", userID, fullScope, subject)
 	return tokenInfo
 }
 
@@ -811,11 +978,45 @@ func createTestUser(t *testing.T, server *openapi.OpenAPI, clientID string) (str
 	// Generate a unique test user ID
 	testUserID := fmt.Sprintf("test_user_%d", time.Now().UnixNano())
 
-	// Access the global OAuth service to set up fingerprint mapping
-	// The OAuth interface doesn't expose Subject method, so we need to access the concrete service
+	// Access the global OAuth service
 	oauthService := oauth.OAuth
 	if oauthService == nil {
 		t.Fatal("Global OAuth service not initialized")
+	}
+
+	// Create user in database with system:root role
+	userProvider, err := oauthService.GetUserProvider()
+	if err == nil && userProvider != nil {
+		ctx := context.Background()
+		roleID := "system:root"
+
+		// Ensure system:root role exists
+		_, err := userProvider.GetRole(ctx, roleID)
+		if err != nil {
+			// Role doesn't exist, create it
+			roleData := map[string]interface{}{
+				"role_id":     roleID,
+				"name":        "System Root",
+				"description": "System root role with full system access",
+				"permissions": []string{"system:root"},
+				"is_active":   true,
+			}
+			_, err = userProvider.CreateRole(ctx, roleData)
+			if err != nil {
+				t.Logf("Warning: Failed to create system:root role: %v", err)
+			}
+		}
+
+		// Create user in database with system:root role
+		userData := map[string]interface{}{
+			"user_id": testUserID,
+			"status":  "active",
+			"role_id": roleID,
+		}
+		_, err = userProvider.CreateUser(ctx, userData)
+		if err != nil {
+			t.Logf("Warning: Failed to create user in database: %v", err)
+		}
 	}
 
 	// Create subject (fingerprint) for this user using the concrete OAuth service
