@@ -69,7 +69,7 @@ env:
   YAO_RUNTIME_PRECOMPILE: true
 
   # Neo4j
-  NEO4J_TEST_URL: "neo4j://localhost:7686"
+  NEO4J_TEST_URL: "neo4j://localhost:7687"
   NEO4J_TEST_USER: "neo4j"
   NEO4J_TEST_PASS: "Yao2026Neo4j"
 
@@ -88,7 +88,7 @@ env:
 
   # === Openapi Signin Configs ===
   SIGNIN_CLIENT_ID: "kiCeR88kDwHBDuNHvN51cZgmpp3tmF6Z"
-  
+
   ## Google
   GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
   GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
