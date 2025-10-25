@@ -33,7 +33,7 @@ func GinTeamConfig(c *gin.Context) {
 	locale = strings.TrimSpace(locale)
 	locale = strings.Trim(locale, "?&=")
 
-	config := GetTeamConfig(locale)
+	config := GetTeamConfigPublic(locale)
 	if config == nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,

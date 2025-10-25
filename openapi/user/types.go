@@ -499,9 +499,50 @@ type CreateInvitationRequest struct {
 
 // ==== Team Configuration Types ====
 
+// RobotConfig represents the AI member (robot) configuration
+type RobotConfig struct {
+	Roles        []string            `json:"roles,omitempty"`         // Available roles for AI members
+	Agents       *RobotAgents        `json:"agents,omitempty"`        // Agent configuration for AI members
+	EmailDomains []*RobotEmailDomain `json:"email_domains,omitempty"` // Email domain configurations
+	Defaults     *RobotDefaults      `json:"defaults,omitempty"`      // Default settings for AI members
+}
+
+// RobotAgents represents the agent configuration for AI members
+type RobotAgents struct {
+	Executor string `json:"executor,omitempty"` // Agent responsible for executing tasks
+	Planner  string `json:"planner,omitempty"`  // Agent responsible for planning
+	Profiler string `json:"profiler,omitempty"` // Agent responsible for identity
+}
+
+// RobotEmailDomain represents an email domain configuration for AI members
+type RobotEmailDomain struct {
+	Name            string                `json:"name,omitempty"`              // Display name
+	Messenger       string                `json:"messenger,omitempty"`         // Messenger channel
+	Domain          string                `json:"domain,omitempty"`            // Email domain
+	PrefixMinLength int                   `json:"prefix_min_length,omitempty"` // Minimum prefix length
+	PrefixMaxLength int                   `json:"prefix_max_length,omitempty"` // Maximum prefix length
+	ReservedWords   []string              `json:"reserved_words,omitempty"`    // Reserved words
+	Whitelist       *EmailDomainWhitelist `json:"whitelist,omitempty"`         // Whitelist configuration
+}
+
+// EmailDomainWhitelist represents the whitelist configuration for email domains
+type EmailDomainWhitelist struct {
+	Domains []string `json:"domains,omitempty"` // Whitelisted domains
+	Senders []string `json:"senders,omitempty"` // Whitelisted senders
+	IPs     []string `json:"ips,omitempty"`     // Whitelisted IPs
+}
+
+// RobotDefaults represents default settings for AI members
+type RobotDefaults struct {
+	LLM            string `json:"llm,omitempty"`             // Default LLM model
+	AutonomousMode bool   `json:"autonomous_mode,omitempty"` // Default autonomous mode
+	CostLimit      int    `json:"cost_limit,omitempty"`      // Default daily cost limit
+}
+
 // TeamConfig represents the team configuration loaded from DSL files
 type TeamConfig struct {
 	Roles  []*TeamRole   `json:"roles,omitempty"`
+	Robot  *RobotConfig  `json:"robot,omitempty"`
 	Invite *InviteConfig `json:"invite,omitempty"`
 	Type   string        `json:"type,omitempty"` // Default subscription type for new teams
 	Role   string        `json:"role,omitempty"` // Default user role for team creator

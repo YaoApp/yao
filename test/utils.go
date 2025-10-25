@@ -249,6 +249,24 @@ func loadSystemStores(t *testing.T, cfg config.Config) error {
 			source = replaceVars(source, vars)
 		}
 
+		// Parse store config to check if we need to create directories (for badger stores)
+		var storeConfig map[string]interface{}
+		if err := application.Parse(path, []byte(source), &storeConfig); err == nil {
+			// Check if this is a badger store
+			if storeType, ok := storeConfig["type"].(string); ok && storeType == "badger" {
+				// Extract the path from option.path
+				if option, ok := storeConfig["option"].(map[string]interface{}); ok {
+					if storePath, ok := option["path"].(string); ok {
+						// Create directory for badger store
+						if err := os.MkdirAll(storePath, 0755); err != nil {
+							log.Error("failed to create directory for store %s at %s: %s", id, storePath, err.Error())
+							return fmt.Errorf("failed to create directory for store %s: %w", id, err)
+						}
+					}
+				}
+			}
+		}
+
 		// Load store with the processed source
 		_, err = store.LoadSource([]byte(source), id, filepath.Join("__system", path))
 		if err != nil {

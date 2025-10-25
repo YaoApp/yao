@@ -46,11 +46,11 @@ func TestCreateCollection(t *testing.T) {
 				"created_by": "test_user",
 			},
 			"config": map[string]interface{}{
-				"embedding_provider": "__yao.openai",           // Required: embedding provider ID
-				"embedding_option":   "text-embedding-3-small", // Required: embedding option value
-				"locale":             "en",                     // Optional: locale for provider reading
-				"index_type":         "hnsw",                   // Required: valid index type
-				"distance":           "cosine",                 // Required: distance metric
+				"embedding_provider_id": "__yao.openai",           // Required: embedding provider ID
+				"embedding_option_id":   "text-embedding-3-small", // Required: embedding option value
+				"locale":                "en",                     // Optional: locale for provider reading
+				"index_type":            "hnsw",                   // Required: valid index type
+				"distance":              "cosine",                 // Required: distance metric
 			},
 		}
 
@@ -171,11 +171,11 @@ func TestRemoveCollection(t *testing.T) {
 				"category": "test_remove",
 			},
 			"config": map[string]interface{}{
-				"embedding_provider": "__yao.openai",           // Required: embedding provider ID
-				"embedding_option":   "text-embedding-3-small", // Required: embedding option value
-				"locale":             "en",                     // Optional: locale for provider reading
-				"index_type":         "hnsw",                   // Required: valid index type
-				"distance":           "cosine",                 // Required: distance metric
+				"embedding_provider_id": "__yao.openai",           // Required: embedding provider ID
+				"embedding_option_id":   "text-embedding-3-small", // Required: embedding option value
+				"locale":                "en",                     // Optional: locale for provider reading
+				"index_type":            "hnsw",                   // Required: valid index type
+				"distance":              "cosine",                 // Required: distance metric
 			},
 		}
 
@@ -349,11 +349,17 @@ func TestGetCollections(t *testing.T) {
 		// Expect successful response
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully retrieve collections when KB is initialized")
 
-		var collections []interface{}
-		err = json.NewDecoder(resp.Body).Decode(&collections)
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
 		assert.NoError(t, err)
 
-		t.Logf("Successfully retrieved %d collections", len(collections))
+		// Response should have pagination structure
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d collections", len(data))
+		} else {
+			t.Logf("Successfully retrieved collections response (data field type: %T)", response["data"])
+		}
 	})
 
 	t.Run("GetCollectionsWithFilter", func(t *testing.T) {
@@ -380,11 +386,17 @@ func TestGetCollections(t *testing.T) {
 		// Expect successful response
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully retrieve collections when KB is initialized")
 
-		var collections []interface{}
-		err = json.NewDecoder(resp.Body).Decode(&collections)
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
 		assert.NoError(t, err)
 
-		t.Logf("Successfully retrieved %d filtered collections", len(collections))
+		// Response should have pagination structure
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d filtered collections", len(data))
+		} else {
+			t.Logf("Successfully retrieved filtered collections response (data field type: %T)", response["data"])
+		}
 	})
 
 	t.Run("GetCollectionsWithMultipleFilters", func(t *testing.T) {
@@ -411,11 +423,17 @@ func TestGetCollections(t *testing.T) {
 		// Expect successful response
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully retrieve collections when KB is initialized")
 
-		var collections []interface{}
-		err = json.NewDecoder(resp.Body).Decode(&collections)
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
 		assert.NoError(t, err)
 
-		t.Logf("Successfully retrieved %d collections with multiple filters", len(collections))
+		// Response should have pagination structure
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d collections with multiple filters", len(data))
+		} else {
+			t.Logf("Successfully retrieved collections with multiple filters response (data field type: %T)", response["data"])
+		}
 	})
 }
 
@@ -504,11 +522,11 @@ func TestCollectionIntegration(t *testing.T) {
 				"purpose":  "full_lifecycle_test",
 			},
 			"config": map[string]interface{}{
-				"embedding_provider": "__yao.openai",           // Required: embedding provider ID
-				"embedding_option":   "text-embedding-3-small", // Required: embedding option value
-				"locale":             "en",                     // Optional: locale for provider reading
-				"index_type":         "hnsw",                   // Required: valid index type
-				"distance":           "cosine",                 // Required: distance metric
+				"embedding_provider_id": "__yao.openai",           // Required: embedding provider ID
+				"embedding_option_id":   "text-embedding-3-small", // Required: embedding option value
+				"locale":                "en",                     // Optional: locale for provider reading
+				"index_type":            "hnsw",                   // Required: valid index type
+				"distance":              "cosine",                 // Required: distance metric
 			},
 		}
 
