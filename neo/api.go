@@ -67,30 +67,30 @@ func (neo *DSL) API(router *gin.Engine, path string) error {
 	// Assistant API endpoints
 	// List assistants example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants?page=1&pagesize=20&tags=tag1,tag2&token=xxx'
-	router.GET(path+"/assistants", append(middlewares, neo.handleAssistantList)...)
+	router.GET(path+"/assistants", append(middlewares, neo.HandleAssistantList)...)
 	// Get all assistant tags example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants/tags?token=xxx'
-	router.GET(path+"/assistants/tags", append(middlewares, neo.handleAssistantTags)...)
+	router.GET(path+"/assistants/tags", append(middlewares, neo.HandleAssistantTags)...)
 
 	// Get assistant details example:
 	// curl -X GET 'http://localhost:5099/api/__yao/neo/assistants/assistant_123?token=xxx'
-	router.GET(path+"/assistants/:id", append(middlewares, neo.handleAssistantDetail)...)
+	router.GET(path+"/assistants/:id", append(middlewares, neo.HandleAssistantDetail)...)
 
 	// Execute assistant API example:
 	// curl -X POST 'http://localhost:5099/api/__yao/neo/assistants/assistant_123/api' \
 	//   -H 'Content-Type: application/json' \
 	//   -d '{"name": "Test", "payload": {"name": "yao", "age": 18}}'
-	router.POST(path+"/assistants/:id/call", append(middlewares, neo.handleAssistantCall)...)
+	router.POST(path+"/assistants/:id/call", append(middlewares, neo.HandleAssistantCall)...)
 
 	// Create/Update assistant example:
 	// curl -X POST 'http://localhost:5099/api/__yao/neo/assistants' \
 	//   -H 'Content-Type: application/json' \
 	//   -d '{"name": "My Assistant", "type": "chat", "tags": ["tag1", "tag2"], "mentionable": true, "avatar": "path/to/avatar.png", "token": "xxx"}'
-	router.POST(path+"/assistants", append(middlewares, neo.handleAssistantSave)...)
+	router.POST(path+"/assistants", append(middlewares, neo.HandleAssistantSave)...)
 
 	// Delete assistant example:
 	// curl -X DELETE 'http://localhost:5099/api/__yao/neo/assistants/assistant_123?token=xxx'
-	router.DELETE(path+"/assistants/:id", append(middlewares, neo.handleAssistantDelete)...)
+	router.DELETE(path+"/assistants/:id", append(middlewares, neo.HandleAssistantDelete)...)
 
 	// Chat management endpoints
 	// List chats example:
@@ -1070,8 +1070,8 @@ func (neo *DSL) handleGeneratePrompts(c *gin.Context) {
 	}
 }
 
-// handleAssistantList handles listing assistants
-func (neo *DSL) handleAssistantList(c *gin.Context) {
+// HandleAssistantList handles listing assistants (exported for use in openapi/agent)
+func (neo *DSL) HandleAssistantList(c *gin.Context) {
 	// Parse filter parameters
 	filter := store.AssistantFilter{
 		Type:     "assistant",
@@ -1173,8 +1173,8 @@ func parseBoolValue(value string) *bool {
 	}
 }
 
-// handleAssistantAPI handles the assistant API
-func (neo *DSL) handleAssistantCall(c *gin.Context) {
+// HandleAssistantCall handles the assistant API call (exported for use in openapi/agent)
+func (neo *DSL) HandleAssistantCall(c *gin.Context) {
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
@@ -1213,8 +1213,8 @@ func (neo *DSL) handleAssistantCall(c *gin.Context) {
 	c.Done()
 }
 
-// handleAssistantDetail handles getting a single assistant's details
-func (neo *DSL) handleAssistantDetail(c *gin.Context) {
+// HandleAssistantDetail handles getting a single assistant's details (exported for use in openapi/agent)
+func (neo *DSL) HandleAssistantDetail(c *gin.Context) {
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
@@ -1252,8 +1252,8 @@ func (neo *DSL) handleAssistantDetail(c *gin.Context) {
 	c.Done()
 }
 
-// handleAssistantSave handles creating or updating an assistant
-func (neo *DSL) handleAssistantSave(c *gin.Context) {
+// HandleAssistantSave handles creating or updating an assistant (exported for use in openapi/agent)
+func (neo *DSL) HandleAssistantSave(c *gin.Context) {
 	var assistantData map[string]interface{}
 	if err := c.BindJSON(&assistantData); err != nil {
 		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
@@ -1290,8 +1290,8 @@ func (neo *DSL) handleAssistantSave(c *gin.Context) {
 	c.Done()
 }
 
-// handleAssistantDelete handles deleting an assistant
-func (neo *DSL) handleAssistantDelete(c *gin.Context) {
+// HandleAssistantDelete handles deleting an assistant (exported for use in openapi/agent)
+func (neo *DSL) HandleAssistantDelete(c *gin.Context) {
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
@@ -1342,8 +1342,8 @@ func (neo *DSL) handleConnectors(c *gin.Context) {
 	c.Done()
 }
 
-// handleAssistantTags handles getting all assistant tags
-func (neo *DSL) handleAssistantTags(c *gin.Context) {
+// HandleAssistantTags handles getting all assistant tags (exported for use in openapi/agent)
+func (neo *DSL) HandleAssistantTags(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})

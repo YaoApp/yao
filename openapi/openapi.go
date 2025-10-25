@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/agent"
 	"github.com/yaoapp/yao/openapi/captcha"
 	"github.com/yaoapp/yao/openapi/chat"
 	"github.com/yaoapp/yao/openapi/dsl"
@@ -13,6 +14,8 @@ import (
 	"github.com/yaoapp/yao/openapi/hello"
 	"github.com/yaoapp/yao/openapi/job"
 	"github.com/yaoapp/yao/openapi/kb"
+	"github.com/yaoapp/yao/openapi/llm"
+	"github.com/yaoapp/yao/openapi/mcp"
 	"github.com/yaoapp/yao/openapi/messenger"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
@@ -127,6 +130,15 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Messenger webhook handlers
 	messenger.Attach(group.Group("/messenger"), openapi.OAuth)
+
+	// Agent handlers
+	agent.Attach(group.Group("/agent"), openapi.OAuth)
+
+	// LLM Provider handlers
+	llm.Attach(group.Group("/llm"), openapi.OAuth)
+
+	// MCP Server handlers
+	mcp.Attach(group.Group("/mcp"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 
