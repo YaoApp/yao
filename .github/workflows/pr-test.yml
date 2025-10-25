@@ -81,6 +81,8 @@ env:
   S3_PUBLIC_URL: ${{ secrets.S3_PUBLIC_URL }}
 
   # === Openapi Signin Configs ===
+  SIGNIN_CLIENT_ID: "kiCeR88kDwHBDuNHvN51cZgmpp3tmF6Z"
+  
   ## Google
   GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
   GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
