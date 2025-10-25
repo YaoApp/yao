@@ -455,11 +455,11 @@ func TestTeamMemberOperations(t *testing.T) {
 	// Test CreateRobotMember
 	t.Run("CreateRobotMember", func(t *testing.T) {
 		robotData := maps.MapStrAny{
-			"robot_name":        "TestBot" + testUUID,
-			"robot_description": "A test robot for unit testing",
-			"role_id":           "bot",
-			"is_active_robot":   true,
-			"robot_status":      "idle",
+			"display_name":    "TestBot" + testUUID,
+			"bio":             "A test robot for unit testing",
+			"role_id":         "bot",
+			"autonomous_mode": true,
+			"robot_status":    "idle",
 		}
 
 		robotID, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
@@ -473,7 +473,7 @@ func TestTeamMemberOperations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, robots, 1) // Our test robot
 		assert.Equal(t, "robot", robots[0]["member_type"])
-		assert.Equal(t, "TestBot"+testUUID, robots[0]["robot_name"])
+		assert.Equal(t, "TestBot"+testUUID, robots[0]["display_name"])
 	})
 
 	// Test RemoveMember (at the end)

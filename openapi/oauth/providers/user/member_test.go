@@ -340,16 +340,18 @@ func TestRobotMemberOperations(t *testing.T) {
 	// Test CreateRobotMember
 	t.Run("CreateRobotMember", func(t *testing.T) {
 		robotData := maps.MapStrAny{
-			"robot_name":        "TestBot" + testUUID,
-			"robot_description": "A test robot for unit testing",
-			"robot_avatar":      "https://example.com/robot.png",
-			"role_id":           "bot",
-			"is_active_robot":   true,
-			"robot_status":      "idle",
-			"system_prompt":     "You are a helpful test robot",
+			"display_name":    "TestBot" + testUUID,
+			"bio":             "A test robot for unit testing",
+			"avatar":          "https://example.com/robot.png",
+			"role_id":         "bot",
+			"autonomous_mode": true,
+			"robot_status":    "idle",
+			"system_prompt":   "You are a helpful test robot",
+			"language_model":  "gpt-4",
+			"cost_limit":      100.00,
+			"manager_id":      ownerUser,
 			"robot_config": map[string]interface{}{
 				"max_tokens": 1000,
-				"model":      "gpt-4",
 			},
 		}
 
@@ -372,8 +374,8 @@ func TestRobotMemberOperations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, robots, 1)
 		assert.Equal(t, "robot", robots[0]["member_type"])
-		assert.Equal(t, "TestBot"+testUUID, robots[0]["robot_name"])
-		assert.Equal(t, "A test robot for unit testing", robots[0]["robot_description"])
+		assert.Equal(t, "TestBot"+testUUID, robots[0]["display_name"])
+		assert.Equal(t, "A test robot for unit testing", robots[0]["bio"])
 	})
 
 	// Test UpdateRobotActivity
@@ -400,7 +402,7 @@ func TestRobotMemberOperations(t *testing.T) {
 	t.Run("GetActiveRobotMembers", func(t *testing.T) {
 		// First make sure our robot is active
 		err := testProvider.UpdateMemberByID(ctx, robotMemberID, maps.MapStrAny{
-			"is_active_robot": true,
+			"autonomous_mode": true,
 			"status":          "active",
 		})
 		if err != nil {
@@ -417,12 +419,12 @@ func TestRobotMemberOperations(t *testing.T) {
 		// Find our test robot in the results
 		found := false
 		for _, robot := range robots {
-			if robot["robot_name"] == "TestBot"+testUUID {
+			if robot["display_name"] == "TestBot"+testUUID {
 				found = true
 				assert.Equal(t, "robot", robot["member_type"])
 				// Handle different boolean types from database
-				isActive := robot["is_active_robot"]
-				assert.True(t, isActive == true || isActive == int64(1) || isActive == 1, "Robot should be active")
+				autonomousMode := robot["autonomous_mode"]
+				assert.True(t, autonomousMode == true || autonomousMode == int64(1) || autonomousMode == 1, "Robot should be autonomous")
 				break
 			}
 		}
@@ -431,17 +433,17 @@ func TestRobotMemberOperations(t *testing.T) {
 
 	// Test robot member validation
 	t.Run("CreateRobotMember_ValidationErrors", func(t *testing.T) {
-		// Missing robot_name
+		// Missing display_name
 		robotData := maps.MapStrAny{
 			"role_id": "bot",
 		}
 		_, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "robot_name is required")
+		assert.Contains(t, err.Error(), "display_name is required")
 
 		// Missing role_id
 		robotData = maps.MapStrAny{
-			"robot_name": "TestBot2",
+			"display_name": "TestBot2",
 		}
 		_, err = testProvider.CreateRobotMember(ctx, teamID, robotData)
 		assert.Error(t, err)

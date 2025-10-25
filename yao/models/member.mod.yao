@@ -56,12 +56,13 @@
 
     // ============================================================================
     // Member Profile Fields (Team-specific identity)
+    // Shared by both user and robot members
     // ============================================================================
     {
       "name": "display_name",
       "type": "string",
       "label": "Display Name",
-      "comment": "Display name for this member within the team (can differ from user.name)",
+      "comment": "Display name for this member within the team (can differ from user.name for users, robot name for robots)",
       "length": 200,
       "nullable": true,
       "index": true
@@ -70,14 +71,22 @@
       "name": "bio",
       "type": "text",
       "label": "Bio",
-      "comment": "Personal bio/description for this member within the team",
+      "comment": "Personal bio/description for this member within the team (robot description for robots)",
+      "nullable": true
+    },
+    {
+      "name": "avatar",
+      "type": "string",
+      "label": "Avatar",
+      "comment": "Avatar/icon URL for this member (shared by both users and robots)",
+      "length": 500,
       "nullable": true
     },
     {
       "name": "email",
       "type": "string",
       "label": "Email",
-      "comment": "Email for this member within the team (can differ from user.email)",
+      "comment": "Email for this member within the team (can differ from user.email, used for communication including robots)",
       "length": 255,
       "nullable": true,
       "index": true
@@ -112,30 +121,23 @@
     },
 
     // ============================================================================
-    // Robot Identity Fields (only for robot members)
+    // Robot Identity & Role Fields (only for robot members)
     // ============================================================================
     {
-      "name": "robot_name",
-      "type": "string",
-      "label": "Robot Name",
-      "comment": "Display name for robot member (only used when member_type is robot)",
-      "length": 100,
-      "nullable": true
-    },
-    {
-      "name": "robot_description",
+      "name": "system_prompt",
       "type": "text",
-      "label": "Robot Description",
-      "comment": "Description of robot's purpose and capabilities (only used when member_type is robot)",
+      "label": "System Prompt",
+      "comment": "Identity & role prompt/instructions for robot member (defines robot personality and behavior)",
       "nullable": true
     },
     {
-      "name": "robot_avatar",
+      "name": "manager_id",
       "type": "string",
-      "label": "Robot Avatar",
-      "comment": "Avatar/icon URL for robot member (only used when member_type is robot)",
-      "length": 500,
-      "nullable": true
+      "label": "Direct Manager",
+      "comment": "User ID of the direct manager/supervisor for this robot member",
+      "length": 255,
+      "nullable": true,
+      "index": true
     },
 
     // ============================================================================
@@ -145,7 +147,7 @@
       "name": "robot_config",
       "type": "json",
       "label": "Robot Configuration",
-      "comment": "Robot-specific configuration including behavior settings and capabilities",
+      "comment": "Robot-specific configuration including behavior settings, scheduling, activity patterns, and capabilities",
       "nullable": true
     },
     {
@@ -156,13 +158,6 @@
       "nullable": true
     },
     {
-      "name": "tools",
-      "type": "json",
-      "label": "Available Tools",
-      "comment": "List of available tools and functions that robot can use",
-      "nullable": true
-    },
-    {
       "name": "mcp_servers",
       "type": "json",
       "label": "MCP Servers",
@@ -170,52 +165,34 @@
       "nullable": true
     },
     {
-      "name": "data_access_permissions",
-      "type": "json",
-      "label": "Data Access Permissions",
-      "comment": "Specific data access permissions for robot member",
+      "name": "language_model",
+      "type": "string",
+      "label": "Language Model",
+      "comment": "Language model used by the robot (e.g., gpt-4, claude-3-opus)",
+      "length": 100,
       "nullable": true
     },
     {
-      "name": "system_prompt",
-      "type": "text",
-      "label": "System Prompt",
-      "comment": "System prompt/instructions for robot member",
+      "name": "cost_limit",
+      "type": "decimal",
+      "label": "Cost Limit (USD/month)",
+      "comment": "Monthly cost limit in USD for robot operations",
+      "precision": 10,
+      "scale": 2,
       "nullable": true
     },
-
-    // ============================================================================
-    // Robot Scheduling & Automation
-    // ============================================================================
     {
-      "name": "is_active_robot",
+      "name": "autonomous_mode",
       "type": "boolean",
-      "label": "Is Active Robot",
-      "comment": "Whether robot member is currently active and can perform automated tasks",
+      "label": "Autonomous Mode",
+      "comment": "Whether robot can operate autonomously and perform automated tasks",
       "default": false,
       "index": true
     },
-    {
-      "name": "schedule_config",
-      "type": "json",
-      "label": "Schedule Configuration",
-      "comment": "Cron-like scheduling configuration for automated robot tasks",
-      "nullable": true
-    },
-    {
-      "name": "random_activity",
-      "type": "boolean",
-      "label": "Random Activity",
-      "comment": "Whether robot can perform random activities to find tasks",
-      "default": false
-    },
-    {
-      "name": "activity_frequency",
-      "type": "json",
-      "label": "Activity Frequency",
-      "comment": "Configuration for random activity frequency and patterns",
-      "nullable": true
-    },
+
+    // ============================================================================
+    // Robot Activity & Status Tracking
+    // ============================================================================
     {
       "name": "last_robot_activity",
       "type": "timestamp",
@@ -360,10 +337,10 @@
       "comment": "Unique constraint: one user can have only one membership per team, with unique invitation_id for pending invitations"
     },
     {
-      "name": "idx_team_robot_unique",
-      "columns": ["team_id", "robot_name", "member_type"],
+      "name": "idx_team_email_unique",
+      "columns": ["team_id", "email"],
       "type": "unique",
-      "comment": "Unique constraint: one robot name per team (only applies to robot members)"
+      "comment": "Unique constraint: one email per team (used for communication, applies to both users and robots)"
     },
     {
       "name": "idx_team_member_type_role",
@@ -379,27 +356,33 @@
     },
     {
       "name": "idx_robot_members",
-      "columns": ["member_type", "is_active_robot", "robot_status"],
+      "columns": ["member_type", "autonomous_mode", "robot_status"],
       "type": "index",
       "comment": "Index for finding active robot members"
     },
     {
       "name": "idx_robot_activity",
-      "columns": ["member_type", "last_robot_activity", "random_activity"],
+      "columns": ["member_type", "last_robot_activity", "autonomous_mode"],
       "type": "index",
       "comment": "Index for robot activity scheduling"
     },
     {
       "name": "idx_robot_type_status",
-      "columns": ["member_type", "robot_status", "is_active_robot"],
+      "columns": ["member_type", "robot_status", "autonomous_mode"],
       "type": "index",
       "comment": "Index for finding robot members by status"
     },
     {
-      "name": "idx_robot_name",
-      "columns": ["member_type", "robot_name"],
+      "name": "idx_robot_display_name",
+      "columns": ["member_type", "display_name"],
       "type": "index",
-      "comment": "Index for finding robot members by name"
+      "comment": "Index for finding robot members by display name"
+    },
+    {
+      "name": "idx_robot_manager",
+      "columns": ["manager_id", "member_type"],
+      "type": "index",
+      "comment": "Index for finding robots by manager"
     },
     {
       "name": "idx_team_invitations",
