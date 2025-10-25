@@ -477,7 +477,7 @@ func createUserWithEmail(t *testing.T, userID, email string) {
 		"user_id": userID,
 		"name":    "Test User " + userID,
 		"email":   email,
-		"status":  "enabled",
+		"status":  "active", // Valid enum value: active (not "enabled")
 	}
 
 	provider, err := oauth.OAuth.GetUserProvider()
@@ -499,8 +499,8 @@ func createUserWithMobile(t *testing.T, userID, mobile string) {
 	userData := map[string]interface{}{
 		"user_id":      userID,
 		"name":         "Test User " + userID,
-		"phone_number": mobile, // Use phone_number instead of mobile
-		"status":       "enabled",
+		"phone_number": mobile,   // Use phone_number instead of mobile
+		"status":       "active", // Valid enum value: active (not "enabled")
 	}
 
 	provider, err := oauth.OAuth.GetUserProvider()
