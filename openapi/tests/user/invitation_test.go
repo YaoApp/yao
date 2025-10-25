@@ -1180,7 +1180,7 @@ func createUserInDB(t *testing.T, userID string) string {
 		"user_id": userID,
 		"name":    "Test User " + userID,
 		"email":   userID + "@test.com",
-		"status":  "enabled",
+		"status":  "active", // Valid enum value: active (not "enabled")
 	}
 
 	// Create user using userProvider.CreateUser
