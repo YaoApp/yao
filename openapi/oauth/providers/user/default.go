@@ -157,18 +157,18 @@ var (
 
 	// DefaultMemberFields contains basic member fields
 	DefaultMemberFields = []interface{}{
-		"member_id", "team_id", "user_id", "member_type", "display_name", "bio", "avatar", "email", "role_id", "status",
+		"member_id", "team_id", "user_id", "member_type", "display_name", "bio", "avatar", "email", "role_id", "is_owner", "status",
 		"invitation_id", "invited_by", "invited_at", "joined_at", "invitation_token", "invitation_expires_at",
 		"last_active_at", "login_count", "created_at", "updated_at",
 	}
 
-	// DefaultMemberDetailFields contains all member fields including robot config and permissions
+	// DefaultMemberDetailFields contains all member fields including robot config
 	DefaultMemberDetailFields = []interface{}{
-		"member_id", "team_id", "user_id", "member_type", "display_name", "bio", "avatar", "email", "role_id", "status",
+		"member_id", "team_id", "user_id", "member_type", "display_name", "bio", "avatar", "email", "role_id", "is_owner", "status",
 		"system_prompt", "manager_id", "robot_config", "agents", "mcp_servers",
 		"language_model", "cost_limit", "autonomous_mode", "last_robot_activity", "robot_status",
 		"invitation_id", "invited_by", "invited_at", "joined_at", "invitation_token",
-		"invitation_expires_at", "permissions", "restrictions", "last_active_at",
+		"invitation_expires_at", "last_active_at",
 		"login_count", "notes", "metadata", "created_at", "updated_at",
 	}
 
