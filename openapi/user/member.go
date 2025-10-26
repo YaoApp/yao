@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -21,9 +20,8 @@ import (
 
 // Member Management Handlers
 
-// GinMemberList handles GET /teams/:team_id/members - Get team members
+// GinMemberList handles GET /teams/:team_id/members - Get team members with advanced filtering
 func GinMemberList(c *gin.Context) {
-
 	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
@@ -44,24 +42,47 @@ func GinMemberList(c *gin.Context) {
 		return
 	}
 
-	// Parse pagination parameters
-	page := 1
-	pagesize := 20
-
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
+	// Parse request parameters
+	var req MemberListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		// Provide a more user-friendly error message
+		errMsg := "Invalid query parameters"
+		if strings.Contains(err.Error(), "parsing") {
+			errMsg = "Invalid query parameter format. Please check page, pagesize, and other numeric values."
 		}
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: errMsg,
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
 	}
 
-	if ps := c.Query("pagesize"); ps != "" {
-		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
-			pagesize = parsed
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 20
+	}
+	if req.PageSize > 100 {
+		req.PageSize = 100
+	}
+	if req.Order == "" {
+		req.Order = "created_at desc"
+	}
+
+	// Parse fields from comma-separated string if provided
+	if fieldsStr := c.Query("fields"); fieldsStr != "" {
+		req.Fields = strings.Split(fieldsStr, ",")
+		// Trim spaces from field names
+		for i, field := range req.Fields {
+			req.Fields[i] = strings.TrimSpace(field)
 		}
 	}
 
 	// Call business logic
-	result, err := memberList(c.Request.Context(), authInfo.UserID, teamID, page, pagesize, c.Query("status"))
+	result, err := memberList(c.Request.Context(), authInfo.UserID, teamID, &req)
 	if err != nil {
 		log.Error("Failed to get team members: %v", err)
 		// Check error type for appropriate response
@@ -77,6 +98,12 @@ func GinMemberList(c *gin.Context) {
 				ErrorDescription: err.Error(),
 			}
 			response.RespondWithError(c, response.StatusForbidden, errorResp)
+		} else if strings.Contains(err.Error(), "invalid") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		} else {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrServerError.Code,
@@ -456,7 +483,16 @@ func GinMemberDelete(c *gin.Context) {
 
 // ProcessMemberList user.member.list Member list processor
 // Args[0] string: team_id
-// Args[1] map: Query parameters {"status": "active", "page": 1, "pagesize": 20}
+// Args[1] map: Query parameters with advanced filtering
+//
+//	{
+//	  "page": 1, "pagesize": 20,
+//	  "status": "active", "member_type": "user", "role_id": "admin",
+//	  "email": "test@example.com", "display_name": "John",
+//	  "order": "created_at desc",
+//	  "fields": ["id", "user_id", "display_name", "role_id"]
+//	}
+//
 // Return: map: Paginated member list
 func ProcessMemberList(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
@@ -472,26 +508,64 @@ func ProcessMemberList(process *process.Process) interface{} {
 	// Parse query parameters
 	queryMap := process.ArgsMap(1)
 
-	// Parse pagination
-	page := 1
-	pagesize := 20
+	// Build request object
+	req := &MemberListRequest{
+		Page:     1,
+		PageSize: 20,
+		Order:    "created_at desc",
+	}
 
+	// Parse pagination
 	if p, ok := queryMap["page"]; ok {
 		if pageInt, ok := p.(int); ok && pageInt > 0 {
-			page = pageInt
+			req.Page = pageInt
 		}
 	}
 
 	if ps, ok := queryMap["pagesize"]; ok {
 		if pagesizeInt, ok := ps.(int); ok && pagesizeInt > 0 && pagesizeInt <= 100 {
-			pagesize = pagesizeInt
+			req.PageSize = pagesizeInt
 		}
 	}
 
-	// Get status filter
-	status := ""
-	if s, ok := queryMap["status"].(string); ok {
-		status = s
+	// Parse filters
+	if status, ok := queryMap["status"].(string); ok {
+		req.Status = status
+	}
+
+	if memberType, ok := queryMap["member_type"].(string); ok {
+		req.MemberType = memberType
+	}
+
+	if roleID, ok := queryMap["role_id"].(string); ok {
+		req.RoleID = roleID
+	}
+
+	if email, ok := queryMap["email"].(string); ok {
+		req.Email = email
+	}
+
+	if displayName, ok := queryMap["display_name"].(string); ok {
+		req.DisplayName = displayName
+	}
+
+	// Parse sorting
+	if order, ok := queryMap["order"].(string); ok {
+		req.Order = order
+	}
+
+	// Parse fields selection
+	if fields, ok := queryMap["fields"]; ok {
+		if fieldsSlice, ok := fields.([]interface{}); ok {
+			req.Fields = make([]string, 0, len(fieldsSlice))
+			for _, f := range fieldsSlice {
+				if fieldStr, ok := f.(string); ok {
+					req.Fields = append(req.Fields, fieldStr)
+				}
+			}
+		} else if fieldsStrSlice, ok := fields.([]string); ok {
+			req.Fields = fieldsStrSlice
+		}
 	}
 
 	// Get context
@@ -501,7 +575,7 @@ func ProcessMemberList(process *process.Process) interface{} {
 	}
 
 	// Call business logic
-	result, err := memberList(ctx, userIDStr, teamID, page, pagesize, status)
+	result, err := memberList(ctx, userIDStr, teamID, req)
 	if err != nil {
 		exception.New("failed to list members: %s", 500, err.Error()).Throw()
 	}
@@ -613,8 +687,8 @@ func ProcessMemberDelete(process *process.Process) interface{} {
 
 // Private Business Logic Functions (internal use only)
 
-// memberList handles the business logic for listing team members
-func memberList(ctx context.Context, userID, teamID string, page, pagesize int, status string) (maps.MapStr, error) {
+// memberList handles the business logic for listing team members with advanced filtering
+func memberList(ctx context.Context, userID, teamID string, req *MemberListRequest) (maps.MapStr, error) {
 	// Check if user has access to the team (read permission: owner or member)
 	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -637,22 +711,117 @@ func memberList(ctx context.Context, userID, teamID string, page, pagesize int, 
 		Wheres: []model.QueryWhere{
 			{Column: "team_id", Value: teamID},
 		},
-		Orders: []model.QueryOrder{
-			{Column: "joined_at", Option: "desc"},
-			{Column: "created_at", Option: "desc"},
-		},
 	}
 
-	// Add status filter if provided
-	if status != "" {
+	// Add filters
+	if req.Status != "" {
+		// Validate status values
+		validStatuses := map[string]bool{
+			"pending": true, "active": true, "inactive": true, "suspended": true,
+		}
+		if !validStatuses[req.Status] {
+			return nil, fmt.Errorf("invalid status value: %s (must be one of: pending, active, inactive, suspended)", req.Status)
+		}
 		param.Wheres = append(param.Wheres, model.QueryWhere{
 			Column: "status",
-			Value:  status,
+			Value:  req.Status,
 		})
 	}
 
+	if req.MemberType != "" {
+		// Validate member type values
+		validTypes := map[string]bool{
+			"user": true, "robot": true,
+		}
+		if !validTypes[req.MemberType] {
+			return nil, fmt.Errorf("invalid member_type value: %s (must be one of: user, robot)", req.MemberType)
+		}
+		param.Wheres = append(param.Wheres, model.QueryWhere{
+			Column: "member_type",
+			Value:  req.MemberType,
+		})
+	}
+
+	if req.RoleID != "" {
+		param.Wheres = append(param.Wheres, model.QueryWhere{
+			Column: "role_id",
+			Value:  req.RoleID,
+		})
+	}
+
+	if req.Email != "" {
+		param.Wheres = append(param.Wheres, model.QueryWhere{
+			Column: "email",
+			Value:  req.Email,
+		})
+	}
+
+	if req.DisplayName != "" {
+		param.Wheres = append(param.Wheres, model.QueryWhere{
+			Column: "display_name",
+			Value:  req.DisplayName,
+			OP:     "like",
+		})
+	}
+
+	// Parse and validate sorting
+	validOrderFields := map[string]bool{
+		"created_at": true,
+		"joined_at":  true,
+	}
+	validOrderDirs := map[string]bool{
+		"asc": true, "desc": true,
+	}
+
+	// Parse order field (format: "field_name [asc|desc]")
+	orderParts := strings.Fields(req.Order) // Split by whitespace
+	orderBy := ""
+	orderDir := "desc" // Default direction
+
+	if len(orderParts) > 0 {
+		orderBy = orderParts[0]
+		if len(orderParts) > 1 {
+			orderDir = strings.ToLower(orderParts[1])
+		}
+	}
+
+	// Build sorting with priority: owner first, then pending invitations, then others
+	orders := []model.QueryOrder{
+		{Column: "is_owner", Option: "desc"}, // Owners always first
+		{Column: "status", Option: "asc"},    // Then pending before active (enum index: pending=1 < active=2 < inactive=3 < suspended=4)
+	}
+
+	// Validate and add user-specified order field
+	if orderBy != "" {
+		if !validOrderFields[orderBy] {
+			return nil, fmt.Errorf("invalid order field: %s (must be one of: created_at, joined_at)", orderBy)
+		}
+		if !validOrderDirs[orderDir] {
+			return nil, fmt.Errorf("invalid order direction: %s (must be one of: asc, desc)", orderDir)
+		}
+		orders = append(orders, model.QueryOrder{
+			Column: orderBy, Option: orderDir,
+		})
+	} else {
+		// Default tertiary sorting
+		orders = append(orders, model.QueryOrder{
+			Column: "created_at", Option: "desc",
+		})
+	}
+
+	param.Orders = orders
+
+	// Add field selection if specified
+	if len(req.Fields) > 0 {
+		// Convert []string to []interface{} for QueryParam.Select
+		param.Select = make([]interface{}, len(req.Fields))
+		for i, field := range req.Fields {
+			param.Select[i] = field
+		}
+	}
+
 	// Get paginated members
-	result, err := provider.PaginateMembers(ctx, param, page, pagesize)
+	result, err := provider.PaginateMembers(ctx, param, req.Page, req.PageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve members: %w", err)
 	}
@@ -679,9 +848,8 @@ func memberGet(ctx context.Context, userID, teamID, memberID string) (maps.MapSt
 		return nil, fmt.Errorf("failed to get user provider: %w", err)
 	}
 
-	// Get member details using team_id + user_id (business keys)
-	// memberID parameter is actually user_id in the context of team_id
-	memberData, err := provider.GetMember(ctx, teamID, memberID)
+	// Get member details using member_id (with all fields including robot config)
+	memberData, err := provider.GetMemberDetailByMemberID(ctx, memberID)
 	if err != nil {
 		return nil, fmt.Errorf("member not found: %w", err)
 	}
@@ -746,7 +914,7 @@ func memberCreateRobot(ctx context.Context, userID, teamID string, robotData map
 }
 
 // memberUpdate handles the business logic for updating a team member
-func memberUpdate(ctx context.Context, userID, teamID, memberUserID string, updateData maps.MapStrAny) error {
+func memberUpdate(ctx context.Context, userID, teamID, memberID string, updateData maps.MapStrAny) error {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -764,8 +932,8 @@ func memberUpdate(ctx context.Context, userID, teamID, memberUserID string, upda
 		return fmt.Errorf("failed to get user provider: %w", err)
 	}
 
-	// Check if member exists using team_id + user_id (business keys)
-	_, err = provider.GetMember(ctx, teamID, memberUserID)
+	// Check if member exists using member_id
+	_, err = provider.GetMemberByMemberID(ctx, memberID)
 	if err != nil {
 		return fmt.Errorf("member not found: %w", err)
 	}
@@ -773,8 +941,8 @@ func memberUpdate(ctx context.Context, userID, teamID, memberUserID string, upda
 	// Add updated_at timestamp
 	updateData["updated_at"] = time.Now()
 
-	// Update member using team_id + user_id
-	err = provider.UpdateMember(ctx, teamID, memberUserID, updateData)
+	// Update member using member_id
+	err = provider.UpdateMemberByMemberID(ctx, memberID, updateData)
 	if err != nil {
 		return fmt.Errorf("failed to update member: %w", err)
 	}
@@ -801,15 +969,14 @@ func memberDelete(ctx context.Context, userID, teamID, memberID string) error {
 		return fmt.Errorf("failed to get user provider: %w", err)
 	}
 
-	// Check if member exists using team_id + user_id (business keys)
-	// memberID parameter is actually user_id in the context of team_id
-	_, err = provider.GetMember(ctx, teamID, memberID)
+	// Check if member exists using member_id
+	_, err = provider.GetMemberByMemberID(ctx, memberID)
 	if err != nil {
 		return fmt.Errorf("member not found: %w", err)
 	}
 
-	// Remove member using team_id + user_id
-	err = provider.RemoveMember(ctx, teamID, memberID)
+	// Remove member using member_id
+	err = provider.RemoveMemberByMemberID(ctx, memberID)
 	if err != nil {
 		return fmt.Errorf("failed to delete member: %w", err)
 	}
@@ -835,18 +1002,28 @@ func checkTeamAccess(ctx context.Context, teamID, userID string) (bool, bool, er
 // mapToMemberResponse converts a map to MemberResponse
 func mapToMemberResponse(data maps.MapStr) MemberResponse {
 	member := MemberResponse{
-		ID:           toInt64(data["id"]),
-		TeamID:       toString(data["team_id"]),
-		UserID:       toString(data["user_id"]),
-		MemberType:   toString(data["member_type"]),
-		RoleID:       toString(data["role_id"]),
-		Status:       toString(data["status"]),
-		InvitedBy:    toString(data["invited_by"]),
-		InvitedAt:    toTimeString(data["invited_at"]),
-		JoinedAt:     toTimeString(data["joined_at"]),
-		LastActivity: toTimeString(data["last_activity"]),
-		CreatedAt:    toTimeString(data["created_at"]),
-		UpdatedAt:    toTimeString(data["updated_at"]),
+		ID:                  toInt64(data["id"]),
+		MemberID:            toString(data["member_id"]),
+		TeamID:              toString(data["team_id"]),
+		UserID:              toString(data["user_id"]),
+		MemberType:          toString(data["member_type"]),
+		DisplayName:         toString(data["display_name"]),
+		Bio:                 toString(data["bio"]),
+		Avatar:              toString(data["avatar"]),
+		Email:               toString(data["email"]),
+		RoleID:              toString(data["role_id"]),
+		IsOwner:             data["is_owner"], // Keep original type (int or bool)
+		Status:              toString(data["status"]),
+		InvitationID:        toString(data["invitation_id"]),
+		InvitedBy:           toString(data["invited_by"]),
+		InvitedAt:           toTimeString(data["invited_at"]),
+		InvitationToken:     toString(data["invitation_token"]),
+		InvitationExpiresAt: toTimeString(data["invitation_expires_at"]),
+		JoinedAt:            toTimeString(data["joined_at"]),
+		LastActiveAt:        toTimeString(data["last_active_at"]),
+		LoginCount:          toInt(data["login_count"]),
+		CreatedAt:           toTimeString(data["created_at"]),
+		UpdatedAt:           toTimeString(data["updated_at"]),
 	}
 
 	// Add settings if available
@@ -883,6 +1060,59 @@ func mapToMemberResponse(data maps.MapStr) MemberResponse {
 func mapToMemberDetailResponse(data maps.MapStr) MemberDetailResponse {
 	member := MemberDetailResponse{
 		MemberResponse: mapToMemberResponse(data),
+		// Robot-specific fields
+		SystemPrompt:      toString(data["system_prompt"]),
+		ManagerID:         toString(data["manager_id"]),
+		LanguageModel:     toString(data["language_model"]),
+		CostLimit:         toFloat64(data["cost_limit"]),
+		AutonomousMode:    data["autonomous_mode"], // Keep original type (bool or string)
+		LastRobotActivity: toTimeString(data["last_robot_activity"]),
+		RobotStatus:       toString(data["robot_status"]),
+		Notes:             toString(data["notes"]),
+	}
+
+	// Handle robot_config map
+	if robotConfig, ok := data["robot_config"]; ok {
+		if configMap, ok := robotConfig.(map[string]interface{}); ok {
+			member.RobotConfig = configMap
+		}
+	}
+
+	// Handle agents array
+	if agents, ok := data["agents"]; ok {
+		if agentsSlice, ok := agents.([]interface{}); ok {
+			agentsList := make([]string, 0, len(agentsSlice))
+			for _, a := range agentsSlice {
+				if agentStr, ok := a.(string); ok {
+					agentsList = append(agentsList, agentStr)
+				}
+			}
+			member.Agents = agentsList
+		} else if agentsStrSlice, ok := agents.([]string); ok {
+			member.Agents = agentsStrSlice
+		}
+	}
+
+	// Handle mcp_servers array
+	if mcpServers, ok := data["mcp_servers"]; ok {
+		if serversSlice, ok := mcpServers.([]interface{}); ok {
+			serversList := make([]string, 0, len(serversSlice))
+			for _, s := range serversSlice {
+				if serverStr, ok := s.(string); ok {
+					serversList = append(serversList, serverStr)
+				}
+			}
+			member.MCPServers = serversList
+		} else if serversStrSlice, ok := mcpServers.([]string); ok {
+			member.MCPServers = serversStrSlice
+		}
+	}
+
+	// Handle metadata map
+	if metadata, ok := data["metadata"]; ok {
+		if metadataMap, ok := metadata.(map[string]interface{}); ok {
+			member.Metadata = metadataMap
+		}
 	}
 
 	// Add user info if available (could be joined from user table)

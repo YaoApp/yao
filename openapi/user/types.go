@@ -394,25 +394,48 @@ type TeamSelectionRequest struct {
 
 // MemberResponse represents a team member in API responses
 type MemberResponse struct {
-	ID           int64           `json:"id"`
-	TeamID       string          `json:"team_id"`
-	UserID       string          `json:"user_id"`
-	MemberType   string          `json:"member_type"`
-	RoleID       string          `json:"role_id"`
-	Status       string          `json:"status"`
-	InvitedBy    string          `json:"invited_by,omitempty"`
-	InvitedAt    string          `json:"invited_at,omitempty"`
-	JoinedAt     string          `json:"joined_at,omitempty"`
-	LastActivity string          `json:"last_activity,omitempty"`
-	Settings     *MemberSettings `json:"settings,omitempty"`
-	CreatedAt    string          `json:"created_at"`
-	UpdatedAt    string          `json:"updated_at"`
+	ID                  int64           `json:"id"`
+	MemberID            string          `json:"member_id,omitempty"`
+	TeamID              string          `json:"team_id"`
+	UserID              string          `json:"user_id"`
+	MemberType          string          `json:"member_type"`
+	DisplayName         string          `json:"display_name,omitempty"`
+	Bio                 string          `json:"bio,omitempty"`
+	Avatar              string          `json:"avatar,omitempty"`
+	Email               string          `json:"email,omitempty"`
+	RoleID              string          `json:"role_id"`
+	IsOwner             interface{}     `json:"is_owner,omitempty"` // Can be int or bool
+	Status              string          `json:"status"`
+	InvitationID        string          `json:"invitation_id,omitempty"`
+	InvitedBy           string          `json:"invited_by,omitempty"`
+	InvitedAt           string          `json:"invited_at,omitempty"`
+	InvitationToken     string          `json:"invitation_token,omitempty"`
+	InvitationExpiresAt string          `json:"invitation_expires_at,omitempty"`
+	JoinedAt            string          `json:"joined_at,omitempty"`
+	LastActiveAt        string          `json:"last_active_at,omitempty"`
+	LoginCount          int             `json:"login_count,omitempty"`
+	Settings            *MemberSettings `json:"settings,omitempty"`
+	CreatedAt           string          `json:"created_at"`
+	UpdatedAt           string          `json:"updated_at"`
 }
 
 // MemberDetailResponse represents detailed member information
 type MemberDetailResponse struct {
 	MemberResponse
-	// Add additional fields that are only included in detailed responses
+	// Robot-specific fields (only for robot members)
+	SystemPrompt      string                 `json:"system_prompt,omitempty"`
+	ManagerID         string                 `json:"manager_id,omitempty"`
+	RobotConfig       map[string]interface{} `json:"robot_config,omitempty"`
+	Agents            []string               `json:"agents,omitempty"`
+	MCPServers        []string               `json:"mcp_servers,omitempty"`
+	LanguageModel     string                 `json:"language_model,omitempty"`
+	CostLimit         float64                `json:"cost_limit,omitempty"`
+	AutonomousMode    interface{}            `json:"autonomous_mode,omitempty"` // Can be bool or string
+	LastRobotActivity string                 `json:"last_robot_activity,omitempty"`
+	RobotStatus       string                 `json:"robot_status,omitempty"`
+	Notes             string                 `json:"notes,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata,omitempty"`
+	// Additional user info (joined from user table)
 	UserInfo map[string]interface{} `json:"user_info,omitempty"`
 }
 
@@ -429,6 +452,26 @@ type CreateRobotMemberRequest struct {
 	MCPServers     []string `json:"mcp_tools,omitempty"`       // MCP servers/tools
 	AutonomousMode string   `json:"autonomous_mode,omitempty"` // "enabled" or "disabled"
 	CostLimit      float64  `json:"cost_limit,omitempty"`      // Monthly cost limit in USD
+}
+
+// MemberListRequest represents the request to list team members with advanced filtering
+type MemberListRequest struct {
+	// Pagination
+	Page     int `json:"page" form:"page"`         // Page number (default: 1)
+	PageSize int `json:"pagesize" form:"pagesize"` // Page size (default: 20, max: 100)
+
+	// Filters
+	Status      string `json:"status" form:"status"`             // Filter by status: pending, active, inactive, suspended
+	MemberType  string `json:"member_type" form:"member_type"`   // Filter by type: user, robot
+	RoleID      string `json:"role_id" form:"role_id"`           // Filter by role ID
+	Email       string `json:"email" form:"email"`               // Filter by email (exact match)
+	DisplayName string `json:"display_name" form:"display_name"` // Filter by display name (like match)
+
+	// Sorting
+	Order string `json:"order" form:"order"` // Sort order: "field_name [asc|desc]" (e.g., "created_at desc", "joined_at asc"). Direction is optional, defaults to desc
+
+	// Field Selection
+	Fields []string `json:"fields" form:"fields"` // Select specific fields to return (comma-separated in query string)
 }
 
 // UpdateMemberRequest represents the request to update a member
