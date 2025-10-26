@@ -40,6 +40,29 @@ func TestMemberList(t *testing.T) {
 	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Member List Test Team")
 	teamID := getTeamID(createdTeam)
 
+	// Create some test members and robots for filtering tests
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create a robot member for member_type filtering
+	robotBody := map[string]interface{}{
+		"name":   "Test Robot " + testUUID,
+		"email":  fmt.Sprintf("test-robot-%s@test.com", testUUID),
+		"role":   "member",
+		"prompt": "You are a test robot for filtering",
+	}
+	robotBodyBytes, _ := json.Marshal(robotBody)
+	robotReq, _ := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/robots", bytes.NewBuffer(robotBodyBytes))
+	robotReq.Header.Set("Content-Type", "application/json")
+	robotReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+	client := &http.Client{}
+	robotResp, err := client.Do(robotReq)
+	if err == nil && robotResp != nil {
+		robotResp.Body.Close()
+		if robotResp.StatusCode != 201 {
+			t.Logf("Warning: Failed to create robot member for testing (status=%d)", robotResp.StatusCode)
+		}
+	}
+
 	testCases := []struct {
 		name       string
 		teamID     string
@@ -47,6 +70,7 @@ func TestMemberList(t *testing.T) {
 		headers    map[string]string
 		expectCode int
 		expectMsg  string
+		validateFn func(*testing.T, map[string]interface{}) // Optional validation function
 	}{
 		{
 			"list members without authentication",
@@ -55,6 +79,7 @@ func TestMemberList(t *testing.T) {
 			map[string]string{},
 			401,
 			"should require authentication",
+			nil,
 		},
 		{
 			"list members with valid token",
@@ -64,7 +89,47 @@ func TestMemberList(t *testing.T) {
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
 			},
 			200,
-			"should return team members",
+			"should return team members with default sorting (is_owner desc, status desc, created_at desc)",
+			func(t *testing.T, response map[string]interface{}) {
+				// Verify default sorting: is_owner desc first, then status desc
+				if data, ok := response["data"].([]interface{}); ok && len(data) > 1 {
+					foundNonOwner := false
+					foundActive := false
+
+					for _, item := range data {
+						member := item.(map[string]interface{})
+
+						// Check is_owner sorting (owners first)
+						isOwner := false
+						if ownerVal, ok := member["is_owner"]; ok {
+							switch v := ownerVal.(type) {
+							case float64:
+								isOwner = v == 1
+							case int:
+								isOwner = v == 1
+							case bool:
+								isOwner = v
+							}
+						}
+
+						if isOwner {
+							assert.False(t, foundNonOwner, "Owners should come before non-owners")
+						} else {
+							foundNonOwner = true
+						}
+
+						// Check status sorting (pending before active) among non-owners
+						if !isOwner {
+							status := member["status"].(string)
+							if status == "pending" {
+								assert.False(t, foundActive, "Pending members should come before active members")
+							} else if status == "active" {
+								foundActive = true
+							}
+						}
+					}
+				}
+			},
 		},
 		{
 			"list members with pagination",
@@ -75,6 +140,10 @@ func TestMemberList(t *testing.T) {
 			},
 			200,
 			"should handle pagination parameters",
+			func(t *testing.T, response map[string]interface{}) {
+				assert.Equal(t, float64(1), response["page"], "Should have correct page number")
+				assert.Equal(t, float64(10), response["pagesize"], "Should have correct pagesize")
+			},
 		},
 		{
 			"list members with status filter",
@@ -85,6 +154,213 @@ func TestMemberList(t *testing.T) {
 			},
 			200,
 			"should filter by status",
+			func(t *testing.T, response map[string]interface{}) {
+				if data, ok := response["data"].([]interface{}); ok {
+					for _, item := range data {
+						member := item.(map[string]interface{})
+						assert.Equal(t, "active", member["status"], "All members should have active status")
+					}
+				}
+			},
+		},
+		{
+			"list members filtered by member_type user",
+			teamID,
+			"?member_type=user",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should filter by member_type=user",
+			func(t *testing.T, response map[string]interface{}) {
+				if data, ok := response["data"].([]interface{}); ok {
+					for _, item := range data {
+						member := item.(map[string]interface{})
+						assert.Equal(t, "user", member["member_type"], "All members should be user type")
+					}
+				}
+			},
+		},
+		{
+			"list members filtered by member_type robot",
+			teamID,
+			"?member_type=robot",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should filter by member_type=robot",
+			func(t *testing.T, response map[string]interface{}) {
+				if data, ok := response["data"].([]interface{}); ok {
+					for _, item := range data {
+						member := item.(map[string]interface{})
+						assert.Equal(t, "robot", member["member_type"], "All members should be robot type")
+					}
+				}
+			},
+		},
+		{
+			"list members filtered by role_id",
+			teamID,
+			"?role_id=owner:free",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should filter by role_id",
+			func(t *testing.T, response map[string]interface{}) {
+				if data, ok := response["data"].([]interface{}); ok {
+					for _, item := range data {
+						member := item.(map[string]interface{})
+						assert.Equal(t, "owner:free", member["role_id"], "All members should have owner:free role")
+					}
+				}
+			},
+		},
+		{
+			"list members with order by created_at asc",
+			teamID,
+			"?order=created_at+asc",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should sort by is_owner desc, status desc, then created_at ascending",
+			func(t *testing.T, response map[string]interface{}) {
+				// Verify owner and status sorting priority
+				if data, ok := response["data"].([]interface{}); ok && len(data) > 1 {
+					foundNonOwner := false
+					for _, item := range data {
+						member := item.(map[string]interface{})
+
+						isOwner := false
+						if ownerVal, ok := member["is_owner"]; ok {
+							switch v := ownerVal.(type) {
+							case float64:
+								isOwner = v == 1
+							case int:
+								isOwner = v == 1
+							case bool:
+								isOwner = v
+							}
+						}
+
+						if isOwner {
+							assert.False(t, foundNonOwner, "Owners should come before non-owners even with custom sorting")
+						} else {
+							foundNonOwner = true
+						}
+					}
+				}
+			},
+		},
+		{
+			"list members with order by joined_at desc",
+			teamID,
+			"?order=joined_at+desc",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should sort by is_owner desc, status desc, then joined_at descending",
+			nil,
+		},
+		{
+			"list members with order by joined_at (default desc)",
+			teamID,
+			"?order=joined_at",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should sort by is_owner desc, status desc, then joined_at with default desc direction",
+			nil,
+		},
+		{
+			"list members with field selection",
+			teamID,
+			"?fields=id,user_id,member_type,role_id,status",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should return only selected fields",
+			func(t *testing.T, response map[string]interface{}) {
+				if data, ok := response["data"].([]interface{}); ok && len(data) > 0 {
+					member := data[0].(map[string]interface{})
+					// Should have selected fields
+					assert.Contains(t, member, "id", "Should have id field")
+					assert.Contains(t, member, "user_id", "Should have user_id field")
+					assert.Contains(t, member, "member_type", "Should have member_type field")
+					assert.Contains(t, member, "role_id", "Should have role_id field")
+					assert.Contains(t, member, "status", "Should have status field")
+				}
+			},
+		},
+		{
+			"list members with invalid status value",
+			teamID,
+			"?status=invalid_status",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should reject invalid status value",
+			nil,
+		},
+		{
+			"list members with invalid member_type value",
+			teamID,
+			"?member_type=invalid_type",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should reject invalid member_type value",
+			nil,
+		},
+		{
+			"list members with invalid order field",
+			teamID,
+			"?order=invalid_field+desc",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should reject invalid order field",
+			nil,
+		},
+		{
+			"list members with invalid order direction",
+			teamID,
+			"?order=created_at+invalid",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should reject invalid order direction",
+			nil,
+		},
+		{
+			"list members with combined filters",
+			teamID,
+			"?status=active&member_type=user&order=created_at+asc&page=1&pagesize=5",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should handle combined filters and sorting",
+			func(t *testing.T, response map[string]interface{}) {
+				assert.Equal(t, float64(1), response["page"], "Should have correct page number")
+				assert.Equal(t, float64(5), response["pagesize"], "Should have correct pagesize")
+				if data, ok := response["data"].([]interface{}); ok {
+					for _, item := range data {
+						member := item.(map[string]interface{})
+						assert.Equal(t, "active", member["status"], "All members should have active status")
+						assert.Equal(t, "user", member["member_type"], "All members should be user type")
+					}
+				}
+			},
 		},
 		{
 			"list members of non-existent team",
@@ -95,6 +371,7 @@ func TestMemberList(t *testing.T) {
 			},
 			404,
 			"should return not found for non-existent team",
+			nil,
 		},
 	}
 
@@ -109,8 +386,8 @@ func TestMemberList(t *testing.T) {
 				req.Header.Set(key, value)
 			}
 
-			client := &http.Client{}
-			resp, err := client.Do(req)
+			httpClient := &http.Client{}
+			resp, err := httpClient.Do(req)
 			assert.NoError(t, err, "HTTP request should succeed")
 
 			if resp != nil {
@@ -132,14 +409,9 @@ func TestMemberList(t *testing.T) {
 					assert.Contains(t, response, "page", "Should have page number")
 					assert.Contains(t, response, "pagesize", "Should have pagesize")
 
-					// Verify that creator is automatically added as member
-					if data, ok := response["data"].([]interface{}); ok {
-						assert.GreaterOrEqual(t, len(data), 1, "Should have at least the owner as member")
-						if len(data) > 0 {
-							member := data[0].(map[string]interface{})
-							assert.Equal(t, tokenInfo.UserID, member["user_id"], "Owner should be in member list")
-							assert.Equal(t, "owner:free", member["role_id"], "Creator should have owner:free role")
-						}
+					// Run custom validation if provided
+					if tc.validateFn != nil {
+						tc.validateFn(t, response)
 					}
 				}
 
@@ -746,7 +1018,7 @@ func createTestTeam(t *testing.T, serverURL, baseURL, accessToken, teamName stri
 // createTestMember creates a member for testing using provider directly (no API call).
 // This is the recommended approach since direct member creation endpoint was removed.
 // Members should normally be added via invitation flow or robot creation endpoint.
-// Returns the user_id which serves as member_id in API context.
+// Returns the member_id (global unique identifier).
 func createTestMember(t *testing.T, serverURL, baseURL, teamID, accessToken, userID string) string {
 	// Get user provider for direct database operations
 	provider := testutils.GetUserProvider(t)
@@ -768,11 +1040,11 @@ func createTestMember(t *testing.T, serverURL, baseURL, teamID, accessToken, use
 
 	t.Logf("Created test member directly in database: user_id=%s, member_id=%s, team_id=%s", userID, memberID, teamID)
 
-	// Return user_id (which is used as member identifier in API context)
-	return userID
+	// Return member_id (global unique identifier used in API)
+	return memberID
 }
 
-// getOwnerMemberID gets the user_id of the team owner (which serves as member_id in API context)
+// getOwnerMemberID gets the member_id of the team owner (global unique identifier)
 func getOwnerMemberID(t *testing.T, serverURL, baseURL, teamID, accessToken string) string {
 	req, err := http.NewRequest("GET", serverURL+baseURL+"/user/teams/"+teamID+"/members", nil)
 	assert.NoError(t, err, "Should create member list request")
@@ -797,15 +1069,15 @@ func getOwnerMemberID(t *testing.T, serverURL, baseURL, teamID, accessToken stri
 	assert.True(t, ok, "Should have data array")
 	assert.Greater(t, len(data), 0, "Should have at least one member")
 
-	// Find the owner member and return their user_id
+	// Find the owner member and return their member_id
 	for _, item := range data {
 		member := item.(map[string]interface{})
 		if role, ok := member["role_id"].(string); ok && strings.HasPrefix(role, "owner") {
-			userID, ok := member["user_id"].(string)
+			memberID, ok := member["member_id"].(string)
 			if !ok {
-				t.Fatal("Owner member missing user_id")
+				t.Fatal("Owner member missing member_id")
 			}
-			return userID
+			return memberID
 		}
 	}
 

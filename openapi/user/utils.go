@@ -161,6 +161,58 @@ func toTimeString(v interface{}) string {
 	}
 }
 
+// toInt converts various types to int
+// Supports: int, int64, float64, string
+// Returns 0 for nil or unsupported types
+func toInt(v interface{}) int {
+	if v == nil {
+		return 0
+	}
+
+	switch val := v.(type) {
+	case int:
+		return val
+	case int64:
+		return int(val)
+	case float64:
+		return int(val)
+	case string:
+		if parsed, err := strconv.Atoi(val); err == nil {
+			return parsed
+		}
+		return 0
+	default:
+		return 0
+	}
+}
+
+// toFloat64 converts various types to float64
+// Supports: float64, int, int64, string
+// Returns 0.0 for nil or unsupported types
+func toFloat64(v interface{}) float64 {
+	if v == nil {
+		return 0.0
+	}
+
+	switch val := v.(type) {
+	case float64:
+		return val
+	case float32:
+		return float64(val)
+	case int:
+		return float64(val)
+	case int64:
+		return float64(val)
+	case string:
+		if parsed, err := strconv.ParseFloat(val, 64); err == nil {
+			return parsed
+		}
+		return 0.0
+	default:
+		return 0.0
+	}
+}
+
 // Security Utilities
 
 // maskEmail masks an email address for privacy protection
