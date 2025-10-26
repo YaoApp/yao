@@ -837,6 +837,7 @@ func teamCreate(ctx context.Context, userID string, teamData maps.MapStrAny) (st
 		"user_id":     userID,
 		"member_type": "user",
 		"role_id":     ownerRoleID,
+		"is_owner":    true,
 		"status":      "active",
 		"joined_at":   time.Now(),
 		"created_at":  time.Now(),

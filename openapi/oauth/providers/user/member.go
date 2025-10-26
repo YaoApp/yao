@@ -364,7 +364,7 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 	robotFields := []string{
 		"role_id", "system_prompt", "manager_id", "robot_config", "agents", "mcp_servers",
 		"language_model", "cost_limit", "autonomous_mode", "robot_status",
-		"permissions", "restrictions", "notes", "metadata",
+		"notes", "metadata",
 		"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
 	}
 

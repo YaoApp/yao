@@ -114,6 +114,15 @@
       "index": true
     },
     {
+      "name": "is_owner",
+      "type": "boolean",
+      "label": "Is Owner",
+      "comment": "Whether this member is the team owner (redundant field for query performance and UI display)",
+      "default": false,
+      "index": true,
+      "nullable": false
+    },
+    {
       "name": "status",
       "type": "enum",
       "label": "Status",
@@ -283,24 +292,6 @@
     },
 
     // ============================================================================
-    // Permission Overrides
-    // ============================================================================
-    {
-      "name": "permissions",
-      "type": "json",
-      "label": "Permissions",
-      "comment": "Custom permissions override for this user in this team",
-      "nullable": true
-    },
-    {
-      "name": "restrictions",
-      "type": "json",
-      "label": "Restrictions",
-      "comment": "Additional restrictions for this user in this team",
-      "nullable": true
-    },
-
-    // ============================================================================
     // Activity Tracking
     // ============================================================================
     {
@@ -356,6 +347,12 @@
       "columns": ["team_id", "member_type", "role_id", "status"],
       "type": "index",
       "comment": "Index for finding members by type, role and status within team"
+    },
+    {
+      "name": "idx_team_owner",
+      "columns": ["team_id", "is_owner"],
+      "type": "index",
+      "comment": "Index for quickly finding team owner"
     },
     {
       "name": "idx_user_teams",
