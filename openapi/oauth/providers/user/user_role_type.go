@@ -105,7 +105,15 @@ func (u *DefaultUser) SetUserRole(ctx context.Context, userID string, roleID str
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateUser, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made (already has this role)
 	}
 
 	return nil
@@ -270,7 +278,15 @@ func (u *DefaultUser) SetUserType(ctx context.Context, userID string, typeID str
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateUser, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made (already has this type)
 	}
 
 	return nil

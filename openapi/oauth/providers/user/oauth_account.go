@@ -124,7 +124,15 @@ func (u *DefaultUser) UpdateOAuthAccount(ctx context.Context, provider string, s
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("oauth account not found for provider %s with subject %s", provider, subject)
+		// Check if OAuth account exists
+		exists, checkErr := u.OAuthAccountExists(ctx, provider, subject)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateOAuth, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf("oauth account not found for provider %s with subject %s", provider, subject)
+		}
+		// OAuth account exists but no changes were made
 	}
 
 	return nil

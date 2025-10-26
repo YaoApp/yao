@@ -142,7 +142,15 @@ func (u *DefaultUser) UpdateTeam(ctx context.Context, teamID string, teamData ma
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTeamNotFound)
+		// Check if team exists
+		exists, checkErr := u.TeamExists(ctx, teamID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateTeam, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTeamNotFound)
+		}
+		// Team exists but no changes were made
 	}
 
 	return nil
@@ -440,7 +448,15 @@ func (u *DefaultUser) VerifyTeam(ctx context.Context, teamID string, verifiedBy 
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTeamNotFound)
+		// Check if team exists
+		exists, checkErr := u.TeamExists(ctx, teamID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateTeam, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTeamNotFound)
+		}
+		// Team exists but no changes were made (already verified)
 	}
 
 	return nil
@@ -468,7 +484,15 @@ func (u *DefaultUser) UnverifyTeam(ctx context.Context, teamID string) error {
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTeamNotFound)
+		// Check if team exists
+		exists, checkErr := u.TeamExists(ctx, teamID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateTeam, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTeamNotFound)
+		}
+		// Team exists but no changes were made (already unverified)
 	}
 
 	return nil

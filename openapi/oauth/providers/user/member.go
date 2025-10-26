@@ -183,6 +183,60 @@ func (u *DefaultUser) MemberExistsByTeamEmail(ctx context.Context, teamID string
 	return len(members) > 0, nil
 }
 
+// MemberExistsByMemberID checks if a member exists by member_id (business ID)
+func (u *DefaultUser) MemberExistsByMemberID(ctx context.Context, memberID string) (bool, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	return len(members) > 0, nil
+}
+
+// memberExistsByID checks if a member exists by internal database ID
+func (u *DefaultUser) memberExistsByID(ctx context.Context, id int64) (bool, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "id", Value: id},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	return len(members) > 0, nil
+}
+
+// memberExistsByInvitationID checks if a member exists by invitation_id
+func (u *DefaultUser) memberExistsByInvitationID(ctx context.Context, invitationID string) (bool, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "invitation_id", Value: invitationID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	return len(members) > 0, nil
+}
+
 // CreateMember creates a new team member (user type)
 func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAny) (string, error) {
 	// Validate required fields for user members
@@ -470,14 +524,22 @@ func (u *DefaultUser) UpdateMember(ctx context.Context, teamID string, userID st
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrMemberNotFound)
+		// Check if member exists
+		exists, checkErr := u.MemberExists(ctx, teamID, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateMember, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrMemberNotFound)
+		}
+		// Member exists but no changes were made
 	}
 
 	return nil
 }
 
-// UpdateMemberByID updates a member by internal ID
-func (u *DefaultUser) UpdateMemberByID(ctx context.Context, memberID int64, memberData maps.MapStrAny) error {
+// UpdateMemberByID updates a member by internal database ID
+func (u *DefaultUser) UpdateMemberByID(ctx context.Context, id int64, memberData maps.MapStrAny) error {
 	// Remove sensitive fields that should not be updated directly
 	sensitiveFields := []string{"id", "member_id", "team_id", "user_id", "created_at", "invitation_token"}
 	for _, field := range sensitiveFields {
@@ -492,7 +554,7 @@ func (u *DefaultUser) UpdateMemberByID(ctx context.Context, memberID int64, memb
 	m := model.Select(u.memberModel)
 	affected, err := m.UpdateWhere(model.QueryParam{
 		Wheres: []model.QueryWhere{
-			{Column: "id", Value: memberID},
+			{Column: "id", Value: id},
 		},
 		Limit: 1,
 	}, memberData)
@@ -502,7 +564,15 @@ func (u *DefaultUser) UpdateMemberByID(ctx context.Context, memberID int64, memb
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrMemberNotFound)
+		// Check if member exists
+		exists, checkErr := u.memberExistsByID(ctx, id)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateMember, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrMemberNotFound)
+		}
+		// Member exists but no changes were made
 	}
 
 	return nil
@@ -533,8 +603,21 @@ func (u *DefaultUser) UpdateMemberByMemberID(ctx context.Context, memberID strin
 		return fmt.Errorf(ErrFailedToUpdateMember, err)
 	}
 
+	// Note: affected=0 can mean either:
+	// 1. No record found with the given member_id
+	// 2. Record exists but no fields were changed (values are the same)
+	// We verify the member exists first to provide a more accurate error
 	if affected == 0 {
-		return fmt.Errorf(ErrMemberNotFound)
+		// Check if member exists
+		exists, checkErr := u.MemberExistsByMemberID(ctx, memberID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateMember, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrMemberNotFound)
+		}
+		// Member exists but no changes were made (values are the same)
+		// This is not an error, just return nil
 	}
 
 	return nil
@@ -791,14 +874,14 @@ func (u *DefaultUser) UpdateMemberLastActivityByMemberID(ctx context.Context, me
 	return u.UpdateMemberByMemberID(ctx, memberID, updateData)
 }
 
-// UpdateRobotActivity updates robot member's last activity and status
-func (u *DefaultUser) UpdateRobotActivity(ctx context.Context, memberID int64, robotStatus string) error {
+// UpdateRobotActivity updates robot member's last activity and status by internal database ID
+func (u *DefaultUser) UpdateRobotActivity(ctx context.Context, id int64, robotStatus string) error {
 	updateData := maps.MapStrAny{
 		"last_robot_activity": time.Now(),
 		"robot_status":        robotStatus,
 	}
 
-	return u.UpdateMemberByID(ctx, memberID, updateData)
+	return u.UpdateMemberByID(ctx, id, updateData)
 }
 
 // UpdateMemberByInvitationID updates a member by invitation_id
@@ -828,7 +911,15 @@ func (u *DefaultUser) UpdateMemberByInvitationID(ctx context.Context, invitation
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrMemberNotFound)
+		// Check if member exists
+		exists, checkErr := u.memberExistsByInvitationID(ctx, invitationID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateMember, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrMemberNotFound)
+		}
+		// Member exists but no changes were made
 	}
 
 	return nil

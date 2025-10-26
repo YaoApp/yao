@@ -420,12 +420,7 @@ func TestRobotMemberOperations(t *testing.T) {
 			"autonomous_mode": true,
 			"status":          "active",
 		})
-		if err != nil {
-			// If update fails, log the error and skip the test
-			t.Logf("Failed to update robot member: %v", err)
-			t.Skip("Robot member update failed, skipping GetActiveRobotMembers test")
-			return
-		}
+		assert.NoError(t, err)
 
 		robots, err := testProvider.GetActiveRobotMembers(ctx)
 		assert.NoError(t, err)

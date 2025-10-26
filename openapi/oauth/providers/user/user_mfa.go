@@ -199,7 +199,15 @@ func (u *DefaultUser) EnableMFA(ctx context.Context, userID string, secret strin
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateMFAStatus, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made (already enabled with same secret)
 	}
 
 	return nil
@@ -272,7 +280,15 @@ func (u *DefaultUser) DisableMFA(ctx context.Context, userID string, code string
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateMFAStatus, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made (already disabled)
 	}
 
 	return nil
@@ -416,7 +432,15 @@ func (u *DefaultUser) GenerateRecoveryCodes(ctx context.Context, userID string) 
 	}
 
 	if affected == 0 {
-		return nil, fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return nil, fmt.Errorf(ErrFailedToUpdateMFAStatus, checkErr)
+		}
+		if !exists {
+			return nil, fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made
 	}
 
 	// Return all generated recovery codes
