@@ -147,10 +147,10 @@ func GinMemberGet(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, member)
 }
 
-// GinMemberCreateDirect handles POST /teams/:team_id/members - Add member directly to team
-func GinMemberCreateDirect(c *gin.Context) {
+// GinMemberCreateRobot handles POST /teams/:team_id/members/robots - Add robot member to team
+func GinMemberCreateRobot(c *gin.Context) {
 	// Get authorized user info
-	authInfo := oauth.GetAuthorizedInfo(c)
+	authInfo := authorized.GetInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidClient.Code,
@@ -171,7 +171,7 @@ func GinMemberCreateDirect(c *gin.Context) {
 	}
 
 	// Parse request body
-	var req CreateMemberRequest
+	var req CreateRobotMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -181,22 +181,40 @@ func GinMemberCreateDirect(c *gin.Context) {
 		return
 	}
 
-	// Prepare member data
-	memberData := maps.MapStrAny{
-		"user_id":     req.UserID,
-		"member_type": req.MemberType,
-		"role_id":     req.RoleID,
+	// Prepare base robot member data
+	baseData := maps.MapStrAny{
+		"display_name":    req.Name,
+		"email":           req.Email,
+		"bio":             req.Bio,
+		"role_id":         req.RoleID,
+		"system_prompt":   req.SystemPrompt,
+		"autonomous_mode": toBool(req.AutonomousMode),
 	}
 
-	// Add settings if provided
-	if req.Settings != nil {
-		memberData["settings"] = req.Settings
+	// Add optional fields
+	if req.ManagerID != "" {
+		baseData["manager_id"] = req.ManagerID
 	}
+	if req.LanguageModel != "" {
+		baseData["language_model"] = req.LanguageModel
+	}
+	if len(req.Agents) > 0 {
+		baseData["agents"] = req.Agents
+	}
+	if len(req.MCPServers) > 0 {
+		baseData["mcp_servers"] = req.MCPServers
+	}
+	if req.CostLimit > 0 {
+		baseData["cost_limit"] = req.CostLimit
+	}
+
+	// Wrap with create scope for permission tracking
+	robotData := authInfo.WithCreateScope(baseData)
 
 	// Call business logic
-	memberID, err := memberCreateDirect(c.Request.Context(), authInfo.UserID, teamID, memberData)
+	memberID, err := memberCreateRobot(c.Request.Context(), authInfo.UserID, teamID, robotData)
 	if err != nil {
-		log.Error("Failed to create member: %v", err)
+		log.Error("Failed to create robot member: %v", err)
 		// Check error type for appropriate response
 		if strings.Contains(err.Error(), "not found") {
 			errorResp := &response.ErrorResponse{
@@ -210,7 +228,7 @@ func GinMemberCreateDirect(c *gin.Context) {
 				ErrorDescription: err.Error(),
 			}
 			response.RespondWithError(c, response.StatusForbidden, errorResp)
-		} else if strings.Contains(err.Error(), "already exists") {
+		} else if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "duplicate") {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrInvalidRequest.Code,
 				ErrorDescription: err.Error(),
@@ -219,7 +237,7 @@ func GinMemberCreateDirect(c *gin.Context) {
 		} else {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to create member",
+				ErrorDescription: "Failed to create robot member",
 			}
 			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		}
@@ -454,48 +472,6 @@ func ProcessMemberGet(process *process.Process) interface{} {
 	return result
 }
 
-// ProcessMemberCreateDirect user.member.create Member create processor
-// Args[0] string: team_id
-// Args[1] map: Member data {"user_id": "user123", "member_type": "user", "role_id": "member", "settings": {...}}
-// Return: map: {"member_id": "created_member_id"}
-func ProcessMemberCreateDirect(process *process.Process) interface{} {
-	process.ValidateArgNums(2)
-
-	// Get user_id from session
-	userIDStr := GetUserIDFromSession(process)
-
-	teamID := process.ArgsString(0)
-	memberData := maps.MapStrAny(process.ArgsMap(1))
-
-	if teamID == "" {
-		exception.New("team_id is required", 400).Throw()
-	}
-
-	// Validate required fields
-	if _, ok := memberData["user_id"]; !ok {
-		exception.New("user_id is required", 400).Throw()
-	}
-	if _, ok := memberData["role_id"]; !ok {
-		exception.New("role_id is required", 400).Throw()
-	}
-
-	// Get context
-	ctx := process.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	// Call business logic
-	memberID, err := memberCreateDirect(ctx, userIDStr, teamID, memberData)
-	if err != nil {
-		exception.New("failed to create member: %s", 500, err.Error()).Throw()
-	}
-
-	return map[string]interface{}{
-		"member_id": memberID,
-	}
-}
-
 // ProcessMemberUpdate user.member.update Member update processor
 // Args[0] string: team_id
 // Args[1] string: member_id
@@ -644,8 +620,8 @@ func memberGet(ctx context.Context, userID, teamID, memberID string) (maps.MapSt
 	return memberData, nil
 }
 
-// memberCreateDirect handles the business logic for creating a team member directly
-func memberCreateDirect(ctx context.Context, userID, teamID string, memberData maps.MapStrAny) (int64, error) {
+// memberCreateRobot handles the business logic for creating a robot member
+func memberCreateRobot(ctx context.Context, userID, teamID string, robotData maps.MapStrAny) (int64, error) {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -654,7 +630,7 @@ func memberCreateDirect(ctx context.Context, userID, teamID string, memberData m
 
 	// Only allow access if user is owner
 	if !isOwner {
-		return 0, fmt.Errorf("access denied: only team owner can add members")
+		return 0, fmt.Errorf("access denied: only team owner can add robot members")
 	}
 
 	// Get user provider instance
@@ -663,30 +639,10 @@ func memberCreateDirect(ctx context.Context, userID, teamID string, memberData m
 		return 0, fmt.Errorf("failed to get user provider: %w", err)
 	}
 
-	// Check if member already exists
-	memberUserID := toString(memberData["user_id"])
-	exists, err := provider.MemberExists(ctx, teamID, memberUserID)
+	// Use CreateRobotMember method which handles robot-specific logic
+	memberID, err := provider.CreateRobotMember(ctx, teamID, robotData)
 	if err != nil {
-		return 0, fmt.Errorf("failed to check member existence: %w", err)
-	}
-	if exists {
-		return 0, fmt.Errorf("member already exists in this team")
-	}
-
-	// Set team ID and default values
-	memberData["team_id"] = teamID
-	if memberData["member_type"] == nil || memberData["member_type"] == "" {
-		memberData["member_type"] = "user"
-	}
-	memberData["status"] = "active"
-	memberData["joined_at"] = time.Now()
-	memberData["created_at"] = time.Now()
-	memberData["updated_at"] = time.Now()
-
-	// Create member
-	memberID, err := provider.CreateMember(ctx, memberData)
-	if err != nil {
-		return 0, fmt.Errorf("failed to create member: %w", err)
+		return 0, fmt.Errorf("failed to create robot member: %w", err)
 	}
 
 	return memberID, nil

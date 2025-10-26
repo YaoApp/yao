@@ -134,7 +134,7 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Team Members - Nested resource endpoints
 	team.GET("/:id/members", GinMemberList)                 // GET /teams/:id/members - List team members
-	team.POST("/:id/members", GinMemberCreateDirect)        // POST /teams/:id/members - Add team member
+	team.POST("/:id/members/robots", GinMemberCreateRobot)  // POST /teams/:id/members/robots - Add robot member
 	team.GET("/:id/members/:member_id", GinMemberGet)       // GET /teams/:id/members/:member_id - Get member details
 	team.PUT("/:id/members/:member_id", GinMemberUpdate)    // PUT /teams/:id/members/:member_id - Update member
 	team.DELETE("/:id/members/:member_id", GinMemberDelete) // DELETE /teams/:id/members/:member_id - Remove member

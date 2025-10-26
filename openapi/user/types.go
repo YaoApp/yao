@@ -416,12 +416,19 @@ type MemberDetailResponse struct {
 	UserInfo map[string]interface{} `json:"user_info,omitempty"`
 }
 
-// CreateMemberRequest represents the request to add a member directly
-type CreateMemberRequest struct {
-	UserID     string          `json:"user_id" binding:"required"`
-	MemberType string          `json:"member_type,omitempty"` // "user" or "robot"
-	RoleID     string          `json:"role_id" binding:"required"`
-	Settings   *MemberSettings `json:"settings,omitempty"`
+// CreateRobotMemberRequest represents the request to create a new robot member
+type CreateRobotMemberRequest struct {
+	Name           string   `json:"name" binding:"required"`   // Display name
+	Email          string   `json:"email" binding:"required"`  // Email address
+	Bio            string   `json:"bio,omitempty"`             // Bio/description
+	RoleID         string   `json:"role" binding:"required"`   // Role ID
+	ManagerID      string   `json:"report_to,omitempty"`       // Direct manager user ID
+	SystemPrompt   string   `json:"prompt" binding:"required"` // Identity & role prompt
+	LanguageModel  string   `json:"llm,omitempty"`             // Language model (e.g., "gpt-4")
+	Agents         []string `json:"agents,omitempty"`          // Accessible agents
+	MCPServers     []string `json:"mcp_tools,omitempty"`       // MCP servers/tools
+	AutonomousMode string   `json:"autonomous_mode,omitempty"` // "enabled" or "disabled"
+	CostLimit      float64  `json:"cost_limit,omitempty"`      // Monthly cost limit in USD
 }
 
 // UpdateMemberRequest represents the request to update a member

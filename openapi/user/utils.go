@@ -35,6 +35,7 @@ func GetUserIDFromSession(process *process.Process) string {
 
 // toBool converts various types to boolean
 // Supports: bool, int, int64, float64, string
+// String values: "true", "false", "1", "0", "enabled", "disabled", "yes", "no", "on", "off"
 // Returns false for nil or unsupported types
 func toBool(v interface{}) bool {
 	if v == nil {
@@ -51,7 +52,16 @@ func toBool(v interface{}) bool {
 	case float64:
 		return val != 0
 	case string:
-		return val == "true" || val == "1"
+		// Normalize string to lowercase for case-insensitive comparison
+		normalized := strings.ToLower(strings.TrimSpace(val))
+		switch normalized {
+		case "true", "1", "enabled", "yes", "on":
+			return true
+		case "false", "0", "disabled", "no", "off", "":
+			return false
+		default:
+			return false
+		}
 	default:
 		return false
 	}
