@@ -364,6 +364,8 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 	robotFields := []string{
 		"role_id", "system_prompt", "manager_id", "robot_config", "agents", "mcp_servers",
 		"language_model", "cost_limit", "autonomous_mode", "robot_status",
+		"permissions", "restrictions", "notes", "metadata",
+		"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
 	}
 
 	for _, field := range robotFields {
@@ -412,6 +414,8 @@ func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID strin
 		"invited_at":            time.Now(),
 		"invitation_token":      token,
 		"invitation_expires_at": time.Now().Add(7 * 24 * time.Hour), // 7 days expiry
+		"__yao_created_by":      invitedBy,
+		"__yao_team_id":         teamID,
 	}
 
 	return u.CreateMember(ctx, memberData)

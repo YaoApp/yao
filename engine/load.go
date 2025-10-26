@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/mcp"
 	"github.com/yaoapp/yao/messenger"
 	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
@@ -282,6 +283,13 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 		warnings = append(warnings, Warning{Widget: "Pipe", Error: err})
 	}
 
+	// Load MCP Clients
+	err = mcp.Load(cfg)
+	if err != nil {
+		// printErr(cfg.Mode, "MCP", err)
+		warnings = append(warnings, Warning{Widget: "MCP", Error: err})
+	}
+
 	// Load Knowledge Base
 	_, err = kb.Load(cfg)
 	if err != nil {
@@ -504,6 +512,12 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = aigc.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "AIGC", err)
+	}
+
+	// Load MCP Clients
+	err = mcp.Load(cfg)
+	if err != nil {
+		printErr(cfg.Mode, "MCP", err)
 	}
 
 	// Load Knowledge Base
