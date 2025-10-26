@@ -3,11 +3,13 @@ package user_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/tests/testutils"
@@ -1020,6 +1022,315 @@ func getOwnerMemberID(t *testing.T, serverURL, baseURL, teamID, accessToken stri
 
 	t.Fatal("Could not find owner member")
 	return ""
+}
+
+// TestMemberCreateRobot tests the POST /user/teams/:team_id/members/robots endpoint
+func TestMemberCreateRobot(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Register a test client for OAuth authentication
+	testClient := testutils.RegisterTestClient(t, "Robot Member Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token with root permissions (required for creating robot members)
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile")
+
+	// Use UUID to ensure unique team name
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create a test team
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Robot Member Test Team "+testUUID)
+	teamID := getTeamID(createdTeam)
+
+	testCases := []struct {
+		name       string
+		teamID     string
+		body       map[string]interface{}
+		headers    map[string]string
+		expectCode int
+		expectMsg  string
+	}{
+		{
+			"create robot without authentication",
+			teamID,
+			map[string]interface{}{
+				"name":   "Test Robot",
+				"email":  "robot@test.com",
+				"role":   "member",
+				"prompt": "You are a helpful assistant",
+			},
+			map[string]string{},
+			401,
+			"should require authentication",
+		},
+		{
+			"create robot with all fields",
+			teamID,
+			map[string]interface{}{
+				"name":            "AI Assistant Full",
+				"email":           fmt.Sprintf("ai-full-%s@test.com", testUUID),
+				"bio":             "A comprehensive AI assistant",
+				"role":            "member",
+				"report_to":       tokenInfo.UserID,
+				"prompt":          "You are a helpful AI assistant with full capabilities",
+				"llm":             "gpt-4",
+				"agents":          []string{"data-analyst", "code-reviewer"},
+				"mcp_tools":       []string{"filesystem", "database"},
+				"autonomous_mode": "enabled",
+				"cost_limit":      100.50,
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			201,
+			"should create robot with all fields successfully",
+		},
+		{
+			"create robot with required fields only",
+			teamID,
+			map[string]interface{}{
+				"name":   "AI Assistant Min",
+				"email":  fmt.Sprintf("ai-min-%s@test.com", testUUID),
+				"role":   "member",
+				"prompt": "You are a basic assistant",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			201,
+			"should create robot with required fields only",
+		},
+		{
+			"create robot with autonomous_mode variations",
+			teamID,
+			map[string]interface{}{
+				"name":            "AI Assistant Auto",
+				"email":           fmt.Sprintf("ai-auto-%s@test.com", testUUID),
+				"role":            "member",
+				"prompt":          "You are an autonomous assistant",
+				"autonomous_mode": "1", // Test numeric string
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			201,
+			"should handle autonomous_mode=1",
+		},
+		{
+			"create robot with disabled autonomous_mode",
+			teamID,
+			map[string]interface{}{
+				"name":            "AI Assistant Manual",
+				"email":           fmt.Sprintf("ai-manual-%s@test.com", testUUID),
+				"role":            "member",
+				"prompt":          "You are a manual assistant",
+				"autonomous_mode": "disabled",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			201,
+			"should handle autonomous_mode=disabled",
+		},
+		{
+			"create robot without name",
+			teamID,
+			map[string]interface{}{
+				"email":  "no-name@test.com",
+				"role":   "member",
+				"prompt": "You are an assistant",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should require name",
+		},
+		{
+			"create robot without email",
+			teamID,
+			map[string]interface{}{
+				"name":   "No Email Robot",
+				"role":   "member",
+				"prompt": "You are an assistant",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should require email",
+		},
+		{
+			"create robot without role",
+			teamID,
+			map[string]interface{}{
+				"name":   "No Role Robot",
+				"email":  "no-role@test.com",
+				"prompt": "You are an assistant",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should require role",
+		},
+		{
+			"create robot without prompt",
+			teamID,
+			map[string]interface{}{
+				"name":  "No Prompt Robot",
+				"email": "no-prompt@test.com",
+				"role":  "member",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should require prompt",
+		},
+		{
+			"create robot with duplicate email",
+			teamID,
+			map[string]interface{}{
+				"name":   "Duplicate Email Robot",
+				"email":  fmt.Sprintf("ai-full-%s@test.com", testUUID), // Same as first successful case
+				"role":   "member",
+				"prompt": "You are an assistant",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			409,
+			"should reject duplicate email in same team",
+		},
+		{
+			"create robot in non-existent team",
+			"non-existent-team-id",
+			map[string]interface{}{
+				"name":   "Robot in Void",
+				"email":  "void@test.com",
+				"role":   "member",
+				"prompt": "You are lost",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent team",
+		},
+		{
+			"create robot with invalid JSON",
+			teamID,
+			nil, // Will send invalid JSON
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should handle invalid JSON",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/robots"
+
+			var req *http.Request
+			var err error
+
+			if tc.body == nil {
+				// Send invalid JSON for invalid JSON test case
+				req, err = http.NewRequest("POST", requestURL, bytes.NewBufferString("invalid json"))
+			} else {
+				bodyBytes, _ := json.Marshal(tc.body)
+				req, err = http.NewRequest("POST", requestURL, bytes.NewBuffer(bodyBytes))
+			}
+			assert.NoError(t, err, "Should create HTTP request")
+
+			req.Header.Set("Content-Type", "application/json")
+
+			// Add headers
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			assert.NoError(t, err, "HTTP request should succeed")
+
+			if resp != nil {
+				defer resp.Body.Close()
+				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
+
+				body, err := io.ReadAll(resp.Body)
+				assert.NoError(t, err, "Should read response body")
+
+				if resp.StatusCode == 201 {
+					// Parse response as created member
+					var response map[string]interface{}
+					err = json.Unmarshal(body, &response)
+					assert.NoError(t, err, "Should parse JSON response")
+
+					// Verify response structure
+					assert.Contains(t, response, "member_id", "Should have member_id")
+					assert.NotEmpty(t, response["member_id"], "Member ID should not be empty")
+
+					// Verify the member was created with correct type
+					memberID := toString(response["member_id"])
+					getMemberURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/" + memberID
+					getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+					getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+					getResp, err := client.Do(getReq)
+					if err == nil && getResp != nil {
+						defer getResp.Body.Close()
+						if getResp.StatusCode == 200 {
+							var member map[string]interface{}
+							getBody, _ := io.ReadAll(getResp.Body)
+							json.Unmarshal(getBody, &member)
+
+							// Verify robot member fields
+							assert.Equal(t, "robot", member["member_type"], "Should be robot member type")
+							if tc.body["name"] != nil {
+								assert.Equal(t, tc.body["name"], member["display_name"], "Should have correct display_name")
+							}
+							if tc.body["email"] != nil {
+								assert.Equal(t, tc.body["email"], member["email"], "Should have correct email")
+							}
+							if tc.body["prompt"] != nil {
+								assert.Equal(t, tc.body["prompt"], member["system_prompt"], "Should have correct system_prompt")
+							}
+						}
+					}
+				}
+
+				t.Logf("Robot member create test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
+			}
+		})
+	}
+}
+
+// toString converts interface{} to string for test assertions
+func toString(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case float64:
+		return fmt.Sprintf("%.0f", val)
+	case int:
+		return fmt.Sprintf("%d", val)
+	case int64:
+		return fmt.Sprintf("%d", val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
 }
 
 // Note: getTeamID function is already defined in team_test.go

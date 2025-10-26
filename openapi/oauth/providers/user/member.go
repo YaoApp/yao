@@ -193,6 +193,26 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 		return 0, fmt.Errorf("role_id is required for robot members")
 	}
 
+	// Check if email already exists in this team
+	if email, exists := robotData["email"]; exists && email != nil && email != "" {
+		emailStr := fmt.Sprintf("%v", email)
+		m := model.Select(u.memberModel)
+		existingMembers, err := m.Get(model.QueryParam{
+			Select: []interface{}{"id"},
+			Wheres: []model.QueryWhere{
+				{Column: "team_id", Value: teamID},
+				{Column: "email", Value: emailStr},
+			},
+			Limit: 1,
+		})
+		if err != nil {
+			return 0, fmt.Errorf("failed to check email uniqueness: %w", err)
+		}
+		if len(existingMembers) > 0 {
+			return 0, fmt.Errorf("email %s already exists in this team", emailStr)
+		}
+	}
+
 	memberData := maps.MapStrAny{
 		"team_id":     teamID,
 		"member_type": "robot",
@@ -202,7 +222,7 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 
 	// Copy shared profile fields (used by both users and robots)
 	profileFields := []string{
-		"display_name", "bio", "avatar",
+		"display_name", "bio", "avatar", "email",
 	}
 	for _, field := range profileFields {
 		if value, exists := robotData[field]; exists {
