@@ -295,7 +295,15 @@ func (u *DefaultUser) UpdatePassword(ctx context.Context, userID string, newPass
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateUser, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made (same password)
 	}
 
 	return nil
@@ -327,7 +335,15 @@ func (u *DefaultUser) ResetPassword(ctx context.Context, userID string) (string,
 	}
 
 	if affected == 0 {
-		return "", fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return "", fmt.Errorf(ErrFailedToUpdateUser, checkErr)
+		}
+		if !exists {
+			return "", fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made
 	}
 
 	return randomPassword, nil
@@ -400,7 +416,15 @@ func (u *DefaultUser) UpdateUser(ctx context.Context, userID string, userData ma
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrUserNotFound)
+		// Check if user exists
+		exists, checkErr := u.UserExists(ctx, userID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateUser, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrUserNotFound)
+		}
+		// User exists but no changes were made
 	}
 
 	return nil

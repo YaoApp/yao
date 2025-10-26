@@ -2,6 +2,7 @@ package user_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/tests/testutils"
 )
@@ -264,193 +266,6 @@ func TestMemberGet(t *testing.T) {
 				}
 
 				t.Logf("Member get test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
-			}
-		})
-	}
-}
-
-// TestMemberCreateDirect tests the POST /user/teams/:team_id/members endpoint
-func TestMemberCreateDirect(t *testing.T) {
-	// Initialize test environment
-	serverURL := testutils.Prepare(t)
-	defer testutils.Clean()
-
-	// Get base URL from server config
-	baseURL := ""
-	if openapi.Server != nil && openapi.Server.Config != nil {
-		baseURL = openapi.Server.Config.BaseURL
-	}
-
-	// Register a test client for OAuth authentication
-	testClient := testutils.RegisterTestClient(t, "Member Create Test Client", []string{"https://localhost/callback"})
-	defer testutils.CleanupTestClient(t, testClient.ClientID)
-
-	// Obtain access token for authenticated requests
-	tokenInfo := testutils.ObtainAccessToken(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile")
-
-	// Create a test team
-	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Member Create Test Team")
-	teamID := getTeamID(createdTeam)
-
-	testCases := []struct {
-		name       string
-		teamID     string
-		body       map[string]interface{}
-		headers    map[string]string
-		expectCode int
-		expectMsg  string
-	}{
-		{
-			"create member without authentication",
-			teamID,
-			map[string]interface{}{
-				"user_id": "test-user-123",
-				"role_id": "member",
-			},
-			map[string]string{},
-			401,
-			"should require authentication",
-		},
-		{
-			"create member with valid data",
-			teamID,
-			map[string]interface{}{
-				"user_id":     "test-user-123",
-				"member_type": "user",
-				"role_id":     "member",
-			},
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			201,
-			"should create member successfully",
-		},
-		{
-			"create member with settings",
-			teamID,
-			map[string]interface{}{
-				"user_id":     "test-user-456",
-				"member_type": "user",
-				"role_id":     "admin",
-				"settings": map[string]interface{}{
-					"notifications": true,
-					"permissions":   []string{"read", "write"},
-				},
-			},
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			201,
-			"should create member with settings",
-		},
-		{
-			"create member without user_id",
-			teamID,
-			map[string]interface{}{
-				"role_id": "member",
-			},
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			400,
-			"should require user_id",
-		},
-		{
-			"create member without role_id",
-			teamID,
-			map[string]interface{}{
-				"user_id": "test-user-789",
-			},
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			400,
-			"should require role_id",
-		},
-		{
-			"create duplicate member",
-			teamID,
-			map[string]interface{}{
-				"user_id": "test-user-123", // Same as first successful case
-				"role_id": "member",
-			},
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			409,
-			"should reject duplicate member",
-		},
-		{
-			"create member in non-existent team",
-			"non-existent-team-id",
-			map[string]interface{}{
-				"user_id": "test-user-999",
-				"role_id": "member",
-			},
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			404,
-			"should return not found for non-existent team",
-		},
-		{
-			"create member with invalid JSON",
-			teamID,
-			nil, // Will send invalid JSON
-			map[string]string{
-				"Authorization": "Bearer " + tokenInfo.AccessToken,
-			},
-			400,
-			"should handle invalid JSON",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members"
-
-			var req *http.Request
-			var err error
-
-			if tc.body == nil {
-				// Send invalid JSON for invalid JSON test case
-				req, err = http.NewRequest("POST", requestURL, bytes.NewBufferString("invalid json"))
-			} else {
-				bodyBytes, _ := json.Marshal(tc.body)
-				req, err = http.NewRequest("POST", requestURL, bytes.NewBuffer(bodyBytes))
-			}
-			assert.NoError(t, err, "Should create HTTP request")
-
-			req.Header.Set("Content-Type", "application/json")
-
-			// Add headers
-			for key, value := range tc.headers {
-				req.Header.Set(key, value)
-			}
-
-			client := &http.Client{}
-			resp, err := client.Do(req)
-			assert.NoError(t, err, "HTTP request should succeed")
-
-			if resp != nil {
-				defer resp.Body.Close()
-				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
-
-				body, err := io.ReadAll(resp.Body)
-				assert.NoError(t, err, "Should read response body")
-
-				if resp.StatusCode == 201 {
-					// Parse response as created member
-					var response map[string]interface{}
-					err = json.Unmarshal(body, &response)
-					assert.NoError(t, err, "Should parse JSON response")
-
-					// Verify response structure
-					assert.Contains(t, response, "member_id", "Should have member_id")
-					assert.NotEmpty(t, response["member_id"], "Member ID should not be empty")
-				}
-
-				t.Logf("Member create test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
 			}
 		})
 	}
@@ -820,22 +635,6 @@ func TestMemberPermissionVerification(t *testing.T) {
 			"member should be able to get member details",
 		},
 		{
-			"owner can create members",
-			"/user/teams/" + teamID + "/members",
-			"POST",
-			ownerToken.AccessToken,
-			201, // Will create successfully
-			"owner should be able to create members",
-		},
-		{
-			"member cannot create members",
-			"/user/teams/" + teamID + "/members",
-			"POST",
-			nonOwnerToken.AccessToken,
-			403,
-			"member should not be able to create members",
-		},
-		{
 			"owner can update members",
 			"/user/teams/" + teamID + "/members/" + memberID,
 			"PUT",
@@ -944,42 +743,32 @@ func createTestTeam(t *testing.T, serverURL, baseURL, accessToken, teamName stri
 	return team
 }
 
-// createTestMember creates a member for testing and returns the user_id (which serves as member_id in API context)
+// createTestMember creates a member for testing using provider directly (no API call).
+// This is the recommended approach since direct member creation endpoint was removed.
+// Members should normally be added via invitation flow or robot creation endpoint.
+// Returns the user_id which serves as member_id in API context.
 func createTestMember(t *testing.T, serverURL, baseURL, teamID, accessToken, userID string) string {
-	createMemberBody := map[string]interface{}{
+	// Get user provider for direct database operations
+	provider := testutils.GetUserProvider(t)
+	ctx := context.Background()
+
+	// Create member data using maps.MapStrAny (required by UserProvider interface)
+	memberData := maps.MapStrAny{
+		"team_id":     teamID,
 		"user_id":     userID,
 		"member_type": "user",
-		"role_id":     "member",
+		"role_id":     "team:member",
+		"status":      "active",
 	}
 
-	bodyBytes, err := json.Marshal(createMemberBody)
-	assert.NoError(t, err, "Should marshal member creation body")
+	// Create member directly in database
+	memberID, err := provider.CreateMember(ctx, memberData)
+	assert.NoError(t, err, "Should create member in database")
+	assert.NotEmpty(t, memberID, "Member ID should not be empty")
 
-	req, err := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members", bytes.NewBuffer(bodyBytes))
-	assert.NoError(t, err, "Should create member creation request")
+	t.Logf("Created test member directly in database: user_id=%s, member_id=%s, team_id=%s", userID, memberID, teamID)
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	assert.NoError(t, err, "Should send member creation request")
-	defer resp.Body.Close()
-
-	assert.Equal(t, 201, resp.StatusCode, "Should create member successfully")
-
-	body, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err, "Should read member creation response")
-
-	var response map[string]interface{}
-	err = json.Unmarshal(body, &response)
-	assert.NoError(t, err, "Should parse member creation response")
-
-	_, ok := response["member_id"]
-	assert.True(t, ok, "Should have member_id in response")
-
-	// For API purposes, the member_id is the user_id in the context of team_id
-	// So we return the user_id that was used to create the member
+	// Return user_id (which is used as member identifier in API context)
 	return userID
 }
 
@@ -1330,6 +1119,164 @@ func toString(v interface{}) string {
 		return fmt.Sprintf("%d", val)
 	default:
 		return fmt.Sprintf("%v", val)
+	}
+}
+
+// TestMemberCheckEmail tests the GET /user/teams/:team_id/members/check endpoint
+func TestMemberCheckEmail(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Register a test client for OAuth authentication
+	testClient := testutils.RegisterTestClient(t, "Member Check Email Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token for authenticated requests
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile")
+
+	// Use UUID to ensure unique test data
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create a test team
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Email Check Test Team "+testUUID)
+	teamID := getTeamID(createdTeam)
+
+	// Create a robot member with a known email
+	existingEmail := fmt.Sprintf("existing-robot-%s@test.com", testUUID)
+	robotBody := map[string]interface{}{
+		"name":   "Existing Robot",
+		"email":  existingEmail,
+		"role":   "member",
+		"prompt": "You are a test robot",
+	}
+	robotBodyBytes, _ := json.Marshal(robotBody)
+	robotReq, _ := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/robots", bytes.NewBuffer(robotBodyBytes))
+	robotReq.Header.Set("Content-Type", "application/json")
+	robotReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+	client := &http.Client{}
+	robotResp, err := client.Do(robotReq)
+	assert.NoError(t, err)
+	if robotResp != nil {
+		robotResp.Body.Close()
+		assert.Equal(t, 201, robotResp.StatusCode, "Should create robot member successfully")
+	}
+
+	testCases := []struct {
+		name         string
+		teamID       string
+		email        string
+		headers      map[string]string
+		expectCode   int
+		expectExists bool
+		expectMsg    string
+	}{
+		{
+			"check email without authentication",
+			teamID,
+			existingEmail,
+			map[string]string{},
+			401,
+			false,
+			"should require authentication",
+		},
+		{
+			"check existing email",
+			teamID,
+			existingEmail,
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			true,
+			"should return exists=true for existing email",
+		},
+		{
+			"check non-existing email",
+			teamID,
+			fmt.Sprintf("nonexistent-%s@test.com", testUUID),
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			false,
+			"should return exists=false for non-existing email",
+		},
+		{
+			"check email without email parameter",
+			teamID,
+			"",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			false,
+			"should require email parameter",
+		},
+		{
+			"check email in non-existent team",
+			"non-existent-team-id",
+			"test@example.com",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			false,
+			"should return not found for non-existent team",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/check"
+			if tc.email != "" {
+				requestURL += "?email=" + tc.email
+			}
+
+			req, err := http.NewRequest("GET", requestURL, nil)
+			assert.NoError(t, err, "Should create HTTP request")
+
+			// Add headers
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+
+			resp, err := client.Do(req)
+			assert.NoError(t, err, "HTTP request should succeed")
+
+			if resp != nil {
+				defer resp.Body.Close()
+				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
+
+				body, err := io.ReadAll(resp.Body)
+				assert.NoError(t, err, "Should read response body")
+
+				if resp.StatusCode == 200 {
+					// Parse response
+					var response map[string]interface{}
+					err = json.Unmarshal(body, &response)
+					assert.NoError(t, err, "Should parse JSON response")
+
+					// Verify response structure
+					assert.Contains(t, response, "exists", "Should have exists field")
+					assert.Contains(t, response, "email", "Should have email field")
+					assert.Contains(t, response, "team_id", "Should have team_id field")
+
+					// Verify values
+					assert.Equal(t, tc.expectExists, response["exists"], "Should have correct exists value")
+					assert.Equal(t, tc.email, response["email"], "Should have correct email")
+					assert.Equal(t, teamID, response["team_id"], "Should have correct team_id")
+				}
+
+				t.Logf("Member check email test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
+			}
+		})
 	}
 }
 

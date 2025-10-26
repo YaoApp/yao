@@ -115,7 +115,15 @@ func (u *DefaultUser) UpdateRole(ctx context.Context, roleID string, roleData ma
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrRoleNotFound)
+		// Check if role exists
+		exists, checkErr := u.RoleExists(ctx, roleID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateRole, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrRoleNotFound)
+		}
+		// Role exists but no changes were made
 	}
 
 	return nil
@@ -280,7 +288,15 @@ func (u *DefaultUser) SetRolePermissions(ctx context.Context, roleID string, per
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrRoleNotFound)
+		// Check if role exists
+		exists, checkErr := u.RoleExists(ctx, roleID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateRole, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrRoleNotFound)
+		}
+		// Role exists but no changes were made (same permissions)
 	}
 
 	return nil

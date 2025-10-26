@@ -463,7 +463,7 @@ func setupACLTestData(t *testing.T, ctx context.Context, provider types.UserProv
 	data := &ACLTestData{
 		UserIDs:   make([]string, 0),
 		TeamIDs:   make([]string, 0),
-		MemberIDs: make([]int64, 0),
+		MemberIDs: make([]string, 0),
 	}
 
 	// Set up roles first
@@ -577,7 +577,7 @@ func cleanupACLTestData(t *testing.T, ctx context.Context, provider types.UserPr
 type ACLTestData struct {
 	UserIDs   []string
 	TeamIDs   []string
-	MemberIDs []int64
+	MemberIDs []string
 }
 
 // TestEnforceIntegration tests the complete enforcement flow

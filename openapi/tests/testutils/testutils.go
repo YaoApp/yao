@@ -1036,3 +1036,30 @@ func createTestUser(t *testing.T, server *openapi.OpenAPI, clientID string) (str
 	t.Logf("Created test user: %s with subject: %s", testUserID, subject)
 	return testUserID, subject
 }
+
+// GetUserProvider returns the UserProvider instance for direct database operations in tests.
+// This is useful for creating test data directly without going through API endpoints.
+//
+// USAGE:
+//
+//	provider := testutils.GetUserProvider(t)
+//	memberID, err := provider.CreateMember(ctx, memberData)
+//
+// ERROR HANDLING:
+// If the provider is not available, the test will fail immediately with a descriptive error message.
+func GetUserProvider(t *testing.T) types.UserProvider {
+	testMutex.RLock()
+	defer testMutex.RUnlock()
+
+	oauthService := oauth.OAuth
+	if oauthService == nil {
+		t.Fatal("Global OAuth service not initialized. Call Prepare(t) first.")
+	}
+
+	provider, err := oauthService.GetUserProvider()
+	if err != nil || provider == nil {
+		t.Fatalf("UserProvider not available: %v", err)
+	}
+
+	return provider
+}

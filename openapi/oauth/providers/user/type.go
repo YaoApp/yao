@@ -115,7 +115,15 @@ func (u *DefaultUser) UpdateType(ctx context.Context, typeID string, typeData ma
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTypeNotFound)
+		// Check if type exists
+		exists, checkErr := u.TypeExists(ctx, typeID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateType, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTypeNotFound)
+		}
+		// Type exists but no changes were made
 	}
 
 	return nil
@@ -285,7 +293,15 @@ func (u *DefaultUser) SetTypeConfiguration(ctx context.Context, typeID string, c
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTypeNotFound)
+		// Check if type exists
+		exists, checkErr := u.TypeExists(ctx, typeID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateType, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTypeNotFound)
+		}
+		// Type exists but no changes were made
 	}
 
 	return nil
@@ -424,7 +440,15 @@ func (u *DefaultUser) SetTypePricing(ctx context.Context, typeID string, pricing
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTypeNotFound)
+		// Check if type exists
+		exists, checkErr := u.TypeExists(ctx, typeID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateType, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTypeNotFound)
+		}
+		// Type exists but no changes were made
 	}
 
 	return nil
@@ -458,7 +482,15 @@ func (u *DefaultUser) UpdateTypeStatus(ctx context.Context, typeID string, statu
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrTypeNotFound)
+		// Check if type exists
+		exists, checkErr := u.TypeExists(ctx, typeID)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUpdateType, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrTypeNotFound)
+		}
+		// Type exists but no changes were made (already has this status)
 	}
 
 	return nil

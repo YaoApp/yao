@@ -115,6 +115,79 @@ func (u *DefaultUser) generateInvitationID() (string, error) {
 	return prefix + id, nil
 }
 
+// generateMemberID generates a new member_id based on configured strategy (internal use)
+func (u *DefaultUser) generateMemberID() (string, error) {
+	var id string
+	var err error
+
+	switch u.idStrategy {
+	case UUIDStrategy:
+		id, err = generateUUID()
+	case NanoIDStrategy:
+		id, err = generateNanoID(12) // 12 characters, URL-safe, readable
+	case NumericStrategy:
+		id, err = generateNumericID(12) // 12 characters, numeric, readable (default)
+	default:
+		id, err = generateNumericID(12) // 12 characters, URL-safe, readable
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	// Add prefix if configured
+	if u.idPrefix != "" {
+		return u.idPrefix + id, nil
+	}
+
+	return id, nil
+}
+
+// generateMemberIDWithRetry generates a unique member_id with collision detection
+func (u *DefaultUser) generateMemberIDWithRetry(ctx context.Context) (string, error) {
+	const maxRetries = 10 // Prevent infinite loops
+
+	for i := 0; i < maxRetries; i++ {
+		// Generate new ID
+		id, err := u.generateMemberID()
+		if err != nil {
+			return "", fmt.Errorf("failed to generate member_id: %w", err)
+		}
+
+		// Check if ID already exists
+		exists, err := u.memberIDExists(ctx, id)
+		if err != nil {
+			return "", fmt.Errorf("failed to check member_id existence: %w", err)
+		}
+
+		if !exists {
+			return id, nil // Found unique ID
+		}
+
+		// ID exists, retry with new generation
+	}
+
+	return "", fmt.Errorf("failed to generate unique member_id after %d retries", maxRetries)
+}
+
+// memberIDExists checks if a member_id already exists in the database
+func (u *DefaultUser) memberIDExists(ctx context.Context, memberID string) (bool, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Just get primary key, minimal data
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return len(members) > 0, nil
+}
+
 // userIDExists checks if a user_id already exists in the database
 func (u *DefaultUser) userIDExists(ctx context.Context, userID string) (bool, error) {
 	m := model.Select(u.model)

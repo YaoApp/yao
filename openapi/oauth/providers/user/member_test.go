@@ -40,7 +40,7 @@ func TestMemberBasicOperations(t *testing.T) {
 	teamID, err := testProvider.CreateTeam(ctx, teamMap)
 	assert.NoError(t, err)
 
-	var memberID int64
+	var businessMemberID string
 
 	// Test CreateMember
 	t.Run("CreateMember", func(t *testing.T) {
@@ -52,10 +52,10 @@ func TestMemberBasicOperations(t *testing.T) {
 			"status":      "active",
 		}
 
-		id, err := testProvider.CreateMember(ctx, memberData)
+		memberID, err := testProvider.CreateMember(ctx, memberData)
 		assert.NoError(t, err)
-		assert.Greater(t, id, int64(0))
-		memberID = id
+		assert.NotEmpty(t, memberID)
+		businessMemberID = memberID
 	})
 
 	// Test GetMember
@@ -81,13 +81,15 @@ func TestMemberBasicOperations(t *testing.T) {
 		assert.Contains(t, member, "updated_at")
 	})
 
-	// Test GetMemberByID
-	t.Run("GetMemberByID", func(t *testing.T) {
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+	// Test GetMemberByMemberID
+	t.Run("GetMemberByMemberID", func(t *testing.T) {
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 		assert.NotNil(t, member)
 		assert.Equal(t, teamID, member["team_id"])
 		assert.Equal(t, memberUser, member["user_id"])
+		// Verify member_id is returned
+		assert.Equal(t, businessMemberID, member["member_id"])
 	})
 
 	// Test MemberExists
@@ -129,22 +131,22 @@ func TestMemberBasicOperations(t *testing.T) {
 		assert.NoError(t, err) // Should not error, just ignore sensitive fields
 	})
 
-	// Test UpdateMemberByID
-	t.Run("UpdateMemberByID", func(t *testing.T) {
+	// Test UpdateMemberByMemberID
+	t.Run("UpdateMemberByMemberID", func(t *testing.T) {
 		updateData := maps.MapStrAny{
 			"status": "inactive",
 		}
 
-		err := testProvider.UpdateMemberByID(ctx, memberID, updateData)
+		err := testProvider.UpdateMemberByMemberID(ctx, businessMemberID, updateData)
 		assert.NoError(t, err)
 
 		// Verify update
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 		assert.Equal(t, "inactive", member["status"])
 
 		// Change back to active for other tests
-		err = testProvider.UpdateMemberByID(ctx, memberID, maps.MapStrAny{"status": "active"})
+		err = testProvider.UpdateMemberByMemberID(ctx, businessMemberID, maps.MapStrAny{"status": "active"})
 		assert.NoError(t, err)
 	})
 
@@ -249,7 +251,7 @@ func TestMemberInvitationFlow(t *testing.T) {
 	t.Run("AddMember", func(t *testing.T) {
 		memberID, err := testProvider.AddMember(ctx, teamID, inviteeUser, "user", ownerUser)
 		assert.NoError(t, err)
-		assert.Greater(t, memberID, int64(0))
+		assert.NotEmpty(t, memberID)
 
 		// Verify member was created with pending status
 		member, err := testProvider.GetMember(ctx, teamID, inviteeUser)
@@ -335,7 +337,7 @@ func TestRobotMemberOperations(t *testing.T) {
 	teamID, err := testProvider.CreateTeam(ctx, teamMap)
 	assert.NoError(t, err)
 
-	var robotMemberID int64
+	var robotBusinessMemberID string
 
 	// Test CreateRobotMember
 	t.Run("CreateRobotMember", func(t *testing.T) {
@@ -355,13 +357,13 @@ func TestRobotMemberOperations(t *testing.T) {
 			},
 		}
 
-		id, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
+		memberID, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
 		assert.NoError(t, err)
-		assert.Greater(t, id, int64(0))
-		robotMemberID = id
+		assert.NotEmpty(t, memberID)
+		robotBusinessMemberID = memberID
 
 		// Verify robot member was created
-		member, err := testProvider.GetMemberByID(ctx, robotMemberID)
+		member, err := testProvider.GetMemberByMemberID(ctx, robotBusinessMemberID)
 		assert.NoError(t, err)
 		assert.Equal(t, "robot", member["member_type"])
 		assert.Equal(t, "active", member["status"]) // Robots are active by default
@@ -378,16 +380,29 @@ func TestRobotMemberOperations(t *testing.T) {
 		assert.Equal(t, "A test robot for unit testing", robots[0]["bio"])
 	})
 
-	// Test UpdateRobotActivity
+	// Test UpdateRobotActivity - needs internal database ID
 	t.Run("UpdateRobotActivity", func(t *testing.T) {
-		err := testProvider.UpdateRobotActivity(ctx, robotMemberID, "working")
-		assert.NoError(t, err)
-
-		// Verify robot activity was updated (use GetMemberDetail for full fields)
-		// First get team_id for the robot
-		member, err := testProvider.GetMemberByID(ctx, robotMemberID)
+		// Get internal database ID from member_id
+		member, err := testProvider.GetMemberByMemberID(ctx, robotBusinessMemberID)
 		assert.NoError(t, err)
 		robotTeamID := member["team_id"].(string)
+
+		// UpdateRobotActivity still uses internal database ID
+		// We need to query the database to get it
+		m := model.Select("__yao.member")
+		result, err := m.Get(model.QueryParam{
+			Select: []interface{}{"id"},
+			Wheres: []model.QueryWhere{
+				{Column: "member_id", Value: robotBusinessMemberID},
+			},
+			Limit: 1,
+		})
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		robotDBID := result[0]["id"].(int64)
+
+		err = testProvider.UpdateRobotActivity(ctx, robotDBID, "working")
+		assert.NoError(t, err)
 
 		// Get robot members to verify status (robot members don't have user_id)
 		robots, err := testProvider.GetTeamRobotMembers(ctx, robotTeamID)
@@ -401,16 +416,11 @@ func TestRobotMemberOperations(t *testing.T) {
 	// Test GetActiveRobotMembers
 	t.Run("GetActiveRobotMembers", func(t *testing.T) {
 		// First make sure our robot is active
-		err := testProvider.UpdateMemberByID(ctx, robotMemberID, maps.MapStrAny{
+		err := testProvider.UpdateMemberByMemberID(ctx, robotBusinessMemberID, maps.MapStrAny{
 			"autonomous_mode": true,
 			"status":          "active",
 		})
-		if err != nil {
-			// If update fails, log the error and skip the test
-			t.Logf("Failed to update robot member: %v", err)
-			t.Skip("Robot member update failed, skipping GetActiveRobotMembers test")
-			return
-		}
+		assert.NoError(t, err)
 
 		robots, err := testProvider.GetActiveRobotMembers(ctx)
 		assert.NoError(t, err)
@@ -741,11 +751,11 @@ func TestMemberInvitationExpiry(t *testing.T) {
 		"invitation_expires_at": expiredTime, // Expired 2 hours ago
 	}
 
-	memberID, err := testProvider.CreateMember(ctx, memberData)
+	businessMemberID, err := testProvider.CreateMember(ctx, memberData)
 	assert.NoError(t, err)
 
 	// Get the invitation_id
-	member, err := testProvider.GetMemberByID(ctx, memberID)
+	member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 	assert.NoError(t, err)
 	invitationID := member["invitation_id"].(string)
 	assert.NotEmpty(t, invitationID)
@@ -799,12 +809,12 @@ func TestMemberInvitationIDOperations(t *testing.T) {
 			"invited_by":  ownerUser,
 		}
 
-		memberID, err := testProvider.CreateMember(ctx, memberData)
+		businessMemberID, err := testProvider.CreateMember(ctx, memberData)
 		assert.NoError(t, err)
-		assert.Greater(t, memberID, int64(0))
+		assert.NotEmpty(t, businessMemberID)
 
 		// Get the created member to verify invitation_id was generated
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 		assert.NotNil(t, member["invitation_id"])
 		assert.NotEmpty(t, member["invitation_id"])
@@ -937,11 +947,11 @@ func TestCreateMemberInvitationIDGeneration(t *testing.T) {
 			"invited_by":  ownerUser,
 		}
 
-		memberID, err := testProvider.CreateMember(ctx, memberData)
+		businessMemberID, err := testProvider.CreateMember(ctx, memberData)
 		assert.NoError(t, err)
 
 		// Get the created member
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 
 		// Verify invitation_id was generated
@@ -966,11 +976,11 @@ func TestCreateMemberInvitationIDGeneration(t *testing.T) {
 			"status":      "active",
 		}
 
-		memberID, err := testProvider.CreateMember(ctx, memberData)
+		businessMemberID, err := testProvider.CreateMember(ctx, memberData)
 		assert.NoError(t, err)
 
 		// Get the created member
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 
 		// Verify invitation_id is nil for active members
@@ -991,15 +1001,226 @@ func TestCreateMemberInvitationIDGeneration(t *testing.T) {
 			"invitation_id": explicitInvitationID,
 		}
 
-		memberID, err := testProvider.CreateMember(ctx, memberData)
+		businessMemberID, err := testProvider.CreateMember(ctx, memberData)
 		assert.NoError(t, err)
 
 		// Get the created member
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 
 		// Verify explicit invitation_id was preserved
 		assert.Equal(t, explicitInvitationID, member["invitation_id"])
+	})
+}
+
+func TestMemberIDOperations(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test users
+	ownerUser := createTestUser(ctx, t, "owner"+testUUID)
+	memberUser := createTestUser(ctx, t, "member"+testUUID)
+
+	// Create test team
+	teamMap := maps.MapStrAny{
+		"name":         "Member ID Test Team " + testUUID,
+		"display_name": "Member ID Test " + testUUID,
+		"description":  "A test team for member_id testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+		"type":         "corporation",
+		"type_id":      "business",
+		"metadata":     map[string]interface{}{"test": true},
+	}
+
+	teamID, err := testProvider.CreateTeam(ctx, teamMap)
+	assert.NoError(t, err)
+
+	var businessMemberID string
+
+	// Test CreateMember generates member_id
+	t.Run("CreateMember_GeneratesMemberID", func(t *testing.T) {
+		memberData := maps.MapStrAny{
+			"team_id":     teamID,
+			"user_id":     memberUser,
+			"member_type": "user",
+			"role_id":     "user",
+			"status":      "active",
+		}
+
+		_, err := testProvider.CreateMember(ctx, memberData)
+		assert.NoError(t, err)
+
+		// Get the created member to verify member_id was generated
+		member, err := testProvider.GetMember(ctx, teamID, memberUser)
+		assert.NoError(t, err)
+		assert.NotNil(t, member["member_id"])
+		assert.NotEmpty(t, member["member_id"])
+
+		businessMemberID = member["member_id"].(string)
+		t.Logf("Generated member_id: %s", businessMemberID)
+	})
+
+	// Test GetMemberByMemberID
+	t.Run("GetMemberByMemberID", func(t *testing.T) {
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member)
+		assert.Equal(t, businessMemberID, member["member_id"])
+		assert.Equal(t, teamID, member["team_id"])
+		assert.Equal(t, memberUser, member["user_id"])
+	})
+
+	// Test GetMemberDetailByMemberID
+	t.Run("GetMemberDetailByMemberID", func(t *testing.T) {
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member)
+		assert.Equal(t, businessMemberID, member["member_id"])
+		assert.Equal(t, teamID, member["team_id"])
+		// Should contain detailed fields
+		assert.Contains(t, member, "created_at")
+		assert.Contains(t, member, "updated_at")
+	})
+
+	// Test UpdateMemberByMemberID
+	t.Run("UpdateMemberByMemberID", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"role_id": "admin",
+			"notes":   "Updated via member_id",
+		}
+
+		err := testProvider.UpdateMemberByMemberID(ctx, businessMemberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, "admin", member["role_id"])
+	})
+
+	// Test UpdateMemberRoleByMemberID
+	t.Run("UpdateMemberRoleByMemberID", func(t *testing.T) {
+		err := testProvider.UpdateMemberRoleByMemberID(ctx, businessMemberID, "moderator")
+		assert.NoError(t, err)
+
+		// Verify role was updated
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, "moderator", member["role_id"])
+	})
+
+	// Test UpdateMemberStatusByMemberID
+	t.Run("UpdateMemberStatusByMemberID", func(t *testing.T) {
+		err := testProvider.UpdateMemberStatusByMemberID(ctx, businessMemberID, "suspended")
+		assert.NoError(t, err)
+
+		// Verify status was updated
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, "suspended", member["status"])
+
+		// Change back to active
+		err = testProvider.UpdateMemberStatusByMemberID(ctx, businessMemberID, "active")
+		assert.NoError(t, err)
+	})
+
+	// Test UpdateMemberLastActivityByMemberID
+	t.Run("UpdateMemberLastActivityByMemberID", func(t *testing.T) {
+		err := testProvider.UpdateMemberLastActivityByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+
+		// Verify last_active_at was updated and login_count incremented
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member["last_active_at"])
+		// login_count should be at least 1
+		loginCount := member["login_count"]
+		if loginCount != nil {
+			switch v := loginCount.(type) {
+			case int:
+				assert.True(t, v >= 1, "login_count should be at least 1")
+			case int64:
+				assert.True(t, v >= 1, "login_count should be at least 1")
+			case int32:
+				assert.True(t, v >= 1, "login_count should be at least 1")
+			default:
+				t.Logf("Unexpected login_count type: %T, value: %v", loginCount, loginCount)
+				assert.True(t, false, "login_count should be a numeric type")
+			}
+		} else {
+			assert.True(t, false, "login_count should not be nil")
+		}
+	})
+
+	// Test RemoveMemberByMemberID (at the end)
+	t.Run("RemoveMemberByMemberID", func(t *testing.T) {
+		err := testProvider.RemoveMemberByMemberID(ctx, businessMemberID)
+		assert.NoError(t, err)
+
+		// Verify member was removed
+		_, err = testProvider.GetMemberByMemberID(ctx, businessMemberID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "member not found")
+	})
+}
+
+func TestMemberExistsByTeamEmail(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test users
+	ownerUser := createTestUser(ctx, t, "owner"+testUUID)
+
+	// Create test team
+	teamMap := maps.MapStrAny{
+		"name":         "Email Test Team " + testUUID,
+		"display_name": "Email Test " + testUUID,
+		"description":  "A test team for email testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+	}
+
+	teamID, err := testProvider.CreateTeam(ctx, teamMap)
+	assert.NoError(t, err)
+
+	testEmail := "test" + testUUID + "@example.com"
+
+	// Create robot member with email
+	t.Run("CreateRobotMemberWithEmail", func(t *testing.T) {
+		robotData := maps.MapStrAny{
+			"display_name": "TestBot" + testUUID,
+			"email":        testEmail,
+			"role_id":      "bot",
+		}
+
+		businessMemberID, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, businessMemberID)
+	})
+
+	// Test MemberExistsByTeamEmail
+	t.Run("MemberExistsByTeamEmail_Exists", func(t *testing.T) {
+		exists, err := testProvider.MemberExistsByTeamEmail(ctx, teamID, testEmail)
+		assert.NoError(t, err)
+		assert.True(t, exists)
+	})
+
+	// Test with non-existent email
+	t.Run("MemberExistsByTeamEmail_NotExists", func(t *testing.T) {
+		exists, err := testProvider.MemberExistsByTeamEmail(ctx, teamID, "nonexistent@example.com")
+		assert.NoError(t, err)
+		assert.False(t, exists)
 	})
 }
 

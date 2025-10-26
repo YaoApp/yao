@@ -11,6 +11,24 @@ import (
 
 // Invitation Code Resource (Official Platform Invitation Codes)
 
+// invitationCodeExists checks if an invitation code exists by code
+func (u *DefaultUser) invitationCodeExists(ctx context.Context, code string) (bool, error) {
+	m := model.Select(u.invitationModel)
+	invitations, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"},
+		Wheres: []model.QueryWhere{
+			{Column: "code", Value: code},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf("failed to check invitation code existence: %w", err)
+	}
+
+	return len(invitations) > 0, nil
+}
+
 // CreateInvitationCodes creates invitation codes in batch
 // Supports creating multiple invitation codes at once for efficiency
 func (u *DefaultUser) CreateInvitationCodes(ctx context.Context, codeData []maps.MapStrAny) ([]string, error) {
@@ -162,7 +180,15 @@ func (u *DefaultUser) UseInvitationCode(ctx context.Context, code string, userID
 	}
 
 	if affected == 0 {
-		return fmt.Errorf(ErrInvitationCodeNotFound)
+		// Check if invitation code still exists
+		exists, checkErr := u.invitationCodeExists(ctx, code)
+		if checkErr != nil {
+			return fmt.Errorf(ErrFailedToUseInvitationCode, checkErr)
+		}
+		if !exists {
+			return fmt.Errorf(ErrInvitationCodeNotFound)
+		}
+		// Invitation code exists but no changes were made (already in this state)
 	}
 
 	return nil

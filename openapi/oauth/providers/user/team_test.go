@@ -330,14 +330,14 @@ func TestTeamMemberOperations(t *testing.T) {
 	teamID, err := testProvider.CreateTeam(ctx, teamMap)
 	assert.NoError(t, err)
 
-	var memberID int64
+	var businessMemberID string
 
 	// Test AddMember (invitation-based)
 	t.Run("AddMember", func(t *testing.T) {
-		id, err := testProvider.AddMember(ctx, teamID, memberUser, "user", ownerUser)
+		memberID, err := testProvider.AddMember(ctx, teamID, memberUser, "user", ownerUser)
 		assert.NoError(t, err)
-		assert.Greater(t, id, int64(0))
-		memberID = id
+		assert.NotEmpty(t, memberID)
+		businessMemberID = memberID
 	})
 
 	// Test MemberExists
@@ -362,9 +362,9 @@ func TestTeamMemberOperations(t *testing.T) {
 		assert.Equal(t, "pending", member["status"]) // Initially pending
 	})
 
-	// Test GetMemberByID
-	t.Run("GetMemberByID", func(t *testing.T) {
-		member, err := testProvider.GetMemberByID(ctx, memberID)
+	// Test GetMemberByMemberID
+	t.Run("GetMemberByMemberID", func(t *testing.T) {
+		member, err := testProvider.GetMemberByMemberID(ctx, businessMemberID)
 		assert.NoError(t, err)
 		assert.NotNil(t, member)
 		assert.Equal(t, teamID, member["team_id"])
@@ -462,9 +462,9 @@ func TestTeamMemberOperations(t *testing.T) {
 			"robot_status":    "idle",
 		}
 
-		robotID, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
+		robotMemberID, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
 		assert.NoError(t, err)
-		assert.Greater(t, robotID, int64(0))
+		assert.NotEmpty(t, robotMemberID)
 	})
 
 	// Test GetTeamRobotMembers
