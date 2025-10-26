@@ -19,6 +19,15 @@
       "primary": true
     },
     {
+      "name": "member_id",
+      "type": "string",
+      "label": "Member ID",
+      "comment": "Global unique member identifier",
+      "length": 255,
+      "unique": true,
+      "index": true
+    },
+    {
       "name": "team_id",
       "type": "string",
       "label": "Team ID",

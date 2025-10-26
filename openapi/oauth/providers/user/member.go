@@ -101,6 +101,50 @@ func (u *DefaultUser) GetMemberByInvitationID(ctx context.Context, invitationID 
 	return members[0], nil
 }
 
+// GetMemberByMemberID retrieves member information by member_id (business ID)
+func (u *DefaultUser) GetMemberByMemberID(ctx context.Context, memberID string) (maps.MapStrAny, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: u.memberFields,
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	if len(members) == 0 {
+		return nil, fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return members[0], nil
+}
+
+// GetMemberDetailByMemberID retrieves detailed member information by member_id (business ID)
+func (u *DefaultUser) GetMemberDetailByMemberID(ctx context.Context, memberID string) (maps.MapStrAny, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: u.memberDetailFields,
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	if len(members) == 0 {
+		return nil, fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return members[0], nil
+}
+
 // MemberExists checks if a member exists by team_id and user_id
 func (u *DefaultUser) MemberExists(ctx context.Context, teamID string, userID string) (bool, error) {
 	m := model.Select(u.memberModel)
@@ -120,14 +164,46 @@ func (u *DefaultUser) MemberExists(ctx context.Context, teamID string, userID st
 	return len(members) > 0, nil
 }
 
+// MemberExistsByTeamEmail checks if a member exists by team_id and email
+func (u *DefaultUser) MemberExistsByTeamEmail(ctx context.Context, teamID string, email string) (bool, error) {
+	m := model.Select(u.memberModel)
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"}, // Only select ID for existence check
+		Wheres: []model.QueryWhere{
+			{Column: "team_id", Value: teamID},
+			{Column: "email", Value: email},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, fmt.Errorf(ErrFailedToGetMember, err)
+	}
+
+	return len(members) > 0, nil
+}
+
 // CreateMember creates a new team member (user type)
-func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAny) (int64, error) {
+func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAny) (string, error) {
 	// Validate required fields for user members
 	if _, exists := memberData["team_id"]; !exists {
-		return 0, fmt.Errorf("team_id is required in memberData")
+		return "", fmt.Errorf("team_id is required in memberData")
 	}
 	if _, exists := memberData["role_id"]; !exists {
-		return 0, fmt.Errorf("role_id is required in memberData")
+		return "", fmt.Errorf("role_id is required in memberData")
+	}
+
+	// Generate member_id if not provided
+	var generatedMemberID string
+	if _, exists := memberData["member_id"]; !exists || memberData["member_id"] == nil || memberData["member_id"] == "" {
+		memberID, err := u.generateMemberIDWithRetry(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate member ID: %w", err)
+		}
+		memberData["member_id"] = memberID
+		generatedMemberID = memberID
+	} else {
+		generatedMemberID = memberData["member_id"].(string)
 	}
 
 	// Add __yao_team_id to the member data
@@ -147,7 +223,7 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 
 	if memberType == "user" && status != "pending" {
 		if _, exists := memberData["user_id"]; !exists {
-			return 0, fmt.Errorf("user_id is required for active user members")
+			return "", fmt.Errorf("user_id is required for active user members")
 		}
 	}
 
@@ -155,7 +231,7 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 	if status == "pending" && memberData["invitation_id"] == nil {
 		invitationID, err := u.generateInvitationID()
 		if err != nil {
-			return 0, fmt.Errorf("failed to generate invitation ID: %w", err)
+			return "", fmt.Errorf("failed to generate invitation ID: %w", err)
 		}
 		memberData["invitation_id"] = invitationID
 	}
@@ -175,22 +251,22 @@ func (u *DefaultUser) CreateMember(ctx context.Context, memberData maps.MapStrAn
 	}
 
 	m := model.Select(u.memberModel)
-	id, err := m.Create(memberData)
+	_, err := m.Create(memberData)
 	if err != nil {
-		return 0, fmt.Errorf(ErrFailedToCreateMember, err)
+		return "", fmt.Errorf(ErrFailedToCreateMember, err)
 	}
 
-	return int64(id), nil
+	return generatedMemberID, nil
 }
 
 // CreateRobotMember creates a new robot member
-func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (int64, error) {
+func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (string, error) {
 	// Validate required fields for robot members
 	if _, exists := robotData["display_name"]; !exists {
-		return 0, fmt.Errorf("display_name is required for robot members")
+		return "", fmt.Errorf("display_name is required for robot members")
 	}
 	if _, exists := robotData["role_id"]; !exists {
-		return 0, fmt.Errorf("role_id is required for robot members")
+		return "", fmt.Errorf("role_id is required for robot members")
 	}
 
 	// Check if email already exists in this team
@@ -206,10 +282,10 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 			Limit: 1,
 		})
 		if err != nil {
-			return 0, fmt.Errorf("failed to check email uniqueness: %w", err)
+			return "", fmt.Errorf("failed to check email uniqueness: %w", err)
 		}
 		if len(existingMembers) > 0 {
-			return 0, fmt.Errorf("email %s already exists in this team", emailStr)
+			return "", fmt.Errorf("email %s already exists in this team", emailStr)
 		}
 	}
 
@@ -256,20 +332,20 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 }
 
 // AddMember adds a user to a team (invitation-based)
-func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (int64, error) {
+func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (string, error) {
 	// Check if member already exists
 	exists, err := u.MemberExists(ctx, teamID, userID)
 	if err != nil {
-		return 0, fmt.Errorf("failed to check member existence: %w", err)
+		return "", fmt.Errorf("failed to check member existence: %w", err)
 	}
 	if exists {
-		return 0, fmt.Errorf("user is already a member of this team")
+		return "", fmt.Errorf("user is already a member of this team")
 	}
 
 	// Generate invitation token
 	token, err := generateRandomPassword(32) // Use existing password generation for token
 	if err != nil {
-		return 0, fmt.Errorf("failed to generate invitation token: %w", err)
+		return "", fmt.Errorf("failed to generate invitation token: %w", err)
 	}
 
 	memberData := maps.MapStrAny{
@@ -370,7 +446,7 @@ func (u *DefaultUser) AcceptInvitation(ctx context.Context, invitationID string,
 // UpdateMember updates an existing member
 func (u *DefaultUser) UpdateMember(ctx context.Context, teamID string, userID string, memberData maps.MapStrAny) error {
 	// Remove sensitive fields that should not be updated directly
-	sensitiveFields := []string{"id", "team_id", "user_id", "created_at", "invitation_token"}
+	sensitiveFields := []string{"id", "member_id", "team_id", "user_id", "created_at", "invitation_token"}
 	for _, field := range sensitiveFields {
 		delete(memberData, field)
 	}
@@ -403,7 +479,7 @@ func (u *DefaultUser) UpdateMember(ctx context.Context, teamID string, userID st
 // UpdateMemberByID updates a member by internal ID
 func (u *DefaultUser) UpdateMemberByID(ctx context.Context, memberID int64, memberData maps.MapStrAny) error {
 	// Remove sensitive fields that should not be updated directly
-	sensitiveFields := []string{"id", "team_id", "user_id", "created_at", "invitation_token"}
+	sensitiveFields := []string{"id", "member_id", "team_id", "user_id", "created_at", "invitation_token"}
 	for _, field := range sensitiveFields {
 		delete(memberData, field)
 	}
@@ -432,6 +508,38 @@ func (u *DefaultUser) UpdateMemberByID(ctx context.Context, memberID int64, memb
 	return nil
 }
 
+// UpdateMemberByMemberID updates a member by member_id (business ID)
+func (u *DefaultUser) UpdateMemberByMemberID(ctx context.Context, memberID string, memberData maps.MapStrAny) error {
+	// Remove sensitive fields that should not be updated directly
+	sensitiveFields := []string{"id", "member_id", "team_id", "user_id", "created_at", "invitation_token"}
+	for _, field := range sensitiveFields {
+		delete(memberData, field)
+	}
+
+	// Skip update if no valid fields remain
+	if len(memberData) == 0 {
+		return nil
+	}
+
+	m := model.Select(u.memberModel)
+	affected, err := m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	}, memberData)
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToUpdateMember, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return nil
+}
+
 // RemoveMember removes a member from a team (soft delete)
 func (u *DefaultUser) RemoveMember(ctx context.Context, teamID string, userID string) error {
 	m := model.Select(u.memberModel)
@@ -439,6 +547,27 @@ func (u *DefaultUser) RemoveMember(ctx context.Context, teamID string, userID st
 		Wheres: []model.QueryWhere{
 			{Column: "team_id", Value: teamID},
 			{Column: "user_id", Value: userID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return fmt.Errorf(ErrFailedToDeleteMember, err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf(ErrMemberNotFound)
+	}
+
+	return nil
+}
+
+// RemoveMemberByMemberID removes a member by member_id (business ID, soft delete)
+func (u *DefaultUser) RemoveMemberByMemberID(ctx context.Context, memberID string) error {
+	m := model.Select(u.memberModel)
+	affected, err := m.DeleteWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
 		},
 		Limit: 1,
 	})
@@ -619,6 +748,47 @@ func (u *DefaultUser) UpdateMemberLastActivity(ctx context.Context, teamID strin
 	updateData["login_count"] = loginCount + 1
 
 	return u.UpdateMember(ctx, teamID, userID, updateData)
+}
+
+// UpdateMemberRoleByMemberID updates a member's role by member_id
+func (u *DefaultUser) UpdateMemberRoleByMemberID(ctx context.Context, memberID string, roleID string) error {
+	updateData := maps.MapStrAny{
+		"role_id": roleID,
+	}
+
+	return u.UpdateMemberByMemberID(ctx, memberID, updateData)
+}
+
+// UpdateMemberStatusByMemberID updates a member's status by member_id
+func (u *DefaultUser) UpdateMemberStatusByMemberID(ctx context.Context, memberID string, status string) error {
+	updateData := maps.MapStrAny{
+		"status": status,
+	}
+
+	return u.UpdateMemberByMemberID(ctx, memberID, updateData)
+}
+
+// UpdateMemberLastActivityByMemberID updates a member's last activity time by member_id
+func (u *DefaultUser) UpdateMemberLastActivityByMemberID(ctx context.Context, memberID string) error {
+	updateData := maps.MapStrAny{
+		"last_active_at": time.Now(),
+	}
+
+	// Also increment login count
+	member, err := u.GetMemberByMemberID(ctx, memberID)
+	if err != nil {
+		return err
+	}
+
+	loginCount := int64(0)
+	if count := member["login_count"]; count != nil {
+		if parsedCount, err := parseIntFromDB(count); err == nil {
+			loginCount = parsedCount
+		}
+	}
+	updateData["login_count"] = loginCount + 1
+
+	return u.UpdateMemberByMemberID(ctx, memberID, updateData)
 }
 
 // UpdateRobotActivity updates robot member's last activity and status

@@ -1333,4 +1333,162 @@ func toString(v interface{}) string {
 	}
 }
 
+// TestMemberCheckEmail tests the GET /user/teams/:team_id/members/check endpoint
+func TestMemberCheckEmail(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Register a test client for OAuth authentication
+	testClient := testutils.RegisterTestClient(t, "Member Check Email Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token for authenticated requests
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile")
+
+	// Use UUID to ensure unique test data
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create a test team
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Email Check Test Team "+testUUID)
+	teamID := getTeamID(createdTeam)
+
+	// Create a robot member with a known email
+	existingEmail := fmt.Sprintf("existing-robot-%s@test.com", testUUID)
+	robotBody := map[string]interface{}{
+		"name":   "Existing Robot",
+		"email":  existingEmail,
+		"role":   "member",
+		"prompt": "You are a test robot",
+	}
+	robotBodyBytes, _ := json.Marshal(robotBody)
+	robotReq, _ := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/robots", bytes.NewBuffer(robotBodyBytes))
+	robotReq.Header.Set("Content-Type", "application/json")
+	robotReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+	client := &http.Client{}
+	robotResp, err := client.Do(robotReq)
+	assert.NoError(t, err)
+	if robotResp != nil {
+		robotResp.Body.Close()
+		assert.Equal(t, 201, robotResp.StatusCode, "Should create robot member successfully")
+	}
+
+	testCases := []struct {
+		name         string
+		teamID       string
+		email        string
+		headers      map[string]string
+		expectCode   int
+		expectExists bool
+		expectMsg    string
+	}{
+		{
+			"check email without authentication",
+			teamID,
+			existingEmail,
+			map[string]string{},
+			401,
+			false,
+			"should require authentication",
+		},
+		{
+			"check existing email",
+			teamID,
+			existingEmail,
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			true,
+			"should return exists=true for existing email",
+		},
+		{
+			"check non-existing email",
+			teamID,
+			fmt.Sprintf("nonexistent-%s@test.com", testUUID),
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			false,
+			"should return exists=false for non-existing email",
+		},
+		{
+			"check email without email parameter",
+			teamID,
+			"",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			false,
+			"should require email parameter",
+		},
+		{
+			"check email in non-existent team",
+			"non-existent-team-id",
+			"test@example.com",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			false,
+			"should return not found for non-existent team",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/check"
+			if tc.email != "" {
+				requestURL += "?email=" + tc.email
+			}
+
+			req, err := http.NewRequest("GET", requestURL, nil)
+			assert.NoError(t, err, "Should create HTTP request")
+
+			// Add headers
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+
+			resp, err := client.Do(req)
+			assert.NoError(t, err, "HTTP request should succeed")
+
+			if resp != nil {
+				defer resp.Body.Close()
+				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
+
+				body, err := io.ReadAll(resp.Body)
+				assert.NoError(t, err, "Should read response body")
+
+				if resp.StatusCode == 200 {
+					// Parse response
+					var response map[string]interface{}
+					err = json.Unmarshal(body, &response)
+					assert.NoError(t, err, "Should parse JSON response")
+
+					// Verify response structure
+					assert.Contains(t, response, "exists", "Should have exists field")
+					assert.Contains(t, response, "email", "Should have email field")
+					assert.Contains(t, response, "team_id", "Should have team_id field")
+
+					// Verify values
+					assert.Equal(t, tc.expectExists, response["exists"], "Should have correct exists value")
+					assert.Equal(t, tc.email, response["email"], "Should have correct email")
+					assert.Equal(t, teamID, response["team_id"], "Should have correct team_id")
+				}
+
+				t.Logf("Member check email test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
+			}
+		})
+	}
+}
+
 // Note: getTeamID function is already defined in team_test.go

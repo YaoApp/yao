@@ -91,6 +91,75 @@ func GinMemberList(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
+// GinMemberCheckEmail handles GET /api/user/teams/:id/members/check?email=xxx - Check if email exists in team
+func GinMemberCheckEmail(c *gin.Context) {
+	// Get authorized user info
+	authInfo := oauth.GetAuthorizedInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	teamID := c.Param("id")
+	if teamID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Team ID is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	email := c.Query("email")
+	if email == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Email query parameter is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Call business logic
+	exists, err := memberCheckEmail(c.Request.Context(), authInfo.UserID, teamID, email)
+	if err != nil {
+		log.Error("Failed to check member email: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Team not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "access denied") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: fmt.Sprintf("Failed to check member email: %v", err),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	// Return result
+	result := map[string]interface{}{
+		"exists":  exists,
+		"email":   email,
+		"team_id": teamID,
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
 // GinMemberGet handles GET /teams/:team_id/members/:member_id - Get team member details
 func GinMemberGet(c *gin.Context) {
 	// Get authorized user info
@@ -620,29 +689,57 @@ func memberGet(ctx context.Context, userID, teamID, memberID string) (maps.MapSt
 	return memberData, nil
 }
 
-// memberCreateRobot handles the business logic for creating a robot member
-func memberCreateRobot(ctx context.Context, userID, teamID string, robotData maps.MapStrAny) (int64, error) {
-	// Check if user has access to the team (write permission: owner only)
-	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
+// memberCheckEmail handles the business logic for checking if member exists by team_id and email
+func memberCheckEmail(ctx context.Context, userID, teamID, email string) (bool, error) {
+	// Check if user has access to the team (read permission: owner or member)
+	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
-		return 0, err
+		return false, err
 	}
 
-	// Only allow access if user is owner
-	if !isOwner {
-		return 0, fmt.Errorf("access denied: only team owner can add robot members")
+	// Allow access if user is owner or member
+	if !isOwner && !isMember {
+		return false, fmt.Errorf("access denied: user is not a member of this team")
 	}
 
 	// Get user provider instance
 	provider, err := getUserProvider()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get user provider: %w", err)
+		return false, fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Check if member exists by team_id and email
+	exists, err := provider.MemberExistsByTeamEmail(ctx, teamID, email)
+	if err != nil {
+		return false, fmt.Errorf("failed to check member existence: %w", err)
+	}
+
+	return exists, nil
+}
+
+// memberCreateRobot handles the business logic for creating a robot member
+func memberCreateRobot(ctx context.Context, userID, teamID string, robotData maps.MapStrAny) (string, error) {
+	// Check if user has access to the team (write permission: owner only)
+	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
+	if err != nil {
+		return "", err
+	}
+
+	// Only allow access if user is owner
+	if !isOwner {
+		return "", fmt.Errorf("access denied: only team owner can add robot members")
+	}
+
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user provider: %w", err)
 	}
 
 	// Use CreateRobotMember method which handles robot-specific logic
 	memberID, err := provider.CreateRobotMember(ctx, teamID, robotData)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create robot member: %w", err)
+		return "", fmt.Errorf("failed to create robot member: %w", err)
 	}
 
 	return memberID, nil

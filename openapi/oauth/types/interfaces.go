@@ -296,22 +296,27 @@ type UserProvider interface {
 	GetMember(ctx context.Context, teamID string, userID string) (maps.MapStrAny, error)
 	GetMemberDetail(ctx context.Context, teamID string, userID string) (maps.MapStrAny, error)
 	GetMemberByID(ctx context.Context, memberID int64) (maps.MapStrAny, error)
+	GetMemberByMemberID(ctx context.Context, memberID string) (maps.MapStrAny, error)
+	GetMemberDetailByMemberID(ctx context.Context, memberID string) (maps.MapStrAny, error)
 	GetMemberByInvitationID(ctx context.Context, invitationID string) (maps.MapStrAny, error)
 	MemberExists(ctx context.Context, teamID string, userID string) (bool, error)
-	CreateMember(ctx context.Context, memberData maps.MapStrAny) (int64, error)
+	MemberExistsByTeamEmail(ctx context.Context, teamID string, email string) (bool, error)
+	CreateMember(ctx context.Context, memberData maps.MapStrAny) (string, error)
 	UpdateMember(ctx context.Context, teamID string, userID string, memberData maps.MapStrAny) error
 	UpdateMemberByID(ctx context.Context, memberID int64, memberData maps.MapStrAny) error
+	UpdateMemberByMemberID(ctx context.Context, memberID string, memberData maps.MapStrAny) error
 	UpdateMemberByInvitationID(ctx context.Context, invitationID string, memberData maps.MapStrAny) error
 	RemoveMember(ctx context.Context, teamID string, userID string) error
+	RemoveMemberByMemberID(ctx context.Context, memberID string) error
 	RemoveMemberByInvitationID(ctx context.Context, invitationID string) error
 	RemoveAllTeamMembers(ctx context.Context, teamID string) error
 
 	// Member Invitation Management
-	AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (int64, error)
+	AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (string, error)
 	AcceptInvitation(ctx context.Context, invitationID string, invitationToken string, userID string) error
 
 	// Robot Member Operations
-	CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (int64, error)
+	CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (string, error)
 	UpdateRobotActivity(ctx context.Context, memberID int64, robotStatus string) error
 	GetActiveRobotMembers(ctx context.Context) ([]maps.MapStr, error)
 
@@ -323,8 +328,11 @@ type UserProvider interface {
 
 	// Member Management
 	UpdateMemberRole(ctx context.Context, teamID string, userID string, roleID string) error
+	UpdateMemberRoleByMemberID(ctx context.Context, memberID string, roleID string) error
 	UpdateMemberStatus(ctx context.Context, teamID string, userID string, status string) error
+	UpdateMemberStatusByMemberID(ctx context.Context, memberID string, status string) error
 	UpdateMemberLastActivity(ctx context.Context, teamID string, userID string) error
+	UpdateMemberLastActivityByMemberID(ctx context.Context, memberID string) error
 
 	// Member List and Search
 	PaginateMembers(ctx context.Context, param model.QueryParam, page int, pagesize int) (maps.MapStr, error)

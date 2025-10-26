@@ -1162,13 +1162,13 @@ func teamInvitationCreate(ctx context.Context, userID, teamID string, invitation
 	invitationData["updated_at"] = time.Now()
 
 	// Create invitation (as a pending member)
-	memberID, err := provider.CreateMember(ctx, invitationData)
+	businessMemberID, err := provider.CreateMember(ctx, invitationData)
 	if err != nil {
 		return "", fmt.Errorf("failed to create invitation: %w", err)
 	}
 
 	// Get the created member to retrieve the generated invitation_id
-	createdMember, err := provider.GetMemberByID(ctx, memberID)
+	createdMember, err := provider.GetMemberByMemberID(ctx, businessMemberID)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve created invitation: %w", err)
 	}
