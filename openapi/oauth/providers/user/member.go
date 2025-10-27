@@ -164,14 +164,13 @@ func (u *DefaultUser) MemberExists(ctx context.Context, teamID string, userID st
 	return len(members) > 0, nil
 }
 
-// MemberExistsByTeamEmail checks if a member exists by team_id and email
-func (u *DefaultUser) MemberExistsByTeamEmail(ctx context.Context, teamID string, email string) (bool, error) {
+// MemberExistsByRobotEmail checks if a robot member exists by robot_email (globally unique)
+func (u *DefaultUser) MemberExistsByRobotEmail(ctx context.Context, robotEmail string) (bool, error) {
 	m := model.Select(u.memberModel)
 	members, err := m.Get(model.QueryParam{
 		Select: []interface{}{"id"}, // Only select ID for existence check
 		Wheres: []model.QueryWhere{
-			{Column: "team_id", Value: teamID},
-			{Column: "email", Value: email},
+			{Column: "robot_email", Value: robotEmail},
 		},
 		Limit: 1,
 	})
@@ -323,23 +322,22 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 		return "", fmt.Errorf("role_id is required for robot members")
 	}
 
-	// Check if email already exists in this team
-	if email, exists := robotData["email"]; exists && email != nil && email != "" {
-		emailStr := fmt.Sprintf("%v", email)
+	// Check if robot_email already exists globally (robot_email is globally unique)
+	if robotEmail, exists := robotData["robot_email"]; exists && robotEmail != nil && robotEmail != "" {
+		robotEmailStr := fmt.Sprintf("%v", robotEmail)
 		m := model.Select(u.memberModel)
 		existingMembers, err := m.Get(model.QueryParam{
 			Select: []interface{}{"id"},
 			Wheres: []model.QueryWhere{
-				{Column: "team_id", Value: teamID},
-				{Column: "email", Value: emailStr},
+				{Column: "robot_email", Value: robotEmailStr},
 			},
 			Limit: 1,
 		})
 		if err != nil {
-			return "", fmt.Errorf("failed to check email uniqueness: %w", err)
+			return "", fmt.Errorf("failed to check robot_email uniqueness: %w", err)
 		}
 		if len(existingMembers) > 0 {
-			return "", fmt.Errorf("email %s already exists in this team", emailStr)
+			return "", fmt.Errorf("robot_email %s already exists", robotEmailStr)
 		}
 	}
 
@@ -362,7 +360,8 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 
 	// Copy robot-specific fields
 	robotFields := []string{
-		"role_id", "system_prompt", "manager_id", "robot_config", "agents", "mcp_servers",
+		"role_id", "system_prompt", "manager_id", "robot_email", "authorized_senders", "email_filter_rules",
+		"robot_config", "agents", "mcp_servers",
 		"language_model", "cost_limit", "autonomous_mode", "robot_status",
 		"notes", "metadata",
 		"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",

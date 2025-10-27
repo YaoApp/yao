@@ -1136,17 +1136,20 @@ func TestMemberCreateRobot(t *testing.T) {
 			"create robot with all fields",
 			teamID,
 			map[string]interface{}{
-				"name":            "AI Assistant Full",
-				"email":           fmt.Sprintf("ai-full-%s@test.com", testUUID),
-				"bio":             "A comprehensive AI assistant",
-				"role":            "member",
-				"report_to":       tokenInfo.UserID,
-				"prompt":          "You are a helpful AI assistant with full capabilities",
-				"llm":             "gpt-4",
-				"agents":          []string{"data-analyst", "code-reviewer"},
-				"mcp_tools":       []string{"filesystem", "database"},
-				"autonomous_mode": "enabled",
-				"cost_limit":      100.50,
+				"name":               "AI Assistant Full",
+				"email":              fmt.Sprintf("ai-full-%s@test.com", testUUID),
+				"robot_email":        fmt.Sprintf("robot-full-%s@robot.test.com", testUUID),
+				"authorized_senders": []string{"user1@test.com", "user2@test.com"},
+				"email_filter_rules": []string{".*@company\\.com", ".*@partner\\.com"},
+				"bio":                "A comprehensive AI assistant",
+				"role":               "member",
+				"report_to":          tokenInfo.UserID,
+				"prompt":             "You are a helpful AI assistant with full capabilities",
+				"llm":                "gpt-4",
+				"agents":             []string{"data-analyst", "code-reviewer"},
+				"mcp_tools":          []string{"filesystem", "database"},
+				"autonomous_mode":    "enabled",
+				"cost_limit":         100.50,
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1158,10 +1161,10 @@ func TestMemberCreateRobot(t *testing.T) {
 			"create robot with required fields only",
 			teamID,
 			map[string]interface{}{
-				"name":   "AI Assistant Min",
-				"email":  fmt.Sprintf("ai-min-%s@test.com", testUUID),
-				"role":   "member",
-				"prompt": "You are a basic assistant",
+				"name":        "AI Assistant Min",
+				"robot_email": fmt.Sprintf("ai-min-%s@test.com", testUUID),
+				"role":        "member",
+				"prompt":      "You are a basic assistant",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1174,7 +1177,7 @@ func TestMemberCreateRobot(t *testing.T) {
 			teamID,
 			map[string]interface{}{
 				"name":            "AI Assistant Auto",
-				"email":           fmt.Sprintf("ai-auto-%s@test.com", testUUID),
+				"robot_email":     fmt.Sprintf("ai-auto-%s@test.com", testUUID),
 				"role":            "member",
 				"prompt":          "You are an autonomous assistant",
 				"autonomous_mode": "1", // Test numeric string
@@ -1190,7 +1193,7 @@ func TestMemberCreateRobot(t *testing.T) {
 			teamID,
 			map[string]interface{}{
 				"name":            "AI Assistant Manual",
-				"email":           fmt.Sprintf("ai-manual-%s@test.com", testUUID),
+				"robot_email":     fmt.Sprintf("ai-manual-%s@test.com", testUUID),
 				"role":            "member",
 				"prompt":          "You are a manual assistant",
 				"autonomous_mode": "disabled",
@@ -1205,9 +1208,9 @@ func TestMemberCreateRobot(t *testing.T) {
 			"create robot without name",
 			teamID,
 			map[string]interface{}{
-				"email":  "no-name@test.com",
-				"role":   "member",
-				"prompt": "You are an assistant",
+				"robot_email": "no-name@test.com",
+				"role":        "member",
+				"prompt":      "You are an assistant",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1216,10 +1219,10 @@ func TestMemberCreateRobot(t *testing.T) {
 			"should require name",
 		},
 		{
-			"create robot without email",
+			"create robot without robot_email",
 			teamID,
 			map[string]interface{}{
-				"name":   "No Email Robot",
+				"name":   "No Robot Email Robot",
 				"role":   "member",
 				"prompt": "You are an assistant",
 			},
@@ -1227,15 +1230,15 @@ func TestMemberCreateRobot(t *testing.T) {
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
 			},
 			400,
-			"should require email",
+			"should require robot_email",
 		},
 		{
 			"create robot without role",
 			teamID,
 			map[string]interface{}{
-				"name":   "No Role Robot",
-				"email":  "no-role@test.com",
-				"prompt": "You are an assistant",
+				"name":        "No Role Robot",
+				"robot_email": "no-role@test.com",
+				"prompt":      "You are an assistant",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1247,9 +1250,9 @@ func TestMemberCreateRobot(t *testing.T) {
 			"create robot without prompt",
 			teamID,
 			map[string]interface{}{
-				"name":  "No Prompt Robot",
-				"email": "no-prompt@test.com",
-				"role":  "member",
+				"name":        "No Prompt Robot",
+				"robot_email": "no-prompt@test.com",
+				"role":        "member",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1258,28 +1261,29 @@ func TestMemberCreateRobot(t *testing.T) {
 			"should require prompt",
 		},
 		{
-			"create robot with duplicate email",
+			"create robot with duplicate robot_email",
 			teamID,
 			map[string]interface{}{
-				"name":   "Duplicate Email Robot",
-				"email":  fmt.Sprintf("ai-full-%s@test.com", testUUID), // Same as first successful case
-				"role":   "member",
-				"prompt": "You are an assistant",
+				"name":        "Duplicate Robot Email Robot",
+				"email":       fmt.Sprintf("duplicate-robot-%s@test.com", testUUID),  // Different email
+				"robot_email": fmt.Sprintf("robot-full-%s@robot.test.com", testUUID), // Same robot_email as first successful case
+				"role":        "member",
+				"prompt":      "You are an assistant",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
 			},
 			409,
-			"should reject duplicate email in same team",
+			"should reject duplicate robot_email globally",
 		},
 		{
 			"create robot in non-existent team",
 			"non-existent-team-id",
 			map[string]interface{}{
-				"name":   "Robot in Void",
-				"email":  "void@test.com",
-				"role":   "member",
-				"prompt": "You are lost",
+				"name":        "Robot in Void",
+				"robot_email": "void@test.com",
+				"role":        "member",
+				"prompt":      "You are lost",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1394,8 +1398,8 @@ func toString(v interface{}) string {
 	}
 }
 
-// TestMemberCheckEmail tests the GET /user/teams/:team_id/members/check endpoint
-func TestMemberCheckEmail(t *testing.T) {
+// TestMemberCheckRobotEmail tests the GET /user/teams/:team_id/members/check-robot-email endpoint
+func TestMemberCheckRobotEmail(t *testing.T) {
 	// Initialize test environment
 	serverURL := testutils.Prepare(t)
 	defer testutils.Clean()
@@ -1407,7 +1411,7 @@ func TestMemberCheckEmail(t *testing.T) {
 	}
 
 	// Register a test client for OAuth authentication
-	testClient := testutils.RegisterTestClient(t, "Member Check Email Test Client", []string{"https://localhost/callback"})
+	testClient := testutils.RegisterTestClient(t, "Member Check Robot Email Test Client", []string{"https://localhost/callback"})
 	defer testutils.CleanupTestClient(t, testClient.ClientID)
 
 	// Obtain access token for authenticated requests
@@ -1417,16 +1421,17 @@ func TestMemberCheckEmail(t *testing.T) {
 	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
 
 	// Create a test team
-	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Email Check Test Team "+testUUID)
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Robot Email Check Test Team "+testUUID)
 	teamID := getTeamID(createdTeam)
 
-	// Create a robot member with a known email
-	existingEmail := fmt.Sprintf("existing-robot-%s@test.com", testUUID)
+	// Create a robot member with a known robot_email (globally unique)
+	existingRobotEmail := fmt.Sprintf("existing-robot-%s@robot.test.com", testUUID)
 	robotBody := map[string]interface{}{
-		"name":   "Existing Robot",
-		"email":  existingEmail,
-		"role":   "member",
-		"prompt": "You are a test robot",
+		"name":        "Existing Robot",
+		"email":       fmt.Sprintf("display-%s@test.com", testUUID), // Display email (can be non-unique)
+		"robot_email": existingRobotEmail,                           // Globally unique robot email
+		"role":        "member",
+		"prompt":      "You are a test robot",
 	}
 	robotBodyBytes, _ := json.Marshal(robotBody)
 	robotReq, _ := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/robots", bytes.NewBuffer(robotBodyBytes))
@@ -1443,45 +1448,45 @@ func TestMemberCheckEmail(t *testing.T) {
 	testCases := []struct {
 		name         string
 		teamID       string
-		email        string
+		robotEmail   string
 		headers      map[string]string
 		expectCode   int
 		expectExists bool
 		expectMsg    string
 	}{
 		{
-			"check email without authentication",
+			"check robot email without authentication",
 			teamID,
-			existingEmail,
+			existingRobotEmail,
 			map[string]string{},
 			401,
 			false,
 			"should require authentication",
 		},
 		{
-			"check existing email",
+			"check existing robot email",
 			teamID,
-			existingEmail,
+			existingRobotEmail,
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
 			},
 			200,
 			true,
-			"should return exists=true for existing email",
+			"should return exists=true for existing robot email",
 		},
 		{
-			"check non-existing email",
+			"check non-existing robot email",
 			teamID,
-			fmt.Sprintf("nonexistent-%s@test.com", testUUID),
+			fmt.Sprintf("nonexistent-%s@robot.test.com", testUUID),
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
 			},
 			200,
 			false,
-			"should return exists=false for non-existing email",
+			"should return exists=false for non-existing robot email",
 		},
 		{
-			"check email without email parameter",
+			"check robot email without robot_email parameter",
 			teamID,
 			"",
 			map[string]string{
@@ -1489,12 +1494,12 @@ func TestMemberCheckEmail(t *testing.T) {
 			},
 			400,
 			false,
-			"should require email parameter",
+			"should require robot_email parameter",
 		},
 		{
-			"check email in non-existent team",
+			"check robot email in non-existent team",
 			"non-existent-team-id",
-			"test@example.com",
+			"test@robot.example.com",
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
 			},
@@ -1506,9 +1511,9 @@ func TestMemberCheckEmail(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/check"
-			if tc.email != "" {
-				requestURL += "?email=" + tc.email
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/check-robot-email"
+			if tc.robotEmail != "" {
+				requestURL += "?robot_email=" + tc.robotEmail
 			}
 
 			req, err := http.NewRequest("GET", requestURL, nil)
@@ -1535,15 +1540,13 @@ func TestMemberCheckEmail(t *testing.T) {
 					err = json.Unmarshal(body, &response)
 					assert.NoError(t, err, "Should parse JSON response")
 
-					// Verify response structure
+					// Verify response structure (global check, no team_id in response)
 					assert.Contains(t, response, "exists", "Should have exists field")
-					assert.Contains(t, response, "email", "Should have email field")
-					assert.Contains(t, response, "team_id", "Should have team_id field")
+					assert.Contains(t, response, "robot_email", "Should have robot_email field")
 
 					// Verify values
 					assert.Equal(t, tc.expectExists, response["exists"], "Should have correct exists value")
-					assert.Equal(t, tc.email, response["email"], "Should have correct email")
-					assert.Equal(t, teamID, response["team_id"], "Should have correct team_id")
+					assert.Equal(t, tc.robotEmail, response["robot_email"], "Should have correct robot_email")
 				}
 
 				t.Logf("Member check email test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))

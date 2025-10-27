@@ -162,6 +162,30 @@
     // Robot Configuration Fields (only for robot members)
     // ============================================================================
     {
+      "name": "robot_email",
+      "type": "string",
+      "label": "Robot Email",
+      "comment": "Globally unique email address for the robot to receive and send emails",
+      "length": 255,
+      "nullable": true,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "authorized_senders",
+      "type": "json",
+      "label": "Authorized Senders",
+      "comment": "Whitelist of email addresses authorized to send instructions to this robot. Robot will respond to and execute commands from these senders only (JSON array)",
+      "nullable": true
+    },
+    {
+      "name": "email_filter_rules",
+      "type": "json",
+      "label": "Email Filter Rules",
+      "comment": "Email filtering rules (supports regex patterns) to determine which emails to receive and process. Can include domain patterns, address patterns, etc. (JSON array)",
+      "nullable": true
+    },
+    {
       "name": "robot_config",
       "type": "json",
       "label": "Robot Configuration",
@@ -337,10 +361,10 @@
       "comment": "Unique constraint: one user can have only one membership per team, with unique invitation_id for pending invitations"
     },
     {
-      "name": "idx_team_email_unique",
+      "name": "idx_team_email",
       "columns": ["team_id", "email"],
-      "type": "unique",
-      "comment": "Unique constraint: one email per team (used for communication, applies to both users and robots)"
+      "type": "index",
+      "comment": "Index for querying members by email within team (email is for display only)"
     },
     {
       "name": "idx_team_member_type_role",
