@@ -355,6 +355,7 @@ type TeamResponse struct {
 	TeamID      string `json:"team_id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	Logo        string `json:"logo,omitempty"` // Team logo URL or file ID
 	OwnerID     string `json:"owner_id"`
 	Status      string `json:"status"`
 	IsVerified  bool   `json:"is_verified"`
@@ -375,6 +376,7 @@ type TeamDetailResponse struct {
 type CreateTeamRequest struct {
 	Name        string        `json:"name" binding:"required"`
 	Description string        `json:"description,omitempty"`
+	Logo        string        `json:"logo,omitempty"` // Team logo URL or file ID
 	Settings    *TeamSettings `json:"settings,omitempty"`
 }
 
@@ -382,6 +384,7 @@ type CreateTeamRequest struct {
 type UpdateTeamRequest struct {
 	Name        string        `json:"name,omitempty"`
 	Description string        `json:"description,omitempty"`
+	Logo        string        `json:"logo,omitempty"` // Team logo URL or file ID
 	Settings    *TeamSettings `json:"settings,omitempty"`
 }
 

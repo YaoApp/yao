@@ -179,6 +179,11 @@ func GinTeamCreate(c *gin.Context) {
 		"description": req.Description,
 	})
 
+	// Add logo if provided
+	if req.Logo != "" {
+		teamData["logo"] = req.Logo
+	}
+
 	// Add settings if provided
 	if req.Settings != nil {
 		teamData["settings"] = req.Settings
@@ -260,6 +265,9 @@ func GinTeamUpdate(c *gin.Context) {
 	}
 	if req.Description != "" {
 		updateData["description"] = req.Description
+	}
+	if req.Logo != "" {
+		updateData["logo"] = req.Logo
 	}
 	if req.Settings != nil {
 		updateData["settings"] = req.Settings
@@ -953,6 +961,7 @@ func mapToTeamResponse(data maps.MapStr) TeamResponse {
 		TeamID:      toString(data["team_id"]),
 		Name:        toString(data["name"]),
 		Description: toString(data["description"]),
+		Logo:        toString(data["logo"]),
 		OwnerID:     toString(data["owner_id"]),
 		Status:      toString(data["status"]),
 		IsVerified:  toBool(data["is_verified"]),

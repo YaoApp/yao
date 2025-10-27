@@ -196,6 +196,19 @@ func TestTeamCreate(t *testing.T) {
 			"should create team with settings",
 		},
 		{
+			"create team with logo",
+			map[string]interface{}{
+				"name":        "Team with Logo",
+				"description": "Team with custom logo",
+				"logo":        "__yao.attachment://test-logo-123",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			201,
+			"should create team with logo",
+		},
+		{
 			"create team without name",
 			map[string]interface{}{
 				"description": "Team without name",
@@ -284,6 +297,9 @@ func TestTeamCreate(t *testing.T) {
 						}
 						if description, ok := tc.body["description"]; ok {
 							assert.Equal(t, description, team["description"], "Should have correct description")
+						}
+						if logo, ok := tc.body["logo"]; ok {
+							assert.Equal(t, logo, team["logo"], "Should have correct logo")
 						}
 					}
 				}
@@ -423,6 +439,7 @@ func TestTeamGet(t *testing.T) {
 						assert.Contains(t, team, "team_id", "Should have team_id")
 						assert.Contains(t, team, "name", "Should have team name")
 						assert.Contains(t, team, "description", "Should have description")
+						// Logo field is optional, only present if set
 						assert.Contains(t, team, "owner_id", "Should have owner_id")
 						assert.Contains(t, team, "status", "Should have status")
 						assert.Contains(t, team, "settings", "Should have settings")
@@ -538,6 +555,18 @@ func TestTeamUpdate(t *testing.T) {
 			"should update team settings",
 		},
 		{
+			"update team logo",
+			getTeamID(createdTeam),
+			map[string]interface{}{
+				"logo": "__yao.attachment://updated-logo-456",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update team logo",
+		},
+		{
 			"update non-existent team",
 			"non-existent-team-id",
 			map[string]interface{}{
@@ -608,6 +637,9 @@ func TestTeamUpdate(t *testing.T) {
 						}
 						if description, ok := tc.body["description"]; ok {
 							assert.Equal(t, description, team["description"], "Should have updated description")
+						}
+						if logo, ok := tc.body["logo"]; ok {
+							assert.Equal(t, logo, team["logo"], "Should have updated logo")
 						}
 						if settings, ok := tc.body["settings"]; ok {
 							assert.Equal(t, settings, team["settings"], "Should have updated settings")
