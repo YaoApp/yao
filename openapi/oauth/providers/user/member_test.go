@@ -352,6 +352,15 @@ func TestRobotMemberOperations(t *testing.T) {
 			"language_model":  "gpt-4",
 			"cost_limit":      100.00,
 			"manager_id":      ownerUser,
+			"robot_email":     "testbot" + testUUID + "@robot.example.com",
+			"authorized_senders": []string{
+				"admin@example.com",
+				"manager@example.com",
+			},
+			"email_filter_rules": []string{
+				".*@example\\.com$",
+				".*@test\\.com$",
+			},
 			"robot_config": map[string]interface{}{
 				"max_tokens": 1000,
 			},
@@ -368,6 +377,13 @@ func TestRobotMemberOperations(t *testing.T) {
 		assert.Equal(t, "robot", member["member_type"])
 		assert.Equal(t, "active", member["status"]) // Robots are active by default
 		assert.Nil(t, member["user_id"])            // Robots don't have user_id
+
+		// Verify new email fields in detail view
+		memberDetail, err := testProvider.GetMemberDetailByMemberID(ctx, robotBusinessMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, "testbot"+testUUID+"@robot.example.com", memberDetail["robot_email"])
+		assert.NotNil(t, memberDetail["authorized_senders"])
+		assert.NotNil(t, memberDetail["email_filter_rules"])
 	})
 
 	// Test GetTeamRobotMembers
@@ -1170,7 +1186,7 @@ func TestMemberIDOperations(t *testing.T) {
 	})
 }
 
-func TestMemberExistsByTeamEmail(t *testing.T) {
+func TestMemberExistsByRobotEmail(t *testing.T) {
 	prepare(t)
 	defer clean()
 
@@ -1184,9 +1200,9 @@ func TestMemberExistsByTeamEmail(t *testing.T) {
 
 	// Create test team
 	teamMap := maps.MapStrAny{
-		"name":         "Email Test Team " + testUUID,
-		"display_name": "Email Test " + testUUID,
-		"description":  "A test team for email testing",
+		"name":         "Robot Email Test Team " + testUUID,
+		"display_name": "Robot Email Test " + testUUID,
+		"description":  "A test team for robot email testing",
 		"owner_id":     ownerUser,
 		"status":       "active",
 	}
@@ -1194,13 +1210,13 @@ func TestMemberExistsByTeamEmail(t *testing.T) {
 	teamID, err := testProvider.CreateTeam(ctx, teamMap)
 	assert.NoError(t, err)
 
-	testEmail := "test" + testUUID + "@example.com"
+	testRobotEmail := "testrobot" + testUUID + "@robot.example.com"
 
-	// Create robot member with email
-	t.Run("CreateRobotMemberWithEmail", func(t *testing.T) {
+	// Create robot member with robot_email
+	t.Run("CreateRobotMemberWithRobotEmail", func(t *testing.T) {
 		robotData := maps.MapStrAny{
 			"display_name": "TestBot" + testUUID,
-			"email":        testEmail,
+			"robot_email":  testRobotEmail,
 			"role_id":      "bot",
 		}
 
@@ -1209,18 +1225,183 @@ func TestMemberExistsByTeamEmail(t *testing.T) {
 		assert.NotEmpty(t, businessMemberID)
 	})
 
-	// Test MemberExistsByTeamEmail
-	t.Run("MemberExistsByTeamEmail_Exists", func(t *testing.T) {
-		exists, err := testProvider.MemberExistsByTeamEmail(ctx, teamID, testEmail)
+	// Test MemberExistsByRobotEmail
+	t.Run("MemberExistsByRobotEmail_Exists", func(t *testing.T) {
+		exists, err := testProvider.MemberExistsByRobotEmail(ctx, testRobotEmail)
 		assert.NoError(t, err)
 		assert.True(t, exists)
 	})
 
-	// Test with non-existent email
-	t.Run("MemberExistsByTeamEmail_NotExists", func(t *testing.T) {
-		exists, err := testProvider.MemberExistsByTeamEmail(ctx, teamID, "nonexistent@example.com")
+	// Test with non-existent robot email
+	t.Run("MemberExistsByRobotEmail_NotExists", func(t *testing.T) {
+		exists, err := testProvider.MemberExistsByRobotEmail(ctx, "nonexistent@robot.example.com")
 		assert.NoError(t, err)
 		assert.False(t, exists)
+	})
+}
+
+func TestRobotEmailUniqueness(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test user (team owner)
+	ownerUser := createTestUser(ctx, t, "owner"+testUUID)
+
+	// Create two test teams
+	team1Map := maps.MapStrAny{
+		"name":         "Robot Email Test Team 1 " + testUUID,
+		"display_name": "Robot Email Test 1 " + testUUID,
+		"description":  "First test team for robot email testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+	}
+
+	team1ID, err := testProvider.CreateTeam(ctx, team1Map)
+	assert.NoError(t, err)
+
+	team2Map := maps.MapStrAny{
+		"name":         "Robot Email Test Team 2 " + testUUID,
+		"display_name": "Robot Email Test 2 " + testUUID,
+		"description":  "Second test team for robot email testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+	}
+
+	team2ID, err := testProvider.CreateTeam(ctx, team2Map)
+	assert.NoError(t, err)
+
+	testEmail := "unique-robot" + testUUID + "@robot.example.com"
+
+	// Test creating first robot with robot_email
+	t.Run("CreateFirstRobotWithEmail", func(t *testing.T) {
+		robotData := maps.MapStrAny{
+			"display_name": "Robot1" + testUUID,
+			"role_id":      "bot",
+			"robot_email":  testEmail,
+			"authorized_senders": []string{
+				"admin@example.com",
+			},
+			"email_filter_rules": []string{
+				".*@example\\.com$",
+			},
+		}
+
+		memberID, err := testProvider.CreateRobotMember(ctx, team1ID, robotData)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, memberID)
+
+		// Verify robot_email was set
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, memberID)
+		assert.NoError(t, err)
+		assert.Equal(t, testEmail, member["robot_email"])
+	})
+
+	// Test creating second robot with same robot_email should fail (global uniqueness)
+	t.Run("CreateSecondRobotWithSameEmail_ShouldFail", func(t *testing.T) {
+		robotData := maps.MapStrAny{
+			"display_name": "Robot2" + testUUID,
+			"role_id":      "bot",
+			"robot_email":  testEmail, // Same email as first robot
+		}
+
+		_, err := testProvider.CreateRobotMember(ctx, team2ID, robotData)
+		assert.Error(t, err)
+		// The error should indicate uniqueness constraint violation
+		// Note: The exact error message may vary depending on the database driver
+	})
+
+	// Test creating robot with different robot_email should succeed
+	t.Run("CreateRobotWithDifferentEmail_ShouldSucceed", func(t *testing.T) {
+		differentEmail := "another-robot" + testUUID + "@robot.example.com"
+		robotData := maps.MapStrAny{
+			"display_name": "Robot3" + testUUID,
+			"role_id":      "bot",
+			"robot_email":  differentEmail,
+		}
+
+		memberID, err := testProvider.CreateRobotMember(ctx, team2ID, robotData)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, memberID)
+
+		// Verify robot_email was set
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, memberID)
+		assert.NoError(t, err)
+		assert.Equal(t, differentEmail, member["robot_email"])
+	})
+
+	// Test updating robot_email
+	t.Run("UpdateRobotEmail", func(t *testing.T) {
+		// Create a new robot
+		newEmail := "updatable-robot" + testUUID + "@robot.example.com"
+		robotData := maps.MapStrAny{
+			"display_name": "Robot4" + testUUID,
+			"role_id":      "bot",
+			"robot_email":  newEmail,
+		}
+
+		memberID, err := testProvider.CreateRobotMember(ctx, team1ID, robotData)
+		assert.NoError(t, err)
+
+		// Update robot_email
+		updatedEmail := "updated-robot" + testUUID + "@robot.example.com"
+		updateData := maps.MapStrAny{
+			"robot_email": updatedEmail,
+		}
+
+		err = testProvider.UpdateMemberByMemberID(ctx, memberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, memberID)
+		assert.NoError(t, err)
+		assert.Equal(t, updatedEmail, member["robot_email"])
+	})
+
+	// Test updating authorized_senders and email_filter_rules
+	t.Run("UpdateRobotEmailConfiguration", func(t *testing.T) {
+		// Create a new robot
+		robotData := maps.MapStrAny{
+			"display_name": "Robot5" + testUUID,
+			"role_id":      "bot",
+			"robot_email":  "config-robot" + testUUID + "@robot.example.com",
+			"authorized_senders": []string{
+				"initial@example.com",
+			},
+			"email_filter_rules": []string{
+				".*@initial\\.com$",
+			},
+		}
+
+		memberID, err := testProvider.CreateRobotMember(ctx, team1ID, robotData)
+		assert.NoError(t, err)
+
+		// Update email configuration
+		updateData := maps.MapStrAny{
+			"authorized_senders": []string{
+				"admin@example.com",
+				"manager@example.com",
+				"owner@example.com",
+			},
+			"email_filter_rules": []string{
+				".*@example\\.com$",
+				".*@test\\.com$",
+				".*@company\\.com$",
+			},
+		}
+
+		err = testProvider.UpdateMemberByMemberID(ctx, memberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, memberID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member["authorized_senders"])
+		assert.NotNil(t, member["email_filter_rules"])
 	})
 }
 

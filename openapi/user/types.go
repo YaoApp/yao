@@ -403,6 +403,7 @@ type MemberResponse struct {
 	Bio                 string          `json:"bio,omitempty"`
 	Avatar              string          `json:"avatar,omitempty"`
 	Email               string          `json:"email,omitempty"`
+	RobotEmail          string          `json:"robot_email,omitempty"` // Globally unique email for robot members
 	RoleID              string          `json:"role_id"`
 	IsOwner             interface{}     `json:"is_owner,omitempty"` // Can be int or bool
 	Status              string          `json:"status"`
@@ -425,6 +426,8 @@ type MemberDetailResponse struct {
 	// Robot-specific fields (only for robot members)
 	SystemPrompt      string                 `json:"system_prompt,omitempty"`
 	ManagerID         string                 `json:"manager_id,omitempty"`
+	AuthorizedSenders []string               `json:"authorized_senders,omitempty"` // Whitelist of emails authorized to send commands
+	EmailFilterRules  []string               `json:"email_filter_rules,omitempty"` // Email filtering rules (supports regex patterns)
 	RobotConfig       map[string]interface{} `json:"robot_config,omitempty"`
 	Agents            []string               `json:"agents,omitempty"`
 	MCPServers        []string               `json:"mcp_servers,omitempty"`
@@ -441,17 +444,20 @@ type MemberDetailResponse struct {
 
 // CreateRobotMemberRequest represents the request to create a new robot member
 type CreateRobotMemberRequest struct {
-	Name           string   `json:"name" binding:"required"`   // Display name
-	Email          string   `json:"email" binding:"required"`  // Email address
-	Bio            string   `json:"bio,omitempty"`             // Bio/description
-	RoleID         string   `json:"role" binding:"required"`   // Role ID
-	ManagerID      string   `json:"report_to,omitempty"`       // Direct manager user ID
-	SystemPrompt   string   `json:"prompt" binding:"required"` // Identity & role prompt
-	LanguageModel  string   `json:"llm,omitempty"`             // Language model (e.g., "gpt-4")
-	Agents         []string `json:"agents,omitempty"`          // Accessible agents
-	MCPServers     []string `json:"mcp_tools,omitempty"`       // MCP servers/tools
-	AutonomousMode string   `json:"autonomous_mode,omitempty"` // "enabled" or "disabled"
-	CostLimit      float64  `json:"cost_limit,omitempty"`      // Monthly cost limit in USD
+	Name              string   `json:"name" binding:"required"`        // Display name
+	Email             string   `json:"email,omitempty"`                // Email address (optional, for display only)
+	RobotEmail        string   `json:"robot_email" binding:"required"` // Robot's globally unique email address (required)
+	AuthorizedSenders []string `json:"authorized_senders,omitempty"`   // Whitelist of emails authorized to send commands
+	EmailFilterRules  []string `json:"email_filter_rules,omitempty"`   // Email filtering rules (supports regex patterns)
+	Bio               string   `json:"bio,omitempty"`                  // Bio/description
+	RoleID            string   `json:"role" binding:"required"`        // Role ID
+	ManagerID         string   `json:"report_to,omitempty"`            // Direct manager user ID
+	SystemPrompt      string   `json:"prompt" binding:"required"`      // Identity & role prompt
+	LanguageModel     string   `json:"llm,omitempty"`                  // Language model (e.g., "gpt-4")
+	Agents            []string `json:"agents,omitempty"`               // Accessible agents
+	MCPServers        []string `json:"mcp_tools,omitempty"`            // MCP servers/tools
+	AutonomousMode    string   `json:"autonomous_mode,omitempty"`      // "enabled" or "disabled"
+	CostLimit         float64  `json:"cost_limit,omitempty"`           // Monthly cost limit in USD
 }
 
 // MemberListRequest represents the request to list team members with advanced filtering

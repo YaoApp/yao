@@ -300,7 +300,7 @@ type UserProvider interface {
 	GetMemberDetailByMemberID(ctx context.Context, memberID string) (maps.MapStrAny, error)
 	GetMemberByInvitationID(ctx context.Context, invitationID string) (maps.MapStrAny, error)
 	MemberExists(ctx context.Context, teamID string, userID string) (bool, error)
-	MemberExistsByTeamEmail(ctx context.Context, teamID string, email string) (bool, error)
+	MemberExistsByRobotEmail(ctx context.Context, robotEmail string) (bool, error)
 	CreateMember(ctx context.Context, memberData maps.MapStrAny) (string, error)
 	UpdateMember(ctx context.Context, teamID string, userID string, memberData maps.MapStrAny) error
 	UpdateMemberByID(ctx context.Context, memberID int64, memberData maps.MapStrAny) error

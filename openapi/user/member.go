@@ -118,8 +118,8 @@ func GinMemberList(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
-// GinMemberCheckEmail handles GET /api/user/teams/:id/members/check?email=xxx - Check if email exists in team
-func GinMemberCheckEmail(c *gin.Context) {
+// GinMemberCheckRobotEmail handles GET /api/user/teams/:id/members/check-robot-email?robot_email=xxx - Check if robot email exists globally
+func GinMemberCheckRobotEmail(c *gin.Context) {
 	// Get authorized user info
 	authInfo := oauth.GetAuthorizedInfo(c)
 	if authInfo == nil || authInfo.UserID == "" {
@@ -141,20 +141,20 @@ func GinMemberCheckEmail(c *gin.Context) {
 		return
 	}
 
-	email := c.Query("email")
-	if email == "" {
+	robotEmail := c.Query("robot_email")
+	if robotEmail == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Email query parameter is required",
+			ErrorDescription: "robot_email query parameter is required",
 		}
 		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
 	}
 
 	// Call business logic
-	exists, err := memberCheckEmail(c.Request.Context(), authInfo.UserID, teamID, email)
+	exists, err := memberCheckRobotEmail(c.Request.Context(), authInfo.UserID, teamID, robotEmail)
 	if err != nil {
-		log.Error("Failed to check member email: %v", err)
+		log.Error("Failed to check robot email: %v", err)
 		// Check error type for appropriate response
 		if strings.Contains(err.Error(), "not found") {
 			errorResp := &response.ErrorResponse{
@@ -171,7 +171,7 @@ func GinMemberCheckEmail(c *gin.Context) {
 		} else {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrServerError.Code,
-				ErrorDescription: fmt.Sprintf("Failed to check member email: %v", err),
+				ErrorDescription: fmt.Sprintf("Failed to check robot email: %v", err),
 			}
 			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		}
@@ -180,9 +180,8 @@ func GinMemberCheckEmail(c *gin.Context) {
 
 	// Return result
 	result := map[string]interface{}{
-		"exists":  exists,
-		"email":   email,
-		"team_id": teamID,
+		"exists":      exists,
+		"robot_email": robotEmail,
 	}
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
@@ -280,7 +279,7 @@ func GinMemberCreateRobot(c *gin.Context) {
 	// Prepare base robot member data
 	baseData := maps.MapStrAny{
 		"display_name":    req.Name,
-		"email":           req.Email,
+		"robot_email":     req.RobotEmail, // Required: globally unique email
 		"bio":             req.Bio,
 		"role_id":         req.RoleID,
 		"system_prompt":   req.SystemPrompt,
@@ -288,6 +287,15 @@ func GinMemberCreateRobot(c *gin.Context) {
 	}
 
 	// Add optional fields
+	if req.Email != "" {
+		baseData["email"] = req.Email // Optional: display-only email
+	}
+	if len(req.AuthorizedSenders) > 0 {
+		baseData["authorized_senders"] = req.AuthorizedSenders
+	}
+	if len(req.EmailFilterRules) > 0 {
+		baseData["email_filter_rules"] = req.EmailFilterRules
+	}
 	if req.ManagerID != "" {
 		baseData["manager_id"] = req.ManagerID
 	}
@@ -857,8 +865,8 @@ func memberGet(ctx context.Context, userID, teamID, memberID string) (maps.MapSt
 	return memberData, nil
 }
 
-// memberCheckEmail handles the business logic for checking if member exists by team_id and email
-func memberCheckEmail(ctx context.Context, userID, teamID, email string) (bool, error) {
+// memberCheckRobotEmail handles the business logic for checking if robot email exists globally
+func memberCheckRobotEmail(ctx context.Context, userID, teamID, robotEmail string) (bool, error) {
 	// Check if user has access to the team (read permission: owner or member)
 	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -876,10 +884,10 @@ func memberCheckEmail(ctx context.Context, userID, teamID, email string) (bool, 
 		return false, fmt.Errorf("failed to get user provider: %w", err)
 	}
 
-	// Check if member exists by team_id and email
-	exists, err := provider.MemberExistsByTeamEmail(ctx, teamID, email)
+	// Check if robot email exists globally (not limited to team)
+	exists, err := provider.MemberExistsByRobotEmail(ctx, robotEmail)
 	if err != nil {
-		return false, fmt.Errorf("failed to check member existence: %w", err)
+		return false, fmt.Errorf("failed to check robot email existence: %w", err)
 	}
 
 	return exists, nil
@@ -1011,6 +1019,7 @@ func mapToMemberResponse(data maps.MapStr) MemberResponse {
 		Bio:                 toString(data["bio"]),
 		Avatar:              toString(data["avatar"]),
 		Email:               toString(data["email"]),
+		RobotEmail:          toString(data["robot_email"]), // Globally unique email for robot members
 		RoleID:              toString(data["role_id"]),
 		IsOwner:             data["is_owner"], // Keep original type (int or bool)
 		Status:              toString(data["status"]),
@@ -1069,6 +1078,36 @@ func mapToMemberDetailResponse(data maps.MapStr) MemberDetailResponse {
 		LastRobotActivity: toTimeString(data["last_robot_activity"]),
 		RobotStatus:       toString(data["robot_status"]),
 		Notes:             toString(data["notes"]),
+	}
+
+	// Handle authorized_senders array
+	if authorizedSenders, ok := data["authorized_senders"]; ok {
+		if sendersSlice, ok := authorizedSenders.([]interface{}); ok {
+			sendersList := make([]string, 0, len(sendersSlice))
+			for _, s := range sendersSlice {
+				if senderStr, ok := s.(string); ok {
+					sendersList = append(sendersList, senderStr)
+				}
+			}
+			member.AuthorizedSenders = sendersList
+		} else if sendersStrSlice, ok := authorizedSenders.([]string); ok {
+			member.AuthorizedSenders = sendersStrSlice
+		}
+	}
+
+	// Handle email_filter_rules array
+	if filterRules, ok := data["email_filter_rules"]; ok {
+		if rulesSlice, ok := filterRules.([]interface{}); ok {
+			rulesList := make([]string, 0, len(rulesSlice))
+			for _, r := range rulesSlice {
+				if ruleStr, ok := r.(string); ok {
+					rulesList = append(rulesList, ruleStr)
+				}
+			}
+			member.EmailFilterRules = rulesList
+		} else if rulesStrSlice, ok := filterRules.([]string); ok {
+			member.EmailFilterRules = rulesStrSlice
+		}
 	}
 
 	// Handle robot_config map
