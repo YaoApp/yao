@@ -51,6 +51,19 @@ func TestTeamConfigStructure(t *testing.T) {
 		// Verify team config structure is valid
 		assert.IsType(t, &user.TeamConfig{}, teamConfig, "Should return correct team config type")
 
+		// Test uploader field (public field)
+		if teamConfig.Uploader != "" {
+			t.Logf("Uploader configured: %s", teamConfig.Uploader)
+			assert.NotEmpty(t, teamConfig.Uploader, "Uploader should not be empty if set")
+		}
+
+		// Test avatar_agent field (public field, optional)
+		if teamConfig.AvatarAgent != "" {
+			t.Logf("Avatar agent configured: %s", teamConfig.AvatarAgent)
+		} else {
+			t.Log("Avatar agent not configured (optional field)")
+		}
+
 		// Test roles configuration
 		if teamConfig.Roles != nil {
 			assert.IsType(t, []*user.TeamRole{}, teamConfig.Roles, "Roles should be slice of TeamRole pointers")
@@ -162,6 +175,19 @@ func TestTeamConfigAPI(t *testing.T) {
 
 					// Verify team config structure
 					assert.IsType(t, &user.TeamConfig{}, &teamConfig, "Should return correct team config type")
+
+					// Test uploader field (public field)
+					if teamConfig.Uploader != "" {
+						t.Logf("API returned uploader: %s", teamConfig.Uploader)
+						assert.NotEmpty(t, teamConfig.Uploader, "Uploader should not be empty if set")
+					}
+
+					// Test avatar_agent field (public field, optional)
+					if teamConfig.AvatarAgent != "" {
+						t.Logf("API returned avatar_agent: %s", teamConfig.AvatarAgent)
+					} else {
+						t.Log("API returned no avatar_agent (optional field)")
+					}
 
 					// Test roles if present
 					if teamConfig.Roles != nil {

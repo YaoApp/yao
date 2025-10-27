@@ -445,6 +445,7 @@ type MemberDetailResponse struct {
 // CreateRobotMemberRequest represents the request to create a new robot member
 type CreateRobotMemberRequest struct {
 	Name              string   `json:"name" binding:"required"`        // Display name
+	Avatar            string   `json:"avatar,omitempty"`               // Avatar URL or file ID
 	Email             string   `json:"email,omitempty"`                // Email address (optional, for display only)
 	RobotEmail        string   `json:"robot_email" binding:"required"` // Robot's globally unique email address (required)
 	AuthorizedSenders []string `json:"authorized_senders,omitempty"`   // Whitelist of emails authorized to send commands
@@ -463,6 +464,7 @@ type CreateRobotMemberRequest struct {
 // UpdateRobotMemberRequest represents the request to update a robot member
 type UpdateRobotMemberRequest struct {
 	Name              string   `json:"name,omitempty"`               // Display name
+	Avatar            string   `json:"avatar,omitempty"`             // Avatar URL or file ID
 	Email             string   `json:"email,omitempty"`              // Email address (optional, for display only)
 	RobotEmail        string   `json:"robot_email,omitempty"`        // Robot's globally unique email address
 	AuthorizedSenders []string `json:"authorized_senders,omitempty"` // Whitelist of emails authorized to send commands
@@ -617,11 +619,13 @@ type RobotDefaults struct {
 
 // TeamConfig represents the team configuration loaded from DSL files
 type TeamConfig struct {
-	Roles  []*TeamRole   `json:"roles,omitempty"`
-	Robot  *RobotConfig  `json:"robot,omitempty"`
-	Invite *InviteConfig `json:"invite,omitempty"`
-	Type   string        `json:"type,omitempty"` // Default subscription type for new teams
-	Role   string        `json:"role,omitempty"` // Default user role for team creator
+	Roles       []*TeamRole   `json:"roles,omitempty"`
+	Robot       *RobotConfig  `json:"robot,omitempty"`
+	Invite      *InviteConfig `json:"invite,omitempty"`
+	Type        string        `json:"type,omitempty"`         // Default subscription type for new teams
+	Role        string        `json:"role,omitempty"`         // Default user role for team creator
+	Uploader    string        `json:"uploader,omitempty"`     // Uploader for avatar and attachments (default: __yao.attachment)
+	AvatarAgent string        `json:"avatar_agent,omitempty"` // Agent ID for avatar generation (optional)
 }
 
 // TeamRole represents a team role configuration

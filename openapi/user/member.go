@@ -287,6 +287,9 @@ func GinMemberCreateRobot(c *gin.Context) {
 	}
 
 	// Add optional fields
+	if req.Avatar != "" {
+		baseData["avatar"] = req.Avatar
+	}
 	if req.Email != "" {
 		baseData["email"] = req.Email // Optional: display-only email
 	}
@@ -393,6 +396,9 @@ func GinMemberUpdateRobot(c *gin.Context) {
 	// Add fields if provided
 	if req.Name != "" {
 		updateData["display_name"] = req.Name
+	}
+	if req.Avatar != "" {
+		updateData["avatar"] = req.Avatar
 	}
 	if req.Email != "" {
 		updateData["email"] = req.Email

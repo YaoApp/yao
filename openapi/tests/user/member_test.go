@@ -1137,6 +1137,7 @@ func TestMemberCreateRobot(t *testing.T) {
 			teamID,
 			map[string]interface{}{
 				"name":               "AI Assistant Full",
+				"avatar":             fmt.Sprintf("https://example.com/avatars/ai-full-%s.png", testUUID),
 				"email":              fmt.Sprintf("ai-full-%s@test.com", testUUID),
 				"robot_email":        fmt.Sprintf("robot-full-%s@robot.test.com", testUUID),
 				"authorized_senders": []string{"user1@test.com", "user2@test.com"},
@@ -1637,6 +1638,7 @@ func TestMemberUpdateRobot(t *testing.T) {
 			func() (string, string) { return createTestRobot("2") },
 			map[string]interface{}{
 				"name":               "Updated Robot Full",
+				"avatar":             fmt.Sprintf("https://example.com/avatars/full-%s.png", testUUID),
 				"email":              fmt.Sprintf("updated-display-%s@test.com", testUUID),
 				"robot_email":        fmt.Sprintf("updated-robot-%s@robot.test.com", testUUID),
 				"bio":                "Updated comprehensive description",
@@ -1673,6 +1675,7 @@ func TestMemberUpdateRobot(t *testing.T) {
 						body, _ := io.ReadAll(getResp.Body)
 						json.Unmarshal(body, &member)
 						assert.Equal(t, "Updated Robot Full", member["display_name"])
+						assert.Equal(t, fmt.Sprintf("https://example.com/avatars/full-%s.png", testUUID), member["avatar"])
 						assert.Equal(t, "Updated system prompt", member["system_prompt"])
 						assert.Equal(t, "gpt-4", member["language_model"])
 					}
@@ -1901,6 +1904,73 @@ func TestMemberUpdateRobot(t *testing.T) {
 			200,
 			"should handle empty update (no-op)",
 			nil,
+		},
+		{
+			"update robot avatar",
+			func() (string, string) { return createTestRobot("13") },
+			map[string]interface{}{
+				"name":        "Robot with Avatar",
+				"robot_email": fmt.Sprintf("robot-avatar-%s@robot.test.com", testUUID),
+				"avatar":      fmt.Sprintf("https://example.com/avatars/robot-%s.png", testUUID),
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update robot avatar successfully",
+			func(t *testing.T, memberID string) {
+				// Verify the avatar was updated
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						assert.Equal(t, "Robot with Avatar", member["display_name"])
+						assert.Equal(t, fmt.Sprintf("https://example.com/avatars/robot-%s.png", testUUID), member["avatar"], "Should have correct avatar URL")
+					}
+				}
+			},
+		},
+		{
+			"update only robot avatar",
+			func() (string, string) { return createTestRobot("14") },
+			map[string]interface{}{
+				"avatar": fmt.Sprintf("https://example.com/avatars/updated-%s.png", testUUID),
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update only avatar without affecting other fields",
+			func(t *testing.T, memberID string) {
+				// Verify only avatar was updated
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						// Avatar should be updated
+						assert.Equal(t, fmt.Sprintf("https://example.com/avatars/updated-%s.png", testUUID), member["avatar"], "Should have updated avatar URL")
+						// Original fields should remain
+						assert.Equal(t, "Test Robot 14", member["display_name"], "Name should remain unchanged")
+						assert.Equal(t, "gpt-3.5-turbo", member["language_model"], "LLM should remain unchanged")
+					}
+				}
+			},
 		},
 	}
 
