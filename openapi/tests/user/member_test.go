@@ -1555,4 +1555,416 @@ func TestMemberCheckRobotEmail(t *testing.T) {
 	}
 }
 
+// TestMemberUpdateRobot tests the PUT /user/teams/:team_id/members/robots/:member_id endpoint
+func TestMemberUpdateRobot(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Register a test client for OAuth authentication
+	testClient := testutils.RegisterTestClient(t, "Robot Member Update Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token with root permissions (required for robot operations)
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile")
+
+	// Use UUID to ensure unique test data
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create a test team
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Robot Update Test Team "+testUUID)
+	teamID := getTeamID(createdTeam)
+
+	// Helper function to create a robot member for testing
+	createTestRobot := func(suffix string) (string, string) {
+		robotEmail := fmt.Sprintf("test-robot-%s-%s@robot.test.com", testUUID, suffix)
+		robotBody := map[string]interface{}{
+			"name":            "Test Robot " + suffix,
+			"robot_email":     robotEmail,
+			"email":           fmt.Sprintf("display-%s-%s@test.com", testUUID, suffix),
+			"role":            "member",
+			"prompt":          "Original prompt for " + suffix,
+			"llm":             "gpt-3.5-turbo",
+			"autonomous_mode": "disabled",
+			"cost_limit":      50.0,
+		}
+		robotBodyBytes, _ := json.Marshal(robotBody)
+		robotReq, _ := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/robots", bytes.NewBuffer(robotBodyBytes))
+		robotReq.Header.Set("Content-Type", "application/json")
+		robotReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+		client := &http.Client{}
+		robotResp, err := client.Do(robotReq)
+		assert.NoError(t, err)
+		if robotResp != nil {
+			defer robotResp.Body.Close()
+			assert.Equal(t, 201, robotResp.StatusCode, "Should create robot member successfully")
+			body, _ := io.ReadAll(robotResp.Body)
+			var response map[string]interface{}
+			json.Unmarshal(body, &response)
+			return toString(response["member_id"]), robotEmail
+		}
+		return "", ""
+	}
+
+	testCases := []struct {
+		name       string
+		setupFunc  func() (string, string) // Returns (memberID, originalRobotEmail)
+		body       map[string]interface{}
+		headers    map[string]string
+		expectCode int
+		expectMsg  string
+		validateFn func(*testing.T, string) // Optional validation function with memberID
+	}{
+		{
+			"update robot without authentication",
+			func() (string, string) { return createTestRobot("1") },
+			map[string]interface{}{
+				"name": "Updated Name",
+			},
+			map[string]string{},
+			401,
+			"should require authentication",
+			nil,
+		},
+		{
+			"update robot with all fields",
+			func() (string, string) { return createTestRobot("2") },
+			map[string]interface{}{
+				"name":               "Updated Robot Full",
+				"email":              fmt.Sprintf("updated-display-%s@test.com", testUUID),
+				"robot_email":        fmt.Sprintf("updated-robot-%s@robot.test.com", testUUID),
+				"bio":                "Updated comprehensive description",
+				"role":               "admin",
+				"report_to":          tokenInfo.UserID,
+				"prompt":             "Updated system prompt",
+				"llm":                "gpt-4",
+				"agents":             []string{"agent1", "agent2"},
+				"mcp_tools":          []string{"tool1", "tool2"},
+				"authorized_senders": []string{"admin@test.com"},
+				"email_filter_rules": []string{".*@test\\.com$"},
+				"autonomous_mode":    "enabled",
+				"cost_limit":         100.0,
+				"status":             "active",
+				"robot_status":       "working",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update robot with all fields successfully",
+			func(t *testing.T, memberID string) {
+				// Verify the update
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						assert.Equal(t, "Updated Robot Full", member["display_name"])
+						assert.Equal(t, "Updated system prompt", member["system_prompt"])
+						assert.Equal(t, "gpt-4", member["language_model"])
+					}
+				}
+			},
+		},
+		{
+			"update robot with partial fields",
+			func() (string, string) { return createTestRobot("3") },
+			map[string]interface{}{
+				"name":   "Partially Updated Robot",
+				"prompt": "Partially updated prompt",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update robot with partial fields",
+			func(t *testing.T, memberID string) {
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						assert.Equal(t, "Partially Updated Robot", member["display_name"])
+						assert.Equal(t, "Partially updated prompt", member["system_prompt"])
+						// Original fields should remain
+						assert.Equal(t, "gpt-3.5-turbo", member["language_model"])
+					}
+				}
+			},
+		},
+		{
+			"update robot_email to new unique email",
+			func() (string, string) { return createTestRobot("4") },
+			map[string]interface{}{
+				"robot_email": fmt.Sprintf("new-unique-%s@robot.test.com", testUUID),
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update robot_email to new unique email",
+			func(t *testing.T, memberID string) {
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						assert.Equal(t, fmt.Sprintf("new-unique-%s@robot.test.com", testUUID), member["robot_email"])
+					}
+				}
+			},
+		},
+		{
+			"update robot_email to duplicate email",
+			func() (string, string) {
+				// Create two robots
+				memberID1, email1 := createTestRobot("5a")
+				_, _ = createTestRobot("5b")
+				return memberID1, email1
+			},
+			map[string]interface{}{
+				"robot_email": fmt.Sprintf("test-robot-%s-5b@robot.test.com", testUUID),
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			409,
+			"should reject duplicate robot_email",
+			nil,
+		},
+		{
+			"update autonomous_mode variations",
+			func() (string, string) { return createTestRobot("6") },
+			map[string]interface{}{
+				"autonomous_mode": "1",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should handle autonomous_mode=1",
+			func(t *testing.T, memberID string) {
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						// autonomous_mode should be enabled
+						autonomousMode := member["autonomous_mode"]
+						assert.True(t, autonomousMode == true || autonomousMode == float64(1) || autonomousMode == int64(1))
+					}
+				}
+			},
+		},
+		{
+			"update robot status",
+			func() (string, string) { return createTestRobot("7") },
+			map[string]interface{}{
+				"status":       "inactive",
+				"robot_status": "error",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update robot status fields",
+			func(t *testing.T, memberID string) {
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						assert.Equal(t, "inactive", member["status"])
+						assert.Equal(t, "error", member["robot_status"])
+					}
+				}
+			},
+		},
+		{
+			"update array fields",
+			func() (string, string) { return createTestRobot("8") },
+			map[string]interface{}{
+				"agents":             []string{"new-agent1", "new-agent2", "new-agent3"},
+				"mcp_tools":          []string{"new-tool1"},
+				"authorized_senders": []string{"sender1@test.com", "sender2@test.com"},
+				"email_filter_rules": []string{".*@allowed\\.com$"},
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update array fields",
+			nil,
+		},
+		{
+			"update non-existent robot",
+			func() (string, string) { return "non-existent-member-id", "" },
+			map[string]interface{}{
+				"name": "Should Fail",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent robot",
+			nil,
+		},
+		{
+			"update regular user member as robot",
+			func() (string, string) {
+				// Create a regular user member instead of robot
+				memberID := createTestMember(t, serverURL, baseURL, teamID, tokenInfo.AccessToken, "regular-user-"+testUUID)
+				return memberID, ""
+			},
+			map[string]interface{}{
+				"name": "Should Fail",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should reject updating non-robot member",
+			nil,
+		},
+		{
+			"update robot in non-existent team",
+			func() (string, string) { return createTestRobot("10") },
+			map[string]interface{}{
+				"name": "Should Fail",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent team",
+			nil,
+		},
+		{
+			"update robot with invalid JSON",
+			func() (string, string) { return createTestRobot("11") },
+			nil, // Will send invalid JSON
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should handle invalid JSON",
+			nil,
+		},
+		{
+			"update robot with empty body",
+			func() (string, string) { return createTestRobot("12") },
+			map[string]interface{}{},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should handle empty update (no-op)",
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			memberID, _ := tc.setupFunc()
+			
+			// Use non-existent team ID for the specific test case
+			targetTeamID := teamID
+			if tc.name == "update robot in non-existent team" {
+				targetTeamID = "non-existent-team-id"
+			}
+			
+			requestURL := serverURL + baseURL + "/user/teams/" + targetTeamID + "/members/robots/" + memberID
+
+			var req *http.Request
+			var err error
+
+			if tc.body == nil {
+				// Send invalid JSON for invalid JSON test case
+				req, err = http.NewRequest("PUT", requestURL, bytes.NewBufferString("invalid json"))
+			} else {
+				bodyBytes, _ := json.Marshal(tc.body)
+				req, err = http.NewRequest("PUT", requestURL, bytes.NewBuffer(bodyBytes))
+			}
+			assert.NoError(t, err, "Should create HTTP request")
+
+			req.Header.Set("Content-Type", "application/json")
+
+			// Add headers
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			assert.NoError(t, err, "HTTP request should succeed")
+
+			if resp != nil {
+				defer resp.Body.Close()
+				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
+
+				body, err := io.ReadAll(resp.Body)
+				assert.NoError(t, err, "Should read response body")
+
+				if resp.StatusCode == 200 {
+					// Parse response as success message
+					var response map[string]interface{}
+					err = json.Unmarshal(body, &response)
+					assert.NoError(t, err, "Should parse JSON response")
+
+					assert.Contains(t, response, "message", "Should have success message")
+					assert.Equal(t, "Robot member updated successfully", response["message"], "Should have correct success message")
+
+					// Run custom validation if provided
+					if tc.validateFn != nil {
+						tc.validateFn(t, memberID)
+					}
+				}
+
+				t.Logf("Robot member update test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
+			}
+		})
+	}
+}
+
 // Note: getTeamID function is already defined in team_test.go

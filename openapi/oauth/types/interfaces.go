@@ -317,6 +317,7 @@ type UserProvider interface {
 
 	// Robot Member Operations
 	CreateRobotMember(ctx context.Context, teamID string, robotData maps.MapStrAny) (string, error)
+	UpdateRobotMember(ctx context.Context, memberID string, robotData maps.MapStrAny) error
 	UpdateRobotActivity(ctx context.Context, memberID int64, robotStatus string) error
 	GetActiveRobotMembers(ctx context.Context) ([]maps.MapStr, error)
 

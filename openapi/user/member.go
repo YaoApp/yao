@@ -352,6 +352,142 @@ func GinMemberCreateRobot(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusCreated, gin.H{"member_id": memberID})
 }
 
+// GinMemberUpdateRobot handles PUT /teams/:team_id/members/robots/:member_id - Update robot member
+func GinMemberUpdateRobot(c *gin.Context) {
+	// Get authorized user info
+	authInfo := authorized.GetInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	teamID := c.Param("id")
+	memberID := c.Param("member_id")
+	if teamID == "" || memberID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Team ID and Member ID are required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Parse request body
+	var req UpdateRobotMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Prepare update data
+	updateData := maps.MapStrAny{}
+
+	// Add fields if provided
+	if req.Name != "" {
+		updateData["display_name"] = req.Name
+	}
+	if req.Email != "" {
+		updateData["email"] = req.Email
+	}
+	if req.RobotEmail != "" {
+		updateData["robot_email"] = req.RobotEmail
+	}
+	if req.Bio != "" {
+		updateData["bio"] = req.Bio
+	}
+	if req.RoleID != "" {
+		updateData["role_id"] = req.RoleID
+	}
+	if req.ManagerID != "" {
+		updateData["manager_id"] = req.ManagerID
+	}
+	if req.SystemPrompt != "" {
+		updateData["system_prompt"] = req.SystemPrompt
+	}
+	if req.LanguageModel != "" {
+		updateData["language_model"] = req.LanguageModel
+	}
+	if req.Status != "" {
+		updateData["status"] = req.Status
+	}
+	if req.RobotStatus != "" {
+		updateData["robot_status"] = req.RobotStatus
+	}
+	if req.AutonomousMode != "" {
+		updateData["autonomous_mode"] = toBool(req.AutonomousMode)
+	}
+	if req.CostLimit > 0 {
+		updateData["cost_limit"] = req.CostLimit
+	}
+
+	// Handle array fields (they can be empty arrays)
+	if req.AuthorizedSenders != nil {
+		updateData["authorized_senders"] = req.AuthorizedSenders
+	}
+	if req.EmailFilterRules != nil {
+		updateData["email_filter_rules"] = req.EmailFilterRules
+	}
+	if req.Agents != nil {
+		updateData["agents"] = req.Agents
+	}
+	if req.MCPServers != nil {
+		updateData["mcp_servers"] = req.MCPServers
+	}
+
+	// Wrap with update scope for permission tracking
+	robotData := authInfo.WithUpdateScope(updateData)
+
+	// Call business logic
+	err := memberUpdateRobot(c.Request.Context(), authInfo.UserID, teamID, memberID, robotData)
+	if err != nil {
+		log.Error("Failed to update robot member: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "access denied") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+		} else if strings.Contains(err.Error(), "not a robot member") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		} else if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "duplicate") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusConflict, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to update robot member",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	// Return success
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Robot member updated successfully"})
+}
+
 // GinMemberUpdate handles PUT /teams/:team_id/members/:member_id - Update team member
 func GinMemberUpdate(c *gin.Context) {
 	// Get authorized user info
@@ -919,6 +1055,34 @@ func memberCreateRobot(ctx context.Context, userID, teamID string, robotData map
 	}
 
 	return memberID, nil
+}
+
+// memberUpdateRobot handles the business logic for updating a robot member
+func memberUpdateRobot(ctx context.Context, userID, teamID, memberID string, robotData maps.MapStrAny) error {
+	// Check if user has access to the team (write permission: owner only)
+	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
+	if err != nil {
+		return err
+	}
+
+	// Only allow access if user is owner
+	if !isOwner {
+		return fmt.Errorf("access denied: only team owner can update robot members")
+	}
+
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Use UpdateRobotMember method which handles robot-specific logic and validation
+	err = provider.UpdateRobotMember(ctx, memberID, robotData)
+	if err != nil {
+		return fmt.Errorf("failed to update robot member: %w", err)
+	}
+
+	return nil
 }
 
 // memberUpdate handles the business logic for updating a team member
