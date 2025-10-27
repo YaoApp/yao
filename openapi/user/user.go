@@ -136,6 +136,7 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.GET("/:id/members", GinMemberList)                              // GET /api/user/teams/:id/members - List team members
 	team.GET("/:id/members/check-robot-email", GinMemberCheckRobotEmail) // GET /api/user/teams/:id/members/check-robot-email?robot_email=xxx - Check if robot email exists globally
 	team.POST("/:id/members/robots", GinMemberCreateRobot)               // POST /api/user/teams/:id/members/robots - Add robot member
+	team.PUT("/:id/members/robots/:member_id", GinMemberUpdateRobot)     // PUT /api/user/teams/:id/members/robots/:member_id - Update robot member
 	team.GET("/:id/members/:member_id", GinMemberGet)                    // GET /api/user/teams/:id/members/:member_id - Get member details
 	team.PUT("/:id/members/:member_id", GinMemberUpdate)                 // PUT /api/user/teams/:id/members/:member_id - Update member
 	team.DELETE("/:id/members/:member_id", GinMemberDelete)              // DELETE /api/user/teams/:id/members/:member_id - Remove member

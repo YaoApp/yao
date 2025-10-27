@@ -386,6 +386,83 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 	return u.CreateMember(ctx, memberData)
 }
 
+// UpdateRobotMember updates a robot member by member_id
+func (u *DefaultUser) UpdateRobotMember(ctx context.Context, memberID string, robotData maps.MapStrAny) error {
+	// First, verify the member exists and is a robot
+	existingMember, err := u.GetMemberByMemberID(ctx, memberID)
+	if err != nil {
+		return fmt.Errorf("failed to get member: %w", err)
+	}
+
+	// Verify this is a robot member
+	memberType, exists := existingMember["member_type"]
+	if !exists || memberType != "robot" {
+		return fmt.Errorf("member %s is not a robot member", memberID)
+	}
+
+	// Check if robot_email already exists globally (if updating robot_email)
+	if robotEmail, exists := robotData["robot_email"]; exists && robotEmail != nil && robotEmail != "" {
+		robotEmailStr := fmt.Sprintf("%v", robotEmail)
+
+		// Only check uniqueness if the email is actually changing
+		currentEmail, _ := existingMember["robot_email"]
+		if currentEmail != robotEmailStr {
+			m := model.Select(u.memberModel)
+			existingMembers, err := m.Get(model.QueryParam{
+				Select: []interface{}{"id", "member_id"},
+				Wheres: []model.QueryWhere{
+					{Column: "robot_email", Value: robotEmailStr},
+				},
+				Limit: 1,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to check robot_email uniqueness: %w", err)
+			}
+			if len(existingMembers) > 0 {
+				// Check if it's not the same member
+				existingMemberID, _ := existingMembers[0]["member_id"]
+				if existingMemberID != memberID {
+					return fmt.Errorf("robot_email %s already exists", robotEmailStr)
+				}
+			}
+		}
+	}
+
+	memberData := maps.MapStrAny{}
+
+	// Copy shared profile fields (used by both users and robots)
+	profileFields := []string{
+		"display_name", "bio", "avatar", "email",
+	}
+	for _, field := range profileFields {
+		if value, exists := robotData[field]; exists {
+			memberData[field] = value
+		}
+	}
+
+	// Copy robot-specific fields
+	robotFields := []string{
+		"role_id", "system_prompt", "manager_id", "robot_email", "authorized_senders", "email_filter_rules",
+		"robot_config", "agents", "mcp_servers",
+		"language_model", "cost_limit", "autonomous_mode", "robot_status",
+		"notes", "metadata", "status",
+		"__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
+	}
+
+	for _, field := range robotFields {
+		if value, exists := robotData[field]; exists {
+			memberData[field] = value
+		}
+	}
+
+	// Skip update if no valid fields to update
+	if len(memberData) == 0 {
+		return nil
+	}
+
+	return u.UpdateMemberByMemberID(ctx, memberID, memberData)
+}
+
 // AddMember adds a user to a team (invitation-based)
 func (u *DefaultUser) AddMember(ctx context.Context, teamID string, userID string, roleID string, invitedBy string) (string, error) {
 	// Check if member already exists

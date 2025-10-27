@@ -1240,6 +1240,233 @@ func TestMemberExistsByRobotEmail(t *testing.T) {
 	})
 }
 
+func TestUpdateRobotMember(t *testing.T) {
+	prepare(t)
+	defer clean()
+
+	ctx := context.Background()
+
+	// Use UUID to ensure unique identifiers
+	testUUID := strings.ReplaceAll(uuid.New().String(), "-", "")[:8]
+
+	// Create test user (team owner)
+	ownerUser := createTestUser(ctx, t, "owner"+testUUID)
+	regularUser := createTestUser(ctx, t, "user"+testUUID)
+
+	// Create test team
+	teamMap := maps.MapStrAny{
+		"name":         "Update Robot Test Team " + testUUID,
+		"display_name": "Update Robot Test " + testUUID,
+		"description":  "A test team for robot update testing",
+		"owner_id":     ownerUser,
+		"status":       "active",
+	}
+
+	teamID, err := testProvider.CreateTeam(ctx, teamMap)
+	assert.NoError(t, err)
+
+	var robotMemberID string
+	var regularMemberID string
+
+	// Create a robot member
+	t.Run("Setup_CreateRobotMember", func(t *testing.T) {
+		robotData := maps.MapStrAny{
+			"display_name":    "TestBot" + testUUID,
+			"bio":             "Original bio",
+			"role_id":         "bot",
+			"autonomous_mode": false,
+			"robot_status":    "idle",
+			"system_prompt":   "Original prompt",
+			"language_model":  "gpt-3.5-turbo",
+			"cost_limit":      50.00,
+			"robot_email":     "testbot" + testUUID + "@robot.example.com",
+		}
+
+		memberID, err := testProvider.CreateRobotMember(ctx, teamID, robotData)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, memberID)
+		robotMemberID = memberID
+	})
+
+	// Create a regular user member for testing
+	t.Run("Setup_CreateRegularMember", func(t *testing.T) {
+		memberData := maps.MapStrAny{
+			"team_id":     teamID,
+			"user_id":     regularUser,
+			"member_type": "user",
+			"role_id":     "user",
+			"status":      "active",
+		}
+
+		memberID, err := testProvider.CreateMember(ctx, memberData)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, memberID)
+		regularMemberID = memberID
+	})
+
+	// Test successful update of robot member
+	t.Run("UpdateRobotMember_Success", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"display_name":    "UpdatedBot" + testUUID,
+			"bio":             "Updated bio",
+			"autonomous_mode": true,
+			"robot_status":    "working",
+			"system_prompt":   "Updated prompt",
+			"language_model":  "gpt-4",
+			"cost_limit":      100.00,
+		}
+
+		err := testProvider.UpdateRobotMember(ctx, robotMemberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify updates
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, robotMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, "UpdatedBot"+testUUID, member["display_name"])
+		assert.Equal(t, "Updated bio", member["bio"])
+		assert.Equal(t, "working", member["robot_status"])
+		assert.Equal(t, "Updated prompt", member["system_prompt"])
+		assert.Equal(t, "gpt-4", member["language_model"])
+	})
+
+	// Test updating robot_email
+	t.Run("UpdateRobotMember_UpdateEmail", func(t *testing.T) {
+		newEmail := "updated-testbot" + testUUID + "@robot.example.com"
+		updateData := maps.MapStrAny{
+			"robot_email": newEmail,
+		}
+
+		err := testProvider.UpdateRobotMember(ctx, robotMemberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, robotMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, newEmail, member["robot_email"])
+	})
+
+	// Test updating robot configuration fields
+	t.Run("UpdateRobotMember_UpdateConfiguration", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"authorized_senders": []string{
+				"admin@example.com",
+				"manager@example.com",
+			},
+			"email_filter_rules": []string{
+				".*@example\\.com$",
+				".*@test\\.com$",
+			},
+			"robot_config": map[string]interface{}{
+				"max_tokens":  2000,
+				"temperature": 0.7,
+			},
+			"agents": []string{
+				"agent1",
+				"agent2",
+			},
+			"mcp_servers": []string{
+				"mcp://server1",
+				"mcp://server2",
+			},
+		}
+
+		err := testProvider.UpdateRobotMember(ctx, robotMemberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, robotMemberID)
+		assert.NoError(t, err)
+		assert.NotNil(t, member["authorized_senders"])
+		assert.NotNil(t, member["email_filter_rules"])
+		assert.NotNil(t, member["robot_config"])
+	})
+
+	// Test error when trying to update non-robot member
+	t.Run("UpdateRobotMember_NotRobotMember", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"display_name": "Should Fail",
+		}
+
+		err := testProvider.UpdateRobotMember(ctx, regularMemberID, updateData)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not a robot member")
+	})
+
+	// Test error when member_id doesn't exist
+	t.Run("UpdateRobotMember_NotFound", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"display_name": "Should Fail",
+		}
+
+		err := testProvider.UpdateRobotMember(ctx, "non-existent-member-id", updateData)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get member")
+	})
+
+	// Test robot_email uniqueness validation during update
+	t.Run("UpdateRobotMember_EmailUniqueness", func(t *testing.T) {
+		// Create another robot with a different email
+		anotherRobotData := maps.MapStrAny{
+			"display_name": "AnotherBot" + testUUID,
+			"role_id":      "bot",
+			"robot_email":  "anotherbot" + testUUID + "@robot.example.com",
+		}
+
+		_, err := testProvider.CreateRobotMember(ctx, teamID, anotherRobotData)
+		assert.NoError(t, err)
+
+		// Try to update the first robot's email to match the second robot's email
+		updateData := maps.MapStrAny{
+			"robot_email": "anotherbot" + testUUID + "@robot.example.com",
+		}
+
+		err = testProvider.UpdateRobotMember(ctx, robotMemberID, updateData)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	// Test updating with same email (should succeed - no actual change)
+	t.Run("UpdateRobotMember_SameEmail", func(t *testing.T) {
+		// Get current email
+		member, err := testProvider.GetMemberDetailByMemberID(ctx, robotMemberID)
+		assert.NoError(t, err)
+		currentEmail := member["robot_email"]
+
+		// Update with same email
+		updateData := maps.MapStrAny{
+			"robot_email": currentEmail,
+		}
+
+		err = testProvider.UpdateRobotMember(ctx, robotMemberID, updateData)
+		assert.NoError(t, err)
+	})
+
+	// Test update with empty data (should not error)
+	t.Run("UpdateRobotMember_EmptyData", func(t *testing.T) {
+		err := testProvider.UpdateRobotMember(ctx, robotMemberID, maps.MapStrAny{})
+		assert.NoError(t, err) // Should not error, just do nothing
+	})
+
+	// Test updating status
+	t.Run("UpdateRobotMember_UpdateStatus", func(t *testing.T) {
+		updateData := maps.MapStrAny{
+			"status": "inactive",
+		}
+
+		err := testProvider.UpdateRobotMember(ctx, robotMemberID, updateData)
+		assert.NoError(t, err)
+
+		// Verify update
+		member, err := testProvider.GetMemberByMemberID(ctx, robotMemberID)
+		assert.NoError(t, err)
+		assert.Equal(t, "inactive", member["status"])
+
+		// Restore to active
+		err = testProvider.UpdateRobotMember(ctx, robotMemberID, maps.MapStrAny{"status": "active"})
+		assert.NoError(t, err)
+	})
+}
+
 func TestRobotEmailUniqueness(t *testing.T) {
 	prepare(t)
 	defer clean()

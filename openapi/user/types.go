@@ -460,6 +460,26 @@ type CreateRobotMemberRequest struct {
 	CostLimit         float64  `json:"cost_limit,omitempty"`           // Monthly cost limit in USD
 }
 
+// UpdateRobotMemberRequest represents the request to update a robot member
+type UpdateRobotMemberRequest struct {
+	Name              string   `json:"name,omitempty"`               // Display name
+	Email             string   `json:"email,omitempty"`              // Email address (optional, for display only)
+	RobotEmail        string   `json:"robot_email,omitempty"`        // Robot's globally unique email address
+	AuthorizedSenders []string `json:"authorized_senders,omitempty"` // Whitelist of emails authorized to send commands
+	EmailFilterRules  []string `json:"email_filter_rules,omitempty"` // Email filtering rules (supports regex patterns)
+	Bio               string   `json:"bio,omitempty"`                // Bio/description
+	RoleID            string   `json:"role,omitempty"`               // Role ID
+	ManagerID         string   `json:"report_to,omitempty"`          // Direct manager user ID
+	SystemPrompt      string   `json:"prompt,omitempty"`             // Identity & role prompt
+	LanguageModel     string   `json:"llm,omitempty"`                // Language model (e.g., "gpt-4")
+	Agents            []string `json:"agents,omitempty"`             // Accessible agents
+	MCPServers        []string `json:"mcp_tools,omitempty"`          // MCP servers/tools
+	AutonomousMode    string   `json:"autonomous_mode,omitempty"`    // "enabled" or "disabled"
+	CostLimit         float64  `json:"cost_limit,omitempty"`         // Monthly cost limit in USD
+	Status            string   `json:"status,omitempty"`             // Status: active, inactive
+	RobotStatus       string   `json:"robot_status,omitempty"`       // Robot status: idle, working, error
+}
+
 // MemberListRequest represents the request to list team members with advanced filtering
 type MemberListRequest struct {
 	// Pagination
