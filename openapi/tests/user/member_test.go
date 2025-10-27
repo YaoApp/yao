@@ -1907,13 +1907,13 @@ func TestMemberUpdateRobot(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memberID, _ := tc.setupFunc()
-			
+
 			// Use non-existent team ID for the specific test case
 			targetTeamID := teamID
 			if tc.name == "update robot in non-existent team" {
 				targetTeamID = "non-existent-team-id"
 			}
-			
+
 			requestURL := serverURL + baseURL + "/user/teams/" + targetTeamID + "/members/robots/" + memberID
 
 			var req *http.Request
