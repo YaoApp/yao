@@ -344,10 +344,12 @@ func GetTeamConfigPublic(locale string) *TeamConfig {
 
 	// Create a deep copy of the config to avoid modifying the original
 	publicConfig := &TeamConfig{
-		Type:   originalConfig.Type,
-		Role:   originalConfig.Role,
-		Roles:  originalConfig.Roles,  // Shallow copy is OK for roles (read-only)
-		Invite: originalConfig.Invite, // Shallow copy is OK for invite config (read-only)
+		Type:        originalConfig.Type,
+		Role:        originalConfig.Role,
+		Roles:       originalConfig.Roles,       // Shallow copy is OK for roles (read-only)
+		Invite:      originalConfig.Invite,      // Shallow copy is OK for invite config (read-only)
+		Uploader:    originalConfig.Uploader,    // Public information
+		AvatarAgent: originalConfig.AvatarAgent, // Public information
 	}
 
 	// Handle robot config - create a copy without sensitive fields
