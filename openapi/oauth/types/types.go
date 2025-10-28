@@ -714,13 +714,14 @@ type OIDCUserInfo struct {
 	Address *OIDCAddress `json:"address,omitempty"` // Physical mailing address
 
 	// Additional custom claims with namespace
-	YaoUserID   string        `json:"yao:user_id,omitempty"`   // Yao user ID (original user ID)
-	YaoTenantID string        `json:"yao:tenant_id,omitempty"` // Yao tenant ID
-	YaoTeamID   string        `json:"yao:team_id,omitempty"`   // Yao team ID
-	YaoTeam     *OIDCTeamInfo `json:"yao:team,omitempty"`      // Yao team info
-	YaoIsOwner  *bool         `json:"yao:is_owner,omitempty"`  // Yao is owner
-	YaoTypeID   string        `json:"yao:type_id,omitempty"`   // Yao user type ID
-	YaoType     *OIDCTypeInfo `json:"yao:type,omitempty"`      // Yao user type info
+	YaoUserID   string          `json:"yao:user_id,omitempty"`   // Yao user ID (original user ID)
+	YaoTenantID string          `json:"yao:tenant_id,omitempty"` // Yao tenant ID
+	YaoTeamID   string          `json:"yao:team_id,omitempty"`   // Yao team ID
+	YaoTeam     *OIDCTeamInfo   `json:"yao:team,omitempty"`      // Yao team info
+	YaoIsOwner  *bool           `json:"yao:is_owner,omitempty"`  // Yao is owner
+	YaoTypeID   string          `json:"yao:type_id,omitempty"`   // Yao user type ID
+	YaoType     *OIDCTypeInfo   `json:"yao:type,omitempty"`      // Yao user type info
+	YaoMember   *OIDCMemberInfo `json:"yao:member,omitempty"`    // Yao member profile info (for team context)
 
 	// Raw response for debugging and custom processing
 	Raw map[string]interface{} `json:"raw,omitempty"` // Original provider response
@@ -741,6 +742,15 @@ type OIDCTypeInfo struct {
 	TypeID string `json:"type_id,omitempty"` // User type identifier
 	Name   string `json:"name,omitempty"`    // User type name
 	Locale string `json:"locale,omitempty"`  // User type locale
+}
+
+// OIDCMemberInfo represents team member profile information
+type OIDCMemberInfo struct {
+	MemberID    string `json:"member_id,omitempty"`    // Member's unique identifier in team
+	DisplayName string `json:"display_name,omitempty"` // Member's display name in team
+	Bio         string `json:"bio,omitempty"`          // Member's bio in team
+	Avatar      string `json:"avatar,omitempty"`       // Member's avatar in team
+	Email       string `json:"email,omitempty"`        // Member's email in team
 }
 
 // OIDCAddress represents the OIDC address claim structure

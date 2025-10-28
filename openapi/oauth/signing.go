@@ -607,6 +607,28 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 			claims["yao:team"] = teamMap
 		}
 	}
+	// Add Yao member info if present (for team context)
+	if userdata.YaoMember != nil {
+		memberMap := make(map[string]interface{})
+		if userdata.YaoMember.MemberID != "" {
+			memberMap["member_id"] = userdata.YaoMember.MemberID
+		}
+		if userdata.YaoMember.DisplayName != "" {
+			memberMap["display_name"] = userdata.YaoMember.DisplayName
+		}
+		if userdata.YaoMember.Bio != "" {
+			memberMap["bio"] = userdata.YaoMember.Bio
+		}
+		if userdata.YaoMember.Avatar != "" {
+			memberMap["avatar"] = userdata.YaoMember.Avatar
+		}
+		if userdata.YaoMember.Email != "" {
+			memberMap["email"] = userdata.YaoMember.Email
+		}
+		if len(memberMap) > 0 {
+			claims["yao:member"] = memberMap
+		}
+	}
 	// Add Yao type info if present
 	if userdata.YaoType != nil {
 		typeMap := make(map[string]interface{})

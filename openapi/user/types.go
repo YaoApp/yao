@@ -265,6 +265,18 @@ type LoginSuccessResponse struct {
 // LoginContext is an alias for the oauth types LoginContext
 type LoginContext = oauthtypes.LoginContext
 
+// IssueTokensParams represents parameters for issueTokens function
+type IssueTokensParams struct {
+	UserID   string                 // User ID
+	TeamID   string                 // Team ID (empty for personal account)
+	Team     map[string]interface{} // Team data (nil for personal account)
+	Member   map[string]interface{} // Member profile data (nil for personal account or if not available)
+	User     map[string]interface{} // User data
+	Subject  string                 // Token subject
+	Scopes   []string               // Token scopes
+	LoginCtx *LoginContext          // Login context (IP, user agent, etc.)
+}
+
 // ==== Entry Verification Types ====
 
 // EntryVerifyRequest represents the request to verify entry (login/register)

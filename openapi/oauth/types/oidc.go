@@ -157,6 +157,29 @@ func (user OIDCUserInfo) Map() map[string]interface{} {
 		}
 	}
 
+	// Add Yao member info if present and has content (for team context)
+	if user.YaoMember != nil {
+		memberMap := make(map[string]interface{})
+		if user.YaoMember.MemberID != "" {
+			memberMap["member_id"] = user.YaoMember.MemberID
+		}
+		if user.YaoMember.DisplayName != "" {
+			memberMap["display_name"] = user.YaoMember.DisplayName
+		}
+		if user.YaoMember.Bio != "" {
+			memberMap["bio"] = user.YaoMember.Bio
+		}
+		if user.YaoMember.Avatar != "" {
+			memberMap["avatar"] = user.YaoMember.Avatar
+		}
+		if user.YaoMember.Email != "" {
+			memberMap["email"] = user.YaoMember.Email
+		}
+		if len(memberMap) > 0 {
+			result["yao:member"] = memberMap
+		}
+	}
+
 	// Include raw data if available
 	// if user.Raw != nil {
 	// 	// Merge raw data, but let structured fields take precedence
@@ -325,6 +348,27 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 			typeInfo.Locale = locale
 		}
 		userInfo.YaoType = typeInfo
+	}
+
+	// Yao member info (nested object, for team context)
+	if memberData, ok := user["yao:member"].(map[string]interface{}); ok {
+		member := &OIDCMemberInfo{}
+		if memberID, ok := memberData["member_id"].(string); ok {
+			member.MemberID = memberID
+		}
+		if displayName, ok := memberData["display_name"].(string); ok {
+			member.DisplayName = displayName
+		}
+		if bio, ok := memberData["bio"].(string); ok {
+			member.Bio = bio
+		}
+		if avatar, ok := memberData["avatar"].(string); ok {
+			member.Avatar = avatar
+		}
+		if email, ok := memberData["email"].(string); ok {
+			member.Email = email
+		}
+		userInfo.YaoMember = member
 	}
 
 	return userInfo
