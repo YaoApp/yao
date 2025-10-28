@@ -513,6 +513,52 @@ type UpdateMemberRequest struct {
 	LastActivity string          `json:"last_activity,omitempty"`
 }
 
+// UpdateMemberProfileRequest represents the request to update member profile information
+// Only allows updating profile-related fields (display_name, bio, avatar, email)
+type UpdateMemberProfileRequest struct {
+	DisplayName *string `json:"display_name,omitempty"` // Member display name
+	Bio         *string `json:"bio,omitempty"`          // Member bio/description
+	Avatar      *string `json:"avatar,omitempty"`       // Avatar URL or file ID
+	Email       *string `json:"email,omitempty"`        // Email address (for display only)
+}
+
+// ==== Profile API Types ====
+
+// ProfileGetRequest represents the request to get user profile with optional expansions
+type ProfileGetRequest struct {
+	Team   bool `json:"team" form:"team"`     // Include team information
+	Member bool `json:"member" form:"member"` // Include member information
+	Type   bool `json:"type" form:"type"`     // Include type information
+}
+
+// ProfileUpdateResponse represents the response after updating user profile
+type ProfileUpdateResponse struct {
+	UserID  string `json:"user_id"`
+	Message string `json:"message"`
+}
+
+// ProfileUpdateRequest represents the request to update user profile
+// Only allows updating profile-related fields (OIDC standard claims and preferences)
+// Note: preferred_username, email, and phone_number cannot be updated through this endpoint (use dedicated account management endpoints)
+type ProfileUpdateRequest struct {
+	// OIDC Standard Claims - Profile Information
+	Name       *string        `json:"name,omitempty"`
+	GivenName  *string        `json:"given_name,omitempty"`
+	FamilyName *string        `json:"family_name,omitempty"`
+	MiddleName *string        `json:"middle_name,omitempty"`
+	Nickname   *string        `json:"nickname,omitempty"`
+	Profile    *string        `json:"profile,omitempty"`   // Profile page URL
+	Picture    *string        `json:"picture,omitempty"`   // Profile picture URL
+	Website    *string        `json:"website,omitempty"`   // Website URL
+	Gender     *string        `json:"gender,omitempty"`    // Gender
+	Birthdate  *string        `json:"birthdate,omitempty"` // Birthdate (YYYY-MM-DD)
+	Zoneinfo   *string        `json:"zoneinfo,omitempty"`  // Timezone
+	Locale     *string        `json:"locale,omitempty"`    // Locale
+	Address    map[string]any `json:"address,omitempty"`   // Address (JSON object)
+	Theme      *string        `json:"theme,omitempty"`     // UI theme preference
+	Metadata   map[string]any `json:"metadata,omitempty"`  // Extended metadata
+}
+
 // ==== Invitation API Types ====
 
 // InvitationResponse represents a team invitation in API responses

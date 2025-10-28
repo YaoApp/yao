@@ -98,6 +98,9 @@ func (user OIDCUserInfo) Map() map[string]interface{} {
 	}
 
 	// Add Yao custom fields with namespace
+	if user.YaoUserID != "" {
+		result["yao:user_id"] = user.YaoUserID
+	}
 	if user.YaoTenantID != "" {
 		result["yao:tenant_id"] = user.YaoTenantID
 	}
