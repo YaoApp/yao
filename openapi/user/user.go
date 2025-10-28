@@ -30,6 +30,7 @@ func init() {
 			Endpoints: []string{
 				"POST /user/teams/select",
 				"GET /user/teams/config",
+				"GET /file/:uploaderID/:fileID/content",
 			},
 		},
 		// Invite verification scope - allows users to accept team invitations
