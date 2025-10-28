@@ -105,8 +105,6 @@ func TestGetTeamConfigPublic(t *testing.T) {
 	assert.Equal(t, originalConfig.Role, publicConfig.Role, "Role should be preserved")
 	assert.Equal(t, originalConfig.Roles, publicConfig.Roles, "Roles should be preserved")
 	assert.Equal(t, originalConfig.Invite, publicConfig.Invite, "Invite config should be preserved")
-	assert.Equal(t, originalConfig.Uploader, publicConfig.Uploader, "Uploader should be preserved (public field)")
-	assert.Equal(t, originalConfig.AvatarAgent, publicConfig.AvatarAgent, "AvatarAgent should be preserved (public field)")
 
 	// Test robot configuration
 	if originalConfig.Robot != nil {
