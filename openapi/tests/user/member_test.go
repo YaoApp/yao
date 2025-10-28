@@ -2038,6 +2038,173 @@ func TestMemberUpdateRobot(t *testing.T) {
 	}
 }
 
+// TestMemberProfileGet tests the GET /user/teams/:team_id/members/:user_id/profile endpoint
+func TestMemberProfileGet(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Register a test client for OAuth authentication
+	testClient := testutils.RegisterTestClient(t, "Member Profile Get Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token with root permission
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile system:root")
+
+	// Create a test team
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Member Profile Get Test Team")
+	teamID := getTeamID(createdTeam)
+
+	// The creator is automatically a member, so we can use their user_id
+	userID := tokenInfo.UserID
+
+	// Update the member profile first to have test data
+	provider := testutils.GetUserProvider(t)
+	ctx := context.Background()
+	updateData := maps.MapStrAny{
+		"display_name": "Test Display Name",
+		"bio":          "Test bio description",
+		"avatar":       "https://example.com/test-avatar.png",
+		"email":        "test-member@example.com",
+	}
+	err := provider.UpdateMember(ctx, teamID, userID, updateData)
+	assert.NoError(t, err, "Should update member profile for testing")
+
+	testCases := []struct {
+		name       string
+		teamID     string
+		userID     string
+		headers    map[string]string
+		expectCode int
+		expectMsg  string
+		validateFn func(*testing.T, map[string]interface{}) // Optional validation function
+	}{
+		{
+			"get profile without authentication",
+			teamID,
+			userID,
+			map[string]string{},
+			401,
+			"should require authentication",
+			nil,
+		},
+		{
+			"get own profile successfully",
+			teamID,
+			userID,
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should return own profile successfully",
+			func(t *testing.T, profile map[string]interface{}) {
+				// Verify profile structure
+				assert.Contains(t, profile, "user_id", "Should have user_id")
+				assert.Contains(t, profile, "team_id", "Should have team_id")
+				assert.Contains(t, profile, "display_name", "Should have display_name")
+				assert.Contains(t, profile, "bio", "Should have bio")
+				assert.Contains(t, profile, "avatar", "Should have avatar")
+				assert.Contains(t, profile, "email", "Should have email")
+
+				// Verify values
+				assert.Equal(t, userID, profile["user_id"], "Should have correct user_id")
+				assert.Equal(t, teamID, profile["team_id"], "Should have correct team_id")
+				assert.Equal(t, "Test Display Name", profile["display_name"], "Should have correct display_name")
+				assert.Equal(t, "Test bio description", profile["bio"], "Should have correct bio")
+				assert.Equal(t, "https://example.com/test-avatar.png", profile["avatar"], "Should have correct avatar")
+				assert.Equal(t, "test-member@example.com", profile["email"], "Should have correct email")
+			},
+		},
+		{
+			"get profile from non-existent team",
+			"non-existent-team-id",
+			userID,
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent team",
+			nil,
+		},
+		{
+			"get profile for non-existent user",
+			teamID,
+			"non-existent-user-id",
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent user",
+			nil,
+		},
+		{
+			"get profile with minimal data",
+			teamID,
+			userID,
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should return profile even with minimal data",
+			func(t *testing.T, profile map[string]interface{}) {
+				// Should always have these fields, even if empty
+				assert.Contains(t, profile, "user_id", "Should have user_id field")
+				assert.Contains(t, profile, "team_id", "Should have team_id field")
+				assert.Contains(t, profile, "display_name", "Should have display_name field")
+				assert.Contains(t, profile, "bio", "Should have bio field")
+				assert.Contains(t, profile, "avatar", "Should have avatar field")
+				assert.Contains(t, profile, "email", "Should have email field")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/" + tc.userID + "/profile"
+
+			req, err := http.NewRequest("GET", requestURL, nil)
+			assert.NoError(t, err, "Should create HTTP request")
+
+			// Add headers
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			assert.NoError(t, err, "HTTP request should succeed")
+
+			if resp != nil {
+				defer resp.Body.Close()
+				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
+
+				body, err := io.ReadAll(resp.Body)
+				assert.NoError(t, err, "Should read response body")
+
+				if resp.StatusCode == 200 {
+					// Parse response as profile object
+					var profile map[string]interface{}
+					err = json.Unmarshal(body, &profile)
+					assert.NoError(t, err, "Should parse JSON response")
+
+					// Run custom validation if provided
+					if tc.validateFn != nil {
+						tc.validateFn(t, profile)
+					}
+				}
+
+				t.Logf("Member profile get test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
+			}
+		})
+	}
+}
+
 // TestMemberProfileUpdate tests the PUT /user/teams/:team_id/members/:user_id/profile endpoint
 func TestMemberProfileUpdate(t *testing.T) {
 	// Initialize test environment

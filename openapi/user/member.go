@@ -575,6 +575,62 @@ func GinMemberUpdate(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Member updated successfully"})
 }
 
+// GinMemberGetProfile handles GET /teams/:team_id/members/:member_id/profile - Get member profile
+// Note: :member_id in the route actually contains user_id for profile retrieval
+func GinMemberGetProfile(c *gin.Context) {
+	// Get authorized user info
+	authInfo := authorized.GetInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	teamID := c.Param("id")
+	// For profile retrieval, :member_id parameter contains the user_id (not member_id)
+	memberUserID := c.Param("member_id")
+	if teamID == "" || memberUserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Team ID and User ID are required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Call business logic
+	profile, err := memberGetProfile(c.Request.Context(), authInfo.UserID, teamID, memberUserID)
+	if err != nil {
+		log.Error("Failed to get member profile: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Member not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "access denied") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to get member profile",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	response.RespondWithSuccess(c, http.StatusOK, profile)
+}
+
 // GinMemberUpdateProfile handles PUT /teams/:team_id/members/:member_id/profile - Update member profile
 // Note: :member_id in the route actually contains user_id for profile updates
 func GinMemberUpdateProfile(c *gin.Context) {
@@ -875,6 +931,38 @@ func ProcessMemberUpdate(process *process.Process) interface{} {
 	return map[string]interface{}{
 		"message": "success",
 	}
+}
+
+// ProcessMemberGetProfile user.member.profile.get Member profile get processor
+// Args[0] string: team_id
+// Args[1] string: user_id (not member_id)
+// Return: map: Member profile data
+func ProcessMemberGetProfile(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+
+	// Get user_id from session
+	requestUserID := GetUserIDFromSession(process)
+
+	teamID := process.ArgsString(0)
+	memberUserID := process.ArgsString(1)
+
+	if teamID == "" || memberUserID == "" {
+		exception.New("team_id and user_id are required", 400).Throw()
+	}
+
+	// Get context
+	ctx := process.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// Call business logic
+	result, err := memberGetProfile(ctx, requestUserID, teamID, memberUserID)
+	if err != nil {
+		exception.New("failed to get member profile: %s", 500, err.Error()).Throw()
+	}
+
+	return result
 }
 
 // ProcessMemberUpdateProfile user.member.profile.update Member profile update processor
@@ -1254,6 +1342,44 @@ func memberUpdate(ctx context.Context, userID, teamID, memberID string, updateDa
 	}
 
 	return nil
+}
+
+// memberGetProfile handles the business logic for getting member profile information
+func memberGetProfile(ctx context.Context, requestUserID, teamID, memberUserID string) (maps.MapStrAny, error) {
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Check if member exists using team_id and user_id
+	member, err := provider.GetMember(ctx, teamID, memberUserID)
+	if err != nil {
+		return nil, fmt.Errorf("member not found: %w", err)
+	}
+
+	// Verify member exists
+	if member == nil {
+		return nil, fmt.Errorf("member not found in the specified team")
+	}
+
+	// Check if the requesting user is the member themselves
+	// Only members can view their own profile
+	if memberUserID != requestUserID {
+		return nil, fmt.Errorf("access denied: you can only view your own profile")
+	}
+
+	// Return member profile data (display_name, bio, avatar, email)
+	profileData := maps.MapStrAny{
+		"user_id":      memberUserID,
+		"team_id":      teamID,
+		"display_name": member["display_name"],
+		"bio":          member["bio"],
+		"avatar":       member["avatar"],
+		"email":        member["email"],
+	}
+
+	return profileData, nil
 }
 
 // memberUpdateProfile handles the business logic for updating member profile information
