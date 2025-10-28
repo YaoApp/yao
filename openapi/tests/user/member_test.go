@@ -987,6 +987,7 @@ func createTestTeam(t *testing.T, serverURL, baseURL, accessToken, teamName stri
 	createTeamBody := map[string]interface{}{
 		"name":        teamName,
 		"description": "Team created for testing purposes",
+		"role_id":     "system:root", // Use system:root role which includes all scopes
 	}
 
 	bodyBytes, err := json.Marshal(createTeamBody)
@@ -2032,6 +2033,287 @@ func TestMemberUpdateRobot(t *testing.T) {
 				}
 
 				t.Logf("Robot member update test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
+			}
+		})
+	}
+}
+
+// TestMemberProfileUpdate tests the PUT /user/teams/:team_id/members/:user_id/profile endpoint
+func TestMemberProfileUpdate(t *testing.T) {
+	// Initialize test environment
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	// Get base URL from server config
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	// Register a test client for OAuth authentication
+	testClient := testutils.RegisterTestClient(t, "Member Profile Update Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, testClient.ClientID)
+
+	// Obtain access token with root permission and explicit member profile scope
+	tokenInfo := testutils.ObtainAccessTokenWithRootPermission(t, serverURL, testClient.ClientID, testClient.ClientSecret, "https://localhost/callback", "openid profile system:root member:profile:update:own")
+
+	// Create a test team
+	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Member Profile Update Test Team")
+	teamID := getTeamID(createdTeam)
+
+	// The creator is automatically a member, so we can use their user_id
+	userID := tokenInfo.UserID
+
+	testCases := []struct {
+		name       string
+		teamID     string
+		userID     string
+		body       map[string]interface{}
+		headers    map[string]string
+		expectCode int
+		expectMsg  string
+		validateFn func(*testing.T, string) // Optional validation function with userID
+	}{
+		{
+			"update profile without authentication",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"display_name": "New Name",
+			},
+			map[string]string{},
+			401,
+			"should require authentication",
+			nil,
+		},
+		{
+			"update display_name",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"display_name": "Updated Display Name",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update display_name successfully",
+			func(t *testing.T, uid string) {
+				// Verify the update by getting member details
+				provider := testutils.GetUserProvider(t)
+				member, err := provider.GetMember(context.Background(), teamID, uid)
+				assert.NoError(t, err)
+				assert.Equal(t, "Updated Display Name", member["display_name"])
+			},
+		},
+		{
+			"update bio",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"bio": "This is my updated bio",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update bio successfully",
+			func(t *testing.T, uid string) {
+				provider := testutils.GetUserProvider(t)
+				member, err := provider.GetMember(context.Background(), teamID, uid)
+				assert.NoError(t, err)
+				assert.Equal(t, "This is my updated bio", member["bio"])
+			},
+		},
+		{
+			"update avatar",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"avatar": "https://example.com/avatar.png",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update avatar successfully",
+			func(t *testing.T, uid string) {
+				provider := testutils.GetUserProvider(t)
+				member, err := provider.GetMember(context.Background(), teamID, uid)
+				assert.NoError(t, err)
+				assert.Equal(t, "https://example.com/avatar.png", member["avatar"])
+			},
+		},
+		{
+			"update email",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"email": "newemail@example.com",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update email successfully",
+			func(t *testing.T, uid string) {
+				provider := testutils.GetUserProvider(t)
+				member, err := provider.GetMember(context.Background(), teamID, uid)
+				assert.NoError(t, err)
+				assert.Equal(t, "newemail@example.com", member["email"])
+			},
+		},
+		{
+			"update all fields at once",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"display_name": "Complete Update",
+				"bio":          "All fields updated",
+				"avatar":       "https://example.com/complete.png",
+				"email":        "complete@example.com",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should update all fields successfully",
+			func(t *testing.T, uid string) {
+				provider := testutils.GetUserProvider(t)
+				member, err := provider.GetMember(context.Background(), teamID, uid)
+				assert.NoError(t, err)
+				assert.Equal(t, "Complete Update", member["display_name"])
+				assert.Equal(t, "All fields updated", member["bio"])
+				assert.Equal(t, "https://example.com/complete.png", member["avatar"])
+				assert.Equal(t, "complete@example.com", member["email"])
+			},
+		},
+		{
+			"update with empty body",
+			teamID,
+			userID,
+			map[string]interface{}{},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should reject empty update",
+			nil,
+		},
+		{
+			"update other user's profile should fail",
+			teamID,
+			"other-user-id",
+			map[string]interface{}{
+				"display_name": "Should Fail",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent user (member not found)",
+			nil,
+		},
+		{
+			"update profile in non-existent team",
+			"non-existent-team-id",
+			userID,
+			map[string]interface{}{
+				"display_name": "Should Fail",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			404,
+			"should return not found for non-existent team",
+			nil,
+		},
+		{
+			"update with invalid JSON",
+			teamID,
+			userID,
+			nil, // Will send invalid JSON
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			400,
+			"should handle invalid JSON",
+			nil,
+		},
+		{
+			"partial update - single field",
+			teamID,
+			userID,
+			map[string]interface{}{
+				"display_name": "Partial Update",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should handle partial update with single field",
+			func(t *testing.T, uid string) {
+				provider := testutils.GetUserProvider(t)
+				member, err := provider.GetMember(context.Background(), teamID, uid)
+				assert.NoError(t, err)
+				assert.Equal(t, "Partial Update", member["display_name"])
+				// Other fields should remain unchanged
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			requestURL := serverURL + baseURL + "/user/teams/" + tc.teamID + "/members/" + tc.userID + "/profile"
+
+			var req *http.Request
+			var err error
+
+			if tc.body == nil {
+				// Send invalid JSON for invalid JSON test case
+				req, err = http.NewRequest("PUT", requestURL, bytes.NewBufferString("invalid json"))
+			} else {
+				bodyBytes, _ := json.Marshal(tc.body)
+				req, err = http.NewRequest("PUT", requestURL, bytes.NewBuffer(bodyBytes))
+			}
+			assert.NoError(t, err, "Should create HTTP request")
+
+			req.Header.Set("Content-Type", "application/json")
+
+			// Add headers
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+
+			client := &http.Client{}
+			resp, err := client.Do(req)
+			assert.NoError(t, err, "HTTP request should succeed")
+
+			if resp != nil {
+				defer resp.Body.Close()
+				assert.Equal(t, tc.expectCode, resp.StatusCode, "Expected status code %d for %s", tc.expectCode, tc.name)
+
+				body, err := io.ReadAll(resp.Body)
+				assert.NoError(t, err, "Should read response body")
+
+				if resp.StatusCode == 200 {
+					// Parse response as success message
+					var response map[string]interface{}
+					err = json.Unmarshal(body, &response)
+					assert.NoError(t, err, "Should parse JSON response")
+
+					assert.Contains(t, response, "user_id", "Should have user_id")
+					assert.Contains(t, response, "message", "Should have success message")
+					assert.Equal(t, tc.userID, response["user_id"], "Should have correct user_id")
+					assert.Equal(t, "Member profile updated successfully", response["message"], "Should have correct success message")
+
+					// Run custom validation if provided
+					if tc.validateFn != nil {
+						tc.validateFn(t, tc.userID)
+					}
+				}
+
+				t.Logf("Member profile update test %s: status=%d, body=%s", tc.name, resp.StatusCode, string(body))
 			}
 		})
 	}

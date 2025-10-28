@@ -57,11 +57,25 @@ func init() {
 
 	// Register user process handlers
 	process.RegisterGroup("user", map[string]process.Handler{
-		"team.list":              ProcessTeamList,
-		"team.get":               ProcessTeamGet,
-		"team.create":            ProcessTeamCreate,
-		"team.update":            ProcessTeamUpdate,
-		"team.delete":            ProcessTeamDelete,
+		// Profile
+		"profile.get":    ProcessProfileGet,
+		"profile.update": ProcessProfileUpdate,
+
+		// Team Management
+		"team.list":   ProcessTeamList,
+		"team.get":    ProcessTeamGet,
+		"team.create": ProcessTeamCreate,
+		"team.update": ProcessTeamUpdate,
+		"team.delete": ProcessTeamDelete,
+
+		// Team Member Management
+		"member.list":           ProcessMemberList,
+		"member.get":            ProcessMemberGet,
+		"member.update":         ProcessMemberUpdate,
+		"member.profile.update": ProcessMemberUpdateProfile,
+		"member.delete":         ProcessMemberDelete,
+
+		// Team Invitation Management
 		"team.invitation.list":   ProcessTeamInvitationList,
 		"team.invitation.get":    ProcessTeamInvitationGet,
 		"team.invitation.create": ProcessTeamInvitationCreate,
@@ -138,8 +152,9 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	team.GET("/:id/members/check-robot-email", GinMemberCheckRobotEmail) // GET /api/user/teams/:id/members/check-robot-email?robot_email=xxx - Check if robot email exists globally
 	team.POST("/:id/members/robots", GinMemberCreateRobot)               // POST /api/user/teams/:id/members/robots - Add robot member
 	team.PUT("/:id/members/robots/:member_id", GinMemberUpdateRobot)     // PUT /api/user/teams/:id/members/robots/:member_id - Update robot member
+	team.PUT("/:id/members/:member_id/profile", GinMemberUpdateProfile)  // PUT /api/user/teams/:id/members/:member_id/profile - Update member profile (display_name, bio, avatar, email)
 	team.GET("/:id/members/:member_id", GinMemberGet)                    // GET /api/user/teams/:id/members/:member_id - Get member details
-	team.PUT("/:id/members/:member_id", GinMemberUpdate)                 // PUT /api/user/teams/:id/members/:member_id - Update member
+	team.PUT("/:id/members/:member_id", GinMemberUpdate)                 // PUT /api/user/teams/:id/members/:member_id - Update member (admin: role, status)
 	team.DELETE("/:id/members/:member_id", GinMemberDelete)              // DELETE /api/user/teams/:id/members/:member_id - Remove member
 
 	// Team Invitations - Nested resource endpoints
@@ -246,8 +261,8 @@ func attachProfile(group *gin.RouterGroup, oauth types.OAuth) {
 	profile := group.Group("/profile")
 	profile.Use(oauth.Guard)
 
-	profile.GET("/", GinProfileGet) // Get user profile
-	profile.PUT("/", placeholder)   // Update user profile
+	profile.GET("/", GinProfileGet)    // Get user profile
+	profile.PUT("/", GinProfileUpdate) // Update user profile
 }
 
 // User management (CRUD)

@@ -575,6 +575,82 @@ func GinMemberUpdate(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"message": "Member updated successfully"})
 }
 
+// GinMemberUpdateProfile handles PUT /teams/:team_id/members/:member_id/profile - Update member profile
+// Note: :member_id in the route actually contains user_id for profile updates
+func GinMemberUpdateProfile(c *gin.Context) {
+	// Get authorized user info
+	authInfo := authorized.GetInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		}
+		response.RespondWithError(c, response.StatusUnauthorized, errorResp)
+		return
+	}
+
+	teamID := c.Param("id")
+	// For profile updates, :member_id parameter contains the user_id (not member_id)
+	memberUserID := c.Param("member_id")
+	if teamID == "" || memberUserID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Team ID and User ID are required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Parse request body
+	var req UpdateMemberProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Call business logic
+	err := memberUpdateProfile(c.Request.Context(), authInfo.UserID, teamID, memberUserID, req)
+	if err != nil {
+		log.Error("Failed to update member profile: %v", err)
+		// Check error type for appropriate response
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Member not found",
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "access denied") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+		} else if strings.Contains(err.Error(), "no fields to update") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to update member profile",
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{
+		"user_id": memberUserID,
+		"message": "Member profile updated successfully",
+	})
+}
+
 // GinMemberDelete handles DELETE /teams/:team_id/members/:member_id - Remove team member
 func GinMemberDelete(c *gin.Context) {
 	// Get authorized user info
@@ -797,6 +873,58 @@ func ProcessMemberUpdate(process *process.Process) interface{} {
 	}
 
 	return map[string]interface{}{
+		"message": "success",
+	}
+}
+
+// ProcessMemberUpdateProfile user.member.profile.update Member profile update processor
+// Args[0] string: team_id
+// Args[1] string: user_id (member's user_id)
+// Args[2] map: Update profile data {"display_name": "John Doe", "bio": "Developer", "avatar": "https://...", "email": "john@example.com"}
+// Return: map: {"user_id": "xxx", "message": "success"}
+func ProcessMemberUpdateProfile(process *process.Process) interface{} {
+	process.ValidateArgNums(3)
+
+	// Get user_id from session
+	requestUserID := GetUserIDFromSession(process)
+
+	teamID := process.ArgsString(0)
+	memberUserID := process.ArgsString(1)
+	profileData := process.ArgsMap(2)
+
+	if teamID == "" || memberUserID == "" {
+		exception.New("team_id and user_id are required", 400).Throw()
+	}
+
+	// Build UpdateMemberProfileRequest from map
+	req := UpdateMemberProfileRequest{}
+	if displayName, ok := profileData["display_name"].(string); ok && displayName != "" {
+		req.DisplayName = &displayName
+	}
+	if bio, ok := profileData["bio"].(string); ok && bio != "" {
+		req.Bio = &bio
+	}
+	if avatar, ok := profileData["avatar"].(string); ok && avatar != "" {
+		req.Avatar = &avatar
+	}
+	if email, ok := profileData["email"].(string); ok && email != "" {
+		req.Email = &email
+	}
+
+	// Get context
+	ctx := process.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// Call business logic
+	err := memberUpdateProfile(ctx, requestUserID, teamID, memberUserID, req)
+	if err != nil {
+		exception.New("failed to update member profile: %s", 500, err.Error()).Throw()
+	}
+
+	return map[string]interface{}{
+		"user_id": memberUserID,
 		"message": "success",
 	}
 }
@@ -1123,6 +1251,64 @@ func memberUpdate(ctx context.Context, userID, teamID, memberID string, updateDa
 	err = provider.UpdateMemberByMemberID(ctx, memberID, updateData)
 	if err != nil {
 		return fmt.Errorf("failed to update member: %w", err)
+	}
+
+	return nil
+}
+
+// memberUpdateProfile handles the business logic for updating member profile information
+func memberUpdateProfile(ctx context.Context, requestUserID, teamID, memberUserID string, req UpdateMemberProfileRequest) error {
+	// Get user provider instance
+	provider, err := getUserProvider()
+	if err != nil {
+		return fmt.Errorf("failed to get user provider: %w", err)
+	}
+
+	// Check if member exists using team_id and user_id
+	member, err := provider.GetMember(ctx, teamID, memberUserID)
+	if err != nil {
+		return fmt.Errorf("member not found: %w", err)
+	}
+
+	// Verify member exists
+	if member == nil {
+		return fmt.Errorf("member not found in the specified team")
+	}
+
+	// Check if the requesting user is the member themselves
+	// Only members can update their own profile
+	if memberUserID != requestUserID {
+		return fmt.Errorf("access denied: you can only update your own profile")
+	}
+
+	// Build update data map (only include non-nil fields)
+	updateData := make(map[string]interface{})
+
+	if req.DisplayName != nil {
+		updateData["display_name"] = *req.DisplayName
+	}
+	if req.Bio != nil {
+		updateData["bio"] = *req.Bio
+	}
+	if req.Avatar != nil {
+		updateData["avatar"] = *req.Avatar
+	}
+	if req.Email != nil {
+		updateData["email"] = *req.Email
+	}
+
+	// If no fields to update, return error
+	if len(updateData) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+
+	// Add updated_at timestamp
+	updateData["updated_at"] = time.Now()
+
+	// Update member using team_id and user_id
+	err = provider.UpdateMember(ctx, teamID, memberUserID, updateData)
+	if err != nil {
+		return fmt.Errorf("failed to update member profile: %w", err)
 	}
 
 	return nil
