@@ -680,13 +680,11 @@ type RobotDefaults struct {
 
 // TeamConfig represents the team configuration loaded from DSL files
 type TeamConfig struct {
-	Roles       []*TeamRole   `json:"roles,omitempty"`
-	Robot       *RobotConfig  `json:"robot,omitempty"`
-	Invite      *InviteConfig `json:"invite,omitempty"`
-	Type        string        `json:"type,omitempty"`         // Default subscription type for new teams
-	Role        string        `json:"role,omitempty"`         // Default user role for team creator
-	Uploader    string        `json:"uploader,omitempty"`     // Uploader for avatar and attachments (default: __yao.attachment)
-	AvatarAgent string        `json:"avatar_agent,omitempty"` // Agent ID for avatar generation (optional)
+	Roles  []*TeamRole   `json:"roles,omitempty"`
+	Robot  *RobotConfig  `json:"robot,omitempty"`
+	Invite *InviteConfig `json:"invite,omitempty"`
+	Type   string        `json:"type,omitempty"` // Default subscription type for new teams
+	Role   string        `json:"role,omitempty"` // Default user role for team creator
 }
 
 // TeamRole represents a team role configuration
