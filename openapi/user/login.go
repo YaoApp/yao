@@ -267,7 +267,16 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	}
 
 	// Issue tokens without team context
-	return issueTokens(ctx, userid, "", nil, user, subject, scopes, loginCtx)
+	return issueTokens(ctx, &IssueTokensParams{
+		UserID:   userid,
+		TeamID:   "",
+		Team:     nil,
+		Member:   nil,
+		User:     user,
+		Subject:  subject,
+		Scopes:   scopes,
+		LoginCtx: loginCtx,
+	})
 }
 
 // LoginByTeamID is the handler for login by team ID (after team selection)
@@ -301,13 +310,30 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 
 	// Handle personal account (no team)
 	if teamID == "" || teamID == "personal" {
-		return issueTokens(ctx, userid, "", nil, user, subject, scopes, loginCtx)
+		return issueTokens(ctx, &IssueTokensParams{
+			UserID:   userid,
+			TeamID:   "",
+			Team:     nil,
+			Member:   nil,
+			User:     user,
+			Subject:  subject,
+			Scopes:   scopes,
+			LoginCtx: loginCtx,
+		})
 	}
 
 	// Verify user is a member of the team and get team details
 	team, err := userProvider.GetTeamByMember(ctx, teamID, userid)
 	if err != nil {
 		return nil, fmt.Errorf("access denied: you are not a member of this team")
+	}
+
+	// Get member profile information for team context
+	member, err := userProvider.GetMember(ctx, teamID, userid)
+	if err != nil {
+		log.Warn("Failed to get member profile: %s", err.Error())
+		// Continue without member profile if it fails
+		member = nil
 	}
 
 	// Update Last Login
@@ -318,12 +344,21 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 		}
 	}
 
-	// Issue tokens with team context
-	return issueTokens(ctx, userid, teamID, team, user, subject, scopes, loginCtx)
+	// Issue tokens with team context and member profile
+	return issueTokens(ctx, &IssueTokensParams{
+		UserID:   userid,
+		TeamID:   teamID,
+		Team:     team,
+		Member:   member,
+		User:     user,
+		Subject:  subject,
+		Scopes:   scopes,
+		LoginCtx: loginCtx,
+	})
 }
 
 // issueTokens is the core function that issues all necessary tokens (ID token, access token, refresh token)
-func issueTokens(ctx context.Context, userid string, teamID string, team map[string]interface{}, user map[string]interface{}, subject string, scopes []string, loginCtx *LoginContext) (*LoginResponse, error) {
+func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse, error) {
 	yaoClientConfig := GetYaoClientConfig()
 
 	// Determine token expiration times based on Remember Me setting
@@ -333,7 +368,7 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	locale := ""
 	entryConfig := GetEntryConfig(locale)
 
-	if loginCtx != nil && loginCtx.RememberMe {
+	if params.LoginCtx != nil && params.LoginCtx.RememberMe {
 		// Remember Me mode: use extended token durations
 		if entryConfig != nil && entryConfig.Token != nil {
 			// Parse Remember Me access token expires_in
@@ -412,62 +447,83 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	}
 
 	// Prepare OIDC user info
-	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(user)
-	oidcUserInfo.Sub = subject
-	oidcUserInfo.YaoUserID = userid // Add original user ID
+	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(params.User)
+	oidcUserInfo.Sub = params.Subject
+	oidcUserInfo.YaoUserID = params.UserID // Add original user ID
 
 	// Prepare extra claims for access token
 	extraClaims := make(map[string]interface{})
 
 	// Add team context if available
-	if teamID != "" && team != nil {
-		extraClaims["team_id"] = teamID
+	if params.TeamID != "" && params.Team != nil {
+		extraClaims["team_id"] = params.TeamID
 
 		// Add tenant_id if available from the team
-		if tenantID := toString(team["tenant_id"]); tenantID != "" {
+		if tenantID := toString(params.Team["tenant_id"]); tenantID != "" {
 			extraClaims["tenant_id"] = tenantID
 			oidcUserInfo.YaoTenantID = tenantID
 		}
 
 		// Add team info to OIDC user info
-		oidcUserInfo.YaoTeamID = teamID
+		oidcUserInfo.YaoTeamID = params.TeamID
 		teamInfo := &oauthtypes.OIDCTeamInfo{}
-		if teamIDVal := toString(team["team_id"]); teamIDVal != "" {
+		if teamIDVal := toString(params.Team["team_id"]); teamIDVal != "" {
 			teamInfo.TeamID = teamIDVal
 		}
-		if logo := toString(team["logo"]); logo != "" {
+		if logo := toString(params.Team["logo"]); logo != "" {
 			teamInfo.Logo = logo
 		}
-		if name := toString(team["name"]); name != "" {
+		if name := toString(params.Team["name"]); name != "" {
 			teamInfo.Name = name
 		}
-		if description := toString(team["description"]); description != "" {
+		if description := toString(params.Team["description"]); description != "" {
 			teamInfo.Description = description
 		}
 
 		// Add owner_id if available from the team (only check once)
-		if ownerID := toString(team["owner_id"]); ownerID != "" {
+		if ownerID := toString(params.Team["owner_id"]); ownerID != "" {
 			extraClaims["owner_id"] = ownerID
 			teamInfo.OwnerID = ownerID
 
 			// Check if user is owner
-			if ownerID == userid {
+			if ownerID == params.UserID {
 				isOwner := true
 				oidcUserInfo.YaoIsOwner = &isOwner
 			}
 		}
 
 		oidcUserInfo.YaoTeam = teamInfo
+
+		// Add member profile information if available
+		if params.Member != nil {
+			memberInfo := &oauthtypes.OIDCMemberInfo{}
+			if memberID := toString(params.Member["member_id"]); memberID != "" {
+				memberInfo.MemberID = memberID
+			}
+			if displayName := toString(params.Member["display_name"]); displayName != "" {
+				memberInfo.DisplayName = displayName
+			}
+			if bio := toString(params.Member["bio"]); bio != "" {
+				memberInfo.Bio = bio
+			}
+			if avatar := toString(params.Member["avatar"]); avatar != "" {
+				memberInfo.Avatar = avatar
+			}
+			if email := toString(params.Member["email"]); email != "" {
+				memberInfo.Email = email
+			}
+			oidcUserInfo.YaoMember = memberInfo
+		}
 	}
 
 	// Add type information (use team type if in team context, otherwise use user type)
 	var typeID string
-	if teamID != "" && team != nil {
+	if params.TeamID != "" && params.Team != nil {
 		// Team context - use team's type
-		typeID = toString(team["type_id"])
+		typeID = toString(params.Team["type_id"])
 	} else {
 		// Personal context - use user's type
-		typeID = toString(user["type_id"])
+		typeID = toString(params.User["type_id"])
 	}
 
 	if typeID != "" {
@@ -500,9 +556,9 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	var oidcToken string
 	var err error
 	if len(extraClaims) > 0 {
-		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), expiresIn, oidcUserInfo, extraClaims)
+		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), expiresIn, oidcUserInfo, extraClaims)
 	} else {
-		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), expiresIn, oidcUserInfo)
+		oidcToken, err = oauth.OAuth.SignIDToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), expiresIn, oidcUserInfo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign OIDC token: %w", err)
@@ -511,9 +567,9 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	// Sign Access Token
 	var accessToken string
 	if len(extraClaims) > 0 {
-		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, expiresIn, extraClaims)
+		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, expiresIn, extraClaims)
 	} else {
-		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, expiresIn)
+		accessToken, err = oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, expiresIn)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign access token: %w", err)
@@ -522,25 +578,25 @@ func issueTokens(ctx context.Context, userid string, teamID string, team map[str
 	// Sign Refresh Token
 	var refreshToken string
 	if len(extraClaims) > 0 {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, refreshTokenExpiresIn, extraClaims)
+		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn, extraClaims)
 	} else {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(scopes, " "), subject, refreshTokenExpiresIn)
+		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
 	}
 
 	return &LoginResponse{
-		UserID:                userid,
-		Subject:               subject,
+		UserID:                params.UserID,
+		Subject:               params.Subject,
 		AccessToken:           accessToken,
 		IDToken:               oidcToken,
 		RefreshToken:          refreshToken,
 		ExpiresIn:             expiresIn,
 		RefreshTokenExpiresIn: refreshTokenExpiresIn,
 		TokenType:             "Bearer",
-		MFAEnabled:            toBool(user["mfa_enabled"]),
-		Scope:                 strings.Join(scopes, " "),
+		MFAEnabled:            toBool(params.User["mfa_enabled"]),
+		Scope:                 strings.Join(params.Scopes, " "),
 		Status:                LoginStatusSuccess,
 	}, nil
 }
