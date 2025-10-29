@@ -24,8 +24,9 @@ type Config struct {
 
 // ACL is the ACL checker
 type ACL struct {
-	Config *Config
-	Scope  *ScopeManager
+	Config  *Config
+	Scope   *ScopeManager
+	Feature *FeatureManager
 }
 
 // ============ Configuration Structures (loaded from config files) ============
