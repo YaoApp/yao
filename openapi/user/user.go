@@ -100,6 +100,9 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/entry/otp", oauth.Guard, GinSendOTP)                // Send OTP
 	group.POST("/logout", oauth.Guard, GinLogout)                    // User logout
 
+	// Features query endpoint
+	group.GET("/features", oauth.Guard, GinFeatures)
+
 	// Logined User Settings
 	attachProfile(group, oauth)      // User profile management
 	attachPreferences(group, oauth)  // User preferences management
