@@ -30,6 +30,14 @@ func New(config *Config) (Enforcer, error) {
 		acl.Scope = manager
 		log.Info("[ACL] Scope manager loaded successfully")
 
+		// Load feature manager
+		featureManager, err := LoadFeatures()
+		if err != nil {
+			return nil, err
+		}
+		acl.Feature = featureManager
+		log.Info("[ACL] Feature manager loaded successfully")
+
 		// Init Role Manager
 		role.RoleManager = role.NewManager(config.Cache, config.Provider)
 		log.Info("[ACL] Role manager loaded successfully")
