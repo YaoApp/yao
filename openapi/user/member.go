@@ -81,8 +81,17 @@ func GinMemberList(c *gin.Context) {
 		}
 	}
 
+	// Get request base URL for invitation link generation
+	requestBaseURL := getRequestBaseURL(c)
+
+	// Get locale from query parameter or default to "en"
+	locale := c.Query("locale")
+	if locale == "" {
+		locale = "en"
+	}
+
 	// Call business logic
-	result, err := memberList(c.Request.Context(), authInfo.UserID, teamID, &req)
+	result, err := memberList(c.Request.Context(), authInfo.UserID, teamID, &req, requestBaseURL, locale)
 	if err != nil {
 		log.Error("Failed to get team members: %v", err)
 		// Check error type for appropriate response
@@ -856,8 +865,14 @@ func ProcessMemberList(process *process.Process) interface{} {
 		ctx = context.Background()
 	}
 
-	// Call business logic
-	result, err := memberList(ctx, userIDStr, teamID, req)
+	// Get locale from query map if available, default to "en"
+	locale := "en"
+	if localeVal, ok := queryMap["locale"].(string); ok && localeVal != "" {
+		locale = localeVal
+	}
+
+	// Call business logic (no requestBaseURL available in process context, use empty string)
+	result, err := memberList(ctx, userIDStr, teamID, req, "", locale)
 	if err != nil {
 		exception.New("failed to list members: %s", 500, err.Error()).Throw()
 	}
@@ -1054,7 +1069,7 @@ func ProcessMemberDelete(process *process.Process) interface{} {
 // Private Business Logic Functions (internal use only)
 
 // memberList handles the business logic for listing team members with advanced filtering
-func memberList(ctx context.Context, userID, teamID string, req *MemberListRequest) (maps.MapStr, error) {
+func memberList(ctx context.Context, userID, teamID string, req *MemberListRequest, requestBaseURL, locale string) (maps.MapStr, error) {
 	// Check if user has access to the team (read permission: owner or member)
 	isOwner, isMember, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -1071,6 +1086,9 @@ func memberList(ctx context.Context, userID, teamID string, req *MemberListReque
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user provider: %w", err)
 	}
+
+	// Get team configuration for invitation link generation
+	teamConfig := GetTeamConfig(locale)
 
 	// Build query parameters
 	param := model.QueryParam{
@@ -1190,6 +1208,23 @@ func memberList(ctx context.Context, userID, teamID string, req *MemberListReque
 	result, err := provider.PaginateMembers(ctx, param, req.Page, req.PageSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve members: %w", err)
+	}
+
+	// Add invitation_link for pending members with token
+	if data, ok := result["data"].([]maps.MapStrAny); ok {
+		for i := range data {
+			member := data[i]
+			// Only generate invitation link for pending members with invitation_id and invitation_token
+			status, _ := member["status"].(string)
+			invitationID, _ := member["invitation_id"].(string)
+			invitationToken, _ := member["invitation_token"].(string)
+
+			if status == "pending" && invitationID != "" && invitationToken != "" {
+				// Build invitation link using the centralized helper function
+				invitationLink := buildTeamInvitationLink(invitationID, invitationToken, teamConfig, requestBaseURL)
+				member["invitation_link"] = invitationLink
+			}
+		}
 	}
 
 	return result, nil

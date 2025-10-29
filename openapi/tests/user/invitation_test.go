@@ -590,15 +590,46 @@ func TestInvitationResend(t *testing.T) {
 	createdTeam := createTestTeam(t, serverURL, baseURL, tokenInfo.AccessToken, "Invitation Resend Test Team "+testUUID)
 	teamID := getTeamID(createdTeam)
 
-	// Create test invitation
-	invitationID := createTestInvitation(t, serverURL, baseURL, tokenInfo.AccessToken, teamID, "") // Unregistered user
+	// Create test invitation with email (required for resend)
+	testEmail := fmt.Sprintf("test-resend-%s@example.com", testUUID)
+	invitationData := map[string]interface{}{
+		"email":       testEmail,
+		"member_type": "user",
+		"role_id":     "user",
+		"message":     "Test invitation for resend",
+		"settings": map[string]interface{}{
+			"send_email": false, // Don't send email in test
+		},
+	}
+
+	jsonData, _ := json.Marshal(invitationData)
+	url := fmt.Sprintf("%s%s/user/teams/%s/invitations", serverURL, baseURL, teamID)
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	createResp, _ := httpClient.Do(req)
+	defer createResp.Body.Close()
+
+	var createResult map[string]interface{}
+	json.NewDecoder(createResp.Body).Decode(&createResult)
+	invitationID := createResult["invitation_id"].(string)
 
 	// Test successful resend
 	t.Run("ResendInvitation_Success", func(t *testing.T) {
 		url := fmt.Sprintf("%s%s/user/teams/%s/invitations/%s/resend", serverURL, baseURL, teamID, invitationID)
 
-		req, err := http.NewRequest("PUT", url, nil)
+		// Send locale in request body
+		requestBody := map[string]interface{}{
+			"locale": "en",
+		}
+		jsonData, _ := json.Marshal(requestBody)
+
+		req, err := http.NewRequest("PUT", url, bytes.NewBuffer(jsonData))
 		assert.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
 		client := &http.Client{Timeout: 10 * time.Second}

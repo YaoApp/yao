@@ -68,11 +68,19 @@ func toBool(v interface{}) bool {
 }
 
 // toString converts various types to string
-// Supports: string, int, int64, float64, bool
+// Supports: string, int, int64, float64, bool, time.Time, *time.Time
+// time.Time is formatted using the optional timeFormat parameter
+// If timeFormat is not provided, defaults to "2006-01-02 15:04:05"
 // Returns empty string for nil or unsupported types
-func toString(v interface{}) string {
+func toString(v interface{}, timeFormat ...string) string {
 	if v == nil {
 		return ""
+	}
+
+	// Get time format (default or provided)
+	format := "2006-01-02 15:04:05"
+	if len(timeFormat) > 0 && timeFormat[0] != "" {
+		format = timeFormat[0]
 	}
 
 	switch val := v.(type) {
@@ -89,9 +97,87 @@ func toString(v interface{}) string {
 			return "true"
 		}
 		return "false"
+	case time.Time:
+		return val.Format(format)
+	case *time.Time:
+		if val != nil {
+			return val.Format(format)
+		}
+		return ""
 	default:
 		return ""
 	}
+}
+
+// getTimeFormat returns the appropriate time format string for the given locale
+// Returns format suitable for time.Format()
+func getTimeFormat(locale string) string {
+	// Normalize locale to lowercase
+	locale = strings.ToLower(strings.TrimSpace(locale))
+
+	switch locale {
+	case "zh-cn", "zh":
+		// Chinese format: 2025年10月30日 08:57:51
+		return "2006年01月02日 15:04:05"
+	case "en", "en-us", "":
+		// English format: October 30, 2025 08:57:51
+		return "January 02, 2006 15:04:05"
+	default:
+		// Default ISO format
+		return "2006-01-02 15:04:05"
+	}
+}
+
+// formatTimeWithLocale formats a time value (time.Time, *time.Time, or string) using the specified format
+// If the input is already a string, it will parse it first and then reformat it
+// Returns empty string if the value cannot be parsed
+func formatTimeWithLocale(v interface{}, targetFormat string) string {
+	if v == nil {
+		return ""
+	}
+
+	var t time.Time
+	var err error
+
+	switch val := v.(type) {
+	case time.Time:
+		t = val
+	case *time.Time:
+		if val != nil {
+			t = *val
+		} else {
+			return ""
+		}
+	case string:
+		// Try parsing with common formats
+		formats := []string{
+			"2006-01-02 15:04:05",
+			"2006-01-02T15:04:05Z",
+			"2006-01-02T15:04:05",
+			time.RFC3339,
+		}
+		for _, format := range formats {
+			t, err = time.Parse(format, val)
+			if err == nil {
+				break
+			}
+		}
+		if err != nil {
+			// If all parsing attempts failed, return the original string
+			return val
+		}
+	default:
+		// For unsupported types, try toString first
+		str := toString(v)
+		if str == "" {
+			return ""
+		}
+		// Try parsing the string
+		return formatTimeWithLocale(str, targetFormat)
+	}
+
+	// Format with target format
+	return t.Format(targetFormat)
 }
 
 // toInt64 converts various types to int64

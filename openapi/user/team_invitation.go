@@ -364,8 +364,29 @@ func GinTeamInvitationResend(c *gin.Context) {
 		return
 	}
 
+	// Parse request body for locale
+	var requestBody struct {
+		Locale string `json:"locale"`
+	}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		// If no body or invalid JSON, try query parameter as fallback
+		requestBody.Locale = c.Query("locale")
+	}
+
+	// Get locale from request body or query parameter, default to "en"
+	locale := requestBody.Locale
+	if locale == "" {
+		locale = c.Query("locale")
+	}
+	if locale == "" {
+		locale = "en"
+	}
+
+	// Get request base URL for invitation link generation
+	requestBaseURL := getRequestBaseURL(c)
+
 	// Call business logic
-	err := teamInvitationResend(c.Request.Context(), authInfo.UserID, teamID, invitationID, getRequestBaseURL(c))
+	err := teamInvitationResend(c.Request.Context(), authInfo.UserID, teamID, invitationID, requestBaseURL, locale)
 	if err != nil {
 		log.Error("Failed to resend invitation: %v", err)
 		// Check error type for appropriate response
@@ -737,8 +758,14 @@ func ProcessTeamInvitationResend(process *process.Process) interface{} {
 		ctx = context.Background()
 	}
 
+	// Get locale from Args[2] if provided, default to "en"
+	locale := "en"
+	if process.NumOfArgsIs(3) {
+		locale = process.ArgsString(2)
+	}
+
 	// Call business logic (no requestBaseURL available in process context)
-	err := teamInvitationResend(ctx, userIDStr, teamID, invitationID, "")
+	err := teamInvitationResend(ctx, userIDStr, teamID, invitationID, "", locale)
 	if err != nil {
 		exception.New("failed to resend team invitation: %s", 500, err.Error()).Throw()
 	}
@@ -1184,9 +1211,10 @@ func teamInvitationCreate(ctx context.Context, userID, teamID string, invitation
 			// Use background context for async operation
 			bgCtx := context.Background()
 
-			// Ensure request_base_url and settings are in invitationData for email sending
+			// Use createdMember data (from database) for email sending
+			// This ensures we have the actual stored values including properly formatted timestamps
 			emailData := maps.MapStrAny{}
-			for k, v := range invitationData {
+			for k, v := range createdMember {
 				emailData[k] = v
 			}
 			emailData["request_base_url"] = requestBaseURL
@@ -1205,7 +1233,7 @@ func teamInvitationCreate(ctx context.Context, userID, teamID string, invitation
 }
 
 // teamInvitationResend handles the business logic for resending a team invitation
-func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, requestBaseURL string) error {
+func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, requestBaseURL, locale string) error {
 	// Check if user has access to the team (write permission: owner only)
 	isOwner, _, err := checkTeamAccess(ctx, teamID, userID)
 	if err != nil {
@@ -1239,6 +1267,12 @@ func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, req
 		return fmt.Errorf("invitation is no longer pending and cannot be resent")
 	}
 
+	// Get email directly from member record's email field
+	inviteeEmail := toString(invitationData["email"])
+	if inviteeEmail == "" {
+		return fmt.Errorf("invitation has no email address, cannot resend")
+	}
+
 	// Get team information for email template
 	team, err := provider.GetTeam(ctx, teamID)
 	if err != nil {
@@ -1263,11 +1297,26 @@ func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, req
 		return fmt.Errorf("failed to generate new invitation token: %w", err)
 	}
 
-	// Calculate expiry duration (use existing expiry from original invitation data)
-	expiryDuration, err := getTeamInvitationExpiry(invitationData)
-	if err != nil {
-		log.Warn("Failed to parse expiry duration: %v, using default", err)
-		expiryDuration = 7 * 24 * time.Hour
+	// Get team config for expiry duration
+	teamConfig := GetTeamConfig(locale)
+	if teamConfig == nil || teamConfig.Invite == nil {
+		return fmt.Errorf("team configuration not found for locale: %s", locale)
+	}
+
+	// Calculate expiry duration from config or use default
+	expiryDuration := 7 * 24 * time.Hour // Default 7 days
+	if teamConfig.Invite.Expiry != "" {
+		normalizedDuration, err := normalizeDuration(teamConfig.Invite.Expiry)
+		if err != nil {
+			log.Warn("Invalid expiry format in team config: %v, using default", err)
+		} else {
+			duration, err := time.ParseDuration(normalizedDuration)
+			if err != nil {
+				log.Warn("Failed to parse expiry duration %s: %v, using default", teamConfig.Invite.Expiry, err)
+			} else {
+				expiryDuration = duration
+			}
+		}
 	}
 
 	// Update invitation with new token and extended expiry
@@ -1285,36 +1334,32 @@ func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, req
 		return fmt.Errorf("failed to update invitation: %w", err)
 	}
 
-	// Update the invitation data for email sending
+	// Prepare invitation data for email sending
 	invitationData["invitation_token"] = newToken
 	invitationData["invitation_expires_at"] = newExpiryTime
 	invitationData["request_base_url"] = requestBaseURL
 
-	// Get email from invitation data
-	var inviteeEmail string
-	if inviteeUserID := toString(invitationData["user_id"]); inviteeUserID != "" {
-		// Get user email for registered user
-		user, err := provider.GetUser(ctx, inviteeUserID)
-		if err != nil {
-			log.Warn("Failed to get user information: %v", err)
-		} else {
-			inviteeEmail = toString(user["email"])
+	// Set locale in invitation settings for email template
+	if settings, ok := invitationData["settings"].(*InvitationSettings); ok && settings != nil {
+		settings.Locale = locale
+	} else {
+		// Create settings if not exists
+		invitationData["settings"] = &InvitationSettings{
+			Locale: locale,
 		}
 	}
 
-	// Send new invitation email if email is available (asynchronously)
-	if inviteeEmail != "" {
-		go func() {
-			// Use background context for async operation
-			bgCtx := context.Background()
-			err := sendTeamInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
-			if err != nil {
-				log.Error("Failed to resend invitation email: %v", err)
-			} else {
-				log.Info("Invitation email resent to %s for team %s (invitation_id: %s)", inviteeEmail, teamName, invitationID)
-			}
-		}()
-	}
+	// Send new invitation email (asynchronously)
+	go func() {
+		// Use background context for async operation
+		bgCtx := context.Background()
+		err := sendTeamInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
+		if err != nil {
+			log.Error("Failed to resend invitation email: %v", err)
+		} else {
+			log.Info("Invitation email resent to %s for team %s (invitation_id: %s)", inviteeEmail, teamName, invitationID)
+		}
+	}()
 
 	return nil
 }
@@ -1481,6 +1526,12 @@ func sendTeamInvitationEmail(ctx context.Context, email, inviterName, teamName, 
 	// Build invitation link using centralized helper function
 	invitationLink := buildTeamInvitationLink(invitationID, token, teamConfig, requestBaseURL)
 
+	// Get time format based on locale
+	timeFormat := getTimeFormat(locale)
+
+	// Format expires_at with locale-specific format
+	expiresAtFormatted := formatTimeWithLocale(invitationData["invitation_expires_at"], timeFormat)
+
 	// Prepare template data for messenger
 	templateData := messengertypes.TemplateData{
 		"to":              email,
@@ -1491,7 +1542,7 @@ func sendTeamInvitationEmail(ctx context.Context, email, inviterName, teamName, 
 		"token":           token,          // Keep token for backward compatibility
 		"message":         customMessage,
 		"role_id":         toString(invitationData["role_id"]),
-		"expires_at":      toString(invitationData["invitation_expires_at"]),
+		"expires_at":      expiresAtFormatted,
 	}
 
 	// Send email using messenger template
