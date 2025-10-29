@@ -610,7 +610,10 @@ func TestInvitationResend(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
 	httpClient := &http.Client{Timeout: 10 * time.Second}
-	createResp, _ := httpClient.Do(req)
+	createResp, err := httpClient.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to create invitation: %v", err)
+	}
 	defer createResp.Body.Close()
 
 	var createResult map[string]interface{}
