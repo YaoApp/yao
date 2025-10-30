@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/attachment/local"
 	"github.com/yaoapp/yao/attachment/s3"
@@ -39,6 +40,148 @@ type UploadChunk struct {
 	Total       int64
 	Chunksize   int64
 	TotalChunks int64
+}
+
+// Parse parses an attachment wrapper string and returns uploader name and file ID
+// Format: __<uploader>://<fileID>
+// Example: __yao.attachment://ccd472d11feb96e03a3fc468f494045c
+// Returns (uploader, fileID, isWrapper)
+func Parse(value string) (string, string, bool) {
+	if !strings.HasPrefix(value, "__") {
+		return "", value, false
+	}
+
+	// Exclude common protocols (ftp, http, https, etc.)
+	excludedProtocols := []string{"__ftp://", "__http://", "__https://", "__ws://", "__wss://"}
+	for _, protocol := range excludedProtocols {
+		if strings.HasPrefix(value, protocol) {
+			return "", value, false
+		}
+	}
+
+	// Split by ://
+	parts := strings.SplitN(value, "://", 2)
+	if len(parts) != 2 {
+		return "", value, false
+	}
+
+	uploader := parts[0] // Keep the __ prefix as it's part of the manager name
+	fileID := parts[1]
+
+	return uploader, fileID, true
+}
+
+// Base64 processes a wrapper value and converts it to Base64 if it's an attachment wrapper
+// If the value is not a wrapper, it returns the original value
+// Special case: if value looks like a file path, it will try to read from fs data
+// Optional parameter dataURI: if true, returns data URI format (data:image/png;base64,...)
+func Base64(ctx context.Context, value string, dataURI ...bool) string {
+	useDataURI := false
+	if len(dataURI) > 0 {
+		useDataURI = dataURI[0]
+	}
+
+	uploader, fileID, isWrapper := Parse(value)
+	if !isWrapper {
+		// Try to read as file path from fs data
+		if base64Data := readFilePathAsBase64(value, useDataURI); base64Data != "" {
+			return base64Data
+		}
+		return value
+	}
+
+	// Get the manager
+	manager, exists := Managers[uploader]
+	if !exists {
+		return value
+	}
+
+	// Get file info to determine content type
+	var contentType string
+	if useDataURI {
+		fileInfo, err := manager.Info(ctx, fileID)
+		if err == nil && fileInfo != nil {
+			contentType = fileInfo.ContentType
+		}
+	}
+
+	// Read the file as Base64
+	base64Data, err := manager.ReadBase64(ctx, fileID)
+	if err != nil {
+		return value
+	}
+
+	// Return with data URI prefix if requested
+	if useDataURI && contentType != "" {
+		return fmt.Sprintf("data:%s;base64,%s", contentType, base64Data)
+	}
+
+	return base64Data
+}
+
+// readFilePathAsBase64 reads a file from fs data and returns Base64 encoded content
+// Returns empty string if file doesn't exist or can't be read
+// If dataURI is true, returns data URI format with mime type detection
+func readFilePathAsBase64(path string, dataURI bool) string {
+	// Check if path looks like a file path (contains / or \)
+	if !strings.Contains(path, "/") && !strings.Contains(path, "\\") {
+		return ""
+	}
+
+	// Try to get fs data
+	dataFS, err := fs.Get("data")
+	if err != nil || dataFS == nil {
+		return ""
+	}
+
+	// Check if file exists
+	exists, err := dataFS.Exists(path)
+	if err != nil || !exists {
+		return ""
+	}
+
+	// Read file content
+	content, err := dataFS.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+
+	// Encode to Base64
+	base64Str := base64.StdEncoding.EncodeToString(content)
+
+	// Return with data URI prefix if requested
+	if dataURI {
+		// Detect content type from file extension or content
+		contentType := detectContentType(path, content)
+		if contentType != "" {
+			return fmt.Sprintf("data:%s;base64,%s", contentType, base64Str)
+		}
+	}
+
+	return base64Str
+}
+
+// detectContentType detects the MIME type from file path and content
+func detectContentType(path string, content []byte) string {
+	// First try to get from file extension
+	ext := filepath.Ext(path)
+	if ext != "" {
+		mimeType := mime.TypeByExtension(ext)
+		if mimeType != "" {
+			return mimeType
+		}
+	}
+
+	// Fallback to detecting from content (first 512 bytes)
+	if len(content) > 0 {
+		detectSize := len(content)
+		if detectSize > 512 {
+			detectSize = 512
+		}
+		return http.DetectContentType(content[:detectSize])
+	}
+
+	return ""
 }
 
 // GetHeader gets the header from the file header and request header

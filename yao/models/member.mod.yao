@@ -356,9 +356,15 @@
   "indexes": [
     {
       "name": "idx_team_user_unique",
-      "columns": ["team_id", "user_id", "invitation_id"],
+      "columns": ["team_id", "user_id"],
       "type": "unique",
-      "comment": "Unique constraint: one user can have only one membership per team, with unique invitation_id for pending invitations"
+      "comment": "Unique constraint: one user can have only one membership per team"
+    },
+    {
+      "name": "idx_team_invitation_unique",
+      "columns": ["team_id", "invitation_id"],
+      "type": "unique",
+      "comment": "Unique constraint: one invitation_id per team (for pending invitations)"
     },
     {
       "name": "idx_team_email",

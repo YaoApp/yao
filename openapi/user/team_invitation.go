@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/messenger"
 	messengertypes "github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/openapi/oauth"
@@ -1007,11 +1008,22 @@ func teamInvitationGetPublic(ctx context.Context, invitationID, locale string) (
 		}
 	}
 
+	// Process team_logo if it's a wrapper - use Data URI format for direct display in img src
+	teamLogo := toString(team["logo"])
+	if teamLogo != "" {
+		teamLogo = attachment.Base64(ctx, teamLogo, true)
+	}
+
+	// Process inviter_info.picture if it's a wrapper - use Data URI format for direct display in img src
+	if inviterInfo != nil && inviterInfo.Picture != "" {
+		inviterInfo.Picture = attachment.Base64(ctx, inviterInfo.Picture, true)
+	}
+
 	// Build public response (exclude sensitive data like IDs)
 	publicResponse := &PublicInvitationResponse{
 		InvitationID:        toString(invitationData["invitation_id"]),
 		TeamName:            toString(team["name"]),
-		TeamLogo:            toString(team["logo"]),
+		TeamLogo:            teamLogo,
 		TeamDescription:     toString(team["description"]),
 		RoleLabel:           roleLabel,
 		Status:              toString(invitationData["status"]),
