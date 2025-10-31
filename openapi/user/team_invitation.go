@@ -18,11 +18,11 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/messenger"
-	"github.com/yaoapp/yao/openapi/utils"
 	messengertypes "github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/utils"
 	"github.com/yaoapp/yao/share"
 )
 
