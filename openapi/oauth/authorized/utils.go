@@ -50,6 +50,12 @@ func GetInfo(c *gin.Context) *types.AuthorizedInfo {
 	return info
 }
 
+// IsTeamMember checks if the user is a team member
+func IsTeamMember(c *gin.Context) bool {
+	authInfo := GetInfo(c)
+	return authInfo != nil && authInfo.TeamID != "" && authInfo.UserID != ""
+}
+
 // GetConstraints extracts data access constraints from the gin context
 // Returns a DataConstraints struct with all constraint flags
 func GetConstraints(c *gin.Context) types.DataConstraints {
