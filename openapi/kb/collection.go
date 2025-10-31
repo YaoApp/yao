@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -22,7 +23,7 @@ var (
 	// availableCollectionFields defines all available fields for security filtering
 	availableCollectionFields = map[string]bool{
 		"id": true, "collection_id": true, "name": true, "description": true,
-		"status": true, "system": true, "readonly": true, "sort": true, "cover": true,
+		"status": true, "preset": true, "public": true, "share": true, "sort": true, "cover": true,
 		"document_count": true, "embedding_provider_id": true, "embedding_option_id": true,
 		"embedding_properties": true, "locale": true, "dimension": true,
 		"distance_metric": true, "hnsw_m": true, "ef_construction": true,
@@ -32,7 +33,7 @@ var (
 
 	// defaultCollectionFields defines the default compact field list
 	defaultCollectionFields = []interface{}{
-		"id", "collection_id", "name", "description", "status", "system", "readonly",
+		"id", "collection_id", "name", "description", "status", "preset", "public", "share",
 		"sort", "cover", "document_count", "embedding_provider_id", "embedding_option_id",
 		"locale", "dimension", "distance_metric", "created_at", "updated_at",
 	}
@@ -57,6 +58,7 @@ type ProviderSettings struct {
 
 // CreateCollection creates a new collection
 func CreateCollection(c *gin.Context) {
+
 	// Prepare request and database data
 	req, collectionData, err := PrepareCreateCollection(c)
 	if err != nil {
@@ -66,6 +68,12 @@ func CreateCollection(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
+	}
+
+	// Attach create scope to the collection data
+	authInfo := authorized.GetInfo(c)
+	if authInfo != nil {
+		collectionData = authInfo.WithCreateScope(collectionData)
 	}
 
 	// Check if kb.Instance is available

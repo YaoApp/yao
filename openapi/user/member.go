@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/utils"
 )
 
 // Member Management Handlers
@@ -292,7 +293,7 @@ func GinMemberCreateRobot(c *gin.Context) {
 		"bio":             req.Bio,
 		"role_id":         req.RoleID,
 		"system_prompt":   req.SystemPrompt,
-		"autonomous_mode": toBool(req.AutonomousMode),
+		"autonomous_mode": utils.ToBool(req.AutonomousMode),
 	}
 
 	// Add optional fields
@@ -437,7 +438,7 @@ func GinMemberUpdateRobot(c *gin.Context) {
 		updateData["robot_status"] = req.RobotStatus
 	}
 	if req.AutonomousMode != "" {
-		updateData["autonomous_mode"] = toBool(req.AutonomousMode)
+		updateData["autonomous_mode"] = utils.ToBool(req.AutonomousMode)
 	}
 	if req.CostLimit > 0 {
 		updateData["cost_limit"] = req.CostLimit
@@ -1527,29 +1528,29 @@ func checkTeamAccess(ctx context.Context, teamID, userID string) (bool, bool, er
 // mapToMemberResponse converts a map to MemberResponse
 func mapToMemberResponse(data maps.MapStr) MemberResponse {
 	member := MemberResponse{
-		ID:                  toInt64(data["id"]),
-		MemberID:            toString(data["member_id"]),
-		TeamID:              toString(data["team_id"]),
-		UserID:              toString(data["user_id"]),
-		MemberType:          toString(data["member_type"]),
-		DisplayName:         toString(data["display_name"]),
-		Bio:                 toString(data["bio"]),
-		Avatar:              toString(data["avatar"]),
-		Email:               toString(data["email"]),
-		RobotEmail:          toString(data["robot_email"]), // Globally unique email for robot members
-		RoleID:              toString(data["role_id"]),
+		ID:                  utils.ToInt64(data["id"]),
+		MemberID:            utils.ToString(data["member_id"]),
+		TeamID:              utils.ToString(data["team_id"]),
+		UserID:              utils.ToString(data["user_id"]),
+		MemberType:          utils.ToString(data["member_type"]),
+		DisplayName:         utils.ToString(data["display_name"]),
+		Bio:                 utils.ToString(data["bio"]),
+		Avatar:              utils.ToString(data["avatar"]),
+		Email:               utils.ToString(data["email"]),
+		RobotEmail:          utils.ToString(data["robot_email"]), // Globally unique email for robot members
+		RoleID:              utils.ToString(data["role_id"]),
 		IsOwner:             data["is_owner"], // Keep original type (int or bool)
-		Status:              toString(data["status"]),
-		InvitationID:        toString(data["invitation_id"]),
-		InvitedBy:           toString(data["invited_by"]),
-		InvitedAt:           toTimeString(data["invited_at"]),
-		InvitationToken:     toString(data["invitation_token"]),
-		InvitationExpiresAt: toTimeString(data["invitation_expires_at"]),
-		JoinedAt:            toTimeString(data["joined_at"]),
-		LastActiveAt:        toTimeString(data["last_active_at"]),
-		LoginCount:          toInt(data["login_count"]),
-		CreatedAt:           toTimeString(data["created_at"]),
-		UpdatedAt:           toTimeString(data["updated_at"]),
+		Status:              utils.ToString(data["status"]),
+		InvitationID:        utils.ToString(data["invitation_id"]),
+		InvitedBy:           utils.ToString(data["invited_by"]),
+		InvitedAt:           utils.ToTimeString(data["invited_at"]),
+		InvitationToken:     utils.ToString(data["invitation_token"]),
+		InvitationExpiresAt: utils.ToTimeString(data["invitation_expires_at"]),
+		JoinedAt:            utils.ToTimeString(data["joined_at"]),
+		LastActiveAt:        utils.ToTimeString(data["last_active_at"]),
+		LoginCount:          utils.ToInt(data["login_count"]),
+		CreatedAt:           utils.ToTimeString(data["created_at"]),
+		UpdatedAt:           utils.ToTimeString(data["updated_at"]),
 	}
 
 	// Add settings if available
@@ -1559,7 +1560,7 @@ func mapToMemberResponse(data maps.MapStr) MemberResponse {
 		} else if settingsMap, ok := settings.(map[string]interface{}); ok {
 			// Convert map to MemberSettings (for backward compatibility)
 			memSettings := &MemberSettings{
-				Notifications: toBool(settingsMap["notifications"]),
+				Notifications: utils.ToBool(settingsMap["notifications"]),
 			}
 			// Handle permissions array
 			if perms, ok := settingsMap["permissions"]; ok {
@@ -1587,14 +1588,14 @@ func mapToMemberDetailResponse(data maps.MapStr) MemberDetailResponse {
 	member := MemberDetailResponse{
 		MemberResponse: mapToMemberResponse(data),
 		// Robot-specific fields
-		SystemPrompt:      toString(data["system_prompt"]),
-		ManagerID:         toString(data["manager_id"]),
-		LanguageModel:     toString(data["language_model"]),
-		CostLimit:         toFloat64(data["cost_limit"]),
+		SystemPrompt:      utils.ToString(data["system_prompt"]),
+		ManagerID:         utils.ToString(data["manager_id"]),
+		LanguageModel:     utils.ToString(data["language_model"]),
+		CostLimit:         utils.ToFloat64(data["cost_limit"]),
 		AutonomousMode:    data["autonomous_mode"], // Keep original type (bool or string)
-		LastRobotActivity: toTimeString(data["last_robot_activity"]),
-		RobotStatus:       toString(data["robot_status"]),
-		Notes:             toString(data["notes"]),
+		LastRobotActivity: utils.ToTimeString(data["last_robot_activity"]),
+		RobotStatus:       utils.ToString(data["robot_status"]),
+		Notes:             utils.ToString(data["notes"]),
 	}
 
 	// Handle authorized_senders array

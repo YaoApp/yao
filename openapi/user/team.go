@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/utils"
 )
 
 // Team Management Handlers
@@ -132,7 +133,7 @@ func GinTeamGet(c *gin.Context) {
 	}
 
 	// // Check if user owns this team
-	// ownerID := toString(teamData["owner_id"])
+	// ownerID := utils.ToString(teamData["owner_id"])
 	// if ownerID != authInfo.UserID {
 	// 	errorResp := &response.ErrorResponse{
 	// 		Code:             response.ErrAccessDenied.Code,
@@ -878,7 +879,7 @@ func teamUpdate(ctx context.Context, userID, teamID string, updateData maps.MapS
 	}
 
 	// Check ownership
-	ownerID := toString(teamData["owner_id"])
+	ownerID := utils.ToString(teamData["owner_id"])
 	if ownerID != userID {
 		return fmt.Errorf("access denied: user does not own this team")
 	}
@@ -910,7 +911,7 @@ func teamDelete(ctx context.Context, userID, teamID string) error {
 	}
 
 	// Check ownership
-	ownerID := toString(teamData["owner_id"])
+	ownerID := utils.ToString(teamData["owner_id"])
 	if ownerID != userID {
 		return fmt.Errorf("access denied: user does not own this team")
 	}
@@ -957,18 +958,18 @@ func getUserProvider() (*user.DefaultUser, error) {
 // mapToTeamResponse converts a map to TeamResponse
 func mapToTeamResponse(data maps.MapStr) TeamResponse {
 	team := TeamResponse{
-		ID:          toInt64(data["id"]),
-		TeamID:      toString(data["team_id"]),
-		Name:        toString(data["name"]),
-		Description: toString(data["description"]),
-		Logo:        toString(data["logo"]),
-		OwnerID:     toString(data["owner_id"]),
-		Status:      toString(data["status"]),
-		IsVerified:  toBool(data["is_verified"]),
-		VerifiedBy:  toString(data["verified_by"]),
-		VerifiedAt:  toTimeString(data["verified_at"]),
-		CreatedAt:   toTimeString(data["created_at"]),
-		UpdatedAt:   toTimeString(data["updated_at"]),
+		ID:          utils.ToInt64(data["id"]),
+		TeamID:      utils.ToString(data["team_id"]),
+		Name:        utils.ToString(data["name"]),
+		Description: utils.ToString(data["description"]),
+		Logo:        utils.ToString(data["logo"]),
+		OwnerID:     utils.ToString(data["owner_id"]),
+		Status:      utils.ToString(data["status"]),
+		IsVerified:  utils.ToBool(data["is_verified"]),
+		VerifiedBy:  utils.ToString(data["verified_by"]),
+		VerifiedAt:  utils.ToTimeString(data["verified_at"]),
+		CreatedAt:   utils.ToTimeString(data["created_at"]),
+		UpdatedAt:   utils.ToTimeString(data["updated_at"]),
 	}
 
 	return team
@@ -987,8 +988,8 @@ func mapToTeamDetailResponse(data maps.MapStr) TeamDetailResponse {
 		} else if settingsMap, ok := settings.(map[string]interface{}); ok {
 			// Convert map to TeamSettings (for backward compatibility)
 			teamSettings := &TeamSettings{
-				Theme:      toString(settingsMap["theme"]),
-				Visibility: toString(settingsMap["visibility"]),
+				Theme:      utils.ToString(settingsMap["theme"]),
+				Visibility: utils.ToString(settingsMap["visibility"]),
 			}
 			team.Settings = teamSettings
 		}

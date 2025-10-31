@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
 	kbtypes "github.com/yaoapp/yao/kb/types"
+	apiutils "github.com/yaoapp/yao/openapi/utils"
 )
 
 // PrepareCreateCollection prepares CreateCollection request and database data
@@ -68,6 +69,12 @@ func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[stri
 		"locale":                req.Config.Locale,
 		"distance":              req.Config.Distance,
 		"index_type":            req.Config.IndexType,
+	}
+
+	// Add share field from metadata if provided
+	share := apiutils.ToString(req.Metadata["share"])
+	if share == "private" || share == "team" {
+		data["share"] = share
 	}
 
 	// Add optional HNSW parameters

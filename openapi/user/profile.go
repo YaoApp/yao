@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/utils"
 )
 
 // User Profile Management Handlers
@@ -246,11 +247,11 @@ func addTeamInfo(ctx context.Context, provider *user.DefaultUser, oidcUserInfo *
 	if withTeam {
 		oidcUserInfo.YaoTeamID = teamID
 		oidcUserInfo.YaoTeam = &oauthtypes.OIDCTeamInfo{
-			TeamID:      toString(team["team_id"]),
-			Name:        toString(team["name"]),
-			Description: toString(team["description"]),
-			Logo:        toString(team["logo"]),
-			OwnerID:     toString(team["owner_id"]),
+			TeamID:      utils.ToString(team["team_id"]),
+			Name:        utils.ToString(team["name"]),
+			Description: utils.ToString(team["description"]),
+			Logo:        utils.ToString(team["logo"]),
+			OwnerID:     utils.ToString(team["owner_id"]),
 		}
 
 		// Check if user is owner
@@ -260,7 +261,7 @@ func addTeamInfo(ctx context.Context, provider *user.DefaultUser, oidcUserInfo *
 		}
 
 		// Add tenant_id if available
-		if tenantID := toString(team["tenant_id"]); tenantID != "" {
+		if tenantID := utils.ToString(team["tenant_id"]); tenantID != "" {
 			oidcUserInfo.YaoTenantID = tenantID
 		}
 	}
@@ -274,13 +275,13 @@ func addTypeInfo(ctx context.Context, provider *user.DefaultUser, oidcUserInfo *
 	if teamID != "" {
 		team, err := provider.GetTeamByMember(ctx, teamID, userID)
 		if err == nil && team != nil {
-			typeID = toString(team["type_id"])
+			typeID = utils.ToString(team["type_id"])
 		}
 	}
 
 	// Fallback to user's type
 	if typeID == "" {
-		typeID = toString(userData["type_id"])
+		typeID = utils.ToString(userData["type_id"])
 	}
 
 	if typeID == "" {
@@ -297,9 +298,9 @@ func addTypeInfo(ctx context.Context, provider *user.DefaultUser, oidcUserInfo *
 	}
 
 	oidcUserInfo.YaoType = &oauthtypes.OIDCTypeInfo{
-		TypeID: toString(typeInfo["type_id"]),
-		Name:   toString(typeInfo["name"]),
-		Locale: toString(typeInfo["locale"]),
+		TypeID: utils.ToString(typeInfo["type_id"]),
+		Name:   utils.ToString(typeInfo["name"]),
+		Locale: utils.ToString(typeInfo["locale"]),
 	}
 }
 

@@ -133,20 +133,33 @@
       "default": "en"
     },
     {
-      "name": "system",
+      "name": "preset",
       "type": "boolean",
-      "label": "System Document",
-      "comment": "Whether this is a system document",
+      "label": "Preset Document",
+      "comment": "Whether this is a preset document",
       "default": false,
       "nullable": false
     },
     {
-      "name": "readonly",
+      "name": "public",
       "type": "boolean",
-      "label": "Readonly Document",
-      "comment": "Whether this document is read-only",
+      "label": "Public Document",
+      "comment": "Whether this document is shared across all teams in the platform",
       "default": false,
       "nullable": false
+    },
+    {
+      "name": "share",
+      "type": "enum",
+      "label": "Share",
+      "comment": "Document sharing scope",
+      "option": [
+        "private", // Only visible to the owner
+        "team" // Visible to all team members
+      ],
+      "default": "private",
+      "nullable": false,
+      "index": true
     },
     {
       "name": "sort",
@@ -352,8 +365,5 @@
       "nullable": true
     }
   ],
-  "option": {
-    "permission": true,
-    "timestamps": true
-  }
+  "option": { "soft_deletes": true, "permission": true, "timestamps": true }
 }
