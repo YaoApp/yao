@@ -394,13 +394,13 @@ func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []str
 					info.TeamOnly = true
 				}
 
-				// Merge extra constraints
+				// Merge extra constraints (deep copy to prevent shared state)
 				if len(def.Extra) > 0 {
 					if info.Extra == nil {
 						info.Extra = make(map[string]interface{})
 					}
 					for key, value := range def.Extra {
-						info.Extra[key] = value
+						info.Extra[key] = deepCopyValue(value)
 					}
 				}
 			}
@@ -426,13 +426,13 @@ func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []str
 			existing.CreatorOnly = existing.CreatorOnly || info.CreatorOnly
 			existing.EditorOnly = existing.EditorOnly || info.EditorOnly
 			existing.TeamOnly = existing.TeamOnly || info.TeamOnly
-			// Merge extra constraints
+			// Merge extra constraints (deep copy to prevent shared state)
 			if info.Extra != nil {
 				if existing.Extra == nil {
 					existing.Extra = make(map[string]interface{})
 				}
 				for key, value := range info.Extra {
-					existing.Extra[key] = value
+					existing.Extra[key] = deepCopyValue(value)
 				}
 			}
 			log.Trace("[ACL] Merged endpoint %s %s: scopes=%v, owner=%v, team=%v",
@@ -451,12 +451,13 @@ func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []str
 			existing.CreatorOnly = existing.CreatorOnly || info.CreatorOnly
 			existing.EditorOnly = existing.EditorOnly || info.EditorOnly
 			existing.TeamOnly = existing.TeamOnly || info.TeamOnly
+			// Merge extra constraints (deep copy to prevent shared state)
 			if info.Extra != nil {
 				if existing.Extra == nil {
 					existing.Extra = make(map[string]interface{})
 				}
 				for key, value := range info.Extra {
-					existing.Extra[key] = value
+					existing.Extra[key] = deepCopyValue(value)
 				}
 			}
 			log.Trace("[ACL] Merged endpoint %s %s: scopes=%v, owner=%v, team=%v",
@@ -630,6 +631,7 @@ func (m *ScopeManager) CheckRestricted(req *AccessRequest) *AccessDecision {
 }
 
 // matchEndpoint finds the matching endpoint for a request
+// Returns a defensive copy to prevent accidental mutations of shared endpoint data
 func (m *ScopeManager) matchEndpoint(method, path string) (*EndpointInfo, string) {
 	// Normalize path: remove trailing slash (except for root path)
 	path = normalizePath(path)
@@ -641,20 +643,20 @@ func (m *ScopeManager) matchEndpoint(method, path string) (*EndpointInfo, string
 
 	// 1. Try exact match
 	if info := matcher.exactPaths[path]; info != nil {
-		return info, path
+		return m.copyEndpointInfo(info), path
 	}
 
 	// 2. Try parameter match
 	for pattern, info := range matcher.paramPaths {
 		if m.matchParameterPath(pattern, path) {
-			return info, pattern
+			return m.copyEndpointInfo(info), pattern
 		}
 	}
 
 	// 3. Try wildcard match (already sorted by prefix length)
 	for _, wildcard := range matcher.wildcardPaths {
 		if strings.HasPrefix(path, wildcard.Prefix) {
-			return wildcard.Endpoint, wildcard.Pattern
+			return m.copyEndpointInfo(wildcard.Endpoint), wildcard.Pattern
 		}
 	}
 
@@ -801,12 +803,9 @@ func (m *ScopeManager) GetScopeConstraints(scopeName string, method, path string
 		TeamOnly:       scopeDef.Team,
 	}
 
-	// Copy extra constraints
+	// Deep copy extra constraints to prevent shared state issues
 	if len(scopeDef.Extra) > 0 {
-		info.Extra = make(map[string]interface{})
-		for key, value := range scopeDef.Extra {
-			info.Extra[key] = value
-		}
+		info.Extra = deepCopyMap(scopeDef.Extra)
 	}
 
 	return info
@@ -851,4 +850,80 @@ func normalizePath(path string) string {
 
 	// Remove trailing slash
 	return strings.TrimSuffix(path, "/")
+}
+
+// copyEndpointInfo creates a defensive copy of an EndpointInfo object
+// This prevents accidental mutations of shared endpoint data
+func (m *ScopeManager) copyEndpointInfo(src *EndpointInfo) *EndpointInfo {
+	if src == nil {
+		return nil
+	}
+
+	// Create new EndpointInfo with copied fields
+	dst := &EndpointInfo{
+		Method:       src.Method,
+		Path:         src.Path,
+		Policy:       src.Policy,
+		OwnerOnly:    src.OwnerOnly,
+		CreatorOnly:  src.CreatorOnly,
+		EditorOnly:   src.EditorOnly,
+		TeamOnly:     src.TeamOnly,
+	}
+
+	// Deep copy RequiredScopes slice
+	if len(src.RequiredScopes) > 0 {
+		dst.RequiredScopes = make([]string, len(src.RequiredScopes))
+		copy(dst.RequiredScopes, src.RequiredScopes)
+	}
+
+	// Deep copy Extra map
+	if len(src.Extra) > 0 {
+		dst.Extra = deepCopyMap(src.Extra)
+	}
+
+	return dst
+}
+
+// deepCopyMap creates a deep copy of a map[string]interface{}
+// This handles common types: primitives, strings, slices, and nested maps
+func deepCopyMap(src map[string]interface{}) map[string]interface{} {
+	if src == nil {
+		return nil
+	}
+
+	dst := make(map[string]interface{}, len(src))
+	for key, value := range src {
+		dst[key] = deepCopyValue(value)
+	}
+	return dst
+}
+
+// deepCopyValue creates a deep copy of an interface{} value
+// Handles common types: primitives, strings, slices, maps
+func deepCopyValue(src interface{}) interface{} {
+	if src == nil {
+		return nil
+	}
+
+	switch v := src.(type) {
+	case map[string]interface{}:
+		// Recursively copy nested maps
+		return deepCopyMap(v)
+	case []interface{}:
+		// Copy slices
+		dst := make([]interface{}, len(v))
+		for i, item := range v {
+			dst[i] = deepCopyValue(item)
+		}
+		return dst
+	case []string:
+		// Copy string slices
+		dst := make([]string, len(v))
+		copy(dst, v)
+		return dst
+	default:
+		// For primitives (bool, int, float64, string), direct assignment is safe
+		// Note: If you have custom types or pointers in Extra, they may need special handling
+		return v
+	}
 }
