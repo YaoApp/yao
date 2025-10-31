@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -102,8 +103,14 @@ func ListDocuments(c *gin.Context) {
 		Select: selectFields,
 	}
 
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	// Add filters
 	var wheres []model.QueryWhere
+
+	// Apply permission-based filtering
+	wheres = append(wheres, AuthFilter(c, authInfo)...)
 
 	// Filter by keywords (search in name and description)
 	if keywords := strings.TrimSpace(c.Query("keywords")); keywords != "" {

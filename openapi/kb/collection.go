@@ -309,6 +309,10 @@ func GetCollection(c *gin.Context) {
 
 // ListCollections lists collections with pagination
 func ListCollections(c *gin.Context) {
+
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	// Check if kb.Instance is available
 	if kb.Instance == nil {
 		errorResp := &response.ErrorResponse{
@@ -364,12 +368,13 @@ func ListCollections(c *gin.Context) {
 	}
 
 	// Build query parameters
-	param := model.QueryParam{
-		Select: selectFields,
-	}
+	param := model.QueryParam{Select: selectFields}
 
 	// Add filters
 	var wheres []model.QueryWhere
+
+	// Apply permission-based filtering
+	wheres = append(wheres, AuthFilter(c, authInfo)...)
 
 	// Filter by keywords (search in name and description)
 	if keywords := strings.TrimSpace(c.Query("keywords")); keywords != "" {
