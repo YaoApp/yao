@@ -861,13 +861,13 @@ func (m *ScopeManager) copyEndpointInfo(src *EndpointInfo) *EndpointInfo {
 
 	// Create new EndpointInfo with copied fields
 	dst := &EndpointInfo{
-		Method:       src.Method,
-		Path:         src.Path,
-		Policy:       src.Policy,
-		OwnerOnly:    src.OwnerOnly,
-		CreatorOnly:  src.CreatorOnly,
-		EditorOnly:   src.EditorOnly,
-		TeamOnly:     src.TeamOnly,
+		Method:      src.Method,
+		Path:        src.Path,
+		Policy:      src.Policy,
+		OwnerOnly:   src.OwnerOnly,
+		CreatorOnly: src.CreatorOnly,
+		EditorOnly:  src.EditorOnly,
+		TeamOnly:    src.TeamOnly,
 	}
 
 	// Deep copy RequiredScopes slice
