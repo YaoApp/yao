@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/utils"
 	"github.com/yaoapp/yao/utils/captcha"
 )
 
@@ -195,7 +196,7 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	}
 
 	// Get MFA enabled status from user data
-	mfaEnabled := toBool(user["mfa_enabled"])
+	mfaEnabled := utils.ToBool(user["mfa_enabled"])
 
 	// If MFA enabled, generate MFA token
 	if mfaEnabled {
@@ -459,7 +460,7 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		extraClaims["team_id"] = params.TeamID
 
 		// Add tenant_id if available from the team
-		if tenantID := toString(params.Team["tenant_id"]); tenantID != "" {
+		if tenantID := utils.ToString(params.Team["tenant_id"]); tenantID != "" {
 			extraClaims["tenant_id"] = tenantID
 			oidcUserInfo.YaoTenantID = tenantID
 		}
@@ -467,21 +468,21 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		// Add team info to OIDC user info
 		oidcUserInfo.YaoTeamID = params.TeamID
 		teamInfo := &oauthtypes.OIDCTeamInfo{}
-		if teamIDVal := toString(params.Team["team_id"]); teamIDVal != "" {
+		if teamIDVal := utils.ToString(params.Team["team_id"]); teamIDVal != "" {
 			teamInfo.TeamID = teamIDVal
 		}
-		if logo := toString(params.Team["logo"]); logo != "" {
+		if logo := utils.ToString(params.Team["logo"]); logo != "" {
 			teamInfo.Logo = logo
 		}
-		if name := toString(params.Team["name"]); name != "" {
+		if name := utils.ToString(params.Team["name"]); name != "" {
 			teamInfo.Name = name
 		}
-		if description := toString(params.Team["description"]); description != "" {
+		if description := utils.ToString(params.Team["description"]); description != "" {
 			teamInfo.Description = description
 		}
 
 		// Add owner_id if available from the team (only check once)
-		if ownerID := toString(params.Team["owner_id"]); ownerID != "" {
+		if ownerID := utils.ToString(params.Team["owner_id"]); ownerID != "" {
 			extraClaims["owner_id"] = ownerID
 			teamInfo.OwnerID = ownerID
 
@@ -497,19 +498,19 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		// Add member profile information if available
 		if params.Member != nil {
 			memberInfo := &oauthtypes.OIDCMemberInfo{}
-			if memberID := toString(params.Member["member_id"]); memberID != "" {
+			if memberID := utils.ToString(params.Member["member_id"]); memberID != "" {
 				memberInfo.MemberID = memberID
 			}
-			if displayName := toString(params.Member["display_name"]); displayName != "" {
+			if displayName := utils.ToString(params.Member["display_name"]); displayName != "" {
 				memberInfo.DisplayName = displayName
 			}
-			if bio := toString(params.Member["bio"]); bio != "" {
+			if bio := utils.ToString(params.Member["bio"]); bio != "" {
 				memberInfo.Bio = bio
 			}
-			if avatar := toString(params.Member["avatar"]); avatar != "" {
+			if avatar := utils.ToString(params.Member["avatar"]); avatar != "" {
 				memberInfo.Avatar = avatar
 			}
-			if email := toString(params.Member["email"]); email != "" {
+			if email := utils.ToString(params.Member["email"]); email != "" {
 				memberInfo.Email = email
 			}
 			oidcUserInfo.YaoMember = memberInfo
@@ -520,10 +521,10 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 	var typeID string
 	if params.TeamID != "" && params.Team != nil {
 		// Team context - use team's type
-		typeID = toString(params.Team["type_id"])
+		typeID = utils.ToString(params.Team["type_id"])
 	} else {
 		// Personal context - use user's type
-		typeID = toString(params.User["type_id"])
+		typeID = utils.ToString(params.User["type_id"])
 	}
 
 	if typeID != "" {
@@ -538,13 +539,13 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 			if err == nil && typeInfo != nil {
 				// Add type info to OIDC user info
 				typeDetails := &oauthtypes.OIDCTypeInfo{}
-				if typeIDVal := toString(typeInfo["type_id"]); typeIDVal != "" {
+				if typeIDVal := utils.ToString(typeInfo["type_id"]); typeIDVal != "" {
 					typeDetails.TypeID = typeIDVal
 				}
-				if name := toString(typeInfo["name"]); name != "" {
+				if name := utils.ToString(typeInfo["name"]); name != "" {
 					typeDetails.Name = name
 				}
-				if locale := toString(typeInfo["locale"]); locale != "" {
+				if locale := utils.ToString(typeInfo["locale"]); locale != "" {
 					typeDetails.Locale = locale
 				}
 				oidcUserInfo.YaoType = typeDetails
@@ -595,7 +596,7 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		ExpiresIn:             expiresIn,
 		RefreshTokenExpiresIn: refreshTokenExpiresIn,
 		TokenType:             "Bearer",
-		MFAEnabled:            toBool(params.User["mfa_enabled"]),
+		MFAEnabled:            utils.ToBool(params.User["mfa_enabled"]),
 		Scope:                 strings.Join(params.Scopes, " "),
 		Status:                LoginStatusSuccess,
 	}, nil
