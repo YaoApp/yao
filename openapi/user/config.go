@@ -567,6 +567,31 @@ func processEntryConfigENVVariables(config *EntryConfig) {
 	}
 	config.ClientSecret = replaceENVVar(config.ClientSecret)
 
+	// Process URL configurations
+	if strings.HasPrefix(config.SuccessURL, "$ENV.") {
+		envVar := strings.TrimPrefix(config.SuccessURL, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.SuccessURL = replaceENVVar(config.SuccessURL)
+
+	if strings.HasPrefix(config.FailureURL, "$ENV.") {
+		envVar := strings.TrimPrefix(config.FailureURL, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.FailureURL = replaceENVVar(config.FailureURL)
+
+	if strings.HasPrefix(config.LogoutRedirect, "$ENV.") {
+		envVar := strings.TrimPrefix(config.LogoutRedirect, "$ENV.")
+		if _, exists := os.LookupEnv(envVar); !exists {
+			missingEnvVars = append(missingEnvVars, envVar)
+		}
+	}
+	config.LogoutRedirect = replaceENVVar(config.LogoutRedirect)
+
 	// Process form configuration
 	formMissingVars := processFormConfigENVVariables(config.Form)
 	missingEnvVars = append(missingEnvVars, formMissingVars...)
