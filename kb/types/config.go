@@ -139,6 +139,11 @@ func (c *Config) toVectorStoreConfig() (types.VectorStoreConfig, error) {
 		extraParams["port"] = port
 	}
 
+	// Map api_key field
+	if apiKey, exists := configCopy["api_key"]; exists {
+		extraParams["api_key"] = apiKey
+	}
+
 	// Convert config to types.VectorStoreConfig via JSON
 	jsonData, err := json.Marshal(configCopy)
 	if err != nil {
