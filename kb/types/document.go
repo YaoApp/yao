@@ -18,6 +18,7 @@ func (c *Config) SearchDocuments(param model.QueryParam, page int, pagesize int)
 	if mod == nil {
 		return nil, fmt.Errorf("document model not found: %s", modelName)
 	}
+	param.Debug = true
 	return mod.Paginate(param, page, pagesize)
 }
 
