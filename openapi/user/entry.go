@@ -1083,10 +1083,10 @@ func GinVerifyInvite(c *gin.Context) {
 
 	// Get authorized info from the temporary token
 	authInfo := oauth.GetAuthorizedInfo(c)
-	if authInfo == nil || authInfo.Scope != ScopeInviteVerification {
+	if authInfo == nil || authInfo.Scope != ScopeEntryVerification {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInsufficientScope.Code,
-			ErrorDescription: "Invalid or missing token scope. Expected invite_verification scope",
+			ErrorDescription: "Invalid or missing token scope. Expected entry_verification scope",
 		}
 		response.RespondWithError(c, response.StatusForbidden, errorResp)
 		return
