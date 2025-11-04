@@ -35,12 +35,11 @@ func init() {
 				"GET /file/:uploaderID/:fileID/content",
 			},
 		},
-		// Invite verification scope - allows users to accept team invitations
+		// Invite verification scope - allows users to view invitation details before accepting
 		&acl.ScopeDefinition{
 			Name:        ScopeInviteVerification,
-			Description: "Invite verification - temporary access for accepting team invitations",
+			Description: "Invite verification - temporary access for viewing invitation details",
 			Endpoints: []string{
-				"POST /user/teams/invitations/:invitation_id/accept",
 				"GET /user/teams/invitations/:invitation_id",
 			},
 		},
