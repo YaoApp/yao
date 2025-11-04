@@ -176,7 +176,7 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 			extraClaims["remember_me"] = true
 		}
 
-		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeInviteVerification, subject, inviteExpire, extraClaims)
+		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeEntryVerification, subject, inviteExpire, extraClaims)
 		if err != nil {
 			return nil, err
 		}
@@ -186,7 +186,7 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 			AccessToken: accessToken,
 			ExpiresIn:   inviteExpire,
 			TokenType:   "Bearer",
-			Scope:       ScopeInviteVerification,
+			Scope:       ScopeEntryVerification,
 			Status:      LoginStatusInviteVerification,
 		}, nil
 	case "active":

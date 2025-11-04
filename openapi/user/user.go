@@ -28,17 +28,18 @@ func init() {
 			Name:        ScopeTeamSelection,
 			Description: "Team selection - temporary access for selecting a team after login",
 			Endpoints: []string{
-				"POST /user/teams/select",
+				"GET /user/profile",
+				"GET /user/teams",
 				"GET /user/teams/config",
+				"POST /user/teams/select",
 				"GET /file/:uploaderID/:fileID/content",
 			},
 		},
-		// Invite verification scope - allows users to accept team invitations
+		// Invite verification scope - allows users to view invitation details before accepting
 		&acl.ScopeDefinition{
 			Name:        ScopeInviteVerification,
-			Description: "Invite verification - temporary access for accepting team invitations",
+			Description: "Invite verification - temporary access for viewing invitation details",
 			Endpoints: []string{
-				"POST /user/teams/invitations/:invitation_id/accept",
 				"GET /user/teams/invitations/:invitation_id",
 			},
 		},

@@ -491,7 +491,29 @@ func handleDuplicate(mod *model.Model, row maps.MapStrAny, line int, duplicateMo
 		}
 
 	case DuplicateUpdate:
-		// Use Save (create or update)
+		// Use EachSave logic: check if record exists first, then create or update
+		// This is critical for Reset scenarios where CSV has primary keys but DB is empty
+		if id, has := row[mod.PrimaryKey]; has {
+			// Check if record exists in database
+			_, err := mod.Find(id, model.QueryParam{Select: []interface{}{mod.PrimaryKey}})
+			if err != nil {
+				// Record doesn't exist, create it
+				_, err := mod.Create(row)
+				if err != nil {
+					result.Errors = append(result.Errors, ImportError{
+						Row:     line,
+						Message: err.Error(),
+						Code:    500,
+					})
+					result.Failure++
+				} else {
+					result.Success++
+				}
+				return nil
+			}
+		}
+
+		// Record exists (or no primary key), use Save to update/create
 		_, err := mod.Save(row)
 		if err != nil {
 			result.Errors = append(result.Errors, ImportError{

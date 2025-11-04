@@ -223,22 +223,53 @@ func (m *ScopeManager) expandAlias(alias string, visited map[string]bool) ([]str
 	return expanded, nil
 }
 
+// getFirstLevelSubdirs returns all first-level subdirectories in a given directory
+func getFirstLevelSubdirs(baseDir string) ([]string, error) {
+	var subdirs []string
+
+	err := application.App.Walk(baseDir, func(root, filename string, isdir bool) error {
+		// Only process directories
+		if !isdir {
+			return nil
+		}
+
+		// Skip the root directory itself
+		if filename == baseDir {
+			return nil
+		}
+
+		// Get relative path from baseDir
+		relPath := strings.TrimPrefix(filename, baseDir)
+		relPath = strings.TrimPrefix(relPath, string(filepath.Separator))
+
+		// Only include first-level directories (no nested paths)
+		if !strings.Contains(relPath, string(filepath.Separator)) && relPath != "" {
+			subdirs = append(subdirs, relPath)
+		}
+
+		return nil
+	}, "")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return subdirs, nil
+}
+
 // loadScopeDefinitions loads scope definitions from subdirectories
 func (m *ScopeManager) loadScopeDefinitions() error {
 	scopesDir := filepath.Join("openapi", "scopes")
 
-	// Subdirectories to scan
-	subDirs := []string{"kb", "job", "file", "user"}
+	// Get all subdirectories in the scopes directory
+	subDirs, err := getFirstLevelSubdirs(scopesDir)
+	if err != nil {
+		return fmt.Errorf("failed to scan scopes directory: %w", err)
+	}
 
+	// Load scope definitions from each subdirectory
 	for _, subDir := range subDirs {
 		dirPath := filepath.Join(scopesDir, subDir)
-		exists, err := application.App.Exists(dirPath)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			continue
-		}
 
 		// Walk through all .yml files in the directory
 		err = application.App.Walk(dirPath, func(root, filename string, isdir bool) error {
