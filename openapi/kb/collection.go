@@ -148,6 +148,9 @@ func CreateCollection(c *gin.Context) {
 
 // RemoveCollection removes an existing collection
 func RemoveCollection(c *gin.Context) {
+
+	authInfo := authorized.GetInfo(c)
+
 	// Get collection ID from URL parameter
 	collectionID := c.Param("collectionID")
 	if collectionID == "" {
@@ -166,6 +169,27 @@ func RemoveCollection(c *gin.Context) {
 			ErrorDescription: "Knowledge base not initialized",
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Check remove permission
+	hasPermission, err := checkCollectionPermission(authInfo, collectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// 403 Forbidden
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to remove collection",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
 		return
 	}
 
