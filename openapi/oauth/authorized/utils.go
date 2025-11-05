@@ -2,8 +2,17 @@ package authorized
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
+
+// ProcessAuthInfo extracts authorized information from the process
+func ProcessAuthInfo(p *process.Process) *types.AuthorizedInfo {
+	// TODO: Implement this function
+	// Get authorized information from the process context
+	info := &types.AuthorizedInfo{}
+	return info
+}
 
 // GetInfo extracts authorized information from the gin context
 // This function reads authorization data that was set by the OAuth guard middleware

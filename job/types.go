@@ -135,6 +135,12 @@ type Job struct {
 	CreatedAt          time.Time              `json:"created_at"`
 	UpdatedAt          time.Time              `json:"updated_at"`
 
+	// Yao custom fields
+	YaoCreatedBy string `json:"__yao_created_by,omitempty"` // nullable: true
+	YaoUpdatedBy string `json:"__yao_updated_by,omitempty"` // nullable: true
+	YaoTeamID    string `json:"__yao_team_id,omitempty"`    // nullable: true
+	YaoTenantID  string `json:"__yao_tenant_id,omitempty"`
+
 	// Relationships
 	Category   *Category   `json:"category,omitempty"`
 	Executions []Execution `json:"executions,omitempty"`
