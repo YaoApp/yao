@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
+	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -147,6 +148,9 @@ func CreateCollection(c *gin.Context) {
 
 // RemoveCollection removes an existing collection
 func RemoveCollection(c *gin.Context) {
+
+	authInfo := authorized.GetInfo(c)
+
 	// Get collection ID from URL parameter
 	collectionID := c.Param("collectionID")
 	if collectionID == "" {
@@ -165,6 +169,27 @@ func RemoveCollection(c *gin.Context) {
 			ErrorDescription: "Knowledge base not initialized",
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Check remove permission
+	hasPermission, err := checkCollectionPermission(authInfo, collectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// 403 Forbidden
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to remove collection",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
 		return
 	}
 
@@ -516,6 +541,7 @@ func ListCollections(c *gin.Context) {
 
 // UpdateCollectionMetadata updates the metadata of an existing collection
 func UpdateCollectionMetadata(c *gin.Context) {
+
 	// Get collection ID from URL parameter
 	collectionID := c.Param("collectionID")
 	if collectionID == "" {
@@ -559,8 +585,30 @@ func UpdateCollectionMetadata(c *gin.Context) {
 		return
 	}
 
+	// Check update permission
+	authInfo := authorized.GetInfo(c)
+	hasPermission, err := checkCollectionPermission(authInfo, collectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// 403 Forbidden
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to update collection",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
 	// Call the actual UpdateCollectionMetadata method
-	err := kb.Instance.UpdateCollectionMetadata(c.Request.Context(), collectionID, req.Metadata)
+	err = kb.Instance.UpdateCollectionMetadata(c.Request.Context(), collectionID, req.Metadata)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -585,6 +633,8 @@ func UpdateCollectionMetadata(c *gin.Context) {
 			updateData["status"] = status
 		}
 
+		// Update __yao_updated_by
+		updateData = authInfo.WithUpdateScope(updateData)
 		if len(updateData) > 0 {
 			// Only update database, don't sync to GraphRag again to avoid duplicate updates
 			if err := config.UpdateCollection(collectionID, updateData); err != nil {
@@ -699,4 +749,59 @@ func getProviderSettings(providerID, optionValue, locale string) (*ProviderSetti
 	}
 
 	return settings, nil
+}
+
+// checkCollectionPermission checks if the user has permission to access the collection
+func checkCollectionPermission(authInfo *oauthtypes.AuthorizedInfo, collectionID string) (bool, error) {
+
+	// Team Permission validation)
+	if authInfo == nil {
+		return true, nil
+	}
+
+	// No constraints, allow access
+	if !authInfo.Constraints.TeamOnly && !authInfo.Constraints.OwnerOnly {
+		return true, nil
+	}
+
+	// Get KB config
+	config, err := kb.GetConfig()
+	if err != nil {
+		return false, fmt.Errorf("failed to get KB config: %v", err)
+	}
+
+	collection, err := config.FindCollection(collectionID, model.QueryParam{
+		Select: []interface{}{"collection_id", "__yao_created_by", "__yao_updated_by", "__yao_team_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "collection_id", Value: collectionID},
+		},
+		Limit: 1,
+	})
+
+	if len(collection) == 0 {
+		return false, fmt.Errorf("collection not found: %s", collectionID)
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to find collection: %v", err)
+	}
+
+	// Combined Team and Owner permission validation
+	if authInfo.Constraints.TeamOnly && authInfo.Constraints.OwnerOnly {
+		if collection["__yao_created_by"] == authInfo.UserID && collection["__yao_team_id"] == authInfo.TeamID {
+			return true, nil
+		}
+	}
+
+	// Owner only permission validation
+	if authInfo.Constraints.OwnerOnly && collection["__yao_created_by"] == authInfo.UserID {
+		return true, nil
+	}
+
+	// Team only permission validation
+	if authInfo.Constraints.TeamOnly && collection["__yao_team_id"] == authInfo.TeamID {
+		return true, nil
+	}
+
+	return false, fmt.Errorf("no permission to access collection: %s", collectionID)
 }
