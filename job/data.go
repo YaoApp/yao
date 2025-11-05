@@ -23,6 +23,7 @@ var JobFields = []interface{}{
 	"max_retry_count", "default_timeout", "priority", "created_by",
 	"next_run_at", "last_run_at", "current_execution_id", "config",
 	"sort", "enabled", "system", "readonly", "created_at", "updated_at",
+	"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
 }
 
 // CategoryFields defines the fields to select for category queries

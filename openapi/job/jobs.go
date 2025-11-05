@@ -9,10 +9,14 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/job"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
 
 // ListJobs lists jobs with pagination
 func ListJobs(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	// Parse pagination parameters
 	page := 1
 	pagesize := 20
@@ -36,9 +40,15 @@ func ListJobs(c *gin.Context) {
 		},
 	}
 
+	// Add filters
+	var wheres []model.QueryWhere
+
+	// Apply permission-based filtering
+	wheres = append(wheres, AuthFilter(c, authInfo)...)
+
 	// Add status filter if provided
 	if status := c.Query("status"); status != "" {
-		param.Wheres = append(param.Wheres, model.QueryWhere{
+		wheres = append(wheres, model.QueryWhere{
 			Column: "status",
 			Value:  status,
 		})
@@ -46,7 +56,7 @@ func ListJobs(c *gin.Context) {
 
 	// Add category filter if provided
 	if categoryID := c.Query("category_id"); categoryID != "" {
-		param.Wheres = append(param.Wheres, model.QueryWhere{
+		wheres = append(wheres, model.QueryWhere{
 			Column: "category_id",
 			Value:  categoryID,
 		})
@@ -54,7 +64,7 @@ func ListJobs(c *gin.Context) {
 
 	// Add keywords filter if provided (search in name and description)
 	if keywords := c.Query("keywords"); keywords != "" {
-		param.Wheres = append(param.Wheres, model.QueryWhere{
+		wheres = append(wheres, model.QueryWhere{
 			Wheres: []model.QueryWhere{
 				{
 					Column: "name",
@@ -74,18 +84,21 @@ func ListJobs(c *gin.Context) {
 	// Add enabled filter (default to show all for debugging)
 	switch enabled := c.Query("enabled"); enabled {
 	case "true", "1", "yes", "on":
-		param.Wheres = append(param.Wheres, model.QueryWhere{
+		wheres = append(wheres, model.QueryWhere{
 			Column: "enabled",
 			Value:  true,
 		})
 	case "false", "0", "no", "off":
-		param.Wheres = append(param.Wheres, model.QueryWhere{
+		wheres = append(wheres, model.QueryWhere{
 			Column: "enabled",
 			Value:  false,
 		})
 	default:
 		// Default: show all records regardless of enabled status
 	}
+
+	// Apply all filters to param
+	param.Wheres = wheres
 
 	// Call job.ListJobs function
 	result, err := job.ListJobs(param, page, pagesize)
@@ -100,6 +113,9 @@ func ListJobs(c *gin.Context) {
 
 // GetJob gets a specific job by ID
 func GetJob(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	jobID := c.Param("jobID")
 	if jobID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "job_id is required"})
@@ -118,11 +134,20 @@ func GetJob(c *gin.Context) {
 		return
 	}
 
+	// Check if user has access to this job
+	if !HasJobAccess(c, authInfo, jobInstance) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+		return
+	}
+
 	c.JSON(http.StatusOK, jobInstance)
 }
 
 // StopJob stops a running job
 func StopJob(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	jobID := c.Param("jobID")
 	if jobID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "job_id is required"})
@@ -138,6 +163,12 @@ func StopJob(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
+		return
+	}
+
+	// Check if user has access to this job
+	if !HasJobAccess(c, authInfo, jobInstance) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 		return
 	}
 
@@ -158,6 +189,9 @@ func StopJob(c *gin.Context) {
 
 // GetJobProgress gets job progress information
 func GetJobProgress(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	jobID := c.Param("jobID")
 	if jobID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "job_id is required"})
@@ -173,6 +207,12 @@ func GetJobProgress(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
+		return
+	}
+
+	// Check if user has access to this job
+	if !HasJobAccess(c, authInfo, jobInstance) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 		return
 	}
 
@@ -225,8 +265,16 @@ func GetJobProgress(c *gin.Context) {
 
 // GetStats gets overall job statistics
 func GetStats(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
+	// Build base auth filter
+	baseAuthFilter := AuthFilter(c, authInfo)
+
 	// Count total jobs
-	totalJobs, err := job.CountJobs(model.QueryParam{})
+	totalJobs, err := job.CountJobs(model.QueryParam{
+		Wheres: baseAuthFilter,
+	})
 	if err != nil {
 		log.Error("Failed to count total jobs: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -235,9 +283,9 @@ func GetStats(c *gin.Context) {
 
 	// Count running jobs
 	runningJobs, err := job.CountJobs(model.QueryParam{
-		Wheres: []model.QueryWhere{
-			{Column: "status", Value: "running"},
-		},
+		Wheres: append(baseAuthFilter, model.QueryWhere{
+			Column: "status", Value: "running",
+		}),
 	})
 	if err != nil {
 		log.Error("Failed to count running jobs: %v", err)
@@ -246,9 +294,9 @@ func GetStats(c *gin.Context) {
 
 	// Count completed jobs
 	completedJobs, err := job.CountJobs(model.QueryParam{
-		Wheres: []model.QueryWhere{
-			{Column: "status", Value: "completed"},
-		},
+		Wheres: append(baseAuthFilter, model.QueryWhere{
+			Column: "status", Value: "completed",
+		}),
 	})
 	if err != nil {
 		log.Error("Failed to count completed jobs: %v", err)
@@ -257,9 +305,9 @@ func GetStats(c *gin.Context) {
 
 	// Count failed jobs
 	failedJobs, err := job.CountJobs(model.QueryParam{
-		Wheres: []model.QueryWhere{
-			{Column: "status", Value: "failed"},
-		},
+		Wheres: append(baseAuthFilter, model.QueryWhere{
+			Column: "status", Value: "failed",
+		}),
 	})
 	if err != nil {
 		log.Error("Failed to count failed jobs: %v", err)
@@ -276,9 +324,9 @@ func GetStats(c *gin.Context) {
 	categoryStats := make(map[string]int)
 	for _, category := range categories {
 		count, err := job.CountJobs(model.QueryParam{
-			Wheres: []model.QueryWhere{
-				{Column: "category_id", Value: category.CategoryID},
-			},
+			Wheres: append(baseAuthFilter, model.QueryWhere{
+				Column: "category_id", Value: category.CategoryID,
+			}),
 		})
 		if err != nil {
 			count = 0
