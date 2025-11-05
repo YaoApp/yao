@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/graphrag/types"
+	kbutils "github.com/yaoapp/gou/graphrag/utils"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
@@ -103,14 +104,8 @@ func ListDocuments(c *gin.Context) {
 		Select: selectFields,
 	}
 
-	// Get authorized information
-	authInfo := authorized.GetInfo(c)
-
 	// Add filters
 	var wheres []model.QueryWhere
-
-	// Apply permission-based filtering
-	wheres = append(wheres, AuthFilter(c, authInfo)...)
 
 	// Filter by keywords (search in name and description)
 	if keywords := strings.TrimSpace(c.Query("keywords")); keywords != "" {
@@ -137,12 +132,41 @@ func ListDocuments(c *gin.Context) {
 		})
 	}
 
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	// Filter by collection_id
-	if collectionID := strings.TrimSpace(c.Query("collection_id")); collectionID != "" {
-		wheres = append(wheres, model.QueryWhere{
-			Column: "collection_id",
-			Value:  collectionID,
-		})
+	// If collection_id is provided, validate collection permission
+	// If not provided, filter by authorization constraints (TeamOnly or OwnerOnly)
+	collectionID := strings.TrimSpace(c.Query("collection_id"))
+	if collectionID != "" {
+
+		// Validate collection permission
+		hasPermission, err := checkCollectionPermission(authInfo, collectionID, true)
+		if err != nil {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+			return
+		}
+
+		// 403 Forbidden
+		if !hasPermission {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: "Forbidden: No permission to update collection",
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+			return
+		}
+
+		wheres = append(wheres, model.QueryWhere{Column: "collection_id", Value: collectionID})
+
+	} else {
+		// Filter by authorization constraints
+		wheres = append(wheres, AuthFilter(c, authInfo)...)
 	}
 
 	// Filter by status (support multiple values separated by comma)
@@ -390,6 +414,41 @@ func RemoveDocs(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
+	}
+
+	// Validate document permissions
+	collectionIDs := []string{}
+	authInfo := authorized.GetInfo(c)
+	for _, docID := range validDocIDs {
+		collectionID, _ := kbutils.ExtractCollectionIDFromDocID(docID)
+		if collectionID == "" {
+			collectionID = "default"
+		}
+		collectionIDs = append(collectionIDs, collectionID)
+	}
+
+	for _, collectionID := range collectionIDs {
+
+		// Check update permission
+		hasPermission, err := checkCollectionPermission(authInfo, collectionID)
+		if err != nil {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: err.Error(),
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+			return
+		}
+
+		// 403 Forbidden
+		if !hasPermission {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: "Forbidden: No permission to update collection",
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
+			return
+		}
 	}
 
 	// Remove documents using GraphRAG

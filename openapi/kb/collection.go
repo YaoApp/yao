@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/utils"
 )
 
 // Collection Management Handlers
@@ -752,7 +753,7 @@ func getProviderSettings(providerID, optionValue, locale string) (*ProviderSetti
 }
 
 // checkCollectionPermission checks if the user has permission to access the collection
-func checkCollectionPermission(authInfo *oauthtypes.AuthorizedInfo, collectionID string) (bool, error) {
+func checkCollectionPermission(authInfo *oauthtypes.AuthorizedInfo, collectionID string, readable ...bool) (bool, error) {
 
 	// Team Permission validation)
 	if authInfo == nil {
@@ -771,7 +772,7 @@ func checkCollectionPermission(authInfo *oauthtypes.AuthorizedInfo, collectionID
 	}
 
 	collection, err := config.FindCollection(collectionID, model.QueryParam{
-		Select: []interface{}{"collection_id", "__yao_created_by", "__yao_updated_by", "__yao_team_id"},
+		Select: []interface{}{"collection_id", "__yao_created_by", "__yao_updated_by", "__yao_team_id", "public", "share"},
 		Wheres: []model.QueryWhere{
 			{Column: "collection_id", Value: collectionID},
 		},
@@ -784,6 +785,18 @@ func checkCollectionPermission(authInfo *oauthtypes.AuthorizedInfo, collectionID
 
 	if err != nil {
 		return false, fmt.Errorf("failed to find collection: %v", err)
+	}
+
+	// if readable is true, check if the collection is readable
+	if len(readable) > 0 && readable[0] {
+		if utils.ToBool(collection["public"]) {
+			return true, nil
+		}
+
+		// Team only permission validation
+		if collection["share"] == "team" && authInfo.Constraints.TeamOnly {
+			return true, nil
+		}
 	}
 
 	// Combined Team and Owner permission validation

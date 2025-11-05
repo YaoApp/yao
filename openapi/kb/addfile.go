@@ -14,12 +14,14 @@ import (
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/job"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
+	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
 // CreateDocumentRecord creates a document record in the database immediately
 // This is called synchronously when the API request comes in
-func CreateDocumentRecord(ctx context.Context, req *AddFileRequest, jobID string) error {
+func CreateDocumentRecord(ctx context.Context, authInfo *oauthtypes.AuthorizedInfo, req *AddFileRequest, jobID string) error {
 	// Check if kb.Instance is available
 	if kb.Instance == nil {
 		return fmt.Errorf("knowledge base not initialized")
@@ -68,6 +70,11 @@ func CreateDocumentRecord(ctx context.Context, req *AddFileRequest, jobID string
 		"file_mime_type": contentType,
 		"size":           int64(fileInfo.Bytes),
 		"job_id":         jobID,
+	}
+
+	// With create scope
+	if authInfo != nil {
+		documentData = authInfo.WithCreateScope(documentData)
 	}
 
 	// Add base request fields
@@ -153,7 +160,7 @@ func HandleFileContent(ctx context.Context, req *AddFileRequest) error {
 
 // AddFileHandler processes a file addition request with business logic only
 // This function combines both document creation and content processing for sync operations
-func AddFileHandler(ctx context.Context, req *AddFileRequest, jobID ...string) error {
+func AddFileHandler(ctx context.Context, authInfo *oauthtypes.AuthorizedInfo, req *AddFileRequest, jobID ...string) error {
 	// Validate request
 	if err := req.Validate(); err != nil {
 		return err
@@ -171,7 +178,7 @@ func AddFileHandler(ctx context.Context, req *AddFileRequest, jobID ...string) e
 	}
 
 	// Create document record
-	if err := CreateDocumentRecord(ctx, req, jid); err != nil {
+	if err := CreateDocumentRecord(ctx, authInfo, req, jid); err != nil {
 		return err
 	}
 
@@ -181,8 +188,31 @@ func AddFileHandler(ctx context.Context, req *AddFileRequest, jobID ...string) e
 
 // addFileWithRequest processes a file addition with pre-parsed request using Gin context
 func addFileWithRequest(c *gin.Context, req *AddFileRequest) {
+
+	// Check collection permission
+	authInfo := authorized.GetInfo(c)
+	hasPermission, err := checkCollectionPermission(authInfo, req.CollectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// 403 Forbidden
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to update collection",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
 	// Use the business logic function
-	err := AddFileHandler(c.Request.Context(), req)
+	err = AddFileHandler(c.Request.Context(), authInfo, req)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -304,6 +334,28 @@ func AddFileAsync(c *gin.Context) {
 
 	log.Info("AddFileAsync: Generated doc_id: %s", req.DocID)
 
+	// Check collection permission
+	authInfo := authorized.GetInfo(c)
+	hasPermission, err := checkCollectionPermission(authInfo, req.CollectionID)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// 403 Forbidden
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to update collection",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
 	// Step 1: Get job options with defaults
 	jobName, jobDescription, jobIcon, jobCategory := req.GetJobOptions(
 		"Knowledge Base File Processing",                                 // default name
@@ -322,6 +374,11 @@ func AddFileAsync(c *gin.Context) {
 		jobCreateData["icon"] = jobIcon
 	}
 
+	// With create scope
+	if authInfo != nil {
+		jobCreateData = authInfo.WithCreateScope(jobCreateData)
+	}
+
 	// Create and save Job in one step to get JobID
 	j, err := job.OnceAndSave(job.GOROUTINE, jobCreateData)
 	if err != nil {
@@ -337,7 +394,7 @@ func AddFileAsync(c *gin.Context) {
 	log.Info("AddFileAsync: Job created and saved with ID: %s", j.JobID)
 
 	// Step 2: Create document record immediately with job_id
-	err = CreateDocumentRecord(c.Request.Context(), &req, j.JobID)
+	err = CreateDocumentRecord(c.Request.Context(), authInfo, &req, j.JobID)
 	if err != nil {
 		log.Error("AddFileAsync: Failed to create document record: %v", err)
 		errorResp := &response.ErrorResponse{
@@ -446,8 +503,7 @@ func ProcessAddFile(process *process.Process) interface{} {
 		if jid, ok := reqMap["job_id"].(string); ok {
 			jobID = jid
 		}
-
-		err = CreateDocumentRecord(ctx, req, jobID)
+		err = CreateDocumentRecord(ctx, authorized.ProcessAuthInfo(process), req, jobID)
 		if err != nil {
 			exception.New("failed to create document record: %s", 500, err.Error()).Throw()
 		}
