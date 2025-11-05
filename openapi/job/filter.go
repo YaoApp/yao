@@ -87,4 +87,3 @@ func HasJobAccess(c *gin.Context, authInfo *types.AuthorizedInfo, jobInstance *j
 	// No constraints means access is allowed
 	return true
 }
-
