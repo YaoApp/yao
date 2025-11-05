@@ -9,13 +9,35 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/job"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
 
 // ListLogs lists logs for a specific job
 func ListLogs(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	jobID := c.Param("jobID")
 	if jobID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "job_id is required"})
+		return
+	}
+
+	// Get the job first to check access
+	jobInstance, err := job.GetJob(jobID)
+	if err != nil {
+		log.Error("Failed to get job %s: %v", jobID, err)
+		if err.Error() == "job not found: "+jobID {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	// Check if user has access to this job
+	if !HasJobAccess(c, authInfo, jobInstance) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
 		return
 	}
 
@@ -71,6 +93,9 @@ func ListLogs(c *gin.Context) {
 
 // ListExecutionLogs lists logs for a specific execution
 func ListExecutionLogs(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
 	executionID := c.Param("executionID")
 	if executionID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "execution_id is required"})
@@ -86,6 +111,20 @@ func ListExecutionLogs(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		}
+		return
+	}
+
+	// Get the job to check access
+	jobInstance, err := job.GetJob(execution.JobID)
+	if err != nil {
+		log.Error("Failed to get job %s for execution %s: %v", execution.JobID, executionID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if user has access to the job
+	if !HasJobAccess(c, authInfo, jobInstance) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Execution not found"})
 		return
 	}
 
