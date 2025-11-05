@@ -652,9 +652,9 @@ func (manager Manager) List(ctx context.Context, option ListOption) (*ListResult
 
 	// Add select fields
 	if len(option.Select) > 0 {
-		queryParam.Select = make([]interface{}, len(option.Select))
-		for i, field := range option.Select {
-			queryParam.Select[i] = field
+		queryParam.Select = make([]interface{}, 0, len(option.Select))
+		for _, field := range option.Select {
+			queryParam.Select = append(queryParam.Select, field)
 		}
 	}
 
@@ -678,6 +678,14 @@ func (manager Manager) List(ctx context.Context, option ListOption) (*ListResult
 
 			queryParam.Wheres = append(queryParam.Wheres, where)
 		}
+	}
+
+	// Add advanced where clauses (for permission filtering, etc.)
+	if len(option.Wheres) > 0 {
+		if queryParam.Wheres == nil {
+			queryParam.Wheres = make([]model.QueryWhere, 0, len(option.Wheres))
+		}
+		queryParam.Wheres = append(queryParam.Wheres, option.Wheres...)
 	}
 
 	// Add ordering
@@ -1080,6 +1088,12 @@ func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, stora
 
 	m := model.Select("__yao.attachment")
 
+	// Set default value for share if empty
+	share := option.Share
+	if share == "" {
+		share = "private"
+	}
+
 	// Prepare data for database
 	data := map[string]interface{}{
 		"file_id":      file.ID,
@@ -1092,8 +1106,22 @@ func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, stora
 		"status":       file.Status,
 		"gzip":         option.Gzip,
 		"groups":       option.Groups,
-		"client_id":    option.ClientID,
-		"openid":       option.OpenID,
+		"public":       option.Public,
+		"share":        share,
+	}
+
+	// Add Yao permission fields if provided
+	if option.YaoCreatedBy != "" {
+		data["__yao_created_by"] = option.YaoCreatedBy
+	}
+	if option.YaoUpdatedBy != "" {
+		data["__yao_updated_by"] = option.YaoUpdatedBy
+	}
+	if option.YaoTeamID != "" {
+		data["__yao_team_id"] = option.YaoTeamID
+	}
+	if option.YaoTenantID != "" {
+		data["__yao_tenant_id"] = option.YaoTenantID
 	}
 
 	// Check if record exists first
@@ -1128,9 +1156,14 @@ func (manager Manager) getFileFromDatabase(ctx context.Context, fileID string) (
 	m := model.Select("__yao.attachment")
 
 	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{
+			"file_id", "name", "content_type", "status", "user_path", "path", "bytes",
+			"public", "share", "__yao_created_by", "__yao_team_id", "__yao_tenant_id",
+		},
 		Wheres: []model.QueryWhere{
 			{Column: "file_id", Value: fileID},
 		},
+		Limit: 1,
 	})
 
 	if err != nil {
@@ -1164,6 +1197,13 @@ func (manager Manager) getFileFromDatabase(ctx context.Context, fileID string) (
 	if bytes, ok := record["bytes"].(int64); ok {
 		file.Bytes = int(bytes)
 	}
+
+	// Handle permission fields with safe conversion
+	file.Public = toBool(record["public"])
+	file.Share = toString(record["share"])
+	file.YaoCreatedBy = toString(record["__yao_created_by"])
+	file.YaoTeamID = toString(record["__yao_team_id"])
+	file.YaoTenantID = toString(record["__yao_tenant_id"])
 
 	return file, nil
 }

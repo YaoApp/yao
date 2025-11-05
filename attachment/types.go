@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/types"
 )
 
@@ -58,6 +59,13 @@ type File struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
 	Status      string `json:"status"` // uploading, uploaded, indexing, indexed, upload_failed, index_failed
+
+	// Permission fields
+	Public       bool   `json:"public,omitempty"` // Whether this attachment is shared across all teams
+	Share        string `json:"share,omitempty"`  // Attachment sharing scope: "private" or "team"
+	YaoCreatedBy string `json:"-"`                // User who created the attachment (not exposed in JSON)
+	YaoTeamID    string `json:"-"`                // Team ID for team-based access control (not exposed in JSON)
+	YaoTenantID  string `json:"-"`                // Tenant ID for multi-tenancy support (not exposed in JSON)
 }
 
 // FileResponse represents a file download response
@@ -80,9 +88,15 @@ type Attachment struct {
 	UserPath    string   `json:"user_path,omitempty"` // User-specified complete file path
 	Path        string   `json:"path,omitempty"`      // Actual storage path
 	Groups      []string `json:"groups,omitempty"`
-	Gzip        bool     `json:"gzip,omitempty"`      // Gzip the file, Optional, default is false
-	ClientID    string   `json:"client_id,omitempty"` // Client identifier
-	OpenID      string   `json:"openid,omitempty"`    // OpenID identifier
+	Gzip        bool     `json:"gzip,omitempty"`   // Gzip the file, Optional, default is false
+	Public      bool     `json:"public,omitempty"` // Whether this attachment is shared across all teams in the platform
+	Share       string   `json:"share,omitempty"`  // Attachment sharing scope: "private" or "team"
+
+	// Yao custom fields for permission control
+	YaoCreatedBy string `json:"__yao_created_by,omitempty"` // User who created the attachment
+	YaoUpdatedBy string `json:"__yao_updated_by,omitempty"` // User who last updated the attachment
+	YaoTeamID    string `json:"__yao_team_id,omitempty"`    // Team ID for team-based access control
+	YaoTenantID  string `json:"__yao_tenant_id,omitempty"`  // Tenant ID for multi-tenancy support
 }
 
 // Manager the manager struct
@@ -132,8 +146,14 @@ type UploadOption struct {
 	Gzip             bool     `json:"gzip,omitempty" form:"gzip"`                           // Gzip the file, Optional, default is false
 	OriginalFilename string   `json:"original_filename,omitempty" form:"original_filename"` // Original filename sent separately to avoid encoding issues
 	Groups           []string `json:"groups,omitempty" form:"groups"`                       // Groups, Optional, default is empty, Multi-level groups like ["user", "user123", "chat", "chat456"]
-	ClientID         string   `json:"client_id,omitempty" form:"client_id"`                 // Client identifier
-	OpenID           string   `json:"openid,omitempty" form:"openid"`                       // OpenID identifier
+	Public           bool     `json:"public,omitempty" form:"public"`                       // Whether this attachment is shared across all teams in the platform
+	Share            string   `json:"share,omitempty" form:"share"`                         // Attachment sharing scope: "private" or "team"
+
+	// Yao custom fields for permission control
+	YaoCreatedBy string `json:"__yao_created_by,omitempty" form:"__yao_created_by"` // User who created the attachment
+	YaoUpdatedBy string `json:"__yao_updated_by,omitempty" form:"__yao_updated_by"` // User who last updated the attachment
+	YaoTeamID    string `json:"__yao_team_id,omitempty" form:"__yao_team_id"`       // Team ID for team-based access control
+	YaoTenantID  string `json:"__yao_tenant_id,omitempty" form:"__yao_tenant_id"`   // Tenant ID for multi-tenancy support
 }
 
 // ListOption defines options for listing files
@@ -141,6 +161,7 @@ type ListOption struct {
 	Page     int                    `json:"page,omitempty"`      // Page number (1-based), default is 1
 	PageSize int                    `json:"page_size,omitempty"` // Page size, default is 20
 	Filters  map[string]interface{} `json:"filters,omitempty"`   // Filter conditions, e.g., {"status": "uploaded", "content_type": "image/*"}
+	Wheres   []model.QueryWhere     `json:"wheres,omitempty"`    // Advanced where clauses for permission filtering
 	OrderBy  string                 `json:"order_by,omitempty"`  // Order by field, e.g., "created_at desc", "name asc"
 	Select   []string               `json:"select,omitempty"`    // Fields to select, empty means select all
 }
