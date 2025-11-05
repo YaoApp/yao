@@ -556,8 +556,8 @@ func TestInfo(t *testing.T) {
 	option := UploadOption{
 		Groups:           []string{"info", "test"},
 		OriginalFilename: "original-info-test.txt",
-		ClientID:         "test-client-123",
-		OpenID:           "test-openid-456",
+		Public:           false,
+		Share:            "private",
 		Gzip:             false,
 	}
 
@@ -1011,6 +1011,373 @@ func TestManagerLocalPath_NonExistentFile(t *testing.T) {
 	if !strings.Contains(err.Error(), "file not found") {
 		t.Errorf("Expected 'file not found' in error message, got: %s", err.Error())
 	}
+}
+
+func TestPublicAndShareFields(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Force re-migrate the attachment table to ensure schema is up to date
+	m := model.Select("__yao.attachment")
+	if m != nil {
+		// Drop and recreate table to get latest schema
+		err := m.DropTable()
+		if err != nil {
+			t.Logf("Warning: failed to drop table: %v", err)
+		}
+		err = m.Migrate(false)
+		if err != nil {
+			t.Fatalf("Failed to migrate table: %v", err)
+		}
+	}
+
+	manager, err := RegisterDefault("test-public-share")
+	if err != nil {
+		t.Fatalf("Failed to register manager: %v", err)
+	}
+
+	// Test 1: Upload with public=true and share=team
+	t.Run("PublicTeamShare", func(t *testing.T) {
+		content := "Public team shared file"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "public-team.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"test"},
+			OriginalFilename: "public-team.txt",
+			Public:           true,
+			Share:            "team",
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload public team file: %v", err)
+		}
+
+		// Verify in database
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if len(records) == 0 {
+			t.Fatal("No record found in database")
+		}
+
+		// Debug: print all fields
+		t.Logf("Record fields: %+v", records[0])
+
+		publicValue := toBool(records[0]["public"])
+		if !publicValue {
+			t.Errorf("Expected public to be true, got: %v (type: %T)", records[0]["public"], records[0]["public"])
+		}
+
+		shareValue := toString(records[0]["share"])
+		if shareValue != "team" {
+			t.Errorf("Expected share to be 'team', got: %v (type: %T)", records[0]["share"], records[0]["share"])
+		}
+	})
+
+	// Test 2: Upload with public=false and share=private (default)
+	t.Run("PrivateShare", func(t *testing.T) {
+		content := "Private file"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "private.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"test"},
+			OriginalFilename: "private.txt",
+			Public:           false,
+			Share:            "private",
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload private file: %v", err)
+		}
+
+		// Verify in database
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Select: []interface{}{"public", "share"},
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if len(records) == 0 {
+			t.Fatal("No record found in database")
+		}
+
+		publicValue := toBool(records[0]["public"])
+		if publicValue {
+			t.Errorf("Expected public to be false, got: %v", records[0]["public"])
+		}
+
+		shareValue := toString(records[0]["share"])
+		if shareValue != "private" {
+			t.Errorf("Expected share to be 'private', got: %v", records[0]["share"])
+		}
+	})
+
+	// Test 3: Upload without specifying share (should default to private)
+	t.Run("DefaultSharePrivate", func(t *testing.T) {
+		content := "Default share file"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "default-share.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"test"},
+			OriginalFilename: "default-share.txt",
+			Public:           false,
+			// Share not specified, should default to "private"
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file with default share: %v", err)
+		}
+
+		// Verify in database
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Select: []interface{}{"share"},
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if len(records) == 0 {
+			t.Fatal("No record found in database")
+		}
+
+		shareValue := toString(records[0]["share"])
+		if shareValue != "private" {
+			t.Errorf("Expected default share to be 'private', got: %v", records[0]["share"])
+		}
+	})
+}
+
+func TestYaoPermissionFields(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Force re-migrate the attachment table to ensure schema is up to date
+	m := model.Select("__yao.attachment")
+	if m != nil {
+		// Drop and recreate table to get latest schema
+		err := m.DropTable()
+		if err != nil {
+			t.Logf("Warning: failed to drop table: %v", err)
+		}
+		err = m.Migrate(false)
+		if err != nil {
+			t.Fatalf("Failed to migrate table: %v", err)
+		}
+	}
+
+	manager, err := RegisterDefault("test-yao-permission")
+	if err != nil {
+		t.Fatalf("Failed to register manager: %v", err)
+	}
+
+	// Test 1: Upload with all Yao permission fields
+	t.Run("AllYaoFields", func(t *testing.T) {
+		content := "File with all Yao permission fields"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "yao-all-fields.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"test"},
+			OriginalFilename: "yao-all-fields.txt",
+			YaoCreatedBy:     "user123",
+			YaoUpdatedBy:     "user123",
+			YaoTeamID:        "team456",
+			YaoTenantID:      "tenant789",
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file with Yao fields: %v", err)
+		}
+
+		// Verify in database
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Select: []interface{}{"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id"},
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if len(records) == 0 {
+			t.Fatal("No record found in database")
+		}
+
+		// Verify __yao_created_by
+		createdBy := toString(records[0]["__yao_created_by"])
+		if createdBy != "user123" {
+			t.Errorf("Expected __yao_created_by to be 'user123', got: %v", records[0]["__yao_created_by"])
+		}
+
+		// Verify __yao_updated_by
+		updatedBy := toString(records[0]["__yao_updated_by"])
+		if updatedBy != "user123" {
+			t.Errorf("Expected __yao_updated_by to be 'user123', got: %v", records[0]["__yao_updated_by"])
+		}
+
+		// Verify __yao_team_id
+		teamID := toString(records[0]["__yao_team_id"])
+		if teamID != "team456" {
+			t.Errorf("Expected __yao_team_id to be 'team456', got: %v", records[0]["__yao_team_id"])
+		}
+
+		// Verify __yao_tenant_id
+		tenantID := toString(records[0]["__yao_tenant_id"])
+		if tenantID != "tenant789" {
+			t.Errorf("Expected __yao_tenant_id to be 'tenant789', got: %v", records[0]["__yao_tenant_id"])
+		}
+	})
+
+	// Test 2: Upload with partial Yao fields (only team and tenant)
+	t.Run("PartialYaoFields", func(t *testing.T) {
+		content := "File with partial Yao fields"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "yao-partial-fields.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"test"},
+			OriginalFilename: "yao-partial-fields.txt",
+			YaoTeamID:        "team999",
+			YaoTenantID:      "tenant888",
+			// YaoCreatedBy and YaoUpdatedBy not specified
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file with partial Yao fields: %v", err)
+		}
+
+		// Verify in database
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Select: []interface{}{"__yao_team_id", "__yao_tenant_id"},
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if len(records) == 0 {
+			t.Fatal("No record found in database")
+		}
+
+		// Verify __yao_team_id
+		teamID := toString(records[0]["__yao_team_id"])
+		if teamID != "team999" {
+			t.Errorf("Expected __yao_team_id to be 'team999', got: %v", records[0]["__yao_team_id"])
+		}
+
+		// Verify __yao_tenant_id
+		tenantID := toString(records[0]["__yao_tenant_id"])
+		if tenantID != "tenant888" {
+			t.Errorf("Expected __yao_tenant_id to be 'tenant888', got: %v", records[0]["__yao_tenant_id"])
+		}
+	})
+
+	// Test 3: Upload without Yao fields (should be null/empty in database)
+	t.Run("NoYaoFields", func(t *testing.T) {
+		content := "File without Yao fields"
+		reader := strings.NewReader(content)
+
+		fileHeader := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "yao-no-fields.txt",
+				Size:     int64(len(content)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fileHeader.Header.Set("Content-Type", "text/plain")
+
+		option := UploadOption{
+			Groups:           []string{"test"},
+			OriginalFilename: "yao-no-fields.txt",
+			// No Yao fields specified
+		}
+
+		file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+		if err != nil {
+			t.Fatalf("Failed to upload file without Yao fields: %v", err)
+		}
+
+		// Should succeed without errors
+		if file.ID == "" {
+			t.Error("File ID should not be empty")
+		}
+
+		t.Logf("Successfully uploaded file without Yao fields - ID: %s", file.ID)
+	})
 }
 
 func TestManagerLocalPath_ValidationFlow(t *testing.T) {

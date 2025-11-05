@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/attachment"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -85,61 +87,11 @@ func upload(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Get original filename from form data
-	originalFilename := c.PostForm("original_filename")
-	if originalFilename == "" {
-		originalFilename = fileHeader.Filename
-	}
-
-	// Get path from form data for user_path
-	userPath := c.PostForm("path")
-	if userPath == "" {
-		userPath = originalFilename
-	}
-
-	// Parse groups from form data
-	var groups []string
-	groupsStr := c.PostForm("groups")
-	if groupsStr != "" {
-		groups = strings.Split(groupsStr, ",")
-		// Trim spaces
-		for i, group := range groups {
-			groups[i] = strings.TrimSpace(group)
-		}
-	}
-
 	// Create upload header from request
 	header := attachment.GetHeader(c.Request.Header, fileHeader.Header, fileHeader.Size)
 
-	// Parse gzip option
-	gzip := false
-	if gzipStr := c.PostForm("gzip"); gzipStr == "true" {
-		gzip = true
-	}
-
-	// Parse compress image options
-	compressImage := false
-	if compressImageStr := c.PostForm("compress_image"); compressImageStr == "true" {
-		compressImage = true
-	}
-
-	compressSize := 0
-	if compressSizeStr := c.PostForm("compress_size"); compressSizeStr != "" {
-		if size, err := strconv.Atoi(compressSizeStr); err == nil && size > 0 {
-			compressSize = size
-		}
-	}
-
-	// Create upload options
-	uploadOption := attachment.UploadOption{
-		OriginalFilename: originalFilename, // Use original filename from form data
-		Groups:           groups,           // Groups for directory structure
-		ClientID:         c.PostForm("client_id"),
-		OpenID:           c.PostForm("openid"),
-		Gzip:             gzip,          // Gzip compression
-		CompressImage:    compressImage, // Image compression
-		CompressSize:     compressSize,  // Compression size
-	}
+	// Create upload options with all parameters parsed from form data
+	uploadOption := createUploadOption(c, fileHeader.Filename)
 
 	// Upload the file
 	uploadedFile, err := manager.Upload(c.Request.Context(), header, file, uploadOption)
@@ -194,6 +146,9 @@ func list(c *gin.Context) {
 		}
 	}
 
+	// Get auth info for permission filtering
+	authInfo := authorized.GetInfo(c)
+
 	// Parse filters
 	filters := make(map[string]interface{})
 	filters["uploader"] = uploaderID // Always filter by current uploader
@@ -207,6 +162,18 @@ func list(c *gin.Context) {
 	if name := c.Query("name"); name != "" {
 		filters["name"] = name + "*" // Wildcard search
 	}
+
+	// Build where clauses for permission-based filtering
+	var wheres []model.QueryWhere
+
+	// Add basic filters as where clauses
+	wheres = append(wheres, model.QueryWhere{
+		Column: "uploader",
+		Value:  uploaderID,
+	})
+
+	// Apply permission-based filtering
+	wheres = append(wheres, AuthFilter(c, authInfo)...)
 
 	// Parse order by
 	orderBy := c.Query("order_by")
@@ -223,11 +190,12 @@ func list(c *gin.Context) {
 		}
 	}
 
-	// Create list option
+	// Create list option with where clauses
 	listOption := attachment.ListOption{
 		Page:     page,
 		PageSize: pageSize,
 		Filters:  filters,
+		Wheres:   wheres,
 		OrderBy:  orderBy,
 		Select:   selectFields,
 	}
@@ -281,7 +249,7 @@ func retrieve(c *gin.Context) {
 		return
 	}
 
-	// Get file info using the new Info method
+	// Get file info (includes permission fields)
 	fileInfo, err := manager.Info(c.Request.Context(), fileID)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
@@ -289,6 +257,27 @@ func retrieve(c *gin.Context) {
 			ErrorDescription: "File not found: " + err.Error(),
 		}
 		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Check read permission using file info
+	authInfo := authorized.GetInfo(c)
+	hasPermission, err := checkFilePermission(authInfo, fileInfo, true) // true = readable mode
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to access file",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
 		return
 	}
 
@@ -330,8 +319,9 @@ func delete(c *gin.Context) {
 		return
 	}
 
-	// Check if file exists first
-	if !manager.Exists(c.Request.Context(), fileID) {
+	// Get file info first (includes permission fields)
+	fileInfo, err := manager.Info(c.Request.Context(), fileID)
+	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
 			ErrorDescription: "File not found",
@@ -340,8 +330,29 @@ func delete(c *gin.Context) {
 		return
 	}
 
-	// Delete the file
-	err := manager.Delete(c.Request.Context(), fileID)
+	// Check delete permission using file info (false = write permission required)
+	authInfo := authorized.GetInfo(c)
+	hasPermission, err := checkFilePermission(authInfo, fileInfo, false) // false = write permission required
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to delete file",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Delete the file (permission already checked)
+	err = manager.Delete(c.Request.Context(), fileID)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -392,7 +403,7 @@ func content(c *gin.Context) {
 		return
 	}
 
-	// Get file info first to obtain metadata
+	// Get file info (includes permission fields)
 	fileInfo, err := manager.Info(c.Request.Context(), fileID)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
@@ -403,8 +414,29 @@ func content(c *gin.Context) {
 		return
 	}
 
+	// Check read permission using file info
+	authInfo := authorized.GetInfo(c)
+	hasPermission, err := checkFilePermission(authInfo, fileInfo, true) // true = readable mode
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to access file content",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
 	// Read the file content
-	content, err := manager.Read(c.Request.Context(), fileID)
+	fileContent, err := manager.Read(c.Request.Context(), fileID)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -419,10 +451,10 @@ func content(c *gin.Context) {
 	if fileInfo.Filename != "" {
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileInfo.Filename))
 	}
-	c.Header("Content-Length", fmt.Sprintf("%d", len(content)))
+	c.Header("Content-Length", fmt.Sprintf("%d", len(fileContent)))
 
 	// Return file content directly
-	c.Data(http.StatusOK, fileInfo.ContentType, content)
+	c.Data(http.StatusOK, fileInfo.ContentType, fileContent)
 }
 
 // exists checks if a file exists
@@ -467,4 +499,124 @@ func exists(c *gin.Context) {
 		"file_id": fileID,
 	}
 	response.RespondWithSuccess(c, response.StatusOK, successData)
+}
+
+// createUploadOption creates an UploadOption from request context and form data
+// Parses all upload parameters including auth info, permission fields, and upload options
+func createUploadOption(c *gin.Context, defaultFilename string) attachment.UploadOption {
+	option := attachment.UploadOption{}
+
+	// Parse original filename from form data
+	originalFilename := c.PostForm("original_filename")
+	if originalFilename == "" {
+		originalFilename = defaultFilename
+	}
+	option.OriginalFilename = originalFilename
+
+	// Parse groups from form data
+	if groupsStr := c.PostForm("groups"); groupsStr != "" {
+		groups := strings.Split(groupsStr, ",")
+		// Trim spaces from each group
+		for i, group := range groups {
+			groups[i] = strings.TrimSpace(group)
+		}
+		option.Groups = groups
+	}
+
+	// Parse gzip option
+	if gzipStr := c.PostForm("gzip"); gzipStr == "true" || gzipStr == "1" {
+		option.Gzip = true
+	}
+
+	// Parse compress image options
+	if compressImageStr := c.PostForm("compress_image"); compressImageStr == "true" || compressImageStr == "1" {
+		option.CompressImage = true
+	}
+
+	// Parse compress size
+	if compressSizeStr := c.PostForm("compress_size"); compressSizeStr != "" {
+		if size, err := strconv.Atoi(compressSizeStr); err == nil && size > 0 {
+			option.CompressSize = size
+		}
+	}
+
+	// Extract auth info from context (set by OAuth guard middleware)
+	authInfo := authorized.GetInfo(c)
+	if authInfo != nil {
+		// Set Yao permission fields from authenticated user info
+		// Note: YaoUpdatedBy is not set on upload (creation), only on update
+		if authInfo.UserID != "" {
+			option.YaoCreatedBy = authInfo.UserID
+		}
+		if authInfo.TeamID != "" {
+			option.YaoTeamID = authInfo.TeamID
+		}
+		if authInfo.TenantID != "" {
+			option.YaoTenantID = authInfo.TenantID
+		}
+	}
+
+	// Parse public field from form data (user can override)
+	if publicStr := c.PostForm("public"); publicStr != "" {
+		if publicStr == "true" || publicStr == "1" {
+			option.Public = true
+		} else {
+			option.Public = false
+		}
+	}
+
+	// Parse share field from form data (user can override)
+	// Valid values: "private", "team"
+	if shareStr := c.PostForm("share"); shareStr != "" {
+		shareStr = strings.TrimSpace(strings.ToLower(shareStr))
+		if shareStr == "private" || shareStr == "team" {
+			option.Share = shareStr
+		}
+	}
+
+	return option
+}
+
+// checkFilePermission checks if the user has permission to access the file
+func checkFilePermission(authInfo *types.AuthorizedInfo, fileInfo *attachment.File, readable ...bool) (bool, error) {
+	// No auth info, allow access
+	if authInfo == nil {
+		return true, nil
+	}
+
+	// No constraints, allow access
+	if !authInfo.Constraints.TeamOnly && !authInfo.Constraints.OwnerOnly {
+		return true, nil
+	}
+
+	// If readable mode and file is public, allow access
+	if len(readable) > 0 && readable[0] {
+		if fileInfo.Public {
+			return true, nil
+		}
+
+		// If file is shared with team and user is in the same team, allow access
+		if fileInfo.Share == "team" && authInfo.Constraints.TeamOnly && fileInfo.YaoTeamID == authInfo.TeamID {
+			return true, nil
+		}
+	}
+
+	// Combined Team and Owner permission validation
+	if authInfo.Constraints.TeamOnly && authInfo.Constraints.OwnerOnly {
+		if fileInfo.YaoCreatedBy == authInfo.UserID && fileInfo.YaoTeamID == authInfo.TeamID {
+			return true, nil
+		}
+	}
+
+	// Owner only permission validation
+	if authInfo.Constraints.OwnerOnly && fileInfo.YaoCreatedBy == authInfo.UserID {
+		return true, nil
+	}
+
+	// Team only permission validation
+	if authInfo.Constraints.TeamOnly && fileInfo.YaoTeamID == authInfo.TeamID {
+		return true, nil
+	}
+
+	return false, nil
 }
