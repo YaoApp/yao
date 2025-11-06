@@ -22,6 +22,7 @@ import (
 
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/attachment/local"
 	"github.com/yaoapp/yao/attachment/s3"
 	"github.com/yaoapp/yao/config"
@@ -41,9 +42,11 @@ type UploadChunk struct {
 	Chunksize   int64
 	TotalChunks int64
 	// Cache metadata from first chunk to avoid inconsistencies
-	ContentType string
-	Filename    string
-	UserPath    string
+	ContentType   string
+	Filename      string
+	UserPath      string
+	CompressImage bool
+	CompressSize  int
 }
 
 // Parse parses an attachment wrapper string and returns uploader name and file ID
@@ -400,9 +403,11 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 				Chunksize:   chunksize,
 				TotalChunks: totalChunks,
 				// Cache metadata from first chunk
-				ContentType: file.ContentType,
-				Filename:    file.Filename,
-				UserPath:    file.UserPath,
+				ContentType:   file.ContentType,
+				Filename:      file.Filename,
+				UserPath:      file.UserPath,
+				CompressImage: option.CompressImage,
+				CompressSize:  option.CompressSize,
 			})
 		}
 
@@ -462,19 +467,28 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 				return nil, err
 			}
 
+			// Set initial file size from chunks
+			file.Bytes = int(chunkdata.Total)
+
 			// Apply image compression if requested and it's the final file
-			if option.CompressImage && strings.HasPrefix(file.ContentType, "image/") {
-				err = manager.compressStoredImage(ctx, file, option)
+			// Use cached compress options from first chunk
+			if chunkdata.CompressImage && strings.HasPrefix(file.ContentType, "image/") {
+				// Create a temporary option with cached compress size
+				compressOption := UploadOption{
+					CompressSize: chunkdata.CompressSize,
+				}
+				compressedBytes, err := manager.compressStoredImageAndGetSize(ctx, file, compressOption)
 				if err != nil {
 					return nil, err
 				}
+				// Update file size to compressed size
+				file.Bytes = compressedBytes
 			}
 
 			// Remove the chunk data
 			uploadChunks.Delete(file.ID)
 
-			// Fix the file size and update status to uploaded
-			file.Bytes = int(chunkdata.Total)
+			// Update status to uploaded
 			file.Status = "uploaded"
 
 			// Update only bytes and status for the last chunk
@@ -507,6 +521,10 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 			size = 1920
 		}
 
+		// Read original data for fallback
+		var originalData []byte
+		var err error
+
 		// If gzip was applied, we need to decompress first
 		if option.Gzip {
 			data, err := io.ReadAll(finalReader)
@@ -517,12 +535,24 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 			if err != nil {
 				return nil, err
 			}
+			originalData = decompressed
 			finalReader = bytes.NewReader(decompressed)
+		} else {
+			originalData, err = io.ReadAll(finalReader)
+			if err != nil {
+				return nil, err
+			}
+			finalReader = bytes.NewReader(originalData)
 		}
 
+		// Try to compress the image with failback mechanism
 		compressed, err := CompressImage(finalReader, file.ContentType, size)
 		if err != nil {
-			return nil, err
+			// Log the error and use original file as fallback
+			log.Warn("Failed to compress image (content-type: %s, file: %s): %v. Using original file.",
+				file.ContentType, file.Filename, err)
+			// Use original data
+			compressed = originalData
 		}
 
 		// Re-apply gzip if it was requested
@@ -560,12 +590,12 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 	return file, nil
 }
 
-// compressStoredImage compresses an already stored image
-func (manager Manager) compressStoredImage(ctx context.Context, file *File, option UploadOption) error {
+// compressStoredImageAndGetSize compresses the stored image and returns the compressed size
+func (manager Manager) compressStoredImageAndGetSize(ctx context.Context, file *File, option UploadOption) (int, error) {
 	// Download the stored file using storage path
 	reader, err := manager.storage.Reader(ctx, file.Path)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer reader.Close()
 
@@ -574,15 +604,30 @@ func (manager Manager) compressStoredImage(ctx context.Context, file *File, opti
 		size = 1920
 	}
 
-	// Compress the image
-	compressed, err := CompressImage(reader, file.ContentType, size)
+	// Read original data for fallback
+	originalData, err := io.ReadAll(reader)
 	if err != nil {
-		return err
+		return 0, err
+	}
+
+	// Try to compress the image with failback mechanism
+	compressed, err := CompressImage(bytes.NewReader(originalData), file.ContentType, size)
+	if err != nil {
+		// Log the error and keep original file
+		log.Warn("Failed to compress stored image (content-type: %s, file: %s): %v. Keeping original file.",
+			file.ContentType, file.Filename, err)
+		// File is already stored (merged chunks), just return original size
+		return len(originalData), nil
 	}
 
 	// Re-upload the compressed image using storage path
 	_, err = manager.storage.Upload(ctx, file.Path, bytes.NewReader(compressed), file.ContentType)
-	return err
+	if err != nil {
+		return 0, err
+	}
+
+	// Return the compressed size
+	return len(compressed), nil
 }
 
 // Download downloads a file
