@@ -18,13 +18,13 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent"
+	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/kb"
 	kbtypes "github.com/yaoapp/yao/kb/types"
-	"github.com/yaoapp/yao/neo"
-	"github.com/yaoapp/yao/neo/assistant"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/widgets/login"
@@ -273,11 +273,11 @@ func processService(process *process.Process) interface{} {
 	}
 
 	//
-	// Forward: Neo confirm Command
-	// @file   neo/command/request.go
+	// Forward: Agent confirm Command
+	// @file   agent/command/request.go
 	// @method func (req *Request) confirm(args []interface{}, cb func(msg *message.JSON) int)
 	//
-	if service == "__yao_service.__neo" && method == "ExecCommand" {
+	if service == "__yao_service.__agent" && method == "ExecCommand" {
 		if len(args) < 4 {
 			exception.New("args is required (%v)", 400, args).Throw()
 		}
@@ -286,7 +286,7 @@ func processService(process *process.Process) interface{} {
 		ctx := args[3].(map[string]interface{})
 		processName := args[1].(string)
 		processArgs := append(args[2].([]interface{}), ctx)
-		result := forwardNeoExecCommand(process, processName, processArgs...)
+		result := forwardAgentExecCommand(process, processName, processArgs...)
 		return map[string]interface{}{"id": id, "result": result, "context": ctx}
 	}
 
@@ -316,7 +316,7 @@ func processService(process *process.Process) interface{} {
 	return res
 }
 
-func forwardNeoExecCommand(p *process.Process, name string, args ...interface{}) interface{} {
+func forwardAgentExecCommand(p *process.Process, name string, args ...interface{}) interface{} {
 	new, err := process.Of(name, args...)
 	if err != nil {
 		exception.New(err.Error(), 400).Throw()
@@ -550,10 +550,10 @@ func processXgen(process *process.Process) interface{} {
 	}
 
 	// The default assistant
-	agent := map[string]interface{}{}
-	if neo.Neo != nil {
-		if ast, ok := neo.Neo.Assistant.(*assistant.Assistant); ok {
-			agent["default"] = map[string]interface{}{
+	agentConfig := map[string]interface{}{}
+	if agent.Agent != nil {
+		if ast, ok := agent.Agent.Assistant.(*assistant.Assistant); ok {
+			agentConfig["default"] = map[string]interface{}{
 				"assistant_id":         ast.ID,
 				"assistant_name":       ast.Name,
 				"assistant_avatar":     ast.Avatar,
@@ -563,27 +563,27 @@ func processXgen(process *process.Process) interface{} {
 		}
 
 		// Available connectors
-		agent["connectors"] = connector.AIConnectors
+		agentConfig["connectors"] = connector.AIConnectors
 
 		// Available storages
-		agent["storages"] = map[string]interface{}{
+		agentConfig["storages"] = map[string]interface{}{
 			"chat": map[string]interface{}{
-				"max_size":      neo.Neo.UploadSetting.Chat.MaxSize,
-				"chunk_size":    neo.Neo.UploadSetting.Chat.ChunkSize,
-				"allowed_types": neo.Neo.UploadSetting.Chat.AllowedTypes,
-				"gzip":          neo.Neo.UploadSetting.Chat.Gzip,
+				"max_size":      agent.Agent.UploadSetting.Chat.MaxSize,
+				"chunk_size":    agent.Agent.UploadSetting.Chat.ChunkSize,
+				"allowed_types": agent.Agent.UploadSetting.Chat.AllowedTypes,
+				"gzip":          agent.Agent.UploadSetting.Chat.Gzip,
 			},
 			"assets": map[string]interface{}{
-				"max_size":      neo.Neo.UploadSetting.Assets.MaxSize,
-				"chunk_size":    neo.Neo.UploadSetting.Assets.ChunkSize,
-				"allowed_types": neo.Neo.UploadSetting.Assets.AllowedTypes,
-				"gzip":          neo.Neo.UploadSetting.Assets.Gzip,
+				"max_size":      agent.Agent.UploadSetting.Assets.MaxSize,
+				"chunk_size":    agent.Agent.UploadSetting.Assets.ChunkSize,
+				"allowed_types": agent.Agent.UploadSetting.Assets.AllowedTypes,
+				"gzip":          agent.Agent.UploadSetting.Assets.Gzip,
 			},
 			"knowledge": map[string]interface{}{
-				"max_size":      neo.Neo.UploadSetting.Knowledge.MaxSize,
-				"chunk_size":    neo.Neo.UploadSetting.Knowledge.ChunkSize,
-				"allowed_types": neo.Neo.UploadSetting.Knowledge.AllowedTypes,
-				"gzip":          neo.Neo.UploadSetting.Knowledge.Gzip,
+				"max_size":      agent.Agent.UploadSetting.Knowledge.MaxSize,
+				"chunk_size":    agent.Agent.UploadSetting.Knowledge.ChunkSize,
+				"allowed_types": agent.Agent.UploadSetting.Knowledge.AllowedTypes,
+				"gzip":          agent.Agent.UploadSetting.Knowledge.Gzip,
 			},
 		}
 	}
@@ -695,7 +695,7 @@ func processXgen(process *process.Process) interface{} {
 		"token":     Setting.Token,
 		"optional":  Setting.Optional,
 		"login":     xgenLogin,
-		"agent":     agent,
+		"agent":     agentConfig,
 		"openapi":   openapiConfig,
 		"kb":        kbConfig,
 	}
