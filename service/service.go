@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/server/http"
+	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 )
@@ -36,9 +36,9 @@ func Start(cfg config.Config) (*http.Server, error) {
 		Timeout: 5 * time.Second,
 	})
 
-	// Neo API
-	if neo.Neo != nil {
-		neo.Neo.API(router, "/api/__yao/neo")
+	// Agent API
+	if agent.Agent != nil {
+		agent.Agent.API(router, "/api/__yao/agent")
 	}
 
 	// OpenAPI Server

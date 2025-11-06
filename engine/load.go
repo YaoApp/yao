@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/attachment"
@@ -25,7 +26,6 @@ import (
 	"github.com/yaoapp/yao/messenger"
 	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
-	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/pipe"
@@ -298,7 +298,7 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 	}
 
 	// Load Neo
-	err = neo.Load(cfg)
+	err = agent.Load(cfg)
 	if err != nil {
 		// printErr(cfg.Mode, "Neo", err)
 		warnings = append(warnings, Warning{Widget: "Neo", Error: err})
@@ -528,7 +528,7 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	}
 
 	// Load Neo
-	err = neo.Load(cfg)
+	err = agent.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Neo", err)
 	}

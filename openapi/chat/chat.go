@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/yaoapp/yao/neo"
-	chatctx "github.com/yaoapp/yao/neo/context"
-	"github.com/yaoapp/yao/neo/message"
+	"github.com/yaoapp/yao/agent"
+	chatctx "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/message"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -80,9 +80,9 @@ func chatCompletion(c *gin.Context) {
 		ctx = chatctx.WithClientType(ctx, clientType)
 	}
 
-	// Get neo instance and call Answer
-	neoInstance := neo.GetNeo()
-	err := neoInstance.Answer(ctx, content, c)
+	// Get agent instance and call Answer
+	agentInstance := agent.GetAgent()
+	err := agentInstance.Answer(ctx, content, c)
 
 	// Error handling
 	if err != nil {

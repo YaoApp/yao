@@ -2,16 +2,16 @@ package agent
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/yao/neo"
+	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // Attach attaches the agent (assistant) API handlers to the router with OAuth protection
-// This provides OAuth-protected endpoints for assistant management, mirroring the neo assistant API
+// This provides OAuth-protected endpoints for assistant management, mirroring the agent assistant API
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
-	// Get the Neo instance
-	n := neo.GetNeo()
+	// Get the Agent instance
+	n := agent.GetAgent()
 
 	// Create agents group with OAuth guard
 	agents := group.Group("/agents")

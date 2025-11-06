@@ -14,9 +14,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
-	"github.com/yaoapp/yao/neo"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -155,7 +155,7 @@ func Prepare(t *testing.T) string {
 	test.Prepare(t, config.Conf)
 
 	// Load Neo
-	err := neo.Load(config.Conf)
+	err := agent.Load(config.Conf)
 	if err != nil {
 		t.Fatalf("Failed to load Neo: %v", err)
 	}
