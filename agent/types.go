@@ -3,10 +3,8 @@ package agent
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
-	"github.com/yaoapp/yao/agent/rag"
 	"github.com/yaoapp/yao/agent/store"
 	"github.com/yaoapp/yao/agent/vision"
-	"github.com/yaoapp/yao/attachment"
 )
 
 // DSL AI assistant
@@ -14,11 +12,11 @@ type DSL struct {
 
 	// Agent Global Settings
 	// ===============================
-	Use              *Use          `json:"use,omitempty" yaml:"use,omitempty"`             // Which assistant to use default, title, prompt
-	StoreSetting     store.Setting `json:"store" yaml:"store"`                             // The store setting of the assistant
-	AuthSetting      *Auth         `json:"auth,omitempty" yaml:"auth,omitempty"`           // Authenticate Settings
-	UploadSetting    *Upload       `json:"upload,omitempty" yaml:"upload,omitempty"`       // Upload Settings
-	KnowledgeSetting *Knowledge    `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base Settings
+	Use          *Use          `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default, title, prompt
+	StoreSetting store.Setting `json:"store" yaml:"store"`                 // The store setting of the assistant
+	// AuthSetting      *Auth         `json:"auth,omitempty" yaml:"auth,omitempty"`           // Authenticate Settings
+	// UploadSetting    *Upload       `json:"upload,omitempty" yaml:"upload,omitempty"`       // Upload Settings
+	// KnowledgeSetting *Knowledge    `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base Settings
 
 	// Global External Settings - connectors, tools, etc.
 	// ===============================
@@ -26,15 +24,14 @@ type DSL struct {
 
 	// Agent API Settings
 	// ===============================s
-	Guard  string   `json:"guard,omitempty" yaml:"guard,omitempty"`   // The guard of the assistant
-	Allows []string `json:"allows,omitempty" yaml:"allows,omitempty"` // The allowed domains of the assistant
+	// Guard  string   `json:"guard,omitempty" yaml:"guard,omitempty"`   // The guard of the assistant
+	// Allows []string `json:"allows,omitempty" yaml:"allows,omitempty"` // The allowed domains of the assistant
 
 	// Internal
 	// ===============================
 	ID            string            `json:"-" yaml:"-"` // The id of the instance
 	Assistant     assistant.API     `json:"-" yaml:"-"` // The default assistant
 	Store         store.Store       `json:"-" yaml:"-"` // The store of the assistant
-	RAG           *rag.RAG          `json:"-" yaml:"-"`
 	Vision        *vision.Vision    `json:"-" yaml:"-"`
 	GuardHandlers []gin.HandlerFunc `json:"-" yaml:"-"`
 }
@@ -76,52 +73,6 @@ type AuthFields struct {
 	ID         string `json:"id,omitempty" yaml:"id,omitempty"`                 // the field name of the user id, default is id
 	Roles      string `json:"roles,omitempty" yaml:"roles,omitempty"`           // the field name of the user roles, default is roles, it must be an JSON field.
 	Permission string `json:"permission,omitempty" yaml:"permission,omitempty"` // the field name of the user permission, default is permission
-}
-
-// Upload the upload setting
-// ===============================
-type Upload struct {
-	Chat      *attachment.ManagerOption `json:"chat,omitempty" yaml:"chat,omitempty"`           // Chat conversation upload setting, if not set use the local and root path is `/attachments`.
-	Assets    *attachment.ManagerOption `json:"assets,omitempty" yaml:"assets,omitempty"`       // Asset upload setting, if not set use the chat upload setting.
-	Knowledge *attachment.ManagerOption `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base upload setting, if not set use the chat upload setting.
-}
-
-// UploadOption the upload option
-type UploadOption struct {
-	attachment.UploadOption
-	Public       bool        `json:"public,omitempty" yaml:"public,omitempty, form:public"`                      // The public of the file, default is false
-	Scope        interface{} `json:"scope,omitempty" yaml:"scope,omitempty, form:scope"`                         // The scope of the file, default is private
-	CollectionID string      `json:"collection_id,omitempty" yaml:"collection_id,omitempty, form:collection_id"` // The collection id of the file, default is empty
-	Knowledge    bool        `json:"knowledge,omitempty" form:"knowledge"`                                       // Push to knowledge base, Optional, default is false
-	ChatID       string      `json:"chat_id,omitempty" form:"chat_id"`                                           // Chat ID, Optional
-	AssistantID  string      `json:"assistant_id,omitempty" form:"assistant_id"`                                 // Assistant ID, Optional
-	UserID       string      `json:"user_id,omitempty"`                                                          // User ID, Optional (used to build Groups)
-}
-
-// Knowledge base Settings
-// ===============================
-type Knowledge struct {
-	Vector     KnowledgeVector     `json:"vector" yaml:"vector"`         // The vector database driver
-	Graph      KnowledgeGraph      `json:"graph" yaml:"graph"`           // The graph database driver
-	Vectorizer KnowledgeVectorizer `json:"vectorizer" yaml:"vectorizer"` // The vectorizer driver
-}
-
-// KnowledgeVectorizer the knowledge vectorizer
-type KnowledgeVectorizer struct {
-	Driver  string                 `json:"driver" yaml:"driver"`
-	Options map[string]interface{} `json:"options" yaml:"options"`
-}
-
-// KnowledgeVector the knowledge vector
-type KnowledgeVector struct {
-	Driver  string                 `json:"driver" yaml:"driver"`
-	Options map[string]interface{} `json:"options" yaml:"options"`
-}
-
-// KnowledgeGraph the knowledge graph
-type KnowledgeGraph struct {
-	Driver  string                 `json:"driver" yaml:"driver"`
-	Options map[string]interface{} `json:"options" yaml:"options"`
 }
 
 // Mention Structure

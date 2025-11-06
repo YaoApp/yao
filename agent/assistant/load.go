@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
-	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store"
@@ -25,7 +24,6 @@ import (
 // loaded the loaded assistant
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
-var rag *RAG = nil
 var search interface{} = nil
 var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *agentvision.Vision = nil
@@ -147,19 +145,6 @@ func SetConnectorSettings(settings map[string]ConnectorSetting) {
 // SetConnector set the connector
 func SetConnector(c string) {
 	defaultConnector = c
-}
-
-// SetRAG set the RAG engine
-// e: the RAG engine
-// u: the RAG file uploader
-// v: the RAG vectorizer
-func SetRAG(e driver.Engine, u driver.FileUpload, v driver.Vectorizer, setting RAGSetting) {
-	rag = &RAG{
-		Engine:     e,
-		Uploader:   u,
-		Vectorizer: v,
-		Setting:    setting,
-	}
 }
 
 // SetCache set the cache
@@ -476,20 +461,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 
 		// Unmarshal the raw data
 		err = jsoniter.Unmarshal(raw, assistant.Search)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Knowledge options
-	if v, ok := data["knowledge"].(map[string]interface{}); ok {
-		assistant.Knowledge = &KnowledgeOption{}
-		raw, err := jsoniter.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-		// Unmarshal the raw data
-		err = jsoniter.Unmarshal(raw, assistant.Knowledge)
 		if err != nil {
 			return nil, err
 		}

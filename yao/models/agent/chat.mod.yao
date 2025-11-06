@@ -90,5 +90,5 @@
       "comment": "Index for silent mode filtering"
     }
   ],
-  "option": { "timestamps": true, "soft_deletes": false }
+  "option": { "timestamps": true, "soft_deletes": false, "permission": true }
 }

@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou/rag/driver"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -76,32 +75,10 @@ type NextAction struct {
 	Payload map[string]interface{} `json:"payload,omitempty"`
 }
 
-// RAG the RAG interface
-type RAG struct {
-	Engine     driver.Engine
-	Uploader   driver.FileUpload
-	Vectorizer driver.Vectorizer
-	Setting    RAGSetting
-}
-
 // SearchOption the search option
 type SearchOption struct {
 	WebSearch *bool `json:"web_search,omitempty" yaml:"web_search,omitempty"` // Whether to search the web
 	Knowledge *bool `json:"knowledge,omitempty" yaml:"knowledge,omitempty"`   // Whether to search the knowledge
-}
-
-// KnowledgeOption the knowledge option
-type KnowledgeOption struct {
-	Collections    []string `json:"collections,omitempty" yaml:"collections,omitempty"` // The Global Collections
-	ChunkingMethod string   `json:"chunking_method,omitempty" yaml:"chunking_method,omitempty"`
-	ChunkSize      int      `json:"chunk_size,omitempty" yaml:"chunk_size,omitempty"`
-	ChunkOverlap   int      `json:"chunk_overlap,omitempty" yaml:"chunk_overlap,omitempty"`
-	SearchMethod   string   `json:"search_method,omitempty" yaml:"search_method,omitempty"`
-}
-
-// RAGSetting the RAG setting
-type RAGSetting struct {
-	IndexPrefix string `json:"index_prefix" yaml:"index_prefix"`
 }
 
 // Prompt a prompt
@@ -121,30 +98,29 @@ type QueryParam struct {
 
 // Assistant the assistant
 type Assistant struct {
-	ID          string                 `json:"assistant_id"`                                   // Assistant ID
-	Type        string                 `json:"type,omitempty"`                                 // Assistant Type, default is assistant
-	Name        string                 `json:"name,omitempty"`                                 // Assistant Name
-	Avatar      string                 `json:"avatar,omitempty"`                               // Assistant Avatar
-	Connector   string                 `json:"connector"`                                      // AI Connector
-	Path        string                 `json:"path,omitempty"`                                 // Assistant Path
-	BuiltIn     bool                   `json:"built_in,omitempty"`                             // Whether this is a built-in assistant
-	Sort        int                    `json:"sort,omitempty"`                                 // Assistant Sort
-	Description string                 `json:"description,omitempty"`                          // Assistant Description
-	Tags        []string               `json:"tags,omitempty"`                                 // Assistant Tags
-	Readonly    bool                   `json:"readonly,omitempty"`                             // Whether this assistant is readonly
-	Mentionable bool                   `json:"mentionable,omitempty"`                          // Whether this assistant is mentionable
-	Automated   bool                   `json:"automated,omitempty"`                            // Whether this assistant is automated
-	Options     map[string]interface{} `json:"options,omitempty"`                              // AI Options
-	Prompts     []Prompt               `json:"prompts,omitempty"`                              // AI Prompts
-	Tools       *ToolCalls             `json:"tools,omitempty"`                                // Assistant Tools
-	Workflow    map[string]interface{} `json:"workflow,omitempty"`                             // Assistant Workflow
-	Placeholder *Placeholder           `json:"placeholder,omitempty"`                          // Assistant Placeholder
-	Locales     i18n.Map               `json:"locales,omitempty"`                              // Assistant Locales
-	Search      *SearchOption          `json:"search,omitempty" yaml:"search,omitempty"`       // Whether this assistant supports search
-	Knowledge   *KnowledgeOption       `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Whether this assistant supports knowledge
-	CreatedAt   int64                  `json:"created_at"`                                     // Creation timestamp
-	UpdatedAt   int64                  `json:"updated_at"`                                     // Last update timestamp
-	Script      *v8.Script             `json:"-" yaml:"-"`                                     // Assistant Script
+	ID          string                 `json:"assistant_id"`                             // Assistant ID
+	Type        string                 `json:"type,omitempty"`                           // Assistant Type, default is assistant
+	Name        string                 `json:"name,omitempty"`                           // Assistant Name
+	Avatar      string                 `json:"avatar,omitempty"`                         // Assistant Avatar
+	Connector   string                 `json:"connector"`                                // AI Connector
+	Path        string                 `json:"path,omitempty"`                           // Assistant Path
+	BuiltIn     bool                   `json:"built_in,omitempty"`                       // Whether this is a built-in assistant
+	Sort        int                    `json:"sort,omitempty"`                           // Assistant Sort
+	Description string                 `json:"description,omitempty"`                    // Assistant Description
+	Tags        []string               `json:"tags,omitempty"`                           // Assistant Tags
+	Readonly    bool                   `json:"readonly,omitempty"`                       // Whether this assistant is readonly
+	Mentionable bool                   `json:"mentionable,omitempty"`                    // Whether this assistant is mentionable
+	Automated   bool                   `json:"automated,omitempty"`                      // Whether this assistant is automated
+	Options     map[string]interface{} `json:"options,omitempty"`                        // AI Options
+	Prompts     []Prompt               `json:"prompts,omitempty"`                        // AI Prompts
+	Tools       *ToolCalls             `json:"tools,omitempty"`                          // Assistant Tools
+	Workflow    map[string]interface{} `json:"workflow,omitempty"`                       // Assistant Workflow
+	Placeholder *Placeholder           `json:"placeholder,omitempty"`                    // Assistant Placeholder
+	Locales     i18n.Map               `json:"locales,omitempty"`                        // Assistant Locales
+	Search      *SearchOption          `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
+	CreatedAt   int64                  `json:"created_at"`                               // Creation timestamp
+	UpdatedAt   int64                  `json:"updated_at"`                               // Last update timestamp
+	Script      *v8.Script             `json:"-" yaml:"-"`                               // Assistant Script
 
 	// Internal
 	// ===============================

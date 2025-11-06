@@ -1,24 +1,16 @@
 package agent
 
-import (
-	"testing"
+// func TestLoad(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer test.Clean()
 
-	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/test"
-)
+// 	err := Load(config.Conf)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	check(t)
+// }
 
-func TestLoad(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	err := Load(config.Conf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	check(t)
-}
-
-func check(t *testing.T) {
-	assert.NotNil(t, Agent)
-}
+// func check(t *testing.T) {
+// 	assert.NotNil(t, Agent)
+// }

@@ -2,23 +2,18 @@ package agent
 
 import (
 	"fmt"
-	"io"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
-	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/agent/assistant"
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/message"
 	"github.com/yaoapp/yao/agent/store"
-	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 )
@@ -31,23 +26,6 @@ func (agent *DSL) API(router *gin.Engine, path string) error {
 	if err != nil {
 		return err
 	}
-
-	// Register OPTIONS handlers for all endpoints
-	router.OPTIONS(path, agent.optionsHandler)
-	router.OPTIONS(path+"/status", agent.optionsHandler)
-	router.OPTIONS(path+"/chats", agent.optionsHandler)
-	router.OPTIONS(path+"/chats/:id", agent.optionsHandler)
-	router.OPTIONS(path+"/history", agent.optionsHandler)
-	router.OPTIONS(path+"/upload/:storage", agent.optionsHandler)
-	router.OPTIONS(path+"/download", agent.optionsHandler)
-	router.OPTIONS(path+"/mentions", agent.optionsHandler)
-	router.OPTIONS(path+"/generate", agent.optionsHandler)
-	router.OPTIONS(path+"/generate/title", agent.optionsHandler)
-	router.OPTIONS(path+"/generate/prompts", agent.optionsHandler)
-	router.OPTIONS(path+"/dangerous/clear_chats", agent.optionsHandler)
-	router.OPTIONS(path+"/assistants", agent.optionsHandler)
-	router.OPTIONS(path+"/assistants/:id", agent.optionsHandler)
-	router.OPTIONS(path+"/assistants/:id/call", agent.optionsHandler)
 
 	// Chat endpoint
 	// Chat endpoint
@@ -124,12 +102,12 @@ func (agent *DSL) API(router *gin.Engine, path string) error {
 	// Upload file example:
 	// curl -X POST 'http://localhost:5099/api/__yao/agent/upload?chat_id=chat_123&token=xxx' \
 	//   -F 'file=@/path/to/file.txt'
-	router.POST(path+"/upload/:storage", append(middlewares, agent.handleUpload)...)
+	// router.POST(path+"/upload/:storage", append(middlewares, agent.handleUpload)...)
 
 	// Download file example:
 	// curl -X GET 'http://localhost:5099/api/__yao/agent/download?file_id=file_123&disposition=attachment&token=xxx' \
 	//   -o downloaded_file.txt
-	router.GET(path+"/download", append(middlewares, agent.handleDownload)...)
+	// router.GET(path+"/download", append(middlewares, agent.handleDownload)...)
 
 	// Mentions endpoint
 	// Example:
@@ -170,250 +148,6 @@ func (agent *DSL) API(router *gin.Engine, path string) error {
 func (agent *DSL) handleStatus(c *gin.Context) {
 	c.Status(200)
 	c.Done()
-}
-
-// handleUpload handles the upload request
-func (agent *DSL) handleUpload(c *gin.Context) {
-	sid := c.GetString("__sid")
-	if sid == "" {
-		sid = uuid.New().String()
-	}
-
-	uid, isGuest, err := agent.UserOrGuestID(sid)
-	if err != nil {
-		c.JSON(401, gin.H{"message": fmt.Sprintf("Unauthorized, %s", err.Error()), "code": 401})
-		c.Done()
-		return
-	}
-
-	if uid == nil || uid == "" {
-		c.JSON(401, gin.H{"message": "Unauthorized", "code": 401})
-		c.Done()
-		return
-	}
-
-	// Storage name must be chat, knowledge or assets
-	storage := c.Param("storage")
-	if storage != "chat" && storage != "knowledge" && storage != "assets" {
-		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
-		c.Done()
-		return
-	}
-
-	// Get the manager
-	var manager, ok = attachment.Managers[storage]
-	if !ok {
-		c.JSON(400, gin.H{"message": "Invalid storage: " + storage, "code": 400})
-		c.Done()
-		return
-	}
-
-	// Get Option from form data
-	var option UploadOption
-	err = c.ShouldBind(&option)
-	if err != nil {
-		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
-		c.Done()
-		return
-	}
-
-	// Validate the option with the storage
-	option.UserID = fmt.Sprintf("%v", uid)
-
-	// Build multi-level groups based on storage type and IDs
-	var groups []string
-	switch storage {
-	case "chat":
-		if option.ChatID == "" {
-			c.JSON(400, gin.H{"message": "chat_id is required", "code": 400})
-			c.Done()
-			return
-		}
-		// Build groups: ["users", "user123", "chats", "chat456"]
-		groups = []string{"users", option.UserID, "chats", option.ChatID}
-		if option.AssistantID != "" {
-			// Add assistant level: ["users", "user123", "chats", "chat456", "assistants", "assistant789"]
-			groups = append(groups, "assistants", option.AssistantID)
-		}
-	case "knowledge":
-		if option.CollectionID == "" {
-			c.JSON(400, gin.H{"message": "collection_id is required", "code": 400})
-			c.Done()
-			return
-		}
-		// Build groups: ["knowledge", "collection123", "users", "user456"]
-		groups = []string{"knowledge", option.CollectionID, "users", option.UserID}
-	case "assets":
-		// Build groups: ["assets", "users", "user123"]
-		groups = []string{"assets", "users", option.UserID}
-	}
-
-	// Set the groups in the attachment upload option
-	option.UploadOption.Groups = groups
-
-	// Get the file
-	file, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(400, gin.H{"message": err.Error(), "code": 400})
-		c.Done()
-		return
-	}
-
-	// Open the file
-	reader, err := file.Open()
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		c.Done()
-		return
-	}
-	defer func() {
-		reader.Close()
-		os.Remove(file.Filename)
-	}()
-
-	// Upload the file
-	header := attachment.GetHeader(c.Request.Header, file.Header, file.Size)
-	res, err := manager.Upload(c.Request.Context(), header, reader, option.UploadOption)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		c.Done()
-		return
-	}
-
-	// if storage is chat or knowledge, save the file to the store
-	if storage == "chat" || storage == "knowledge" {
-
-		attachment := map[string]interface{}{
-			"file_id":      res.ID,
-			"uid":          uid,
-			"guest":        isGuest,
-			"manager":      storage,
-			"public":       option.Public,
-			"name":         option.OriginalFilename,
-			"content_type": res.ContentType,
-			"bytes":        res.Bytes,
-			"gzip":         option.Gzip,
-			"status":       res.Status,
-		}
-
-		// Set the scope
-		if option.Scope != nil {
-			attachment["scope"] = option.Scope
-		}
-
-		// Set the collection_id
-		if option.CollectionID != "" {
-			attachment["collection_id"] = option.CollectionID
-		}
-
-		_, err = agent.Store.SaveAttachment(attachment)
-		if err != nil {
-			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-			c.Done()
-			return
-		}
-	}
-
-	c.JSON(200, map[string]interface{}{"data": res})
-	c.Done()
-}
-
-// handleDownload handles the download request
-func (agent *DSL) handleDownload(c *gin.Context) {
-	sid := c.GetString("__sid")
-	if sid == "" {
-		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
-		c.Done()
-		return
-	}
-
-	uid, _, err := agent.UserOrGuestID(sid)
-	if err != nil {
-		c.JSON(401, gin.H{"message": fmt.Sprintf("Unauthorized, %s", err.Error()), "code": 401})
-		c.Done()
-		return
-	}
-
-	if uid == nil || uid == "" {
-		c.JSON(401, gin.H{"message": "Unauthorized", "code": 401})
-		c.Done()
-		return
-	}
-
-	fileID := c.Query("file_id")
-	if fileID == "" {
-		c.JSON(400, gin.H{"message": "file_id is required", "code": 400})
-		c.Done()
-		return
-	}
-
-	// Get the attachment
-	attach, err := agent.Store.GetAttachment(fileID)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		c.Done()
-		return
-	}
-
-	// Validate the permission ( Will be supported scope validation in the future )
-	if (attach["public"] == 0 || attach["public"] == false) && attach["uid"] != uid {
-		c.JSON(403, gin.H{"message": "Forbidden", "code": 403})
-		c.Done()
-		return
-	}
-
-	storage, ok := attach["manager"].(string)
-	if !ok {
-		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
-		c.Done()
-		return
-	}
-
-	// Get the manager
-	manager, ok := attachment.Managers[storage]
-	if !ok {
-		c.JSON(400, gin.H{"message": "Invalid storage", "code": 400})
-		c.Done()
-		return
-	}
-
-	name, ok := attach["name"].(string)
-	if !ok {
-		c.JSON(400, gin.H{"message": "Invalid name", "code": 400})
-		c.Done()
-		return
-	}
-
-	name = strings.TrimSuffix(name, ".gz")
-	contentType, ok := attach["content_type"].(string)
-	if !ok {
-		c.JSON(400, gin.H{"message": "Invalid content type", "code": 400})
-		c.Done()
-		return
-	}
-
-	handle, err := manager.Download(c.Request.Context(), fileID)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		c.Done()
-		return
-	}
-	defer handle.Reader.Close()
-
-	// Set the response headers
-	encoded := url.PathEscape(name)
-	disposition := fmt.Sprintf(`attachment; filename="%s"`, encoded)
-	c.Header("Content-Type", contentType)
-	c.Header("Content-Disposition", disposition)
-
-	// Copy the file content to response
-	_, err = io.Copy(c.Writer, handle.Reader)
-	if err != nil {
-		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
-		return
-	}
-	c.Done()
-
 }
 
 // handleChat handles the chat request
@@ -545,70 +279,6 @@ func (agent *DSL) handleChatHistory(c *gin.Context) {
 	c.Done()
 }
 
-// getCorsHandlers returns CORS middleware handlers
-func (agent *DSL) getCorsHandlers() ([]gin.HandlerFunc, error) {
-	if len(agent.Allows) == 0 {
-		return []gin.HandlerFunc{}, nil
-	}
-
-	allowsMap := map[string]bool{}
-	for _, allow := range agent.Allows {
-		allow = strings.TrimPrefix(allow, "http://")
-		allow = strings.TrimPrefix(allow, "https://")
-		allowsMap[allow] = true
-	}
-
-	return []gin.HandlerFunc{agent.corsMiddleware(allowsMap)}, nil
-}
-
-// corsMiddleware handles CORS requests
-func (agent *DSL) corsMiddleware(allowsMap map[string]bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := agent.getOrigin(c)
-		if origin == "" {
-			c.Next()
-			return
-		}
-
-		// Check if origin is allowed
-		if !api.IsAllowed(c, allowsMap) {
-			c.AbortWithStatusJSON(403, gin.H{
-				"message": origin + " not allowed",
-				"code":    403,
-			})
-			return
-		}
-
-		// Set CORS headers
-		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Disposition, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		c.Header("Access-Control-Expose-Headers", "Content-Type, Content-Disposition, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	}
-}
-
-// optionsHandler handles OPTIONS requests
-func (agent *DSL) optionsHandler(c *gin.Context) {
-	origin := agent.getOrigin(c)
-	if origin != "" {
-		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Disposition, Authorization, Accept, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
-		c.Header("Access-Control-Allow-Credentials", "true")
-		c.Header("Access-Control-Max-Age", "86400") // 24 hours
-		c.Header("Access-Control-Expose-Headers", "Content-Type, Content-Disposition, Authorization, Accept, Content-Sync, Content-Fingerprint, Content-Uid, Content-Range")
-	}
-	c.AbortWithStatus(204)
-}
-
 // getOrigin returns the request origin
 func (agent *DSL) getOrigin(c *gin.Context) string {
 	origin := c.Request.Header.Get("Origin")
@@ -625,26 +295,7 @@ func (agent *DSL) getOrigin(c *gin.Context) string {
 
 // getGuardHandlers returns authentication middleware handlers
 func (agent *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
-
-	// Cross-Domain handlers
-	cors, err := agent.getCorsHandlers()
-	if err != nil {
-		return nil, err
-	}
-
-	if agent.Guard == "" {
-		middlewares := append(cors, agent.defaultGuard)
-		return middlewares, nil
-	}
-
-	// Validate the custom guard
-	_, err = process.Of(agent.Guard)
-	if err != nil {
-		return nil, err
-	}
-
-	middlewares := append(cors, api.ProcessGuard(agent.Guard, cors...))
-	return middlewares, nil
+	return []gin.HandlerFunc{}, nil
 }
 
 // defaultGuard is the default authentication handler

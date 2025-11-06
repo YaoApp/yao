@@ -3,11 +3,10 @@ package store
 // Setting represents the conversation configuration structure
 // Used to configure basic conversation parameters including connector, user field, table name, etc.
 type Setting struct {
-	Connector string `json:"connector,omitempty"`                          // Name of the connector used to specify data storage method
-	UserField string `json:"user_field,omitempty"`                         // User ID field name, defaults to "user_id"
-	Prefix    string `json:"prefix,omitempty"`                             // Database table name prefix
-	MaxSize   int    `json:"max_size,omitempty" yaml:"max_size,omitempty"` // Maximum storage size limit
-	TTL       int    `json:"ttl,omitempty" yaml:"ttl,omitempty"`           // Time To Live in seconds
+	Connector string                 `json:"connector,omitempty" yaml:"connector,omitempty"` // Connector name, default is "default"
+	MaxSize   int                    `json:"max_size,omitempty" yaml:"max_size,omitempty"`   // Maximum storage size limit, default is 20
+	TTL       int                    `json:"ttl,omitempty" yaml:"ttl,omitempty"`             // Time To Live in seconds, default is 90 * 24 * 60 * 60 (90 days)
+	Options   map[string]interface{} `json:"optional,omitempty" yaml:"optional,omitempty"`   // The options for the store
 }
 
 // ChatInfo represents the chat information structure
@@ -168,56 +167,6 @@ type Store interface {
 	// filter: Filter conditions
 	// Returns: Number of deleted records and potential error
 	DeleteAssistants(filter AssistantFilter) (int64, error)
-
-	// SaveAttachment saves attachment information
-	// attachment: Attachment information
-	// Returns: Attachment ID and potential error
-	SaveAttachment(attachment map[string]interface{}) (interface{}, error)
-
-	// DeleteAttachment deletes an attachment
-	// fileID: Attachment file ID
-	// Returns: Potential error
-	DeleteAttachment(fileID string) error
-
-	// GetAttachments retrieves a list of attachments
-	// filter: Filter conditions
-	// Returns: Paginated attachment list and potential error
-	GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error)
-
-	// GetAttachment retrieves a single attachment by file ID
-	// fileID: Attachment file ID
-	// Returns: Attachment information and potential error
-	GetAttachment(fileID string, locale ...string) (map[string]interface{}, error)
-
-	// DeleteAttachments deletes attachments based on filter conditions
-	// filter: Filter conditions
-	// Returns: Number of deleted records and potential error
-	DeleteAttachments(filter AttachmentFilter) (int64, error)
-
-	// SaveKnowledge saves knowledge collection information
-	// knowledge: Knowledge collection information
-	// Returns: Collection ID and potential error
-	SaveKnowledge(knowledge map[string]interface{}) (interface{}, error)
-
-	// DeleteKnowledge deletes a knowledge collection
-	// collectionID: Knowledge collection ID
-	// Returns: Potential error
-	DeleteKnowledge(collectionID string) error
-
-	// GetKnowledges retrieves a list of knowledge collections
-	// filter: Filter conditions
-	// Returns: Paginated knowledge collection list and potential error
-	GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error)
-
-	// GetKnowledge retrieves a single knowledge collection by ID
-	// collectionID: Knowledge collection ID
-	// Returns: Knowledge collection information and potential error
-	GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error)
-
-	// DeleteKnowledges deletes knowledge collections based on filter conditions
-	// filter: Filter conditions
-	// Returns: Number of deleted records and potential error
-	DeleteKnowledges(filter KnowledgeFilter) (int64, error)
 
 	// Close closes the store and releases any resources
 	// Returns: Potential error

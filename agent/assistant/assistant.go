@@ -1,16 +1,11 @@
 package assistant
 
 import (
-	"context"
 	"fmt"
 	"path"
-	"time"
 
-	"github.com/fatih/color"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
-	"github.com/yaoapp/gou/rag/driver"
-	"github.com/yaoapp/kun/log"
 	sui "github.com/yaoapp/yao/sui/core"
 )
 
@@ -25,94 +20,7 @@ func (ast *Assistant) Save() error {
 		return err
 	}
 
-	// Update Index in background
-	go func() {
-		err := ast.UpdateIndex()
-		if err != nil {
-			log.Error("failed to update index for assistant %s: %s", ast.ID, err)
-			color.Red("failed to update index for assistant %s: %s", ast.ID, err)
-		}
-	}()
-
 	return nil
-}
-
-// UpdateIndex update the index for RAG
-func (ast *Assistant) UpdateIndex() error {
-
-	// RAG is not enabled
-	if rag == nil {
-		return nil
-	}
-
-	if rag.Engine == nil {
-		return fmt.Errorf("engine is not set")
-	}
-
-	// Update Index
-	index := fmt.Sprintf("%sassistants", rag.Setting.IndexPrefix)
-	id := fmt.Sprintf("assistant_%s", ast.ID)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	// Check if the index exists
-	exists, err := rag.Engine.HasIndex(ctx, index)
-	if err != nil {
-		return err
-	}
-
-	// Create the index if it does not exist
-	if !exists {
-		ctxCreate, cancelCreate := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancelCreate()
-		err = rag.Engine.CreateIndex(ctxCreate, driver.IndexConfig{Name: index})
-		if err != nil {
-			return err
-		}
-	}
-
-	// Check if the document exists
-	exists, err = rag.Engine.HasDocument(ctx, index, id)
-	if err != nil {
-		return err
-	}
-
-	// Check if the document is updated
-	if exists {
-		metadata, err := rag.Engine.GetMetadata(ctx, index, id)
-		if err != nil {
-			return err
-		}
-
-		if v, ok := metadata["updated_at"].(string); ok {
-			updatedAt, err := stringToTimestamp(v)
-			if err != nil {
-				return err
-			}
-			if updatedAt >= ast.UpdatedAt {
-				return nil
-			}
-		}
-	}
-
-	// Update the index
-	content, err := jsoniter.MarshalToString(ast.Map())
-	if err != nil {
-		return err
-	}
-
-	metadata := map[string]interface{}{
-		"assistant_id": ast.ID,
-		"type":         ast.Type,
-		"name":         ast.Name,
-		"updated_at":   fmt.Sprintf("%d", ast.UpdatedAt),
-	}
-
-	return rag.Engine.IndexDoc(ctx, index, &driver.Document{
-		DocID:    id,
-		Content:  content,
-		Metadata: metadata,
-	})
 }
 
 // Map convert the assistant to a map

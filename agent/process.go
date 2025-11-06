@@ -1,15 +1,12 @@
 package agent
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/process"
-	"github.com/yaoapp/gou/rag/driver"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent/message"
 	"github.com/yaoapp/yao/agent/store"
@@ -163,129 +160,8 @@ func processAssistantMatch(process *process.Process) interface{} {
 		}
 	}
 
-	// Force Using sotre
-	forceStore := false
-	if store, has := params["store"]; has {
-		switch v := store.(type) {
-		case bool:
-			forceStore = v
-		case int:
-			forceStore = v == 1
-		case string:
-			forceStore = v == "true" || v == "1"
-		}
-	}
-
-	// Rag Support match using RAG
-	if Agent.RAG != nil && !forceStore {
-		return assistantMatchRAG(content, params)
-	}
-
 	// Match using Store
 	return assistantMatchStore(content, params)
-}
-
-func assistantMatchRAG(content interface{}, params map[string]interface{}) interface{} {
-	if Agent == nil {
-		exception.New("Agent is not initialized", 500).Throw()
-	}
-
-	// Convert content to JSON string
-	var contentStr string
-	switch v := content.(type) {
-	case string:
-		contentStr = v
-	case []byte:
-		contentStr = string(v)
-	default:
-		bytes, err := json.Marshal(v)
-		if err != nil {
-			exception.New("Failed to convert content to JSON: %s", 500, err.Error()).Throw()
-		}
-		contentStr = string(bytes)
-	}
-
-	// Get limit from params
-	limit := 20 // default limit
-	if v, has := params["limit"]; has {
-		switch lv := v.(type) {
-		case int:
-			limit = lv
-		case string:
-			limitInt, err := strconv.Atoi(lv)
-			if err == nil {
-				limit = limitInt
-			}
-		}
-	}
-
-	// Get min_score from params
-	minScore := 0.0 // default min_score
-	if v, has := params["min_score"]; has {
-		switch lv := v.(type) {
-		case float64:
-			minScore = lv
-		case float32:
-			minScore = float64(lv)
-		case int:
-			minScore = float64(lv)
-		case string:
-			if score, err := strconv.ParseFloat(lv, 64); err == nil {
-				minScore = score
-			}
-		}
-	}
-
-	ctx := context.Background()
-
-	// Get vectors using vectorizer
-	vectors, err := Agent.RAG.Vectorizer().Vectorize(ctx, contentStr)
-	if err != nil {
-		exception.New("Failed to encode content: %s", 500, err.Error()).Throw()
-	}
-
-	// Search using RAG engine
-	opts := driver.VectorSearchOptions{
-		TopK:      limit,
-		MinScore:  minScore,
-		QueryText: contentStr,
-	}
-
-	index := fmt.Sprintf("%sassistants", Agent.RAG.Setting().IndexPrefix)
-	results, err := Agent.RAG.Engine().Search(ctx, index, vectors, opts)
-	if err != nil {
-		exception.New("Failed to search with RAG: %s", 500, err.Error()).Throw()
-	}
-
-	// Convert results to assistant data array
-	ids := []string{}
-
-	// Collect IDs from search results
-	for _, result := range results {
-		if result.Metadata != nil {
-			if id, ok := result.Metadata["assistant_id"].(string); ok {
-				ids = append(ids, id)
-			}
-		}
-	}
-
-	// If no IDs found, return empty array
-	if len(ids) == 0 {
-		return []map[string]interface{}{}
-	}
-
-	// Fetch complete assistant data from store using AssistantIDs
-	filter := store.AssistantFilter{
-		AssistantIDs: ids,
-		Page:         1,
-		PageSize:     len(ids),
-	}
-	res, err := Agent.Store.GetAssistants(filter)
-	if err != nil {
-		exception.New("get assistants error: %s", 500, err).Throw()
-	}
-
-	return res.Data
 }
 
 // parseAssistantFilter parse common filter parameters
