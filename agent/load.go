@@ -6,11 +6,9 @@ import (
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
-	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store"
-	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/config"
 )
 
@@ -21,11 +19,10 @@ var Agent *DSL
 func Load(cfg config.Config) error {
 
 	setting := DSL{
-		ID:     "agent",
-		Allows: []string{},
+		ID: "agent",
 		StoreSetting: store.Setting{
-			Prefix:    "yao_agent_",
-			Connector: "default",
+			MaxSize: 20,
+			TTL:     90 * 24 * 60 * 60, // 90 days in seconds
 		},
 	}
 
@@ -78,172 +75,12 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Initialize Auth
-	err = initAuth()
-	if err != nil {
-		return err
-	}
-
-	// Initialize Upload
-	err = initUpload()
-	if err != nil {
-		return err
-	}
-
 	// Initialize Assistant
 	err = initAssistant()
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-// initAuth initialize the auth
-func initAuth() error {
-	if Agent.AuthSetting == nil {
-		Agent.AuthSetting = &Auth{
-			Models:        &AuthModels{User: "admin.user", Guest: "guest"},
-			Fields:        &AuthFields{ID: "id", Roles: "roles", Permission: "permission"},
-			SessionFields: &AuthSessionFields{ID: "user_id", Roles: "user_roles", Guest: "guest_id"},
-		}
-	}
-
-	if Agent.AuthSetting.Models == nil {
-		Agent.AuthSetting.Models = &AuthModels{User: "admin.user", Guest: "guest"}
-	}
-
-	if Agent.AuthSetting.Fields == nil {
-		Agent.AuthSetting.Fields = &AuthFields{ID: "id", Roles: "roles", Permission: "permission"}
-	}
-
-	if Agent.AuthSetting.SessionFields == nil {
-		Agent.AuthSetting.SessionFields = &AuthSessionFields{ID: "user_id", Roles: "user_roles", Guest: "guest_id"}
-	}
-
-	if Agent.AuthSetting.Models.User == "" {
-		Agent.AuthSetting.Models.User = "admin.user"
-	}
-
-	if Agent.AuthSetting.Models.Guest == "" {
-		Agent.AuthSetting.Models.Guest = "guest"
-	}
-
-	if Agent.AuthSetting.Fields.Roles == "" {
-		Agent.AuthSetting.Fields.Roles = "roles"
-	}
-
-	if Agent.AuthSetting.Fields.Permission == "" {
-		Agent.AuthSetting.Fields.Permission = "permission"
-	}
-
-	if Agent.AuthSetting.Fields.ID == "" {
-		Agent.AuthSetting.Fields.ID = "id"
-	}
-
-	if Agent.AuthSetting.Fields.ID == "" {
-		Agent.AuthSetting.Fields.ID = "id"
-	}
-
-	if Agent.AuthSetting.SessionFields.ID == "" {
-		Agent.AuthSetting.SessionFields.ID = "user_id"
-	}
-
-	if Agent.AuthSetting.SessionFields.Roles == "" {
-		Agent.AuthSetting.SessionFields.Roles = "user_roles"
-	}
-
-	if Agent.AuthSetting.SessionFields.Guest == "" {
-		Agent.AuthSetting.SessionFields.Guest = "guest_id"
-	}
-
-	// Validate User Model and Fields
-	if !model.Exists(Agent.AuthSetting.Models.User) {
-		return fmt.Errorf("model %s not found", Agent.AuthSetting.Models.User)
-	}
-	user := model.Select(Agent.AuthSetting.Models.User)
-	shouldHave := []string{Agent.AuthSetting.Fields.ID, Agent.AuthSetting.Fields.Roles, Agent.AuthSetting.Fields.Permission}
-	for _, name := range shouldHave {
-		if _, has := user.Columns[name]; !has {
-			return fmt.Errorf("model %s should have column %s", Agent.AuthSetting.Models.User, name)
-		}
-	}
-
-	return nil
-}
-
-// initUpload initialize the upload
-func initUpload() error {
-
-	if Agent.UploadSetting == nil {
-		_, err := attachment.RegisterDefault("chat")
-		if err != nil {
-			return err
-		}
-		_, err = attachment.RegisterDefault("knowledge")
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// If the chat upload setting is not set, use the default chat upload setting.
-	if Agent.UploadSetting.Chat == nil {
-		_, err := attachment.RegisterDefault("chat")
-		if err != nil {
-			return err
-		}
-	}
-
-	// Use the chat upload setting for knowledge upload, if the knowledge upload setting is not set.
-	if Agent.UploadSetting.Knowledge == nil {
-		if Agent.UploadSetting.Chat == nil {
-			_, err := attachment.RegisterDefault("knowledge")
-			if err != nil {
-				return err
-			}
-		} else {
-			_, err := attachment.Register("knowledge", Agent.UploadSetting.Chat.Driver, *Agent.UploadSetting.Chat)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// Use custom chat upload setting
-	if Agent.UploadSetting.Chat != nil {
-		Agent.UploadSetting.Chat.ReplaceEnv(config.Conf.DataRoot)
-		_, err := attachment.Register("chat", Agent.UploadSetting.Chat.Driver, *Agent.UploadSetting.Chat) // Register the chat upload manager
-		if err != nil {
-			return err
-		}
-	}
-
-	// Use custom knowledge upload setting
-	if Agent.UploadSetting.Knowledge != nil {
-		Agent.UploadSetting.Knowledge.ReplaceEnv(config.Conf.DataRoot)
-		_, err := attachment.Register("knowledge", Agent.UploadSetting.Knowledge.Driver, *Agent.UploadSetting.Knowledge)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Use the chat upload setting for asset upload, if the asset upload setting is not set. (public assets)
-	if Agent.UploadSetting.Assets == nil {
-		_, err := attachment.RegisterDefault("assets")
-		if err != nil {
-			return err
-		}
-	}
-
-	// Use custom asset upload setting
-	if Agent.UploadSetting.Assets != nil {
-		Agent.UploadSetting.Assets.ReplaceEnv(config.Conf.DataRoot)
-		_, err := attachment.Register("assets", Agent.UploadSetting.Assets.Driver, *Agent.UploadSetting.Assets)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

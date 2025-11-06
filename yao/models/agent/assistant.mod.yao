@@ -203,5 +203,5 @@
       "comment": "Index for assistant sorting and automation"
     }
   ],
-  "option": { "timestamps": true, "soft_deletes": false }
+  "option": { "timestamps": true, "soft_deletes": false, "permission": true }
 }

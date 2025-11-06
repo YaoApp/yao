@@ -564,28 +564,6 @@ func processXgen(process *process.Process) interface{} {
 
 		// Available connectors
 		agentConfig["connectors"] = connector.AIConnectors
-
-		// Available storages
-		agentConfig["storages"] = map[string]interface{}{
-			"chat": map[string]interface{}{
-				"max_size":      agent.Agent.UploadSetting.Chat.MaxSize,
-				"chunk_size":    agent.Agent.UploadSetting.Chat.ChunkSize,
-				"allowed_types": agent.Agent.UploadSetting.Chat.AllowedTypes,
-				"gzip":          agent.Agent.UploadSetting.Chat.Gzip,
-			},
-			"assets": map[string]interface{}{
-				"max_size":      agent.Agent.UploadSetting.Assets.MaxSize,
-				"chunk_size":    agent.Agent.UploadSetting.Assets.ChunkSize,
-				"allowed_types": agent.Agent.UploadSetting.Assets.AllowedTypes,
-				"gzip":          agent.Agent.UploadSetting.Assets.Gzip,
-			},
-			"knowledge": map[string]interface{}{
-				"max_size":      agent.Agent.UploadSetting.Knowledge.MaxSize,
-				"chunk_size":    agent.Agent.UploadSetting.Knowledge.ChunkSize,
-				"allowed_types": agent.Agent.UploadSetting.Knowledge.AllowedTypes,
-				"gzip":          agent.Agent.UploadSetting.Knowledge.Gzip,
-			},
-		}
 	}
 
 	// OpenAPI Settings

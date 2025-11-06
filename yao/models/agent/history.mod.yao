@@ -170,5 +170,5 @@
       "comment": "Index for expiration and cleanup"
     }
   ],
-  "option": { "timestamps": true, "soft_deletes": false }
+  "option": { "timestamps": true, "soft_deletes": false, "permission": true }
 }
