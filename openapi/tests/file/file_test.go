@@ -632,7 +632,7 @@ func TestFileContent(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		// Content type may include charset
-		assert.True(t, strings.HasPrefix(resp.Header.Get("Content-Type"), testContentType), 
+		assert.True(t, strings.HasPrefix(resp.Header.Get("Content-Type"), testContentType),
 			"Content-Type should start with %s, got %s", testContentType, resp.Header.Get("Content-Type"))
 
 		// Read and verify content
