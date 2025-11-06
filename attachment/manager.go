@@ -40,6 +40,10 @@ type UploadChunk struct {
 	Total       int64
 	Chunksize   int64
 	TotalChunks int64
+	// Cache metadata from first chunk to avoid inconsistencies
+	ContentType string
+	Filename    string
+	UserPath    string
 }
 
 // Parse parses an attachment wrapper string and returns uploader name and file ID
@@ -395,6 +399,10 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 				Total:       total,
 				Chunksize:   chunksize,
 				TotalChunks: totalChunks,
+				// Cache metadata from first chunk
+				ContentType: file.ContentType,
+				Filename:    file.Filename,
+				UserPath:    file.UserPath,
 			})
 		}
 
@@ -411,6 +419,11 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 			chunkIndex = chunkdata.Last + 1
 			chunkdata.Last = chunkIndex
 			uploadChunks.Store(file.ID, chunkdata)
+
+			// For non-first chunks, use cached metadata from first chunk
+			file.ContentType = chunkdata.ContentType
+			file.Filename = chunkdata.Filename
+			file.UserPath = chunkdata.UserPath
 		}
 
 		// Apply gzip compression if requested
@@ -427,6 +440,15 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 		err = manager.storage.UploadChunk(ctx, file.Path, chunkIndex, reader, file.ContentType)
 		if err != nil {
 			return nil, err
+		}
+
+		// Save to database on first chunk only
+		if start == 0 {
+			file.Status = "uploading"
+			err = manager.saveFileToDatabase(ctx, file, file.Path, option)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create database record for chunked upload: %w", err)
+			}
 		}
 
 		// Fix the file size, the file size is the sum of all chunks
@@ -451,14 +473,14 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 			// Remove the chunk data
 			uploadChunks.Delete(file.ID)
 
-			// Fix the file size
+			// Fix the file size and update status to uploaded
 			file.Bytes = int(chunkdata.Total)
 			file.Status = "uploaded"
 
-			// Save file information to database when chunked upload is complete
+			// Update only bytes and status for the last chunk
 			err = manager.saveFileToDatabase(ctx, file, file.Path, option)
 			if err != nil {
-				return nil, fmt.Errorf("failed to save chunked file to database: %w", err)
+				return nil, fmt.Errorf("failed to update chunked file status: %w", err)
 			}
 		}
 
@@ -829,9 +851,6 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 		return nil, fmt.Errorf("file size %d exceeds the maximum size of %d", file.Size, manager.maxsize)
 	}
 
-	// Get the content type
-	contentType := file.Header.Get("Content-Type")
-
 	// Use original filename if provided, otherwise use the file header filename
 	filename := file.Filename
 	userPath := option.OriginalFilename
@@ -841,6 +860,22 @@ func (manager Manager) makeFile(file *FileHeader, option UploadOption) (*File, e
 	}
 
 	extension := filepath.Ext(filename)
+
+	// Get the content type
+	// For chunked uploads, file.Header may have incorrect content-type (e.g., application/octet-stream for Blob)
+	// Try to detect from filename extension first, then fallback to header
+	contentType := file.Header.Get("Content-Type")
+	if extension != "" {
+		// Try to get content type from extension
+		detectedType := mime.TypeByExtension(extension)
+		if detectedType != "" {
+			// If detected type is not the generic octet-stream, use it
+			// This handles chunked uploads where the header has incorrect type
+			if detectedType != "application/octet-stream" || contentType == "application/octet-stream" {
+				contentType = detectedType
+			}
+		}
+	}
 
 	// Get the extension from the content type if not available from filename
 	if extension == "" {
@@ -1084,10 +1119,41 @@ func (manager Manager) Delete(ctx context.Context, fileID string) error {
 }
 
 // saveFileToDatabase saves file information to the database
+// For chunked uploads, it only updates bytes/status/progress if record exists
 func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, storagePath string, option UploadOption) error {
 
 	m := model.Select("__yao.attachment")
 
+	// Check if record exists first
+	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{"file_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: file.ID},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to check existing record: %w", err)
+	}
+
+	if len(records) > 0 {
+		// Record exists - this is a chunked upload update
+		// Only update bytes, status, and progress (don't overwrite metadata)
+		updateData := map[string]interface{}{
+			"bytes":  int64(file.Bytes),
+			"status": file.Status,
+		}
+
+		_, err = m.UpdateWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		}, updateData)
+
+		return err
+	}
+
+	// Record doesn't exist - create new record with full metadata
 	// Set default value for share if empty
 	share := option.Share
 	if share == "" {
@@ -1124,30 +1190,8 @@ func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, stora
 		data["__yao_tenant_id"] = option.YaoTenantID
 	}
 
-	// Check if record exists first
-	records, err := m.Get(model.QueryParam{
-		Select: []interface{}{"file_id"},
-		Wheres: []model.QueryWhere{
-			{Column: "file_id", Value: file.ID},
-		},
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to check existing record: %w", err)
-	}
-
-	if len(records) > 0 {
-		// Update existing record
-		_, err = m.UpdateWhere(model.QueryParam{
-			Wheres: []model.QueryWhere{
-				{Column: "file_id", Value: file.ID},
-			},
-		}, data)
-	} else {
-		// Create new record
-		_, err = m.Create(data)
-	}
-
+	// Create new record
+	_, err = m.Create(data)
 	return err
 }
 

@@ -67,7 +67,8 @@ func TestManagerUpload(t *testing.T) {
 			t.Errorf("Expected filename 'test.txt', got '%s'", file.Filename)
 		}
 
-		if file.ContentType != "text/plain" {
+		// Content type may include charset
+		if !strings.HasPrefix(file.ContentType, "text/plain") {
 			t.Errorf("Expected content type 'text/plain', got '%s'", file.ContentType)
 		}
 
@@ -581,7 +582,8 @@ func TestInfo(t *testing.T) {
 		t.Errorf("Expected filename %s, got %s", uploadedFile.Filename, fileInfo.Filename)
 	}
 
-	if fileInfo.ContentType != "text/plain" {
+	// Content type may include charset
+	if !strings.HasPrefix(fileInfo.ContentType, "text/plain") {
 		t.Errorf("Expected content type 'text/plain', got %s", fileInfo.ContentType)
 	}
 
@@ -731,9 +733,9 @@ func TestList(t *testing.T) {
 	// Test filtering by content type
 	t.Run("FilterByContentType", func(t *testing.T) {
 		result, err := manager.List(context.Background(), ListOption{
-			Filters: map[string]interface{}{
-				"uploader":     managerName,
-				"content_type": "text/plain",
+			Wheres: []model.QueryWhere{
+				{Column: "uploader", Value: managerName},
+				{Column: "content_type", Value: "text/plain%", OP: "like"},
 			},
 		})
 		if err != nil {
@@ -745,9 +747,9 @@ func TestList(t *testing.T) {
 			t.Errorf("Expected %d text files, got %d", expectedCount, len(result.Files))
 		}
 
-		// Verify all returned files are text/plain
+		// Verify all returned files are text/plain (may include charset)
 		for _, file := range result.Files {
-			if file.ContentType != "text/plain" {
+			if !strings.HasPrefix(file.ContentType, "text/plain") {
 				t.Errorf("Expected content type 'text/plain', got '%s'", file.ContentType)
 			}
 		}

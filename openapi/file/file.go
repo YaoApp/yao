@@ -595,10 +595,35 @@ func checkFilePermission(authInfo *types.AuthorizedInfo, fileInfo *attachment.Fi
 			return true, nil
 		}
 
-		// If file is shared with team and user is in the same team, allow access
-		if fileInfo.Share == "team" && authInfo.Constraints.TeamOnly && fileInfo.YaoTeamID == authInfo.TeamID {
-			return true, nil
+		// Combined Team and Owner permission validation
+		if authInfo.Constraints.TeamOnly && authInfo.Constraints.OwnerOnly {
+			if fileInfo.YaoCreatedBy == authInfo.UserID && fileInfo.YaoTeamID == authInfo.TeamID {
+				return true, nil
+			}
 		}
+
+		// Owner only permission validation
+		if authInfo.Constraints.OwnerOnly {
+			if fileInfo.YaoCreatedBy == authInfo.UserID {
+				return true, nil
+			}
+		}
+
+		// Team only permission validation
+		if authInfo.Constraints.TeamOnly {
+
+			switch fileInfo.Share {
+			case "team":
+				if fileInfo.YaoTeamID == authInfo.TeamID {
+					return true, nil
+				}
+			case "private":
+				if fileInfo.YaoCreatedBy == authInfo.UserID {
+					return true, nil
+				}
+			}
+		}
+
 	}
 
 	// Combined Team and Owner permission validation
@@ -614,7 +639,7 @@ func checkFilePermission(authInfo *types.AuthorizedInfo, fileInfo *attachment.Fi
 	}
 
 	// Team only permission validation
-	if authInfo.Constraints.TeamOnly && fileInfo.YaoTeamID == authInfo.TeamID {
+	if authInfo.Constraints.TeamOnly && fileInfo.YaoTeamID == authInfo.TeamID && fileInfo.Share == "team" {
 		return true, nil
 	}
 
