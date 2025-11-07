@@ -54,8 +54,8 @@ func (m *Mongo) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // SaveAssistant saves assistant information
-func (m *Mongo) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
-	return assistant["assistant_id"], nil
+func (m *Mongo) SaveAssistant(assistant *AssistantModel) (string, error) {
+	return assistant.ID, nil
 }
 
 // DeleteAssistant deletes an assistant
@@ -64,12 +64,12 @@ func (m *Mongo) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves a list of assistants
-func (m *Mongo) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
-	return &AssistantResponse{}, nil
+func (m *Mongo) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error) {
+	return &AssistantList{}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (m *Mongo) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
+func (m *Mongo) GetAssistant(assistantID string, locale ...string) (*AssistantModel, error) {
 	return nil, nil
 }
 
@@ -81,56 +81,6 @@ func (m *Mongo) DeleteAssistants(filter AssistantFilter) (int64, error) {
 // GetAssistantTags retrieves all unique tags from assistants
 func (m *Mongo) GetAssistantTags(locale ...string) ([]Tag, error) {
 	return []Tag{}, nil
-}
-
-// SaveAttachment saves attachment information
-func (m *Mongo) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
-	return attachment["file_id"], nil
-}
-
-// DeleteAttachment deletes an attachment
-func (m *Mongo) DeleteAttachment(fileID string) error {
-	return nil
-}
-
-// GetAttachments retrieves a list of attachments
-func (m *Mongo) GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error) {
-	return &AttachmentResponse{}, nil
-}
-
-// GetAttachment retrieves a single attachment by file ID
-func (m *Mongo) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-// DeleteAttachments deletes attachments based on filter conditions
-func (m *Mongo) DeleteAttachments(filter AttachmentFilter) (int64, error) {
-	return 0, nil
-}
-
-// SaveKnowledge saves knowledge collection information
-func (m *Mongo) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
-	return knowledge["collection_id"], nil
-}
-
-// DeleteKnowledge deletes a knowledge collection
-func (m *Mongo) DeleteKnowledge(collectionID string) error {
-	return nil
-}
-
-// GetKnowledges retrieves a list of knowledge collections
-func (m *Mongo) GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error) {
-	return &KnowledgeResponse{}, nil
-}
-
-// GetKnowledge retrieves a single knowledge collection by ID
-func (m *Mongo) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-// DeleteKnowledges deletes knowledge collections based on filter conditions
-func (m *Mongo) DeleteKnowledges(filter KnowledgeFilter) (int64, error) {
-	return 0, nil
 }
 
 // Close closes the store and releases any resources

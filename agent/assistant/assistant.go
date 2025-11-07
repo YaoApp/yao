@@ -6,6 +6,8 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/agent/store"
 	sui "github.com/yaoapp/yao/sui/core"
 )
 
@@ -15,7 +17,7 @@ func (ast *Assistant) Save() error {
 		return fmt.Errorf("storage is not set")
 	}
 
-	_, err := storage.SaveAssistant(ast.Map())
+	_, err := storage.SaveAssistant(&ast.AssistantModel)
 	if err != nil {
 		return err
 	}
@@ -35,6 +37,8 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"type":         ast.Type,
 		"name":         ast.Name,
 		"readonly":     ast.Readonly,
+		"public":       ast.Public,
+		"share":        ast.Share,
 		"avatar":       ast.Avatar,
 		"connector":    ast.Connector,
 		"path":         ast.Path,
@@ -43,14 +47,17 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"description":  ast.Description,
 		"options":      ast.Options,
 		"prompts":      ast.Prompts,
+		"kb":           ast.KB,
+		"mcp":          ast.MCP,
 		"tools":        ast.Tools,
+		"workflow":     ast.Workflow,
 		"tags":         ast.Tags,
 		"mentionable":  ast.Mentionable,
 		"automated":    ast.Automated,
 		"placeholder":  ast.Placeholder,
 		"locales":      ast.Locales,
-		"created_at":   timeToMySQLFormat(ast.CreatedAt),
-		"updated_at":   timeToMySQLFormat(ast.UpdatedAt),
+		"created_at":   store.ToMySQLTime(ast.CreatedAt),
+		"updated_at":   store.ToMySQLTime(ast.UpdatedAt),
 	}
 }
 
@@ -97,26 +104,63 @@ func (ast *Assistant) Clone() *Assistant {
 	}
 
 	clone := &Assistant{
-		ID:          ast.ID,
-		Type:        ast.Type,
-		Name:        ast.Name,
-		Avatar:      ast.Avatar,
-		Connector:   ast.Connector,
-		Path:        ast.Path,
-		BuiltIn:     ast.BuiltIn,
-		Sort:        ast.Sort,
-		Description: ast.Description,
-		Readonly:    ast.Readonly,
-		Mentionable: ast.Mentionable,
-		Automated:   ast.Automated,
-		Script:      ast.Script,
-		openai:      ast.openai,
+		AssistantModel: store.AssistantModel{
+			ID:          ast.ID,
+			Type:        ast.Type,
+			Name:        ast.Name,
+			Avatar:      ast.Avatar,
+			Connector:   ast.Connector,
+			Path:        ast.Path,
+			BuiltIn:     ast.BuiltIn,
+			Sort:        ast.Sort,
+			Description: ast.Description,
+			Readonly:    ast.Readonly,
+			Public:      ast.Public,
+			Share:       ast.Share,
+			Mentionable: ast.Mentionable,
+			Automated:   ast.Automated,
+			CreatedAt:   ast.CreatedAt,
+			UpdatedAt:   ast.UpdatedAt,
+		},
+		Search: ast.Search,
+		Script: ast.Script,
+		openai: ast.openai,
 	}
 
 	// Deep copy tags
 	if ast.Tags != nil {
 		clone.Tags = make([]string, len(ast.Tags))
 		copy(clone.Tags, ast.Tags)
+	}
+
+	// Deep copy KB
+	if ast.KB != nil {
+		clone.KB = &store.KnowledgeBase{}
+		if ast.KB.Collections != nil {
+			clone.KB.Collections = make([]string, len(ast.KB.Collections))
+			copy(clone.KB.Collections, ast.KB.Collections)
+		}
+		if ast.KB.Options != nil {
+			clone.KB.Options = make(map[string]interface{})
+			for k, v := range ast.KB.Options {
+				clone.KB.Options[k] = v
+			}
+		}
+	}
+
+	// Deep copy MCP
+	if ast.MCP != nil {
+		clone.MCP = &store.MCPServers{}
+		if ast.MCP.Servers != nil {
+			clone.MCP.Servers = make([]string, len(ast.MCP.Servers))
+			copy(clone.MCP.Servers, ast.MCP.Servers)
+		}
+		if ast.MCP.Options != nil {
+			clone.MCP.Options = make(map[string]interface{})
+			for k, v := range ast.MCP.Options {
+				clone.MCP.Options[k] = v
+			}
+		}
 	}
 
 	// Deep copy options
@@ -129,29 +173,66 @@ func (ast *Assistant) Clone() *Assistant {
 
 	// Deep copy prompts
 	if ast.Prompts != nil {
-		clone.Prompts = make([]Prompt, len(ast.Prompts))
+		clone.Prompts = make([]store.Prompt, len(ast.Prompts))
 		copy(clone.Prompts, ast.Prompts)
 	}
 
 	// Deep copy tools
 	if ast.Tools != nil {
-		clone.Tools = &ToolCalls{}
+		clone.Tools = &store.ToolCalls{}
 		if ast.Tools.Tools != nil {
-			clone.Tools.Tools = make([]Tool, len(ast.Tools.Tools))
+			clone.Tools.Tools = make([]store.Tool, len(ast.Tools.Tools))
 			copy(clone.Tools.Tools, ast.Tools.Tools)
 		}
 
 		if ast.Tools.Prompts != nil {
-			clone.Tools.Prompts = make([]Prompt, len(ast.Tools.Prompts))
+			clone.Tools.Prompts = make([]store.Prompt, len(ast.Tools.Prompts))
 			copy(clone.Tools.Prompts, ast.Tools.Prompts)
 		}
 	}
 
 	// Deep copy workflow
 	if ast.Workflow != nil {
-		clone.Workflow = make(map[string]interface{})
-		for k, v := range ast.Workflow {
-			clone.Workflow[k] = v
+		clone.Workflow = &store.Workflow{}
+		if ast.Workflow.Workflows != nil {
+			clone.Workflow.Workflows = make([]string, len(ast.Workflow.Workflows))
+			copy(clone.Workflow.Workflows, ast.Workflow.Workflows)
+		}
+		if ast.Workflow.Options != nil {
+			clone.Workflow.Options = make(map[string]interface{})
+			for k, v := range ast.Workflow.Options {
+				clone.Workflow.Options[k] = v
+			}
+		}
+	}
+
+	// Deep copy placeholder
+	if ast.Placeholder != nil {
+		clone.Placeholder = &store.Placeholder{
+			Title:       ast.Placeholder.Title,
+			Description: ast.Placeholder.Description,
+		}
+		if ast.Placeholder.Prompts != nil {
+			clone.Placeholder.Prompts = make([]string, len(ast.Placeholder.Prompts))
+			copy(clone.Placeholder.Prompts, ast.Placeholder.Prompts)
+		}
+	}
+
+	// Deep copy locales
+	if ast.Locales != nil {
+		clone.Locales = make(i18n.Map)
+		for k, v := range ast.Locales {
+			// Deep copy messages
+			messages := make(map[string]any)
+			if v.Messages != nil {
+				for mk, mv := range v.Messages {
+					messages[mk] = mv
+				}
+			}
+			clone.Locales[k] = i18n.I18n{
+				Locale:   v.Locale,
+				Messages: messages,
+			}
 		}
 	}
 
@@ -179,13 +260,13 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 
 	if v, has := data["tools"]; has {
 		switch tools := v.(type) {
-		case []Tool:
-			ast.Tools = &ToolCalls{
+		case []store.Tool:
+			ast.Tools = &store.ToolCalls{
 				Tools:   tools,
 				Prompts: ast.Prompts,
 			}
 
-		case *ToolCalls:
+		case *store.ToolCalls:
 			ast.Tools = tools
 
 		default:
@@ -193,7 +274,7 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 			if err != nil {
 				return err
 			}
-			ast.Tools = &ToolCalls{}
+			ast.Tools = &store.ToolCalls{}
 			err = jsoniter.Unmarshal(raw, &ast.Tools)
 			if err != nil {
 				return err
@@ -213,11 +294,47 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 	if v, ok := data["automated"].(bool); ok {
 		ast.Automated = v
 	}
+	if v, ok := data["readonly"].(bool); ok {
+		ast.Readonly = v
+	}
+	if v, ok := data["public"].(bool); ok {
+		ast.Public = v
+	}
+	if v, ok := data["share"].(string); ok {
+		ast.Share = v
+	}
 	if v, ok := data["tags"].([]string); ok {
 		ast.Tags = v
 	}
 	if v, ok := data["options"].(map[string]interface{}); ok {
 		ast.Options = v
+	}
+
+	// KB
+	if v, has := data["kb"]; has {
+		kb, err := store.ToKnowledgeBase(v)
+		if err != nil {
+			return err
+		}
+		ast.KB = kb
+	}
+
+	// MCP
+	if v, has := data["mcp"]; has {
+		mcp, err := store.ToMCPServers(v)
+		if err != nil {
+			return err
+		}
+		ast.MCP = mcp
+	}
+
+	// Workflow
+	if v, has := data["workflow"]; has {
+		workflow, err := store.ToWorkflow(v)
+		if err != nil {
+			return err
+		}
+		ast.Workflow = workflow
 	}
 
 	return ast.Validate()

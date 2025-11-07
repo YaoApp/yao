@@ -1,5 +1,7 @@
 package store
 
+import "github.com/yaoapp/yao/agent/i18n"
+
 // Setting represents the conversation configuration structure
 // Used to configure basic conversation parameters including connector, user field, table name, etc.
 type Setting struct {
@@ -60,16 +62,16 @@ type AssistantFilter struct {
 	Select       []string `json:"select,omitempty"`        // Fields to return, returns all fields if empty
 }
 
-// AssistantResponse represents the assistant response structure
-// Used for returning paginated assistant lists
-type AssistantResponse struct {
-	Data     []map[string]interface{} `json:"data"`     // The paginated data
-	Page     int                      `json:"page"`     // Current page number
-	PageSize int                      `json:"pagesize"` // Number of items per page
-	PageCnt  int                      `json:"pagecnt"`  // Total number of pages
-	Next     int                      `json:"next"`     // Next page number
-	Prev     int                      `json:"prev"`     // Previous page number
-	Total    int64                    `json:"total"`    // Total number of items
+// AssistantList represents the paginated assistant list response structure
+// Used for returning paginated assistant lists with metadata
+type AssistantList struct {
+	Data      []*AssistantModel `json:"data"`      // List of assistants
+	Page      int               `json:"page"`      // Current page number (1-based)
+	PageSize  int               `json:"pagesize"`  // Number of items per page
+	PageCount int               `json:"pagecount"` // Total number of pages
+	Next      int               `json:"next"`      // Next page number (0 if no next page)
+	Prev      int               `json:"prev"`      // Previous page number (0 if no previous page)
+	Total     int               `json:"total"`     // Total number of items across all pages
 }
 
 // Tag represents a tag
@@ -78,153 +80,83 @@ type Tag struct {
 	Label string `json:"label"`
 }
 
-// Store defines the conversation storage interface
-// Provides basic operations required for conversation management
-type Store interface {
-	// GetChats retrieves a list of chats
-	// sid: Session ID
-	// filter: Filter conditions
-	// Returns: Grouped chat list and potential error
-	GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error)
-
-	// GetChat retrieves a single chat's information
-	// sid: Session ID
-	// cid: Chat ID
-	// Returns: Chat information and potential error
-	GetChat(sid string, cid string, locale ...string) (*ChatInfo, error)
-
-	// GetChatWithFilter retrieves a single chat's information with filter options
-	// sid: Session ID
-	// cid: Chat ID
-	// filter: Filter conditions
-	// Returns: Chat information and potential error
-	GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error)
-
-	// GetHistory retrieves chat history
-	// sid: Session ID
-	// cid: Chat ID
-	// Returns: History record list and potential error
-	GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error)
-
-	// GetHistoryWithFilter retrieves chat history with filter options
-	// sid: Session ID
-	// cid: Chat ID
-	// filter: Filter conditions
-	// Returns: History record list and potential error
-	GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error)
-
-	// SaveHistory saves chat history
-	// sid: Session ID
-	// messages: Message list
-	// cid: Chat ID
-	// context: Context information
-	// Returns: Potential error
-	SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error
-
-	// DeleteChat deletes a single chat
-	// sid: Session ID
-	// cid: Chat ID
-	// Returns: Potential error
-	DeleteChat(sid string, cid string) error
-
-	// DeleteAllChats deletes all chats
-	// sid: Session ID
-	// Returns: Potential error
-	DeleteAllChats(sid string) error
-
-	// UpdateChatTitle updates chat title
-	// sid: Session ID
-	// cid: Chat ID
-	// title: New title
-	// Returns: Potential error
-	UpdateChatTitle(sid string, cid string, title string) error
-
-	// SaveAssistant saves assistant information
-	// assistant: Assistant information
-	// Returns: Potential error
-	SaveAssistant(assistant map[string]interface{}) (interface{}, error)
-
-	// DeleteAssistant deletes an assistant
-	// assistantID: Assistant ID
-	// Returns: Potential error
-	DeleteAssistant(assistantID string) error
-
-	// GetAssistants retrieves a list of assistants
-	// filter: Filter conditions
-	// Returns: Paginated assistant list and potential error
-	GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error)
-
-	// GetAssistantTags retrieves all unique tags from assistants
-	// Returns: List of tags and potential error
-	GetAssistantTags(locale ...string) ([]Tag, error)
-
-	// GetAssistant retrieves a single assistant by ID
-	// assistantID: Assistant ID
-	// Returns: Assistant information and potential error
-	GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error)
-
-	// DeleteAssistants deletes assistants based on filter conditions
-	// filter: Filter conditions
-	// Returns: Number of deleted records and potential error
-	DeleteAssistants(filter AssistantFilter) (int64, error)
-
-	// Close closes the store and releases any resources
-	// Returns: Potential error
-	Close() error
+// Prompt a prompt
+type Prompt struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+	Name    string `json:"name,omitempty"`
 }
 
-// AttachmentFilter represents the attachment filter structure
-// Used for filtering and pagination when retrieving attachment lists
-type AttachmentFilter struct {
-	UID          string   `json:"uid,omitempty"`           // Filter by user ID
-	Guest        *bool    `json:"guest,omitempty"`         // Filter by guest status
-	Manager      string   `json:"manager,omitempty"`       // Filter by upload manager
-	ContentType  string   `json:"content_type,omitempty"`  // Filter by content type
-	Name         string   `json:"name,omitempty"`          // Filter by filename
-	Public       *bool    `json:"public,omitempty"`        // Filter by public status
-	Gzip         *bool    `json:"gzip,omitempty"`          // Filter by gzip compression
-	CollectionID string   `json:"collection_id,omitempty"` // Filter by knowledge collection ID
-	Status       string   `json:"status,omitempty"`        // Filter by processing status (uploading, uploaded, indexing, indexed, upload_failed, index_failed)
-	Keywords     string   `json:"keywords,omitempty"`      // Search in filename
-	Page         int      `json:"page,omitempty"`          // Page number, starting from 1
-	PageSize     int      `json:"pagesize,omitempty"`      // Items per page
-	Select       []string `json:"select,omitempty"`        // Fields to return, returns all fields if empty
+// KnowledgeBase the knowledge base configuration
+type KnowledgeBase struct {
+	Collections []string               `json:"collections,omitempty"` // Knowledge base collection IDs
+	Options     map[string]interface{} `json:"options,omitempty"`     // Additional options for knowledge base
 }
 
-// AttachmentResponse represents the attachment response structure
-// Used for returning paginated attachment lists
-type AttachmentResponse struct {
-	Data     []map[string]interface{} `json:"data"`     // The paginated data
-	Page     int                      `json:"page"`     // Current page number
-	PageSize int                      `json:"pagesize"` // Number of items per page
-	PageCnt  int                      `json:"pagecnt"`  // Total number of pages
-	Next     int                      `json:"next"`     // Next page number
-	Prev     int                      `json:"prev"`     // Previous page number
-	Total    int64                    `json:"total"`    // Total number of items
+// MCPServers the MCP servers configuration
+type MCPServers struct {
+	Servers []string               `json:"servers,omitempty"` // MCP server IDs
+	Options map[string]interface{} `json:"options,omitempty"` // Additional options for MCP servers
 }
 
-// KnowledgeFilter represents the knowledge filter structure
-// Used for filtering and pagination when retrieving knowledge lists
-type KnowledgeFilter struct {
-	UID      string   `json:"uid,omitempty"`      // Filter by user ID
-	Name     string   `json:"name,omitempty"`     // Filter by collection name
-	Keywords string   `json:"keywords,omitempty"` // Search in name and description
-	Public   *bool    `json:"public,omitempty"`   // Filter by public status
-	Readonly *bool    `json:"readonly,omitempty"` // Filter by readonly status
-	System   *bool    `json:"system,omitempty"`   // Filter by system status
-	Page     int      `json:"page,omitempty"`     // Page number, starting from 1
-	PageSize int      `json:"pagesize,omitempty"` // Items per page
-	Select   []string `json:"select,omitempty"`   // Fields to return, returns all fields if empty
+// Workflow the workflow configuration
+type Workflow struct {
+	Workflows []string               `json:"workflows,omitempty"` // Workflow IDs
+	Options   map[string]interface{} `json:"options,omitempty"`   // Additional workflow options
 }
 
-// KnowledgeResponse represents the knowledge response structure
-// Used for returning paginated knowledge lists
-type KnowledgeResponse struct {
-	Data     []map[string]interface{} `json:"data"`     // The paginated data
-	Page     int                      `json:"page"`     // Current page number
-	PageSize int                      `json:"pagesize"` // Number of items per page
-	PageCnt  int                      `json:"pagecnt"`  // Total number of pages
-	Next     int                      `json:"next"`     // Next page number
-	Prev     int                      `json:"prev"`     // Previous page number
-	Total    int64                    `json:"total"`    // Total number of items
+// Tool represents a tool configuration for storage
+type Tool struct {
+	Type        string                 `json:"type,omitempty"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Parameters  map[string]interface{} `json:"parameters,omitempty"`
+}
+
+// ToolCalls the tool calls
+type ToolCalls struct {
+	Tools   []Tool   `json:"tools,omitempty"`
+	Prompts []Prompt `json:"prompts,omitempty"`
+}
+
+// Placeholder the assistant placeholder
+type Placeholder struct {
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Prompts     []string `json:"prompts,omitempty"`
+}
+
+// AssistantModel the assistant database model
+type AssistantModel struct {
+	ID          string                 `json:"assistant_id"`          // Assistant ID
+	Type        string                 `json:"type,omitempty"`        // Assistant Type, default is assistant
+	Name        string                 `json:"name,omitempty"`        // Assistant Name
+	Avatar      string                 `json:"avatar,omitempty"`      // Assistant Avatar
+	Connector   string                 `json:"connector"`             // AI Connector
+	Path        string                 `json:"path,omitempty"`        // Assistant Path
+	BuiltIn     bool                   `json:"built_in,omitempty"`    // Whether this is a built-in assistant
+	Sort        int                    `json:"sort,omitempty"`        // Assistant Sort
+	Description string                 `json:"description,omitempty"` // Assistant Description
+	Tags        []string               `json:"tags,omitempty"`        // Assistant Tags
+	Readonly    bool                   `json:"readonly,omitempty"`    // Whether this assistant is readonly
+	Public      bool                   `json:"public,omitempty"`      // Whether this assistant is shared across all teams in the platform
+	Share       string                 `json:"share,omitempty"`       // Assistant sharing scope (private/team)
+	Mentionable bool                   `json:"mentionable,omitempty"` // Whether this assistant is mentionable
+	Automated   bool                   `json:"automated,omitempty"`   // Whether this assistant is automated
+	Options     map[string]interface{} `json:"options,omitempty"`     // AI Options
+	Prompts     []Prompt               `json:"prompts,omitempty"`     // AI Prompts
+	KB          *KnowledgeBase         `json:"kb,omitempty"`          // Knowledge base configuration
+	MCP         *MCPServers            `json:"mcp,omitempty"`         // MCP servers configuration
+	Tools       *ToolCalls             `json:"tools,omitempty"`       // Assistant Tools
+	Workflow    *Workflow              `json:"workflow,omitempty"`    // Workflow configuration
+	Placeholder *Placeholder           `json:"placeholder,omitempty"` // Assistant Placeholder
+	Locales     i18n.Map               `json:"locales,omitempty"`     // Assistant Locales
+	CreatedAt   int64                  `json:"created_at"`            // Creation timestamp
+	UpdatedAt   int64                  `json:"updated_at"`            // Last update timestamp
+
+	// Permission management fields (not exposed in JSON API responses)
+	YaoCreatedBy string `json:"-"` // User who created the assistant (not exposed in JSON)
+	YaoUpdatedBy string `json:"-"` // User who last updated the assistant (not exposed in JSON)
+	YaoTeamID    string `json:"-"` // Team ID for team-based access control (not exposed in JSON)
+	YaoTenantID  string `json:"-"` // Tenant ID for multi-tenancy support (not exposed in JSON)
 }

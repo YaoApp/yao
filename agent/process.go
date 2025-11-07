@@ -79,7 +79,13 @@ func processAssistantCreate(process *process.Process) interface{} {
 		exception.New("Agent store is not initialized", 500).Throw()
 	}
 
-	id, err := agent.Store.SaveAssistant(data)
+	// Convert to AssistantModel
+	model, err := store.ToAssistantModel(data)
+	if err != nil {
+		exception.New("Invalid assistant data: %s", 400, err.Error()).Throw()
+	}
+
+	id, err := agent.Store.SaveAssistant(model)
 	if err != nil {
 		exception.New("Failed to create assistant: %s", 500, err.Error()).Throw()
 	}
@@ -97,7 +103,13 @@ func processAssistantSave(process *process.Process) interface{} {
 		exception.New("Agent store is not initialized", 500).Throw()
 	}
 
-	id, err := agent.Store.SaveAssistant(data)
+	// Convert to AssistantModel
+	model, err := store.ToAssistantModel(data)
+	if err != nil {
+		exception.New("Invalid assistant data: %s", 400, err.Error()).Throw()
+	}
+
+	id, err := agent.Store.SaveAssistant(model)
 	if err != nil {
 		exception.New("Failed to save assistant: %s", 500, err.Error()).Throw()
 	}

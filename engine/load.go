@@ -297,11 +297,11 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 		warnings = append(warnings, Warning{Widget: "Knowledge Base", Error: err})
 	}
 
-	// Load Neo
+	// Load Agent
 	err = agent.Load(cfg)
 	if err != nil {
-		// printErr(cfg.Mode, "Neo", err)
-		warnings = append(warnings, Warning{Widget: "Neo", Error: err})
+		// printErr(cfg.Mode, "Agent", err)
+		warnings = append(warnings, Warning{Widget: "Agent", Error: err})
 	}
 
 	for name, hook := range LoadHooks {
@@ -527,10 +527,10 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 
 	}
 
-	// Load Neo
+	// Load Agent
 	err = agent.Load(cfg)
 	if err != nil {
-		printErr(cfg.Mode, "Neo", err)
+		printErr(cfg.Mode, "Agent", err)
 	}
 
 	// Load OpenAPI

@@ -54,8 +54,8 @@ func (r *Redis) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // SaveAssistant saves assistant information
-func (r *Redis) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
-	return assistant["assistant_id"], nil
+func (r *Redis) SaveAssistant(assistant *AssistantModel) (string, error) {
+	return assistant.ID, nil
 }
 
 // DeleteAssistant deletes an assistant
@@ -64,12 +64,12 @@ func (r *Redis) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves a list of assistants
-func (r *Redis) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
-	return &AssistantResponse{}, nil
+func (r *Redis) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error) {
+	return &AssistantList{}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (r *Redis) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
+func (r *Redis) GetAssistant(assistantID string, locale ...string) (*AssistantModel, error) {
 	return nil, nil
 }
 
@@ -81,56 +81,6 @@ func (r *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
 // GetAssistantTags retrieves all unique tags from assistants
 func (r *Redis) GetAssistantTags(locale ...string) ([]Tag, error) {
 	return []Tag{}, nil
-}
-
-// SaveAttachment saves attachment information
-func (r *Redis) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
-	return attachment["file_id"], nil
-}
-
-// DeleteAttachment deletes an attachment
-func (r *Redis) DeleteAttachment(fileID string) error {
-	return nil
-}
-
-// GetAttachments retrieves a list of attachments
-func (r *Redis) GetAttachments(filter AttachmentFilter, locale ...string) (*AttachmentResponse, error) {
-	return &AttachmentResponse{}, nil
-}
-
-// GetAttachment retrieves a single attachment by file ID
-func (r *Redis) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-// DeleteAttachments deletes attachments based on filter conditions
-func (r *Redis) DeleteAttachments(filter AttachmentFilter) (int64, error) {
-	return 0, nil
-}
-
-// SaveKnowledge saves knowledge collection information
-func (r *Redis) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
-	return knowledge["collection_id"], nil
-}
-
-// DeleteKnowledge deletes a knowledge collection
-func (r *Redis) DeleteKnowledge(collectionID string) error {
-	return nil
-}
-
-// GetKnowledges retrieves a list of knowledge collections
-func (r *Redis) GetKnowledges(filter KnowledgeFilter, locale ...string) (*KnowledgeResponse, error) {
-	return &KnowledgeResponse{}, nil
-}
-
-// GetKnowledge retrieves a single knowledge collection by ID
-func (r *Redis) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
-	return nil, nil
-}
-
-// DeleteKnowledges deletes knowledge collections based on filter conditions
-func (r *Redis) DeleteKnowledges(filter KnowledgeFilter) (int64, error) {
-	return 0, nil
 }
 
 // Close closes the store and releases any resources

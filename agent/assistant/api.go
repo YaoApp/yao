@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/message"
 	chatMessage "github.com/yaoapp/yao/agent/message"
+	"github.com/yaoapp/yao/agent/store"
 )
 
 // Get get the assistant by id
@@ -259,7 +260,7 @@ func (next *NextAction) Execute(c *gin.Context, ctx chatctx.Context, contents *c
 }
 
 // GetPlaceholder returns the placeholder of the assistant
-func (ast *Assistant) GetPlaceholder(locale string) *Placeholder {
+func (ast *Assistant) GetPlaceholder(locale string) *store.Placeholder {
 
 	prompts := []string{}
 	if ast.Placeholder.Prompts != nil {
@@ -267,7 +268,7 @@ func (ast *Assistant) GetPlaceholder(locale string) *Placeholder {
 	}
 	title := i18n.Translate(ast.ID, locale, ast.Placeholder.Title).(string)
 	description := i18n.Translate(ast.ID, locale, ast.Placeholder.Description).(string)
-	return &Placeholder{
+	return &store.Placeholder{
 		Title:       title,
 		Description: description,
 		Prompts:     prompts,
@@ -795,10 +796,18 @@ func (ast *Assistant) withPrompts(messages []chatMessage.Message) []chatMessage.
 	if ast.Tools != nil && ast.Tools.Tools != nil && len(ast.Tools.Tools) > 0 {
 		settings, has := connectorSettings[ast.Connector]
 		if !has || !settings.Tools {
-			raw, _ := jsoniter.MarshalToString(ast.Tools.Tools)
+			// Convert store tools to runtime tools if not already done
+			if ast.runtimeTools == nil {
+				runtimeTools, err := ToRuntimeTools(ast.Tools.Tools)
+				if err == nil {
+					ast.runtimeTools = runtimeTools
+				}
+			}
+
+			raw, _ := jsoniter.MarshalToString(ast.runtimeTools)
 
 			examples := []string{}
-			for _, tool := range ast.Tools.Tools {
+			for _, tool := range ast.runtimeTools {
 				example := tool.Example()
 				examples = append(examples, example)
 			}

@@ -63,8 +63,8 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Initialize Connectors
-	err = initConnectors()
+	// Initialize Connector settings
+	err = initConnectorSettings()
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func initGlobalI18n() error {
 }
 
 // initConnectors initialize the connectors
-func initConnectors() error {
+func initConnectorSettings() error {
 	path := filepath.Join("agent", "connectors.yml")
 	if exists, _ := application.App.Exists(path); !exists {
 		return nil
@@ -129,7 +129,7 @@ func initStore() error {
 	// other connector
 	conn, err := connector.Select(Agent.StoreSetting.Connector)
 	if err != nil {
-		return err
+		return fmt.Errorf("load connectors error: %s", err.Error())
 	}
 
 	if conn.Is(connector.DATABASE) {
