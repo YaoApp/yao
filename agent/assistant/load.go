@@ -14,7 +14,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/i18n"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 	agentvision "github.com/yaoapp/yao/agent/vision"
 	"github.com/yaoapp/yao/openai"
 	"github.com/yaoapp/yao/share"

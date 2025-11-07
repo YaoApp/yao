@@ -1,10 +1,11 @@
-package store
+package xun
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -23,7 +24,7 @@ func TestSaveAssistant(t *testing.T) {
 	defer test.Clean()
 
 	// Create a new xun store
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -32,7 +33,7 @@ func TestSaveAssistant(t *testing.T) {
 	defer store.Close()
 
 	t.Run("CreateNewAssistant", func(t *testing.T) {
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:        "Test Assistant",
 			Type:        "assistant",
 			Connector:   "openai",
@@ -67,7 +68,7 @@ func TestSaveAssistant(t *testing.T) {
 
 	t.Run("UpdateExistingAssistant", func(t *testing.T) {
 		// Create initial assistant
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:        "Update Test Assistant",
 			Type:        "assistant",
 			Connector:   "openai",
@@ -118,7 +119,7 @@ func TestSaveAssistant(t *testing.T) {
 		}
 
 		// Test missing name
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Type:      "assistant",
 			Connector: "openai",
 		}
@@ -128,7 +129,7 @@ func TestSaveAssistant(t *testing.T) {
 		}
 
 		// Test missing type
-		assistant = &AssistantModel{
+		assistant = &types.AssistantModel{
 			Name:      "Test",
 			Connector: "openai",
 		}
@@ -138,7 +139,7 @@ func TestSaveAssistant(t *testing.T) {
 		}
 
 		// Test missing connector
-		assistant = &AssistantModel{
+		assistant = &types.AssistantModel{
 			Name: "Test",
 			Type: "assistant",
 		}
@@ -149,12 +150,12 @@ func TestSaveAssistant(t *testing.T) {
 	})
 
 	t.Run("ComplexDataTypes", func(t *testing.T) {
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:      "Complex Assistant",
 			Type:      "assistant",
 			Connector: "openai",
 			Share:     "private",
-			Prompts: []Prompt{
+			Prompts: []types.Prompt{
 				{Role: "system", Content: "You are a helpful assistant"},
 				{Role: "user", Content: "Hello"},
 			},
@@ -163,7 +164,7 @@ func TestSaveAssistant(t *testing.T) {
 				"max_tokens":  2000,
 			},
 			Tags: []string{"complex", "testing", "data"},
-			Placeholder: &Placeholder{
+			Placeholder: &types.Placeholder{
 				Title:       "Type your message",
 				Description: "Enter your message here...",
 				Prompts:     []string{"What can I help you with?"},
@@ -200,7 +201,7 @@ func TestDeleteAssistant(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -210,7 +211,7 @@ func TestDeleteAssistant(t *testing.T) {
 
 	t.Run("DeleteExistingAssistant", func(t *testing.T) {
 		// Create assistant
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:      "Delete Test",
 			Type:      "assistant",
 			Connector: "openai",
@@ -248,7 +249,7 @@ func TestGetAssistant(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -258,7 +259,7 @@ func TestGetAssistant(t *testing.T) {
 
 	t.Run("GetExistingAssistant", func(t *testing.T) {
 		// Create assistant
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:        "Get Test",
 			Type:        "assistant",
 			Connector:   "openai",
@@ -316,7 +317,7 @@ func TestGetAssistants(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -325,7 +326,7 @@ func TestGetAssistants(t *testing.T) {
 	defer store.Close()
 
 	// Clean up existing data before creating test assistants
-	deleted, err := store.DeleteAssistants(AssistantFilter{})
+	deleted, err := store.DeleteAssistants(types.AssistantFilter{})
 	if err != nil {
 		t.Logf("Warning: Failed to clean up existing assistants: %v", err)
 	} else if deleted > 0 {
@@ -333,7 +334,7 @@ func TestGetAssistants(t *testing.T) {
 	}
 
 	// Create test assistants
-	assistants := []AssistantModel{
+	assistants := []types.AssistantModel{
 		{
 			Name:        "Assistant 1",
 			Type:        "assistant",
@@ -379,7 +380,7 @@ func TestGetAssistants(t *testing.T) {
 	}
 
 	t.Run("GetAllAssistants", func(t *testing.T) {
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Page:     1,
 			PageSize: 20,
 		})
@@ -397,7 +398,7 @@ func TestGetAssistants(t *testing.T) {
 	})
 
 	t.Run("FilterByType", func(t *testing.T) {
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Type:     "assistant",
 			Page:     1,
 			PageSize: 20,
@@ -414,7 +415,7 @@ func TestGetAssistants(t *testing.T) {
 	})
 
 	t.Run("FilterByConnector", func(t *testing.T) {
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Connector: "openai",
 			Page:      1,
 			PageSize:  20,
@@ -431,7 +432,7 @@ func TestGetAssistants(t *testing.T) {
 	})
 
 	t.Run("FilterByTags", func(t *testing.T) {
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Tags:     []string{"automation"},
 			Page:     1,
 			PageSize: 20,
@@ -460,7 +461,7 @@ func TestGetAssistants(t *testing.T) {
 	})
 
 	t.Run("FilterByKeywords", func(t *testing.T) {
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Keywords: "Second",
 			Page:     1,
 			PageSize: 20,
@@ -485,7 +486,7 @@ func TestGetAssistants(t *testing.T) {
 
 	t.Run("FilterByMentionable", func(t *testing.T) {
 		mentionableTrue := true
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Mentionable: &mentionableTrue,
 			Page:        1,
 			PageSize:    20,
@@ -507,7 +508,7 @@ func TestGetAssistants(t *testing.T) {
 
 	t.Run("FilterByAutomated", func(t *testing.T) {
 		automatedFalse := false
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Automated: &automatedFalse,
 			Page:      1,
 			PageSize:  20,
@@ -525,7 +526,7 @@ func TestGetAssistants(t *testing.T) {
 
 	t.Run("Pagination", func(t *testing.T) {
 		// Test first page
-		response1, err := store.GetAssistants(AssistantFilter{
+		response1, err := store.GetAssistants(types.AssistantFilter{
 			Page:     1,
 			PageSize: 2,
 		})
@@ -547,7 +548,7 @@ func TestGetAssistants(t *testing.T) {
 
 		// Test second page if there are enough records
 		if response1.Total > 2 {
-			response2, err := store.GetAssistants(AssistantFilter{
+			response2, err := store.GetAssistants(types.AssistantFilter{
 				Page:     2,
 				PageSize: 2,
 			})
@@ -562,7 +563,7 @@ func TestGetAssistants(t *testing.T) {
 	})
 
 	t.Run("FieldSelection", func(t *testing.T) {
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Select:   []string{"assistant_id", "name", "type"},
 			Page:     1,
 			PageSize: 20,
@@ -587,7 +588,7 @@ func TestGetAssistants(t *testing.T) {
 
 	t.Run("FilterByAssistantID", func(t *testing.T) {
 		if len(createdIDs) > 0 {
-			response, err := store.GetAssistants(AssistantFilter{
+			response, err := store.GetAssistants(types.AssistantFilter{
 				AssistantID: createdIDs[0],
 				Page:        1,
 				PageSize:    20,
@@ -609,7 +610,7 @@ func TestGetAssistants(t *testing.T) {
 	t.Run("FilterByAssistantIDs", func(t *testing.T) {
 		if len(createdIDs) >= 2 {
 			filterIDs := []string{createdIDs[0], createdIDs[1]}
-			response, err := store.GetAssistants(AssistantFilter{
+			response, err := store.GetAssistants(types.AssistantFilter{
 				AssistantIDs: filterIDs,
 				Page:         1,
 				PageSize:     20,
@@ -630,7 +631,7 @@ func TestDeleteAssistants(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -642,7 +643,7 @@ func TestDeleteAssistants(t *testing.T) {
 		// Create assistants with specific tag
 		tag := fmt.Sprintf("delete-test-%d", time.Now().UnixNano())
 		for i := 0; i < 3; i++ {
-			assistant := &AssistantModel{
+			assistant := &types.AssistantModel{
 				Name:      fmt.Sprintf("Delete Test %d", i),
 				Type:      "assistant",
 				Connector: "openai",
@@ -656,7 +657,7 @@ func TestDeleteAssistants(t *testing.T) {
 		}
 
 		// Delete by tag
-		count, err := store.DeleteAssistants(AssistantFilter{
+		count, err := store.DeleteAssistants(types.AssistantFilter{
 			Tags: []string{tag},
 		})
 		if err != nil {
@@ -672,7 +673,7 @@ func TestDeleteAssistants(t *testing.T) {
 		// Create assistants with specific connector
 		connector := fmt.Sprintf("test-connector-%d", time.Now().UnixNano())
 		for i := 0; i < 2; i++ {
-			assistant := &AssistantModel{
+			assistant := &types.AssistantModel{
 				Name:      fmt.Sprintf("Connector Test %d", i),
 				Type:      "assistant",
 				Connector: connector,
@@ -685,7 +686,7 @@ func TestDeleteAssistants(t *testing.T) {
 		}
 
 		// Delete by connector
-		count, err := store.DeleteAssistants(AssistantFilter{
+		count, err := store.DeleteAssistants(types.AssistantFilter{
 			Connector: connector,
 		})
 		if err != nil {
@@ -700,7 +701,7 @@ func TestDeleteAssistants(t *testing.T) {
 	t.Run("DeleteByKeywords", func(t *testing.T) {
 		// Create assistants with specific keyword
 		keyword := fmt.Sprintf("unique-keyword-%d", time.Now().UnixNano())
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:        fmt.Sprintf("Assistant with %s", keyword),
 			Type:        "assistant",
 			Connector:   "openai",
@@ -713,7 +714,7 @@ func TestDeleteAssistants(t *testing.T) {
 		}
 
 		// Delete by keyword
-		count, err := store.DeleteAssistants(AssistantFilter{
+		count, err := store.DeleteAssistants(types.AssistantFilter{
 			Keywords: keyword,
 		})
 		if err != nil {
@@ -727,7 +728,7 @@ func TestDeleteAssistants(t *testing.T) {
 
 	t.Run("DeleteByAssistantID", func(t *testing.T) {
 		// Create an assistant
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:      "Single Delete Test",
 			Type:      "assistant",
 			Connector: "openai",
@@ -739,7 +740,7 @@ func TestDeleteAssistants(t *testing.T) {
 		}
 
 		// Delete by ID
-		count, err := store.DeleteAssistants(AssistantFilter{
+		count, err := store.DeleteAssistants(types.AssistantFilter{
 			AssistantID: id,
 		})
 		if err != nil {
@@ -757,7 +758,7 @@ func TestGetAssistantTags(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -768,7 +769,7 @@ func TestGetAssistantTags(t *testing.T) {
 	t.Run("GetUniqueTags", func(t *testing.T) {
 		// Create assistants with various tags
 		uniqueTag := fmt.Sprintf("tag-test-%d", time.Now().UnixNano())
-		assistants := []AssistantModel{
+		assistants := []types.AssistantModel{
 			{
 				Name:      "Tags Test 1",
 				Type:      "assistant",
@@ -829,7 +830,7 @@ func TestGenerateAssistantID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -868,7 +869,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -877,7 +878,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 	defer store.Close()
 
 	t.Run("SaveWithPermissionFields", func(t *testing.T) {
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:         "Permission Test Assistant",
 			Type:         "assistant",
 			Connector:    "openai",
@@ -918,7 +919,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 
 	t.Run("UpdatePermissionFields", func(t *testing.T) {
 		// Create assistant
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:         "Update Permission Test",
 			Type:         "assistant",
 			Connector:    "openai",
@@ -961,7 +962,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 
 	t.Run("EmptyPermissionFields", func(t *testing.T) {
 		// Create assistant without permission fields
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:      "No Permission Fields",
 			Type:      "assistant",
 			Connector: "openai",
@@ -999,7 +1000,7 @@ func TestEmptyStringAsNull(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -1013,7 +1014,7 @@ func TestEmptyStringAsNull(t *testing.T) {
 		// - name (nullable: true, but required by validation)
 		// - avatar, description, path (nullable: true)
 		// - share (nullable: false, but empty should trigger default)
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:        "Test Null Fields", // Required by validation
 			Type:        "assistant",
 			Connector:   "openai",
@@ -1059,7 +1060,7 @@ func TestEmptyStringAsNull(t *testing.T) {
 
 	t.Run("NonEmptyStringsPreserved", func(t *testing.T) {
 		// Create assistant with non-empty values
-		assistant := &AssistantModel{
+		assistant := &types.AssistantModel{
 			Name:        "Test Non-Empty Fields",
 			Type:        "assistant",
 			Connector:   "openai",
@@ -1102,7 +1103,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(Setting{
+	store, err := NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
@@ -1114,7 +1115,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 		// Step 1: Create multiple assistants
 		assistantIDs := []string{}
 		for i := 0; i < 3; i++ {
-			assistant := &AssistantModel{
+			assistant := &types.AssistantModel{
 				Name:        fmt.Sprintf("Workflow Assistant %d", i),
 				Type:        "assistant",
 				Connector:   "openai",
@@ -1134,7 +1135,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 		t.Logf("Created %d assistants", len(assistantIDs))
 
 		// Step 2: Retrieve all assistants
-		response, err := store.GetAssistants(AssistantFilter{
+		response, err := store.GetAssistants(types.AssistantFilter{
 			Tags:     []string{"workflow"},
 			Page:     1,
 			PageSize: 20,
@@ -1204,7 +1205,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 		}
 
 		// Step 6: Bulk delete remaining assistants
-		count, err := store.DeleteAssistants(AssistantFilter{
+		count, err := store.DeleteAssistants(types.AssistantFilter{
 			Tags: []string{"workflow"},
 		})
 		if err != nil {
@@ -1214,7 +1215,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 		t.Logf("Bulk deleted %d assistants", count)
 
 		// Verify bulk deletion
-		finalResponse, err := store.GetAssistants(AssistantFilter{
+		finalResponse, err := store.GetAssistants(types.AssistantFilter{
 			Tags:     []string{"workflow"},
 			Page:     1,
 			PageSize: 20,

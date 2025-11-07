@@ -9,7 +9,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent/message"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 )
 
 // GetAgent returns the Agent instance
