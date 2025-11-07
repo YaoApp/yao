@@ -6,10 +6,7 @@
   "builtin": true,
   "readonly": true,
   "sort": 9999,
-  "table": {
-    "name": "agent_chat",
-    "comment": "Agent chat table"
-  },
+  "table": { "name": "agent_chat", "comment": "Agent chat table" },
   "columns": [
     {
       "name": "id",
@@ -45,15 +42,6 @@
       "index": true
     },
     {
-      "name": "sid",
-      "type": "string",
-      "label": "Session ID",
-      "comment": "Session identifier",
-      "length": 255,
-      "nullable": false,
-      "index": true
-    },
-    {
       "name": "silent",
       "type": "boolean",
       "label": "Silent Mode",
@@ -77,12 +65,6 @@
     }
   },
   "indexes": [
-    {
-      "name": "idx_agent_chat_session_assistant",
-      "columns": ["sid", "assistant_id"],
-      "type": "index",
-      "comment": "Index for session and assistant queries"
-    },
     {
       "name": "idx_agent_chat_silent",
       "columns": ["silent", "created_at"],

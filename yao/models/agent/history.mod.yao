@@ -6,10 +6,7 @@
   "builtin": true,
   "readonly": true,
   "sort": 9999,
-  "table": {
-    "name": "agent_history",
-    "comment": "Agent chat history table"
-  },
+  "table": { "name": "agent_history", "comment": "Agent chat history table" },
   "columns": [
     {
       "name": "id",
@@ -18,37 +15,10 @@
       "comment": "Unique record identifier"
     },
     {
-      "name": "sid",
-      "type": "string",
-      "label": "Session ID",
-      "comment": "Session identifier",
-      "length": 255,
-      "nullable": false,
-      "index": true
-    },
-    {
-      "name": "cid",
+      "name": "chat_id",
       "type": "string",
       "label": "Chat ID",
       "comment": "Chat identifier",
-      "length": 200,
-      "nullable": true,
-      "index": true
-    },
-    {
-      "name": "uid",
-      "type": "string",
-      "label": "User ID",
-      "comment": "User identifier",
-      "length": 255,
-      "nullable": true,
-      "index": true
-    },
-    {
-      "name": "role",
-      "type": "string",
-      "label": "Role",
-      "comment": "Message role (user/assistant/system)",
       "length": 200,
       "nullable": true,
       "index": true
@@ -128,7 +98,7 @@
     "chat": {
       "type": "hasOne",
       "model": "__yao.agent.chat",
-      "key": "cid",
+      "key": "chat_id",
       "foreign": "chat_id"
     },
     "assistant": {
@@ -140,29 +110,11 @@
     "user": {
       "type": "hasOne",
       "model": "__yao.user",
-      "key": "uid",
+      "key": "user_id",
       "foreign": "user_id"
     }
   },
   "indexes": [
-    {
-      "name": "idx_agent_history_session_chat",
-      "columns": ["sid", "cid"],
-      "type": "index",
-      "comment": "Index for session and chat queries"
-    },
-    {
-      "name": "idx_agent_history_user_role",
-      "columns": ["uid", "role"],
-      "type": "index",
-      "comment": "Index for user and role queries"
-    },
-    {
-      "name": "idx_agent_history_assistant",
-      "columns": ["assistant_id", "created_at"],
-      "type": "index",
-      "comment": "Index for assistant history queries"
-    },
     {
       "name": "idx_agent_history_expired",
       "columns": ["expired_at", "silent"],

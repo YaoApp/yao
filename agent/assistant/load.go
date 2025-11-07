@@ -55,8 +55,7 @@ func LoadBuiltIn() error {
 
 		// Get all existing built-in assistants
 		for _, assistant := range res.Data {
-			assistantID := assistant["assistant_id"].(string)
-			deletedBuiltIn[assistantID] = true
+			deletedBuiltIn[assistant.ID] = true
 		}
 	}
 
@@ -182,14 +181,14 @@ func LoadStore(id string) (*Assistant, error) {
 		return nil, fmt.Errorf("storage is not set")
 	}
 
-	data, err := storage.GetAssistant(id)
+	storeModel, err := storage.GetAssistant(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// Load from path
-	if data["path"] != nil {
-		assistant, err = LoadPath(data["path"].(string))
+	if storeModel.Path != "" {
+		assistant, err = LoadPath(storeModel.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -197,8 +196,11 @@ func LoadStore(id string) (*Assistant, error) {
 		return assistant, nil
 	}
 
-	// Load from store
-	assistant, err = loadMap(data)
+	// Create assistant from store model
+	assistant = &Assistant{AssistantModel: *storeModel}
+
+	// Initialize the assistant
+	err = assistant.initialize()
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +347,7 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			if err != nil {
 				return nil, err
 			}
-			assistant.Placeholder = &Placeholder{}
+			assistant.Placeholder = &store.Placeholder{}
 			err = jsoniter.Unmarshal(placeholder, assistant.Placeholder)
 			if err != nil {
 				return nil, err
@@ -357,13 +359,13 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 				return nil, err
 			}
 
-			assistant.Placeholder = &Placeholder{}
+			assistant.Placeholder = &store.Placeholder{}
 			err = jsoniter.Unmarshal(raw, assistant.Placeholder)
 			if err != nil {
 				return nil, err
 			}
 
-		case *Placeholder:
+		case *store.Placeholder:
 			assistant.Placeholder = vv
 
 		case nil:
@@ -384,6 +386,16 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// Readonly
 	if v, ok := data["readonly"].(bool); ok {
 		assistant.Readonly = v
+	}
+
+	// Public
+	if v, ok := data["public"].(bool); ok {
+		assistant.Public = v
+	}
+
+	// Share
+	if v, ok := data["share"].(string); ok {
+		assistant.Share = v
 	}
 
 	// built_in
@@ -470,11 +482,11 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	if prompts, has := data["prompts"]; has {
 
 		switch v := prompts.(type) {
-		case []Prompt:
+		case []store.Prompt:
 			assistant.Prompts = v
 
 		case string:
-			var prompts []Prompt
+			var prompts []store.Prompt
 			err := yaml.Unmarshal([]byte(v), &prompts)
 			if err != nil {
 				return nil, err
@@ -487,7 +499,7 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 				return nil, err
 			}
 
-			var prompts []Prompt
+			var prompts []store.Prompt
 			err = jsoniter.Unmarshal(raw, &prompts)
 			if err != nil {
 				return nil, err
@@ -499,13 +511,13 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// tools
 	if tools, has := data["tools"]; has {
 		switch vv := tools.(type) {
-		case []Tool:
-			assistant.Tools = &ToolCalls{
+		case []store.Tool:
+			assistant.Tools = &store.ToolCalls{
 				Tools:   vv,
 				Prompts: assistant.Prompts,
 			}
 
-		case ToolCalls:
+		case store.ToolCalls:
 			assistant.Tools = &vv
 
 		default:
@@ -514,13 +526,40 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 				return nil, fmt.Errorf("tools format error %s", err.Error())
 			}
 
-			var tools ToolCalls
+			var tools store.ToolCalls
 			err = jsoniter.Unmarshal(raw, &tools)
 			if err != nil {
 				return nil, fmt.Errorf("tools format error %s", err.Error())
 			}
 			assistant.Tools = &tools
 		}
+	}
+
+	// kb
+	if kb, has := data["kb"]; has {
+		knowledgeBase, err := store.ToKnowledgeBase(kb)
+		if err != nil {
+			return nil, err
+		}
+		assistant.KB = knowledgeBase
+	}
+
+	// mcp
+	if mcp, has := data["mcp"]; has {
+		mcpServers, err := store.ToMCPServers(mcp)
+		if err != nil {
+			return nil, err
+		}
+		assistant.MCP = mcpServers
+	}
+
+	// workflow
+	if workflow, has := data["workflow"]; has {
+		wf, err := store.ToWorkflow(workflow)
+		if err != nil {
+			return nil, err
+		}
+		assistant.Workflow = wf
 	}
 
 	// script
@@ -668,7 +707,7 @@ func (ast *Assistant) initialize() error {
 	return nil
 }
 
-func loadTools(file string) (*ToolCalls, int64, error) {
+func loadTools(file string) (*store.ToolCalls, int64, error) {
 
 	app, err := fs.Get("app")
 	if err != nil {
@@ -686,10 +725,10 @@ func loadTools(file string) (*ToolCalls, int64, error) {
 	}
 
 	if len(content) == 0 {
-		return &ToolCalls{Tools: []Tool{}, Prompts: []Prompt{}}, ts.UnixNano(), nil
+		return &store.ToolCalls{Tools: []store.Tool{}, Prompts: []store.Prompt{}}, ts.UnixNano(), nil
 	}
 
-	var tools ToolCalls
+	var tools store.ToolCalls
 	err = application.Parse(file, content, &tools)
 	if err != nil {
 		return nil, 0, err

@@ -43,17 +43,6 @@ func getTimestamp(v interface{}) (int64, error) {
 	return 0, fmt.Errorf("invalid timestamp type %T", v)
 }
 
-func stringToTimestamp(v string) (int64, error) {
-	return strconv.ParseInt(v, 10, 64)
-}
-
-func timeToMySQLFormat(ts int64) string {
-	if ts == 0 {
-		return "0000-00-00 00:00:00"
-	}
-	return time.Unix(ts/1e9, ts%1e9).Format("2006-01-02 15:04:05")
-}
-
 // stringHash returns the sha256 hash of the string
 func stringHash(v string) string {
 	h := sha256.New()

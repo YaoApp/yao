@@ -537,12 +537,12 @@ func (agent *DSL) handleMentions(c *gin.Context) {
 
 	// Convert assistants to mentions
 	mentions := []Mention{}
-	for _, item := range response.Data {
+	for _, assistant := range response.Data {
 		mention := Mention{
-			ID:     item["assistant_id"].(string),
-			Name:   item["name"].(string),
-			Type:   item["type"].(string),
-			Avatar: item["avatar"].(string),
+			ID:     assistant.ID,
+			Name:   assistant.Name,
+			Type:   assistant.Type,
+			Avatar: assistant.Avatar,
 		}
 		mentions = append(mentions, mention)
 	}
@@ -899,7 +899,7 @@ func (agent *DSL) HandleAssistantDetail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, map[string]interface{}{"data": response.Data[0]})
+	c.JSON(200, gin.H{"data": response.Data[0]})
 	c.Done()
 }
 
@@ -912,7 +912,15 @@ func (agent *DSL) HandleAssistantSave(c *gin.Context) {
 		return
 	}
 
-	id, err := agent.Store.SaveAssistant(assistantData)
+	// Convert to AssistantModel
+	model, err := store.ToAssistantModel(assistantData)
+	if err != nil {
+		c.JSON(400, gin.H{"message": fmt.Sprintf("invalid assistant data: %s", err.Error()), "code": 400})
+		c.Done()
+		return
+	}
+
+	id, err := agent.Store.SaveAssistant(model)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
@@ -927,11 +935,11 @@ func (agent *DSL) HandleAssistantSave(c *gin.Context) {
 	// Remove the assistant from cache to ensure fresh data on next load
 	cache := assistant.GetCache()
 	if cache != nil {
-		cache.Remove(id.(string))
+		cache.Remove(id)
 	}
 
 	// Reload the assistant to ensure it's available in cache with updated data
-	_, err = assistant.Get(id.(string))
+	_, err = assistant.Get(id)
 	if err != nil {
 		// Just log the error, don't fail the request
 		fmt.Printf("Error reloading assistant %s: %v\n", id, err)

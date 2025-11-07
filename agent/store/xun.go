@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/xun/dbal/query"
@@ -16,16 +17,14 @@ import (
 	"github.com/yaoapp/yao/agent/i18n"
 )
 
-// Package conversation provides functionality for managing chat conversations and assistants.
+// Package store provides functionality for managing chat conversations and assistants.
 
-// Xun implements the Conversation interface using a database backend.
+// Xun implements the Store interface using a database backend.
 // It provides functionality for:
 // - Managing chat conversations and their message histories
 // - Organizing chats with pagination and date-based grouping
 // - Handling chat metadata like titles and creation dates
 // - Managing AI assistants with their configurations and metadata
-// - Managing file attachments with metadata and access control
-// - Managing knowledge collections for AI assistants
 // - Supporting data expiration through TTL settings
 type Xun struct {
 	query       query.Query
@@ -38,41 +37,38 @@ type Xun struct {
 // Public interface methods:
 //
 // NewXun creates a new conversation instance with the given settings
-// UpdateChatTitle updates the title of a specific chat
 // GetChats retrieves a paginated list of chats grouped by date
 // GetChat retrieves a specific chat and its message history
+// GetChatWithFilter retrieves a specific chat with filter options
 // GetHistory retrieves the message history for a specific chat
+// GetHistoryWithFilter retrieves the message history with filter options
 // SaveHistory saves new messages to a chat's history
 // DeleteChat deletes a specific chat and its history
 // DeleteAllChats deletes all chats and their histories for a user
+// UpdateChatTitle updates the title of a specific chat
 // SaveAssistant creates or updates an assistant
 // DeleteAssistant deletes an assistant by assistant_id
 // GetAssistants retrieves a paginated list of assistants with filtering
 // GetAssistant retrieves a single assistant by assistant_id
-// SaveAttachment creates or updates an attachment
-// DeleteAttachment deletes an attachment by file_id
-// GetAttachments retrieves a paginated list of attachments with filtering
-// GetAttachment retrieves a single attachment by file_id
-// SaveKnowledge creates or updates a knowledge collection
-// DeleteKnowledge deletes a knowledge collection by collection_id
-// GetKnowledges retrieves a paginated list of knowledge collections with filtering
-// GetKnowledge retrieves a single knowledge collection by collection_id
+// DeleteAssistants deletes assistants based on filter conditions
+// GetAssistantTags retrieves all unique tags from assistants
+// Close closes the store and releases any resources
 
 // NewXun create a new xun store
 func NewXun(setting Setting) (Store, error) {
 	conv := &Xun{setting: setting}
-	if setting.Connector == "default" {
+	if setting.Connector == "default" || setting.Connector == "" {
 		conv.query = capsule.Global.Query()
 		conv.schema = capsule.Global.Schema()
 	} else {
 		conn, err := connector.Select(setting.Connector)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("select store connector %s error: %s", setting.Connector, err.Error())
 		}
 
 		conv.query, err = conn.Query()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("query store connector %s error: %s", setting.Connector, err.Error())
 		}
 
 		conv.schema, err = conn.Schema()
@@ -161,21 +157,6 @@ func (conv *Xun) Close() error {
 
 // Rename Init to initialize to avoid conflicts
 func (conv *Xun) initialize() error {
-
-	// Initialize chat table
-	if err := conv.initChatTable(); err != nil {
-		return err
-	}
-
-	// Initialize history table
-	if err := conv.initHistoryTable(); err != nil {
-		return err
-	}
-
-	// Initialize assistant table
-	if err := conv.initAssistantTable(); err != nil {
-		return err
-	}
 
 	// Start automatic cleanup if TTL is enabled
 	if conv.setting.TTL > 0 {
@@ -277,78 +258,32 @@ func (conv *Xun) initChatTable() error {
 	return nil
 }
 
-func (conv *Xun) initAssistantTable() error {
-	assistantTable := conv.getAssistantTable()
-	has, err := conv.schema.HasTable(assistantTable)
-	if err != nil {
-		return err
-	}
-
-	// Create the assistant table
-	if !has {
-		err = conv.schema.CreateTable(assistantTable, func(table schema.Blueprint) {
-			table.ID("id")
-			table.String("assistant_id", 200).Unique().Index()
-			table.String("type", 200).SetDefault("assistant").Index() // default is assistant
-			table.String("name", 200).Null()                          // assistant name
-			table.String("avatar", 200).Null()                        // assistant avatar
-			table.String("connector", 200).NotNull()                  // assistant connector
-			table.String("description", 600).Null().Index()           // assistant description
-			table.String("path", 200).Null()                          // assistant storage path
-			table.Integer("sort").SetDefault(9999).Index()            // assistant sort order
-			table.Boolean("built_in").SetDefault(false).Index()       // whether this is a built-in assistant
-			table.JSON("placeholder").Null()                          // assistant placeholder
-			table.JSON("options").Null()                              // assistant options
-			table.JSON("prompts").Null()                              // assistant prompts
-			table.JSON("workflow").Null()                             // assistant workflow
-			table.JSON("knowledge").Null()                            // assistant knowledge
-			table.JSON("tools").Null()                                // assistant tools
-			table.JSON("tags").Null()                                 // assistant tags
-			table.Boolean("readonly").SetDefault(false).Index()       // assistant readonly
-			table.JSON("permissions").Null()                          // assistant permissions
-			table.JSON("locales").Null()                              // assistant i18n
-			table.Boolean("automated").SetDefault(true).Index()       // assistant autoable
-			table.Boolean("mentionable").SetDefault(true).Index()     // Whether this assistant can appear in @ mention list
-			table.TimestampTz("created_at").SetDefaultRaw("CURRENT_TIMESTAMP").Index()
-			table.TimestampTz("updated_at").Null().Index()
-		})
-
-		if err != nil {
-			return err
-		}
-		log.Trace("Create the assistant table: %s", assistantTable)
-	}
-
-	// Validate the table
-	tab, err := conv.schema.GetTable(assistantTable)
-	if err != nil {
-		return err
-	}
-
-	fields := []string{"id", "assistant_id", "type", "name", "avatar", "connector", "description", "path", "sort", "built_in", "placeholder", "options", "prompts", "workflow", "knowledge", "tools", "tags", "readonly", "permissions", "locales", "automated", "mentionable", "created_at", "updated_at"}
-	for _, field := range fields {
-		if !tab.HasColumn(field) {
-			return fmt.Errorf("%s is required", field)
-		}
-	}
-
-	return nil
-}
-
 func (conv *Xun) getUserID(sid string) (string, error) {
 	// TODO: get the user id from the authentication system
 	return "guest", nil
 }
 
 func (conv *Xun) getHistoryTable() string {
+	m := model.Select("__yao.agent.history")
+	if m != nil && m.MetaData.Table.Name != "" {
+		return m.MetaData.Table.Name
+	}
 	return "__yao.agent.history"
 }
 
 func (conv *Xun) getChatTable() string {
+	m := model.Select("__yao.agent.chat")
+	if m != nil && m.MetaData.Table.Name != "" {
+		return m.MetaData.Table.Name
+	}
 	return "__yao.agent.chat"
 }
 
 func (conv *Xun) getAssistantTable() string {
+	m := model.Select("__yao.agent.assistant")
+	if m != nil && m.MetaData.Table.Name != "" {
+		return m.MetaData.Table.Name
+	}
 	return "__yao.agent.assistant"
 }
 
@@ -1022,64 +957,108 @@ func (conv *Xun) parseJSONFields(data map[string]interface{}, fields []string) {
 }
 
 // SaveAssistant saves assistant information
-func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
+func (conv *Xun) SaveAssistant(assistant *AssistantModel) (string, error) {
+	if assistant == nil {
+		return "", fmt.Errorf("assistant cannot be nil")
+	}
+
 	// Validate required fields
-	requiredFields := []string{"name", "type", "connector"}
-	for _, field := range requiredFields {
-		if _, ok := assistant[field]; !ok {
-			return nil, fmt.Errorf("field %s is required", field)
-		}
-		if assistant[field] == nil || assistant[field] == "" {
-			return nil, fmt.Errorf("field %s cannot be empty", field)
-		}
+	if assistant.Name == "" {
+		return "", fmt.Errorf("field name is required")
 	}
-
-	// Create a copy of the assistant map to avoid modifying the original
-	assistantCopy := make(map[string]interface{})
-	for k, v := range assistant {
-		assistantCopy[k] = v
+	if assistant.Type == "" {
+		return "", fmt.Errorf("field type is required")
 	}
-
-	// Process JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder", "locales"}
-	for _, field := range jsonFields {
-		if val, ok := assistantCopy[field]; ok && val != nil {
-			// If it's a string, try to parse it first
-			if strVal, ok := val.(string); ok && strVal != "" {
-				var parsed interface{}
-				if err := jsoniter.UnmarshalFromString(strVal, &parsed); err == nil {
-					assistantCopy[field] = parsed
-				}
-			}
-		}
+	if assistant.Connector == "" {
+		return "", fmt.Errorf("field connector is required")
 	}
 
 	// Generate assistant_id if not provided
-	if _, ok := assistantCopy["assistant_id"]; !ok {
+	if assistant.ID == "" {
 		var err error
-		assistantCopy["assistant_id"], err = conv.GenerateAssistantID()
+		assistant.ID, err = conv.GenerateAssistantID()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 
 	// Check if assistant exists
 	exists, err := conv.query.New().
 		Table(conv.getAssistantTable()).
-		Where("assistant_id", assistantCopy["assistant_id"]).
+		Where("assistant_id", assistant.ID).
 		Exists()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	// Convert JSON fields to strings for storage
-	for _, field := range jsonFields {
-		if val, ok := assistantCopy[field]; ok && val != nil {
-			jsonStr, err := jsoniter.MarshalToString(val)
+	// Convert model to map for database storage
+	data := make(map[string]interface{})
+	data["assistant_id"] = assistant.ID
+	data["type"] = assistant.Type
+	data["name"] = assistant.Name
+	data["avatar"] = assistant.Avatar
+	data["connector"] = assistant.Connector
+	data["path"] = assistant.Path
+	data["built_in"] = assistant.BuiltIn
+	data["sort"] = assistant.Sort
+	data["description"] = assistant.Description
+	data["readonly"] = assistant.Readonly
+	data["public"] = assistant.Public
+	data["share"] = assistant.Share
+	data["mentionable"] = assistant.Mentionable
+	data["automated"] = assistant.Automated
+	data["created_at"] = assistant.CreatedAt
+	data["updated_at"] = assistant.UpdatedAt
+
+	// Permission management fields
+	if assistant.YaoCreatedBy != "" {
+		data["__yao_created_by"] = assistant.YaoCreatedBy
+	}
+	if assistant.YaoUpdatedBy != "" {
+		data["__yao_updated_by"] = assistant.YaoUpdatedBy
+	}
+	if assistant.YaoTeamID != "" {
+		data["__yao_team_id"] = assistant.YaoTeamID
+	}
+	if assistant.YaoTenantID != "" {
+		data["__yao_tenant_id"] = assistant.YaoTenantID
+	}
+
+	// Handle simple types
+	if assistant.Options != nil {
+		jsonStr, err := jsoniter.MarshalToString(assistant.Options)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal options: %w", err)
+		}
+		data["options"] = jsonStr
+	}
+
+	if assistant.Tags != nil {
+		jsonStr, err := jsoniter.MarshalToString(assistant.Tags)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal tags: %w", err)
+		}
+		data["tags"] = jsonStr
+	}
+
+	// Handle interface{} fields - they should already be in the correct format
+	jsonFields := map[string]interface{}{
+		"prompts":     assistant.Prompts,
+		"kb":          assistant.KB,
+		"mcp":         assistant.MCP,
+		"workflow":    assistant.Workflow,
+		"tools":       assistant.Tools,
+		"placeholder": assistant.Placeholder,
+		"locales":     assistant.Locales,
+	}
+
+	for field, value := range jsonFields {
+		if value != nil {
+			jsonStr, err := jsoniter.MarshalToString(value)
 			if err != nil {
-				return nil, fmt.Errorf("failed to marshal %s to JSON: %v", field, err)
+				return "", fmt.Errorf("failed to marshal %s: %w", field, err)
 			}
-			assistantCopy[field] = jsonStr
+			data[field] = jsonStr
 		}
 	}
 
@@ -1087,21 +1066,21 @@ func (conv *Xun) SaveAssistant(assistant map[string]interface{}) (interface{}, e
 	if exists {
 		_, err := conv.query.New().
 			Table(conv.getAssistantTable()).
-			Where("assistant_id", assistantCopy["assistant_id"]).
-			Update(assistantCopy)
+			Where("assistant_id", assistant.ID).
+			Update(data)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		return assistantCopy["assistant_id"], nil
+		return assistant.ID, nil
 	}
 
 	err = conv.query.New().
 		Table(conv.getAssistantTable()).
-		Insert(assistantCopy)
+		Insert(data)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return assistantCopy["assistant_id"], nil
+	return assistant.ID, nil
 }
 
 // DeleteAssistant deletes an assistant by assistant_id
@@ -1127,7 +1106,7 @@ func (conv *Xun) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves assistants with pagination and filtering
-func (conv *Xun) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantResponse, error) {
+func (conv *Xun) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error) {
 	qb := conv.query.New().
 		Table(conv.getAssistantTable())
 
@@ -1235,53 +1214,62 @@ func (conv *Xun) GetAssistants(filter AssistantFilter, locale ...string) (*Assis
 		return nil, err
 	}
 
-	// Convert rows to map slice and parse JSON fields
-	data := make([]map[string]interface{}, len(rows))
-	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder"}
-	for i, row := range rows {
-		data[i] = row
-		// Only parse JSON fields if they are selected or no select filter is provided
-		if filter.Select == nil || len(filter.Select) == 0 {
-			conv.parseJSONFields(data[i], jsonFields)
-		} else {
-			// Parse only selected JSON fields
-			selectedJSONFields := []string{}
-			for _, field := range jsonFields {
-				for _, selected := range filter.Select {
-					if selected == field {
-						selectedJSONFields = append(selectedJSONFields, field)
-						break
+	// Convert rows to AssistantModel slice
+	assistants := make([]*AssistantModel, 0, len(rows))
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "kb", "mcp", "tools", "placeholder", "locales"}
+
+	for _, row := range rows {
+		data := row.ToMap()
+		if data == nil {
+			continue
+		}
+
+		// Parse JSON fields
+		conv.parseJSONFields(data, jsonFields)
+
+		// Convert map to AssistantModel using existing helper function
+		model, err := ToAssistantModel(data)
+		if err != nil {
+			log.Error("Failed to convert row to AssistantModel: %s", err.Error())
+			continue
+		}
+
+		// Apply i18n translations if locale is provided
+		if len(locale) > 0 && model != nil {
+			lang := strings.ToLower(locale[0])
+			// Translate name if locales are available
+			if model.Locales != nil {
+				if localeData, ok := model.Locales[lang]; ok {
+					if messages, ok := localeData.Messages["name"]; ok {
+						if nameStr, ok := messages.(string); ok {
+							model.Name = nameStr
+						}
+					}
+					if messages, ok := localeData.Messages["description"]; ok {
+						if descStr, ok := messages.(string); ok {
+							model.Description = descStr
+						}
 					}
 				}
 			}
-			if len(selectedJSONFields) > 0 {
-				conv.parseJSONFields(data[i], selectedJSONFields)
-			}
 		}
+
+		assistants = append(assistants, model)
 	}
 
-	// Translate Data
-	if len(locale) > 0 {
-		lang := strings.ToLower(locale[0])
-		for i, row := range data {
-			assistantID := row["assistant_id"].(string)
-			data[i] = i18n.Translate(assistantID, lang, row).(map[string]interface{})
-		}
-	}
-
-	return &AssistantResponse{
-		Data:     data,
-		Page:     filter.Page,
-		PageSize: filter.PageSize,
-		PageCnt:  totalPages,
-		Next:     nextPage,
-		Prev:     prevPage,
-		Total:    total,
+	return &AssistantList{
+		Data:      assistants,
+		Page:      filter.Page,
+		PageSize:  filter.PageSize,
+		PageCount: totalPages,
+		Next:      nextPage,
+		Prev:      prevPage,
+		Total:     int(total),
 	}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (conv *Xun) GetAssistant(assistantID string, locale ...string) (map[string]interface{}, error) {
+func (conv *Xun) GetAssistant(assistantID string, locale ...string) (*AssistantModel, error) {
 	row, err := conv.query.New().
 		Table(conv.getAssistantTable()).
 		Where("assistant_id", assistantID).
@@ -1300,13 +1288,151 @@ func (conv *Xun) GetAssistant(assistantID string, locale ...string) (map[string]
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "workflow", "knowledge", "tools", "permissions", "placeholder"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "kb", "mcp", "tools", "placeholder", "locales"}
 	conv.parseJSONFields(data, jsonFields)
-	if len(locale) > 0 {
-		lang := strings.ToLower(locale[0])
-		return i18n.Translate(assistantID, lang, data).(map[string]interface{}), nil
+
+	// Convert map to AssistantModel
+	model := &AssistantModel{
+		ID:           getString(data, "assistant_id"),
+		Type:         getString(data, "type"),
+		Name:         getString(data, "name"),
+		Avatar:       getString(data, "avatar"),
+		Connector:    getString(data, "connector"),
+		Path:         getString(data, "path"),
+		BuiltIn:      getBool(data, "built_in"),
+		Sort:         getInt(data, "sort"),
+		Description:  getString(data, "description"),
+		Readonly:     getBool(data, "readonly"),
+		Public:       getBool(data, "public"),
+		Share:        getString(data, "share"),
+		Mentionable:  getBool(data, "mentionable"),
+		Automated:    getBool(data, "automated"),
+		CreatedAt:    getInt64(data, "created_at"),
+		UpdatedAt:    getInt64(data, "updated_at"),
+		YaoCreatedBy: getString(data, "__yao_created_by"),
+		YaoUpdatedBy: getString(data, "__yao_updated_by"),
+		YaoTeamID:    getString(data, "__yao_team_id"),
+		YaoTenantID:  getString(data, "__yao_tenant_id"),
 	}
-	return data, nil
+
+	// Handle Tags
+	if tags, ok := data["tags"].([]interface{}); ok {
+		model.Tags = make([]string, len(tags))
+		for i, tag := range tags {
+			if s, ok := tag.(string); ok {
+				model.Tags[i] = s
+			}
+		}
+	}
+
+	// Handle Options
+	if options, ok := data["options"].(map[string]interface{}); ok {
+		model.Options = options
+	}
+
+	// Handle typed fields with conversion
+	if prompts, has := data["prompts"]; has && prompts != nil {
+		// Try to unmarshal to []Prompt
+		raw, err := jsoniter.Marshal(prompts)
+		if err == nil {
+			var p []Prompt
+			if err := jsoniter.Unmarshal(raw, &p); err == nil {
+				model.Prompts = p
+			}
+		}
+	}
+
+	if kb, has := data["kb"]; has && kb != nil {
+		kbConverted, err := ToKnowledgeBase(kb)
+		if err == nil {
+			model.KB = kbConverted
+		}
+	}
+
+	if mcp, has := data["mcp"]; has && mcp != nil {
+		mcpConverted, err := ToMCPServers(mcp)
+		if err == nil {
+			model.MCP = mcpConverted
+		}
+	}
+
+	if workflow, has := data["workflow"]; has && workflow != nil {
+		wf, err := ToWorkflow(workflow)
+		if err == nil {
+			model.Workflow = wf
+		}
+	}
+
+	if tools, has := data["tools"]; has && tools != nil {
+		raw, err := jsoniter.Marshal(tools)
+		if err == nil {
+			var tc ToolCalls
+			if err := jsoniter.Unmarshal(raw, &tc); err == nil {
+				model.Tools = &tc
+			}
+		}
+	}
+
+	if placeholder, has := data["placeholder"]; has && placeholder != nil {
+		raw, err := jsoniter.Marshal(placeholder)
+		if err == nil {
+			var ph Placeholder
+			if err := jsoniter.Unmarshal(raw, &ph); err == nil {
+				model.Placeholder = &ph
+			}
+		}
+	}
+
+	if locales, has := data["locales"]; has && locales != nil {
+		raw, err := jsoniter.Marshal(locales)
+		if err == nil {
+			var loc i18n.Map
+			if err := jsoniter.Unmarshal(raw, &loc); err == nil {
+				model.Locales = loc
+			}
+		}
+	}
+
+	return model, nil
+}
+
+// Helper functions for type conversion
+func getString(data map[string]interface{}, key string) string {
+	if v, ok := data[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getBool(data map[string]interface{}, key string) bool {
+	if v, ok := data[key].(bool); ok {
+		return v
+	}
+	return false
+}
+
+func getInt(data map[string]interface{}, key string) int {
+	switch v := data[key].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	}
+	return 0
+}
+
+func getInt64(data map[string]interface{}, key string) int64 {
+	switch v := data[key].(type) {
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	case float64:
+		return int64(v)
+	}
+	return 0
 }
 
 // DeleteAssistants deletes assistants based on filter conditions

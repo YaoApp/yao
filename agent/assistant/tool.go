@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/yao/agent/store"
 )
 
 // Tool represents a tool
@@ -94,4 +95,62 @@ func generateExampleValue(name string, prop SchemaProperty) interface{} {
 	default:
 		return fmt.Sprintf("<%s>", name)
 	}
+}
+
+// ToRuntimeTool converts store.Tool to assistant.Tool (OpenAI format)
+func ToRuntimeTool(storeTool store.Tool) (Tool, error) {
+	var tool Tool
+
+	// Marshal and unmarshal to convert between formats
+	raw, err := jsoniter.Marshal(storeTool)
+	if err != nil {
+		return tool, fmt.Errorf("failed to marshal store tool: %w", err)
+	}
+
+	// Try to unmarshal as OpenAI format first
+	err = jsoniter.Unmarshal(raw, &tool)
+	if err == nil && tool.Function.Name != "" {
+		return tool, nil
+	}
+
+	// If it's a simple format, convert it
+	tool.Type = "function"
+	if storeTool.Type != "" {
+		tool.Type = storeTool.Type
+	}
+	tool.Function.Name = storeTool.Name
+	tool.Function.Description = storeTool.Description
+
+	// Convert parameters
+	if storeTool.Parameters != nil {
+		raw, err := jsoniter.Marshal(storeTool.Parameters)
+		if err != nil {
+			return tool, fmt.Errorf("failed to marshal parameters: %w", err)
+		}
+		var params Parameter
+		err = jsoniter.Unmarshal(raw, &params)
+		if err != nil {
+			return tool, fmt.Errorf("failed to unmarshal parameters: %w", err)
+		}
+		tool.Function.Parameters = params
+	}
+
+	return tool, nil
+}
+
+// ToRuntimeTools converts []store.Tool to []assistant.Tool
+func ToRuntimeTools(storeTools []store.Tool) ([]Tool, error) {
+	if storeTools == nil {
+		return nil, nil
+	}
+
+	tools := make([]Tool, 0, len(storeTools))
+	for _, storeTool := range storeTools {
+		tool, err := ToRuntimeTool(storeTool)
+		if err != nil {
+			return nil, err
+		}
+		tools = append(tools, tool)
+	}
+	return tools, nil
 }

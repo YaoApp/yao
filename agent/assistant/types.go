@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	chatctx "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/message"
+	"github.com/yaoapp/yao/agent/store"
 	api "github.com/yaoapp/yao/openai"
 )
 
@@ -24,7 +24,7 @@ type API interface {
 	// Download(ctx context.Context, fileID string) (*FileResponse, error)
 	// ReadBase64(ctx context.Context, fileID string) (string, error)
 
-	GetPlaceholder(locale string) *Placeholder
+	GetPlaceholder(locale string) *store.Placeholder
 	Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) (interface{}, error)
 	Call(c *gin.Context, payload APIPayload) (interface{}, error)
 }
@@ -98,56 +98,24 @@ type QueryParam struct {
 
 // Assistant the assistant
 type Assistant struct {
-	ID          string                 `json:"assistant_id"`                             // Assistant ID
-	Type        string                 `json:"type,omitempty"`                           // Assistant Type, default is assistant
-	Name        string                 `json:"name,omitempty"`                           // Assistant Name
-	Avatar      string                 `json:"avatar,omitempty"`                         // Assistant Avatar
-	Connector   string                 `json:"connector"`                                // AI Connector
-	Path        string                 `json:"path,omitempty"`                           // Assistant Path
-	BuiltIn     bool                   `json:"built_in,omitempty"`                       // Whether this is a built-in assistant
-	Sort        int                    `json:"sort,omitempty"`                           // Assistant Sort
-	Description string                 `json:"description,omitempty"`                    // Assistant Description
-	Tags        []string               `json:"tags,omitempty"`                           // Assistant Tags
-	Readonly    bool                   `json:"readonly,omitempty"`                       // Whether this assistant is readonly
-	Mentionable bool                   `json:"mentionable,omitempty"`                    // Whether this assistant is mentionable
-	Automated   bool                   `json:"automated,omitempty"`                      // Whether this assistant is automated
-	Options     map[string]interface{} `json:"options,omitempty"`                        // AI Options
-	Prompts     []Prompt               `json:"prompts,omitempty"`                        // AI Prompts
-	Tools       *ToolCalls             `json:"tools,omitempty"`                          // Assistant Tools
-	Workflow    map[string]interface{} `json:"workflow,omitempty"`                       // Assistant Workflow
-	Placeholder *Placeholder           `json:"placeholder,omitempty"`                    // Assistant Placeholder
-	Locales     i18n.Map               `json:"locales,omitempty"`                        // Assistant Locales
-	Search      *SearchOption          `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
-	CreatedAt   int64                  `json:"created_at"`                               // Creation timestamp
-	UpdatedAt   int64                  `json:"updated_at"`                               // Last update timestamp
-	Script      *v8.Script             `json:"-" yaml:"-"`                               // Assistant Script
+	store.AssistantModel
+	Search *SearchOption `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
+	Script *v8.Script    `json:"-" yaml:"-"`                               // Assistant Script
 
 	// Internal
 	// ===============================
-	openai    *api.OpenAI // OpenAI API
-	search    bool        // Whether this assistant supports search
-	vision    bool        // Whether this assistant supports vision
-	toolCalls bool        // Whether this assistant supports tool_calls
-	initHook  bool        // Whether this assistant has an init hook
-}
-
-// ToolCalls the tool calls
-type ToolCalls struct {
-	Tools   []Tool   `json:"tools,omitempty"`
-	Prompts []Prompt `json:"prompts,omitempty"`
+	openai       *api.OpenAI // OpenAI API
+	search       bool        // Whether this assistant supports search
+	vision       bool        // Whether this assistant supports vision
+	toolCalls    bool        // Whether this assistant supports tool_calls
+	initHook     bool        // Whether this assistant has an init hook
+	runtimeTools []Tool      // Converted tools for business logic (OpenAI format)
 }
 
 // ConnectorSetting the connector setting
 type ConnectorSetting struct {
 	Vision bool `json:"vision,omitempty" yaml:"vision,omitempty"`
 	Tools  bool `json:"tools,omitempty" yaml:"tools,omitempty"`
-}
-
-// Placeholder the assistant placeholder
-type Placeholder struct {
-	Title       string   `json:"title,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Prompts     []string `json:"prompts,omitempty"`
 }
 
 // VisionCapableModels list of LLM models that support vision capabilities

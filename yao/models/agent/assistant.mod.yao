@@ -6,10 +6,7 @@
   "builtin": true,
   "readonly": true,
   "sort": 9999,
-  "table": {
-    "name": "agent_assistant",
-    "comment": "Agent assistant table"
-  },
+  "table": { "name": "agent_assistant", "comment": "Agent assistant table" },
   "columns": [
     {
       "name": "id",
@@ -56,7 +53,7 @@
       "name": "connector",
       "type": "string",
       "label": "Connector",
-      "comment": "Assistant connector",
+      "comment": "Assistant default connector, if not set, use the global default connector",
       "length": 200,
       "nullable": false
     },
@@ -122,10 +119,17 @@
       "nullable": true
     },
     {
-      "name": "knowledge",
+      "name": "kb",
       "type": "json",
-      "label": "Knowledge",
-      "comment": "Assistant knowledge",
+      "label": "Knowledge Base",
+      "comment": "Assistant knowledge base collections",
+      "nullable": true
+    },
+    {
+      "name": "mcp",
+      "type": "json",
+      "label": "MCP Servers",
+      "comment": "MCP servers available for the assistant to use",
       "nullable": true
     },
     {
@@ -150,13 +154,29 @@
       "default": false,
       "index": true
     },
+
     {
-      "name": "permissions",
-      "type": "json",
-      "label": "Permissions",
-      "comment": "Assistant permissions",
-      "nullable": true
+      "name": "public",
+      "type": "boolean",
+      "label": "Public Assistant",
+      "comment": "Whether this assistant is shared across all teams in the platform",
+      "default": false,
+      "nullable": false
     },
+    {
+      "name": "share",
+      "type": "enum",
+      "label": "Share",
+      "comment": "Assistant sharing scope",
+      "option": [
+        "private", // Only visible to the owner
+        "team" // Visible to all team members
+      ],
+      "default": "private",
+      "nullable": false,
+      "index": true
+    },
+
     {
       "name": "locales",
       "type": "json",
