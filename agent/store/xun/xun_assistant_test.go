@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
@@ -1095,6 +1096,245 @@ func TestEmptyStringAsNull(t *testing.T) {
 		}
 
 		t.Logf("Successfully verified non-empty strings are preserved for assistant %s", id)
+	})
+}
+
+// TestGetAssistantWithLocale tests retrieving assistant with locale translation
+func TestGetAssistantWithLocale(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := NewXun(types.Setting{
+		Connector: "default",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	t.Run("GetAssistantWithLocaleTranslation", func(t *testing.T) {
+		// Create assistant with i18n locales
+		assistant := &types.AssistantModel{
+			Name:        "{{name}}",
+			Type:        "assistant",
+			Connector:   "openai",
+			Description: "{{description}}",
+			Tags:        []string{"test"},
+			Share:       "private",
+			Placeholder: &types.Placeholder{
+				Title:       "{{chat.title}}",
+				Description: "{{chat.description}}",
+				Prompts:     []string{"{{chat.prompts.0}}", "{{chat.prompts.1}}"},
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Setup i18n for testing
+		i18n.Locales[id] = map[string]i18n.I18n{
+			"en": {
+				Locale: "en",
+				Messages: map[string]any{
+					"name":               "Test Assistant",
+					"description":        "This is a test assistant",
+					"chat.title":         "Chat with me",
+					"chat.description":   "Start a conversation",
+					"chat.prompts.0":     "How can I help you?",
+					"chat.prompts.1":     "What would you like to know?",
+				},
+			},
+			"zh-cn": {
+				Locale: "zh-cn",
+				Messages: map[string]any{
+					"name":               "测试助手",
+					"description":        "这是一个测试助手",
+					"chat.title":         "与我聊天",
+					"chat.description":   "开始对话",
+					"chat.prompts.0":     "我能帮你什么？",
+					"chat.prompts.1":     "你想了解什么？",
+				},
+			},
+		}
+
+		// Test English locale
+		retrievedEN, err := store.GetAssistant(id, "en")
+		if err != nil {
+			t.Fatalf("Failed to get assistant with EN locale: %v", err)
+		}
+
+		if retrievedEN.Name != "Test Assistant" {
+			t.Errorf("Expected name 'Test Assistant', got '%s'", retrievedEN.Name)
+		}
+		if retrievedEN.Description != "This is a test assistant" {
+			t.Errorf("Expected description 'This is a test assistant', got '%s'", retrievedEN.Description)
+		}
+		if retrievedEN.Placeholder == nil {
+			t.Fatal("Expected placeholder to be set")
+		}
+		if retrievedEN.Placeholder.Title != "Chat with me" {
+			t.Errorf("Expected placeholder title 'Chat with me', got '%s'", retrievedEN.Placeholder.Title)
+		}
+		if retrievedEN.Placeholder.Description != "Start a conversation" {
+			t.Errorf("Expected placeholder description 'Start a conversation', got '%s'", retrievedEN.Placeholder.Description)
+		}
+		if len(retrievedEN.Placeholder.Prompts) != 2 {
+			t.Errorf("Expected 2 placeholder prompts, got %d", len(retrievedEN.Placeholder.Prompts))
+		}
+		if retrievedEN.Placeholder.Prompts[0] != "How can I help you?" {
+			t.Errorf("Expected first prompt 'How can I help you?', got '%s'", retrievedEN.Placeholder.Prompts[0])
+		}
+
+		// Test Chinese locale
+		retrievedZH, err := store.GetAssistant(id, "zh-cn")
+		if err != nil {
+			t.Fatalf("Failed to get assistant with ZH locale: %v", err)
+		}
+
+		if retrievedZH.Name != "测试助手" {
+			t.Errorf("Expected name '测试助手', got '%s'", retrievedZH.Name)
+		}
+		if retrievedZH.Description != "这是一个测试助手" {
+			t.Errorf("Expected description '这是一个测试助手', got '%s'", retrievedZH.Description)
+		}
+		if retrievedZH.Placeholder == nil {
+			t.Fatal("Expected placeholder to be set")
+		}
+		if retrievedZH.Placeholder.Title != "与我聊天" {
+			t.Errorf("Expected placeholder title '与我聊天', got '%s'", retrievedZH.Placeholder.Title)
+		}
+
+		// Test without locale (should return original {{...}} values)
+		retrievedNoLocale, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to get assistant without locale: %v", err)
+		}
+
+		if retrievedNoLocale.Name != "{{name}}" {
+			t.Errorf("Expected original name '{{name}}', got '%s'", retrievedNoLocale.Name)
+		}
+		if retrievedNoLocale.Description != "{{description}}" {
+			t.Errorf("Expected original description '{{description}}', got '%s'", retrievedNoLocale.Description)
+		}
+
+		// Cleanup
+		delete(i18n.Locales, id)
+		t.Logf("Successfully tested locale translation for assistant %s", id)
+	})
+}
+
+// TestGetAssistantsWithLocale tests retrieving multiple assistants with locale translation
+func TestGetAssistantsWithLocale(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := NewXun(types.Setting{
+		Connector: "default",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	t.Run("GetAssistantsWithLocaleTranslation", func(t *testing.T) {
+		// Create assistant with i18n locales
+		assistant := &types.AssistantModel{
+			Name:        "{{name}}",
+			Type:        "assistant",
+			Connector:   "openai",
+			Description: "{{description}}",
+			Tags:        []string{"locale-test"},
+			Share:       "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Setup i18n for testing
+		i18n.Locales[id] = map[string]i18n.I18n{
+			"en": {
+				Locale: "en",
+				Messages: map[string]any{
+					"name":        "List Test Assistant",
+					"description": "This appears in the list",
+				},
+			},
+			"zh-cn": {
+				Locale: "zh-cn",
+				Messages: map[string]any{
+					"name":        "列表测试助手",
+					"description": "这出现在列表中",
+				},
+			},
+		}
+
+		// Test GetAssistants with English locale
+		responseEN, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"locale-test"},
+			Page:     1,
+			PageSize: 20,
+		}, "en")
+		if err != nil {
+			t.Fatalf("Failed to get assistants with EN locale: %v", err)
+		}
+
+		if len(responseEN.Data) < 1 {
+			t.Fatal("Expected at least 1 assistant in response")
+		}
+
+		found := false
+		for _, asst := range responseEN.Data {
+			if asst.ID == id {
+				found = true
+				if asst.Name != "List Test Assistant" {
+					t.Errorf("Expected name 'List Test Assistant', got '%s'", asst.Name)
+				}
+				if asst.Description != "This appears in the list" {
+					t.Errorf("Expected description 'This appears in the list', got '%s'", asst.Description)
+				}
+				break
+			}
+		}
+
+		if !found {
+			t.Error("Expected to find the test assistant in the list")
+		}
+
+		// Test GetAssistants with Chinese locale
+		responseZH, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"locale-test"},
+			Page:     1,
+			PageSize: 20,
+		}, "zh-cn")
+		if err != nil {
+			t.Fatalf("Failed to get assistants with ZH locale: %v", err)
+		}
+
+		found = false
+		for _, asst := range responseZH.Data {
+			if asst.ID == id {
+				found = true
+				if asst.Name != "列表测试助手" {
+					t.Errorf("Expected name '列表测试助手', got '%s'", asst.Name)
+				}
+				if asst.Description != "这出现在列表中" {
+					t.Errorf("Expected description '这出现在列表中', got '%s'", asst.Description)
+				}
+				break
+			}
+		}
+
+		if !found {
+			t.Error("Expected to find the test assistant in the list")
+		}
+
+		// Cleanup
+		delete(i18n.Locales, id)
+		t.Logf("Successfully tested locale translation for assistants list")
 	})
 }
 
