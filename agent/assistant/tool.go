@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 )
 
 // Tool represents a tool

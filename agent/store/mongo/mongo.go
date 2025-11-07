@@ -1,26 +1,28 @@
-package store
+package mongo
+
+import "github.com/yaoapp/yao/agent/store/types"
 
 // Mongo represents a MongoDB-based conversation storage
 type Mongo struct{}
 
 // NewMongo create a new mongo store
-func NewMongo() Store {
+func NewMongo() types.Store {
 	return &Mongo{}
 }
 
 // GetChats retrieves a list of chats
-func (m *Mongo) GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
-	return &ChatGroupResponse{}, nil
+func (m *Mongo) GetChats(sid string, filter types.ChatFilter, locale ...string) (*types.ChatGroupResponse, error) {
+	return &types.ChatGroupResponse{}, nil
 }
 
 // GetChat retrieves a single chat's information
-func (m *Mongo) GetChat(sid string, cid string, locale ...string) (*ChatInfo, error) {
-	return &ChatInfo{}, nil
+func (m *Mongo) GetChat(sid string, cid string, locale ...string) (*types.ChatInfo, error) {
+	return &types.ChatInfo{}, nil
 }
 
 // GetChatWithFilter retrieves a single chat's information with filter options
-func (m *Mongo) GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error) {
-	return &ChatInfo{}, nil
+func (m *Mongo) GetChatWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) (*types.ChatInfo, error) {
+	return &types.ChatInfo{}, nil
 }
 
 // GetHistory retrieves chat history
@@ -29,7 +31,7 @@ func (m *Mongo) GetHistory(sid string, cid string, locale ...string) ([]map[stri
 }
 
 // GetHistoryWithFilter retrieves chat history with filter options
-func (m *Mongo) GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error) {
+func (m *Mongo) GetHistoryWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
@@ -54,7 +56,7 @@ func (m *Mongo) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // SaveAssistant saves assistant information
-func (m *Mongo) SaveAssistant(assistant *AssistantModel) (string, error) {
+func (m *Mongo) SaveAssistant(assistant *types.AssistantModel) (string, error) {
 	return assistant.ID, nil
 }
 
@@ -64,23 +66,23 @@ func (m *Mongo) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves a list of assistants
-func (m *Mongo) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error) {
-	return &AssistantList{}, nil
+func (m *Mongo) GetAssistants(filter types.AssistantFilter, locale ...string) (*types.AssistantList, error) {
+	return &types.AssistantList{}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (m *Mongo) GetAssistant(assistantID string, locale ...string) (*AssistantModel, error) {
+func (m *Mongo) GetAssistant(assistantID string, locale ...string) (*types.AssistantModel, error) {
 	return nil, nil
 }
 
 // DeleteAssistants deletes assistants based on filter conditions (not implemented)
-func (m *Mongo) DeleteAssistants(filter AssistantFilter) (int64, error) {
+func (m *Mongo) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 	return 0, nil
 }
 
 // GetAssistantTags retrieves all unique tags from assistants
-func (m *Mongo) GetAssistantTags(locale ...string) ([]Tag, error) {
-	return []Tag{}, nil
+func (m *Mongo) GetAssistantTags(locale ...string) ([]types.Tag, error) {
+	return []types.Tag{}, nil
 }
 
 // Close closes the store and releases any resources

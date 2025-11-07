@@ -7,7 +7,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/agent/i18n"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 	sui "github.com/yaoapp/yao/sui/core"
 )
 

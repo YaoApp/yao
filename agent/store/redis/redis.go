@@ -1,26 +1,28 @@
 package store
 
+import "github.com/yaoapp/yao/agent/store/types"
+
 // Redis represents a Redis-based conversation storage
 type Redis struct{}
 
 // NewRedis create a new redis store
-func NewRedis() Store {
+func NewRedis() types.Store {
 	return &Redis{}
 }
 
 // GetChats retrieves a list of chats
-func (r *Redis) GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error) {
-	return &ChatGroupResponse{}, nil
+func (r *Redis) GetChats(sid string, filter types.ChatFilter, locale ...string) (*types.ChatGroupResponse, error) {
+	return &types.ChatGroupResponse{}, nil
 }
 
 // GetChat retrieves a single chat's information
-func (r *Redis) GetChat(sid string, cid string, locale ...string) (*ChatInfo, error) {
-	return &ChatInfo{}, nil
+func (r *Redis) GetChat(sid string, cid string, locale ...string) (*types.ChatInfo, error) {
+	return &types.ChatInfo{}, nil
 }
 
 // GetChatWithFilter retrieves a single chat's information with filter options
-func (r *Redis) GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error) {
-	return &ChatInfo{}, nil
+func (r *Redis) GetChatWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) (*types.ChatInfo, error) {
+	return &types.ChatInfo{}, nil
 }
 
 // GetHistory retrieves chat history
@@ -29,7 +31,7 @@ func (r *Redis) GetHistory(sid string, cid string, locale ...string) ([]map[stri
 }
 
 // GetHistoryWithFilter retrieves chat history with filter options
-func (r *Redis) GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error) {
+func (r *Redis) GetHistoryWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
@@ -54,7 +56,7 @@ func (r *Redis) UpdateChatTitle(sid string, cid string, title string) error {
 }
 
 // SaveAssistant saves assistant information
-func (r *Redis) SaveAssistant(assistant *AssistantModel) (string, error) {
+func (r *Redis) SaveAssistant(assistant *types.AssistantModel) (string, error) {
 	return assistant.ID, nil
 }
 
@@ -64,23 +66,23 @@ func (r *Redis) DeleteAssistant(assistantID string) error {
 }
 
 // GetAssistants retrieves a list of assistants
-func (r *Redis) GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error) {
-	return &AssistantList{}, nil
+func (r *Redis) GetAssistants(filter types.AssistantFilter, locale ...string) (*types.AssistantList, error) {
+	return &types.AssistantList{}, nil
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (r *Redis) GetAssistant(assistantID string, locale ...string) (*AssistantModel, error) {
+func (r *Redis) GetAssistant(assistantID string, locale ...string) (*types.AssistantModel, error) {
 	return nil, nil
 }
 
 // DeleteAssistants deletes assistants based on filter conditions (not implemented)
-func (r *Redis) DeleteAssistants(filter AssistantFilter) (int64, error) {
+func (r *Redis) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 	return 0, nil
 }
 
 // GetAssistantTags retrieves all unique tags from assistants
-func (r *Redis) GetAssistantTags(locale ...string) ([]Tag, error) {
-	return []Tag{}, nil
+func (r *Redis) GetAssistantTags(locale ...string) ([]types.Tag, error) {
+	return []types.Tag{}, nil
 }
 
 // Close closes the store and releases any resources

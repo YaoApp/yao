@@ -8,7 +8,7 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/message"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 	api "github.com/yaoapp/yao/openai"
 )
 

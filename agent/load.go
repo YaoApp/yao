@@ -8,7 +8,10 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/i18n"
-	"github.com/yaoapp/yao/agent/store"
+	mongoStore "github.com/yaoapp/yao/agent/store/mongo"
+	redisStore "github.com/yaoapp/yao/agent/store/redis"
+	store "github.com/yaoapp/yao/agent/store/types"
+	xunStore "github.com/yaoapp/yao/agent/store/xun"
 	"github.com/yaoapp/yao/config"
 )
 
@@ -122,7 +125,7 @@ func initStore() error {
 
 	var err error
 	if Agent.StoreSetting.Connector == "default" || Agent.StoreSetting.Connector == "" {
-		Agent.Store, err = store.NewXun(Agent.StoreSetting)
+		Agent.Store, err = xunStore.NewXun(Agent.StoreSetting)
 		return err
 	}
 
@@ -133,15 +136,15 @@ func initStore() error {
 	}
 
 	if conn.Is(connector.DATABASE) {
-		Agent.Store, err = store.NewXun(Agent.StoreSetting)
+		Agent.Store, err = xunStore.NewXun(Agent.StoreSetting)
 		return err
 
 	} else if conn.Is(connector.REDIS) {
-		Agent.Store = store.NewRedis()
+		Agent.Store = redisStore.NewRedis()
 		return nil
 
 	} else if conn.Is(connector.MONGO) {
-		Agent.Store = store.NewMongo()
+		Agent.Store = mongoStore.NewMongo()
 		return nil
 	}
 

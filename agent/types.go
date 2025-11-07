@@ -3,7 +3,7 @@ package agent
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/vision"
 )
 

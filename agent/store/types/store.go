@@ -1,4 +1,4 @@
-package store
+package types
 
 // Store defines the conversation storage interface
 // Provides basic operations required for conversation management

@@ -13,7 +13,7 @@ import (
 	"github.com/yaoapp/yao/agent/assistant"
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/message"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 )

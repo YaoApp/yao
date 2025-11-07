@@ -1,4 +1,4 @@
-package store
+package types
 
 import "github.com/yaoapp/yao/agent/i18n"
 

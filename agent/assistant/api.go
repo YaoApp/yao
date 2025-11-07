@@ -18,7 +18,7 @@ import (
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/message"
 	chatMessage "github.com/yaoapp/yao/agent/message"
-	"github.com/yaoapp/yao/agent/store"
+	store "github.com/yaoapp/yao/agent/store/types"
 )
 
 // Get get the assistant by id
