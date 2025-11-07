@@ -3,8 +3,6 @@ package xun
 import (
 	"fmt"
 	"math"
-	"strings"
-	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
@@ -326,23 +324,8 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 		}
 
 		// Apply i18n translations if locale is provided
-		if len(locale) > 0 && model != nil {
-			lang := strings.ToLower(locale[0])
-			// Translate name if locales are available
-			if model.Locales != nil {
-				if localeData, ok := model.Locales[lang]; ok {
-					if messages, ok := localeData.Messages["name"]; ok {
-						if nameStr, ok := messages.(string); ok {
-							model.Name = nameStr
-						}
-					}
-					if messages, ok := localeData.Messages["description"]; ok {
-						if descStr, ok := messages.(string); ok {
-							model.Description = descStr
-						}
-					}
-				}
-			}
+		if len(locale) > 0 && locale[0] != "" && model != nil {
+			conv.translate(model, model.ID, locale[0])
 		}
 
 		assistants = append(assistants, model)
@@ -484,6 +467,11 @@ func (conv *Xun) GetAssistant(assistantID string, locale ...string) (*types.Assi
 		}
 	}
 
+	// Apply i18n translation if locale is provided
+	if len(locale) > 0 && locale[0] != "" {
+		conv.translate(model, assistantID, locale[0])
+	}
+
 	return model, nil
 }
 
@@ -584,73 +572,65 @@ func (conv *Xun) GetAssistantTags(locale ...string) ([]types.Tag, error) {
 	return tags, nil
 }
 
-// GetHistoryWithFilter get the history with filter options
-func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return nil, err
+// translate applies i18n translation to assistant model fields
+func (conv *Xun) translate(model *types.AssistantModel, assistantID string, locale string) {
+	if model == nil {
+		return
 	}
 
-	qb := conv.newQuery().
-		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "silent", "created_at", "updated_at").
-		Where("sid", userID).
-		Where("cid", cid).
-		OrderBy("id", "desc")
-
-	// Apply silent filter if provided, otherwise exclude silent messages by default
-	if filter.Silent != nil {
-		if *filter.Silent {
-			// Include all messages (both silent and non-silent)
-		} else {
-			// Only include non-silent messages
-			qb.Where("silent", false)
+	// Translate name
+	if translated := i18n.Translate(assistantID, locale, model.Name); translated != nil {
+		if s, ok := translated.(string); ok {
+			model.Name = s
 		}
-	} else {
-		// Default behavior: exclude silent messages
-		qb.Where("silent", false)
 	}
 
-	if conv.setting.TTL > 0 {
-		qb.Where("expired_at", ">", time.Now())
-	}
-
-	limit := 20
-	if conv.setting.MaxSize > 0 {
-		limit = conv.setting.MaxSize
-	}
-	if filter.PageSize > 0 {
-		limit = filter.PageSize
-	}
-
-	// Apply pagination if provided
-	if filter.Page > 0 {
-		offset := (filter.Page - 1) * limit
-		qb.Offset(offset)
-	}
-
-	rows, err := qb.Limit(limit).Get()
-	if err != nil {
-		return nil, err
-	}
-
-	res := []map[string]interface{}{}
-	for _, row := range rows {
-		message := map[string]interface{}{
-			"role":             row.Get("role"),
-			"name":             row.Get("name"),
-			"content":          row.Get("content"),
-			"context":          row.Get("context"),
-			"assistant_id":     row.Get("assistant_id"),
-			"assistant_name":   row.Get("assistant_name"),
-			"assistant_avatar": row.Get("assistant_avatar"),
-			"mentions":         row.Get("mentions"),
-			"uid":              row.Get("uid"),
-			"silent":           row.Get("silent"),
-			"created_at":       row.Get("created_at"),
-			"updated_at":       row.Get("updated_at"),
+	// Translate description
+	if translated := i18n.Translate(assistantID, locale, model.Description); translated != nil {
+		if s, ok := translated.(string); ok {
+			model.Description = s
 		}
-		res = append([]map[string]interface{}{message}, res...)
 	}
 
-	return res, nil
+	// Translate prompts
+	if model.Prompts != nil {
+		for i := range model.Prompts {
+			if translated := i18n.Translate(assistantID, locale, model.Prompts[i].Name); translated != nil {
+				if s, ok := translated.(string); ok {
+					model.Prompts[i].Name = s
+				}
+			}
+			if translated := i18n.Translate(assistantID, locale, model.Prompts[i].Content); translated != nil {
+				if s, ok := translated.(string); ok {
+					model.Prompts[i].Content = s
+				}
+			}
+		}
+	}
+
+	// Translate placeholder
+	if model.Placeholder != nil {
+		if translated := i18n.Translate(assistantID, locale, model.Placeholder.Title); translated != nil {
+			if s, ok := translated.(string); ok {
+				model.Placeholder.Title = s
+			}
+		}
+		if translated := i18n.Translate(assistantID, locale, model.Placeholder.Description); translated != nil {
+			if s, ok := translated.(string); ok {
+				model.Placeholder.Description = s
+			}
+		}
+		if translated := i18n.Translate(assistantID, locale, model.Placeholder.Prompts); translated != nil {
+			if prompts, ok := translated.([]string); ok {
+				model.Placeholder.Prompts = prompts
+			}
+		}
+	}
+
+	// Translate tags
+	if translated := i18n.Translate(assistantID, locale, model.Tags); translated != nil {
+		if tags, ok := translated.([]string); ok {
+			model.Tags = tags
+		}
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/agent/store/types"
 )
 
 // GetHistory get the history
@@ -247,4 +248,75 @@ func (conv *Xun) SaveHistory(sid string, messages []map[string]interface{}, cid 
 	}
 
 	return nil
+}
+
+// GetHistoryWithFilter get the history with filter options
+func (conv *Xun) GetHistoryWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
+	userID, err := conv.getUserID(sid)
+	if err != nil {
+		return nil, err
+	}
+
+	qb := conv.newQuery().
+		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "silent", "created_at", "updated_at").
+		Where("sid", userID).
+		Where("cid", cid).
+		OrderBy("id", "desc")
+
+	// Apply silent filter if provided, otherwise exclude silent messages by default
+	if filter.Silent != nil {
+		if *filter.Silent {
+			// Include all messages (both silent and non-silent)
+		} else {
+			// Only include non-silent messages
+			qb.Where("silent", false)
+		}
+	} else {
+		// Default behavior: exclude silent messages
+		qb.Where("silent", false)
+	}
+
+	if conv.setting.TTL > 0 {
+		qb.Where("expired_at", ">", time.Now())
+	}
+
+	limit := 20
+	if conv.setting.MaxSize > 0 {
+		limit = conv.setting.MaxSize
+	}
+	if filter.PageSize > 0 {
+		limit = filter.PageSize
+	}
+
+	// Apply pagination if provided
+	if filter.Page > 0 {
+		offset := (filter.Page - 1) * limit
+		qb.Offset(offset)
+	}
+
+	rows, err := qb.Limit(limit).Get()
+	if err != nil {
+		return nil, err
+	}
+
+	res := []map[string]interface{}{}
+	for _, row := range rows {
+		message := map[string]interface{}{
+			"role":             row.Get("role"),
+			"name":             row.Get("name"),
+			"content":          row.Get("content"),
+			"context":          row.Get("context"),
+			"assistant_id":     row.Get("assistant_id"),
+			"assistant_name":   row.Get("assistant_name"),
+			"assistant_avatar": row.Get("assistant_avatar"),
+			"mentions":         row.Get("mentions"),
+			"uid":              row.Get("uid"),
+			"silent":           row.Get("silent"),
+			"created_at":       row.Get("created_at"),
+			"updated_at":       row.Get("updated_at"),
+		}
+		res = append([]map[string]interface{}{message}, res...)
+	}
+
+	return res, nil
 }

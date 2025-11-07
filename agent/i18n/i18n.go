@@ -23,24 +23,13 @@ type Map map[string]I18n
 
 // Parse parse the input
 func (i18n I18n) Parse(input any) any {
+	if input == nil {
+		return nil
+	}
 
 	switch in := input.(type) {
 	case string:
-		trimed := strings.TrimSpace(in)
-		hasExp := strings.HasPrefix(trimed, "{{") && strings.HasSuffix(trimed, "}}")
-		if hasExp {
-			exp := strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(trimed, "}}"), "{{"))
-			if _, ok := i18n.Messages[exp]; ok {
-				return i18n.Messages[exp]
-			}
-			return exp
-		}
-
-		if _, ok := i18n.Messages[trimed]; ok {
-			return i18n.Messages[trimed]
-		}
-
-		return in
+		return i18n.parseString(in)
 
 	case map[string]any:
 		new := map[string]any{}
@@ -59,12 +48,46 @@ func (i18n I18n) Parse(input any) any {
 	case []string:
 		new := []string{}
 		for _, value := range in {
-			new = append(new, i18n.Parse(value).(string))
+			if parsed := i18n.Parse(value); parsed != nil {
+				if s, ok := parsed.(string); ok {
+					new = append(new, s)
+				} else {
+					new = append(new, value)
+				}
+			} else {
+				new = append(new, value)
+			}
 		}
 		return new
 	}
 
 	return input
+}
+
+// parseString parse a string value
+func (i18n I18n) parseString(in string) string {
+	trimed := strings.TrimSpace(in)
+
+	// Check if it's a template expression {{...}}
+	hasExp := strings.HasPrefix(trimed, "{{") && strings.HasSuffix(trimed, "}}")
+	if hasExp {
+		exp := strings.TrimSpace(strings.TrimPrefix(strings.TrimSuffix(trimed, "}}"), "{{"))
+		if val, ok := i18n.Messages[exp]; ok {
+			if s, ok := val.(string); ok {
+				return s
+			}
+		}
+		return in
+	}
+
+	// Check if it's a direct message key
+	if val, ok := i18n.Messages[trimed]; ok {
+		if s, ok := val.(string); ok {
+			return s
+		}
+	}
+
+	return in
 }
 
 // GetLocales get the locales from path

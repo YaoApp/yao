@@ -47,3 +47,4 @@ share/const.go.bak
 share/const.goe
 .cursor
 openapi/*.md
+coverage.html
