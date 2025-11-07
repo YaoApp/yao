@@ -995,33 +995,67 @@ func (conv *Xun) SaveAssistant(assistant *AssistantModel) (string, error) {
 	data := make(map[string]interface{})
 	data["assistant_id"] = assistant.ID
 	data["type"] = assistant.Type
-	data["name"] = assistant.Name
-	data["avatar"] = assistant.Avatar
 	data["connector"] = assistant.Connector
-	data["path"] = assistant.Path
 	data["built_in"] = assistant.BuiltIn
 	data["sort"] = assistant.Sort
-	data["description"] = assistant.Description
 	data["readonly"] = assistant.Readonly
 	data["public"] = assistant.Public
-	data["share"] = assistant.Share
 	data["mentionable"] = assistant.Mentionable
 	data["automated"] = assistant.Automated
 	data["created_at"] = assistant.CreatedAt
 	data["updated_at"] = assistant.UpdatedAt
 
-	// Permission management fields
+	// Handle nullable string fields from assistant.mod.yao
+	// Store as nil if empty string (this matches database nullable: true fields)
+	if assistant.Name != "" {
+		data["name"] = assistant.Name
+	} else {
+		data["name"] = nil
+	}
+	if assistant.Avatar != "" {
+		data["avatar"] = assistant.Avatar
+	} else {
+		data["avatar"] = nil
+	}
+	if assistant.Description != "" {
+		data["description"] = assistant.Description
+	} else {
+		data["description"] = nil
+	}
+	if assistant.Path != "" {
+		data["path"] = assistant.Path
+	} else {
+		data["path"] = nil
+	}
+
+	// Share field: nullable: false with default "private"
+	// Apply default if empty
+	if assistant.Share != "" {
+		data["share"] = assistant.Share
+	} else {
+		data["share"] = "private" // Apply default value
+	}
+
+	// Permission management fields - store as nil if empty
 	if assistant.YaoCreatedBy != "" {
 		data["__yao_created_by"] = assistant.YaoCreatedBy
+	} else {
+		data["__yao_created_by"] = nil
 	}
 	if assistant.YaoUpdatedBy != "" {
 		data["__yao_updated_by"] = assistant.YaoUpdatedBy
+	} else {
+		data["__yao_updated_by"] = nil
 	}
 	if assistant.YaoTeamID != "" {
 		data["__yao_team_id"] = assistant.YaoTeamID
+	} else {
+		data["__yao_team_id"] = nil
 	}
 	if assistant.YaoTenantID != "" {
 		data["__yao_tenant_id"] = assistant.YaoTenantID
+	} else {
+		data["__yao_tenant_id"] = nil
 	}
 
 	// Handle simple types

@@ -43,6 +43,8 @@ func TestSaveAssistant(t *testing.T) {
 			Sort:        100,
 			BuiltIn:     false,
 			Readonly:    false,
+			Public:      false,
+			Share:       "private",
 			Mentionable: true,
 			Automated:   true,
 		}
@@ -71,6 +73,7 @@ func TestSaveAssistant(t *testing.T) {
 			Connector:   "openai",
 			Description: "Original description",
 			Tags:        []string{"original"},
+			Share:       "private",
 		}
 
 		id, err := store.SaveAssistant(assistant)
@@ -150,6 +153,7 @@ func TestSaveAssistant(t *testing.T) {
 			Name:      "Complex Assistant",
 			Type:      "assistant",
 			Connector: "openai",
+			Share:     "private",
 			Prompts: []Prompt{
 				{Role: "system", Content: "You are a helpful assistant"},
 				{Role: "user", Content: "Hello"},
@@ -210,6 +214,7 @@ func TestDeleteAssistant(t *testing.T) {
 			Name:      "Delete Test",
 			Type:      "assistant",
 			Connector: "openai",
+			Share:     "private",
 		}
 
 		id, err := store.SaveAssistant(assistant)
@@ -262,6 +267,7 @@ func TestGetAssistant(t *testing.T) {
 			Tags:        []string{"tag1", "tag2"},
 			Sort:        150,
 			BuiltIn:     false,
+			Share:       "private",
 			Mentionable: true,
 		}
 
@@ -335,6 +341,7 @@ func TestGetAssistants(t *testing.T) {
 			Description: "First test assistant",
 			Tags:        []string{"test", "automation"},
 			Sort:        100,
+			Share:       "private",
 			Mentionable: true,
 			Automated:   true,
 		},
@@ -345,6 +352,7 @@ func TestGetAssistants(t *testing.T) {
 			Description: "Second test assistant",
 			Tags:        []string{"test", "manual"},
 			Sort:        200,
+			Share:       "private",
 			Mentionable: false,
 			Automated:   false,
 		},
@@ -355,6 +363,7 @@ func TestGetAssistants(t *testing.T) {
 			Description: "Third test bot",
 			Tags:        []string{"bot", "automation"},
 			Sort:        50,
+			Share:       "private",
 			Mentionable: true,
 			Automated:   true,
 		},
@@ -638,6 +647,7 @@ func TestDeleteAssistants(t *testing.T) {
 				Type:      "assistant",
 				Connector: "openai",
 				Tags:      []string{tag},
+				Share:     "private",
 			}
 			_, err := store.SaveAssistant(assistant)
 			if err != nil {
@@ -666,6 +676,7 @@ func TestDeleteAssistants(t *testing.T) {
 				Name:      fmt.Sprintf("Connector Test %d", i),
 				Type:      "assistant",
 				Connector: connector,
+				Share:     "private",
 			}
 			_, err := store.SaveAssistant(assistant)
 			if err != nil {
@@ -694,6 +705,7 @@ func TestDeleteAssistants(t *testing.T) {
 			Type:        "assistant",
 			Connector:   "openai",
 			Description: "Test description",
+			Share:       "private",
 		}
 		_, err := store.SaveAssistant(assistant)
 		if err != nil {
@@ -719,6 +731,7 @@ func TestDeleteAssistants(t *testing.T) {
 			Name:      "Single Delete Test",
 			Type:      "assistant",
 			Connector: "openai",
+			Share:     "private",
 		}
 		id, err := store.SaveAssistant(assistant)
 		if err != nil {
@@ -761,18 +774,21 @@ func TestGetAssistantTags(t *testing.T) {
 				Type:      "assistant",
 				Connector: "openai",
 				Tags:      []string{uniqueTag, "common"},
+				Share:     "private",
 			},
 			{
 				Name:      "Tags Test 2",
 				Type:      "assistant",
 				Connector: "openai",
 				Tags:      []string{uniqueTag, "different"},
+				Share:     "private",
 			},
 			{
 				Name:      "Tags Test 3",
 				Type:      "assistant",
 				Connector: "openai",
 				Tags:      []string{"common", "another"},
+				Share:     "private",
 			},
 		}
 
@@ -866,6 +882,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 			Type:         "assistant",
 			Connector:    "openai",
 			Description:  "Testing permission fields",
+			Share:        "private",
 			YaoCreatedBy: "user-123",
 			YaoUpdatedBy: "user-123",
 			YaoTeamID:    "team-456",
@@ -905,6 +922,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 			Name:         "Update Permission Test",
 			Type:         "assistant",
 			Connector:    "openai",
+			Share:        "private",
 			YaoCreatedBy: "user-original",
 			YaoTeamID:    "team-original",
 		}
@@ -947,6 +965,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 			Name:      "No Permission Fields",
 			Type:      "assistant",
 			Connector: "openai",
+			Share:     "private",
 		}
 
 		id, err := store.SaveAssistant(assistant)
@@ -975,6 +994,109 @@ func TestAssistantPermissionFields(t *testing.T) {
 	})
 }
 
+// TestEmptyStringAsNull tests that empty strings are stored as NULL in database
+func TestEmptyStringAsNull(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := NewXun(Setting{
+		Connector: "default",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	t.Run("EmptyStringsStoredAsNull", func(t *testing.T) {
+		// Create assistant with empty strings for nullable fields
+		// According to assistant.mod.yao, nullable string fields are:
+		// - name (nullable: true, but required by validation)
+		// - avatar, description, path (nullable: true)
+		// - share (nullable: false, but empty should trigger default)
+		assistant := &AssistantModel{
+			Name:        "Test Null Fields", // Required by validation
+			Type:        "assistant",
+			Connector:   "openai",
+			Avatar:      "", // Empty string should become NULL (nullable: true)
+			Path:        "", // Empty string should become NULL (nullable: true)
+			Description: "", // Empty string should become NULL (nullable: true)
+			Share:       "", // Empty string should become NULL, then default "private" applied
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant: %v", err)
+		}
+
+		// Retrieve and verify empty strings are returned (not stored as empty strings)
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to get assistant: %v", err)
+		}
+
+		// Name should be preserved (required field)
+		if retrieved.Name != "Test Null Fields" {
+			t.Errorf("Expected Name 'Test Null Fields', got '%s'", retrieved.Name)
+		}
+
+		// These nullable fields should be empty strings in Go (converted from NULL)
+		if retrieved.Avatar != "" {
+			t.Errorf("Expected empty Avatar, got '%s'", retrieved.Avatar)
+		}
+		if retrieved.Path != "" {
+			t.Errorf("Expected empty Path, got '%s'", retrieved.Path)
+		}
+		if retrieved.Description != "" {
+			t.Errorf("Expected empty Description, got '%s'", retrieved.Description)
+		}
+		// Share should have default value "private" applied
+		if retrieved.Share != "private" {
+			t.Errorf("Expected Share to be 'private', got '%s'", retrieved.Share)
+		}
+
+		t.Logf("Successfully verified empty strings are stored as NULL for assistant %s", id)
+	})
+
+	t.Run("NonEmptyStringsPreserved", func(t *testing.T) {
+		// Create assistant with non-empty values
+		assistant := &AssistantModel{
+			Name:        "Test Non-Empty Fields",
+			Type:        "assistant",
+			Connector:   "openai",
+			Avatar:      "https://example.com/avatar.png",
+			Path:        "/path/to/assistant",
+			Description: "This is a description",
+			Share:       "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant: %v", err)
+		}
+
+		// Retrieve and verify values are preserved
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to get assistant: %v", err)
+		}
+
+		if retrieved.Avatar != "https://example.com/avatar.png" {
+			t.Errorf("Expected Avatar 'https://example.com/avatar.png', got '%s'", retrieved.Avatar)
+		}
+		if retrieved.Path != "/path/to/assistant" {
+			t.Errorf("Expected Path '/path/to/assistant', got '%s'", retrieved.Path)
+		}
+		if retrieved.Description != "This is a description" {
+			t.Errorf("Expected Description 'This is a description', got '%s'", retrieved.Description)
+		}
+		if retrieved.Share != "private" {
+			t.Errorf("Expected Share 'private', got '%s'", retrieved.Share)
+		}
+
+		t.Logf("Successfully verified non-empty strings are preserved for assistant %s", id)
+	})
+}
+
 // TestAssistantCompleteWorkflow tests a complete workflow
 func TestAssistantCompleteWorkflow(t *testing.T) {
 	test.Prepare(t, config.Conf)
@@ -999,6 +1121,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 				Description: fmt.Sprintf("Workflow test assistant %d", i),
 				Tags:        []string{"workflow", fmt.Sprintf("test-%d", i)},
 				Sort:        i * 100,
+				Share:       "private",
 			}
 
 			id, err := store.SaveAssistant(assistant)
