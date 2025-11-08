@@ -7,7 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent"
+	agenttypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
@@ -160,6 +162,87 @@ func ListAssistants(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, result)
 }
 
+// GetAssistant retrieves a single assistant by ID with permission verification
+func GetAssistant(c *gin.Context) {
+
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
+	// Get Agent instance from global variable
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Agent store not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get assistant ID from URL parameter
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "assistant_id is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Parse locale (optional - if not provided, returns raw data without i18n translation)
+	// This is useful for form editing scenarios where you need the original values
+	var assistant *agenttypes.AssistantModel
+	var err error
+
+	if loc := c.Query("locale"); loc != "" {
+		// If locale is specified, get assistant with translation
+		locale := strings.ToLower(strings.TrimSpace(loc))
+		assistant, err = agentInstance.Store.GetAssistant(assistantID, locale)
+	} else {
+		// If no locale specified, get raw data without translation
+		assistant, err = agentInstance.Store.GetAssistant(assistantID)
+	}
+	if err != nil {
+		log.Error("Failed to get assistant %s: %v", assistantID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Assistant not found: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Check permission
+	hasPermission, err := checkAssistantPermission(authInfo, assistant)
+	if err != nil {
+		log.Error("Failed to check permission for assistant %s: %v", assistantID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to check permission: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to access this assistant",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Filter sensitive fields for built-in assistants
+	FilterBuiltInAssistant(assistant)
+
+	// Return the result with standard response format
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
+		"data": assistant,
+	})
+}
+
 // ListAssistantTags lists assistant tags with permission-based filtering
 func ListAssistantTags(c *gin.Context) {
 
@@ -232,4 +315,54 @@ func ListAssistantTags(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
 		"data": tags,
 	})
+}
+
+// checkAssistantPermission checks if the user has permission to access the assistant
+// Similar logic to checkFilePermission in openapi/file/file.go
+func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistant *agenttypes.AssistantModel) (bool, error) {
+	// No auth info, allow access
+	if authInfo == nil {
+		return true, nil
+	}
+
+	// No constraints, allow access
+	if !authInfo.Constraints.TeamOnly && !authInfo.Constraints.OwnerOnly {
+		return true, nil
+	}
+
+	// If assistant is public, allow access
+	if assistant.Public {
+		return true, nil
+	}
+
+	// Combined Team and Owner permission validation
+	if authInfo.Constraints.TeamOnly && authInfo.Constraints.OwnerOnly {
+		if assistant.YaoCreatedBy == authInfo.UserID && assistant.YaoTeamID == authInfo.TeamID {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	// Team only permission validation
+	if authInfo.Constraints.TeamOnly {
+		// Check if assistant belongs to the same team
+		if assistant.YaoTeamID == authInfo.TeamID {
+			// Allow if user created it or if it's shared with team
+			if assistant.YaoCreatedBy == authInfo.UserID || assistant.Share == "team" {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+
+	// Owner only permission validation
+	if authInfo.Constraints.OwnerOnly {
+		// Check if user created the assistant and team_id is empty (not a team resource)
+		if assistant.YaoCreatedBy == authInfo.UserID && assistant.YaoTeamID == "" {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	return false, nil
 }

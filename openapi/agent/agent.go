@@ -20,7 +20,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/assistants", ListAssistants)                 // GET /assistants - List assistants
 	group.POST("/assistants", n.HandleAssistantSave)         // POST /assistants - Create/Update assistant
 	group.GET("/assistants/tags", ListAssistantTags)         // GET /assistants/tags - Get all assistant tags with permission filtering
-	group.GET("/assistants/:id", n.HandleAssistantDetail)    // GET /assistants/:id - Get assistant details
+	group.GET("/assistants/:id", GetAssistant)               // GET /assistants/:id - Get assistant details with permission verification
 	group.DELETE("/assistants/:id", n.HandleAssistantDelete) // DELETE /assistants/:id - Delete assistant
 
 	// Assistant Actions
