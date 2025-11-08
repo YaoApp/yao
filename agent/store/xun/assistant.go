@@ -258,6 +258,11 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 		qb.Where("built_in", *filter.BuiltIn)
 	}
 
+	// Apply custom query filter function (for permission filtering)
+	if filter.QueryFilter != nil {
+		qb.Where(filter.QueryFilter)
+	}
+
 	// Set defaults for pagination
 	if filter.PageSize <= 0 {
 		filter.PageSize = 20
@@ -284,14 +289,17 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 		prevPage = 0
 	}
 
-	// Apply select fields if provided
+	// Apply select fields with security validation (only if fields are explicitly specified)
 	if len(filter.Select) > 0 {
-		selectFields := make([]interface{}, len(filter.Select))
-		for i, field := range filter.Select {
+		// ValidateAssistantFields will validate fields against whitelist
+		sanitized := types.ValidateAssistantFields(filter.Select)
+		selectFields := make([]interface{}, len(sanitized))
+		for i, field := range sanitized {
 			selectFields[i] = field
 		}
 		qb.Select(selectFields...)
 	}
+	// If no select fields specified, query will return all fields (SELECT *)
 
 	// Get paginated results
 	rows, err := qb.OrderBy("sort", "asc").

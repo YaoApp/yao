@@ -13,17 +13,17 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Get the Agent instance
 	n := agent.GetAgent()
 
-	// Create agents group with OAuth guard
-	agents := group.Group("/agents")
-	agents.Use(oauth.Guard)
+	// Create assistants group with OAuth guard
+	assistants := group.Group("/assistants")
+	assistants.Use(oauth.Guard)
 
-	// Agent CRUD - Standard REST endpoints
-	agents.GET("/", n.HandleAssistantList)         // GET /agents - List agents
-	agents.POST("/", n.HandleAssistantSave)        // POST /agents - Create/Update agent
-	agents.GET("/tags", n.HandleAssistantTags)     // GET /agents/tags - Get all agent tags
-	agents.GET("/:id", n.HandleAssistantDetail)    // GET /agents/:id - Get agent details
-	agents.DELETE("/:id", n.HandleAssistantDelete) // DELETE /agents/:id - Delete agent
+	// Assistant CRUD - Standard REST endpoints
+	assistants.GET("/", ListAssistants)                // GET /assistants - List assistants
+	assistants.POST("/", n.HandleAssistantSave)        // POST /assistants - Create/Update assistant
+	assistants.GET("/tags", n.HandleAssistantTags)     // GET /assistants/tags - Get all assistant tags
+	assistants.GET("/:id", n.HandleAssistantDetail)    // GET /assistants/:id - Get assistant details
+	assistants.DELETE("/:id", n.HandleAssistantDelete) // DELETE /assistants/:id - Delete assistant
 
-	// Agent Actions
-	agents.POST("/:id/call", n.HandleAssistantCall) // POST /agents/:id/call - Execute agent API
+	// Assistant Actions
+	assistants.POST("/:id/call", n.HandleAssistantCall) // POST /assistants/:id/call - Execute assistant API
 }
