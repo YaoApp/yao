@@ -303,7 +303,8 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 	if filter.Keywords != "" {
 		qb.Where(func(qb query.Query) {
 			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("locales", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
 		})
 	}
 
