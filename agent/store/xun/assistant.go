@@ -544,10 +544,48 @@ func (conv *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 	return qb.Delete()
 }
 
-// GetAssistantTags retrieves all unique tags from assistants
-func (conv *Xun) GetAssistantTags(locale ...string) ([]types.Tag, error) {
-	q := conv.newQuery().Table(conv.getAssistantTable())
-	rows, err := q.Select("tags").Where("type", "assistant").GroupBy("tags").Get()
+// GetAssistantTags retrieves all unique tags from assistants with filtering
+func (conv *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
+	qb := conv.query.New().Table(conv.getAssistantTable())
+
+	// Apply type filter (default to "assistant")
+	typeFilter := "assistant"
+	if filter.Type != "" {
+		typeFilter = filter.Type
+	}
+	qb.Where("type", typeFilter)
+
+	// Apply custom query filter function (for permission filtering)
+	if filter.QueryFilter != nil {
+		qb.Where(filter.QueryFilter)
+	}
+
+	// Apply other filters if provided
+	if filter.Connector != "" {
+		qb.Where("connector", filter.Connector)
+	}
+
+	if filter.BuiltIn != nil {
+		qb.Where("built_in", *filter.BuiltIn)
+	}
+
+	if filter.Mentionable != nil {
+		qb.Where("mentionable", *filter.Mentionable)
+	}
+
+	if filter.Automated != nil {
+		qb.Where("automated", *filter.Automated)
+	}
+
+	// Apply keyword filter if provided
+	if filter.Keywords != "" {
+		qb.Where(func(qb query.Query) {
+			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
+				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+		})
+	}
+
+	rows, err := qb.Select("tags").GroupBy("tags").Get()
 	if err != nil {
 		return nil, err
 	}

@@ -803,7 +803,7 @@ func TestGetAssistantTags(t *testing.T) {
 		}
 
 		// Get all tags
-		tags, err := store.GetAssistantTags()
+		tags, err := store.GetAssistantTags(types.AssistantFilter{})
 		if err != nil {
 			t.Fatalf("Failed to get tags: %v", err)
 		}
@@ -824,6 +824,167 @@ func TestGetAssistantTags(t *testing.T) {
 		}
 
 		t.Logf("Found %d unique tags", len(tags))
+	})
+
+	t.Run("GetTagsWithFilter", func(t *testing.T) {
+		// Create test assistants with specific tags and attributes
+		uniqueTag := fmt.Sprintf("filter-tag-%d", time.Now().UnixNano())
+		assistants := []types.AssistantModel{
+			{
+				Name:        "Filtered Tags Test 1",
+				Type:        "assistant",
+				Connector:   "openai",
+				Tags:        []string{uniqueTag, "ai"},
+				Share:       "private",
+				BuiltIn:     false,
+				Mentionable: true,
+			},
+			{
+				Name:        "Filtered Tags Test 2",
+				Type:        "assistant",
+				Connector:   "anthropic",
+				Tags:        []string{uniqueTag, "coding"},
+				Share:       "private",
+				BuiltIn:     true,
+				Mentionable: false,
+			},
+			{
+				Name:      "Filtered Tags Test 3",
+				Type:      "assistant",
+				Connector: "openai",
+				Tags:      []string{uniqueTag, "search"},
+				Share:     "private",
+				BuiltIn:   false,
+				Automated: true,
+			},
+		}
+
+		for _, asst := range assistants {
+			_, err := store.SaveAssistant(&asst)
+			if err != nil {
+				t.Fatalf("Failed to create assistant: %v", err)
+			}
+		}
+
+		// Test: Get tags filtered by connector
+		tagsOpenAI, err := store.GetAssistantTags(types.AssistantFilter{
+			Connector: "openai",
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with connector filter: %v", err)
+		}
+		t.Logf("Found %d tags for openai connector", len(tagsOpenAI))
+
+		// Test: Get tags filtered by built_in
+		builtInFalse := false
+		tagsNonBuiltIn, err := store.GetAssistantTags(types.AssistantFilter{
+			BuiltIn: &builtInFalse,
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with built_in filter: %v", err)
+		}
+		t.Logf("Found %d tags for non-built-in assistants", len(tagsNonBuiltIn))
+
+		// Test: Get tags filtered by mentionable
+		mentionableTrue := true
+		tagsMentionable, err := store.GetAssistantTags(types.AssistantFilter{
+			Mentionable: &mentionableTrue,
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with mentionable filter: %v", err)
+		}
+		t.Logf("Found %d tags for mentionable assistants", len(tagsMentionable))
+
+		// Test: Get tags filtered by keywords
+		tagsWithKeywords, err := store.GetAssistantTags(types.AssistantFilter{
+			Keywords: "Filtered Tags Test",
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with keywords filter: %v", err)
+		}
+		t.Logf("Found %d tags with keywords filter", len(tagsWithKeywords))
+	})
+
+	t.Run("GetTagsWithQueryFilter", func(t *testing.T) {
+		// Create test assistants with permission fields
+		permTag := fmt.Sprintf("perm-tag-%d", time.Now().UnixNano())
+		assistants := []types.AssistantModel{
+			{
+				Name:         "Permission Tags Test 1",
+				Type:         "assistant",
+				Connector:    "openai",
+				Tags:         []string{permTag, "public-tag"},
+				Share:        "private",
+				Public:       true,
+				YaoCreatedBy: "user-1",
+				YaoTeamID:    "team-1",
+			},
+			{
+				Name:         "Permission Tags Test 2",
+				Type:         "assistant",
+				Connector:    "openai",
+				Tags:         []string{permTag, "team-tag"},
+				Share:        "team",
+				Public:       false,
+				YaoCreatedBy: "user-2",
+				YaoTeamID:    "team-1",
+			},
+			{
+				Name:         "Permission Tags Test 3",
+				Type:         "assistant",
+				Connector:    "openai",
+				Tags:         []string{permTag, "private-tag"},
+				Share:        "private",
+				Public:       false,
+				YaoCreatedBy: "user-3",
+				YaoTeamID:    "team-2",
+			},
+		}
+
+		for _, asst := range assistants {
+			_, err := store.SaveAssistant(&asst)
+			if err != nil {
+				t.Fatalf("Failed to create assistant: %v", err)
+			}
+		}
+
+		// Test: Get tags for public assistants only
+		tagsPublic, err := store.GetAssistantTags(types.AssistantFilter{
+			QueryFilter: func(qb query.Query) {
+				qb.Where("public", true)
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags for public assistants: %v", err)
+		}
+		t.Logf("Found %d tags for public assistants", len(tagsPublic))
+
+		// Test: Get tags for team-1 assistants
+		tagsTeam1, err := store.GetAssistantTags(types.AssistantFilter{
+			QueryFilter: func(qb query.Query) {
+				qb.Where("__yao_team_id", "team-1")
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags for team-1: %v", err)
+		}
+		t.Logf("Found %d tags for team-1 assistants", len(tagsTeam1))
+
+		// Test: Complex permission filter (public OR team-1 with share=team)
+		tagsComplex, err := store.GetAssistantTags(types.AssistantFilter{
+			QueryFilter: func(qb query.Query) {
+				qb.Where(func(qb query.Query) {
+					qb.Where("public", true)
+				}).OrWhere(func(qb query.Query) {
+					qb.Where("__yao_team_id", "team-1").
+						Where("share", "team")
+				})
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with complex filter: %v", err)
+		}
+		t.Logf("Found %d tags with complex permission filter", len(tagsComplex))
 	})
 }
 
@@ -1672,7 +1833,7 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 		}
 
 		// Step 5: Get tags
-		tags, err := store.GetAssistantTags()
+		tags, err := store.GetAssistantTags(types.AssistantFilter{})
 		if err != nil {
 			t.Fatalf("Failed to get tags: %v", err)
 		}

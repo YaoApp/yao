@@ -720,6 +720,206 @@ func TestAssistantEdgeCases(t *testing.T) {
 	})
 }
 
+// TestListAssistantTags tests the assistant tags endpoint
+func TestListAssistantTags(t *testing.T) {
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	client := testutils.RegisterTestClient(t, "Agent Tags Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+
+	t.Run("ListAssistantTagsSuccess", func(t *testing.T) {
+		// Test listing all assistant tags
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully retrieve tags")
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags", len(data))
+			
+			// Verify tag structure
+			if len(data) > 0 {
+				tag, ok := data[0].(map[string]interface{})
+				if ok {
+					assert.Contains(t, tag, "value", "Tag should have value field")
+					assert.Contains(t, tag, "label", "Tag should have label field")
+				}
+			}
+		}
+	})
+
+	t.Run("ListAssistantTagsWithLocale", func(t *testing.T) {
+		// Test with locale parameter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?locale=zh-cn", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags with zh-cn locale", len(data))
+		}
+	})
+
+	t.Run("ListAssistantTagsWithFilters", func(t *testing.T) {
+		// Test with type filter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?type=assistant", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags with type filter", len(data))
+		}
+	})
+
+	t.Run("ListAssistantTagsWithConnector", func(t *testing.T) {
+		// Test with connector filter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?connector=openai", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags for openai connector", len(data))
+		}
+	})
+
+	t.Run("ListAssistantTagsWithBuiltInFilter", func(t *testing.T) {
+		// Test with built_in filter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?built_in=false", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags for non-built-in assistants", len(data))
+		}
+	})
+
+	t.Run("ListAssistantTagsWithMentionableFilter", func(t *testing.T) {
+		// Test with mentionable filter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?mentionable=true", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags for mentionable assistants", len(data))
+		}
+	})
+
+	t.Run("ListAssistantTagsWithKeywords", func(t *testing.T) {
+		// Test with keywords filter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?keywords=test", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			t.Logf("Successfully retrieved %d tags with keywords filter", len(data))
+		}
+	})
+
+	t.Run("ListAssistantTagsUnauthorized", func(t *testing.T) {
+		// Test without authentication
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags", nil)
+		assert.NoError(t, err)
+		// No Authorization header
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		t.Logf("Correctly rejected unauthorized request")
+	})
+}
+
 // BenchmarkListAssistants benchmarks the list assistants endpoint
 func BenchmarkListAssistants(b *testing.B) {
 	// Convert testing.B to testing.T for Prepare/Clean

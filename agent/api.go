@@ -1003,19 +1003,49 @@ func (agent *DSL) handleConnectors(c *gin.Context) {
 
 // HandleAssistantTags handles getting all assistant tags (exported for use in openapi/agent)
 func (agent *DSL) HandleAssistantTags(c *gin.Context) {
-	sid := c.GetString("__sid")
-	if sid == "" {
-		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
-		c.Done()
-		return
-	}
-
 	locale := "en-us" // Default locale
 	if loc := c.Query("locale"); loc != "" {
 		locale = strings.ToLower(strings.TrimSpace(loc))
 	}
 
-	tags, err := agent.Store.GetAssistantTags(locale)
+	// Build filter for tags query
+	filter := store.AssistantFilter{}
+
+	// Apply type filter (default to "assistant")
+	typeParam := strings.TrimSpace(c.Query("type"))
+	if typeParam == "" {
+		typeParam = "assistant"
+	}
+	filter.Type = typeParam
+
+	// Apply other optional filters
+	if connector := strings.TrimSpace(c.Query("connector")); connector != "" {
+		filter.Connector = connector
+	}
+
+	if builtInParam := c.Query("built_in"); builtInParam != "" {
+		if val, err := strconv.ParseBool(builtInParam); err == nil {
+			filter.BuiltIn = &val
+		}
+	}
+
+	if mentionableParam := c.Query("mentionable"); mentionableParam != "" {
+		if val, err := strconv.ParseBool(mentionableParam); err == nil {
+			filter.Mentionable = &val
+		}
+	}
+
+	if automatedParam := c.Query("automated"); automatedParam != "" {
+		if val, err := strconv.ParseBool(automatedParam); err == nil {
+			filter.Automated = &val
+		}
+	}
+
+	if keywords := strings.TrimSpace(c.Query("keywords")); keywords != "" {
+		filter.Keywords = keywords
+	}
+
+	tags, err := agent.Store.GetAssistantTags(filter, locale)
 	if err != nil {
 		c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 		c.Done()
