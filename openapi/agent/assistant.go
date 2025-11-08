@@ -1,12 +1,15 @@
 package agent
 
 import (
+	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent"
+	"github.com/yaoapp/yao/agent/assistant"
 	agenttypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -213,8 +216,8 @@ func GetAssistant(c *gin.Context) {
 		return
 	}
 
-	// Check permission
-	hasPermission, err := checkAssistantPermission(authInfo, assistant)
+	// Check read permission
+	hasPermission, err := checkAssistantPermission(authInfo, assistantID, true)
 	if err != nil {
 		log.Error("Failed to check permission for assistant %s: %v", assistantID, err)
 		errorResp := &response.ErrorResponse{
@@ -313,9 +316,200 @@ func ListAssistantTags(c *gin.Context) {
 	response.RespondWithSuccess(c, response.StatusOK, tags)
 }
 
+// CreateAssistant creates a new assistant
+func CreateAssistant(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
+	// Get Agent instance from global variable
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Agent store not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Parse request body
+	var assistantData map[string]interface{}
+	if err := c.ShouldBindJSON(&assistantData); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Convert to AssistantModel
+	model, err := agenttypes.ToAssistantModel(assistantData)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid assistant data: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Attach create scope to the assistant data
+	if authInfo != nil {
+		scope := authInfo.AccessScope()
+		model.YaoCreatedBy = scope.CreatedBy
+		model.YaoUpdatedBy = scope.UpdatedBy
+		model.YaoTeamID = scope.TeamID
+		model.YaoTenantID = scope.TenantID
+	}
+
+	// Save assistant using Store
+	id, err := agentInstance.Store.SaveAssistant(model)
+	if err != nil {
+		log.Error("Failed to create assistant: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to create assistant: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Update the assistant map with the returned ID
+	assistantData["assistant_id"] = id
+
+	// Clear cache and reload assistant to make it effective
+	cache := assistant.GetCache()
+	if cache != nil {
+		cache.Remove(id)
+	}
+
+	// Reload the assistant to ensure it's available in cache with updated data
+	_, err = assistant.Get(id)
+	if err != nil {
+		// Just log the error, don't fail the request
+		log.Error("Error reloading assistant %s: %v", id, err)
+	}
+
+	// Return success response
+	response.RespondWithSuccess(c, response.StatusOK, assistantData)
+}
+
+// UpdateAssistant updates an existing assistant
+func UpdateAssistant(c *gin.Context) {
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
+	// Get Agent instance from global variable
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Agent store not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get assistant ID from URL parameter
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "assistant_id is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Check update permission
+	hasPermission, err := checkAssistantPermission(authInfo, assistantID, false)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// 403 Forbidden
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to update this assistant",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Parse request body with update data
+	var updateData map[string]interface{}
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Add update metadata
+	if authInfo != nil {
+		scope := authInfo.AccessScope()
+		updateData["__yao_updated_by"] = scope.UpdatedBy
+	}
+
+	// Update assistant using Store
+	err = agentInstance.Store.UpdateAssistant(assistantID, updateData)
+	if err != nil {
+		log.Error("Failed to update assistant %s: %v", assistantID, err)
+		// Check if it's a "not found" error
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Assistant not found: " + assistantID,
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to update assistant: " + err.Error(),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	// Clear cache and reload assistant to make it effective
+	cache := assistant.GetCache()
+	if cache != nil {
+		cache.Remove(assistantID)
+	}
+
+	// Reload the assistant to ensure it's available in cache with updated data
+	updatedAssistant, err := assistant.Get(assistantID)
+	if err != nil {
+		// Just log the error, don't fail the request
+		log.Error("Error reloading assistant %s: %v", assistantID, err)
+		// Return simple success response
+		response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{"assistant_id": assistantID})
+		return
+	}
+
+	// Convert updated assistant to map for response
+	responseData, _ := json.Marshal(updatedAssistant)
+	var responseMap map[string]interface{}
+	json.Unmarshal(responseData, &responseMap)
+
+	// Return success response with updated assistant data
+	response.RespondWithSuccess(c, response.StatusOK, responseMap)
+}
+
 // checkAssistantPermission checks if the user has permission to access the assistant
-// Similar logic to checkFilePermission in openapi/file/file.go
-func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistant *agenttypes.AssistantModel) (bool, error) {
+// Similar logic to checkCollectionPermission in openapi/kb/collection.go
+// readable: true for read permission, false for write permission
+func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistantID string, readable ...bool) (bool, error) {
 	// No auth info, allow access
 	if authInfo == nil {
 		return true, nil
@@ -326,39 +520,53 @@ func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistant *agentty
 		return true, nil
 	}
 
-	// If assistant is public, allow access
-	if assistant.Public {
+	// Get Agent instance
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		return false, fmt.Errorf("agent store not initialized")
+	}
+
+	// Get assistant from store
+	assistant, err := agentInstance.Store.GetAssistant(assistantID)
+	if err != nil {
+		return false, fmt.Errorf("assistant not found: %s", assistantID)
+	}
+
+	// If readable mode, check if the assistant is accessible for reading
+	if len(readable) > 0 && readable[0] {
+		// If assistant is public, allow read access
+		if assistant.Public {
+			return true, nil
+		}
+
+		// Team only permission validation for read
+		if assistant.Share == "team" && authInfo.Constraints.TeamOnly {
+			return true, nil
+		}
+	}
+
+	// Check if user is the creator - always allow creator to access their own assistant
+	if assistant.YaoCreatedBy != "" && assistant.YaoCreatedBy == authInfo.UserID {
 		return true, nil
 	}
 
 	// Combined Team and Owner permission validation
 	if authInfo.Constraints.TeamOnly && authInfo.Constraints.OwnerOnly {
-		if assistant.YaoCreatedBy == authInfo.UserID && assistant.YaoTeamID == authInfo.TeamID {
+		if assistant.YaoTeamID != "" && assistant.YaoTeamID == authInfo.TeamID {
 			return true, nil
 		}
 		return false, nil
 	}
 
 	// Team only permission validation
-	if authInfo.Constraints.TeamOnly {
-		// Check if assistant belongs to the same team
-		if assistant.YaoTeamID == authInfo.TeamID {
-			// Allow if user created it or if it's shared with team
-			if assistant.YaoCreatedBy == authInfo.UserID || assistant.Share == "team" {
-				return true, nil
-			}
-		}
-		return false, nil
+	if authInfo.Constraints.TeamOnly && assistant.YaoTeamID != "" && assistant.YaoTeamID == authInfo.TeamID {
+		return true, nil
 	}
 
-	// Owner only permission validation
+	// Owner only permission validation (already handled above by creator check)
 	if authInfo.Constraints.OwnerOnly {
-		// Check if user created the assistant and team_id is empty (not a team resource)
-		if assistant.YaoCreatedBy == authInfo.UserID && assistant.YaoTeamID == "" {
-			return true, nil
-		}
 		return false, nil
 	}
 
-	return false, nil
+	return false, fmt.Errorf("no permission to access assistant: %s", assistantID)
 }

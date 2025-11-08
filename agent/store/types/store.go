@@ -66,6 +66,12 @@ type Store interface {
 	// Returns: Assistant ID and potential error
 	SaveAssistant(assistant *AssistantModel) (string, error)
 
+	// UpdateAssistant updates assistant fields
+	// assistantID: Assistant ID
+	// updates: Map of fields to update
+	// Returns: Potential error
+	UpdateAssistant(assistantID string, updates map[string]interface{}) error
+
 	// DeleteAssistant deletes an assistant
 	// assistantID: Assistant ID
 	// Returns: Potential error

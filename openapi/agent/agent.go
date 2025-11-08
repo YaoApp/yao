@@ -18,9 +18,10 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Assistant CRUD - Standard REST endpoints
 	group.GET("/assistants", ListAssistants)                 // GET /assistants - List assistants
-	group.POST("/assistants", n.HandleAssistantSave)         // POST /assistants - Create/Update assistant
+	group.POST("/assistants", CreateAssistant)               // POST /assistants - Create assistant
 	group.GET("/assistants/tags", ListAssistantTags)         // GET /assistants/tags - Get all assistant tags with permission filtering
 	group.GET("/assistants/:id", GetAssistant)               // GET /assistants/:id - Get assistant details with permission verification
+	group.PUT("/assistants/:id", UpdateAssistant)            // PUT /assistants/:id - Update assistant
 	group.DELETE("/assistants/:id", n.HandleAssistantDelete) // DELETE /assistants/:id - Delete assistant
 
 	// Assistant Actions

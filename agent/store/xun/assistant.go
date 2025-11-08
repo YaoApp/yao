@@ -3,6 +3,7 @@ package xun
 import (
 	"fmt"
 	"math"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
@@ -170,6 +171,89 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 		return "", err
 	}
 	return assistant.ID, nil
+}
+
+// UpdateAssistant updates specific fields of an assistant
+func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
+	if assistantID == "" {
+		return fmt.Errorf("assistant_id is required")
+	}
+	if len(updates) == 0 {
+		return fmt.Errorf("no fields to update")
+	}
+
+	// Check if assistant exists
+	exists, err := conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Exists()
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("assistant %s not found", assistantID)
+	}
+
+	// Prepare update data
+	data := make(map[string]interface{})
+
+	// List of fields that need JSON marshaling
+	jsonFields := []string{"options", "tags", "prompts", "kb", "mcp", "workflow", "tools", "placeholder", "locales"}
+	jsonFieldSet := make(map[string]bool)
+	for _, field := range jsonFields {
+		jsonFieldSet[field] = true
+	}
+
+	// List of nullable string fields
+	nullableStringFields := []string{"name", "avatar", "description", "path", "__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id"}
+	nullableFieldSet := make(map[string]bool)
+	for _, field := range nullableStringFields {
+		nullableFieldSet[field] = true
+	}
+
+	// Process each update field
+	for key, value := range updates {
+		// Skip system fields that shouldn't be updated directly
+		if key == "assistant_id" || key == "created_at" {
+			continue
+		}
+
+		// Handle JSON fields
+		if jsonFieldSet[key] {
+			if value != nil {
+				jsonStr, err := jsoniter.MarshalToString(value)
+				if err != nil {
+					return fmt.Errorf("failed to marshal %s: %w", key, err)
+				}
+				data[key] = jsonStr
+			} else {
+				data[key] = nil
+			}
+		} else {
+			// Handle regular fields
+			// Convert empty strings to nil for nullable fields
+			if strVal, ok := value.(string); ok && strVal == "" && nullableFieldSet[key] {
+				data[key] = nil
+				continue
+			}
+			data[key] = value
+		}
+	}
+
+	// Always update updated_at timestamp
+	data["updated_at"] = types.ToMySQLTime(time.Now().UnixNano())
+
+	if len(data) == 0 {
+		return fmt.Errorf("no valid fields to update")
+	}
+
+	// Perform update
+	_, err = conv.query.New().
+		Table(conv.getAssistantTable()).
+		Where("assistant_id", assistantID).
+		Update(data)
+
+	return err
 }
 
 // DeleteAssistant deletes an assistant by assistant_id

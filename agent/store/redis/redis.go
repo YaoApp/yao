@@ -60,6 +60,11 @@ func (r *Redis) SaveAssistant(assistant *types.AssistantModel) (string, error) {
 	return assistant.ID, nil
 }
 
+// UpdateAssistant updates specific fields of an assistant
+func (r *Redis) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
+	return nil
+}
+
 // DeleteAssistant deletes an assistant
 func (r *Redis) DeleteAssistant(assistantID string) error {
 	return nil
