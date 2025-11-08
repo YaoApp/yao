@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -391,8 +390,10 @@ func CreateAssistant(c *gin.Context) {
 		log.Error("Error reloading assistant %s: %v", id, err)
 	}
 
-	// Return success response
-	response.RespondWithSuccess(c, response.StatusOK, assistantData)
+	// Return success response with only assistant_id
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
+		"assistant_id": id,
+	})
 }
 
 // UpdateAssistant updates an existing assistant
@@ -488,22 +489,16 @@ func UpdateAssistant(c *gin.Context) {
 	}
 
 	// Reload the assistant to ensure it's available in cache with updated data
-	updatedAssistant, err := assistant.Get(assistantID)
+	_, err = assistant.Get(assistantID)
 	if err != nil {
 		// Just log the error, don't fail the request
 		log.Error("Error reloading assistant %s: %v", assistantID, err)
-		// Return simple success response
-		response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{"assistant_id": assistantID})
-		return
 	}
 
-	// Convert updated assistant to map for response
-	responseData, _ := json.Marshal(updatedAssistant)
-	var responseMap map[string]interface{}
-	json.Unmarshal(responseData, &responseMap)
-
-	// Return success response with updated assistant data
-	response.RespondWithSuccess(c, response.StatusOK, responseMap)
+	// Return success response with only assistant_id
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
+		"assistant_id": assistantID,
+	})
 }
 
 // checkAssistantPermission checks if the user has permission to access the assistant
