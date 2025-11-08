@@ -9,8 +9,15 @@ func getString(data map[string]interface{}, key string) string {
 }
 
 func getBool(data map[string]interface{}, key string) bool {
-	if v, ok := data[key].(bool); ok {
+	switch v := data[key].(type) {
+	case bool:
 		return v
+	case int64:
+		return v != 0
+	case int:
+		return v != 0
+	case float64:
+		return v != 0
 	}
 	return false
 }
