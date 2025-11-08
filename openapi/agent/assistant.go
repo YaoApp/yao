@@ -238,9 +238,7 @@ func GetAssistant(c *gin.Context) {
 	FilterBuiltInAssistant(assistant)
 
 	// Return the result with standard response format
-	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
-		"data": assistant,
-	})
+	response.RespondWithSuccess(c, response.StatusOK, assistant)
 }
 
 // ListAssistantTags lists assistant tags with permission-based filtering
@@ -312,9 +310,7 @@ func ListAssistantTags(c *gin.Context) {
 	}
 
 	// Return the result with standard response format
-	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
-		"data": tags,
-	})
+	response.RespondWithSuccess(c, response.StatusOK, tags)
 }
 
 // checkAssistantPermission checks if the user has permission to access the assistant

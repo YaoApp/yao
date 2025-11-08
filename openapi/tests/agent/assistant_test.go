@@ -747,21 +747,18 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully retrieve tags")
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags", len(data))
+		t.Logf("Successfully retrieved %d tags", len(tags))
 
-			// Verify tag structure
-			if len(data) > 0 {
-				tag, ok := data[0].(map[string]interface{})
-				if ok {
-					assert.Contains(t, tag, "value", "Tag should have value field")
-					assert.Contains(t, tag, "label", "Tag should have label field")
-				}
+		// Verify tag structure
+		if len(tags) > 0 {
+			tag, ok := tags[0].(map[string]interface{})
+			if ok {
+				assert.Contains(t, tag, "value", "Tag should have value field")
+				assert.Contains(t, tag, "label", "Tag should have label field")
 			}
 		}
 	})
@@ -779,14 +776,11 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags with zh-cn locale", len(data))
-		}
+		t.Logf("Successfully retrieved %d tags with zh-cn locale", len(tags))
 	})
 
 	t.Run("ListAssistantTagsWithFilters", func(t *testing.T) {
@@ -802,14 +796,11 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags with type filter", len(data))
-		}
+		t.Logf("Successfully retrieved %d tags with type filter", len(tags))
 	})
 
 	t.Run("ListAssistantTagsWithConnector", func(t *testing.T) {
@@ -825,14 +816,11 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags for openai connector", len(data))
-		}
+		t.Logf("Successfully retrieved %d tags for openai connector", len(tags))
 	})
 
 	t.Run("ListAssistantTagsWithBuiltInFilter", func(t *testing.T) {
@@ -848,14 +836,11 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags for non-built-in assistants", len(data))
-		}
+		t.Logf("Successfully retrieved %d tags for non-built-in assistants", len(tags))
 	})
 
 	t.Run("ListAssistantTagsWithMentionableFilter", func(t *testing.T) {
@@ -871,14 +856,11 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags for mentionable assistants", len(data))
-		}
+		t.Logf("Successfully retrieved %d tags for mentionable assistants", len(tags))
 	})
 
 	t.Run("ListAssistantTagsWithKeywords", func(t *testing.T) {
@@ -894,14 +876,11 @@ func TestListAssistantTags(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
 		assert.NoError(t, err)
 
-		data, hasData := response["data"].([]interface{})
-		if hasData {
-			t.Logf("Successfully retrieved %d tags with keywords filter", len(data))
-		}
+		t.Logf("Successfully retrieved %d tags with keywords filter", len(tags))
 	})
 
 	t.Run("ListAssistantTagsUnauthorized", func(t *testing.T) {
@@ -985,17 +964,15 @@ func TestGetAssistant(t *testing.T) {
 		// Expect successful response
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully retrieve assistant")
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var assistantDetail map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&assistantDetail)
 		assert.NoError(t, err)
 
-		// Response should have data field with assistant details
-		detailData, hasDetailData := response["data"].(map[string]interface{})
-		assert.True(t, hasDetailData, "Response should have 'data' field")
-		assert.NotNil(t, detailData, "Assistant data should not be nil")
+		// Response should be the assistant object directly
+		assert.NotNil(t, assistantDetail, "Assistant data should not be nil")
 
 		// Verify assistant_id matches
-		returnedID, hasID := detailData["assistant_id"].(string)
+		returnedID, hasID := assistantDetail["assistant_id"].(string)
 		assert.True(t, hasID, "Assistant should have assistant_id field")
 		assert.Equal(t, assistantID, returnedID, "Returned assistant_id should match requested ID")
 
@@ -1046,12 +1023,11 @@ func TestGetAssistant(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var assistantData map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&assistantData)
 		assert.NoError(t, err)
 
-		_, hasDetailData := response["data"].(map[string]interface{})
-		assert.True(t, hasDetailData, "Response should have 'data' field")
+		assert.NotNil(t, assistantData, "Assistant data should not be nil")
 
 		t.Logf("Successfully retrieved assistant without locale (raw data for editing)")
 	})
@@ -1151,23 +1127,22 @@ func TestGetAssistant(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var builtInAssistant map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&builtInAssistant)
 		assert.NoError(t, err)
 
-		detailData, hasDetailData := response["data"].(map[string]interface{})
-		assert.True(t, hasDetailData, "Response should have 'data' field")
+		assert.NotNil(t, builtInAssistant, "Assistant data should not be nil")
 
 		// Verify built-in flag
-		builtIn, hasBuiltIn := detailData["built_in"].(bool)
+		builtIn, hasBuiltIn := builtInAssistant["built_in"].(bool)
 		if hasBuiltIn && builtIn {
 			// Check that sensitive fields are filtered
-			prompts := detailData["prompts"]
-			workflow := detailData["workflow"]
-			tools := detailData["tools"]
-			kb := detailData["kb"]
-			mcp := detailData["mcp"]
-			options := detailData["options"]
+			prompts := builtInAssistant["prompts"]
+			workflow := builtInAssistant["workflow"]
+			tools := builtInAssistant["tools"]
+			kb := builtInAssistant["kb"]
+			mcp := builtInAssistant["mcp"]
+			options := builtInAssistant["options"]
 
 			// These should be nil or absent for built-in assistants
 			assert.Nil(t, prompts, "Built-in assistant should not expose prompts")
@@ -1426,24 +1401,20 @@ func TestGetAssistantResponseStructure(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var response map[string]interface{}
-		err = json.NewDecoder(resp.Body).Decode(&response)
+		var responseAssistant map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&responseAssistant)
 		assert.NoError(t, err)
 
-		// Verify response structure
-		assert.Contains(t, response, "data", "Response should have 'data' field")
-
-		// Verify data is an object (not an array)
-		detailData, ok := response["data"].(map[string]interface{})
-		assert.True(t, ok, "Data field should be an object")
-		assert.NotNil(t, detailData, "Data should not be nil")
+		// Verify response is an object (not wrapped in data field)
+		assert.NotNil(t, responseAssistant, "Assistant should not be nil")
 
 		// Verify essential assistant fields
-		assert.Contains(t, detailData, "assistant_id", "Assistant should have assistant_id")
-		assert.Contains(t, detailData, "name", "Assistant should have name")
-		assert.Contains(t, detailData, "type", "Assistant should have type")
+		assert.Contains(t, responseAssistant, "assistant_id", "Assistant should have assistant_id")
+		assert.Contains(t, responseAssistant, "name", "Assistant should have name")
+		assert.Contains(t, responseAssistant, "type", "Assistant should have type")
 
-		t.Logf("Response structure is correct for assistant: %s", assistantID)
+		responseAssistantID := responseAssistant["assistant_id"].(string)
+		t.Logf("Response structure is correct for assistant: %s", responseAssistantID)
 	})
 }
 
