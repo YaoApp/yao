@@ -754,7 +754,7 @@ func TestListAssistantTags(t *testing.T) {
 		data, hasData := response["data"].([]interface{})
 		if hasData {
 			t.Logf("Successfully retrieved %d tags", len(data))
-			
+
 			// Verify tag structure
 			if len(data) > 0 {
 				tag, ok := data[0].(map[string]interface{})
