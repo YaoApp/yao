@@ -2173,7 +2173,7 @@ func TestUpdateAssistant(t *testing.T) {
 
 		// Try to update system fields (should be ignored)
 		updates := map[string]interface{}{
-			"assistant_id": "new-id-123",    // Should be ignored
+			"assistant_id": "new-id-123",     // Should be ignored
 			"created_at":   int64(123456789), // Should be ignored
 			"name":         "Valid Update",   // Should be applied
 		}

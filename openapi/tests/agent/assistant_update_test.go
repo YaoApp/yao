@@ -763,9 +763,9 @@ func TestUpdateAssistant(t *testing.T) {
 				},
 			},
 			"options": map[string]interface{}{
-				"temperature":      0.9,
-				"max_tokens":       4000,
-				"top_p":            0.95,
+				"temperature":       0.9,
+				"max_tokens":        4000,
+				"top_p":             0.95,
 				"frequency_penalty": 0.5,
 			},
 			"workflow": map[string]interface{}{
@@ -1043,4 +1043,3 @@ func BenchmarkUpdateAssistant(b *testing.B) {
 		resp.Body.Close()
 	}
 }
-
