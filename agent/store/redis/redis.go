@@ -80,8 +80,8 @@ func (r *Redis) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 	return 0, nil
 }
 
-// GetAssistantTags retrieves all unique tags from assistants
-func (r *Redis) GetAssistantTags(locale ...string) ([]types.Tag, error) {
+// GetAssistantTags retrieves all unique tags from assistants with filtering
+func (r *Redis) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
 	return []types.Tag{}, nil
 }
 

@@ -77,9 +77,11 @@ type Store interface {
 	// Returns: Paginated assistant list and potential error
 	GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error)
 
-	// GetAssistantTags retrieves all unique tags from assistants
+	// GetAssistantTags retrieves all unique tags from assistants with filtering
+	// filter: Filter conditions including QueryFilter for permission filtering
+	// locale: Optional locale for i18n translations
 	// Returns: List of tags and potential error
-	GetAssistantTags(locale ...string) ([]Tag, error)
+	GetAssistantTags(filter AssistantFilter, locale ...string) ([]Tag, error)
 
 	// GetAssistant retrieves a single assistant by ID
 	// assistantID: Assistant ID

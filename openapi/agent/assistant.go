@@ -159,3 +159,77 @@ func ListAssistants(c *gin.Context) {
 	// Return the result with standard response format
 	response.RespondWithSuccess(c, response.StatusOK, result)
 }
+
+// ListAssistantTags lists assistant tags with permission-based filtering
+func ListAssistantTags(c *gin.Context) {
+
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
+	// Get Agent instance from global variable
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Agent store not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Parse locale
+	locale := "en-us" // Default locale
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	// Parse filter parameters
+	typeParam := strings.TrimSpace(c.Query("type"))
+	if typeParam == "" {
+		typeParam = "assistant" // Default type
+	}
+	connector := strings.TrimSpace(c.Query("connector"))
+	keywords := strings.TrimSpace(c.Query("keywords"))
+
+	// Parse boolean filters
+	var builtIn, mentionable, automated *bool
+	if builtInParam := c.Query("built_in"); builtInParam != "" {
+		builtIn = parseBoolValue(builtInParam)
+	}
+	if mentionableParam := c.Query("mentionable"); mentionableParam != "" {
+		mentionable = parseBoolValue(mentionableParam)
+	}
+	if automatedParam := c.Query("automated"); automatedParam != "" {
+		automated = parseBoolValue(automatedParam)
+	}
+
+	// Build filter
+	filter := BuildAssistantFilter(AssistantFilterParams{
+		Type:        typeParam,
+		Connector:   connector,
+		Keywords:    keywords,
+		BuiltIn:     builtIn,
+		Mentionable: mentionable,
+		Automated:   automated,
+	})
+
+	// Apply permission-based filtering (Scope filtering)
+	filter.QueryFilter = AuthQueryFilter(c, authInfo)
+
+	// Get tags with filter
+	tags, err := agentInstance.Store.GetAssistantTags(filter, locale)
+	if err != nil {
+		log.Error("Failed to get assistant tags: %v", err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get assistant tags: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Return the result with standard response format
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
+		"data": tags,
+	})
+}
