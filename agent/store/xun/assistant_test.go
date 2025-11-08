@@ -2,6 +2,7 @@ package xun
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -1743,6 +1744,461 @@ func TestGetAssistantsWithQueryFilter(t *testing.T) {
 	for _, id := range createdIDs {
 		_ = store.DeleteAssistant(id)
 	}
+}
+
+// TestUpdateAssistant tests the UpdateAssistant method for incremental updates
+func TestUpdateAssistant(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := NewXun(types.Setting{
+		Connector: "default",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	t.Run("UpdateSingleField", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:        "Original Name",
+			Type:        "assistant",
+			Connector:   "openai",
+			Description: "Original description",
+			Tags:        []string{"original"},
+			Share:       "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update only description
+		updates := map[string]interface{}{
+			"description": "Updated description",
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update assistant: %v", err)
+		}
+
+		// Verify update
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Description != "Updated description" {
+			t.Errorf("Expected description 'Updated description', got '%s'", retrieved.Description)
+		}
+		// Other fields should remain unchanged
+		if retrieved.Name != "Original Name" {
+			t.Errorf("Expected name 'Original Name', got '%s'", retrieved.Name)
+		}
+		if len(retrieved.Tags) != 1 || retrieved.Tags[0] != "original" {
+			t.Errorf("Expected tags [original], got %v", retrieved.Tags)
+		}
+	})
+
+	t.Run("UpdateMultipleFields", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:        "Test Assistant",
+			Type:        "assistant",
+			Connector:   "openai",
+			Description: "Test description",
+			Sort:        100,
+			Mentionable: false,
+			Share:       "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update multiple fields
+		updates := map[string]interface{}{
+			"name":        "Updated Name",
+			"description": "Updated description",
+			"sort":        200,
+			"mentionable": true,
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update assistant: %v", err)
+		}
+
+		// Verify all updates
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Name != "Updated Name" {
+			t.Errorf("Expected name 'Updated Name', got '%s'", retrieved.Name)
+		}
+		if retrieved.Description != "Updated description" {
+			t.Errorf("Expected description 'Updated description', got '%s'", retrieved.Description)
+		}
+		if retrieved.Sort != 200 {
+			t.Errorf("Expected sort 200, got %d", retrieved.Sort)
+		}
+		if !retrieved.Mentionable {
+			t.Error("Expected mentionable to be true")
+		}
+	})
+
+	t.Run("UpdateJSONFields", func(t *testing.T) {
+		// Create assistant with complex fields
+		assistant := &types.AssistantModel{
+			Name:      "JSON Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Tags:      []string{"tag1", "tag2"},
+			Options:   map[string]interface{}{"temperature": 0.7},
+			Prompts: []types.Prompt{
+				{Role: "system", Content: "Original system prompt"},
+			},
+			Share: "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update JSON fields
+		updates := map[string]interface{}{
+			"tags": []string{"updated", "new-tags"},
+			"options": map[string]interface{}{
+				"temperature": 0.9,
+				"max_tokens":  2000,
+			},
+			"prompts": []types.Prompt{
+				{Role: "system", Content: "Updated system prompt"},
+				{Role: "user", Content: "New user prompt"},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update JSON fields: %v", err)
+		}
+
+		// Verify updates
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if len(retrieved.Tags) != 2 || retrieved.Tags[0] != "updated" {
+			t.Errorf("Expected tags [updated, new-tags], got %v", retrieved.Tags)
+		}
+		if temp, ok := retrieved.Options["temperature"].(float64); !ok || temp != 0.9 {
+			t.Errorf("Expected temperature 0.9, got %v", retrieved.Options["temperature"])
+		}
+		if len(retrieved.Prompts) != 2 {
+			t.Errorf("Expected 2 prompts, got %d", len(retrieved.Prompts))
+		}
+		if retrieved.Prompts[0].Content != "Updated system prompt" {
+			t.Errorf("Expected updated system prompt, got '%s'", retrieved.Prompts[0].Content)
+		}
+	})
+
+	t.Run("UpdateKBAndMCP", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "KB MCP Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update KB and MCP
+		updates := map[string]interface{}{
+			"kb": map[string]interface{}{
+				"collections": []string{"collection1", "collection2"},
+			},
+			"mcp": map[string]interface{}{
+				"servers": []string{"server1", "server2"},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update KB and MCP: %v", err)
+		}
+
+		// Verify updates
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.KB == nil || len(retrieved.KB.Collections) != 2 {
+			t.Errorf("Expected 2 KB collections, got %v", retrieved.KB)
+		}
+		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 2 {
+			t.Errorf("Expected 2 MCP servers, got %v", retrieved.MCP)
+		}
+	})
+
+	t.Run("UpdatePermissionFields", func(t *testing.T) {
+		// Create assistant with permission fields
+		assistant := &types.AssistantModel{
+			Name:         "Permission Test",
+			Type:         "assistant",
+			Connector:    "openai",
+			Share:        "private",
+			YaoCreatedBy: "user-1",
+			YaoTeamID:    "team-1",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update permission fields
+		updates := map[string]interface{}{
+			"__yao_updated_by": "user-2",
+			"__yao_tenant_id":  "tenant-1",
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update permission fields: %v", err)
+		}
+
+		// Verify updates
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.YaoUpdatedBy != "user-2" {
+			t.Errorf("Expected YaoUpdatedBy 'user-2', got '%s'", retrieved.YaoUpdatedBy)
+		}
+		if retrieved.YaoTenantID != "tenant-1" {
+			t.Errorf("Expected YaoTenantID 'tenant-1', got '%s'", retrieved.YaoTenantID)
+		}
+		// Created by should remain unchanged
+		if retrieved.YaoCreatedBy != "user-1" {
+			t.Errorf("Expected YaoCreatedBy 'user-1', got '%s'", retrieved.YaoCreatedBy)
+		}
+	})
+
+	t.Run("UpdateWithEmptyStrings", func(t *testing.T) {
+		// Create assistant with values
+		assistant := &types.AssistantModel{
+			Name:        "Empty String Test",
+			Type:        "assistant",
+			Connector:   "openai",
+			Avatar:      "https://example.com/avatar.png",
+			Description: "Some description",
+			Share:       "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with empty strings (should become NULL)
+		updates := map[string]interface{}{
+			"avatar":      "",
+			"description": "",
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update with empty strings: %v", err)
+		}
+
+		// Verify empty strings are stored as NULL
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Avatar != "" {
+			t.Errorf("Expected empty avatar, got '%s'", retrieved.Avatar)
+		}
+		if retrieved.Description != "" {
+			t.Errorf("Expected empty description, got '%s'", retrieved.Description)
+		}
+		// Name should remain unchanged
+		if retrieved.Name != "Empty String Test" {
+			t.Errorf("Expected name 'Empty String Test', got '%s'", retrieved.Name)
+		}
+	})
+
+	t.Run("UpdateNonExistentAssistant", func(t *testing.T) {
+		updates := map[string]interface{}{
+			"name": "Updated Name",
+		}
+
+		err := store.UpdateAssistant("nonexistent-id", updates)
+		if err == nil {
+			t.Error("Expected error when updating non-existent assistant")
+		}
+		if !strings.Contains(err.Error(), "not found") {
+			t.Errorf("Expected 'not found' error, got: %v", err)
+		}
+	})
+
+	t.Run("UpdateWithEmptyID", func(t *testing.T) {
+		updates := map[string]interface{}{
+			"name": "Updated Name",
+		}
+
+		err := store.UpdateAssistant("", updates)
+		if err == nil {
+			t.Error("Expected error when updating with empty ID")
+		}
+		if !strings.Contains(err.Error(), "required") {
+			t.Errorf("Expected 'required' error, got: %v", err)
+		}
+	})
+
+	t.Run("UpdateWithEmptyUpdates", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "Empty Updates Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Try to update with empty map
+		updates := map[string]interface{}{}
+
+		err = store.UpdateAssistant(id, updates)
+		if err == nil {
+			t.Error("Expected error when updating with no fields")
+		}
+		if !strings.Contains(err.Error(), "no fields to update") {
+			t.Errorf("Expected 'no fields to update' error, got: %v", err)
+		}
+	})
+
+	t.Run("UpdateTimestampAutomaticallySet", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "Timestamp Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Get original updated_at
+		original, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		// Wait a bit to ensure timestamp difference
+		time.Sleep(100 * time.Millisecond)
+
+		// Update assistant
+		updates := map[string]interface{}{
+			"description": "Updated to test timestamp",
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update assistant: %v", err)
+		}
+
+		// Get updated assistant
+		updated, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve updated assistant: %v", err)
+		}
+
+		// Verify description was updated (main test objective)
+		if updated.Description != "Updated to test timestamp" {
+			t.Errorf("Expected description 'Updated to test timestamp', got '%s'", updated.Description)
+		}
+
+		// Only check timestamp if both are set (some stores may not return timestamps)
+		if original.UpdatedAt > 0 && updated.UpdatedAt > 0 {
+			if updated.UpdatedAt <= original.UpdatedAt {
+				t.Errorf("Expected updated_at to increase, original=%d, updated=%d", original.UpdatedAt, updated.UpdatedAt)
+			}
+		} else {
+			t.Logf("Skipping timestamp comparison (original=%d, updated=%d)", original.UpdatedAt, updated.UpdatedAt)
+		}
+	})
+
+	t.Run("UpdateSkipsSystemFields", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "System Fields Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Get original
+		original, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		// Try to update system fields (should be ignored)
+		updates := map[string]interface{}{
+			"assistant_id": "new-id-123",    // Should be ignored
+			"created_at":   int64(123456789), // Should be ignored
+			"name":         "Valid Update",   // Should be applied
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update assistant: %v", err)
+		}
+
+		// Verify system fields unchanged, but name updated
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.ID != id {
+			t.Errorf("Expected ID to remain %s, got %s", id, retrieved.ID)
+		}
+		if retrieved.CreatedAt != original.CreatedAt {
+			t.Errorf("Expected created_at to remain unchanged")
+		}
+		if retrieved.Name != "Valid Update" {
+			t.Errorf("Expected name 'Valid Update', got '%s'", retrieved.Name)
+		}
+	})
 }
 
 // TestAssistantCompleteWorkflow tests a complete workflow

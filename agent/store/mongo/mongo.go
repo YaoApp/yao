@@ -60,6 +60,11 @@ func (m *Mongo) SaveAssistant(assistant *types.AssistantModel) (string, error) {
 	return assistant.ID, nil
 }
 
+// UpdateAssistant updates specific fields of an assistant
+func (m *Mongo) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
+	return nil
+}
+
 // DeleteAssistant deletes an assistant
 func (m *Mongo) DeleteAssistant(assistantID string) error {
 	return nil
