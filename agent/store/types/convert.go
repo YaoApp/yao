@@ -339,6 +339,20 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		}
 	}
 
+	// Permission fields
+	if createdBy, ok := data["__yao_created_by"].(string); ok {
+		model.YaoCreatedBy = createdBy
+	}
+	if updatedBy, ok := data["__yao_updated_by"].(string); ok {
+		model.YaoUpdatedBy = updatedBy
+	}
+	if teamID, ok := data["__yao_team_id"].(string); ok {
+		model.YaoTeamID = teamID
+	}
+	if tenantID, ok := data["__yao_tenant_id"].(string); ok {
+		model.YaoTenantID = tenantID
+	}
+
 	return model, nil
 }
 

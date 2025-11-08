@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
@@ -1336,6 +1337,251 @@ func TestGetAssistantsWithLocale(t *testing.T) {
 		delete(i18n.Locales, id)
 		t.Logf("Successfully tested locale translation for assistants list")
 	})
+}
+
+// TestGetAssistantsWithQueryFilter tests using QueryFilter for permission filtering
+func TestGetAssistantsWithQueryFilter(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := NewXun(types.Setting{
+		Connector: "default",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+	defer store.Close()
+
+	// Create test assistants with different permission settings
+	assistants := []types.AssistantModel{
+		{
+			Name:         "Public Assistant",
+			Type:         "assistant",
+			Connector:    "openai",
+			Description:  "Public assistant visible to all",
+			Tags:         []string{"query-filter-test"},
+			Public:       true,
+			Share:        "private",
+			YaoCreatedBy: "user-1",
+			YaoTeamID:    "team-1",
+		},
+		{
+			Name:         "Team Shared Assistant",
+			Type:         "assistant",
+			Connector:    "openai",
+			Description:  "Team shared assistant",
+			Tags:         []string{"query-filter-test"},
+			Public:       false,
+			Share:        "team",
+			YaoCreatedBy: "user-2",
+			YaoTeamID:    "team-1",
+		},
+		{
+			Name:         "Private Assistant Owner",
+			Type:         "assistant",
+			Connector:    "openai",
+			Description:  "Private assistant owned by user-1",
+			Tags:         []string{"query-filter-test"},
+			Public:       false,
+			Share:        "private",
+			YaoCreatedBy: "user-1",
+			YaoTeamID:    "team-1",
+		},
+		{
+			Name:         "Private Assistant Other",
+			Type:         "assistant",
+			Connector:    "openai",
+			Description:  "Private assistant owned by user-3",
+			Tags:         []string{"query-filter-test"},
+			Public:       false,
+			Share:        "private",
+			YaoCreatedBy: "user-3",
+			YaoTeamID:    "team-2",
+		},
+	}
+
+	createdIDs := []string{}
+	for _, asst := range assistants {
+		id, err := store.SaveAssistant(&asst)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+		createdIDs = append(createdIDs, id)
+	}
+
+	t.Run("FilterByPublic", func(t *testing.T) {
+		// QueryFilter: only public assistants
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"query-filter-test"},
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				qb.Where("public", true)
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get public assistants: %v", err)
+		}
+
+		if len(response.Data) != 1 {
+			t.Errorf("Expected 1 public assistant, got %d", len(response.Data))
+		}
+
+		if len(response.Data) > 0 && response.Data[0].Name != "Public Assistant" {
+			t.Errorf("Expected 'Public Assistant', got '%s'", response.Data[0].Name)
+		}
+	})
+
+	t.Run("FilterByTeamAndShare", func(t *testing.T) {
+		// QueryFilter: team-1 assistants that are shared with team
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"query-filter-test"},
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				qb.Where("__yao_team_id", "team-1").
+					Where("share", "team")
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get team shared assistants: %v", err)
+		}
+
+		if len(response.Data) != 1 {
+			t.Errorf("Expected 1 team shared assistant, got %d", len(response.Data))
+		}
+
+		if len(response.Data) > 0 && response.Data[0].Name != "Team Shared Assistant" {
+			t.Errorf("Expected 'Team Shared Assistant', got '%s'", response.Data[0].Name)
+		}
+	})
+
+	t.Run("FilterByOwner", func(t *testing.T) {
+		// QueryFilter: assistants created by user-1
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"query-filter-test"},
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				qb.Where("__yao_created_by", "user-1")
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get user-1 assistants: %v", err)
+		}
+
+		if len(response.Data) != 2 {
+			t.Errorf("Expected 2 assistants for user-1, got %d", len(response.Data))
+		}
+
+		for _, asst := range response.Data {
+			if asst.YaoCreatedBy != "user-1" {
+				t.Errorf("Expected creator 'user-1', got '%s'", asst.YaoCreatedBy)
+			}
+		}
+	})
+
+	t.Run("ComplexQueryFilter", func(t *testing.T) {
+		// Complex QueryFilter: (public = true) OR (team_id = team-1 AND (created_by = user-1 OR share = team))
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"query-filter-test"},
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				qb.Where(func(qb query.Query) {
+					// Public assistants
+					qb.Where("public", true)
+				}).OrWhere(func(qb query.Query) {
+					// Team assistants where user is creator or shared with team
+					qb.Where("__yao_team_id", "team-1").Where(func(qb query.Query) {
+						qb.Where("__yao_created_by", "user-1").
+							OrWhere("share", "team")
+					})
+				})
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get filtered assistants: %v", err)
+		}
+
+		// Should find: Public Assistant, Team Shared Assistant, Private Assistant Owner
+		if len(response.Data) != 3 {
+			t.Errorf("Expected 3 assistants, got %d", len(response.Data))
+		}
+
+		// Verify we got the right assistants
+		names := make(map[string]bool)
+		for _, asst := range response.Data {
+			names[asst.Name] = true
+		}
+
+		expectedNames := []string{"Public Assistant", "Team Shared Assistant", "Private Assistant Owner"}
+		for _, name := range expectedNames {
+			if !names[name] {
+				t.Errorf("Expected to find '%s' in results", name)
+			}
+		}
+
+		// Should NOT find Private Assistant Other
+		if names["Private Assistant Other"] {
+			t.Error("Should not find 'Private Assistant Other' in results")
+		}
+	})
+
+	t.Run("QueryFilterWithNullCheck", func(t *testing.T) {
+		// QueryFilter: assistants where team_id is null
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Tags:     []string{"query-filter-test"},
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				qb.WhereNull("__yao_team_id")
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get assistants with null team_id: %v", err)
+		}
+
+		// All test assistants have team_id, so should find 0
+		if len(response.Data) != 0 {
+			t.Errorf("Expected 0 assistants with null team_id, got %d", len(response.Data))
+		}
+	})
+
+	t.Run("QueryFilterCombinedWithOtherFilters", func(t *testing.T) {
+		// Combine QueryFilter with other filters
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Tags:      []string{"query-filter-test"},
+			Connector: "openai",
+			Page:      1,
+			PageSize:  20,
+			QueryFilter: func(qb query.Query) {
+				qb.Where("public", true)
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get combined filtered assistants: %v", err)
+		}
+
+		// Should only find public openai assistants
+		if len(response.Data) != 1 {
+			t.Errorf("Expected 1 assistant, got %d", len(response.Data))
+		}
+
+		if len(response.Data) > 0 {
+			if response.Data[0].Connector != "openai" {
+				t.Errorf("Expected connector 'openai', got '%s'", response.Data[0].Connector)
+			}
+			if !response.Data[0].Public {
+				t.Error("Expected public assistant")
+			}
+		}
+	})
+
+	// Cleanup
+	for _, id := range createdIDs {
+		_ = store.DeleteAssistant(id)
+	}
 }
 
 // TestAssistantCompleteWorkflow tests a complete workflow
