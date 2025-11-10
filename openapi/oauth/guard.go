@@ -3,6 +3,7 @@ package oauth
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -99,7 +100,57 @@ func (s *Service) getAccessToken(c *gin.Context) string {
 		}
 		token = cookie
 	}
-	return strings.TrimPrefix(token, "Bearer ")
+
+	// Get the access token
+	accessToken := strings.TrimPrefix(token, "Bearer ")
+	if s.isAPIKey(accessToken) {
+		return s.getAccessTokenFromAPIKey(accessToken)
+	}
+	return accessToken
+}
+
+// isAPIKey checks if the token is a API Key
+func (s *Service) isAPIKey(token string) bool {
+	if strings.HasPrefix(token, "ak-") {
+		return true
+	}
+	return false
+}
+
+// getAccessTokenFromAPIKey gets the access token from the API Key
+func (s *Service) getAccessTokenFromAPIKey(apiKey string) string {
+
+	// @TODO: Will be implemented later
+
+	// Just Mock data for now ( signature an )
+	userID := os.Getenv("APIKEY_TEST_USER_ID")
+	teamID := os.Getenv("APIKEY_TEST_TEAM_ID")
+	clientID := os.Getenv("YAO_CLIENT_ID")
+
+	// Get or create subject
+	subject, err := OAuth.Subject(clientID, userID)
+	if err != nil {
+		log.Warn("Failed to store user fingerprint: %s", err.Error())
+	}
+
+	extraClaims := make(map[string]interface{})
+	extraClaims["team_id"] = teamID
+	extraClaims["user_id"] = userID
+	extraClaims["token_type"] = "Bearer"
+	extraClaims["expires_in"] = 3600
+	extraClaims["issued_at"] = time.Now().Unix()
+	extraClaims["expires_at"] = time.Now().Unix() + 3600
+	extraClaims["api_key"] = apiKey
+	accessToken, err := OAuth.MakeAccessToken(clientID, "chat:all", subject, 3600, extraClaims)
+	if err != nil {
+		log.Warn("Failed to make access token: %s", err.Error())
+	}
+
+	fmt.Println("========== Access Token From API Key ==========")
+	fmt.Println("accessToken: ", accessToken)
+	fmt.Println("extraClaims: ", extraClaims)
+	fmt.Println("===============================================")
+	return accessToken
 }
 
 // GetAccessToken gets the access token from the request (public method)

@@ -83,7 +83,7 @@ func jsSet(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), err.Error())
 	}
 
-	if global.ChatContext.SharedSpace == nil {
+	if global.ChatContext.Space == nil {
 		return bridge.JsException(info.Context(), "Shared space is not set")
 	}
 
@@ -109,7 +109,7 @@ func jsSet(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	// Set the value
-	err = global.ChatContext.SharedSpace.Set(key, value)
+	err = global.ChatContext.Space.Set(key, value)
 	if err != nil {
 		return bridge.JsException(info.Context(), err.Error())
 	}
@@ -124,7 +124,7 @@ func jsGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), err.Error())
 	}
 
-	if global.ChatContext.SharedSpace == nil {
+	if global.ChatContext.Space == nil {
 		return bridge.JsException(info.Context(), "Shared space is not set")
 	}
 
@@ -144,7 +144,7 @@ func jsGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 
 	// Get the value
-	value, err := global.ChatContext.SharedSpace.Get(key)
+	value, err := global.ChatContext.Space.Get(key)
 	if err != nil {
 		// If the key is not found, return null
 		if strings.Contains(err.Error(), "not found") {
@@ -168,7 +168,7 @@ func jsDel(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), err.Error())
 	}
 
-	if global.ChatContext.SharedSpace == nil {
+	if global.ChatContext.Space == nil {
 		return bridge.JsException(info.Context(), "Shared space is not set")
 	}
 
@@ -187,7 +187,7 @@ func jsDel(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), "Get requires a valid key")
 	}
 
-	err = global.ChatContext.SharedSpace.Delete(key)
+	err = global.ChatContext.Space.Delete(key)
 	if err != nil {
 		return bridge.JsException(info.Context(), err.Error())
 	}
@@ -201,11 +201,11 @@ func jsClear(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), err.Error())
 	}
 
-	if global.ChatContext.SharedSpace == nil {
+	if global.ChatContext.Space == nil {
 		return bridge.JsException(info.Context(), "Shared space is not set")
 	}
 
-	err = global.ChatContext.SharedSpace.Clear()
+	err = global.ChatContext.Space.Clear()
 	if err != nil {
 		return bridge.JsException(info.Context(), err.Error())
 	}
