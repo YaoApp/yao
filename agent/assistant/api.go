@@ -91,9 +91,9 @@ func (ast *Assistant) execute(c *gin.Context, ctx chatctx.Context, userInput int
 
 	// Add RAG、Vision and Search support
 	// ctx.RAG = rag != nil
-	ctx.Knowledge = false
-	ctx.Vision = ast.vision
-	ctx.Search = ast.search && search != nil
+	// ctx.Knowledge = false
+	// ctx.Vision = ast.vision
+	// ctx.Search = ast.search && search != nil
 
 	// Run init hook
 	res, err := ast.HookCreate(c, ctx, input, options, contents)

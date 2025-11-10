@@ -21,11 +21,10 @@ type Server struct {
 func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 
 	// Create servers group with OAuth guard
-	servers := group.Group("/servers")
-	servers.Use(oauth.Guard)
+	group.Use(oauth.Guard)
 
 	// MCP Servers endpoints
-	servers.GET("/", listServers) // GET /servers - List all MCP servers
+	group.GET("/servers", listServers) // GET /servers - List all MCP servers
 }
 
 // listServers lists all available MCP servers (loaded clients from user perspective)

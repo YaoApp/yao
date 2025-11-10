@@ -19,11 +19,10 @@ type Provider struct {
 func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 
 	// Create providers group with OAuth guard
-	providers := group.Group("/providers")
-	providers.Use(oauth.Guard)
+	group.Use(oauth.Guard)
 
 	// LLM Providers endpoints
-	providers.GET("/", listProviders) // GET /providers - List all LLM providers
+	group.GET("/providers", listProviders) // GET /providers - List all LLM providers
 }
 
 // listProviders lists all available LLM providers (built-in + user-defined)

@@ -176,33 +176,33 @@ func (agent *DSL) handleChat(c *gin.Context) {
 	}
 
 	// Set the context with validated chat_id
-	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
+	ctx, cancel := chatctx.NewWithCancel(c.Request.Context(), nil, chatID, c.Query("context"))
 	defer cancel()
 	defer ctx.Release() // Release the context after the request is done
 
-	// Set the assistant ID
-	assistantID := c.Query("assistant_id")
-	if assistantID != "" {
-		ctx = chatctx.WithAssistantID(ctx, assistantID)
-	}
+	// // Set the assistant ID
+	// assistantID := c.Query("assistant_id")
+	// if assistantID != "" {
+	// 	ctx = chatctx.WithAssistantID(ctx, assistantID)
+	// }
 
-	// Set the silent mode
-	silent := c.Query("silent")
-	if silent == "true" || silent == "1" {
-		ctx = chatctx.WithSilent(ctx, true)
-	}
+	// // Set the silent mode
+	// silent := c.Query("silent")
+	// if silent == "true" || silent == "1" {
+	// 	ctx = chatctx.WithSilent(ctx, true)
+	// }
 
-	// Set the history visible
-	historyVisible := c.Query("history_visible")
-	if historyVisible != "" {
-		ctx = chatctx.WithHistoryVisible(ctx, historyVisible == "true" || historyVisible == "1")
-	}
+	// // Set the history visible
+	// historyVisible := c.Query("history_visible")
+	// if historyVisible != "" {
+	// 	ctx = chatctx.WithHistoryVisible(ctx, historyVisible == "true" || historyVisible == "1")
+	// }
 
-	// Set the client type
-	clientType := c.Query("client_type")
-	if clientType != "" {
-		ctx = chatctx.WithClientType(ctx, clientType)
-	}
+	// // Set the client type
+	// clientType := c.Query("client_type")
+	// if clientType != "" {
+	// 	ctx = chatctx.WithClientType(ctx, clientType)
+	// }
 
 	err := agent.Answer(ctx, content, c)
 
@@ -664,13 +664,13 @@ func (agent *DSL) handleGenerateTitle(c *gin.Context) {
 	chatID := fmt.Sprintf("generate_title_%d", time.Now().UnixNano())
 
 	// Set the context with validated chat_id
-	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
+	ctx, cancel := chatctx.NewWithCancel(c.Request.Context(), nil, chatID, c.Query("context"))
 	defer cancel()
 	defer ctx.Release() // Release the context after the request is done
 
-	// Set the assistant ID
-	ctx = chatctx.WithHistoryVisible(ctx, false)
-	ctx = chatctx.WithAssistantID(ctx, agent.Use.Title)
+	// // Set the assistant ID
+	// ctx = chatctx.WithHistoryVisible(ctx, false)
+	// ctx = chatctx.WithAssistantID(ctx, agent.Use.Title)
 
 	err := agent.Answer(ctx, content, c)
 
@@ -704,13 +704,13 @@ func (agent *DSL) handleGeneratePrompts(c *gin.Context) {
 	chatID := fmt.Sprintf("generate_prompts_%d", time.Now().UnixNano())
 
 	// Set the context with validated chat_id
-	ctx, cancel := chatctx.NewWithCancel(sid, chatID, c.Query("context"))
+	ctx, cancel := chatctx.NewWithCancel(c.Request.Context(), nil, chatID, c.Query("context"))
 	defer cancel()
 	defer ctx.Release() // Release the context after the request is done
 
-	// Set the assistant ID
-	ctx = chatctx.WithHistoryVisible(ctx, false)
-	ctx = chatctx.WithAssistantID(ctx, agent.Use.Prompt)
+	// // Set the assistant ID
+	// ctx = chatctx.WithHistoryVisible(ctx, false)
+	// ctx = chatctx.WithAssistantID(ctx, agent.Use.Prompt)
 	err := agent.Answer(ctx, content, c)
 
 	// Error handling
