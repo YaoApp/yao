@@ -867,3 +867,181 @@ func TestGetBoolValue(t *testing.T) {
 		}
 	})
 }
+
+// TestModelID tests the AssistantModel.ModelID method
+func TestModelID(t *testing.T) {
+	t.Run("WithCustomModel", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "test123",
+			Name:      "Test Assistant",
+			Connector: "openai",
+			Options: map[string]interface{}{
+				"model": "gpt-4o",
+			},
+		}
+		result := assistant.ModelID()
+		expected := "test-assistant-gpt-4o-yao_test123"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("WithModelInOptions", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "abc456",
+			Name:      "My Bot",
+			Connector: "openai",
+			Options: map[string]interface{}{
+				"model": "gpt-3.5-turbo",
+			},
+		}
+		result := assistant.ModelID()
+		expected := "my-bot-gpt-3.5-turbo-yao_abc456"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("WithoutCustomModel", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "xyz789",
+			Name:      "Default Assistant",
+			Connector: "openai",
+		}
+		result := assistant.ModelID()
+		// When connector is not loaded in test, it should return unknown
+		expected := "default-assistant-unknown-yao_xyz789"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("WithoutConnector", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:   "noconn",
+			Name: "No Connector",
+		}
+		result := assistant.ModelID()
+		expected := "no-connector-unknown-yao_noconn"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("WithSpacesInName", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "spaces",
+			Name:      "Test Bot With Spaces",
+			Connector: "anthropic",
+			Options: map[string]interface{}{
+				"model": "claude-3",
+			},
+		}
+		result := assistant.ModelID()
+		expected := "test-bot-with-spaces-claude-3-yao_spaces"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("WithUpperCaseName", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "upper",
+			Name:      "UPPERCASE-NAME",
+			Connector: "openai",
+			Options: map[string]interface{}{
+				"model": "GPT-4",
+			},
+		}
+		result := assistant.ModelID()
+		expected := "uppercase-name-GPT-4-yao_upper"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("WithEmptyOptions", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "empty",
+			Name:      "Empty Options",
+			Connector: "openai",
+			Options:   map[string]interface{}{},
+		}
+		result := assistant.ModelID()
+		// When connector is not loaded in test, it should return unknown
+		expected := "empty-options-unknown-yao_empty"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+}
+
+// TestParseModelID tests the ParseModelID function
+func TestParseModelID(t *testing.T) {
+	t.Run("ValidModelID", func(t *testing.T) {
+		modelID := "test-assistant-gpt-4o-yao_test123"
+		result := ParseModelID(modelID)
+		expected := "test123"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("ValidModelIDWithMultipleDashes", func(t *testing.T) {
+		modelID := "my-test-bot-gpt-3.5-turbo-yao_abc456"
+		result := ParseModelID(modelID)
+		expected := "abc456"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("ValidModelIDWithHyphenInID", func(t *testing.T) {
+		modelID := "assistant-name-model-yao_id-with-dash"
+		result := ParseModelID(modelID)
+		expected := "id-with-dash"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%s'", expected, result)
+		}
+	})
+
+	t.Run("InvalidModelIDNoYaoPrefix", func(t *testing.T) {
+		modelID := "test-assistant-gpt-4o-test123"
+		result := ParseModelID(modelID)
+		if result != "" {
+			t.Errorf("Expected empty string, got '%s'", result)
+		}
+	})
+
+	t.Run("InvalidModelIDEmpty", func(t *testing.T) {
+		modelID := ""
+		result := ParseModelID(modelID)
+		if result != "" {
+			t.Errorf("Expected empty string, got '%s'", result)
+		}
+	})
+
+	t.Run("InvalidModelIDOnlyYaoPrefix", func(t *testing.T) {
+		modelID := "yao_"
+		result := ParseModelID(modelID)
+		if result != "" {
+			t.Errorf("Expected empty string, got '%s'", result)
+		}
+	})
+
+	t.Run("RoundTrip", func(t *testing.T) {
+		assistant := AssistantModel{
+			ID:        "roundtrip123",
+			Name:      "Round Trip Test",
+			Connector: "openai",
+			Options: map[string]interface{}{
+				"model": "gpt-4",
+			},
+		}
+		modelID := assistant.ModelID()
+		extractedID := ParseModelID(modelID)
+		if extractedID != assistant.ID {
+			t.Errorf("Round trip failed: expected '%s', got '%s'", assistant.ID, extractedID)
+		}
+	})
+}

@@ -99,10 +99,10 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	openapi.attachWellKnown(router)
 
 	// Models ( LLM Agent )
-	group.GET("/models", openapi.OAuth.Guard, GinGetModels)
+	group.GET("/models", openapi.OAuth.Guard, agent.GetModels)
 
 	// Get Model Details ( LLM Agent )
-	group.GET("/models/:model_name", openapi.OAuth.Guard, GinGetModelDetails)
+	group.GET("/models/:model_name", openapi.OAuth.Guard, agent.GetModelDetails)
 
 	// OAuth handlers
 	openapi.attachOAuth(group)

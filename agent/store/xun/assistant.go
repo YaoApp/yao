@@ -58,8 +58,26 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 	data["public"] = assistant.Public
 	data["mentionable"] = assistant.Mentionable
 	data["automated"] = assistant.Automated
-	data["created_at"] = assistant.CreatedAt
-	data["updated_at"] = assistant.UpdatedAt
+
+	// Set timestamps
+	now := time.Now().UnixNano()
+	if exists {
+		// Update: set updated_at, keep created_at unchanged
+		if assistant.UpdatedAt == 0 {
+			data["updated_at"] = now
+		} else {
+			data["updated_at"] = assistant.UpdatedAt
+		}
+		// Don't modify created_at on update
+	} else {
+		// Create: set created_at, updated_at is null
+		if assistant.CreatedAt == 0 {
+			data["created_at"] = now
+		} else {
+			data["created_at"] = assistant.CreatedAt
+		}
+		data["updated_at"] = nil
+	}
 
 	// Handle nullable string fields from assistant.mod.yao
 	// Store as nil if empty string (this matches database nullable: true fields)
