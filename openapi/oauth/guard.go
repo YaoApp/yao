@@ -146,10 +146,10 @@ func (s *Service) getAccessTokenFromAPIKey(apiKey string) string {
 		log.Warn("Failed to make access token: %s", err.Error())
 	}
 
-	fmt.Println("========== Access Token From API Key ==========")
-	fmt.Println("accessToken: ", accessToken)
-	fmt.Println("extraClaims: ", extraClaims)
-	fmt.Println("===============================================")
+	// fmt.Println("========== Access Token From API Key ==========")
+	// fmt.Println("accessToken: ", accessToken)
+	// fmt.Println("extraClaims: ", extraClaims)
+	// fmt.Println("===============================================")
 	return accessToken
 }
 

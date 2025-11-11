@@ -2,7 +2,6 @@ package context
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -125,9 +124,4 @@ func (ctx *Context) Map() map[string]interface{} {
 	}
 
 	return data
-}
-
-// GenChatID generate a new chat ID
-func GenChatID() string {
-	return fmt.Sprintf("chat_%d", time.Now().UnixNano())
 }

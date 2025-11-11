@@ -18,7 +18,7 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/yao/agent"
+	agent "github.com/yaoapp/yao/agent/api"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
@@ -47,7 +47,7 @@ import (
 
 // Setting the application setting
 var Setting *DSL
-var regExcp = regexp.MustCompile("^Exception\\|([0-9]+):(.+)$")
+var regExcp = regexp.MustCompile(`^Exception\|([0-9]+):(.+)$`)
 
 // LoadAndExport load app
 func LoadAndExport(cfg config.Config) error {
@@ -258,7 +258,7 @@ func processService(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	service := fmt.Sprintf("__yao_service.%s", process.ArgsString(0))
 	payload := process.ArgsMap(1)
-	if payload == nil || len(payload) == 0 {
+	if len(payload) == 0 {
 		exception.New("content is required", 400).Throw()
 	}
 
@@ -508,7 +508,7 @@ func processXgen(process *process.Process) interface{} {
 			"layout":  layout,
 		}
 
-		if admin.ThirdPartyLogin != nil && len(admin.ThirdPartyLogin) > 0 {
+		if len(admin.ThirdPartyLogin) > 0 {
 			xgenLogin["admin"]["thirdPartyLogin"] = admin.ThirdPartyLogin
 		}
 
@@ -544,7 +544,7 @@ func processXgen(process *process.Process) interface{} {
 			"layout":  layout,
 		}
 
-		if user.ThirdPartyLogin != nil && len(user.ThirdPartyLogin) > 0 {
+		if len(user.ThirdPartyLogin) > 0 {
 			xgenLogin["user"]["thirdPartyLogin"] = user.ThirdPartyLogin
 		}
 	}
@@ -715,8 +715,9 @@ func (dsl *DSL) replaceAdminRoot() error {
 // icons
 func (dsl *DSL) icons(cfg config.Config) {
 
-	dsl.Favicon = fmt.Sprintf("/api/__yao/app/icons/app.ico")
-	dsl.Logo = fmt.Sprintf("/api/__yao/app/icons/app.png")
+	dsl.Favicon = "/api/__yao/app/icons/app.ico"
+	dsl.Logo = "/api/__yao/app/icons/app.png"
+	log.Trace("CFG %v", cfg.Root)
 
 	// favicon := filepath.Join(cfg.Root, "icons", "app.ico")
 	// if _, err := os.Stat(favicon); err == nil {
@@ -745,23 +746,19 @@ func Permissions(process *process.Process, widget string, id string) map[string]
 		for _, value := range values {
 			permissions[fmt.Sprintf("%v", value)] = true
 		}
-		break
 
 	case []string:
 		for _, value := range values {
 			permissions[value] = true
 		}
-		break
 
 	case map[string]interface{}:
 		for key := range values {
 			permissions[key] = true
 		}
-		break
 
 	case map[string]bool:
 		permissions = values
-		break
 	}
 
 	return permissions

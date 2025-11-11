@@ -223,6 +223,7 @@ var testSystemStores = map[string]string{
 	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao",
 	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
 	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao",
+	"__yao.agent.cache":  "yao/stores/agent/cache.lru.yao",
 	"__yao.kb.store":     "yao/stores/kb/store.badger.yao",
 	"__yao.kb.cache":     "yao/stores/kb/cache.lru.yao",
 }

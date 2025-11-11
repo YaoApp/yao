@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/server/http"
-	"github.com/yaoapp/yao/agent"
+	agent "github.com/yaoapp/yao/agent/api"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"

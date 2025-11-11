@@ -1,4 +1,4 @@
-package agent
+package api
 
 import (
 	"fmt"
@@ -14,12 +14,13 @@ import (
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/message"
 	store "github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/agent/types"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 )
 
 // API registers the Agent API endpoints
-func (agent *DSL) API(router *gin.Engine, path string) error {
+func (agent *API) API(router *gin.Engine, path string) error {
 
 	// Get the guards
 	middlewares, err := agent.getGuardHandlers()
@@ -145,13 +146,13 @@ func (agent *DSL) API(router *gin.Engine, path string) error {
 }
 
 // handleStatus handles the status request
-func (agent *DSL) handleStatus(c *gin.Context) {
+func (agent *API) handleStatus(c *gin.Context) {
 	c.Status(200)
 	c.Done()
 }
 
 // handleChat handles the chat request
-func (agent *DSL) handleChat(c *gin.Context) {
+func (agent *API) handleChat(c *gin.Context) {
 	// Set headers for SSE
 	c.Header("Content-Type", "text/event-stream;charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
@@ -215,7 +216,7 @@ func (agent *DSL) handleChat(c *gin.Context) {
 }
 
 // handleChatList handles the chat list request
-func (agent *DSL) handleChatList(c *gin.Context) {
+func (agent *API) handleChatList(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -259,7 +260,7 @@ func (agent *DSL) handleChatList(c *gin.Context) {
 }
 
 // handleChatHistory handles the chat history request
-func (agent *DSL) handleChatHistory(c *gin.Context) {
+func (agent *API) handleChatHistory(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -280,7 +281,7 @@ func (agent *DSL) handleChatHistory(c *gin.Context) {
 }
 
 // getOrigin returns the request origin
-func (agent *DSL) getOrigin(c *gin.Context) string {
+func (agent *API) getOrigin(c *gin.Context) string {
 	origin := c.Request.Header.Get("Origin")
 	if origin == "" {
 		origin = c.Request.Referer()
@@ -294,12 +295,12 @@ func (agent *DSL) getOrigin(c *gin.Context) string {
 }
 
 // getGuardHandlers returns authentication middleware handlers
-func (agent *DSL) getGuardHandlers() ([]gin.HandlerFunc, error) {
+func (agent *API) getGuardHandlers() ([]gin.HandlerFunc, error) {
 	return []gin.HandlerFunc{}, nil
 }
 
 // defaultGuard is the default authentication handler
-func (agent *DSL) defaultGuard(c *gin.Context) {
+func (agent *API) defaultGuard(c *gin.Context) {
 
 	// Check if the request is for OpenAPI OAuth
 	if oauth.OAuth != nil {
@@ -320,7 +321,7 @@ func (agent *DSL) defaultGuard(c *gin.Context) {
 }
 
 // Openapi Oauth
-func (agent *DSL) guardOpenapiOauth(c *gin.Context) {
+func (agent *API) guardOpenapiOauth(c *gin.Context) {
 	s := oauth.OAuth
 	token := agent.getAccessToken(c)
 	if token == "" {
@@ -348,7 +349,7 @@ func (agent *DSL) guardOpenapiOauth(c *gin.Context) {
 	c.Set("__sid", sid)
 }
 
-func (agent *DSL) getAccessToken(c *gin.Context) string {
+func (agent *API) getAccessToken(c *gin.Context) string {
 	token := c.GetHeader("Authorization")
 	if token == "" || token == "Bearer undefined" {
 		cookie, err := c.Cookie("__Host-access_token")
@@ -360,7 +361,7 @@ func (agent *DSL) getAccessToken(c *gin.Context) string {
 	return strings.TrimPrefix(token, "Bearer ")
 }
 
-func (agent *DSL) getSessionID(c *gin.Context) string {
+func (agent *API) getSessionID(c *gin.Context) string {
 	sid, err := c.Cookie("__Host-session_id")
 	if err != nil {
 		return ""
@@ -369,7 +370,7 @@ func (agent *DSL) getSessionID(c *gin.Context) string {
 }
 
 // handleChatLatest handles getting the latest chat
-func (agent *DSL) handleChatLatest(c *gin.Context) {
+func (agent *API) handleChatLatest(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -454,7 +455,7 @@ func (agent *DSL) handleChatLatest(c *gin.Context) {
 }
 
 // handleChatDetail handles getting a single chat's details
-func (agent *DSL) handleChatDetail(c *gin.Context) {
+func (agent *API) handleChatDetail(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -503,7 +504,7 @@ func (agent *DSL) handleChatDetail(c *gin.Context) {
 }
 
 // handleMentions handles getting mentions for a chat
-func (agent *DSL) handleMentions(c *gin.Context) {
+func (agent *API) handleMentions(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -536,9 +537,9 @@ func (agent *DSL) handleMentions(c *gin.Context) {
 	}
 
 	// Convert assistants to mentions
-	mentions := []Mention{}
+	mentions := []types.Mention{}
 	for _, assistant := range response.Data {
-		mention := Mention{
+		mention := types.Mention{
 			ID:     assistant.ID,
 			Name:   assistant.Name,
 			Type:   assistant.Type,
@@ -552,7 +553,7 @@ func (agent *DSL) handleMentions(c *gin.Context) {
 }
 
 // handleChatUpdate handles updating a chat's details
-func (agent *DSL) handleChatUpdate(c *gin.Context) {
+func (agent *API) handleChatUpdate(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -596,7 +597,7 @@ func (agent *DSL) handleChatUpdate(c *gin.Context) {
 }
 
 // handleChatDelete handles deleting a single chat
-func (agent *DSL) handleChatDelete(c *gin.Context) {
+func (agent *API) handleChatDelete(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -623,7 +624,7 @@ func (agent *DSL) handleChatDelete(c *gin.Context) {
 }
 
 // handleChatsDeleteAll handles deleting all chats for a user
-func (agent *DSL) handleChatsDeleteAll(c *gin.Context) {
+func (agent *API) handleChatsDeleteAll(c *gin.Context) {
 	sid := c.GetString("__sid")
 	if sid == "" {
 		c.JSON(400, gin.H{"message": "sid is required", "code": 400})
@@ -643,7 +644,7 @@ func (agent *DSL) handleChatsDeleteAll(c *gin.Context) {
 }
 
 // handleGenerateTitle handles generating a chat title
-func (agent *DSL) handleGenerateTitle(c *gin.Context) {
+func (agent *API) handleGenerateTitle(c *gin.Context) {
 	// Set headers for SSE
 	c.Header("Content-Type", "text/event-stream;charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
@@ -683,7 +684,7 @@ func (agent *DSL) handleGenerateTitle(c *gin.Context) {
 }
 
 // handleGeneratePrompts handles generating prompts
-func (agent *DSL) handleGeneratePrompts(c *gin.Context) {
+func (agent *API) handleGeneratePrompts(c *gin.Context) {
 	// Set headers for SSE
 	c.Header("Content-Type", "text/event-stream;charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
@@ -722,7 +723,7 @@ func (agent *DSL) handleGeneratePrompts(c *gin.Context) {
 }
 
 // HandleAssistantList handles listing assistants (exported for use in openapi/agent)
-func (agent *DSL) HandleAssistantList(c *gin.Context) {
+func (agent *API) HandleAssistantList(c *gin.Context) {
 	// Parse filter parameters
 	filter := store.AssistantFilter{
 		Type:     "assistant",
@@ -825,7 +826,7 @@ func parseBoolValue(value string) *bool {
 }
 
 // HandleAssistantCall handles the assistant API call (exported for use in openapi/agent)
-func (agent *DSL) HandleAssistantCall(c *gin.Context) {
+func (agent *API) HandleAssistantCall(c *gin.Context) {
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
@@ -865,7 +866,7 @@ func (agent *DSL) HandleAssistantCall(c *gin.Context) {
 }
 
 // HandleAssistantDetail handles getting a single assistant's details (exported for use in openapi/agent)
-func (agent *DSL) HandleAssistantDetail(c *gin.Context) {
+func (agent *API) HandleAssistantDetail(c *gin.Context) {
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
@@ -904,7 +905,7 @@ func (agent *DSL) HandleAssistantDetail(c *gin.Context) {
 }
 
 // HandleAssistantSave handles creating or updating an assistant (exported for use in openapi/agent)
-func (agent *DSL) HandleAssistantSave(c *gin.Context) {
+func (agent *API) HandleAssistantSave(c *gin.Context) {
 	var assistantData map[string]interface{}
 	if err := c.BindJSON(&assistantData); err != nil {
 		c.JSON(400, gin.H{"message": "invalid request body", "code": 400})
@@ -950,7 +951,7 @@ func (agent *DSL) HandleAssistantSave(c *gin.Context) {
 }
 
 // HandleAssistantDelete handles deleting an assistant (exported for use in openapi/agent)
-func (agent *DSL) HandleAssistantDelete(c *gin.Context) {
+func (agent *API) HandleAssistantDelete(c *gin.Context) {
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		c.JSON(400, gin.H{"message": "assistant id is required", "code": 400})
@@ -976,7 +977,7 @@ func (agent *DSL) HandleAssistantDelete(c *gin.Context) {
 }
 
 // handleConnectors handles listing connectors
-func (agent *DSL) handleConnectors(c *gin.Context) {
+func (agent *API) handleConnectors(c *gin.Context) {
 	options := []map[string]interface{}{}
 
 	// Filter and format connectors
@@ -1002,7 +1003,7 @@ func (agent *DSL) handleConnectors(c *gin.Context) {
 }
 
 // HandleAssistantTags handles getting all assistant tags (exported for use in openapi/agent)
-func (agent *DSL) HandleAssistantTags(c *gin.Context) {
+func (agent *API) HandleAssistantTags(c *gin.Context) {
 	locale := "en-us" // Default locale
 	if loc := c.Query("locale"); loc != "" {
 		locale = strings.ToLower(strings.TrimSpace(loc))
