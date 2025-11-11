@@ -124,6 +124,10 @@ type Context struct {
 	Silent bool `json:"silent,omitempty"` // Silent mode (Deprecated, use Referer instead)
 }
 
+// Response the response
+// 100% compatible with the OpenAI API
+type Response struct{}
+
 // Message Structure ( OpenAI Chat Completion Input Message Structure, https://platform.openai.com/docs/api-reference/chat/create#chat/create-messages )
 // ===============================
 
