@@ -118,8 +118,8 @@ type Context struct {
 	Accept  Accept `json:"accept,omitempty"`  // Response format: standard, cui-web, cui-native, cui-desktop
 
 	// CUI Context information
-	Route string                 `json:"route,omitempty"` // The route of the request, it will be used to identify the route of the request
-	Data  map[string]interface{} `json:"data,omitempty"`  // The data of the request, it will be used to pass data to the page
+	Route string                 `json:"yao_route,omitempty"` // The route of the request, it will be used to identify the route of the request
+	Data  map[string]interface{} `json:"yao_data,omitempty"`  // The data of the request, it will be used to pass data to the page
 
 	Silent bool `json:"silent,omitempty"` // Silent mode (Deprecated, use Referer instead)
 }
@@ -215,4 +215,44 @@ type ToolCall struct {
 type Function struct {
 	Name      string `json:"name"`                // Required: name of the function to call
 	Arguments string `json:"arguments,omitempty"` // Optional: arguments to pass to the function, as a JSON string
+}
+
+// Completion Request Structure ( OpenAI Chat Completion Request, https://platform.openai.com/docs/api-reference/chat/create )
+// ===============================
+
+// CompletionRequest represents a chat completion request compatible with OpenAI's API
+type CompletionRequest struct {
+	// Required fields
+	Model    string    `json:"model"`    // Required: ID of the model to use
+	Messages []Message `json:"messages"` // Required: list of messages comprising the conversation so far
+
+	// Audio configuration (for models that support audio output)
+	Audio *AudioConfig `json:"audio,omitempty"` // Optional: audio output configuration
+
+	// Generation parameters
+	Temperature         *float64 `json:"temperature,omitempty"`           // Optional: sampling temperature (0-2), defaults to 1
+	MaxTokens           *int     `json:"max_tokens,omitempty"`            // Optional: maximum number of tokens to generate (deprecated, use max_completion_tokens)
+	MaxCompletionTokens *int     `json:"max_completion_tokens,omitempty"` // Optional: maximum number of tokens that can be generated in the completion
+
+	// Streaming configuration
+	Stream        *bool          `json:"stream,omitempty"`         // Optional: if true, stream partial message deltas
+	StreamOptions *StreamOptions `json:"stream_options,omitempty"` // Optional: options for streaming response
+
+	// Request metadata
+	Metadata map[string]string `json:"metadata,omitempty"` // Optional: developer-defined tags and values for tracking requests
+
+	// CUI Context information
+	Route string                 `json:"yao_route,omitempty"` // Optional: route of the request for CUI context
+	Data  map[string]interface{} `json:"yao_data,omitempty"`  // Optional: data to pass to the page for CUI context
+}
+
+// AudioConfig represents the audio output configuration for models that support audio
+type AudioConfig struct {
+	Voice  string `json:"voice"`  // Required: voice to use for audio output (e.g., "alloy", "echo", "fable", "onyx", "nova", "shimmer")
+	Format string `json:"format"` // Required: audio output format (e.g., "wav", "mp3", "flac", "opus", "pcm16")
+}
+
+// StreamOptions represents options for streaming responses
+type StreamOptions struct {
+	IncludeUsage bool `json:"include_usage,omitempty"` // If true, include usage statistics in the final chunk
 }

@@ -1,9 +1,7 @@
 package chat
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent"
@@ -24,26 +22,43 @@ func GinCreateCompletions(c *gin.Context) {
 		return
 	}
 
-	ctx := context.NewOpenAPI(c, cache)
+	completionReq, ctx, err := context.GetCompletionRequest(c, cache)
+	if err != nil {
+
+		fmt.Println("-----------------------------------------------")
+		fmt.Println("Error: ", err.Error())
+		fmt.Println("-----------------------------------------------")
+
+		response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Failed to parse request: " + err.Error(),
+		})
+		return
+	}
 
 	fmt.Println("-----------------------------------------------")
 	fmt.Println("Chat ID: ", ctx.ChatID)
 	fmt.Println("Assistant ID: ", ctx.AssistantID)
-	fmt.Println("----")
-	// utils.Dump(ctx)
-	// Print request body
-	fmt.Println("\n--- Request Body ---")
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		fmt.Printf("Error reading body: %v\n", err)
-	} else {
-		fmt.Printf("%s\n", string(body))
-		// Restore the body for further processing
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+	fmt.Println("Model: ", completionReq.Model)
+	fmt.Println("Messages count: ", len(completionReq.Messages))
+	if completionReq.Temperature != nil {
+		fmt.Println("Temperature: ", *completionReq.Temperature)
+	}
+	if completionReq.Stream != nil {
+		fmt.Println("Stream: ", *completionReq.Stream)
+	}
+	if completionReq.Metadata != nil {
+		fmt.Println("Metadata: ", completionReq.Metadata)
 	}
 	fmt.Println("-----------------------------------------------")
 
-	c.JSON(response.StatusOK, gin.H{"message": "Create Completions", "chat_id": ctx.ChatID})
+	c.JSON(response.StatusOK, gin.H{
+		"message":        "Create Completions",
+		"chat_id":        ctx.ChatID,
+		"assistant_id":   ctx.AssistantID,
+		"model":          completionReq.Model,
+		"messages_count": len(completionReq.Messages),
+	})
 
 	// // Print headers
 	// fmt.Println("\n--- Headers ---")

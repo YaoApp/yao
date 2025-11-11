@@ -2,6 +2,7 @@ package context
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,42 +14,58 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
 
-// NewOpenAPI create a new context from openapi context
-func NewOpenAPI(c *gin.Context, cache store.Store) Context {
+// GetCompletionRequest parse completion request and create context from openapi request
+// Returns: *CompletionRequest, *Context, error
+func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest, *Context, error) {
 	// Get authorized information
 	authInfo := authorized.GetInfo(c)
 
-	// Extract assistant ID (route parameter takes priority, handled in GetAssistantID)
-	assistantID, _ := GetAssistantID(c)
+	// Parse completion request from payload or query first
+	completionReq, err := parseCompletionRequestData(c)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse completion request: %w", err)
+	}
+
+	// Extract assistant ID using completionReq (can extract from model field)
+	assistantID, err := GetAssistantID(c, completionReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get assistant ID: %w", err)
+	}
 
 	// Extract chat ID (may generate from messages if not provided)
-	// GetChatID internally calls GetChatIDByMessages which auto-caches
-	chatID, _ := GetChatID(c, cache)
+	chatID, err := GetChatID(c, cache, completionReq)
+	if err != nil {
+		// If chat ID generation fails, it's not critical - allow empty chatID
+		chatID = ""
+	}
 
 	// Parse client information from User-Agent header
 	userAgent := c.GetHeader("User-Agent")
 	clientType := getClientType(userAgent)
 	clientIP := c.ClientIP()
 
-	// Create context with extracted parameters
-	ctx := Context{
+	// Set cache in context
+	ctx := &Context{
 		Context:     c.Request.Context(),
 		Space:       plan.NewMemorySharedSpace(),
+		Cache:       cache,
 		Authorized:  authInfo,
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Locale:      GetLocale(c),
-		Theme:       GetTheme(c),
-		Referer:     GetReferer(c),
-		Accept:      GetAccept(c),
+		Locale:      GetLocale(c, completionReq),
+		Theme:       GetTheme(c, completionReq),
+		Referer:     GetReferer(c, completionReq),
+		Accept:      GetAccept(c, completionReq),
 		Client: Client{
 			Type:      clientType,
 			UserAgent: userAgent,
 			IP:        clientIP,
 		},
+		Route: GetRoute(c, completionReq),
+		Data:  GetData(c, completionReq),
 	}
 
-	return ctx
+	return completionReq, ctx, nil
 }
 
 // getClientType parses the client type from User-Agent header
@@ -80,45 +97,11 @@ func getClientType(userAgent string) string {
 	}
 }
 
-// getPayloadField reads a string field from request body
-func getPayloadField(c *gin.Context, fieldName string) string {
-	if c.Request.Body == nil {
-		return ""
-	}
-
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		return ""
-	}
-
-	// Restore body for further use
-	c.Request.Body = io.NopCloser(bytes.NewReader(body))
-
-	if len(body) == 0 {
-		return ""
-	}
-
-	// Parse JSON to extract field
-	var payload map[string]interface{}
-	if err := json.Unmarshal(body, &payload); err != nil {
-		return ""
-	}
-
-	if value, ok := payload[fieldName]; ok {
-		if strValue, ok := value.(string); ok {
-			return strValue
-		}
-	}
-
-	return ""
-}
-
 // GetAssistantID extracts assistant ID from request with priority:
 // 1. Query parameter "assistant_id"
 // 2. Header "X-Yao-Assistant"
-// 3. Query parameter "model" - splits by "-" takes last field, extracts ID from "yao_xxx" prefix
-// 4. Payload "model" field - same parsing as query parameter
-func GetAssistantID(c *gin.Context) (string, error) {
+// 3. Extract from model field (from CompletionRequest or Query) - splits by "-" takes last field, extracts ID from "yao_xxx" prefix
+func GetAssistantID(c *gin.Context, req *CompletionRequest) (string, error) {
 	// Priority 1: Query parameter assistant_id
 	if assistantID := c.Query("assistant_id"); assistantID != "" {
 		return assistantID, nil
@@ -129,10 +112,12 @@ func GetAssistantID(c *gin.Context) (string, error) {
 		return assistantID, nil
 	}
 
-	// Priority 3 & 4: Extract from model parameter (Query or Payload)
-	model := c.Query("model")
-	if model == "" {
-		model = getPayloadField(c, "model")
+	// Priority 3: Extract from model field (from CompletionRequest or Query)
+	model := ""
+	if req != nil && req.Model != "" {
+		model = req.Model
+	} else {
+		model = c.Query("model")
 	}
 
 	if model != "" {
@@ -156,9 +141,9 @@ func GetAssistantID(c *gin.Context) (string, error) {
 // GetMessages extracts messages from the request
 // Priority:
 // 1. Query parameter "messages" (JSON string)
-// 2. Request body "messages" field
-func GetMessages(c *gin.Context) ([]Message, error) {
-	// Try query parameter first
+// 2. CompletionRequest.Messages (from payload)
+func GetMessages(c *gin.Context, req *CompletionRequest) ([]Message, error) {
+	// Priority 1: Query parameter messages
 	if messagesJSON := c.Query("messages"); messagesJSON != "" {
 		var messages []Message
 		if err := json.Unmarshal([]byte(messagesJSON), &messages); err == nil && len(messages) > 0 {
@@ -166,45 +151,19 @@ func GetMessages(c *gin.Context) ([]Message, error) {
 		}
 	}
 
-	// Check if request body exists
-	if c.Request.Body == nil {
-		return nil, fmt.Errorf("messages field is required")
+	// Priority 2: From CompletionRequest (payload)
+	if req != nil && len(req.Messages) > 0 {
+		return req.Messages, nil
 	}
 
-	// Try request body
-	// Read body carefully to allow reuse
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read request body: %w", err)
-	}
-
-	// Restore body for further processing
-	c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
-
-	// If body is empty, return error
-	if len(body) == 0 {
-		return nil, fmt.Errorf("messages field is required")
-	}
-
-	var requestBody struct {
-		Messages []Message `json:"messages"`
-	}
-
-	if err := json.Unmarshal(body, &requestBody); err != nil {
-		return nil, fmt.Errorf("failed to parse messages from request body: %w", err)
-	}
-
-	if len(requestBody.Messages) == 0 {
-		return nil, fmt.Errorf("messages field is required and must not be empty")
-	}
-
-	return requestBody.Messages, nil
+	return nil, fmt.Errorf("messages field is required")
 }
 
 // GetLocale extracts locale from request with priority:
 // 1. Query parameter "locale"
 // 2. Header "Accept-Language"
-func GetLocale(c *gin.Context) string {
+// 3. CompletionRequest metadata "locale" (from payload)
+func GetLocale(c *gin.Context, req *CompletionRequest) string {
 	// Priority 1: Query parameter
 	if locale := c.Query("locale"); locale != "" {
 		return strings.ToLower(locale)
@@ -222,13 +181,21 @@ func GetLocale(c *gin.Context) string {
 		}
 	}
 
+	// Priority 3: From CompletionRequest metadata
+	if req != nil && req.Metadata != nil {
+		if locale, ok := req.Metadata["locale"]; ok && locale != "" {
+			return strings.ToLower(locale)
+		}
+	}
+
 	return ""
 }
 
 // GetTheme extracts theme from request with priority:
 // 1. Query parameter "theme"
 // 2. Header "X-Yao-Theme"
-func GetTheme(c *gin.Context) string {
+// 3. CompletionRequest metadata "theme" (from payload)
+func GetTheme(c *gin.Context, req *CompletionRequest) string {
 	// Priority 1: Query parameter
 	if theme := c.Query("theme"); theme != "" {
 		return strings.ToLower(theme)
@@ -239,14 +206,22 @@ func GetTheme(c *gin.Context) string {
 		return strings.ToLower(theme)
 	}
 
+	// Priority 3: From CompletionRequest metadata
+	if req != nil && req.Metadata != nil {
+		if theme, ok := req.Metadata["theme"]; ok && theme != "" {
+			return strings.ToLower(theme)
+		}
+	}
+
 	return ""
 }
 
 // GetReferer extracts referer from request with priority:
 // 1. Query parameter "referer"
 // 2. Header "X-Yao-Referer"
-// 3. Default to "api"
-func GetReferer(c *gin.Context) string {
+// 3. CompletionRequest metadata "referer" (from payload)
+// 4. Default to "api"
+func GetReferer(c *gin.Context, req *CompletionRequest) string {
 	// Priority 1: Query parameter
 	if referer := c.Query("referer"); referer != "" {
 		return validateReferer(referer)
@@ -257,15 +232,23 @@ func GetReferer(c *gin.Context) string {
 		return validateReferer(referer)
 	}
 
-	// Priority 3: Default
+	// Priority 3: From CompletionRequest metadata
+	if req != nil && req.Metadata != nil {
+		if referer, ok := req.Metadata["referer"]; ok && referer != "" {
+			return validateReferer(referer)
+		}
+	}
+
+	// Priority 4: Default
 	return RefererAPI
 }
 
 // GetAccept extracts accept type from request with priority:
 // 1. Query parameter "accept"
 // 2. Header "X-Yao-Accept"
-// 3. Parse from client type (User-Agent)
-func GetAccept(c *gin.Context) Accept {
+// 3. CompletionRequest metadata "accept" (from payload)
+// 4. Parse from client type (User-Agent)
+func GetAccept(c *gin.Context, req *CompletionRequest) Accept {
 	// Priority 1: Query parameter
 	if accept := c.Query("accept"); accept != "" {
 		return validateAccept(accept)
@@ -276,7 +259,14 @@ func GetAccept(c *gin.Context) Accept {
 		return validateAccept(accept)
 	}
 
-	// Priority 3: Parse from User-Agent
+	// Priority 3: From CompletionRequest metadata
+	if req != nil && req.Metadata != nil {
+		if accept, ok := req.Metadata["accept"]; ok && accept != "" {
+			return validateAccept(accept)
+		}
+	}
+
+	// Priority 4: Parse from User-Agent
 	userAgent := c.GetHeader("User-Agent")
 	clientType := getClientType(userAgent)
 	return parseAccept(clientType)
@@ -286,8 +276,9 @@ func GetAccept(c *gin.Context) Accept {
 // Priority:
 // 1. Query parameter "chat_id"
 // 2. Header "X-Yao-Chat"
-// 3. Generate from messages using GetChatIDByMessages
-func GetChatID(c *gin.Context, cache store.Store) (string, error) {
+// 3. CompletionRequest metadata "chat_id" (from payload)
+// 4. Generate from messages using GetChatIDByMessages
+func GetChatID(c *gin.Context, cache store.Store, req *CompletionRequest) (string, error) {
 	// Priority 1: Query parameter chat_id
 	if chatID := c.Query("chat_id"); chatID != "" {
 		return chatID, nil
@@ -298,8 +289,15 @@ func GetChatID(c *gin.Context, cache store.Store) (string, error) {
 		return chatID, nil
 	}
 
-	// Priority 3: Generate from messages
-	messages, err := GetMessages(c)
+	// Priority 3: From CompletionRequest metadata
+	if req != nil && req.Metadata != nil {
+		if chatID, ok := req.Metadata["chat_id"]; ok && chatID != "" {
+			return chatID, nil
+		}
+	}
+
+	// Priority 4: Generate from messages
+	messages, err := GetMessages(c, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to get messages for chat ID generation: %w", err)
 	}
@@ -310,4 +308,171 @@ func GetChatID(c *gin.Context, cache store.Store) (string, error) {
 	}
 
 	return chatID, nil
+}
+
+// GetRoute extracts route from request with priority:
+// 1. Query parameter "yao_route"
+// 2. Header "X-Yao-Route"
+// 3. CompletionRequest.Route (from payload)
+func GetRoute(c *gin.Context, req *CompletionRequest) string {
+	// Priority 1: Query parameter
+	if route := c.Query("yao_route"); route != "" {
+		return route
+	}
+
+	// Priority 2: Header
+	if route := c.GetHeader("X-Yao-Route"); route != "" {
+		return route
+	}
+
+	// Priority 3: From CompletionRequest
+	if req != nil && req.Route != "" {
+		return req.Route
+	}
+
+	return ""
+}
+
+// GetData extracts data from request with priority:
+// 1. Query parameter "yao_data" (JSON string)
+// 2. Header "X-Yao-Data" (Base64 encoded JSON string)
+// 3. CompletionRequest.Data (from payload)
+func GetData(c *gin.Context, req *CompletionRequest) map[string]interface{} {
+	// Priority 1: Query parameter (JSON string)
+	if dataJSON := c.Query("yao_data"); dataJSON != "" {
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(dataJSON), &data); err == nil {
+			return data
+		}
+	}
+
+	// Priority 2: Header (Base64 encoded JSON string)
+	if dataBase64 := c.GetHeader("X-Yao-Data"); dataBase64 != "" {
+		// Try to decode Base64
+		if decoded, err := base64.StdEncoding.DecodeString(dataBase64); err == nil {
+			var data map[string]interface{}
+			if err := json.Unmarshal(decoded, &data); err == nil {
+				return data
+			}
+		}
+		// Fallback: try to parse as plain JSON (for backward compatibility)
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(dataBase64), &data); err == nil {
+			return data
+		}
+	}
+
+	// Priority 3: From CompletionRequest
+	if req != nil && req.Data != nil {
+		return req.Data
+	}
+
+	return nil
+}
+
+// parseCompletionRequestData extracts CompletionRequest from the request
+// Data can be passed via:
+// 1. Request body (JSON payload) - Priority
+// 2. Query parameters
+func parseCompletionRequestData(c *gin.Context) (*CompletionRequest, error) {
+	var req CompletionRequest
+
+	// Try to parse from request body first
+	if c.Request.Body != nil {
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read request body: %w", err)
+		}
+
+		// Restore body for further processing
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+
+		// If body is not empty, try to parse it
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &req); err != nil {
+				return nil, fmt.Errorf("failed to parse completion request from body: %w", err)
+			}
+
+			// If we got valid data from body, validate and return
+			if req.Model != "" && len(req.Messages) > 0 {
+				return &req, nil
+			}
+		}
+	}
+
+	// Fallback: Try to parse from query parameters
+	// Required fields
+	model := c.Query("model")
+	if model == "" {
+		return nil, fmt.Errorf("model field is required")
+	}
+	req.Model = model
+
+	// Messages (required, must be JSON string in query)
+	messagesJSON := c.Query("messages")
+	if messagesJSON == "" {
+		return nil, fmt.Errorf("messages field is required")
+	}
+
+	var messages []Message
+	if err := json.Unmarshal([]byte(messagesJSON), &messages); err != nil {
+		return nil, fmt.Errorf("failed to parse messages from query: %w", err)
+	}
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("messages field must not be empty")
+	}
+	req.Messages = messages
+
+	// Optional fields from query
+	if tempStr := c.Query("temperature"); tempStr != "" {
+		var temp float64
+		if _, err := fmt.Sscanf(tempStr, "%f", &temp); err == nil {
+			req.Temperature = &temp
+		}
+	}
+
+	if maxTokensStr := c.Query("max_tokens"); maxTokensStr != "" {
+		var maxTokens int
+		if _, err := fmt.Sscanf(maxTokensStr, "%d", &maxTokens); err == nil {
+			req.MaxTokens = &maxTokens
+		}
+	}
+
+	if maxCompletionTokensStr := c.Query("max_completion_tokens"); maxCompletionTokensStr != "" {
+		var maxCompletionTokens int
+		if _, err := fmt.Sscanf(maxCompletionTokensStr, "%d", &maxCompletionTokens); err == nil {
+			req.MaxCompletionTokens = &maxCompletionTokens
+		}
+	}
+
+	if streamStr := c.Query("stream"); streamStr != "" {
+		stream := streamStr == "true" || streamStr == "1"
+		req.Stream = &stream
+	}
+
+	// Audio config from query (JSON string)
+	if audioJSON := c.Query("audio"); audioJSON != "" {
+		var audio AudioConfig
+		if err := json.Unmarshal([]byte(audioJSON), &audio); err == nil {
+			req.Audio = &audio
+		}
+	}
+
+	// Stream options from query (JSON string)
+	if streamOptionsJSON := c.Query("stream_options"); streamOptionsJSON != "" {
+		var streamOptions StreamOptions
+		if err := json.Unmarshal([]byte(streamOptionsJSON), &streamOptions); err == nil {
+			req.StreamOptions = &streamOptions
+		}
+	}
+
+	// Metadata from query (JSON string)
+	if metadataJSON := c.Query("metadata"); metadataJSON != "" {
+		var metadata map[string]string
+		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err == nil {
+			req.Metadata = metadata
+		}
+	}
+
+	return &req, nil
 }

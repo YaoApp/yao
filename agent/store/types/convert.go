@@ -2,10 +2,13 @@ package types
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cast"
+	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/i18n"
 )
 
@@ -373,4 +376,83 @@ func getBoolValue(data map[string]interface{}, key string) bool {
 		}
 	}
 	return false
+}
+
+// ModelID generates an OpenAI-compatible model ID from assistant
+// Format: [prefix-]assistantName-model-yao_assistantID
+// prefix is optional, if provided, it will be prepended to the model ID
+func (assistant AssistantModel) ModelID(prefix ...string) string {
+	// Clean assistant name (remove spaces and special characters)
+	assistantName := strings.ReplaceAll(assistant.Name, " ", "-")
+	assistantName = strings.ToLower(assistantName)
+
+	// Get connector name from assistant
+	connectorName := assistant.Connector
+	if connectorName == "" {
+		log.Error("Assistant %s has no connector configured", assistant.ID)
+		modelID := assistantName + "-unknown-yao_" + assistant.ID
+		if len(prefix) > 0 && prefix[0] != "" {
+			return prefix[0] + modelID
+		}
+		return modelID
+	}
+
+	// Get model name
+	modelName := ""
+
+	// First, try to get custom model from Options
+	if assistant.Options != nil {
+		if m, ok := assistant.Options["model"].(string); ok && m != "" {
+			modelName = m
+		}
+	}
+
+	// If no custom model in options, try to get from connector configuration
+	if modelName == "" {
+		conn, err := connector.Select(connectorName)
+		if err != nil {
+			log.Error("Failed to select connector %s for assistant %s: %v", connectorName, assistant.ID, err)
+			modelID := assistantName + "-unknown-yao_" + assistant.ID
+			if len(prefix) > 0 && prefix[0] != "" {
+				return prefix[0] + modelID
+			}
+			return modelID
+		}
+
+		// Get model from connector settings
+		settings := conn.Setting()
+		if settings != nil {
+			if m, ok := settings["model"].(string); ok && m != "" {
+				modelName = m
+			}
+		}
+
+		if modelName == "" {
+			log.Error("Connector %s has no model configured for assistant %s", connectorName, assistant.ID)
+			modelID := assistantName + "-unknown-yao_" + assistant.ID
+			if len(prefix) > 0 && prefix[0] != "" {
+				return prefix[0] + modelID
+			}
+			return modelID
+		}
+	}
+
+	// Format: [prefix-]assistantName-model-yao_assistantID
+	modelID := assistantName + "-" + modelName + "-yao_" + assistant.ID
+	if len(prefix) > 0 && prefix[0] != "" {
+		return prefix[0] + modelID
+	}
+	return modelID
+}
+
+// ParseModelID extracts assistant ID from model ID
+// Expected format: [prefix-]assistantName-model-yao_assistantID
+// The function handles optional prefixes (e.g., "yao-agents-")
+func ParseModelID(modelID string) string {
+	// Find the last occurrence of "yao_"
+	parts := strings.Split(modelID, "-yao_")
+	if len(parts) < 2 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }

@@ -1,186 +1,215 @@
 package context
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
 )
 
-func TestNewOpenAPI(t *testing.T) {
+func TestGetCompletionRequest(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
 	gin.SetMode(gin.TestMode)
 
+	cache, err := store.Get("__yao.agent.cache")
+	if err != nil {
+		t.Fatalf("Failed to get cache: %v", err)
+	}
+
 	tests := []struct {
-		name               string
-		queryParams        map[string]string
-		routeParams        map[string]string
-		headers            map[string]string
-		expectedChatID     string
-		expectedAssistant  string
-		expectedLocale     string
-		expectedTheme      string
-		expectedClientType string
-		expectedReferer    string
-		expectedAccept     Accept
+		name                string
+		requestBody         map[string]interface{}
+		queryParams         map[string]string
+		headers             map[string]string
+		expectedModel       string
+		expectedMsgCount    int
+		expectedTemp        *float64
+		expectedStream      *bool
+		expectedLocale      string
+		expectedTheme       string
+		expectedReferer     string
+		expectedAccept      Accept
+		expectedAssistantID string
+		expectError         bool
 	}{
 		{
-			name: "Parse all query parameters",
+			name: "Complete request from body with metadata",
+			requestBody: map[string]interface{}{
+				"model": "gpt-4-yao_assistant123",
+				"messages": []map[string]interface{}{
+					{"role": "user", "content": "Hello"},
+				},
+				"temperature": 0.7,
+				"stream":      true,
+				"metadata": map[string]string{
+					"locale":  "zh-cn",
+					"theme":   "dark",
+					"referer": "process",
+					"accept":  "cui-web",
+					"chat_id": "chat-from-metadata",
+				},
+			},
+			expectedModel:       "gpt-4-yao_assistant123",
+			expectedMsgCount:    1,
+			expectedTemp:        floatPtr(0.7),
+			expectedStream:      boolPtr(true),
+			expectedLocale:      "zh-cn",
+			expectedTheme:       "dark",
+			expectedReferer:     RefererProcess,
+			expectedAccept:      AcceptWebCUI,
+			expectedAssistantID: "assistant123",
+			expectError:         false,
+		},
+		{
+			name: "Query params override payload metadata",
+			requestBody: map[string]interface{}{
+				"model": "gpt-4-yao_test456",
+				"messages": []map[string]interface{}{
+					{"role": "user", "content": "Test"},
+				},
+				"metadata": map[string]string{
+					"locale": "en-us",
+					"theme":  "light",
+				},
+			},
 			queryParams: map[string]string{
-				"assistant_id": "ast456",
-				"chat_id":      "chat123",
-				"locale":       "zh-CN",
-				"theme":        "Dark",
-				"referer":      RefererProcess,
-				"accept":       string(AcceptStandard),
+				"locale": "fr-FR",
+				"theme":  "auto",
 			},
-			routeParams: map[string]string{
-				"assistant_id": "route-ast",
-			},
-			headers: map[string]string{
-				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-			},
-			expectedChatID:     "chat123",
-			expectedAssistant:  "ast456",
-			expectedLocale:     "zh-cn",
-			expectedTheme:      "dark",
-			expectedClientType: "macos",
-			expectedReferer:    RefererProcess,
-			expectedAccept:     AcceptStandard,
+			expectedModel:       "gpt-4-yao_test456",
+			expectedMsgCount:    1,
+			expectedLocale:      "fr-fr",
+			expectedTheme:       "auto",
+			expectedReferer:     RefererAPI,
+			expectedAccept:      AcceptWebCUI,
+			expectedAssistantID: "test456",
+			expectError:         false,
 		},
 		{
-			name:        "Default values with no parameters",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent": "Mozilla/5.0",
+			name: "Headers override payload metadata",
+			requestBody: map[string]interface{}{
+				"model": "gpt-3.5-turbo-yao_header789",
+				"messages": []map[string]interface{}{
+					{"role": "user", "content": "Test"},
+				},
+				"metadata": map[string]string{
+					"referer": "process",
+					"accept":  "cui-web",
+				},
 			},
-			expectedChatID:     "",
-			expectedAssistant:  "",
-			expectedLocale:     "",
-			expectedTheme:      "",
-			expectedClientType: "web",
-			expectedReferer:    RefererAPI,
-			expectedAccept:     AcceptWebCUI,
+			headers: map[string]string{
+				"X-Yao-Referer": "mcp",
+				"X-Yao-Accept":  "cui-desktop",
+			},
+			expectedModel:       "gpt-3.5-turbo-yao_header789",
+			expectedMsgCount:    1,
+			expectedLocale:      "",
+			expectedTheme:       "",
+			expectedReferer:     RefererMCP,
+			expectedAccept:      AcceptDesktopCUI,
+			expectedAssistantID: "header789",
+			expectError:         false,
 		},
 		{
-			name:        "Android client type detection",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent": "Mozilla/5.0 (Linux; Android 10)",
+			name: "Minimal request without metadata",
+			requestBody: map[string]interface{}{
+				"model": "gpt-4o-yao_minimal",
+				"messages": []map[string]interface{}{
+					{"role": "user", "content": "Hello"},
+				},
 			},
-			expectedClientType: "android",
-			expectedReferer:    RefererAPI,
-			expectedAccept:     AccepNativeCUI,
+			expectedModel:       "gpt-4o-yao_minimal",
+			expectedMsgCount:    1,
+			expectedLocale:      "",
+			expectedTheme:       "",
+			expectedReferer:     RefererAPI,
+			expectedAccept:      AcceptWebCUI,
+			expectedAssistantID: "minimal",
+			expectError:         false,
 		},
 		{
-			name:        "iOS client type detection",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0)",
+			name: "Missing model",
+			requestBody: map[string]interface{}{
+				"messages": []map[string]interface{}{
+					{"role": "user", "content": "Hello"},
+				},
 			},
-			expectedClientType: "ios",
-			expectedReferer:    RefererAPI,
-			expectedAccept:     AccepNativeCUI,
+			expectError: true,
 		},
 		{
-			name:        "Windows desktop client type detection",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent": "Mozilla/5.0 (Windows NT 10.0)",
+			name: "Missing messages",
+			requestBody: map[string]interface{}{
+				"model": "gpt-4",
 			},
-			expectedClientType: "windows",
-			expectedReferer:    RefererAPI,
-			expectedAccept:     AcceptDesktopCUI,
-		},
-		{
-			name:        "Agent client type detection",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent": "Yao-Agent/1.0",
-			},
-			expectedClientType: "agent",
-			expectedReferer:    RefererAPI,
-			expectedAccept:     AcceptStandard,
-		},
-		{
-			name:        "JSSDK client type detection",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent": "Yao-JSSDK/2.0",
-			},
-			expectedClientType: "jssdk",
-			expectedReferer:    RefererAPI,
-			expectedAccept:     AcceptStandard,
-		},
-		{
-			name:        "Custom headers for referer and accept",
-			queryParams: map[string]string{},
-			headers: map[string]string{
-				"User-Agent":    "Mozilla/5.0",
-				"X-Yao-Referer": RefererMCP,
-				"X-Yao-Accept":  string(AcceptDesktopCUI),
-			},
-			expectedClientType: "web",
-			expectedReferer:    RefererMCP,
-			expectedAccept:     AcceptDesktopCUI,
-		},
-		{
-			name: "Query parameters override headers",
-			queryParams: map[string]string{
-				"referer": RefererJSSDK,
-				"accept":  string(AcceptStandard),
-			},
-			headers: map[string]string{
-				"User-Agent":    "Mozilla/5.0",
-				"X-Yao-Referer": RefererMCP,
-				"X-Yao-Accept":  string(AcceptDesktopCUI),
-			},
-			expectedClientType: "web",
-			expectedReferer:    RefererJSSDK,
-			expectedAccept:     AcceptStandard,
+			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create test server
 			w := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(w)
 
-			// Build query string
-			req, _ := http.NewRequest("GET", "http://example.com/test", nil)
+			// Build request
+			bodyBytes, _ := json.Marshal(tt.requestBody)
+			req, _ := http.NewRequest("POST", "http://example.com/chat/completions", bytes.NewBuffer(bodyBytes))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Add query params
 			q := req.URL.Query()
 			for key, value := range tt.queryParams {
 				q.Add(key, value)
 			}
 			req.URL.RawQuery = q.Encode()
 
-			// Set headers
+			// Add headers
 			for key, value := range tt.headers {
 				req.Header.Set(key, value)
 			}
 
 			c.Request = req
 
-			// Set route params
-			for key, value := range tt.routeParams {
-				c.Params = append(c.Params, gin.Param{Key: key, Value: value})
+			// Call GetCompletionRequest
+			completionReq, ctx, err := GetCompletionRequest(c, cache)
+
+			if tt.expectError {
+				assert.Error(t, err)
+				return
 			}
 
-			// Call NewGin
-			ctx := NewOpenAPI(c, nil)
+			assert.NoError(t, err)
+			assert.NotNil(t, completionReq)
+			assert.NotNil(t, ctx)
 
-			// Assertions
-			assert.Equal(t, tt.expectedChatID, ctx.ChatID, "ChatID mismatch")
-			assert.Equal(t, tt.expectedAssistant, ctx.AssistantID, "AssistantID mismatch")
-			assert.Equal(t, tt.expectedLocale, ctx.Locale, "Locale mismatch")
-			assert.Equal(t, tt.expectedTheme, ctx.Theme, "Theme mismatch")
-			assert.Equal(t, tt.expectedClientType, ctx.Client.Type, "Client.Type mismatch")
-			assert.Equal(t, tt.expectedReferer, ctx.Referer, "Referer mismatch")
-			assert.Equal(t, tt.expectedAccept, ctx.Accept, "Accept mismatch")
-			assert.NotNil(t, ctx.Space, "Space should not be nil")
-			// Client.UserAgent and Client.IP are set from headers/request, may be empty in test context
+			// Verify CompletionRequest
+			assert.Equal(t, tt.expectedModel, completionReq.Model)
+			assert.Equal(t, tt.expectedMsgCount, len(completionReq.Messages))
+			if tt.expectedTemp != nil {
+				assert.NotNil(t, completionReq.Temperature)
+				assert.Equal(t, *tt.expectedTemp, *completionReq.Temperature)
+			}
+			if tt.expectedStream != nil {
+				assert.NotNil(t, completionReq.Stream)
+				assert.Equal(t, *tt.expectedStream, *completionReq.Stream)
+			}
+
+			// Verify Context
+			assert.Equal(t, tt.expectedLocale, ctx.Locale)
+			assert.Equal(t, tt.expectedTheme, ctx.Theme)
+			assert.Equal(t, tt.expectedReferer, ctx.Referer)
+			assert.Equal(t, tt.expectedAccept, ctx.Accept)
+			assert.Equal(t, tt.expectedAssistantID, ctx.AssistantID)
+			assert.NotNil(t, ctx.Space)
+			assert.NotNil(t, ctx.Cache)
 		})
 	}
 }
@@ -286,4 +315,13 @@ func TestValidateReferer(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// Helper functions
+func floatPtr(f float64) *float64 {
+	return &f
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
