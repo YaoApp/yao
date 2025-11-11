@@ -77,7 +77,7 @@ func TestListModels(t *testing.T) {
 			// Verify model ID format: connector-model-assistantName-yao_assistantID
 			assert.Contains(t, firstModel.ID, "-yao_", "Model ID should contain '-yao_' prefix")
 
-			t.Logf("First model: ID=%s, Created=%d, OwnedBy=%s", 
+			t.Logf("First model: ID=%s, Created=%d, OwnedBy=%s",
 				firstModel.ID, firstModel.Created, firstModel.OwnedBy)
 		} else {
 			t.Log("No models returned (this is OK if no assistants exist)")
@@ -206,7 +206,7 @@ func TestGetModelDetails(t *testing.T) {
 		// Note: Created timestamp may be 0 or negative for legacy data, newly created assistants will have proper timestamps
 		assert.NotEmpty(t, model.OwnedBy, "Model should have owner")
 
-		t.Logf("Model details: ID=%s, Created=%d, OwnedBy=%s", 
+		t.Logf("Model details: ID=%s, Created=%d, OwnedBy=%s",
 			model.ID, model.Created, model.OwnedBy)
 	})
 
@@ -322,9 +322,9 @@ func TestModelIDFormat(t *testing.T) {
 					assistantID := parts[1]
 
 					// Verify prefix has at least: connector-model
-					assert.True(t, strings.Contains(prefix, "-"), 
+					assert.True(t, strings.Contains(prefix, "-"),
 						"Model ID prefix should contain connector-model parts")
-					
+
 					// Verify assistant ID is not empty
 					assert.NotEmpty(t, assistantID, "Assistant ID should not be empty")
 
@@ -424,4 +424,3 @@ func TestModelPermissions(t *testing.T) {
 		t.Log("Permission-based filtering is working")
 	})
 }
-
