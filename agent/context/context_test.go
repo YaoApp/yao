@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewGin(t *testing.T) {
+func TestNewOpenAPI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
@@ -28,21 +28,22 @@ func TestNewGin(t *testing.T) {
 		{
 			name: "Parse all query parameters",
 			queryParams: map[string]string{
-				"chat_id": "chat123",
-				"locale":  "zh-CN",
-				"theme":   "dark",
-				"referer": RefererProcess,
-				"accept":  string(AcceptStandard),
+				"assistant_id": "ast456",
+				"chat_id":      "chat123",
+				"locale":       "zh-CN",
+				"theme":        "Dark",
+				"referer":      RefererProcess,
+				"accept":       string(AcceptStandard),
 			},
 			routeParams: map[string]string{
-				"assistant_id": "ast456",
+				"assistant_id": "route-ast",
 			},
 			headers: map[string]string{
 				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
 			},
 			expectedChatID:     "chat123",
 			expectedAssistant:  "ast456",
-			expectedLocale:     "zh-CN",
+			expectedLocale:     "zh-cn",
 			expectedTheme:      "dark",
 			expectedClientType: "macos",
 			expectedReferer:    RefererProcess,
@@ -168,7 +169,7 @@ func TestNewGin(t *testing.T) {
 			}
 
 			// Call NewGin
-			ctx := NewGin(c)
+			ctx := NewOpenAPI(c, nil)
 
 			// Assertions
 			assert.Equal(t, tt.expectedChatID, ctx.ChatID, "ChatID mismatch")
@@ -204,7 +205,7 @@ func TestParseClientType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseClientType(tt.userAgent)
+			result := getClientType(tt.userAgent)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

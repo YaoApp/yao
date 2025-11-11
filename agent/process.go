@@ -12,14 +12,6 @@ import (
 	store "github.com/yaoapp/yao/agent/store/types"
 )
 
-// GetAgent returns the Agent instance
-func GetAgent() *DSL {
-	if Agent == nil {
-		exception.New("Agent is not initialized", 500).Throw()
-	}
-	return Agent
-}
-
 func init() {
 	process.RegisterGroup("agent", map[string]process.Handler{
 		"write":            ProcessWrite,
@@ -201,11 +193,11 @@ func parseAssistantFilter(params map[string]interface{}) store.AssistantFilter {
 		case []interface{}:
 			filter.Select = []string{}
 			for _, field := range v {
-				switch field.(type) {
+				switch v := field.(type) {
 				case string:
-					filter.Select = append(filter.Select, field.(string))
+					filter.Select = append(filter.Select, v)
 				case interface{}:
-					filter.Select = append(filter.Select, fmt.Sprintf("%v", field))
+					filter.Select = append(filter.Select, fmt.Sprintf("%v", v))
 				}
 			}
 

@@ -1,13 +1,22 @@
-package agent
+package api
 
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
 	chatctx "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/types"
 )
 
+// Agent the agent AI assistant
+var Agent *API
+
+// API the agent API
+type API struct {
+	*types.DSL
+}
+
 // Answer reply the message
-func (agent *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) error {
+func (agent *API) Answer(ctx chatctx.Context, question string, c *gin.Context) error {
 	var err error
 	var ast assistant.API = Agent.Assistant
 	if ctx.AssistantID != "" {
@@ -21,7 +30,7 @@ func (agent *DSL) Answer(ctx chatctx.Context, question string, c *gin.Context) e
 }
 
 // Select select an assistant
-func (agent *DSL) Select(id string) (assistant.API, error) {
+func (agent *API) Select(id string) (assistant.API, error) {
 	if id == "" {
 		return Agent.Assistant, nil
 	}

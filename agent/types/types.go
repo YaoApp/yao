@@ -1,4 +1,4 @@
-package agent
+package types
 
 import (
 	"github.com/gin-gonic/gin"
@@ -14,6 +14,8 @@ type DSL struct {
 	// ===============================
 	Use          *Use          `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default, title, prompt
 	StoreSetting store.Setting `json:"store" yaml:"store"`                 // The store setting of the assistant
+	Cache        string        `json:"cache" yaml:"cache"`                 // The cache store of the assistant, if not set, default is "__yao.agent.cache"
+
 	// AuthSetting      *Auth         `json:"auth,omitempty" yaml:"auth,omitempty"`           // Authenticate Settings
 	// UploadSetting    *Upload       `json:"upload,omitempty" yaml:"upload,omitempty"`       // Upload Settings
 	// KnowledgeSetting *Knowledge    `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base Settings
@@ -29,7 +31,7 @@ type DSL struct {
 
 	// Internal
 	// ===============================
-	ID            string            `json:"-" yaml:"-"` // The id of the instance
+	// ID            string            `json:"-" yaml:"-"` // The id of the instance
 	Assistant     assistant.API     `json:"-" yaml:"-"` // The default assistant
 	Store         store.Store       `json:"-" yaml:"-"` // The store of the assistant
 	Vision        *vision.Vision    `json:"-" yaml:"-"`

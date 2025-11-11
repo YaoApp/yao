@@ -9,16 +9,45 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/yaoapp/yao/agent"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/openapi/response"
 )
 
 // GinCreateCompletions handles POST /chat/:assistant_id/completions - Create a chat completion
 func GinCreateCompletions(c *gin.Context) {
-	// Print request information for debugging
-	fmt.Println("========== Chat Completions Request ==========")
-	fmt.Printf("Method: %s\n", c.Request.Method)
-	fmt.Printf("URL: %s\n", c.Request.URL.String())
-	fmt.Printf("RemoteAddr: %s\n", c.Request.RemoteAddr)
+
+	agent := agent.GetAgent()
+	cache, err := agent.GetCacheStore()
+	if err != nil {
+		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get cache store: " + err.Error(),
+		})
+		return
+	}
+
+	ctx := context.NewOpenAPI(c, cache)
+
+	fmt.Println("-----------------------------------------------")
+	fmt.Println("Chat ID: ", ctx.ChatID)
+	fmt.Println("Assistant ID: ", ctx.AssistantID)
+	fmt.Println("----")
+	// utils.Dump(ctx)
+	// Print request body
+	fmt.Println("\n--- Request Body ---")
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		fmt.Printf("Error reading body: %v\n", err)
+	} else {
+		fmt.Printf("%s\n", string(body))
+		// Restore the body for further processing
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+	}
+	fmt.Println("-----------------------------------------------")
+
+	c.JSON(response.StatusOK, gin.H{"message": "Create Completions", "chat_id": ctx.ChatID})
+	return
 
 	// Print headers
 	fmt.Println("\n--- Headers ---")
@@ -44,7 +73,7 @@ func GinCreateCompletions(c *gin.Context) {
 
 	// Print request body
 	fmt.Println("\n--- Request Body ---")
-	body, err := io.ReadAll(c.Request.Body)
+	body, err = io.ReadAll(c.Request.Body)
 	if err != nil {
 		fmt.Printf("Error reading body: %v\n", err)
 	} else {

@@ -51,4 +51,3 @@ func parseAccept(clientType string) Accept {
 		return AcceptStandard
 	}
 }
-

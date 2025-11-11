@@ -302,7 +302,7 @@ func (ast *Assistant) Call(c *gin.Context, payload APIPayload) (interface{}, err
 		return nil, fmt.Errorf(HookErrorMethodNotFound)
 	}
 
-	if payload.Args == nil || len(payload.Args) == 0 {
+	if len(payload.Args) == 0 {
 		return scriptCtx.CallWith(ctx, method)
 	}
 
