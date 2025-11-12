@@ -20,10 +20,6 @@ const (
 // API the assistant API interface
 type API interface {
 	Chat(ctx context.Context, messages []message.Message, option map[string]interface{}, cb func(data []byte) int) error
-	// Upload(ctx context.Context, file *multipart.FileHeader, reader io.Reader, option map[string]interface{}) (*File, error)
-	// Download(ctx context.Context, fileID string) (*FileResponse, error)
-	// ReadBase64(ctx context.Context, fileID string) (string, error)
-
 	GetPlaceholder(locale string) *store.Placeholder
 	Execute(c *gin.Context, ctx chatctx.Context, input interface{}, options map[string]interface{}, callback ...interface{}) (interface{}, error)
 	Call(c *gin.Context, payload APIPayload) (interface{}, error)

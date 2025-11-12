@@ -35,8 +35,8 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	// Extract chat ID (may generate from messages if not provided)
 	chatID, err := GetChatID(c, cache, completionReq)
 	if err != nil {
-		// If chat ID generation fails, it's not critical - allow empty chatID
-		chatID = ""
+		// Fallback: Generate a new chat ID if extraction fails
+		chatID = GenChatID()
 	}
 
 	// Parse client information from User-Agent header
@@ -49,6 +49,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 		Context:     c.Request.Context(),
 		Space:       plan.NewMemorySharedSpace(),
 		Cache:       cache,
+		Writer:      c.Writer,
 		Authorized:  authInfo,
 		ChatID:      chatID,
 		AssistantID: assistantID,

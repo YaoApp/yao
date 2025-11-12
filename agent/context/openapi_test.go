@@ -755,3 +755,114 @@ func TestGetData_EmptyData(t *testing.T) {
 		t.Errorf("Expected nil data, got '%v'", result)
 	}
 }
+
+func TestGetCompletionRequest_WriterInitialized(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	cache, err := store.Get("__yao.agent.cache")
+	if err != nil {
+		t.Fatalf("Failed to get cache: %v", err)
+	}
+
+	messages := []Message{
+		{
+			Role:    RoleUser,
+			Content: "Test message",
+		},
+	}
+
+	requestBody := map[string]interface{}{
+		"model":    "gpt-4-yao_test",
+		"messages": messages,
+	}
+
+	bodyBytes, _ := json.Marshal(requestBody)
+
+	req := httptest.NewRequest("POST", "/chat/completions", bytes.NewBuffer(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	completionReq, ctx, err := GetCompletionRequest(c, cache)
+	if err != nil {
+		t.Fatalf("Failed to get completion request: %v", err)
+	}
+	defer ctx.Release()
+
+	// Check that Writer is initialized
+	if ctx.Writer == nil {
+		t.Error("Expected ctx.Writer to be initialized, got nil")
+	}
+
+	// Check that Writer is the same as gin context writer
+	if ctx.Writer != c.Writer {
+		t.Error("Expected ctx.Writer to be the same as gin context writer")
+	}
+
+	// Check other fields
+	if completionReq.Model != "gpt-4-yao_test" {
+		t.Errorf("Expected model 'gpt-4-yao_test', got '%s'", completionReq.Model)
+	}
+
+	if ctx.AssistantID != "test" {
+		t.Errorf("Expected assistant ID 'test', got '%s'", ctx.AssistantID)
+	}
+
+	// Check that ChatID was generated (fallback)
+	if ctx.ChatID == "" {
+		t.Error("Expected ChatID to be generated, got empty string")
+	}
+}
+
+func TestGetCompletionRequest_ChatIDFallback(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	cache, err := store.Get("__yao.agent.cache")
+	if err != nil {
+		t.Fatalf("Failed to get cache: %v", err)
+	}
+
+	// Request without explicit chat_id should generate one
+	messages := []Message{
+		{
+			Role:    RoleUser,
+			Content: "Test message",
+		},
+	}
+
+	requestBody := map[string]interface{}{
+		"model":    "gpt-4-yao_assistant1",
+		"messages": messages,
+	}
+
+	bodyBytes, _ := json.Marshal(requestBody)
+
+	req := httptest.NewRequest("POST", "/chat/completions", bytes.NewBuffer(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	_, ctx, err := GetCompletionRequest(c, cache)
+	if err != nil {
+		t.Fatalf("Failed to get completion request: %v", err)
+	}
+	defer ctx.Release()
+
+	// ChatID should be generated (not empty)
+	if ctx.ChatID == "" {
+		t.Error("Expected ChatID to be generated via fallback, got empty string")
+	}
+
+	// ChatID should be a valid NanoID format (16 characters)
+	if len(ctx.ChatID) < 8 {
+		t.Errorf("Expected ChatID to be at least 8 characters, got %d", len(ctx.ChatID))
+	}
+}

@@ -89,13 +89,42 @@ var ValidReferers = map[string]bool{
 	RefererInternal: true,
 }
 
+const (
+	// StackStatusPending stack is created but not started yet
+	StackStatusPending = "pending"
+
+	// StackStatusRunning stack is currently executing
+	StackStatusRunning = "running"
+
+	// StackStatusCompleted stack completed successfully
+	StackStatusCompleted = "completed"
+
+	// StackStatusFailed stack failed with error
+	StackStatusFailed = "failed"
+
+	// StackStatusTimeout stack execution timeout
+	StackStatusTimeout = "timeout"
+)
+
+// ValidStackStatus is the map of valid stack status types
+var ValidStackStatus = map[string]bool{
+	StackStatusPending:   true,
+	StackStatusRunning:   true,
+	StackStatusCompleted: true,
+	StackStatusFailed:    true,
+	StackStatusTimeout:   true,
+}
+
 // Context the context
 type Context struct {
 
 	// Context
 	context.Context
-	Space plan.Space  `json:"-"` // Shared data space, it will be used to share data between the request and the call
-	Cache store.Store `json:"-"` // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Space  plan.Space        `json:"-"` // Shared data space, it will be used to share data between the request and the call
+	Cache  store.Store       `json:"-"` // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Stack  *Stack            `json:"-"` // Stack, current active stack of the request
+	Stacks map[string]*Stack `json:"-"` // Stacks, all stacks in this request (for trace logging)
+	Writer Writer            `json:"-"` // Writer, it will be used to write response data to the client
 
 	// Authorized information
 	Authorized  *types.AuthorizedInfo `json:"authorized,omitempty"`   // Authorized information
@@ -123,6 +152,36 @@ type Context struct {
 
 	Silent bool `json:"silent,omitempty"` // Silent mode (Deprecated, use Referer instead)
 }
+
+// Stack represents the call stack node for tracing agent-to-agent calls
+// Uses a flat structure to avoid circular references and memory overhead
+type Stack struct {
+	// Identity
+	ID      string `json:"id"`       // Unique stack node ID, used to identify this specific call
+	TraceID string `json:"trace_id"` // Shared trace ID for entire call tree, inherited from root
+
+	// Call context
+	AssistantID string `json:"assistant_id"`      // Assistant handling this call
+	Referer     string `json:"referer,omitempty"` // Call source: api, agent, tool, process, etc.
+	Depth       int    `json:"depth"`             // Call depth in the tree (0=root)
+
+	// Relationships
+	ParentID string   `json:"parent_id,omitempty"` // Parent stack ID (empty for root call)
+	Path     []string `json:"path"`                // Full path from root: [root_id, parent_id, ..., this_id]
+
+	// Tracking
+	CreatedAt   int64  `json:"created_at"`             // Unix timestamp in milliseconds
+	CompletedAt *int64 `json:"completed_at,omitempty"` // Unix timestamp when completed (nil if ongoing)
+	Status      string `json:"status"`                 // Status: pending, running, completed, failed, timeout
+	Error       string `json:"error,omitempty"`        // Error message if failed
+
+	// Metrics
+	DurationMs *int64 `json:"duration_ms,omitempty"` // Duration in milliseconds (calculated when completed)
+}
+
+// Response the response
+// 100% compatible with the OpenAI API
+type Response struct{}
 
 // Message Structure ( OpenAI Chat Completion Input Message Structure, https://platform.openai.com/docs/api-reference/chat/create#chat/create-messages )
 // ===============================
