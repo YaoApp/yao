@@ -1,3 +1,3 @@
-package js
+package jsapi
 
 // JSAPI Register the JavaScript API

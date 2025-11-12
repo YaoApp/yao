@@ -36,6 +36,8 @@ func GinCreateCompletions(c *gin.Context) {
 		return
 	}
 
+	defer ctx.Release() // Release the context after the request is complete
+
 	fmt.Println("-----------------------------------------------")
 	fmt.Println("Chat ID: ", ctx.ChatID)
 	fmt.Println("Assistant ID: ", ctx.AssistantID)

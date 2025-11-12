@@ -62,10 +62,28 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, context.Cancel
 	return parent, cancel
 }
 
-// Release the context
+// Release the context and clean up all resources including stacks
 func (ctx *Context) Release() {
-	ctx.Space.Clear()
-	ctx.Space = nil
+	// Clear space
+	if ctx.Space != nil {
+		ctx.Space.Clear()
+		ctx.Space = nil
+	}
+
+	// Clear stacks
+	if ctx.Stacks != nil {
+		for k := range ctx.Stacks {
+			delete(ctx.Stacks, k)
+		}
+		ctx.Stacks = nil
+	}
+
+	// Clear current stack reference
+	ctx.Stack = nil
+
+	// Clear writer reference
+	ctx.Writer = nil
+
 	ctx = nil
 }
 
