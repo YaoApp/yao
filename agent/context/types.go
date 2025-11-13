@@ -184,15 +184,30 @@ type Stack struct {
 // Response the response
 // 100% compatible with the OpenAI API
 type Response struct {
-	Create     *ResponseHookCreate   `json:"create,omitempty"`
+	Create     *HookCreateResponse   `json:"create,omitempty"`
 	MCP        *ResponseHookMCP      `json:"mcp,omitempty"`
 	Done       *ResponseHookDone     `json:"done,omitempty"`
 	Failback   *ResponseHookFailback `json:"failback,omitempty"`
 	Completion *ResponseCompletion   `json:"completion,omitempty"`
 }
 
-// ResponseHookCreate the response of the create hook
-type ResponseHookCreate struct{}
+// HookCreateResponse the response of the create hook
+type HookCreateResponse struct {
+
+	// Messages to be sent to the assistant
+	Messages []Message `json:"messages,omitempty"`
+
+	// Audio configuration (for models that support audio output)
+	Audio *AudioConfig `json:"audio,omitempty"`
+
+	// Generation parameters
+	Temperature         *float64 `json:"temperature,omitempty"`
+	MaxTokens           *int     `json:"max_tokens,omitempty"`
+	MaxCompletionTokens *int     `json:"max_completion_tokens,omitempty"`
+
+	// Request metadata
+	Metadata map[string]string `json:"metadata,omitempty"` // Optional: developer-defined tags and values for tracking requests
+}
 
 // ResponseHookDone the response of the done hook
 type ResponseHookDone struct{}

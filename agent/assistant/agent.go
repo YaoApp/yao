@@ -23,7 +23,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	}
 
 	// Request Create hook ( Optional )
-	var createResponse *context.ResponseHookCreate
+	var createResponse *context.HookCreateResponse
 	if ast.Script != nil {
 		var err error
 		createResponse, err = ast.Script.Create(ctx, fullMessages)
@@ -90,7 +90,7 @@ func (ast *Assistant) GetConnector(ctx *context.Context) string {
 }
 
 // BuildLLMRequest build the LLM request
-func (ast *Assistant) BuildLLMRequest(ctx *context.Context, messages []context.Message, createResponse *context.ResponseHookCreate) ([]context.Message, *llm.CompletionOptions, error) {
+func (ast *Assistant) BuildLLMRequest(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) ([]context.Message, *llm.CompletionOptions, error) {
 	return messages, nil, nil
 }
 
