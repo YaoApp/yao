@@ -20,10 +20,8 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 	jsObject := v8go.NewObjectTemplate(v8ctx.Isolate())
 
-	id := uuid.NewString()
-	ctx.objectRegister(id)
-
 	// Set the id and release function
+	id := ctx.objectRegister()
 	jsObject.Set("__id", id)
 	jsObject.Set("__release", ctx.objectRelease(v8ctx.Isolate(), id))
 
@@ -32,15 +30,19 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	jsObject.Set("Sid", ctx.Sid)
 	instance, err := jsObject.NewInstance(v8ctx)
 	if err != nil {
+		ctx.objectRelease(v8ctx.Isolate(), id)
 		return nil, err
 	}
+
 	return instance.Value, nil
 }
 
-func (ctx *Context) objectRegister(id string) {
+func (ctx *Context) objectRegister() string {
+	id := uuid.NewString()
 	objectsMutex.Lock()
 	defer objectsMutex.Unlock()
 	objects[id] = ctx
+	return id
 }
 
 func (ctx *Context) objectRelease(iso *v8go.Isolate, id string) *v8go.FunctionTemplate {
