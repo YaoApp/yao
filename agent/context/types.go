@@ -131,6 +131,8 @@ type Context struct {
 	ChatID      string                `json:"chat_id,omitempty"`      // Chat ID, use to select chat
 	AssistantID string                `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
 	Sid         string                `json:"sid" yaml:"-"`           // Session ID (Deprecated, use Authorized instead)
+	Connector   string                `json:"connector,omitempty"`    // Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
+	Search      *bool                 `json:"search,omitempty"`       // Search mode, default is true
 
 	// Arguments for call
 	Args       []interface{} `json:"args,omitempty"`        // Arguments for call, it will be used to pass data to the call
@@ -181,7 +183,28 @@ type Stack struct {
 
 // Response the response
 // 100% compatible with the OpenAI API
-type Response struct{}
+type Response struct {
+	Create     *ResponseHookCreate   `json:"create,omitempty"`
+	MCP        *ResponseHookMCP      `json:"mcp,omitempty"`
+	Done       *ResponseHookDone     `json:"done,omitempty"`
+	Failback   *ResponseHookFailback `json:"failback,omitempty"`
+	Completion *ResponseCompletion   `json:"completion,omitempty"`
+}
+
+// ResponseHookCreate the response of the create hook
+type ResponseHookCreate struct{}
+
+// ResponseHookDone the response of the done hook
+type ResponseHookDone struct{}
+
+// ResponseHookMCP the response of the mcp hook
+type ResponseHookMCP struct{}
+
+// ResponseHookFailback the response of the failback hook
+type ResponseHookFailback struct{}
+
+// ResponseCompletion the response of the completion
+type ResponseCompletion struct{}
 
 // Message Structure ( OpenAI Chat Completion Input Message Structure, https://platform.openai.com/docs/api-reference/chat/create#chat/create-messages )
 // ===============================

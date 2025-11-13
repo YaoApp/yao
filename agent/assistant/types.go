@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/gin-gonic/gin"
-	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/agent/assistant/hook"
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/message"
 	store "github.com/yaoapp/yao/agent/store/types"
@@ -96,16 +96,16 @@ type QueryParam struct {
 type Assistant struct {
 	store.AssistantModel
 	Search *SearchOption `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
-	Script *v8.Script    `json:"-" yaml:"-"`                               // Assistant Script
+	Script *hook.Script  `json:"-" yaml:"-"`                               // Assistant Script
 
 	// Internal
 	// ===============================
-	openai       *api.OpenAI // OpenAI API
-	search       bool        // Whether this assistant supports search
-	vision       bool        // Whether this assistant supports vision
-	toolCalls    bool        // Whether this assistant supports tool_calls
-	initHook     bool        // Whether this assistant has an init hook
-	runtimeTools []Tool      // Converted tools for business logic (OpenAI format)
+	openai *api.OpenAI // OpenAI API
+	search bool        // Whether this assistant supports search
+	vision bool        // Whether this assistant supports vision
+	// toolCalls    bool        // Whether this assistant supports tool_calls
+	initHook     bool   // Whether this assistant has an init hook
+	runtimeTools []Tool // Converted tools for business logic (OpenAI format)
 }
 
 // ConnectorSetting the connector setting

@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/agent/assistant/hook"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
 	agentvision "github.com/yaoapp/yao/agent/vision"
@@ -106,9 +107,7 @@ func LoadBuiltIn() error {
 		loaded.Put(assistant)
 
 		// Remove the built-in assistant from the store
-		if _, ok := deletedBuiltIn[assistant.ID]; ok {
-			delete(deletedBuiltIn, assistant.ID)
-		}
+		delete(deletedBuiltIn, assistant.ID)
 	}
 
 	// Remove deleted built-in assistants
@@ -290,16 +289,16 @@ func LoadPath(path string) (*Assistant, error) {
 		data["updated_at"] = max(updatedAt, ts)
 	}
 
-	// load tools
-	toolsfile := filepath.Join(path, "tools.yao")
-	if has, _ := app.Exists(toolsfile); has {
-		tools, ts, err := loadTools(toolsfile)
-		if err != nil {
-			return nil, err
-		}
-		data["tools"] = tools
-		updatedAt = max(updatedAt, ts)
-	}
+	// load tools, deprecated, use mcp instead
+	// toolsfile := filepath.Join(path, "tools.yao")
+	// if has, _ := app.Exists(toolsfile); has {
+	// 	tools, ts, err := loadTools(toolsfile)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	data["tools"] = tools
+	// 	updatedAt = max(updatedAt, ts)
+	// }
 
 	// i18ns
 	locales, err := i18n.GetLocales(path)
@@ -430,6 +429,9 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			}
 			assistant.Tags = tags
 
+		case string:
+			assistant.Tags = []string{vv}
+
 		case interface{}:
 			raw, err := jsoniter.Marshal(vv)
 			if err != nil {
@@ -442,8 +444,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			}
 			assistant.Tags = tags
 
-		case string:
-			assistant.Tags = []string{vv}
 		}
 	}
 
@@ -571,9 +571,11 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			if err != nil {
 				return nil, err
 			}
-			assistant.Script = script
-		case *v8.Script:
+			assistant.Script = &hook.Script{Script: script}
+		case *hook.Script:
 			assistant.Script = v
+		case *v8.Script:
+			assistant.Script = &hook.Script{Script: v}
 		}
 	}
 
@@ -641,7 +643,7 @@ func loadPrompts(file string, root string) (string, int64, error) {
 	return string(prompts), ts.UnixNano(), nil
 }
 
-func loadScript(file string, root string) (*v8.Script, int64, error) {
+func loadScript(file string, root string) (*hook.Script, int64, error) {
 
 	app, err := fs.Get("app")
 	if err != nil {
@@ -658,7 +660,7 @@ func loadScript(file string, root string) (*v8.Script, int64, error) {
 		return nil, 0, err
 	}
 
-	return script, ts.UnixNano(), nil
+	return &hook.Script{Script: script}, ts.UnixNano(), nil
 }
 
 func loadScriptSource(source string, file string) (*v8.Script, error) {
