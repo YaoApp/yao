@@ -249,4 +249,52 @@ func TestCreate(t *testing.T) {
 			}
 		}
 	})
+
+	// Test scenario 8: Verify context fields - validates all context fields in JavaScript
+	t.Run("VerifyContext", func(t *testing.T) {
+		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "verify_context"}})
+		if err != nil {
+			t.Fatalf("Failed to create with verify_context: %s", err.Error())
+		}
+		if res == nil {
+			t.Fatalf("Expected non-nil response, got nil")
+		}
+
+		// Verify we have messages
+		if len(res.Messages) < 1 {
+			t.Fatalf("Expected at least 1 message, got: %d", len(res.Messages))
+		}
+
+		// First message should be system role with success/failure indicator
+		if res.Messages[0].Role != context.RoleSystem {
+			t.Errorf("Expected system role for first message, got: %s", res.Messages[0].Role)
+		}
+
+		// Check the validation result
+		content, ok := res.Messages[0].Content.(string)
+		if !ok {
+			t.Fatalf("Expected string content for system message, got: %T", res.Messages[0].Content)
+		}
+
+		// The content should be "success:all_fields_validated"
+		if content != "success:all_fields_validated" {
+			t.Errorf("Context validation failed: %s", content)
+
+			// Print detailed validation results if available
+			if len(res.Messages) > 1 {
+				if details, ok := res.Messages[1].Content.(string); ok {
+					t.Logf("Validation details:\n%s", details)
+				}
+			}
+		} else {
+			t.Log("✓ All context fields validated successfully in JavaScript")
+
+			// Optionally print validation details
+			if len(res.Messages) > 1 {
+				if details, ok := res.Messages[1].Content.(string); ok {
+					t.Logf("Validation details:\n%s", details)
+				}
+			}
+		}
+	})
 }
