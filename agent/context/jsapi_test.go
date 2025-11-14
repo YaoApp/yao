@@ -9,6 +9,7 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 	"rogchap.com/v8go"
 )
@@ -52,7 +53,7 @@ func testContextJsvalueFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), err)
 	}
 
-	chatID, err := ctx.Get("ChatID")
+	chatID, err := ctx.Get("chat_id")
 	if err != nil {
 		return bridge.JsException(info.Context(), err)
 	}
@@ -220,4 +221,224 @@ func testContextRegistrationFunction(info *v8go.FunctionCallbackInfo) *v8go.Valu
 		return bridge.JsException(info.Context(), err)
 	}
 	return val
+}
+
+// TestJsValueAllFields test that all Context fields are properly exported to JavaScript
+func TestJsValueAllFields(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	searchTrue := true
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Connector:   "test-connector",
+		Search:      &searchTrue,
+		Args:        []interface{}{"arg1", "arg2", 123},
+		Retry:       true,
+		RetryTimes:  3,
+		Locale:      "zh-cn",
+		Theme:       "dark",
+		Client: Client{
+			Type:      "web",
+			UserAgent: "Mozilla/5.0",
+			IP:        "127.0.0.1",
+		},
+		Referer: "api",
+		Accept:  "cui-web",
+		Route:   "/dashboard/home",
+		Metadata: map[string]interface{}{
+			"key1": "value1",
+			"key2": 123,
+			"key3": true,
+		},
+		Authorized: &types.AuthorizedInfo{
+			Subject:  "test-user",
+			ClientID: "test-client",
+			UserID:   "user-123",
+			TeamID:   "team-456",
+			TenantID: "tenant-789",
+			Constraints: types.DataConstraints{
+				OwnerOnly:   true,
+				CreatorOnly: false,
+				TeamOnly:    true,
+				Extra: map[string]interface{}{
+					"department": "engineering",
+					"region":     "us-west",
+				},
+			},
+		},
+	}
+
+	v8.RegisterFunction("testAllFields", testAllFieldsEmbed)
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(cxt) {
+			return testAllFields(cxt)
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	// Verify all fields
+	assert.Equal(t, "test-chat-id", result["chat_id"], "chat_id mismatch")
+	assert.Equal(t, "test-assistant-id", result["assistant_id"], "assistant_id mismatch")
+	assert.Equal(t, "test-connector", result["connector"], "connector mismatch")
+	assert.Equal(t, true, result["search"], "search mismatch")
+	assert.Equal(t, true, result["retry"], "retry mismatch")
+	assert.Equal(t, float64(3), result["retry_times"], "retry_times mismatch")
+	assert.Equal(t, "zh-cn", result["locale"], "locale mismatch")
+	assert.Equal(t, "dark", result["theme"], "theme mismatch")
+	assert.Equal(t, "api", result["referer"], "referer mismatch")
+	assert.Equal(t, "cui-web", result["accept"], "accept mismatch")
+	assert.Equal(t, "/dashboard/home", result["route"], "route mismatch")
+
+	// Verify args array
+	args, ok := result["args"].([]interface{})
+	assert.True(t, ok, "args should be an array")
+	assert.Equal(t, 3, len(args), "args length mismatch")
+
+	// Verify client object
+	client, ok := result["client"].(map[string]interface{})
+	assert.True(t, ok, "client should be an object")
+	assert.Equal(t, "web", client["type"], "client.type mismatch")
+	assert.Equal(t, "Mozilla/5.0", client["user_agent"], "client.user_agent mismatch")
+	assert.Equal(t, "127.0.0.1", client["ip"], "client.ip mismatch")
+
+	// Verify metadata object
+	metadata, ok := result["metadata"].(map[string]interface{})
+	assert.True(t, ok, "metadata should be an object")
+	assert.Equal(t, "value1", metadata["key1"], "metadata.key1 mismatch")
+	assert.Equal(t, float64(123), metadata["key2"], "metadata.key2 mismatch")
+	assert.Equal(t, true, metadata["key3"], "metadata.key3 mismatch")
+
+	// Verify authorized object
+	authorized, ok := result["authorized"].(map[string]interface{})
+	assert.True(t, ok, "authorized should be an object")
+	assert.Equal(t, "test-user", authorized["sub"], "authorized.sub mismatch")
+	assert.Equal(t, "test-client", authorized["client_id"], "authorized.client_id mismatch")
+	assert.Equal(t, "user-123", authorized["user_id"], "authorized.user_id mismatch")
+	assert.Equal(t, "team-456", authorized["team_id"], "authorized.team_id mismatch")
+	assert.Equal(t, "tenant-789", authorized["tenant_id"], "authorized.tenant_id mismatch")
+
+	// Verify authorized.constraints object
+	constraints, ok := authorized["constraints"].(map[string]interface{})
+	assert.True(t, ok, "authorized.constraints should be an object")
+	assert.Equal(t, true, constraints["owner_only"], "constraints.owner_only mismatch")
+	// creator_only is false, and with omitempty it may not be present
+	if creatorOnly, exists := constraints["creator_only"]; exists {
+		assert.Equal(t, false, creatorOnly, "constraints.creator_only mismatch")
+	}
+	assert.Equal(t, true, constraints["team_only"], "constraints.team_only mismatch")
+
+	// Verify constraints.extra object
+	extra, ok := constraints["extra"].(map[string]interface{})
+	assert.True(t, ok, "constraints.extra should be an object")
+	assert.Equal(t, "engineering", extra["department"], "constraints.extra.department mismatch")
+	assert.Equal(t, "us-west", extra["region"], "constraints.extra.region mismatch")
+
+	// Verify deprecated fields are NOT exported
+	_, hasSid := result["sid"]
+	assert.False(t, hasSid, "sid (deprecated) should not be exported")
+	_, hasSilent := result["silent"]
+	assert.False(t, hasSilent, "silent (deprecated) should not be exported")
+
+	assert.Equal(t, 0, len(objects))
+}
+
+func testAllFieldsEmbed(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, testAllFieldsFunction)
+}
+
+func testAllFieldsFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	var args = info.Args()
+	if len(args) < 1 {
+		return bridge.JsException(info.Context(), "Missing parameters")
+	}
+
+	ctx, err := args[0].AsObject()
+	if err != nil {
+		return bridge.JsException(info.Context(), err)
+	}
+
+	// Extract all fields and return as a map
+	result := map[string]interface{}{}
+
+	// Helper function to get field value
+	getField := func(name string) (interface{}, bool) {
+		val, err := ctx.Get(name)
+		if err != nil || val.IsUndefined() {
+			return nil, false
+		}
+		goVal, err := bridge.GoValue(val, info.Context())
+		if err != nil {
+			return nil, false
+		}
+		return goVal, true
+	}
+
+	if val, ok := getField("chat_id"); ok {
+		result["chat_id"] = val
+	}
+	if val, ok := getField("assistant_id"); ok {
+		result["assistant_id"] = val
+	}
+	if val, ok := getField("connector"); ok {
+		result["connector"] = val
+	}
+	if val, ok := getField("search"); ok {
+		result["search"] = val
+	}
+	if val, ok := getField("args"); ok {
+		result["args"] = val
+	}
+	if val, ok := getField("retry"); ok {
+		result["retry"] = val
+	}
+	if val, ok := getField("retry_times"); ok {
+		result["retry_times"] = val
+	}
+	if val, ok := getField("locale"); ok {
+		result["locale"] = val
+	}
+	if val, ok := getField("theme"); ok {
+		result["theme"] = val
+	}
+	if val, ok := getField("client"); ok {
+		result["client"] = val
+	}
+	if val, ok := getField("referer"); ok {
+		result["referer"] = val
+	}
+	if val, ok := getField("accept"); ok {
+		result["accept"] = val
+	}
+	if val, ok := getField("route"); ok {
+		result["route"] = val
+	}
+	if val, ok := getField("metadata"); ok {
+		result["metadata"] = val
+	}
+	if val, ok := getField("authorized"); ok {
+		result["authorized"] = val
+	}
+
+	// Check for deprecated fields - they should NOT exist
+	if val, ok := getField("sid"); ok {
+		result["sid"] = val
+	}
+	if val, ok := getField("silent"); ok {
+		result["silent"] = val
+	}
+
+	jsVal, err := bridge.JsValue(info.Context(), result)
+	if err != nil {
+		return bridge.JsException(info.Context(), err)
+	}
+	return jsVal
 }

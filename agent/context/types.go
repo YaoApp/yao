@@ -149,8 +149,8 @@ type Context struct {
 	Accept  Accept `json:"accept,omitempty"`  // Response format: standard, cui-web, cui-native, cui-desktop
 
 	// CUI Context information
-	Route string                 `json:"yao_route,omitempty"` // The route of the request, it will be used to identify the route of the request
-	Data  map[string]interface{} `json:"yao_data,omitempty"`  // The data of the request, it will be used to pass data to the page
+	Route    string                 `json:"route,omitempty"`    // The route of the request, it will be used to identify the route of the request
+	Metadata map[string]interface{} `json:"metadata,omitempty"` // The metadata of the request, it will be used to pass data to the page
 
 	Silent bool `json:"silent,omitempty"` // Silent mode (Deprecated, use Referer instead)
 }
@@ -204,9 +204,6 @@ type HookCreateResponse struct {
 	Temperature         *float64 `json:"temperature,omitempty"`
 	MaxTokens           *int     `json:"max_tokens,omitempty"`
 	MaxCompletionTokens *int     `json:"max_completion_tokens,omitempty"`
-
-	// Request metadata
-	Metadata map[string]string `json:"metadata,omitempty"` // Optional: developer-defined tags and values for tracking requests
 }
 
 // ResponseHookDone the response of the done hook
@@ -335,12 +332,9 @@ type CompletionRequest struct {
 	Stream        *bool          `json:"stream,omitempty"`         // Optional: if true, stream partial message deltas
 	StreamOptions *StreamOptions `json:"stream_options,omitempty"` // Optional: options for streaming response
 
-	// Request metadata
-	Metadata map[string]string `json:"metadata,omitempty"` // Optional: developer-defined tags and values for tracking requests
-
 	// CUI Context information
-	Route string                 `json:"yao_route,omitempty"` // Optional: route of the request for CUI context
-	Data  map[string]interface{} `json:"yao_data,omitempty"`  // Optional: data to pass to the page for CUI context
+	Route    string                 `json:"route,omitempty"`    // Optional: route of the request for CUI context
+	Metadata map[string]interface{} `json:"metadata,omitempty"` // Optional: metadata to pass to the page for CUI context
 }
 
 // AudioConfig represents the audio output configuration for models that support audio

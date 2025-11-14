@@ -92,11 +92,20 @@ func (ctx *Context) Map() map[string]interface{} {
 	data := map[string]interface{}{}
 
 	// Authorized information
+	if ctx.Authorized != nil {
+		data["authorized"] = ctx.Authorized
+	}
 	if ctx.ChatID != "" {
 		data["chat_id"] = ctx.ChatID
 	}
 	if ctx.AssistantID != "" {
 		data["assistant_id"] = ctx.AssistantID
+	}
+	if ctx.Connector != "" {
+		data["connector"] = ctx.Connector
+	}
+	if ctx.Search != nil {
+		data["search"] = *ctx.Search
 	}
 
 	// Arguments for call
@@ -137,8 +146,8 @@ func (ctx *Context) Map() map[string]interface{} {
 	if ctx.Route != "" {
 		data["route"] = ctx.Route
 	}
-	if len(ctx.Data) > 0 {
-		data["data"] = ctx.Data
+	if len(ctx.Metadata) > 0 {
+		data["metadata"] = ctx.Metadata
 	}
 
 	return data
