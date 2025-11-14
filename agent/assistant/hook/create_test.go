@@ -297,4 +297,66 @@ func TestCreate(t *testing.T) {
 			}
 		}
 	})
+
+	// Test scenario 9: Adjust context fields - tests that context fields can be modified by the hook
+	t.Run("AdjustContext", func(t *testing.T) {
+		// Create a fresh context for this test
+		adjustCtx := newTestContext("chat-test-adjust", "tests.create")
+
+		// Call the hook which should adjust context fields
+		res, err := agent.Script.Create(adjustCtx, []context.Message{{Role: "user", Content: "adjust_context"}})
+		if err != nil {
+			t.Fatalf("Failed to create with adjust_context: %s", err.Error())
+		}
+		if res == nil {
+			t.Fatalf("Expected non-nil response, got nil")
+		}
+
+		// Verify the response contains adjusted fields
+		if res.AssistantID != "adjusted.assistant" {
+			t.Errorf("Expected adjusted assistant_id 'adjusted.assistant', got: %s", res.AssistantID)
+		}
+		if res.Connector != "adjusted-connector" {
+			t.Errorf("Expected adjusted connector 'adjusted-connector', got: %s", res.Connector)
+		}
+		if res.Locale != "zh-cn" {
+			t.Errorf("Expected adjusted locale 'zh-cn', got: %s", res.Locale)
+		}
+		if res.Theme != "dark" {
+			t.Errorf("Expected adjusted theme 'dark', got: %s", res.Theme)
+		}
+		if res.Route != "/adjusted/route" {
+			t.Errorf("Expected adjusted route '/adjusted/route', got: %s", res.Route)
+		}
+
+		// Verify metadata
+		if res.Metadata == nil {
+			t.Fatalf("Expected metadata, got nil")
+		}
+		if adjusted, ok := res.Metadata["adjusted"].(bool); !ok || !adjusted {
+			t.Errorf("Expected metadata['adjusted'] = true, got: %v", res.Metadata["adjusted"])
+		}
+
+		// Verify context fields were actually updated
+		if adjustCtx.AssistantID != "adjusted.assistant" {
+			t.Errorf("Context assistant_id not updated. Expected 'adjusted.assistant', got: %s", adjustCtx.AssistantID)
+		}
+		if adjustCtx.Connector != "adjusted-connector" {
+			t.Errorf("Context connector not updated. Expected 'adjusted-connector', got: %s", adjustCtx.Connector)
+		}
+		if adjustCtx.Locale != "zh-cn" {
+			t.Errorf("Context locale not updated. Expected 'zh-cn', got: %s", adjustCtx.Locale)
+		}
+		if adjustCtx.Theme != "dark" {
+			t.Errorf("Context theme not updated. Expected 'dark', got: %s", adjustCtx.Theme)
+		}
+		if adjustCtx.Route != "/adjusted/route" {
+			t.Errorf("Context route not updated. Expected '/adjusted/route', got: %s", adjustCtx.Route)
+		}
+		if adjustCtx.Metadata["adjusted"] != true {
+			t.Errorf("Context metadata not updated. Expected metadata['adjusted'] = true, got: %v", adjustCtx.Metadata["adjusted"])
+		}
+
+		t.Log("✓ Context fields successfully adjusted by hook")
+	})
 }

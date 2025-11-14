@@ -1,6 +1,8 @@
 package hook
 
-import "github.com/yaoapp/yao/agent/context"
+import (
+	"github.com/yaoapp/yao/agent/context"
+)
 
 // Execute execute the script
 func (s *Script) Execute(ctx *context.Context, method string, args ...interface{}) (interface{}, error) {

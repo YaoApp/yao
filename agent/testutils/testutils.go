@@ -8,9 +8,13 @@ import (
 	"github.com/yaoapp/yao/test"
 )
 
-// Prepare prepare the test environment
-func Prepare(t *testing.T) {
-	test.Prepare(t, config.Conf)
+// Prepare prepare the test environment with optional V8 mode configuration
+// Usage:
+//
+//	testutils.Prepare(t)                                              // standard mode (default)
+//	testutils.Prepare(t, test.PrepareOption{V8Mode: "performance"})  // performance mode for benchmarks
+func Prepare(t *testing.T, opts ...interface{}) {
+	test.Prepare(t, config.Conf, opts...)
 
 	// Load agent
 	err := agent.Load(config.Conf)
