@@ -29,6 +29,7 @@ var search interface{} = nil
 var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *agentvision.Vision = nil
 var defaultConnector string = "" // default connector
+var globalUses *store.Uses = nil // global uses configuration from agent.yml
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -143,6 +144,11 @@ func SetConnectorSettings(settings map[string]ConnectorSetting) {
 // SetConnector set the connector
 func SetConnector(c string) {
 	defaultConnector = c
+}
+
+// SetGlobalUses set the global uses configuration
+func SetGlobalUses(uses *store.Uses) {
+	globalUses = uses
 }
 
 // SetCache set the cache
