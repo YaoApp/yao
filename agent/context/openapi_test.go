@@ -195,7 +195,7 @@ func TestGetChatID_FromMetadata(t *testing.T) {
 		"messages": []map[string]interface{}{
 			{"role": "user", "content": "Test"},
 		},
-		"metadata": map[string]string{
+		"metadata": map[string]interface{}{
 			"chat_id": expectedChatID,
 		},
 	}
@@ -327,7 +327,7 @@ func TestGetChatID_Priority(t *testing.T) {
 	requestBody := map[string]interface{}{
 		"model":    "gpt-4",
 		"messages": messages,
-		"metadata": map[string]string{
+		"metadata": map[string]interface{}{
 			"chat_id": metadataChatID,
 		},
 	}
@@ -392,7 +392,7 @@ func TestGetLocale_FromMetadata(t *testing.T) {
 	c.Request = req
 
 	completionReq := &CompletionRequest{
-		Metadata: map[string]string{
+		Metadata: map[string]interface{}{
 			"locale": "ja-JP",
 		},
 	}
@@ -413,7 +413,7 @@ func TestGetLocale_Priority(t *testing.T) {
 	c.Request = req
 
 	completionReq := &CompletionRequest{
-		Metadata: map[string]string{
+		Metadata: map[string]interface{}{
 			"locale": "de-DE",
 		},
 	}
@@ -462,7 +462,7 @@ func TestGetTheme_FromMetadata(t *testing.T) {
 	c.Request = req
 
 	completionReq := &CompletionRequest{
-		Metadata: map[string]string{
+		Metadata: map[string]interface{}{
 			"theme": "auto",
 		},
 	}
@@ -482,7 +482,7 @@ func TestGetReferer_FromMetadata(t *testing.T) {
 	c.Request = req
 
 	completionReq := &CompletionRequest{
-		Metadata: map[string]string{
+		Metadata: map[string]interface{}{
 			"referer": "tool",
 		},
 	}
@@ -502,7 +502,7 @@ func TestGetAccept_FromMetadata(t *testing.T) {
 	c.Request = req
 
 	completionReq := &CompletionRequest{
-		Metadata: map[string]string{
+		Metadata: map[string]interface{}{
 			"accept": "cui-native",
 		},
 	}
@@ -561,7 +561,7 @@ func TestGetAssistantID_Priority(t *testing.T) {
 func TestGetRoute_FromQuery(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	req := httptest.NewRequest("GET", "/chat/completions?yao_route=/dashboard/home", nil)
+	req := httptest.NewRequest("GET", "/chat/completions?route=/dashboard/home", nil)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
@@ -608,7 +608,7 @@ func TestGetRoute_FromPayload(t *testing.T) {
 func TestGetRoute_Priority(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	req := httptest.NewRequest("GET", "/chat/completions?yao_route=/from/query", nil)
+	req := httptest.NewRequest("GET", "/chat/completions?route=/from/query", nil)
 	req.Header.Set("X-Yao-Route", "/from/header")
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -624,7 +624,7 @@ func TestGetRoute_Priority(t *testing.T) {
 	}
 }
 
-func TestGetData_FromQuery(t *testing.T) {
+func TestGetMetadata_FromQuery(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	data := map[string]interface{}{
@@ -633,12 +633,12 @@ func TestGetData_FromQuery(t *testing.T) {
 	}
 	dataJSON, _ := json.Marshal(data)
 
-	req := httptest.NewRequest("GET", "/chat/completions?yao_data="+string(dataJSON), nil)
+	req := httptest.NewRequest("GET", "/chat/completions?metadata="+string(dataJSON), nil)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 
-	result := GetData(c, nil)
+	result := GetMetadata(c, nil)
 	if result == nil {
 		t.Fatal("Expected data to be returned")
 	}
@@ -652,18 +652,18 @@ func TestGetData_FromQuery(t *testing.T) {
 	}
 }
 
-func TestGetData_FromHeader_Base64(t *testing.T) {
+func TestGetMetadata_FromHeader_Base64(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	dataBase64 := "eyJ1c2VyX2lkIjo0NTYsImFjdGlvbiI6ImNyZWF0ZSJ9" // base64 of {"user_id":456,"action":"create"}
 
 	req := httptest.NewRequest("GET", "/chat/completions", nil)
-	req.Header.Set("X-Yao-Data", dataBase64)
+	req.Header.Set("X-Yao-Metadata", dataBase64)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 
-	result := GetData(c, nil)
+	result := GetMetadata(c, nil)
 	if result == nil {
 		t.Fatal("Expected data to be returned")
 	}
@@ -677,7 +677,7 @@ func TestGetData_FromHeader_Base64(t *testing.T) {
 	}
 }
 
-func TestGetData_FromPayload(t *testing.T) {
+func TestGetMetadata_FromPayload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	req := httptest.NewRequest("POST", "/chat/completions", nil)
@@ -691,10 +691,10 @@ func TestGetData_FromPayload(t *testing.T) {
 	}
 
 	completionReq := &CompletionRequest{
-		Data: data,
+		Metadata: data,
 	}
 
-	result := GetData(c, completionReq)
+	result := GetMetadata(c, completionReq)
 	if result == nil {
 		t.Fatal("Expected data to be returned")
 	}
@@ -708,7 +708,7 @@ func TestGetData_FromPayload(t *testing.T) {
 	}
 }
 
-func TestGetData_Priority(t *testing.T) {
+func TestGetMetadata_Priority(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	queryData := map[string]interface{}{
@@ -718,8 +718,8 @@ func TestGetData_Priority(t *testing.T) {
 
 	headerDataBase64 := "eyJzb3VyY2UiOiJoZWFkZXIifQ==" // base64 of {"source":"header"}
 
-	req := httptest.NewRequest("GET", "/chat/completions?yao_data="+string(queryDataJSON), nil)
-	req.Header.Set("X-Yao-Data", headerDataBase64)
+	req := httptest.NewRequest("GET", "/chat/completions?metadata="+string(queryDataJSON), nil)
+	req.Header.Set("X-Yao-Metadata", headerDataBase64)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
@@ -729,10 +729,10 @@ func TestGetData_Priority(t *testing.T) {
 	}
 
 	completionReq := &CompletionRequest{
-		Data: payloadData,
+		Metadata: payloadData,
 	}
 
-	result := GetData(c, completionReq)
+	result := GetMetadata(c, completionReq)
 	if result == nil {
 		t.Fatal("Expected data to be returned")
 	}
@@ -742,7 +742,7 @@ func TestGetData_Priority(t *testing.T) {
 	}
 }
 
-func TestGetData_EmptyData(t *testing.T) {
+func TestGetMetadata_EmptyData(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	req := httptest.NewRequest("GET", "/chat/completions", nil)
@@ -750,7 +750,7 @@ func TestGetData_EmptyData(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 
-	result := GetData(c, nil)
+	result := GetMetadata(c, nil)
 	if result != nil {
 		t.Errorf("Expected nil data, got '%v'", result)
 	}

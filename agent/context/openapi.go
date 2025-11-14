@@ -62,8 +62,8 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 			UserAgent: userAgent,
 			IP:        clientIP,
 		},
-		Route: GetRoute(c, completionReq),
-		Data:  GetData(c, completionReq),
+		Route:    GetRoute(c, completionReq),
+		Metadata: GetMetadata(c, completionReq),
 	}
 
 	return completionReq, ctx, nil
@@ -184,8 +184,10 @@ func GetLocale(c *gin.Context, req *CompletionRequest) string {
 
 	// Priority 3: From CompletionRequest metadata
 	if req != nil && req.Metadata != nil {
-		if locale, ok := req.Metadata["locale"]; ok && locale != "" {
-			return strings.ToLower(locale)
+		if locale, ok := req.Metadata["locale"]; ok {
+			if localeStr, ok := locale.(string); ok && localeStr != "" {
+				return strings.ToLower(localeStr)
+			}
 		}
 	}
 
@@ -209,8 +211,10 @@ func GetTheme(c *gin.Context, req *CompletionRequest) string {
 
 	// Priority 3: From CompletionRequest metadata
 	if req != nil && req.Metadata != nil {
-		if theme, ok := req.Metadata["theme"]; ok && theme != "" {
-			return strings.ToLower(theme)
+		if theme, ok := req.Metadata["theme"]; ok {
+			if themeStr, ok := theme.(string); ok && themeStr != "" {
+				return strings.ToLower(themeStr)
+			}
 		}
 	}
 
@@ -235,8 +239,10 @@ func GetReferer(c *gin.Context, req *CompletionRequest) string {
 
 	// Priority 3: From CompletionRequest metadata
 	if req != nil && req.Metadata != nil {
-		if referer, ok := req.Metadata["referer"]; ok && referer != "" {
-			return validateReferer(referer)
+		if referer, ok := req.Metadata["referer"]; ok {
+			if refererStr, ok := referer.(string); ok && refererStr != "" {
+				return validateReferer(refererStr)
+			}
 		}
 	}
 
@@ -262,8 +268,10 @@ func GetAccept(c *gin.Context, req *CompletionRequest) Accept {
 
 	// Priority 3: From CompletionRequest metadata
 	if req != nil && req.Metadata != nil {
-		if accept, ok := req.Metadata["accept"]; ok && accept != "" {
-			return validateAccept(accept)
+		if accept, ok := req.Metadata["accept"]; ok {
+			if acceptStr, ok := accept.(string); ok && acceptStr != "" {
+				return validateAccept(acceptStr)
+			}
 		}
 	}
 
@@ -292,8 +300,10 @@ func GetChatID(c *gin.Context, cache store.Store, req *CompletionRequest) (strin
 
 	// Priority 3: From CompletionRequest metadata
 	if req != nil && req.Metadata != nil {
-		if chatID, ok := req.Metadata["chat_id"]; ok && chatID != "" {
-			return chatID, nil
+		if chatID, ok := req.Metadata["chat_id"]; ok {
+			if chatIDStr, ok := chatID.(string); ok && chatIDStr != "" {
+				return chatIDStr, nil
+			}
 		}
 	}
 
@@ -312,12 +322,12 @@ func GetChatID(c *gin.Context, cache store.Store, req *CompletionRequest) (strin
 }
 
 // GetRoute extracts route from request with priority:
-// 1. Query parameter "yao_route"
+// 1. Query parameter "route"
 // 2. Header "X-Yao-Route"
 // 3. CompletionRequest.Route (from payload)
 func GetRoute(c *gin.Context, req *CompletionRequest) string {
 	// Priority 1: Query parameter
-	if route := c.Query("yao_route"); route != "" {
+	if route := c.Query("route"); route != "" {
 		return route
 	}
 
@@ -334,38 +344,38 @@ func GetRoute(c *gin.Context, req *CompletionRequest) string {
 	return ""
 }
 
-// GetData extracts data from request with priority:
-// 1. Query parameter "yao_data" (JSON string)
-// 2. Header "X-Yao-Data" (Base64 encoded JSON string)
-// 3. CompletionRequest.Data (from payload)
-func GetData(c *gin.Context, req *CompletionRequest) map[string]interface{} {
+// GetMetadata extracts metadata from request with priority:
+// 1. Query parameter "metadata" (JSON string)
+// 2. Header "X-Yao-Metadata" (Base64 encoded JSON string)
+// 3. CompletionRequest.Metadata (from payload)
+func GetMetadata(c *gin.Context, req *CompletionRequest) map[string]interface{} {
 	// Priority 1: Query parameter (JSON string)
-	if dataJSON := c.Query("yao_data"); dataJSON != "" {
-		var data map[string]interface{}
-		if err := json.Unmarshal([]byte(dataJSON), &data); err == nil {
-			return data
+	if metadataJSON := c.Query("metadata"); metadataJSON != "" {
+		var metadata map[string]interface{}
+		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err == nil {
+			return metadata
 		}
 	}
 
 	// Priority 2: Header (Base64 encoded JSON string)
-	if dataBase64 := c.GetHeader("X-Yao-Data"); dataBase64 != "" {
+	if metadataBase64 := c.GetHeader("X-Yao-Metadata"); metadataBase64 != "" {
 		// Try to decode Base64
-		if decoded, err := base64.StdEncoding.DecodeString(dataBase64); err == nil {
-			var data map[string]interface{}
-			if err := json.Unmarshal(decoded, &data); err == nil {
-				return data
+		if decoded, err := base64.StdEncoding.DecodeString(metadataBase64); err == nil {
+			var metadata map[string]interface{}
+			if err := json.Unmarshal(decoded, &metadata); err == nil {
+				return metadata
 			}
 		}
-		// Fallback: try to parse as plain JSON (for backward compatibility)
-		var data map[string]interface{}
-		if err := json.Unmarshal([]byte(dataBase64), &data); err == nil {
-			return data
+		// Fallback: try to parse as plain JSON
+		var metadata map[string]interface{}
+		if err := json.Unmarshal([]byte(metadataBase64), &metadata); err == nil {
+			return metadata
 		}
 	}
 
 	// Priority 3: From CompletionRequest
-	if req != nil && req.Data != nil {
-		return req.Data
+	if req != nil && req.Metadata != nil {
+		return req.Metadata
 	}
 
 	return nil
@@ -469,7 +479,7 @@ func parseCompletionRequestData(c *gin.Context) (*CompletionRequest, error) {
 
 	// Metadata from query (JSON string)
 	if metadataJSON := c.Query("metadata"); metadataJSON != "" {
-		var metadata map[string]string
+		var metadata map[string]interface{}
 		if err := json.Unmarshal([]byte(metadataJSON), &metadata); err == nil {
 			req.Metadata = metadata
 		}

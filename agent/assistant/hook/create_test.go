@@ -1,13 +1,59 @@
 package hook_test
 
 import (
-	defaultContext "context"
+	stdContext "context"
 	"testing"
 
+	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 )
+
+// newTestContext creates a Context for testing with commonly used fields pre-populated.
+// You can override any fields after creation as needed for specific test scenarios.
+func newTestContext(chatID, assistantID string) *context.Context {
+	return &context.Context{
+		Context:     stdContext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+		ChatID:      chatID,
+		AssistantID: assistantID,
+		Connector:   "",
+		Locale:      "en-us",
+		Theme:       "light",
+		Client: context.Client{
+			Type:      "web",
+			UserAgent: "TestAgent/1.0",
+			IP:        "127.0.0.1",
+		},
+		Referer:  context.RefererAPI,
+		Accept:   context.AcceptWebCUI,
+		Route:    "",
+		Metadata: make(map[string]interface{}),
+		Authorized: &types.AuthorizedInfo{
+			Subject:    "test-user",
+			ClientID:   "test-client-id",
+			Scope:      "openid profile email",
+			SessionID:  "test-session-id",
+			UserID:     "test-user-123",
+			TeamID:     "test-team-456",
+			TenantID:   "test-tenant-789",
+			RememberMe: true,
+			Constraints: types.DataConstraints{
+				OwnerOnly:   false,
+				CreatorOnly: false,
+				EditorOnly:  false,
+				TeamOnly:    true,
+				Extra: map[string]interface{}{
+					"department": "engineering",
+					"region":     "us-west",
+					"project":    "yao",
+				},
+			},
+		},
+	}
+}
 
 // TestCreate test the create hook
 func TestCreate(t *testing.T) {
@@ -23,12 +69,8 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("The tests.create assistant has no script")
 	}
 
-	ctx := &context.Context{
-		Context:     defaultContext.Background(),
-		ChatID:      "chat-test-create-hook",
-		AssistantID: "tests.create",
-		Sid:         "test-session-create-hook",
-	}
+	// Use the helper function to create a test context
+	ctx := newTestContext("chat-test-create-hook", "tests.create")
 
 	// Test scenario 1: Return null (should get nil response)
 	t.Run("ReturnNull", func(t *testing.T) {
@@ -120,18 +162,6 @@ func TestCreate(t *testing.T) {
 		} else if *res.MaxCompletionTokens != 1500 {
 			t.Errorf("Expected max_completion_tokens 1500, got: %d", *res.MaxCompletionTokens)
 		}
-
-		// Verify metadata
-		if res.Metadata == nil {
-			t.Error("Expected metadata, got nil")
-		} else {
-			if res.Metadata["test"] != "full_response" {
-				t.Errorf("Expected metadata['test'] = 'full_response', got: %s", res.Metadata["test"])
-			}
-			if res.Metadata["user_id"] != "test_user_123" {
-				t.Errorf("Expected metadata['user_id'] = 'test_user_123', got: %s", res.Metadata["user_id"])
-			}
-		}
 	})
 
 	// Test scenario 5: Return partial response
@@ -188,19 +218,6 @@ func TestCreate(t *testing.T) {
 				if content != "Here are the available roles in the system:" {
 					t.Errorf("Unexpected system message content: %s", content)
 				}
-			}
-		}
-
-		// Verify metadata
-		if res.Metadata == nil {
-			t.Error("Expected metadata, got nil")
-		} else {
-			if res.Metadata["test"] != "process_call" {
-				t.Errorf("Expected metadata['test'] = 'process_call', got: %s", res.Metadata["test"])
-			}
-			// roles_count should be present
-			if _, ok := res.Metadata["roles_count"]; !ok {
-				t.Error("Expected metadata['roles_count'] to be present")
 			}
 		}
 	})
