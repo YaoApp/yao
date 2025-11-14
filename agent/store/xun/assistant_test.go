@@ -197,6 +197,125 @@ func TestSaveAssistant(t *testing.T) {
 			t.Errorf("Expected 3 tags, got %d", len(retrieved.Tags))
 		}
 	})
+
+	t.Run("UsesConfiguration", func(t *testing.T) {
+		// Test assistant with Uses configuration
+		assistant := &types.AssistantModel{
+			Name:      "Uses Test Assistant",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+			Uses: &types.Uses{
+				Vision: "mcp:vision-server",
+				Audio:  "agent",
+				Search: "mcp:search-server",
+				Fetch:  "agent",
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant with uses: %v", err)
+		}
+
+		// Retrieve and verify uses configuration
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Uses == nil {
+			t.Fatal("Expected uses to be set")
+		}
+
+		if retrieved.Uses.Vision != "mcp:vision-server" {
+			t.Errorf("Expected vision 'mcp:vision-server', got '%s'", retrieved.Uses.Vision)
+		}
+
+		if retrieved.Uses.Audio != "agent" {
+			t.Errorf("Expected audio 'agent', got '%s'", retrieved.Uses.Audio)
+		}
+
+		if retrieved.Uses.Search != "mcp:search-server" {
+			t.Errorf("Expected search 'mcp:search-server', got '%s'", retrieved.Uses.Search)
+		}
+
+		if retrieved.Uses.Fetch != "agent" {
+			t.Errorf("Expected fetch 'agent', got '%s'", retrieved.Uses.Fetch)
+		}
+
+		t.Logf("Successfully saved and retrieved assistant with uses configuration")
+	})
+
+	t.Run("NilUses", func(t *testing.T) {
+		// Test assistant without Uses configuration
+		assistant := &types.AssistantModel{
+			Name:      "No Uses Assistant",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant without uses: %v", err)
+		}
+
+		// Retrieve and verify uses is nil
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Uses != nil {
+			t.Errorf("Expected uses to be nil, got %+v", retrieved.Uses)
+		}
+	})
+
+	t.Run("PartialUsesConfiguration", func(t *testing.T) {
+		// Test assistant with partial Uses configuration
+		assistant := &types.AssistantModel{
+			Name:      "Partial Uses Assistant",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+			Uses: &types.Uses{
+				Vision: "mcp:vision-only",
+				// Audio, Search, Fetch not set
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant with partial uses: %v", err)
+		}
+
+		// Retrieve and verify
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Uses == nil {
+			t.Fatal("Expected uses to be set")
+		}
+
+		if retrieved.Uses.Vision != "mcp:vision-only" {
+			t.Errorf("Expected vision 'mcp:vision-only', got '%s'", retrieved.Uses.Vision)
+		}
+
+		if retrieved.Uses.Audio != "" {
+			t.Errorf("Expected audio to be empty, got '%s'", retrieved.Uses.Audio)
+		}
+
+		if retrieved.Uses.Search != "" {
+			t.Errorf("Expected search to be empty, got '%s'", retrieved.Uses.Search)
+		}
+
+		if retrieved.Uses.Fetch != "" {
+			t.Errorf("Expected fetch to be empty, got '%s'", retrieved.Uses.Fetch)
+		}
+	})
 }
 
 // TestDeleteAssistant tests deleting a single assistant
@@ -1950,6 +2069,105 @@ func TestUpdateAssistant(t *testing.T) {
 		}
 		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 2 {
 			t.Errorf("Expected 2 MCP servers, got %v", retrieved.MCP)
+		}
+	})
+
+	t.Run("UpdateUses", func(t *testing.T) {
+		// Create assistant without uses
+		assistant := &types.AssistantModel{
+			Name:      "Uses Update Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with uses configuration
+		updates := map[string]interface{}{
+			"uses": &types.Uses{
+				Vision: "mcp:new-vision",
+				Audio:  "mcp:new-audio",
+				Search: "agent",
+				Fetch:  "mcp:fetch-server",
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update uses: %v", err)
+		}
+
+		// Verify updates
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Uses == nil {
+			t.Fatal("Expected uses to be set")
+		}
+
+		if retrieved.Uses.Vision != "mcp:new-vision" {
+			t.Errorf("Expected vision 'mcp:new-vision', got '%s'", retrieved.Uses.Vision)
+		}
+		if retrieved.Uses.Audio != "mcp:new-audio" {
+			t.Errorf("Expected audio 'mcp:new-audio', got '%s'", retrieved.Uses.Audio)
+		}
+		if retrieved.Uses.Search != "agent" {
+			t.Errorf("Expected search 'agent', got '%s'", retrieved.Uses.Search)
+		}
+		if retrieved.Uses.Fetch != "mcp:fetch-server" {
+			t.Errorf("Expected fetch 'mcp:fetch-server', got '%s'", retrieved.Uses.Fetch)
+		}
+
+		// Update to change uses
+		updates2 := map[string]interface{}{
+			"uses": &types.Uses{
+				Vision: "agent",
+				Audio:  "agent",
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates2)
+		if err != nil {
+			t.Fatalf("Failed to update uses again: %v", err)
+		}
+
+		// Verify second update
+		retrieved2, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved2.Uses.Vision != "agent" {
+			t.Errorf("Expected vision 'agent', got '%s'", retrieved2.Uses.Vision)
+		}
+		if retrieved2.Uses.Audio != "agent" {
+			t.Errorf("Expected audio 'agent', got '%s'", retrieved2.Uses.Audio)
+		}
+
+		// Update to remove uses (set to nil)
+		updates3 := map[string]interface{}{
+			"uses": nil,
+		}
+
+		err = store.UpdateAssistant(id, updates3)
+		if err != nil {
+			t.Fatalf("Failed to set uses to nil: %v", err)
+		}
+
+		// Verify uses is nil
+		retrieved3, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved3.Uses != nil {
+			t.Errorf("Expected uses to be nil, got %+v", retrieved3.Uses)
 		}
 	})
 

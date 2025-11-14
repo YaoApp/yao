@@ -158,6 +158,7 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 		"tools":       assistant.Tools,
 		"placeholder": assistant.Placeholder,
 		"locales":     assistant.Locales,
+		"uses":        assistant.Uses,
 	}
 
 	for field, value := range jsonFields {
@@ -216,7 +217,7 @@ func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interfac
 	data := make(map[string]interface{})
 
 	// List of fields that need JSON marshaling
-	jsonFields := []string{"options", "tags", "prompts", "kb", "mcp", "workflow", "tools", "placeholder", "locales"}
+	jsonFields := []string{"options", "tags", "prompts", "kb", "mcp", "workflow", "tools", "placeholder", "locales", "uses"}
 	jsonFieldSet := make(map[string]bool)
 	for _, field := range jsonFields {
 		jsonFieldSet[field] = true
@@ -416,7 +417,7 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 
 	// Convert rows to types.AssistantModel slice
 	assistants := make([]*types.AssistantModel, 0, len(rows))
-	jsonFields := []string{"tags", "options", "prompts", "workflow", "kb", "mcp", "tools", "placeholder", "locales"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "kb", "mcp", "tools", "placeholder", "locales", "uses"}
 
 	for _, row := range rows {
 		data := row.ToMap()
@@ -473,7 +474,7 @@ func (conv *Xun) GetAssistant(assistantID string, locale ...string) (*types.Assi
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "workflow", "kb", "mcp", "tools", "placeholder", "locales"}
+	jsonFields := []string{"tags", "options", "prompts", "workflow", "kb", "mcp", "tools", "placeholder", "locales", "uses"}
 	conv.parseJSONFields(data, jsonFields)
 
 	// Convert map to types.AssistantModel
@@ -574,6 +575,16 @@ func (conv *Xun) GetAssistant(assistantID string, locale ...string) (*types.Assi
 			var loc i18n.Map
 			if err := jsoniter.Unmarshal(raw, &loc); err == nil {
 				model.Locales = loc
+			}
+		}
+	}
+
+	if uses, has := data["uses"]; has && uses != nil {
+		raw, err := jsoniter.Marshal(uses)
+		if err == nil {
+			var u types.Uses
+			if err := jsoniter.Unmarshal(raw, &u); err == nil {
+				model.Uses = &u
 			}
 		}
 	}

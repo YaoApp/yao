@@ -155,6 +155,7 @@ type AssistantModel struct {
 	Workflow    *Workflow              `json:"workflow,omitempty"`    // Workflow configuration
 	Placeholder *Placeholder           `json:"placeholder,omitempty"` // Assistant Placeholder
 	Locales     i18n.Map               `json:"locales,omitempty"`     // Assistant Locales
+	Uses        *Uses                  `json:"uses,omitempty"`        // Assistant-specific wrapper configurations for vision, audio, etc. If not set, use global settings
 	CreatedAt   int64                  `json:"created_at"`            // Creation timestamp
 	UpdatedAt   int64                  `json:"updated_at"`            // Last update timestamp
 

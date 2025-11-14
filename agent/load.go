@@ -171,6 +171,17 @@ func initAssistant() error {
 		assistant.SetVision(api.Agent.DSL.Vision)
 	}
 
+	// Set global Uses configuration
+	if api.Agent.DSL.Use != nil {
+		globalUses := &store.Uses{
+			Vision: api.Agent.DSL.Use.Vision,
+			Audio:  api.Agent.DSL.Use.Audio,
+			Search: api.Agent.DSL.Use.Search,
+			Fetch:  api.Agent.DSL.Use.Fetch,
+		}
+		assistant.SetGlobalUses(globalUses)
+	}
+
 	if api.Agent.DSL.Connectors != nil {
 		assistant.SetConnectorSettings(api.Agent.DSL.Connectors)
 	}

@@ -185,6 +185,13 @@
       "nullable": true
     },
     {
+      "name": "uses",
+      "type": "json",
+      "label": "Uses",
+      "comment": "Assistant-specific wrapper configurations for vision, audio, etc. If not set, use global settings",
+      "nullable": true
+    },
+    {
       "name": "automated",
       "type": "boolean",
       "label": "Automated",

@@ -173,6 +173,15 @@ func ToMySQLTime(v interface{}) string {
 	}
 }
 
+// Uses the wrapper configurations for assistant
+// Used to specify which assistant or MCP server to use for vision, audio, etc.
+type Uses struct {
+	Vision string `json:"vision,omitempty"` // Vision processing wrapper. Format: "agent" or "mcp:mcp_server_id"
+	Audio  string `json:"audio,omitempty"`  // Audio processing wrapper. Format: "agent" or "mcp:mcp_server_id"
+	Search string `json:"search,omitempty"` // Search wrapper. Format: "agent" or "mcp:mcp_server_id"
+	Fetch  string `json:"fetch,omitempty"`  // Fetch wrapper. Format: "agent" or "mcp:mcp_server_id"
+}
+
 // ToAssistantModel converts various types to AssistantModel
 func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 	if v == nil {

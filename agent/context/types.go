@@ -188,7 +188,7 @@ type Response struct {
 	MCP        *ResponseHookMCP      `json:"mcp,omitempty"`
 	Done       *ResponseHookDone     `json:"done,omitempty"`
 	Failback   *ResponseHookFailback `json:"failback,omitempty"`
-	Completion *ResponseCompletion   `json:"completion,omitempty"`
+	Completion *CompletionResponse   `json:"completion,omitempty"`
 }
 
 // HookCreateResponse the response of the create hook
@@ -222,9 +222,6 @@ type ResponseHookMCP struct{}
 
 // ResponseHookFailback the response of the failback hook
 type ResponseHookFailback struct{}
-
-// ResponseCompletion the response of the completion
-type ResponseCompletion struct{}
 
 // Message Structure ( OpenAI Chat Completion Input Message Structure, https://platform.openai.com/docs/api-reference/chat/create#chat/create-messages )
 // ===============================
