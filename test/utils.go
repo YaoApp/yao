@@ -345,12 +345,42 @@ func loadSystemModels(t *testing.T, cfg config.Config) error {
 	return nil
 }
 
-// Prepare test environment
-func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
+// PrepareOption options for test preparation
+type PrepareOption struct {
+	// V8Mode sets the V8 runtime mode: "standard" (default) or "performance"
+	// - standard: Lower memory usage, creates/disposes isolates for each execution
+	// - performance: Higher memory usage, maintains isolate pool for better performance
+	// Use "performance" mode for benchmarks and stress tests
+	V8Mode string
+}
+
+// Prepare test environment with optional configuration
+// Usage:
+//
+//	test.Prepare(t, config.Conf)                                    // standard mode (default)
+//	test.Prepare(t, config.Conf, test.PrepareOption{V8Mode: "performance"}) // performance mode
+func Prepare(t *testing.T, cfg config.Config, opts ...interface{}) {
 
 	appRootEnv := "YAO_TEST_APPLICATION"
-	if len(rootEnv) > 0 {
-		appRootEnv = rootEnv[0]
+	v8Mode := "standard" // default to standard mode
+
+	// Parse options
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case string:
+			// Legacy: string parameter for appRootEnv
+			appRootEnv = v
+		case PrepareOption:
+			// New: structured options
+			if v.V8Mode != "" {
+				v8Mode = v.V8Mode
+			}
+		}
+	}
+
+	// Override with environment variable if set
+	if envMode := os.Getenv("YAO_RUNTIME_MODE"); envMode != "" {
+		v8Mode = envMode
 	}
 
 	// Remove the data store
@@ -449,6 +479,19 @@ func Prepare(t *testing.T, cfg config.Config, rootEnv ...string) {
 	// Set default prefix
 	if share.App.Prefix == "" {
 		share.App.Prefix = "yao_"
+	}
+
+	// Apply V8 mode to config
+	cfg.Runtime.Mode = v8Mode
+
+	// Ensure MinSize and MaxSize are set for performance mode
+	if v8Mode == "performance" {
+		if cfg.Runtime.MinSize == 0 {
+			cfg.Runtime.MinSize = 3
+		}
+		if cfg.Runtime.MaxSize == 0 {
+			cfg.Runtime.MaxSize = 10
+		}
 	}
 
 	utils.Init()

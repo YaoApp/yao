@@ -204,6 +204,14 @@ type HookCreateResponse struct {
 	Temperature         *float64 `json:"temperature,omitempty"`
 	MaxTokens           *int     `json:"max_tokens,omitempty"`
 	MaxCompletionTokens *int     `json:"max_completion_tokens,omitempty"`
+
+	// Context adjustments - allow hook to modify context fields
+	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID
+	Connector   string                 `json:"connector,omitempty"`    // Override connector
+	Locale      string                 `json:"locale,omitempty"`       // Override locale
+	Theme       string                 `json:"theme,omitempty"`        // Override theme
+	Route       string                 `json:"route,omitempty"`        // Override route
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`     // Override or merge metadata
 }
 
 // ResponseHookDone the response of the done hook
