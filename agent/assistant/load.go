@@ -29,7 +29,7 @@ var storage store.Store = nil
 var search interface{} = nil
 var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *agentvision.Vision = nil
-var defaultConnector string = "" // default connector
+var defaultConnector string = ""   // default connector
 var globalUses *context.Uses = nil // global uses configuration from agent.yml
 
 // LoadBuiltIn load the built-in assistants
