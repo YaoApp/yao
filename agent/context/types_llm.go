@@ -162,3 +162,62 @@ type JSONSchema struct {
 	Schema      interface{} `json:"schema"`                // Required: JSON schema (*jsonschema.Schema or map[string]interface{})
 	Strict      *bool       `json:"strict,omitempty"`      // Optional: whether to enforce strict schema validation (default: true)
 }
+
+// ============================================================================
+// Stream Lifecycle Event Data Structures
+// ============================================================================
+// These structures define the data format for stream lifecycle events.
+// They provide a standardized way to communicate stream boundaries and metadata
+// to the frontend, enabling better UI/UX (progress indicators, timing, etc.).
+
+// StreamStartData represents the data for stream_start event
+// Sent when a streaming request begins
+type StreamStartData struct {
+	RequestID    string                 `json:"request_id"`             // Unique identifier for this request
+	Timestamp    int64                  `json:"timestamp"`              // Unix timestamp when stream started
+	Model        string                 `json:"model,omitempty"`        // Model being used (e.g., "gpt-4o")
+	Capabilities map[string]interface{} `json:"capabilities,omitempty"` // Model capabilities for this request
+}
+
+// StreamEndData represents the data for stream_end event
+// Sent when a streaming request completes (successfully or with error)
+type StreamEndData struct {
+	RequestID  string     `json:"request_id"`      // Corresponding request ID
+	Timestamp  int64      `json:"timestamp"`       // Unix timestamp when stream ended
+	DurationMs int64      `json:"duration_ms"`     // Total duration in milliseconds
+	Status     string     `json:"status"`          // "completed" | "error" | "cancelled"
+	Error      string     `json:"error,omitempty"` // Error message if status is "error"
+	Usage      *UsageInfo `json:"usage,omitempty"` // Token usage statistics
+}
+
+// GroupStartData represents the data for group_start event
+// Sent when a logical message group begins (text, tool_call, thinking, etc.)
+type GroupStartData struct {
+	GroupID   string                 `json:"group_id"`            // Unique identifier for this group
+	Type      string                 `json:"type"`                // Group type: "text" | "thinking" | "tool_call" | "refusal"
+	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when group started
+	ToolCall  *GroupToolCallInfo     `json:"tool_call,omitempty"` // Tool call metadata (if type is "tool_call")
+	Extra     map[string]interface{} `json:"extra,omitempty"`     // Additional metadata (for custom providers or future extensions)
+}
+
+// GroupEndData represents the data for group_end event
+// Sent when a logical message group completes
+type GroupEndData struct {
+	GroupID    string                 `json:"group_id"`            // Corresponding group ID
+	Type       string                 `json:"type"`                // Group type (same as in group_start)
+	Timestamp  int64                  `json:"timestamp"`           // Unix timestamp when group ended
+	DurationMs int64                  `json:"duration_ms"`         // Duration of this group in milliseconds
+	ChunkCount int                    `json:"chunk_count"`         // Number of data chunks in this group
+	Status     string                 `json:"status"`              // "completed" | "partial" | "error"
+	ToolCall   *GroupToolCallInfo     `json:"tool_call,omitempty"` // Complete tool call info (if type is "tool_call")
+	Extra      map[string]interface{} `json:"extra,omitempty"`     // Additional metadata
+}
+
+// GroupToolCallInfo contains tool call information for group events
+// Used in both group_start (partial info) and group_end (complete info)
+type GroupToolCallInfo struct {
+	ID        string `json:"id"`                  // Tool call ID (e.g., "call_abc123")
+	Name      string `json:"name"`                // Function name (may be partial in group_start)
+	Arguments string `json:"arguments,omitempty"` // Complete arguments (only in group_end)
+	Index     int    `json:"index"`               // Index in the tool calls array
+}

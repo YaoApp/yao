@@ -15,6 +15,93 @@ import (
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
+// startGroup starts a new group and sends group_start event
+func (gt *groupTracker) startGroup(groupType context.StreamChunkType, handler context.StreamFunc) {
+	if gt.active {
+		// End previous group first
+		gt.endGroup(handler)
+	}
+
+	gt.active = true
+	gt.groupID = fmt.Sprintf("grp_%d", time.Now().UnixNano())
+	gt.groupType = groupType
+	gt.startTime = time.Now().UnixMilli()
+	gt.chunkCount = 0
+	gt.toolCallInfo = nil
+
+	if handler != nil {
+		startData := &context.GroupStartData{
+			GroupID:   gt.groupID,
+			Type:      string(groupType),
+			Timestamp: gt.startTime,
+		}
+		if startJSON, err := jsoniter.Marshal(startData); err == nil {
+			handler(context.ChunkGroupStart, startJSON)
+		}
+	}
+}
+
+// startToolCallGroup starts a new tool call group with tool call info
+func (gt *groupTracker) startToolCallGroup(toolCallInfo *context.GroupToolCallInfo, handler context.StreamFunc) {
+	if gt.active {
+		gt.endGroup(handler)
+	}
+
+	gt.active = true
+	gt.groupID = fmt.Sprintf("grp_tool_%d", time.Now().UnixNano())
+	gt.groupType = context.ChunkToolCall
+	gt.startTime = time.Now().UnixMilli()
+	gt.chunkCount = 0
+	gt.toolCallInfo = toolCallInfo
+
+	if handler != nil {
+		startData := &context.GroupStartData{
+			GroupID:   gt.groupID,
+			Type:      string(context.ChunkToolCall),
+			Timestamp: gt.startTime,
+			ToolCall:  toolCallInfo,
+		}
+		if startJSON, err := jsoniter.Marshal(startData); err == nil {
+			handler(context.ChunkGroupStart, startJSON)
+		}
+	}
+}
+
+// incrementChunk increments the chunk count for the current group
+func (gt *groupTracker) incrementChunk() {
+	if gt.active {
+		gt.chunkCount++
+	}
+}
+
+// endGroup ends the current group and sends group_end event
+func (gt *groupTracker) endGroup(handler context.StreamFunc) {
+	if !gt.active {
+		return
+	}
+
+	if handler != nil {
+		endData := &context.GroupEndData{
+			GroupID:    gt.groupID,
+			Type:       string(gt.groupType),
+			Timestamp:  time.Now().UnixMilli(),
+			DurationMs: time.Now().UnixMilli() - gt.startTime,
+			ChunkCount: gt.chunkCount,
+			Status:     "completed",
+		}
+		if gt.toolCallInfo != nil {
+			endData.ToolCall = gt.toolCallInfo
+		}
+		if endJSON, err := jsoniter.Marshal(endData); err == nil {
+			handler(context.ChunkGroupEnd, endJSON)
+		}
+	}
+
+	gt.active = false
+	gt.groupID = ""
+	gt.toolCallInfo = nil
+}
+
 // Provider OpenAI-compatible provider
 // Supports: vision, tool calls, streaming, JSON mode
 type Provider struct {
@@ -98,9 +185,38 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 
 // streamWithRetry performs a single streaming request attempt
 func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler context.StreamFunc) (*context.CompletionResponse, error) {
+	streamStartTime := time.Now()
+	requestID := fmt.Sprintf("req_%d", streamStartTime.UnixNano())
+
+	// Send stream_start event
+	if handler != nil {
+		model, _ := p.GetModel()
+		startData := &context.StreamStartData{
+			RequestID: requestID,
+			Timestamp: streamStartTime.UnixMilli(),
+			Model:     model,
+		}
+		if startJSON, err := jsoniter.Marshal(startData); err == nil {
+			handler(context.ChunkStreamStart, startJSON)
+		}
+	}
+
 	// Build request body
 	requestBody, err := p.buildRequestBody(messages, options, true)
 	if err != nil {
+		// Send stream_end with error
+		if handler != nil {
+			endData := &context.StreamEndData{
+				RequestID:  requestID,
+				Timestamp:  time.Now().UnixMilli(),
+				DurationMs: time.Since(streamStartTime).Milliseconds(),
+				Status:     "error",
+				Error:      err.Error(),
+			}
+			if endJSON, err := jsoniter.Marshal(endData); err == nil {
+				handler(context.ChunkStreamEnd, endJSON)
+			}
+		}
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
 
@@ -134,6 +250,9 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	accumulator := &streamAccumulator{
 		toolCalls: make(map[int]*accumulatedToolCall),
 	}
+
+	// Group tracker for lifecycle events
+	groupTracker := &groupTracker{}
 
 	// Stream handler
 	streamHandler := func(data []byte) int {
@@ -181,17 +300,29 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 			// Handle content
 			if delta.Content != "" {
+				// Start text group if not active
+				if !groupTracker.active || groupTracker.groupType != context.ChunkText {
+					groupTracker.startGroup(context.ChunkText, handler)
+				}
+
 				accumulator.content += delta.Content
 				if handler != nil {
 					handler(context.ChunkText, []byte(delta.Content))
+					groupTracker.incrementChunk()
 				}
 			}
 
 			// Handle refusal
 			if delta.Refusal != "" {
+				// Start refusal group if not active
+				if !groupTracker.active || groupTracker.groupType != context.ChunkRefusal {
+					groupTracker.startGroup(context.ChunkRefusal, handler)
+				}
+
 				accumulator.refusal += delta.Refusal
 				if handler != nil {
 					handler(context.ChunkRefusal, []byte(delta.Refusal))
+					groupTracker.incrementChunk()
 				}
 			}
 
@@ -200,6 +331,16 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 				for _, tc := range delta.ToolCalls {
 					if _, exists := accumulator.toolCalls[tc.Index]; !exists {
 						accumulator.toolCalls[tc.Index] = &accumulatedToolCall{}
+
+						// Start new tool call group when we first see this tool call
+						if tc.ID != "" {
+							toolCallInfo := &context.GroupToolCallInfo{
+								ID:    tc.ID,
+								Name:  tc.Function.Name, // May be partial or empty initially
+								Index: tc.Index,
+							}
+							groupTracker.startToolCallGroup(toolCallInfo, handler)
+						}
 					}
 					accTC := accumulator.toolCalls[tc.Index]
 
@@ -211,9 +352,17 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 					}
 					if tc.Function.Name != "" {
 						accTC.functionName = tc.Function.Name
+						// Update tool call info in tracker
+						if groupTracker.active && groupTracker.toolCallInfo != nil {
+							groupTracker.toolCallInfo.Name = tc.Function.Name
+						}
 					}
 					if tc.Function.Arguments != "" {
 						accTC.functionArgs += tc.Function.Arguments
+						// Update tool call info in tracker
+						if groupTracker.active && groupTracker.toolCallInfo != nil {
+							groupTracker.toolCallInfo.Arguments = accTC.functionArgs
+						}
 					}
 				}
 
@@ -221,6 +370,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 				if handler != nil {
 					toolCallData, _ := jsoniter.Marshal(delta.ToolCalls)
 					handler(context.ChunkToolCall, toolCallData)
+					groupTracker.incrementChunk()
 				}
 			}
 
@@ -259,10 +409,25 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	err = req.Stream(goCtx, "POST", requestBody, streamHandler)
 	if err != nil {
+		// End current group if active
+		groupTracker.endGroup(handler)
+
 		// Notify handler of error if provided
 		if handler != nil {
 			errData := []byte(err.Error())
 			handler(context.ChunkError, errData)
+
+			// Send stream_end with error
+			endData := &context.StreamEndData{
+				RequestID:  requestID,
+				Timestamp:  time.Now().UnixMilli(),
+				DurationMs: time.Since(streamStartTime).Milliseconds(),
+				Status:     "error",
+				Error:      err.Error(),
+			}
+			if endJSON, err := jsoniter.Marshal(endData); err == nil {
+				handler(context.ChunkStreamEnd, endJSON)
+			}
 		}
 		return nil, fmt.Errorf("streaming request failed: %w", err)
 	}
@@ -271,10 +436,26 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	if accumulator.id == "" {
 		log.Warn("OpenAI stream completed but no data was received (accumulator.id is empty)")
 		err := fmt.Errorf("no data received from OpenAI API")
+
+		// End current group if active
+		groupTracker.endGroup(handler)
+
 		// Notify handler of error if provided
 		if handler != nil {
 			errData := []byte(err.Error())
 			handler(context.ChunkError, errData)
+
+			// Send stream_end with error
+			endData := &context.StreamEndData{
+				RequestID:  requestID,
+				Timestamp:  time.Now().UnixMilli(),
+				DurationMs: time.Since(streamStartTime).Milliseconds(),
+				Status:     "error",
+				Error:      err.Error(),
+			}
+			if endJSON, err := jsoniter.Marshal(endData); err == nil {
+				handler(context.ChunkStreamEnd, endJSON)
+			}
 		}
 		return nil, err
 	}
@@ -311,8 +492,42 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 		// Validate tool call results if schema is provided
 		if err := p.validateToolCallResults(options, toolCalls); err != nil {
+			// End current group
+			groupTracker.endGroup(handler)
+
+			// Send stream_end with validation error
+			if handler != nil {
+				endData := &context.StreamEndData{
+					RequestID:  requestID,
+					Timestamp:  time.Now().UnixMilli(),
+					DurationMs: time.Since(streamStartTime).Milliseconds(),
+					Status:     "error",
+					Error:      "tool call validation failed",
+				}
+				if endJSON, err := jsoniter.Marshal(endData); err == nil {
+					handler(context.ChunkStreamEnd, endJSON)
+				}
+			}
+
 			// Tool call validation failed, need to retry with error feedback
 			return nil, fmt.Errorf("tool call validation failed: %w", err)
+		}
+	}
+
+	// End final group if still active
+	groupTracker.endGroup(handler)
+
+	// Send stream_end event (success)
+	if handler != nil {
+		endData := &context.StreamEndData{
+			RequestID:  requestID,
+			Timestamp:  time.Now().UnixMilli(),
+			DurationMs: time.Since(streamStartTime).Milliseconds(),
+			Status:     "completed",
+			Usage:      response.Usage,
+		}
+		if endJSON, err := jsoniter.Marshal(endData); err == nil {
+			handler(context.ChunkStreamEnd, endJSON)
 		}
 	}
 
