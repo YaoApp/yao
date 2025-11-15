@@ -87,6 +87,17 @@ func (ctx *Context) Release() {
 	ctx = nil
 }
 
+// Send sends data to the context's writer
+// This is used by the output module to send messages to the client
+func (ctx *Context) Send(data []byte) error {
+	if ctx.Writer == nil {
+		return nil // No writer, silently ignore
+	}
+
+	_, err := ctx.Writer.Write(data)
+	return err
+}
+
 // Map the context to a map
 func (ctx *Context) Map() map[string]interface{} {
 	data := map[string]interface{}{}

@@ -1,0 +1,129 @@
+package output
+
+import (
+	"fmt"
+	"math/rand"
+	"time"
+
+	"github.com/yaoapp/yao/agent/output/message"
+)
+
+// Helper functions for creating built-in message types
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+// NewTextMessage creates a text message
+func NewTextMessage(content string) *message.Message {
+	return &message.Message{
+		Type: message.TypeText,
+		Props: map[string]interface{}{
+			"content": content,
+		},
+	}
+}
+
+// NewThinkingMessage creates a thinking message
+func NewThinkingMessage(content string) *message.Message {
+	return &message.Message{
+		Type: message.TypeThinking,
+		Props: map[string]interface{}{
+			"content": content,
+		},
+	}
+}
+
+// NewLoadingMessage creates a loading message
+func NewLoadingMessage(msg string) *message.Message {
+	return &message.Message{
+		Type: message.TypeLoading,
+		Props: map[string]interface{}{
+			"message": msg,
+		},
+	}
+}
+
+// NewToolCallMessage creates a tool call message
+func NewToolCallMessage(id, name, arguments string) *message.Message {
+	return &message.Message{
+		Type: message.TypeToolCall,
+		Props: map[string]interface{}{
+			"id":        id,
+			"name":      name,
+			"arguments": arguments,
+		},
+	}
+}
+
+// NewErrorMessage creates an error message
+func NewErrorMessage(msg, code string) *message.Message {
+	return &message.Message{
+		Type: message.TypeError,
+		Props: map[string]interface{}{
+			"message": msg,
+			"code":    code,
+		},
+	}
+}
+
+// NewActionMessage creates an action message
+func NewActionMessage(name string, payload map[string]interface{}) *message.Message {
+	return &message.Message{
+		Type: message.TypeAction,
+		Props: map[string]interface{}{
+			"name":    name,
+			"payload": payload,
+		},
+	}
+}
+
+// NewImageMessage creates an image message
+func NewImageMessage(url string, alt string) *message.Message {
+	return &message.Message{
+		Type: message.TypeImage,
+		Props: map[string]interface{}{
+			"url": url,
+			"alt": alt,
+		},
+	}
+}
+
+// NewAudioMessage creates an audio message
+func NewAudioMessage(url string, format string) *message.Message {
+	return &message.Message{
+		Type: message.TypeAudio,
+		Props: map[string]interface{}{
+			"url":    url,
+			"format": format,
+		},
+	}
+}
+
+// NewVideoMessage creates a video message
+func NewVideoMessage(url string) *message.Message {
+	return &message.Message{
+		Type: message.TypeVideo,
+		Props: map[string]interface{}{
+			"url": url,
+		},
+	}
+}
+
+// IsBuiltinType checks if a message type is a built-in type
+func IsBuiltinType(msgType string) bool {
+	switch msgType {
+	case message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction:
+		return true
+	default:
+		return false
+	}
+}
+
+// GenerateID generates a unique message ID
+func GenerateID() string {
+	// Generate a random ID with timestamp prefix for uniqueness
+	timestamp := time.Now().UnixNano()
+	random := rand.Int63()
+	return fmt.Sprintf("msg_%d_%d", timestamp, random)
+}
