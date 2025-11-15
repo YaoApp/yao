@@ -80,4 +80,3 @@ type accumulatedToolCall struct {
 	functionName string
 	functionArgs string
 }
-
