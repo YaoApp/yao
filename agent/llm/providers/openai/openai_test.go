@@ -1288,7 +1288,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 
 	handler := func(chunkType context.StreamChunkType, data []byte) int {
 		events = append(events, string(chunkType))
-		
+
 		switch chunkType {
 		case context.ChunkStreamStart:
 			streamStartReceived = true
@@ -1333,7 +1333,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 			groupEndReceived = true
 			var endData context.GroupEndData
 			if err := json.Unmarshal(data, &endData); err == nil {
-				t.Logf("✓ group_end: type=%s, chunks=%d, duration=%dms", 
+				t.Logf("✓ group_end: type=%s, chunks=%d, duration=%dms",
 					endData.Type, endData.ChunkCount, endData.DurationMs)
 				if endData.ChunkCount <= 0 {
 					t.Error("group_end should have chunk_count > 0")
