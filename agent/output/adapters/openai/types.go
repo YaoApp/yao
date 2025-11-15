@@ -30,9 +30,9 @@ type AdapterConfig struct {
 
 // DefaultLinkTemplates provides default Markdown templates for non-text message types
 var DefaultLinkTemplates = map[string]string{
-	"image":  "![%s](%s)",                 // Markdown image: ![alt](url) - displays inline
-	"audio":  "🔊 [Play Audio](%s)",      // Link (audio can't display inline in Markdown)
-	"video":  "🎬 [Watch Video](%s)",     // Link (video can't display inline in Markdown)
+	"image":  "![%s](%s)",           // Markdown image: ![alt](url) - displays inline
+	"audio":  "🔊 [Play Audio](%s)",  // Link (audio can't display inline in Markdown)
+	"video":  "🎬 [Watch Video](%s)", // Link (video can't display inline in Markdown)
 	"file":   "📎 [Download File](%s)",
 	"page":   "📄 [Open Page](%s)",
 	"table":  "📊 [View Table](%s)",

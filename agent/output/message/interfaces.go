@@ -53,4 +53,3 @@ type StreamHandler interface {
 	// Close closes the handler
 	Close() error
 }
-

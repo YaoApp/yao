@@ -155,4 +155,3 @@ const (
 	DeltaMerge   = "merge"   // Merge (for objects)
 	DeltaSet     = "set"     // Set (for new fields)
 )
-
