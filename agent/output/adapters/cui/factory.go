@@ -22,4 +22,3 @@ func (f *Factory) CreateWriter(ctx *context.Context) (message.Writer, error) {
 func (f *Factory) CreateAdapter(ctx *context.Context) (message.Adapter, error) {
 	return NewAdapter(), nil
 }
-
