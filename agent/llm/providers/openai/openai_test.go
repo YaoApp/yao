@@ -1,10 +1,11 @@
 package openai_test
 
 import (
-	stdContext "context"
+	gocontext "context"
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/plan"
@@ -1388,6 +1389,88 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 	t.Log("Lifecycle events test completed successfully")
 }
 
+// TestOpenAIStreamContextCancellation tests that stream respects context cancellation
+func TestOpenAIStreamContextCancellation(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Write a very long essay about the history of computing", // Long task
+		},
+	}
+
+	// Create a context with a very short timeout
+	ctx := newTestContext("test-cancel", "openai.gpt-4o")
+	goCtx, cancel := gocontext.WithTimeout(gocontext.Background(), 100*time.Millisecond)
+	defer cancel()
+	ctx.Context = goCtx
+
+	var receivedChunks int
+	var receivedStreamEnd bool
+
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		if chunkType == context.ChunkText || chunkType == context.ChunkToolCall {
+			receivedChunks++
+		}
+		if chunkType == context.ChunkStreamEnd {
+			receivedStreamEnd = true
+			var endData context.StreamEndData
+			if err := json.Unmarshal(data, &endData); err == nil {
+				t.Logf("stream_end status: %s, error: %s", endData.Status, endData.Error)
+			}
+		}
+		return 0
+	}
+
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+
+	// Should get an error due to context cancellation
+	if err == nil {
+		t.Error("Expected error due to context cancellation, but got nil")
+	} else {
+		t.Logf("✓ Got expected cancellation error: %v", err)
+
+		// Check if error message indicates cancellation
+		errStr := err.Error()
+		if !strings.Contains(errStr, "context") && !strings.Contains(errStr, "cancel") {
+			t.Errorf("Error should mention context/cancellation: %v", err)
+		}
+	}
+
+	// Response should be nil due to cancellation
+	if response != nil {
+		t.Logf("Warning: Response is not nil despite cancellation (partial response)")
+	}
+
+	// Should have received stream_end event (even for cancellation)
+	if !receivedStreamEnd {
+		t.Error("Expected stream_end event even for cancelled stream")
+	}
+
+	t.Logf("Received %d chunks before cancellation", receivedChunks)
+	t.Log("Context cancellation test completed successfully")
+}
+
 // TestOpenAIStreamWithTemperature tests different temperature settings
 func TestOpenAIStreamWithTemperature(t *testing.T) {
 	test.Prepare(t, config.Conf)
@@ -1476,7 +1559,7 @@ func TestOpenAIStreamWithTemperature(t *testing.T) {
 // newTestContext creates a real Context for testing OpenAI provider
 func newTestContext(chatID, connectorID string) *context.Context {
 	return &context.Context{
-		Context:     stdContext.Background(),
+		Context:     gocontext.Background(),
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: "test-assistant",

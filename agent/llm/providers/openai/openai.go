@@ -121,17 +121,39 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 	maxValidationRetries := 3
 	var lastErr error
 
+	// Get Go context for cancellation support
+	goCtx := ctx.Context
+	if goCtx == nil {
+		goCtx = gocontext.Background()
+	}
+
 	// Make a copy of messages to avoid modifying the original
 	currentMessages := make([]context.Message, len(messages))
 	copy(currentMessages, messages)
 
 	// Outer loop: handle network/API errors with exponential backoff
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Check if context is cancelled before retry
+		select {
+		case <-goCtx.Done():
+			return nil, fmt.Errorf("context cancelled: %w", goCtx.Err())
+		default:
+		}
+
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
 			log.Warn("OpenAI stream request failed, retrying in %v (attempt %d/%d): %v", backoff, attempt+1, maxRetries, lastErr)
-			time.Sleep(backoff)
+
+			// Sleep with context cancellation support
+			timer := time.NewTimer(backoff)
+			select {
+			case <-timer.C:
+				// Continue to retry
+			case <-goCtx.Done():
+				timer.Stop()
+				return nil, fmt.Errorf("context cancelled during backoff: %w", goCtx.Err())
+			}
 		}
 
 		response, err := p.streamWithRetry(ctx, currentMessages, options, handler)
@@ -187,6 +209,19 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler context.StreamFunc) (*context.CompletionResponse, error) {
 	streamStartTime := time.Now()
 	requestID := fmt.Sprintf("req_%d", streamStartTime.UnixNano())
+
+	// Get Go context for cancellation support
+	goCtx := ctx.Context
+	if goCtx == nil {
+		goCtx = gocontext.Background()
+	}
+
+	// Check if context is already cancelled
+	select {
+	case <-goCtx.Done():
+		return nil, fmt.Errorf("context cancelled before stream start: %w", goCtx.Err())
+	default:
+	}
 
 	// Send stream_start event
 	if handler != nil {
@@ -256,6 +291,14 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// Stream handler
 	streamHandler := func(data []byte) int {
+		// Check for context cancellation
+		select {
+		case <-goCtx.Done():
+			log.Warn("Stream cancelled by context")
+			return http.HandlerReturnBreak
+		default:
+		}
+
 		if len(data) == 0 {
 			return http.HandlerReturnOk
 		}
@@ -401,13 +444,30 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		return http.HandlerReturnOk
 	}
 
-	// Make streaming request
-	goCtx := ctx.Context
-	if goCtx == nil {
-		goCtx = gocontext.Background()
+	// Make streaming request (goCtx already set at function start)
+	err = req.Stream(goCtx, "POST", requestBody, streamHandler)
+
+	// Check if error is due to context cancellation
+	if err != nil && goCtx.Err() != nil {
+		// End current group if active
+		groupTracker.endGroup(handler)
+
+		// Send stream_end with cancellation status
+		if handler != nil {
+			endData := &context.StreamEndData{
+				RequestID:  requestID,
+				Timestamp:  time.Now().UnixMilli(),
+				DurationMs: time.Since(streamStartTime).Milliseconds(),
+				Status:     "cancelled",
+				Error:      goCtx.Err().Error(),
+			}
+			if endJSON, err := jsoniter.Marshal(endData); err == nil {
+				handler(context.ChunkStreamEnd, endJSON)
+			}
+		}
+		return nil, fmt.Errorf("stream cancelled: %w", goCtx.Err())
 	}
 
-	err = req.Stream(goCtx, "POST", requestBody, streamHandler)
 	if err != nil {
 		// End current group if active
 		groupTracker.endGroup(handler)
@@ -540,17 +600,39 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 	maxValidationRetries := 3
 	var lastErr error
 
+	// Get Go context for cancellation support
+	goCtx := ctx.Context
+	if goCtx == nil {
+		goCtx = gocontext.Background()
+	}
+
 	// Make a copy of messages to avoid modifying the original
 	currentMessages := make([]context.Message, len(messages))
 	copy(currentMessages, messages)
 
 	// Outer loop: handle network/API errors with exponential backoff
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Check if context is cancelled before retry
+		select {
+		case <-goCtx.Done():
+			return nil, fmt.Errorf("context cancelled: %w", goCtx.Err())
+		default:
+		}
+
 		if attempt > 0 {
 			// Exponential backoff
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
 			log.Warn("OpenAI post request failed, retrying in %v (attempt %d/%d): %v", backoff, attempt+1, maxRetries, lastErr)
-			time.Sleep(backoff)
+
+			// Sleep with context cancellation support
+			timer := time.NewTimer(backoff)
+			select {
+			case <-timer.C:
+				// Continue to retry
+			case <-goCtx.Done():
+				timer.Stop()
+				return nil, fmt.Errorf("context cancelled during backoff: %w", goCtx.Err())
+			}
 		}
 
 		response, err := p.postWithRetry(ctx, currentMessages, options)
