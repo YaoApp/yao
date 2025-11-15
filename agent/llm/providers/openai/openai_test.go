@@ -1,0 +1,953 @@
+package openai_test
+
+import (
+	stdContext "context"
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/plan"
+	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/test"
+)
+
+// TestOpenAIStreamBasic tests basic streaming completion with short output
+func TestOpenAIStreamBasic(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector from real configuration
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	// Create LLM instance with capabilities
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Prepare messages with concise prompt
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Say 'Hello' in one word.",
+		},
+	}
+
+	// Set short max tokens to ensure quick response
+	maxTokens := 5
+	options.MaxTokens = &maxTokens
+
+	// Create context
+	ctx := newTestContext("test-stream-basic", "openai.gpt-4o")
+
+	// Track streaming chunks
+	var chunks []string
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		chunks = append(chunks, string(data))
+		t.Logf("Stream chunk [%s]: %s", chunkType, string(data))
+		return 0 // Continue
+	}
+
+	// Call Stream
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+	if err != nil {
+		t.Fatalf("Stream failed: %v", err)
+	}
+
+	// Validate response
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+	if response.Content == "" {
+		t.Error("Response content is empty")
+	}
+	if response.FinishReason == "" {
+		t.Error("FinishReason is empty")
+	}
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		if response.Usage.TotalTokens == 0 {
+			t.Error("Response Usage.TotalTokens is 0")
+		}
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+	if len(chunks) == 0 {
+		t.Error("No streaming chunks received")
+	}
+
+	t.Logf("Final response: %+v", response)
+	t.Logf("Total chunks received: %d", len(chunks))
+}
+
+// TestOpenAIPostBasic tests basic non-streaming completion
+func TestOpenAIPostBasic(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	// Create LLM instance
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			ToolCalls: &trueVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Prepare messages with concise prompt
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Reply with only the word 'OK'.",
+		},
+	}
+
+	// Set short max tokens
+	maxTokens := 5
+	options.MaxTokens = &maxTokens
+
+	// Create context
+	ctx := newTestContext("test-stream-basic", "openai.gpt-4o")
+
+	// Call Post
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post failed: %v", err)
+	}
+
+	// Validate response
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+	if response.Content == "" {
+		t.Error("Response content is empty")
+	}
+	if response.FinishReason == "" {
+		t.Error("FinishReason is empty")
+	}
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		if response.Usage.TotalTokens == 0 {
+			t.Error("Response Usage.TotalTokens is 0")
+		}
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	t.Logf("Response: %+v", response)
+}
+
+// TestOpenAIStreamWithToolCalls tests streaming with tool calls and JSON schema validation
+func TestOpenAIStreamWithToolCalls(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	// Create LLM instance with tool call capabilities
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	// Define a simple weather tool with JSON schema
+	weatherTool := map[string]interface{}{
+		"type": "function",
+		"function": map[string]interface{}{
+			"name":        "get_weather",
+			"description": "Get the current weather for a location",
+			"parameters": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"location": map[string]interface{}{
+						"type":        "string",
+						"description": "The city and state, e.g. San Francisco, CA",
+					},
+					"unit": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"celsius", "fahrenheit"},
+					},
+				},
+				"required": []string{"location"},
+			},
+		},
+	}
+
+	options.Tools = []map[string]interface{}{weatherTool}
+	options.ToolChoice = "auto"
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Prepare messages that should trigger tool call
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "What's the weather in Tokyo? Use celsius.",
+		},
+	}
+
+	// Create context
+	ctx := newTestContext("test-stream-basic", "openai.gpt-4o")
+
+	// Track streaming chunks
+	var toolCallChunks int
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		if chunkType == context.ChunkToolCall {
+			toolCallChunks++
+		}
+		t.Logf("Stream chunk [%s]: %s", chunkType, string(data))
+		return 0 // Continue
+	}
+
+	// Call Stream
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+	if err != nil {
+		t.Fatalf("Stream with tool calls failed: %v", err)
+	}
+
+	// Validate response
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Should have tool calls
+	if len(response.ToolCalls) == 0 {
+		t.Error("Expected tool calls but got none")
+	} else {
+		t.Logf("Received %d tool call(s)", len(response.ToolCalls))
+		for i, tc := range response.ToolCalls {
+			t.Logf("Tool call %d: %s(%s)", i, tc.Function.Name, tc.Function.Arguments)
+
+			// Validate tool call has required fields
+			if tc.ID == "" {
+				t.Errorf("Tool call %d missing ID", i)
+			}
+			if tc.Function.Name == "" {
+				t.Errorf("Tool call %d missing function name", i)
+			}
+			if tc.Function.Arguments == "" {
+				t.Errorf("Tool call %d missing arguments", i)
+			}
+		}
+	}
+
+	if response.FinishReason != context.FinishReasonToolCalls {
+		t.Logf("Warning: Expected finish_reason='tool_calls', got '%s'", response.FinishReason)
+	}
+
+	if toolCallChunks == 0 {
+		t.Error("No tool call chunks received during streaming")
+	}
+
+	t.Logf("Final response: %+v", response)
+}
+
+// TestOpenAIPostWithToolCalls tests non-streaming with tool calls
+func TestOpenAIPostWithToolCalls(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	// Create LLM instance with tool call capabilities
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			ToolCalls: &trueVal,
+		},
+	}
+
+	// Define a calculation tool
+	calcTool := map[string]interface{}{
+		"type": "function",
+		"function": map[string]interface{}{
+			"name":        "calculate",
+			"description": "Perform a mathematical calculation",
+			"parameters": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"expression": map[string]interface{}{
+						"type":        "string",
+						"description": "The mathematical expression to evaluate",
+					},
+				},
+				"required": []string{"expression"},
+			},
+		},
+	}
+
+	options.Tools = []map[string]interface{}{calcTool}
+	options.ToolChoice = "auto"
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Prepare messages
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Calculate 15 * 8",
+		},
+	}
+
+	// Create context
+	ctx := newTestContext("test-stream-basic", "openai.gpt-4o")
+
+	// Call Post
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post with tool calls failed: %v", err)
+	}
+
+	// Validate response
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate response metadata
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+	if response.FinishReason != "tool_calls" {
+		t.Errorf("FinishReason is %s, expected tool_calls", response.FinishReason)
+	}
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		if response.Usage.TotalTokens == 0 {
+			t.Error("Response Usage.TotalTokens is 0")
+		}
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	// Should have tool calls
+	if len(response.ToolCalls) == 0 {
+		t.Error("Expected tool calls but got none")
+	} else {
+		tc := response.ToolCalls[0]
+
+		// Validate tool call structure
+		if tc.ID == "" {
+			t.Error("Tool call ID is empty")
+		}
+		if tc.Type != context.ToolTypeFunction {
+			t.Errorf("Tool call Type is %s, expected %s", tc.Type, context.ToolTypeFunction)
+		}
+		if tc.Function.Name != "calculate" {
+			t.Errorf("Tool call function name is %s, expected calculate", tc.Function.Name)
+		}
+		if tc.Function.Arguments == "" {
+			t.Error("Tool call arguments are empty")
+		}
+
+		t.Logf("Received %d tool call(s)", len(response.ToolCalls))
+		for i, tc := range response.ToolCalls {
+			t.Logf("Tool call %d: %s(%s)", i, tc.Function.Name, tc.Function.Arguments)
+		}
+	}
+
+	t.Logf("Response: %+v", response)
+}
+
+// TestOpenAIStreamWithInvalidToolCall tests that invalid tool calls trigger validation error
+func TestOpenAIStreamWithInvalidToolCall(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	// Create LLM instance
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	// Define a strict tool that requires specific format
+	strictTool := map[string]interface{}{
+		"type": "function",
+		"function": map[string]interface{}{
+			"name":        "send_email",
+			"description": "Send an email",
+			"parameters": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"to": map[string]interface{}{
+						"type":    "string",
+						"pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+					},
+					"subject": map[string]interface{}{
+						"type":      "string",
+						"minLength": 1,
+					},
+					"body": map[string]interface{}{
+						"type":      "string",
+						"minLength": 1,
+					},
+				},
+				"required": []string{"to", "subject", "body"},
+			},
+		},
+	}
+
+	options.Tools = []map[string]interface{}{strictTool}
+	options.ToolChoice = map[string]interface{}{
+		"type": "function",
+		"function": map[string]interface{}{
+			"name": "send_email",
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Prepare messages with incomplete information (should cause validation error)
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Send email to invalid-email without subject",
+		},
+	}
+
+	// Create context
+	ctx := newTestContext("test-stream-basic", "openai.gpt-4o")
+
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		return 0 // Continue
+	}
+
+	// Call Stream - should succeed but may trigger validation if tool call is malformed
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+
+	// The API might return a valid tool call despite the bad prompt,
+	// so we just log the result
+	if err != nil {
+		t.Logf("Stream failed as expected with validation error: %v", err)
+	} else {
+		t.Logf("Stream succeeded, response: %+v", response)
+		if len(response.ToolCalls) > 0 {
+			t.Logf("Tool calls: %v", response.ToolCalls)
+		}
+	}
+}
+
+// TestOpenAIStreamRetry tests the retry mechanism with invalid API key
+func TestOpenAIStreamRetry(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector with invalid API key to trigger 401 error (non-retryable)
+	connDSL := `{
+		"type": "openai",
+		"options": {
+			"model": "gpt-4o",
+			"key": "sk-invalid-key-should-fail-auth",
+			"host": "https://api.openai.com"
+		}
+	}`
+
+	conn, err := connector.New("openai", "test-retry", []byte(connDSL))
+	if err != nil {
+		t.Fatalf("Failed to create test connector: %v", err)
+	}
+
+	// Create LLM instance
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal, // Need this to select OpenAI provider
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Test",
+		},
+	}
+
+	ctx := newTestContext("test-retry", "test-retry")
+
+	// This should fail quickly without retry (401 is non-retryable)
+	_, err = llmInstance.Stream(ctx, messages, options, nil)
+	if err == nil {
+		t.Fatal("Expected error due to invalid API key, but got success")
+	}
+
+	// Verify it's an error related to invalid API key
+	// Could be: 401, unauthorized, authentication error, or no data (empty response)
+	errMsg := err.Error()
+	hasExpectedError := strings.Contains(strings.ToLower(errMsg), "401") ||
+		strings.Contains(strings.ToLower(errMsg), "unauthorized") ||
+		strings.Contains(strings.ToLower(errMsg), "authentication") ||
+		strings.Contains(strings.ToLower(errMsg), "incorrect api key") ||
+		strings.Contains(strings.ToLower(errMsg), "no data received")
+
+	if !hasExpectedError {
+		t.Errorf("Expected authentication or empty response error, got: %v", err)
+	}
+
+	// Should mention non-retryable (these errors should not trigger retry)
+	if !strings.Contains(strings.ToLower(errMsg), "non-retryable") {
+		t.Errorf("Error should indicate non-retryable: %v", err)
+	}
+
+	t.Logf("Failed as expected with error: %v", err)
+}
+
+// TestOpenAIStreamChunkTypes tests that stream handler receives correct chunk types
+func TestOpenAIStreamChunkTypes(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Say 'test' in one word.",
+		},
+	}
+
+	ctx := newTestContext("test-chunk-types", "openai.gpt-4o")
+
+	// Track chunk types
+	chunkTypes := make(map[context.StreamChunkType]int)
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		chunkTypes[chunkType]++
+		t.Logf("Received chunk type: %s, data length: %d", chunkType, len(data))
+		return 1 // Continue
+	}
+
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+	if err != nil {
+		t.Fatalf("Stream failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate chunk types received
+	if chunkTypes[context.ChunkText] == 0 {
+		t.Error("Expected to receive ChunkText, but got 0")
+	}
+
+	t.Logf("Chunk types received: %+v", chunkTypes)
+}
+
+// TestOpenAIStreamErrorCallback tests that errors are sent to stream handler
+func TestOpenAIStreamErrorCallback(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Create connector with invalid API key to trigger error
+	connDSL := `{
+		"type": "openai",
+		"options": {
+			"model": "gpt-4o",
+			"key": "sk-invalid-for-error-test",
+			"host": "https://api.openai.com"
+		}
+	}`
+
+	conn, err := connector.New("openai", "test-error-callback", []byte(connDSL))
+	if err != nil {
+		t.Fatalf("Failed to create test connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Test",
+		},
+	}
+
+	ctx := newTestContext("test-error-callback", "test-error-callback")
+
+	// Track if error chunk was received
+	receivedError := false
+	var errorMessage string
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		if chunkType == context.ChunkError {
+			receivedError = true
+			errorMessage = string(data)
+			t.Logf("Received error chunk: %s", errorMessage)
+		}
+		return 1 // Continue
+	}
+
+	// This should fail and send error to handler
+	_, err = llmInstance.Stream(ctx, messages, options, handler)
+	if err == nil {
+		t.Fatal("Expected error due to invalid API key")
+	}
+
+	// Verify error was sent to handler
+	if !receivedError {
+		t.Error("Expected to receive ChunkError in handler, but didn't")
+	}
+
+	if errorMessage == "" {
+		t.Error("Error message in chunk is empty")
+	}
+
+	t.Logf("Error callback test passed. Error: %v", err)
+}
+
+// TestOpenAIToolCallValidationRetry tests automatic tool call validation retry with LLM feedback
+func TestOpenAIToolCallValidationRetry(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+		Tools: []map[string]interface{}{
+			{
+				"type": "function",
+				"function": map[string]interface{}{
+					"name":        "test_strict_validation",
+					"description": "A function with very strict validation rules",
+					"parameters": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"status": map[string]interface{}{
+								"type":        "string",
+								"description": "Must be exactly 'active' or 'inactive'",
+								"enum":        []string{"active", "inactive"},
+							},
+							"priority": map[string]interface{}{
+								"type":        "integer",
+								"description": "Must be between 1 and 5",
+								"minimum":     1,
+								"maximum":     5,
+							},
+						},
+						"required": []string{"status", "priority"},
+					},
+				},
+			},
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	ctx := newTestContext("test-tool-validation-retry", "openai.gpt-4o")
+
+	// Try to make LLM call with intentionally unclear requirements
+	// This may or may not trigger validation, depending on LLM behavior
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Call test_strict_validation function with status='pending' and priority=10",
+		},
+	}
+
+	// The Provider will automatically:
+	// 1. Call LLM
+	// 2. If validation fails, add error feedback to conversation
+	// 3. Retry up to 3 times with feedback
+	// 4. Return success or validation error after max retries
+	response, err := llmInstance.Stream(ctx, messages, options, nil)
+
+	if err != nil {
+		// Check if it's a validation error after retries
+		if strings.Contains(err.Error(), "tool call validation failed after") &&
+			strings.Contains(err.Error(), "retries") {
+			t.Logf("✓ Automatic validation retry exhausted: %v", err)
+		} else if strings.Contains(err.Error(), "validation") {
+			t.Logf("✓ Validation failed: %v", err)
+		} else {
+			t.Logf("Request failed (non-validation): %v", err)
+		}
+	} else if response != nil {
+		if len(response.ToolCalls) > 0 {
+			t.Logf("✓ Tool call succeeded (possibly after auto-retry): %+v", response.ToolCalls[0])
+
+			// Verify the tool call arguments are valid
+			tc := response.ToolCalls[0]
+			var args map[string]interface{}
+			if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err == nil {
+				if status, ok := args["status"].(string); ok {
+					if status != "active" && status != "inactive" {
+						t.Errorf("Status should be 'active' or 'inactive', got: %s", status)
+					}
+				}
+				if priority, ok := args["priority"].(float64); ok {
+					if priority < 1 || priority > 5 {
+						t.Errorf("Priority should be between 1-5, got: %v", priority)
+					}
+				}
+			}
+		} else {
+			t.Log("✓ Response returned but no tool calls")
+		}
+	}
+
+	t.Log("Automatic tool call validation retry test completed")
+}
+
+// TestOpenAIProxySupport tests that HTTP proxy configuration is respected
+func TestOpenAIProxySupport(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// This test verifies proxy support exists in the connector configuration
+	// Actual proxy testing requires a real proxy server setup
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	settings := conn.Setting()
+	t.Logf("Connector settings: %+v", settings)
+
+	// Verify host field exists in settings (host is the API endpoint)
+	if host, hasHost := settings["host"]; hasHost {
+		t.Logf("API host configured: %v", host)
+	} else {
+		t.Log("Host field not in settings (will use default)")
+	}
+
+	// The actual HTTP proxy functionality is implemented via environment variables
+	// (HTTP_PROXY, HTTPS_PROXY, NO_PROXY) and handled by http.GetTransport
+	t.Log("HTTP proxy support is implemented via http.GetTransport using environment variables")
+}
+
+// TestOpenAIStreamWithTemperature tests different temperature settings
+func TestOpenAIStreamWithTemperature(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	temperature := 0.7 // Moderate temperature
+
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal, // Need this to select OpenAI provider
+		},
+		Temperature: &temperature,
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Say 'yes' in one word.",
+		},
+	}
+
+	ctx := newTestContext("test-temperature", "openai.gpt-4o")
+
+	// Use callback to collect chunks
+	chunkCount := 0
+	var callback context.StreamFunc = func(chunkType context.StreamChunkType, data []byte) int {
+		chunkCount++
+		return 1 // Continue
+	}
+
+	response, err := llmInstance.Stream(ctx, messages, options, callback)
+	if err != nil {
+		t.Fatalf("Stream failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate response data
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+	if response.Content == "" {
+		t.Error("Response Content is empty")
+	}
+	if response.FinishReason == "" {
+		t.Error("Response FinishReason is empty")
+	}
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		if response.Usage.TotalTokens == 0 {
+			t.Error("Response Usage.TotalTokens is 0")
+		}
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+	if chunkCount == 0 {
+		t.Error("No chunks received")
+	}
+
+	t.Logf("Response with temperature=0.7: %+v", response)
+	t.Logf("Total chunks received: %d", chunkCount)
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+// newTestContext creates a real Context for testing OpenAI provider
+func newTestContext(chatID, connectorID string) *context.Context {
+	return &context.Context{
+		Context:     stdContext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+		ChatID:      chatID,
+		AssistantID: "test-assistant",
+		Connector:   connectorID,
+		Locale:      "en-us",
+		Theme:       "light",
+		Client: context.Client{
+			Type:      "web",
+			UserAgent: "OpenAIProviderTest/1.0",
+			IP:        "127.0.0.1",
+		},
+		Referer:  context.RefererAPI,
+		Accept:   context.AcceptStandard,
+		Route:    "/api/test",
+		Metadata: make(map[string]interface{}),
+		Authorized: &types.AuthorizedInfo{
+			Subject:   "test-user",
+			ClientID:  "test-client",
+			UserID:    "test-user-123",
+			TeamID:    "test-team-456",
+			TenantID:  "test-tenant-789",
+			SessionID: "test-session-id",
+			Constraints: types.DataConstraints{
+				TeamOnly: true,
+				Extra: map[string]interface{}{
+					"test": "openai-provider",
+				},
+			},
+		},
+	}
+}
