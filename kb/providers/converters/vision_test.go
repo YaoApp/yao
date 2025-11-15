@@ -29,23 +29,23 @@ func TestVision_Make(t *testing.T) {
 		// Error is expected because connector is not loaded in test environment
 	})
 
-	t.Run("option with connector should return error due to missing connector", func(t *testing.T) {
+	t.Run("option with non-existent connector should return error", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"connector": "openai.gpt-4o-mini",
+				"connector": "non-existent.connector",
 			},
 		}
 		_, err := vision.Make(option)
 		if err == nil {
-			t.Error("Expected error due to missing connector")
+			t.Error("Expected error for non-existent connector")
 		}
-		// Error is expected because openai.gpt-4o-mini connector is not loaded
+		// Error is expected because non-existent.connector is not loaded
 	})
 
-	t.Run("option with all properties should return error due to missing connector", func(t *testing.T) {
+	t.Run("option with all properties but non-existent connector should return error", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"connector":     "openai.gpt-4o",
+				"connector":     "fake.vision.connector",
 				"model":         "gpt-4o",
 				"prompt":        "Describe this image",
 				"compress_size": 1024,
@@ -58,21 +58,21 @@ func TestVision_Make(t *testing.T) {
 		}
 		_, err := vision.Make(option)
 		if err == nil {
-			t.Error("Expected error due to missing connector")
+			t.Error("Expected error for non-existent connector")
 		}
-		// Error is expected because openai.gpt-4o connector is not loaded
+		// Error is expected because fake.vision.connector is not loaded
 	})
 
 	t.Run("compress_size as float64 should be converted to int64 but still return error", func(t *testing.T) {
 		option := &kbtypes.ProviderOption{
 			Properties: map[string]interface{}{
-				"connector":     "openai.gpt-4o-mini",
+				"connector":     "invalid.test.connector",
 				"compress_size": 512.0, // float64
 			},
 		}
 		_, err := vision.Make(option)
 		if err == nil {
-			t.Error("Expected error due to missing connector")
+			t.Error("Expected error for invalid connector")
 		}
 		// Error is expected because connector is not loaded
 	})
