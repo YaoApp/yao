@@ -803,6 +803,424 @@ func TestOpenAIToolCallValidationRetry(t *testing.T) {
 	t.Log("Automatic tool call validation retry test completed")
 }
 
+// TestOpenAIJSONMode tests JSON mode response formatting
+func TestOpenAIJSONMode(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+		ResponseFormat: &context.ResponseFormat{
+			Type: context.ResponseFormatJSON,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Generate a JSON object with fields: name (string), age (number), city (string). Use values: John, 30, New York",
+		},
+	}
+
+	ctx := newTestContext("test-json-mode", "openai.gpt-4o")
+
+	// Test streaming with JSON mode
+	response, err := llmInstance.Stream(ctx, messages, options, nil)
+	if err != nil {
+		t.Fatalf("Stream with JSON mode failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate response
+	contentStr, ok := response.Content.(string)
+	if !ok || contentStr == "" {
+		t.Error("Response content is empty or not a string")
+	}
+
+	// Try to parse as JSON
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(contentStr), &jsonData); err != nil {
+		t.Errorf("Response is not valid JSON: %v\nContent: %s", err, contentStr)
+	} else {
+		t.Logf("✓ Response is valid JSON: %+v", jsonData)
+
+		// Verify expected fields exist
+		if _, hasName := jsonData["name"]; !hasName {
+			t.Error("JSON response missing 'name' field")
+		}
+		if _, hasAge := jsonData["age"]; !hasAge {
+			t.Error("JSON response missing 'age' field")
+		}
+		if _, hasCity := jsonData["city"]; !hasCity {
+			t.Error("JSON response missing 'city' field")
+		}
+	}
+
+	// Validate metadata
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	t.Log("JSON mode test completed successfully")
+}
+
+// TestOpenAIJSONModePost tests JSON mode with non-streaming
+func TestOpenAIJSONModePost(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			ToolCalls: &trueVal,
+		},
+		ResponseFormat: &context.ResponseFormat{
+			Type: context.ResponseFormatJSON,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Return a JSON with: status='success', count=42",
+		},
+	}
+
+	ctx := newTestContext("test-json-mode-post", "openai.gpt-4o")
+
+	// Test non-streaming with JSON mode
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post with JSON mode failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate response content is JSON
+	contentStr, ok := response.Content.(string)
+	if !ok || contentStr == "" {
+		t.Error("Response content is empty or not a string")
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(contentStr), &jsonData); err != nil {
+		t.Errorf("Response is not valid JSON: %v\nContent: %s", err, contentStr)
+	} else {
+		t.Logf("✓ Response is valid JSON: %+v", jsonData)
+	}
+
+	// Validate metadata
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		if response.Usage.TotalTokens == 0 {
+			t.Error("Response Usage.TotalTokens is 0")
+		}
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	t.Log("JSON mode Post test completed successfully")
+}
+
+// TestOpenAIJSONSchema tests JSON mode with strict schema validation
+func TestOpenAIJSONSchema(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+
+	// Define a strict JSON schema
+	// Note: For OpenAI strict mode, 'required' must include ALL properties
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"user": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"name": map[string]interface{}{
+						"type":        "string",
+						"description": "User's full name",
+					},
+					"email": map[string]interface{}{
+						"type":        "string",
+						"description": "User's email address",
+					},
+					"age": map[string]interface{}{
+						"type":        "integer",
+						"description": "User's age",
+					},
+					"isActive": map[string]interface{}{
+						"type":        "boolean",
+						"description": "Whether user is active",
+					},
+				},
+				"required":             []string{"name", "email", "age", "isActive"},
+				"additionalProperties": false,
+			},
+		},
+		"required":             []string{"user"},
+		"additionalProperties": false,
+	}
+
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+		ResponseFormat: &context.ResponseFormat{
+			Type: context.ResponseFormatJSONSchema,
+			JSONSchema: &context.JSONSchema{
+				Name:        "user_info",
+				Description: "User information schema",
+				Schema:      schema,
+				Strict:      &trueVal,
+			},
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Create user info for: Alice Smith, alice@example.com, age 28, active user",
+		},
+	}
+
+	ctx := newTestContext("test-json-schema", "openai.gpt-4o")
+
+	// Test streaming with JSON schema
+	response, err := llmInstance.Stream(ctx, messages, options, nil)
+	if err != nil {
+		t.Fatalf("Stream with JSON schema failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate response content
+	contentStr, ok := response.Content.(string)
+	if !ok || contentStr == "" {
+		t.Fatal("Response content is empty or not a string")
+	}
+
+	// Parse as JSON
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(contentStr), &jsonData); err != nil {
+		t.Fatalf("Response is not valid JSON: %v\nContent: %s", err, contentStr)
+	}
+
+	t.Logf("✓ Response is valid JSON: %+v", jsonData)
+
+	// Verify structure matches schema
+	user, hasUser := jsonData["user"].(map[string]interface{})
+	if !hasUser {
+		t.Fatal("JSON response missing 'user' object")
+	}
+
+	// Verify required fields
+	if _, hasName := user["name"]; !hasName {
+		t.Error("User object missing required 'name' field")
+	}
+	if _, hasEmail := user["email"]; !hasEmail {
+		t.Error("User object missing required 'email' field")
+	}
+
+	// Verify field types
+	if name, ok := user["name"].(string); ok {
+		t.Logf("✓ name: %s (string)", name)
+	} else {
+		t.Error("name is not a string")
+	}
+
+	if email, ok := user["email"].(string); ok {
+		t.Logf("✓ email: %s (string)", email)
+	} else {
+		t.Error("email is not a string")
+	}
+
+	if age, ok := user["age"].(float64); ok {
+		if age < 0 || age > 150 {
+			t.Errorf("age %v is out of range [0, 150]", age)
+		}
+		t.Logf("✓ age: %v (integer, in range)", age)
+	}
+
+	if isActive, ok := user["isActive"].(bool); ok {
+		t.Logf("✓ isActive: %v (boolean)", isActive)
+	}
+
+	// Validate metadata
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	t.Log("JSON schema test completed successfully")
+}
+
+// TestOpenAIJSONSchemaPost tests JSON schema with non-streaming
+func TestOpenAIJSONSchemaPost(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+
+	// Simple schema for testing
+	// Note: For OpenAI strict mode, 'required' must include ALL properties
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"status": map[string]interface{}{
+				"type": "string",
+				"enum": []string{"success", "error", "pending"},
+			},
+			"message": map[string]interface{}{
+				"type": "string",
+			},
+			"code": map[string]interface{}{
+				"type": "integer",
+			},
+		},
+		"required":             []string{"status", "message", "code"},
+		"additionalProperties": false,
+	}
+
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			ToolCalls: &trueVal,
+		},
+		ResponseFormat: &context.ResponseFormat{
+			Type: context.ResponseFormatJSONSchema,
+			JSONSchema: &context.JSONSchema{
+				Name:        "api_response",
+				Description: "API response format",
+				Schema:      schema,
+				Strict:      &trueVal,
+			},
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Generate an API response with status 'success', message 'Operation completed', and code 200",
+		},
+	}
+
+	ctx := newTestContext("test-json-schema-post", "openai.gpt-4o")
+
+	// Test non-streaming with JSON schema
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post with JSON schema failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate response content
+	contentStr, ok := response.Content.(string)
+	if !ok || contentStr == "" {
+		t.Fatal("Response content is empty or not a string")
+	}
+
+	// Parse and validate JSON
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal([]byte(contentStr), &jsonData); err != nil {
+		t.Fatalf("Response is not valid JSON: %v\nContent: %s", err, contentStr)
+	}
+
+	t.Logf("✓ Response is valid JSON: %+v", jsonData)
+
+	// Verify required fields
+	status, hasStatus := jsonData["status"].(string)
+	if !hasStatus {
+		t.Fatal("Missing required 'status' field")
+	}
+
+	// Verify enum constraint
+	validStatuses := map[string]bool{"success": true, "error": true, "pending": true}
+	if !validStatuses[status] {
+		t.Errorf("status '%s' is not in enum [success, error, pending]", status)
+	}
+
+	if _, hasMessage := jsonData["message"].(string); !hasMessage {
+		t.Error("Missing required 'message' field")
+	}
+
+	// Validate metadata
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	t.Log("JSON schema Post test completed successfully")
+}
+
 // TestOpenAIProxySupport tests that HTTP proxy configuration is respected
 func TestOpenAIProxySupport(t *testing.T) {
 	test.Prepare(t, config.Conf)

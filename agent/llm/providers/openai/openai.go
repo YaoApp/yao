@@ -559,7 +559,17 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 	}
 
 	if options.ResponseFormat != nil {
-		body["response_format"] = options.ResponseFormat
+		// Build response_format according to OpenAI API requirements
+		responseFormat := map[string]interface{}{
+			"type": options.ResponseFormat.Type,
+		}
+
+		// For json_schema type, include the schema details
+		if options.ResponseFormat.Type == context.ResponseFormatJSONSchema && options.ResponseFormat.JSONSchema != nil {
+			responseFormat["json_schema"] = options.ResponseFormat.JSONSchema
+		}
+
+		body["response_format"] = responseFormat
 	}
 
 	if options.Seed != nil {
