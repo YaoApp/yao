@@ -8,6 +8,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/dbal/query"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store/types"
 )
@@ -582,7 +583,7 @@ func (conv *Xun) GetAssistant(assistantID string, locale ...string) (*types.Assi
 	if uses, has := data["uses"]; has && uses != nil {
 		raw, err := jsoniter.Marshal(uses)
 		if err == nil {
-			var u types.Uses
+			var u context.Uses
 			if err := jsoniter.Unmarshal(raw, &u); err == nil {
 				model.Uses = &u
 			}

@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
 // Stream stream the agent
@@ -188,7 +189,10 @@ func (ast *Assistant) BuildRequest(ctx *context.Context, messages []context.Mess
 	}
 
 	// Build completion options from createResponse and ctx
-	options := ast.buildCompletionOptions(ctx, createResponse)
+	options, err := ast.buildCompletionOptions(ctx, createResponse)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return finalMessages, options, nil
 }
@@ -210,11 +214,13 @@ func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Mes
 // buildCompletionOptions builds completion options from multiple sources
 // Priority (lowest to highest, later overrides earlier): ast > ctx > createResponse
 // The priority means: if createResponse has a value, use it; else use ctx; else use ast
-func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createResponse *context.HookCreateResponse) *context.CompletionOptions {
+func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createResponse *context.HookCreateResponse) (*context.CompletionOptions, error) {
 	options := &context.CompletionOptions{}
 
 	// Layer 1 (base): Apply ast - Assistant configuration
-	ast.applyAssistantOptions(options)
+	if err := ast.applyAssistantOptions(options); err != nil {
+		return nil, err
+	}
 
 	// Layer 2 (middle): Apply ctx - Context configuration (overrides ast)
 	ast.applyContextOptions(options, ctx)
@@ -224,14 +230,15 @@ func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createRespons
 		ast.applyCreateResponseOptions(options, createResponse)
 	}
 
-	return options
+	return options, nil
 }
 
 // applyAssistantOptions applies options from ast.Options to CompletionOptions
 // ast.Options can contain any OpenAI API parameters (temperature, top_p, stop, etc.)
-func (ast *Assistant) applyAssistantOptions(options *context.CompletionOptions) {
+// Returns error if any option validation fails (e.g., invalid JSON Schema)
+func (ast *Assistant) applyAssistantOptions(options *context.CompletionOptions) error {
 	if ast.Options == nil {
-		return
+		return nil
 	}
 
 	// Temperature
@@ -302,8 +309,53 @@ func (ast *Assistant) applyAssistantOptions(options *context.CompletionOptions) 
 	}
 
 	// ResponseFormat
-	if v, ok := ast.Options["response_format"].(map[string]interface{}); ok {
-		options.ResponseFormat = v
+	// @todo: Assistant should have a default response format
+	if v, ok := ast.Options["response_format"]; ok {
+		// Try to convert to *context.ResponseFormat
+		if rf, ok := v.(*context.ResponseFormat); ok {
+			// Validate JSONSchema if present - reject if invalid
+			if rf.JSONSchema != nil && rf.JSONSchema.Schema != nil {
+				if _, err := jsonschema.New(rf.JSONSchema.Schema); err != nil {
+					return fmt.Errorf("invalid JSON Schema in response_format: %w", err)
+				}
+			}
+			options.ResponseFormat = rf
+		} else if rfMap, ok := v.(map[string]interface{}); ok {
+			// Handle legacy map[string]interface{} format
+			// Try to parse into ResponseFormat struct
+			rf := &context.ResponseFormat{}
+
+			// Parse type
+			if typeStr, ok := rfMap["type"].(string); ok {
+				rf.Type = context.ResponseFormatType(typeStr)
+			}
+
+			// Parse json_schema if present
+			if jsonSchemaMap, ok := rfMap["json_schema"].(map[string]interface{}); ok {
+				jsonSchema := &context.JSONSchema{}
+
+				if name, ok := jsonSchemaMap["name"].(string); ok {
+					jsonSchema.Name = name
+				}
+				if desc, ok := jsonSchemaMap["description"].(string); ok {
+					jsonSchema.Description = desc
+				}
+				if schema, ok := jsonSchemaMap["schema"]; ok {
+					// Validate schema format - reject if invalid
+					if _, err := jsonschema.New(schema); err != nil {
+						return fmt.Errorf("invalid JSON Schema in response_format: %w", err)
+					}
+					jsonSchema.Schema = schema
+				}
+				if strict, ok := jsonSchemaMap["strict"].(bool); ok {
+					jsonSchema.Strict = &strict
+				}
+
+				rf.JSONSchema = jsonSchema
+			}
+
+			options.ResponseFormat = rf
+		}
 	}
 
 	// Seed
@@ -336,6 +388,8 @@ func (ast *Assistant) applyAssistantOptions(options *context.CompletionOptions) 
 	if v, ok := ast.Options["stream"].(bool); ok {
 		options.Stream = &v
 	}
+
+	return nil
 }
 
 // applyContextOptions applies options from ctx to CompletionOptions
@@ -345,14 +399,9 @@ func (ast *Assistant) applyContextOptions(options *context.CompletionOptions, ct
 	options.Route = ctx.Route
 	options.Metadata = ctx.Metadata
 
-	// Set wrapper configurations (assistant.Uses has priority over global settings)
+	// Set Uses configurations (assistant.Uses has priority over global settings)
 	// These can be overridden by createResponse
-	if visionWrapper := ast.getVisionWrapper(); visionWrapper != "" {
-		options.VisionWrapper = visionWrapper
-	}
-	if audioWrapper := ast.getAudioWrapper(); audioWrapper != "" {
-		options.AudioWrapper = audioWrapper
-	}
+	options.Uses = ast.getUses()
 }
 
 // applyCreateResponseOptions applies options from createResponse to CompletionOptions
@@ -396,34 +445,40 @@ func (ast *Assistant) applyCreateResponseOptions(options *context.CompletionOpti
 	}
 }
 
-// getVisionWrapper get the vision wrapper with priority: assistant.Uses > global settings
-func (ast *Assistant) getVisionWrapper() string {
+// getUses get the Uses configuration with priority: assistant.Uses > global settings
+func (ast *Assistant) getUses() *context.Uses {
 	// Priority 1: Assistant-specific Uses configuration
-	if ast.Uses != nil && ast.Uses.Vision != "" {
-		return ast.Uses.Vision
+	if ast.Uses != nil {
+		// Create a merged Uses by starting with global, then override with assistant-specific
+		merged := &context.Uses{}
+
+		// Start with global settings
+		if globalUses != nil {
+			merged.Vision = globalUses.Vision
+			merged.Audio = globalUses.Audio
+			merged.Search = globalUses.Search
+			merged.Fetch = globalUses.Fetch
+		}
+
+		// Override with assistant-specific settings (only if not empty)
+		if ast.Uses.Vision != "" {
+			merged.Vision = ast.Uses.Vision
+		}
+		if ast.Uses.Audio != "" {
+			merged.Audio = ast.Uses.Audio
+		}
+		if ast.Uses.Search != "" {
+			merged.Search = ast.Uses.Search
+		}
+		if ast.Uses.Fetch != "" {
+			merged.Fetch = ast.Uses.Fetch
+		}
+
+		return merged
 	}
 
-	// Priority 2: Global settings from globalUses
-	if globalUses != nil && globalUses.Vision != "" {
-		return globalUses.Vision
-	}
-
-	return ""
-}
-
-// getAudioWrapper get the audio wrapper with priority: assistant.Uses > global settings
-func (ast *Assistant) getAudioWrapper() string {
-	// Priority 1: Assistant-specific Uses configuration
-	if ast.Uses != nil && ast.Uses.Audio != "" {
-		return ast.Uses.Audio
-	}
-
-	// Priority 2: Global settings from globalUses
-	if globalUses != nil && globalUses.Audio != "" {
-		return globalUses.Audio
-	}
-
-	return ""
+	// Priority 2: Global settings only
+	return globalUses
 }
 
 // WithHistory with the history messages

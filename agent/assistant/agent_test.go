@@ -259,4 +259,156 @@ func TestBuildRequest(t *testing.T) {
 
 		t.Log("✓ Nil createResponse: ast.Options and ctx values used")
 	})
+
+	// Test 6: ResponseFormat with *context.ResponseFormat
+	t.Run("ResponseFormatStruct", func(t *testing.T) {
+		freshCtx := newTestContext("chat-test-response-format", "tests.buildrequest")
+		inputMessages := []context.Message{{Role: "user", Content: "test message"}}
+
+		// Create a test agent with response_format in Options
+		testAgent := *agent
+		strict := true
+		testAgent.Options = map[string]interface{}{
+			"temperature": 0.7,
+			"response_format": &context.ResponseFormat{
+				Type: context.ResponseFormatJSONSchema,
+				JSONSchema: &context.JSONSchema{
+					Name:        "test_schema",
+					Description: "Test schema description",
+					Schema: map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"name": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+					Strict: &strict,
+				},
+			},
+		}
+
+		_, options, err := testAgent.BuildRequest(freshCtx, inputMessages, nil)
+		if err != nil {
+			t.Fatalf("Failed to build LLM request: %s", err.Error())
+		}
+
+		// Verify ResponseFormat
+		if options.ResponseFormat == nil {
+			t.Fatal("Expected ResponseFormat, got nil")
+		}
+
+		if options.ResponseFormat.Type != context.ResponseFormatJSONSchema {
+			t.Errorf("Expected type 'json_schema', got: %s", options.ResponseFormat.Type)
+		}
+
+		if options.ResponseFormat.JSONSchema == nil {
+			t.Fatal("Expected JSONSchema, got nil")
+		}
+
+		if options.ResponseFormat.JSONSchema.Name != "test_schema" {
+			t.Errorf("Expected schema name 'test_schema', got: %s", options.ResponseFormat.JSONSchema.Name)
+		}
+
+		if options.ResponseFormat.JSONSchema.Description != "Test schema description" {
+			t.Errorf("Expected schema description 'Test schema description', got: %s", options.ResponseFormat.JSONSchema.Description)
+		}
+
+		if options.ResponseFormat.JSONSchema.Strict == nil || *options.ResponseFormat.JSONSchema.Strict != true {
+			t.Errorf("Expected strict = true, got: %v", options.ResponseFormat.JSONSchema.Strict)
+		}
+
+		t.Log("✓ ResponseFormat with *context.ResponseFormat struct works correctly")
+	})
+
+	// Test 7: ResponseFormat with legacy map[string]interface{}
+	t.Run("ResponseFormatLegacyMap", func(t *testing.T) {
+		freshCtx := newTestContext("chat-test-response-format-map", "tests.buildrequest")
+		inputMessages := []context.Message{{Role: "user", Content: "test message"}}
+
+		// Create a test agent with legacy map format
+		testAgent := *agent
+		testAgent.Options = map[string]interface{}{
+			"temperature": 0.7,
+			"response_format": map[string]interface{}{
+				"type": "json_schema",
+				"json_schema": map[string]interface{}{
+					"name":        "legacy_schema",
+					"description": "Legacy schema format",
+					"schema": map[string]interface{}{
+						"type": "object",
+						"properties": map[string]interface{}{
+							"email": map[string]interface{}{
+								"type": "string",
+							},
+						},
+					},
+					"strict": true,
+				},
+			},
+		}
+
+		_, options, err := testAgent.BuildRequest(freshCtx, inputMessages, nil)
+		if err != nil {
+			t.Fatalf("Failed to build LLM request: %s", err.Error())
+		}
+
+		// Verify ResponseFormat was converted from map
+		if options.ResponseFormat == nil {
+			t.Fatal("Expected ResponseFormat, got nil")
+		}
+
+		if options.ResponseFormat.Type != context.ResponseFormatJSONSchema {
+			t.Errorf("Expected type 'json_schema', got: %s", options.ResponseFormat.Type)
+		}
+
+		if options.ResponseFormat.JSONSchema == nil {
+			t.Fatal("Expected JSONSchema, got nil")
+		}
+
+		if options.ResponseFormat.JSONSchema.Name != "legacy_schema" {
+			t.Errorf("Expected schema name 'legacy_schema', got: %s", options.ResponseFormat.JSONSchema.Name)
+		}
+
+		if options.ResponseFormat.JSONSchema.Description != "Legacy schema format" {
+			t.Errorf("Expected schema description 'Legacy schema format', got: %s", options.ResponseFormat.JSONSchema.Description)
+		}
+
+		t.Log("✓ ResponseFormat with legacy map[string]interface{} format works correctly")
+	})
+
+	// Test 8: ResponseFormat with simple type (text or json_object)
+	t.Run("ResponseFormatSimpleType", func(t *testing.T) {
+		freshCtx := newTestContext("chat-test-response-format-simple", "tests.buildrequest")
+		inputMessages := []context.Message{{Role: "user", Content: "test message"}}
+
+		// Create a test agent with simple response_format
+		testAgent := *agent
+		testAgent.Options = map[string]interface{}{
+			"temperature": 0.7,
+			"response_format": map[string]interface{}{
+				"type": "json_object",
+			},
+		}
+
+		_, options, err := testAgent.BuildRequest(freshCtx, inputMessages, nil)
+		if err != nil {
+			t.Fatalf("Failed to build LLM request: %s", err.Error())
+		}
+
+		// Verify ResponseFormat
+		if options.ResponseFormat == nil {
+			t.Fatal("Expected ResponseFormat, got nil")
+		}
+
+		if options.ResponseFormat.Type != context.ResponseFormatJSON {
+			t.Errorf("Expected type 'json_object', got: %s", options.ResponseFormat.Type)
+		}
+
+		if options.ResponseFormat.JSONSchema != nil {
+			t.Errorf("Expected JSONSchema to be nil for simple type, got: %v", options.ResponseFormat.JSONSchema)
+		}
+
+		t.Log("✓ ResponseFormat with simple type (json_object) works correctly")
+	})
 }

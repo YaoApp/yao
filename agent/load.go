@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent/api"
 	"github.com/yaoapp/yao/agent/assistant"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	mongoStore "github.com/yaoapp/yao/agent/store/mongo"
 	redisStore "github.com/yaoapp/yao/agent/store/redis"
@@ -173,7 +174,7 @@ func initAssistant() error {
 
 	// Set global Uses configuration
 	if api.Agent.DSL.Use != nil {
-		globalUses := &store.Uses{
+		globalUses := &context.Uses{
 			Vision: api.Agent.DSL.Use.Vision,
 			Audio:  api.Agent.DSL.Use.Audio,
 			Search: api.Agent.DSL.Use.Search,

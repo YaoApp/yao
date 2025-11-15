@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/yao/utils/datetime"
 	"github.com/yaoapp/yao/utils/fmt"
 	"github.com/yaoapp/yao/utils/json"
+	"github.com/yaoapp/yao/utils/jsonschema"
 	"github.com/yaoapp/yao/utils/otp"
 	"github.com/yaoapp/yao/utils/str"
 	"github.com/yaoapp/yao/utils/throw"
@@ -110,6 +111,12 @@ func Init() {
 
 	// JSON
 	process.Register("utils.json.Validate", json.ProcessValidate)
+
+	// JSON Schema
+	process.RegisterGroup("utils.jsonschema", map[string]process.Handler{
+		"ValidateSchema": jsonschema.ProcessValidateSchema,
+		"Validate":       jsonschema.ProcessValidate,
+	})
 
 	// ****************************************
 	// * New Processes Version 0.10.5+

@@ -92,7 +92,7 @@ func (p *Provider) injectToolInstructions(messages []context.Message, tools []ma
 
 // extractToolCallsFromText extract tool calls from reasoning model's text response
 // Used when model doesn't support native tool calls
-func (p *Provider) extractToolCallsFromText(text string) []context.ToolCallResult {
+func (p *Provider) extractToolCallsFromText(text string) []context.ToolCall {
 	// TODO: Implement tool call extraction from text
 	// - Look for JSON blocks or specific patterns
 	// - Parse tool name and arguments
