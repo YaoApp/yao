@@ -55,7 +55,7 @@ func (p *Provider) InjectToolInstructions(messages []context.Message, tools []ma
 }
 
 // ExtractToolCallsFromText extract tool calls from model's text response
-func (p *Provider) ExtractToolCallsFromText(text string) []context.ToolCallResult {
+func (p *Provider) ExtractToolCallsFromText(text string) []context.ToolCall {
 	// TODO: Implement tool call extraction
 	// - Look for JSON blocks or specific patterns
 	// - Parse tool name and arguments

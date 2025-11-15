@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/assistant/hook"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
 	agentvision "github.com/yaoapp/yao/agent/vision"
@@ -29,7 +30,7 @@ var search interface{} = nil
 var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
 var vision *agentvision.Vision = nil
 var defaultConnector string = "" // default connector
-var globalUses *store.Uses = nil // global uses configuration from agent.yml
+var globalUses *context.Uses = nil // global uses configuration from agent.yml
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -147,7 +148,7 @@ func SetConnector(c string) {
 }
 
 // SetGlobalUses set the global uses configuration
-func SetGlobalUses(uses *store.Uses) {
+func SetGlobalUses(uses *context.Uses) {
 	globalUses = uses
 }
 

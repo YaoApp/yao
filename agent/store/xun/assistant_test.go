@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/xun/dbal/query"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
@@ -205,7 +206,7 @@ func TestSaveAssistant(t *testing.T) {
 			Type:      "assistant",
 			Connector: "openai",
 			Share:     "private",
-			Uses: &types.Uses{
+			Uses: &context.Uses{
 				Vision: "mcp:vision-server",
 				Audio:  "agent",
 				Search: "mcp:search-server",
@@ -279,7 +280,7 @@ func TestSaveAssistant(t *testing.T) {
 			Type:      "assistant",
 			Connector: "openai",
 			Share:     "private",
-			Uses: &types.Uses{
+			Uses: &context.Uses{
 				Vision: "mcp:vision-only",
 				// Audio, Search, Fetch not set
 			},
@@ -2088,7 +2089,7 @@ func TestUpdateAssistant(t *testing.T) {
 
 		// Update with uses configuration
 		updates := map[string]interface{}{
-			"uses": &types.Uses{
+			"uses": &context.Uses{
 				Vision: "mcp:new-vision",
 				Audio:  "mcp:new-audio",
 				Search: "agent",
@@ -2126,7 +2127,7 @@ func TestUpdateAssistant(t *testing.T) {
 
 		// Update to change uses
 		updates2 := map[string]interface{}{
-			"uses": &types.Uses{
+			"uses": &context.Uses{
 				Vision: "agent",
 				Audio:  "agent",
 			},
