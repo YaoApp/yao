@@ -7,6 +7,7 @@ type StreamChunkType string
 
 // Stream chunk type constants - indicates what type of content is in the current chunk
 const (
+	// Content chunk types - actual data from the LLM
 	ChunkText     StreamChunkType = "text"      // Regular text content
 	ChunkThinking StreamChunkType = "thinking"  // Reasoning/thinking content (o1, DeepSeek R1)
 	ChunkToolCall StreamChunkType = "tool_call" // Tool/function call
@@ -14,6 +15,12 @@ const (
 	ChunkMetadata StreamChunkType = "metadata"  // Metadata (usage, finish_reason, etc.)
 	ChunkError    StreamChunkType = "error"     // Error chunk
 	ChunkUnknown  StreamChunkType = "unknown"   // Unknown/unrecognized chunk type
+
+	// Lifecycle event types - stream and group boundaries
+	ChunkStreamStart StreamChunkType = "stream_start" // Stream begins (entire request starts)
+	ChunkStreamEnd   StreamChunkType = "stream_end"   // Stream ends (entire request completes)
+	ChunkGroupStart  StreamChunkType = "group_start"  // Message group begins (text/tool_call/thinking group starts)
+	ChunkGroupEnd    StreamChunkType = "group_end"    // Message group ends (text/tool_call/thinking group completes)
 )
 
 // StreamFunc the streaming function callback

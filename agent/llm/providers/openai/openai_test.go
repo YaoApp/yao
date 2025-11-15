@@ -1249,6 +1249,145 @@ func TestOpenAIProxySupport(t *testing.T) {
 	t.Log("HTTP proxy support is implemented via http.GetTransport using environment variables")
 }
 
+// TestOpenAIStreamLifecycleEvents tests that lifecycle events are sent correctly
+func TestOpenAIStreamLifecycleEvents(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("openai.gpt-4o")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming: &trueVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Say 'hello' in one word",
+		},
+	}
+
+	ctx := newTestContext("test-lifecycle", "openai.gpt-4o")
+
+	// Track lifecycle events
+	var events []string
+	var streamStartReceived, streamEndReceived bool
+	var groupStartReceived, groupEndReceived bool
+
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		events = append(events, string(chunkType))
+		
+		switch chunkType {
+		case context.ChunkStreamStart:
+			streamStartReceived = true
+			var startData context.StreamStartData
+			if err := json.Unmarshal(data, &startData); err == nil {
+				t.Logf("✓ stream_start: request_id=%s, model=%s", startData.RequestID, startData.Model)
+				if startData.RequestID == "" {
+					t.Error("stream_start missing request_id")
+				}
+			} else {
+				t.Errorf("Failed to parse stream_start data: %v", err)
+			}
+
+		case context.ChunkStreamEnd:
+			streamEndReceived = true
+			var endData context.StreamEndData
+			if err := json.Unmarshal(data, &endData); err == nil {
+				t.Logf("✓ stream_end: status=%s, duration=%dms", endData.Status, endData.DurationMs)
+				if endData.Status != "completed" {
+					t.Errorf("stream_end status should be 'completed', got '%s'", endData.Status)
+				}
+				if endData.DurationMs <= 0 {
+					t.Error("stream_end duration should be > 0")
+				}
+			} else {
+				t.Errorf("Failed to parse stream_end data: %v", err)
+			}
+
+		case context.ChunkGroupStart:
+			groupStartReceived = true
+			var startData context.GroupStartData
+			if err := json.Unmarshal(data, &startData); err == nil {
+				t.Logf("✓ group_start: type=%s, group_id=%s", startData.Type, startData.GroupID)
+				if startData.GroupID == "" {
+					t.Error("group_start missing group_id")
+				}
+			} else {
+				t.Errorf("Failed to parse group_start data: %v", err)
+			}
+
+		case context.ChunkGroupEnd:
+			groupEndReceived = true
+			var endData context.GroupEndData
+			if err := json.Unmarshal(data, &endData); err == nil {
+				t.Logf("✓ group_end: type=%s, chunks=%d, duration=%dms", 
+					endData.Type, endData.ChunkCount, endData.DurationMs)
+				if endData.ChunkCount <= 0 {
+					t.Error("group_end should have chunk_count > 0")
+				}
+			} else {
+				t.Errorf("Failed to parse group_end data: %v", err)
+			}
+
+		case context.ChunkText:
+			t.Logf("  text chunk: %s", string(data))
+		}
+
+		return 0
+	}
+
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+	if err != nil {
+		t.Fatalf("Stream failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Validate that all lifecycle events were received
+	if !streamStartReceived {
+		t.Error("stream_start event was not received")
+	}
+	if !streamEndReceived {
+		t.Error("stream_end event was not received")
+	}
+	if !groupStartReceived {
+		t.Error("group_start event was not received")
+	}
+	if !groupEndReceived {
+		t.Error("group_end event was not received")
+	}
+
+	// Validate event order: stream_start should be first, stream_end should be last
+	if len(events) < 4 {
+		t.Errorf("Expected at least 4 events, got %d", len(events))
+	} else {
+		if events[0] != "stream_start" {
+			t.Errorf("First event should be stream_start, got %s", events[0])
+		}
+		if events[len(events)-1] != "stream_end" {
+			t.Errorf("Last event should be stream_end, got %s", events[len(events)-1])
+		}
+	}
+
+	t.Logf("Total events received: %d", len(events))
+	t.Log("Lifecycle events test completed successfully")
+}
+
 // TestOpenAIStreamWithTemperature tests different temperature settings
 func TestOpenAIStreamWithTemperature(t *testing.T) {
 	test.Prepare(t, config.Conf)
