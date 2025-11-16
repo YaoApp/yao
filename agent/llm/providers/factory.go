@@ -5,9 +5,7 @@ import (
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/llm/providers/legacy"
 	"github.com/yaoapp/yao/agent/llm/providers/openai"
-	"github.com/yaoapp/yao/agent/llm/providers/reasoning"
 )
 
 // LLM interface (copied to avoid import cycle)
@@ -16,9 +14,9 @@ type LLM interface {
 	Post(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error)
 }
 
-// SelectProvider select the appropriate provider based on connector and capabilities
+// SelectProvider selects the appropriate provider based on API format and capabilities
+// The new architecture uses capability adapters to handle different model features
 func SelectProvider(conn connector.Connector, options *context.CompletionOptions) (LLM, error) {
-
 	if options == nil {
 		return nil, fmt.Errorf("options are required")
 	}
@@ -27,37 +25,68 @@ func SelectProvider(conn connector.Connector, options *context.CompletionOptions
 		return nil, fmt.Errorf("capabilities are required")
 	}
 
-	capabilities := options.Capabilities
+	// Detect API format
+	apiFormat := DetectAPIFormat(conn)
 
-	// return openai.New(conn, capabilities), nil
+	// Select provider based on API format
+	switch apiFormat {
+	case "openai":
+		// OpenAI-compatible API
+		// Capability adapters will handle:
+		// - Tool calling (native or prompt engineering)
+		// - Vision (native or removal)
+		// - Audio (native or removal)
+		// - Reasoning (o1, GPT-4o thinking, etc.)
+		return openai.New(conn, options.Capabilities), nil
 
-	// Priority 1: Reasoning models (special response format)
-	if capabilities.Reasoning != nil && *capabilities.Reasoning {
-		return reasoning.New(conn, capabilities), nil
+	case "claude":
+		// TODO: Implement Claude provider
+		// For now, use OpenAI provider (may have compatibility issues)
+		return openai.New(conn, options.Capabilities), nil
+
+	default:
+		// Default to OpenAI-compatible provider
+		return openai.New(conn, options.Capabilities), nil
 	}
-
-	// Priority 2: Check if model supports native tool calls
-	if capabilities.ToolCalls != nil && *capabilities.ToolCalls {
-		// Use OpenAI-compatible provider (supports tools, vision, streaming)
-		return openai.New(conn, capabilities), nil
-	}
-
-	// Priority 3: Legacy models (no native tool support)
-	// Will use prompt engineering for tool calls
-	return legacy.New(conn, capabilities), nil
 }
 
-// DetectProvider detect provider type from connector
-func DetectProvider(conn connector.Connector) string {
-	// TODO: Implement provider detection
-	// - Check connector type (Is(connector.OPENAI))
-	// - Check connector settings
-	// - Determine provider type (openai, claude, deepseek, etc.)
-
+// DetectAPIFormat detects the API format from connector
+func DetectAPIFormat(conn connector.Connector) string {
+	// Check connector type
 	if conn.Is(connector.OPENAI) {
 		return "openai"
 	}
 
+	// Check connector settings for host URL
+	settings := conn.Setting()
+	if settings != nil {
+		if host, ok := settings["host"].(string); ok {
+			// Detect by host URL patterns
+			if contains(host, "anthropic.com") || contains(host, "claude") {
+				return "claude"
+			}
+			if contains(host, "deepseek.com") {
+				return "openai" // DeepSeek uses OpenAI-compatible API
+			}
+		}
+	}
+
 	// Default to OpenAI-compatible
 	return "openai"
+}
+
+// contains checks if a string contains a substring (case-insensitive helper)
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && 
+		(s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || 
+		findSubstring(s, substr)))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
