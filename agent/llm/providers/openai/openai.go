@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/llm/adapters"
 	"github.com/yaoapp/yao/agent/llm/providers/base"
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
@@ -102,17 +103,62 @@ func (gt *groupTracker) endGroup(handler context.StreamFunc) {
 	gt.toolCallInfo = nil
 }
 
-// Provider OpenAI-compatible provider
-// Supports: vision, tool calls, streaming, JSON mode
+// Provider OpenAI-compatible provider with capability adapters
+// Supports: vision, tool calls, streaming, JSON mode, reasoning
 type Provider struct {
 	*base.Provider
+	adapters []adapters.CapabilityAdapter
 }
 
-// New create a new OpenAI provider
+// New create a new OpenAI provider with capability adapters
 func New(conn connector.Connector, capabilities *context.ModelCapabilities) *Provider {
 	return &Provider{
 		Provider: base.NewProvider(conn, capabilities),
+		adapters: buildAdapters(capabilities),
 	}
+}
+
+// buildAdapters builds capability adapters based on model capabilities
+func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter {
+	if cap == nil {
+		return []adapters.CapabilityAdapter{}
+	}
+
+	result := make([]adapters.CapabilityAdapter, 0)
+
+	// Tool call adapter
+	if cap.ToolCalls != nil {
+		result = append(result, adapters.NewToolCallAdapter(*cap.ToolCalls))
+	}
+
+	// Vision adapter
+	if cap.Vision != nil {
+		result = append(result, adapters.NewVisionAdapter(*cap.Vision))
+	}
+
+	// Audio adapter
+	if cap.Audio != nil {
+		result = append(result, adapters.NewAudioAdapter(*cap.Audio))
+	}
+
+	// Reasoning adapter
+	if cap.Reasoning != nil && *cap.Reasoning {
+		// Detect reasoning format based on capabilities
+		format := detectReasoningFormat(cap)
+		result = append(result, adapters.NewReasoningAdapter(format))
+	}
+
+	return result
+}
+
+// detectReasoningFormat detects the reasoning format based on capabilities
+func detectReasoningFormat(cap *context.ModelCapabilities) adapters.ReasoningFormat {
+	// TODO: Implement better detection logic
+	// For now, default to OpenAI o1 format if reasoning is supported
+	if cap.Reasoning != nil && *cap.Reasoning {
+		return adapters.ReasoningFormatOpenAI
+	}
+	return adapters.ReasoningFormatNone
 }
 
 // Stream stream completion from OpenAI API
