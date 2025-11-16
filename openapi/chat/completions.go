@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent"
+	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -24,7 +26,6 @@ func GinCreateCompletions(c *gin.Context) {
 
 	completionReq, ctx, err := context.GetCompletionRequest(c, cache)
 	if err != nil {
-
 		fmt.Println("-----------------------------------------------")
 		fmt.Println("Error: ", err.Error())
 		fmt.Println("-----------------------------------------------")
@@ -38,6 +39,7 @@ func GinCreateCompletions(c *gin.Context) {
 
 	defer ctx.Release() // Release the context after the request is complete
 
+	// Print request info for debugging
 	fmt.Println("-----------------------------------------------")
 	fmt.Println("Chat ID: ", ctx.ChatID)
 	fmt.Println("Assistant ID: ", ctx.AssistantID)
@@ -54,13 +56,49 @@ func GinCreateCompletions(c *gin.Context) {
 	}
 	fmt.Println("-----------------------------------------------")
 
-	c.JSON(response.StatusOK, gin.H{
-		"message":        "Create Completions",
-		"chat_id":        ctx.ChatID,
-		"assistant_id":   ctx.AssistantID,
-		"model":          completionReq.Model,
-		"messages_count": len(completionReq.Messages),
-	})
+	ast, err := assistant.Get(ctx.AssistantID)
+	if err != nil {
+		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get assistant: " + err.Error(),
+		})
+		return
+	}
+
+	// Set SSE headers for streaming response
+	c.Header("Content-Type", "text/event-stream;charset=utf-8")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no") // Disable buffering in nginx
+
+	// Stream the completion (uses default handler which sends to ctx.Writer)
+	// The Stream method will automatically close the writer and send [DONE] marker
+	res, err := ast.Stream(ctx, completionReq.Messages)
+	if err != nil {
+		fmt.Println("-----------------------------------------------")
+		fmt.Println("Error: ", err.Error())
+		fmt.Println("-----------------------------------------------")
+
+		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to stream: " + err.Error(),
+		})
+		return
+	}
+
+	fmt.Println("-----------------------------------------------")
+	fmt.Println("Stream completed successfully")
+	fmt.Println("Response: ")
+	utils.Dump(res)
+	fmt.Println("-----------------------------------------------")
+
+	// c.JSON(response.StatusOK, gin.H{
+	// 	"message":        "Create Completions",
+	// 	"chat_id":        ctx.ChatID,
+	// 	"assistant_id":   ctx.AssistantID,
+	// 	"model":          completionReq.Model,
+	// 	"messages_count": len(completionReq.Messages),
+	// })
 
 	// // Print headers
 	// fmt.Println("\n--- Headers ---")

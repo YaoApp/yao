@@ -18,11 +18,18 @@ type LLM interface {
 
 // SelectProvider select the appropriate provider based on connector and capabilities
 func SelectProvider(conn connector.Connector, options *context.CompletionOptions) (LLM, error) {
-	if options == nil || options.Capabilities == nil {
-		return nil, fmt.Errorf("options and capabilities are required")
+
+	if options == nil {
+		return nil, fmt.Errorf("options are required")
+	}
+
+	if options.Capabilities == nil {
+		return nil, fmt.Errorf("capabilities are required")
 	}
 
 	capabilities := options.Capabilities
+
+	// return openai.New(conn, capabilities), nil
 
 	// Priority 1: Reasoning models (special response format)
 	if capabilities.Reasoning != nil && *capabilities.Reasoning {

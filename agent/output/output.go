@@ -85,8 +85,8 @@ func createWriter(ctx *context.Context) (message.Writer, error) {
 		return cui.NewWriter(ctx)
 
 	default:
-		// Default to CUI
-		return cui.NewWriter(ctx)
+		// Default to Standard
+		return openai.NewWriter(ctx)
 	}
 }
 

@@ -64,7 +64,7 @@ type Message struct {
 
 - **`Type`** (required): Determines how the message should be rendered
 
-  - Built-in types: `text`, `thinking`, `loading`, `tool_call`, `error`, `image`, `audio`, `video`, `action`
+  - Built-in types: `text`, `thinking`, `loading`, `tool_call`, `error`, `image`, `audio`, `video`, `action`, `event`
   - Custom types: Any string (frontend must have corresponding component)
 
 - **`Props`** (optional): Type-specific properties passed to the rendering component
@@ -323,7 +323,7 @@ Adapters handle the transformation automatically based on `ctx.Accept`.
 
 ### 3. Built-in Types
 
-9 standardized message types with defined Props structures:
+10 standardized message types with defined Props structures:
 
 | Type        | Purpose            | CUI     | OpenAI                    |
 | ----------- | ------------------ | ------- | ------------------------- |
@@ -336,6 +336,7 @@ Adapters handle the transformation automatically based on `ctx.Accept`.
 | `audio`     | Audio              | Player  | Link                      |
 | `video`     | Video              | Player  | Link                      |
 | `action`    | System commands    | Execute | Silent                    |
+| `event`     | Lifecycle events   | Track   | Silent                    |
 
 ## Usage
 
