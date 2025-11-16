@@ -59,6 +59,7 @@ const (
 
 	// System types (not visible in standard chat clients)
 	TypeAction = "action" // System action (open panel, navigate, etc.) - silent in OpenAI clients
+	TypeEvent  = "event"  // Lifecycle event (stream_start, stream_end, etc.) - CUI only, silent in OpenAI clients
 )
 
 // Standard Props structures for built-in types
@@ -108,6 +109,15 @@ type ErrorProps struct {
 type ActionProps struct {
 	Name    string                 `json:"name"`              // Action name (e.g., "open_panel", "navigate")
 	Payload map[string]interface{} `json:"payload,omitempty"` // Action payload/parameters
+}
+
+// EventProps defines the standard structure for event messages
+// Type: "event"
+// Props: {"event": string, "message": string, "data": map}
+type EventProps struct {
+	Event   string                 `json:"event"`             // Event type (e.g., "stream_start", "stream_end", "connecting")
+	Message string                 `json:"message,omitempty"` // Human-readable message (e.g., "Connecting...")
+	Data    map[string]interface{} `json:"data,omitempty"`    // Additional event data
 }
 
 // ImageProps defines the standard structure for image messages

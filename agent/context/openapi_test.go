@@ -493,6 +493,35 @@ func TestGetReferer_FromMetadata(t *testing.T) {
 	}
 }
 
+func TestGetAccept_FromQuery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions?accept=cui-web", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	accept := GetAccept(c, nil)
+	if accept != AcceptWebCUI {
+		t.Errorf("Expected accept 'cui-web' from query, got '%s'", accept)
+	}
+}
+
+func TestGetAccept_FromHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions", nil)
+	req.Header.Set("X-Yao-Accept", "cui-desktop")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	accept := GetAccept(c, nil)
+	if accept != AcceptDesktopCUI {
+		t.Errorf("Expected accept 'cui-desktop' from header, got '%s'", accept)
+	}
+}
+
 func TestGetAccept_FromMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -510,6 +539,41 @@ func TestGetAccept_FromMetadata(t *testing.T) {
 	accept := GetAccept(c, completionReq)
 	if accept != AccepNativeCUI {
 		t.Errorf("Expected accept 'cui-native' from metadata, got '%s'", accept)
+	}
+}
+
+func TestGetAccept_Default(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	accept := GetAccept(c, nil)
+	if accept != AcceptStandard {
+		t.Errorf("Expected default accept 'standard', got '%s'", accept)
+	}
+}
+
+func TestGetAccept_Priority(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions?accept=cui-web", nil)
+	req.Header.Set("X-Yao-Accept", "cui-desktop")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	completionReq := &CompletionRequest{
+		Metadata: map[string]interface{}{
+			"accept": "cui-native",
+		},
+	}
+
+	accept := GetAccept(c, completionReq)
+	if accept != AcceptWebCUI {
+		t.Errorf("Expected query parameter to take priority, got '%s'", accept)
 	}
 }
 

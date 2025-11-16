@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -9,6 +11,7 @@ import (
 // DefaultStreamHandler creates a default stream handler that sends messages via context
 // This handler is used when no custom handler is provided
 func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
+
 	// Create stream state manager
 	state := &streamState{
 		ctx:       ctx,
@@ -17,6 +20,10 @@ func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
 	}
 
 	return func(chunkType context.StreamChunkType, data []byte) int {
+		fmt.Println("-----------------------------------------------")
+		fmt.Println("Chunk Type: ", string(chunkType))
+		fmt.Println("Data: ", string(data))
+		fmt.Println("-----------------------------------------------")
 		// Handle different chunk types
 		switch chunkType {
 		case context.ChunkStreamStart:
@@ -63,8 +70,9 @@ type streamState struct {
 
 // handleStreamStart handles stream start event
 func (s *streamState) handleStreamStart(data []byte) int {
-	// Send loading message to indicate stream has started
-	msg := output.NewLoadingMessage("Connecting...")
+	// Send event message to indicate stream has started
+	// This is a lifecycle event, CUI clients can show it, OpenAI clients will ignore it
+	msg := output.NewEventMessage("stream_start", "Connecting...", nil)
 	output.Send(s.ctx, msg)
 	return 0 // Continue
 }

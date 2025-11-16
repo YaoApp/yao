@@ -16,6 +16,8 @@ func NewAdapter() *Adapter {
 // For CUI, it simply returns the original message as a single chunk.
 func (a *Adapter) Adapt(msg *message.Message) ([]interface{}, error) {
 	// CUI clients consume the universal DSL directly, so no conversion is needed.
+	// This includes all message types like text, thinking, loading, events, etc.
+	// CUI clients can choose to display or ignore event messages.
 	return []interface{}{msg}, nil
 }
 

@@ -78,6 +78,18 @@ func NewActionMessage(name string, payload map[string]interface{}) *message.Mess
 	}
 }
 
+// NewEventMessage creates an event message
+func NewEventMessage(event string, msg string, data map[string]interface{}) *message.Message {
+	return &message.Message{
+		Type: message.TypeEvent,
+		Props: map[string]interface{}{
+			"event":   event,
+			"message": msg,
+			"data":    data,
+		},
+	}
+}
+
 // NewImageMessage creates an image message
 func NewImageMessage(url string, alt string) *message.Message {
 	return &message.Message{
@@ -113,7 +125,7 @@ func NewVideoMessage(url string) *message.Message {
 // IsBuiltinType checks if a message type is a built-in type
 func IsBuiltinType(msgType string) bool {
 	switch msgType {
-	case message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction:
+	case message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
 		return true
 	default:
 		return false

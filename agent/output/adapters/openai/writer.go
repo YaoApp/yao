@@ -2,6 +2,7 @@ package openai
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -9,8 +10,9 @@ import (
 
 // Writer implements the message.Writer interface for OpenAI-compatible clients
 type Writer struct {
-	ctx     *context.Context
-	adapter *Adapter
+	ctx        *context.Context
+	adapter    *Adapter
+	firstChunk bool // Track if this is the first chunk to add role
 }
 
 // NewWriter creates a new OpenAI writer
@@ -19,8 +21,9 @@ func NewWriter(ctx *context.Context) (*Writer, error) {
 	adapter := NewAdapter()
 
 	return &Writer{
-		ctx:     ctx,
-		adapter: adapter,
+		ctx:        ctx,
+		adapter:    adapter,
+		firstChunk: true, // First chunk should include role
 	}, nil
 }
 
@@ -34,6 +37,18 @@ func (w *Writer) Write(msg *message.Message) error {
 
 	// Send each chunk
 	for _, chunk := range chunks {
+		// Add role to first text chunk
+		if w.firstChunk && (msg.Type == message.TypeText || msg.Type == message.TypeThinking) {
+			if chunkMap, ok := chunk.(map[string]interface{}); ok {
+				if choices, ok := chunkMap["choices"].([]map[string]interface{}); ok && len(choices) > 0 {
+					if delta, ok := choices[0]["delta"].(map[string]interface{}); ok {
+						delta["role"] = "assistant"
+						w.firstChunk = false
+					}
+				}
+			}
+		}
+
 		if err := w.sendChunk(chunk); err != nil {
 			return err
 		}
@@ -75,6 +90,11 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	if err != nil {
 		return err
 	}
+
+	// Debug: print the chunk being sent
+	fmt.Println("-----------------------------------------------")
+	fmt.Println("Sending SSE chunk: ", string(data))
+	fmt.Println("-----------------------------------------------")
 
 	// Format as SSE: "data: {json}\n\n"
 	sseData := append([]byte("data: "), data...)

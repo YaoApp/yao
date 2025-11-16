@@ -254,7 +254,7 @@ func GetReferer(c *gin.Context, req *CompletionRequest) string {
 // 1. Query parameter "accept"
 // 2. Header "X-Yao-Accept"
 // 3. CompletionRequest metadata "accept" (from payload)
-// 4. Parse from client type (User-Agent)
+// 4. Default to "standard" (OpenAI-compatible format)
 func GetAccept(c *gin.Context, req *CompletionRequest) Accept {
 	// Priority 1: Query parameter
 	if accept := c.Query("accept"); accept != "" {
@@ -275,10 +275,13 @@ func GetAccept(c *gin.Context, req *CompletionRequest) Accept {
 		}
 	}
 
-	// Priority 4: Parse from User-Agent
-	userAgent := c.GetHeader("User-Agent")
-	clientType := getClientType(userAgent)
-	return parseAccept(clientType)
+	// Priority 4: Default to "standard" (OpenAI-compatible format)
+	return AcceptStandard
+
+	// // Future: Parse from User-Agent if needed
+	// userAgent := c.GetHeader("User-Agent")
+	// clientType := getClientType(userAgent)
+	// return parseAccept(clientType)
 }
 
 // GetChatID get the chat ID from the request

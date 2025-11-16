@@ -17,6 +17,7 @@ const (
     TypeAudio    = "audio"     // Audio content
     TypeVideo    = "video"     // Video content
     TypeAction   = "action"    // System action (silent in standard clients)
+    TypeEvent    = "event"     // Lifecycle event (silent in standard clients)
 )
 ```
 
@@ -294,7 +295,84 @@ output.Send(ctx, output.NewTextMessage("I've opened the user details panel for y
 
 ---
 
-### 7. Image (`image`)
+### 7. Event (`event`)
+
+**Purpose:** Lifecycle event messages (stream_start, stream_end, connecting, etc.)
+
+**Props Structure:**
+
+```go
+type EventProps struct {
+    Event   string                 `json:"event"`             // Event type
+    Message string                 `json:"message,omitempty"` // Human-readable message
+    Data    map[string]interface{} `json:"data,omitempty"`    // Additional event data
+}
+```
+
+**Example:**
+
+```json
+{
+  "type": "event",
+  "props": {
+    "event": "stream_start",
+    "message": "Starting stream...",
+    "data": {
+      "model": "gpt-4",
+      "session_id": "sess_123"
+    }
+  }
+}
+```
+
+**Helper:**
+
+```go
+msg := output.NewEventMessage("stream_start", "Starting stream...", map[string]interface{}{
+    "model": "gpt-4",
+    "session_id": "sess_123",
+})
+```
+
+**Use Cases:**
+
+- Stream lifecycle: `"stream_start"`, `"stream_end"`
+- Connection status: `"connecting"`, `"connected"`, `"disconnected"`
+- Processing stages: `"preprocessing"`, `"postprocessing"`
+- Agent state: `"thinking"`, `"executing"`, `"completed"`
+
+**Important Notes:**
+
+- **Silent in OpenAI clients**: Event messages are NOT sent to standard chat clients
+- **CUI clients only**: Only CUI clients process event messages
+- **Lifecycle tracking**: Used for tracking agent/stream lifecycle, not chat content
+- **Non-blocking**: Events don't interrupt the main message flow
+
+**Example in Hook:**
+
+```go
+// Send stream start event
+output.Send(ctx, output.NewEventMessage("stream_start", "Initializing...", map[string]interface{}{
+    "timestamp": time.Now().Unix(),
+}))
+
+// Do processing
+processData()
+
+// Send stream end event
+output.Send(ctx, output.NewEventMessage("stream_end", "Stream completed", map[string]interface{}{
+    "duration_ms": 1500,
+}))
+```
+
+**Result:**
+
+- **CUI client**: Tracks lifecycle, may show status indicators
+- **OpenAI client**: Events are silent (not sent to client)
+
+---
+
+### 8. Image (`image`)
 
 **Purpose:** Image content
 
@@ -337,7 +415,7 @@ msg := output.NewImageMessage("https://example.com/avatar.jpg", "User avatar")
 
 ---
 
-### 8. Audio (`audio`)
+### 9. Audio (`audio`)
 
 **Purpose:** Audio content
 
@@ -382,7 +460,7 @@ msg := output.NewAudioMessage("https://example.com/audio.mp3", "mp3")
 
 ---
 
-### 9. Video (`video`)
+### 10. Video (`video`)
 
 **Purpose:** Video content
 
@@ -463,6 +541,7 @@ OpenAI adapter converts built-in types to OpenAI format:
 | `audio`     | `delta.content`           | `props.url`                   | Markdown link (can't display inline)      |
 | `video`     | `delta.content`           | `props.url`                   | Markdown link (can't display inline)      |
 | `action`    | (not sent)                | -                             | Silent - system actions only              |
+| `event`     | (not sent)                | -                             | Silent - lifecycle events only            |
 
 ---
 
@@ -520,7 +599,7 @@ When adding new built-in types:
 **Do NOT add built-in types for:**
 
 - UI components (buttons, forms, etc.)
-- Rich media (images, videos, etc.)
 - Application-specific widgets
+- Domain-specific data types
 
 These should remain custom types.

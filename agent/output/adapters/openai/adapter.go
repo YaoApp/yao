@@ -63,6 +63,11 @@ func WithConverter(msgType string, converter ConverterFunc) Option {
 
 // Adapt converts a universal Message to OpenAI-compatible format
 func (a *Adapter) Adapt(msg *message.Message) ([]interface{}, error) {
+	// Skip event messages - they are CUI-only lifecycle events
+	if msg.Type == message.TypeEvent {
+		return []interface{}{}, nil // Return empty array, nothing to send
+	}
+
 	// Get converter for this message type
 	converter, exists := a.registry.GetConverter(msg.Type)
 	if !exists {

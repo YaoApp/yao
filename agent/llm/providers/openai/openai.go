@@ -303,9 +303,13 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 			return http.HandlerReturnOk
 		}
 
+		// Log raw stream data for debugging
+		log.Trace("OpenAI Stream Raw Data: %s", string(data))
+
 		// Parse SSE data
 		dataStr := string(data)
 		if !strings.HasPrefix(dataStr, "data: ") {
+			log.Trace("Skipping non-SSE line: %s", dataStr)
 			return http.HandlerReturnOk
 		}
 
@@ -444,8 +448,65 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		return http.HandlerReturnOk
 	}
 
+	// Log request for debugging
+	if requestBodyJSON, marshalErr := jsoniter.Marshal(requestBody); marshalErr == nil {
+		log.Debug("OpenAI Stream Request - URL: %s, Body: %s", url, string(requestBodyJSON))
+	}
+
+	// Buffer to capture non-SSE error responses
+	var errorBuffer strings.Builder
+	errorDetected := false
+
+	// Wrap streamHandler to detect JSON error responses
+	wrappedHandler := func(data []byte) int {
+		dataStr := string(data)
+
+		// Detect if this looks like a JSON error response (starts with "{" or contains "error")
+		if strings.Contains(dataStr, `"error"`) || (strings.TrimSpace(dataStr) == "{" && !errorDetected) {
+			errorDetected = true
+		}
+
+		// If error detected, accumulate all data for parsing
+		if errorDetected {
+			errorBuffer.Write(data)
+			errorBuffer.WriteString("\n")
+			return http.HandlerReturnOk
+		}
+
+		// Otherwise, use normal handler
+		return streamHandler(data)
+	}
+
 	// Make streaming request (goCtx already set at function start)
-	err = req.Stream(goCtx, "POST", requestBody, streamHandler)
+	err = req.Stream(goCtx, "POST", requestBody, wrappedHandler)
+
+	// Check if we captured an error response
+	if errorDetected && errorBuffer.Len() > 0 {
+		errorJSON := errorBuffer.String()
+		log.Error("OpenAI API returned error response: %s", errorJSON)
+
+		// Try to parse error
+		var apiError struct {
+			Error struct {
+				Message string `json:"message"`
+				Type    string `json:"type"`
+				Param   string `json:"param"`
+				Code    string `json:"code"`
+			} `json:"error"`
+		}
+
+		if parseErr := jsoniter.UnmarshalFromString(errorJSON, &apiError); parseErr == nil && apiError.Error.Message != "" {
+			err = fmt.Errorf("OpenAI API error: %s (type: %s, param: %s, code: %s)",
+				apiError.Error.Message, apiError.Error.Type, apiError.Error.Param, apiError.Error.Code)
+		} else {
+			err = fmt.Errorf("OpenAI API error: %s", strings.TrimSpace(errorJSON))
+		}
+	}
+
+	// Log any error from streaming
+	if err != nil {
+		log.Error("OpenAI Stream Error: %v", err)
+	}
 
 	// Check if error is due to context cancellation
 	if err != nil && goCtx.Err() != nil {
@@ -495,6 +556,14 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	// Check if we received any data
 	if accumulator.id == "" {
 		log.Warn("OpenAI stream completed but no data was received (accumulator.id is empty)")
+
+		// Log request details for debugging
+		if requestBodyJSON, err := jsoniter.Marshal(requestBody); err == nil {
+			log.Error("Request body that caused empty response: %s", string(requestBodyJSON))
+		}
+		log.Error("Request URL: %s", url)
+		log.Error("Model in accumulator: %s, Created: %d", accumulator.model, accumulator.created)
+
 		err := fmt.Errorf("no data received from OpenAI API")
 
 		// End current group if active
@@ -821,10 +890,13 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 		body["temperature"] = *options.Temperature
 	}
 
+	// Use max_completion_tokens (modern API parameter for GPT-5+)
+	// GPT-5 models only support max_completion_tokens (not max_tokens)
 	if options.MaxCompletionTokens != nil {
 		body["max_completion_tokens"] = *options.MaxCompletionTokens
 	} else if options.MaxTokens != nil {
-		body["max_tokens"] = *options.MaxTokens
+		// Fallback: convert MaxTokens to max_completion_tokens for compatibility
+		body["max_completion_tokens"] = *options.MaxTokens
 	}
 
 	if options.TopP != nil {

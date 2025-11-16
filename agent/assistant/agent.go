@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
@@ -100,6 +101,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	_ = doneResponse // doneResponse is available for further processing
 
+	// Close the output writer to send [DONE] marker and flush data
+	if err := output.Close(ctx); err != nil {
+		// Log error but don't fail the request
+		fmt.Printf("Warning: Failed to close output writer: %v\n", err)
+	}
+
+	// Flush any remaining data to the client
+	if err := output.Flush(ctx); err != nil {
+		fmt.Printf("Warning: Failed to flush output: %v\n", err)
+	}
+
 	return &context.Response{Create: createResponse, Done: doneResponse, Completion: completionResponse}, nil
 }
 
@@ -132,15 +144,24 @@ func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *
 
 // getConnectorCapabilities get the capabilities of a connector from settings
 func (ast *Assistant) getConnectorCapabilities(connectorID string) *context.ModelCapabilities {
+	// Initialize with default capabilities (all disabled)
+	falseVal := false
+	capabilities := &context.ModelCapabilities{
+		Vision:    &falseVal,
+		ToolCalls: &falseVal,
+		Audio:     &falseVal,
+		Reasoning: &falseVal,
+		Streaming: &falseVal,
+	}
+
 	// Get connector setting from global settings
 	setting, exists := connectorSettings[connectorID]
 	if !exists {
-		return nil
+		// Return default capabilities if connector not found in settings
+		return capabilities
 	}
 
-	// Convert ConnectorSetting to ModelCapabilities
-	capabilities := &context.ModelCapabilities{}
-
+	// Update capabilities based on connector settings
 	if setting.Vision {
 		v := true
 		capabilities.Vision = &v
