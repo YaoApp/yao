@@ -147,7 +147,7 @@ func (ast *Assistant) getConnectorCapabilities(connectorID string) *context.Mode
 	// Initialize with default capabilities (all disabled)
 	falseVal := false
 	capabilities := &context.ModelCapabilities{
-		Vision:    &falseVal,
+		Vision:    falseVal,
 		ToolCalls: &falseVal,
 		Audio:     &falseVal,
 		Reasoning: &falseVal,
@@ -162,9 +162,9 @@ func (ast *Assistant) getConnectorCapabilities(connectorID string) *context.Mode
 	}
 
 	// Update capabilities based on model configuration
-	if modelCaps.Vision {
-		v := true
-		capabilities.Vision = &v
+	// Vision can be bool or string (VisionFormat)
+	if modelCaps.Vision != nil {
+		capabilities.Vision = modelCaps.Vision
 	}
 
 	// Handle both Tools (deprecated) and ToolCalls
