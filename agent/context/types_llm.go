@@ -9,17 +9,61 @@ type Uses struct {
 	Fetch  string `json:"fetch,omitempty"`  // Fetch/retrieval tool. Format: "agent" or "mcp:server_id"
 }
 
+// VisionFormat specifies the vision input format
+type VisionFormat string
+
+// Vision format constants define how image inputs are processed
+const (
+	// VisionFormatNone indicates no vision support
+	VisionFormatNone VisionFormat = ""
+	// VisionFormatOpenAI indicates OpenAI format (image_url with URL)
+	VisionFormatOpenAI VisionFormat = "openai"
+	// VisionFormatClaude indicates Claude/Anthropic format (image with base64)
+	VisionFormatClaude VisionFormat = "claude"
+	// VisionFormatBase64 forces base64 conversion (alias for claude)
+	VisionFormatBase64 VisionFormat = "base64"
+	// VisionFormatDefault enables auto-detection of format
+	VisionFormatDefault VisionFormat = "default"
+)
+
 // ModelCapabilities defines the capabilities of a language model
 // Used by LLM to select appropriate provider and validate requests
 type ModelCapabilities struct {
-	Vision                *bool `json:"vision,omitempty"`                 // Supports vision/image input
-	ToolCalls             *bool `json:"tool_calls,omitempty"`             // Supports tool/function calling
-	Audio                 *bool `json:"audio,omitempty"`                  // Supports audio input/output
-	Reasoning             *bool `json:"reasoning,omitempty"`              // Supports reasoning/thinking mode (o1, DeepSeek R1)
-	Streaming             *bool `json:"streaming,omitempty"`              // Supports streaming responses
-	JSON                  *bool `json:"json,omitempty"`                   // Supports JSON mode
-	Multimodal            *bool `json:"multimodal,omitempty"`             // Supports multimodal input (text + images + audio)
-	TemperatureAdjustable *bool `json:"temperature_adjustable,omitempty"` // Supports temperature adjustment (reasoning models typically don't)
+	Vision                interface{} `json:"vision,omitempty"`                 // Supports vision/image input: bool or VisionFormat string ("openai", "claude"/"base64", "default")
+	ToolCalls             *bool       `json:"tool_calls,omitempty"`             // Supports tool/function calling
+	Audio                 *bool       `json:"audio,omitempty"`                  // Supports audio input/output
+	Reasoning             *bool       `json:"reasoning,omitempty"`              // Supports reasoning/thinking mode (o1, DeepSeek R1)
+	Streaming             *bool       `json:"streaming,omitempty"`              // Supports streaming responses
+	JSON                  *bool       `json:"json,omitempty"`                   // Supports JSON mode
+	Multimodal            *bool       `json:"multimodal,omitempty"`             // Supports multimodal input (text + images + audio)
+	TemperatureAdjustable *bool       `json:"temperature_adjustable,omitempty"` // Supports temperature adjustment (reasoning models typically don't)
+}
+
+// GetVisionSupport returns whether vision is supported and the format
+func (m *ModelCapabilities) GetVisionSupport() (bool, VisionFormat) {
+	if m == nil || m.Vision == nil {
+		return false, VisionFormatNone
+	}
+
+	switch v := m.Vision.(type) {
+	case bool:
+		// Legacy bool format
+		return v, VisionFormatDefault
+	case string:
+		// String format
+		if v == "" || v == string(VisionFormatNone) {
+			return false, VisionFormatNone
+		}
+		return true, VisionFormat(v)
+	case VisionFormat:
+		// Direct VisionFormat type
+		if v == VisionFormatNone || v == "" {
+			return false, VisionFormatNone
+		}
+		return true, v
+	default:
+		return false, VisionFormatNone
+	}
 }
 
 // CompletionOptions the completion request options

@@ -71,7 +71,11 @@ func (p *Provider) PreprocessMessages(messages []context.Message) ([]context.Mes
 
 // SupportsVision check if this provider supports vision
 func (p *Provider) SupportsVision() bool {
-	return p.Capabilities != nil && p.Capabilities.Vision != nil && *p.Capabilities.Vision
+	if p.Capabilities == nil {
+		return false
+	}
+	supported, _ := p.Capabilities.GetVisionSupport()
+	return supported
 }
 
 // SupportsAudio check if this provider supports audio

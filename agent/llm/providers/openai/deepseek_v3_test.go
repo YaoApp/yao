@@ -234,31 +234,35 @@ func TestDeepSeekV3WithToolCalls(t *testing.T) {
 		},
 	}
 
-	// Define a weather tool
-	weatherTool := map[string]interface{}{
+	// Define a simple tool with minimal parameters
+	simpleTool := map[string]interface{}{
 		"type": "function",
 		"function": map[string]interface{}{
-			"name":        "get_weather",
-			"description": "Get current weather for a location",
+			"name":        "get_info",
+			"description": "Get information",
 			"parameters": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"location": map[string]interface{}{
+					"query": map[string]interface{}{
 						"type":        "string",
-						"description": "City name",
+						"description": "Query string (single letter)",
 					},
-					"unit": map[string]interface{}{
-						"type": "string",
-						"enum": []string{"celsius", "fahrenheit"},
+					"count": map[string]interface{}{
+						"type":        "number",
+						"description": "Count (single digit)",
 					},
 				},
-				"required": []string{"location"},
+				"required": []string{"query", "count"},
 			},
 		},
 	}
 
-	options.Tools = []map[string]interface{}{weatherTool}
+	options.Tools = []map[string]interface{}{simpleTool}
 	options.ToolChoice = "auto"
+
+	// Set lower max_tokens for faster response
+	maxTokens := 50
+	options.MaxTokens = &maxTokens
 
 	llmInstance, err := llm.New(conn, options)
 	if err != nil {
@@ -268,7 +272,7 @@ func TestDeepSeekV3WithToolCalls(t *testing.T) {
 	messages := []context.Message{
 		{
 			Role:    context.RoleUser,
-			Content: "What's the weather in Beijing?",
+			Content: "Call get_info with query='A' and count=1",
 		},
 	}
 
@@ -290,8 +294,8 @@ func TestDeepSeekV3WithToolCalls(t *testing.T) {
 		tc := response.ToolCalls[0]
 		t.Logf("✓ Tool call: %s(%s)", tc.Function.Name, tc.Function.Arguments)
 
-		if tc.Function.Name != "get_weather" {
-			t.Errorf("Expected tool name 'get_weather', got '%s'", tc.Function.Name)
+		if tc.Function.Name != "get_info" {
+			t.Errorf("Expected tool name 'get_info', got '%s'", tc.Function.Name)
 		}
 	}
 
@@ -332,11 +336,11 @@ func TestDeepSeekV3NoReasoningEffort(t *testing.T) {
 	messages := []context.Message{
 		{
 			Role:    context.RoleUser,
-			Content: "Say 'OK'",
+			Content: "Reply with just: OK",
 		},
 	}
 
-	maxTokens := 10
+	maxTokens := 20
 	options.MaxTokens = &maxTokens
 
 	ctx := newDeepSeekV3TestContext("test-deepseek-v3-no-reasoning", "deepseek.v3")

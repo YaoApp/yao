@@ -49,6 +49,13 @@ env:
   DEEPSEEK_MODELS_V3: ${{ secrets.DEEPSEEK_MODELS_V3 }}
   DEEPSEEK_MODELS_V3_1: ${{ secrets.DEEPSEEK_MODELS_V3_1 }}
 
+  # Claude API Configuration
+  CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+  CLAUDE_PROXY: ${{ secrets.CLAUDE_PROXY }}
+  CLAUDE_API_HOST: ${{ secrets.CLAUDE_API_HOST }}
+  CLAUDE_SONNET_4: ${{ secrets.CLAUDE_SONNET_4 }}
+  CLAUDE_SONNET_4_THINKING: ${{ secrets.CLAUDE_SONNET_4_THINKING }}
+
   TAB_NAME: "::PET ADMIN"
   PAGE_SIZE: "20"
   PAGE_LINK: "https://yaoapps.com"

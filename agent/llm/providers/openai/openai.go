@@ -110,6 +110,19 @@ type Provider struct {
 	adapters []adapters.CapabilityAdapter
 }
 
+// buildAPIURL builds the complete API URL from host and endpoint
+// If host ends with /, it's used as-is (user has specified full path)
+// Otherwise, /v1 prefix is added automatically (standard for OpenAI-compatible APIs)
+func buildAPIURL(host, endpoint string) string {
+	// If host ends with /, use it as-is (user has specified full path like /v1/ or /api/)
+	// Otherwise, add /v1 prefix (standard for OpenAI-compatible APIs)
+	if !strings.HasSuffix(host, "/") {
+		endpoint = "/v1" + endpoint
+	}
+	host = strings.TrimSuffix(host, "/")
+	return host + endpoint
+}
+
 // New create a new OpenAI provider with capability adapters
 func New(conn connector.Connector, capabilities *context.ModelCapabilities) *Provider {
 	return &Provider{
@@ -132,8 +145,12 @@ func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter 
 	}
 
 	// Vision adapter
-	if cap.Vision != nil {
-		result = append(result, adapters.NewVisionAdapter(*cap.Vision))
+	visionSupport, visionFormat := cap.GetVisionSupport()
+	if visionSupport {
+		result = append(result, adapters.NewVisionAdapter(true, visionFormat))
+	} else if cap.Vision != nil {
+		// Vision explicitly disabled, add adapter to remove image content
+		result = append(result, adapters.NewVisionAdapter(false, context.VisionFormatNone))
 	}
 
 	// Audio adapter
@@ -288,22 +305,34 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		}
 	}
 
-	// Preprocess options through adapters
+	// Preprocess messages and options through adapters
+	processedMessages := messages
 	processedOptions := options
 	for _, adapter := range p.adapters {
+		// Preprocess messages
+		newMessages, err := adapter.PreprocessMessages(processedMessages)
+		if err != nil {
+			if handler != nil {
+				handler(context.ChunkError, []byte(fmt.Sprintf("adapter %s message preprocessing failed: %v", adapter.Name(), err)))
+			}
+			return nil, fmt.Errorf("adapter %s message preprocessing failed: %w", adapter.Name(), err)
+		}
+		processedMessages = newMessages
+
+		// Preprocess options
 		newOpts, err := adapter.PreprocessOptions(processedOptions)
 		if err != nil {
 			// Send error to handler
 			if handler != nil {
-				handler(context.ChunkError, []byte(fmt.Sprintf("adapter %s preprocessing failed: %v", adapter.Name(), err)))
+				handler(context.ChunkError, []byte(fmt.Sprintf("adapter %s option preprocessing failed: %v", adapter.Name(), err)))
 			}
-			return nil, fmt.Errorf("adapter %s preprocessing failed: %w", adapter.Name(), err)
+			return nil, fmt.Errorf("adapter %s option preprocessing failed: %w", adapter.Name(), err)
 		}
 		processedOptions = newOpts
 	}
 
 	// Build request body
-	requestBody, err := p.buildRequestBody(messages, processedOptions, true)
+	requestBody, err := p.buildRequestBody(processedMessages, processedOptions, true)
 	if err != nil {
 		// Send stream_end with error
 		if handler != nil {
@@ -334,12 +363,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	// Build URL
-	endpoint := "/chat/completions"
-	if host == "https://api.openai.com" && !strings.HasPrefix(endpoint, "/v1") {
-		endpoint = "/v1" + endpoint
-	}
-	host = strings.TrimSuffix(host, "/")
-	url := host + endpoint
+	url := buildAPIURL(host, "/chat/completions")
 
 	// Create HTTP request with proxy support
 	req := http.New(url).
@@ -836,18 +860,27 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 
 // postWithRetry performs a single POST request attempt
 func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error) {
-	// Preprocess options through adapters
+	// Preprocess messages and options through adapters
+	processedMessages := messages
 	processedOptions := options
 	for _, adapter := range p.adapters {
+		// Preprocess messages
+		newMessages, err := adapter.PreprocessMessages(processedMessages)
+		if err != nil {
+			return nil, fmt.Errorf("adapter %s message preprocessing failed: %w", adapter.Name(), err)
+		}
+		processedMessages = newMessages
+
+		// Preprocess options
 		newOpts, err := adapter.PreprocessOptions(processedOptions)
 		if err != nil {
-			return nil, fmt.Errorf("adapter %s preprocessing failed: %w", adapter.Name(), err)
+			return nil, fmt.Errorf("adapter %s option preprocessing failed: %w", adapter.Name(), err)
 		}
 		processedOptions = newOpts
 	}
 
 	// Build request body
-	requestBody, err := p.buildRequestBody(messages, processedOptions, false)
+	requestBody, err := p.buildRequestBody(processedMessages, processedOptions, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
@@ -865,12 +898,7 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 	}
 
 	// Build URL
-	endpoint := "/chat/completions"
-	if host == "https://api.openai.com" && !strings.HasPrefix(endpoint, "/v1") {
-		endpoint = "/v1" + endpoint
-	}
-	host = strings.TrimSuffix(host, "/")
-	url := host + endpoint
+	url := buildAPIURL(host, "/chat/completions")
 
 	// Create HTTP request with proxy support
 	req := http.New(url).
@@ -880,7 +908,24 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 	// Make request
 	resp := req.Post(requestBody)
 	if resp.Code != 200 {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.Code, resp.Message)
+		// Try to get detailed error message from response
+		errorMsg := resp.Message
+		if resp.Data != nil {
+			if errorData, ok := resp.Data.(map[string]interface{}); ok {
+				if errObj, ok := errorData["error"]; ok {
+					if errMap, ok := errObj.(map[string]interface{}); ok {
+						if msg, ok := errMap["message"].(string); ok {
+							errorMsg = msg
+						}
+					}
+				}
+			}
+			// Log full response data for debugging
+			if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
+				log.Error("OpenAI API error response: %s", string(respJSON))
+			}
+		}
+		return nil, fmt.Errorf("HTTP %d: %s", resp.Code, errorMsg)
 	}
 
 	// Parse response
