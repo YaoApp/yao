@@ -25,10 +25,11 @@ type Delta struct {
 
 // DeltaContent represents the content in a delta
 type DeltaContent struct {
-	Role      string          `json:"role,omitempty"`
-	Content   string          `json:"content,omitempty"`
-	ToolCalls []ToolCallDelta `json:"tool_calls,omitempty"`
-	Refusal   string          `json:"refusal,omitempty"`
+	Role             string          `json:"role,omitempty"`
+	Content          string          `json:"content,omitempty"`
+	ReasoningContent string          `json:"reasoning_content,omitempty"` // DeepSeek R1 reasoning
+	ToolCalls        []ToolCallDelta `json:"tool_calls,omitempty"`
+	Refusal          string          `json:"refusal,omitempty"`
 }
 
 // ToolCallDelta represents a tool call delta in streaming
@@ -52,9 +53,15 @@ type CompletionResponseFull struct {
 	Created int64  `json:"created"`
 	Model   string `json:"model"`
 	Choices []struct {
-		Index        int             `json:"index"`
-		Message      context.Message `json:"message"`
-		FinishReason string          `json:"finish_reason"`
+		Index   int `json:"index"`
+		Message struct {
+			Role             context.MessageRole `json:"role"`
+			Content          interface{}         `json:"content,omitempty"`           // string or array
+			ReasoningContent string              `json:"reasoning_content,omitempty"` // DeepSeek R1 reasoning
+			ToolCalls        []context.ToolCall  `json:"tool_calls,omitempty"`
+			Refusal          *string             `json:"refusal,omitempty"`
+		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage             *context.UsageInfo `json:"usage,omitempty"`
 	SystemFingerprint string             `json:"system_fingerprint,omitempty"`
@@ -62,15 +69,16 @@ type CompletionResponseFull struct {
 
 // streamAccumulator accumulates streaming response data
 type streamAccumulator struct {
-	id           string
-	model        string
-	created      int64
-	role         string
-	content      string
-	refusal      string
-	toolCalls    map[int]*accumulatedToolCall
-	finishReason string
-	usage        *context.UsageInfo
+	id               string
+	model            string
+	created          int64
+	role             string
+	content          string
+	reasoningContent string // DeepSeek R1 reasoning content
+	refusal          string
+	toolCalls        map[int]*accumulatedToolCall
+	finishReason     string
+	usage            *context.UsageInfo
 }
 
 // accumulatedToolCall accumulates a single tool call

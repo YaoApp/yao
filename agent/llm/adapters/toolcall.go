@@ -64,4 +64,3 @@ func (a *ToolCallAdapter) PostprocessResponse(response *context.CompletionRespon
 	// - Add to response.ToolCalls
 	return response, nil
 }
-

@@ -141,11 +141,17 @@ func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter 
 		result = append(result, adapters.NewAudioAdapter(*cap.Audio))
 	}
 
-	// Reasoning adapter
-	if cap.Reasoning != nil && *cap.Reasoning {
-		// Detect reasoning format based on capabilities
-		format := detectReasoningFormat(cap)
-		result = append(result, adapters.NewReasoningAdapter(format))
+	// Reasoning adapter (always add to handle reasoning_effort parameter)
+	// Even if the model doesn't support reasoning, we need the adapter to strip reasoning_effort
+	if cap.Reasoning != nil {
+		if *cap.Reasoning {
+			// Detect reasoning format based on capabilities
+			format := detectReasoningFormat(cap)
+			result = append(result, adapters.NewReasoningAdapter(format))
+		} else {
+			// Model doesn't support reasoning, use None format to strip reasoning parameters
+			result = append(result, adapters.NewReasoningAdapter(adapters.ReasoningFormatNone))
+		}
 	}
 
 	return result
@@ -282,8 +288,22 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		}
 	}
 
+	// Preprocess options through adapters
+	processedOptions := options
+	for _, adapter := range p.adapters {
+		newOpts, err := adapter.PreprocessOptions(processedOptions)
+		if err != nil {
+			// Send error to handler
+			if handler != nil {
+				handler(context.ChunkError, []byte(fmt.Sprintf("adapter %s preprocessing failed: %v", adapter.Name(), err)))
+			}
+			return nil, fmt.Errorf("adapter %s preprocessing failed: %w", adapter.Name(), err)
+		}
+		processedOptions = newOpts
+	}
+
 	// Build request body
-	requestBody, err := p.buildRequestBody(messages, options, true)
+	requestBody, err := p.buildRequestBody(messages, processedOptions, true)
 	if err != nil {
 		// Send stream_end with error
 		if handler != nil {
@@ -389,6 +409,20 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 			// Handle role
 			if delta.Role != "" {
 				accumulator.role = delta.Role
+			}
+
+			// Handle reasoning content (DeepSeek R1)
+			if delta.ReasoningContent != "" {
+				// Start thinking group if not active
+				if !groupTracker.active || groupTracker.groupType != context.ChunkThinking {
+					groupTracker.startGroup(context.ChunkThinking, handler)
+				}
+
+				accumulator.reasoningContent += delta.ReasoningContent
+				if handler != nil {
+					handler(context.ChunkThinking, []byte(delta.ReasoningContent))
+					groupTracker.incrementChunk()
+				}
 			}
 
 			// Handle content
@@ -637,15 +671,16 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// Build final response
 	response := &context.CompletionResponse{
-		ID:           accumulator.id,
-		Object:       "chat.completion",
-		Created:      accumulator.created,
-		Model:        accumulator.model,
-		Role:         accumulator.role,
-		Content:      accumulator.content,
-		Refusal:      accumulator.refusal,
-		FinishReason: accumulator.finishReason,
-		Usage:        accumulator.usage,
+		ID:               accumulator.id,
+		Object:           "chat.completion",
+		Created:          accumulator.created,
+		Model:            accumulator.model,
+		Role:             accumulator.role,
+		Content:          accumulator.content,
+		ReasoningContent: accumulator.reasoningContent,
+		Refusal:          accumulator.refusal,
+		FinishReason:     accumulator.finishReason,
+		Usage:            accumulator.usage,
 	}
 
 	// Convert accumulated tool calls to ToolCall slice
@@ -801,8 +836,18 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 
 // postWithRetry performs a single POST request attempt
 func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error) {
+	// Preprocess options through adapters
+	processedOptions := options
+	for _, adapter := range p.adapters {
+		newOpts, err := adapter.PreprocessOptions(processedOptions)
+		if err != nil {
+			return nil, fmt.Errorf("adapter %s preprocessing failed: %w", adapter.Name(), err)
+		}
+		processedOptions = newOpts
+	}
+
 	// Build request body
-	requestBody, err := p.buildRequestBody(messages, options, false)
+	requestBody, err := p.buildRequestBody(messages, processedOptions, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
@@ -854,13 +899,29 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 	}
 
 	choice := fullResp.Choices[0]
+
+	// Convert content interface{} to string
+	content := ""
+	if choice.Message.Content != nil {
+		switch v := choice.Message.Content.(type) {
+		case string:
+			content = v
+		default:
+			// For complex content (arrays), marshal to JSON
+			if contentBytes, err := jsoniter.Marshal(v); err == nil {
+				content = string(contentBytes)
+			}
+		}
+	}
+
 	response := &context.CompletionResponse{
 		ID:                fullResp.ID,
 		Object:            fullResp.Object,
 		Created:           fullResp.Created,
 		Model:             fullResp.Model,
 		Role:              string(choice.Message.Role),
-		Content:           choice.Message.Content,
+		Content:           content,
+		ReasoningContent:  choice.Message.ReasoningContent,
 		ToolCalls:         choice.Message.ToolCalls,
 		FinishReason:      choice.FinishReason,
 		Usage:             fullResp.Usage,
@@ -997,6 +1058,11 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 
 	if options.ToolChoice != nil {
 		body["tool_choice"] = options.ToolChoice
+	}
+
+	// Reasoning effort (o1 and GPT-5 models)
+	if options.ReasoningEffort != nil {
+		body["reasoning_effort"] = *options.ReasoningEffort
 	}
 
 	// For streaming, include usage info by default
