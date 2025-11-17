@@ -68,8 +68,8 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Initialize Connector settings
-	err = initConnectorSettings()
+	// Initialize model capabilities
+	err = initModelCapabilities()
 	if err != nil {
 		return err
 	}
@@ -107,26 +107,26 @@ func initGlobalI18n() error {
 	return nil
 }
 
-// initConnectors initialize the connectors
-func initConnectorSettings() error {
-	path := filepath.Join("agent", "connectors.yml")
+// initModelCapabilities initialize the model capabilities configuration
+func initModelCapabilities() error {
+	path := filepath.Join("agent", "models.yml")
 	if exists, _ := application.App.Exists(path); !exists {
 		return nil
 	}
 
-	// Open the connectors
+	// Read the model capabilities configuration
 	bytes, err := application.App.Read(path)
 	if err != nil {
 		return err
 	}
 
-	var connectors map[string]assistant.ConnectorSetting = map[string]assistant.ConnectorSetting{}
-	err = application.Parse("connectors.yml", bytes, &connectors)
+	var models map[string]assistant.ModelCapabilities = map[string]assistant.ModelCapabilities{}
+	err = application.Parse("models.yml", bytes, &models)
 	if err != nil {
 		return err
 	}
 
-	api.Agent.DSL.Connectors = connectors
+	api.Agent.DSL.Models = models
 	return nil
 }
 
@@ -183,8 +183,8 @@ func initAssistant() error {
 		assistant.SetGlobalUses(globalUses)
 	}
 
-	if api.Agent.DSL.Connectors != nil {
-		assistant.SetConnectorSettings(api.Agent.DSL.Connectors)
+	if api.Agent.DSL.Models != nil {
+		assistant.SetModelCapabilities(api.Agent.DSL.Models)
 	}
 
 	// Load Built-in Assistants

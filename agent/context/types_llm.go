@@ -12,13 +12,14 @@ type Uses struct {
 // ModelCapabilities defines the capabilities of a language model
 // Used by LLM to select appropriate provider and validate requests
 type ModelCapabilities struct {
-	Vision     *bool `json:"vision,omitempty"`     // Supports vision/image input
-	ToolCalls  *bool `json:"tool_calls,omitempty"` // Supports tool/function calling
-	Audio      *bool `json:"audio,omitempty"`      // Supports audio input/output
-	Reasoning  *bool `json:"reasoning,omitempty"`  // Supports reasoning/thinking mode (o1, DeepSeek R1)
-	Streaming  *bool `json:"streaming,omitempty"`  // Supports streaming responses
-	JSON       *bool `json:"json,omitempty"`       // Supports JSON mode
-	Multimodal *bool `json:"multimodal,omitempty"` // Supports multimodal input (text + images + audio)
+	Vision                *bool `json:"vision,omitempty"`                 // Supports vision/image input
+	ToolCalls             *bool `json:"tool_calls,omitempty"`             // Supports tool/function calling
+	Audio                 *bool `json:"audio,omitempty"`                  // Supports audio input/output
+	Reasoning             *bool `json:"reasoning,omitempty"`              // Supports reasoning/thinking mode (o1, DeepSeek R1)
+	Streaming             *bool `json:"streaming,omitempty"`              // Supports streaming responses
+	JSON                  *bool `json:"json,omitempty"`                   // Supports JSON mode
+	Multimodal            *bool `json:"multimodal,omitempty"`             // Supports multimodal input (text + images + audio)
+	TemperatureAdjustable *bool `json:"temperature_adjustable,omitempty"` // Supports temperature adjustment (reasoning models typically don't)
 }
 
 // CompletionOptions the completion request options

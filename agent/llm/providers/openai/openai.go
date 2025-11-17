@@ -141,16 +141,16 @@ func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter 
 		result = append(result, adapters.NewAudioAdapter(*cap.Audio))
 	}
 
-	// Reasoning adapter (always add to handle reasoning_effort parameter)
+	// Reasoning adapter (always add to handle reasoning_effort and temperature parameters)
 	// Even if the model doesn't support reasoning, we need the adapter to strip reasoning_effort
 	if cap.Reasoning != nil {
 		if *cap.Reasoning {
 			// Detect reasoning format based on capabilities
 			format := detectReasoningFormat(cap)
-			result = append(result, adapters.NewReasoningAdapter(format))
+			result = append(result, adapters.NewReasoningAdapter(format, cap))
 		} else {
 			// Model doesn't support reasoning, use None format to strip reasoning parameters
-			result = append(result, adapters.NewReasoningAdapter(adapters.ReasoningFormatNone))
+			result = append(result, adapters.NewReasoningAdapter(adapters.ReasoningFormatNone, cap))
 		}
 	}
 
