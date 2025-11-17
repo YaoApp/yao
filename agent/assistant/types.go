@@ -108,9 +108,9 @@ type Assistant struct {
 	runtimeTools []Tool // Converted tools for business logic (OpenAI format)
 }
 
-// ConnectorSetting the connector setting
-// Defines the capabilities of a connector/model
-type ConnectorSetting struct {
+// ModelCapabilities defines the capabilities of a language model
+// This configuration is loaded from agent/models.yml
+type ModelCapabilities struct {
 	Vision     bool `json:"vision,omitempty" yaml:"vision,omitempty"`         // Supports vision/image input
 	Tools      bool `json:"tools,omitempty" yaml:"tools,omitempty"`           // Supports tool/function calling (deprecated, use ToolCalls)
 	ToolCalls  bool `json:"tool_calls,omitempty" yaml:"tool_calls,omitempty"` // Supports tool/function calling

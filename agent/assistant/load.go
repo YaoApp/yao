@@ -27,7 +27,7 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var search interface{} = nil
-var connectorSettings map[string]ConnectorSetting = map[string]ConnectorSetting{}
+var modelCapabilities map[string]ModelCapabilities = map[string]ModelCapabilities{}
 var vision *agentvision.Vision = nil
 var defaultConnector string = ""   // default connector
 var globalUses *context.Uses = nil // global uses configuration from agent.yml
@@ -137,9 +137,9 @@ func SetVision(v *agentvision.Vision) {
 	vision = v
 }
 
-// SetConnectorSettings set the connector settings
-func SetConnectorSettings(settings map[string]ConnectorSetting) {
-	connectorSettings = settings
+// SetModelCapabilities set the model capabilities configuration
+func SetModelCapabilities(capabilities map[string]ModelCapabilities) {
+	modelCapabilities = capabilities
 }
 
 // SetConnector set the connector

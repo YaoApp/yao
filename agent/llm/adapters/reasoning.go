@@ -16,45 +16,83 @@ const (
 
 // ReasoningAdapter handles reasoning content capability
 // - Manages reasoning_effort parameter (o1, GPT-5)
+// - Manages temperature parameter constraints (reasoning models typically require temperature=1)
 // - Extracts reasoning_tokens from usage
 // - Parses visible reasoning content (DeepSeek R1)
 type ReasoningAdapter struct {
 	*BaseAdapter
-	format         ReasoningFormat
-	supportsEffort bool // Whether the model supports reasoning_effort parameter
+	format              ReasoningFormat
+	supportsEffort      bool // Whether the model supports reasoning_effort parameter
+	supportsTemperature bool // Whether the model supports temperature adjustment
 }
 
 // NewReasoningAdapter creates a new reasoning adapter
-func NewReasoningAdapter(format ReasoningFormat) *ReasoningAdapter {
+// If cap.TemperatureAdjustable is provided, it overrides the default behavior
+func NewReasoningAdapter(format ReasoningFormat, cap *context.ModelCapabilities) *ReasoningAdapter {
 	supportsEffort := false
+	supportsTemperature := true
 
-	// Only OpenAI o1 and GPT-5 support reasoning_effort parameter
-	if format == ReasoningFormatOpenAI || format == ReasoningFormatGPT5 {
+	// Set defaults based on reasoning format
+	switch format {
+	case ReasoningFormatOpenAI, ReasoningFormatGPT5:
+		// OpenAI o1 and GPT-5: support reasoning_effort, but NOT temperature adjustment
 		supportsEffort = true
+		supportsTemperature = false
+	case ReasoningFormatDeepSeek:
+		// DeepSeek R1: no reasoning_effort, no temperature adjustment
+		supportsEffort = false
+		supportsTemperature = false
+	case ReasoningFormatNone:
+		// Non-reasoning models: no reasoning_effort, but support temperature
+		supportsEffort = false
+		supportsTemperature = true
+	}
+
+	// Override with explicit capability if provided
+	if cap != nil && cap.TemperatureAdjustable != nil {
+		supportsTemperature = *cap.TemperatureAdjustable
 	}
 
 	return &ReasoningAdapter{
-		BaseAdapter:    NewBaseAdapter("ReasoningAdapter"),
-		format:         format,
-		supportsEffort: supportsEffort,
+		BaseAdapter:         NewBaseAdapter("ReasoningAdapter"),
+		format:              format,
+		supportsEffort:      supportsEffort,
+		supportsTemperature: supportsTemperature,
 	}
 }
 
-// PreprocessOptions handles reasoning_effort parameter
+// PreprocessOptions handles reasoning_effort and temperature parameters
 func (a *ReasoningAdapter) PreprocessOptions(options *context.CompletionOptions) (*context.CompletionOptions, error) {
 	if options == nil {
 		return options, nil
 	}
 
-	// If model doesn't support reasoning_effort, remove it
-	if !a.supportsEffort && options.ReasoningEffort != nil {
+	newOptions := *options
+	modified := false
+
+	// 1. Handle reasoning_effort parameter
+	if !a.supportsEffort && newOptions.ReasoningEffort != nil {
 		// Model doesn't support reasoning_effort, remove the parameter
-		newOptions := *options
 		newOptions.ReasoningEffort = nil
+		modified = true
+	}
+
+	// 2. Handle temperature parameter
+	if !a.supportsTemperature && newOptions.Temperature != nil {
+		currentTemp := *newOptions.Temperature
+		if currentTemp != 1.0 {
+			// Model doesn't support temperature adjustment, reset to default (1.0)
+			defaultTemp := 1.0
+			newOptions.Temperature = &defaultTemp
+			modified = true
+		}
+	}
+
+	if modified {
 		return &newOptions, nil
 	}
 
-	// If model supports reasoning_effort, keep it as-is (user can set "low", "medium", or "high")
+	// No modifications needed
 	return options, nil
 }
 

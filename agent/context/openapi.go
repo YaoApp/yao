@@ -122,13 +122,12 @@ func GetAssistantID(c *gin.Context, req *CompletionRequest) (string, error) {
 	}
 
 	if model != "" {
-		// Split by "-" and get the last field
-		parts := strings.Split(model, "-")
-		lastField := strings.TrimSpace(parts[len(parts)-1])
-
-		// Check if it has yao_ prefix
-		if strings.HasPrefix(lastField, "yao_") {
-			assistantID := strings.TrimPrefix(lastField, "yao_")
+		// Parse model ID using the same logic as ParseModelID
+		// Expected format: [prefix-]assistantName-model-yao_assistantID
+		// Find the last occurrence of "-yao_"
+		parts := strings.Split(model, "-yao_")
+		if len(parts) >= 2 {
+			assistantID := parts[len(parts)-1]
 			if assistantID != "" {
 				return assistantID, nil
 			}

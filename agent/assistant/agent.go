@@ -154,46 +154,46 @@ func (ast *Assistant) getConnectorCapabilities(connectorID string) *context.Mode
 		Streaming: &falseVal,
 	}
 
-	// Get connector setting from global settings
-	setting, exists := connectorSettings[connectorID]
+	// Get model capabilities from global configuration
+	modelCaps, exists := modelCapabilities[connectorID]
 	if !exists {
-		// Return default capabilities if connector not found in settings
+		// Return default capabilities if model not found in configuration
 		return capabilities
 	}
 
-	// Update capabilities based on connector settings
-	if setting.Vision {
+	// Update capabilities based on model configuration
+	if modelCaps.Vision {
 		v := true
 		capabilities.Vision = &v
 	}
 
 	// Handle both Tools (deprecated) and ToolCalls
-	if setting.ToolCalls || setting.Tools {
+	if modelCaps.ToolCalls || modelCaps.Tools {
 		v := true
 		capabilities.ToolCalls = &v
 	}
 
-	if setting.Audio {
+	if modelCaps.Audio {
 		v := true
 		capabilities.Audio = &v
 	}
 
-	if setting.Reasoning {
+	if modelCaps.Reasoning {
 		v := true
 		capabilities.Reasoning = &v
 	}
 
-	if setting.Streaming {
+	if modelCaps.Streaming {
 		v := true
 		capabilities.Streaming = &v
 	}
 
-	if setting.JSON {
+	if modelCaps.JSON {
 		v := true
 		capabilities.JSON = &v
 	}
 
-	if setting.Multimodal {
+	if modelCaps.Multimodal {
 		v := true
 		capabilities.Multimodal = &v
 	}

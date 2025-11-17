@@ -20,9 +20,9 @@ type DSL struct {
 	// UploadSetting    *Upload       `json:"upload,omitempty" yaml:"upload,omitempty"`       // Upload Settings
 	// KnowledgeSetting *Knowledge    `json:"knowledge,omitempty" yaml:"knowledge,omitempty"` // Knowledge base Settings
 
-	// Global External Settings - connectors, tools, etc.
+	// Global External Settings - model capabilities, tools, etc.
 	// ===============================
-	Connectors map[string]assistant.ConnectorSetting `json:"connectors,omitempty" yaml:"connectors,omitempty"` // The connectors of the assistant
+	Models map[string]assistant.ModelCapabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
 
 	// Agent API Settings
 	// ===============================s
