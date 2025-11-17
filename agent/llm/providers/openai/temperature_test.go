@@ -376,4 +376,3 @@ func newTemperatureTestContext(chatID, connectorID string) *context.Context {
 		},
 	}
 }
-
