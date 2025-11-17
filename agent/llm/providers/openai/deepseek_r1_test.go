@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
@@ -59,18 +60,56 @@ func TestDeepSeekR1StreamBasic(t *testing.T) {
 	// Create context
 	ctx := newDeepSeekTestContext("test-deepseek-r1-basic", "deepseek.r1")
 
-	// Track streaming chunks
+	// Track streaming chunks and group events
 	var reasoningChunks []string
 	var contentChunks []string
+	var thinkingGroupEnded bool
+	var textGroupEnded bool
+
 	handler := func(chunkType context.StreamChunkType, data []byte) int {
 		dataStr := string(data)
 		t.Logf("Stream chunk [%s]: %s", chunkType, dataStr)
 
 		// Track different chunk types
-		if chunkType == context.ChunkThinking {
+		switch chunkType {
+		case context.ChunkThinking:
 			reasoningChunks = append(reasoningChunks, dataStr)
-		} else if chunkType == context.ChunkText {
+		case context.ChunkText:
 			contentChunks = append(contentChunks, dataStr)
+		}
+
+		// Track group_end events to verify type field
+		if chunkType == context.ChunkGroupEnd {
+			// Parse the group_end data to check the type field
+			var groupEndData struct {
+				GroupID    string `json:"group_id"`
+				Type       string `json:"type"`
+				Timestamp  int64  `json:"timestamp"`
+				DurationMs int64  `json:"duration_ms"`
+				ChunkCount int    `json:"chunk_count"`
+				Status     string `json:"status"`
+			}
+
+			if err := jsoniter.Unmarshal(data, &groupEndData); err == nil {
+				t.Logf("✓ group_end received: type=%s, chunks=%d, duration=%dms",
+					groupEndData.Type, groupEndData.ChunkCount, groupEndData.DurationMs)
+
+				// Verify the type field matches expected group types
+				switch groupEndData.Type {
+				case "thinking":
+					thinkingGroupEnded = true
+					if groupEndData.ChunkCount == 0 {
+						t.Error("thinking group_end should have chunk_count > 0")
+					}
+				case "text":
+					textGroupEnded = true
+					if groupEndData.ChunkCount == 0 {
+						t.Error("text group_end should have chunk_count > 0")
+					}
+				}
+			} else {
+				t.Errorf("Failed to parse group_end data: %v", err)
+			}
 		}
 
 		return 0 // Continue
@@ -137,6 +176,19 @@ func TestDeepSeekR1StreamBasic(t *testing.T) {
 		t.Error("Expected content chunks (ChunkText) but got none")
 	} else {
 		t.Logf("Received %d content chunks", len(contentChunks))
+	}
+
+	// Verify group_end events were received with correct types
+	if !thinkingGroupEnded {
+		t.Error("❌ Expected thinking group_end event but didn't receive it")
+	} else {
+		t.Log("✅ Thinking group_end event received with type='thinking'")
+	}
+
+	if !textGroupEnded {
+		t.Error("❌ Expected text group_end event but didn't receive it")
+	} else {
+		t.Log("✅ Text group_end event received with type='text'")
 	}
 
 	t.Logf("Final response: %+v", response)

@@ -62,10 +62,11 @@ func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
 
 // streamState manages the state of the streaming process
 type streamState struct {
-	ctx       *context.Context
-	inGroup   bool
-	currentID string
-	buffer    []byte
+	ctx         *context.Context
+	inGroup     bool
+	currentID   string
+	currentType string // Track the current message type (text, thinking, tool_call)
+	buffer      []byte
 }
 
 // handleStreamStart handles stream start event
@@ -95,6 +96,9 @@ func (s *streamState) handleText(data []byte) int {
 	if s.currentID == "" {
 		s.currentID = generateMessageID()
 	}
+
+	// Track current message type
+	s.currentType = message.TypeText
 
 	// Append to buffer
 	s.buffer = append(s.buffer, data...)
@@ -127,6 +131,9 @@ func (s *streamState) handleThinking(data []byte) int {
 	if s.currentID == "" {
 		s.currentID = generateMessageID()
 	}
+
+	// Track current message type
+	s.currentType = message.TypeThinking
 
 	// Append to buffer
 	s.buffer = append(s.buffer, data...)
@@ -190,9 +197,15 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 
 	// Send done message with complete content
 	if s.currentID != "" && len(s.buffer) > 0 {
+		// Use the tracked message type (thinking, text, tool_call, etc.)
+		msgType := s.currentType
+		if msgType == "" {
+			msgType = message.TypeText // Fallback to text if type not set
+		}
+
 		msg := &message.Message{
 			ID:   s.currentID,
-			Type: message.TypeText, // Default to text
+			Type: msgType, // Use the actual message type from the group
 			Done: true,
 			Props: map[string]interface{}{
 				"content": string(s.buffer),
@@ -204,6 +217,7 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 	// Reset state
 	s.inGroup = false
 	s.currentID = ""
+	s.currentType = ""
 	s.buffer = []byte{}
 
 	return 0 // Continue
