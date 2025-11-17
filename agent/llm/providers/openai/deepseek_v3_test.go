@@ -1,0 +1,405 @@
+package openai_test
+
+import (
+	gocontext "context"
+	"testing"
+
+	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/plan"
+	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/test"
+)
+
+// TestDeepSeekV3StreamBasic tests basic streaming completion with DeepSeek V3
+func TestDeepSeekV3StreamBasic(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("deepseek.v3")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	falseVal := false
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Streaming:  &trueVal,
+			Reasoning:  &falseVal, // V3 doesn't support reasoning
+			ToolCalls:  &trueVal,  // V3 supports tool calls
+			Vision:     &falseVal,
+			Audio:      &falseVal,
+			Multimodal: &falseVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Simple math question
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "What is 5 + 3?",
+		},
+	}
+
+	// Set max tokens
+	maxTokens := 100
+	options.MaxTokens = &maxTokens
+
+	ctx := newDeepSeekV3TestContext("test-deepseek-v3-basic", "deepseek.v3")
+
+	// Track streaming chunks
+	var contentChunks []string
+	handler := func(chunkType context.StreamChunkType, data []byte) int {
+		dataStr := string(data)
+		t.Logf("Stream chunk [%s]: %s", chunkType, dataStr)
+
+		if chunkType == context.ChunkText {
+			contentChunks = append(contentChunks, dataStr)
+		}
+
+		return 0 // Continue
+	}
+
+	// Call Stream
+	response, err := llmInstance.Stream(ctx, messages, options, handler)
+	if err != nil {
+		t.Fatalf("Stream failed: %v", err)
+	}
+
+	// Validate response
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+
+	// Should have content (V3 is not a reasoning model)
+	contentStr, ok := response.Content.(string)
+	if !ok || contentStr == "" {
+		t.Error("Expected content but got empty")
+	} else {
+		t.Logf("Response content: %s", contentStr)
+	}
+
+	// Should NOT have reasoning content (V3 doesn't support reasoning)
+	if response.ReasoningContent != "" {
+		t.Errorf("Expected no reasoning_content for V3, but got: %s", response.ReasoningContent)
+	}
+
+	// Check usage
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+
+		// Should have 0 reasoning tokens
+		if response.Usage.CompletionTokensDetails != nil {
+			reasoningTokens := response.Usage.CompletionTokensDetails.ReasoningTokens
+			if reasoningTokens != 0 {
+				t.Errorf("Expected reasoning_tokens=0 for V3, got %d", reasoningTokens)
+			}
+		}
+	}
+
+	if len(contentChunks) == 0 {
+		t.Error("Expected content chunks but got none")
+	} else {
+		t.Logf("Received %d content chunks", len(contentChunks))
+	}
+
+	t.Logf("Final response: %+v", response)
+}
+
+// TestDeepSeekV3PostBasic tests basic non-streaming completion
+func TestDeepSeekV3PostBasic(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("deepseek.v3")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	falseVal := false
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Reasoning:  &falseVal,
+			ToolCalls:  &trueVal,
+			Vision:     &falseVal,
+			Audio:      &falseVal,
+			Multimodal: &falseVal,
+		},
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	// Simple question
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "What is 2 * 4?",
+		},
+	}
+
+	// Set max tokens
+	maxTokens := 100
+	options.MaxTokens = &maxTokens
+
+	ctx := newDeepSeekV3TestContext("test-deepseek-v3-post", "deepseek.v3")
+
+	// Call Post
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post failed: %v", err)
+	}
+
+	// Validate response
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	if response.ID == "" {
+		t.Error("Response ID is empty")
+	}
+	if response.Model == "" {
+		t.Error("Response Model is empty")
+	}
+
+	// Should have content
+	contentStr, ok := response.Content.(string)
+	if !ok || contentStr == "" {
+		t.Error("Expected content but got empty")
+	} else {
+		t.Logf("Response content: %s", contentStr)
+	}
+
+	// Should NOT have reasoning content
+	if response.ReasoningContent != "" {
+		t.Errorf("V3 should not have reasoning_content, but got: %s", response.ReasoningContent)
+	}
+
+	// Check usage
+	if response.Usage == nil {
+		t.Error("Response Usage is nil")
+	} else {
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+
+		// Should have 0 reasoning tokens
+		if response.Usage.CompletionTokensDetails != nil {
+			reasoningTokens := response.Usage.CompletionTokensDetails.ReasoningTokens
+			if reasoningTokens != 0 {
+				t.Errorf("Expected reasoning_tokens=0 for V3, got %d", reasoningTokens)
+			}
+		}
+	}
+
+	t.Logf("Response: %+v", response)
+}
+
+// TestDeepSeekV3WithToolCalls tests V3 with tool calls
+func TestDeepSeekV3WithToolCalls(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("deepseek.v3")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	falseVal := false
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Reasoning: &falseVal,
+			ToolCalls: &trueVal,
+		},
+	}
+
+	// Define a weather tool
+	weatherTool := map[string]interface{}{
+		"type": "function",
+		"function": map[string]interface{}{
+			"name":        "get_weather",
+			"description": "Get current weather for a location",
+			"parameters": map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"location": map[string]interface{}{
+						"type":        "string",
+						"description": "City name",
+					},
+					"unit": map[string]interface{}{
+						"type": "string",
+						"enum": []string{"celsius", "fahrenheit"},
+					},
+				},
+				"required": []string{"location"},
+			},
+		},
+	}
+
+	options.Tools = []map[string]interface{}{weatherTool}
+	options.ToolChoice = "auto"
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "What's the weather in Beijing?",
+		},
+	}
+
+	ctx := newDeepSeekV3TestContext("test-deepseek-v3-tools", "deepseek.v3")
+
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post with tool calls failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Should have tool calls
+	if len(response.ToolCalls) == 0 {
+		t.Error("Expected tool calls but got none")
+	} else {
+		tc := response.ToolCalls[0]
+		t.Logf("✓ Tool call: %s(%s)", tc.Function.Name, tc.Function.Arguments)
+
+		if tc.Function.Name != "get_weather" {
+			t.Errorf("Expected tool name 'get_weather', got '%s'", tc.Function.Name)
+		}
+	}
+
+	if response.Usage != nil {
+		t.Logf("Usage: prompt=%d, completion=%d, total=%d",
+			response.Usage.PromptTokens, response.Usage.CompletionTokens, response.Usage.TotalTokens)
+	}
+
+	t.Logf("Response: %+v", response)
+}
+
+// TestDeepSeekV3NoReasoningEffort tests that V3 ignores reasoning_effort parameter
+func TestDeepSeekV3NoReasoningEffort(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	conn, err := connector.Select("deepseek.v3")
+	if err != nil {
+		t.Fatalf("Failed to select connector: %v", err)
+	}
+
+	trueVal := true
+	falseVal := false
+	effort := "high"
+	options := &context.CompletionOptions{
+		Capabilities: &context.ModelCapabilities{
+			Reasoning: &falseVal, // V3 doesn't support reasoning
+			ToolCalls: &trueVal,
+		},
+		ReasoningEffort: &effort, // Should be ignored by adapter
+	}
+
+	llmInstance, err := llm.New(conn, options)
+	if err != nil {
+		t.Fatalf("Failed to create LLM instance: %v", err)
+	}
+
+	messages := []context.Message{
+		{
+			Role:    context.RoleUser,
+			Content: "Say 'OK'",
+		},
+	}
+
+	maxTokens := 10
+	options.MaxTokens = &maxTokens
+
+	ctx := newDeepSeekV3TestContext("test-deepseek-v3-no-reasoning", "deepseek.v3")
+
+	// Should succeed (adapter removes reasoning_effort parameter)
+	response, err := llmInstance.Post(ctx, messages, options)
+	if err != nil {
+		t.Fatalf("Post failed: %v", err)
+	}
+
+	if response == nil {
+		t.Fatal("Response is nil")
+	}
+
+	// Should have 0 reasoning tokens
+	if response.Usage != nil && response.Usage.CompletionTokensDetails != nil {
+		reasoningTokens := response.Usage.CompletionTokensDetails.ReasoningTokens
+		if reasoningTokens != 0 {
+			t.Errorf("Expected reasoning_tokens=0 for V3, got %d", reasoningTokens)
+		} else {
+			t.Log("✓ V3 correctly shows reasoning_tokens=0")
+		}
+	}
+
+	t.Log("✓ ReasoningAdapter correctly removed reasoning_effort parameter for V3")
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+// newDeepSeekV3TestContext creates a real Context for testing DeepSeek V3 provider
+func newDeepSeekV3TestContext(chatID, connectorID string) *context.Context {
+	return &context.Context{
+		Context:     gocontext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+		ChatID:      chatID,
+		AssistantID: "test-assistant",
+		Connector:   connectorID,
+		Locale:      "en-us",
+		Theme:       "light",
+		Client: context.Client{
+			Type:      "web",
+			UserAgent: "DeepSeekV3ProviderTest/1.0",
+			IP:        "127.0.0.1",
+		},
+		Referer:  context.RefererAPI,
+		Accept:   context.AcceptStandard,
+		Route:    "/api/test",
+		Metadata: make(map[string]interface{}),
+		Authorized: &types.AuthorizedInfo{
+			Subject:   "test-user",
+			ClientID:  "test-client",
+			UserID:    "test-user-123",
+			TeamID:    "test-team-456",
+			TenantID:  "test-tenant-789",
+			SessionID: "test-session-id",
+			Constraints: types.DataConstraints{
+				TeamOnly: true,
+				Extra: map[string]interface{}{
+					"test": "deepseek-v3-provider",
+				},
+			},
+		},
+	}
+}

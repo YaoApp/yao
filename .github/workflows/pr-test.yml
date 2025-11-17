@@ -42,6 +42,13 @@ env:
   TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
   TEST_MOAPI_MIRROR: https://api.openai.com
 
+  # DeepSeek API Configuration
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  DEEPSEEK_API_PROXY: ${{ secrets.DEEPSEEK_API_PROXY }}
+  DEEPSEEK_MODELS_R1: ${{ secrets.DEEPSEEK_MODELS_R1 }}
+  DEEPSEEK_MODELS_V3: ${{ secrets.DEEPSEEK_MODELS_V3 }}
+  DEEPSEEK_MODELS_V3_1: ${{ secrets.DEEPSEEK_MODELS_V3_1 }}
+
   TAB_NAME: "::PET ADMIN"
   PAGE_SIZE: "20"
   PAGE_LINK: "https://yaoapps.com"

@@ -61,6 +61,9 @@ type CompletionOptions struct {
 	Stream        *bool          `json:"stream,omitempty"`         // If true, stream partial message deltas
 	StreamOptions *StreamOptions `json:"stream_options,omitempty"` // Options for streaming response
 
+	// Reasoning configuration (for reasoning models like o1, GPT-5)
+	ReasoningEffort *string `json:"reasoning_effort,omitempty"` // Reasoning effort level: "low", "medium", "high" (o1 and GPT-5 only)
+
 	// CUI Context information (from Context)
 	Route    string                 `json:"route,omitempty"`    // Route of the request for CUI context
 	Metadata map[string]interface{} `json:"metadata,omitempty"` // Metadata to pass to the page for CUI context
