@@ -73,13 +73,17 @@ func TestParallelOperations(t *testing.T) {
 		t.Run(d.Name, func(t *testing.T) {
 			ctx := context.Background()
 
-			traceID, manager, err := trace.New(ctx, d.DriverType, nil, d.DriverOptions...)
-			assert.NoError(t, err)
-			defer trace.Release(traceID)
-			defer trace.Remove(ctx, d.DriverType, traceID, d.DriverOptions...)
+		traceID, manager, err := trace.New(ctx, d.DriverType, nil, d.DriverOptions...)
+		assert.NoError(t, err)
+		defer trace.Release(traceID)
+		defer trace.Remove(ctx, d.DriverType, traceID, d.DriverOptions...)
 
-			// Create parallel nodes
-			nodes, err := manager.Parallel([]types.TraceParallelInput{
+		// Add first node as root
+		_, err = manager.Add("root", types.TraceNodeOption{Label: "Root"})
+		assert.NoError(t, err)
+
+		// Create parallel nodes
+		nodes, err := manager.Parallel([]types.TraceParallelInput{
 				{
 					Input:  "task A",
 					Option: types.TraceNodeOption{Label: "Worker A", Icon: "cpu"},

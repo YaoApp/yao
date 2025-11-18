@@ -1,12 +1,38 @@
 package types
 
+// NodeStatus represents the status of a node
+type NodeStatus string
+
 // Node status constants
 const (
-	StatusPending   = "pending"   // Node created but not started
-	StatusRunning   = "running"   // Node is currently executing
-	StatusCompleted = "completed" // Node finished successfully
-	StatusFailed    = "failed"    // Node failed with error
-	StatusSkipped   = "skipped"   // Node was skipped
+	StatusPending   NodeStatus = "pending"   // Node created but not started
+	StatusRunning   NodeStatus = "running"   // Node is currently executing
+	StatusCompleted NodeStatus = "completed" // Node finished successfully
+	StatusFailed    NodeStatus = "failed"    // Node failed with error
+	StatusSkipped   NodeStatus = "skipped"   // Node was skipped
+	StatusCancelled NodeStatus = "cancelled" // Node was cancelled
+)
+
+// TraceStatus represents the status of a trace
+type TraceStatus string
+
+// Trace status constants
+const (
+	TraceStatusPending   TraceStatus = "pending"   // Trace created but not started
+	TraceStatusRunning   TraceStatus = "running"   // Trace is running
+	TraceStatusCompleted TraceStatus = "completed" // Trace completed
+	TraceStatusFailed    TraceStatus = "failed"    // Trace failed
+	TraceStatusCancelled TraceStatus = "cancelled" // Trace was cancelled
+)
+
+// CompleteStatus represents the completion status in events
+type CompleteStatus string
+
+// Complete status constants (for event payloads)
+const (
+	CompleteStatusSuccess   CompleteStatus = "success"   // Operation succeeded
+	CompleteStatusFailed    CompleteStatus = "failed"    // Operation failed
+	CompleteStatusCancelled CompleteStatus = "cancelled" // Operation was cancelled
 )
 
 // TraceNodeOption defines options for creating a node
@@ -32,7 +58,7 @@ type TraceNode struct {
 	ParentID        string       // Parent node ID
 	Children        []*TraceNode // Child nodes (for tree structure)
 	TraceNodeOption              // Embedded option fields (Label, Icon, Description, Metadata)
-	Status          string       // Node status (pending, running, completed, failed, skipped)
+	Status          NodeStatus   // Node status (pending, running, completed, failed, skipped)
 	Input           TraceInput   // Node input data
 	Output          TraceOutput  // Node output data
 	CreatedAt       int64        // Creation timestamp
@@ -114,20 +140,20 @@ type NodeStartData struct {
 
 // NodeCompleteData payload for "node_complete" event
 type NodeCompleteData struct {
-	NodeID   string      `json:"nodeId"`
-	Status   string      `json:"status"` // "success" or "failed"
-	EndTime  int64       `json:"endTime"`
-	Duration int64       `json:"duration"` // in milliseconds
-	Output   TraceOutput `json:"output,omitempty"`
+	NodeID   string         `json:"nodeId"`
+	Status   CompleteStatus `json:"status"` // "success" or "failed"
+	EndTime  int64          `json:"endTime"`
+	Duration int64          `json:"duration"` // in milliseconds
+	Output   TraceOutput    `json:"output,omitempty"`
 }
 
 // NodeFailedData payload for "node_failed" event (same as NodeCompleteData but with error)
 type NodeFailedData struct {
-	NodeID   string `json:"nodeId"`
-	Status   string `json:"status"` // "failed"
-	EndTime  int64  `json:"endTime"`
-	Duration int64  `json:"duration"`
-	Error    string `json:"error"`
+	NodeID   string         `json:"nodeId"`
+	Status   CompleteStatus `json:"status"` // "failed"
+	EndTime  int64          `json:"endTime"`
+	Duration int64          `json:"duration"`
+	Error    string         `json:"error"`
 }
 
 // MemoryAddData payload for "memory_add" event
@@ -148,9 +174,9 @@ type MemoryItem struct {
 
 // TraceCompleteData payload for "complete" event
 type TraceCompleteData struct {
-	TraceID       string `json:"traceId"`
-	Status        string `json:"status"` // "completed"
-	TotalDuration int64  `json:"totalDuration"`
+	TraceID       string      `json:"traceId"`
+	Status        TraceStatus `json:"status"` // "completed"
+	TotalDuration int64       `json:"totalDuration"`
 }
 
 // SpaceDeletedData payload for "space_deleted" event
@@ -169,6 +195,7 @@ type MemoryDeleteData struct {
 type TraceInfo struct {
 	ID        string         `json:"id"`
 	Driver    string         `json:"driver"`
+	Status    TraceStatus    `json:"status"` // Trace status
 	Options   []any          `json:"options,omitempty"`
 	Manager   Manager        `json:"-"` // Not persisted
 	CreatedAt int64          `json:"created_at"`

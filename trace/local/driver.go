@@ -478,6 +478,71 @@ func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
 	return nil
 }
 
+// SaveUpdate persists a trace update event to disk (append-only)
+func (d *Driver) SaveUpdate(ctx context.Context, traceID string, update *types.TraceUpdate) error {
+	if err := d.ensureTraceDir(traceID); err != nil {
+		return err
+	}
+
+	filePath := filepath.Join(d.getTracePath(traceID), "updates.jsonl")
+
+	// Marshal update to JSON
+	data, err := json.Marshal(update)
+	if err != nil {
+		return fmt.Errorf("failed to marshal update: %w", err)
+	}
+
+	// Append to file (create if not exists)
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open updates file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("failed to write update: %w", err)
+	}
+
+	return nil
+}
+
+// LoadUpdates loads trace update events from disk
+func (d *Driver) LoadUpdates(ctx context.Context, traceID string, since int64) ([]*types.TraceUpdate, error) {
+	filePath := filepath.Join(d.getTracePath(traceID), "updates.jsonl")
+
+	// Read file
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*types.TraceUpdate{}, nil
+		}
+		return nil, fmt.Errorf("failed to read updates file: %w", err)
+	}
+
+	// Parse line by line
+	lines := strings.Split(string(data), "\n")
+	updates := make([]*types.TraceUpdate, 0, len(lines))
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		var update types.TraceUpdate
+		if err := json.Unmarshal([]byte(line), &update); err != nil {
+			// Skip malformed lines
+			continue
+		}
+
+		// Filter by timestamp
+		if update.Timestamp >= since {
+			updates = append(updates, &update)
+		}
+	}
+
+	return updates, nil
+}
+
 // Close closes the local driver
 func (d *Driver) Close() error {
 	// No cleanup needed for local file system

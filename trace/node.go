@@ -42,7 +42,7 @@ func (n *node) logWithBroadcast(level string, format string, args ...any) {
 	log := n.log(level, format, args...)
 
 	// Broadcast event
-	n.manager.addUpdate(&types.TraceUpdate{
+	n.manager.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeLogAdded,
 		TraceID:   n.manager.traceID,
 		NodeID:    n.data.ID,
@@ -193,7 +193,7 @@ func (n *node) SetMetadata(key string, value any) error {
 
 // SetStatus sets the node status
 func (n *node) SetStatus(status string) error {
-	n.data.Status = status
+	n.data.Status = types.NodeStatus(status)
 	n.data.UpdatedAt = time.Now().Unix()
 	return n.manager.driver.SaveNode(n.manager.ctx, n.manager.traceID, n.data)
 }
@@ -206,7 +206,7 @@ func (n *node) Complete(output ...types.TraceOutput) error {
 	}
 
 	// Broadcast event
-	n.manager.addUpdate(&types.TraceUpdate{
+	n.manager.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeNodeComplete,
 		TraceID:   n.manager.traceID,
 		NodeID:    n.data.ID,
@@ -242,7 +242,7 @@ func (n *node) Fail(err error) error {
 	}
 
 	// Broadcast event
-	n.manager.addUpdate(&types.TraceUpdate{
+	n.manager.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeNodeFailed,
 		TraceID:   n.manager.traceID,
 		NodeID:    n.data.ID,

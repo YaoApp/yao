@@ -37,7 +37,13 @@ func TestSubscription(t *testing.T) {
 				timeout := time.After(2 * time.Second)
 				for {
 					select {
-					case update := <-updates:
+					case update, ok := <-updates:
+						if !ok {
+							// Channel closed
+							done <- true
+							return
+						}
+
 						updatesMu.Lock()
 						receivedUpdates = append(receivedUpdates, update)
 						updatesMu.Unlock()

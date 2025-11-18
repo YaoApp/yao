@@ -68,6 +68,12 @@ type Driver interface {
 	// DeleteTrace removes entire trace and all its data
 	DeleteTrace(ctx context.Context, traceID string) error
 
+	// SaveUpdate persists a trace update event to storage
+	SaveUpdate(ctx context.Context, traceID string, update *TraceUpdate) error
+
+	// LoadUpdates loads trace update events from storage (filtering by timestamp)
+	LoadUpdates(ctx context.Context, traceID string, since int64) ([]*TraceUpdate, error)
+
 	// Close closes the driver and releases resources
 	Close() error
 }

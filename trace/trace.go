@@ -147,6 +147,7 @@ func New(ctx context.Context, driver string, option *types.TraceOption, driverOp
 	info := &types.TraceInfo{
 		ID:        traceID,
 		Driver:    driver,
+		Status:    types.TraceStatusPending, // Initial status is pending
 		Options:   driverOptions,
 		Manager:   manager,
 		CreatedAt: now,

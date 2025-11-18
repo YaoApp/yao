@@ -378,6 +378,12 @@ func getTraceScenarios() []traceScenario {
 		{
 			name: "ParallelNodes",
 			execute: func(m types.Manager) error {
+				// Add first node as root
+				_, err := m.Add("root", types.TraceNodeOption{Label: "Root"})
+				if err != nil {
+					return err
+				}
+
 				nodes, err := m.Parallel([]types.TraceParallelInput{
 					{Input: "task1", Option: types.TraceNodeOption{Label: "Task 1"}},
 					{Input: "task2", Option: types.TraceNodeOption{Label: "Task 2"}},
