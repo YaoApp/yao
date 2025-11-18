@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/trace/types"
@@ -15,6 +16,7 @@ type Driver struct {
 	storeName string      // Store name in gou
 	store     store.Store // Gou store instance
 	prefix    string      // Key prefix for isolation
+	updatesMu sync.Mutex  // Protects concurrent updates
 }
 
 // New creates a new store driver
@@ -426,6 +428,66 @@ func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
 	}
 
 	return nil
+}
+
+// SaveUpdate persists a trace update event to store (append to list)
+func (d *Driver) SaveUpdate(ctx context.Context, traceID string, update *types.TraceUpdate) error {
+	key := d.getKey(traceID, "updates")
+
+	// Lock to prevent concurrent updates
+	d.updatesMu.Lock()
+	defer d.updatesMu.Unlock()
+
+	// Load existing updates
+	existingUpdates, _ := d.LoadUpdates(ctx, traceID, 0)
+
+	// Append new update
+	existingUpdates = append(existingUpdates, update)
+
+	// Marshal all updates
+	data, err := json.Marshal(existingUpdates)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updates: %w", err)
+	}
+
+	// Save back to store
+	if err := d.store.Set(key, string(data), 0); err != nil {
+		return fmt.Errorf("failed to save updates to store: %w", err)
+	}
+
+	return nil
+}
+
+// LoadUpdates loads trace update events from store
+func (d *Driver) LoadUpdates(ctx context.Context, traceID string, since int64) ([]*types.TraceUpdate, error) {
+	key := d.getKey(traceID, "updates")
+
+	// Get data from store
+	value, ok := d.store.Get(key)
+	if !ok {
+		return []*types.TraceUpdate{}, nil
+	}
+
+	dataStr, ok := value.(string)
+	if !ok {
+		return []*types.TraceUpdate{}, nil
+	}
+
+	// Unmarshal updates array
+	var allUpdates []*types.TraceUpdate
+	if err := json.Unmarshal([]byte(dataStr), &allUpdates); err != nil {
+		return []*types.TraceUpdate{}, nil
+	}
+
+	// Filter by timestamp
+	filtered := make([]*types.TraceUpdate, 0)
+	for _, update := range allUpdates {
+		if update.Timestamp >= since {
+			filtered = append(filtered, update)
+		}
+	}
+
+	return filtered, nil
 }
 
 // Close closes the store driver

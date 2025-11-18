@@ -3,56 +3,23 @@ package trace
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/yaoapp/yao/trace/types"
 )
 
-// manager implements the Manager interface with unified business logic
+// manager implements the Manager interface with channel-based state management
 type manager struct {
 	ctx          context.Context
-	cancel       context.CancelFunc // Cancel function to stop background goroutines
+	cancel       context.CancelFunc
 	traceID      string
 	driver       types.Driver
-	rootNode     *types.TraceNode
-	currentNodes []*types.TraceNode
-	spaces       map[string]*types.TraceSpace
-	spaceLocks   map[string]*sync.RWMutex // Per-space locks for concurrent safety
-	mu           sync.RWMutex             // Protects currentNodes and spaces
-
-	// Subscription mechanism
-	updates     []*types.TraceUpdate               // Update history (all events)
-	updatesMu   sync.RWMutex                       // Protects updates
-	subscribers map[string]chan *types.TraceUpdate // Active subscribers
-	subMu       sync.RWMutex                       // Protects subscribers
-	completed   bool                               // Trace completion status
+	stateCmdChan chan stateCommand // Single channel for all state mutations
 }
 
 // NewManager creates a new trace manager instance
 func NewManager(ctx context.Context, traceID string, driver types.Driver) (types.Manager, error) {
-	// Create root node
-	now := time.Now().Unix()
-	rootNode := &types.TraceNode{
-		ID:        genNodeID(),
-		ParentID:  "",
-		Children:  []*types.TraceNode{},
-		Status:    types.StatusRunning,
-		CreatedAt: now,
-		StartTime: now,
-		UpdatedAt: now,
-		TraceNodeOption: types.TraceNodeOption{
-			Label: "Root",
-			Icon:  "root",
-		},
-	}
-
-	// Save root node
-	if err := driver.SaveNode(ctx, traceID, rootNode); err != nil {
-		return nil, fmt.Errorf("failed to save root node: %w", err)
-	}
-
 	// Create a cancellable context for the manager
 	managerCtx, cancel := context.WithCancel(ctx)
 
@@ -61,31 +28,35 @@ func NewManager(ctx context.Context, traceID string, driver types.Driver) (types
 		cancel:       cancel,
 		traceID:      traceID,
 		driver:       driver,
-		rootNode:     rootNode,
-		currentNodes: []*types.TraceNode{rootNode},
-		spaces:       make(map[string]*types.TraceSpace),
-		spaceLocks:   make(map[string]*sync.RWMutex),
-		updates:      make([]*types.TraceUpdate, 0, 100),
-		subscribers:  make(map[string]chan *types.TraceUpdate),
-		completed:    false,
+		stateCmdChan: make(chan stateCommand, 100), // Buffered channel for performance
 	}
 
-	// Broadcast init event
-	m.addUpdate(&types.TraceUpdate{
-		Type:      types.UpdateTypeInit,
-		TraceID:   traceID,
-		Timestamp: now,
-		Data:      types.NewTraceInitData(traceID, rootNode),
-	})
+	// Start state worker goroutine
+	go m.startStateWorker()
 
-	// Broadcast root node start event
-	m.addUpdate(&types.TraceUpdate{
-		Type:      types.UpdateTypeNodeStart,
-		TraceID:   traceID,
-		NodeID:    rootNode.ID,
-		Timestamp: now,
-		Data:      rootNode.ToStartData(),
-	})
+	// Try to load existing updates from driver (for resumed traces)
+	if existingUpdates, err := driver.LoadUpdates(ctx, traceID, 0); err == nil && len(existingUpdates) > 0 {
+		m.stateSetUpdates(existingUpdates)
+		// Check if trace was already completed
+		for _, update := range existingUpdates {
+			if update.Type == types.UpdateTypeComplete {
+				m.stateMarkCompleted()
+				if data, ok := update.Data.(*types.TraceCompleteData); ok {
+					m.stateSetTraceStatus(data.Status)
+				}
+				break
+			}
+		}
+	} else {
+		// New trace - create and broadcast init event
+		now := time.Now().Unix()
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
+			Type:      types.UpdateTypeInit,
+			TraceID:   traceID,
+			Timestamp: now,
+			Data:      types.NewTraceInitData(traceID, nil),
+		})
+	}
 
 	return m, nil
 }
@@ -96,14 +67,92 @@ func genNodeID() string {
 	return id
 }
 
+// addUpdateAndBroadcast persists, adds to history, and broadcasts an update
+func (m *manager) addUpdateAndBroadcast(update *types.TraceUpdate) {
+	// Persist to driver (synchronous - no race)
+	_ = m.driver.SaveUpdate(context.Background(), m.traceID, update)
+
+	// Add to in-memory history
+	m.stateAddUpdate(update)
+
+	// Broadcast to subscribers
+	m.stateBroadcast(update)
+}
+
 // checkContext checks if context is cancelled
 func (m *manager) checkContext() error {
 	select {
 	case <-m.ctx.Done():
+		// Context cancelled - just return the error
+		// Don't call handleCancellation here to avoid deadlock
+		// handleCancellation should be called explicitly when needed
 		return m.ctx.Err()
 	default:
 		return nil
 	}
+}
+
+// handleCancellation marks nodes and trace as cancelled (called when context is done)
+func (m *manager) handleCancellation() {
+	// Mark as completed first - this will trigger state worker to exit
+	// IMPORTANT: Must mark completed before any state queries to prevent deadlock
+	if !m.stateMarkCompleted() {
+		return // Already completed
+	}
+
+	now := time.Now().Unix()
+
+	// Get current nodes (state worker will process this before exiting)
+	nodes := m.stateGetCurrentNodes()
+
+	// Mark only running/pending nodes as cancelled
+	for _, node := range nodes {
+		if node.Status == types.StatusRunning || node.Status == types.StatusPending {
+			node.Status = types.StatusCancelled
+			node.EndTime = now
+			node.UpdatedAt = now
+
+			// Save node with background context (ignore errors)
+			_ = m.driver.SaveNode(context.Background(), m.traceID, node)
+
+			// Broadcast cancelled event
+			m.addUpdateAndBroadcast(&types.TraceUpdate{
+				Type:      types.UpdateTypeNodeFailed,
+				TraceID:   m.traceID,
+				NodeID:    node.ID,
+				Timestamp: now,
+				Data: &types.NodeFailedData{
+					NodeID:   node.ID,
+					Status:   types.CompleteStatusCancelled,
+					EndTime:  now,
+					Duration: (now - node.StartTime) * 1000,
+					Error:    "context cancelled",
+				},
+			})
+		}
+	}
+
+	// Update trace status
+	m.stateSetTraceStatus(types.TraceStatusCancelled)
+
+	// Calculate total duration
+	totalDuration := int64(0)
+	rootNode := m.stateGetRoot()
+	if rootNode != nil && rootNode.CreatedAt > 0 {
+		totalDuration = (now - rootNode.CreatedAt) * 1000
+	}
+
+	// Broadcast trace cancelled event (this will be processed even after state worker starts draining)
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
+		Type:      types.UpdateTypeComplete,
+		TraceID:   m.traceID,
+		Timestamp: now,
+		Data: &types.TraceCompleteData{
+			TraceID:       m.traceID,
+			Status:        types.TraceStatusCancelled,
+			TotalDuration: totalDuration,
+		},
+	})
 }
 
 // newNode creates a node instance that broadcasts events (for external use)
@@ -114,68 +163,63 @@ func (m *manager) newNode(data *types.TraceNode) types.Node {
 	}
 }
 
-// Helper functions for thread-safe access
-
-// getCurrentNodes returns a copy of current nodes (thread-safe read)
-func (m *manager) getCurrentNodes() []*types.TraceNode {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	nodes := make([]*types.TraceNode, len(m.currentNodes))
-	copy(nodes, m.currentNodes)
-	return nodes
-}
-
-// getSpace returns a space by ID (thread-safe read)
-func (m *manager) getSpace(id string) (*types.TraceSpace, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	space, ok := m.spaces[id]
-	return space, ok
-}
-
-// setSpace stores a space (thread-safe write)
-func (m *manager) setSpace(id string, space *types.TraceSpace) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.spaces[id] = space
-}
-
-// deleteSpace removes a space (thread-safe write)
-func (m *manager) deleteSpace(id string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.spaces, id)
-}
-
-// getAllSpaces returns all spaces (thread-safe read)
-func (m *manager) getAllSpaces() []*types.TraceSpace {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	spaces := make([]*types.TraceSpace, 0, len(m.spaces))
-	for _, space := range m.spaces {
-		spaces = append(spaces, space)
-	}
-	return spaces
-}
-
 // Add creates next sequential node - auto-joins if currently in parallel state
 func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (types.Node, error) {
 	if err := m.checkContext(); err != nil {
 		return nil, err
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	now := time.Now().Unix()
 
-	// If in parallel state (multiple current nodes), auto-join first
+	// Check if root exists
+	rootNode := m.stateGetRoot()
+
+	if rootNode == nil {
+		// Create root node
+		rootNode = &types.TraceNode{
+			ID:              genNodeID(),
+			ParentID:        "",
+			Children:        []*types.TraceNode{},
+			TraceNodeOption: option,
+			Status:          types.StatusRunning,
+			Input:           input,
+			CreatedAt:       now,
+			StartTime:       now,
+			UpdatedAt:       now,
+		}
+
+		// Save root node
+		if err := m.driver.SaveNode(m.ctx, m.traceID, rootNode); err != nil {
+			return nil, fmt.Errorf("failed to save root node: %w", err)
+		}
+
+		// Update state
+		m.stateUpdateRootAndCurrent(rootNode, []*types.TraceNode{rootNode})
+
+		// Update trace status
+		m.stateSetTraceStatus(types.TraceStatusRunning)
+
+		// Broadcast event
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
+			Type:      types.UpdateTypeNodeStart,
+			TraceID:   m.traceID,
+			NodeID:    rootNode.ID,
+			Timestamp: now,
+			Data:      rootNode.ToStartData(),
+		})
+
+		return &node{manager: m, data: rootNode}, nil
+	}
+
+	// Get current nodes
+	currentNodes := m.stateGetCurrentNodes()
+
 	var parentNode *types.TraceNode
-	if len(m.currentNodes) > 1 {
+	if len(currentNodes) > 1 {
 		// Auto-join: create join node
 		parentNode = &types.TraceNode{
 			ID:              genNodeID(),
-			ParentID:        m.currentNodes[0].ParentID, // Same parent as parallel nodes
+			ParentID:        currentNodes[0].ParentID,
 			Children:        []*types.TraceNode{},
 			Status:          types.StatusCompleted,
 			CreatedAt:       now,
@@ -184,15 +228,16 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 			UpdatedAt:       now,
 			TraceNodeOption: types.TraceNodeOption{Label: "Join", Icon: "join"},
 		}
+
 		// Save join node
 		if err := m.driver.SaveNode(m.ctx, m.traceID, parentNode); err != nil {
 			return nil, err
 		}
 	} else {
-		parentNode = m.currentNodes[0]
+		parentNode = currentNodes[0]
 	}
 
-	// Create new node data
+	// Create new node
 	newNodeData := &types.TraceNode{
 		ID:              genNodeID(),
 		ParentID:        parentNode.ID,
@@ -205,7 +250,7 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 		UpdatedAt:       now,
 	}
 
-	// Add to parent's children
+	// Update parent's children
 	parentNode.Children = append(parentNode.Children, newNodeData)
 
 	// Save nodes
@@ -216,11 +261,11 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 		return nil, err
 	}
 
-	// Set as current node
-	m.currentNodes = []*types.TraceNode{newNodeData}
+	// Update current nodes
+	m.stateSetCurrentNodes([]*types.TraceNode{newNodeData})
 
-	// Broadcast node start event
-	m.addUpdate(&types.TraceUpdate{
+	// Broadcast event
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeNodeStart,
 		TraceID:   m.traceID,
 		NodeID:    newNodeData.ID,
@@ -228,11 +273,7 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 		Data:      newNodeData.ToStartData(),
 	})
 
-	// Return Node interface
-	return &node{
-		manager: m,
-		data:    newNodeData,
-	}, nil
+	return &node{manager: m, data: newNodeData}, nil
 }
 
 // Parallel creates multiple concurrent child nodes, returns Node interfaces for direct control
@@ -241,11 +282,21 @@ func (m *manager) Parallel(parallelInputs []types.TraceParallelInput) ([]types.N
 		return nil, err
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	if len(parallelInputs) == 0 {
+		return nil, fmt.Errorf("parallel inputs cannot be empty")
+	}
+
+	// Check if root exists
+	if m.stateGetRoot() == nil {
+		return nil, fmt.Errorf("root node does not exist, please call Add first before using Parallel")
+	}
 
 	now := time.Now().Unix()
-	parentNode := m.currentNodes[0]
+
+	// Get current nodes
+	currentNodes := m.stateGetCurrentNodes()
+	parentNode := currentNodes[0]
+
 	nodeData := make([]*types.TraceNode, 0, len(parallelInputs))
 	nodeInterfaces := make([]types.Node, 0, len(parallelInputs))
 
@@ -265,11 +316,6 @@ func (m *manager) Parallel(parallelInputs []types.TraceParallelInput) ([]types.N
 		nodeData = append(nodeData, data)
 		parentNode.Children = append(parentNode.Children, data)
 
-		// Save node
-		if err := m.driver.SaveNode(m.ctx, m.traceID, data); err != nil {
-			return nil, err
-		}
-
 		// Create Node interface wrapper
 		nodeInterfaces = append(nodeInterfaces, &node{
 			manager: m,
@@ -277,16 +323,29 @@ func (m *manager) Parallel(parallelInputs []types.TraceParallelInput) ([]types.N
 		})
 	}
 
-	// Save parent node
-	if err := m.driver.SaveNode(m.ctx, m.traceID, parentNode); err != nil {
-		return nil, err
+	// Save all nodes in batch - collect errors
+	var saveErrors []error
+	for _, data := range nodeData {
+		if err := m.driver.SaveNode(m.ctx, m.traceID, data); err != nil {
+			saveErrors = append(saveErrors, fmt.Errorf("failed to save node %s: %w", data.ID, err))
+		}
 	}
 
-	// Set all as current nodes (parallel state)
-	m.currentNodes = nodeData
+	// Return error if any node failed to save
+	if len(saveErrors) > 0 {
+		return nil, fmt.Errorf("failed to save %d node(s): %v", len(saveErrors), saveErrors)
+	}
 
-	// Broadcast parallel nodes as batch (frontend supports data.nodes[])
-	m.addUpdate(&types.TraceUpdate{
+	// Save parent node
+	if err := m.driver.SaveNode(m.ctx, m.traceID, parentNode); err != nil {
+		return nil, fmt.Errorf("failed to save parent node: %w", err)
+	}
+
+	// Set all as current nodes
+	m.stateSetCurrentNodes(nodeData)
+
+	// Broadcast parallel nodes as batch
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeNodeStart,
 		TraceID:   m.traceID,
 		Timestamp: now,
@@ -325,8 +384,8 @@ func (m *manager) log(level string, format string, args ...any) {
 	message := fmt.Sprintf(format, args...)
 	now := time.Now().Unix()
 
-	// Get current nodes safely
-	nodes := m.getCurrentNodes()
+	// Get current nodes
+	nodes := m.stateGetCurrentNodes()
 
 	// Log to all current nodes
 	for _, node := range nodes {
@@ -340,7 +399,7 @@ func (m *manager) log(level string, format string, args ...any) {
 		_ = m.driver.SaveLog(m.ctx, m.traceID, log)
 
 		// Broadcast log event
-		m.addUpdate(&types.TraceUpdate{
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
 			Type:      types.UpdateTypeLogAdded,
 			TraceID:   m.traceID,
 			NodeID:    node.ID,
@@ -357,7 +416,7 @@ func (m *manager) SetOutput(output types.TraceOutput) error {
 	}
 
 	now := time.Now().Unix()
-	nodes := m.getCurrentNodes()
+	nodes := m.stateGetCurrentNodes()
 	for _, node := range nodes {
 		node.Output = output
 		node.UpdatedAt = now
@@ -366,7 +425,7 @@ func (m *manager) SetOutput(output types.TraceOutput) error {
 		}
 
 		// Broadcast node update event
-		m.addUpdate(&types.TraceUpdate{
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
 			Type:      types.UpdateTypeNodeUpdated,
 			TraceID:   m.traceID,
 			NodeID:    node.ID,
@@ -384,7 +443,7 @@ func (m *manager) SetMetadata(key string, value any) error {
 	}
 
 	now := time.Now().Unix()
-	nodes := m.getCurrentNodes()
+	nodes := m.stateGetCurrentNodes()
 	for _, node := range nodes {
 		if node.Metadata == nil {
 			node.Metadata = make(map[string]any)
@@ -396,7 +455,7 @@ func (m *manager) SetMetadata(key string, value any) error {
 		}
 
 		// Broadcast node update event
-		m.addUpdate(&types.TraceUpdate{
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
 			Type:      types.UpdateTypeNodeUpdated,
 			TraceID:   m.traceID,
 			NodeID:    node.ID,
@@ -415,16 +474,30 @@ func (m *manager) Complete(output ...types.TraceOutput) error {
 	}
 
 	now := time.Now().Unix()
-	nodes := m.getCurrentNodes()
+	nodes := m.stateGetCurrentNodes()
 
-	// Set output if provided
+	// Determine output value once
+	var nodeOutput types.TraceOutput
 	if len(output) > 0 {
-		for _, node := range nodes {
-			node.Output = output[0]
-		}
+		nodeOutput = output[0]
 	}
 
 	for _, node := range nodes {
+		// Set output if provided
+		if len(output) > 0 {
+			node.Output = nodeOutput
+		}
+
+		// Create complete data BEFORE modifying other fields to avoid race
+		completeData := &types.NodeCompleteData{
+			NodeID:   node.ID,
+			Status:   types.CompleteStatusSuccess,
+			EndTime:  now,
+			Duration: (now - node.StartTime) * 1000,
+			Output:   node.Output,
+		}
+
+		// Now modify node status
 		node.Status = types.StatusCompleted
 		node.EndTime = now
 		node.UpdatedAt = now
@@ -432,13 +505,13 @@ func (m *manager) Complete(output ...types.TraceOutput) error {
 			return err
 		}
 
-		// Broadcast node complete event
-		m.addUpdate(&types.TraceUpdate{
+		// Broadcast node complete event with pre-created data
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
 			Type:      types.UpdateTypeNodeComplete,
 			TraceID:   m.traceID,
 			NodeID:    node.ID,
 			Timestamp: now,
-			Data:      node.ToCompleteData(),
+			Data:      completeData,
 		})
 	}
 	return nil
@@ -454,7 +527,7 @@ func (m *manager) Fail(err error) error {
 	// Log error first
 	m.Error("Node failed: %v", err)
 
-	nodes := m.getCurrentNodes()
+	nodes := m.stateGetCurrentNodes()
 	for _, node := range nodes {
 		node.Status = types.StatusFailed
 		node.EndTime = now
@@ -464,14 +537,14 @@ func (m *manager) Fail(err error) error {
 		}
 
 		// Broadcast node failed event
-		m.addUpdate(&types.TraceUpdate{
+		m.addUpdateAndBroadcast(&types.TraceUpdate{
 			Type:      types.UpdateTypeNodeFailed,
 			TraceID:   m.traceID,
 			NodeID:    node.ID,
 			Timestamp: now,
 			Data: &types.NodeFailedData{
 				NodeID:   node.ID,
-				Status:   "failed",
+				Status:   types.CompleteStatusFailed,
 				EndTime:  now,
 				Duration: (node.EndTime - node.StartTime) * 1000, // Convert to milliseconds
 				Error:    err.Error(),
@@ -483,7 +556,7 @@ func (m *manager) Fail(err error) error {
 
 // GetRootNode returns the root node
 func (m *manager) GetRootNode() (*types.TraceNode, error) {
-	return m.rootNode, nil
+	return m.stateGetRoot(), nil
 }
 
 // GetNode returns a node by ID
@@ -493,28 +566,29 @@ func (m *manager) GetNode(id string) (*types.TraceNode, error) {
 
 // GetCurrentNodes returns current active nodes
 func (m *manager) GetCurrentNodes() ([]*types.TraceNode, error) {
-	return m.getCurrentNodes(), nil
+	return m.stateGetCurrentNodes(), nil
 }
 
 // MarkComplete marks the entire trace as completed
 func (m *manager) MarkComplete() error {
-	m.updatesMu.Lock()
-	if m.completed {
-		m.updatesMu.Unlock()
+	// Try to mark as completed
+	if !m.stateMarkCompleted() {
 		return nil // Already completed
 	}
-	m.completed = true
-	m.updatesMu.Unlock()
+
+	// Update trace status
+	m.stateSetTraceStatus(types.TraceStatusCompleted)
 
 	// Calculate total duration from root node
 	now := time.Now().Unix()
 	totalDuration := int64(0)
-	if m.rootNode != nil && m.rootNode.CreatedAt > 0 {
-		totalDuration = (now - m.rootNode.CreatedAt) * 1000 // Convert to milliseconds
+	rootNode := m.stateGetRoot()
+	if rootNode != nil && rootNode.CreatedAt > 0 {
+		totalDuration = (now - rootNode.CreatedAt) * 1000 // Convert to milliseconds
 	}
 
 	// Broadcast completion event
-	m.addUpdate(&types.TraceUpdate{
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeComplete,
 		TraceID:   m.traceID,
 		Timestamp: now,
@@ -545,11 +619,11 @@ func (m *manager) CreateSpace(option types.TraceSpaceOption) (*types.TraceSpace,
 		return nil, err
 	}
 
-	// Cache in memory (thread-safe)
-	m.setSpace(space.ID, space)
+	// Cache in memory
+	m.stateSetSpace(space.ID, space)
 
 	// Broadcast space created event
-	m.addUpdate(&types.TraceUpdate{
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeSpaceCreated,
 		TraceID:   m.traceID,
 		SpaceID:   space.ID,
@@ -562,8 +636,8 @@ func (m *manager) CreateSpace(option types.TraceSpaceOption) (*types.TraceSpace,
 
 // GetSpace returns a space by ID
 func (m *manager) GetSpace(id string) (*types.TraceSpace, error) {
-	// Check cache first (thread-safe)
-	if space, ok := m.getSpace(id); ok {
+	// Check cache first
+	if space, ok := m.stateGetSpace(id); ok {
 		return space, nil
 	}
 
@@ -573,9 +647,9 @@ func (m *manager) GetSpace(id string) (*types.TraceSpace, error) {
 		return nil, err
 	}
 
-	// Cache it (thread-safe)
+	// Cache it
 	if space != nil {
-		m.setSpace(id, space)
+		m.stateSetSpace(id, space)
 	}
 
 	return space, nil
@@ -583,8 +657,8 @@ func (m *manager) GetSpace(id string) (*types.TraceSpace, error) {
 
 // HasSpace checks if a space exists
 func (m *manager) HasSpace(id string) bool {
-	// Check cache (thread-safe)
-	if _, ok := m.getSpace(id); ok {
+	// Check cache
+	if _, ok := m.stateGetSpace(id); ok {
 		return true
 	}
 
@@ -601,8 +675,8 @@ func (m *manager) DeleteSpace(id string) error {
 
 	now := time.Now().Unix()
 
-	// Remove from cache (thread-safe)
-	m.deleteSpace(id)
+	// Remove from cache
+	m.stateDeleteSpace(id)
 
 	// Delete from driver
 	if err := m.driver.DeleteSpace(m.ctx, m.traceID, id); err != nil {
@@ -610,7 +684,7 @@ func (m *manager) DeleteSpace(id string) error {
 	}
 
 	// Broadcast space deleted event
-	m.addUpdate(&types.TraceUpdate{
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeSpaceDeleted,
 		TraceID:   m.traceID,
 		SpaceID:   id,
@@ -626,8 +700,8 @@ func (m *manager) ListSpaces() []*types.TraceSpace {
 	// Load from driver to ensure we have all spaces
 	spaceIDs, err := m.driver.ListSpaces(m.ctx, m.traceID)
 	if err != nil {
-		// Fallback to cached spaces (thread-safe)
-		return m.getAllSpaces()
+		// Fallback to cached spaces
+		return m.stateGetAllSpaces()
 	}
 
 	// Load all spaces
@@ -648,11 +722,6 @@ func (m *manager) SetSpaceValue(spaceID, key string, value any) error {
 		return err
 	}
 
-	// Lock this specific space for concurrent safety
-	spaceLock := m.getSpaceLock(spaceID)
-	spaceLock.Lock()
-	defer spaceLock.Unlock()
-
 	now := time.Now().Unix()
 
 	// Get space
@@ -661,19 +730,27 @@ func (m *manager) SetSpaceValue(spaceID, key string, value any) error {
 		return fmt.Errorf("space not found: %s", spaceID)
 	}
 
-	// Set value in driver
-	if err := m.driver.SetSpaceKey(m.ctx, m.traceID, spaceID, key, value); err != nil {
-		return err
-	}
+	// Set value in driver (through state worker for concurrent safety)
+	err = m.stateExecuteSpaceOp(spaceID, func() error {
+		if err := m.driver.SetSpaceKey(m.ctx, m.traceID, spaceID, key, value); err != nil {
+			return err
+		}
 
-	// Update space timestamp
-	space.UpdatedAt = now
-	if err := m.driver.SaveSpace(m.ctx, m.traceID, space); err != nil {
+		// Update space timestamp
+		space.UpdatedAt = now
+		if err := m.driver.SaveSpace(m.ctx, m.traceID, space); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		return err
 	}
 
 	// Broadcast memory_add event
-	m.addUpdate(&types.TraceUpdate{
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeMemoryAdd,
 		TraceID:   m.traceID,
 		SpaceID:   spaceID,
@@ -686,12 +763,23 @@ func (m *manager) SetSpaceValue(spaceID, key string, value any) error {
 
 // GetSpaceValue gets a value from a space
 func (m *manager) GetSpaceValue(spaceID, key string) (any, error) {
-	return m.driver.GetSpaceKey(m.ctx, m.traceID, spaceID, key)
+	var result any
+	err := m.stateExecuteSpaceOp(spaceID, func() error {
+		var err error
+		result, err = m.driver.GetSpaceKey(m.ctx, m.traceID, spaceID, key)
+		return err
+	})
+	return result, err
 }
 
 // HasSpaceValue checks if a key exists in a space
 func (m *manager) HasSpaceValue(spaceID, key string) bool {
-	return m.driver.HasSpaceKey(m.ctx, m.traceID, spaceID, key)
+	var result bool
+	_ = m.stateExecuteSpaceOp(spaceID, func() error {
+		result = m.driver.HasSpaceKey(m.ctx, m.traceID, spaceID, key)
+		return nil
+	})
+	return result
 }
 
 // DeleteSpaceValue deletes a value from a space and broadcasts memory_delete event
@@ -700,20 +788,19 @@ func (m *manager) DeleteSpaceValue(spaceID, key string) error {
 		return err
 	}
 
-	// Lock this specific space for concurrent safety
-	spaceLock := m.getSpaceLock(spaceID)
-	spaceLock.Lock()
-	defer spaceLock.Unlock()
-
 	now := time.Now().Unix()
 
-	// Delete value from driver
-	if err := m.driver.DeleteSpaceKey(m.ctx, m.traceID, spaceID, key); err != nil {
+	// Delete value from driver (through state worker for concurrent safety)
+	err := m.stateExecuteSpaceOp(spaceID, func() error {
+		return m.driver.DeleteSpaceKey(m.ctx, m.traceID, spaceID, key)
+	})
+
+	if err != nil {
 		return err
 	}
 
 	// Broadcast memory_delete event
-	m.addUpdate(&types.TraceUpdate{
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeMemoryDelete,
 		TraceID:   m.traceID,
 		SpaceID:   spaceID,
@@ -730,20 +817,19 @@ func (m *manager) ClearSpaceValues(spaceID string) error {
 		return err
 	}
 
-	// Lock this specific space for concurrent safety
-	spaceLock := m.getSpaceLock(spaceID)
-	spaceLock.Lock()
-	defer spaceLock.Unlock()
-
 	now := time.Now().Unix()
 
-	// Clear values from driver
-	if err := m.driver.ClearSpaceKeys(m.ctx, m.traceID, spaceID); err != nil {
+	// Clear values from driver (through state worker for concurrent safety)
+	err := m.stateExecuteSpaceOp(spaceID, func() error {
+		return m.driver.ClearSpaceKeys(m.ctx, m.traceID, spaceID)
+	})
+
+	if err != nil {
 		return err
 	}
 
 	// Broadcast memory_delete event (for all keys)
-	m.addUpdate(&types.TraceUpdate{
+	m.addUpdateAndBroadcast(&types.TraceUpdate{
 		Type:      types.UpdateTypeMemoryDelete,
 		TraceID:   m.traceID,
 		SpaceID:   spaceID,
@@ -756,24 +842,16 @@ func (m *manager) ClearSpaceValues(spaceID string) error {
 
 // ListSpaceKeys returns all keys in a space
 func (m *manager) ListSpaceKeys(spaceID string) []string {
-	keys, err := m.driver.ListSpaceKeys(m.ctx, m.traceID, spaceID)
-	if err != nil {
-		return nil
-	}
+	var keys []string
+	_ = m.stateExecuteSpaceOp(spaceID, func() error {
+		var err error
+		keys, err = m.driver.ListSpaceKeys(m.ctx, m.traceID, spaceID)
+		return err
+	})
 	return keys
 }
 
-// getSpaceLock gets or creates a lock for a specific space (thread-safe)
-func (m *manager) getSpaceLock(spaceID string) *sync.RWMutex {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if lock, exists := m.spaceLocks[spaceID]; exists {
-		return lock
-	}
-
-	// Create new lock for this space
-	lock := &sync.RWMutex{}
-	m.spaceLocks[spaceID] = lock
-	return lock
+// IsComplete returns whether the trace is completed
+func (m *manager) IsComplete() bool {
+	return m.stateIsCompleted()
 }

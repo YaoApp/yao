@@ -41,11 +41,22 @@ func TestTraceNew(t *testing.T) {
 			// Verify trace is loaded
 			assert.True(t, trace.IsLoaded(traceID))
 
-			// Get root node
+			// Root node should be nil initially (lazy initialization)
 			root, err := manager.GetRootNode()
 			assert.NoError(t, err)
+			assert.Nil(t, root)
+
+			// Add first node - this should become the root
+			node, err := manager.Add("test input", types.TraceNodeOption{Label: "First Node", Icon: "test"})
+			assert.NoError(t, err)
+			assert.NotNil(t, node)
+
+			// Now root node should exist
+			root, err = manager.GetRootNode()
+			assert.NoError(t, err)
 			assert.NotNil(t, root)
-			assert.Equal(t, "Root", root.Label)
+			assert.Equal(t, "First Node", root.Label)
+			assert.Equal(t, "test", root.Icon)
 		})
 	}
 }

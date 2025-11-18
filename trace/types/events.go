@@ -16,7 +16,7 @@ func NodesToStartData(nodes []*TraceNode) *NodeStartData {
 func (n *TraceNode) ToCompleteData() *NodeCompleteData {
 	return &NodeCompleteData{
 		NodeID:   n.ID,
-		Status:   "success",
+		Status:   CompleteStatusSuccess,
 		EndTime:  n.EndTime,
 		Duration: (n.EndTime - n.StartTime) * 1000, // Convert to milliseconds
 		Output:   n.Output,
@@ -27,7 +27,7 @@ func (n *TraceNode) ToCompleteData() *NodeCompleteData {
 func (n *TraceNode) ToFailedData(err error) *NodeFailedData {
 	return &NodeFailedData{
 		NodeID:   n.ID,
-		Status:   "failed",
+		Status:   CompleteStatusFailed,
 		EndTime:  n.EndTime,
 		Duration: (n.EndTime - n.StartTime) * 1000, // Convert to milliseconds
 		Error:    err.Error(),
@@ -68,7 +68,7 @@ func NewTraceInitData(traceID string, rootNode *TraceNode, agentName ...string) 
 func NewTraceCompleteData(traceID string, totalDuration int64) *TraceCompleteData {
 	return &TraceCompleteData{
 		TraceID:       traceID,
-		Status:        "completed",
+		Status:        TraceStatusCompleted,
 		TotalDuration: totalDuration,
 	}
 }
