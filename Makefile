@@ -46,9 +46,9 @@ unit-test:
 benchmark:
 	@echo ""
 	@echo "============================================="
-	@echo "Running Benchmark Tests (agent only)..."
+	@echo "Running Benchmark Tests (agent & trace)..."
 	@echo "============================================="
-	@for d in $$($(GO) list ./agent/...); do \
+	@for d in $$($(GO) list ./agent/... ./trace/...); do \
 		if $(GO) test -list=Benchmark $$d 2>/dev/null | grep -q "^Benchmark"; then \
 			echo ""; \
 			echo "📊 Benchmarking: $$d"; \
@@ -66,14 +66,14 @@ benchmark:
 memory-leak:
 	@echo ""
 	@echo "============================================="
-	@echo "Running Memory Leak Detection (agent only)..."
+	@echo "Running Memory Leak Detection (agent & trace)..."
 	@echo "============================================="
-	@for d in $$($(GO) list ./agent/...); do \
-		if $(GO) test -list='TestMemoryLeak|TestIsolateDisposal' $$d 2>/dev/null | grep -qE "^Test(MemoryLeak|IsolateDisposal)"; then \
+	@for d in $$($(GO) list ./agent/... ./trace/...); do \
+		if $(GO) test -list='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak' $$d 2>/dev/null | grep -qE "^Test(MemoryLeak|IsolateDisposal|GoroutineLeak)"; then \
 			echo ""; \
 			echo "🔍 Memory Leak Detection: $$d"; \
 			echo "---------------------------------------------"; \
-			$(GO) test -run='TestMemoryLeak|TestIsolateDisposal' -v $$d || exit 1; \
+			$(GO) test -run='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak' -v -timeout=60s $$d || exit 1; \
 		fi; \
 	done
 	@echo ""

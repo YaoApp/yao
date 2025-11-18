@@ -31,7 +31,7 @@ func getDriver(driver string, options ...any) (types.Driver, error) {
 
 	switch driver {
 	case Local:
-		basePath := "./traces" // default
+		basePath := "" // empty means use log directory from config
 		if len(options) > 0 {
 			if path, ok := options[0].(string); ok {
 				basePath = path
@@ -43,13 +43,21 @@ func getDriver(driver string, options ...any) (types.Driver, error) {
 		}
 
 	case Store:
-		storeName := "trace" // default
+		storeName := "__yao.store" // default: use system common store
+		prefix := ""               // empty means use driver's default prefix "__trace"
+
 		if len(options) > 0 {
 			if name, ok := options[0].(string); ok {
 				storeName = name
 			}
 		}
-		drv, err = store.New(storeName)
+		if len(options) > 1 {
+			if p, ok := options[1].(string); ok {
+				prefix = p
+			}
+		}
+
+		drv, err = store.New(storeName, prefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create store driver: %w", err)
 		}
@@ -281,7 +289,7 @@ func GetInfo(ctx context.Context, driver string, traceID string, options ...any)
 // traceID: the trace ID to release
 func Release(traceID string) error {
 	registryMu.Lock()
-	_, exists := registry[traceID]
+	info, exists := registry[traceID]
 	if exists {
 		delete(registry, traceID)
 	}
@@ -291,9 +299,10 @@ func Release(traceID string) error {
 		return fmt.Errorf("trace not found in registry: %s", traceID)
 	}
 
-	// Close driver resources if manager has a close method
-	// (Currently manager doesn't expose driver, but driver has Close method)
-	// This is handled when the context is cancelled or program exits
+	// Cancel the manager's context to stop background goroutines
+	if mgr, ok := info.Manager.(*manager); ok && mgr.cancel != nil {
+		mgr.cancel()
+	}
 
 	return nil
 }

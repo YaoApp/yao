@@ -323,17 +323,26 @@ Create a new trace or load existing one from storage.
 
 **Drivers:**
 
-- `trace.Local` - Local disk storage (default path: `./traces`)
-- `trace.Store` - Gou store backend
+- `trace.Local` - Local disk storage (default: uses log directory from config, fallback to `./traces`)
+- `trace.Store` - Gou store backend (default store: `__yao.store`, default prefix: `__trace`)
 
 **Example:**
 
 ```go
+// Local with default path (uses log directory from config)
+traceID, manager, _ := trace.New(ctx, trace.Local, nil)
+
 // Local with custom path
 traceID, manager, _ := trace.New(ctx, trace.Local, nil, "/data/traces")
 
-// Store with custom name
-traceID, manager, _ := trace.New(ctx, trace.Store, nil, "my_traces")
+// Store with default settings (uses __yao.store with __trace prefix)
+traceID, manager, _ := trace.New(ctx, trace.Store, nil)
+
+// Store with custom store name
+traceID, manager, _ := trace.New(ctx, trace.Store, nil, "my_store")
+
+// Store with custom store name and prefix
+traceID, manager, _ := trace.New(ctx, trace.Store, nil, "my_store", "my_prefix")
 
 // With trace options
 option := &types.TraceOption{
