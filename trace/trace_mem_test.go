@@ -618,4 +618,3 @@ func TestGoroutineLeak(t *testing.T) {
 		t.Logf("✓ No goroutine leak detected")
 	}
 }
-

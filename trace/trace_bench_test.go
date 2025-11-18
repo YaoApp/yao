@@ -491,4 +491,3 @@ func getTraceScenarios() []traceScenario {
 		},
 	}
 }
-

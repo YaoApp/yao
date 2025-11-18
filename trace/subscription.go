@@ -37,7 +37,7 @@ func (m *manager) broadcast(update *types.TraceUpdate) {
 					// Channel was closed, ignore (subscriber cleanup race condition)
 				}
 			}()
-			
+
 			select {
 			case ch <- update:
 				// Sent successfully

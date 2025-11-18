@@ -211,4 +211,3 @@ func TestCompleteWithOutput(t *testing.T) {
 		})
 	}
 }
-

@@ -153,15 +153,15 @@ func TestSubscribeFrom(t *testing.T) {
 						// Channel closed
 						break collectLoop
 					}
-				receivedUpdates = append(receivedUpdates, update)
-				// Check if we received step 2 events
-				if update.Type == types.UpdateTypeNodeStart {
-					if data, ok := update.Data.(*types.NodeStartData); ok {
-						if data.Node != nil && data.Node.Label == "Finalizing" {
-							foundStep2 = true
+					receivedUpdates = append(receivedUpdates, update)
+					// Check if we received step 2 events
+					if update.Type == types.UpdateTypeNodeStart {
+						if data, ok := update.Data.(*types.NodeStartData); ok {
+							if data.Node != nil && data.Node.Label == "Finalizing" {
+								foundStep2 = true
+							}
 						}
 					}
-				}
 					// Stop after receiving trace_complete
 					if update.Type == types.UpdateTypeComplete {
 						break collectLoop
@@ -280,4 +280,3 @@ func TestMultipleSubscribers(t *testing.T) {
 		})
 	}
 }
-

@@ -80,7 +80,7 @@ func TestConcurrentSpaceOperations(t *testing.T) {
 			// Concurrent writes to the SAME space (now thread-safe with per-space locks)
 			var wg sync.WaitGroup
 			numWorkers := 10
-			
+
 			for i := 0; i < numWorkers; i++ {
 				wg.Add(1)
 				go func(idx int) {
@@ -282,4 +282,3 @@ func TestConcurrentLogging(t *testing.T) {
 		})
 	}
 }
-

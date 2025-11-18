@@ -176,11 +176,10 @@ func TestSpaceGetSpace(t *testing.T) {
 			assert.Equal(t, "Test description", retrieved.Description)
 			assert.Equal(t, int64(7200), retrieved.TTL)
 
-		// Get non-existent space (returns nil, nil)
-		nonExistent, err := manager.GetSpace("nonexistent")
-		assert.NoError(t, err)
-		assert.Nil(t, nonExistent)
+			// Get non-existent space (returns nil, nil)
+			nonExistent, err := manager.GetSpace("nonexistent")
+			assert.NoError(t, err)
+			assert.Nil(t, nonExistent)
 		})
 	}
 }
-
