@@ -13,8 +13,15 @@ func (m *manager) addUpdate(update *types.TraceUpdate) {
 	m.updates = append(m.updates, update)
 	m.updatesMu.Unlock()
 
-	// Broadcast to real-time subscribers (non-blocking, in goroutine)
-	go m.broadcast(update)
+	// Only broadcast if there are subscribers
+	m.subMu.RLock()
+	hasSubscribers := len(m.subscribers) > 0
+	m.subMu.RUnlock()
+
+	if hasSubscribers {
+		// Broadcast to real-time subscribers (non-blocking, in goroutine)
+		go m.broadcast(update)
+	}
 }
 
 // broadcast sends update to all active subscribers (non-blocking)
@@ -23,12 +30,21 @@ func (m *manager) broadcast(update *types.TraceUpdate) {
 	defer m.subMu.RUnlock()
 
 	for _, ch := range m.subscribers {
-		select {
-		case ch <- update:
-			// Sent successfully
-		default:
-			// Channel full, skip (or could log warning)
-		}
+		// Use recover to handle closed channels safely
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Channel was closed, ignore (subscriber cleanup race condition)
+				}
+			}()
+			
+			select {
+			case ch <- update:
+				// Sent successfully
+			default:
+				// Channel full, skip (or could log warning)
+			}
+		}()
 	}
 }
 
@@ -68,7 +84,7 @@ func (m *manager) replayAndStream(ch chan *types.TraceUpdate, subID string, sinc
 	m.updatesMu.RLock()
 	history := make([]*types.TraceUpdate, 0)
 	for _, update := range m.updates {
-		if update.Timestamp > since {
+		if update.Timestamp >= since {
 			history = append(history, update)
 		}
 	}

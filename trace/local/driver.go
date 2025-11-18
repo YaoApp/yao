@@ -2,7 +2,13 @@ package local
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/trace/types"
 )
 
@@ -13,131 +19,467 @@ type Driver struct {
 
 // New creates a new local driver
 func New(basePath string) (*Driver, error) {
-	// TODO: Implement initialization (create directories, etc.)
+	// If basePath is empty, use log directory from config
+	if basePath == "" {
+		if config.Conf.Log != "" {
+			// Get directory from log file path
+			basePath = filepath.Join(filepath.Dir(config.Conf.Log), "traces")
+		} else {
+			// Fallback to current directory
+			basePath = "./traces"
+		}
+	}
+
+	// Create base directory if it doesn't exist
+	if err := os.MkdirAll(basePath, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create base directory: %w", err)
+	}
+
 	return &Driver{
 		basePath: basePath,
 	}, nil
 }
 
+// getTracePath returns the path for a trace directory
+// Format: {basePath}/{YYYYMMDD}/{traceID}/
+func (d *Driver) getTracePath(traceID string) string {
+	// Extract date prefix from traceID (first 8 digits)
+	datePrefix := traceID[:8]
+	return filepath.Join(d.basePath, datePrefix, traceID)
+}
+
+// ensureTraceDir creates the trace directory if it doesn't exist
+func (d *Driver) ensureTraceDir(traceID string) error {
+	tracePath := d.getTracePath(traceID)
+	return os.MkdirAll(tracePath, 0755)
+}
+
 // SaveNode persists a node to disk
 func (d *Driver) SaveNode(ctx context.Context, traceID string, node *types.TraceNode) error {
-	// TODO: Implement disk save
-	// File path: {basePath}/{YYYYMMDD}/{traceID}/nodes/{nodeID}.json
+	if err := d.ensureTraceDir(traceID); err != nil {
+		return err
+	}
+
+	// Create nodes directory
+	nodesDir := filepath.Join(d.getTracePath(traceID), "nodes")
+	if err := os.MkdirAll(nodesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create nodes directory: %w", err)
+	}
+
+	// Save node as JSON
+	filePath := filepath.Join(nodesDir, node.ID+".json")
+	data, err := json.MarshalIndent(node, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal node: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write node file: %w", err)
+	}
+
 	return nil
 }
 
 // LoadNode loads a node from disk
 func (d *Driver) LoadNode(ctx context.Context, traceID string, nodeID string) (*types.TraceNode, error) {
-	// TODO: Implement disk load
-	return nil, nil
+	filePath := filepath.Join(d.getTracePath(traceID), "nodes", nodeID+".json")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read node file: %w", err)
+	}
+
+	var node types.TraceNode
+	if err := json.Unmarshal(data, &node); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal node: %w", err)
+	}
+
+	return &node, nil
 }
 
 // LoadTrace loads the entire trace tree from disk
 func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNode, error) {
-	// TODO: Implement disk load trace
-	// File path: {basePath}/{YYYYMMDD}/{traceID}/trace.json
+	// Load trace info to get root node ID
+	info, err := d.LoadTraceInfo(ctx, traceID)
+	if err != nil {
+		return nil, err
+	}
+	if info == nil {
+		return nil, nil
+	}
+
+	// For now, just return nil - full tree reconstruction can be implemented later
 	return nil, nil
 }
 
 // SaveSpace persists a space to disk
 func (d *Driver) SaveSpace(ctx context.Context, traceID string, space *types.TraceSpace) error {
-	// TODO: Implement disk save space
-	// File path: {basePath}/{YYYYMMDD}/{traceID}/spaces/{spaceID}.json
+	if err := d.ensureTraceDir(traceID); err != nil {
+		return err
+	}
+
+	// Create spaces directory
+	spacesDir := filepath.Join(d.getTracePath(traceID), "spaces")
+	if err := os.MkdirAll(spacesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create spaces directory: %w", err)
+	}
+
+	// Save space metadata as JSON
+	filePath := filepath.Join(spacesDir, space.ID+".json")
+	data, err := json.MarshalIndent(space, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal space: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write space file: %w", err)
+	}
+
 	return nil
 }
 
 // LoadSpace loads a space from disk
 func (d *Driver) LoadSpace(ctx context.Context, traceID string, spaceID string) (*types.TraceSpace, error) {
-	// TODO: Implement disk load space
-	return nil, nil
+	filePath := filepath.Join(d.getTracePath(traceID), "spaces", spaceID+".json")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read space file: %w", err)
+	}
+
+	var space types.TraceSpace
+	if err := json.Unmarshal(data, &space); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal space: %w", err)
+	}
+
+	return &space, nil
 }
 
 // DeleteSpace removes a space from disk
 func (d *Driver) DeleteSpace(ctx context.Context, traceID string, spaceID string) error {
-	// TODO: Implement disk delete space
+	// Delete space metadata file
+	filePath := filepath.Join(d.getTracePath(traceID), "spaces", spaceID+".json")
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete space file: %w", err)
+	}
+
+	// Delete space data directory
+	dataDir := filepath.Join(d.getTracePath(traceID), "spaces", spaceID)
+	if err := os.RemoveAll(dataDir); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete space data directory: %w", err)
+	}
+
 	return nil
 }
 
 // ListSpaces lists all space IDs for a trace from disk
 func (d *Driver) ListSpaces(ctx context.Context, traceID string) ([]string, error) {
-	// TODO: Implement disk list spaces
-	return nil, nil
+	spacesDir := filepath.Join(d.getTracePath(traceID), "spaces")
+
+	entries, err := os.ReadDir(spacesDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("failed to read spaces directory: %w", err)
+	}
+
+	var spaceIDs []string
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
+			// Remove .json extension to get space ID
+			spaceID := strings.TrimSuffix(entry.Name(), ".json")
+			spaceIDs = append(spaceIDs, spaceID)
+		}
+	}
+
+	return spaceIDs, nil
+}
+
+// getSpaceDataPath returns the path for space data file
+func (d *Driver) getSpaceDataPath(traceID, spaceID string) string {
+	return filepath.Join(d.getTracePath(traceID), "spaces", spaceID, "data.json")
+}
+
+// loadSpaceData loads all key-value pairs for a space
+func (d *Driver) loadSpaceData(traceID, spaceID string) (map[string]any, error) {
+	filePath := d.getSpaceDataPath(traceID, spaceID)
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]any), nil
+		}
+		return nil, fmt.Errorf("failed to read space data: %w", err)
+	}
+
+	var kvData map[string]any
+	if err := json.Unmarshal(data, &kvData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal space data: %w", err)
+	}
+
+	return kvData, nil
+}
+
+// saveSpaceData saves all key-value pairs for a space
+func (d *Driver) saveSpaceData(traceID, spaceID string, kvData map[string]any) error {
+	filePath := d.getSpaceDataPath(traceID, spaceID)
+
+	// Create space data directory
+	dataDir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return fmt.Errorf("failed to create space data directory: %w", err)
+	}
+
+	// Save as JSON
+	data, err := json.MarshalIndent(kvData, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal space data: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write space data file: %w", err)
+	}
+
+	return nil
 }
 
 // SetSpaceKey stores a value by key in a space
 func (d *Driver) SetSpaceKey(ctx context.Context, traceID, spaceID, key string, value any) error {
-	// TODO: Implement disk set space key
-	// File path: {basePath}/{YYYYMMDD}/{traceID}/spaces/{spaceID}/data.json
-	return nil
+	// Load existing data
+	kvData, err := d.loadSpaceData(traceID, spaceID)
+	if err != nil {
+		return err
+	}
+
+	// Set new value
+	kvData[key] = value
+
+	// Save data
+	return d.saveSpaceData(traceID, spaceID, kvData)
 }
 
 // GetSpaceKey retrieves a value by key from a space
 func (d *Driver) GetSpaceKey(ctx context.Context, traceID, spaceID, key string) (any, error) {
-	// TODO: Implement disk get space key
-	return nil, nil
+	kvData, err := d.loadSpaceData(traceID, spaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	value, exists := kvData[key]
+	if !exists {
+		return nil, nil
+	}
+
+	return value, nil
 }
 
 // HasSpaceKey checks if a key exists in a space
 func (d *Driver) HasSpaceKey(ctx context.Context, traceID, spaceID, key string) bool {
-	// TODO: Implement disk has space key
-	return false
+	kvData, err := d.loadSpaceData(traceID, spaceID)
+	if err != nil {
+		return false
+	}
+
+	_, exists := kvData[key]
+	return exists
 }
 
 // DeleteSpaceKey removes a key-value pair from a space
 func (d *Driver) DeleteSpaceKey(ctx context.Context, traceID, spaceID, key string) error {
-	// TODO: Implement disk delete space key
-	return nil
+	kvData, err := d.loadSpaceData(traceID, spaceID)
+	if err != nil {
+		return err
+	}
+
+	delete(kvData, key)
+
+	return d.saveSpaceData(traceID, spaceID, kvData)
 }
 
 // ClearSpaceKeys removes all key-value pairs from a space
 func (d *Driver) ClearSpaceKeys(ctx context.Context, traceID, spaceID string) error {
-	// TODO: Implement disk clear space keys
-	return nil
+	return d.saveSpaceData(traceID, spaceID, make(map[string]any))
 }
 
 // ListSpaceKeys returns all keys in a space
 func (d *Driver) ListSpaceKeys(ctx context.Context, traceID, spaceID string) ([]string, error) {
-	// TODO: Implement disk list space keys
-	return nil, nil
+	kvData, err := d.loadSpaceData(traceID, spaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	keys := make([]string, 0, len(kvData))
+	for key := range kvData {
+		keys = append(keys, key)
+	}
+
+	return keys, nil
 }
 
 // SaveLog appends a log entry to disk
 func (d *Driver) SaveLog(ctx context.Context, traceID string, log *types.TraceLog) error {
-	// TODO: Implement disk save log
-	// File path: {basePath}/{YYYYMMDD}/{traceID}/logs/{nodeID}.jsonl (append mode)
+	if err := d.ensureTraceDir(traceID); err != nil {
+		return err
+	}
+
+	// Create logs directory
+	logsDir := filepath.Join(d.getTracePath(traceID), "logs")
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create logs directory: %w", err)
+	}
+
+	// Append log to node's log file (JSONL format)
+	filePath := filepath.Join(logsDir, log.NodeID+".jsonl")
+
+	// Marshal log as single-line JSON
+	data, err := json.Marshal(log)
+	if err != nil {
+		return fmt.Errorf("failed to marshal log: %w", err)
+	}
+
+	// Append to file
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("failed to write log: %w", err)
+	}
+
 	return nil
 }
 
 // LoadLogs loads all logs for a trace or specific node from disk
 func (d *Driver) LoadLogs(ctx context.Context, traceID string, nodeID string) ([]*types.TraceLog, error) {
-	// TODO: Implement disk load logs
-	// If nodeID is empty, load all logs
-	// If nodeID provided, load logs for that node only
-	return nil, nil
+	logsDir := filepath.Join(d.getTracePath(traceID), "logs")
+
+	var logs []*types.TraceLog
+
+	if nodeID != "" {
+		// Load logs for specific node
+		filePath := filepath.Join(logsDir, nodeID+".jsonl")
+		nodeLogs, err := d.loadLogFile(filePath)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, nodeLogs...)
+	} else {
+		// Load all logs
+		entries, err := os.ReadDir(logsDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return []*types.TraceLog{}, nil
+			}
+			return nil, fmt.Errorf("failed to read logs directory: %w", err)
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".jsonl") {
+				filePath := filepath.Join(logsDir, entry.Name())
+				nodeLogs, err := d.loadLogFile(filePath)
+				if err != nil {
+					return nil, err
+				}
+				logs = append(logs, nodeLogs...)
+			}
+		}
+	}
+
+	return logs, nil
+}
+
+// loadLogFile loads logs from a JSONL file
+func (d *Driver) loadLogFile(filePath string) ([]*types.TraceLog, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*types.TraceLog{}, nil
+		}
+		return nil, fmt.Errorf("failed to read log file: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	logs := make([]*types.TraceLog, 0, len(lines))
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		var log types.TraceLog
+		if err := json.Unmarshal([]byte(line), &log); err != nil {
+			// Skip malformed lines
+			continue
+		}
+
+		logs = append(logs, &log)
+	}
+
+	return logs, nil
 }
 
 // SaveTraceInfo persists trace metadata to disk
 func (d *Driver) SaveTraceInfo(ctx context.Context, info *types.TraceInfo) error {
-	// TODO: Implement disk save trace info
-	// File path: {basePath}/{YYYYMMDD}/{traceID}/trace_info.json
+	if err := d.ensureTraceDir(info.ID); err != nil {
+		return err
+	}
+
+	filePath := filepath.Join(d.getTracePath(info.ID), "trace_info.json")
+
+	data, err := json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal trace info: %w", err)
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write trace info file: %w", err)
+	}
+
 	return nil
 }
 
 // LoadTraceInfo loads trace metadata from disk
 func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.TraceInfo, error) {
-	// TODO: Implement disk load trace info
-	return nil, nil
+	filePath := filepath.Join(d.getTracePath(traceID), "trace_info.json")
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read trace info file: %w", err)
+	}
+
+	var info types.TraceInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal trace info: %w", err)
+	}
+
+	return &info, nil
 }
 
 // DeleteTrace removes entire trace from disk
 func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
-	// TODO: Implement disk delete trace
-	// Delete directory: {basePath}/{YYYYMMDD}/{traceID}/
+	tracePath := d.getTracePath(traceID)
+
+	if err := os.RemoveAll(tracePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to delete trace directory: %w", err)
+	}
+
 	return nil
 }
 
 // Close closes the local driver
 func (d *Driver) Close() error {
-	// TODO: Implement cleanup if needed
+	// No cleanup needed for local file system
 	return nil
 }

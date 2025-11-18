@@ -13,12 +13,14 @@ import (
 // manager implements the Manager interface with unified business logic
 type manager struct {
 	ctx          context.Context
+	cancel       context.CancelFunc // Cancel function to stop background goroutines
 	traceID      string
 	driver       types.Driver
 	rootNode     *types.TraceNode
 	currentNodes []*types.TraceNode
 	spaces       map[string]*types.TraceSpace
-	mu           sync.RWMutex // Protects currentNodes and spaces
+	spaceLocks   map[string]*sync.RWMutex // Per-space locks for concurrent safety
+	mu           sync.RWMutex             // Protects currentNodes and spaces
 
 	// Subscription mechanism
 	updates     []*types.TraceUpdate               // Update history (all events)
@@ -51,13 +53,18 @@ func NewManager(ctx context.Context, traceID string, driver types.Driver) (types
 		return nil, fmt.Errorf("failed to save root node: %w", err)
 	}
 
+	// Create a cancellable context for the manager
+	managerCtx, cancel := context.WithCancel(ctx)
+
 	m := &manager{
-		ctx:          ctx,
+		ctx:          managerCtx,
+		cancel:       cancel,
 		traceID:      traceID,
 		driver:       driver,
 		rootNode:     rootNode,
 		currentNodes: []*types.TraceNode{rootNode},
 		spaces:       make(map[string]*types.TraceSpace),
+		spaceLocks:   make(map[string]*sync.RWMutex),
 		updates:      make([]*types.TraceUpdate, 0, 100),
 		subscribers:  make(map[string]chan *types.TraceUpdate),
 		completed:    false,
@@ -641,6 +648,11 @@ func (m *manager) SetSpaceValue(spaceID, key string, value any) error {
 		return err
 	}
 
+	// Lock this specific space for concurrent safety
+	spaceLock := m.getSpaceLock(spaceID)
+	spaceLock.Lock()
+	defer spaceLock.Unlock()
+
 	now := time.Now().Unix()
 
 	// Get space
@@ -688,6 +700,11 @@ func (m *manager) DeleteSpaceValue(spaceID, key string) error {
 		return err
 	}
 
+	// Lock this specific space for concurrent safety
+	spaceLock := m.getSpaceLock(spaceID)
+	spaceLock.Lock()
+	defer spaceLock.Unlock()
+
 	now := time.Now().Unix()
 
 	// Delete value from driver
@@ -712,6 +729,11 @@ func (m *manager) ClearSpaceValues(spaceID string) error {
 	if err := m.checkContext(); err != nil {
 		return err
 	}
+
+	// Lock this specific space for concurrent safety
+	spaceLock := m.getSpaceLock(spaceID)
+	spaceLock.Lock()
+	defer spaceLock.Unlock()
 
 	now := time.Now().Unix()
 
@@ -739,4 +761,19 @@ func (m *manager) ListSpaceKeys(spaceID string) []string {
 		return nil
 	}
 	return keys
+}
+
+// getSpaceLock gets or creates a lock for a specific space (thread-safe)
+func (m *manager) getSpaceLock(spaceID string) *sync.RWMutex {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if lock, exists := m.spaceLocks[spaceID]; exists {
+		return lock
+	}
+
+	// Create new lock for this space
+	lock := &sync.RWMutex{}
+	m.spaceLocks[spaceID] = lock
+	return lock
 }
