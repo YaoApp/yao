@@ -7,9 +7,9 @@ import (
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/yaoapp/yao/agent/trace/local"
-	"github.com/yaoapp/yao/agent/trace/store"
-	"github.com/yaoapp/yao/agent/trace/types"
+	"github.com/yaoapp/yao/trace/local"
+	"github.com/yaoapp/yao/trace/store"
+	"github.com/yaoapp/yao/trace/types"
 )
 
 // Driver types

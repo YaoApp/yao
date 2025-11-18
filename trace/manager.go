@@ -7,7 +7,7 @@ import (
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
-	"github.com/yaoapp/yao/agent/trace/types"
+	"github.com/yaoapp/yao/trace/types"
 )
 
 // manager implements the Manager interface with unified business logic

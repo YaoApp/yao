@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yaoapp/yao/agent/trace/types"
+	"github.com/yaoapp/yao/trace/types"
 )
 
 // node implements the Node interface for custom node operations

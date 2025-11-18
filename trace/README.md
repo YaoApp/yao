@@ -24,8 +24,8 @@ import (
     "sync"
     "time"
 
-    "github.com/yaoapp/yao/agent/trace"
-    "github.com/yaoapp/yao/agent/trace/types"
+    "github.com/yaoapp/yao/trace"
+    "github.com/yaoapp/yao/trace/types"
 )
 
 func main() {
@@ -191,8 +191,8 @@ import (
     "fmt"
     "time"
 
-    "github.com/yaoapp/yao/agent/trace"
-    "github.com/yaoapp/yao/agent/trace/types"
+    "github.com/yaoapp/yao/trace"
+    "github.com/yaoapp/yao/trace/types"
 )
 
 func main() {

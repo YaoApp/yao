@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yaoapp/yao/agent/trace"
+	"github.com/yaoapp/yao/trace"
 )
 
 // NewStack creates a new root stack with the given trace ID and assistant ID

@@ -3,7 +3,7 @@ package trace
 import (
 	"context"
 
-	"github.com/yaoapp/yao/agent/trace/types"
+	"github.com/yaoapp/yao/trace/types"
 )
 
 // space implements the Space interface for custom space operations
