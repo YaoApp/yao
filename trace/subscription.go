@@ -1,7 +1,7 @@
 package trace
 
 import (
-	"github.com/yaoapp/yao/agent/trace/types"
+	"github.com/yaoapp/yao/trace/types"
 )
 
 // Subscription Operations

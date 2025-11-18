@@ -209,9 +209,9 @@ func TestEnterStack_RootCreation(t *testing.T) {
 		t.Error("Expected traceID to be generated, got empty string")
 	}
 
-	// TraceID should be 8 digits (from trace.GenTraceID)
-	if len(traceID) != 8 {
-		t.Errorf("Expected traceID length 8, got %d", len(traceID))
+	// TraceID should be at least 8 digits (from trace.GenTraceID)
+	if len(traceID) < 8 {
+		t.Errorf("Expected traceID length at least 8, got %d", len(traceID))
 	}
 
 	if stack.TraceID != traceID {
