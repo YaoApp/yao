@@ -1,15 +1,10 @@
 package context
 
 import (
-	"sync"
-
-	"github.com/google/uuid"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	traceJsapi "github.com/yaoapp/yao/trace/jsapi"
 	"rogchap.com/v8go"
 )
-
-var objectsMutex = sync.Mutex{}
-var objects = map[string]*Context{}
 
 // JsValue return the JavaScript value of the context
 func (ctx *Context) JsValue(v8ctx *v8go.Context) (*v8go.Value, error) {
@@ -21,10 +16,16 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 	jsObject := v8go.NewObjectTemplate(v8ctx.Isolate())
 
-	// Set the id and release function
-	id := ctx.objectRegister()
-	jsObject.Set("__id", id)
-	jsObject.Set("__release", ctx.objectRelease(v8ctx.Isolate(), id))
+	// Set internal field count to 1 to store the goValueID
+	// Internal fields are not accessible from JavaScript, providing better security
+	jsObject.SetInternalFieldCount(1)
+
+	// Register context in global bridge registry for efficient Go object retrieval
+	// The goValueID will be stored in internal field (index 0) after instance creation
+	goValueID := bridge.RegisterGoObject(ctx)
+
+	// Set release function that will be called when JavaScript object is released
+	jsObject.Set("__release", ctx.objectRelease(v8ctx.Isolate(), goValueID))
 
 	// Set primitive fields in template
 	jsObject.Set("chat_id", ctx.ChatID)
@@ -42,16 +43,28 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	jsObject.Set("accept", string(ctx.Accept))
 	jsObject.Set("route", ctx.Route)
 
+	// Set methods
+	jsObject.Set("Trace", ctx.traceMethod(v8ctx.Isolate()))
+
 	// Create instance
 	instance, err := jsObject.NewInstance(v8ctx)
 	if err != nil {
-		ctx.objectRelease(v8ctx.Isolate(), id)
+		// Clean up: release from global registry if instance creation failed
+		bridge.ReleaseGoObject(goValueID)
 		return nil, err
 	}
 
+	// Store the goValueID in internal field (index 0)
+	// This is not accessible from JavaScript, providing better security
 	obj, err := instance.Value.AsObject()
 	if err != nil {
-		ctx.objectRelease(v8ctx.Isolate(), id)
+		bridge.ReleaseGoObject(goValueID)
+		return nil, err
+	}
+
+	err = obj.SetInternalField(0, goValueID)
+	if err != nil {
+		bridge.ReleaseGoObject(goValueID)
 		return nil, err
 	}
 
@@ -98,19 +111,49 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	return instance.Value, nil
 }
 
-func (ctx *Context) objectRegister() string {
-	id := uuid.NewString()
-	objectsMutex.Lock()
-	defer objectsMutex.Unlock()
-	objects[id] = ctx
-	return id
+// objectRelease releases the Go object from the global bridge registry
+// It retrieves the goValueID from internal field (index 0) and releases the Go object
+func (ctx *Context) objectRelease(iso *v8go.Isolate, goValueID string) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		// Get the context object (this)
+		thisObj, err := info.This().AsObject()
+		if err == nil && thisObj.InternalFieldCount() > 0 {
+			// Get goValueID from internal field (index 0)
+			goValueID := thisObj.GetInternalField(0)
+			if goValueID != nil && goValueID.IsString() {
+				// Release from global bridge registry
+				bridge.ReleaseGoObject(goValueID.String())
+			}
+		}
+
+		return v8go.Undefined(info.Context().Isolate())
+	})
 }
 
-func (ctx *Context) objectRelease(iso *v8go.Isolate, id string) *v8go.FunctionTemplate {
+func (ctx *Context) traceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		objectsMutex.Lock()
-		defer objectsMutex.Unlock()
-		delete(objects, id)
-		return v8go.Undefined(info.Context().Isolate())
+		v8ctx := info.Context()
+
+		// Get trace manager (lazy initialization)
+		manager, err := ctx.Trace()
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		// Get trace ID
+		traceID := ""
+		if ctx.Stack != nil {
+			traceID = ctx.Stack.TraceID
+		}
+
+		// Create JavaScript Trace object directly
+		// The Trace object will be used within JavaScript and its __release will be called
+		// when the JavaScript value is released via defer bridge.FreeJsValue(jsRes)
+		traceObj, err := traceJsapi.NewTraceObject(v8ctx, traceID, manager)
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		return traceObj
 	})
 }
