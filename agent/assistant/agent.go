@@ -16,6 +16,13 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	var err error
 
+	// Set up interrupt handler if interrupt controller is available
+	if ctx.Interrupt != nil {
+		ctx.Interrupt.SetHandler(func(c *context.Context, signal *context.InterruptSignal) error {
+			return ast.handleInterrupt(c, signal)
+		})
+	}
+
 	// Initialize stack and auto-handle completion/failure/restore
 	_, traceID, done := context.EnterStack(ctx, ast.ID, ctx.Referer)
 	defer done()
@@ -505,4 +512,35 @@ func (ast *Assistant) getUses() *context.Uses {
 // WithHistory with the history messages
 func (ast *Assistant) WithHistory(ctx *context.Context, messages []context.Message) ([]context.Message, error) {
 	return messages, nil
+}
+
+// handleInterrupt handles the interrupt signal
+// This is called by the interrupt listener when a signal is received
+func (ast *Assistant) handleInterrupt(ctx *context.Context, signal *context.InterruptSignal) error {
+	fmt.Printf("=== Interrupt Received ===\n")
+	fmt.Printf("Assistant: %s\n", ast.ID)
+	fmt.Printf("Type: %s\n", signal.Type)
+	fmt.Printf("Messages: %d\n", len(signal.Messages))
+	fmt.Printf("Timestamp: %d\n", signal.Timestamp)
+
+	// Handle based on interrupt type
+	switch signal.Type {
+	case context.InterruptForce:
+		fmt.Println("Force interrupt: stopping current operations immediately...")
+		// Force interrupt: context is already cancelled in handleSignal
+		// LLM streaming will detect ctx.Interrupt.Context().Done() and stop
+
+	case context.InterruptGraceful:
+		fmt.Println("Graceful interrupt: will process after current step completes...")
+		// Graceful interrupt: let current operation complete
+		// The signal is stored in current/pending, can be checked at checkpoints
+	}
+
+	// TODO: Implement actual interrupt handling logic:
+	// 1. For graceful: wait for current step, then merge messages and restart
+	// 2. For force: immediately stop and restart with new messages
+	// 3. Call Interrupted Hook if configured
+	// 4. Decide whether to continue, restart, or abort based on Hook response
+
+	return nil
 }

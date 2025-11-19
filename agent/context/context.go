@@ -3,6 +3,7 @@ package context
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -12,6 +13,11 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/trace"
 	traceTypes "github.com/yaoapp/yao/trace/types"
+)
+
+// Global context registry for interrupt management
+var (
+	contextRegistry = &sync.Map{} // map[contextID]*Context
 )
 
 // New create a new context
@@ -24,6 +30,7 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID, paylo
 	// Validate the client type
 	ctx := Context{
 		Context: parent,
+		ID:      generateContextID(), // Generate unique ID for the context
 		Space:   plan.NewMemorySharedSpace(),
 		ChatID:  chatID,
 	}
@@ -68,6 +75,17 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, context.Cancel
 
 // Release the context and clean up all resources including stacks and trace
 func (ctx *Context) Release() {
+	// Unregister from global registry
+	if ctx.ID != "" {
+		Unregister(ctx.ID)
+	}
+
+	// Stop interrupt controller
+	if ctx.Interrupt != nil {
+		ctx.Interrupt.Stop()
+		ctx.Interrupt = nil
+	}
+
 	// Complete and release trace if exists
 	if ctx.trace != nil && ctx.Stack != nil && ctx.Stack.TraceID != "" {
 		// Mark trace as complete (sends final event)
@@ -241,4 +259,61 @@ func (ctx *Context) Map() map[string]interface{} {
 	}
 
 	return data
+}
+
+// Global Registry Functions
+// ===================================
+
+// Register registers a context to the global registry
+func Register(ctx *Context) error {
+	if ctx == nil {
+		return fmt.Errorf("context is nil")
+	}
+
+	if ctx.ID == "" {
+		return fmt.Errorf("context ID is empty")
+	}
+
+	contextRegistry.Store(ctx.ID, ctx)
+	return nil
+}
+
+// Unregister removes a context from the global registry
+func Unregister(contextID string) {
+	contextRegistry.Delete(contextID)
+}
+
+// Get retrieves a context from the global registry by ID
+func Get(contextID string) (*Context, error) {
+	value, ok := contextRegistry.Load(contextID)
+	if !ok {
+		return nil, fmt.Errorf("context not found: %s", contextID)
+	}
+
+	ctx, ok := value.(*Context)
+	if !ok {
+		return nil, fmt.Errorf("invalid context type")
+	}
+
+	return ctx, nil
+}
+
+// SendInterrupt sends an interrupt signal to a context by ID
+// This is the main entry point for external interrupt requests
+func SendInterrupt(contextID string, signal *InterruptSignal) error {
+	ctx, err := Get(contextID)
+	if err != nil {
+		return err
+	}
+
+	if ctx.Interrupt == nil {
+		return fmt.Errorf("interrupt controller not initialized for context: %s", contextID)
+	}
+
+	return ctx.Interrupt.SendSignal(signal)
+}
+
+// generateContextID generates a unique context ID
+func generateContextID() string {
+	return fmt.Sprintf("ctx_%d", time.Now().UnixNano())
 }

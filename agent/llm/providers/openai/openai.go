@@ -209,6 +209,13 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 		default:
 		}
 
+		// Check for force interrupt before retry
+		if ctx.Interrupt != nil {
+			if signal := ctx.Interrupt.Peek(); signal != nil && signal.Type == context.InterruptForce {
+				return nil, fmt.Errorf("force interrupted by user")
+			}
+		}
+
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
@@ -216,12 +223,27 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 
 			// Sleep with context cancellation support
 			timer := time.NewTimer(backoff)
-			select {
-			case <-timer.C:
-				// Continue to retry
-			case <-goCtx.Done():
-				timer.Stop()
-				return nil, fmt.Errorf("context cancelled during backoff: %w", goCtx.Err())
+			interruptTicker := time.NewTicker(100 * time.Millisecond) // Check interrupt every 100ms
+			defer interruptTicker.Stop()
+
+		backoffLoop:
+			for {
+				select {
+				case <-timer.C:
+					// Backoff completed, continue to retry
+					break backoffLoop
+				case <-goCtx.Done():
+					timer.Stop()
+					return nil, fmt.Errorf("context cancelled during backoff: %w", goCtx.Err())
+				case <-interruptTicker.C:
+					// Check for force interrupt during backoff
+					if ctx.Interrupt != nil {
+						if signal := ctx.Interrupt.Peek(); signal != nil && signal.Type == context.InterruptForce {
+							timer.Stop()
+							return nil, fmt.Errorf("force interrupted by user during backoff")
+						}
+					}
+				}
 			}
 		}
 
@@ -290,6 +312,13 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	case <-goCtx.Done():
 		return nil, fmt.Errorf("context cancelled before stream start: %w", goCtx.Err())
 	default:
+	}
+
+	// Check for force interrupt before stream start
+	if ctx.Interrupt != nil {
+		if signal := ctx.Interrupt.Peek(); signal != nil && signal.Type == context.InterruptForce {
+			return nil, fmt.Errorf("force interrupted by user before stream start")
+		}
 	}
 
 	// Send stream_start event
@@ -387,6 +416,14 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 			log.Warn("Stream cancelled by context")
 			return http.HandlerReturnBreak
 		default:
+		}
+
+		// Check for force interrupt signal
+		if ctx.Interrupt != nil {
+			if signal := ctx.Interrupt.Peek(); signal != nil && signal.Type == context.InterruptForce {
+				log.Warn("Stream cancelled by force interrupt")
+				return http.HandlerReturnBreak
+			}
 		}
 
 		if len(data) == 0 {

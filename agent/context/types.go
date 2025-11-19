@@ -2,6 +2,7 @@ package context
 
 import (
 	"context"
+	"sync"
 
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
@@ -116,17 +117,81 @@ var ValidStackStatus = map[string]bool{
 	StackStatusTimeout:   true,
 }
 
+// Interrupt Types and Constants
+// ===============================
+
+// InterruptType represents the type of interrupt
+type InterruptType string
+
+const (
+	// InterruptGraceful waits for current step to complete before handling interrupt
+	InterruptGraceful InterruptType = "graceful"
+
+	// InterruptForce immediately cancels current operation and handles interrupt
+	InterruptForce InterruptType = "force"
+)
+
+// InterruptAction represents the action to take after interrupt is handled
+type InterruptAction string
+
+const (
+	// InterruptActionContinue appends new messages and continues execution
+	InterruptActionContinue InterruptAction = "continue"
+
+	// InterruptActionRestart restarts execution with only new messages
+	InterruptActionRestart InterruptAction = "restart"
+
+	// InterruptActionAbort terminates the request
+	InterruptActionAbort InterruptAction = "abort"
+)
+
+// InterruptSignal represents an interrupt signal with new messages from user
+type InterruptSignal struct {
+	Type      InterruptType          `json:"type"`               // Interrupt type: graceful or force
+	Messages  []Message              `json:"messages"`           // User's new messages (can be multiple)
+	Timestamp int64                  `json:"timestamp"`          // Interrupt timestamp in milliseconds
+	Metadata  map[string]interface{} `json:"metadata,omitempty"` // Additional metadata
+}
+
+// InterruptHandler is the function signature for handling interrupts
+// This handler is registered in the InterruptController and called when interrupt signal is received
+// Parameters:
+//   - ctx: The context being interrupted
+//   - signal: The interrupt signal (contains Type and Messages)
+//
+// Returns:
+//   - error: Error if interrupt handling failed
+type InterruptHandler func(ctx *Context, signal *InterruptSignal) error
+
+// InterruptController manages interrupt handling for a context
+// All interrupt-related fields are encapsulated in this type
+type InterruptController struct {
+	queue           chan *InterruptSignal `json:"-"` // Queue to receive interrupt signals
+	current         *InterruptSignal      `json:"-"` // Current interrupt being processed
+	pending         []*InterruptSignal    `json:"-"` // Pending interrupts in queue
+	mutex           sync.RWMutex          `json:"-"` // Protects current and pending
+	ctx             context.Context       `json:"-"` // Interrupt control context (independent from HTTP context)
+	cancel          context.CancelFunc    `json:"-"` // Cancel function for force interrupt
+	listenerStarted bool                  `json:"-"` // Whether listener goroutine is started
+	handler         InterruptHandler      `json:"-"` // Handler to process interrupt signals
+	contextID       string                `json:"-"` // Context ID to retrieve the parent context
+}
+
 // Context the context
 type Context struct {
 
 	// Context
 	context.Context
-	Space  plan.Space         `json:"-"` // Shared data space, it will be used to share data between the request and the call
-	Cache  store.Store        `json:"-"` // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
-	Stack  *Stack             `json:"-"` // Stack, current active stack of the request
-	Stacks map[string]*Stack  `json:"-"` // Stacks, all stacks in this request (for trace logging)
-	Writer Writer             `json:"-"` // Writer, it will be used to write response data to the client
-	trace  traceTypes.Manager `json:"-"` // Trace manager, lazy initialized on first access
+	ID     string             `json:"id"` // Context ID for external interrupt identification
+	Space  plan.Space         `json:"-"`  // Shared data space, it will be used to share data between the request and the call
+	Cache  store.Store        `json:"-"`  // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Stack  *Stack             `json:"-"`  // Stack, current active stack of the request
+	Stacks map[string]*Stack  `json:"-"`  // Stacks, all stacks in this request (for trace logging)
+	Writer Writer             `json:"-"`  // Writer, it will be used to write response data to the client
+	trace  traceTypes.Manager `json:"-"`  // Trace manager, lazy initialized on first access
+
+	// Interrupt control (all interrupt-related logic is encapsulated in InterruptController)
+	Interrupt *InterruptController `json:"-"` // Interrupt controller for handling user interrupts during streaming
 
 	// Authorized information
 	Authorized  *types.AuthorizedInfo `json:"authorized,omitempty"`   // Authorized information
@@ -224,6 +289,26 @@ type ResponseHookMCP struct{}
 
 // ResponseHookFailback the response of the failback hook
 type ResponseHookFailback struct{}
+
+// HookInterruptedResponse the response of the interrupted hook
+type HookInterruptedResponse struct {
+	// Action to take after interrupt is handled
+	Action InterruptAction `json:"action"` // continue, restart, or abort
+
+	// Messages to use for next execution (if action is continue or restart)
+	Messages []Message `json:"messages,omitempty"`
+
+	// Context adjustments - allow hook to modify context fields
+	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID
+	Connector   string                 `json:"connector,omitempty"`    // Override connector
+	Locale      string                 `json:"locale,omitempty"`       // Override locale
+	Theme       string                 `json:"theme,omitempty"`        // Override theme
+	Route       string                 `json:"route,omitempty"`        // Override route
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`     // Override or merge metadata
+
+	// Notice to send to client
+	Notice string `json:"notice,omitempty"` // Message to display to user (e.g., "Processing your new question...")
+}
 
 // Message Structure ( OpenAI Chat Completion Input Message Structure, https://platform.openai.com/docs/api-reference/chat/create#chat/create-messages )
 // ===============================

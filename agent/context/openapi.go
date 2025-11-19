@@ -44,9 +44,10 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	clientType := getClientType(userAgent)
 	clientIP := c.ClientIP()
 
-	// Set cache in context
+	// Create context with unique ID
 	ctx := &Context{
 		Context:     c.Request.Context(),
+		ID:          generateContextID(),
 		Space:       plan.NewMemorySharedSpace(),
 		Cache:       cache,
 		Writer:      c.Writer,
@@ -65,6 +66,18 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 		Route:    GetRoute(c, completionReq),
 		Metadata: GetMetadata(c, completionReq),
 	}
+
+	// Initialize interrupt controller
+	ctx.Interrupt = NewInterruptController()
+	ctx.Interrupt.SetContextID(ctx.ID)
+
+	// Register context to global registry first
+	if err := Register(ctx); err != nil {
+		return nil, nil, fmt.Errorf("failed to register context: %w", err)
+	}
+
+	// Start interrupt listener after registration
+	ctx.Interrupt.Start()
 
 	return completionReq, ctx, nil
 }
