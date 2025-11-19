@@ -2,12 +2,16 @@ package context
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/trace"
+	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // New create a new context
@@ -62,8 +66,19 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, context.Cancel
 	return parent, cancel
 }
 
-// Release the context and clean up all resources including stacks
+// Release the context and clean up all resources including stacks and trace
 func (ctx *Context) Release() {
+	// Complete and release trace if exists
+	if ctx.trace != nil && ctx.Stack != nil && ctx.Stack.TraceID != "" {
+		// Mark trace as complete (sends final event)
+		_ = ctx.trace.MarkComplete()
+
+		// Release from global registry (removes from registry and closes resources)
+		_ = trace.Release(ctx.Stack.TraceID)
+
+		ctx.trace = nil
+	}
+
 	// Clear space
 	if ctx.Space != nil {
 		ctx.Space.Clear()
@@ -96,6 +111,70 @@ func (ctx *Context) Send(data []byte) error {
 
 	_, err := ctx.Writer.Write(data)
 	return err
+}
+
+// Trace returns the trace manager for this context, lazily initialized on first call
+// Uses the TraceID from ctx.Stack if available, or generates a new one
+func (ctx *Context) Trace() (traceTypes.Manager, error) {
+	// Return trace if already initialized
+	if ctx.trace != nil {
+		return ctx.trace, nil
+	}
+
+	// Get TraceID from Stack or generate new one
+	var traceID string
+	if ctx.Stack != nil && ctx.Stack.TraceID != "" {
+		traceID = ctx.Stack.TraceID
+
+		// Try to load existing trace first
+		manager, err := trace.Load(traceID)
+		if err == nil {
+			// Found in registry, reuse it
+			ctx.trace = manager
+			return manager, nil
+		}
+	}
+
+	// Get trace configuration from global config
+	cfg := config.Conf
+
+	// Prepare driver options
+	var driverOptions []any
+	var driverType string
+
+	switch cfg.Trace.Driver {
+	case "store":
+		driverType = trace.Store
+		if cfg.Trace.Store == "" {
+			return nil, fmt.Errorf("trace store ID not configured")
+		}
+		driverOptions = []any{cfg.Trace.Store, cfg.Trace.Prefix}
+
+	case "local", "":
+		driverType = trace.Local
+		driverOptions = []any{cfg.Trace.Path}
+
+	default:
+		return nil, fmt.Errorf("unsupported trace driver: %s", cfg.Trace.Driver)
+	}
+
+	// Create trace using trace.New (handles registry)
+	createdTraceID, manager, err := trace.New(ctx.Context, driverType, &traceTypes.TraceOption{
+		ID: traceID, // Use existing ID from Stack or empty to generate new one
+	}, driverOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create trace: %w", err)
+	}
+
+	// Update Stack with the created TraceID if needed
+	if ctx.Stack != nil && ctx.Stack.TraceID == "" {
+		ctx.Stack.TraceID = createdTraceID
+	}
+
+	// Store for future calls
+	ctx.trace = manager
+
+	return manager, nil
 }
 
 // Map the context to a map

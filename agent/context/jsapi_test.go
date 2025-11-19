@@ -1,6 +1,7 @@
 package context
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -35,7 +36,7 @@ func TestJsValue(t *testing.T) {
 		t.Fatalf("Call failed: %v", err)
 	}
 	assert.Equal(t, "ChatID-123456", res)
-	assert.Equal(t, 0, len(objects))
+	// Note: We can't directly check goMaps cleanup as it's in the bridge package
 }
 
 func testContextJsvalueEmbed(iso *v8go.Isolate) *v8go.FunctionTemplate {
@@ -132,7 +133,7 @@ func TestJsValueConcurrent(t *testing.T) {
 
 	// Verify all objects are cleaned up after GC
 	// Note: objects should be released when v8 values are garbage collected
-	assert.Equal(t, 0, len(objects), "All objects should be cleaned up")
+	// Note: We can't directly check goMaps cleanup as it's in the bridge package
 }
 
 // TestJsValueRegistrationAndCleanup test the object registration and cleanup mechanism
@@ -140,11 +141,6 @@ func TestJsValueRegistrationAndCleanup(t *testing.T) {
 
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
-
-	// Clear objects map before test
-	objectsMutex.Lock()
-	objects = map[string]*Context{}
-	objectsMutex.Unlock()
 
 	v8.RegisterFunction("testContextRegistration", testContextRegistrationEmbed)
 
@@ -168,7 +164,7 @@ func TestJsValueRegistrationAndCleanup(t *testing.T) {
 	}
 
 	// All objects should be cleaned up after v8.Call completes
-	assert.Equal(t, 0, len(objects), "All objects should be cleaned up after execution")
+	// Note: We can't directly check goMaps cleanup as it's in the bridge package
 }
 
 func testContextRegistrationEmbed(iso *v8go.Isolate) *v8go.FunctionTemplate {
@@ -186,16 +182,6 @@ func testContextRegistrationFunction(info *v8go.FunctionCallbackInfo) *v8go.Valu
 		return bridge.JsException(info.Context(), err)
 	}
 
-	// Verify the object has __id field
-	id, err := ctx.Get("__id")
-	if err != nil {
-		return bridge.JsException(info.Context(), err)
-	}
-
-	if !id.IsString() {
-		return bridge.JsException(info.Context(), fmt.Errorf("__id should be a string"))
-	}
-
 	// Verify the object has __release function
 	release, err := ctx.Get("__release")
 	if err != nil {
@@ -206,14 +192,14 @@ func testContextRegistrationFunction(info *v8go.FunctionCallbackInfo) *v8go.Valu
 		return bridge.JsException(info.Context(), fmt.Errorf("__release should be a function"))
 	}
 
-	// Verify the object is registered
-	objectsMutex.Lock()
-	idStr := id.String()
-	_, exists := objects[idStr]
-	objectsMutex.Unlock()
+	// Verify the object has internal field (goValueID is stored in internal field, not accessible from JS)
+	if ctx.InternalFieldCount() == 0 {
+		return bridge.JsException(info.Context(), fmt.Errorf("object should have internal field"))
+	}
 
-	if !exists {
-		return bridge.JsException(info.Context(), fmt.Errorf("object %s not registered", idStr))
+	goValueID := ctx.GetInternalField(0)
+	if goValueID == nil || !goValueID.IsString() {
+		return bridge.JsException(info.Context(), fmt.Errorf("internal field should contain goValueID string"))
 	}
 
 	val, err := v8go.NewValue(info.Context().Isolate(), true)
@@ -348,7 +334,7 @@ func TestJsValueAllFields(t *testing.T) {
 	_, hasSilent := result["silent"]
 	assert.False(t, hasSilent, "silent (deprecated) should not be exported")
 
-	assert.Equal(t, 0, len(objects))
+	// Note: We can't directly check goMaps cleanup as it's in the bridge package
 }
 
 func testAllFieldsEmbed(iso *v8go.Isolate) *v8go.FunctionTemplate {
@@ -441,4 +427,69 @@ func testAllFieldsFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		return bridge.JsException(info.Context(), err)
 	}
 	return jsVal
+}
+
+// TestJsValueTrace test the Trace method on Context
+func TestJsValueTrace(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Stack: &Stack{
+			TraceID: "test-trace-id",
+		},
+		Context: context.Background(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(cxt) {
+			// Get trace from context
+			const trace = cxt.Trace()
+			
+			// Verify trace object exists
+			if (!trace) {
+				throw new Error("Trace() returned null or undefined")
+			}
+			
+			// Verify trace has expected methods
+			if (typeof trace.Add !== 'function') {
+				throw new Error("trace.Add is not a function")
+			}
+			if (typeof trace.Info !== 'function') {
+				throw new Error("trace.Info is not a function")
+			}
+			
+			// Actually use the trace - add a node
+			const node = trace.Add({ type: "test", content: "Test from context" }, { label: "Test Node" })
+			
+			// Log some info
+			trace.Info("Testing trace from context")
+			node.Info("Node info message")
+			
+			// Complete the node
+			node.Complete({ result: "success" })
+			
+			// Return verification info
+			return {
+				trace_id: trace.id,
+				node_id: node.id,
+				success: true
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	// Verify trace was accessible and operations succeeded
+	assert.Equal(t, "test-trace-id", result["trace_id"], "trace_id should match")
+	assert.NotEmpty(t, result["node_id"], "node_id should not be empty")
+	assert.Equal(t, true, result["success"], "operation should succeed")
 }

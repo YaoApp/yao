@@ -102,7 +102,48 @@ func Load() Config {
 		}
 	}
 
+	// Trace Driver - default based on mode
+	if cfg.Trace.Driver == "" {
+		if cfg.Mode == "development" {
+			cfg.Trace.Driver = "local"
+		} else {
+			cfg.Trace.Driver = "store"
+		}
+	}
+
+	// Trace Path - default to same directory as log file when using local driver
+	if cfg.Trace.Driver == "local" {
+		if cfg.Trace.Path == "" {
+			// Use the log file directory
+			logDir := cfg.GetLogDir()
+			cfg.Trace.Path = filepath.Join(logDir, "traces")
+		}
+
+		if !filepath.IsAbs(cfg.Trace.Path) {
+			cfg.Trace.Path = filepath.Join(cfg.Root, cfg.Trace.Path)
+		}
+	}
+
+	// Trace Prefix - default prefix for store driver
+	if cfg.Trace.Driver == "store" && cfg.Trace.Prefix == "" {
+		cfg.Trace.Prefix = "trace:"
+	}
+
 	return cfg
+}
+
+// GetLogDir returns the directory of the log file
+func (cfg *Config) GetLogDir() string {
+	logPath := cfg.Log
+	if logPath == "" {
+		logPath = filepath.Join(cfg.Root, "logs", "application.log")
+	}
+
+	if !filepath.IsAbs(logPath) {
+		logPath = filepath.Join(cfg.Root, logPath)
+	}
+
+	return filepath.Dir(logPath)
 }
 
 // Production 设定为生产环境

@@ -25,6 +25,7 @@ type Config struct {
 	Session       Session  `json:"session,omitempty"`                                         // Session Config
 	Studio        Studio   `json:"studio,omitempty"`                                          // Studio config
 	Runtime       Runtime  `json:"runtime,omitempty"`                                         // Runtime config
+	Trace         Trace    `json:"trace,omitempty"`                                           // Trace config
 }
 
 // Studio the studio config
@@ -66,4 +67,12 @@ type Runtime struct {
 	HeapAvailableSize uint64 `json:"heapAvailableSize,omitempty" env:"YAO_RUNTIME_HEAP_AVAILABLE" envDefault:"524288000"` // the isolate will be re-created when the available size is smaller than this value, and the default value is 524288000 (500M)
 	Precompile        bool   `json:"precompile,omitempty" env:"YAO_RUNTIME_PRECOMPILE" envDefault:"false"`                // if true compile scripts when the VM is created. this will increase the load time, but the script will run faster. the default value is false
 	Import            bool   `json:"import,omitempty"  env:"YAO_RUNTIME_IMPORT" envDefault:"true"`                        // If false the import statement will be disabled, the default value is true.
+}
+
+// Trace config
+type Trace struct {
+	Driver string `json:"driver,omitempty" env:"YAO_TRACE_DRIVER"` // The trace driver. local (development) | store (production)
+	Path   string `json:"path,omitempty" env:"YAO_TRACE_PATH"`     // The local file path for trace storage
+	Store  string `json:"store,omitempty" env:"YAO_TRACE_STORE"`   // The store ID when driver is "store"
+	Prefix string `json:"prefix,omitempty" env:"YAO_TRACE_PREFIX"` // The prefix for trace storage keys
 }
