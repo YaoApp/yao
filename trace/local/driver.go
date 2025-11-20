@@ -1,12 +1,16 @@
 package local
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/trace/types"
@@ -133,6 +137,15 @@ func (d *Driver) ensureTraceDir(traceID string) error {
 
 // SaveNode persists a node to disk
 func (d *Driver) SaveNode(ctx context.Context, traceID string, node *types.TraceNode) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save node: trace %s is archived (read-only)", traceID)
+	}
+
 	if err := d.ensureTraceDir(traceID); err != nil {
 		return err
 	}
@@ -162,6 +175,18 @@ func (d *Driver) SaveNode(ctx context.Context, traceID string, node *types.Trace
 
 // LoadNode loads a node from disk
 func (d *Driver) LoadNode(ctx context.Context, traceID string, nodeID string) (*types.TraceNode, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		// Extract archive for read access
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
 	filePath := filepath.Join(d.getTracePath(traceID), "nodes", nodeID+".json")
 
 	data, err := os.ReadFile(filePath)
@@ -215,6 +240,15 @@ func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNod
 
 // SaveSpace persists a space to disk
 func (d *Driver) SaveSpace(ctx context.Context, traceID string, space *types.TraceSpace) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save space: trace %s is archived (read-only)", traceID)
+	}
+
 	if err := d.ensureTraceDir(traceID); err != nil {
 		return err
 	}
@@ -241,6 +275,17 @@ func (d *Driver) SaveSpace(ctx context.Context, traceID string, space *types.Tra
 
 // LoadSpace loads a space from disk
 func (d *Driver) LoadSpace(ctx context.Context, traceID string, spaceID string) (*types.TraceSpace, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
 	filePath := filepath.Join(d.getTracePath(traceID), "spaces", spaceID+".json")
 
 	data, err := os.ReadFile(filePath)
@@ -423,6 +468,15 @@ func (d *Driver) ListSpaceKeys(ctx context.Context, traceID, spaceID string) ([]
 
 // SaveLog appends a log entry to disk
 func (d *Driver) SaveLog(ctx context.Context, traceID string, log *types.TraceLog) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save log: trace %s is archived (read-only)", traceID)
+	}
+
 	if err := d.ensureTraceDir(traceID); err != nil {
 		return err
 	}
@@ -458,6 +512,17 @@ func (d *Driver) SaveLog(ctx context.Context, traceID string, log *types.TraceLo
 
 // LoadLogs loads all logs for a trace or specific node from disk
 func (d *Driver) LoadLogs(ctx context.Context, traceID string, nodeID string) ([]*types.TraceLog, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
 	logsDir := filepath.Join(d.getTracePath(traceID), "logs")
 
 	var logs []*types.TraceLog
@@ -527,6 +592,16 @@ func (d *Driver) loadLogFile(filePath string) ([]*types.TraceLog, error) {
 
 // SaveTraceInfo persists trace metadata to disk
 func (d *Driver) SaveTraceInfo(ctx context.Context, info *types.TraceInfo) error {
+	// Allow saving trace info even if archived (for updating archive status)
+	// But check if it's trying to modify a non-archive field
+	if info.Archived {
+		// If already archived, only allow updating archive-related fields
+		existing, err := d.LoadTraceInfo(ctx, info.ID)
+		if err == nil && existing != nil && existing.Archived && !info.Archived {
+			return fmt.Errorf("cannot unarchive trace: trace %s is archived", info.ID)
+		}
+	}
+
 	if err := d.ensureTraceDir(info.ID); err != nil {
 		return err
 	}
@@ -545,8 +620,8 @@ func (d *Driver) SaveTraceInfo(ctx context.Context, info *types.TraceInfo) error
 	return nil
 }
 
-// LoadTraceInfo loads trace metadata from disk
-func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.TraceInfo, error) {
+// loadTraceInfoDirect loads trace info without unarchiving (internal use)
+func (d *Driver) loadTraceInfoDirect(traceID string) (*types.TraceInfo, error) {
 	filePath := filepath.Join(d.getTracePath(traceID), "trace_info.json")
 
 	data, err := os.ReadFile(filePath)
@@ -565,6 +640,22 @@ func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.Trac
 	return &info, nil
 }
 
+// LoadTraceInfo loads trace metadata from disk
+func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.TraceInfo, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
+	return d.loadTraceInfoDirect(traceID)
+}
+
 // DeleteTrace removes entire trace from disk
 func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
 	tracePath := d.getTracePath(traceID)
@@ -578,6 +669,15 @@ func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
 
 // SaveUpdate persists a trace update event to disk (append-only)
 func (d *Driver) SaveUpdate(ctx context.Context, traceID string, update *types.TraceUpdate) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save update: trace %s is archived (read-only)", traceID)
+	}
+
 	if err := d.ensureTraceDir(traceID); err != nil {
 		return err
 	}
@@ -639,6 +739,205 @@ func (d *Driver) LoadUpdates(ctx context.Context, traceID string, since int64) (
 	}
 
 	return updates, nil
+}
+
+// Archive archives a trace by compressing it to tar.gz
+func (d *Driver) Archive(ctx context.Context, traceID string) error {
+	tracePath := d.getTracePath(traceID)
+	archivePath := tracePath + ".tar.gz"
+	archivedMarker := filepath.Join(filepath.Dir(tracePath), "."+traceID+".archived")
+
+	// Check if already archived
+	if _, err := os.Stat(archivedMarker); err == nil {
+		return fmt.Errorf("trace %s is already archived", traceID)
+	}
+
+	// Check if trace directory exists
+	if _, err := os.Stat(tracePath); os.IsNotExist(err) {
+		return fmt.Errorf("trace directory not found: %s", traceID)
+	}
+
+	// Update trace info to mark as archived BEFORE creating archive
+	info, err := d.loadTraceInfoDirect(traceID)
+	if err != nil {
+		return fmt.Errorf("failed to load trace info: %w", err)
+	}
+	if info != nil {
+		now := time.Now().UnixMilli()
+		info.Archived = true
+		info.ArchivedAt = &now
+		// Write trace info back before archiving
+		infoPath := filepath.Join(tracePath, "trace_info.json")
+		infoData, err := json.MarshalIndent(info, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal trace info: %w", err)
+		}
+		if err := os.WriteFile(infoPath, infoData, 0644); err != nil {
+			return fmt.Errorf("failed to write trace info: %w", err)
+		}
+	}
+
+	// Create tar.gz archive
+	archiveFile, err := os.Create(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to create archive file: %w", err)
+	}
+	defer archiveFile.Close()
+
+	// Create gzip writer
+	gzipWriter := gzip.NewWriter(archiveFile)
+	defer gzipWriter.Close()
+
+	// Create tar writer
+	tarWriter := tar.NewWriter(gzipWriter)
+	defer tarWriter.Close()
+
+	// Walk through trace directory and add files to archive
+	err = filepath.Walk(tracePath, func(file string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Create tar header
+		header, err := tar.FileInfoHeader(fi, fi.Name())
+		if err != nil {
+			return err
+		}
+
+		// Update header name to be relative to trace directory
+		relPath, err := filepath.Rel(tracePath, file)
+		if err != nil {
+			return err
+		}
+		header.Name = relPath
+
+		// Write header
+		if err := tarWriter.WriteHeader(header); err != nil {
+			return err
+		}
+
+		// If not a directory, write file content
+		if !fi.IsDir() {
+			data, err := os.Open(file)
+			if err != nil {
+				return err
+			}
+			defer data.Close()
+
+			if _, err := io.Copy(tarWriter, data); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		// Clean up failed archive
+		os.Remove(archivePath)
+		return fmt.Errorf("failed to create archive: %w", err)
+	}
+
+	// Create archived marker file
+	if err := os.WriteFile(archivedMarker, []byte(time.Now().Format(time.RFC3339)), 0644); err != nil {
+		return fmt.Errorf("failed to create archived marker: %w", err)
+	}
+
+	// Remove original directory
+	if err := os.RemoveAll(tracePath); err != nil {
+		return fmt.Errorf("failed to remove original trace directory: %w", err)
+	}
+
+	return nil
+}
+
+// IsArchived checks if a trace is archived
+func (d *Driver) IsArchived(ctx context.Context, traceID string) (bool, error) {
+	tracePath := d.getTracePath(traceID)
+	archivedMarker := filepath.Join(filepath.Dir(tracePath), "."+traceID+".archived")
+
+	// Check marker file
+	if _, err := os.Stat(archivedMarker); err == nil {
+		return true, nil
+	}
+
+	// Also check if archive file exists
+	archivePath := tracePath + ".tar.gz"
+	if _, err := os.Stat(archivePath); err == nil {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// unarchive extracts an archived trace (helper method, not exposed in interface)
+func (d *Driver) unarchive(ctx context.Context, traceID string) error {
+	tracePath := d.getTracePath(traceID)
+	archivePath := tracePath + ".tar.gz"
+
+	// Check if archive exists
+	if _, err := os.Stat(archivePath); os.IsNotExist(err) {
+		return fmt.Errorf("archive not found: %s", traceID)
+	}
+
+	// Open archive file
+	archiveFile, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("failed to open archive: %w", err)
+	}
+	defer archiveFile.Close()
+
+	// Create gzip reader
+	gzipReader, err := gzip.NewReader(archiveFile)
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzipReader.Close()
+
+	// Create tar reader
+	tarReader := tar.NewReader(gzipReader)
+
+	// Extract files
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read tar header: %w", err)
+		}
+
+		// Construct target path
+		target := filepath.Join(tracePath, header.Name)
+
+		// Create directory if needed
+		if header.Typeflag == tar.TypeDir {
+			if err := os.MkdirAll(target, 0755); err != nil {
+				return fmt.Errorf("failed to create directory: %w", err)
+			}
+			continue
+		}
+
+		// Create parent directory
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directory: %w", err)
+		}
+
+		// Create file
+		outFile, err := os.Create(target)
+		if err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
+
+		// Copy file content
+		if _, err := io.Copy(outFile, tarReader); err != nil {
+			outFile.Close()
+			return fmt.Errorf("failed to write file: %w", err)
+		}
+		outFile.Close()
+	}
+
+	return nil
 }
 
 // Close closes the local driver

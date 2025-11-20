@@ -75,6 +75,12 @@ type Driver interface {
 	// LoadUpdates loads trace update events from storage (filtering by timestamp in milliseconds)
 	LoadUpdates(ctx context.Context, traceID string, since int64) ([]*TraceUpdate, error)
 
+	// Archive archives a trace (compress and make read-only)
+	Archive(ctx context.Context, traceID string) error
+
+	// IsArchived checks if a trace is archived
+	IsArchived(ctx context.Context, traceID string) (bool, error)
+
 	// Close closes the driver and releases resources
 	Close() error
 }

@@ -16,12 +16,19 @@ type manager struct {
 	traceID      string
 	driver       types.Driver
 	stateCmdChan chan stateCommand // Single channel for all state mutations
+	autoArchive  bool              // Auto-archive on complete/fail
 }
 
 // NewManager creates a new trace manager instance
-func NewManager(ctx context.Context, traceID string, driver types.Driver) (types.Manager, error) {
+func NewManager(ctx context.Context, traceID string, driver types.Driver, option *types.TraceOption) (types.Manager, error) {
 	// Create a cancellable context for the manager
 	managerCtx, cancel := context.WithCancel(ctx)
+
+	// Determine auto-archive setting
+	autoArchive := false
+	if option != nil {
+		autoArchive = option.AutoArchive
+	}
 
 	m := &manager{
 		ctx:          managerCtx,
@@ -29,6 +36,7 @@ func NewManager(ctx context.Context, traceID string, driver types.Driver) (types
 		traceID:      traceID,
 		driver:       driver,
 		stateCmdChan: make(chan stateCommand, 100), // Buffered channel for performance
+		autoArchive:  autoArchive,
 	}
 
 	// Start state worker goroutine
@@ -594,6 +602,17 @@ func (m *manager) MarkComplete() error {
 		Timestamp: now,
 		Data:      types.NewTraceCompleteData(m.traceID, totalDuration),
 	})
+
+	// Auto-archive if enabled
+	if m.autoArchive {
+		if err := m.driver.Archive(m.ctx, m.traceID); err != nil {
+			// Log error but don't fail the complete operation
+			m.Debug("Failed to auto-archive trace", map[string]any{
+				"trace_id": m.traceID,
+				"error":    err.Error(),
+			})
+		}
+	}
 
 	return nil
 }

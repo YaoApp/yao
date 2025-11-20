@@ -177,7 +177,7 @@ func (ctx *Context) Trace() (traceTypes.Manager, error) {
 	}
 
 	// Prepare trace options
-	traceOption := &traceTypes.TraceOption{ID: traceID}
+	traceOption := &traceTypes.TraceOption{ID: traceID, AutoArchive: config.Conf.Mode == "production"}
 
 	// Set trace options from authorized information
 	if ctx.Authorized != nil {

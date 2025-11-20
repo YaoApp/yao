@@ -1,11 +1,15 @@
 package store
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/trace/types"
@@ -127,8 +131,32 @@ func (d *Driver) getKey(traceID string, parts ...string) string {
 	return strings.Join(allParts, ":")
 }
 
+// getKeyPrefix returns the prefix for all keys of a trace
+func (d *Driver) getKeyPrefix(traceID string) string {
+	return d.prefix + ":" + traceID + ":"
+}
+
+// getTraceInfoKey returns the key for trace info
+func (d *Driver) getTraceInfoKey(traceID string) string {
+	return d.getKey(traceID, "info")
+}
+
+// getUpdatesKey returns the key for trace updates
+func (d *Driver) getUpdatesKey(traceID string) string {
+	return d.getKey(traceID, "updates")
+}
+
 // SaveNode persists a node to store
 func (d *Driver) SaveNode(ctx context.Context, traceID string, node *types.TraceNode) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save node: trace %s is archived (read-only)", traceID)
+	}
+
 	key := d.getKey(traceID, "node", node.ID)
 
 	// Convert to persist format (only store children IDs)
@@ -148,6 +176,17 @@ func (d *Driver) SaveNode(ctx context.Context, traceID string, node *types.Trace
 
 // LoadNode loads a node from store
 func (d *Driver) LoadNode(ctx context.Context, traceID string, nodeID string) (*types.TraceNode, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
 	key := d.getKey(traceID, "node", nodeID)
 
 	value, ok := d.store.Get(key)
@@ -203,6 +242,15 @@ func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNod
 
 // SaveSpace persists a space to store
 func (d *Driver) SaveSpace(ctx context.Context, traceID string, space *types.TraceSpace) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save space: trace %s is archived (read-only)", traceID)
+	}
+
 	key := d.getKey(traceID, "space", space.ID)
 
 	data, err := json.Marshal(space)
@@ -219,6 +267,17 @@ func (d *Driver) SaveSpace(ctx context.Context, traceID string, space *types.Tra
 
 // LoadSpace loads a space from store
 func (d *Driver) LoadSpace(ctx context.Context, traceID string, spaceID string) (*types.TraceSpace, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
 	key := d.getKey(traceID, "space", spaceID)
 
 	value, ok := d.store.Get(key)
@@ -399,6 +458,15 @@ func (d *Driver) ListSpaceKeys(ctx context.Context, traceID, spaceID string) ([]
 
 // SaveLog appends a log entry to store
 func (d *Driver) SaveLog(ctx context.Context, traceID string, log *types.TraceLog) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save log: trace %s is archived (read-only)", traceID)
+	}
+
 	// Store logs using ArraySlice approach (store as array in a key)
 	key := d.getKey(traceID, "logs", log.NodeID)
 
@@ -418,6 +486,17 @@ func (d *Driver) SaveLog(ctx context.Context, traceID string, log *types.TraceLo
 
 // LoadLogs loads all logs for a trace or specific node from store
 func (d *Driver) LoadLogs(ctx context.Context, traceID string, nodeID string) ([]*types.TraceLog, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
 	var logs []*types.TraceLog
 
 	if nodeID != "" {
@@ -476,6 +555,15 @@ func (d *Driver) loadLogsFromKey(key string) ([]*types.TraceLog, error) {
 
 // SaveTraceInfo persists trace metadata to store
 func (d *Driver) SaveTraceInfo(ctx context.Context, info *types.TraceInfo) error {
+	// Allow saving trace info even if archived (for updating archive status)
+	if info.Archived {
+		// If already archived, only allow updating archive-related fields
+		existing, err := d.LoadTraceInfo(ctx, info.ID)
+		if err == nil && existing != nil && existing.Archived && !info.Archived {
+			return fmt.Errorf("cannot unarchive trace: trace %s is archived", info.ID)
+		}
+	}
+
 	key := d.getKey(info.ID, "info")
 
 	data, err := json.Marshal(info)
@@ -490,8 +578,8 @@ func (d *Driver) SaveTraceInfo(ctx context.Context, info *types.TraceInfo) error
 	return nil
 }
 
-// LoadTraceInfo loads trace metadata from store
-func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.TraceInfo, error) {
+// loadTraceInfoDirect loads trace info without unarchiving (internal use)
+func (d *Driver) loadTraceInfoDirect(traceID string) (*types.TraceInfo, error) {
 	key := d.getKey(traceID, "info")
 
 	value, ok := d.store.Get(key)
@@ -512,6 +600,22 @@ func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.Trac
 	return &info, nil
 }
 
+// LoadTraceInfo loads trace metadata from store
+func (d *Driver) LoadTraceInfo(ctx context.Context, traceID string) (*types.TraceInfo, error) {
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
+	return d.loadTraceInfoDirect(traceID)
+}
+
 // DeleteTrace removes entire trace from store
 func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
 	// Get all keys
@@ -530,6 +634,15 @@ func (d *Driver) DeleteTrace(ctx context.Context, traceID string) error {
 
 // SaveUpdate persists a trace update event to store (append to list)
 func (d *Driver) SaveUpdate(ctx context.Context, traceID string, update *types.TraceUpdate) error {
+	// Check if archived - archived traces are read-only
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("cannot save update: trace %s is archived (read-only)", traceID)
+	}
+
 	key := d.getKey(traceID, "updates")
 
 	// Lock to prevent concurrent updates
@@ -589,6 +702,185 @@ func (d *Driver) LoadUpdates(ctx context.Context, traceID string, since int64) (
 }
 
 // Close closes the store driver
+// Archive archives a trace by compressing and merging keys
+func (d *Driver) Archive(ctx context.Context, traceID string) error {
+	// Check if already archived
+	archived, err := d.IsArchived(ctx, traceID)
+	if err != nil {
+		return fmt.Errorf("failed to check archive status: %w", err)
+	}
+	if archived {
+		return fmt.Errorf("trace %s is already archived", traceID)
+	}
+
+	// Step 1: Update trace info to mark as archived BEFORE creating archive
+	info, err := d.loadTraceInfoDirect(traceID)
+	if err != nil {
+		return fmt.Errorf("failed to load trace info: %w", err)
+	}
+	if info != nil {
+		now := time.Now().UnixMilli()
+		info.Archived = true
+		info.ArchivedAt = &now
+		// Save trace info directly without archive check
+		key := d.getKey(traceID, "info")
+		infoData, err := json.Marshal(info)
+		if err != nil {
+			return fmt.Errorf("failed to marshal trace info: %w", err)
+		}
+		if err := d.store.Set(key, string(infoData), 0); err != nil {
+			return fmt.Errorf("failed to save trace info: %w", err)
+		}
+	}
+
+	// Step 2: Collect all keys for this trace
+	prefix := d.getKeyPrefix(traceID)
+	allKeys := []string{
+		d.getTraceInfoKey(traceID),
+		d.getUpdatesKey(traceID),
+	}
+
+	// Get all node keys
+	nodePrefix := prefix + "nodes:"
+	nodeKeys, err := d.listKeysByPrefix(ctx, nodePrefix)
+	if err != nil {
+		return fmt.Errorf("failed to list node keys: %w", err)
+	}
+	allKeys = append(allKeys, nodeKeys...)
+
+	// Get all space keys
+	spacePrefix := prefix + "spaces:"
+	spaceKeys, err := d.listKeysByPrefix(ctx, spacePrefix)
+	if err != nil {
+		return fmt.Errorf("failed to list space keys: %w", err)
+	}
+	allKeys = append(allKeys, spaceKeys...)
+
+	// Get all log keys
+	logPrefix := prefix + "logs:"
+	logKeys, err := d.listKeysByPrefix(ctx, logPrefix)
+	if err != nil {
+		return fmt.Errorf("failed to list log keys: %w", err)
+	}
+	allKeys = append(allKeys, logKeys...)
+
+	// Step 3: Collect all data into a single map
+	archiveData := make(map[string]json.RawMessage)
+	for _, key := range allKeys {
+		data, ok := d.store.Get(key)
+		if !ok {
+			continue // Skip missing keys
+		}
+		// Convert to string then to bytes
+		dataStr, ok := data.(string)
+		if !ok {
+			continue
+		}
+		archiveData[key] = json.RawMessage(dataStr)
+	}
+
+	// Step 4: Marshal to JSON
+	jsonData, err := json.Marshal(archiveData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal archive data: %w", err)
+	}
+
+	// Step 5: Compress with gzip
+	var compressedBuf bytes.Buffer
+	gzipWriter := gzip.NewWriter(&compressedBuf)
+	if _, err := gzipWriter.Write(jsonData); err != nil {
+		return fmt.Errorf("failed to compress archive: %w", err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	// Step 6: Save compressed archive
+	archiveKey := d.getArchiveKey(traceID)
+	if err := d.store.Set(archiveKey, compressedBuf.String(), 0); err != nil {
+		return fmt.Errorf("failed to save archive: %w", err)
+	}
+
+	// Step 7: Delete original keys (except trace info and archive)
+	for _, key := range allKeys {
+		if key == d.getTraceInfoKey(traceID) {
+			continue // Keep trace info
+		}
+		_ = d.store.Del(key) // Ignore errors on delete
+	}
+
+	return nil
+}
+
+// IsArchived checks if a trace is archived
+func (d *Driver) IsArchived(ctx context.Context, traceID string) (bool, error) {
+	archiveKey := d.getArchiveKey(traceID)
+	exists := d.store.Has(archiveKey)
+	return exists, nil
+}
+
+// unarchive extracts an archived trace (helper method)
+func (d *Driver) unarchive(ctx context.Context, traceID string) error {
+	archiveKey := d.getArchiveKey(traceID)
+
+	// Get compressed archive
+	compressedData, ok := d.store.Get(archiveKey)
+	if !ok {
+		return fmt.Errorf("archive not found for trace: %s", traceID)
+	}
+
+	// Convert to string then to bytes
+	compressedStr, ok := compressedData.(string)
+	if !ok {
+		return fmt.Errorf("invalid archive data type")
+	}
+
+	// Decompress
+	gzipReader, err := gzip.NewReader(bytes.NewReader([]byte(compressedStr)))
+	if err != nil {
+		return fmt.Errorf("failed to create gzip reader: %w", err)
+	}
+	defer gzipReader.Close()
+
+	jsonData, err := io.ReadAll(gzipReader)
+	if err != nil {
+		return fmt.Errorf("failed to decompress archive: %w", err)
+	}
+
+	// Unmarshal archive data
+	var archiveData map[string]json.RawMessage
+	if err := json.Unmarshal(jsonData, &archiveData); err != nil {
+		return fmt.Errorf("failed to unmarshal archive: %w", err)
+	}
+
+	// Restore all keys
+	for key, value := range archiveData {
+		if err := d.store.Set(key, string(value), 0); err != nil {
+			return fmt.Errorf("failed to restore key %s: %w", key, err)
+		}
+	}
+
+	return nil
+}
+
+// listKeysByPrefix lists all keys with a given prefix (helper method)
+func (d *Driver) listKeysByPrefix(ctx context.Context, prefix string) ([]string, error) {
+	// Get all keys from store and filter by prefix
+	allKeys := d.store.Keys()
+	var matchingKeys []string
+	for _, key := range allKeys {
+		if strings.HasPrefix(key, prefix) {
+			matchingKeys = append(matchingKeys, key)
+		}
+	}
+	return matchingKeys, nil
+}
+
+// getArchiveKey returns the store key for an archived trace
+func (d *Driver) getArchiveKey(traceID string) string {
+	return fmt.Sprintf("trace:%s:archive", traceID)
+}
+
 func (d *Driver) Close() error {
 	// Store connection is managed by gou, no cleanup needed
 	return nil
