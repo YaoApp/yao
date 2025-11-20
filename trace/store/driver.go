@@ -14,20 +14,20 @@ import (
 // persistNode is a lightweight version of TraceNode for storage
 // Only stores IDs of children instead of full child nodes
 type persistNode struct {
-	ID              string            `json:"ID"`
-	ParentID        string            `json:"ParentID"`
-	ChildrenIDs     []string          `json:"ChildrenIDs,omitempty"`
-	Label           string            `json:"Label,omitempty"`
-	Icon            string            `json:"Icon,omitempty"`
-	Description     string            `json:"Description,omitempty"`
-	Metadata        map[string]any    `json:"Metadata,omitempty"`
-	Status          types.NodeStatus  `json:"Status"`
-	Input           types.TraceInput  `json:"Input,omitempty"`
-	Output          types.TraceOutput `json:"Output,omitempty"`
-	CreatedAt       int64             `json:"CreatedAt"`
-	StartTime       int64             `json:"StartTime"`
-	EndTime         int64             `json:"EndTime,omitempty"`
-	UpdatedAt       int64             `json:"UpdatedAt"`
+	ID          string            `json:"ID"`
+	ParentID    string            `json:"ParentID"`
+	ChildrenIDs []string          `json:"ChildrenIDs,omitempty"`
+	Label       string            `json:"Label,omitempty"`
+	Icon        string            `json:"Icon,omitempty"`
+	Description string            `json:"Description,omitempty"`
+	Metadata    map[string]any    `json:"Metadata,omitempty"`
+	Status      types.NodeStatus  `json:"Status"`
+	Input       types.TraceInput  `json:"Input,omitempty"`
+	Output      types.TraceOutput `json:"Output,omitempty"`
+	CreatedAt   int64             `json:"CreatedAt"`
+	StartTime   int64             `json:"StartTime"`
+	EndTime     int64             `json:"EndTime,omitempty"`
+	UpdatedAt   int64             `json:"UpdatedAt"`
 }
 
 // toPersistNode converts TraceNode to persistNode for storage
