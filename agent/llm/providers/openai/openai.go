@@ -647,7 +647,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// Log request for debugging
 	if trace != nil {
-	if requestBodyJSON, marshalErr := jsoniter.Marshal(requestBody); marshalErr == nil {
+		if requestBodyJSON, marshalErr := jsoniter.Marshal(requestBody); marshalErr == nil {
 			trace.Debug("OpenAI Stream Request", map[string]any{
 				"url":  url,
 				"body": string(requestBodyJSON),
@@ -766,12 +766,12 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		if trace != nil {
 			trace.Warn("OpenAI stream completed but no data was received")
 
-		// Log request details for debugging
-		if requestBodyJSON, err := jsoniter.Marshal(requestBody); err == nil {
+			// Log request details for debugging
+			if requestBodyJSON, err := jsoniter.Marshal(requestBody); err == nil {
 				trace.Error("Request body that caused empty response", map[string]any{
 					"body": string(requestBodyJSON),
 				})
-		}
+			}
 			trace.Error("Request details", map[string]any{
 				"url":     url,
 				"model":   accumulator.model,
@@ -1057,7 +1057,7 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 			}
 			// Log full response data for debugging
 			if trace != nil {
-			if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
+				if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
 					trace.Error("OpenAI API error response", map[string]any{
 						"response": string(respJSON),
 					})

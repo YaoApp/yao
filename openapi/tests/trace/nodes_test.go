@@ -33,7 +33,7 @@ func TestGetNodes(t *testing.T) {
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
-	
+
 	var responseData map[string]interface{}
 	err = json.Unmarshal(body, &responseData)
 	assert.NoError(t, err)
@@ -46,7 +46,7 @@ func TestGetNodes(t *testing.T) {
 	nodes, ok := responseData["nodes"].([]interface{})
 	assert.True(t, ok, "Nodes should be an array")
 	assert.NotEmpty(t, nodes, "Nodes array should not be empty")
-	
+
 	count := int(responseData["count"].(float64))
 	assert.Equal(t, 3, count, "Should have 3 nodes (3 child nodes created)")
 	assert.Equal(t, count, len(nodes), "Count should match array length")
@@ -60,7 +60,7 @@ func TestGetNodes(t *testing.T) {
 		assert.NotNil(t, node["label"], "Node should have label")
 		assert.NotNil(t, node["status"], "Node should have status")
 		assert.NotNil(t, node["created_at"], "Node should have created_at")
-		
+
 		// Check if metadata is present (should be for all our test nodes)
 		if node["metadata"] != nil {
 			metadata, ok := node["metadata"].(map[string]interface{})
@@ -71,7 +71,7 @@ func TestGetNodes(t *testing.T) {
 			}
 		}
 	}
-	
+
 	assert.Equal(t, 3, metadataFound, "All 3 nodes should have metadata with node_order")
 
 	t.Logf("Retrieved %d nodes for trace %s (all with metadata)", count, data.TraceID)
@@ -109,13 +109,13 @@ func TestGetNodeByID(t *testing.T) {
 	assert.Equal(t, "First Node", responseData["label"], "Node label should match")
 	assert.Equal(t, "icon1", responseData["icon"], "Node icon should match")
 	assert.Equal(t, "First test node", responseData["description"], "Node description should match")
-	
+
 	// Verify metadata is present and correct
 	assert.NotNil(t, responseData["metadata"], "Metadata should be present")
 	metadata, ok := responseData["metadata"].(map[string]interface{})
 	assert.True(t, ok, "Metadata should be a map")
 	assert.Equal(t, float64(1), metadata["node_order"], "Metadata node_order should be 1")
-	
+
 	// Verify input and output are present
 	assert.NotNil(t, responseData["input"], "Input should be present")
 	assert.NotNil(t, responseData["output"], "Output should be present")

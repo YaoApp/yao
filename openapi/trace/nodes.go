@@ -152,4 +152,3 @@ func GetNode(c *gin.Context) {
 
 	response.RespondWithSuccess(c, response.StatusOK, nodeData)
 }
-

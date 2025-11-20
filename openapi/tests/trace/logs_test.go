@@ -33,7 +33,7 @@ func TestGetLogs(t *testing.T) {
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(t, err)
-	
+
 	var responseData map[string]interface{}
 	err = json.Unmarshal(body, &responseData)
 	assert.NoError(t, err)
@@ -46,7 +46,7 @@ func TestGetLogs(t *testing.T) {
 	logs, ok := responseData["logs"].([]interface{})
 	assert.True(t, ok, "Logs should be an array")
 	assert.NotEmpty(t, logs, "Logs array should not be empty")
-	
+
 	count := int(responseData["count"].(float64))
 	assert.GreaterOrEqual(t, count, 6, "Should have at least 6 log entries (6 node logs)")
 

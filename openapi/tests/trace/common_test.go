@@ -14,17 +14,17 @@ import (
 
 // testTraceData holds the prepared test trace and related information
 type testTraceData struct {
-	TraceID     string
-	Manager     types.Manager
-	RootNodeID  string
-	Node1ID     string
-	Node2ID     string
-	Node3ID     string
-	TokenInfo   *testutils.TokenInfo
-	TestClient  *oauthtypes.ClientInfo
-	ServerURL   string
-	BaseURL     string
-	Ctx         context.Context
+	TraceID    string
+	Manager    types.Manager
+	RootNodeID string
+	Node1ID    string
+	Node2ID    string
+	Node3ID    string
+	TokenInfo  *testutils.TokenInfo
+	TestClient *oauthtypes.ClientInfo
+	ServerURL  string
+	BaseURL    string
+	Ctx        context.Context
 }
 
 // prepareTestTrace creates a test trace with sample nodes, logs, and spaces
@@ -161,4 +161,3 @@ func cleanupTestTrace(t *testing.T, data *testTraceData) {
 	}
 	testutils.Clean()
 }
-

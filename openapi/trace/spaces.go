@@ -136,4 +136,3 @@ func GetSpace(c *gin.Context) {
 
 	response.RespondWithSuccess(c, response.StatusOK, responseData)
 }
-
