@@ -4,11 +4,11 @@ import "context"
 
 // TraceLog represents a log entry
 type TraceLog struct {
-	Timestamp int64    // Log timestamp (milliseconds since epoch)
-	Level     string   // Log level (info, debug, error, warn)
-	Message   string   // Log message
-	Data      []any    // Additional data arguments
-	NodeID    string   // Node ID this log belongs to
+	Timestamp int64  // Log timestamp (milliseconds since epoch)
+	Level     string // Log level (info, debug, error, warn)
+	Message   string // Log message
+	Data      []any  // Additional data arguments
+	NodeID    string // Node ID this log belongs to
 }
 
 // Driver defines the storage driver interface that providers must implement
