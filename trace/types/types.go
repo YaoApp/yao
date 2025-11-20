@@ -193,25 +193,30 @@ type MemoryDeleteData struct {
 
 // TraceInfo stores trace metadata and manager instance
 type TraceInfo struct {
-	ID        string         `json:"id"`
-	Driver    string         `json:"driver"`
-	Status    TraceStatus    `json:"status"` // Trace status
-	Options   []any          `json:"options,omitempty"`
-	Manager   Manager        `json:"-"`          // Not persisted
-	CreatedAt int64          `json:"created_at"` // milliseconds since epoch
-	UpdatedAt int64          `json:"updated_at"` // milliseconds since epoch
-	CreatedBy string         `json:"__yao_created_by,omitempty"`
-	UpdatedBy string         `json:"__yao_updated_by,omitempty"`
-	TeamID    string         `json:"__yao_team_id,omitempty"`
-	TenantID  string         `json:"__yao_tenant_id,omitempty"`
-	Metadata  map[string]any `json:"metadata,omitempty"`
+	ID         string         `json:"id"`
+	Driver     string         `json:"driver"`
+	Status     TraceStatus    `json:"status"` // Trace status
+	Options    []any          `json:"options,omitempty"`
+	Manager    Manager        `json:"-"`                     // Not persisted
+	CreatedAt  int64          `json:"created_at"`            // milliseconds since epoch
+	UpdatedAt  int64          `json:"updated_at"`            // milliseconds since epoch
+	ArchivedAt *int64         `json:"archived_at,omitempty"` // milliseconds since epoch, nil if not archived
+	Archived   bool           `json:"archived"`              // Whether this trace is archived (read-only)
+	CreatedBy  string         `json:"__yao_created_by,omitempty"`
+	UpdatedBy  string         `json:"__yao_updated_by,omitempty"`
+	TeamID     string         `json:"__yao_team_id,omitempty"`
+	TenantID   string         `json:"__yao_tenant_id,omitempty"`
+	Metadata   map[string]any `json:"metadata,omitempty"`
 }
 
 // TraceOption defines options for creating a trace
 type TraceOption struct {
-	ID        string         // Optional trace ID (if empty, generates new ID)
-	CreatedBy string         // User who created the trace
-	TeamID    string         // Team ID
-	TenantID  string         // Tenant ID
-	Metadata  map[string]any // Additional metadata
+	ID                   string         // Optional trace ID (if empty, generates new ID)
+	CreatedBy            string         // User who created the trace
+	TeamID               string         // Team ID
+	TenantID             string         // Tenant ID
+	Metadata             map[string]any // Additional metadata
+	AutoArchive          bool           // Automatically archive when trace completes/fails
+	ArchiveOnClose       bool           // Archive on explicit Close() call
+	ArchiveCompressLevel int            // gzip compression level (0-9, default: gzip.DefaultCompression)
 }

@@ -138,7 +138,7 @@ func New(ctx context.Context, driver string, option *types.TraceOption, driverOp
 	}
 
 	// Create Manager instance with the driver
-	manager, err := NewManager(ctx, traceID, drv)
+	manager, err := NewManager(ctx, traceID, drv, option)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create manager: %w", err)
 	}
@@ -227,7 +227,8 @@ func LoadFromStorage(ctx context.Context, driver string, traceID string, driverO
 	// Create Manager instance with the driver
 	// Note: We need to reconstruct the manager from stored data
 	// TODO: Implement proper restoration of manager state from storage
-	manager, err := NewManager(ctx, traceID, drv)
+	// For loaded traces, we don't have the original option, so pass nil
+	manager, err := NewManager(ctx, traceID, drv, nil)
 	if err != nil {
 		drv.Close()
 		return "", nil, fmt.Errorf("failed to create manager: %w", err)
