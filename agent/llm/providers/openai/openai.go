@@ -9,7 +9,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/http"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm/adapters"
 	"github.com/yaoapp/yao/agent/llm/providers/base"
@@ -186,6 +185,14 @@ func detectReasoningFormat(cap *context.ModelCapabilities) adapters.ReasoningFor
 
 // Stream stream completion from OpenAI API
 func (p *Provider) Stream(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler context.StreamFunc) (*context.CompletionResponse, error) {
+	// Add debug log
+	trace, _ := ctx.Trace()
+	if trace != nil {
+		trace.Debug("OpenAI Stream: Starting stream request", map[string]any{
+			"message_count": len(messages),
+		})
+	}
+
 	maxRetries := 3
 	maxValidationRetries := 3
 	var lastErr error
@@ -219,7 +226,16 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
-			log.Warn("OpenAI stream request failed, retrying in %v (attempt %d/%d): %v", backoff, attempt+1, maxRetries, lastErr)
+
+			// Add debug log to trace
+			if trace != nil {
+				trace.Warn("OpenAI stream request failed, retrying", map[string]any{
+					"backoff":     backoff.String(),
+					"attempt":     attempt + 1,
+					"max_retries": maxRetries,
+					"error":       lastErr.Error(),
+				})
+			}
 
 			// Sleep with context cancellation support
 			timer := time.NewTimer(backoff)
@@ -249,16 +265,31 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 
 		response, err := p.streamWithRetry(ctx, currentMessages, options, handler)
 		if err == nil {
+			if trace != nil {
+				trace.Debug("OpenAI Stream: Request completed successfully")
+			}
 			return response, nil
 		}
 		lastErr = err
+
+		if trace != nil {
+			trace.Debug("OpenAI Stream: Request failed", map[string]any{
+				"error": err.Error(),
+			})
+		}
 
 		// Check if error is tool call validation failure
 		if isToolCallValidationError(err) {
 			// Handle tool call validation retry with feedback to LLM
 			validationRetryMessages := currentMessages
 			for validationAttempt := 0; validationAttempt < maxValidationRetries; validationAttempt++ {
-				log.Warn("Tool call validation failed (attempt %d/%d): %v", validationAttempt+1, maxValidationRetries, err)
+				if trace != nil {
+					trace.Warn("Tool call validation failed", map[string]any{
+						"attempt":     validationAttempt + 1,
+						"max_retries": maxValidationRetries,
+						"error":       err.Error(),
+					})
+				}
 
 				// Add error feedback to conversation history
 				validationRetryMessages = append(validationRetryMessages, context.Message{
@@ -300,6 +331,14 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler context.StreamFunc) (*context.CompletionResponse, error) {
 	streamStartTime := time.Now()
 	requestID := fmt.Sprintf("req_%d", streamStartTime.UnixNano())
+
+	// Add debug log
+	trace, _ := ctx.Trace()
+	if trace != nil {
+		trace.Debug("OpenAI Stream: streamWithRetry starting", map[string]any{
+			"request_id": requestID,
+		})
+	}
 
 	// Get Go context for cancellation support
 	goCtx := ctx.Context
@@ -394,6 +433,12 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	// Build URL
 	url := buildAPIURL(host, "/chat/completions")
 
+	if trace != nil {
+		trace.Debug("OpenAI Stream: Sending request", map[string]any{
+			"url": url,
+		})
+	}
+
 	// Create HTTP request with proxy support
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
@@ -413,7 +458,9 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		// Check for context cancellation
 		select {
 		case <-goCtx.Done():
-			log.Warn("Stream cancelled by context")
+			if trace != nil {
+				trace.Warn("Stream cancelled by context")
+			}
 			return http.HandlerReturnBreak
 		default:
 		}
@@ -421,7 +468,9 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		// Check for force interrupt signal
 		if ctx.Interrupt != nil {
 			if signal := ctx.Interrupt.Peek(); signal != nil && signal.Type == context.InterruptForce {
-				log.Warn("Stream cancelled by force interrupt")
+				if trace != nil {
+					trace.Warn("Stream cancelled by force interrupt")
+				}
 				return http.HandlerReturnBreak
 			}
 		}
@@ -430,13 +479,16 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 			return http.HandlerReturnOk
 		}
 
-		// Log raw stream data for debugging
-		log.Trace("OpenAI Stream Raw Data: %s", string(data))
+		// Record LLM raw output to trace
+		if trace != nil {
+			trace.Debug("LLM Raw Output", map[string]any{
+				"data": string(data),
+			})
+		}
 
 		// Parse SSE data
 		dataStr := string(data)
 		if !strings.HasPrefix(dataStr, "data: ") {
-			log.Trace("Skipping non-SSE line: %s", dataStr)
 			return http.HandlerReturnOk
 		}
 
@@ -451,7 +503,11 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		// Parse JSON chunk
 		var chunk StreamChunk
 		if err := jsoniter.UnmarshalFromString(dataStr, &chunk); err != nil {
-			log.Warn("Failed to parse stream chunk: %v", err)
+			if trace != nil {
+				trace.Warn("Failed to parse stream chunk", map[string]any{
+					"error": err.Error(),
+				})
+			}
 			return http.HandlerReturnOk
 		}
 
@@ -590,8 +646,13 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	// Log request for debugging
-	if requestBodyJSON, marshalErr := jsoniter.Marshal(requestBody); marshalErr == nil {
-		log.Debug("OpenAI Stream Request - URL: %s, Body: %s", url, string(requestBodyJSON))
+	if trace != nil {
+		if requestBodyJSON, marshalErr := jsoniter.Marshal(requestBody); marshalErr == nil {
+			trace.Debug("OpenAI Stream Request", map[string]any{
+				"url":  url,
+				"body": string(requestBodyJSON),
+			})
+		}
 	}
 
 	// Buffer to capture non-SSE error responses
@@ -624,7 +685,11 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	// Check if we captured an error response
 	if errorDetected && errorBuffer.Len() > 0 {
 		errorJSON := errorBuffer.String()
-		log.Error("OpenAI API returned error response: %s", errorJSON)
+		if trace != nil {
+			trace.Error("OpenAI API returned error response", map[string]any{
+				"response": errorJSON,
+			})
+		}
 
 		// Try to parse error
 		var apiError struct {
@@ -645,8 +710,10 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	// Log any error from streaming
-	if err != nil {
-		log.Error("OpenAI Stream Error: %v", err)
+	if err != nil && trace != nil {
+		trace.Error("OpenAI Stream Error", map[string]any{
+			"error": err.Error(),
+		})
 	}
 
 	// Check if error is due to context cancellation
@@ -696,14 +763,21 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// Check if we received any data
 	if accumulator.id == "" {
-		log.Warn("OpenAI stream completed but no data was received (accumulator.id is empty)")
+		if trace != nil {
+			trace.Warn("OpenAI stream completed but no data was received")
 
-		// Log request details for debugging
-		if requestBodyJSON, err := jsoniter.Marshal(requestBody); err == nil {
-			log.Error("Request body that caused empty response: %s", string(requestBodyJSON))
+			// Log request details for debugging
+			if requestBodyJSON, err := jsoniter.Marshal(requestBody); err == nil {
+				trace.Error("Request body that caused empty response", map[string]any{
+					"body": string(requestBodyJSON),
+				})
+			}
+			trace.Error("Request details", map[string]any{
+				"url":     url,
+				"model":   accumulator.model,
+				"created": accumulator.created,
+			})
 		}
-		log.Error("Request URL: %s", url)
-		log.Error("Model in accumulator: %s, Created: %d", accumulator.model, accumulator.created)
 
 		err := fmt.Errorf("no data received from OpenAI API")
 
@@ -807,6 +881,14 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 // Post post completion request to OpenAI API
 func (p *Provider) Post(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error) {
+	// Add debug log
+	trace, _ := ctx.Trace()
+	if trace != nil {
+		trace.Debug("OpenAI Post: Starting non-stream request", map[string]any{
+			"message_count": len(messages),
+		})
+	}
+
 	maxRetries := 3
 	maxValidationRetries := 3
 	var lastErr error
@@ -833,7 +915,14 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 		if attempt > 0 {
 			// Exponential backoff
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
-			log.Warn("OpenAI post request failed, retrying in %v (attempt %d/%d): %v", backoff, attempt+1, maxRetries, lastErr)
+			if trace != nil {
+				trace.Warn("OpenAI post request failed, retrying", map[string]any{
+					"backoff":     backoff.String(),
+					"attempt":     attempt + 1,
+					"max_retries": maxRetries,
+					"error":       lastErr.Error(),
+				})
+			}
 
 			// Sleep with context cancellation support
 			timer := time.NewTimer(backoff)
@@ -857,7 +946,13 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 			// Handle tool call validation retry with feedback to LLM
 			validationRetryMessages := currentMessages
 			for validationAttempt := 0; validationAttempt < maxValidationRetries; validationAttempt++ {
-				log.Warn("Tool call validation failed (attempt %d/%d): %v", validationAttempt+1, maxValidationRetries, err)
+				if trace != nil {
+					trace.Warn("Tool call validation failed", map[string]any{
+						"attempt":     validationAttempt + 1,
+						"max_retries": maxValidationRetries,
+						"error":       err.Error(),
+					})
+				}
 
 				// Add error feedback to conversation history
 				validationRetryMessages = append(validationRetryMessages, context.Message{
@@ -897,6 +992,9 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 
 // postWithRetry performs a single POST request attempt
 func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error) {
+	// Get trace from context
+	trace, _ := ctx.Trace()
+
 	// Preprocess messages and options through adapters
 	processedMessages := messages
 	processedOptions := options
@@ -958,8 +1056,12 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 				}
 			}
 			// Log full response data for debugging
-			if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
-				log.Error("OpenAI API error response: %s", string(respJSON))
+			if trace != nil {
+				if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
+					trace.Error("OpenAI API error response", map[string]any{
+						"response": string(respJSON),
+					})
+				}
 			}
 		}
 		return nil, fmt.Errorf("HTTP %d: %s", resp.Code, errorMsg)

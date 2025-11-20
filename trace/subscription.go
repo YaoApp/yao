@@ -7,9 +7,9 @@ import (
 	"github.com/yaoapp/yao/trace/types"
 )
 
-// Subscribe creates a new subscription for trace updates (real-time from now)
+// Subscribe creates a new subscription for trace updates (replays all historical events from the beginning)
 func (m *manager) Subscribe() (<-chan *types.TraceUpdate, error) {
-	return m.subscribe(time.Now().Unix())
+	return m.subscribe(0) // Subscribe from beginning to get all historical events
 }
 
 // SubscribeFrom creates a subscription starting from a specific timestamp
@@ -47,13 +47,23 @@ func (m *manager) replayAndStream(subID string, ch chan *types.TraceUpdate, sinc
 	// Get historical updates
 	updates := m.stateGetUpdates(since)
 
-	// Replay historical updates
+	// Replay historical updates and check if trace was already completed
+	traceWasCompleted := false
 	for _, update := range updates {
 		select {
 		case ch <- update:
+			// Check if this is a trace complete event
+			if update.Type == types.UpdateTypeComplete {
+				traceWasCompleted = true
+			}
 		case <-m.ctx.Done():
 			return
 		}
+	}
+
+	// If trace was already completed in historical events, exit immediately
+	if traceWasCompleted {
+		return
 	}
 
 	// Continue streaming new updates

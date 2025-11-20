@@ -61,10 +61,10 @@ type TraceNode struct {
 	Status          NodeStatus   // Node status (pending, running, completed, failed, skipped)
 	Input           TraceInput   // Node input data
 	Output          TraceOutput  // Node output data
-	CreatedAt       int64        // Creation timestamp
-	StartTime       int64        // Start timestamp
-	EndTime         int64        // End timestamp
-	UpdatedAt       int64        // Last update timestamp
+	CreatedAt       int64        // Creation timestamp (milliseconds since epoch)
+	StartTime       int64        // Start timestamp (milliseconds since epoch)
+	EndTime         int64        // End timestamp (milliseconds since epoch)
+	UpdatedAt       int64        // Last update timestamp (milliseconds since epoch)
 	// Other fields will be added during implementation
 }
 
@@ -72,8 +72,8 @@ type TraceNode struct {
 type TraceSpace struct {
 	ID               string // Space ID
 	TraceSpaceOption        // Embedded option fields (Label, Icon, Description, TTL, Metadata)
-	CreatedAt        int64  // Creation timestamp
-	UpdatedAt        int64  // Last update timestamp
+	CreatedAt        int64  // Creation timestamp (milliseconds since epoch)
+	UpdatedAt        int64  // Last update timestamp (milliseconds since epoch)
 	// Internal data storage will be managed by implementation
 }
 
@@ -118,7 +118,7 @@ type TraceUpdate struct {
 	TraceID   string // Trace ID
 	NodeID    string // Node ID (optional, for node/log updates)
 	SpaceID   string // Space ID (optional, for space updates)
-	Timestamp int64  // Update timestamp
+	Timestamp int64  // Update timestamp (milliseconds since epoch)
 	Data      any    // Update data (payload structures below)
 }
 
@@ -141,18 +141,18 @@ type NodeStartData struct {
 // NodeCompleteData payload for "node_complete" event
 type NodeCompleteData struct {
 	NodeID   string         `json:"nodeId"`
-	Status   CompleteStatus `json:"status"` // "success" or "failed"
-	EndTime  int64          `json:"endTime"`
-	Duration int64          `json:"duration"` // in milliseconds
+	Status   CompleteStatus `json:"status"`   // "success" or "failed"
+	EndTime  int64          `json:"endTime"`  // milliseconds since epoch
+	Duration int64          `json:"duration"` // duration in milliseconds
 	Output   TraceOutput    `json:"output,omitempty"`
 }
 
 // NodeFailedData payload for "node_failed" event (same as NodeCompleteData but with error)
 type NodeFailedData struct {
 	NodeID   string         `json:"nodeId"`
-	Status   CompleteStatus `json:"status"` // "failed"
-	EndTime  int64          `json:"endTime"`
-	Duration int64          `json:"duration"`
+	Status   CompleteStatus `json:"status"`   // "failed"
+	EndTime  int64          `json:"endTime"`  // milliseconds since epoch
+	Duration int64          `json:"duration"` // duration in milliseconds
 	Error    string         `json:"error"`
 }
 
@@ -168,15 +168,15 @@ type MemoryItem struct {
 	Type       string `json:"type"`
 	Title      string `json:"title,omitempty"`
 	Content    any    `json:"content"`
-	Timestamp  int64  `json:"timestamp"`
+	Timestamp  int64  `json:"timestamp"`            // milliseconds since epoch
 	Importance string `json:"importance,omitempty"` // "high", "medium", "low"
 }
 
 // TraceCompleteData payload for "complete" event
 type TraceCompleteData struct {
 	TraceID       string      `json:"traceId"`
-	Status        TraceStatus `json:"status"` // "completed"
-	TotalDuration int64       `json:"totalDuration"`
+	Status        TraceStatus `json:"status"`        // "completed"
+	TotalDuration int64       `json:"totalDuration"` // duration in milliseconds
 }
 
 // SpaceDeletedData payload for "space_deleted" event
@@ -197,9 +197,9 @@ type TraceInfo struct {
 	Driver    string         `json:"driver"`
 	Status    TraceStatus    `json:"status"` // Trace status
 	Options   []any          `json:"options,omitempty"`
-	Manager   Manager        `json:"-"` // Not persisted
-	CreatedAt int64          `json:"created_at"`
-	UpdatedAt int64          `json:"updated_at"`
+	Manager   Manager        `json:"-"`          // Not persisted
+	CreatedAt int64          `json:"created_at"` // milliseconds since epoch
+	UpdatedAt int64          `json:"updated_at"` // milliseconds since epoch
 	CreatedBy string         `json:"__yao_created_by,omitempty"`
 	UpdatedBy string         `json:"__yao_updated_by,omitempty"`
 	TeamID    string         `json:"__yao_team_id,omitempty"`

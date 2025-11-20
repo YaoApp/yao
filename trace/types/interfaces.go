@@ -12,10 +12,10 @@ type Manager interface {
 	Parallel(parallelInputs []TraceParallelInput) ([]Node, error)
 
 	// Log Operations - log to current node(s) with chainable interface
-	Info(format string, args ...any) Manager
-	Debug(format string, args ...any) Manager
-	Error(format string, args ...any) Manager
-	Warn(format string, args ...any) Manager
+	Info(message string, args ...any) Manager
+	Debug(message string, args ...any) Manager
+	Error(message string, args ...any) Manager
+	Warn(message string, args ...any) Manager
 
 	// Node Status Operations - operate on current node(s)
 	SetOutput(output TraceOutput) error
@@ -60,10 +60,10 @@ type Manager interface {
 // Context is bound to Node at creation time
 type Node interface {
 	// Log Operations - chainable interface
-	Info(format string, args ...any) Node
-	Debug(format string, args ...any) Node
-	Error(format string, args ...any) Node
-	Warn(format string, args ...any) Node
+	Info(message string, args ...any) Node
+	Debug(message string, args ...any) Node
+	Error(message string, args ...any) Node
+	Warn(message string, args ...any) Node
 
 	// Node Tree Operations
 	Add(input TraceInput, option TraceNodeOption) (Node, error)

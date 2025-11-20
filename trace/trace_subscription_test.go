@@ -124,7 +124,7 @@ func TestSubscribeFrom(t *testing.T) {
 			time.Sleep(1100 * time.Millisecond)
 
 			// Record timestamp (simulate user noting current time before refresh)
-			resumeTimestamp := time.Now().Unix()
+			resumeTimestamp := time.Now().UnixMilli()
 
 			// Wait again to ensure next operations are after resumeTimestamp
 			time.Sleep(100 * time.Millisecond)

@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output"
+	"github.com/yaoapp/yao/trace/types"
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
@@ -29,10 +30,33 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	_ = traceID // traceID is available for trace logging
 
+	// Trace Add
+	trace, _ := ctx.Trace()
+	var agentNode types.Node = nil
+	if trace != nil {
+		agentNode, _ = trace.Add(inputMessages, types.TraceNodeOption{
+			Label:       fmt.Sprintf("Assistant %s", ast.Name),
+			Icon:        "assistant",
+			Description: fmt.Sprintf("Assistant %s is processing the request", ast.Name),
+		})
+		if agentNode != nil {
+			// Mark the node as complete when the function returns
+			defer agentNode.Complete()
+		}
+	}
+
 	// Full input messages with chat history
 	fullMessages, err := ast.WithHistory(ctx, inputMessages)
 	if err != nil {
+		if agentNode != nil {
+			agentNode.Fail(err)
+		}
 		return nil, err
+	}
+
+	// Log the chat history
+	if agentNode != nil {
+		agentNode.Info("Get Chat History", map[string]any{"messages": fullMessages})
 	}
 
 	// Request Create hook ( Optional )
@@ -41,7 +65,15 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		var err error
 		createResponse, err = ast.Script.Create(ctx, fullMessages)
 		if err != nil {
+			if agentNode != nil {
+				agentNode.Fail(err)
+			}
 			return nil, err
+		}
+
+		// Log the create response
+		if agentNode != nil {
+			agentNode.Debug("Call Create Hook", map[string]any{"response": createResponse})
 		}
 	}
 
@@ -54,18 +86,40 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Build the LLM request first
 		completionMessages, completionOptions, err = ast.BuildRequest(ctx, inputMessages, createResponse)
 		if err != nil {
+			if agentNode != nil {
+				agentNode.Fail(err)
+			}
 			return nil, err
 		}
 
 		// Get connector object and capabilities
 		conn, capabilities, err := ast.GetConnector(ctx)
 		if err != nil {
+			if agentNode != nil {
+				agentNode.Fail(err)
+			}
 			return nil, err
 		}
 
 		// Set capabilities in options if not already set
 		if completionOptions.Capabilities == nil && capabilities != nil {
 			completionOptions.Capabilities = capabilities
+		}
+
+		// Log the capabilities
+		if agentNode != nil {
+			agentNode.Debug("Get Connector Capabilities", map[string]any{"capabilities": capabilities})
+		}
+
+		// Trace Add
+		if trace != nil {
+			trace.Add(
+				map[string]any{"messages": completionMessages, "options": completionOptions},
+				types.TraceNodeOption{
+					Label: fmt.Sprintf("LLM %s", conn.ID()), Icon: "llm", Description: fmt.Sprintf("LLM %s is processing the request", conn.ID()),
+				},
+			)
+
 		}
 
 		// Create LLM instance with connector and options
@@ -86,6 +140,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			return nil, err
 		}
 
+		// Mark LLM Request Complete
+		if trace != nil {
+			trace.Complete(completionResponse)
+		}
 	}
 
 	// Request MCP hook ( Optional )

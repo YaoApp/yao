@@ -49,7 +49,7 @@ func NewManager(ctx context.Context, traceID string, driver types.Driver) (types
 		}
 	} else {
 		// New trace - create and broadcast init event
-		now := time.Now().Unix()
+		now := time.Now().UnixMilli()
 		m.addUpdateAndBroadcast(&types.TraceUpdate{
 			Type:      types.UpdateTypeInit,
 			TraceID:   traceID,
@@ -100,7 +100,7 @@ func (m *manager) handleCancellation() {
 		return // Already completed
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Get current nodes (state worker will process this before exiting)
 	nodes := m.stateGetCurrentNodes()
@@ -125,7 +125,7 @@ func (m *manager) handleCancellation() {
 					NodeID:   node.ID,
 					Status:   types.CompleteStatusCancelled,
 					EndTime:  now,
-					Duration: (now - node.StartTime) * 1000,
+					Duration: now - node.StartTime, // Already in milliseconds
 					Error:    "context cancelled",
 				},
 			})
@@ -139,7 +139,7 @@ func (m *manager) handleCancellation() {
 	totalDuration := int64(0)
 	rootNode := m.stateGetRoot()
 	if rootNode != nil && rootNode.CreatedAt > 0 {
-		totalDuration = (now - rootNode.CreatedAt) * 1000
+		totalDuration = now - rootNode.CreatedAt // Already in milliseconds
 	}
 
 	// Broadcast trace cancelled event (this will be processed even after state worker starts draining)
@@ -169,7 +169,7 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 		return nil, err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Check if root exists
 	rootNode := m.stateGetRoot()
@@ -291,7 +291,7 @@ func (m *manager) Parallel(parallelInputs []types.TraceParallelInput) ([]types.N
 		return nil, fmt.Errorf("root node does not exist, please call Add first before using Parallel")
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Get current nodes
 	currentNodes := m.stateGetCurrentNodes()
@@ -356,33 +356,32 @@ func (m *manager) Parallel(parallelInputs []types.TraceParallelInput) ([]types.N
 }
 
 // Info logs info message to current node(s)
-func (m *manager) Info(format string, args ...any) types.Manager {
-	m.log("info", format, args...)
+func (m *manager) Info(message string, args ...any) types.Manager {
+	m.log("info", message, args...)
 	return m
 }
 
 // Debug logs debug message to current node(s)
-func (m *manager) Debug(format string, args ...any) types.Manager {
-	m.log("debug", format, args...)
+func (m *manager) Debug(message string, args ...any) types.Manager {
+	m.log("debug", message, args...)
 	return m
 }
 
 // Error logs error message to current node(s)
-func (m *manager) Error(format string, args ...any) types.Manager {
-	m.log("error", format, args...)
+func (m *manager) Error(message string, args ...any) types.Manager {
+	m.log("error", message, args...)
 	return m
 }
 
 // Warn logs warning message to current node(s)
-func (m *manager) Warn(format string, args ...any) types.Manager {
-	m.log("warn", format, args...)
+func (m *manager) Warn(message string, args ...any) types.Manager {
+	m.log("warn", message, args...)
 	return m
 }
 
 // log helper method to log messages
-func (m *manager) log(level string, format string, args ...any) {
-	message := fmt.Sprintf(format, args...)
-	now := time.Now().Unix()
+func (m *manager) log(level string, message string, args ...any) {
+	now := time.Now().UnixMilli()
 
 	// Get current nodes
 	nodes := m.stateGetCurrentNodes()
@@ -393,6 +392,7 @@ func (m *manager) log(level string, format string, args ...any) {
 			Timestamp: now,
 			Level:     level,
 			Message:   message,
+			Data:      args,
 			NodeID:    node.ID,
 		}
 		// Save log (ignore errors for non-critical logging)
@@ -415,7 +415,7 @@ func (m *manager) SetOutput(output types.TraceOutput) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 	nodes := m.stateGetCurrentNodes()
 	for _, node := range nodes {
 		node.Output = output
@@ -442,7 +442,7 @@ func (m *manager) SetMetadata(key string, value any) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 	nodes := m.stateGetCurrentNodes()
 	for _, node := range nodes {
 		if node.Metadata == nil {
@@ -473,7 +473,7 @@ func (m *manager) Complete(output ...types.TraceOutput) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 	nodes := m.stateGetCurrentNodes()
 
 	// Determine output value once
@@ -493,7 +493,7 @@ func (m *manager) Complete(output ...types.TraceOutput) error {
 			NodeID:   node.ID,
 			Status:   types.CompleteStatusSuccess,
 			EndTime:  now,
-			Duration: (now - node.StartTime) * 1000,
+			Duration: now - node.StartTime, // Already in milliseconds
 			Output:   node.Output,
 		}
 
@@ -523,7 +523,7 @@ func (m *manager) Fail(err error) error {
 		return ctxErr
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 	// Log error first
 	m.Error("Node failed: %v", err)
 
@@ -546,7 +546,7 @@ func (m *manager) Fail(err error) error {
 				NodeID:   node.ID,
 				Status:   types.CompleteStatusFailed,
 				EndTime:  now,
-				Duration: (node.EndTime - node.StartTime) * 1000, // Convert to milliseconds
+				Duration: node.EndTime - node.StartTime, // Already in milliseconds
 				Error:    err.Error(),
 			},
 		})
@@ -580,11 +580,11 @@ func (m *manager) MarkComplete() error {
 	m.stateSetTraceStatus(types.TraceStatusCompleted)
 
 	// Calculate total duration from root node
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 	totalDuration := int64(0)
 	rootNode := m.stateGetRoot()
 	if rootNode != nil && rootNode.CreatedAt > 0 {
-		totalDuration = (now - rootNode.CreatedAt) * 1000 // Convert to milliseconds
+		totalDuration = now - rootNode.CreatedAt // Already in milliseconds
 	}
 
 	// Broadcast completion event
@@ -604,7 +604,7 @@ func (m *manager) CreateSpace(option types.TraceSpaceOption) (*types.TraceSpace,
 		return nil, err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Create space instance
 	space := &types.TraceSpace{
@@ -673,7 +673,7 @@ func (m *manager) DeleteSpace(id string) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Remove from cache
 	m.stateDeleteSpace(id)
@@ -722,7 +722,7 @@ func (m *manager) SetSpaceValue(spaceID, key string, value any) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Get space
 	space, err := m.GetSpace(spaceID)
@@ -788,7 +788,7 @@ func (m *manager) DeleteSpaceValue(spaceID, key string) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Delete value from driver (through state worker for concurrent safety)
 	err := m.stateExecuteSpaceOp(spaceID, func() error {
@@ -817,7 +817,7 @@ func (m *manager) ClearSpaceValues(spaceID string) error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Clear values from driver (through state worker for concurrent safety)
 	err := m.stateExecuteSpaceOp(spaceID, func() error {
