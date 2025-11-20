@@ -874,3 +874,141 @@ func (m *manager) ListSpaceKeys(spaceID string) []string {
 func (m *manager) IsComplete() bool {
 	return m.stateIsCompleted()
 }
+
+// GetEvents retrieves all events since a specific timestamp
+// since=0 returns all events from the beginning
+func (m *manager) GetEvents(since int64) ([]*types.TraceUpdate, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+	return m.stateGetUpdates(since), nil
+}
+
+// GetTraceInfo retrieves the trace info from storage
+func (m *manager) GetTraceInfo() (*types.TraceInfo, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+	return m.driver.LoadTraceInfo(m.ctx, m.traceID)
+}
+
+// GetAllNodes retrieves all nodes from storage
+func (m *manager) GetAllNodes() ([]*types.TraceNode, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+
+	// Load the root node tree from storage
+	rootNode, err := m.driver.LoadTrace(m.ctx, m.traceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if rootNode == nil {
+		return []*types.TraceNode{}, nil
+	}
+
+	// Flatten the tree to get all nodes
+	var allNodes []*types.TraceNode
+	var collectNodes func(*types.TraceNode)
+	collectNodes = func(node *types.TraceNode) {
+		if node == nil {
+			return
+		}
+		allNodes = append(allNodes, node)
+		for _, child := range node.Children {
+			collectNodes(child)
+		}
+	}
+	collectNodes(rootNode)
+
+	return allNodes, nil
+}
+
+// GetNodeByID retrieves a specific node by ID from storage
+func (m *manager) GetNodeByID(nodeID string) (*types.TraceNode, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+	return m.driver.LoadNode(m.ctx, m.traceID, nodeID)
+}
+
+// GetAllLogs retrieves all logs from storage
+func (m *manager) GetAllLogs() ([]*types.TraceLog, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+	return m.driver.LoadLogs(m.ctx, m.traceID, "")
+}
+
+// GetLogsByNode retrieves logs for a specific node from storage
+func (m *manager) GetLogsByNode(nodeID string) ([]*types.TraceLog, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+	return m.driver.LoadLogs(m.ctx, m.traceID, nodeID)
+}
+
+// GetAllSpaces retrieves all spaces from storage
+func (m *manager) GetAllSpaces() ([]*types.TraceSpace, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+
+	// Get all space IDs from driver
+	spaceIDs, err := m.driver.ListSpaces(m.ctx, m.traceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load all spaces
+	spaces := make([]*types.TraceSpace, 0, len(spaceIDs))
+	for _, spaceID := range spaceIDs {
+		space, err := m.driver.LoadSpace(m.ctx, m.traceID, spaceID)
+		if err != nil {
+			continue // Skip spaces that fail to load
+		}
+		if space != nil {
+			spaces = append(spaces, space)
+		}
+	}
+
+	return spaces, nil
+}
+
+// GetSpaceByID retrieves a specific space by ID from storage with all its key-value data
+func (m *manager) GetSpaceByID(spaceID string) (*types.TraceSpaceData, error) {
+	if err := m.checkContext(); err != nil {
+		return nil, err
+	}
+
+	// Load space metadata
+	space, err := m.driver.LoadSpace(m.ctx, m.traceID, spaceID)
+	if err != nil {
+		return nil, err
+	}
+	if space == nil {
+		return nil, nil
+	}
+
+	// Load all keys in the space
+	keys, err := m.driver.ListSpaceKeys(m.ctx, m.traceID, spaceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Load all key-value pairs
+	data := make(map[string]any)
+	for _, key := range keys {
+		value, err := m.driver.GetSpaceKey(m.ctx, m.traceID, spaceID, key)
+		if err != nil {
+			continue // Skip keys that fail to load
+		}
+		data[key] = value
+	}
+
+	return &types.TraceSpaceData{
+		TraceSpace: *space,
+		Data:       data,
+	}, nil
+}
