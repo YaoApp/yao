@@ -136,6 +136,10 @@ func (d *Driver) getKeyPrefix(traceID string) string {
 	return d.prefix + ":" + traceID + ":"
 }
 
+func (d *Driver) getNodeKeyPrefix(traceID string) string {
+	return d.getKey(traceID, "node") + ":"
+}
+
 // getTraceInfoKey returns the key for trace info
 func (d *Driver) getTraceInfoKey(traceID string) string {
 	return d.getKey(traceID, "info")
@@ -227,17 +231,66 @@ func (d *Driver) LoadNode(ctx context.Context, traceID string, nodeID string) (*
 
 // LoadTrace loads the entire trace tree from store
 func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNode, error) {
-	// Load trace info to get root node ID
-	info, err := d.LoadTraceInfo(ctx, traceID)
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
 	}
-	if info == nil {
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
+	// List all node keys
+	nodePrefix := d.getNodeKeyPrefix(traceID)
+	nodeKeys, err := d.listKeysByPrefix(ctx, nodePrefix)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list node keys: %w", err)
+	}
+
+	if len(nodeKeys) == 0 {
 		return nil, nil
 	}
 
-	// For now, just return nil - full tree reconstruction can be implemented later
-	return nil, nil
+	// Find root node ID (node with empty ParentID) by checking each node
+	var rootNodeID string
+	for _, key := range nodeKeys {
+		// Extract node ID from key (format: prefix:traceID:nodes:nodeID)
+		parts := strings.Split(key, ":")
+		if len(parts) < 4 {
+			continue
+		}
+		nodeID := parts[len(parts)-1]
+
+		// Read node data to check if it's root
+		data, exists := d.store.Get(key)
+		if !exists {
+			continue
+		}
+
+		dataStr, ok := data.(string)
+		if !ok {
+			continue
+		}
+
+		var pn persistNode
+		if err := json.Unmarshal([]byte(dataStr), &pn); err != nil {
+			continue
+		}
+
+		if pn.ParentID == "" {
+			rootNodeID = nodeID
+			break
+		}
+	}
+
+	if rootNodeID == "" {
+		return nil, fmt.Errorf("no root node found in trace")
+	}
+
+	// Load root node (this will recursively load all children)
+	return d.LoadNode(ctx, traceID, rootNodeID)
 }
 
 // SaveSpace persists a space to store

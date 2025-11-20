@@ -54,6 +54,26 @@ type Manager interface {
 	SubscribeFrom(since int64) (<-chan *TraceUpdate, error)
 	// IsComplete checks if the trace is completed
 	IsComplete() bool
+
+	// Query Operations for Events
+	// GetEvents retrieves all events since a specific timestamp (0 = all events)
+	GetEvents(since int64) ([]*TraceUpdate, error)
+
+	// Resource Access Operations - read directly from storage
+	// GetTraceInfo retrieves the trace info from storage
+	GetTraceInfo() (*TraceInfo, error)
+	// GetAllNodes retrieves all nodes from storage
+	GetAllNodes() ([]*TraceNode, error)
+	// GetNodeByID retrieves a specific node by ID from storage
+	GetNodeByID(nodeID string) (*TraceNode, error)
+	// GetAllLogs retrieves all logs from storage
+	GetAllLogs() ([]*TraceLog, error)
+	// GetLogsByNode retrieves logs for a specific node from storage
+	GetLogsByNode(nodeID string) ([]*TraceLog, error)
+	// GetAllSpaces retrieves all spaces metadata from storage (without key-value data)
+	GetAllSpaces() ([]*TraceSpace, error)
+	// GetSpaceByID retrieves a specific space by ID from storage (includes all key-value data)
+	GetSpaceByID(spaceID string) (*TraceSpaceData, error)
 }
 
 // Node represents a trace node with operations for tree building and logging

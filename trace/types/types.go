@@ -77,6 +77,12 @@ type TraceSpace struct {
 	// Internal data storage will be managed by implementation
 }
 
+// TraceSpaceData represents a space with all its key-value data (for API responses)
+type TraceSpaceData struct {
+	TraceSpace                // Embedded space metadata
+	Data       map[string]any `json:"data"` // All key-value pairs in the space
+}
+
 // TraceParallelInput defines input and options for a parallel node
 type TraceParallelInput struct {
 	Input  TraceInput      // Input data for the node

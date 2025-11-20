@@ -225,17 +225,62 @@ func (d *Driver) LoadNode(ctx context.Context, traceID string, nodeID string) (*
 
 // LoadTrace loads the entire trace tree from disk
 func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNode, error) {
-	// Load trace info to get root node ID
-	info, err := d.LoadTraceInfo(ctx, traceID)
+	// Check if archived and extract if needed
+	archived, err := d.IsArchived(ctx, traceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check archive status: %w", err)
 	}
-	if info == nil {
+	if archived {
+		if err := d.unarchive(ctx, traceID); err != nil {
+			return nil, fmt.Errorf("failed to unarchive trace: %w", err)
+		}
+	}
+
+	// Get all node files to find root
+	nodesDir := filepath.Join(d.getTracePath(traceID), "nodes")
+	entries, err := os.ReadDir(nodesDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read nodes directory: %w", err)
+	}
+
+	if len(entries) == 0 {
 		return nil, nil
 	}
 
-	// For now, just return nil - full tree reconstruction can be implemented later
-	return nil, nil
+	// Find root node ID (node with empty ParentID) by checking each file
+	var rootNodeID string
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		nodeID := strings.TrimSuffix(entry.Name(), ".json")
+		filePath := filepath.Join(nodesDir, entry.Name())
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+
+		var pn persistNode
+		if err := json.Unmarshal(data, &pn); err != nil {
+			continue
+		}
+
+		if pn.ParentID == "" {
+			rootNodeID = nodeID
+			break
+		}
+	}
+
+	if rootNodeID == "" {
+		return nil, fmt.Errorf("no root node found in trace")
+	}
+
+	// Load root node (this will recursively load all children)
+	return d.LoadNode(ctx, traceID, rootNodeID)
 }
 
 // SaveSpace persists a space to disk

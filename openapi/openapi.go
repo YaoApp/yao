@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/team"
+	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
 )
 
@@ -145,6 +146,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// MCP Server handlers
 	mcp.Attach(group.Group("/mcp"), openapi.OAuth)
+
+	// Trace handlers
+	openapiTrace.Attach(group.Group("/trace"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 
