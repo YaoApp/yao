@@ -12,6 +12,83 @@ import (
 	"github.com/yaoapp/yao/trace/types"
 )
 
+// persistNode is a lightweight version of TraceNode for storage
+// Only stores IDs of children instead of full child nodes
+type persistNode struct {
+	ID          string            `json:"ID"`
+	ParentID    string            `json:"ParentID"`
+	ChildrenIDs []string          `json:"ChildrenIDs,omitempty"`
+	Label       string            `json:"Label,omitempty"`
+	Icon        string            `json:"Icon,omitempty"`
+	Description string            `json:"Description,omitempty"`
+	Metadata    map[string]any    `json:"Metadata,omitempty"`
+	Status      types.NodeStatus  `json:"Status"`
+	Input       types.TraceInput  `json:"Input,omitempty"`
+	Output      types.TraceOutput `json:"Output,omitempty"`
+	CreatedAt   int64             `json:"CreatedAt"`
+	StartTime   int64             `json:"StartTime"`
+	EndTime     int64             `json:"EndTime,omitempty"`
+	UpdatedAt   int64             `json:"UpdatedAt"`
+}
+
+// toPersistNode converts TraceNode to persistNode for storage
+func toPersistNode(node *types.TraceNode) *persistNode {
+	if node == nil {
+		return nil
+	}
+
+	// Extract children IDs
+	childrenIDs := make([]string, 0, len(node.Children))
+	for _, child := range node.Children {
+		if child != nil {
+			childrenIDs = append(childrenIDs, child.ID)
+		}
+	}
+
+	return &persistNode{
+		ID:          node.ID,
+		ParentID:    node.ParentID,
+		ChildrenIDs: childrenIDs,
+		Label:       node.Label,
+		Icon:        node.Icon,
+		Description: node.Description,
+		Metadata:    node.Metadata,
+		Status:      node.Status,
+		Input:       node.Input,
+		Output:      node.Output,
+		CreatedAt:   node.CreatedAt,
+		StartTime:   node.StartTime,
+		EndTime:     node.EndTime,
+		UpdatedAt:   node.UpdatedAt,
+	}
+}
+
+// fromPersistNode converts persistNode to TraceNode
+func fromPersistNode(pn *persistNode) *types.TraceNode {
+	if pn == nil {
+		return nil
+	}
+
+	return &types.TraceNode{
+		ID:       pn.ID,
+		ParentID: pn.ParentID,
+		Children: nil, // Children will be loaded separately if needed
+		TraceNodeOption: types.TraceNodeOption{
+			Label:       pn.Label,
+			Icon:        pn.Icon,
+			Description: pn.Description,
+			Metadata:    pn.Metadata,
+		},
+		Status:    pn.Status,
+		Input:     pn.Input,
+		Output:    pn.Output,
+		CreatedAt: pn.CreatedAt,
+		StartTime: pn.StartTime,
+		EndTime:   pn.EndTime,
+		UpdatedAt: pn.UpdatedAt,
+	}
+}
+
 // Driver the local disk storage driver implementation
 type Driver struct {
 	basePath string // Base directory for storing trace files
@@ -66,9 +143,12 @@ func (d *Driver) SaveNode(ctx context.Context, traceID string, node *types.Trace
 		return fmt.Errorf("failed to create nodes directory: %w", err)
 	}
 
+	// Convert to persist format (only store children IDs)
+	persistData := toPersistNode(node)
+
 	// Save node as JSON
 	filePath := filepath.Join(nodesDir, node.ID+".json")
-	data, err := json.MarshalIndent(node, "", "  ")
+	data, err := json.MarshalIndent(persistData, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal node: %w", err)
 	}
@@ -92,12 +172,30 @@ func (d *Driver) LoadNode(ctx context.Context, traceID string, nodeID string) (*
 		return nil, fmt.Errorf("failed to read node file: %w", err)
 	}
 
-	var node types.TraceNode
-	if err := json.Unmarshal(data, &node); err != nil {
+	var pn persistNode
+	if err := json.Unmarshal(data, &pn); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal node: %w", err)
 	}
 
-	return &node, nil
+	// Convert to TraceNode
+	node := fromPersistNode(&pn)
+
+	// Load children if needed
+	if len(pn.ChildrenIDs) > 0 {
+		children := make([]*types.TraceNode, 0, len(pn.ChildrenIDs))
+		for _, childID := range pn.ChildrenIDs {
+			child, err := d.LoadNode(ctx, traceID, childID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load child node %s: %w", childID, err)
+			}
+			if child != nil {
+				children = append(children, child)
+			}
+		}
+		node.Children = children
+	}
+
+	return node, nil
 }
 
 // LoadTrace loads the entire trace tree from disk

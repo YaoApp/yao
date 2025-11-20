@@ -166,15 +166,42 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	_ = doneResponse // doneResponse is available for further processing
 
-	// Close the output writer to send [DONE] marker and flush data
-	if err := output.Close(ctx); err != nil {
-		// Log error but don't fail the request
-		fmt.Printf("Warning: Failed to close output writer: %v\n", err)
+	// Set the output of the agent node
+	if agentNode != nil {
+		agentNode.SetOutput(context.Response{Create: createResponse, Done: doneResponse, Completion: completionResponse})
 	}
 
-	// Flush any remaining data to the client
-	if err := output.Flush(ctx); err != nil {
-		fmt.Printf("Warning: Failed to flush output: %v\n", err)
+	// Only close output if this is the root call (entry point)
+	// Nested calls (from MCP, hooks, etc.) should not close the output
+	// Note: Flush is already handled by the stream handler (handleStreamEnd)
+	if ctx.Stack != nil && ctx.Stack.IsRoot() {
+		// Log closing output for root call
+		if trace, _ := ctx.Trace(); trace != nil {
+			trace.Debug("Agent: Closing output (root call)", map[string]any{
+				"stack_id":     ctx.Stack.ID,
+				"depth":        ctx.Stack.Depth,
+				"assistant_id": ctx.Stack.AssistantID,
+			})
+		}
+
+		// Close the output writer to send [DONE] marker
+		if err := output.Close(ctx); err != nil {
+			if trace, _ := ctx.Trace(); trace != nil {
+				trace.Error("Agent: Failed to close output", map[string]any{
+					"error": err.Error(),
+				})
+			}
+		}
+	} else {
+		// Log skipping close for nested call
+		if trace, _ := ctx.Trace(); trace != nil && ctx.Stack != nil {
+			trace.Debug("Agent: Skipping output close (nested call)", map[string]any{
+				"stack_id":     ctx.Stack.ID,
+				"depth":        ctx.Stack.Depth,
+				"parent_id":    ctx.Stack.ParentID,
+				"assistant_id": ctx.Stack.AssistantID,
+			})
+		}
 	}
 
 	return &context.Response{Create: createResponse, Done: doneResponse, Completion: completionResponse}, nil

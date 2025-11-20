@@ -176,10 +176,18 @@ func (ctx *Context) Trace() (traceTypes.Manager, error) {
 		return nil, fmt.Errorf("unsupported trace driver: %s", cfg.Trace.Driver)
 	}
 
+	// Prepare trace options
+	traceOption := &traceTypes.TraceOption{ID: traceID}
+
+	// Set trace options from authorized information
+	if ctx.Authorized != nil {
+		traceOption.CreatedBy = ctx.Authorized.UserID
+		traceOption.TeamID = ctx.Authorized.TeamID
+		traceOption.TenantID = ctx.Authorized.TenantID
+	}
+
 	// Create trace using trace.New (handles registry)
-	createdTraceID, manager, err := trace.New(ctx.Context, driverType, &traceTypes.TraceOption{
-		ID: traceID, // Use existing ID from Stack or empty to generate new one
-	}, driverOptions...)
+	createdTraceID, manager, err := trace.New(ctx.Context, driverType, traceOption, driverOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace: %w", err)
 	}
