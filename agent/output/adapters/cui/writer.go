@@ -26,12 +26,23 @@ func (w *Writer) Write(msg *message.Message) error {
 	// CUI adapter passes messages through as-is
 	chunks, err := w.adapter.Adapt(msg)
 	if err != nil {
+		if trace, _ := w.ctx.Trace(); trace != nil {
+			trace.Error("CUI Writer: Failed to adapt message", map[string]any{
+				"error":        err.Error(),
+				"message_type": msg.Type,
+			})
+		}
 		return err
 	}
 
 	// Send each chunk
 	for _, chunk := range chunks {
 		if err := w.sendChunk(chunk); err != nil {
+			if trace, _ := w.ctx.Trace(); trace != nil {
+				trace.Error("CUI Writer: Failed to send chunk", map[string]any{
+					"error": err.Error(),
+				})
+			}
 			return err
 		}
 	}
@@ -46,6 +57,12 @@ func (w *Writer) WriteGroup(group *message.MessageGroup) error {
 
 	// Send the group
 	if err := w.sendChunk(group); err != nil {
+		if trace, _ := w.ctx.Trace(); trace != nil {
+			trace.Error("CUI Writer: Failed to send message group", map[string]any{
+				"error":    err.Error(),
+				"group_id": group.ID,
+			})
+		}
 		return err
 	}
 
@@ -70,10 +87,31 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	// Convert chunk to JSON
 	data, err := json.Marshal(chunk)
 	if err != nil {
+		if trace, _ := w.ctx.Trace(); trace != nil {
+			trace.Error("CUI Writer: Failed to marshal chunk", map[string]any{
+				"error": err.Error(),
+			})
+		}
 		return err
+	}
+
+	// Log outgoing data to trace for debugging
+	if trace, _ := w.ctx.Trace(); trace != nil {
+		trace.Debug("CUI Writer: Sending chunk to client", map[string]any{
+			"data": string(data),
+		})
 	}
 
 	// Send via context's writer
 	// The context knows how to send data based on the connection type (SSE, WebSocket, etc.)
-	return w.ctx.Send(data)
+	if err := w.ctx.Send(data); err != nil {
+		if trace, _ := w.ctx.Trace(); trace != nil {
+			trace.Error("CUI Writer: Failed to send data to client", map[string]any{
+				"error": err.Error(),
+			})
+		}
+		return err
+	}
+
+	return nil
 }

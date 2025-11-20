@@ -18,7 +18,7 @@ func (n *TraceNode) ToCompleteData() *NodeCompleteData {
 		NodeID:   n.ID,
 		Status:   CompleteStatusSuccess,
 		EndTime:  n.EndTime,
-		Duration: (n.EndTime - n.StartTime) * 1000, // Convert to milliseconds
+		Duration: n.EndTime - n.StartTime, // Already in milliseconds
 		Output:   n.Output,
 	}
 }
@@ -29,7 +29,7 @@ func (n *TraceNode) ToFailedData(err error) *NodeFailedData {
 		NodeID:   n.ID,
 		Status:   CompleteStatusFailed,
 		EndTime:  n.EndTime,
-		Duration: (n.EndTime - n.StartTime) * 1000, // Convert to milliseconds
+		Duration: n.EndTime - n.StartTime, // Already in milliseconds
 		Error:    err.Error(),
 	}
 }

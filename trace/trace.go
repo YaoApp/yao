@@ -103,7 +103,7 @@ func GenTraceID(safe ...bool) string {
 // option: trace options (optional)
 // driverOptions: driver-specific options (e.g., base path for local, store name for store)
 func New(ctx context.Context, driver string, option *types.TraceOption, driverOptions ...any) (string, types.Manager, error) {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Handle nil option
 	if option == nil {
@@ -235,7 +235,7 @@ func LoadFromStorage(ctx context.Context, driver string, traceID string, driverO
 
 	// Update stored info with new manager
 	storedInfo.Manager = manager
-	storedInfo.UpdatedAt = time.Now().Unix()
+	storedInfo.UpdatedAt = time.Now().UnixMilli()
 
 	// Register in global registry
 	registryMu.Lock()

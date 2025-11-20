@@ -1,7 +1,6 @@
 package trace
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/yaoapp/yao/trace/types"
@@ -14,32 +13,32 @@ type node struct {
 }
 
 // Info logs info message (public method, broadcasts event)
-func (n *node) Info(format string, args ...any) types.Node {
-	n.logWithBroadcast("info", format, args...)
+func (n *node) Info(message string, args ...any) types.Node {
+	n.logWithBroadcast("info", message, args...)
 	return n
 }
 
 // Debug logs debug message (public method, broadcasts event)
-func (n *node) Debug(format string, args ...any) types.Node {
-	n.logWithBroadcast("debug", format, args...)
+func (n *node) Debug(message string, args ...any) types.Node {
+	n.logWithBroadcast("debug", message, args...)
 	return n
 }
 
 // Error logs error message (public method, broadcasts event)
-func (n *node) Error(format string, args ...any) types.Node {
-	n.logWithBroadcast("error", format, args...)
+func (n *node) Error(message string, args ...any) types.Node {
+	n.logWithBroadcast("error", message, args...)
 	return n
 }
 
 // Warn logs warning message (public method, broadcasts event)
-func (n *node) Warn(format string, args ...any) types.Node {
-	n.logWithBroadcast("warn", format, args...)
+func (n *node) Warn(message string, args ...any) types.Node {
+	n.logWithBroadcast("warn", message, args...)
 	return n
 }
 
 // logWithBroadcast logs and broadcasts event (for external calls)
-func (n *node) logWithBroadcast(level string, format string, args ...any) {
-	log := n.log(level, format, args...)
+func (n *node) logWithBroadcast(level string, message string, args ...any) {
+	log := n.log(level, message, args...)
 
 	// Broadcast event
 	n.manager.addUpdateAndBroadcast(&types.TraceUpdate{
@@ -52,12 +51,12 @@ func (n *node) logWithBroadcast(level string, format string, args ...any) {
 }
 
 // log logs without broadcasting (for internal Manager calls)
-func (n *node) log(level string, format string, args ...any) *types.TraceLog {
-	message := fmt.Sprintf(format, args...)
+func (n *node) log(level string, message string, args ...any) *types.TraceLog {
 	log := &types.TraceLog{
-		Timestamp: time.Now().Unix(),
+		Timestamp: time.Now().UnixMilli(),
 		Level:     level,
 		Message:   message,
+		Data:      args,
 		NodeID:    n.data.ID,
 	}
 	// Save log (ignore errors for non-critical logging)
@@ -67,7 +66,7 @@ func (n *node) log(level string, format string, args ...any) *types.TraceLog {
 
 // Add creates next sequential node
 func (n *node) Add(input types.TraceInput, option types.TraceNodeOption) (types.Node, error) {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Create child node data
 	childNodeData := &types.TraceNode{
@@ -102,7 +101,7 @@ func (n *node) Add(input types.TraceInput, option types.TraceNodeOption) (types.
 
 // Parallel creates multiple concurrent child nodes
 func (n *node) Parallel(parallelInputs []types.TraceParallelInput) ([]types.Node, error) {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 	nodeInterfaces := make([]types.Node, 0, len(parallelInputs))
 
 	// Create multiple child nodes
@@ -142,7 +141,7 @@ func (n *node) Parallel(parallelInputs []types.TraceParallelInput) ([]types.Node
 
 // Join joins multiple nodes into one
 func (n *node) Join(nodes []*types.TraceNode, input types.TraceInput, option types.TraceNodeOption) (types.Node, error) {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Create join node data
 	joinNodeData := &types.TraceNode{
@@ -177,7 +176,7 @@ func (n *node) ID() string {
 // SetOutput sets the node output
 func (n *node) SetOutput(output types.TraceOutput) error {
 	n.data.Output = output
-	n.data.UpdatedAt = time.Now().Unix()
+	n.data.UpdatedAt = time.Now().UnixMilli()
 	return n.manager.driver.SaveNode(n.manager.ctx, n.manager.traceID, n.data)
 }
 
@@ -187,14 +186,14 @@ func (n *node) SetMetadata(key string, value any) error {
 		n.data.Metadata = make(map[string]any)
 	}
 	n.data.Metadata[key] = value
-	n.data.UpdatedAt = time.Now().Unix()
+	n.data.UpdatedAt = time.Now().UnixMilli()
 	return n.manager.driver.SaveNode(n.manager.ctx, n.manager.traceID, n.data)
 }
 
 // SetStatus sets the node status
 func (n *node) SetStatus(status string) error {
 	n.data.Status = types.NodeStatus(status)
-	n.data.UpdatedAt = time.Now().Unix()
+	n.data.UpdatedAt = time.Now().UnixMilli()
 	return n.manager.driver.SaveNode(n.manager.ctx, n.manager.traceID, n.data)
 }
 
@@ -219,7 +218,7 @@ func (n *node) Complete(output ...types.TraceOutput) error {
 
 // complete marks as completed without broadcasting (for Manager calls)
 func (n *node) complete(output ...types.TraceOutput) error {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Set output if provided
 	if len(output) > 0 {
@@ -255,7 +254,7 @@ func (n *node) Fail(err error) error {
 
 // fail marks as failed without broadcasting (for Manager calls)
 func (n *node) fail(err error) error {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Update status
 	n.data.Status = types.StatusFailed

@@ -4,10 +4,11 @@ import "context"
 
 // TraceLog represents a log entry
 type TraceLog struct {
-	Timestamp int64  // Log timestamp
-	Level     string // Log level (info, debug, error, warn)
-	Message   string // Log message
-	NodeID    string // Node ID this log belongs to
+	Timestamp int64    // Log timestamp (milliseconds since epoch)
+	Level     string   // Log level (info, debug, error, warn)
+	Message   string   // Log message
+	Data      []any    // Additional data arguments
+	NodeID    string   // Node ID this log belongs to
 }
 
 // Driver defines the storage driver interface that providers must implement
@@ -71,7 +72,7 @@ type Driver interface {
 	// SaveUpdate persists a trace update event to storage
 	SaveUpdate(ctx context.Context, traceID string, update *TraceUpdate) error
 
-	// LoadUpdates loads trace update events from storage (filtering by timestamp)
+	// LoadUpdates loads trace update events from storage (filtering by timestamp in milliseconds)
 	LoadUpdates(ctx context.Context, traceID string, since int64) ([]*TraceUpdate, error)
 
 	// Close closes the driver and releases resources

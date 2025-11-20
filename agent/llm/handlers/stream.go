@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"fmt"
-
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -20,10 +18,11 @@ func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
 	}
 
 	return func(chunkType context.StreamChunkType, data []byte) int {
-		fmt.Println("-----------------------------------------------")
-		fmt.Println("Chunk Type: ", string(chunkType))
-		fmt.Println("Data: ", string(data))
-		fmt.Println("-----------------------------------------------")
+		trace, _ := ctx.Trace()
+		if trace != nil {
+			trace.Info("LLM Stream", map[string]any{"data": string(data)})
+		}
+
 		// Handle different chunk types
 		switch chunkType {
 		case context.ChunkStreamStart:

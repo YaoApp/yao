@@ -99,7 +99,7 @@ func main() {
             manager.SetSpaceValue(space.ID, fmt.Sprintf("worker_%d", idx+1), map[string]any{
                 "id":     idx + 1,
                 "status": "done",
-                "time":   time.Now().Unix(),
+                "time":   time.Now().UnixMilli(),
             })
 
             // Each worker completes itself
@@ -124,7 +124,7 @@ func main() {
         Icon:  "database",
     })
     manager.SetSpaceValue(sessionSpace.ID, "total_processed", 3)
-    manager.SetSpaceValue(sessionSpace.ID, "timestamp", time.Now().Unix())
+    manager.SetSpaceValue(sessionSpace.ID, "timestamp", time.Now().UnixMilli())
 
     manager.Complete(map[string]any{"total": 3, "success": true})
 
