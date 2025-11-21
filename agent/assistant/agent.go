@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/trace/types"
@@ -35,10 +36,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var agentNode types.Node = nil
 	if trace != nil {
 		agentNode, _ = trace.Add(inputMessages, types.TraceNodeOption{
-			Label:       fmt.Sprintf("Assistant %s", ast.Name),
+			Label:       i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.label"), // "Assistant {{name}}"
 			Icon:        "assistant",
-			Description: fmt.Sprintf("Assistant %s is processing the request", ast.Name),
+			Description: i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.description"), // "Assistant {{name}} is processing the request"
 		})
+
 		if agentNode != nil {
 			// Mark the node as complete when the function returns
 			defer agentNode.Complete()
@@ -56,7 +58,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	// Log the chat history
 	if agentNode != nil {
-		agentNode.Info("Get Chat History", map[string]any{"messages": fullMessages})
+		agentNode.Info(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.history"), map[string]any{"messages": fullMessages}) // "Get Chat History"
 	}
 
 	// Request Create hook ( Optional )
@@ -116,7 +118,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			trace.Add(
 				map[string]any{"messages": completionMessages, "options": completionOptions},
 				types.TraceNodeOption{
-					Label: fmt.Sprintf("LLM %s", conn.ID()), Icon: "llm", Description: fmt.Sprintf("LLM %s is processing the request", conn.ID()),
+					Label:       fmt.Sprintf(i18n.Tr(ast.ID, ctx.Locale, "llm.openai.stream.label"), conn.ID()), // "LLM %s"
+					Icon:        "llm",
+					Description: fmt.Sprintf(i18n.Tr(ast.ID, ctx.Locale, "llm.openai.stream.description"), conn.ID()), // "LLM %s is processing the request"
 				},
 			)
 
@@ -187,9 +191,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Close the output writer to send [DONE] marker
 		if err := output.Close(ctx); err != nil {
 			if trace, _ := ctx.Trace(); trace != nil {
-				trace.Error("Agent: Failed to close output", map[string]any{
-					"error": err.Error(),
-				})
+				trace.Error(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.close_error"), map[string]any{"error": err.Error()}) // "Failed to close output"
 			}
 		}
 	} else {
