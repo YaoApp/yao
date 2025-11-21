@@ -284,7 +284,7 @@ func TestGPT5Vision(t *testing.T) {
 				{
 					Type: context.ContentImageURL,
 					ImageURL: &context.ImageURL{
-						URL: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/320px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg",
+						URL: "https://raw.githubusercontent.com/YaoApp/yao/refs/heads/main/yao/data/icons/icon.png",
 					},
 				},
 			},

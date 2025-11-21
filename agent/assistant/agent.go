@@ -2,8 +2,11 @@ package assistant
 
 import (
 	"fmt"
+	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm"
@@ -16,9 +19,15 @@ import (
 // handler is optional, if not provided, a default handler will be used
 func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, handler ...context.StreamFunc) (*context.Response, error) {
 
+	log.Trace("[AGENT] Stream started: assistant=%s, contextID=%s", ast.ID, ctx.ID)
+	defer log.Trace("[AGENT] Stream ended: assistant=%s, contextID=%s", ast.ID, ctx.ID)
+
 	var err error
+	streamStartTime := time.Now()
 
 	// Set up interrupt handler if interrupt controller is available
+	// InterruptController handles user interrupt signals (stop button) for appending messages
+	// HTTP context cancellation is handled naturally by LLM/Agent layers
 	if ctx.Interrupt != nil {
 		ctx.Interrupt.SetHandler(func(c *context.Context, signal *context.InterruptSignal) error {
 			return ast.handleInterrupt(c, signal)
@@ -30,6 +39,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	defer done()
 
 	_ = traceID // traceID is available for trace logging
+
+	// Determine stream handler
+	streamHandler := ast.getStreamHandler(ctx, handler...)
+
+	// Send ChunkStreamStart only for root stack (agent-level stream start)
+	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
 
 	// Trace Add
 	trace, _ := ctx.Trace()
@@ -49,6 +64,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		if agentNode != nil {
 			agentNode.Fail(err)
 		}
+		// Send error stream_end for root stack
+		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
 
@@ -66,6 +83,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			if agentNode != nil {
 				agentNode.Fail(err)
 			}
+			// Send error stream_end for root stack
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
@@ -87,6 +106,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			if agentNode != nil {
 				agentNode.Fail(err)
 			}
+			// Send error stream_end for root stack
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
@@ -96,6 +117,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			if agentNode != nil {
 				agentNode.Fail(err)
 			}
+			// Send error stream_end for root stack
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
@@ -125,18 +148,20 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Create LLM instance with connector and options
 		llmInstance, err := llm.New(conn, completionOptions)
 		if err != nil {
+			// Send error stream_end for root stack
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
-		// Use provided handler or default handler
-		streamHandler := llm.DefaultStreamHandler(ctx)
-		if len(handler) > 0 && handler[0] != nil {
-			streamHandler = handler[0]
-		}
-
-		// Call the LLM Completion Stream
+		// Call the LLM Completion Stream (streamHandler was set earlier)
+		log.Trace("[AGENT] Calling LLM Stream: assistant=%s", ast.ID)
 		completionResponse, err = llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
+		log.Trace("[AGENT] LLM Stream returned: assistant=%s, err=%v", ast.ID, err)
 		if err != nil {
+			// Send error stream_end for root stack
+			log.Trace("[AGENT] Calling sendStreamEndOnError")
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+			log.Trace("[AGENT] sendStreamEndOnError returned")
 			return nil, err
 		}
 
@@ -160,6 +185,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		var err error
 		doneResponse, err = ast.Script.Done(ctx, fullMessages, completionResponse, mcpResponse)
 		if err != nil {
+			// Send error stream_end for root stack
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 	}
@@ -171,8 +198,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		agentNode.SetOutput(context.Response{Create: createResponse, Done: doneResponse, Completion: completionResponse})
 	}
 
-	// Only close output if this is the root call (entry point)
-	// Nested calls (from MCP, hooks, etc.) should not close the output
+	// Only close output and send stream_end if this is the root call (entry point)
+	// Nested calls (from MCP, hooks, etc.) should not close the output or send stream_end
 	// Note: Flush is already handled by the stream handler (handleStreamEnd)
 	if ctx.Stack != nil && ctx.Stack.IsRoot() {
 		// Log closing output for root call
@@ -183,6 +210,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				"assistant_id": ctx.Stack.AssistantID,
 			})
 		}
+
+		// Send ChunkStreamEnd (agent-level stream completion)
+		ast.sendAgentStreamEnd(ctx, streamHandler, streamStartTime, "completed", nil, completionResponse)
 
 		// Close the output writer to send [DONE] marker
 		if err := output.Close(ctx); err != nil {
@@ -595,6 +625,70 @@ func (ast *Assistant) getUses() *context.Uses {
 // WithHistory with the history messages
 func (ast *Assistant) WithHistory(ctx *context.Context, messages []context.Message) ([]context.Message, error) {
 	return messages, nil
+}
+
+// getStreamHandler returns the stream handler from the provided handlers or a default one
+func (ast *Assistant) getStreamHandler(ctx *context.Context, handler ...context.StreamFunc) context.StreamFunc {
+	if len(handler) > 0 && handler[0] != nil {
+		return handler[0]
+	}
+	return llm.DefaultStreamHandler(ctx)
+}
+
+// sendAgentStreamStart sends ChunkStreamStart for root stack only (agent-level stream start)
+// This ensures only one stream_start per agent execution, even with multiple LLM calls
+func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler context.StreamFunc, startTime time.Time) {
+	if ctx.Stack == nil || !ctx.Stack.IsRoot() || handler == nil {
+		return
+	}
+
+	requestID := fmt.Sprintf("agent_req_%d", startTime.UnixNano())
+	startData := &context.StreamStartData{
+		RequestID: requestID,
+		Timestamp: startTime.UnixMilli(),
+		Model:     ast.ID, // Use assistant ID as the "model" for agent-level stream
+	}
+
+	if startJSON, err := jsoniter.Marshal(startData); err == nil {
+		handler(context.ChunkStreamStart, startJSON)
+	}
+}
+
+// sendAgentStreamEnd sends ChunkStreamEnd for root stack only (agent-level stream completion)
+func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler context.StreamFunc, startTime time.Time, status string, err error, response *context.CompletionResponse) {
+	if ctx.Stack == nil || !ctx.Stack.IsRoot() || handler == nil {
+		return
+	}
+
+	// Check if context is cancelled - if so, skip handler call to avoid blocking
+	if ctx.Context != nil && ctx.Context.Err() != nil {
+		log.Trace("[AGENT] Context cancelled, skipping sendAgentStreamEnd handler call")
+		return
+	}
+
+	endData := &context.StreamEndData{
+		RequestID:  fmt.Sprintf("agent_req_%d", startTime.UnixNano()),
+		Timestamp:  time.Now().UnixMilli(),
+		DurationMs: time.Since(startTime).Milliseconds(),
+		Status:     status,
+	}
+
+	if err != nil {
+		endData.Error = err.Error()
+	}
+
+	if response != nil && response.Usage != nil {
+		endData.Usage = response.Usage
+	}
+
+	if endJSON, marshalErr := jsoniter.Marshal(endData); marshalErr == nil {
+		handler(context.ChunkStreamEnd, endJSON)
+	}
+}
+
+// sendStreamEndOnError sends ChunkStreamEnd with error status for root stack only
+func (ast *Assistant) sendStreamEndOnError(ctx *context.Context, handler context.StreamFunc, startTime time.Time, err error) {
+	ast.sendAgentStreamEnd(ctx, handler, startTime, "error", err, nil)
 }
 
 // handleInterrupt handles the interrupt signal

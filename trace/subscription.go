@@ -1,9 +1,8 @@
 package trace
 
 import (
-	"time"
+	"fmt"
 
-	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/yaoapp/yao/trace/types"
 )
 
@@ -19,67 +18,22 @@ func (m *manager) SubscribeFrom(since int64) (<-chan *types.TraceUpdate, error) 
 
 // subscribe is the internal implementation for subscriptions
 func (m *manager) subscribe(since int64) (<-chan *types.TraceUpdate, error) {
-	// Generate unique subscriber ID
-	subID, _ := gonanoid.Generate("0123456789abcdefghijklmnopqrstuvwxyz", 12)
-
-	// Create update channel
-	updateCh := make(chan *types.TraceUpdate, 100)
-
-	// Register subscriber
-	m.stateAddSubscriber(subID, updateCh)
-
-	// Start replay and stream goroutine (will auto-cleanup on completion)
-	go m.replayAndStream(subID, updateCh, since)
-
-	return updateCh, nil
-}
-
-// replayAndStream replays historical updates and streams new ones
-func (m *manager) replayAndStream(subID string, ch chan *types.TraceUpdate, since int64) {
-	// Auto-cleanup on exit - MUST remove from map before closing channel
-	defer func() {
-		// Remove from subscribers map first to prevent new broadcasts
-		m.stateRemoveSubscriber(subID)
-		// Close channel (any in-flight broadcasts will be caught by recover)
-		close(ch)
-	}()
-
 	// Get historical updates
 	updates := m.stateGetUpdates(since)
 
-	// Replay historical updates and check if trace was already completed
-	traceWasCompleted := false
-	for _, update := range updates {
-		select {
-		case ch <- update:
-			// Check if this is a trace complete event
-			if update.Type == types.UpdateTypeComplete {
-				traceWasCompleted = true
-			}
-		case <-m.ctx.Done():
-			return
-		}
+	// Use manager's pubsub reference (always available)
+	if m.pubsub == nil {
+		return nil, fmt.Errorf("pubsub service not initialized for trace: %s", m.traceID)
 	}
 
-	// If trace was already completed in historical events, exit immediately
-	if traceWasCompleted {
-		return
+	// Create subscription with historical replay
+	// Buffer size should be large enough to hold historical updates plus some live updates
+	// Using max of 1000 or len(updates)+100 to handle large traces
+	bufferSize := 1000
+	if len(updates)+100 > bufferSize {
+		bufferSize = len(updates) + 100
 	}
+	sub := m.pubsub.SubscribeWithHistory(updates, bufferSize)
 
-	// Continue streaming new updates
-	// The channel will receive updates via broadcast from addUpdate
-	// Monitor completion to know when to exit
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			if m.stateIsCompleted() {
-				return
-			}
-		case <-m.ctx.Done():
-			return
-		}
-	}
+	return sub.Channel, nil
 }

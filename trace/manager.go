@@ -6,6 +6,8 @@ import (
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/trace/pubsub"
 	"github.com/yaoapp/yao/trace/types"
 )
 
@@ -17,10 +19,12 @@ type manager struct {
 	driver       types.Driver
 	stateCmdChan chan stateCommand // Single channel for all state mutations
 	autoArchive  bool              // Auto-archive on complete/fail
+	pubsub       *pubsub.PubSub    // Reference to independent pubsub service (for publishing only, doesn't own it)
 }
 
 // NewManager creates a new trace manager instance
-func NewManager(ctx context.Context, traceID string, driver types.Driver, option *types.TraceOption) (types.Manager, error) {
+// pubsubService: reference to independent pubsub service (manager doesn't own it, just publishes to it)
+func NewManager(ctx context.Context, traceID string, driver types.Driver, pubsubService *pubsub.PubSub, option *types.TraceOption) (types.Manager, error) {
 	// Create a cancellable context for the manager
 	managerCtx, cancel := context.WithCancel(ctx)
 
@@ -37,6 +41,7 @@ func NewManager(ctx context.Context, traceID string, driver types.Driver, option
 		driver:       driver,
 		stateCmdChan: make(chan stateCommand, 100), // Buffered channel for performance
 		autoArchive:  autoArchive,
+		pubsub:       pubsubService, // Reference only, doesn't manage lifecycle
 	}
 
 	// Start state worker goroutine
@@ -44,18 +49,26 @@ func NewManager(ctx context.Context, traceID string, driver types.Driver, option
 
 	// Try to load existing updates from driver (for resumed traces)
 	if existingUpdates, err := driver.LoadUpdates(ctx, traceID, 0); err == nil && len(existingUpdates) > 0 {
+		log.Trace("[MANAGER] NewManager: loaded %d existing updates from driver for trace %s", len(existingUpdates), traceID)
 		m.stateSetUpdates(existingUpdates)
 		// Check if trace was already completed
 		for _, update := range existingUpdates {
 			if update.Type == types.UpdateTypeComplete {
+				log.Trace("[MANAGER] NewManager: trace %s was already completed, marking as completed", traceID)
 				m.stateMarkCompleted()
 				if data, ok := update.Data.(*types.TraceCompleteData); ok {
+					log.Trace("[MANAGER] NewManager: setting trace status to %s", data.Status)
 					m.stateSetTraceStatus(data.Status)
 				}
 				break
 			}
 		}
 	} else {
+		if err != nil {
+			log.Trace("[MANAGER] NewManager: failed to load existing updates for trace %s: %v", traceID, err)
+		} else {
+			log.Trace("[MANAGER] NewManager: no existing updates found for trace %s, creating new trace", traceID)
+		}
 		// New trace - create and broadcast init event
 		now := time.Now().UnixMilli()
 		m.addUpdateAndBroadcast(&types.TraceUpdate{
@@ -75,16 +88,22 @@ func genNodeID() string {
 	return id
 }
 
-// addUpdateAndBroadcast persists, adds to history, and broadcasts an update
+// addUpdateAndBroadcast persists, adds to history, and publishes an update
 func (m *manager) addUpdateAndBroadcast(update *types.TraceUpdate) {
 	// Persist to driver (synchronous - no race)
-	_ = m.driver.SaveUpdate(context.Background(), m.traceID, update)
+	if err := m.driver.SaveUpdate(context.Background(), m.traceID, update); err != nil {
+		log.Trace("[MANAGER] addUpdateAndBroadcast: failed to save update type=%s for trace %s: %v", update.Type, m.traceID, err)
+	} else {
+		log.Trace("[MANAGER] addUpdateAndBroadcast: successfully saved update type=%s for trace %s", update.Type, m.traceID)
+	}
 
 	// Add to in-memory history
 	m.stateAddUpdate(update)
 
-	// Broadcast to subscribers
-	m.stateBroadcast(update)
+	// Publish to independent PubSub service (manager just publishes, doesn't manage pubsub lifecycle)
+	if m.pubsub != nil {
+		m.pubsub.Publish(update)
+	}
 }
 
 // checkContext checks if context is cancelled

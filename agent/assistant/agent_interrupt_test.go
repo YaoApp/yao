@@ -47,7 +47,6 @@ func newTestContextWithInterrupt(chatID, assistantID string) *context.Context {
 
 	// Initialize interrupt controller
 	ctx.Interrupt = context.NewInterruptController()
-	ctx.Interrupt.SetContextID(ctx.ID)
 
 	// Register context globally
 	if err := context.Register(ctx); err != nil {
@@ -55,7 +54,7 @@ func newTestContextWithInterrupt(chatID, assistantID string) *context.Context {
 	}
 
 	// Start interrupt listener
-	ctx.Interrupt.Start()
+	ctx.Interrupt.Start(ctx.ID)
 
 	return ctx
 }

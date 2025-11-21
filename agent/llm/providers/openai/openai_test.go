@@ -1250,7 +1250,8 @@ func TestOpenAIProxySupport(t *testing.T) {
 	t.Log("HTTP proxy support is implemented via http.GetTransport using environment variables")
 }
 
-// TestOpenAIStreamLifecycleEvents tests that lifecycle events are sent correctly
+// TestOpenAIStreamLifecycleEvents tests that LLM-level lifecycle events (group_start/end) are sent correctly
+// Note: stream_start/end are now sent at Agent level, not LLM level
 func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
@@ -1282,9 +1283,8 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 
 	ctx := newTestContext("test-lifecycle", "openai.gpt-4o")
 
-	// Track lifecycle events
+	// Track lifecycle events (only group-level events at LLM layer)
 	var events []string
-	var streamStartReceived, streamEndReceived bool
 	var groupStartReceived, groupEndReceived bool
 
 	handler := func(chunkType context.StreamChunkType, data []byte) int {
@@ -1292,31 +1292,10 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 
 		switch chunkType {
 		case context.ChunkStreamStart:
-			streamStartReceived = true
-			var startData context.StreamStartData
-			if err := json.Unmarshal(data, &startData); err == nil {
-				t.Logf("✓ stream_start: request_id=%s, model=%s", startData.RequestID, startData.Model)
-				if startData.RequestID == "" {
-					t.Error("stream_start missing request_id")
-				}
-			} else {
-				t.Errorf("Failed to parse stream_start data: %v", err)
-			}
+			t.Error("❌ LLM layer should NOT send stream_start (now sent at Agent level)")
 
 		case context.ChunkStreamEnd:
-			streamEndReceived = true
-			var endData context.StreamEndData
-			if err := json.Unmarshal(data, &endData); err == nil {
-				t.Logf("✓ stream_end: status=%s, duration=%dms", endData.Status, endData.DurationMs)
-				if endData.Status != "completed" {
-					t.Errorf("stream_end status should be 'completed', got '%s'", endData.Status)
-				}
-				if endData.DurationMs <= 0 {
-					t.Error("stream_end duration should be > 0")
-				}
-			} else {
-				t.Errorf("Failed to parse stream_end data: %v", err)
-			}
+			t.Error("❌ LLM layer should NOT send stream_end (now sent at Agent level)")
 
 		case context.ChunkGroupStart:
 			groupStartReceived = true
@@ -1359,13 +1338,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 		t.Fatal("Response is nil")
 	}
 
-	// Validate that all lifecycle events were received
-	if !streamStartReceived {
-		t.Error("stream_start event was not received")
-	}
-	if !streamEndReceived {
-		t.Error("stream_end event was not received")
-	}
+	// Validate that LLM-level lifecycle events were received
 	if !groupStartReceived {
 		t.Error("group_start event was not received")
 	}
@@ -1373,20 +1346,14 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 		t.Error("group_end event was not received")
 	}
 
-	// Validate event order: stream_start should be first, stream_end should be last
-	if len(events) < 4 {
-		t.Errorf("Expected at least 4 events, got %d", len(events))
-	} else {
-		if events[0] != "stream_start" {
-			t.Errorf("First event should be stream_start, got %s", events[0])
-		}
-		if events[len(events)-1] != "stream_end" {
-			t.Errorf("Last event should be stream_end, got %s", events[len(events)-1])
-		}
+	// Validate event order: group_start should come before group_end
+	if len(events) < 2 {
+		t.Errorf("Expected at least 2 events (group_start, group_end), got %d", len(events))
 	}
 
 	t.Logf("Total events received: %d", len(events))
-	t.Log("Lifecycle events test completed successfully")
+	t.Log("LLM lifecycle events test completed successfully")
+	t.Log("Note: stream_start/end are now tested at Agent level, not LLM level")
 }
 
 // TestOpenAIStreamContextCancellation tests that stream respects context cancellation
@@ -1426,18 +1393,14 @@ func TestOpenAIStreamContextCancellation(t *testing.T) {
 	ctx.Context = goCtx
 
 	var receivedChunks int
-	var receivedStreamEnd bool
 
 	handler := func(chunkType context.StreamChunkType, data []byte) int {
 		if chunkType == context.ChunkText || chunkType == context.ChunkToolCall {
 			receivedChunks++
 		}
+		// Note: stream_end is now sent at Agent level, not LLM level
 		if chunkType == context.ChunkStreamEnd {
-			receivedStreamEnd = true
-			var endData context.StreamEndData
-			if err := json.Unmarshal(data, &endData); err == nil {
-				t.Logf("stream_end status: %s, error: %s", endData.Status, endData.Error)
-			}
+			t.Error("❌ LLM layer should NOT send stream_end (now sent at Agent level)")
 		}
 		return 0
 	}
@@ -1462,13 +1425,9 @@ func TestOpenAIStreamContextCancellation(t *testing.T) {
 		t.Logf("Warning: Response is not nil despite cancellation (partial response)")
 	}
 
-	// Should have received stream_end event (even for cancellation)
-	if !receivedStreamEnd {
-		t.Error("Expected stream_end event even for cancelled stream")
-	}
-
 	t.Logf("Received %d chunks before cancellation", receivedChunks)
 	t.Log("Context cancellation test completed successfully")
+	t.Log("Note: stream_end for cancellation is now sent at Agent level")
 }
 
 // TestOpenAIStreamWithTemperature tests different temperature settings
