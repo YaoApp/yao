@@ -49,6 +49,7 @@ func GetSpaces(c *gin.Context) {
 		spaceInfo := gin.H{
 			"id":          space.ID,
 			"label":       space.Label,
+			"type":        space.Type,
 			"icon":        space.Icon,
 			"description": space.Description,
 			"ttl":         space.TTL,
@@ -122,6 +123,7 @@ func GetSpace(c *gin.Context) {
 	responseData := gin.H{
 		"id":          spaceData.ID,
 		"label":       spaceData.Label,
+		"type":        spaceData.Type,
 		"icon":        spaceData.Icon,
 		"description": spaceData.Description,
 		"ttl":         spaceData.TTL,

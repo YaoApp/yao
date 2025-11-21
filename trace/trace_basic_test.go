@@ -47,7 +47,11 @@ func TestTraceNew(t *testing.T) {
 			assert.Nil(t, root)
 
 			// Add first node - this should become the root
-			node, err := manager.Add("test input", types.TraceNodeOption{Label: "First Node", Icon: "test"})
+			node, err := manager.Add("test input", types.TraceNodeOption{
+				Label: "First Node",
+				Type:  "test",
+				Icon:  "test",
+			})
 			assert.NoError(t, err)
 			assert.NotNil(t, node)
 
@@ -56,6 +60,7 @@ func TestTraceNew(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, root)
 			assert.Equal(t, "First Node", root.Label)
+			assert.Equal(t, "test", root.Type)
 			assert.Equal(t, "test", root.Icon)
 		})
 	}
@@ -109,10 +114,18 @@ func TestTraceLoadFromStorage(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Add some data
-			_, err = manager.Add("test", types.TraceNodeOption{Label: "Test"})
+			_, err = manager.Add("test", types.TraceNodeOption{
+				Label: "Test",
+				Type:  "test_node",
+				Icon:  "node",
+			})
 			assert.NoError(t, err)
 
-			space, err := manager.CreateSpace(types.TraceSpaceOption{Label: "Test Space"})
+			space, err := manager.CreateSpace(types.TraceSpaceOption{
+				Label: "Test Space",
+				Type:  "test_space",
+				Icon:  "space",
+			})
 			assert.NoError(t, err)
 
 			err = manager.SetSpaceValue(space.ID, "key", "value")
@@ -225,7 +238,10 @@ func TestContextCancellation(t *testing.T) {
 			cancel()
 
 			// Operations should fail with context error
-			_, err = manager.Add("test", types.TraceNodeOption{Label: "Test"})
+			_, err = manager.Add("test", types.TraceNodeOption{
+				Label: "Test",
+				Type:  "test",
+			})
 			assert.Error(t, err)
 		})
 	}

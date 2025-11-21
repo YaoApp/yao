@@ -53,6 +53,7 @@ func TestGetNodes(t *testing.T) {
 
 	// Verify node structure and metadata
 	metadataFound := 0
+	typeFound := 0
 	for _, n := range nodes {
 		node, ok := n.(map[string]interface{})
 		assert.True(t, ok, "Each node should be an object")
@@ -60,6 +61,20 @@ func TestGetNodes(t *testing.T) {
 		assert.NotNil(t, node["label"], "Node should have label")
 		assert.NotNil(t, node["status"], "Node should have status")
 		assert.NotNil(t, node["created_at"], "Node should have created_at")
+
+		// Verify type field is present
+		if node["type"] != nil {
+			nodeType, ok := node["type"].(string)
+			assert.True(t, ok, "Type should be a string")
+			assert.NotEmpty(t, nodeType, "Type should not be empty")
+			typeFound++
+		}
+
+		// Verify parent_ids field (should be array or null)
+		if node["parent_ids"] != nil {
+			_, ok := node["parent_ids"].([]interface{})
+			assert.True(t, ok, "parent_ids should be an array")
+		}
 
 		// Check if metadata is present (should be for all our test nodes)
 		if node["metadata"] != nil {
@@ -71,6 +86,8 @@ func TestGetNodes(t *testing.T) {
 			}
 		}
 	}
+
+	assert.Equal(t, 3, typeFound, "All 3 nodes should have type field")
 
 	assert.Equal(t, 3, metadataFound, "All 3 nodes should have metadata with node_order")
 
@@ -107,8 +124,16 @@ func TestGetNodeByID(t *testing.T) {
 	// Verify response structure
 	assert.Equal(t, data.Node1ID, responseData["id"], "Node ID should match")
 	assert.Equal(t, "First Node", responseData["label"], "Node label should match")
+	assert.Equal(t, "agent", responseData["type"], "Node type should match")
 	assert.Equal(t, "icon1", responseData["icon"], "Node icon should match")
 	assert.Equal(t, "First test node", responseData["description"], "Node description should match")
+
+	// Verify parent_ids field (should be array or null)
+	if responseData["parent_ids"] != nil {
+		parentIDs, ok := responseData["parent_ids"].([]interface{})
+		assert.True(t, ok, "parent_ids should be an array")
+		t.Logf("Node has %d parent(s)", len(parentIDs))
+	}
 
 	// Verify metadata is present and correct
 	assert.NotNil(t, responseData["metadata"], "Metadata should be present")
@@ -120,7 +145,7 @@ func TestGetNodeByID(t *testing.T) {
 	assert.NotNil(t, responseData["input"], "Input should be present")
 	assert.NotNil(t, responseData["output"], "Output should be present")
 
-	t.Logf("Retrieved node %s from trace %s with metadata: %+v", data.Node1ID, data.TraceID, metadata)
+	t.Logf("Retrieved node %s (type: %s) from trace %s with metadata: %+v", data.Node1ID, responseData["type"], data.TraceID, metadata)
 }
 
 // TestGetNodeByIDNotFound tests getting a non-existent node

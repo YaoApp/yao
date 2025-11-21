@@ -100,77 +100,6 @@ func (m *manager) checkContext() error {
 	}
 }
 
-// handleCancellation marks nodes and trace as cancelled (called when context is done)
-func (m *manager) handleCancellation() {
-	// Mark as completed first - this will trigger state worker to exit
-	// IMPORTANT: Must mark completed before any state queries to prevent deadlock
-	if !m.stateMarkCompleted() {
-		return // Already completed
-	}
-
-	now := time.Now().UnixMilli()
-
-	// Get current nodes (state worker will process this before exiting)
-	nodes := m.stateGetCurrentNodes()
-
-	// Mark only running/pending nodes as cancelled
-	for _, node := range nodes {
-		if node.Status == types.StatusRunning || node.Status == types.StatusPending {
-			node.Status = types.StatusCancelled
-			node.EndTime = now
-			node.UpdatedAt = now
-
-			// Save node with background context (ignore errors)
-			_ = m.driver.SaveNode(context.Background(), m.traceID, node)
-
-			// Broadcast cancelled event
-			m.addUpdateAndBroadcast(&types.TraceUpdate{
-				Type:      types.UpdateTypeNodeFailed,
-				TraceID:   m.traceID,
-				NodeID:    node.ID,
-				Timestamp: now,
-				Data: &types.NodeFailedData{
-					NodeID:   node.ID,
-					Status:   types.CompleteStatusCancelled,
-					EndTime:  now,
-					Duration: now - node.StartTime, // Already in milliseconds
-					Error:    "context cancelled",
-				},
-			})
-		}
-	}
-
-	// Update trace status
-	m.stateSetTraceStatus(types.TraceStatusCancelled)
-
-	// Calculate total duration
-	totalDuration := int64(0)
-	rootNode := m.stateGetRoot()
-	if rootNode != nil && rootNode.CreatedAt > 0 {
-		totalDuration = now - rootNode.CreatedAt // Already in milliseconds
-	}
-
-	// Broadcast trace cancelled event (this will be processed even after state worker starts draining)
-	m.addUpdateAndBroadcast(&types.TraceUpdate{
-		Type:      types.UpdateTypeComplete,
-		TraceID:   m.traceID,
-		Timestamp: now,
-		Data: &types.TraceCompleteData{
-			TraceID:       m.traceID,
-			Status:        types.TraceStatusCancelled,
-			TotalDuration: totalDuration,
-		},
-	})
-}
-
-// newNode creates a node instance that broadcasts events (for external use)
-func (m *manager) newNode(data *types.TraceNode) types.Node {
-	return &node{
-		manager: m,
-		data:    data,
-	}
-}
-
 // Add creates next sequential node - auto-joins if currently in parallel state
 func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (types.Node, error) {
 	if err := m.checkContext(); err != nil {
@@ -186,7 +115,7 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 		// Create root node
 		rootNode = &types.TraceNode{
 			ID:              genNodeID(),
-			ParentID:        "",
+			ParentIDs:       []string{}, // Root has no parents
 			Children:        []*types.TraceNode{},
 			TraceNodeOption: option,
 			Status:          types.StatusRunning,
@@ -222,33 +151,32 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 	// Get current nodes
 	currentNodes := m.stateGetCurrentNodes()
 
-	var parentNode *types.TraceNode
-	if len(currentNodes) > 1 {
-		// Auto-join: create join node
-		parentNode = &types.TraceNode{
-			ID:              genNodeID(),
-			ParentID:        currentNodes[0].ParentID,
-			Children:        []*types.TraceNode{},
-			Status:          types.StatusCompleted,
-			CreatedAt:       now,
-			StartTime:       now,
-			EndTime:         now,
-			UpdatedAt:       now,
-			TraceNodeOption: types.TraceNodeOption{Label: "Join", Icon: "join"},
+	// Auto-complete parent nodes if enabled (default: true when nil)
+	autoCompleteParent := option.AutoCompleteParent == nil || *option.AutoCompleteParent
+	if autoCompleteParent {
+		for _, current := range currentNodes {
+			// Only auto-complete running or pending nodes
+			if current.Status == types.StatusRunning || current.Status == types.StatusPending {
+				// Use node.Complete() method to properly complete the node with broadcast
+				currentNodeInterface := &node{manager: m, data: current}
+				if err := currentNodeInterface.Complete(); err != nil {
+					// Log error but don't fail the operation
+					m.Error("Failed to auto-complete parent node %s: %v", current.ID, err)
+				}
+			}
 		}
-
-		// Save join node
-		if err := m.driver.SaveNode(m.ctx, m.traceID, parentNode); err != nil {
-			return nil, err
-		}
-	} else {
-		parentNode = currentNodes[0]
 	}
 
-	// Create new node
+	// Collect parent IDs from all current nodes (supports implicit join)
+	parentIDs := make([]string, 0, len(currentNodes))
+	for _, current := range currentNodes {
+		parentIDs = append(parentIDs, current.ID)
+	}
+
+	// Create new node with multiple parents (implicit join)
 	newNodeData := &types.TraceNode{
 		ID:              genNodeID(),
-		ParentID:        parentNode.ID,
+		ParentIDs:       parentIDs, // Multiple parents for implicit join
 		Children:        []*types.TraceNode{},
 		TraceNodeOption: option,
 		Status:          types.StatusRunning,
@@ -258,14 +186,17 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 		UpdatedAt:       now,
 	}
 
-	// Update parent's children
-	parentNode.Children = append(parentNode.Children, newNodeData)
-
-	// Save nodes
-	if err := m.driver.SaveNode(m.ctx, m.traceID, newNodeData); err != nil {
-		return nil, err
+	// Add to each parent's children
+	for _, parent := range currentNodes {
+		parent.Children = append(parent.Children, newNodeData)
+		if err := m.driver.SaveNode(m.ctx, m.traceID, parent); err != nil {
+			// Log error but continue
+			m.Error("Failed to update parent node %s: %v", parent.ID, err)
+		}
 	}
-	if err := m.driver.SaveNode(m.ctx, m.traceID, parentNode); err != nil {
+
+	// Save new node
+	if err := m.driver.SaveNode(m.ctx, m.traceID, newNodeData); err != nil {
 		return nil, err
 	}
 
@@ -303,16 +234,40 @@ func (m *manager) Parallel(parallelInputs []types.TraceParallelInput) ([]types.N
 
 	// Get current nodes
 	currentNodes := m.stateGetCurrentNodes()
+
+	// Auto-complete parent node if any option has AutoCompleteParent enabled (default: true when nil)
+	shouldAutoComplete := false
+	for _, input := range parallelInputs {
+		if input.Option.AutoCompleteParent == nil || *input.Option.AutoCompleteParent {
+			shouldAutoComplete = true
+			break
+		}
+	}
+
+	if shouldAutoComplete {
+		for _, current := range currentNodes {
+			// Only auto-complete running or pending nodes
+			if current.Status == types.StatusRunning || current.Status == types.StatusPending {
+				// Use node.Complete() method to properly complete the node with broadcast
+				currentNodeInterface := &node{manager: m, data: current}
+				if err := currentNodeInterface.Complete(); err != nil {
+					// Log error but don't fail the operation
+					m.Error("Failed to auto-complete parent node %s: %v", current.ID, err)
+				}
+			}
+		}
+	}
+
 	parentNode := currentNodes[0]
 
 	nodeData := make([]*types.TraceNode, 0, len(parallelInputs))
 	nodeInterfaces := make([]types.Node, 0, len(parallelInputs))
 
-	// Create multiple child nodes
+	// Create multiple child nodes with single parent
 	for _, input := range parallelInputs {
 		data := &types.TraceNode{
 			ID:              genNodeID(),
-			ParentID:        parentNode.ID,
+			ParentIDs:       []string{parentNode.ID}, // Single parent for parallel branches
 			Children:        []*types.TraceNode{},
 			TraceNodeOption: input.Option,
 			Status:          types.StatusRunning,

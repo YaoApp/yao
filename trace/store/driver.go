@@ -19,9 +19,10 @@ import (
 // Only stores IDs of children instead of full child nodes
 type persistNode struct {
 	ID          string            `json:"ID"`
-	ParentID    string            `json:"ParentID"`
+	ParentIDs   []string          `json:"ParentIDs,omitempty"`
 	ChildrenIDs []string          `json:"ChildrenIDs,omitempty"`
 	Label       string            `json:"Label,omitempty"`
+	Type        string            `json:"Type,omitempty"`
 	Icon        string            `json:"Icon,omitempty"`
 	Description string            `json:"Description,omitempty"`
 	Metadata    map[string]any    `json:"Metadata,omitempty"`
@@ -50,9 +51,10 @@ func toPersistNode(node *types.TraceNode) *persistNode {
 
 	return &persistNode{
 		ID:          node.ID,
-		ParentID:    node.ParentID,
+		ParentIDs:   node.ParentIDs,
 		ChildrenIDs: childrenIDs,
 		Label:       node.Label,
+		Type:        node.Type,
 		Icon:        node.Icon,
 		Description: node.Description,
 		Metadata:    node.Metadata,
@@ -73,11 +75,12 @@ func fromPersistNode(pn *persistNode) *types.TraceNode {
 	}
 
 	return &types.TraceNode{
-		ID:       pn.ID,
-		ParentID: pn.ParentID,
-		Children: nil, // Children will be loaded separately if needed
+		ID:        pn.ID,
+		ParentIDs: pn.ParentIDs,
+		Children:  nil, // Children will be loaded separately if needed
 		TraceNodeOption: types.TraceNodeOption{
 			Label:       pn.Label,
+			Type:        pn.Type,
 			Icon:        pn.Icon,
 			Description: pn.Description,
 			Metadata:    pn.Metadata,
@@ -253,7 +256,7 @@ func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNod
 		return nil, nil
 	}
 
-	// Find root node ID (node with empty ParentID) by checking each node
+	// Find root node ID (node with empty ParentIDs) by checking each node
 	var rootNodeID string
 	for _, key := range nodeKeys {
 		// Extract node ID from key (format: prefix:traceID:nodes:nodeID)
@@ -279,7 +282,7 @@ func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNod
 			continue
 		}
 
-		if pn.ParentID == "" {
+		if len(pn.ParentIDs) == 0 {
 			rootNodeID = nodeID
 			break
 		}

@@ -23,11 +23,18 @@ func parseTraceNodeOption(obj *v8go.Object) types.TraceNodeOption {
 	if labelVal, err := obj.Get("label"); err == nil && !labelVal.IsNullOrUndefined() {
 		option.Label = labelVal.String()
 	}
+	if typeVal, err := obj.Get("type"); err == nil && !typeVal.IsNullOrUndefined() {
+		option.Type = typeVal.String()
+	}
 	if iconVal, err := obj.Get("icon"); err == nil && !iconVal.IsNullOrUndefined() {
 		option.Icon = iconVal.String()
 	}
 	if descVal, err := obj.Get("description"); err == nil && !descVal.IsNullOrUndefined() {
 		option.Description = descVal.String()
+	}
+	if autoCompleteVal, err := obj.Get("autoCompleteParent"); err == nil && !autoCompleteVal.IsNullOrUndefined() {
+		boolVal := autoCompleteVal.Boolean()
+		option.AutoCompleteParent = &boolVal
 	}
 	return option
 }

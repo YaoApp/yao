@@ -18,6 +18,7 @@ func TestGetSpaces(t *testing.T) {
 	// Create additional spaces for this test
 	space1, err := data.Manager.CreateSpace(types.TraceSpaceOption{
 		Label:       "Memory Space",
+		Type:        "memory",
 		Icon:        "memory",
 		Description: "Test memory space",
 	})
@@ -25,6 +26,7 @@ func TestGetSpaces(t *testing.T) {
 
 	space2, err := data.Manager.CreateSpace(types.TraceSpaceOption{
 		Label:       "Cache Space",
+		Type:        "cache",
 		Icon:        "cache",
 		Description: "Test cache space",
 	})
@@ -64,6 +66,7 @@ func TestGetSpaces(t *testing.T) {
 
 	// Verify space metadata (should not include data field)
 	spaceLabels := make(map[string]bool)
+	typeFound := 0
 	for _, s := range spaces {
 		space := s.(map[string]any)
 		assert.NotNil(t, space["id"])
@@ -71,8 +74,19 @@ func TestGetSpaces(t *testing.T) {
 		assert.NotNil(t, space["created_at"])
 		assert.NotNil(t, space["updated_at"])
 		assert.Nil(t, space["data"]) // Should NOT include key-value data
+
+		// Verify type field is present
+		if space["type"] != nil {
+			spaceType, ok := space["type"].(string)
+			assert.True(t, ok, "Type should be a string")
+			assert.NotEmpty(t, spaceType, "Type should not be empty")
+			typeFound++
+		}
+
 		spaceLabels[space["label"].(string)] = true
 	}
+
+	assert.GreaterOrEqual(t, typeFound, 2, "At least 2 spaces should have type field")
 
 	assert.True(t, spaceLabels["Memory Space"])
 	assert.True(t, spaceLabels["Cache Space"])
@@ -88,9 +102,10 @@ func TestGetSpaceByID(t *testing.T) {
 	// Create a space with specific data
 	space, err := data.Manager.CreateSpace(types.TraceSpaceOption{
 		Label:       "Detailed Space",
+		Type:        "detailed",
 		Icon:        "memory",
 		Description: "Space with detailed data",
-		Metadata:    map[string]any{"type": "cache"},
+		Metadata:    map[string]any{"cache_enabled": true},
 	})
 	assert.NoError(t, err)
 
@@ -122,6 +137,7 @@ func TestGetSpaceByID(t *testing.T) {
 	// Verify space metadata
 	assert.Equal(t, space.ID, result["id"])
 	assert.Equal(t, "Detailed Space", result["label"])
+	assert.Equal(t, "detailed", result["type"])
 	assert.Equal(t, "memory", result["icon"])
 	assert.Equal(t, "Space with detailed data", result["description"])
 	assert.NotNil(t, result["created_at"])
@@ -129,7 +145,7 @@ func TestGetSpaceByID(t *testing.T) {
 
 	// Verify metadata
 	metadata := result["metadata"].(map[string]any)
-	assert.Equal(t, "cache", metadata["type"])
+	assert.Equal(t, true, metadata["cache_enabled"])
 
 	// Verify key-value data
 	spaceData := result["data"].(map[string]any)

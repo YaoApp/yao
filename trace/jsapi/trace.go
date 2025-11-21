@@ -443,6 +443,9 @@ func traceCreateSpaceMethod(iso *v8go.Isolate, manager types.Manager) *v8go.Func
 				if labelVal, err := optionObj.Get("label"); err == nil && !labelVal.IsNullOrUndefined() {
 					option.Label = labelVal.String()
 				}
+				if typeVal, err := optionObj.Get("type"); err == nil && !typeVal.IsNullOrUndefined() {
+					option.Type = typeVal.String()
+				}
 				if iconVal, err := optionObj.Get("icon"); err == nil && !iconVal.IsNullOrUndefined() {
 					option.Icon = iconVal.String()
 				}
