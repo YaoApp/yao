@@ -331,20 +331,35 @@ func TranslateGlobal(locale string, input any) any {
 		i18ns = map[string]I18n{}
 	}
 
+	// Try the exact locale first
 	i18n, has := i18ns[locale]
-	if !has {
-		parts := strings.Split(locale, "-")
-		if len(parts) > 1 {
-			i18n, has = i18ns[parts[1]]
-		}
-		if !has {
-			i18n, has = i18ns[parts[0]]
+	if has {
+		result := i18n.Parse(input)
+		// If the result is the same as input (not translated), try fallback
+		if result != input {
+			return result
 		}
 	}
 
-	if has {
-		return i18n.Parse(input)
+	// Fallback logic: for "en-us", try "en"
+		parts := strings.Split(locale, "-")
+		if len(parts) > 1 {
+		// Try the language code (e.g., "en" for "en-us")
+		if fallbackI18n, hasFallback := i18ns[parts[0]]; hasFallback {
+			result := fallbackI18n.Parse(input)
+			if result != input {
+				return result
+			}
+		}
+		// Try the country code (e.g., "us" for "en-us")
+		if fallbackI18n, hasFallback := i18ns[parts[1]]; hasFallback {
+			result := fallbackI18n.Parse(input)
+			if result != input {
+				return result
+			}
+		}
 	}
+
 	return input
 }
 

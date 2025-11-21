@@ -20,9 +20,10 @@ import (
 // Only stores IDs of children instead of full child nodes
 type persistNode struct {
 	ID          string            `json:"ID"`
-	ParentID    string            `json:"ParentID"`
+	ParentIDs   []string          `json:"ParentIDs,omitempty"`
 	ChildrenIDs []string          `json:"ChildrenIDs,omitempty"`
 	Label       string            `json:"Label,omitempty"`
+	Type        string            `json:"Type,omitempty"`
 	Icon        string            `json:"Icon,omitempty"`
 	Description string            `json:"Description,omitempty"`
 	Metadata    map[string]any    `json:"Metadata,omitempty"`
@@ -51,9 +52,10 @@ func toPersistNode(node *types.TraceNode) *persistNode {
 
 	return &persistNode{
 		ID:          node.ID,
-		ParentID:    node.ParentID,
+		ParentIDs:   node.ParentIDs,
 		ChildrenIDs: childrenIDs,
 		Label:       node.Label,
+		Type:        node.Type,
 		Icon:        node.Icon,
 		Description: node.Description,
 		Metadata:    node.Metadata,
@@ -74,11 +76,12 @@ func fromPersistNode(pn *persistNode) *types.TraceNode {
 	}
 
 	return &types.TraceNode{
-		ID:       pn.ID,
-		ParentID: pn.ParentID,
-		Children: nil, // Children will be loaded separately if needed
+		ID:        pn.ID,
+		ParentIDs: pn.ParentIDs,
+		Children:  nil, // Children will be loaded separately if needed
 		TraceNodeOption: types.TraceNodeOption{
 			Label:       pn.Label,
+			Type:        pn.Type,
 			Icon:        pn.Icon,
 			Description: pn.Description,
 			Metadata:    pn.Metadata,
@@ -125,8 +128,12 @@ func New(basePath string) (*Driver, error) {
 // Format: {basePath}/{YYYYMMDD}/{traceID}/
 func (d *Driver) getTracePath(traceID string) string {
 	// Extract date prefix from traceID (first 8 digits)
-	datePrefix := traceID[:8]
-	return filepath.Join(d.basePath, datePrefix, traceID)
+	// If traceID is short, use "others" as prefix
+	prefix := "others"
+	if len(traceID) >= 8 {
+		prefix = traceID[:8]
+	}
+	return filepath.Join(d.basePath, prefix, traceID)
 }
 
 // ensureTraceDir creates the trace directory if it doesn't exist
@@ -250,7 +257,7 @@ func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNod
 		return nil, nil
 	}
 
-	// Find root node ID (node with empty ParentID) by checking each file
+	// Find root node ID (node with empty ParentIDs) by checking each file
 	var rootNodeID string
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
@@ -269,7 +276,7 @@ func (d *Driver) LoadTrace(ctx context.Context, traceID string) (*types.TraceNod
 			continue
 		}
 
-		if pn.ParentID == "" {
+		if len(pn.ParentIDs) == 0 {
 			rootNodeID = nodeID
 			break
 		}

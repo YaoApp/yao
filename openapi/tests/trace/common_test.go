@@ -63,6 +63,8 @@ func prepareTestTrace(t *testing.T) *testTraceData {
 	// Create a memory space
 	space, err := manager.CreateSpace(types.TraceSpaceOption{
 		Label:       "Test Space",
+		Type:        "memory",
+		Icon:        "database",
 		Description: "A test memory space",
 	})
 	assert.NoError(t, err)
@@ -78,6 +80,7 @@ func prepareTestTrace(t *testing.T) *testTraceData {
 	// Add first node
 	node1, err := manager.Add("test input 1", types.TraceNodeOption{
 		Label:       "First Node",
+		Type:        "agent",
 		Icon:        "icon1",
 		Description: "First test node",
 		Metadata:    map[string]any{"node_order": 1},
@@ -94,6 +97,7 @@ func prepareTestTrace(t *testing.T) *testTraceData {
 	// Add second node
 	node2, err := manager.Add("test input 2", types.TraceNodeOption{
 		Label:       "Second Node",
+		Type:        "tool",
 		Icon:        "icon2",
 		Description: "Second test node",
 		Metadata:    map[string]any{"node_order": 2},
@@ -110,6 +114,7 @@ func prepareTestTrace(t *testing.T) *testTraceData {
 	// Add third node
 	node3, err := manager.Add("test input 3", types.TraceNodeOption{
 		Label:       "Third Node",
+		Type:        "custom",
 		Icon:        "icon3",
 		Description: "Third test node",
 		Metadata:    map[string]any{"node_order": 3},

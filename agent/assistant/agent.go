@@ -37,14 +37,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	if trace != nil {
 		agentNode, _ = trace.Add(inputMessages, types.TraceNodeOption{
 			Label:       i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.label"), // "Assistant {{name}}"
+			Type:        "agent",
 			Icon:        "assistant",
 			Description: i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.description"), // "Assistant {{name}} is processing the request"
 		})
-
-		if agentNode != nil {
-			// Mark the node as complete when the function returns
-			defer agentNode.Complete()
-		}
 	}
 
 	// Full input messages with chat history
@@ -119,11 +115,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				map[string]any{"messages": completionMessages, "options": completionOptions},
 				types.TraceNodeOption{
 					Label:       fmt.Sprintf(i18n.Tr(ast.ID, ctx.Locale, "llm.openai.stream.label"), conn.ID()), // "LLM %s"
-					Icon:        "llm",
+					Type:        "llm",
+					Icon:        "psychology",
 					Description: fmt.Sprintf(i18n.Tr(ast.ID, ctx.Locale, "llm.openai.stream.description"), conn.ID()), // "LLM %s is processing the request"
 				},
 			)
-
 		}
 
 		// Create LLM instance with connector and options

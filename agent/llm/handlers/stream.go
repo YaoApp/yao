@@ -21,7 +21,7 @@ func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
 	return func(chunkType context.StreamChunkType, data []byte) int {
 		trace, _ := ctx.Trace()
 		if trace != nil {
-			trace.Info(i18n.T(ctx.Locale, "llm.handlers.stream.info"), map[string]any{"data": string(data)}) // "LLM Stream"
+			trace.Info(i18n.T(ctx.Locale, "llm.handlers.stream.info"), map[string]any{"data": string(data)})
 		}
 
 		// Handle different chunk types

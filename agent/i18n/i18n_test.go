@@ -733,6 +733,48 @@ func TestTranslateGlobal(t *testing.T) {
 		// Restore
 		Locales["__global__"] = temp
 	})
+
+	t.Run("TranslateGlobal fallback from en-us to en", func(t *testing.T) {
+		// Create a scenario where en-us has limited messages, but en has more
+		// This simulates the real-world case: en-us locale exists with 3 messages,
+		// but en has 41 messages including llm.handlers.stream.info
+
+		// Create en-us with only a few messages
+		enUSMessages := map[string]any{
+			"button.ok":   "OK (US)", // en-us specific
+			"app.name":    "My App",
+			"app.version": "1.0",
+		}
+		Locales["__global__"]["en-us"] = I18n{
+			Locale:   "en-us",
+			Messages: enUSMessages,
+		}
+
+		// Test 1: Key exists in en-us - should use en-us
+		result := TranslateGlobal("en-us", "button.ok")
+		if result != "OK (US)" {
+			t.Errorf("Expected 'OK (US)' from en-us, got %v", result)
+		}
+
+		// Test 2: Key does NOT exist in en-us but exists in en - should fallback to en
+		result = TranslateGlobal("en-us", "button.cancel")
+		if result != "Cancel" {
+			t.Errorf("Expected 'Cancel' (fallback from en-us to en), got %v", result)
+		}
+
+		// Test 3: Built-in key that exists in en but not in en-us
+		result = TranslateGlobal("en-us", "llm.handlers.stream.info")
+		expected := "LLM Stream"
+		if result != expected {
+			t.Errorf("Expected '%s' (fallback from en-us to en), got %v", expected, result)
+		}
+
+		// Test 4: Direct key (not template) also should fallback
+		result = TranslateGlobal("en-us", "{{llm.handlers.stream.info}}")
+		if result != expected {
+			t.Errorf("Expected '%s' (fallback from en-us to en with template), got %v", expected, result)
+		}
+	})
 }
 
 // TestGetLocalesIntegration tests GetLocales with real assistant data

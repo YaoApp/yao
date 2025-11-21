@@ -71,7 +71,7 @@ func (n *node) Add(input types.TraceInput, option types.TraceNodeOption) (types.
 	// Create child node data
 	childNodeData := &types.TraceNode{
 		ID:              genNodeID(),
-		ParentID:        n.data.ID,
+		ParentIDs:       []string{n.data.ID}, // Single parent
 		Children:        []*types.TraceNode{},
 		TraceNodeOption: option,
 		Status:          types.StatusRunning,
@@ -108,7 +108,7 @@ func (n *node) Parallel(parallelInputs []types.TraceParallelInput) ([]types.Node
 	for _, input := range parallelInputs {
 		childNodeData := &types.TraceNode{
 			ID:              genNodeID(),
-			ParentID:        n.data.ID,
+			ParentIDs:       []string{n.data.ID}, // Single parent for parallel branches
 			Children:        []*types.TraceNode{},
 			TraceNodeOption: input.Option,
 			Status:          types.StatusRunning,
@@ -143,10 +143,18 @@ func (n *node) Parallel(parallelInputs []types.TraceParallelInput) ([]types.Node
 func (n *node) Join(nodes []*types.TraceNode, input types.TraceInput, option types.TraceNodeOption) (types.Node, error) {
 	now := time.Now().UnixMilli()
 
-	// Create join node data
+	// Collect parent IDs from all nodes
+	parentIDs := make([]string, 0, len(nodes))
+	for _, node := range nodes {
+		if node != nil {
+			parentIDs = append(parentIDs, node.ID)
+		}
+	}
+
+	// Create join node data with multiple parents
 	joinNodeData := &types.TraceNode{
 		ID:              genNodeID(),
-		ParentID:        n.data.ID,
+		ParentIDs:       parentIDs, // Multiple parents for explicit join
 		Children:        []*types.TraceNode{},
 		TraceNodeOption: option,
 		Status:          types.StatusRunning,

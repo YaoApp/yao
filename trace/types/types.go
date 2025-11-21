@@ -37,15 +37,18 @@ const (
 
 // TraceNodeOption defines options for creating a node
 type TraceNodeOption struct {
-	Label       string         `json:"label"`              // Display label in UI
-	Icon        string         `json:"icon"`               // Icon identifier
-	Description string         `json:"description"`        // Node description
-	Metadata    map[string]any `json:"metadata,omitempty"` // Additional metadata
+	Label              string         `json:"label"`                          // Display label in UI
+	Type               string         `json:"type"`                           // Node type identifier
+	Icon               string         `json:"icon"`                           // Icon identifier
+	Description        string         `json:"description"`                    // Node description
+	Metadata           map[string]any `json:"metadata,omitempty"`             // Additional metadata
+	AutoCompleteParent *bool          `json:"auto_complete_parent,omitempty"` // Auto-complete parent node(s) when this node is created (nil = default true)
 }
 
 // TraceSpaceOption defines options for creating a space
 type TraceSpaceOption struct {
 	Label       string         `json:"label"`              // Display label in UI
+	Type        string         `json:"type"`               // Space type identifier
 	Icon        string         `json:"icon"`               // Icon identifier
 	Description string         `json:"description"`        // Space description
 	TTL         int64          `json:"ttl"`                // Time to live in seconds (0 = no expiration) - for display/record only
@@ -54,9 +57,9 @@ type TraceSpaceOption struct {
 
 // TraceNode the trace node implementation
 type TraceNode struct {
-	ID              string           `json:"id"`        // Node ID
-	ParentID        string           `json:"parent_id"` // Parent node ID
-	Children        []*TraceNode     `json:"children"`  // Child nodes (for tree structure)
+	ID              string           `json:"id"`         // Node ID
+	ParentIDs       []string         `json:"parent_ids"` // Parent node IDs (supports multiple parents for implicit join)
+	Children        []*TraceNode     `json:"children"`   // Child nodes (for tree structure)
 	TraceNodeOption `json:",inline"` // Embedded option fields (Label, Icon, Description, Metadata)
 	Status          NodeStatus       `json:"status"`           // Node status (pending, running, completed, failed, skipped)
 	Input           TraceInput       `json:"input,omitempty"`  // Node input data

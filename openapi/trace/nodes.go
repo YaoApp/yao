@@ -48,8 +48,9 @@ func GetNodes(c *gin.Context) {
 	for _, node := range nodes {
 		nodeInfo := gin.H{
 			"id":          node.ID,
-			"parent_id":   node.ParentID,
+			"parent_ids":  node.ParentIDs,
 			"label":       node.Label,
+			"type":        node.Type,
 			"icon":        node.Icon,
 			"description": node.Description,
 			"status":      node.Status,
@@ -124,8 +125,9 @@ func GetNode(c *gin.Context) {
 	// Prepare detailed node response
 	nodeData := gin.H{
 		"id":          node.ID,
-		"parent_id":   node.ParentID,
+		"parent_ids":  node.ParentIDs,
 		"label":       node.Label,
+		"type":        node.Type,
 		"icon":        node.Icon,
 		"description": node.Description,
 		"status":      node.Status,
