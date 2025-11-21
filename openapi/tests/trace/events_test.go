@@ -55,7 +55,7 @@ func TestGetEvents(t *testing.T) {
 	for _, e := range events {
 		event, ok := e.(map[string]interface{})
 		if ok {
-			eventType, _ := event["Type"].(string)
+			eventType, _ := event["type"].(string)
 			eventTypes[eventType] = true
 		}
 	}
@@ -174,17 +174,17 @@ func TestGetEventsSSE(t *testing.T) {
 	eventTypes := make(map[string]int)
 	for i, event := range events {
 		// Verify required fields
-		assert.NotNil(t, event["Type"], "Event %d should have Type field", i)
-		assert.NotNil(t, event["TraceID"], "Event %d should have TraceID field", i)
-		assert.NotNil(t, event["Timestamp"], "Event %d should have Timestamp field", i)
+		assert.NotNil(t, event["type"], "Event %d should have type field", i)
+		assert.NotNil(t, event["trace_id"], "Event %d should have trace_id field", i)
+		assert.NotNil(t, event["timestamp"], "Event %d should have timestamp field", i)
 
 		// Verify TraceID matches
-		if traceID, ok := event["TraceID"].(string); ok {
-			assert.Equal(t, data.TraceID, traceID, "Event %d TraceID should match", i)
+		if traceID, ok := event["trace_id"].(string); ok {
+			assert.Equal(t, data.TraceID, traceID, "Event %d trace_id should match", i)
 		}
 
 		// Count event types
-		if eventType, ok := event["Type"].(string); ok {
+		if eventType, ok := event["type"].(string); ok {
 			eventTypes[eventType]++
 		}
 	}
@@ -200,13 +200,13 @@ func TestGetEventsSSE(t *testing.T) {
 
 	// Verify event order: init should be first
 	if len(events) > 0 {
-		firstEventType, _ := events[0]["Type"].(string)
+		firstEventType, _ := events[0]["type"].(string)
 		assert.Equal(t, "init", firstEventType, "First event should be init")
 	}
 
 	// Verify complete event is last (before [DONE])
 	if len(events) > 1 {
-		lastEventType, _ := events[len(events)-1]["Type"].(string)
+		lastEventType, _ := events[len(events)-1]["type"].(string)
 		assert.Equal(t, "complete", lastEventType, "Last event should be complete")
 	}
 }
