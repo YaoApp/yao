@@ -9,6 +9,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/http"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm/adapters"
@@ -265,13 +266,21 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 		}
 
 		response, err := p.streamWithRetry(ctx, currentMessages, options, handler)
+		log.Trace("[LLM] streamWithRetry returned: err=%v", err)
 		if err == nil {
-			if trace != nil {
+			if trace != nil && goCtx.Err() == nil {
 				trace.Debug("OpenAI Stream: Request completed successfully")
 			}
 			return response, nil
 		}
 		lastErr = err
+		log.Trace("[LLM] Checking context after error: goCtx.Err()=%v", goCtx.Err())
+
+		// Check for context cancellation before logging (trace calls may block if context is cancelled)
+		if goCtx.Err() != nil {
+			log.Trace("[LLM] Context cancelled in retry loop, returning")
+			return nil, fmt.Errorf("context cancelled: %w", goCtx.Err())
+		}
 
 		if trace != nil {
 			trace.Debug("OpenAI Stream: Request failed", map[string]any{
@@ -361,18 +370,8 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		}
 	}
 
-	// Send stream_start event
-	if handler != nil {
-		model, _ := p.GetModel()
-		startData := &context.StreamStartData{
-			RequestID: requestID,
-			Timestamp: streamStartTime.UnixMilli(),
-			Model:     model,
-		}
-		if startJSON, err := jsoniter.Marshal(startData); err == nil {
-			handler(context.ChunkStreamStart, startJSON)
-		}
-	}
+	// Note: ChunkStreamStart/End are now sent at Agent level, not LLM level
+	// This is because an agent may make multiple LLM calls in one stream
 
 	// Preprocess messages and options through adapters
 	processedMessages := messages
@@ -403,19 +402,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	// Build request body
 	requestBody, err := p.buildRequestBody(processedMessages, processedOptions, true)
 	if err != nil {
-		// Send stream_end with error
-		if handler != nil {
-			endData := &context.StreamEndData{
-				RequestID:  requestID,
-				Timestamp:  time.Now().UnixMilli(),
-				DurationMs: time.Since(streamStartTime).Milliseconds(),
-				Status:     "error",
-				Error:      err.Error(),
-			}
-			if endJSON, err := jsoniter.Marshal(endData); err == nil {
-				handler(context.ChunkStreamEnd, endJSON)
-			}
-		}
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
 
@@ -681,7 +667,9 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	// Make streaming request (goCtx already set at function start)
+	log.Trace("[LLM] Starting HTTP Stream request: url=%s", url)
 	err = req.Stream(goCtx, "POST", requestBody, wrappedHandler)
+	log.Trace("[LLM] HTTP Stream request returned: err=%v", err)
 
 	// Check if we captured an error response
 	if errorDetected && errorBuffer.Len() > 0 {
@@ -708,30 +696,19 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		}
 	}
 
-	// Log any error from streaming
-	if err != nil && trace != nil {
-		trace.Error(i18n.T(ctx.Locale, "llm.openai.stream.error"), map[string]any{"error": err.Error()}) // "OpenAI Stream Error"
+	// Check if error is due to context cancellation FIRST (before logging)
+	// This prevents blocking on trace operations when context is cancelled
+	if err != nil && goCtx.Err() != nil {
+		log.Trace("[LLM] Context cancelled detected, skipping handler calls and returning")
+		// NOTE: Do NOT call handler or groupTracker.endGroup here
+		// The connection is already closed, calling handler may block indefinitely
+		// Just return the error immediately
+		return nil, fmt.Errorf("stream cancelled: %w", goCtx.Err())
 	}
 
-	// Check if error is due to context cancellation
-	if err != nil && goCtx.Err() != nil {
-		// End current group if active
-		groupTracker.endGroup(handler)
-
-		// Send stream_end with cancellation status
-		if handler != nil {
-			endData := &context.StreamEndData{
-				RequestID:  requestID,
-				Timestamp:  time.Now().UnixMilli(),
-				DurationMs: time.Since(streamStartTime).Milliseconds(),
-				Status:     "cancelled",
-				Error:      goCtx.Err().Error(),
-			}
-			if endJSON, err := jsoniter.Marshal(endData); err == nil {
-				handler(context.ChunkStreamEnd, endJSON)
-			}
-		}
-		return nil, fmt.Errorf("stream cancelled: %w", goCtx.Err())
+	// Log any error from streaming (only if not cancelled)
+	if err != nil && trace != nil {
+		trace.Error(i18n.T(ctx.Locale, "llm.openai.stream.error"), map[string]any{"error": err.Error()}) // "OpenAI Stream Error"
 	}
 
 	if err != nil {
@@ -742,18 +719,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		if handler != nil {
 			errData := []byte(err.Error())
 			handler(context.ChunkError, errData)
-
-			// Send stream_end with error
-			endData := &context.StreamEndData{
-				RequestID:  requestID,
-				Timestamp:  time.Now().UnixMilli(),
-				DurationMs: time.Since(streamStartTime).Milliseconds(),
-				Status:     "error",
-				Error:      err.Error(),
-			}
-			if endJSON, err := jsoniter.Marshal(endData); err == nil {
-				handler(context.ChunkStreamEnd, endJSON)
-			}
 		}
 		return nil, fmt.Errorf("streaming request failed: %w", err)
 	}
@@ -783,18 +748,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		if handler != nil {
 			errData := []byte(err.Error())
 			handler(context.ChunkError, errData)
-
-			// Send stream_end with error
-			endData := &context.StreamEndData{
-				RequestID:  requestID,
-				Timestamp:  time.Now().UnixMilli(),
-				DurationMs: time.Since(streamStartTime).Milliseconds(),
-				Status:     "error",
-				Error:      err.Error(),
-			}
-			if endJSON, err := jsoniter.Marshal(endData); err == nil {
-				handler(context.ChunkStreamEnd, endJSON)
-			}
 		}
 		return nil, err
 	}
@@ -835,20 +788,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 			// End current group
 			groupTracker.endGroup(handler)
 
-			// Send stream_end with validation error
-			if handler != nil {
-				endData := &context.StreamEndData{
-					RequestID:  requestID,
-					Timestamp:  time.Now().UnixMilli(),
-					DurationMs: time.Since(streamStartTime).Milliseconds(),
-					Status:     "error",
-					Error:      "tool call validation failed",
-				}
-				if endJSON, err := jsoniter.Marshal(endData); err == nil {
-					handler(context.ChunkStreamEnd, endJSON)
-				}
-			}
-
 			// Tool call validation failed, need to retry with error feedback
 			return nil, fmt.Errorf("tool call validation failed: %w", err)
 		}
@@ -856,20 +795,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// End final group if still active
 	groupTracker.endGroup(handler)
-
-	// Send stream_end event (success)
-	if handler != nil {
-		endData := &context.StreamEndData{
-			RequestID:  requestID,
-			Timestamp:  time.Now().UnixMilli(),
-			DurationMs: time.Since(streamStartTime).Milliseconds(),
-			Status:     "completed",
-			Usage:      response.Usage,
-		}
-		if endJSON, err := jsoniter.Marshal(endData); err == nil {
-			handler(context.ChunkStreamEnd, endJSON)
-		}
-	}
 
 	return response, nil
 }
@@ -1140,7 +1065,37 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 		}
 
 		if msg.Content != nil {
-			apiMsg["content"] = msg.Content
+			// Check if Content is []context.ContentPart and convert to API format
+			if parts, ok := msg.Content.([]context.ContentPart); ok {
+				apiParts := make([]map[string]interface{}, 0, len(parts))
+				for _, part := range parts {
+					apiPart := map[string]interface{}{
+						"type": string(part.Type),
+					}
+					switch part.Type {
+					case context.ContentText:
+						apiPart["text"] = part.Text
+					case context.ContentImageURL:
+						if part.ImageURL != nil {
+							apiPart["image_url"] = map[string]interface{}{
+								"url": part.ImageURL.URL,
+							}
+							if part.ImageURL.Detail != "" {
+								apiPart["image_url"].(map[string]interface{})["detail"] = part.ImageURL.Detail
+							}
+						}
+					case context.ContentInputAudio:
+						if part.InputAudio != nil {
+							apiPart["input_audio"] = part.InputAudio
+						}
+					}
+					apiParts = append(apiParts, apiPart)
+				}
+				apiMsg["content"] = apiParts
+			} else {
+				// Content is string or already in map format, use as is
+				apiMsg["content"] = msg.Content
+			}
 		}
 
 		if msg.Name != nil {

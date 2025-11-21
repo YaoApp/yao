@@ -69,15 +69,16 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 
 	// Initialize interrupt controller
 	ctx.Interrupt = NewInterruptController()
-	ctx.Interrupt.SetContextID(ctx.ID)
 
-	// Register context to global registry first
+	// Register context to global registry first (required for interrupt handler callback)
 	if err := Register(ctx); err != nil {
 		return nil, nil, fmt.Errorf("failed to register context: %w", err)
 	}
 
 	// Start interrupt listener after registration
-	ctx.Interrupt.Start()
+	// Only monitors interrupt signals (user stop button for appending messages)
+	// HTTP context cancellation is handled by LLM/Agent layers naturally
+	ctx.Interrupt.Start(ctx.ID)
 
 	return completionReq, ctx, nil
 }

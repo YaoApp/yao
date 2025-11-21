@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/assistant"
@@ -37,7 +38,10 @@ func GinCreateCompletions(c *gin.Context) {
 		return
 	}
 
-	defer ctx.Release() // Release the context after the request is complete
+	defer func() {
+		log.Trace("[HTTP] Handler defer: calling ctx.Release()")
+		ctx.Release()
+	}()
 
 	// Print request info for debugging
 	fmt.Println("-----------------------------------------------")
@@ -73,7 +77,9 @@ func GinCreateCompletions(c *gin.Context) {
 
 	// Stream the completion (uses default handler which sends to ctx.Writer)
 	// The Stream method will automatically close the writer and send [DONE] marker
+	log.Trace("[HTTP] Calling ast.Stream()")
 	res, err := ast.Stream(ctx, completionReq.Messages)
+	log.Trace("[HTTP] ast.Stream() returned, err=%v", err)
 	if err != nil {
 		fmt.Println("-----------------------------------------------")
 		fmt.Println("Error: ", err.Error())

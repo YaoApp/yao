@@ -7,7 +7,9 @@ import (
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/trace/local"
+	"github.com/yaoapp/yao/trace/pubsub"
 	"github.com/yaoapp/yao/trace/store"
 	"github.com/yaoapp/yao/trace/types"
 )
@@ -18,10 +20,14 @@ const (
 	Store = "store" // Gou store storage
 )
 
-// Global trace registry
+// Global trace registry and pubsub services
 var (
 	registry   = make(map[string]*types.TraceInfo)
 	registryMu sync.RWMutex
+
+	// Each trace has its own independent pubsub service
+	pubsubRegistry   = make(map[string]*pubsub.PubSub)
+	pubsubRegistryMu sync.RWMutex
 )
 
 // getDriver creates a driver instance based on driver type and options
@@ -137,9 +143,23 @@ func New(ctx context.Context, driver string, option *types.TraceOption, driverOp
 		return LoadFromStorage(ctx, driver, traceID, driverOptions...)
 	}
 
-	// Create Manager instance with the driver
-	manager, err := NewManager(ctx, traceID, drv, option)
+	// Create independent PubSub service for this trace
+	pubsubService := pubsub.New()
+
+	// Register pubsub service
+	pubsubRegistryMu.Lock()
+	pubsubRegistry[traceID] = pubsubService
+	pubsubRegistryMu.Unlock()
+
+	// Create Manager instance with the driver and pubsub reference
+	// Manager uses pubsub only for publishing, doesn't manage its lifecycle
+	manager, err := NewManager(ctx, traceID, drv, pubsubService, option)
 	if err != nil {
+		// Clean up pubsub if manager creation fails
+		pubsubRegistryMu.Lock()
+		delete(pubsubRegistry, traceID)
+		pubsubRegistryMu.Unlock()
+		pubsubService.Stop()
 		return "", nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
@@ -174,6 +194,13 @@ func New(ctx context.Context, driver string, option *types.TraceOption, driverOp
 	}
 
 	return traceID, manager, nil
+}
+
+// GetPubSub returns the pubsub service for a trace
+func GetPubSub(traceID string) *pubsub.PubSub {
+	pubsubRegistryMu.RLock()
+	defer pubsubRegistryMu.RUnlock()
+	return pubsubRegistry[traceID]
 }
 
 // Load loads an existing trace by ID from the registry
@@ -224,13 +251,29 @@ func LoadFromStorage(ctx context.Context, driver string, traceID string, driverO
 		return "", nil, fmt.Errorf("trace not found in storage: %s", traceID)
 	}
 
-	// Create Manager instance with the driver
+	// Create or reuse PubSub service for this trace
+	pubsubRegistryMu.Lock()
+	pubsubService, exists := pubsubRegistry[traceID]
+	if !exists {
+		pubsubService = pubsub.New()
+		pubsubRegistry[traceID] = pubsubService
+	}
+	pubsubRegistryMu.Unlock()
+
+	// Create Manager instance with the driver and pubsub reference
 	// Note: We need to reconstruct the manager from stored data
 	// TODO: Implement proper restoration of manager state from storage
 	// For loaded traces, we don't have the original option, so pass nil
-	manager, err := NewManager(ctx, traceID, drv, nil)
+	manager, err := NewManager(ctx, traceID, drv, pubsubService, nil)
 	if err != nil {
 		drv.Close()
+		if !exists {
+			// Clean up pubsub if we just created it
+			pubsubRegistryMu.Lock()
+			delete(pubsubRegistry, traceID)
+			pubsubRegistryMu.Unlock()
+			pubsubService.Stop()
+		}
 		return "", nil, fmt.Errorf("failed to create manager: %w", err)
 	}
 
@@ -287,9 +330,150 @@ func GetInfo(ctx context.Context, driver string, traceID string, options ...any)
 	return storedInfo, nil
 }
 
+// MarkCancelled marks the trace as cancelled without using the context
+// This is useful when the HTTP context has been cancelled and we can't use it for trace operations
+// traceID: the trace ID to mark as cancelled
+// reason: the cancellation reason
+func MarkCancelled(traceID string, reason string) error {
+	log.Trace("[TRACE] MarkCancelled called: traceID=%s, reason=%s", traceID, reason)
+
+	registryMu.RLock()
+	info, exists := registry[traceID]
+	registryMu.RUnlock()
+
+	if !exists {
+		log.Trace("[TRACE] MarkCancelled: trace not found in registry")
+		return fmt.Errorf("trace not found in registry: %s", traceID)
+	}
+
+	mgr, ok := info.Manager.(*manager)
+	if !ok {
+		log.Trace("[TRACE] MarkCancelled: invalid manager type")
+		return fmt.Errorf("invalid manager type for trace: %s", traceID)
+	}
+
+	log.Trace("[TRACE] MarkCancelled: starting to mark nodes and trace as cancelled")
+
+	// Get independent pubsub service
+	ps := GetPubSub(traceID)
+	if ps != nil {
+		log.Trace("[TRACE] MarkCancelled: current subscriber count: %d", ps.SubscriberCount())
+	}
+
+	now := time.Now().UnixMilli()
+
+	// Use background context since the original context is cancelled
+	bgCtx := context.Background()
+
+	// Load trace tree from driver (disk)
+	log.Trace("[TRACE] MarkCancelled: loading trace tree from driver")
+	rootNode, err := mgr.driver.LoadTrace(bgCtx, traceID)
+	if err != nil {
+		log.Trace("[TRACE] MarkCancelled: failed to load trace tree: %v", err)
+		return fmt.Errorf("failed to load trace tree: %w", err)
+	}
+
+	if rootNode == nil {
+		log.Trace("[TRACE] MarkCancelled: no root node found")
+		return fmt.Errorf("no root node found for trace: %s", traceID)
+	}
+
+	// Mark incomplete nodes as failed (recursively walk tree)
+	log.Trace("[TRACE] MarkCancelled: marking incomplete nodes as failed")
+	var markNodesFailed func(node *types.TraceNode)
+	markNodesFailed = func(node *types.TraceNode) {
+		if node.Status != types.StatusCompleted && node.Status != types.StatusFailed {
+			log.Trace("[TRACE] MarkCancelled: marking node %s as failed", node.ID)
+			node.Status = types.StatusFailed
+			node.EndTime = now
+			node.UpdatedAt = now
+
+			// Save node to driver
+			if err := mgr.driver.SaveNode(bgCtx, traceID, node); err != nil {
+				log.Trace("[TRACE] MarkCancelled: failed to save node %s: %v", node.ID, err)
+			}
+
+			// Broadcast node failed event (also saves to disk)
+			subscriberCount := 0
+			if ps := GetPubSub(traceID); ps != nil {
+				subscriberCount = ps.SubscriberCount()
+			}
+			log.Trace("[TRACE] MarkCancelled: publishing node failed event for node %s to %d subscribers", node.ID, subscriberCount)
+			mgr.addUpdateAndBroadcast(&types.TraceUpdate{
+				Type:      types.UpdateTypeNodeFailed,
+				TraceID:   traceID,
+				NodeID:    node.ID,
+				Timestamp: now,
+				Data: &types.NodeFailedData{
+					NodeID:   node.ID,
+					Status:   types.CompleteStatusFailed,
+					EndTime:  now,
+					Duration: now - node.StartTime,
+					Error:    reason,
+				},
+			})
+			log.Trace("[TRACE] MarkCancelled: node failed event broadcasted for node %s", node.ID)
+		}
+
+		// Process children
+		for _, child := range node.Children {
+			markNodesFailed(child)
+		}
+	}
+	markNodesFailed(rootNode)
+
+	// Load trace info
+	log.Trace("[TRACE] MarkCancelled: loading trace info from driver")
+	traceInfo, err := mgr.driver.LoadTraceInfo(bgCtx, traceID)
+	if err != nil {
+		log.Trace("[TRACE] MarkCancelled: failed to load trace info: %v", err)
+		return fmt.Errorf("failed to load trace info: %w", err)
+	}
+
+	// Update trace status to cancelled
+	log.Trace("[TRACE] MarkCancelled: updating trace status to cancelled")
+	traceInfo.Status = types.TraceStatusCancelled
+	traceInfo.UpdatedAt = now
+	if err := mgr.driver.SaveTraceInfo(bgCtx, traceInfo); err != nil {
+		log.Trace("[TRACE] MarkCancelled: failed to save trace info: %v", err)
+		return fmt.Errorf("failed to save trace info: %w", err)
+	}
+
+	// Set trace status in state machine
+	mgr.stateSetTraceStatus(types.TraceStatusCancelled)
+	mgr.stateMarkCompleted()
+
+	// Broadcast completion update (saves to disk and publishes to subscribers)
+	subscriberCount := 0
+	if ps := GetPubSub(traceID); ps != nil {
+		subscriberCount = ps.SubscriberCount()
+	}
+	log.Trace("[TRACE] MarkCancelled: publishing completion update to %d subscribers", subscriberCount)
+	totalDuration := int64(0)
+	if rootNode.CreatedAt > 0 {
+		totalDuration = now - rootNode.CreatedAt
+	}
+
+	mgr.addUpdateAndBroadcast(&types.TraceUpdate{
+		Type:      types.UpdateTypeComplete,
+		TraceID:   traceID,
+		Timestamp: now,
+		Data: &types.TraceCompleteData{
+			TraceID:       traceID,
+			Status:        types.TraceStatusCancelled,
+			TotalDuration: totalDuration,
+		},
+	})
+
+	log.Trace("[TRACE] MarkCancelled: completed successfully")
+	return nil
+}
+
 // Release releases a trace from the registry and closes its resources
 // traceID: the trace ID to release
 func Release(traceID string) error {
+	log.Trace("[TRACE] Release called: traceID=%s", traceID)
+
 	registryMu.Lock()
 	info, exists := registry[traceID]
 	if exists {
@@ -298,14 +482,38 @@ func Release(traceID string) error {
 	registryMu.Unlock()
 
 	if !exists {
+		log.Trace("[TRACE] Release: trace not found in registry")
 		return fmt.Errorf("trace not found in registry: %s", traceID)
 	}
 
-	// Cancel the manager's context to stop background goroutines
-	if mgr, ok := info.Manager.(*manager); ok && mgr.cancel != nil {
-		mgr.cancel()
+	// Stop manager
+	if mgr, ok := info.Manager.(*manager); ok {
+		// Close state machine channel to stop state worker goroutine
+		log.Trace("[TRACE] Release: closing state command channel")
+		close(mgr.stateCmdChan)
+
+		// Cancel the manager's context to stop other background operations
+		if mgr.cancel != nil {
+			log.Trace("[TRACE] Release: cancelling manager context")
+			mgr.cancel()
+		}
 	}
 
+	// Stop independent PubSub service
+	pubsubRegistryMu.Lock()
+	ps, psExists := pubsubRegistry[traceID]
+	if psExists {
+		delete(pubsubRegistry, traceID)
+	}
+	pubsubRegistryMu.Unlock()
+
+	if psExists && ps != nil {
+		subscriberCount := ps.SubscriberCount()
+		log.Trace("[TRACE] Release: stopping pubsub service with %d active subscribers", subscriberCount)
+		ps.Stop()
+	}
+
+	log.Trace("[TRACE] Release: completed")
 	return nil
 }
 

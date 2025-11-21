@@ -3,6 +3,7 @@ package trace
 import (
 	"time"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/trace/types"
 )
 
@@ -17,7 +18,7 @@ type managerState struct {
 	traceStatus  types.TraceStatus
 	completed    bool
 	updates      []*types.TraceUpdate
-	subscribers  map[string]chan *types.TraceUpdate
+	// Note: subscribers moved to SubscriptionManager (no longer in state)
 }
 
 // State command interface - all commands are processed serially
@@ -190,62 +191,8 @@ func (c *cmdSetUpdates) execute(s *managerState) {
 	s.updates = c.updates
 }
 
-// --- Subscriber Commands ---
-
-type cmdAddSubscriber struct {
-	id string
-	ch chan *types.TraceUpdate
-}
-
-func (c *cmdAddSubscriber) execute(s *managerState) {
-	s.subscribers[c.id] = c.ch
-}
-
-type cmdRemoveSubscriber struct {
-	id string
-}
-
-func (c *cmdRemoveSubscriber) execute(s *managerState) {
-	delete(s.subscribers, c.id)
-}
-
-type cmdGetSubscribers struct {
-	resp chan map[string]chan *types.TraceUpdate
-}
-
-func (c *cmdGetSubscribers) execute(s *managerState) {
-	// Return a copy of the map
-	subs := make(map[string]chan *types.TraceUpdate, len(s.subscribers))
-	for id, ch := range s.subscribers {
-		subs[id] = ch
-	}
-	c.resp <- subs
-}
-
-// --- Broadcast Command (special - sends to all subscribers) ---
-
-type cmdBroadcast struct {
-	update *types.TraceUpdate
-}
-
-func (c *cmdBroadcast) execute(s *managerState) {
-	// Send to all subscribers (non-blocking, with panic recovery)
-	for _, ch := range s.subscribers {
-		func(channel chan *types.TraceUpdate) {
-			defer func() {
-				// Recover from panic if channel is closed
-				if r := recover(); r != nil {
-					// Channel was closed, ignore
-				}
-			}()
-			select {
-			case channel <- c.update:
-			default:
-				// Subscriber is slow, skip (non-blocking)
-			}
-		}(ch)
-	}
-}
+// --- Subscriber Commands (REMOVED - now handled by SubscriptionManager) ---
+// Subscriber management has been decoupled from state machine for better separation of concerns
 
 // --- Space KV Commands (for concurrent safety) ---
 // These ensure all operations on a space are serialized through state worker
@@ -273,39 +220,39 @@ func (m *manager) startStateWorker() {
 		traceStatus:  types.TraceStatusPending,
 		completed:    false,
 		updates:      make([]*types.TraceUpdate, 0, 100),
-		subscribers:  make(map[string]chan *types.TraceUpdate),
+		// subscribers removed - now managed by SubscriptionManager
 	}
 
-	// Process commands until context is cancelled or trace is completed
+	// Process commands until channel is closed (on Release)
+	// Note: We don't exit on context cancellation anymore - state machine should continue
+	// running until Release() is called, which closes the channel
 	for {
-		select {
-		case cmd, ok := <-m.stateCmdChan:
-			if !ok {
-				// Channel closed
-				return
-			}
-			cmd.execute(state)
+		cmd, ok := <-m.stateCmdChan
+		if !ok {
+			// Channel closed by Release(), exit cleanly
+			return
+		}
+		cmd.execute(state)
 
-			// Exit after processing completion
-			if state.completed {
-				// Drain remaining commands with timeout
-				drainTimer := time.NewTimer(100 * time.Millisecond)
-				defer drainTimer.Stop()
-			drainLoop:
-				for {
-					select {
-					case cmd := <-m.stateCmdChan:
-						cmd.execute(state)
-					case <-drainTimer.C:
+		// Optional: Exit after processing completion (but only after draining)
+		// This is mainly for optimization - the channel will be closed by Release() anyway
+		if state.completed {
+			// Drain remaining commands with timeout
+			drainTimer := time.NewTimer(100 * time.Millisecond)
+			defer drainTimer.Stop()
+		drainLoop:
+			for {
+				select {
+				case cmd, ok := <-m.stateCmdChan:
+					if !ok {
+						// Channel closed during drain
 						break drainLoop
 					}
+					cmd.execute(state)
+				case <-drainTimer.C:
+					break drainLoop
 				}
-				return
 			}
-		case <-m.ctx.Done():
-			// Context cancelled - continue processing for a short time to handle cancellation
-			// Then exit to prevent deadlock
-			time.Sleep(10 * time.Millisecond)
 			return
 		}
 	}
@@ -391,26 +338,12 @@ func (m *manager) stateGetUpdates(since int64) []*types.TraceUpdate {
 }
 
 func (m *manager) stateSetUpdates(updates []*types.TraceUpdate) {
+	log.Trace("[STATE] stateSetUpdates: setting %d updates for trace %s", len(updates), m.traceID)
 	m.stateCmdChan <- &cmdSetUpdates{updates: updates}
 }
 
-func (m *manager) stateAddSubscriber(id string, ch chan *types.TraceUpdate) {
-	m.stateCmdChan <- &cmdAddSubscriber{id: id, ch: ch}
-}
-
-func (m *manager) stateRemoveSubscriber(id string) {
-	m.stateCmdChan <- &cmdRemoveSubscriber{id: id}
-}
-
-func (m *manager) stateGetSubscribers() map[string]chan *types.TraceUpdate {
-	resp := make(chan map[string]chan *types.TraceUpdate, 1)
-	m.stateCmdChan <- &cmdGetSubscribers{resp: resp}
-	return <-resp
-}
-
-func (m *manager) stateBroadcast(update *types.TraceUpdate) {
-	m.stateCmdChan <- &cmdBroadcast{update: update}
-}
+// Subscription management methods removed - now handled by SubscriptionManager
+// See subscription_manager.go and subscription.go for the new implementation
 
 // stateExecuteSpaceOp executes a space operation serially through state worker
 func (m *manager) stateExecuteSpaceOp(spaceID string, fn func() error) error {

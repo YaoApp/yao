@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/yaoapp/kun/log"
 )
 
 // NewInterruptController creates a new interrupt controller
@@ -17,13 +19,14 @@ func NewInterruptController() *InterruptController {
 }
 
 // Start starts the interrupt listener goroutine
-func (ic *InterruptController) Start() {
+func (ic *InterruptController) Start(contextID string) {
 	if ic.listenerStarted {
 		return
 	}
 
 	ic.mutex.Lock()
 	ic.listenerStarted = true
+	ic.contextID = contextID
 	ic.mutex.Unlock()
 
 	go ic.listen()
@@ -37,23 +40,16 @@ func (ic *InterruptController) SetHandler(handler InterruptHandler) {
 	ic.handler = handler
 }
 
-// SetContextID sets the context ID for retrieving the parent context
-func (ic *InterruptController) SetContextID(contextID string) {
-	if ic == nil {
-		return
-	}
-	ic.contextID = contextID
-}
-
 // listen is the main listener goroutine that processes interrupt signals
 func (ic *InterruptController) listen() {
 	for {
 		select {
 		case signal := <-ic.queue:
+			// Handle user interrupt signal (stop button, for appending messages)
 			ic.handleSignal(signal)
 
 		case <-ic.ctx.Done():
-			// Context cancelled, stop listening
+			// Internal context cancelled, stop listening
 			return
 		}
 	}
@@ -64,6 +60,8 @@ func (ic *InterruptController) handleSignal(signal *InterruptSignal) {
 	if signal == nil {
 		return
 	}
+
+	log.Trace("[INTERRUPT] Signal received: type=%s, messages=%d, timestamp=%d", signal.Type, len(signal.Messages), signal.Timestamp)
 
 	ic.mutex.Lock()
 
