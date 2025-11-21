@@ -165,7 +165,7 @@ func (m *manager) Add(input types.TraceInput, option types.TraceNodeOption) (typ
 				}
 			}
 		}
-		}
+	}
 
 	// Collect parent IDs from all current nodes (supports implicit join)
 	parentIDs := make([]string, 0, len(currentNodes))

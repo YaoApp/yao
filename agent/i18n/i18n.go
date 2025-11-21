@@ -342,8 +342,8 @@ func TranslateGlobal(locale string, input any) any {
 	}
 
 	// Fallback logic: for "en-us", try "en"
-		parts := strings.Split(locale, "-")
-		if len(parts) > 1 {
+	parts := strings.Split(locale, "-")
+	if len(parts) > 1 {
 		// Try the language code (e.g., "en" for "en-us")
 		if fallbackI18n, hasFallback := i18ns[parts[0]]; hasFallback {
 			result := fallbackI18n.Parse(input)
