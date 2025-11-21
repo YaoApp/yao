@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm/adapters"
 	"github.com/yaoapp/yao/agent/llm/providers/base"
 	"github.com/yaoapp/yao/utils/jsonschema"
@@ -686,9 +687,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	if errorDetected && errorBuffer.Len() > 0 {
 		errorJSON := errorBuffer.String()
 		if trace != nil {
-			trace.Error("OpenAI API returned error response", map[string]any{
-				"response": errorJSON,
-			})
+			trace.Error(i18n.T(ctx.Locale, "llm.openai.stream.api_error"), map[string]any{"response": errorJSON}) // "OpenAI API returned error response"
 		}
 
 		// Try to parse error
@@ -711,9 +710,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// Log any error from streaming
 	if err != nil && trace != nil {
-		trace.Error("OpenAI Stream Error", map[string]any{
-			"error": err.Error(),
-		})
+		trace.Error(i18n.T(ctx.Locale, "llm.openai.stream.error"), map[string]any{"error": err.Error()}) // "OpenAI Stream Error"
 	}
 
 	// Check if error is due to context cancellation
@@ -768,11 +765,9 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 			// Log request details for debugging
 			if requestBodyJSON, err := jsoniter.Marshal(requestBody); err == nil {
-				trace.Error("Request body that caused empty response", map[string]any{
-					"body": string(requestBodyJSON),
-				})
+				trace.Error(i18n.T(ctx.Locale, "llm.openai.stream.no_data"), map[string]any{"body": string(requestBodyJSON)}) // "Request body that caused empty response"
 			}
-			trace.Error("Request details", map[string]any{
+			trace.Error(i18n.T(ctx.Locale, "llm.openai.stream.no_data_info"), map[string]any{ // "Request details"
 				"url":     url,
 				"model":   accumulator.model,
 				"created": accumulator.created,
@@ -1058,9 +1053,7 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 			// Log full response data for debugging
 			if trace != nil {
 				if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
-					trace.Error("OpenAI API error response", map[string]any{
-						"response": string(respJSON),
-					})
+					trace.Error(i18n.T(ctx.Locale, "llm.openai.post.api_error"), map[string]any{"response": string(respJSON)}) // "OpenAI API error response"
 				}
 			}
 		}

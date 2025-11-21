@@ -64,6 +64,37 @@ func TestParseString(t *testing.T) {
 			input:    "",
 			expected: "",
 		},
+		// Embedded template tests (new feature)
+		{
+			name:     "Embedded single template",
+			input:    "Hello {{hello}}",
+			expected: "Hello Hello",
+		},
+		{
+			name:     "Embedded multiple templates",
+			input:    "{{hello}} {{world}}!",
+			expected: "Hello World!",
+		},
+		{
+			name:     "Embedded template with spaces",
+			input:    "Say {{ hello }} to the {{ world }}",
+			expected: "Say Hello to the World",
+		},
+		{
+			name:     "Embedded template mixed with text",
+			input:    "Message: {{greeting}} - {{description}}",
+			expected: "Message: Hello, World! - This is a test",
+		},
+		{
+			name:     "Embedded template not found",
+			input:    "Hello {{notfound}} World",
+			expected: "Hello {{notfound}} World",
+		},
+		{
+			name:     "Embedded template partial match",
+			input:    "{{hello}} {{notfound}} {{world}}",
+			expected: "Hello {{notfound}} World",
+		},
 	}
 
 	for _, tt := range tests {
@@ -358,6 +389,12 @@ func TestMapFlatten(t *testing.T) {
 
 // TestMapFlattenWithGlobal tests the FlattenWithGlobal method
 func TestMapFlattenWithGlobal(t *testing.T) {
+	// Save and restore __global__
+	originalGlobal := Locales["__global__"]
+	defer func() {
+		Locales["__global__"] = originalGlobal
+	}()
+
 	// Setup global locales
 	Locales["__global__"] = map[string]I18n{
 		"en": {
@@ -368,8 +405,6 @@ func TestMapFlattenWithGlobal(t *testing.T) {
 			},
 		},
 	}
-
-	defer delete(Locales, "__global__")
 
 	i18ns := Map{
 		"en": I18n{
@@ -405,6 +440,12 @@ func TestMapFlattenWithGlobal(t *testing.T) {
 
 // TestMapFlattenWithGlobalNoGlobal tests FlattenWithGlobal when no global exists
 func TestMapFlattenWithGlobalNoGlobal(t *testing.T) {
+	// Save and restore __global__
+	originalGlobal := Locales["__global__"]
+	defer func() {
+		Locales["__global__"] = originalGlobal
+	}()
+
 	// Make sure no global exists
 	delete(Locales, "__global__")
 
@@ -430,6 +471,12 @@ func TestMapFlattenWithGlobalNoGlobal(t *testing.T) {
 
 // TestMapFlattenWithGlobalKeyConflict tests FlattenWithGlobal when local keys already exist
 func TestMapFlattenWithGlobalKeyConflict(t *testing.T) {
+	// Save and restore __global__
+	originalGlobal := Locales["__global__"]
+	defer func() {
+		Locales["__global__"] = originalGlobal
+	}()
+
 	// Setup global with keys in flat format (after Dot())
 	Locales["__global__"] = map[string]I18n{
 		"en": {
@@ -441,7 +488,6 @@ func TestMapFlattenWithGlobalKeyConflict(t *testing.T) {
 			},
 		},
 	}
-	defer delete(Locales, "__global__")
 
 	// Local messages in nested format (will be flattened by Dot())
 	i18ns := Map{
@@ -543,6 +589,12 @@ func TestTranslate(t *testing.T) {
 	})
 
 	t.Run("Translate with fallback to global", func(t *testing.T) {
+		// Save and restore __global__
+		originalGlobal := Locales["__global__"]
+		defer func() {
+			Locales["__global__"] = originalGlobal
+		}()
+
 		Locales["__global__"] = map[string]I18n{
 			"es": {
 				Locale: "es",
@@ -551,7 +603,6 @@ func TestTranslate(t *testing.T) {
 				},
 			},
 		}
-		defer delete(Locales, "__global__")
 
 		result := Translate(assistantID, "es", "{{greeting}}")
 		if result != "Hola" {
@@ -578,35 +629,68 @@ func TestTranslate(t *testing.T) {
 	})
 }
 
-// TestTranslateGlobal tests the TranslateGlobal function
+// TestTranslateGlobal tests the TranslateGlobal function with custom messages
 func TestTranslateGlobal(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	Locales["__global__"] = map[string]I18n{
-		"en": {
-			Locale: "en",
-			Messages: map[string]any{
-				"button.ok":     "OK",
-				"button.cancel": "Cancel",
-			},
-		},
-		"zh-cn": {
-			Locale: "zh-cn",
-			Messages: map[string]any{
-				"button.ok":     "确定",
-				"button.cancel": "取消",
-			},
-		},
-		"zh": {
-			Locale: "zh",
-			Messages: map[string]any{
-				"button.ok":     "确定",
-				"button.cancel": "取消",
-			},
-		},
+	// Save existing __global__ and restore after test
+	originalGlobal := make(map[string]I18n)
+	if existing, ok := Locales["__global__"]; ok {
+		for k, v := range existing {
+			originalGlobal[k] = v
+		}
 	}
-	defer delete(Locales, "__global__")
+	defer func() {
+		Locales["__global__"] = originalGlobal
+	}()
+
+	// Add custom test messages to existing global (not replacing)
+	if Locales["__global__"] == nil {
+		Locales["__global__"] = make(map[string]I18n)
+	}
+
+	// Extend existing English messages
+	enMessages := make(map[string]any)
+	if existing, ok := Locales["__global__"]["en"]; ok {
+		for k, v := range existing.Messages {
+			enMessages[k] = v
+		}
+	}
+	enMessages["button.ok"] = "OK"
+	enMessages["button.cancel"] = "Cancel"
+	Locales["__global__"]["en"] = I18n{
+		Locale:   "en",
+		Messages: enMessages,
+	}
+
+	// Extend existing Chinese messages
+	zhcnMessages := make(map[string]any)
+	if existing, ok := Locales["__global__"]["zh-cn"]; ok {
+		for k, v := range existing.Messages {
+			zhcnMessages[k] = v
+		}
+	}
+	zhcnMessages["button.ok"] = "确定"
+	zhcnMessages["button.cancel"] = "取消"
+	Locales["__global__"]["zh-cn"] = I18n{
+		Locale:   "zh-cn",
+		Messages: zhcnMessages,
+	}
+
+	// Extend existing Chinese short code messages
+	zhMessages := make(map[string]any)
+	if existing, ok := Locales["__global__"]["zh"]; ok {
+		for k, v := range existing.Messages {
+			zhMessages[k] = v
+		}
+	}
+	zhMessages["button.ok"] = "确定"
+	zhMessages["button.cancel"] = "取消"
+	Locales["__global__"]["zh"] = I18n{
+		Locale:   "zh",
+		Messages: zhMessages,
+	}
 
 	t.Run("TranslateGlobal with match", func(t *testing.T) {
 		result := TranslateGlobal("en", "{{button.ok}}")
@@ -637,13 +721,17 @@ func TestTranslateGlobal(t *testing.T) {
 	})
 
 	t.Run("TranslateGlobal no global", func(t *testing.T) {
+		// Temporarily remove global
+		temp := Locales["__global__"]
 		delete(Locales, "__global__")
+
 		result := TranslateGlobal("en", "{{button.ok}}")
 		if result != "{{button.ok}}" {
 			t.Errorf("Expected '{{button.ok}}', got %v", result)
 		}
-		// Restore for cleanup
-		Locales["__global__"] = map[string]I18n{}
+
+		// Restore
+		Locales["__global__"] = temp
 	})
 }
 
@@ -812,6 +900,344 @@ func TestEdgeCases(t *testing.T) {
 		result := Translate("test", "   ", "{{key}}")
 		if result != "value" {
 			t.Errorf("Expected 'value', got %v", result)
+		}
+	})
+}
+
+// TestBuiltinMessages tests the built-in global messages
+func TestBuiltinMessages(t *testing.T) {
+	// Save and restore __global__ to avoid test interference
+	originalGlobal := make(map[string]I18n)
+	if existing, ok := Locales["__global__"]; ok {
+		for k, v := range existing {
+			originalGlobal[k] = v
+		}
+	}
+	defer func() {
+		Locales["__global__"] = originalGlobal
+	}()
+
+	t.Run("English built-in messages", func(t *testing.T) {
+		// Test assistant messages
+		result := TranslateGlobal("en", "{{assistant.agent.stream.label}}")
+		expected := "Assistant {{name}}"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		result = TranslateGlobal("en", "{{assistant.agent.stream.description}}")
+		expected = "Assistant {{name}} is processing the request"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		result = TranslateGlobal("en", "{{assistant.agent.stream.history}}")
+		expected = "Get Chat History"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		// Test LLM messages (note: LLM uses %s for fmt.Sprintf, not {{name}} for recursive translation)
+		result = TranslateGlobal("en", "{{llm.openai.stream.label}}")
+		expected = "LLM %s"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		result = TranslateGlobal("en", "{{llm.handlers.stream.info}}")
+		expected = "LLM Stream"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		// Test common messages
+		result = TranslateGlobal("en", "{{common.status.processing}}")
+		expected = "Processing"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+	})
+
+	t.Run("Chinese (zh-cn) built-in messages", func(t *testing.T) {
+		// Test assistant messages
+		result := TranslateGlobal("zh-cn", "{{assistant.agent.stream.label}}")
+		expected := "助手 {{name}}"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		result = TranslateGlobal("zh-cn", "{{assistant.agent.stream.description}}")
+		expected = "助手 {{name}} 正在处理请求"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		result = TranslateGlobal("zh-cn", "{{assistant.agent.stream.history}}")
+		expected = "获取聊天历史"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		// Test LLM messages
+		result = TranslateGlobal("zh-cn", "{{llm.handlers.stream.info}}")
+		expected = "LLM 流式输出"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		// Test common messages
+		result = TranslateGlobal("zh-cn", "{{common.status.processing}}")
+		expected = "处理中"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+	})
+
+	t.Run("Chinese (zh) short code", func(t *testing.T) {
+		result := TranslateGlobal("zh", "{{assistant.agent.stream.label}}")
+		expected := "助手 {{name}}"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		result = TranslateGlobal("zh", "{{common.status.processing}}")
+		expected = "处理中"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+	})
+
+	t.Run("Embedded template with built-in messages", func(t *testing.T) {
+		// English
+		result := TranslateGlobal("en", "Status: {{common.status.processing}}")
+		expected := "Status: Processing"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		// Chinese
+		result = TranslateGlobal("zh-cn", "状态: {{common.status.processing}}")
+		expected = "状态: 处理中"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+	})
+
+	t.Run("Non-existent key in global", func(t *testing.T) {
+		result := TranslateGlobal("en", "{{unknown.key}}")
+		if result != "{{unknown.key}}" {
+			t.Errorf("Expected '{{unknown.key}}', got '%v'", result)
+		}
+	})
+}
+
+// TestTAlias tests the T function alias
+func TestTr(t *testing.T) {
+	// Save original global locales
+	originalGlobal := Locales["__global__"]
+	defer func() {
+		if originalGlobal != nil {
+			Locales["__global__"] = originalGlobal
+		} else {
+			delete(Locales, "__global__")
+		}
+	}()
+
+	// Setup test locales with nested templates
+	Locales["__global__"] = map[string]I18n{
+		"en": {
+			Locale: "en",
+			Messages: map[string]any{
+				"assistant.label":       "Assistant {{assistant.name}}", // Use full key path
+				"assistant.name":        "AI Helper",
+				"assistant.description": "{{assistant.label}} is processing",
+				"llm.label":             "LLM {{model.deepseek}}", // Use full key path
+				"model.deepseek":        "DeepSeek",
+				"deeply.nested":         "Level1 {{level2}}",
+				"level2":                "Level2 {{level3}}",
+				"level3":                "Level3 End",
+				"simple.message":        "Hello World",
+			},
+		},
+		"zh-cn": {
+			Locale: "zh-cn",
+			Messages: map[string]any{
+				"assistant.label":       "助手 {{assistant.name}}", // Use full key path
+				"assistant.name":        "智能助手",
+				"assistant.description": "{{assistant.label}} 正在处理",
+				"llm.label":             "模型 {{model.deepseek}}", // Use full key path
+				"model.deepseek":        "深度求索",
+				"deeply.nested":         "第一层 {{level2}}",
+				"level2":                "第二层 {{level3}}",
+				"level3":                "第三层结束",
+				"simple.message":        "你好世界",
+			},
+		},
+	}
+
+	// Setup assistant-specific locale (overrides assistant.name, but inherits assistant.label from global)
+	Locales["test-assistant"] = map[string]I18n{
+		"en": {
+			Locale: "en",
+			Messages: map[string]any{
+				"assistant.name": "Custom Assistant", // This will override global when assistant.label is resolved
+			},
+		},
+	}
+	defer delete(Locales, "test-assistant")
+
+	t.Run("Simple translation without variables", func(t *testing.T) {
+		result := Tr("__global__", "en", "simple.message")
+		if result != "Hello World" {
+			t.Errorf("Expected 'Hello World', got '%s'", result)
+		}
+
+		result = Tr("__global__", "zh-cn", "simple.message")
+		if result != "你好世界" {
+			t.Errorf("Expected '你好世界', got '%s'", result)
+		}
+	})
+
+	t.Run("One level nested variable", func(t *testing.T) {
+		// "Assistant {{name}}" -> "Assistant AI Helper"
+		result := Tr("__global__", "en", "assistant.label")
+		if result != "Assistant AI Helper" {
+			t.Errorf("Expected 'Assistant AI Helper', got '%s'", result)
+		}
+
+		result = Tr("__global__", "zh-cn", "assistant.label")
+		if result != "助手 智能助手" {
+			t.Errorf("Expected '助手 智能助手', got '%s'", result)
+		}
+	})
+
+	t.Run("Two levels nested variables", func(t *testing.T) {
+		// "{{assistant.label}} is processing" -> "Assistant AI Helper is processing"
+		result := Tr("__global__", "en", "assistant.description")
+		if result != "Assistant AI Helper is processing" {
+			t.Errorf("Expected 'Assistant AI Helper is processing', got '%s'", result)
+		}
+
+		result = Tr("__global__", "zh-cn", "assistant.description")
+		if result != "助手 智能助手 正在处理" {
+			t.Errorf("Expected '助手 智能助手 正在处理', got '%s'", result)
+		}
+	})
+
+	t.Run("Three levels deeply nested", func(t *testing.T) {
+		// "Level1 {{level2}}" -> "Level1 Level2 {{level3}}" -> "Level1 Level2 Level3 End"
+		result := Tr("__global__", "en", "deeply.nested")
+		if result != "Level1 Level2 Level3 End" {
+			t.Errorf("Expected 'Level1 Level2 Level3 End', got '%s'", result)
+		}
+
+		result = Tr("__global__", "zh-cn", "deeply.nested")
+		if result != "第一层 第二层 第三层结束" {
+			t.Errorf("Expected '第一层 第二层 第三层结束', got '%s'", result)
+		}
+	})
+
+	t.Run("Assistant-specific override", func(t *testing.T) {
+		// When assistant locale exists but doesn't have a key, it WILL fallback to global
+		// This is key-level fallback: try assistant first, then fallback to global
+		result := Tr("test-assistant", "en", "assistant.label")
+		// "Assistant {{assistant.name}}" from global, then {{assistant.name}} -> "Custom Assistant" from assistant
+		if result != "Assistant Custom Assistant" {
+			t.Errorf("Expected 'Assistant Custom Assistant' (fallback to global with assistant override), got '%s'", result)
+		}
+
+		// assistant has 'en' locale but doesn't have this key, fallback to global
+		result = Tr("test-assistant", "en", "simple.message")
+		if result != "Hello World" {
+			t.Errorf("Expected 'Hello World' (fallback to global), got '%s'", result)
+		}
+
+		// If assistant locale has the key, it will use assistant's value
+		result = Tr("test-assistant", "en", "assistant.name")
+		if result != "Custom Assistant" {
+			t.Errorf("Expected 'Custom Assistant' (from assistant locale), got '%s'", result)
+		}
+	})
+
+	t.Run("Non-existent key returns original", func(t *testing.T) {
+		result := Tr("__global__", "en", "non.existent.key")
+		if result != "non.existent.key" {
+			t.Errorf("Expected 'non.existent.key', got '%s'", result)
+		}
+	})
+
+	t.Run("LLM with model variable", func(t *testing.T) {
+		result := Tr("__global__", "en", "llm.label")
+		if result != "LLM DeepSeek" {
+			t.Errorf("Expected 'LLM DeepSeek', got '%s'", result)
+		}
+
+		result = Tr("__global__", "zh-cn", "llm.label")
+		if result != "模型 深度求索" {
+			t.Errorf("Expected '模型 深度求索', got '%s'", result)
+		}
+	})
+}
+
+func TestTAlias(t *testing.T) {
+	// Save and restore __global__ to avoid test interference
+	originalGlobal := make(map[string]I18n)
+	if existing, ok := Locales["__global__"]; ok {
+		for k, v := range existing {
+			originalGlobal[k] = v
+		}
+	}
+	defer func() {
+		Locales["__global__"] = originalGlobal
+	}()
+
+	t.Run("T alias works like TranslateGlobal", func(t *testing.T) {
+		// Test that T and TranslateGlobal return the same results
+		input := "{{assistant.agent.stream.label}}"
+
+		resultT := T("en", input)
+		resultGlobal := TranslateGlobal("en", input)
+
+		if resultT != resultGlobal {
+			t.Errorf("T and TranslateGlobal should return same result. T: %v, TranslateGlobal: %v", resultT, resultGlobal)
+		}
+
+		expected := "Assistant {{name}}"
+		if resultT != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, resultT)
+		}
+	})
+
+	t.Run("T alias with Chinese", func(t *testing.T) {
+		result := T("zh-cn", "{{assistant.agent.stream.history}}")
+		expected := "获取聊天历史"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+	})
+
+	t.Run("T alias with embedded template", func(t *testing.T) {
+		result := T("en", "Status: {{common.status.completed}}")
+		expected := "Status: Completed"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+	})
+
+	t.Run("T with nested template (template in template value)", func(t *testing.T) {
+		// assistant.agent.stream.label = "Assistant {{name}}" (contains {{name}} template)
+		// This tests if we can get the template string itself
+		result := T("en", "{{assistant.agent.stream.label}}")
+		expected := "Assistant {{name}}"
+		if result != expected {
+			t.Errorf("Expected '%s', got '%v'", expected, result)
+		}
+
+		// Verify Chinese version too
+		resultZh := T("zh-cn", "{{assistant.agent.stream.label}}")
+		expectedZh := "助手 {{name}}"
+		if resultZh != expectedZh {
+			t.Errorf("Expected '%s', got '%v'", expectedZh, resultZh)
 		}
 	})
 }

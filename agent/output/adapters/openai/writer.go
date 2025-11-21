@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
@@ -32,7 +33,7 @@ func (w *Writer) Write(msg *message.Message) error {
 	chunks, err := w.adapter.Adapt(msg)
 	if err != nil {
 		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error("OpenAI Writer: Failed to adapt message", map[string]any{
+			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.adapt_error"), map[string]any{ // "OpenAI Writer: Failed to adapt message"
 				"error":        err.Error(),
 				"message_type": msg.Type,
 			})
@@ -56,9 +57,7 @@ func (w *Writer) Write(msg *message.Message) error {
 
 		if err := w.sendChunk(chunk); err != nil {
 			if trace, _ := w.ctx.Trace(); trace != nil {
-				trace.Error("OpenAI Writer: Failed to send chunk", map[string]any{
-					"error": err.Error(),
-				})
+				trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.chunk_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send chunk"
 			}
 			return err
 		}
@@ -74,7 +73,7 @@ func (w *Writer) WriteGroup(group *message.MessageGroup) error {
 	for _, msg := range group.Messages {
 		if err := w.Write(msg); err != nil {
 			if trace, _ := w.ctx.Trace(); trace != nil {
-				trace.Error("OpenAI Writer: Failed to write message in group", map[string]any{
+				trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.group_error"), map[string]any{ // "OpenAI Writer: Failed to write message in group"
 					"error":        err.Error(),
 					"group_id":     group.ID,
 					"message_type": msg.Type,
@@ -106,9 +105,7 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	data, err := json.Marshal(chunk)
 	if err != nil {
 		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error("OpenAI Writer: Failed to marshal chunk", map[string]any{
-				"error": err.Error(),
-			})
+			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.marshal_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to marshal chunk"
 		}
 		return err
 	}
@@ -127,9 +124,7 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	// Send via context's writer
 	if err := w.ctx.Send(sseData); err != nil {
 		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error("OpenAI Writer: Failed to send data to client", map[string]any{
-				"error": err.Error(),
-			})
+			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.send_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send data to client"
 		}
 		return err
 	}
@@ -148,9 +143,7 @@ func (w *Writer) sendDone() error {
 	doneData := []byte("data: [DONE]\n\n")
 	if err := w.ctx.Send(doneData); err != nil {
 		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error("OpenAI Writer: Failed to send [DONE] to client", map[string]any{
-				"error": err.Error(),
-			})
+			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.done_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send [DONE] to client"
 		}
 		return err
 	}
