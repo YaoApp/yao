@@ -37,43 +37,43 @@ const (
 
 // TraceNodeOption defines options for creating a node
 type TraceNodeOption struct {
-	Label       string         // Display label in UI
-	Icon        string         // Icon identifier
-	Description string         // Node description
-	Metadata    map[string]any // Additional metadata
+	Label       string         `json:"label"`              // Display label in UI
+	Icon        string         `json:"icon"`               // Icon identifier
+	Description string         `json:"description"`        // Node description
+	Metadata    map[string]any `json:"metadata,omitempty"` // Additional metadata
 }
 
 // TraceSpaceOption defines options for creating a space
 type TraceSpaceOption struct {
-	Label       string         // Display label in UI
-	Icon        string         // Icon identifier
-	Description string         // Space description
-	TTL         int64          // Time to live in seconds (0 = no expiration) - for display/record only
-	Metadata    map[string]any // Additional metadata
+	Label       string         `json:"label"`              // Display label in UI
+	Icon        string         `json:"icon"`               // Icon identifier
+	Description string         `json:"description"`        // Space description
+	TTL         int64          `json:"ttl"`                // Time to live in seconds (0 = no expiration) - for display/record only
+	Metadata    map[string]any `json:"metadata,omitempty"` // Additional metadata
 }
 
 // TraceNode the trace node implementation
 type TraceNode struct {
-	ID              string       // Node ID
-	ParentID        string       // Parent node ID
-	Children        []*TraceNode // Child nodes (for tree structure)
-	TraceNodeOption              // Embedded option fields (Label, Icon, Description, Metadata)
-	Status          NodeStatus   // Node status (pending, running, completed, failed, skipped)
-	Input           TraceInput   // Node input data
-	Output          TraceOutput  // Node output data
-	CreatedAt       int64        // Creation timestamp (milliseconds since epoch)
-	StartTime       int64        // Start timestamp (milliseconds since epoch)
-	EndTime         int64        // End timestamp (milliseconds since epoch)
-	UpdatedAt       int64        // Last update timestamp (milliseconds since epoch)
+	ID              string           `json:"id"`        // Node ID
+	ParentID        string           `json:"parent_id"` // Parent node ID
+	Children        []*TraceNode     `json:"children"`  // Child nodes (for tree structure)
+	TraceNodeOption `json:",inline"` // Embedded option fields (Label, Icon, Description, Metadata)
+	Status          NodeStatus       `json:"status"`           // Node status (pending, running, completed, failed, skipped)
+	Input           TraceInput       `json:"input,omitempty"`  // Node input data
+	Output          TraceOutput      `json:"output,omitempty"` // Node output data
+	CreatedAt       int64            `json:"created_at"`       // Creation timestamp (milliseconds since epoch)
+	StartTime       int64            `json:"start_time"`       // Start timestamp (milliseconds since epoch)
+	EndTime         int64            `json:"end_time"`         // End timestamp (milliseconds since epoch)
+	UpdatedAt       int64            `json:"updated_at"`       // Last update timestamp (milliseconds since epoch)
 	// Other fields will be added during implementation
 }
 
 // TraceSpace the trace memory space implementation (can add methods for serialization)
 type TraceSpace struct {
-	ID               string // Space ID
-	TraceSpaceOption        // Embedded option fields (Label, Icon, Description, TTL, Metadata)
-	CreatedAt        int64  // Creation timestamp (milliseconds since epoch)
-	UpdatedAt        int64  // Last update timestamp (milliseconds since epoch)
+	ID               string           `json:"id"` // Space ID
+	TraceSpaceOption `json:",inline"` // Embedded option fields (Label, Icon, Description, TTL, Metadata)
+	CreatedAt        int64            `json:"created_at"` // Creation timestamp (milliseconds since epoch)
+	UpdatedAt        int64            `json:"updated_at"` // Last update timestamp (milliseconds since epoch)
 	// Internal data storage will be managed by implementation
 }
 
@@ -120,21 +120,21 @@ const (
 
 // TraceUpdate represents a trace update event for subscriptions
 type TraceUpdate struct {
-	Type      string // Update type (see UpdateType* constants)
-	TraceID   string // Trace ID
-	NodeID    string // Node ID (optional, for node/log updates)
-	SpaceID   string // Space ID (optional, for space updates)
-	Timestamp int64  // Update timestamp (milliseconds since epoch)
-	Data      any    // Update data (payload structures below)
+	Type      string `json:"type"`      // Update type (see UpdateType* constants)
+	TraceID   string `json:"trace_id"`  // Trace ID
+	NodeID    string `json:"node_id"`   // Node ID (optional, for node/log updates)
+	SpaceID   string `json:"space_id"`  // Space ID (optional, for space updates)
+	Timestamp int64  `json:"timestamp"` // Update timestamp (milliseconds since epoch)
+	Data      any    `json:"data"`      // Update data (payload structures below)
 }
 
 // Event payload structures (matching frontend SSE format)
 
 // TraceInitData payload for "init" event
 type TraceInitData struct {
-	TraceID   string     `json:"traceId"`
-	AgentName string     `json:"agentName,omitempty"`
-	RootNode  *TraceNode `json:"rootNode,omitempty"`
+	TraceID   string     `json:"trace_id"`
+	AgentName string     `json:"agent_name,omitempty"`
+	RootNode  *TraceNode `json:"root_node,omitempty"`
 }
 
 // NodeStartData payload for "node_start" event
@@ -146,18 +146,18 @@ type NodeStartData struct {
 
 // NodeCompleteData payload for "node_complete" event
 type NodeCompleteData struct {
-	NodeID   string         `json:"nodeId"`
+	NodeID   string         `json:"node_id"`
 	Status   CompleteStatus `json:"status"`   // "success" or "failed"
-	EndTime  int64          `json:"endTime"`  // milliseconds since epoch
+	EndTime  int64          `json:"end_time"` // milliseconds since epoch
 	Duration int64          `json:"duration"` // duration in milliseconds
 	Output   TraceOutput    `json:"output,omitempty"`
 }
 
 // NodeFailedData payload for "node_failed" event (same as NodeCompleteData but with error)
 type NodeFailedData struct {
-	NodeID   string         `json:"nodeId"`
+	NodeID   string         `json:"node_id"`
 	Status   CompleteStatus `json:"status"`   // "failed"
-	EndTime  int64          `json:"endTime"`  // milliseconds since epoch
+	EndTime  int64          `json:"end_time"` // milliseconds since epoch
 	Duration int64          `json:"duration"` // duration in milliseconds
 	Error    string         `json:"error"`
 }
@@ -180,19 +180,19 @@ type MemoryItem struct {
 
 // TraceCompleteData payload for "complete" event
 type TraceCompleteData struct {
-	TraceID       string      `json:"traceId"`
-	Status        TraceStatus `json:"status"`        // "completed"
-	TotalDuration int64       `json:"totalDuration"` // duration in milliseconds
+	TraceID       string      `json:"trace_id"`
+	Status        TraceStatus `json:"status"`         // "completed"
+	TotalDuration int64       `json:"total_duration"` // duration in milliseconds
 }
 
 // SpaceDeletedData payload for "space_deleted" event
 type SpaceDeletedData struct {
-	SpaceID string `json:"spaceId"`
+	SpaceID string `json:"space_id"`
 }
 
 // MemoryDeleteData payload for "memory_delete" event
 type MemoryDeleteData struct {
-	SpaceID string `json:"spaceId"`
+	SpaceID string `json:"space_id"`
 	Key     string `json:"key,omitempty"`     // Empty when clearing all
 	Cleared bool   `json:"cleared,omitempty"` // True when clearing all keys
 }
