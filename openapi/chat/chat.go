@@ -30,6 +30,9 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Delete Chat Completion
 	group.DELETE("/completions/:completion_id", placeholder)
 
+	// Append messages to running completion
+	group.POST("/completions/:context_id/append", GinAppendMessages)
+
 }
 
 func placeholder(c *gin.Context) {
