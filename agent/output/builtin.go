@@ -79,7 +79,7 @@ func NewActionMessage(name string, payload map[string]interface{}) *message.Mess
 }
 
 // NewEventMessage creates an event message
-func NewEventMessage(event string, msg string, data map[string]interface{}) *message.Message {
+func NewEventMessage(event string, msg string, data interface{}) *message.Message {
 	return &message.Message{
 		Type: message.TypeEvent,
 		Props: map[string]interface{}{

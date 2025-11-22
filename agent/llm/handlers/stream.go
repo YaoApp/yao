@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output"
@@ -73,9 +75,14 @@ type streamState struct {
 func (s *streamState) handleStreamStart(data []byte) int {
 	// Send event message to indicate stream has started
 	// This is a lifecycle event, CUI clients can show it, OpenAI clients will ignore it
-	msg := output.NewEventMessage("stream_start", "Connecting...", nil)
+	var startData context.StreamStartData
+	err := jsoniter.Unmarshal(data, &startData)
+	if err != nil {
+		log.Error("Failed to unmarshal stream start data: %v", err)
+	}
+	msg := output.NewEventMessage("stream_start", "Stream started", startData)
 	output.Send(s.ctx, msg)
-	return 0 // Continue
+	return 0
 }
 
 // handleGroupStart handles group start event

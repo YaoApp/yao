@@ -50,7 +50,7 @@ func (w *Writer) Write(msg *message.Message) error {
 }
 
 // WriteGroup writes a message group to the output stream
-func (w *Writer) WriteGroup(group *message.MessageGroup) error {
+func (w *Writer) WriteGroup(group *message.Group) error {
 	// For CUI, we send a group start message, all messages, then a group end message
 	// The group structure itself is also sent for clients that want it
 

@@ -7,7 +7,7 @@ The output module provides a unified API for sending messages to different clien
 ```
 agent/output/
 ├── message/              # Core types and interfaces (no dependencies)
-│   ├── types.go         # Message, MessageGroup, Props structures
+│   ├── types.go         # Message, Group, Props structures
 │   └── interfaces.go    # Writer, Adapter, Factory interfaces
 ├── adapters/            # Client-specific adapters
 │   ├── cui/             # CUI adapter (native DSL)
@@ -325,18 +325,18 @@ Adapters handle the transformation automatically based on `ctx.Accept`.
 
 10 standardized message types with defined Props structures:
 
-| Type        | Purpose            | CUI     | OpenAI                    |
-| ----------- | ------------------ | ------- | ------------------------- |
-| `text`      | Text content       | Direct  | `delta.content`           |
-| `thinking`  | LLM reasoning      | Direct  | `delta.reasoning_content` |
-| `loading`   | Progress indicator | Direct  | `delta.reasoning_content` |
-| `tool_call` | Function calls     | Direct  | `delta.tool_calls`        |
-| `error`     | Error messages     | Direct  | `error`                   |
-| `image`     | Images             | Render  | `![](url)` markdown       |
-| `audio`     | Audio              | Player  | Link                      |
-| `video`     | Video              | Player  | Link                      |
-| `action`    | System commands    | Execute | Silent                    |
-| `event`     | Lifecycle events   | Track   | Silent                    |
+| Type        | Purpose            | CUI     | OpenAI                                       |
+| ----------- | ------------------ | ------- | -------------------------------------------- |
+| `text`      | Text content       | Direct  | `delta.content`                              |
+| `thinking`  | LLM reasoning      | Direct  | `delta.reasoning_content`                    |
+| `loading`   | Progress indicator | Direct  | `delta.reasoning_content`                    |
+| `tool_call` | Function calls     | Direct  | `delta.tool_calls`                           |
+| `error`     | Error messages     | Direct  | `error`                                      |
+| `image`     | Images             | Render  | `![](url)` markdown                          |
+| `audio`     | Audio              | Player  | Link                                         |
+| `video`     | Video              | Player  | Link                                         |
+| `action`    | System commands    | Execute | Silent                                       |
+| `event`     | Lifecycle events   | Track   | Conditional (stream_start converted to link) |
 
 ## Usage
 

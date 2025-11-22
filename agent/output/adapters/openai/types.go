@@ -26,6 +26,19 @@ type AdapterConfig struct {
 
 	// Model name to include in OpenAI responses
 	Model string
+
+	// Capabilities holds the model capabilities
+	// Used to determine how to convert certain message types (e.g., stream_start)
+	Capabilities *ModelCapabilities
+
+	// Locale for internationalization (e.g., "en-US", "zh-CN")
+	Locale string
+}
+
+// ModelCapabilities is a simplified version of context.ModelCapabilities
+// We use a local type to avoid circular dependencies
+type ModelCapabilities struct {
+	Reasoning *bool // Supports reasoning/thinking mode (o1, DeepSeek R1)
 }
 
 // DefaultLinkTemplates provides default Markdown templates for non-text message types

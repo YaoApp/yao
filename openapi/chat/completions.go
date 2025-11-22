@@ -48,6 +48,7 @@ func GinCreateCompletions(c *gin.Context) {
 	fmt.Println("Chat ID: ", ctx.ChatID)
 	fmt.Println("Assistant ID: ", ctx.AssistantID)
 	fmt.Println("Model: ", completionReq.Model)
+	fmt.Println("Locale: ", ctx.Locale)
 	fmt.Println("Messages count: ", len(completionReq.Messages))
 	if completionReq.Temperature != nil {
 		fmt.Println("Temperature: ", *completionReq.Temperature)

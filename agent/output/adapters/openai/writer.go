@@ -17,14 +17,42 @@ type Writer struct {
 
 // NewWriter creates a new OpenAI writer
 func NewWriter(ctx *context.Context) (*Writer, error) {
-	// Create adapter with default config
-	adapter := NewAdapter()
+	// Get model capabilities from context (set by assistant)
+	var capabilities *ModelCapabilities
+	if ctx.Capabilities != nil && ctx.Capabilities.Reasoning != nil {
+		capabilities = &ModelCapabilities{
+			Reasoning: ctx.Capabilities.Reasoning,
+		}
+	}
+
+	// Create adapter with capabilities, base URL, and locale
+	adapter := NewAdapter(
+		WithCapabilities(capabilities),
+		WithBaseURL(getBaseURL(ctx)),
+		WithLocale(ctx.Locale),
+	)
 
 	return &Writer{
 		ctx:        ctx,
 		adapter:    adapter,
 		firstChunk: true, // First chunk should include role
 	}, nil
+}
+
+// getBaseURL gets the base URL from context or environment
+func getBaseURL(ctx *context.Context) string {
+	// @todo: get from context metadata
+	return "http://localhost:8000/__yao_admin_root"
+
+	// // Try to get from context metadata
+	// if ctx.Metadata != nil {
+	// 	if baseURL, ok := ctx.Metadata["base_url"].(string); ok && baseURL != "" {
+	// 		return baseURL
+	// 	}
+	// }
+
+	// // TODO: Get from environment variable or config
+	// return ""
 }
 
 // Write writes a single message to the output stream
@@ -67,7 +95,7 @@ func (w *Writer) Write(msg *message.Message) error {
 }
 
 // WriteGroup writes a message group to the output stream
-func (w *Writer) WriteGroup(group *message.MessageGroup) error {
+func (w *Writer) WriteGroup(group *message.Group) error {
 	// For OpenAI, we don't send group markers
 	// Just send each message individually
 	for _, msg := range group.Messages {

@@ -358,5 +358,18 @@ func SendInterrupt(contextID string, signal *InterruptSignal) error {
 
 // generateContextID generates a unique context ID
 func generateContextID() string {
-	return fmt.Sprintf("ctx_%d", time.Now().UnixNano())
+	return fmt.Sprintf("ctx-%d", time.Now().UnixNano())
+}
+
+// RequestID returns the request ID for the context
+func (ctx *Context) RequestID() string {
+	return fmt.Sprintf("%s", ctx.ID)
+}
+
+// TraceID returns the trace ID for the context
+func (ctx *Context) TraceID() string {
+	if ctx.Stack != nil {
+		return ctx.Stack.TraceID
+	}
+	return ""
 }

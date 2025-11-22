@@ -54,6 +54,20 @@ func WithModel(model string) Option {
 	}
 }
 
+// WithCapabilities sets the model capabilities
+func WithCapabilities(capabilities *ModelCapabilities) Option {
+	return func(a *Adapter) {
+		a.config.Capabilities = capabilities
+	}
+}
+
+// WithLocale sets the locale for internationalization
+func WithLocale(locale string) Option {
+	return func(a *Adapter) {
+		a.config.Locale = locale
+	}
+}
+
 // WithConverter registers a custom converter for a message type
 func WithConverter(msgType string, converter ConverterFunc) Option {
 	return func(a *Adapter) {
@@ -63,8 +77,16 @@ func WithConverter(msgType string, converter ConverterFunc) Option {
 
 // Adapt converts a universal Message to OpenAI-compatible format
 func (a *Adapter) Adapt(msg *message.Message) ([]interface{}, error) {
-	// Skip event messages - they are CUI-only lifecycle events
+	// Handle event messages specially
 	if msg.Type == message.TypeEvent {
+		// Check if this is a stream_start event
+		if event, ok := msg.Props["event"].(string); ok && event == message.EventStreamStart {
+			// Use the stream_start converter
+			if converter, exists := a.registry.GetConverter(message.EventStreamStart); exists {
+				return converter(msg, a.config)
+			}
+		}
+		// Other event messages are CUI-only, skip them
 		return []interface{}{}, nil // Return empty array, nothing to send
 	}
 
