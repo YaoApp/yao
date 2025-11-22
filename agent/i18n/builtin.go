@@ -55,6 +55,10 @@ func init() {
 			"output.cui.writer.send_error":    "Failed to send data to client",
 			"output.cui.writer.marshal_error": "Failed to marshal chunk",
 
+			// Output: Stream event messages
+			"output.stream_start": "Assistant is processing",
+			"output.view_trace":   "View process",
+
 			// Common status messages
 			"common.status.processing": "Processing",
 			"common.status.completed":  "Completed",
@@ -111,6 +115,10 @@ func init() {
 			"output.cui.writer.send_error":    "发送数据到客户端失败",
 			"output.cui.writer.marshal_error": "序列化数据块失败",
 
+			// Output: Stream event messages
+			"output.stream_start": "智能体正在处理",
+			"output.view_trace":   "查看处理详情",
+
 			// Common status messages
 			"common.status.processing": "处理中",
 			"common.status.completed":  "已完成",
@@ -166,6 +174,10 @@ func init() {
 			"output.cui.writer.group_error":   "发送消息组失败",
 			"output.cui.writer.send_error":    "发送数据到客户端失败",
 			"output.cui.writer.marshal_error": "序列化数据块失败",
+
+			// Output: Stream event messages
+			"output.stream_start": "智能体正在处理",
+			"output.view_trace":   "查看处理详情",
 
 			// Common status messages
 			"common.status.processing": "处理中",

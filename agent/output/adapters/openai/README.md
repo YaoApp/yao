@@ -8,14 +8,79 @@ OpenAI adapter converts universal DSL messages to OpenAI-compatible format.
 
 These types are defined in `output.types.go` and have standardized Props structures that all adapters must support:
 
-| Message Type | Constant              | Props Structure | OpenAI Format             | Description                           |
-| ------------ | --------------------- | --------------- | ------------------------- | ------------------------------------- |
-| `text`       | `output.TypeText`     | `TextProps`     | `delta.content`           | Plain text or Markdown                |
-| `thinking`   | `output.TypeThinking` | `ThinkingProps` | `delta.reasoning_content` | Reasoning process (o1 models)         |
-| `loading`    | `output.TypeLoading`  | `LoadingProps`  | `delta.reasoning_content` | Loading indicator (shows as thinking) |
-| `tool_call`  | `output.TypeToolCall` | `ToolCallProps` | `delta.tool_calls`        | Tool/function calls                   |
-| `error`      | `output.TypeError`    | `ErrorProps`    | `error`                   | Error messages                        |
-| `action`     | `output.TypeAction`   | `ActionProps`   | (not sent)                | System actions (silent)               |
+| Message Type | Constant              | Props Structure | OpenAI Format             | Description                               |
+| ------------ | --------------------- | --------------- | ------------------------- | ----------------------------------------- |
+| `text`       | `output.TypeText`     | `TextProps`     | `delta.content`           | Plain text or Markdown                    |
+| `thinking`   | `output.TypeThinking` | `ThinkingProps` | `delta.reasoning_content` | Reasoning process (o1 models)             |
+| `loading`    | `output.TypeLoading`  | `LoadingProps`  | `delta.reasoning_content` | Loading indicator (shows as thinking)     |
+| `tool_call`  | `output.TypeToolCall` | `ToolCallProps` | `delta.tool_calls`        | Tool/function calls                       |
+| `error`      | `output.TypeError`    | `ErrorProps`    | `error`                   | Error messages                            |
+| `action`     | `output.TypeAction`   | `ActionProps`   | (not sent)                | System actions (silent)                   |
+| `event`      | `output.TypeEvent`    | `EventProps`    | (conditional)             | Lifecycle events (stream_start converted) |
+
+### Event Type (Lifecycle Events)
+
+The `event` type has special handling in the OpenAI adapter:
+
+| Event Name     | Conversion                                  | Example Output                                      |
+| -------------- | ------------------------------------------- | --------------------------------------------------- |
+| `stream_start` | Converted to trace link (with i18n support) | 🔍 智能体正在处理 - [查看处理详情](/trace/xxx/view) |
+| Other events   | Silent (not sent)                           | -                                                   |
+
+**Conversion Logic for `stream_start`:**
+
+1. **Extract trace data**: Gets `TraceID` from event data
+2. **Check model capabilities**: Determines if model supports reasoning
+3. **Format based on capabilities**:
+   - **Reasoning models** (o1, DeepSeek R1): Uses `reasoning_content` field with 🔍 icon
+   - **Regular models**: Uses `content` field with 🚀 icon
+4. **Apply i18n**: Uses locale from context for localized text
+5. **Generate trace link**: Creates clickable link to `/trace/{traceID}/view` for standalone viewing
+
+**Example Conversion:**
+
+```go
+// Input (event message)
+{
+  "type": "event",
+  "props": {
+    "event": "stream_start",
+    "message": "Stream started",
+    "data": {
+      "trace_id": "20251122779905354593",
+      "request_id": "ctx-1763779905679380000",
+      "chat_id": "uP4CWZCMHy84nCw7"
+    }
+  }
+}
+
+// Output (reasoning model - Chinese locale)
+{
+  "choices": [{
+    "delta": {
+      "reasoning_content": "🔍 智能体正在处理 - [查看处理详情](http://localhost:8000/__yao_admin_root/trace/20251122779905354593/view)\n"
+    }
+  }]
+}
+
+// Output (regular model - English locale)
+{
+  "choices": [{
+    "delta": {
+      "content": "🚀 Assistant is processing - [View process](http://localhost:8000/__yao_admin_root/trace/20251122779905354593/view)\n"
+    }
+  }]
+}
+```
+
+**Internationalization:**
+
+The adapter uses `i18n.T()` to provide localized text:
+
+| Key                   | English (en-us)         | Chinese (zh-cn) |
+| --------------------- | ----------------------- | --------------- |
+| `output.stream_start` | Assistant is processing | 智能体正在处理  |
+| `output.view_trace`   | View process            | 查看处理详情    |
 
 ### Custom Types
 

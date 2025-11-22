@@ -221,10 +221,11 @@ type JSONSchema struct {
 // StreamStartData represents the data for stream_start event
 // Sent when a streaming request begins
 type StreamStartData struct {
-	RequestID    string                 `json:"request_id"`             // Unique identifier for this request
-	Timestamp    int64                  `json:"timestamp"`              // Unix timestamp when stream started
-	Model        string                 `json:"model,omitempty"`        // Model being used (e.g., "gpt-4o")
-	Capabilities map[string]interface{} `json:"capabilities,omitempty"` // Model capabilities for this request
+	RequestID string         `json:"request_id"`          // Unique identifier for this request
+	Timestamp int64          `json:"timestamp"`           // Unix timestamp when stream started
+	ChatID    string         `json:"chat_id"`             // Chat ID being used (e.g., "chat-123")
+	TraceID   string         `json:"trace_id"`            // Trace ID being used (e.g., "trace-123")
+	Assistant *AssistantInfo `json:"assistant,omitempty"` // Assistant information
 }
 
 // StreamEndData represents the data for stream_end event

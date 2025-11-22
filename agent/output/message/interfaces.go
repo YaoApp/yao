@@ -9,7 +9,7 @@ type Writer interface {
 	Write(msg *Message) error
 
 	// WriteGroup writes a group of messages
-	WriteGroup(group *MessageGroup) error
+	WriteGroup(group *Group) error
 
 	// Flush flushes any buffered data
 	Flush() error

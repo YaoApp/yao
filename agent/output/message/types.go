@@ -35,8 +35,8 @@ type Metadata struct {
 	TraceID   string `json:"trace_id,omitempty"`  // Trace ID (for debugging)
 }
 
-// MessageGroup represents a semantically complete group of messages
-type MessageGroup struct {
+// Group represents a semantically complete group of messages
+type Group struct {
 	ID       string     `json:"id"`                 // Message group ID
 	Messages []*Message `json:"messages"`           // List of messages
 	Metadata *Metadata  `json:"metadata,omitempty"` // Metadata
@@ -60,6 +60,14 @@ const (
 	// System types (not visible in standard chat clients)
 	TypeAction = "action" // System action (open panel, navigate, etc.) - silent in OpenAI clients
 	TypeEvent  = "event"  // Lifecycle event (stream_start, stream_end, etc.) - CUI only, silent in OpenAI clients
+)
+
+// Event types for TypeEvent messages
+const (
+	EventStreamStart = "stream_start" // Stream started event
+	EventStreamEnd   = "stream_end"   // Stream ended event
+	EventGroupStart  = "group_start"  // Message group started event
+	EventGroupEnd    = "group_end"    // Message group ended event
 )
 
 // Standard Props structures for built-in types

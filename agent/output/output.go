@@ -26,7 +26,7 @@ func Send(ctx *context.Context, msg *message.Message) error {
 }
 
 // SendGroup sends a message group using the appropriate writer for the context
-func SendGroup(ctx *context.Context, group *message.MessageGroup) error {
+func SendGroup(ctx *context.Context, group *message.Group) error {
 	writer, err := GetWriter(ctx)
 	if err != nil {
 		return err

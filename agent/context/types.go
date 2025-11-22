@@ -177,6 +177,15 @@ type InterruptController struct {
 	contextID       string                `json:"-"` // Context ID to retrieve the parent context
 }
 
+// AssistantInfo represents the assistant information structure
+type AssistantInfo struct {
+	ID          string `json:"assistant_id"`          // Assistant ID
+	Type        string `json:"type,omitempty"`        // Assistant Type, default is assistant
+	Name        string `json:"name,omitempty"`        // Assistant Name
+	Avatar      string `json:"avatar,omitempty"`      // Assistant Avatar
+	Description string `json:"description,omitempty"` // Assistant Description
+}
+
 // Context the context
 type Context struct {
 
@@ -189,6 +198,9 @@ type Context struct {
 	Stacks map[string]*Stack  `json:"-"`  // Stacks, all stacks in this request (for trace logging)
 	Writer Writer             `json:"-"`  // Writer, it will be used to write response data to the client
 	trace  traceTypes.Manager `json:"-"`  // Trace manager, lazy initialized on first access
+
+	// Model capabilities (set by assistant, used by output adapters)
+	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector
 
 	// Interrupt control (all interrupt-related logic is encapsulated in InterruptController)
 	Interrupt *InterruptController `json:"-"` // Interrupt controller for handling user interrupts during streaming

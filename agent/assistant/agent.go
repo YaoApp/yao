@@ -40,10 +40,27 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	_ = traceID // traceID is available for trace logging
 
+	// Get connector and capabilities early (before sending stream_start)
+	// so that output adapters can use them when converting stream_start event
+	if ast.Prompts != nil || ast.MCP != nil {
+		_, capabilities, err := ast.GetConnector(ctx)
+		if err != nil {
+			streamHandler := ast.getStreamHandler(ctx, handler...)
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+			return nil, err
+		}
+
+		// Set capabilities in context for output adapters to use
+		if capabilities != nil {
+			ctx.Capabilities = capabilities
+		}
+	}
+
 	// Determine stream handler
 	streamHandler := ast.getStreamHandler(ctx, handler...)
 
 	// Send ChunkStreamStart only for root stack (agent-level stream start)
+	// Now ctx.Capabilities is set, so output adapters can use it
 	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
 
 	// Trace Add
@@ -111,7 +128,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			return nil, err
 		}
 
-		// Get connector object and capabilities
+		// Get connector object (capabilities were already set above, before stream_start)
 		conn, capabilities, err := ast.GetConnector(ctx)
 		if err != nil {
 			if agentNode != nil {
@@ -336,6 +353,21 @@ func (ast *Assistant) BuildRequest(ctx *context.Context, messages []context.Mess
 	}
 
 	return finalMessages, options, nil
+}
+
+// Info get the assistant information
+func (ast *Assistant) Info(locale ...string) *context.AssistantInfo {
+	lc := "en"
+	if len(locale) > 0 {
+		lc = locale[0]
+	}
+	return &context.AssistantInfo{
+		ID:          ast.ID,
+		Type:        ast.Type,
+		Name:        i18n.Tr(ast.ID, lc, ast.Name),
+		Avatar:      ast.Avatar,
+		Description: i18n.Tr(ast.ID, lc, ast.Description),
+	}
 }
 
 // buildMessages builds the final message list with proper priority
@@ -642,11 +674,13 @@ func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler context
 		return
 	}
 
-	requestID := fmt.Sprintf("agent_req_%d", startTime.UnixNano())
-	startData := &context.StreamStartData{
-		RequestID: requestID,
+	// Build the start data
+	startData := context.StreamStartData{
+		RequestID: ctx.RequestID(),
 		Timestamp: startTime.UnixMilli(),
-		Model:     ast.ID, // Use assistant ID as the "model" for agent-level stream
+		Assistant: ast.Info(ctx.Locale),
+		ChatID:    ctx.ChatID,
+		TraceID:   ctx.TraceID(),
 	}
 
 	if startJSON, err := jsoniter.Marshal(startData); err == nil {
@@ -667,7 +701,7 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler context.S
 	}
 
 	endData := &context.StreamEndData{
-		RequestID:  fmt.Sprintf("agent_req_%d", startTime.UnixNano()),
+		RequestID:  ctx.RequestID(),
 		Timestamp:  time.Now().UnixMilli(),
 		DurationMs: time.Since(startTime).Milliseconds(),
 		Status:     status,

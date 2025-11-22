@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
@@ -16,15 +18,16 @@ type ConverterRegistry struct {
 func NewConverterRegistry() *ConverterRegistry {
 	return &ConverterRegistry{
 		converters: map[string]ConverterFunc{
-			message.TypeText:     convertText,
-			message.TypeThinking: convertThinking,
-			message.TypeLoading:  convertLoading,
-			message.TypeToolCall: convertToolCall,
-			message.TypeError:    convertError,
-			message.TypeImage:    convertImage,
-			message.TypeAudio:    convertToLink,
-			message.TypeVideo:    convertToLink,
-			message.TypeAction:   convertAction,
+			message.TypeText:         convertText,
+			message.TypeThinking:     convertThinking,
+			message.TypeLoading:      convertLoading,
+			message.TypeToolCall:     convertToolCall,
+			message.TypeError:        convertError,
+			message.TypeImage:        convertImage,
+			message.TypeAudio:        convertToLink,
+			message.TypeVideo:        convertToLink,
+			message.TypeAction:       convertAction,
+			message.EventStreamStart: convertStreamStart, // Handle stream_start events
 		},
 	}
 }
@@ -135,6 +138,84 @@ func convertError(msg *message.Message, config *AdapterConfig) ([]interface{}, e
 func convertAction(msg *message.Message, config *AdapterConfig) ([]interface{}, error) {
 	// Return empty slice - no output for action messages in OpenAI format
 	return []interface{}{}, nil
+}
+
+// convertStreamStart converts stream_start event to OpenAI format
+// If model supports reasoning: converts to reasoning_content (thinking)
+// Otherwise: converts to regular Markdown text with trace link
+func convertStreamStart(msg *message.Message, config *AdapterConfig) ([]interface{}, error) {
+	// Extract stream_start data from props
+	data, ok := msg.Props["data"]
+	if !ok {
+		// No data, skip this message
+		return []interface{}{}, nil
+	}
+
+	// Try to convert to StreamStartData
+	var startData context.StreamStartData
+	switch v := data.(type) {
+	case context.StreamStartData:
+		startData = v
+	case map[string]interface{}:
+		// If it's a map, try to extract traceID
+		if traceID, ok := v["trace_id"].(string); ok {
+			startData.TraceID = traceID
+		}
+		if requestID, ok := v["request_id"].(string); ok {
+			startData.RequestID = requestID
+		}
+	default:
+		// Unknown data type, skip
+		return []interface{}{}, nil
+	}
+
+	// Check if we have a trace ID to link to
+	if startData.TraceID == "" {
+		// No trace ID, skip this message
+		return []interface{}{}, nil
+	}
+
+	// Generate trace link
+	traceLink := generateTraceLink(startData.TraceID, config)
+
+	// Check if model supports reasoning
+	supportsReasoning := false
+	if config.Capabilities != nil && config.Capabilities.Reasoning != nil {
+		supportsReasoning = *config.Capabilities.Reasoning
+	}
+
+	// Get localized text using i18n
+	streamStartText := i18n.T(config.Locale, "output.stream_start")
+	viewTraceText := i18n.T(config.Locale, "output.view_trace")
+
+	// Convert based on reasoning support
+	if supportsReasoning {
+		// Convert to thinking format (reasoning_content)
+		// Reasoning models display this as part of the thinking process
+		content := fmt.Sprintf("🔍 %s - [%s](%s)\n", streamStartText, viewTraceText, traceLink)
+		chunk := createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+			"reasoning_content": content,
+		})
+		return []interface{}{chunk}, nil
+	}
+
+	// Convert to regular Markdown text
+	content := fmt.Sprintf("🚀 %s - [%s](%s)\n", streamStartText, viewTraceText, traceLink)
+	chunk := createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		"content": content,
+	})
+	return []interface{}{chunk}, nil
+}
+
+// generateTraceLink generates a trace link URL
+// Uses 'view' mode (clean page without sidebar) for better viewing experience in chat
+func generateTraceLink(traceID string, config *AdapterConfig) string {
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		// If no base URL, return a relative link
+		return fmt.Sprintf("/trace/%s/view", traceID)
+	}
+	return fmt.Sprintf("%s/trace/%s/view", baseURL, traceID)
 }
 
 // convertImage converts image messages to Markdown image format
