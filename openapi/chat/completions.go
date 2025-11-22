@@ -2,6 +2,7 @@ package chat
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
@@ -189,3 +190,74 @@ func GinCreateCompletions(c *gin.Context) {
 
 // GinUpdateCompletions handles PUT /chat/:assistant_id/completions - Update a chat completion metadata
 func GinUpdateCompletions(c *gin.Context) {}
+
+// GinAppendMessages handles POST /chat/:assistant_id/completions/:context_id/append
+// Appends messages to a running completion (for user pre-input while AI is still generating)
+func GinAppendMessages(c *gin.Context) {
+	// Get context_id from URL parameter
+	contextID := c.Param("context_id")
+	if contextID == "" {
+		response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "context_id is required",
+		})
+		return
+	}
+
+	// Parse request body
+	var req AppendMessagesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid request body: " + err.Error(),
+		})
+		return
+	}
+
+	// Validate interrupt type
+	if req.Type != context.InterruptGraceful && req.Type != context.InterruptForce {
+		response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Invalid interrupt type. Must be 'graceful' or 'force'",
+		})
+		return
+	}
+
+	// Validate messages
+	if len(req.Messages) == 0 {
+		response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "At least one message is required",
+		})
+		return
+	}
+
+	// Create interrupt signal
+	signal := &context.InterruptSignal{
+		Type:      req.Type,
+		Messages:  req.Messages,
+		Timestamp: time.Now().UnixMilli(),
+		Metadata:  req.Metadata,
+	}
+
+	// Send interrupt signal to the context
+	if err := context.SendInterrupt(contextID, signal); err != nil {
+		log.Trace("[INTERRUPT] Failed to send interrupt signal: context_id=%s, error=%v", contextID, err)
+		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to send interrupt: " + err.Error(),
+		})
+		return
+	}
+
+	log.Trace("[INTERRUPT] Interrupt signal sent successfully: context_id=%s, type=%s, messages=%d",
+		contextID, req.Type, len(req.Messages))
+
+	// Return success response
+	response.RespondWithSuccess(c, response.StatusOK, gin.H{
+		"message":    "Messages appended successfully",
+		"context_id": contextID,
+		"type":       req.Type,
+		"timestamp":  signal.Timestamp,
+	})
+}
