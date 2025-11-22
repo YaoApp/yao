@@ -263,11 +263,15 @@ type Stack struct {
 // Response the response
 // 100% compatible with the OpenAI API
 type Response struct {
-	Create     *HookCreateResponse   `json:"create,omitempty"`
-	MCP        *ResponseHookMCP      `json:"mcp,omitempty"`
-	Done       *ResponseHookDone     `json:"done,omitempty"`
-	Failback   *ResponseHookFailback `json:"failback,omitempty"`
-	Completion *CompletionResponse   `json:"completion,omitempty"`
+	RequestID   string                `json:"request_id"`   // Request ID for the response
+	ContextID   string                `json:"context_id"`   // Context ID for the response
+	ChatID      string                `json:"chat_id"`      // Chat ID for the response
+	AssistantID string                `json:"assistant_id"` // Assistant ID for the response
+	Create      *HookCreateResponse   `json:"create,omitempty"`
+	MCP         *ResponseHookMCP      `json:"mcp,omitempty"`
+	Done        *ResponseHookDone     `json:"done,omitempty"`
+	Failback    *ResponseHookFailback `json:"failback,omitempty"`
+	Completion  *CompletionResponse   `json:"completion,omitempty"`
 }
 
 // HookCreateResponse the response of the create hook

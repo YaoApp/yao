@@ -249,7 +249,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 	}
 
-	return &context.Response{Create: createResponse, Done: doneResponse, Completion: completionResponse}, nil
+	return &context.Response{
+		ContextID:   ctx.ID,
+		RequestID:   ctx.RequestID(),
+		ChatID:      ctx.ChatID,
+		AssistantID: ast.ID,
+		Create:      createResponse, Done: doneResponse, Completion: completionResponse}, nil
 }
 
 // GetConnector get the connector object, capabilities, and error with priority: createResponse > ctx > ast
@@ -676,11 +681,12 @@ func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler context
 
 	// Build the start data
 	startData := context.StreamStartData{
+		ContextID: ctx.ID,
+		ChatID:    ctx.ChatID,
+		TraceID:   ctx.TraceID(),
 		RequestID: ctx.RequestID(),
 		Timestamp: startTime.UnixMilli(),
 		Assistant: ast.Info(ctx.Locale),
-		ChatID:    ctx.ChatID,
-		TraceID:   ctx.TraceID(),
 	}
 
 	if startJSON, err := jsoniter.Marshal(startData); err == nil {
