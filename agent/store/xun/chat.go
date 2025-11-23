@@ -29,15 +29,15 @@ func (conv *Xun) UpdateChatTitle(sid string, cid string, title string) error {
 
 // GetChat get the chat info and its history
 func (conv *Xun) GetChat(sid string, cid string, locale ...string) (*types.ChatInfo, error) {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return nil, err
-	}
+	// userID, err := conv.getUserID(sid)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Get chat info
 	qb := conv.newQueryChat().
 		Select("chat_id", "title", "assistant_id").
-		Where("sid", userID).
+		// Where("sid", userID).
 		Where("chat_id", cid)
 
 	row, err := qb.First()
@@ -93,15 +93,15 @@ func (conv *Xun) GetChat(sid string, cid string, locale ...string) (*types.ChatI
 
 // GetChatWithFilter get the chat info and its history with filter options
 func (conv *Xun) GetChatWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) (*types.ChatInfo, error) {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return nil, err
-	}
+	// userID, err := conv.getUserID(sid)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Get chat info
 	qb := conv.newQueryChat().
 		Select("chat_id", "title", "assistant_id").
-		Where("sid", userID).
+		// Where("sid", userID).
 		Where("chat_id", cid)
 
 	row, err := qb.First()
@@ -209,10 +209,10 @@ func (conv *Xun) GetChats(sid string, filter types.ChatFilter, locale ...string)
 
 // getChatsWithFilter get the chats with filter options
 func (conv *Xun) getChatsWithFilter(sid string, filter types.ChatFilter, locale ...string) (*types.ChatGroupResponse, error) {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return nil, err
-	}
+	// userID, err := conv.getUserID(sid)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Set default values
 	if filter.Page <= 0 {
@@ -226,8 +226,8 @@ func (conv *Xun) getChatsWithFilter(sid string, filter types.ChatFilter, locale 
 	}
 
 	// Get total count
-	qbCount := conv.newQueryChat().
-		Where("sid", userID)
+	qbCount := conv.newQueryChat()
+	// Where("sid", userID)
 
 	// Apply silent filter if provided
 	if filter.Silent != nil {
@@ -257,8 +257,8 @@ func (conv *Xun) getChatsWithFilter(sid string, filter types.ChatFilter, locale 
 
 	// Get chats with pagination
 	qb := conv.newQueryChat().
-		Select("chat_id", "title", "assistant_id", "silent", "created_at", "updated_at").
-		Where("sid", userID)
+		Select("chat_id", "title", "assistant_id", "silent", "created_at", "updated_at")
+		// Where("sid", userID)
 
 	// Apply silent filter if provided
 	if filter.Silent != nil {

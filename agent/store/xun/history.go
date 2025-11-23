@@ -13,14 +13,14 @@ import (
 
 // GetHistory get the history
 func (conv *Xun) GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error) {
-	userID, err := conv.getUserID(sid)
-	if err != nil {
-		return nil, err
-	}
+	// userID, err := conv.getUserID(sid)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	qb := conv.newQuery().
 		Select("role", "name", "content", "context", "assistant_id", "assistant_name", "assistant_avatar", "mentions", "uid", "silent", "created_at", "updated_at").
-		Where("sid", userID).
+		// Where("sid", userID).
 		Where("cid", cid).
 		OrderBy("id", "desc")
 
