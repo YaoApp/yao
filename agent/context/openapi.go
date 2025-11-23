@@ -421,18 +421,16 @@ func parseCompletionRequestData(c *gin.Context) (*CompletionRequest, error) {
 			}
 
 			// If we got valid data from body, validate and return
-			if req.Model != "" && len(req.Messages) > 0 {
+			// Model is optional if assistant_id can be extracted later
+			if len(req.Messages) > 0 {
 				return &req, nil
 			}
 		}
 	}
 
 	// Fallback: Try to parse from query parameters
-	// Required fields
+	// Model is optional (can be extracted from assistant_id)
 	model := c.Query("model")
-	if model == "" {
-		return nil, fmt.Errorf("model field is required")
-	}
 	req.Model = model
 
 	// Messages (required, must be JSON string in query)
