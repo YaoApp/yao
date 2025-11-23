@@ -99,13 +99,24 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 		})
 	}
 
+	// Format as SSE (Server-Sent Events) format: "data: {json}\n\n"
+	sseData := []byte("data: ")
+	sseData = append(sseData, data...)
+	sseData = append(sseData, '\n', '\n')
+
 	// Send via context's writer
 	// The context knows how to send data based on the connection type (SSE, WebSocket, etc.)
-	if err := w.ctx.Send(data); err != nil {
+	if err := w.ctx.Send(sseData); err != nil {
 		if trace, _ := w.ctx.Trace(); trace != nil {
 			trace.Error(i18n.T(w.ctx.Locale, "output.cui.writer.send_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send data to client"
 		}
 		return err
+	}
+
+	// Flush immediately to ensure real-time streaming
+	// Cast to http.ResponseWriter and call Flush if available
+	if flusher, ok := w.ctx.Writer.(interface{ Flush() }); ok {
+		flusher.Flush()
 	}
 
 	return nil

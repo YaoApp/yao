@@ -157,6 +157,12 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 		return err
 	}
 
+	// Flush immediately to ensure real-time streaming
+	// Cast to http.ResponseWriter and call Flush if available
+	if flusher, ok := w.ctx.Writer.(interface{ Flush() }); ok {
+		flusher.Flush()
+	}
+
 	return nil
 }
 
@@ -174,6 +180,11 @@ func (w *Writer) sendDone() error {
 			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.done_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send [DONE] to client"
 		}
 		return err
+	}
+
+	// Flush the final [DONE] message
+	if flusher, ok := w.ctx.Writer.(interface{ Flush() }); ok {
+		flusher.Flush()
 	}
 
 	return nil

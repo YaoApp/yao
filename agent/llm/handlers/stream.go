@@ -232,6 +232,18 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 
 // handleStreamEnd handles stream end event
 func (s *streamState) handleStreamEnd(data []byte) int {
+	// Parse the stream end data
+	var endData context.StreamEndData
+	if err := jsoniter.Unmarshal(data, &endData); err != nil {
+		log.Error("Failed to parse stream_end data: %v", err)
+		output.Flush(s.ctx)
+		return 0
+	}
+
+	// Send stream_end event as a message to frontend
+	msg := output.NewEventMessage("stream_end", "Stream completed", endData)
+	output.Send(s.ctx, msg)
+
 	// Flush any remaining data
 	output.Flush(s.ctx)
 	return 0 // Continue (stream will end naturally)
