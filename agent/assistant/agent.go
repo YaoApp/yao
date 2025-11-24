@@ -376,17 +376,40 @@ func (ast *Assistant) Info(locale ...string) *context.AssistantInfo {
 }
 
 // buildMessages builds the final message list with proper priority
-// Priority: createResponse.Messages > input messages
+// Priority: Prompts > createResponse.Messages > input messages
 // If createResponse is nil or has no messages, use input messages
 func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) ([]context.Message, error) {
-	// If createResponse is nil or has no messages, return input messages as-is
+	var finalMessages []context.Message
+
+	// If createResponse is nil or has no messages, use input messages
 	if createResponse == nil || len(createResponse.Messages) == 0 {
-		return messages, nil
+		finalMessages = messages
+	} else {
+		// createResponse.Messages takes priority over input messages
+		finalMessages = createResponse.Messages
 	}
 
-	// createResponse.Messages takes highest priority
-	// Return them directly as they override everything
-	return createResponse.Messages, nil
+	// ⚠️ Just for testing, will remove later
+	// If we have prompts, prepend them to the beginning
+	if len(ast.Prompts) > 0 {
+		promptMessages := make([]context.Message, 0, len(ast.Prompts))
+		for _, prompt := range ast.Prompts {
+			msg := context.Message{
+				Role:    context.MessageRole(prompt.Role),
+				Content: prompt.Content,
+			}
+			// Add name if provided
+			if prompt.Name != "" {
+				name := prompt.Name
+				msg.Name = &name
+			}
+			promptMessages = append(promptMessages, msg)
+		}
+		// Prepend prompt messages to the beginning
+		finalMessages = append(promptMessages, finalMessages...)
+	}
+
+	return finalMessages, nil
 }
 
 // buildCompletionOptions builds completion options from multiple sources
