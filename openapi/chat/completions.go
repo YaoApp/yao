@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
@@ -44,24 +43,6 @@ func GinCreateCompletions(c *gin.Context) {
 		ctx.Release()
 	}()
 
-	// Print request info for debugging
-	fmt.Println("-----------------------------------------------")
-	fmt.Println("Chat ID: ", ctx.ChatID)
-	fmt.Println("Assistant ID: ", ctx.AssistantID)
-	fmt.Println("Model: ", completionReq.Model)
-	fmt.Println("Locale: ", ctx.Locale)
-	fmt.Println("Messages count: ", len(completionReq.Messages))
-	if completionReq.Temperature != nil {
-		fmt.Println("Temperature: ", *completionReq.Temperature)
-	}
-	if completionReq.Stream != nil {
-		fmt.Println("Stream: ", *completionReq.Stream)
-	}
-	if completionReq.Metadata != nil {
-		fmt.Println("Metadata: ", completionReq.Metadata)
-	}
-	fmt.Println("-----------------------------------------------")
-
 	ast, err := assistant.Get(ctx.AssistantID)
 	if err != nil {
 		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
@@ -80,25 +61,15 @@ func GinCreateCompletions(c *gin.Context) {
 	// Stream the completion (uses default handler which sends to ctx.Writer)
 	// The Stream method will automatically close the writer and send [DONE] marker
 	log.Trace("[HTTP] Calling ast.Stream()")
-	res, err := ast.Stream(ctx, completionReq.Messages)
+	_, err = ast.Stream(ctx, completionReq.Messages)
 	log.Trace("[HTTP] ast.Stream() returned, err=%v", err)
 	if err != nil {
-		fmt.Println("-----------------------------------------------")
-		fmt.Println("Error: ", err.Error())
-		fmt.Println("-----------------------------------------------")
-
 		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: "Failed to stream: " + err.Error(),
 		})
 		return
 	}
-
-	fmt.Println("-----------------------------------------------")
-	fmt.Println("Stream completed successfully")
-	fmt.Println("Response: ")
-	utils.Dump(res)
-	fmt.Println("-----------------------------------------------")
 
 	// c.JSON(response.StatusOK, gin.H{
 	// 	"message":        "Create Completions",
@@ -224,10 +195,11 @@ func GinAppendMessages(c *gin.Context) {
 	}
 
 	// Validate messages
-	if len(req.Messages) == 0 {
+	// Allow empty messages for force interrupt (pure cancellation without appending)
+	if len(req.Messages) == 0 && req.Type != context.InterruptForce {
 		response.RespondWithError(c, response.StatusBadRequest, &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "At least one message is required",
+			ErrorDescription: "At least one message is required (unless force interrupt for cancellation)",
 		})
 		return
 	}
@@ -249,9 +221,6 @@ func GinAppendMessages(c *gin.Context) {
 		})
 		return
 	}
-
-	log.Trace("[INTERRUPT] Interrupt signal sent successfully: context_id=%s, type=%s, messages=%d",
-		contextID, req.Type, len(req.Messages))
 
 	// Return success response
 	response.RespondWithSuccess(c, response.StatusOK, gin.H{
