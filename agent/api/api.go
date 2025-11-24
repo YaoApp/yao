@@ -397,7 +397,7 @@ func (agent *API) handleChatLatest(c *gin.Context) {
 	// Create a new chat
 	if len(chats.Groups) == 0 || len(chats.Groups[0].Chats) == 0 {
 
-		assistantID := agent.Use.Default
+		assistantID := agent.Uses.Default
 		queryAssistantID := c.Query("assistant_id")
 		if queryAssistantID != "" {
 			assistantID = queryAssistantID
@@ -416,7 +416,7 @@ func (agent *API) handleChatLatest(c *gin.Context) {
 			"assistant_id":         ast.ID,
 			"assistant_name":       ast.GetName(locale),
 			"assistant_avatar":     ast.Avatar,
-			"assistant_deleteable": agent.Use.Default != ast.ID,
+			"assistant_deleteable": agent.Uses.Default != ast.ID,
 		}})
 		c.Done()
 		return
@@ -439,10 +439,10 @@ func (agent *API) handleChatLatest(c *gin.Context) {
 
 	// assistant_id is nil return the default assistant
 	if chat.Chat["assistant_id"] == nil {
-		chat.Chat["assistant_id"] = agent.Use.Default
+		chat.Chat["assistant_id"] = agent.Uses.Default
 
 		// Get the assistant info
-		ast, err := assistant.Get(agent.Use.Default)
+		ast, err := assistant.Get(agent.Uses.Default)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
@@ -452,7 +452,7 @@ func (agent *API) handleChatLatest(c *gin.Context) {
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
-	chat.Chat["assistant_deleteable"] = agent.Use.Default != chat.Chat["assistant_id"]
+	chat.Chat["assistant_deleteable"] = agent.Uses.Default != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
@@ -488,10 +488,10 @@ func (agent *API) handleChatDetail(c *gin.Context) {
 
 	// assistant_id is nil return the default assistant
 	if chat.Chat["assistant_id"] == nil {
-		chat.Chat["assistant_id"] = agent.Use.Default
+		chat.Chat["assistant_id"] = agent.Uses.Default
 
 		// Get the assistant info
-		ast, err := assistant.Get(agent.Use.Default)
+		ast, err := assistant.Get(agent.Uses.Default)
 		if err != nil {
 			c.JSON(500, gin.H{"message": err.Error(), "code": 500})
 			c.Done()
@@ -501,7 +501,7 @@ func (agent *API) handleChatDetail(c *gin.Context) {
 		chat.Chat["assistant_avatar"] = ast.Avatar
 	}
 
-	chat.Chat["assistant_deleteable"] = agent.Use.Default != chat.Chat["assistant_id"]
+	chat.Chat["assistant_deleteable"] = agent.Uses.Default != chat.Chat["assistant_id"]
 	c.JSON(200, map[string]interface{}{"data": chat})
 	c.Done()
 }
@@ -674,7 +674,7 @@ func (agent *API) handleGenerateTitle(c *gin.Context) {
 
 	// // Set the assistant ID
 	// ctx = chatctx.WithHistoryVisible(ctx, false)
-	// ctx = chatctx.WithAssistantID(ctx, agent.Use.Title)
+	// ctx = chatctx.WithAssistantID(ctx, agent.Uses.Title)
 
 	err := agent.Answer(ctx, content, c)
 
@@ -714,7 +714,7 @@ func (agent *API) handleGeneratePrompts(c *gin.Context) {
 
 	// // Set the assistant ID
 	// ctx = chatctx.WithHistoryVisible(ctx, false)
-	// ctx = chatctx.WithAssistantID(ctx, agent.Use.Prompt)
+	// ctx = chatctx.WithAssistantID(ctx, agent.Uses.Prompt)
 	err := agent.Answer(ctx, content, c)
 
 	// Error handling

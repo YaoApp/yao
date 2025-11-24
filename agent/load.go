@@ -45,18 +45,18 @@ func Load(cfg config.Config) error {
 	}
 
 	// Default Assistant, Agent is the developer name, Mohe is the brand name of the assistant
-	if setting.Use == nil {
-		setting.Use = &types.Use{Default: "mohe"} // Agent is the developer name, Mohe is the brand name of the assistant
+	if setting.Uses == nil {
+		setting.Uses = &types.Uses{Default: "mohe"} // Agent is the developer name, Mohe is the brand name of the assistant
 	}
 
 	// Title Assistant
-	if setting.Use.Title == "" {
-		setting.Use.Title = setting.Use.Default
+	if setting.Uses.Title == "" {
+		setting.Uses.Title = setting.Uses.Default
 	}
 
 	// Prompt Assistant
-	if setting.Use.Prompt == "" {
-		setting.Use.Prompt = setting.Use.Default
+	if setting.Uses.Prompt == "" {
+		setting.Uses.Prompt = setting.Uses.Default
 	}
 
 	// Initialize Agent API
@@ -173,12 +173,12 @@ func initAssistant() error {
 	}
 
 	// Set global Uses configuration
-	if api.Agent.DSL.Use != nil {
+	if api.Agent.DSL.Uses != nil {
 		globalUses := &context.Uses{
-			Vision: api.Agent.DSL.Use.Vision,
-			Audio:  api.Agent.DSL.Use.Audio,
-			Search: api.Agent.DSL.Use.Search,
-			Fetch:  api.Agent.DSL.Use.Fetch,
+			Vision: api.Agent.DSL.Uses.Vision,
+			Audio:  api.Agent.DSL.Uses.Audio,
+			Search: api.Agent.DSL.Uses.Search,
+			Fetch:  api.Agent.DSL.Uses.Fetch,
 		}
 		assistant.SetGlobalUses(globalUses)
 	}
@@ -205,8 +205,8 @@ func initAssistant() error {
 
 // defaultAssistant get the default assistant
 func defaultAssistant() (*assistant.Assistant, error) {
-	if api.Agent.DSL.Use == nil || api.Agent.DSL.Use.Default == "" {
+	if api.Agent.DSL.Uses == nil || api.Agent.DSL.Uses.Default == "" {
 		return nil, fmt.Errorf("default assistant not found")
 	}
-	return assistant.Get(api.Agent.DSL.Use.Default)
+	return assistant.Get(api.Agent.DSL.Uses.Default)
 }

@@ -930,3 +930,208 @@ func TestGetCompletionRequest_ChatIDFallback(t *testing.T) {
 		t.Errorf("Expected ChatID to be at least 8 characters, got %d", len(ctx.ChatID))
 	}
 }
+
+func TestGetSkip_FromBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("POST", "/chat/completions", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	completionReq := &CompletionRequest{
+		Skip: &Skip{
+			History: true,
+			Trace:   false,
+		},
+	}
+
+	skip := GetSkip(c, completionReq)
+	if skip == nil {
+		t.Fatal("Expected skip to be returned")
+	}
+
+	if !skip.History {
+		t.Error("Expected skip.History to be true")
+	}
+
+	if skip.Trace {
+		t.Error("Expected skip.Trace to be false")
+	}
+}
+
+func TestGetSkip_FromQueryParams(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions?skip_history=true&skip_trace=false", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	skip := GetSkip(c, nil)
+	if skip == nil {
+		t.Fatal("Expected skip to be returned")
+	}
+
+	if !skip.History {
+		t.Error("Expected skip.History to be true from query param")
+	}
+
+	if skip.Trace {
+		t.Error("Expected skip.Trace to be false")
+	}
+}
+
+func TestGetSkip_FromQueryParams_ShortForm(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions?skip_history=1&skip_trace=1", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	skip := GetSkip(c, nil)
+	if skip == nil {
+		t.Fatal("Expected skip to be returned")
+	}
+
+	if !skip.History {
+		t.Error("Expected skip.History to be true from query param (1)")
+	}
+
+	if !skip.Trace {
+		t.Error("Expected skip.Trace to be true from query param (1)")
+	}
+}
+
+func TestGetSkip_Priority(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// Body should take priority over query
+	req := httptest.NewRequest("POST", "/chat/completions?skip_history=false&skip_trace=false", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	completionReq := &CompletionRequest{
+		Skip: &Skip{
+			History: true,
+			Trace:   true,
+		},
+	}
+
+	skip := GetSkip(c, completionReq)
+	if skip == nil {
+		t.Fatal("Expected skip to be returned")
+	}
+
+	// Body should take priority
+	if !skip.History {
+		t.Error("Expected body parameter to take priority, skip.History should be true")
+	}
+
+	if !skip.Trace {
+		t.Error("Expected body parameter to take priority, skip.Trace should be true")
+	}
+}
+
+func TestGetSkip_Nil(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	skip := GetSkip(c, nil)
+	if skip != nil {
+		t.Errorf("Expected skip to be nil, got %v", skip)
+	}
+}
+
+func TestGetSkip_OnlyHistorySet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions?skip_history=true", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	skip := GetSkip(c, nil)
+	if skip == nil {
+		t.Fatal("Expected skip to be returned")
+	}
+
+	if !skip.History {
+		t.Error("Expected skip.History to be true")
+	}
+
+	if skip.Trace {
+		t.Error("Expected skip.Trace to be false (default)")
+	}
+}
+
+func TestGetSkip_FromBodyViaParseRequest(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	// Test parsing Skip from full request body
+	messages := []Message{
+		{
+			Role:    RoleUser,
+			Content: "Generate a title for this chat",
+		},
+	}
+
+	requestBody := map[string]interface{}{
+		"model":    "workers.system.title-yao_test",
+		"messages": messages,
+		"skip": map[string]interface{}{
+			"history": true,
+			"trace":   false,
+		},
+	}
+
+	bodyBytes, _ := json.Marshal(requestBody)
+
+	req := httptest.NewRequest("POST", "/chat/completions", bytes.NewBuffer(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	// Parse the request
+	completionReq, err := parseCompletionRequestData(c)
+	if err != nil {
+		t.Fatalf("Failed to parse completion request: %v", err)
+	}
+
+	// Verify Skip was parsed correctly
+	if completionReq.Skip == nil {
+		t.Fatal("Expected Skip to be parsed from body, got nil")
+	}
+
+	if !completionReq.Skip.History {
+		t.Error("Expected Skip.History to be true from body")
+	}
+
+	if completionReq.Skip.Trace {
+		t.Error("Expected Skip.Trace to be false from body")
+	}
+
+	// Now test GetSkip function with the parsed request
+	skip := GetSkip(c, completionReq)
+	if skip == nil {
+		t.Fatal("Expected GetSkip to return skip configuration")
+	}
+
+	if !skip.History {
+		t.Error("Expected GetSkip to return History=true")
+	}
+
+	if skip.Trace {
+		t.Error("Expected GetSkip to return Trace=false")
+	}
+}

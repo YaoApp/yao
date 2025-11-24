@@ -186,18 +186,25 @@ type AssistantInfo struct {
 	Description string `json:"description,omitempty"` // Assistant Description
 }
 
+// Skip configuration for what to skip in this request
+type Skip struct {
+	History bool `json:"history"` // Skip saving chat history (for internal calls like title/prompt generation)
+	Trace   bool `json:"trace"`   // Skip trace logging
+}
+
 // Context the context
 type Context struct {
 
 	// Context
 	context.Context
-	ID     string             `json:"id"` // Context ID for external interrupt identification
-	Space  plan.Space         `json:"-"`  // Shared data space, it will be used to share data between the request and the call
-	Cache  store.Store        `json:"-"`  // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
-	Stack  *Stack             `json:"-"`  // Stack, current active stack of the request
-	Stacks map[string]*Stack  `json:"-"`  // Stacks, all stacks in this request (for trace logging)
-	Writer Writer             `json:"-"`  // Writer, it will be used to write response data to the client
-	trace  traceTypes.Manager `json:"-"`  // Trace manager, lazy initialized on first access
+	ID     string             `json:"id"`             // Context ID for external interrupt identification
+	Space  plan.Space         `json:"-"`              // Shared data space, it will be used to share data between the request and the call
+	Cache  store.Store        `json:"-"`              // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Stack  *Stack             `json:"-"`              // Stack, current active stack of the request
+	Stacks map[string]*Stack  `json:"-"`              // Stacks, all stacks in this request (for trace logging)
+	Writer Writer             `json:"-"`              // Writer, it will be used to write response data to the client
+	Skip   *Skip              `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
+	trace  traceTypes.Manager `json:"-"`              // Trace manager, lazy initialized on first access
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector
@@ -443,6 +450,7 @@ type CompletionRequest struct {
 	// CUI Context information
 	Route    string                 `json:"route,omitempty"`    // Optional: route of the request for CUI context
 	Metadata map[string]interface{} `json:"metadata,omitempty"` // Optional: metadata to pass to the page for CUI context
+	Skip     *Skip                  `json:"skip,omitempty"`     // Optional: skip configuration (history, trace, etc.)
 }
 
 // AudioConfig represents the audio output configuration for models that support audio

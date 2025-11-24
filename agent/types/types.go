@@ -12,9 +12,9 @@ type DSL struct {
 
 	// Agent Global Settings
 	// ===============================
-	Use          *Use          `json:"use,omitempty" yaml:"use,omitempty"` // Which assistant to use default, title, prompt
-	StoreSetting store.Setting `json:"store" yaml:"store"`                 // The store setting of the assistant
-	Cache        string        `json:"cache" yaml:"cache"`                 // The cache store of the assistant, if not set, default is "__yao.agent.cache"
+	Uses         *Uses         `json:"uses,omitempty" yaml:"uses,omitempty"` // Which assistant to use default, title, prompt
+	StoreSetting store.Setting `json:"store" yaml:"store"`                   // The store setting of the assistant
+	Cache        string        `json:"cache" yaml:"cache"`                   // The cache store of the assistant, if not set, default is "__yao.agent.cache"
 
 	// AuthSetting      *Auth         `json:"auth,omitempty" yaml:"auth,omitempty"`           // Authenticate Settings
 	// UploadSetting    *Upload       `json:"upload,omitempty" yaml:"upload,omitempty"`       // Upload Settings
@@ -38,9 +38,9 @@ type DSL struct {
 	GuardHandlers []gin.HandlerFunc `json:"-" yaml:"-"`
 }
 
-// Use the default assistant settings
+// Uses the default assistant settings
 // ===============================
-type Use struct {
+type Uses struct {
 	Default string `json:"default,omitempty" yaml:"default,omitempty"` // The default assistant to use
 	Title   string `json:"title,omitempty" yaml:"title,omitempty"`     // The assistant for generating the topic title.
 	Prompt  string `json:"prompt,omitempty" yaml:"prompt,omitempty"`   // The assistant for generating the prompt.
