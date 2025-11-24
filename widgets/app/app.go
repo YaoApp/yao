@@ -12,7 +12,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
-	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/session"
@@ -552,6 +551,13 @@ func processXgen(process *process.Process) interface{} {
 	// The default assistant
 	agentConfig := map[string]interface{}{}
 	if agent.Agent != nil {
+
+		// Add Uses Settings
+		if agent.Agent.DSL != nil && agent.Agent.DSL.Uses != nil {
+			agentConfig["uses"] = agent.Agent.DSL.Uses
+		}
+
+		// Add Default Assistant Settings ( Will be removed later )
 		if ast, ok := agent.Agent.Assistant.(*assistant.Assistant); ok {
 			agentConfig["default"] = map[string]interface{}{
 				"assistant_id":         ast.ID,
@@ -562,8 +568,8 @@ func processXgen(process *process.Process) interface{} {
 			}
 		}
 
-		// Available connectors
-		agentConfig["connectors"] = connector.AIConnectors
+		// Available connectors Removed later, It not be used yet, use the openapi instead.
+		// agentConfig["connectors"] = connector.AIConnectors
 	}
 
 	// OpenAPI Settings

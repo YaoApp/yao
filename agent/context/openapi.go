@@ -65,6 +65,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 		},
 		Route:    GetRoute(c, completionReq),
 		Metadata: GetMetadata(c, completionReq),
+		Skip:     GetSkip(c, completionReq),
 	}
 
 	// Initialize interrupt controller
@@ -358,6 +359,30 @@ func GetRoute(c *gin.Context, req *CompletionRequest) string {
 	}
 
 	return ""
+}
+
+// GetSkip extracts skip configuration from request with priority:
+// 1. CompletionRequest.Skip (from payload body) - Priority
+// 2. Individual query parameters: "skip_history", "skip_trace"
+func GetSkip(c *gin.Context, req *CompletionRequest) *Skip {
+	// Priority 1: From CompletionRequest body (most direct)
+	if req != nil && req.Skip != nil {
+		return req.Skip
+	}
+
+	// Priority 2: Individual query parameters (recommended for query usage)
+	skipHistory := c.Query("skip_history") == "true" || c.Query("skip_history") == "1"
+	skipTrace := c.Query("skip_trace") == "true" || c.Query("skip_trace") == "1"
+
+	// Check if any skip parameter is set
+	if c.Query("skip_history") != "" || c.Query("skip_trace") != "" {
+		return &Skip{
+			History: skipHistory,
+			Trace:   skipTrace,
+		}
+	}
+
+	return nil
 }
 
 // GetMetadata extracts metadata from request with priority:
