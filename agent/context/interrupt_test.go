@@ -520,10 +520,11 @@ func TestInterruptContext(t *testing.T) {
 		// Get context before interrupt
 		interruptCtx := ctx.Interrupt.Context()
 
-		// Send force interrupt
+		// Send force interrupt with empty messages (pure cancellation)
+		// This is the pattern for stopping streaming without appending messages
 		signal := &InterruptSignal{
 			Type:      InterruptForce,
-			Messages:  []Message{{Role: RoleUser, Content: "force stop"}},
+			Messages:  []Message{}, // Empty messages = pure cancellation
 			Timestamp: time.Now().UnixMilli(),
 		}
 		err := SendInterrupt(ctx.ID, signal)
@@ -536,9 +537,9 @@ func TestInterruptContext(t *testing.T) {
 		// The OLD context should be cancelled
 		select {
 		case <-interruptCtx.Done():
-			t.Log("✓ Force interrupt cancelled the old context")
+			t.Log("✓ Force interrupt with empty messages cancelled the old context")
 		case <-time.After(200 * time.Millisecond):
-			t.Error("Old context was not cancelled after force interrupt")
+			t.Error("Old context was not cancelled after force interrupt with empty messages")
 		}
 
 		// Note: IsInterrupted() checks the NEW context (which was recreated)

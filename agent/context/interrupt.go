@@ -73,9 +73,9 @@ func (ic *InterruptController) handleSignal(signal *InterruptSignal) {
 		ic.pending = append(ic.pending, signal)
 	}
 
-	// For force interrupt, cancel the interrupt context
+	// For force interrupt with no messages (pure cancellation), cancel the interrupt context
 	// This allows LLM streaming and other operations to check and stop
-	if signal.Type == InterruptForce {
+	if signal.Type == InterruptForce && len(signal.Messages) == 0 {
 		if ic.cancel != nil {
 			ic.cancel()
 			// Create a new context for potential future operations
