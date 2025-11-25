@@ -11,7 +11,7 @@ import (
 
 // DefaultStreamHandler creates a default stream handler that sends messages via context
 // This handler is used when no custom handler is provided
-func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
+func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 
 	// Create stream state manager
 	state := &streamState{
@@ -20,7 +20,7 @@ func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
 		currentID: "",
 	}
 
-	return func(chunkType context.StreamChunkType, data []byte) int {
+	return func(chunkType message.StreamChunkType, data []byte) int {
 		trace, _ := ctx.Trace()
 		if trace != nil {
 			trace.Info(i18n.T(ctx.Locale, "llm.handlers.stream.info"), map[string]any{"data": string(data)})
@@ -28,31 +28,31 @@ func DefaultStreamHandler(ctx *context.Context) context.StreamFunc {
 
 		// Handle different chunk types
 		switch chunkType {
-		case context.ChunkStreamStart:
+		case message.ChunkStreamStart:
 			return state.handleStreamStart(data)
 
-		case context.ChunkGroupStart:
+		case message.ChunkGroupStart:
 			return state.handleGroupStart(data)
 
-		case context.ChunkText:
+		case message.ChunkText:
 			return state.handleText(data)
 
-		case context.ChunkThinking:
+		case message.ChunkThinking:
 			return state.handleThinking(data)
 
-		case context.ChunkToolCall:
+		case message.ChunkToolCall:
 			return state.handleToolCall(data)
 
-		case context.ChunkMetadata:
+		case message.ChunkMetadata:
 			return state.handleMetadata(data)
 
-		case context.ChunkError:
+		case message.ChunkError:
 			return state.handleError(data)
 
-		case context.ChunkGroupEnd:
+		case message.ChunkGroupEnd:
 			return state.handleGroupEnd(data)
 
-		case context.ChunkStreamEnd:
+		case message.ChunkStreamEnd:
 			return state.handleStreamEnd(data)
 
 		default:
@@ -75,13 +75,13 @@ type streamState struct {
 func (s *streamState) handleStreamStart(data []byte) int {
 	// Send event message to indicate stream has started
 	// This is a lifecycle event, CUI clients can show it, OpenAI clients will ignore it
-	var startData context.StreamStartData
+	var startData message.StreamStartData
 	err := jsoniter.Unmarshal(data, &startData)
 	if err != nil {
 		log.Error("Failed to unmarshal stream start data: %v", err)
 	}
 	msg := output.NewEventMessage("stream_start", "Stream started", startData)
-	output.Send(s.ctx, msg)
+	s.ctx.Send(msg)
 	return 0
 }
 
@@ -120,7 +120,7 @@ func (s *streamState) handleText(data []byte) int {
 		},
 	}
 
-	if err := output.Send(s.ctx, msg); err != nil {
+	if err := s.ctx.Send(msg); err != nil {
 		// Log error but continue streaming
 		return 0
 	}
@@ -155,7 +155,7 @@ func (s *streamState) handleThinking(data []byte) int {
 		},
 	}
 
-	if err := output.Send(s.ctx, msg); err != nil {
+	if err := s.ctx.Send(msg); err != nil {
 		return 0
 	}
 
@@ -176,7 +176,7 @@ func (s *streamState) handleToolCall(data []byte) int {
 		},
 	}
 
-	output.Send(s.ctx, msg)
+	s.ctx.Send(msg)
 	return 0 // Continue
 }
 
@@ -191,7 +191,7 @@ func (s *streamState) handleMetadata(data []byte) int {
 func (s *streamState) handleError(data []byte) int {
 	// Send error message
 	msg := output.NewErrorMessage(string(data), "stream_error")
-	output.Send(s.ctx, msg)
+	s.ctx.Send(msg)
 
 	return 1 // Stop streaming on error
 }
@@ -218,7 +218,7 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 				"content": string(s.buffer),
 			},
 		}
-		output.Send(s.ctx, msg)
+		s.ctx.Send(msg)
 	}
 
 	// Reset state
@@ -233,19 +233,19 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 // handleStreamEnd handles stream end event
 func (s *streamState) handleStreamEnd(data []byte) int {
 	// Parse the stream end data
-	var endData context.StreamEndData
+	var endData message.StreamEndData
 	if err := jsoniter.Unmarshal(data, &endData); err != nil {
 		log.Error("Failed to parse stream_end data: %v", err)
-		output.Flush(s.ctx)
+		s.ctx.Flush()
 		return 0
 	}
 
 	// Send stream_end event as a message to frontend
 	msg := output.NewEventMessage("stream_end", "Stream completed", endData)
-	output.Send(s.ctx, msg)
+	s.ctx.Send(msg)
 
 	// Flush any remaining data
-	output.Flush(s.ctx)
+	s.ctx.Flush()
 	return 0 // Continue (stream will end naturally)
 }
 

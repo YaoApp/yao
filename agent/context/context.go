@@ -157,14 +157,14 @@ func (ctx *Context) Release() {
 
 // Send sends data to the context's writer
 // This is used by the output module to send messages to the client
-func (ctx *Context) Send(data []byte) error {
-	if ctx.Writer == nil {
-		return nil // No writer, silently ignore
-	}
+// func (ctx *Context) Send(data []byte) error {
+// 	if ctx.Writer == nil {
+// 		return nil // No writer, silently ignore
+// 	}
 
-	_, err := ctx.Writer.Write(data)
-	return err
-}
+// 	_, err := ctx.Writer.Write(data)
+// 	return err
+// }
 
 // Trace returns the trace manager for this context, lazily initialized on first call
 // Uses the TraceID from ctx.Stack if available, or generates a new one

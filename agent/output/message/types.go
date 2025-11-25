@@ -1,5 +1,34 @@
 package message
 
+import (
+	"net/http"
+
+	traceTypes "github.com/yaoapp/yao/trace/types"
+)
+
+// Options are the options for the writer
+type Options struct {
+	BaseURL      string
+	Accept       string
+	Writer       http.ResponseWriter
+	Trace        traceTypes.Manager
+	Capabilities *ModelCapabilities
+	Locale       string
+}
+
+// ModelCapabilities defines the capabilities of a language model
+// Used by LLM to select appropriate provider and validate requests
+type ModelCapabilities struct {
+	Vision                interface{} `json:"vision,omitempty"`                 // Supports vision/image input: bool or VisionFormat string ("openai", "claude"/"base64", "default")
+	ToolCalls             *bool       `json:"tool_calls,omitempty"`             // Supports tool/function calling
+	Audio                 *bool       `json:"audio,omitempty"`                  // Supports audio input/output
+	Reasoning             *bool       `json:"reasoning,omitempty"`              // Supports reasoning/thinking mode (o1, DeepSeek R1)
+	Streaming             *bool       `json:"streaming,omitempty"`              // Supports streaming responses
+	JSON                  *bool       `json:"json,omitempty"`                   // Supports JSON mode
+	Multimodal            *bool       `json:"multimodal,omitempty"`             // Supports multimodal input (text + images + audio)
+	TemperatureAdjustable *bool       `json:"temperature_adjustable,omitempty"` // Supports temperature adjustment (reasoning models typically don't)
+}
+
 // Message represents a universal message structure (DSL)
 // All messages are expressed through Type + Props, without predefining specific types
 type Message struct {
@@ -185,3 +214,133 @@ const (
 	DeltaMerge   = "merge"   // Merge (for objects)
 	DeltaSet     = "set"     // Set (for new fields)
 )
+
+// StreamChunkType represents the type of content in a streaming chunk
+type StreamChunkType string
+
+// Stream chunk type constants - indicates what type of content is in the current chunk
+const (
+	// Content chunk types - actual data from the LLM
+	ChunkText     StreamChunkType = "text"      // Regular text content
+	ChunkThinking StreamChunkType = "thinking"  // Reasoning/thinking content (o1, DeepSeek R1)
+	ChunkToolCall StreamChunkType = "tool_call" // Tool/function call
+	ChunkRefusal  StreamChunkType = "refusal"   // Model refusal
+	ChunkMetadata StreamChunkType = "metadata"  // Metadata (usage, finish_reason, etc.)
+	ChunkError    StreamChunkType = "error"     // Error chunk
+	ChunkUnknown  StreamChunkType = "unknown"   // Unknown/unrecognized chunk type
+
+	// Lifecycle event types - stream and group boundaries
+	ChunkStreamStart StreamChunkType = "stream_start" // Stream begins (entire request starts)
+	ChunkStreamEnd   StreamChunkType = "stream_end"   // Stream ends (entire request completes)
+	ChunkGroupStart  StreamChunkType = "group_start"  // Message group begins (text/tool_call/thinking group starts)
+	ChunkGroupEnd    StreamChunkType = "group_end"    // Message group ends (text/tool_call/thinking group completes)
+)
+
+// StreamFunc the streaming function callback
+// Parameters:
+//   - chunkType: the type of content in this chunk (text, thinking, tool_call, etc.)
+//   - data: the actual chunk data (could be text, JSON, or other format)
+//
+// Returns:
+//   - int: status code (0 = continue, non-zero = stop streaming)
+type StreamFunc func(chunkType StreamChunkType, data []byte) int
+
+// AssistantInfo represents the assistant information structure
+type AssistantInfo struct {
+	ID          string `json:"assistant_id"`          // Assistant ID
+	Type        string `json:"type,omitempty"`        // Assistant Type, default is assistant
+	Name        string `json:"name,omitempty"`        // Assistant Name
+	Avatar      string `json:"avatar,omitempty"`      // Assistant Avatar
+	Description string `json:"description,omitempty"` // Assistant Description
+}
+
+// UsageInfo represents token usage statistics
+// Structure matches OpenAI API: https://platform.openai.com/docs/api-reference/chat/object#chat-object-usage
+type UsageInfo struct {
+	PromptTokens     int `json:"prompt_tokens"`     // Number of tokens in the prompt
+	CompletionTokens int `json:"completion_tokens"` // Number of tokens in the generated completion
+	TotalTokens      int `json:"total_tokens"`      // Total number of tokens used (prompt + completion)
+
+	// Detailed token breakdown
+	PromptTokensDetails     *PromptTokensDetails     `json:"prompt_tokens_details,omitempty"`     // Breakdown of tokens used in the prompt
+	CompletionTokensDetails *CompletionTokensDetails `json:"completion_tokens_details,omitempty"` // Breakdown of tokens used in the completion
+}
+
+// PromptTokensDetails provides detailed breakdown of tokens used in the prompt
+type PromptTokensDetails struct {
+	AudioTokens  int `json:"audio_tokens,omitempty"`  // Audio input tokens present in the prompt
+	CachedTokens int `json:"cached_tokens,omitempty"` // Cached tokens present in the prompt
+}
+
+// CompletionTokensDetails provides detailed breakdown of tokens used in the completion
+type CompletionTokensDetails struct {
+	AcceptedPredictionTokens int `json:"accepted_prediction_tokens,omitempty"` // Tokens from predictions that appeared in the completion
+	AudioTokens              int `json:"audio_tokens,omitempty"`               // Audio input tokens generated by the model
+	ReasoningTokens          int `json:"reasoning_tokens,omitempty"`           // Tokens generated by the model for reasoning (o1, o1-mini, DeepSeek R1)
+	RejectedPredictionTokens int `json:"rejected_prediction_tokens,omitempty"` // Tokens from predictions that did not appear in the completion
+}
+
+// ============================================================================
+// Stream Lifecycle Event Data Structures
+// ============================================================================
+// These structures define the data format for stream lifecycle events.
+// They provide a standardized way to communicate stream boundaries and metadata
+// to the frontend, enabling better UI/UX (progress indicators, timing, etc.).
+
+// StreamStartData represents the data for stream_start event
+// Sent when a streaming request begins
+type StreamStartData struct {
+	ContextID string                 `json:"context_id"`          // Context ID for the response
+	RequestID string                 `json:"request_id"`          // Unique identifier for this request
+	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when stream started
+	ChatID    string                 `json:"chat_id"`             // Chat ID being used (e.g., "chat-123")
+	TraceID   string                 `json:"trace_id"`            // Trace ID being used (e.g., "trace-123")
+	Assistant *AssistantInfo         `json:"assistant,omitempty"` // Assistant information
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // Metadata to pass to the page for CUI context
+}
+
+// StreamEndData represents the data for stream_end event
+// Sent when a streaming request completes (successfully or with error)
+type StreamEndData struct {
+	RequestID  string                 `json:"request_id"`         // Corresponding request ID
+	ContextID  string                 `json:"context_id"`         // Context ID for the response
+	TraceID    string                 `json:"trace_id"`           // Trace ID being used (e.g., "trace-123")
+	Timestamp  int64                  `json:"timestamp"`          // Unix timestamp when stream ended
+	DurationMs int64                  `json:"duration_ms"`        // Total duration in milliseconds
+	Status     string                 `json:"status"`             // "completed" | "error" | "cancelled"
+	Error      string                 `json:"error,omitempty"`    // Error message if status is "error"
+	Usage      *UsageInfo             `json:"usage,omitempty"`    // Token usage statistics
+	Metadata   map[string]interface{} `json:"metadata,omitempty"` // Metadata to pass to the page for CUI context
+}
+
+// GroupStartData represents the data for group_start event
+// Sent when a logical message group begins (text, tool_call, thinking, etc.)
+type GroupStartData struct {
+	GroupID   string                 `json:"group_id"`            // Unique identifier for this group
+	Type      string                 `json:"type"`                // Group type: "text" | "thinking" | "tool_call" | "refusal"
+	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when group started
+	ToolCall  *GroupToolCallInfo     `json:"tool_call,omitempty"` // Tool call metadata (if type is "tool_call")
+	Extra     map[string]interface{} `json:"extra,omitempty"`     // Additional metadata (for custom providers or future extensions)
+}
+
+// GroupEndData represents the data for group_end event
+// Sent when a logical message group completes
+type GroupEndData struct {
+	GroupID    string                 `json:"group_id"`            // Corresponding group ID
+	Type       string                 `json:"type"`                // Group type (same as in group_start)
+	Timestamp  int64                  `json:"timestamp"`           // Unix timestamp when group ended
+	DurationMs int64                  `json:"duration_ms"`         // Duration of this group in milliseconds
+	ChunkCount int                    `json:"chunk_count"`         // Number of data chunks in this group
+	Status     string                 `json:"status"`              // "completed" | "partial" | "error"
+	ToolCall   *GroupToolCallInfo     `json:"tool_call,omitempty"` // Complete tool call info (if type is "tool_call")
+	Extra      map[string]interface{} `json:"extra,omitempty"`     // Additional metadata
+}
+
+// GroupToolCallInfo contains tool call information for group events
+// Used in both group_start (partial info) and group_end (complete info)
+type GroupToolCallInfo struct {
+	ID        string `json:"id"`                  // Tool call ID (e.g., "call_abc123")
+	Name      string `json:"name"`                // Function name (may be partial in group_start)
+	Arguments string `json:"arguments,omitempty"` // Complete arguments (only in group_end)
+	Index     int    `json:"index"`               // Index in the tool calls array
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -89,7 +90,7 @@ func TestClaudeSonnet4StreamBasic(t *testing.T) {
 	ctx := newClaudeTestContext("test-claude-sonnet4-basic", "claude.sonnet-4_0")
 
 	var chunks []string
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		chunks = append(chunks, string(data))
 		t.Logf("Stream chunk [%s]: %s", chunkType, string(data))
 		return 0
@@ -406,11 +407,11 @@ func TestClaudeSonnet4ThinkingStream(t *testing.T) {
 
 	var thinkingChunks []string
 	var textChunks []string
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		t.Logf("Stream chunk [%s]: %s", chunkType, string(data))
-		if chunkType == context.ChunkThinking {
+		if chunkType == message.ChunkThinking {
 			thinkingChunks = append(thinkingChunks, string(data))
-		} else if chunkType == context.ChunkText {
+		} else if chunkType == message.ChunkText {
 			textChunks = append(textChunks, string(data))
 		}
 		return 0

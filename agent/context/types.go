@@ -6,6 +6,7 @@ import (
 
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 )
@@ -205,6 +206,7 @@ type Context struct {
 	Writer Writer             `json:"-"`              // Writer, it will be used to write response data to the client
 	Skip   *Skip              `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
 	trace  traceTypes.Manager `json:"-"`              // Trace manager, lazy initialized on first access
+	output *output.Output     `json:"-"`              // Output, it will be used to write response data to the client
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector

@@ -6,11 +6,12 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm/providers/openai"
+	"github.com/yaoapp/yao/agent/output/message"
 )
 
 // LLM interface (copied to avoid import cycle)
 type LLM interface {
-	Stream(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler context.StreamFunc) (*context.CompletionResponse, error)
+	Stream(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler message.StreamFunc) (*context.CompletionResponse, error)
 	Post(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error)
 }
 

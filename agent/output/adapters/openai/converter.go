@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 )
@@ -152,9 +151,9 @@ func convertStreamStart(msg *message.Message, config *AdapterConfig) ([]interfac
 	}
 
 	// Try to convert to StreamStartData
-	var startData context.StreamStartData
+	var startData message.StreamStartData
 	switch v := data.(type) {
-	case context.StreamStartData:
+	case message.StreamStartData:
 		startData = v
 	case map[string]interface{}:
 		// If it's a map, try to extract traceID
