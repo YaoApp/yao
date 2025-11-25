@@ -45,6 +45,9 @@ type Group struct {
 // Built-in message types that all adapters must support
 // These types have standardized Props structures
 const (
+	// User interaction types
+	TypeUserInput = "user_input" // User input message (frontend display only)
+
 	// Content types
 	TypeText     = "text"      // Plain text or Markdown content
 	TypeThinking = "thinking"  // Reasoning/thinking process (e.g., o1 models)
@@ -71,6 +74,15 @@ const (
 )
 
 // Standard Props structures for built-in types
+
+// UserInputProps defines the standard structure for user input messages
+// Type: "user_input"
+// Props: {"content": string | ContentPart[], "role": string, "name": string}
+type UserInputProps struct {
+	Content interface{} `json:"content"`        // User input (text string or multimodal ContentPart[])
+	Role    string      `json:"role,omitempty"` // User role: "user", "system", "developer" (default: "user")
+	Name    string      `json:"name,omitempty"` // Optional participant name
+}
 
 // TextProps defines the standard structure for text messages
 // Type: "text"
