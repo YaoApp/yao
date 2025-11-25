@@ -221,23 +221,27 @@ type JSONSchema struct {
 // StreamStartData represents the data for stream_start event
 // Sent when a streaming request begins
 type StreamStartData struct {
-	ContextID string         `json:"context_id"`          // Context ID for the response
-	RequestID string         `json:"request_id"`          // Unique identifier for this request
-	Timestamp int64          `json:"timestamp"`           // Unix timestamp when stream started
-	ChatID    string         `json:"chat_id"`             // Chat ID being used (e.g., "chat-123")
-	TraceID   string         `json:"trace_id"`            // Trace ID being used (e.g., "trace-123")
-	Assistant *AssistantInfo `json:"assistant,omitempty"` // Assistant information
+	ContextID string                 `json:"context_id"`          // Context ID for the response
+	RequestID string                 `json:"request_id"`          // Unique identifier for this request
+	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when stream started
+	ChatID    string                 `json:"chat_id"`             // Chat ID being used (e.g., "chat-123")
+	TraceID   string                 `json:"trace_id"`            // Trace ID being used (e.g., "trace-123")
+	Assistant *AssistantInfo         `json:"assistant,omitempty"` // Assistant information
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // Metadata to pass to the page for CUI context
 }
 
 // StreamEndData represents the data for stream_end event
 // Sent when a streaming request completes (successfully or with error)
 type StreamEndData struct {
-	RequestID  string     `json:"request_id"`      // Corresponding request ID
-	Timestamp  int64      `json:"timestamp"`       // Unix timestamp when stream ended
-	DurationMs int64      `json:"duration_ms"`     // Total duration in milliseconds
-	Status     string     `json:"status"`          // "completed" | "error" | "cancelled"
-	Error      string     `json:"error,omitempty"` // Error message if status is "error"
-	Usage      *UsageInfo `json:"usage,omitempty"` // Token usage statistics
+	RequestID  string                 `json:"request_id"`         // Corresponding request ID
+	ContextID  string                 `json:"context_id"`         // Context ID for the response
+	TraceID    string                 `json:"trace_id"`           // Trace ID being used (e.g., "trace-123")
+	Timestamp  int64                  `json:"timestamp"`          // Unix timestamp when stream ended
+	DurationMs int64                  `json:"duration_ms"`        // Total duration in milliseconds
+	Status     string                 `json:"status"`             // "completed" | "error" | "cancelled"
+	Error      string                 `json:"error,omitempty"`    // Error message if status is "error"
+	Usage      *UsageInfo             `json:"usage,omitempty"`    // Token usage statistics
+	Metadata   map[string]interface{} `json:"metadata,omitempty"` // Metadata to pass to the page for CUI context
 }
 
 // GroupStartData represents the data for group_start event
