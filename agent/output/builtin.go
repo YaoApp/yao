@@ -14,6 +14,24 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// NewUserInputMessage creates a user input message (for frontend display)
+// content can be string or []ContentPart for multimodal content
+func NewUserInputMessage(content interface{}, role, name string) *message.Message {
+	props := map[string]interface{}{
+		"content": content,
+	}
+	if role != "" {
+		props["role"] = role
+	}
+	if name != "" {
+		props["name"] = name
+	}
+	return &message.Message{
+		Type:  message.TypeUserInput,
+		Props: props,
+	}
+}
+
 // NewTextMessage creates a text message
 func NewTextMessage(content string) *message.Message {
 	return &message.Message{
@@ -125,7 +143,7 @@ func NewVideoMessage(url string) *message.Message {
 // IsBuiltinType checks if a message type is a built-in type
 func IsBuiltinType(msgType string) bool {
 	switch msgType {
-	case message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
+	case message.TypeUserInput, message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
 		return true
 	default:
 		return false

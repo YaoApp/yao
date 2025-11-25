@@ -8,24 +8,116 @@ Defined in `types.go`:
 
 ```go
 const (
-    TypeText     = "text"      // Plain text or Markdown content
-    TypeThinking = "thinking"  // Reasoning/thinking process
-    TypeLoading  = "loading"   // Loading/processing indicator
-    TypeToolCall = "tool_call" // LLM tool/function call
-    TypeError    = "error"     // Error message
-    TypeImage    = "image"     // Image content
-    TypeAudio    = "audio"     // Audio content
-    TypeVideo    = "video"     // Video content
-    TypeAction   = "action"    // System action (silent in standard clients)
-    TypeEvent    = "event"     // Lifecycle event (silent in standard clients)
+    TypeUserInput = "user_input" // User input message (frontend display only)
+    TypeText      = "text"       // Plain text or Markdown content
+    TypeThinking  = "thinking"   // Reasoning/thinking process
+    TypeLoading   = "loading"    // Loading/processing indicator
+    TypeToolCall  = "tool_call"  // LLM tool/function call
+    TypeError     = "error"      // Error message
+    TypeImage     = "image"      // Image content
+    TypeAudio     = "audio"      // Audio content
+    TypeVideo     = "video"      // Video content
+    TypeAction    = "action"     // System action (silent in standard clients)
+    TypeEvent     = "event"      // Lifecycle event (silent in standard clients)
 )
 ```
 
 ## Standard Props Structures
 
-### 1. Text (`text`)
+### 1. User Input (`user_input`)
 
-**Purpose:** Plain text or Markdown content
+**Purpose:** User input message (for frontend display only)
+
+**Props Structure:**
+
+```go
+type UserInputProps struct {
+    Content interface{} `json:"content"`        // User input (text string or multimodal ContentPart[])
+    Role    string      `json:"role,omitempty"` // User role: "user", "system", "developer" (default: "user")
+    Name    string      `json:"name,omitempty"` // Optional participant name
+}
+```
+
+**Example:**
+
+```json
+{
+  "type": "user_input",
+  "props": {
+    "content": "Hello, can you help me?",
+    "role": "user"
+  }
+}
+```
+
+**Multimodal Example:**
+
+```json
+{
+  "type": "user_input",
+  "props": {
+    "content": [
+      {
+        "type": "text",
+        "text": "What's in this image?"
+      },
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "https://example.com/photo.jpg"
+        }
+      }
+    ],
+    "role": "user"
+  }
+}
+```
+
+**Helper:**
+
+```go
+// Simple text input
+msg := output.NewUserInputMessage("Hello, can you help me?", "user", "")
+
+// With name
+msg := output.NewUserInputMessage("I need assistance", "user", "John")
+
+// Multimodal content
+content := []map[string]interface{}{
+    {
+        "type": "text",
+        "text": "What's in this image?",
+    },
+    {
+        "type": "image_url",
+        "image_url": map[string]string{
+            "url": "https://example.com/photo.jpg",
+        },
+    },
+}
+msg := output.NewUserInputMessage(content, "user", "")
+```
+
+**Important Notes:**
+
+- **Frontend display only**: This type is used by the frontend to display user input in the chat UI
+- **Not sent to backend**: User input is sent to backend as `UserMessage` (OpenAI format), not as `Message`
+- **Preserves role**: Unlike `text` type, preserves the original user role (`user`, `system`, `developer`)
+- **Supports multimodal**: Can contain text, images, audio, or files
+
+**Data Flow:**
+
+```
+User types → UserMessage (sent to API) → Backend processes → Message types (AI response)
+           ↓
+           UserInputMessage (frontend display)
+```
+
+---
+
+### 2. Text (`text`)
+
+**Purpose:** Plain text or Markdown content (AI responses)
 
 **Props Structure:**
 
@@ -54,7 +146,7 @@ msg := output.NewTextMessage("Hello **world**!")
 
 ---
 
-### 2. Thinking (`thinking`)
+### 3. Thinking (`thinking`)
 
 **Purpose:** Reasoning or thinking process (used by o1 models, DeepSeek R1, etc.)
 
@@ -85,7 +177,7 @@ msg := output.NewThinkingMessage("Let me analyze this step by step...")
 
 ---
 
-### 3. Loading (`loading`)
+### 4. Loading (`loading`)
 
 **Purpose:** Loading or processing indicator (preprocessing, knowledge base search, data fetching, etc.)
 
@@ -150,7 +242,7 @@ func Create(ctx *context.Context, messages []context.Message) (*context.HookCrea
 
 ---
 
-### 4. Tool Call (`tool_call`)
+### 5. Tool Call (`tool_call`)
 
 **Purpose:** LLM tool or function call
 
@@ -189,7 +281,7 @@ msg := output.NewToolCallMessage(
 
 ---
 
-### 5. Error (`error`)
+### 6. Error (`error`)
 
 **Purpose:** Error message
 
@@ -224,7 +316,7 @@ msg := output.NewErrorMessage("Connection timeout", "TIMEOUT")
 
 ---
 
-### 6. Action (`action`)
+### 7. Action (`action`)
 
 **Purpose:** System-level action/command (not displayed to user, only processed by client)
 
@@ -295,7 +387,7 @@ output.Send(ctx, output.NewTextMessage("I've opened the user details panel for y
 
 ---
 
-### 7. Event (`event`)
+### 8. Event (`event`)
 
 **Purpose:** Lifecycle event messages (stream_start, stream_end, connecting, etc.)
 
@@ -383,7 +475,7 @@ output.Send(ctx, output.NewEventMessage("stream_end", "Stream completed", map[st
 
 ---
 
-### 8. Image (`image`)
+### 9. Image (`image`)
 
 **Purpose:** Image content
 
@@ -426,7 +518,7 @@ msg := output.NewImageMessage("https://example.com/avatar.jpg", "User avatar")
 
 ---
 
-### 9. Audio (`audio`)
+### 10. Audio (`audio`)
 
 **Purpose:** Audio content
 
@@ -471,7 +563,7 @@ msg := output.NewAudioMessage("https://example.com/audio.mp3", "mp3")
 
 ---
 
-### 10. Video (`video`)
+### 11. Video (`video`)
 
 **Purpose:** Video content
 
@@ -541,18 +633,19 @@ CUI adapter passes built-in types through without transformation:
 
 OpenAI adapter converts built-in types to OpenAI format:
 
-| Type        | OpenAI Format             | Field                         | Note                                                                 |
-| ----------- | ------------------------- | ----------------------------- | -------------------------------------------------------------------- |
-| `text`      | `delta.content`           | `props.content`               |                                                                      |
-| `thinking`  | `delta.reasoning_content` | `props.content`               | Reasoning content (o1 models)                                        |
-| `loading`   | `delta.reasoning_content` | `props.message`               | Shows as thinking in OpenAI clients                                  |
-| `tool_call` | `delta.tool_calls`        | `props.{id, name, arguments}` |                                                                      |
-| `error`     | `error`                   | `props.{message, code}`       |                                                                      |
-| `image`     | `delta.content`           | `props.{url, alt}`            | Markdown: `![alt](url)` - displays inline                            |
-| `audio`     | `delta.content`           | `props.url`                   | Markdown link (can't display inline)                                 |
-| `video`     | `delta.content`           | `props.url`                   | Markdown link (can't display inline)                                 |
-| `action`    | (not sent)                | -                             | Silent - system actions only                                         |
-| `event`     | (conditional)             | `props.{event, data}`         | Most events silent; `stream_start` converted to trace link with i18n |
+| Type         | OpenAI Format             | Field                         | Note                                                                 |
+| ------------ | ------------------------- | ----------------------------- | -------------------------------------------------------------------- |
+| `user_input` | (not sent)                | -                             | Frontend display only - not sent to OpenAI clients                   |
+| `text`       | `delta.content`           | `props.content`               |                                                                      |
+| `thinking`   | `delta.reasoning_content` | `props.content`               | Reasoning content (o1 models)                                        |
+| `loading`    | `delta.reasoning_content` | `props.message`               | Shows as thinking in OpenAI clients                                  |
+| `tool_call`  | `delta.tool_calls`        | `props.{id, name, arguments}` |                                                                      |
+| `error`      | `error`                   | `props.{message, code}`       |                                                                      |
+| `image`      | `delta.content`           | `props.{url, alt}`            | Markdown: `![alt](url)` - displays inline                            |
+| `audio`      | `delta.content`           | `props.url`                   | Markdown link (can't display inline)                                 |
+| `video`      | `delta.content`           | `props.url`                   | Markdown link (can't display inline)                                 |
+| `action`     | (not sent)                | -                             | Silent - system actions only                                         |
+| `event`      | (conditional)             | `props.{event, data}`         | Most events silent; `stream_start` converted to trace link with i18n |
 
 ---
 
