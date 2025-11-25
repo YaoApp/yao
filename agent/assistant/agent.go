@@ -710,6 +710,7 @@ func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler context
 		RequestID: ctx.RequestID(),
 		Timestamp: startTime.UnixMilli(),
 		Assistant: ast.Info(ctx.Locale),
+		Metadata:  ctx.Metadata,
 	}
 
 	if startJSON, err := jsoniter.Marshal(startData); err == nil {
@@ -731,9 +732,12 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler context.S
 
 	endData := &context.StreamEndData{
 		RequestID:  ctx.RequestID(),
+		ContextID:  ctx.ID,
 		Timestamp:  time.Now().UnixMilli(),
 		DurationMs: time.Since(startTime).Milliseconds(),
 		Status:     status,
+		TraceID:    ctx.TraceID(),
+		Metadata:   ctx.Metadata,
 	}
 
 	if err != nil {
