@@ -1,6 +1,10 @@
 package context
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/yaoapp/yao/agent/output/message"
+)
 
 // StreamChunkType represents the type of content in a streaming chunk
 type StreamChunkType string
@@ -23,15 +27,6 @@ const (
 	ChunkGroupEnd    StreamChunkType = "group_end"    // Message group ends (text/tool_call/thinking group completes)
 )
 
-// StreamFunc the streaming function callback
-// Parameters:
-//   - chunkType: the type of content in this chunk (text, thinking, tool_call, etc.)
-//   - data: the actual chunk data (could be text, JSON, or other format)
-//
-// Returns:
-//   - int: status code (0 = continue, non-zero = stop streaming)
-type StreamFunc func(chunkType StreamChunkType, data []byte) int
-
 // Writer is an alias for http.ResponseWriter interface used by an agent to construct a response.
 // A Writer may not be used after the agent execution has completed.
 type Writer = http.ResponseWriter
@@ -40,7 +35,7 @@ type Writer = http.ResponseWriter
 type Agent interface {
 
 	// Stream stream the agent
-	Stream(ctx *Context, messages []Message, handler StreamFunc) error
+	Stream(ctx *Context, messages []Message, handler message.StreamFunc) error
 
 	// Run run the agent
 	Run(ctx *Context, messages []Message) (*Response, error)

@@ -45,6 +45,9 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 	// Set methods
 	jsObject.Set("Trace", ctx.traceMethod(v8ctx.Isolate()))
+	jsObject.Set("Send", ctx.sendMethod(v8ctx.Isolate()))
+	jsObject.Set("SendGroup", ctx.sendGroupMethod(v8ctx.Isolate()))
+	jsObject.Set("Flush", ctx.flushMethod(v8ctx.Isolate()))
 
 	// Create instance
 	instance, err := jsObject.NewInstance(v8ctx)
@@ -155,5 +158,73 @@ func (ctx *Context) traceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 		}
 
 		return traceObj
+	})
+}
+
+// sendMethod implements ctx.Send(message)
+// Usage: ctx.Send({ type: "text", props: { content: "Hello" } })
+// Usage: ctx.Send("Hello") // shorthand for text message
+func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "Send requires a message argument")
+		}
+
+		// Parse message argument
+		msg, err := parseMessage(v8ctx, args[0])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid message: "+err.Error())
+		}
+
+		// Call ctx.Send
+		if err := ctx.Send(msg); err != nil {
+			return bridge.JsException(v8ctx, "Send failed: "+err.Error())
+		}
+
+		return v8go.Undefined(iso)
+	})
+}
+
+// sendGroupMethod implements ctx.SendGroup(group)
+// Usage: ctx.SendGroup({ id: "group1", messages: [...] })
+func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "SendGroup requires a group argument")
+		}
+
+		// Parse group argument
+		group, err := parseGroup(v8ctx, args[0])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid group: "+err.Error())
+		}
+
+		// Call ctx.SendGroup
+		if err := ctx.SendGroup(group); err != nil {
+			return bridge.JsException(v8ctx, "SendGroup failed: "+err.Error())
+		}
+
+		return v8go.Undefined(iso)
+	})
+}
+
+// flushMethod implements ctx.Flush()
+// Usage: ctx.Flush()
+func (ctx *Context) flushMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+
+		// Call ctx.Flush
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		return v8go.Undefined(iso)
 	})
 }

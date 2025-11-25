@@ -1,7 +1,5 @@
 package message
 
-import "github.com/yaoapp/yao/agent/context"
-
 // Writer is the interface for writing output messages
 // Different writers handle different output formats (SSE, WebSocket, Standard, etc.)
 type Writer interface {
@@ -29,23 +27,11 @@ type Adapter interface {
 	SupportsType(msgType string) bool
 }
 
-// WriterFactory creates writers based on context
-type WriterFactory interface {
-	// NewWriter creates a writer for the given context
-	NewWriter(ctx *context.Context, adapter Adapter) (Writer, error)
-}
-
-// AdapterFactory creates adapters based on context
-type AdapterFactory interface {
-	// NewAdapter creates an adapter for the given context
-	NewAdapter(ctx *context.Context) (Adapter, error)
-}
-
 // StreamHandler handles streaming message processing
 // It bridges between LLM streaming chunks and output messages
 type StreamHandler interface {
 	// Handle processes a streaming chunk from LLM
-	Handle(chunkType context.StreamChunkType, data []byte) error
+	Handle(chunkType StreamChunkType, data []byte) error
 
 	// Flush flushes any pending messages
 	Flush() error

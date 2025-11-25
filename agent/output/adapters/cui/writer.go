@@ -2,22 +2,27 @@ package cui
 
 import (
 	"encoding/json"
+	"net/http"
 
-	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
+	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Writer implements the message.Writer interface for CUI clients
 type Writer struct {
-	ctx     *context.Context
+	Writer  http.ResponseWriter
+	Trace   traceTypes.Manager
+	Locale  string
 	adapter *Adapter
 }
 
 // NewWriter creates a new CUI writer
-func NewWriter(ctx *context.Context) (*Writer, error) {
+func NewWriter(options message.Options) (*Writer, error) {
 	return &Writer{
-		ctx:     ctx,
+		Writer:  options.Writer,
+		Trace:   options.Trace,
+		Locale:  options.Locale,
 		adapter: NewAdapter(),
 	}, nil
 }
@@ -27,8 +32,8 @@ func (w *Writer) Write(msg *message.Message) error {
 	// CUI adapter passes messages through as-is
 	chunks, err := w.adapter.Adapt(msg)
 	if err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.cui.writer.adapt_error"), map[string]any{ // "CUI Writer: Failed to adapt message"
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.adapt_error"), map[string]any{ // "CUI Writer: Failed to adapt message"
 				"error":        err.Error(),
 				"message_type": msg.Type,
 			})
@@ -39,8 +44,8 @@ func (w *Writer) Write(msg *message.Message) error {
 	// Send each chunk
 	for _, chunk := range chunks {
 		if err := w.sendChunk(chunk); err != nil {
-			if trace, _ := w.ctx.Trace(); trace != nil {
-				trace.Error(i18n.T(w.ctx.Locale, "output.cui.writer.chunk_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send chunk"
+			if w.Trace != nil {
+				w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.chunk_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send chunk"
 			}
 			return err
 		}
@@ -56,8 +61,8 @@ func (w *Writer) WriteGroup(group *message.Group) error {
 
 	// Send the group
 	if err := w.sendChunk(group); err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.cui.writer.group_error"), map[string]any{ // "CUI Writer: Failed to send message group"
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.group_error"), map[string]any{ // "CUI Writer: Failed to send message group"
 				"error":    err.Error(),
 				"group_id": group.ID,
 			})
@@ -86,15 +91,15 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	// Convert chunk to JSON
 	data, err := json.Marshal(chunk)
 	if err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.cui.writer.marshal_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to marshal chunk"
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.marshal_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to marshal chunk"
 		}
 		return err
 	}
 
 	// Log outgoing data to trace for debugging
-	if trace, _ := w.ctx.Trace(); trace != nil {
-		trace.Debug("CUI Writer: Sending chunk to client", map[string]any{
+	if w.Trace != nil {
+		w.Trace.Debug("CUI Writer: Sending chunk to client", map[string]any{
 			"data": string(data),
 		})
 	}
@@ -106,18 +111,31 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 
 	// Send via context's writer
 	// The context knows how to send data based on the connection type (SSE, WebSocket, etc.)
-	if err := w.ctx.Send(sseData); err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.cui.writer.send_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send data to client"
+	if err := w.sendData(sseData); err != nil {
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.send_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send data to client"
 		}
 		return err
 	}
 
-	// Flush immediately to ensure real-time streaming
-	// Cast to http.ResponseWriter and call Flush if available
-	if flusher, ok := w.ctx.Writer.(interface{ Flush() }); ok {
+	w.flush()
+	return nil
+}
+
+func (w *Writer) flush() error {
+	if w.Writer == nil {
+		return nil // No writer, silently ignore
+	}
+	if flusher, ok := w.Writer.(interface{ Flush() }); ok {
 		flusher.Flush()
 	}
-
 	return nil
+}
+
+func (w *Writer) sendData(data []byte) error {
+	if w.Writer == nil {
+		return nil // No writer, silently ignore
+	}
+	_, err := w.Writer.Write(data)
+	return err
 }

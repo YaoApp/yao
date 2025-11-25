@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -58,7 +59,7 @@ func TestOpenAIStreamBasic(t *testing.T) {
 
 	// Track streaming chunks
 	var chunks []string
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		chunks = append(chunks, string(data))
 		t.Logf("Stream chunk [%s]: %s", chunkType, string(data))
 		return 0 // Continue
@@ -243,8 +244,8 @@ func TestOpenAIStreamWithToolCalls(t *testing.T) {
 
 	// Track streaming chunks
 	var toolCallChunks int
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
-		if chunkType == context.ChunkToolCall {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
+		if chunkType == message.ChunkToolCall {
 			toolCallChunks++
 		}
 		t.Logf("Stream chunk [%s]: %s", chunkType, string(data))
@@ -482,7 +483,7 @@ func TestOpenAIStreamWithInvalidToolCall(t *testing.T) {
 	// Create context
 	ctx := newTestContext("test-stream-basic", "openai.gpt-4o")
 
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		return 0 // Continue
 	}
 
@@ -604,8 +605,8 @@ func TestOpenAIStreamChunkTypes(t *testing.T) {
 	ctx := newTestContext("test-chunk-types", "openai.gpt-4o")
 
 	// Track chunk types
-	chunkTypes := make(map[context.StreamChunkType]int)
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	chunkTypes := make(map[message.StreamChunkType]int)
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		chunkTypes[chunkType]++
 		t.Logf("Received chunk type: %s, data length: %d", chunkType, len(data))
 		return 1 // Continue
@@ -621,7 +622,7 @@ func TestOpenAIStreamChunkTypes(t *testing.T) {
 	}
 
 	// Validate chunk types received
-	if chunkTypes[context.ChunkText] == 0 {
+	if chunkTypes[message.ChunkText] == 0 {
 		t.Error("Expected to receive ChunkText, but got 0")
 	}
 
@@ -673,8 +674,8 @@ func TestOpenAIStreamErrorCallback(t *testing.T) {
 	// Track if error chunk was received
 	receivedError := false
 	var errorMessage string
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
-		if chunkType == context.ChunkError {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
+		if chunkType == message.ChunkError {
 			receivedError = true
 			errorMessage = string(data)
 			t.Logf("Received error chunk: %s", errorMessage)
@@ -1287,19 +1288,19 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 	var events []string
 	var groupStartReceived, groupEndReceived bool
 
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		events = append(events, string(chunkType))
 
 		switch chunkType {
-		case context.ChunkStreamStart:
+		case message.ChunkStreamStart:
 			t.Error("❌ LLM layer should NOT send stream_start (now sent at Agent level)")
 
-		case context.ChunkStreamEnd:
+		case message.ChunkStreamEnd:
 			t.Error("❌ LLM layer should NOT send stream_end (now sent at Agent level)")
 
-		case context.ChunkGroupStart:
+		case message.ChunkGroupStart:
 			groupStartReceived = true
-			var startData context.GroupStartData
+			var startData message.GroupStartData
 			if err := json.Unmarshal(data, &startData); err == nil {
 				t.Logf("✓ group_start: type=%s, group_id=%s", startData.Type, startData.GroupID)
 				if startData.GroupID == "" {
@@ -1309,9 +1310,9 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 				t.Errorf("Failed to parse group_start data: %v", err)
 			}
 
-		case context.ChunkGroupEnd:
+		case message.ChunkGroupEnd:
 			groupEndReceived = true
-			var endData context.GroupEndData
+			var endData message.GroupEndData
 			if err := json.Unmarshal(data, &endData); err == nil {
 				t.Logf("✓ group_end: type=%s, chunks=%d, duration=%dms",
 					endData.Type, endData.ChunkCount, endData.DurationMs)
@@ -1322,7 +1323,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 				t.Errorf("Failed to parse group_end data: %v", err)
 			}
 
-		case context.ChunkText:
+		case message.ChunkText:
 			t.Logf("  text chunk: %s", string(data))
 		}
 
@@ -1394,12 +1395,12 @@ func TestOpenAIStreamContextCancellation(t *testing.T) {
 
 	var receivedChunks int
 
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
-		if chunkType == context.ChunkText || chunkType == context.ChunkToolCall {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
+		if chunkType == message.ChunkText || chunkType == message.ChunkToolCall {
 			receivedChunks++
 		}
 		// Note: stream_end is now sent at Agent level, not LLM level
-		if chunkType == context.ChunkStreamEnd {
+		if chunkType == message.ChunkStreamEnd {
 			t.Error("❌ LLM layer should NOT send stream_end (now sent at Agent level)")
 		}
 		return 0
@@ -1467,7 +1468,7 @@ func TestOpenAIStreamWithTemperature(t *testing.T) {
 
 	// Use callback to collect chunks
 	chunkCount := 0
-	var callback context.StreamFunc = func(chunkType context.StreamChunkType, data []byte) int {
+	var callback message.StreamFunc = func(chunkType message.StreamChunkType, data []byte) int {
 		chunkCount++
 		return 1 // Continue
 	}

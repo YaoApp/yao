@@ -2,45 +2,49 @@ package openai
 
 import (
 	"encoding/json"
+	"net/http"
 
-	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
+	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Writer implements the message.Writer interface for OpenAI-compatible clients
 type Writer struct {
-	ctx        *context.Context
+	Writer     http.ResponseWriter
+	Trace      traceTypes.Manager
+	Locale     string
 	adapter    *Adapter
 	firstChunk bool // Track if this is the first chunk to add role
 }
 
 // NewWriter creates a new OpenAI writer
-func NewWriter(ctx *context.Context) (*Writer, error) {
+func NewWriter(options message.Options) (*Writer, error) {
 	// Get model capabilities from context (set by assistant)
 	var capabilities *ModelCapabilities
-	if ctx.Capabilities != nil && ctx.Capabilities.Reasoning != nil {
+	if options.Capabilities != nil && options.Capabilities.Reasoning != nil {
 		capabilities = &ModelCapabilities{
-			Reasoning: ctx.Capabilities.Reasoning,
+			Reasoning: options.Capabilities.Reasoning,
 		}
 	}
 
 	// Create adapter with capabilities, base URL, and locale
 	adapter := NewAdapter(
 		WithCapabilities(capabilities),
-		WithBaseURL(getBaseURL(ctx)),
-		WithLocale(ctx.Locale),
+		WithBaseURL(getBaseURL(options.BaseURL)),
+		WithLocale(options.Locale),
 	)
 
 	return &Writer{
-		ctx:        ctx,
 		adapter:    adapter,
+		Writer:     options.Writer,
+		Locale:     options.Locale,
 		firstChunk: true, // First chunk should include role
 	}, nil
 }
 
 // getBaseURL gets the base URL from context or environment
-func getBaseURL(ctx *context.Context) string {
+func getBaseURL(baseURL string) string {
 	// @todo: get from context metadata
 	return "http://localhost:8000/__yao_admin_root"
 
@@ -60,8 +64,8 @@ func (w *Writer) Write(msg *message.Message) error {
 	// Convert message to OpenAI format using adapter
 	chunks, err := w.adapter.Adapt(msg)
 	if err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.adapt_error"), map[string]any{ // "OpenAI Writer: Failed to adapt message"
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.adapt_error"), map[string]any{ // "OpenAI Writer: Failed to adapt message"
 				"error":        err.Error(),
 				"message_type": msg.Type,
 			})
@@ -84,8 +88,8 @@ func (w *Writer) Write(msg *message.Message) error {
 		}
 
 		if err := w.sendChunk(chunk); err != nil {
-			if trace, _ := w.ctx.Trace(); trace != nil {
-				trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.chunk_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send chunk"
+			if w.Trace != nil {
+				w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.chunk_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send chunk"
 			}
 			return err
 		}
@@ -100,8 +104,8 @@ func (w *Writer) WriteGroup(group *message.Group) error {
 	// Just send each message individually
 	for _, msg := range group.Messages {
 		if err := w.Write(msg); err != nil {
-			if trace, _ := w.ctx.Trace(); trace != nil {
-				trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.group_error"), map[string]any{ // "OpenAI Writer: Failed to write message in group"
+			if w.Trace != nil {
+				w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.group_error"), map[string]any{ // "OpenAI Writer: Failed to write message in group"
 					"error":        err.Error(),
 					"group_id":     group.ID,
 					"message_type": msg.Type,
@@ -127,13 +131,31 @@ func (w *Writer) Close() error {
 	return w.sendDone()
 }
 
+func (w *Writer) sendData(data []byte) error {
+	if w.Writer == nil {
+		return nil // No writer, silently ignore
+	}
+	_, err := w.Writer.Write(data)
+	return err
+}
+
+func (w *Writer) flush() error {
+	if w.Writer == nil {
+		return nil // No writer, silently ignore
+	}
+	if flusher, ok := w.Writer.(interface{ Flush() }); ok {
+		flusher.Flush()
+	}
+	return nil
+}
+
 // sendChunk sends a chunk to the output stream in SSE format
 func (w *Writer) sendChunk(chunk interface{}) error {
 	// Convert chunk to JSON
 	data, err := json.Marshal(chunk)
 	if err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.marshal_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to marshal chunk"
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.marshal_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to marshal chunk"
 		}
 		return err
 	}
@@ -143,25 +165,23 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	sseData = append(sseData, []byte("\n\n")...)
 
 	// Log outgoing data to trace for debugging
-	if trace, _ := w.ctx.Trace(); trace != nil {
-		trace.Debug("OpenAI Writer: Sending chunk to client", map[string]any{
+	if w.Trace != nil {
+		w.Trace.Debug("OpenAI Writer: Sending chunk to client", map[string]any{
 			"data": string(data),
 		})
 	}
 
 	// Send via context's writer
-	if err := w.ctx.Send(sseData); err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.send_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send data to client"
+	if err := w.sendData(sseData); err != nil {
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.send_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send data to client"
 		}
 		return err
 	}
 
 	// Flush immediately to ensure real-time streaming
 	// Cast to http.ResponseWriter and call Flush if available
-	if flusher, ok := w.ctx.Writer.(interface{ Flush() }); ok {
-		flusher.Flush()
-	}
+	w.flush()
 
 	return nil
 }
@@ -169,23 +189,20 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 // sendDone sends the final [DONE] message
 func (w *Writer) sendDone() error {
 	// Log completion to trace
-	if trace, _ := w.ctx.Trace(); trace != nil {
-		trace.Debug("OpenAI Writer: Sending [DONE] to client")
+	if w.Trace != nil {
+		w.Trace.Debug("OpenAI Writer: Sending [DONE] to client")
 	}
 
 	// OpenAI SSE format uses "data: [DONE]\n\n" to signal completion
 	doneData := []byte("data: [DONE]\n\n")
-	if err := w.ctx.Send(doneData); err != nil {
-		if trace, _ := w.ctx.Trace(); trace != nil {
-			trace.Error(i18n.T(w.ctx.Locale, "output.openai.writer.done_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send [DONE] to client"
+	if err := w.sendData(doneData); err != nil {
+		if w.Trace != nil {
+			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.done_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send [DONE] to client"
 		}
 		return err
 	}
 
 	// Flush the final [DONE] message
-	if flusher, ok := w.ctx.Writer.(interface{ Flush() }); ok {
-		flusher.Flush()
-	}
-
+	w.flush()
 	return nil
 }

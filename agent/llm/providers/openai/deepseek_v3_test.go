@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -57,11 +58,11 @@ func TestDeepSeekV3StreamBasic(t *testing.T) {
 
 	// Track streaming chunks
 	var contentChunks []string
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		dataStr := string(data)
 		t.Logf("Stream chunk [%s]: %s", chunkType, dataStr)
 
-		if chunkType == context.ChunkText {
+		if chunkType == message.ChunkText {
 			contentChunks = append(contentChunks, dataStr)
 		}
 

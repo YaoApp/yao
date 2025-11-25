@@ -7,17 +7,18 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm"
-	"github.com/yaoapp/yao/agent/output"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/trace/types"
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
 // Stream stream the agent
 // handler is optional, if not provided, a default handler will be used
-func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, handler ...context.StreamFunc) (*context.Response, error) {
+func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, handler ...message.StreamFunc) (*context.Response, error) {
 
 	log.Trace("[AGENT] Stream started: assistant=%s, contextID=%s", ast.ID, ctx.ID)
 	defer log.Trace("[AGENT] Stream ended: assistant=%s, contextID=%s", ast.ID, ctx.ID)
@@ -232,7 +233,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		ast.sendAgentStreamEnd(ctx, streamHandler, streamStartTime, "completed", nil, completionResponse)
 
 		// Close the output writer to send [DONE] marker
-		if err := output.Close(ctx); err != nil {
+		if err := ctx.CloseOutput(); err != nil {
 			if trace, _ := ctx.Trace(); trace != nil {
 				trace.Error(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.close_error"), map[string]any{"error": err.Error()}) // "Failed to close output"
 			}
@@ -361,12 +362,12 @@ func (ast *Assistant) BuildRequest(ctx *context.Context, messages []context.Mess
 }
 
 // Info get the assistant information
-func (ast *Assistant) Info(locale ...string) *context.AssistantInfo {
+func (ast *Assistant) Info(locale ...string) *message.AssistantInfo {
 	lc := "en"
 	if len(locale) > 0 {
 		lc = locale[0]
 	}
-	return &context.AssistantInfo{
+	return &message.AssistantInfo{
 		ID:          ast.ID,
 		Type:        ast.Type,
 		Name:        i18n.Tr(ast.ID, lc, ast.Name),
@@ -688,22 +689,22 @@ func (ast *Assistant) WithHistory(ctx *context.Context, messages []context.Messa
 }
 
 // getStreamHandler returns the stream handler from the provided handlers or a default one
-func (ast *Assistant) getStreamHandler(ctx *context.Context, handler ...context.StreamFunc) context.StreamFunc {
+func (ast *Assistant) getStreamHandler(ctx *context.Context, handler ...message.StreamFunc) message.StreamFunc {
 	if len(handler) > 0 && handler[0] != nil {
 		return handler[0]
 	}
-	return llm.DefaultStreamHandler(ctx)
+	return handlers.DefaultStreamHandler(ctx)
 }
 
 // sendAgentStreamStart sends ChunkStreamStart for root stack only (agent-level stream start)
 // This ensures only one stream_start per agent execution, even with multiple LLM calls
-func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler context.StreamFunc, startTime time.Time) {
+func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler message.StreamFunc, startTime time.Time) {
 	if ctx.Stack == nil || !ctx.Stack.IsRoot() || handler == nil {
 		return
 	}
 
 	// Build the start data
-	startData := context.StreamStartData{
+	startData := message.StreamStartData{
 		ContextID: ctx.ID,
 		ChatID:    ctx.ChatID,
 		TraceID:   ctx.TraceID(),
@@ -714,12 +715,12 @@ func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler context
 	}
 
 	if startJSON, err := jsoniter.Marshal(startData); err == nil {
-		handler(context.ChunkStreamStart, startJSON)
+		handler(message.ChunkStreamStart, startJSON)
 	}
 }
 
 // sendAgentStreamEnd sends ChunkStreamEnd for root stack only (agent-level stream completion)
-func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler context.StreamFunc, startTime time.Time, status string, err error, response *context.CompletionResponse) {
+func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler message.StreamFunc, startTime time.Time, status string, err error, response *context.CompletionResponse) {
 	if ctx.Stack == nil || !ctx.Stack.IsRoot() || handler == nil {
 		return
 	}
@@ -730,7 +731,7 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler context.S
 		return
 	}
 
-	endData := &context.StreamEndData{
+	endData := &message.StreamEndData{
 		RequestID:  ctx.RequestID(),
 		ContextID:  ctx.ID,
 		Timestamp:  time.Now().UnixMilli(),
@@ -749,12 +750,12 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler context.S
 	}
 
 	if endJSON, marshalErr := jsoniter.Marshal(endData); marshalErr == nil {
-		handler(context.ChunkStreamEnd, endJSON)
+		handler(message.ChunkStreamEnd, endJSON)
 	}
 }
 
 // sendStreamEndOnError sends ChunkStreamEnd with error status for root stack only
-func (ast *Assistant) sendStreamEndOnError(ctx *context.Context, handler context.StreamFunc, startTime time.Time, err error) {
+func (ast *Assistant) sendStreamEndOnError(ctx *context.Context, handler message.StreamFunc, startTime time.Time, err error) {
 	ast.sendAgentStreamEnd(ctx, handler, startTime, "error", err, nil)
 }
 

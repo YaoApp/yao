@@ -1,6 +1,9 @@
 package openai
 
-import "github.com/yaoapp/yao/agent/context"
+import (
+	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/output/message"
+)
 
 // StreamChunk represents a chunk from OpenAI's streaming response
 type StreamChunk struct {
@@ -63,7 +66,7 @@ type CompletionResponseFull struct {
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
-	Usage             *context.UsageInfo `json:"usage,omitempty"`
+	Usage             *message.UsageInfo `json:"usage,omitempty"`
 	SystemFingerprint string             `json:"system_fingerprint,omitempty"`
 }
 
@@ -78,7 +81,7 @@ type streamAccumulator struct {
 	refusal          string
 	toolCalls        map[int]*accumulatedToolCall
 	finishReason     string
-	usage            *context.UsageInfo
+	usage            *message.UsageInfo
 }
 
 // accumulatedToolCall accumulates a single tool call
@@ -93,8 +96,8 @@ type accumulatedToolCall struct {
 type groupTracker struct {
 	active       bool                       // Whether a group is currently active
 	groupID      string                     // Current group ID
-	groupType    context.StreamChunkType    // Current group type
+	groupType    message.StreamChunkType    // Current group type
 	startTime    int64                      // Group start timestamp
 	chunkCount   int                        // Number of chunks in this group
-	toolCallInfo *context.GroupToolCallInfo // Tool call info if group is tool_call type
+	toolCallInfo *message.GroupToolCallInfo // Tool call info if group is tool_call type
 }

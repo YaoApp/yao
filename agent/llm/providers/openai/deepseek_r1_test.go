@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -66,20 +67,20 @@ func TestDeepSeekR1StreamBasic(t *testing.T) {
 	var thinkingGroupEnded bool
 	var textGroupEnded bool
 
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
 		dataStr := string(data)
 		t.Logf("Stream chunk [%s]: %s", chunkType, dataStr)
 
 		// Track different chunk types
 		switch chunkType {
-		case context.ChunkThinking:
+		case message.ChunkThinking:
 			reasoningChunks = append(reasoningChunks, dataStr)
-		case context.ChunkText:
+		case message.ChunkText:
 			contentChunks = append(contentChunks, dataStr)
 		}
 
 		// Track group_end events to verify type field
-		if chunkType == context.ChunkGroupEnd {
+		if chunkType == message.ChunkGroupEnd {
 			// Parse the group_end data to check the type field
 			var groupEndData struct {
 				GroupID    string `json:"group_id"`
@@ -327,10 +328,10 @@ func TestDeepSeekR1LogicPuzzle(t *testing.T) {
 
 	// Track reasoning and content separately
 	var hasReasoning, hasContent bool
-	handler := func(chunkType context.StreamChunkType, data []byte) int {
-		if chunkType == context.ChunkThinking && len(data) > 0 {
+	handler := func(chunkType message.StreamChunkType, data []byte) int {
+		if chunkType == message.ChunkThinking && len(data) > 0 {
 			hasReasoning = true
-		} else if chunkType == context.ChunkText && len(data) > 0 {
+		} else if chunkType == message.ChunkText && len(data) > 0 {
 			hasContent = true
 		}
 		return 0
