@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
 
@@ -63,9 +64,10 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 			UserAgent: userAgent,
 			IP:        clientIP,
 		},
-		Route:    GetRoute(c, completionReq),
-		Metadata: GetMetadata(c, completionReq),
-		Skip:     GetSkip(c, completionReq),
+		Route:       GetRoute(c, completionReq),
+		Metadata:    GetMetadata(c, completionReq),
+		Skip:        GetSkip(c, completionReq),
+		IDGenerator: message.NewIDGenerator(), // Initialize context-scoped ID generator
 	}
 
 	// Initialize interrupt controller

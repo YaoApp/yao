@@ -110,10 +110,6 @@ const (
 	// Message level events (LLM layer - individual logical messages)
 	EventMessageStart = "message_start" // Message started event
 	EventMessageEnd   = "message_end"   // Message ended event
-
-	// Backward compatibility aliases (kept for transition period)
-	EventGroupStart = "group_start" // Alias for EventMessageStart
-	EventGroupEnd   = "group_end"   // Alias for EventMessageEnd
 )
 
 // Standard Props structures for built-in types
@@ -243,11 +239,11 @@ const (
 	ChunkError    StreamChunkType = "error"     // Error chunk
 	ChunkUnknown  StreamChunkType = "unknown"   // Unknown/unrecognized chunk type
 
-	// Lifecycle event types - stream and group boundaries
-	ChunkStreamStart StreamChunkType = "stream_start" // Stream begins (entire request starts)
-	ChunkStreamEnd   StreamChunkType = "stream_end"   // Stream ends (entire request completes)
-	ChunkGroupStart  StreamChunkType = "group_start"  // Message group begins (text/tool_call/thinking group starts)
-	ChunkGroupEnd    StreamChunkType = "group_end"    // Message group ends (text/tool_call/thinking group completes)
+	// Lifecycle event types - stream and message boundaries
+	ChunkStreamStart  StreamChunkType = "stream_start"  // Stream begins (entire request starts)
+	ChunkStreamEnd    StreamChunkType = "stream_end"    // Stream ends (entire request completes)
+	ChunkMessageStart StreamChunkType = "message_start" // Message begins (text/tool_call/thinking message starts)
+	ChunkMessageEnd   StreamChunkType = "message_end"   // Message ends (text/tool_call/thinking message completes)
 )
 
 // StreamFunc the streaming function callback

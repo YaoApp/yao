@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/plan"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -26,9 +27,10 @@ func newTestContextWithInterrupt(chatID, assistantID string) *Context {
 			UserAgent: "TestAgent/1.0",
 			IP:        "127.0.0.1",
 		},
-		Referer: RefererAPI,
-		Accept:  AcceptWebCUI,
-		Route:   "/test/route",
+		Referer:     RefererAPI,
+		Accept:      AcceptWebCUI,
+		Route:       "/test/route",
+		IDGenerator: message.NewIDGenerator(), // Initialize context-scoped ID generator
 		Metadata: map[string]interface{}{
 			"test": "context_metadata",
 		},

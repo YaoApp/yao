@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -35,8 +34,8 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 		case message.ChunkStreamStart:
 			return state.handleStreamStart(data)
 
-		case message.ChunkGroupStart:
-			return state.handleGroupStart(data)
+		case message.ChunkMessageStart:
+			return state.handleMessageStart(data)
 
 		case message.ChunkText:
 			return state.handleText(data)
@@ -53,8 +52,8 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 		case message.ChunkError:
 			return state.handleError(data)
 
-		case message.ChunkGroupEnd:
-			return state.handleGroupEnd(data)
+		case message.ChunkMessageEnd:
+			return state.handleMessageEnd(data)
 
 		case message.ChunkStreamEnd:
 			return state.handleStreamEnd(data)
@@ -92,32 +91,32 @@ func (s *streamState) handleStreamStart(data []byte) int {
 	return 0
 }
 
-// handleGroupStart handles group start event
-func (s *streamState) handleGroupStart(data []byte) int {
-	// Parse group start data first to get the group ID
+// handleMessageStart handles message start event
+func (s *streamState) handleMessageStart(data []byte) int {
+	// Parse message start data first to get the message ID
 	var startData message.EventMessageStartData
 	if err := jsoniter.Unmarshal(data, &startData); err != nil {
-		log.Error("Failed to unmarshal group start data: %v", err)
+		log.Error("Failed to unmarshal message start data: %v", err)
 		return 0
 	}
 
 	// Use the message ID from the start data, or generate one if not provided
-	groupID := startData.MessageID
-	if groupID == "" {
-		groupID = generateMessageID()
-		startData.MessageID = groupID
+	messageID := startData.MessageID
+	if messageID == "" {
+		messageID = s.ctx.IDGenerator.GenerateMessageID()
+		startData.MessageID = messageID
 	}
 
-	// Initialize group state with the correct group ID
+	// Initialize message state with the correct message ID
 	s.inGroup = true
-	s.currentGroupID = groupID
+	s.currentGroupID = messageID
 	s.buffer = []byte{}
 	s.chunkCount = 0
-	s.messageSeq = 0 // Reset message sequence for each group
+	s.messageSeq = 0 // Reset message sequence for each message
 	s.groupStartTime = time.Now()
 
-	// Send group_start event
-	msg := output.NewEventMessage(message.EventGroupStart, "Group started", startData)
+	// Send message_start event
+	msg := output.NewEventMessage(message.EventMessageStart, "Message started", startData)
 	s.ctx.Send(msg)
 
 	return 0 // Continue
@@ -138,11 +137,11 @@ func (s *streamState) handleText(data []byte) int {
 	s.messageSeq++
 
 	// Send delta message
-	// - ChunkID: Sequential chunk ID (C1, C2, C3...) for this fragment
+	// - ChunkID: Unique chunk ID (C1, C2, C3...) for this fragment
 	// - MessageID: Same for all chunks of this logical message (frontend merges by message_id)
 	msg := &message.Message{
-		ChunkID:   s.generateSequentialID(), // Sequential ID for this chunk
-		MessageID: s.currentGroupID,         // Message ID for merging (all chunks share this)
+		ChunkID:   s.ctx.IDGenerator.GenerateChunkID(), // Unique chunk ID
+		MessageID: s.currentGroupID,                    // Message ID for merging (all chunks share this)
 		Type:      message.TypeText,
 		Delta:     true,
 		Props: map[string]interface{}{
@@ -173,11 +172,11 @@ func (s *streamState) handleThinking(data []byte) int {
 	s.messageSeq++
 
 	// Send delta message
-	// - ChunkID: Sequential chunk ID (C1, C2, C3...) for this fragment
+	// - ChunkID: Unique chunk ID (C1, C2, C3...) for this fragment
 	// - MessageID: Same for all chunks of this logical message (frontend merges by message_id)
 	msg := &message.Message{
-		ChunkID:   s.generateSequentialID(), // Sequential ID for this chunk
-		MessageID: s.currentGroupID,         // Message ID for merging (all chunks share this)
+		ChunkID:   s.ctx.IDGenerator.GenerateChunkID(), // Unique chunk ID
+		MessageID: s.currentGroupID,                    // Message ID for merging (all chunks share this)
 		Type:      message.TypeThinking,
 		Delta:     true,
 		Props: map[string]interface{}{
@@ -197,7 +196,8 @@ func (s *streamState) handleToolCall(data []byte) int {
 	// Tool calls are usually complete JSON objects
 	// Parse and send as tool_call message
 	msg := &message.Message{
-		MessageID: generateMessageID(),
+		ChunkID:   s.ctx.IDGenerator.GenerateChunkID(),
+		MessageID: s.ctx.IDGenerator.GenerateMessageID(), // Tool call is a new message
 		Type:      message.TypeToolCall,
 		Delta:     true,
 		Props: map[string]interface{}{
@@ -226,8 +226,8 @@ func (s *streamState) handleError(data []byte) int {
 	return 1 // Stop streaming on error
 }
 
-// handleGroupEnd handles group end event
-func (s *streamState) handleGroupEnd(data []byte) int {
+// handleMessageEnd handles message end event
+func (s *streamState) handleMessageEnd(data []byte) int {
 	if !s.inGroup {
 		return 0
 	}
@@ -254,8 +254,8 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 		},
 	}
 
-	// Send group_end event
-	msg := output.NewEventMessage(message.EventGroupEnd, "Group completed", endData)
+	// Send message_end event
+	msg := output.NewEventMessage(message.EventMessageEnd, "Message completed", endData)
 	s.ctx.Send(msg)
 
 	// Reset state
@@ -285,18 +285,4 @@ func (s *streamState) handleStreamEnd(data []byte) int {
 	// Flush any remaining data
 	s.ctx.Flush()
 	return 0 // Continue (stream will end naturally)
-}
-
-// generateSequentialID generates a sequential message ID for better readability
-func (s *streamState) generateSequentialID() string {
-	// Format: 1, 2, 3, etc.
-	// This makes it easier for developers to track message order in logs
-	return fmt.Sprintf("%d", s.messageSeq)
-}
-
-// generateMessageID generates a unique message ID
-func generateMessageID() string {
-	// TODO: Implement proper ID generation
-	// For now, use a simple approach
-	return output.GenerateID()
 }
