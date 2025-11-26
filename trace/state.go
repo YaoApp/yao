@@ -260,86 +260,121 @@ func (m *manager) startStateWorker() {
 
 // Helper methods for manager to send commands
 
+// safeSend checks if context is cancelled before sending to avoid panic on closed channel
+func (m *manager) safeSend(cmd stateCommand) (ok bool) {
+	// Use defer/recover to handle the case where channel is closed mid-send
+	defer func() {
+		if r := recover(); r != nil {
+			// Channel was closed, silently return false
+			ok = false
+		}
+	}()
+
+	select {
+	case <-m.ctx.Done():
+		// Context cancelled, channel may be closed
+		return false
+	case m.stateCmdChan <- cmd:
+		return true
+	}
+}
+
 func (m *manager) stateSetRoot(node *types.TraceNode) {
-	m.stateCmdChan <- &cmdSetRoot{node: node}
+	m.safeSend(&cmdSetRoot{node: node})
 }
 
 func (m *manager) stateGetRoot() *types.TraceNode {
 	resp := make(chan *types.TraceNode, 1)
-	m.stateCmdChan <- &cmdGetRoot{resp: resp}
+	if !m.safeSend(&cmdGetRoot{resp: resp}) {
+		return nil // Context cancelled
+	}
 	return <-resp
 }
 
 func (m *manager) stateSetCurrentNodes(nodes []*types.TraceNode) {
-	m.stateCmdChan <- &cmdSetCurrentNodes{nodes: nodes}
+	m.safeSend(&cmdSetCurrentNodes{nodes: nodes})
 }
 
 func (m *manager) stateGetCurrentNodes() []*types.TraceNode {
 	resp := make(chan []*types.TraceNode, 1)
-	m.stateCmdChan <- &cmdGetCurrentNodes{resp: resp}
+	if !m.safeSend(&cmdGetCurrentNodes{resp: resp}) {
+		return nil // Context cancelled
+	}
 	return <-resp
 }
 
 func (m *manager) stateUpdateRootAndCurrent(root *types.TraceNode, current []*types.TraceNode) {
-	m.stateCmdChan <- &cmdUpdateRootAndCurrent{root: root, current: current}
+	m.safeSend(&cmdUpdateRootAndCurrent{root: root, current: current})
 }
 
 func (m *manager) stateGetSpace(id string) (*types.TraceSpace, bool) {
 	resp := make(chan *types.TraceSpace, 1)
-	m.stateCmdChan <- &cmdGetSpace{id: id, resp: resp}
+	if !m.safeSend(&cmdGetSpace{id: id, resp: resp}) {
+		return nil, false // Context cancelled
+	}
 	space := <-resp
 	return space, space != nil
 }
 
 func (m *manager) stateSetSpace(id string, space *types.TraceSpace) {
-	m.stateCmdChan <- &cmdSetSpace{id: id, space: space}
+	m.safeSend(&cmdSetSpace{id: id, space: space})
 }
 
 func (m *manager) stateDeleteSpace(id string) {
-	m.stateCmdChan <- &cmdDeleteSpace{id: id}
+	m.safeSend(&cmdDeleteSpace{id: id})
 }
 
 func (m *manager) stateGetAllSpaces() []*types.TraceSpace {
 	resp := make(chan []*types.TraceSpace, 1)
-	m.stateCmdChan <- &cmdGetAllSpaces{resp: resp}
+	if !m.safeSend(&cmdGetAllSpaces{resp: resp}) {
+		return nil // Context cancelled
+	}
 	return <-resp
 }
 
 func (m *manager) stateSetTraceStatus(status types.TraceStatus) {
-	m.stateCmdChan <- &cmdSetTraceStatus{status: status}
+	m.safeSend(&cmdSetTraceStatus{status: status})
 }
 
 func (m *manager) stateGetTraceStatus() types.TraceStatus {
 	resp := make(chan types.TraceStatus, 1)
-	m.stateCmdChan <- &cmdGetTraceStatus{resp: resp}
+	if !m.safeSend(&cmdGetTraceStatus{resp: resp}) {
+		return types.TraceStatusCancelled // Context cancelled
+	}
 	return <-resp
 }
 
 func (m *manager) stateMarkCompleted() bool {
 	resp := make(chan bool, 1)
-	m.stateCmdChan <- &cmdMarkCompleted{resp: resp}
+	if !m.safeSend(&cmdMarkCompleted{resp: resp}) {
+		return true // Context cancelled, treat as completed
+	}
 	return <-resp
 }
 
 func (m *manager) stateIsCompleted() bool {
 	resp := make(chan bool, 1)
-	m.stateCmdChan <- &cmdIsCompleted{resp: resp}
+	if !m.safeSend(&cmdIsCompleted{resp: resp}) {
+		return true // Context cancelled, treat as completed
+	}
 	return <-resp
 }
 
 func (m *manager) stateAddUpdate(update *types.TraceUpdate) {
-	m.stateCmdChan <- &cmdAddUpdate{update: update}
+	m.safeSend(&cmdAddUpdate{update: update})
 }
 
 func (m *manager) stateGetUpdates(since int64) []*types.TraceUpdate {
 	resp := make(chan []*types.TraceUpdate, 1)
-	m.stateCmdChan <- &cmdGetUpdates{since: since, resp: resp}
+	if !m.safeSend(&cmdGetUpdates{since: since, resp: resp}) {
+		return nil // Context cancelled
+	}
 	return <-resp
 }
 
 func (m *manager) stateSetUpdates(updates []*types.TraceUpdate) {
 	log.Trace("[STATE] stateSetUpdates: setting %d updates for trace %s", len(updates), m.traceID)
-	m.stateCmdChan <- &cmdSetUpdates{updates: updates}
+	m.safeSend(&cmdSetUpdates{updates: updates})
 }
 
 // Subscription management methods removed - now handled by SubscriptionManager
