@@ -36,21 +36,19 @@ type Message struct {
     Type  string                 `json:"type"`            // Message type (e.g., "text", "image", "action")
     Props map[string]interface{} `json:"props,omitempty"` // Type-specific properties
 
-    // Streaming control
-    ID    string `json:"id,omitempty"`    // Unique message ID (for merging in streaming)
-    Delta bool   `json:"delta,omitempty"` // Whether this is an incremental update
+    // Streaming control - Hierarchical structure for Agent/LLM/MCP streaming
+    ChunkID   string `json:"chunk_id,omitempty"`   // Unique chunk ID (C1, C2, C3...; for dedup/ordering/debugging)
+    MessageID string `json:"message_id,omitempty"` // Logical message ID (M1, M2, M3...; delta merge target; multiple chunks → one message)
+    BlockID   string `json:"block_id,omitempty"`   // Block ID (B1, B2, B3...; Agent-level grouping for UI sections)
+    ThreadID  string `json:"thread_id,omitempty"`  // Thread ID (T1, T2, T3...; optional; for concurrent streams)
 
-    // Delta update control (for incremental props updates)
+    // Delta control
+    Delta       bool   `json:"delta,omitempty"`        // Whether this is an incremental update
     DeltaPath   string `json:"delta_path,omitempty"`   // Which field to update (e.g., "content", "items.0.name")
     DeltaAction string `json:"delta_action,omitempty"` // How to update ("append", "replace", "merge", "set")
 
     // Type correction (for streaming type inference)
     TypeChange bool `json:"type_change,omitempty"` // Marks this as a type correction message
-
-    // Message grouping (for semantically related messages)
-    GroupID    string `json:"group_id,omitempty"`    // Parent message group ID
-    GroupStart bool   `json:"group_start,omitempty"` // Marks the start of a group
-    GroupEnd   bool   `json:"group_end,omitempty"`   // Marks the end of a group
 
     // Metadata
     Metadata *Metadata `json:"metadata,omitempty"` // Timestamp, sequence, trace ID
@@ -73,18 +71,38 @@ type Message struct {
 
 #### Streaming Control
 
-- **`ID`** (optional): Unique identifier for message tracking
+Hierarchical structure for fine-grained control over streaming in complex Agent/LLM/MCP scenarios:
 
-  - Used to merge multiple delta updates into a single message
-  - Auto-generated if not provided
-  - Example: `"msg_1234567890_9876543210"`
+- **`ChunkID`** (optional): Unique chunk identifier
+
+  - Auto-generated (C1, C2, C3...)
+  - For deduplication, ordering, and debugging
+  - Each raw stream fragment gets a unique ChunkID
+
+- **`MessageID`** (optional): Logical message identifier
+
+  - Auto-generated (M1, M2, M3...)
+  - Delta merge target - multiple chunks with same MessageID are merged
+  - Represents one complete logical message (e.g., one thinking output, one text response)
+  - Example: `"M1"`
+
+- **`BlockID`** (optional): Output block identifier
+
+  - Auto-generated (B1, B2, B3...)
+  - Agent-level grouping for UI sections
+  - One LLM call, one MCP call, or one Agent sub-task
+  - Used for rendering blocks/sections in the UI
+
+- **`ThreadID`** (optional): Thread identifier
+
+  - Auto-generated (T1, T2, T3...)
+  - For concurrent Agent/LLM/MCP calls
+  - Distinguishes multiple parallel output streams
 
 - **`Delta`** (optional): Marks this as an incremental update
-
-  - `true`: Append/update to existing message with same ID
+  - `true`: Append/update to existing message with same MessageID
   - `false`: Complete message (default)
   - Used for streaming LLM responses
-  - Message completion is signaled via `group_end` event instead
 
 #### Delta Update Control
 
@@ -108,14 +126,6 @@ For complex, structured messages that need field-level updates:
   - Used when initial type inference was wrong
   - Frontend should re-render with new type
   - Example: Initially sent as `text`, corrected to `thinking`
-
-#### Message Grouping
-
-For grouping semantically related messages (e.g., image + caption):
-
-- **`GroupID`** (optional): Identifier for the message group
-- **`GroupStart`** (optional): Marks the beginning of a group
-- **`GroupEnd`** (optional): Marks the end of a group
 
 #### Metadata
 
@@ -146,7 +156,8 @@ For grouping semantically related messages (e.g., image + caption):
 ```json
 // First chunk
 {
-  "id": "msg_123",
+  "chunk_id": "C1",
+  "message_id": "M1",
   "type": "text",
   "delta": true,
   "props": {
@@ -156,7 +167,8 @@ For grouping semantically related messages (e.g., image + caption):
 
 // Second chunk (appends)
 {
-  "id": "msg_123",
+  "chunk_id": "C2",
+  "message_id": "M1",
   "type": "text",
   "delta": true,
   "props": {
@@ -164,14 +176,28 @@ For grouping semantically related messages (e.g., image + caption):
   }
 }
 
-// Final chunk (marks done)
+// Third chunk
 {
-  "id": "msg_123",
+  "chunk_id": "C3",
+  "message_id": "M1",
   "type": "text",
   "delta": true,
-  "done": true,
   "props": {
     "content": "!"
+  }
+}
+
+// Completion signaled by message_end event (sent separately)
+{
+  "type": "event",
+  "props": {
+    "event": "message_end",
+    "data": {
+      "message_id": "M1",
+      "type": "text",
+      "chunk_count": 3,
+      "status": "completed"
+    }
   }
 }
 ```
@@ -181,7 +207,7 @@ For grouping semantically related messages (e.g., image + caption):
 ```json
 // Initial message
 {
-  "id": "msg_456",
+  "message_id": "M2",
   "type": "table",
   "props": {
     "columns": ["Name", "Age"],
@@ -191,7 +217,8 @@ For grouping semantically related messages (e.g., image + caption):
 
 // Add first row
 {
-  "id": "msg_456",
+  "chunk_id": "C4",
+  "message_id": "M2",
   "type": "table",
   "delta": true,
   "delta_path": "rows",
@@ -203,7 +230,8 @@ For grouping semantically related messages (e.g., image + caption):
 
 // Add second row
 {
-  "id": "msg_456",
+  "chunk_id": "C5",
+  "message_id": "M2",
   "type": "table",
   "delta": true,
   "delta_path": "rows",
@@ -219,7 +247,8 @@ For grouping semantically related messages (e.g., image + caption):
 ```json
 // Initial guess (text)
 {
-  "id": "msg_789",
+  "chunk_id": "C6",
+  "message_id": "M3",
   "type": "text",
   "delta": true,
   "props": {
@@ -229,7 +258,8 @@ For grouping semantically related messages (e.g., image + caption):
 
 // Correction (actually thinking)
 {
-  "id": "msg_789",
+  "chunk_id": "C7",
+  "message_id": "M3",
   "type": "thinking",
   "type_change": true,
   "props": {
@@ -238,38 +268,53 @@ For grouping semantically related messages (e.g., image + caption):
 }
 ```
 
-#### Message Group
+#### Block Grouping (Agent-level)
 
 ```json
-// Group start
+// Block start event
 {
-  "group_id": "grp_001",
-  "group_start": true
-}
-
-// Image in group
-{
-  "type": "image",
-  "group_id": "grp_001",
+  "type": "event",
   "props": {
-    "url": "https://example.com/photo.jpg",
-    "alt": "Beautiful sunset"
+    "event": "block_start",
+    "data": {
+      "block_id": "B1",
+      "type": "llm",
+      "label": "Analyzing image"
+    }
   }
 }
 
-// Caption in group
+// Thinking message in block
 {
+  "message_id": "M4",
+  "block_id": "B1",
+  "type": "thinking",
+  "props": {
+    "content": "Let me analyze this image..."
+  }
+}
+
+// Text message in block
+{
+  "message_id": "M5",
+  "block_id": "B1",
   "type": "text",
-  "group_id": "grp_001",
   "props": {
-    "content": "Captured at Golden Gate Bridge"
+    "content": "This is a beautiful sunset at Golden Gate Bridge"
   }
 }
 
-// Group end
+// Block end event
 {
-  "group_id": "grp_001",
-  "group_end": true
+  "type": "event",
+  "props": {
+    "event": "block_end",
+    "data": {
+      "block_id": "B1",
+      "message_count": 2,
+      "status": "completed"
+    }
+  }
 }
 ```
 
@@ -363,24 +408,36 @@ output.Send(ctx, err)
 ### Streaming Messages
 
 ```go
+// Get ID generator from context
+idGen := ctx.IDGenerator
+
 // Send delta (incremental) updates
 msg := &message.Message{
-    ID:    "msg_123",
-    Type:  message.TypeText,
-    Delta: true,  // Incremental update
+    ChunkID:   idGen.GenerateChunkID(),   // C1
+    MessageID: idGen.GenerateMessageID(), // M1
+    Type:      message.TypeText,
+    Delta:     true,  // Incremental update
     Props: map[string]interface{}{
         "content": "Hello",
     },
 }
 output.Send(ctx, msg)
 
-// Send more delta updates...
-msg.Props["content"] = " world"
-output.Send(ctx, msg)
+// Send more delta updates (same MessageID for merging)
+msg2 := &message.Message{
+    ChunkID:   idGen.GenerateChunkID(),   // C2
+    MessageID: msg.MessageID,             // M1 (same as before)
+    Type:      message.TypeText,
+    Delta:     true,
+    Props: map[string]interface{}{
+        "content": " world",
+    },
+}
+output.Send(ctx, msg2)
 
-// Mark completion with group_end event
-endData := message.GroupEndData{
-    GroupID:    "msg_123",
+// Mark completion with message_end event
+endData := message.EventMessageEndData{
+    MessageID:  msg.MessageID, // M1
     Type:       "text",
     Status:     "completed",
     ChunkCount: 2,
@@ -388,7 +445,7 @@ endData := message.GroupEndData{
         "content": "Hello world!", // Full content
     },
 }
-eventMsg := output.NewEventMessage(message.EventGroupEnd, "Group completed", endData)
+eventMsg := output.NewEventMessage(message.EventMessageEnd, "Message completed", endData)
 output.Send(ctx, eventMsg)
 ```
 

@@ -36,19 +36,20 @@ type Message struct {
 	Type  string                 `json:"type"`            // Message type (frontend decides how to render)
 	Props map[string]interface{} `json:"props,omitempty"` // Message properties (passed to frontend component)
 
-	// Streaming control
-	ID    string `json:"id,omitempty"`    // Unique chunk/message ID (each chunk has unique ID; use group_id for merging)
-	Delta bool   `json:"delta,omitempty"` // Whether this is an incremental update
+	// Streaming control - Hierarchical structure for Agent/LLM/MCP streaming
+	// See STREAMING.md for detailed explanation of the streaming architecture
+	ChunkID   string `json:"chunk_id,omitempty"`   // Unique chunk ID (auto-generated: C1, C2, C3...; for dedup/ordering/debugging)
+	MessageID string `json:"message_id,omitempty"` // Logical message ID (delta merge target; multiple chunks combine into one message)
+	BlockID   string `json:"block_id,omitempty"`   // Output block ID (Agent-level control: one LLM call, one MCP call, etc.; for UI rendering blocks/sections)
+	ThreadID  string `json:"thread_id,omitempty"`  // Thread ID (optional; for concurrent Agent/LLM/MCP calls to distinguish output streams)
 
-	// Delta update control
+	// Delta control
+	Delta       bool   `json:"delta,omitempty"`        // Whether this is an incremental update
 	DeltaPath   string `json:"delta_path,omitempty"`   // Update path (e.g., "content", "data", "items.0.name")
 	DeltaAction string `json:"delta_action,omitempty"` // Update action (append, replace, merge, set)
 
 	// Type correction (for streaming scenarios)
 	TypeChange bool `json:"type_change,omitempty"` // Marks this as a type correction message
-
-	// Message group
-	GroupID string `json:"group_id,omitempty"` // Group ID (all delta chunks of same logical message share this; used for merging)
 
 	// Metadata
 	Metadata *Metadata `json:"metadata,omitempty"` // Additional metadata
@@ -92,11 +93,27 @@ const (
 )
 
 // Event types for TypeEvent messages
+// Hierarchical structure: Stream > Thread > Block > Message > Chunk
 const (
+	// Stream level events (Agent layer - overall conversation stream)
 	EventStreamStart = "stream_start" // Stream started event
 	EventStreamEnd   = "stream_end"   // Stream ended event
-	EventGroupStart  = "group_start"  // Message group started event
-	EventGroupEnd    = "group_end"    // Message group ended event
+
+	// Thread level events (optional - for concurrent scenarios)
+	EventThreadStart = "thread_start" // Thread started event
+	EventThreadEnd   = "thread_end"   // Thread ended event
+
+	// Block level events (Agent layer - logical output sections)
+	EventBlockStart = "block_start" // Block started event
+	EventBlockEnd   = "block_end"   // Block ended event
+
+	// Message level events (LLM layer - individual logical messages)
+	EventMessageStart = "message_start" // Message started event
+	EventMessageEnd   = "message_end"   // Message ended event
+
+	// Backward compatibility aliases (kept for transition period)
+	EventGroupStart = "group_start" // Alias for EventMessageStart
+	EventGroupEnd   = "group_end"   // Alias for EventMessageEnd
 )
 
 // Standard Props structures for built-in types
@@ -284,9 +301,9 @@ type CompletionTokensDetails struct {
 // They provide a standardized way to communicate stream boundaries and metadata
 // to the frontend, enabling better UI/UX (progress indicators, timing, etc.).
 
-// StreamStartData represents the data for stream_start event
+// EventStreamStartData represents the data for stream_start event
 // Sent when a streaming request begins
-type StreamStartData struct {
+type EventStreamStartData struct {
 	ContextID string                 `json:"context_id"`          // Context ID for the response
 	RequestID string                 `json:"request_id"`          // Unique identifier for this request
 	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when stream started
@@ -296,9 +313,9 @@ type StreamStartData struct {
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // Metadata to pass to the page for CUI context
 }
 
-// StreamEndData represents the data for stream_end event
+// EventStreamEndData represents the data for stream_end event
 // Sent when a streaming request completes (successfully or with error)
-type StreamEndData struct {
+type EventStreamEndData struct {
 	RequestID  string                 `json:"request_id"`         // Corresponding request ID
 	ContextID  string                 `json:"context_id"`         // Context ID for the response
 	TraceID    string                 `json:"trace_id"`           // Trace ID being used (e.g., "trace-123")
@@ -310,34 +327,83 @@ type StreamEndData struct {
 	Metadata   map[string]interface{} `json:"metadata,omitempty"` // Metadata to pass to the page for CUI context
 }
 
-// GroupStartData represents the data for group_start event
-// Sent when a logical message group begins (text, tool_call, thinking, etc.)
-type GroupStartData struct {
-	GroupID   string                 `json:"group_id"`            // Unique identifier for this group
-	Type      string                 `json:"type"`                // Group type: "text" | "thinking" | "tool_call" | "refusal"
-	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when group started
-	ToolCall  *GroupToolCallInfo     `json:"tool_call,omitempty"` // Tool call metadata (if type is "tool_call")
+// EventMessageStartData represents the data for message_start event
+// Sent when a logical message begins (text, tool_call, thinking, etc.)
+// LLM layer: Marks the beginning of a single logical message output
+type EventMessageStartData struct {
+	MessageID string                 `json:"message_id"`          // Message ID (M1, M2, M3...)
+	Type      string                 `json:"type"`                // Message type: "text" | "thinking" | "tool_call" | "refusal"
+	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when message started
+	ToolCall  *EventToolCallInfo     `json:"tool_call,omitempty"` // Tool call metadata (if type is "tool_call")
 	Extra     map[string]interface{} `json:"extra,omitempty"`     // Additional metadata (for custom providers or future extensions)
 }
 
-// GroupEndData represents the data for group_end event
-// Sent when a logical message group completes
-type GroupEndData struct {
-	GroupID    string                 `json:"group_id"`            // Corresponding group ID
-	Type       string                 `json:"type"`                // Group type (same as in group_start)
-	Timestamp  int64                  `json:"timestamp"`           // Unix timestamp when group ended
-	DurationMs int64                  `json:"duration_ms"`         // Duration of this group in milliseconds
-	ChunkCount int                    `json:"chunk_count"`         // Number of data chunks in this group
+// EventMessageEndData represents the data for message_end event
+// Sent when a logical message completes
+// LLM layer: Signals that all chunks for this message have been sent, client should merge and process
+type EventMessageEndData struct {
+	MessageID  string                 `json:"message_id"`          // Message ID (M1, M2, M3...)
+	Type       string                 `json:"type"`                // Message type (same as in message_start)
+	Timestamp  int64                  `json:"timestamp"`           // Unix timestamp when message ended
+	DurationMs int64                  `json:"duration_ms"`         // Duration of this message in milliseconds
+	ChunkCount int                    `json:"chunk_count"`         // Number of data chunks in this message
 	Status     string                 `json:"status"`              // "completed" | "partial" | "error"
-	ToolCall   *GroupToolCallInfo     `json:"tool_call,omitempty"` // Complete tool call info (if type is "tool_call")
-	Extra      map[string]interface{} `json:"extra,omitempty"`     // Additional metadata
+	ToolCall   *EventToolCallInfo     `json:"tool_call,omitempty"` // Complete tool call info (if type is "tool_call")
+	Extra      map[string]interface{} `json:"extra,omitempty"`     // Additional metadata (e.g., complete content for direct use)
 }
 
-// GroupToolCallInfo contains tool call information for group events
-// Used in both group_start (partial info) and group_end (complete info)
-type GroupToolCallInfo struct {
+// EventToolCallInfo contains tool call information for message events
+// Used in both message_start (partial info) and message_end (complete info)
+type EventToolCallInfo struct {
 	ID        string `json:"id"`                  // Tool call ID (e.g., "call_abc123")
-	Name      string `json:"name"`                // Function name (may be partial in group_start)
-	Arguments string `json:"arguments,omitempty"` // Complete arguments (only in group_end)
+	Name      string `json:"name"`                // Function name (may be partial in message_start)
+	Arguments string `json:"arguments,omitempty"` // Complete arguments (only in message_end)
 	Index     int    `json:"index"`               // Index in the tool calls array
+}
+
+// EventBlockStartData represents the data for block_start event
+// Sent when an output block begins (one LLM call, one MCP call, one Agent sub-task, etc.)
+// Agent layer: Groups multiple related messages into a logical section
+type EventBlockStartData struct {
+	BlockID   string                 `json:"block_id"`        // Block ID (B1, B2, B3...)
+	Type      string                 `json:"type"`            // Block type: "llm" | "mcp" | "agent" | "tool" | "mixed"
+	Timestamp int64                  `json:"timestamp"`       // Unix timestamp when block started
+	Label     string                 `json:"label,omitempty"` // Human-readable label (e.g., "Searching knowledge base", "Calling weather API")
+	Extra     map[string]interface{} `json:"extra,omitempty"` // Additional metadata
+}
+
+// EventBlockEndData represents the data for block_end event
+// Sent when an output block completes
+// Agent layer: Signals that this logical section is complete
+type EventBlockEndData struct {
+	BlockID      string                 `json:"block_id"`        // Block ID (B1, B2, B3...)
+	Type         string                 `json:"type"`            // Block type (same as in block_start)
+	Timestamp    int64                  `json:"timestamp"`       // Unix timestamp when block ended
+	DurationMs   int64                  `json:"duration_ms"`     // Duration of this block in milliseconds
+	MessageCount int                    `json:"message_count"`   // Number of messages in this block
+	Status       string                 `json:"status"`          // "completed" | "partial" | "error"
+	Extra        map[string]interface{} `json:"extra,omitempty"` // Additional metadata
+}
+
+// EventThreadStartData represents the data for thread_start event
+// Sent when a concurrent thread begins (parallel Agent/LLM/MCP calls)
+// Used in concurrent scenarios to distinguish multiple parallel output streams
+type EventThreadStartData struct {
+	ThreadID  string                 `json:"thread_id"`       // Thread ID (T1, T2, T3...)
+	Type      string                 `json:"type"`            // Thread type: "agent" | "llm" | "mcp" | "tool"
+	Timestamp int64                  `json:"timestamp"`       // Unix timestamp when thread started
+	Label     string                 `json:"label,omitempty"` // Human-readable label (e.g., "Parallel search 1", "Background task")
+	Extra     map[string]interface{} `json:"extra,omitempty"` // Additional metadata
+}
+
+// EventThreadEndData represents the data for thread_end event
+// Sent when a concurrent thread completes
+type EventThreadEndData struct {
+	ThreadID   string                 `json:"thread_id"`       // Thread ID (T1, T2, T3...)
+	Type       string                 `json:"type"`            // Thread type (same as in thread_start)
+	Timestamp  int64                  `json:"timestamp"`       // Unix timestamp when thread ended
+	DurationMs int64                  `json:"duration_ms"`     // Duration of this thread in milliseconds
+	BlockCount int                    `json:"block_count"`     // Number of blocks in this thread
+	Status     string                 `json:"status"`          // "completed" | "partial" | "error"
+	Extra      map[string]interface{} `json:"extra,omitempty"` // Additional metadata
 }

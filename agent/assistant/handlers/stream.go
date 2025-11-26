@@ -82,7 +82,7 @@ type streamState struct {
 func (s *streamState) handleStreamStart(data []byte) int {
 	// Send event message to indicate stream has started
 	// This is a lifecycle event, CUI clients can show it, OpenAI clients will ignore it
-	var startData message.StreamStartData
+	var startData message.EventStreamStartData
 	err := jsoniter.Unmarshal(data, &startData)
 	if err != nil {
 		log.Error("Failed to unmarshal stream start data: %v", err)
@@ -95,17 +95,17 @@ func (s *streamState) handleStreamStart(data []byte) int {
 // handleGroupStart handles group start event
 func (s *streamState) handleGroupStart(data []byte) int {
 	// Parse group start data first to get the group ID
-	var startData message.GroupStartData
+	var startData message.EventMessageStartData
 	if err := jsoniter.Unmarshal(data, &startData); err != nil {
 		log.Error("Failed to unmarshal group start data: %v", err)
 		return 0
 	}
 
-	// Use the group ID from the start data, or generate one if not provided
-	groupID := startData.GroupID
+	// Use the message ID from the start data, or generate one if not provided
+	groupID := startData.MessageID
 	if groupID == "" {
 		groupID = generateMessageID()
-		startData.GroupID = groupID
+		startData.MessageID = groupID
 	}
 
 	// Initialize group state with the correct group ID
@@ -138,13 +138,13 @@ func (s *streamState) handleText(data []byte) int {
 	s.messageSeq++
 
 	// Send delta message
-	// - ID: Sequential message ID (e.g., msg_001, msg_002) for readability
-	// - GroupID: Same for all chunks of this logical message (frontend merges by group_id)
+	// - ChunkID: Sequential chunk ID (C1, C2, C3...) for this fragment
+	// - MessageID: Same for all chunks of this logical message (frontend merges by message_id)
 	msg := &message.Message{
-		ID:      s.generateSequentialID(), // Sequential ID for this chunk
-		GroupID: s.currentGroupID,         // Group ID for merging (all chunks share this)
-		Type:    message.TypeText,
-		Delta:   true,
+		ChunkID:   s.generateSequentialID(), // Sequential ID for this chunk
+		MessageID: s.currentGroupID,         // Message ID for merging (all chunks share this)
+		Type:      message.TypeText,
+		Delta:     true,
 		Props: map[string]interface{}{
 			"content": string(data),
 		},
@@ -173,13 +173,13 @@ func (s *streamState) handleThinking(data []byte) int {
 	s.messageSeq++
 
 	// Send delta message
-	// - ID: Sequential message ID (e.g., msg_001, msg_002) for readability
-	// - GroupID: Same for all chunks of this logical message (frontend merges by group_id)
+	// - ChunkID: Sequential chunk ID (C1, C2, C3...) for this fragment
+	// - MessageID: Same for all chunks of this logical message (frontend merges by message_id)
 	msg := &message.Message{
-		ID:      s.generateSequentialID(), // Sequential ID for this chunk
-		GroupID: s.currentGroupID,         // Group ID for merging (all chunks share this)
-		Type:    message.TypeThinking,
-		Delta:   true,
+		ChunkID:   s.generateSequentialID(), // Sequential ID for this chunk
+		MessageID: s.currentGroupID,         // Message ID for merging (all chunks share this)
+		Type:      message.TypeThinking,
+		Delta:     true,
 		Props: map[string]interface{}{
 			"content": string(data),
 		},
@@ -197,9 +197,9 @@ func (s *streamState) handleToolCall(data []byte) int {
 	// Tool calls are usually complete JSON objects
 	// Parse and send as tool_call message
 	msg := &message.Message{
-		ID:    generateMessageID(),
-		Type:  message.TypeToolCall,
-		Delta: true,
+		MessageID: generateMessageID(),
+		Type:      message.TypeToolCall,
+		Delta:     true,
 		Props: map[string]interface{}{
 			// TODO: Parse tool call data
 			"raw": string(data),
@@ -241,9 +241,9 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 		msgType = message.TypeText // Fallback to text if type not set
 	}
 
-	// Build GroupEndData with complete content
-	endData := message.GroupEndData{
-		GroupID:    s.currentGroupID, // Use the group ID, not message ID
+	// Build EventMessageEndData with complete content
+	endData := message.EventMessageEndData{
+		MessageID:  s.currentGroupID, // Use the message ID
 		Type:       msgType,
 		Timestamp:  time.Now().UnixMilli(),
 		DurationMs: durationMs,
@@ -271,7 +271,7 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 // handleStreamEnd handles stream end event
 func (s *streamState) handleStreamEnd(data []byte) int {
 	// Parse the stream end data
-	var endData message.StreamEndData
+	var endData message.EventStreamEndData
 	if err := jsoniter.Unmarshal(data, &endData); err != nil {
 		log.Error("Failed to parse stream_end data: %v", err)
 		s.ctx.Flush()

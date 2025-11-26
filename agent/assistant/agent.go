@@ -704,7 +704,7 @@ func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler message
 	}
 
 	// Build the start data
-	startData := message.StreamStartData{
+	startData := message.EventStreamStartData{
 		ContextID: ctx.ID,
 		ChatID:    ctx.ChatID,
 		TraceID:   ctx.TraceID(),
@@ -731,7 +731,7 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler message.S
 		return
 	}
 
-	endData := &message.StreamEndData{
+	endData := &message.EventStreamEndData{
 		RequestID:  ctx.RequestID(),
 		ContextID:  ctx.ID,
 		Timestamp:  time.Now().UnixMilli(),

@@ -1,18 +1,10 @@
 package output
 
 import (
-	"fmt"
-	"math/rand"
-	"time"
-
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
 // Helper functions for creating built-in message types
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 // NewUserInputMessage creates a user input message (for frontend display)
 // content can be string or []ContentPart for multimodal content
@@ -150,10 +142,9 @@ func IsBuiltinType(msgType string) bool {
 	}
 }
 
-// GenerateID generates a unique message ID
+// GenerateID generates a unique message ID using nanoid
+// Deprecated: Use message.GenerateMessageID(), message.GenerateChunkID(),
+// message.GenerateBlockID(), or message.GenerateThreadID() instead
 func GenerateID() string {
-	// Generate a random ID with timestamp prefix for uniqueness
-	timestamp := time.Now().UnixNano()
-	random := rand.Int63()
-	return fmt.Sprintf("msg_%d_%d", timestamp, random)
+	return message.GenerateNanoID()
 }

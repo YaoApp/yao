@@ -18,25 +18,33 @@ import (
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
-// startGroup starts a new group and sends group_start event
-func (gt *groupTracker) startGroup(groupType message.StreamChunkType, handler message.StreamFunc) {
-	if gt.active {
-		// End previous group first
-		gt.endGroup(handler)
+// startMessage starts a new message and sends group_start event
+// Note: group_start/group_end events are used for backward compatibility
+// but at LLM level they represent message boundaries, not Agent-level blocks
+func (mt *messageTracker) startMessage(messageType message.StreamChunkType, handler message.StreamFunc) {
+	if mt.active {
+		// End previous message first
+		mt.endMessage(handler)
 	}
 
-	gt.active = true
-	gt.groupID = fmt.Sprintf("grp_%d", time.Now().UnixNano())
-	gt.groupType = groupType
-	gt.startTime = time.Now().UnixMilli()
-	gt.chunkCount = 0
-	gt.toolCallInfo = nil
+	mt.active = true
+	// Generate message ID using context's ID generator
+	if mt.idGenerator != nil {
+		mt.messageID = mt.idGenerator.GenerateMessageID() // M1, M2, M3...
+	} else {
+		// Fallback to global generator if no context generator
+		mt.messageID = message.GenerateNanoID()
+	}
+	mt.messageType = messageType
+	mt.startTime = time.Now().UnixMilli()
+	mt.chunkCount = 0
+	mt.toolCallInfo = nil
 
 	if handler != nil {
-		startData := &message.GroupStartData{
-			GroupID:   gt.groupID,
-			Type:      string(groupType),
-			Timestamp: gt.startTime,
+		startData := &message.EventMessageStartData{
+			MessageID: mt.messageID,
+			Type:      string(messageType),
+			Timestamp: mt.startTime,
 		}
 		if startJSON, err := jsoniter.Marshal(startData); err == nil {
 			handler(message.ChunkGroupStart, startJSON)
@@ -44,24 +52,30 @@ func (gt *groupTracker) startGroup(groupType message.StreamChunkType, handler me
 	}
 }
 
-// startToolCallGroup starts a new tool call group with tool call info
-func (gt *groupTracker) startToolCallGroup(toolCallInfo *message.GroupToolCallInfo, handler message.StreamFunc) {
-	if gt.active {
-		gt.endGroup(handler)
+// startToolCallMessage starts a new tool call message with tool call info
+func (mt *messageTracker) startToolCallMessage(toolCallInfo *message.EventToolCallInfo, handler message.StreamFunc) {
+	if mt.active {
+		mt.endMessage(handler)
 	}
 
-	gt.active = true
-	gt.groupID = fmt.Sprintf("grp_tool_%d", time.Now().UnixNano())
-	gt.groupType = message.ChunkToolCall
-	gt.startTime = time.Now().UnixMilli()
-	gt.chunkCount = 0
-	gt.toolCallInfo = toolCallInfo
+	mt.active = true
+	// Generate message ID using context's ID generator
+	if mt.idGenerator != nil {
+		mt.messageID = mt.idGenerator.GenerateMessageID() // M1, M2, M3...
+	} else {
+		// Fallback to global generator if no context generator
+		mt.messageID = message.GenerateNanoID()
+	}
+	mt.messageType = message.ChunkToolCall
+	mt.startTime = time.Now().UnixMilli()
+	mt.chunkCount = 0
+	mt.toolCallInfo = toolCallInfo
 
 	if handler != nil {
-		startData := &message.GroupStartData{
-			GroupID:   gt.groupID,
+		startData := &message.EventMessageStartData{
+			MessageID: mt.messageID,
 			Type:      string(message.ChunkToolCall),
-			Timestamp: gt.startTime,
+			Timestamp: mt.startTime,
 			ToolCall:  toolCallInfo,
 		}
 		if startJSON, err := jsoniter.Marshal(startData); err == nil {
@@ -70,39 +84,41 @@ func (gt *groupTracker) startToolCallGroup(toolCallInfo *message.GroupToolCallIn
 	}
 }
 
-// incrementChunk increments the chunk count for the current group
-func (gt *groupTracker) incrementChunk() {
-	if gt.active {
-		gt.chunkCount++
+// incrementChunk increments the chunk count for the current message
+func (mt *messageTracker) incrementChunk() {
+	if mt.active {
+		mt.chunkCount++
 	}
 }
 
-// endGroup ends the current group and sends group_end event
-func (gt *groupTracker) endGroup(handler message.StreamFunc) {
-	if !gt.active {
+// endMessage ends the current message and sends group_end event
+// Note: group_end event is used for backward compatibility
+// but at LLM level it represents message completion, not Agent-level block
+func (mt *messageTracker) endMessage(handler message.StreamFunc) {
+	if !mt.active {
 		return
 	}
 
 	if handler != nil {
-		endData := &message.GroupEndData{
-			GroupID:    gt.groupID,
-			Type:       string(gt.groupType),
+		endData := &message.EventMessageEndData{
+			MessageID:  mt.messageID,
+			Type:       string(mt.messageType),
 			Timestamp:  time.Now().UnixMilli(),
-			DurationMs: time.Now().UnixMilli() - gt.startTime,
-			ChunkCount: gt.chunkCount,
+			DurationMs: time.Now().UnixMilli() - mt.startTime,
+			ChunkCount: mt.chunkCount,
 			Status:     "completed",
 		}
-		if gt.toolCallInfo != nil {
-			endData.ToolCall = gt.toolCallInfo
+		if mt.toolCallInfo != nil {
+			endData.ToolCall = mt.toolCallInfo
 		}
 		if endJSON, err := jsoniter.Marshal(endData); err == nil {
 			handler(message.ChunkGroupEnd, endJSON)
 		}
 	}
 
-	gt.active = false
-	gt.groupID = ""
-	gt.toolCallInfo = nil
+	mt.active = false
+	mt.messageID = ""
+	mt.toolCallInfo = nil
 }
 
 // Provider OpenAI-compatible provider with capability adapters
@@ -438,8 +454,10 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		toolCalls: make(map[int]*accumulatedToolCall),
 	}
 
-	// Group tracker for lifecycle events
-	groupTracker := &groupTracker{}
+	// Message tracker for lifecycle events (tracks individual messages like thinking, text, tool_call)
+	messageTracker := &messageTracker{
+		idGenerator: ctx.IDGenerator,
+	}
 
 	// Stream handler
 	streamHandler := func(data []byte) int {
@@ -518,43 +536,43 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 			// Handle reasoning content (DeepSeek R1)
 			if delta.ReasoningContent != "" {
-				// Start thinking group if not active
-				if !groupTracker.active || groupTracker.groupType != message.ChunkThinking {
-					groupTracker.startGroup(message.ChunkThinking, handler)
+				// Start thinking message if not active
+				if !messageTracker.active || messageTracker.messageType != message.ChunkThinking {
+					messageTracker.startMessage(message.ChunkThinking, handler)
 				}
 
 				accumulator.reasoningContent += delta.ReasoningContent
 				if handler != nil {
 					handler(message.ChunkThinking, []byte(delta.ReasoningContent))
-					groupTracker.incrementChunk()
+					messageTracker.incrementChunk()
 				}
 			}
 
 			// Handle content
 			if delta.Content != "" {
-				// Start text group if not active
-				if !groupTracker.active || groupTracker.groupType != message.ChunkText {
-					groupTracker.startGroup(message.ChunkText, handler)
+				// Start text message if not active
+				if !messageTracker.active || messageTracker.messageType != message.ChunkText {
+					messageTracker.startMessage(message.ChunkText, handler)
 				}
 
 				accumulator.content += delta.Content
 				if handler != nil {
 					handler(message.ChunkText, []byte(delta.Content))
-					groupTracker.incrementChunk()
+					messageTracker.incrementChunk()
 				}
 			}
 
 			// Handle refusal
 			if delta.Refusal != "" {
-				// Start refusal group if not active
-				if !groupTracker.active || groupTracker.groupType != message.ChunkRefusal {
-					groupTracker.startGroup(message.ChunkRefusal, handler)
+				// Start refusal message if not active
+				if !messageTracker.active || messageTracker.messageType != message.ChunkRefusal {
+					messageTracker.startMessage(message.ChunkRefusal, handler)
 				}
 
 				accumulator.refusal += delta.Refusal
 				if handler != nil {
 					handler(message.ChunkRefusal, []byte(delta.Refusal))
-					groupTracker.incrementChunk()
+					messageTracker.incrementChunk()
 				}
 			}
 
@@ -564,14 +582,14 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 					if _, exists := accumulator.toolCalls[tc.Index]; !exists {
 						accumulator.toolCalls[tc.Index] = &accumulatedToolCall{}
 
-						// Start new tool call group when we first see this tool call
+						// Start new tool call message when we first see this tool call
 						if tc.ID != "" {
-							toolCallInfo := &message.GroupToolCallInfo{
+							toolCallInfo := &message.EventToolCallInfo{
 								ID:    tc.ID,
 								Name:  tc.Function.Name, // May be partial or empty initially
 								Index: tc.Index,
 							}
-							groupTracker.startToolCallGroup(toolCallInfo, handler)
+							messageTracker.startToolCallMessage(toolCallInfo, handler)
 						}
 					}
 					accTC := accumulator.toolCalls[tc.Index]
@@ -585,15 +603,15 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 					if tc.Function.Name != "" {
 						accTC.functionName = tc.Function.Name
 						// Update tool call info in tracker
-						if groupTracker.active && groupTracker.toolCallInfo != nil {
-							groupTracker.toolCallInfo.Name = tc.Function.Name
+						if messageTracker.active && messageTracker.toolCallInfo != nil {
+							messageTracker.toolCallInfo.Name = tc.Function.Name
 						}
 					}
 					if tc.Function.Arguments != "" {
 						accTC.functionArgs += tc.Function.Arguments
 						// Update tool call info in tracker
-						if groupTracker.active && groupTracker.toolCallInfo != nil {
-							groupTracker.toolCallInfo.Arguments = accTC.functionArgs
+						if messageTracker.active && messageTracker.toolCallInfo != nil {
+							messageTracker.toolCallInfo.Arguments = accTC.functionArgs
 						}
 					}
 				}
@@ -602,7 +620,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 				if handler != nil {
 					toolCallData, _ := jsoniter.Marshal(delta.ToolCalls)
 					handler(message.ChunkToolCall, toolCallData)
-					groupTracker.incrementChunk()
+					messageTracker.incrementChunk()
 				}
 			}
 
@@ -713,8 +731,8 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	if err != nil {
-		// End current group if active
-		groupTracker.endGroup(handler)
+		// End current message if active
+		messageTracker.endMessage(handler)
 
 		// Notify handler of error if provided
 		if handler != nil {
@@ -742,8 +760,8 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 		err := fmt.Errorf("no data received from OpenAI API")
 
-		// End current group if active
-		groupTracker.endGroup(handler)
+		// End current message if active
+		messageTracker.endMessage(handler)
 
 		// Notify handler of error if provided
 		if handler != nil {
@@ -786,16 +804,16 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 		// Validate tool call results if schema is provided
 		if err := p.validateToolCallResults(options, toolCalls); err != nil {
-			// End current group
-			groupTracker.endGroup(handler)
+			// End current message
+			messageTracker.endMessage(handler)
 
 			// Tool call validation failed, need to retry with error feedback
 			return nil, fmt.Errorf("tool call validation failed: %w", err)
 		}
 	}
 
-	// End final group if still active
-	groupTracker.endGroup(handler)
+	// End final message if still active
+	messageTracker.endMessage(handler)
 
 	return response, nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/agent/output"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 )
@@ -198,15 +199,16 @@ type Context struct {
 
 	// Context
 	context.Context
-	ID     string             `json:"id"`             // Context ID for external interrupt identification
-	Space  plan.Space         `json:"-"`              // Shared data space, it will be used to share data between the request and the call
-	Cache  store.Store        `json:"-"`              // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
-	Stack  *Stack             `json:"-"`              // Stack, current active stack of the request
-	Stacks map[string]*Stack  `json:"-"`              // Stacks, all stacks in this request (for trace logging)
-	Writer Writer             `json:"-"`              // Writer, it will be used to write response data to the client
-	Skip   *Skip              `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
-	trace  traceTypes.Manager `json:"-"`              // Trace manager, lazy initialized on first access
-	output *output.Output     `json:"-"`              // Output, it will be used to write response data to the client
+	ID          string               `json:"id"`             // Context ID for external interrupt identification
+	Space       plan.Space           `json:"-"`              // Shared data space, it will be used to share data between the request and the call
+	Cache       store.Store          `json:"-"`              // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Stack       *Stack               `json:"-"`              // Stack, current active stack of the request
+	Stacks      map[string]*Stack    `json:"-"`              // Stacks, all stacks in this request (for trace logging)
+	Writer      Writer               `json:"-"`              // Writer, it will be used to write response data to the client
+	Skip        *Skip                `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
+	trace       traceTypes.Manager   `json:"-"`              // Trace manager, lazy initialized on first access
+	output      *output.Output       `json:"-"`              // Output, it will be used to write response data to the client
+	IDGenerator *message.IDGenerator `json:"-"`              // ID generator for this context (chunk, message, block, thread IDs)
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector
