@@ -163,8 +163,8 @@ func TestJsValueSendGroup(t *testing.T) {
 	assert.Equal(t, true, result["success"], "SendGroup should succeed")
 }
 
-// TestJsValueFlush test the Flush method on Context
-func TestJsValueFlush(t *testing.T) {
+// TestJsValueSendGroupStartEnd test the SendGroupStart and SendGroupEnd methods
+func TestJsValueSendGroupStartEnd(t *testing.T) {
 
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
@@ -181,13 +181,17 @@ func TestJsValueFlush(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			try {
-				// Send a message
-				ctx.Send("Processing...");
+				// Start a group with auto-generated ID
+				const groupId = ctx.SendGroupStart("text");
 				
-				// Flush output
-				ctx.Flush();
+				// Send messages in the group
+				ctx.Send({ type: "text", props: { content: "Message 1" }, group_id: groupId });
+				ctx.Send({ type: "text", props: { content: "Message 2" }, group_id: groupId });
 				
-				return { success: true };
+				// End the group
+				ctx.SendGroupEnd(groupId, 2);
+				
+				return { success: true, groupId: groupId };
 			} catch (error) {
 				return { success: false, error: error.message };
 			}
@@ -200,7 +204,8 @@ func TestJsValueFlush(t *testing.T) {
 	if !ok {
 		t.Fatalf("Expected map result, got %T", res)
 	}
-	assert.Equal(t, true, result["success"], "Flush should succeed")
+	assert.Equal(t, true, result["success"], "SendGroupStart/End should succeed")
+	assert.NotEmpty(t, result["groupId"], "Should return group ID")
 }
 
 // TestJsValueSendDeltaUpdates test delta updates in Send
@@ -239,13 +244,7 @@ func TestJsValueSendDeltaUpdates(t *testing.T) {
 					delta_action: "append"
 				});
 				
-				// Mark as complete
-				ctx.Send({
-					type: "text",
-					props: {},
-					id: "msg_1",
-					done: true
-				});
+				// Send completion (no done field needed)
 				
 				return { success: true };
 			} catch (error) {
@@ -328,8 +327,6 @@ func TestJsValueSendMultipleTypes(t *testing.T) {
 						height: 600
 					}
 				});
-				
-				ctx.Flush();
 				
 				return { success: true };
 			} catch (error) {
@@ -467,7 +464,6 @@ func TestJsValueSendWithCUIAccept(t *testing.T) {
 							type: "text",
 							props: { content: "Hello CUI" }
 						});
-						ctx.Flush();
 						return { success: true };
 					} catch (error) {
 						return { success: false, error: error.message };
@@ -566,15 +562,11 @@ func TestJsValueSendChainedCalls(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			try {
-				// Multiple sequential sends
+				// Multiple sequential sends (each auto-flushes)
 				ctx.Send("Step 1");
 				ctx.Send("Step 2");
 				ctx.Send("Step 3");
-				ctx.Flush();
-				
-				// Send after flush
 				ctx.Send("Step 4");
-				ctx.Flush();
 				
 				return { success: true };
 			} catch (error) {

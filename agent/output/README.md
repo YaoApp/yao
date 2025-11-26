@@ -39,7 +39,6 @@ type Message struct {
     // Streaming control
     ID    string `json:"id,omitempty"`    // Unique message ID (for merging in streaming)
     Delta bool   `json:"delta,omitempty"` // Whether this is an incremental update
-    Done  bool   `json:"done,omitempty"`  // Whether the message is complete
 
     // Delta update control (for incremental props updates)
     DeltaPath   string `json:"delta_path,omitempty"`   // Which field to update (e.g., "content", "items.0.name")
@@ -85,11 +84,7 @@ type Message struct {
   - `true`: Append/update to existing message with same ID
   - `false`: Complete message (default)
   - Used for streaming LLM responses
-
-- **`Done`** (optional): Marks message as complete
-  - `true`: No more updates will come for this message ID
-  - `false`: More updates may follow
-  - Typically sent as final message in a delta sequence
+  - Message completion is signaled via `group_end` event instead
 
 #### Delta Update Control
 
@@ -379,11 +374,22 @@ msg := &message.Message{
 }
 output.Send(ctx, msg)
 
-// Mark as complete
-msg.Delta = false
-msg.Done = true
-msg.Props["content"] = "Hello world!"  // Full content
+// Send more delta updates...
+msg.Props["content"] = " world"
 output.Send(ctx, msg)
+
+// Mark completion with group_end event
+endData := message.GroupEndData{
+    GroupID:    "msg_123",
+    Type:       "text",
+    Status:     "completed",
+    ChunkCount: 2,
+    Extra: map[string]interface{}{
+        "content": "Hello world!", // Full content
+    },
+}
+eventMsg := output.NewEventMessage(message.EventGroupEnd, "Group completed", endData)
+output.Send(ctx, eventMsg)
 ```
 
 ### Custom Writers

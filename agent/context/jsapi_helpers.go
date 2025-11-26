@@ -58,9 +58,6 @@ func parseMessage(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Message, e
 	if delta, ok := msgMap["delta"].(bool); ok {
 		msg.Delta = delta
 	}
-	if done, ok := msgMap["done"].(bool); ok {
-		msg.Done = done
-	}
 	if deltaPath, ok := msgMap["delta_path"].(string); ok {
 		msg.DeltaPath = deltaPath
 	}
@@ -72,12 +69,6 @@ func parseMessage(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Message, e
 	}
 	if groupID, ok := msgMap["group_id"].(string); ok {
 		msg.GroupID = groupID
-	}
-	if groupStart, ok := msgMap["group_start"].(bool); ok {
-		msg.GroupStart = groupStart
-	}
-	if groupEnd, ok := msgMap["group_end"].(bool); ok {
-		msg.GroupEnd = groupEnd
 	}
 
 	// Metadata (optional)
@@ -158,9 +149,6 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 			if delta, ok := msgMap["delta"].(bool); ok {
 				msg.Delta = delta
 			}
-			if done, ok := msgMap["done"].(bool); ok {
-				msg.Done = done
-			}
 			if deltaPath, ok := msgMap["delta_path"].(string); ok {
 				msg.DeltaPath = deltaPath
 			}
@@ -172,12 +160,6 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 			}
 			if groupID, ok := msgMap["group_id"].(string); ok {
 				msg.GroupID = groupID
-			}
-			if groupStart, ok := msgMap["group_start"].(bool); ok {
-				msg.GroupStart = groupStart
-			}
-			if groupEnd, ok := msgMap["group_end"].(bool); ok {
-				msg.GroupEnd = groupEnd
 			}
 
 			// Metadata (optional)

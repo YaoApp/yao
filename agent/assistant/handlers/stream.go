@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"fmt"
+	"time"
+
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
@@ -15,9 +18,10 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 
 	// Create stream state manager
 	state := &streamState{
-		ctx:       ctx,
-		inGroup:   false,
-		currentID: "",
+		ctx:            ctx,
+		inGroup:        false,
+		currentGroupID: "",
+		messageSeq:     0,
 	}
 
 	return func(chunkType message.StreamChunkType, data []byte) int {
@@ -64,11 +68,14 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 
 // streamState manages the state of the streaming process
 type streamState struct {
-	ctx         *context.Context
-	inGroup     bool
-	currentID   string
-	currentType string // Track the current message type (text, thinking, tool_call)
-	buffer      []byte
+	ctx            *context.Context
+	inGroup        bool
+	currentGroupID string // Current group ID (shared by all chunks in the group)
+	currentType    string // Track the current message type (text, thinking, tool_call)
+	buffer         []byte
+	chunkCount     int       // Track number of chunks in current group
+	messageSeq     int       // Message sequence number (for generating readable IDs)
+	groupStartTime time.Time // Track when group started
 }
 
 // handleStreamStart handles stream start event
@@ -87,9 +94,32 @@ func (s *streamState) handleStreamStart(data []byte) int {
 
 // handleGroupStart handles group start event
 func (s *streamState) handleGroupStart(data []byte) int {
+	// Parse group start data first to get the group ID
+	var startData message.GroupStartData
+	if err := jsoniter.Unmarshal(data, &startData); err != nil {
+		log.Error("Failed to unmarshal group start data: %v", err)
+		return 0
+	}
+
+	// Use the group ID from the start data, or generate one if not provided
+	groupID := startData.GroupID
+	if groupID == "" {
+		groupID = generateMessageID()
+		startData.GroupID = groupID
+	}
+
+	// Initialize group state with the correct group ID
 	s.inGroup = true
-	s.currentID = generateMessageID()
+	s.currentGroupID = groupID
 	s.buffer = []byte{}
+	s.chunkCount = 0
+	s.messageSeq = 0 // Reset message sequence for each group
+	s.groupStartTime = time.Now()
+
+	// Send group_start event
+	msg := output.NewEventMessage(message.EventGroupStart, "Group started", startData)
+	s.ctx.Send(msg)
+
 	return 0 // Continue
 }
 
@@ -99,22 +129,22 @@ func (s *streamState) handleText(data []byte) int {
 		return 0
 	}
 
-	// Ensure we have a message ID
-	if s.currentID == "" {
-		s.currentID = generateMessageID()
-	}
-
 	// Track current message type
 	s.currentType = message.TypeText
 
 	// Append to buffer
 	s.buffer = append(s.buffer, data...)
+	s.chunkCount++
+	s.messageSeq++
 
 	// Send delta message
+	// - ID: Sequential message ID (e.g., msg_001, msg_002) for readability
+	// - GroupID: Same for all chunks of this logical message (frontend merges by group_id)
 	msg := &message.Message{
-		ID:    s.currentID,
-		Type:  message.TypeText,
-		Delta: true,
+		ID:      s.generateSequentialID(), // Sequential ID for this chunk
+		GroupID: s.currentGroupID,         // Group ID for merging (all chunks share this)
+		Type:    message.TypeText,
+		Delta:   true,
 		Props: map[string]interface{}{
 			"content": string(data),
 		},
@@ -134,22 +164,22 @@ func (s *streamState) handleThinking(data []byte) int {
 		return 0
 	}
 
-	// Ensure we have a message ID
-	if s.currentID == "" {
-		s.currentID = generateMessageID()
-	}
-
 	// Track current message type
 	s.currentType = message.TypeThinking
 
 	// Append to buffer
 	s.buffer = append(s.buffer, data...)
+	s.chunkCount++
+	s.messageSeq++
 
 	// Send delta message
+	// - ID: Sequential message ID (e.g., msg_001, msg_002) for readability
+	// - GroupID: Same for all chunks of this logical message (frontend merges by group_id)
 	msg := &message.Message{
-		ID:    s.currentID,
-		Type:  message.TypeThinking,
-		Delta: true,
+		ID:      s.generateSequentialID(), // Sequential ID for this chunk
+		GroupID: s.currentGroupID,         // Group ID for merging (all chunks share this)
+		Type:    message.TypeThinking,
+		Delta:   true,
 		Props: map[string]interface{}{
 			"content": string(data),
 		},
@@ -202,30 +232,38 @@ func (s *streamState) handleGroupEnd(data []byte) int {
 		return 0
 	}
 
-	// Send done message with complete content
-	if s.currentID != "" && len(s.buffer) > 0 {
-		// Use the tracked message type (thinking, text, tool_call, etc.)
-		msgType := s.currentType
-		if msgType == "" {
-			msgType = message.TypeText // Fallback to text if type not set
-		}
+	// Calculate duration
+	durationMs := time.Since(s.groupStartTime).Milliseconds()
 
-		msg := &message.Message{
-			ID:   s.currentID,
-			Type: msgType, // Use the actual message type from the group
-			Done: true,
-			Props: map[string]interface{}{
-				"content": string(s.buffer),
-			},
-		}
-		s.ctx.Send(msg)
+	// Use the tracked message type (thinking, text, tool_call, etc.)
+	msgType := s.currentType
+	if msgType == "" {
+		msgType = message.TypeText // Fallback to text if type not set
 	}
+
+	// Build GroupEndData with complete content
+	endData := message.GroupEndData{
+		GroupID:    s.currentGroupID, // Use the group ID, not message ID
+		Type:       msgType,
+		Timestamp:  time.Now().UnixMilli(),
+		DurationMs: durationMs,
+		ChunkCount: s.chunkCount,
+		Status:     "completed",
+		Extra: map[string]interface{}{
+			"content": string(s.buffer), // Include complete content in the event
+		},
+	}
+
+	// Send group_end event
+	msg := output.NewEventMessage(message.EventGroupEnd, "Group completed", endData)
+	s.ctx.Send(msg)
 
 	// Reset state
 	s.inGroup = false
-	s.currentID = ""
+	s.currentGroupID = ""
 	s.currentType = ""
 	s.buffer = []byte{}
+	s.chunkCount = 0
 
 	return 0 // Continue
 }
@@ -247,6 +285,13 @@ func (s *streamState) handleStreamEnd(data []byte) int {
 	// Flush any remaining data
 	s.ctx.Flush()
 	return 0 // Continue (stream will end naturally)
+}
+
+// generateSequentialID generates a sequential message ID for better readability
+func (s *streamState) generateSequentialID() string {
+	// Format: 1, 2, 3, etc.
+	// This makes it easier for developers to track message order in logs
+	return fmt.Sprintf("%d", s.messageSeq)
 }
 
 // generateMessageID generates a unique message ID

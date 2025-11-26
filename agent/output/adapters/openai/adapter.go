@@ -90,13 +90,6 @@ func (a *Adapter) Adapt(msg *message.Message) ([]interface{}, error) {
 		return []interface{}{}, nil // Return empty array, nothing to send
 	}
 
-	// Skip "done" messages that are not delta updates
-	// These are final confirmation messages for CUI clients
-	// OpenAI clients don't need them - they use finish_reason instead
-	if msg.Done && !msg.Delta {
-		return []interface{}{}, nil // Return empty array, nothing to send
-	}
-
 	// Get converter for this message type
 	converter, exists := a.registry.GetConverter(msg.Type)
 	if !exists {
