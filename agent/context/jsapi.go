@@ -1,7 +1,11 @@
 package context
 
 import (
+	"time"
+
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/yao/agent/output"
+	"github.com/yaoapp/yao/agent/output/message"
 	traceJsapi "github.com/yaoapp/yao/trace/jsapi"
 	"rogchap.com/v8go"
 )
@@ -47,7 +51,8 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	jsObject.Set("Trace", ctx.traceMethod(v8ctx.Isolate()))
 	jsObject.Set("Send", ctx.sendMethod(v8ctx.Isolate()))
 	jsObject.Set("SendGroup", ctx.sendGroupMethod(v8ctx.Isolate()))
-	jsObject.Set("Flush", ctx.flushMethod(v8ctx.Isolate()))
+	jsObject.Set("SendGroupStart", ctx.sendGroupStartMethod(v8ctx.Isolate()))
+	jsObject.Set("SendGroupEnd", ctx.sendGroupEndMethod(v8ctx.Isolate()))
 
 	// Create instance
 	instance, err := jsObject.NewInstance(v8ctx)
@@ -164,6 +169,7 @@ func (ctx *Context) traceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 // sendMethod implements ctx.Send(message)
 // Usage: ctx.Send({ type: "text", props: { content: "Hello" } })
 // Usage: ctx.Send("Hello") // shorthand for text message
+// Automatically generates ID and flushes output
 func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
@@ -179,9 +185,19 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "invalid message: "+err.Error())
 		}
 
+		// Generate unique ID if not provided
+		if msg.ID == "" {
+			msg.ID = output.GenerateID()
+		}
+
 		// Call ctx.Send
 		if err := ctx.Send(msg); err != nil {
 			return bridge.JsException(v8ctx, "Send failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
 		}
 
 		return v8go.Undefined(iso)
@@ -190,6 +206,7 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 
 // sendGroupMethod implements ctx.SendGroup(group)
 // Usage: ctx.SendGroup({ id: "group1", messages: [...] })
+// Automatically generates IDs, sends group_start/group_end events, and flushes output
 func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
@@ -205,24 +222,159 @@ func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "invalid group: "+err.Error())
 		}
 
+		// Generate group ID if not provided
+		if group.ID == "" {
+			group.ID = output.GenerateID()
+		}
+
+		// Send group_start event
+		startTime := time.Now()
+		startEvent := output.NewEventMessage(
+			message.EventGroupStart,
+			"Group started",
+			message.GroupStartData{
+				GroupID:   group.ID,
+				Type:      "mixed", // Mixed types in group
+				Timestamp: startTime.UnixMilli(),
+			},
+		)
+		if err := ctx.Send(startEvent); err != nil {
+			return bridge.JsException(v8ctx, "Failed to send group_start event: "+err.Error())
+		}
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed after group_start: "+err.Error())
+		}
+
+		// Generate IDs for messages and set group_id
+		for _, msg := range group.Messages {
+			if msg.ID == "" {
+				msg.ID = output.GenerateID()
+			}
+			if msg.GroupID == "" {
+				msg.GroupID = group.ID
+			}
+		}
+
 		// Call ctx.SendGroup
 		if err := ctx.SendGroup(group); err != nil {
 			return bridge.JsException(v8ctx, "SendGroup failed: "+err.Error())
+		}
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed after SendGroup: "+err.Error())
+		}
+
+		// Send group_end event
+		endEvent := output.NewEventMessage(
+			message.EventGroupEnd,
+			"Group completed",
+			message.GroupEndData{
+				GroupID:    group.ID,
+				Type:       "mixed",
+				Timestamp:  time.Now().UnixMilli(),
+				DurationMs: time.Since(startTime).Milliseconds(),
+				ChunkCount: len(group.Messages),
+				Status:     "completed",
+			},
+		)
+		if err := ctx.Send(endEvent); err != nil {
+			return bridge.JsException(v8ctx, "Failed to send group_end event: "+err.Error())
+		}
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed after group_end: "+err.Error())
 		}
 
 		return v8go.Undefined(iso)
 	})
 }
 
-// flushMethod implements ctx.Flush()
-// Usage: ctx.Flush()
-func (ctx *Context) flushMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+// sendGroupStartMethod implements ctx.SendGroupStart(type?, id?)
+// Usage: const groupId = ctx.SendGroupStart() // type="mixed", auto-generate ID
+// Usage: const groupId = ctx.SendGroupStart("text") // type="text", auto-generate ID
+// Usage: const groupId = ctx.SendGroupStart("text", "my-group-id") // type="text", use provided ID
+// Returns the group ID (generated or provided)
+func (ctx *Context) sendGroupStartMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
+		args := info.Args()
 
-		// Call ctx.Flush
+		// Get type (default: "mixed")
+		groupType := "mixed"
+		if len(args) > 0 && args[0].IsString() {
+			groupType = args[0].String()
+		}
+
+		// Get or generate group ID
+		var groupID string
+		if len(args) > 1 && args[1].IsString() {
+			groupID = args[1].String()
+		} else {
+			groupID = output.GenerateID()
+		}
+
+		// Send group_start event
+		startEvent := output.NewEventMessage(
+			message.EventGroupStart,
+			"Group started",
+			message.GroupStartData{
+				GroupID:   groupID,
+				Type:      groupType,
+				Timestamp: time.Now().UnixMilli(),
+			},
+		)
+		if err := ctx.Send(startEvent); err != nil {
+			return bridge.JsException(v8ctx, "Failed to send group_start event: "+err.Error())
+		}
 		if err := ctx.Flush(); err != nil {
-			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+			return bridge.JsException(v8ctx, "Flush failed after group_start: "+err.Error())
+		}
+
+		// Return the group ID
+		groupIDVal, err := v8go.NewValue(iso, groupID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return groupIDVal
+	})
+}
+
+// sendGroupEndMethod implements ctx.SendGroupEnd(id, chunkCount?)
+// Usage: ctx.SendGroupEnd(groupId)
+// Usage: ctx.SendGroupEnd(groupId, 10) // With chunk count
+func (ctx *Context) sendGroupEndMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		// Group ID is required
+		if len(args) < 1 || !args[0].IsString() {
+			return bridge.JsException(v8ctx, "SendGroupEnd requires a group ID (string) as first argument")
+		}
+		groupID := args[0].String()
+
+		// Optional chunk count
+		chunkCount := 0
+		if len(args) > 1 && args[1].IsNumber() {
+			chunkCount = int(args[1].Integer())
+		}
+
+		// Send group_end event
+		endEvent := output.NewEventMessage(
+			message.EventGroupEnd,
+			"Group completed",
+			message.GroupEndData{
+				GroupID:    groupID,
+				Type:       "mixed",
+				Timestamp:  time.Now().UnixMilli(),
+				DurationMs: 0, // Duration not tracked at this level
+				ChunkCount: chunkCount,
+				Status:     "completed",
+			},
+		)
+		if err := ctx.Send(endEvent); err != nil {
+			return bridge.JsException(v8ctx, "Failed to send group_end event: "+err.Error())
+		}
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed after group_end: "+err.Error())
 		}
 
 		return v8go.Undefined(iso)

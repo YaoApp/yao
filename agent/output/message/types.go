@@ -37,9 +37,8 @@ type Message struct {
 	Props map[string]interface{} `json:"props,omitempty"` // Message properties (passed to frontend component)
 
 	// Streaming control
-	ID    string `json:"id,omitempty"`    // Message ID (used for merging messages in streaming scenarios)
+	ID    string `json:"id,omitempty"`    // Unique chunk/message ID (each chunk has unique ID; use group_id for merging)
 	Delta bool   `json:"delta,omitempty"` // Whether this is an incremental update
-	Done  bool   `json:"done,omitempty"`  // Whether the message is complete
 
 	// Delta update control
 	DeltaPath   string `json:"delta_path,omitempty"`   // Update path (e.g., "content", "data", "items.0.name")
@@ -49,9 +48,7 @@ type Message struct {
 	TypeChange bool `json:"type_change,omitempty"` // Marks this as a type correction message
 
 	// Message group
-	GroupID    string `json:"group_id,omitempty"`    // Parent message group ID
-	GroupStart bool   `json:"group_start,omitempty"` // Marks the start of a message group
-	GroupEnd   bool   `json:"group_end,omitempty"`   // Marks the end of a message group
+	GroupID string `json:"group_id,omitempty"` // Group ID (all delta chunks of same logical message share this; used for merging)
 
 	// Metadata
 	Metadata *Metadata `json:"metadata,omitempty"` // Additional metadata

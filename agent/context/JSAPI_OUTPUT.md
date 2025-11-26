@@ -1,6 +1,6 @@
 # Context Output JS API
 
-The Context object provides `Send`, `SendGroup`, and `Flush` methods for sending messages to clients from JavaScript within Agent Hook functions.
+The Context object provides `Send`, `SendGroup`, `SendGroupStart`, and `SendGroupEnd` methods for sending messages to clients from JavaScript within Agent Hook functions.
 
 ## Hook Functions Overview
 
@@ -23,16 +23,14 @@ Agent Hook functions are lifecycle callbacks that allow you to customize the beh
  * Create hook - send initial messages to client
  */
 function Create(ctx, messages) {
-  // Send welcome message (string shorthand)
+  // Send welcome message (string shorthand, auto-flushes)
   ctx.Send("Welcome! Let me help you with that...");
-  ctx.Flush();
 
-  // Send loading indicator
+  // Send loading indicator (auto-flushes)
   ctx.Send({
     type: "loading",
     props: { message: "Analyzing your request..." },
   });
-  ctx.Flush();
 
   // Continue with normal processing
   return { messages };
@@ -154,13 +152,43 @@ ctx.SendGroup({
 });
 ```
 
-### ctx.Flush()
+### ctx.SendGroupStart(type?, id?)
 
-Flush the output buffer to ensure messages are sent immediately.
+Start a message group and return the group ID. Messages sent after this should include the returned `group_id`.
+
+**Parameters:**
+
+- `type` (optional): Group type (`"text"`, `"thinking"`, `"tool_call"`, `"mixed"`), defaults to `"mixed"`
+- `id` (optional): Custom group ID, auto-generates if not provided
+
+**Returns:** Group ID (string)
 
 ```javascript
-ctx.Send("Processing...");
-ctx.Flush(); // Send immediately to client
+// Auto-generate ID with default type
+const groupId = ctx.SendGroupStart();
+
+// Specify type, auto-generate ID
+const groupId = ctx.SendGroupStart("text");
+
+// Specify both type and custom ID
+const groupId = ctx.SendGroupStart("thinking", "my-group-123");
+```
+
+### ctx.SendGroupEnd(id, chunkCount?)
+
+End a message group.
+
+**Parameters:**
+
+- `id` (required): Group ID returned from `SendGroupStart`
+- `chunkCount` (optional): Number of messages in the group
+
+```javascript
+// Basic usage
+ctx.SendGroupEnd(groupId);
+
+// With chunk count
+ctx.SendGroupEnd(groupId, 5);
 ```
 
 ## Complete Hook Examples
@@ -172,9 +200,8 @@ ctx.Flush(); // Send immediately to client
  * Send welcome message when conversation starts
  */
 function Create(ctx, messages) {
-  // Send welcome message
+  // Send welcome message (auto-flushes)
   ctx.Send("Welcome to AI Assistant! How can I help you today?");
-  ctx.Flush();
 
   // Return messages to continue processing
   return { messages };
@@ -409,16 +436,15 @@ function Create(ctx, messages) {
 }
 ```
 
-### 9. Message Groups for Related Content
+### 9. Message Groups for Related Content (High-level API)
 
 ```javascript
 /**
- * Send groups of related messages together
+ * Send groups of related messages together using SendGroup (auto-handles events)
  */
 function Before(ctx, messages, response) {
-  // Send a group of context information
+  // SendGroup automatically sends group_start and group_end events
   ctx.SendGroup({
-    id: "context_info",
     messages: [
       {
         type: "text",
@@ -442,9 +468,83 @@ function Before(ctx, messages, response) {
       type: "context",
     },
   });
-  ctx.Flush();
 
   return { response };
+}
+```
+
+### 10. Manual Group Control (Low-level API)
+
+```javascript
+/**
+ * Manually control group boundaries with SendGroupStart and SendGroupEnd
+ */
+function Create(ctx, messages) {
+  // Start a text group
+  const groupId = ctx.SendGroupStart("text");
+
+  // Send messages with group_id
+  ctx.Send({
+    type: "text",
+    props: { content: "First message in group" },
+    group_id: groupId,
+  });
+
+  ctx.Send({
+    type: "text",
+    props: { content: "Second message in group" },
+    group_id: groupId,
+  });
+
+  // End the group
+  ctx.SendGroupEnd(groupId, 2);
+
+  return { messages };
+}
+```
+
+### 11. Streaming with Groups
+
+```javascript
+/**
+ * Stream delta updates within a group
+ */
+function Create(ctx, messages) {
+  // Start thinking group
+  const thinkingId = ctx.SendGroupStart("thinking");
+
+  // Stream thinking process
+  const steps = ["Analyzing", "Processing", "Generating"];
+  const msgId = "thinking_msg";
+
+  steps.forEach((step, i) => {
+    if (i === 0) {
+      // First message
+      ctx.Send({
+        type: "thinking",
+        props: { content: step },
+        id: msgId,
+        group_id: thinkingId,
+        delta: false,
+      });
+    } else {
+      // Delta updates
+      ctx.Send({
+        type: "thinking",
+        props: { content: ` → ${step}` },
+        id: msgId,
+        group_id: thinkingId,
+        delta: true,
+        delta_path: "content",
+        delta_action: "append",
+      });
+    }
+  });
+
+  // End thinking group
+  ctx.SendGroupEnd(thinkingId, steps.length);
+
+  return { messages };
 }
 ```
 
@@ -617,9 +717,8 @@ ctx.Send({
 
 ```javascript
 function Create(ctx, messages) {
-  ctx.Send("Starting processing...");
-  ctx.Flush();
-  // No need to wait, continue processing
+  ctx.Send("Starting processing..."); // Auto-flushes
+  // Continue processing immediately
   return { messages };
 }
 ```
@@ -630,8 +729,7 @@ function Create(ctx, messages) {
 function Create(ctx, messages) {
   const stages = ["validate", "analyze", "prepare"];
   stages.forEach((stage) => {
-    ctx.Send({ type: "loading", props: { message: `${stage}...` } });
-    ctx.Flush();
+    ctx.Send({ type: "loading", props: { message: `${stage}...` } }); // Auto-flushes
     performStage(stage);
   });
   return { messages };
@@ -647,8 +745,7 @@ function Before(ctx, messages, response) {
     ctx.Send({
       type: "thinking",
       props: { content: "Analyzing complex query..." },
-    });
-    ctx.Flush();
+    }); // Auto-flushes
   }
   return { response };
 }
@@ -659,8 +756,7 @@ function Before(ctx, messages, response) {
 ```javascript
 function Error(ctx, messages, error) {
   if (error.code === "RATE_LIMIT") {
-    ctx.Send("Service is busy, retrying...");
-    ctx.Flush();
+    ctx.Send("Service is busy, retrying..."); // Auto-flushes
     time.Sleep(1000);
     return { retry: true };
   }
@@ -668,8 +764,7 @@ function Error(ctx, messages, error) {
   ctx.Send({
     type: "error",
     props: { message: "Sorry, something went wrong.", code: error.code },
-  });
-  ctx.Flush();
+  }); // Auto-flushes
   return { error };
 }
 ```
@@ -686,16 +781,16 @@ Each hook receives different parameters:
 - `Done(ctx, messages, response)` - Context, messages, and final response
 - `Error(ctx, messages, error)` - Context, messages, and error object
 
-### 2. Always Flush for Real-time Updates
+### 2. Messages Auto-Flush for Real-time Updates
 
 ```javascript
-// Good - user sees message immediately
-ctx.Send("Processing...");
-ctx.Flush();
+// Messages are automatically flushed after each Send
+ctx.Send("Processing..."); // Sent immediately to client
 
-// Bad - message buffered until hook returns
-ctx.Send("Processing...");
-// ... hook continues ...
+// Multiple sends work seamlessly
+ctx.Send("Step 1"); // Flushed
+ctx.Send("Step 2"); // Flushed
+ctx.Send("Step 3"); // Flushed
 ```
 
 ### 3. Delta Updates Require Unique IDs
@@ -722,9 +817,10 @@ ctx.Send({
 
 ### 5. Performance Considerations
 
-- Use `Flush()` sparingly - only when immediate delivery is needed
-- Batch related messages with `SendGroup()` when possible
-- Avoid sending too many small updates (combine them)
+- Messages auto-flush after each `Send()` for real-time delivery
+- Batch related messages with `SendGroup()` when possible for better performance
+- Avoid sending too many small updates (combine them when feasible)
+- Use `SendGroupStart`/`SendGroupEnd` for fine-grained control over grouping
 
 ### 6. Context Information Available
 
@@ -757,9 +853,8 @@ function Create(ctx, messages) {
 
 ```javascript
 function Create(ctx, messages) {
-  ctx.Send("Hello");
-  ctx.SendGroup({ id: "grp1", messages: [...] });
-  ctx.Flush();
+  ctx.Send("Hello");  // Auto-flushes
+  ctx.SendGroup({ messages: [...] });  // Auto-handles events and flushing
   return { messages };
 }
 ```
@@ -768,17 +863,24 @@ function Create(ctx, messages) {
 
 1. **Use String Shorthand**: `ctx.Send("Hello")` is simpler than `ctx.Send({ type: "text", props: { content: "Hello" } })`
 
-2. **Flush After Each Step**: Ensure users see progress in real-time
+2. **Messages Auto-Flush**: Each `Send()` automatically flushes for real-time delivery - no manual flushing needed
 
-3. **Handle Errors Gracefully**: Always provide user-friendly error messages
+3. **Choose the Right API Level**:
 
-4. **Show Progress for Long Operations**: Use loading indicators for better UX
+   - **High-level**: Use `SendGroup()` for simple grouped messages (auto-handles events)
+   - **Low-level**: Use `SendGroupStart()`/`SendGroupEnd()` for fine-grained control
 
-5. **Return Hook Results**: Always return required objects from hooks:
+4. **Handle Errors Gracefully**: Always provide user-friendly error messages
+
+5. **Show Progress for Long Operations**: Use loading indicators for better UX
+
+6. **Return Hook Results**: Always return required objects from hooks:
 
    - `Create`: `{ messages }`
    - `Before/After`: `{ response }`
    - `Done`: `{}` or `{ response }`
    - `Error`: `{ error }` or `{ retry: true }`
 
-6. **Test with Different Clients**: Verify behavior with both OpenAI and CUI clients
+7. **Test with Different Clients**: Verify behavior with both OpenAI and CUI clients
+
+8. **Group Related Messages**: Use groups to organize related content for better frontend rendering
