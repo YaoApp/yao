@@ -80,7 +80,7 @@ func TestDeepSeekR1StreamBasic(t *testing.T) {
 		}
 
 		// Track group_end events to verify type field
-		if chunkType == message.ChunkGroupEnd {
+		if chunkType == message.ChunkMessageEnd {
 			// Parse the group_end data to check the type field
 			var groupEndData struct {
 				GroupID    string `json:"group_id"`

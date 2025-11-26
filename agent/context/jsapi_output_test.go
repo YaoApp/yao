@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -52,6 +53,7 @@ func TestJsValueSend(t *testing.T) {
 		Accept:      "standard",
 		Locale:      "en",
 		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	// Test sending string shorthand
@@ -108,106 +110,6 @@ func TestJsValueSend(t *testing.T) {
 }
 
 // TestJsValueSendGroup test the SendGroup method on Context
-func TestJsValueSendGroup(t *testing.T) {
-
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-	}
-
-	res, err := v8.Call(v8.CallOptions{}, `
-		function test(ctx) {
-			try {
-				// Send message group
-				ctx.SendGroup({
-					id: "group_123",
-					messages: [
-						{
-							type: "text",
-							props: { content: "First message" }
-						},
-						{
-							type: "text",
-							props: { content: "Second message" }
-						},
-						{
-							type: "loading",
-							props: { message: "Processing..." }
-						}
-					],
-					metadata: {
-						timestamp: Date.now(),
-						sequence: 1
-					}
-				});
-				return { success: true };
-			} catch (error) {
-				return { success: false, error: error.message };
-			}
-		}`, cxt)
-	if err != nil {
-		t.Fatalf("Call failed: %v", err)
-	}
-
-	result, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected map result, got %T", res)
-	}
-	assert.Equal(t, true, result["success"], "SendGroup should succeed")
-}
-
-// TestJsValueSendGroupStartEnd test the SendGroupStart and SendGroupEnd methods
-func TestJsValueSendGroupStartEnd(t *testing.T) {
-
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-	}
-
-	res, err := v8.Call(v8.CallOptions{}, `
-		function test(ctx) {
-			try {
-				// Start a group with auto-generated ID
-				const groupId = ctx.SendGroupStart("text");
-				
-				// Send messages in the group
-				ctx.Send({ type: "text", props: { content: "Message 1" }, group_id: groupId });
-				ctx.Send({ type: "text", props: { content: "Message 2" }, group_id: groupId });
-				
-				// End the group
-				ctx.SendGroupEnd(groupId, 2);
-				
-				return { success: true, groupId: groupId };
-			} catch (error) {
-				return { success: false, error: error.message };
-			}
-		}`, cxt)
-	if err != nil {
-		t.Fatalf("Call failed: %v", err)
-	}
-
-	result, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected map result, got %T", res)
-	}
-	assert.Equal(t, true, result["success"], "SendGroupStart/End should succeed")
-	assert.NotEmpty(t, result["groupId"], "Should return group ID")
-}
-
 // TestJsValueSendDeltaUpdates test delta updates in Send
 func TestJsValueSendDeltaUpdates(t *testing.T) {
 
@@ -221,6 +123,7 @@ func TestJsValueSendDeltaUpdates(t *testing.T) {
 		Accept:      "standard",
 		Locale:      "en",
 		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -275,6 +178,7 @@ func TestJsValueSendMultipleTypes(t *testing.T) {
 		Accept:      "standard",
 		Locale:      "en",
 		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -357,6 +261,7 @@ func TestJsValueSendErrorHandling(t *testing.T) {
 		Accept:      "standard",
 		Locale:      "en",
 		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	// Test invalid argument - no arguments
@@ -382,62 +287,6 @@ func TestJsValueSendErrorHandling(t *testing.T) {
 }
 
 // TestJsValueSendGroupErrorHandling test error handling in SendGroup
-func TestJsValueSendGroupErrorHandling(t *testing.T) {
-
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-	}
-
-	// Test invalid argument - no arguments
-	res, err := v8.Call(v8.CallOptions{}, `
-		function test(ctx) {
-			try {
-				ctx.SendGroup();
-				return { success: true };
-			} catch (error) {
-				return { success: false, error: error.message };
-			}
-		}`, cxt)
-	if err != nil {
-		t.Fatalf("Call failed: %v", err)
-	}
-
-	result, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected map result, got %T", res)
-	}
-	assert.Equal(t, false, result["success"], "SendGroup without arguments should fail")
-	assert.Contains(t, result["error"], "SendGroup requires a group argument", "Error should mention missing group")
-
-	// Test invalid group - missing messages
-	res, err = v8.Call(v8.CallOptions{}, `
-		function test(ctx) {
-			try {
-				ctx.SendGroup({ id: "grp_1" });
-				return { success: true };
-			} catch (error) {
-				return { success: false, error: error.message };
-			}
-		}`, cxt)
-	if err != nil {
-		t.Fatalf("Call failed: %v", err)
-	}
-
-	result, ok = res.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected map result, got %T", res)
-	}
-	assert.Equal(t, false, result["success"], "SendGroup without messages should fail")
-}
-
 // TestJsValueSendWithCUIAccept test Send with CUI accept types
 func TestJsValueSendWithCUIAccept(t *testing.T) {
 
@@ -483,67 +332,6 @@ func TestJsValueSendWithCUIAccept(t *testing.T) {
 }
 
 // TestJsValueSendGroupWithMetadata test SendGroup with various metadata
-func TestJsValueSendGroupWithMetadata(t *testing.T) {
-
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-	}
-
-	res, err := v8.Call(v8.CallOptions{}, `
-		function test(ctx) {
-			try {
-				ctx.SendGroup({
-					id: "group_with_metadata",
-					messages: [
-						{
-							type: "text",
-							props: { content: "Message 1" },
-							metadata: {
-								timestamp: Date.now(),
-								sequence: 1,
-								trace_id: "trace_abc"
-							}
-						},
-						{
-							type: "text",
-							props: { content: "Message 2" },
-							metadata: {
-								timestamp: Date.now(),
-								sequence: 2,
-								trace_id: "trace_abc"
-							}
-						}
-					],
-					metadata: {
-						timestamp: Date.now(),
-						sequence: 1,
-						trace_id: "trace_abc"
-					}
-				});
-				return { success: true };
-			} catch (error) {
-				return { success: false, error: error.message };
-			}
-		}`, cxt)
-	if err != nil {
-		t.Fatalf("Call failed: %v", err)
-	}
-
-	result, ok := res.(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected map result, got %T", res)
-	}
-	assert.Equal(t, true, result["success"], "SendGroup with metadata should succeed")
-}
-
 // TestJsValueSendChainedCalls test chained Send calls
 func TestJsValueSendChainedCalls(t *testing.T) {
 
@@ -557,6 +345,7 @@ func TestJsValueSendChainedCalls(t *testing.T) {
 		Accept:      "standard",
 		Locale:      "en",
 		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	res, err := v8.Call(v8.CallOptions{}, `

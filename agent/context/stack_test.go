@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -196,7 +197,9 @@ func TestEnterStack_RootCreation(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	stack, traceID, done := EnterStack(ctx, "test-assistant", RefererAPI)
 	defer done()
@@ -239,7 +242,9 @@ func TestEnterStack_ChildCreation(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	// Create parent
 	parentStack, parentTraceID, parentDone := EnterStack(ctx, "parent-assistant", RefererAPI)
@@ -282,7 +287,9 @@ func TestEnterStack_DoneCallback(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	// Create parent
 	parentStack, _, parentDone := EnterStack(ctx, "parent-assistant", RefererAPI)
@@ -321,7 +328,9 @@ func TestContextGetAllStacks(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	// Create multiple stacks
 	_, _, done1 := EnterStack(ctx, "assistant1", RefererAPI)
@@ -345,7 +354,9 @@ func TestContextGetStackByID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	stack, _, done := EnterStack(ctx, "test-assistant", RefererAPI)
 	defer done()
@@ -372,7 +383,9 @@ func TestContextGetStacksByTraceID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	// Create parent and child (same trace ID)
 	_, traceID, done1 := EnterStack(ctx, "parent-assistant", RefererAPI)
@@ -400,7 +413,9 @@ func TestContextGetRootStack(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{}
+	ctx := &Context{
+		IDGenerator: message.NewIDGenerator(),
+	}
 
 	// Create parent
 	parentStack, _, done1 := EnterStack(ctx, "parent-assistant", RefererAPI)

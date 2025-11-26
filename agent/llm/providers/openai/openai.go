@@ -47,7 +47,7 @@ func (mt *messageTracker) startMessage(messageType message.StreamChunkType, hand
 			Timestamp: mt.startTime,
 		}
 		if startJSON, err := jsoniter.Marshal(startData); err == nil {
-			handler(message.ChunkGroupStart, startJSON)
+			handler(message.ChunkMessageStart, startJSON)
 		}
 	}
 }
@@ -79,7 +79,7 @@ func (mt *messageTracker) startToolCallMessage(toolCallInfo *message.EventToolCa
 			ToolCall:  toolCallInfo,
 		}
 		if startJSON, err := jsoniter.Marshal(startData); err == nil {
-			handler(message.ChunkGroupStart, startJSON)
+			handler(message.ChunkMessageStart, startJSON)
 		}
 	}
 }
@@ -112,7 +112,7 @@ func (mt *messageTracker) endMessage(handler message.StreamFunc) {
 			endData.ToolCall = mt.toolCallInfo
 		}
 		if endJSON, err := jsoniter.Marshal(endData); err == nil {
-			handler(message.ChunkGroupEnd, endJSON)
+			handler(message.ChunkMessageEnd, endJSON)
 		}
 	}
 

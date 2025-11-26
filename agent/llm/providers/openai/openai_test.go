@@ -1299,7 +1299,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 		case message.ChunkStreamEnd:
 			t.Error("❌ LLM layer should NOT send stream_end (now sent at Agent level)")
 
-		case message.ChunkGroupStart:
+		case message.ChunkMessageStart:
 			groupStartReceived = true
 			var startData message.EventMessageStartData
 			if err := json.Unmarshal(data, &startData); err == nil {
@@ -1311,7 +1311,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 				t.Errorf("Failed to parse group_start data: %v", err)
 			}
 
-		case message.ChunkGroupEnd:
+		case message.ChunkMessageEnd:
 			groupEndReceived = true
 			var endData message.EventMessageEndData
 			if err := json.Unmarshal(data, &endData); err == nil {

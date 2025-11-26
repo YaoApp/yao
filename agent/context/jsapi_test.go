@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -25,6 +26,7 @@ func TestJsValue(t *testing.T) {
 		ChatID:      "ChatID-123456",
 		AssistantID: "AssistantID-1234",
 		Sid:         "Sid-1234",
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	v8.RegisterFunction("testContextJsvalue", testContextJsvalueEmbed)
@@ -93,6 +95,7 @@ func TestJsValueConcurrent(t *testing.T) {
 					ChatID:      chatID,
 					AssistantID: assistantID,
 					Sid:         sid,
+					IDGenerator: message.NewIDGenerator(),
 				}
 
 				res, err := v8.Call(v8.CallOptions{}, `
@@ -151,6 +154,7 @@ func TestJsValueRegistrationAndCleanup(t *testing.T) {
 			ChatID:      fmt.Sprintf("ChatID-%d", i),
 			AssistantID: fmt.Sprintf("AssistantID-%d", i),
 			Sid:         fmt.Sprintf("Sid-%d", i),
+			IDGenerator: message.NewIDGenerator(),
 		}
 
 		_, err := v8.Call(v8.CallOptions{}, `
@@ -441,7 +445,8 @@ func TestJsValueTrace(t *testing.T) {
 		Stack: &Stack{
 			TraceID: "test-trace-id",
 		},
-		Context: context.Background(),
+		Context:     context.Background(),
+		IDGenerator: message.NewIDGenerator(),
 	}
 
 	res, err := v8.Call(v8.CallOptions{}, `
