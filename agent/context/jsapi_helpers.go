@@ -218,4 +218,3 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 
 	return group, nil
 }
-

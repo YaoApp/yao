@@ -1,58 +1,120 @@
 # Context Output JS API
 
-The Context object now provides `Send`, `SendGroup`, and `Flush` methods directly for sending messages to clients from JavaScript.
+The Context object provides `Send`, `SendGroup`, and `Flush` methods for sending messages to clients from JavaScript within Agent Hook functions.
 
-## Usage
+## Hook Functions Overview
+
+Agent Hook functions are lifecycle callbacks that allow you to customize the behavior of AI assistants. The Context object passed to these hooks includes output methods for real-time communication with clients.
+
+### Available Hooks
+
+- `Create(ctx, messages)` - Called before the assistant processes messages
+- `Before(ctx, messages, response)` - Called before sending LLM response
+- `After(ctx, messages, response)` - Called after receiving LLM response
+- `Done(ctx, messages, response)` - Called after assistant completes
+- `Error(ctx, messages, error)` - Called when an error occurs
+
+## Quick Start
+
+### Basic Usage in Create Hook
+
+```javascript
+/**
+ * Create hook - send initial messages to client
+ */
+function Create(ctx, messages) {
+  // Send welcome message (string shorthand)
+  ctx.Send("Welcome! Let me help you with that...");
+  ctx.Flush();
+
+  // Send loading indicator
+  ctx.Send({
+    type: "loading",
+    props: { message: "Analyzing your request..." },
+  });
+  ctx.Flush();
+
+  // Continue with normal processing
+  return { messages };
+}
+```
+
+### Streaming Updates Example
+
+```javascript
+/**
+ * Create hook - demonstrate streaming updates
+ */
+function Create(ctx, messages) {
+  // Send initial message
+  ctx.Send({
+    type: "text",
+    props: { content: "Processing" },
+    id: "status_msg",
+  });
+  ctx.Flush();
+
+  time.Sleep(500); // Simulate work
+
+  // Append to message (delta update)
+  ctx.Send({
+    type: "text",
+    props: { content: "..." },
+    id: "status_msg",
+    delta: true,
+    delta_path: "content",
+    delta_action: "append",
+  });
+  ctx.Flush();
+
+  time.Sleep(500); // More work
+
+  // Complete the message
+  ctx.Send({
+    type: "text",
+    props: { content: " Done!" },
+    id: "status_msg",
+    delta: true,
+    delta_path: "content",
+    delta_action: "append",
+  });
+  ctx.Flush();
+
+  return { messages };
+}
+```
+
+## API Reference
 
 ### ctx.Send(message)
 
 Send a single message to the client.
 
-**Parameters:**
-
-- `message`: Can be a string (shorthand) or an object
-
 **String Shorthand:**
 
 ```javascript
-// Automatically converts to a text message
 ctx.Send("Hello World");
 ```
 
 **Object Format:**
 
 ```javascript
-// Send text message
+// Text message
 ctx.Send({
   type: "text",
-  props: {
-    content: "Hello from JavaScript",
-  },
+  props: { content: "Hello from JavaScript" },
 });
 
-// Send loading message
+// Loading indicator
 ctx.Send({
   type: "loading",
-  props: {
-    message: "Processing...",
-  },
+  props: { message: "Processing..." },
 });
 
-// Send error message
+// Error message
 ctx.Send({
   type: "error",
-  props: {
-    message: "Something went wrong",
-    code: "ERR_500",
-  },
-});
-
-// Send custom message
-ctx.Send({
-  type: "custom_widget",
-  props: {
-    data: { foo: "bar" },
-  },
+  props: { message: "Something went wrong", code: "ERR_500" },
 });
 ```
 
@@ -61,17 +123,15 @@ ctx.Send({
 ```javascript
 ctx.Send({
   type: "text",
-  props: {
-    content: "Hello",
-  },
-  id: "msg_123", // Optional: message ID
-  delta: true, // Optional: incremental update
-  done: false, // Optional: whether complete
+  props: { content: "Hello" },
+  id: "msg_123", // Optional: message ID for delta updates
+  delta: true, // Optional: incremental update flag
+  done: false, // Optional: completion flag
   delta_path: "content", // Optional: update path
-  delta_action: "append", // Optional: update action (append, replace, merge, set)
+  delta_action: "append", // Optional: append, replace, merge, set
   group_id: "grp_1", // Optional: message group ID
   metadata: {
-    // Optional: metadata
+    // Optional: custom metadata
     timestamp: Date.now(),
     sequence: 1,
     trace_id: "trace_123",
@@ -81,184 +141,310 @@ ctx.Send({
 
 ### ctx.SendGroup(group)
 
-Send a group of messages to the client.
-
-**Parameters:**
-
-- `group`: Message group object
-
-**Example:**
+Send a group of related messages together.
 
 ```javascript
 ctx.SendGroup({
   id: "group_123",
   messages: [
-    {
-      type: "text",
-      props: { content: "First message" },
-    },
-    {
-      type: "text",
-      props: { content: "Second message" },
-    },
+    { type: "text", props: { content: "First message" } },
+    { type: "text", props: { content: "Second message" } },
   ],
-  metadata: {
-    timestamp: Date.now(),
-  },
+  metadata: { timestamp: Date.now() },
 });
 ```
 
 ### ctx.Flush()
 
-Flush the output buffer to ensure all messages are sent to the client.
-
-**Example:**
+Flush the output buffer to ensure messages are sent immediately.
 
 ```javascript
 ctx.Send("Processing...");
-ctx.Flush(); // Send immediately
+ctx.Flush(); // Send immediately to client
 ```
 
-## Complete Examples
+## Complete Hook Examples
 
-### Using in Hook Functions
+### 1. Create Hook - Welcome Message
 
 ```javascript
 /**
- * Create hook - called before assistant processes
+ * Send welcome message when conversation starts
  */
-function Create(input, options) {
-  const ctx = input.context;
-
+function Create(ctx, messages) {
   // Send welcome message
-  ctx.Send("Welcome to AI Assistant!");
+  ctx.Send("Welcome to AI Assistant! How can I help you today?");
+  ctx.Flush();
 
-  // Send loading indicator
+  // Return messages to continue processing
+  return { messages };
+}
+```
+
+### 2. Create Hook - Progress Updates
+
+```javascript
+/**
+ * Show progress indicators during preprocessing
+ */
+function Create(ctx, messages) {
+  // Step 1: Analyzing
   ctx.Send({
     type: "loading",
-    props: {
-      message: "Thinking...",
-    },
+    props: { message: "Analyzing your request..." },
   });
+  ctx.Flush();
 
-  return { messages: input.messages };
+  // Perform analysis...
+  const userIntent = analyzeIntent(messages);
+
+  // Step 2: Searching
+  ctx.Send({
+    type: "loading",
+    props: { message: "Searching knowledge base..." },
+  });
+  ctx.Flush();
+
+  // Search knowledge base...
+  const context = searchKnowledgeBase(userIntent);
+
+  // Add context to messages
+  if (context) {
+    messages.unshift({
+      role: "system",
+      content: `Context: ${context}`,
+    });
+  }
+
+  return { messages };
 }
+```
 
+### 3. Before Hook - Show Thinking Process
+
+```javascript
 /**
- * Done hook - called after assistant completes
+ * Display model's reasoning before sending response
  */
-function Done(input, output) {
-  const ctx = input.context;
+function Before(ctx, messages, response) {
+  // If response includes thinking/reasoning
+  if (response.thinking) {
+    ctx.Send({
+      type: "thinking",
+      props: { content: response.thinking },
+    });
+    ctx.Flush();
+  }
 
-  // Send completion message
+  return { response };
+}
+```
+
+### 4. After Hook - Process Tool Calls
+
+```javascript
+/**
+ * Handle tool calls and send results
+ */
+function After(ctx, messages, response) {
+  // Process tool calls
+  if (response.tool_calls && response.tool_calls.length > 0) {
+    response.tool_calls.forEach((toolCall) => {
+      // Show tool being called
+      ctx.Send({
+        type: "tool_call",
+        props: {
+          id: toolCall.id,
+          name: toolCall.function.name,
+          arguments: toolCall.function.arguments,
+        },
+      });
+      ctx.Flush();
+
+      // Execute tool and send result
+      const result = executeTool(toolCall);
+      ctx.Send({
+        type: "text",
+        props: { content: `Tool result: ${result}` },
+      });
+      ctx.Flush();
+    });
+  }
+
+  return { response };
+}
+```
+
+### 5. Done Hook - Completion Message
+
+```javascript
+/**
+ * Send completion message and cleanup
+ */
+function Done(ctx, messages, response) {
+  // Send completion indicator
   ctx.Send({
     type: "text",
-    props: {
-      content: "Processing completed!",
-    },
+    props: { content: "\n✅ Task completed successfully!" },
   });
-
-  // Flush output
   ctx.Flush();
+
+  // Log metrics
+  console.log("Conversation completed:", {
+    chat_id: ctx.chat_id,
+    message_count: messages.length,
+    tokens_used: response.usage?.total_tokens,
+  });
 
   return {};
 }
 ```
 
-### Streaming Response Example
+### 6. Error Hook - Handle Errors Gracefully
 
 ```javascript
-function StreamingResponse(input) {
-  const ctx = input.context;
+/**
+ * Send user-friendly error messages
+ */
+function Error(ctx, messages, error) {
+  console.error("Assistant error:", error);
 
-  // Send initial message
+  // Send error message to user
   ctx.Send({
-    type: "text",
-    props: { content: "Starting process" },
-    id: "msg_1",
-    delta: false,
+    type: "error",
+    props: {
+      message: "I encountered an issue while processing your request.",
+      code: error.code || "UNKNOWN_ERROR",
+      details:
+        process.env.YAO_ENV === "development" ? error.message : undefined,
+    },
+  });
+  ctx.Flush();
+
+  // Return error to be logged
+  return { error };
+}
+```
+
+### 7. Multi-Step Process with Progress
+
+```javascript
+/**
+ * Complex processing with multiple steps
+ */
+function Create(ctx, messages) {
+  const steps = [
+    { name: "Validating input", duration: 500 },
+    { name: "Loading context", duration: 1000 },
+    { name: "Preparing response", duration: 800 },
+  ];
+
+  // Create progress message
+  const progressId = "progress_" + Date.now();
+
+  steps.forEach((step, index) => {
+    // Update progress
+    ctx.Send({
+      type: "loading",
+      props: {
+        message: `${step.name}... (${index + 1}/${steps.length})`,
+      },
+      id: progressId,
+      delta: index > 0,
+    });
+    ctx.Flush();
+
+    // Simulate work
+    time.Sleep(step.duration);
   });
 
-  // Send incremental updates
+  // Clear progress indicator
   ctx.Send({
-    type: "text",
-    props: { content: "..." },
-    id: "msg_1",
-    delta: true,
-    delta_path: "content",
-    delta_action: "append",
-  });
-
-  // Send completion marker
-  ctx.Send({
-    type: "text",
-    props: { content: "" },
-    id: "msg_1",
-    delta: false,
+    type: "loading",
+    props: { message: "" },
+    id: progressId,
     done: true,
   });
-
   ctx.Flush();
+
+  return { messages };
 }
 ```
 
-### Error Handling Example
+### 8. Real-time Streaming Updates
 
 ```javascript
-function ProcessWithErrorHandling(input) {
-  const ctx = input.context;
+/**
+ * Send streaming updates as processing progresses
+ */
+function Create(ctx, messages) {
+  const messageId = "stream_" + Date.now();
 
-  try {
-    // Processing logic
-    ctx.Send("Processing...");
-
-    // Simulate error
-    throw new Error("Something went wrong");
-  } catch (error) {
-    // Send error message
-    ctx.Send({
-      type: "error",
-      props: {
-        message: error.message,
-        code: "ERR_PROCESSING",
-      },
-    });
-
-    ctx.Flush();
-  }
-}
-```
-
-### Multi-step Process Example
-
-```javascript
-function MultiStepProcess(input) {
-  const ctx = input.context;
-
-  // Step 1
-  ctx.Send({
-    type: "loading",
-    props: { message: "Step 1: Analyzing input..." },
-  });
-  ctx.Flush();
-
-  // ... processing ...
-
-  // Step 2
-  ctx.Send({
-    type: "loading",
-    props: { message: "Step 2: Generating response..." },
-  });
-  ctx.Flush();
-
-  // ... processing ...
-
-  // Final result
+  // Start message
   ctx.Send({
     type: "text",
-    props: { content: "Process completed successfully!" },
+    props: { content: "Processing" },
+    id: messageId,
   });
   ctx.Flush();
+
+  // Simulate incremental processing
+  const updates = [".", ".", ".", " analyzing", ".", ".", ".", " complete!"];
+
+  updates.forEach((update) => {
+    time.Sleep(200);
+
+    ctx.Send({
+      type: "text",
+      props: { content: update },
+      id: messageId,
+      delta: true,
+      delta_path: "content",
+      delta_action: "append",
+    });
+    ctx.Flush();
+  });
+
+  return { messages };
+}
+```
+
+### 9. Message Groups for Related Content
+
+```javascript
+/**
+ * Send groups of related messages together
+ */
+function Before(ctx, messages, response) {
+  // Send a group of context information
+  ctx.SendGroup({
+    id: "context_info",
+    messages: [
+      {
+        type: "text",
+        props: { content: "**Context Information:**" },
+      },
+      {
+        type: "text",
+        props: { content: `User: ${ctx.authorized?.user_id || "Anonymous"}` },
+      },
+      {
+        type: "text",
+        props: { content: `Session: ${ctx.chat_id}` },
+      },
+      {
+        type: "text",
+        props: { content: `Locale: ${ctx.locale}` },
+      },
+    ],
+    metadata: {
+      timestamp: Date.now(),
+      type: "context",
+    },
+  });
+  ctx.Flush();
+
+  return { response };
 }
 ```
 
@@ -425,53 +611,174 @@ ctx.Send({
 - `merge` - Merge objects
 - `set` - Set new field
 
-## Notes
+## Hook Function Patterns
 
-1. **No Separate Output API Needed**: The previous `const output = new Output(ctx)` approach is deprecated. Now use `ctx.Send()` methods directly.
+### Pattern 1: Fire-and-Forget Notifications
 
-2. **Automatic Client Handling**: Messages are automatically converted to the appropriate format based on `ctx.accept`:
+```javascript
+function Create(ctx, messages) {
+  ctx.Send("Starting processing...");
+  ctx.Flush();
+  // No need to wait, continue processing
+  return { messages };
+}
+```
 
-   - `standard` → OpenAI format
-   - `cui-web`/`cui-native`/`cui-desktop` → CUI native format
+### Pattern 2: Progress Tracking
 
-3. **Performance Optimization**: Output objects are automatically cached and managed, no manual management needed.
+```javascript
+function Create(ctx, messages) {
+  const stages = ["validate", "analyze", "prepare"];
+  stages.forEach((stage) => {
+    ctx.Send({ type: "loading", props: { message: `${stage}...` } });
+    ctx.Flush();
+    performStage(stage);
+  });
+  return { messages };
+}
+```
 
-4. **Error Handling**: All methods throw JavaScript exceptions on failure, which can be caught with try-catch.
+### Pattern 3: Conditional Messaging
 
-5. **Streaming Support**: Use delta updates with unique message IDs for real-time streaming scenarios.
+```javascript
+function Before(ctx, messages, response) {
+  // Only show reasoning for complex queries
+  if (messages[messages.length - 1].content.length > 100) {
+    ctx.Send({
+      type: "thinking",
+      props: { content: "Analyzing complex query..." },
+    });
+    ctx.Flush();
+  }
+  return { response };
+}
+```
 
-6. **Metadata**: Optional metadata can be attached to messages for tracking, debugging, or custom processing.
+### Pattern 4: Error Recovery
+
+```javascript
+function Error(ctx, messages, error) {
+  if (error.code === "RATE_LIMIT") {
+    ctx.Send("Service is busy, retrying...");
+    ctx.Flush();
+    time.Sleep(1000);
+    return { retry: true };
+  }
+
+  ctx.Send({
+    type: "error",
+    props: { message: "Sorry, something went wrong.", code: error.code },
+  });
+  ctx.Flush();
+  return { error };
+}
+```
+
+## Important Notes
+
+### 1. Hook Function Signatures
+
+Each hook receives different parameters:
+
+- `Create(ctx, messages)` - Context and input messages
+- `Before(ctx, messages, response)` - Context, messages, and LLM response
+- `After(ctx, messages, response)` - Context, messages, and LLM response
+- `Done(ctx, messages, response)` - Context, messages, and final response
+- `Error(ctx, messages, error)` - Context, messages, and error object
+
+### 2. Always Flush for Real-time Updates
+
+```javascript
+// Good - user sees message immediately
+ctx.Send("Processing...");
+ctx.Flush();
+
+// Bad - message buffered until hook returns
+ctx.Send("Processing...");
+// ... hook continues ...
+```
+
+### 3. Delta Updates Require Unique IDs
+
+```javascript
+// Initial message
+ctx.Send({ type: "text", props: { content: "Step 1" }, id: "progress" });
+
+// Update same message
+ctx.Send({
+  type: "text",
+  props: { content: ", Step 2" },
+  id: "progress",
+  delta: true,
+  delta_path: "content",
+  delta_action: "append",
+});
+```
+
+### 4. Message Types and Client Support
+
+- **OpenAI Client** (`ctx.accept === "standard"`): Supports `text`, `thinking`, `tool_call`, `image`, `audio`, `video`
+- **CUI Client** (`ctx.accept === "cui-web"` etc.): Supports all types including `loading`, `error`, `action`, `event`
+
+### 5. Performance Considerations
+
+- Use `Flush()` sparingly - only when immediate delivery is needed
+- Batch related messages with `SendGroup()` when possible
+- Avoid sending too many small updates (combine them)
+
+### 6. Context Information Available
+
+The `ctx` object provides access to:
+
+```javascript
+ctx.chat_id; // Chat session ID
+ctx.assistant_id; // Assistant ID
+ctx.locale; // User locale (e.g., "en", "zh-cn")
+ctx.authorized; // User authorization info
+ctx.metadata; // Custom metadata
+ctx.client; // Client information (type, user_agent, ip)
+```
 
 ## Migration Guide
+
+### From Old Output API
 
 **Before (Deprecated):**
 
 ```javascript
-// Old way - no longer needed
-const output = new Output(ctx)
-output.Send("Hello")
-output.SendGroup({ id: "grp1", messages: [...] })
+function Create(ctx, messages) {
+  const output = new Output(ctx);
+  output.Send("Hello");
+  output.SendGroup({ id: "grp1", messages: [...] });
+}
 ```
 
 **After (Current):**
 
 ```javascript
-// New way - simpler and cleaner
-ctx.Send("Hello")
-ctx.SendGroup({ id: "grp1", messages: [...] })
-ctx.Flush()
+function Create(ctx, messages) {
+  ctx.Send("Hello");
+  ctx.SendGroup({ id: "grp1", messages: [...] });
+  ctx.Flush();
+  return { messages };
+}
 ```
 
 ## Best Practices
 
-1. **Use String Shorthand for Simple Messages**: `ctx.Send("Hello")` instead of `ctx.Send({ type: "text", props: { content: "Hello" } })`
+1. **Use String Shorthand**: `ctx.Send("Hello")` is simpler than `ctx.Send({ type: "text", props: { content: "Hello" } })`
 
-2. **Always Flush After Important Messages**: Use `ctx.Flush()` to ensure messages are sent immediately
+2. **Flush After Each Step**: Ensure users see progress in real-time
 
-3. **Use Unique IDs for Delta Updates**: Assign unique IDs to messages that will receive incremental updates
+3. **Handle Errors Gracefully**: Always provide user-friendly error messages
 
-4. **Handle Errors Gracefully**: Wrap Send operations in try-catch blocks for robust error handling
+4. **Show Progress for Long Operations**: Use loading indicators for better UX
 
-5. **Use Loading Indicators**: Show loading messages for long-running operations to improve UX
+5. **Return Hook Results**: Always return required objects from hooks:
 
-6. **Group Related Messages**: Use `SendGroup` for semantically related messages that should be displayed together
+   - `Create`: `{ messages }`
+   - `Before/After`: `{ response }`
+   - `Done`: `{}` or `{ response }`
+   - `Error`: `{ error }` or `{ retry: true }`
+
+6. **Test with Different Clients**: Verify behavior with both OpenAI and CUI clients
