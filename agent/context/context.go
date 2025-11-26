@@ -9,6 +9,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/trace"
@@ -29,10 +30,11 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID, paylo
 
 	// Validate the client type
 	ctx := Context{
-		Context: parent,
-		ID:      generateContextID(), // Generate unique ID for the context
-		Space:   plan.NewMemorySharedSpace(),
-		ChatID:  chatID,
+		Context:     parent,
+		ID:          generateContextID(), // Generate unique ID for the context
+		Space:       plan.NewMemorySharedSpace(),
+		ChatID:      chatID,
+		IDGenerator: message.NewIDGenerator(), // Initialize ID generator for this context
 	}
 
 	if payload == "" {

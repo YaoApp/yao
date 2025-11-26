@@ -92,12 +92,13 @@ type accumulatedToolCall struct {
 	functionArgs string
 }
 
-// groupTracker tracks the current group state for lifecycle events
-type groupTracker struct {
-	active       bool                       // Whether a group is currently active
-	groupID      string                     // Current group ID
-	groupType    message.StreamChunkType    // Current group type
-	startTime    int64                      // Group start timestamp
-	chunkCount   int                        // Number of chunks in this group
-	toolCallInfo *message.GroupToolCallInfo // Tool call info if group is tool_call type
+// messageTracker tracks the current message state for lifecycle events
+type messageTracker struct {
+	active       bool                       // Whether a message is currently active
+	messageID    string                     // Current message ID
+	messageType  message.StreamChunkType    // Current message type (thinking, text, tool_call)
+	startTime    int64                      // Message start timestamp
+	chunkCount   int                        // Number of chunks in this message
+	toolCallInfo *message.EventToolCallInfo // Tool call info if message is tool_call type
+	idGenerator  *message.IDGenerator       // ID generator from context
 }

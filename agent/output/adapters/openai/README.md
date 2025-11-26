@@ -196,7 +196,7 @@ msg := output.NewTextMessage("Hello world")
 
 ```json
 {
-  "id": "M2",
+  "message_id": "M2",
   "type": "image",
   "props": {
     "url": "https://example.com/avatar.jpg"
@@ -227,7 +227,7 @@ msg := output.NewTextMessage("Hello world")
 
 ```json
 {
-  "id": "M3",
+  "message_id": "M3",
   "type": "button",
   "props": {
     "text": "Approve",

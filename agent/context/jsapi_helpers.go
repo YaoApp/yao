@@ -51,10 +51,21 @@ func parseMessage(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Message, e
 		msg.Props = props
 	}
 
-	// Optional fields
-	if id, ok := msgMap["id"].(string); ok {
-		msg.ID = id
+	// Optional fields - Streaming control
+	if chunkID, ok := msgMap["chunk_id"].(string); ok {
+		msg.ChunkID = chunkID
 	}
+	if messageID, ok := msgMap["message_id"].(string); ok {
+		msg.MessageID = messageID
+	}
+	if blockID, ok := msgMap["block_id"].(string); ok {
+		msg.BlockID = blockID
+	}
+	if threadID, ok := msgMap["thread_id"].(string); ok {
+		msg.ThreadID = threadID
+	}
+
+	// Delta control
 	if delta, ok := msgMap["delta"].(bool); ok {
 		msg.Delta = delta
 	}
@@ -66,9 +77,6 @@ func parseMessage(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Message, e
 	}
 	if typeChange, ok := msgMap["type_change"].(bool); ok {
 		msg.TypeChange = typeChange
-	}
-	if groupID, ok := msgMap["group_id"].(string); ok {
-		msg.GroupID = groupID
 	}
 
 	// Metadata (optional)
@@ -142,10 +150,21 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 				msg.Props = props
 			}
 
-			// Optional fields
-			if id, ok := msgMap["id"].(string); ok {
-				msg.ID = id
+			// Optional fields - Streaming control
+			if chunkID, ok := msgMap["chunk_id"].(string); ok {
+				msg.ChunkID = chunkID
 			}
+			if messageID, ok := msgMap["message_id"].(string); ok {
+				msg.MessageID = messageID
+			}
+			if blockID, ok := msgMap["block_id"].(string); ok {
+				msg.BlockID = blockID
+			}
+			if threadID, ok := msgMap["thread_id"].(string); ok {
+				msg.ThreadID = threadID
+			}
+
+			// Delta control
 			if delta, ok := msgMap["delta"].(bool); ok {
 				msg.Delta = delta
 			}
@@ -157,9 +176,6 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 			}
 			if typeChange, ok := msgMap["type_change"].(bool); ok {
 				msg.TypeChange = typeChange
-			}
-			if groupID, ok := msgMap["group_id"].(string); ok {
-				msg.GroupID = groupID
 			}
 
 			// Metadata (optional)

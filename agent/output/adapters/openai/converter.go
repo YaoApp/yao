@@ -59,7 +59,7 @@ func convertText(msg *message.Message, config *AdapterConfig) ([]interface{}, er
 	content := getStringProp(msg.Props, "content", "")
 
 	return []interface{}{
-		createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"content": content,
 		}),
 	}, nil
@@ -70,7 +70,7 @@ func convertThinking(msg *message.Message, config *AdapterConfig) ([]interface{}
 	content := getStringProp(msg.Props, "content", "")
 
 	return []interface{}{
-		createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"reasoning_content": content,
 		}),
 	}, nil
@@ -83,7 +83,7 @@ func convertLoading(msg *message.Message, config *AdapterConfig) ([]interface{},
 
 	// Convert loading to reasoning_content so it shows in OpenAI clients
 	return []interface{}{
-		createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"reasoning_content": message,
 		}),
 	}, nil
@@ -109,7 +109,7 @@ func convertToolCall(msg *message.Message, config *AdapterConfig) ([]interface{}
 	}
 
 	return []interface{}{
-		createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"tool_calls": toolCalls,
 		}),
 	}, nil
@@ -150,10 +150,10 @@ func convertStreamStart(msg *message.Message, config *AdapterConfig) ([]interfac
 		return []interface{}{}, nil
 	}
 
-	// Try to convert to StreamStartData
-	var startData message.StreamStartData
+	// Try to convert to EventStreamStartData
+	var startData message.EventStreamStartData
 	switch v := data.(type) {
-	case message.StreamStartData:
+	case message.EventStreamStartData:
 		startData = v
 	case map[string]interface{}:
 		// If it's a map, try to extract traceID
@@ -192,7 +192,7 @@ func convertStreamStart(msg *message.Message, config *AdapterConfig) ([]interfac
 		// Convert to thinking format (reasoning_content)
 		// Reasoning models display this as part of the thinking process
 		content := fmt.Sprintf("🔍 %s - [%s](%s)\n", streamStartText, viewTraceText, traceLink)
-		chunk := createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		chunk := createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"reasoning_content": content,
 		})
 		return []interface{}{chunk}, nil
@@ -200,7 +200,7 @@ func convertStreamStart(msg *message.Message, config *AdapterConfig) ([]interfac
 
 	// Convert to regular Markdown text
 	content := fmt.Sprintf("🚀 %s - [%s](%s)\n", streamStartText, viewTraceText, traceLink)
-	chunk := createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+	chunk := createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 		"content": content,
 	})
 	return []interface{}{chunk}, nil
@@ -228,7 +228,7 @@ func convertImage(msg *message.Message, config *AdapterConfig) ([]interface{}, e
 
 	// Transform URL if transformer is provided
 	if config.LinkTransformer != nil {
-		transformedURL, err := config.LinkTransformer(url, msg.Type, msg.ID)
+		transformedURL, err := config.LinkTransformer(url, msg.Type, msg.MessageID)
 		if err != nil {
 			return nil, err
 		}
@@ -243,7 +243,7 @@ func convertImage(msg *message.Message, config *AdapterConfig) ([]interface{}, e
 	text := fmt.Sprintf(template, alt, url)
 
 	return []interface{}{
-		createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"content": text,
 		}),
 	}, nil
@@ -271,7 +271,7 @@ func convertToLink(msg *message.Message, config *AdapterConfig) ([]interface{}, 
 	}
 
 	return []interface{}{
-		createOpenAIChunk(msg.ID, config.Model, map[string]interface{}{
+		createOpenAIChunk(msg.MessageID, config.Model, map[string]interface{}{
 			"content": text,
 		}),
 	}, nil
@@ -283,7 +283,7 @@ func generateViewLink(msg *message.Message, config *AdapterConfig) (string, erro
 	if url, ok := msg.Props["url"].(string); ok {
 		// Transform URL if transformer is provided
 		if config.LinkTransformer != nil {
-			return config.LinkTransformer(url, msg.Type, msg.ID)
+			return config.LinkTransformer(url, msg.Type, msg.MessageID)
 		}
 		return url, nil
 	}
@@ -294,11 +294,11 @@ func generateViewLink(msg *message.Message, config *AdapterConfig) (string, erro
 		baseURL = "" // TODO: Get from environment or context
 	}
 
-	viewURL := fmt.Sprintf("%s/agent/view/%s/%s", baseURL, msg.Type, msg.ID)
+	viewURL := fmt.Sprintf("%s/agent/view/%s/%s", baseURL, msg.Type, msg.MessageID)
 
 	// Transform URL if transformer is provided
 	if config.LinkTransformer != nil {
-		return config.LinkTransformer(viewURL, msg.Type, msg.ID)
+		return config.LinkTransformer(viewURL, msg.Type, msg.MessageID)
 	}
 
 	return viewURL, nil

@@ -185,9 +185,13 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "invalid message: "+err.Error())
 		}
 
-		// Generate unique ID if not provided
-		if msg.ID == "" {
-			msg.ID = output.GenerateID()
+		// Generate unique MessageID if not provided
+		if msg.MessageID == "" {
+			if ctx.IDGenerator != nil {
+				msg.MessageID = ctx.IDGenerator.GenerateMessageID()
+			} else {
+				msg.MessageID = output.GenerateID()
+			}
 		}
 
 		// Call ctx.Send
@@ -222,9 +226,13 @@ func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "invalid group: "+err.Error())
 		}
 
-		// Generate group ID if not provided
+		// Generate block ID if not provided
 		if group.ID == "" {
-			group.ID = output.GenerateID()
+			if ctx.IDGenerator != nil {
+				group.ID = ctx.IDGenerator.GenerateBlockID()
+			} else {
+				group.ID = output.GenerateID()
+			}
 		}
 
 		// Send group_start event
@@ -232,8 +240,8 @@ func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 		startEvent := output.NewEventMessage(
 			message.EventGroupStart,
 			"Group started",
-			message.GroupStartData{
-				GroupID:   group.ID,
+			message.EventMessageStartData{
+				MessageID: group.ID,
 				Type:      "mixed", // Mixed types in group
 				Timestamp: startTime.UnixMilli(),
 			},
@@ -245,13 +253,17 @@ func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "Flush failed after group_start: "+err.Error())
 		}
 
-		// Generate IDs for messages and set group_id
+		// Generate MessageIDs for messages and set BlockID
 		for _, msg := range group.Messages {
-			if msg.ID == "" {
-				msg.ID = output.GenerateID()
+			if msg.MessageID == "" {
+				if ctx.IDGenerator != nil {
+					msg.MessageID = ctx.IDGenerator.GenerateMessageID()
+				} else {
+					msg.MessageID = output.GenerateID()
+				}
 			}
-			if msg.GroupID == "" {
-				msg.GroupID = group.ID
+			if msg.BlockID == "" {
+				msg.BlockID = group.ID
 			}
 		}
 
@@ -267,8 +279,8 @@ func (ctx *Context) sendGroupMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 		endEvent := output.NewEventMessage(
 			message.EventGroupEnd,
 			"Group completed",
-			message.GroupEndData{
-				GroupID:    group.ID,
+			message.EventMessageEndData{
+				MessageID:  group.ID,
 				Type:       "mixed",
 				Timestamp:  time.Now().UnixMilli(),
 				DurationMs: time.Since(startTime).Milliseconds(),
@@ -303,20 +315,24 @@ func (ctx *Context) sendGroupStartMethod(iso *v8go.Isolate) *v8go.FunctionTempla
 			groupType = args[0].String()
 		}
 
-		// Get or generate group ID
+		// Get or generate block ID
 		var groupID string
 		if len(args) > 1 && args[1].IsString() {
 			groupID = args[1].String()
 		} else {
-			groupID = output.GenerateID()
+			if ctx.IDGenerator != nil {
+				groupID = ctx.IDGenerator.GenerateBlockID()
+			} else {
+				groupID = output.GenerateID()
+			}
 		}
 
 		// Send group_start event
 		startEvent := output.NewEventMessage(
 			message.EventGroupStart,
 			"Group started",
-			message.GroupStartData{
-				GroupID:   groupID,
+			message.EventMessageStartData{
+				MessageID: groupID,
 				Type:      groupType,
 				Timestamp: time.Now().UnixMilli(),
 			},
@@ -361,8 +377,8 @@ func (ctx *Context) sendGroupEndMethod(iso *v8go.Isolate) *v8go.FunctionTemplate
 		endEvent := output.NewEventMessage(
 			message.EventGroupEnd,
 			"Group completed",
-			message.GroupEndData{
-				GroupID:    groupID,
+			message.EventMessageEndData{
+				MessageID:  groupID,
 				Type:       "mixed",
 				Timestamp:  time.Now().UnixMilli(),
 				DurationMs: 0, // Duration not tracked at this level
