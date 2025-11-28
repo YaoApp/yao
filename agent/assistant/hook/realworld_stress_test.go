@@ -14,7 +14,6 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/openapi/oauth/types"
-	"github.com/yaoapp/yao/test"
 )
 
 // ============================================================================
@@ -280,9 +279,16 @@ func TestRealWorldStressSimple(t *testing.T) {
 			{Role: "user", Content: "simple"},
 		}
 
-		_, err := agent.Script.Create(ctx, messages)
+		response, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
+		}
+
+		// Validate response
+		assert.NotNil(t, response, "Iteration %d: response should not be nil", i)
+		assert.NotEmpty(t, response.Messages, "Iteration %d: messages should not be empty", i)
+		if response.Metadata != nil {
+			assert.Equal(t, "simple", response.Metadata["scenario"], "Iteration %d: scenario mismatch", i)
 		}
 
 		// Explicit cleanup
@@ -339,9 +345,39 @@ func TestRealWorldStressMCP(t *testing.T) {
 			{Role: "user", Content: scenario},
 		}
 
-		_, err := agent.Script.Create(ctx, messages)
+		response, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d (%s) failed: %v", i, scenario, err)
+		}
+
+		// Validate response
+		assert.NotNil(t, response, "Iteration %d (%s): response should not be nil", i, scenario)
+		assert.NotEmpty(t, response.Messages, "Iteration %d (%s): messages should not be empty", i, scenario)
+
+		// Validate metadata
+		if response.Metadata != nil {
+			assert.Equal(t, scenario, response.Metadata["scenario"], "Iteration %d: scenario mismatch", i)
+
+			// Verify MCP-specific data
+			if scenario == "mcp_health" {
+				assert.NotNil(t, response.Metadata["tools_count"], "Iteration %d: should have tools_count", i)
+				if toolsCount, ok := response.Metadata["tools_count"].(float64); ok {
+					assert.Greater(t, int(toolsCount), 0, "Iteration %d: should have at least 1 tool", i)
+					assert.Equal(t, 3, int(toolsCount), "Iteration %d: echo should have 3 tools", i)
+				}
+				assert.NotNil(t, response.Metadata["health_data"], "Iteration %d: should have health_data", i)
+			} else if scenario == "mcp_tools" {
+				assert.NotNil(t, response.Metadata["tools_count"], "Iteration %d: should have tools_count", i)
+				if toolsCount, ok := response.Metadata["tools_count"].(float64); ok {
+					assert.Equal(t, 3, int(toolsCount), "Iteration %d: echo should have 3 tools", i)
+				}
+				assert.NotNil(t, response.Metadata["operations"], "Iteration %d: should have operations", i)
+				if operations, ok := response.Metadata["operations"].([]interface{}); ok {
+					assert.Len(t, operations, 2, "Iteration %d: should have 2 operations (ping, status)", i)
+				}
+			}
+		} else {
+			t.Errorf("Iteration %d (%s): metadata is nil", i, scenario)
 		}
 
 		// Cleanup
@@ -404,9 +440,19 @@ func TestRealWorldStressFullWorkflow(t *testing.T) {
 		}
 
 		// Verify response
-		assert.NotNil(t, response)
+		assert.NotNil(t, response, "Iteration %d: response should not be nil", i)
+		assert.NotEmpty(t, response.Messages, "Iteration %d: messages should not be empty", i)
 		if response.Metadata != nil {
-			assert.Equal(t, "full_workflow", response.Metadata["scenario"])
+			assert.Equal(t, "full_workflow", response.Metadata["scenario"], "Iteration %d: scenario mismatch", i)
+			// Verify workflow-specific metadata
+			if phasesCompleted, ok := response.Metadata["phases_completed"]; ok {
+				phases := int(phasesCompleted.(float64))
+				assert.Equal(t, 4, phases, "Iteration %d: should complete 4 phases", i)
+			}
+			if mcpTools, ok := response.Metadata["mcp_tools"]; ok {
+				tools := int(mcpTools.(float64))
+				assert.Greater(t, tools, 0, "Iteration %d: should have MCP tools", i)
+			}
 		}
 
 		// Cleanup
@@ -596,7 +642,7 @@ func TestRealWorldStressResourceHeavy(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	testutils.Prepare(t, test.PrepareOption{V8Mode: "performance"})
+	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -624,9 +670,16 @@ func TestRealWorldStressResourceHeavy(t *testing.T) {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}
 
-		assert.NotNil(t, response)
+		// Validate response
+		assert.NotNil(t, response, "Iteration %d: response should not be nil", i)
+		assert.NotEmpty(t, response.Messages, "Iteration %d: messages should not be empty", i)
 		if response.Metadata != nil {
-			assert.Equal(t, "resource_heavy", response.Metadata["scenario"])
+			assert.Equal(t, "resource_heavy", response.Metadata["scenario"], "Iteration %d: scenario mismatch", i)
+			// Verify resource-heavy metadata
+			if mcpIterations, ok := response.Metadata["mcp_iterations"]; ok {
+				iterations := int(mcpIterations.(float64))
+				assert.Equal(t, 5, iterations, "Iteration %d: should have 5 MCP iterations", i)
+			}
 		}
 
 		// Cleanup

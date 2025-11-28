@@ -19,24 +19,29 @@ import (
 func Load(cfg config.Config) error {
 	messages := []string{}
 
-	// Load filesystem MCP clients
-	exts := []string{"*.mcp.yao", "*.mcp.json", "*.mcp.jsonc"}
-	err := application.App.Walk("mcps", func(root, file string, isdir bool) error {
-		if isdir {
-			return nil
-		}
-		_, err := mcp.LoadClient(file, share.ID(root, file))
-		if err != nil {
-			messages = append(messages, err.Error())
-		}
-		return err
-	}, exts...)
+	// Check if mcps directory exists
+	exists, err := application.App.Exists("mcps")
 
-	if len(messages) > 0 {
-		for _, message := range messages {
-			log.Error("Load filesystem MCP clients error: %s", message)
+	// Load filesystem MCP clients if directory exists
+	if err == nil && exists {
+		exts := []string{"*.mcp.yao", "*.mcp.json", "*.mcp.jsonc"}
+		err = application.App.Walk("mcps", func(root, file string, isdir bool) error {
+			if isdir {
+				return nil
+			}
+			_, err := mcp.LoadClient(file, share.ID(root, file))
+			if err != nil {
+				messages = append(messages, err.Error())
+			}
+			return err
+		}, exts...)
+
+		if len(messages) > 0 {
+			for _, message := range messages {
+				log.Error("Load filesystem MCP clients error: %s", message)
+			}
+			return fmt.Errorf("%s", strings.Join(messages, ";\n"))
 		}
-		return fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 
 	// Load database MCP clients (ignore error)
