@@ -48,3 +48,4 @@ share/const.goe
 .cursor
 openapi/*.md
 coverage.html
+agent/assistant/hook/*.test.md
