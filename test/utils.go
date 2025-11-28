@@ -617,8 +617,14 @@ func loadConnector(t *testing.T, cfg config.Config) {
 }
 
 func loadMCP(t *testing.T, cfg config.Config) {
+	// Check if mcps directory exists
+	exists, err := application.App.Exists("mcps")
+	if err != nil || !exists {
+		return
+	}
+
 	exts := []string{"*.mcp.yao", "*.mcp.json", "*.mcp.jsonc"}
-	err := application.App.Walk("mcps", func(root, file string, isdir bool) error {
+	err = application.App.Walk("mcps", func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
