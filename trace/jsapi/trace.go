@@ -33,9 +33,12 @@ func NewTraceObject(v8ctx *v8go.Context, traceID string, manager types.Manager) 
 	// Set primitive fields
 	jsObject.Set("id", traceID)
 
-	// Set release function that will be called when JavaScript object is released
-	// This function retrieves goValueID from internal field and releases the Go object
-	jsObject.Set("__release", traceGoRelease(v8ctx.Isolate(), traceID))
+	// Set release functions (both __release and Release do the same thing)
+	// __release: Internal cleanup (called by GC or Use())
+	// Release: Public method for manual cleanup (try-finally pattern)
+	releaseFunc := traceGoRelease(v8ctx.Isolate(), traceID)
+	jsObject.Set("__release", releaseFunc)
+	jsObject.Set("Release", releaseFunc)
 
 	// Set methods
 	jsObject.Set("Add", traceAddMethod(v8ctx.Isolate(), manager))
@@ -506,4 +509,61 @@ func traceIsCompleteMethod(iso *v8go.Isolate, manager types.Manager) *v8go.Funct
 		jsVal, _ := v8go.NewValue(iso, isComplete)
 		return jsVal
 	})
+}
+
+// NewNoOpTraceObject creates a no-op Trace object for when trace is not initialized
+// All methods return undefined and do nothing
+func NewNoOpTraceObject(v8ctx *v8go.Context) (*v8go.Value, error) {
+	jsObject := v8go.NewObjectTemplate(v8ctx.Isolate())
+	iso := v8ctx.Isolate()
+
+	// Set id to empty string
+	jsObject.Set("id", "")
+
+	// No-op method factory
+	noOpMethod := func() *v8go.FunctionTemplate {
+		return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+			return v8go.Undefined(iso)
+		})
+	}
+
+	// No-op node factory for Add and Parallel methods
+	noOpNodeMethod := func() *v8go.FunctionTemplate {
+		return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+			// Return a no-op node object
+			nodeObj, _ := NewNoOpNodeObject(v8ctx)
+			return nodeObj
+		})
+	}
+
+	// Set all methods to no-op
+	jsObject.Set("Add", noOpNodeMethod())
+	jsObject.Set("Parallel", noOpNodeMethod())
+	jsObject.Set("Info", noOpMethod())
+	jsObject.Set("Debug", noOpMethod())
+	jsObject.Set("Error", noOpMethod())
+	jsObject.Set("Warn", noOpMethod())
+	jsObject.Set("SetOutput", noOpMethod())
+	jsObject.Set("SetMetadata", noOpMethod())
+	jsObject.Set("Complete", noOpMethod())
+	jsObject.Set("Fail", noOpMethod())
+	jsObject.Set("MarkComplete", noOpMethod())
+	jsObject.Set("CreateSpace", noOpMethod())
+	jsObject.Set("GetSpace", noOpMethod())
+	jsObject.Set("IsComplete", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		jsVal, _ := v8go.NewValue(iso, false)
+		return jsVal
+	}))
+
+	// Set release methods (no-op, but must be present for consistency)
+	jsObject.Set("__release", noOpMethod())
+	jsObject.Set("Release", noOpMethod())
+
+	// Create instance
+	instance, err := jsObject.NewInstance(v8ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return instance.Value, nil
 }

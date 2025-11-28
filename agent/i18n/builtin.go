@@ -64,6 +64,34 @@ func init() {
 			"common.status.completed":  "Completed",
 			"common.status.failed":     "Failed",
 			"common.status.retrying":   "Retrying",
+
+			// MCP: context/mcp.go - Resource operations
+			"mcp.list_resources.label":       "MCP: List Resources",
+			"mcp.list_resources.description": "List resources from MCP client '%s'",
+			"mcp.read_resource.label":        "MCP: Read Resource",
+			"mcp.read_resource.description":  "Read resource '%s' from MCP client '%s'",
+
+			// MCP: context/mcp.go - Tool operations
+			"mcp.list_tools.label":             "MCP: List Tools",
+			"mcp.list_tools.description":       "List tools from MCP client '%s'",
+			"mcp.call_tool.label":              "MCP: Call Tool",
+			"mcp.call_tool.description":        "Call tool '%s' from MCP client '%s'",
+			"mcp.call_tools.label":             "MCP: Call Tools",
+			"mcp.call_tools.description":       "Call %d tools sequentially from MCP client '%s'",
+			"mcp.call_tools_parallel.label":    "MCP: Call Tools (Parallel)",
+			"mcp.call_tools_parallel.description": "Call %d tools in parallel from MCP client '%s'",
+
+			// MCP: context/mcp.go - Prompt operations
+			"mcp.list_prompts.label":       "MCP: List Prompts",
+			"mcp.list_prompts.description": "List prompts from MCP client '%s'",
+			"mcp.get_prompt.label":         "MCP: Get Prompt",
+			"mcp.get_prompt.description":   "Get prompt '%s' from MCP client '%s'",
+
+			// MCP: context/mcp.go - Sample operations
+			"mcp.list_samples.label":       "MCP: List Samples",
+			"mcp.list_samples.description": "List samples for '%s' from MCP client '%s'",
+			"mcp.get_sample.label":         "MCP: Get Sample",
+			"mcp.get_sample.description":   "Get sample #%d for '%s' from MCP client '%s'",
 		},
 	}
 
@@ -184,6 +212,34 @@ func init() {
 			"common.status.completed":  "已完成",
 			"common.status.failed":     "失败",
 			"common.status.retrying":   "重试中",
+
+			// MCP: context/mcp.go - Resource operations
+			"mcp.list_resources.label":       "MCP: 列出资源",
+			"mcp.list_resources.description": "从 MCP 客户端 '%s' 列出资源",
+			"mcp.read_resource.label":        "MCP: 读取资源",
+			"mcp.read_resource.description":  "从 MCP 客户端 '%s' 读取资源 '%s'",
+
+			// MCP: context/mcp.go - Tool operations
+			"mcp.list_tools.label":             "MCP: 列出工具",
+			"mcp.list_tools.description":       "从 MCP 客户端 '%s' 列出工具",
+			"mcp.call_tool.label":              "MCP: 调用工具",
+			"mcp.call_tool.description":        "从 MCP 客户端 '%s' 调用工具 '%s'",
+			"mcp.call_tools.label":             "MCP: 调用工具",
+			"mcp.call_tools.description":       "从 MCP 客户端 '%s' 顺序调用 %d 个工具",
+			"mcp.call_tools_parallel.label":    "MCP: 调用工具（并行）",
+			"mcp.call_tools_parallel.description": "从 MCP 客户端 '%s' 并行调用 %d 个工具",
+
+			// MCP: context/mcp.go - Prompt operations
+			"mcp.list_prompts.label":       "MCP: 列出提示词",
+			"mcp.list_prompts.description": "从 MCP 客户端 '%s' 列出提示词",
+			"mcp.get_prompt.label":         "MCP: 获取提示词",
+			"mcp.get_prompt.description":   "从 MCP 客户端 '%s' 获取提示词 '%s'",
+
+			// MCP: context/mcp.go - Sample operations
+			"mcp.list_samples.label":       "MCP: 列出示例",
+			"mcp.list_samples.description": "从 MCP 客户端 '%s' 列出 '%s' 的示例",
+			"mcp.get_sample.label":         "MCP: 获取示例",
+			"mcp.get_sample.description":   "从 MCP 客户端 '%s' 获取 '%s' 的第 %d 个示例",
 		},
 	}
 }

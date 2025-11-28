@@ -313,3 +313,48 @@ func nodeFailMethod(iso *v8go.Isolate, node types.Node) *v8go.FunctionTemplate {
 		return info.This().Value
 	})
 }
+
+// NewNoOpNodeObject creates a no-op Node object for when trace is not initialized
+// All methods return the node itself (for chaining) and do nothing
+func NewNoOpNodeObject(v8ctx *v8go.Context) (*v8go.Value, error) {
+	jsObject := v8go.NewObjectTemplate(v8ctx.Isolate())
+	iso := v8ctx.Isolate()
+
+	// Set id to empty string
+	jsObject.Set("id", "")
+
+	// No-op method that returns this (for chaining)
+	noOpChainMethod := func() *v8go.FunctionTemplate {
+		return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+			return info.This().Value
+		})
+	}
+
+	// No-op node factory for Add and Parallel methods (returns new no-op node)
+	noOpNodeMethod := func() *v8go.FunctionTemplate {
+		return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+			nodeObj, _ := NewNoOpNodeObject(v8ctx)
+			return nodeObj
+		})
+	}
+
+	// Set all methods
+	jsObject.Set("Info", noOpChainMethod())
+	jsObject.Set("Debug", noOpChainMethod())
+	jsObject.Set("Error", noOpChainMethod())
+	jsObject.Set("Warn", noOpChainMethod())
+	jsObject.Set("Add", noOpNodeMethod())
+	jsObject.Set("Parallel", noOpNodeMethod())
+	jsObject.Set("SetOutput", noOpChainMethod())
+	jsObject.Set("SetMetadata", noOpChainMethod())
+	jsObject.Set("Complete", noOpChainMethod())
+	jsObject.Set("Fail", noOpChainMethod())
+
+	// Create instance
+	instance, err := jsObject.NewInstance(v8ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return instance.Value, nil
+}

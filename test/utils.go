@@ -172,6 +172,7 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/mcp"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query"
 	"github.com/yaoapp/gou/query/gou"
@@ -592,6 +593,7 @@ func load(t *testing.T, cfg config.Config) {
 	loadScript(t, cfg)
 	loadModel(t, cfg)
 	loadConnector(t, cfg)
+	loadMCP(t, cfg)
 	loadMessenger(t, cfg)
 	loadQuery(t, cfg)
 }
@@ -612,6 +614,21 @@ func loadConnector(t *testing.T, cfg config.Config) {
 		_, err := connector.Load(file, share.ID(root, file))
 		return err
 	}, exts...)
+}
+
+func loadMCP(t *testing.T, cfg config.Config) {
+	exts := []string{"*.mcp.yao", "*.mcp.json", "*.mcp.jsonc"}
+	err := application.App.Walk("mcps", func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+		_, err := mcp.LoadClient(file, share.ID(root, file))
+		return err
+	}, exts...)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func loadScript(t *testing.T, cfg config.Config) {
