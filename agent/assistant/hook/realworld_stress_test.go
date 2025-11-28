@@ -82,7 +82,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 		// Detailed validation
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.Messages)
-		
+
 		// Check if metadata exists
 		if response.Metadata == nil {
 			t.Logf("⚠ Metadata is nil - checking messages content")
@@ -90,20 +90,20 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			messageContent := ""
 			for _, msg := range response.Messages {
 				if content, ok := msg.Content.(string); ok {
-			messageContent += content + "\n"
-		}
+					messageContent += content + "\n"
+				}
 			}
 			assert.Contains(t, messageContent, "Health", "Message should mention health")
 			assert.Contains(t, messageContent, "Tools", "Message should mention tools")
 			t.Logf("✓ MCP Health executed (verified via message content)")
 		} else {
 			assert.Equal(t, "mcp_health", response.Metadata["scenario"])
-			
+
 			// Verify metadata contains MCP results
 			if toolsCount, ok := response.Metadata["tools_count"]; ok {
 				count := int(toolsCount.(float64))
 				assert.Greater(t, count, 0, "Should have tools from MCP")
-				t.Logf("✓ MCP Health: %d tools, health data: %v", 
+				t.Logf("✓ MCP Health: %d tools, health data: %v",
 					count, response.Metadata["health_data"])
 			}
 		}
@@ -126,7 +126,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 		// Detailed validation
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.Messages)
-		
+
 		// Check if metadata exists
 		if response.Metadata == nil {
 			t.Logf("⚠ Metadata is nil - checking messages content")
@@ -134,20 +134,20 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			messageContent := ""
 			for _, msg := range response.Messages {
 				if content, ok := msg.Content.(string); ok {
-			messageContent += content + "\n"
-		}
+					messageContent += content + "\n"
+				}
 			}
 			assert.Contains(t, messageContent, "Tools", "Message should mention tools")
 			assert.Contains(t, messageContent, "Ping", "Message should mention ping")
 			t.Logf("✓ MCP Tools executed (verified via message content)")
 		} else {
 			assert.Equal(t, "mcp_tools", response.Metadata["scenario"])
-			
+
 			// Verify tools were called
 			if toolsCount, ok := response.Metadata["tools_count"]; ok {
 				count := int(toolsCount.(float64))
 				assert.Greater(t, count, 0, "Should have tools from MCP")
-				
+
 				// Verify operations list
 				if operations, ok := response.Metadata["operations"].([]interface{}); ok {
 					assert.Len(t, operations, 2, "Should execute 2 operations: ping, status")
@@ -161,7 +161,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 
 	t.Run("Full Workflow", func(t *testing.T) {
 		ctx := newRealWorldContext("test-full-workflow", "tests.realworld")
-		
+
 		// Initialize stack for trace
 		stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
 		defer done()
@@ -179,7 +179,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 		// Detailed validation
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.Messages)
-		
+
 		// Check if metadata exists
 		if response.Metadata == nil {
 			t.Logf("⚠ Metadata is nil - checking messages content")
@@ -187,8 +187,8 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			messageContent := ""
 			for _, msg := range response.Messages {
 				if content, ok := msg.Content.(string); ok {
-			messageContent += content + "\n"
-		}
+					messageContent += content + "\n"
+				}
 			}
 			assert.Contains(t, messageContent, "Workflow", "Message should mention workflow")
 			assert.Contains(t, messageContent, "Tools", "Message should mention tools")
@@ -196,22 +196,22 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			t.Logf("✓ Full Workflow executed (verified via message content)")
 		} else {
 			assert.Equal(t, "full_workflow", response.Metadata["scenario"])
-			
+
 			// Verify all phases completed
 			if phasesCompleted, ok := response.Metadata["phases_completed"]; ok {
 				phases := int(phasesCompleted.(float64))
 				assert.Equal(t, 4, phases, "Should complete 4 phases")
-				
+
 				// Verify MCP tools
 				if mcpTools, ok := response.Metadata["mcp_tools"]; ok {
 					tools := int(mcpTools.(float64))
 					assert.Greater(t, tools, 0, "Should have MCP tools")
-					
+
 					// Verify DB records
 					if dbRecords, ok := response.Metadata["db_records"]; ok {
 						records := int(dbRecords.(float64))
 						assert.GreaterOrEqual(t, records, 0, "Should have DB query result")
-						
+
 						t.Logf("✓ Full Workflow: %d phases, %d MCP tools, %d DB records",
 							phases, tools, records)
 					}
@@ -462,7 +462,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	errors := make(chan error, goroutines*iterationsPerGoroutine)
-	
+
 	// Track results for validation
 	type Result struct {
 		goroutineID int
@@ -499,7 +499,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 					ctx.Release()
 					return
 				}
-				
+
 				// Validate response
 				if response == nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d (%s): nil response", goroutineID, i, scenario)
@@ -507,7 +507,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 					ctx.Release()
 					return
 				}
-				
+
 				if len(response.Messages) == 0 {
 					errors <- fmt.Errorf("goroutine %d iteration %d (%s): empty messages", goroutineID, i, scenario)
 					done()
@@ -546,15 +546,15 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 	}
 
 	assert.Equal(t, 0, errorCount, "No errors should occur in concurrent operations")
-	
+
 	// Validate results
 	scenarioCounts := make(map[string]int)
 	validResults := 0
-	
+
 	for result := range results {
 		validResults++
 		scenarioCounts[result.scenario]++
-		
+
 		// Validate metadata exists and has expected scenario
 		if result.metadata != nil {
 			if scenario, ok := result.metadata["scenario"].(string); ok {
@@ -568,7 +568,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 
 	totalOperations := goroutines * iterationsPerGoroutine
 	assert.Equal(t, totalOperations, validResults, "All operations should return valid results")
-	
+
 	avgTime := duration / time.Duration(totalOperations)
 
 	t.Logf("✓ Concurrent stress: %d operations (goroutines: %d, iterations: %d)",
@@ -716,4 +716,3 @@ func getMemStats() uint64 {
 	runtime.ReadMemStats(&m)
 	return m.Alloc
 }
-
