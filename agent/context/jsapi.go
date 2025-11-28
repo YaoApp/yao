@@ -25,8 +25,12 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// The goValueID will be stored in internal field (index 0) after instance creation
 	goValueID := bridge.RegisterGoObject(ctx)
 
-	// Set release function that will be called when JavaScript object is released
-	jsObject.Set("__release", ctx.objectRelease(v8ctx.Isolate(), goValueID))
+	// Set release function (both __release and Release do the same thing)
+	// __release: Internal cleanup (called by GC or Use())
+	// Release: Public method for manual cleanup (try-finally pattern)
+	releaseFunc := ctx.objectRelease(v8ctx.Isolate(), goValueID)
+	jsObject.Set("__release", releaseFunc)
+	jsObject.Set("Release", releaseFunc)
 
 	// Set primitive fields in template
 	jsObject.Set("chat_id", ctx.ChatID)
@@ -45,8 +49,10 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	jsObject.Set("route", ctx.Route)
 
 	// Set methods
-	jsObject.Set("Trace", ctx.traceMethod(v8ctx.Isolate()))
 	jsObject.Set("Send", ctx.sendMethod(v8ctx.Isolate()))
+
+	// Set MCP object
+	jsObject.Set("MCP", ctx.newMCPObject(v8ctx.Isolate()))
 
 	// Create instance
 	instance, err := jsObject.NewInstance(v8ctx)
@@ -68,6 +74,13 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	if err != nil {
 		bridge.ReleaseGoObject(goValueID)
 		return nil, err
+	}
+
+	// Set Trace object (property, not method)
+	// If trace is not initialized, use no-op object
+	traceObj := ctx.createTraceObject(v8ctx)
+	if traceObj != nil {
+		obj.Set("Trace", traceObj)
 	}
 
 	// Set complex objects (maps, arrays) after instance creation using bridge
@@ -115,16 +128,32 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 // objectRelease releases the Go object from the global bridge registry
 // It retrieves the goValueID from internal field (index 0) and releases the Go object
+// Also releases associated Trace object if present
 func (ctx *Context) objectRelease(iso *v8go.Isolate, goValueID string) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		// Get the context object (this)
 		thisObj, err := info.This().AsObject()
-		if err == nil && thisObj.InternalFieldCount() > 0 {
-			// Get goValueID from internal field (index 0)
-			goValueID := thisObj.GetInternalField(0)
-			if goValueID != nil && goValueID.IsString() {
-				// Release from global bridge registry
-				bridge.ReleaseGoObject(goValueID.String())
+		if err == nil {
+			// Release Trace object if it has __release method
+			if traceVal, err := thisObj.Get("Trace"); err == nil && !traceVal.IsNullOrUndefined() {
+				if traceObj, err := traceVal.AsObject(); err == nil {
+					if releaseFunc, err := traceObj.Get("__release"); err == nil && releaseFunc.IsFunction() {
+						// Call Trace.__release() to cleanup trace resources
+						if releaseFn, err := releaseFunc.AsFunction(); err == nil {
+							releaseFn.Call(traceObj.Value) // Ignore errors in cleanup
+						}
+					}
+				}
+			}
+
+			// Release Context Go object from bridge registry
+			if thisObj.InternalFieldCount() > 0 {
+				// Get goValueID from internal field (index 0)
+				goValueID := thisObj.GetInternalField(0)
+				if goValueID != nil && goValueID.IsString() {
+					// Release from global bridge registry
+					bridge.ReleaseGoObject(goValueID.String())
+				}
 			}
 		}
 
@@ -132,32 +161,32 @@ func (ctx *Context) objectRelease(iso *v8go.Isolate, goValueID string) *v8go.Fun
 	})
 }
 
-func (ctx *Context) traceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
-	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		v8ctx := info.Context()
+// createTraceObject creates a Trace object instance
+// Returns a no-op Trace object if trace is not initialized
+func (ctx *Context) createTraceObject(v8ctx *v8go.Context) *v8go.Value {
+	// Try to get trace manager
+	manager, err := ctx.Trace()
+	if err != nil || manager == nil {
+		// Return no-op trace object if initialization fails
+		noOpTrace, _ := traceJsapi.NewNoOpTraceObject(v8ctx)
+		return noOpTrace
+	}
 
-		// Get trace manager (lazy initialization)
-		manager, err := ctx.Trace()
-		if err != nil {
-			return bridge.JsException(v8ctx, err.Error())
-		}
+	// Get trace ID
+	traceID := ""
+	if ctx.Stack != nil {
+		traceID = ctx.Stack.TraceID
+	}
 
-		// Get trace ID
-		traceID := ""
-		if ctx.Stack != nil {
-			traceID = ctx.Stack.TraceID
-		}
+	// Create JavaScript Trace object
+	traceObj, err := traceJsapi.NewTraceObject(v8ctx, traceID, manager)
+	if err != nil {
+		// Return no-op trace object if creation fails
+		noOpTrace, _ := traceJsapi.NewNoOpTraceObject(v8ctx)
+		return noOpTrace
+	}
 
-		// Create JavaScript Trace object directly
-		// The Trace object will be used within JavaScript and its __release will be called
-		// when the JavaScript value is released via defer bridge.FreeJsValue(jsRes)
-		traceObj, err := traceJsapi.NewTraceObject(v8ctx, traceID, manager)
-		if err != nil {
-			return bridge.JsException(v8ctx, err.Error())
-		}
-
-		return traceObj
-	})
+	return traceObj
 }
 
 // sendMethod implements ctx.Send(message)

@@ -1,7 +1,7 @@
-package context
+package context_test
 
 import (
-	"context"
+	stdContext "context"
 	"fmt"
 	"sync"
 	"testing"
@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -22,10 +23,11 @@ func TestJsValue(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
+	cxt := &context.Context{
 		ChatID:      "ChatID-123456",
 		AssistantID: "AssistantID-1234",
 		Sid:         "Sid-1234",
+		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
 	}
 
@@ -91,10 +93,11 @@ func TestJsValueConcurrent(t *testing.T) {
 				assistantID := fmt.Sprintf("AssistantID-%d-%d", routineID, j)
 				sid := fmt.Sprintf("Sid-%d-%d", routineID, j)
 
-				cxt := &Context{
+				cxt := &context.Context{
 					ChatID:      chatID,
 					AssistantID: assistantID,
 					Sid:         sid,
+					Context:     stdContext.Background(),
 					IDGenerator: message.NewIDGenerator(),
 				}
 
@@ -150,10 +153,11 @@ func TestJsValueRegistrationAndCleanup(t *testing.T) {
 	// Create multiple contexts and verify registration
 	contextCount := 5
 	for i := 0; i < contextCount; i++ {
-		cxt := &Context{
+		cxt := &context.Context{
 			ChatID:      fmt.Sprintf("ChatID-%d", i),
 			AssistantID: fmt.Sprintf("AssistantID-%d", i),
 			Sid:         fmt.Sprintf("Sid-%d", i),
+			Context:     stdContext.Background(),
 			IDGenerator: message.NewIDGenerator(),
 		}
 
@@ -220,7 +224,7 @@ func TestJsValueAllFields(t *testing.T) {
 	defer test.Clean()
 
 	searchTrue := true
-	cxt := &Context{
+	cxt := &context.Context{
 		ChatID:      "test-chat-id",
 		AssistantID: "test-assistant-id",
 		Connector:   "test-connector",
@@ -230,7 +234,8 @@ func TestJsValueAllFields(t *testing.T) {
 		RetryTimes:  3,
 		Locale:      "zh-cn",
 		Theme:       "dark",
-		Client: Client{
+		Context:     stdContext.Background(),
+		Client: context.Client{
 			Type:      "web",
 			UserAgent: "Mozilla/5.0",
 			IP:        "127.0.0.1",
@@ -439,24 +444,24 @@ func TestJsValueTrace(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
+	cxt := &context.Context{
 		ChatID:      "test-chat-id",
 		AssistantID: "test-assistant-id",
-		Stack: &Stack{
+		Stack: &context.Stack{
 			TraceID: "test-trace-id",
 		},
-		Context:     context.Background(),
+		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
 	}
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(cxt) {
-			// Get trace from context
-			const trace = cxt.Trace()
+			// Get trace from context (property, not method call)
+			const trace = cxt.Trace
 			
 			// Verify trace object exists
 			if (!trace) {
-				throw new Error("Trace() returned null or undefined")
+				throw new Error("Trace returned null or undefined")
 			}
 			
 			// Verify trace has expected methods
