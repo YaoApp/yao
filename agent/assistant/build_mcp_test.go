@@ -200,6 +200,88 @@ func TestBuildRequest_MCP(t *testing.T) {
 			t.Logf("✓ Tool schema valid: %v", fn["name"])
 		}
 	})
+
+	t.Run("MCPHookOverride", func(t *testing.T) {
+		// Test that hook can override MCP servers
+		// Use tests.mcptest-hook which has a create hook that returns only ["ping"]
+		hookAgent, err := assistant.Get("tests.mcptest-hook")
+		if err != nil {
+			t.Fatalf("Failed to get tests.mcptest-hook assistant: %s", err.Error())
+		}
+
+		hookCtx := newTestContext("chat-test-mcp-hook", "tests.mcptest-hook")
+		inputMessages := []context.Message{{Role: context.RoleUser, Content: "test hook override"}}
+
+		// Call create hook to get createResponse
+		var createResponse *context.HookCreateResponse
+		if hookAgent.Script != nil {
+			createResponse, err = hookAgent.Script.Create(hookCtx, inputMessages)
+			if err != nil {
+				t.Fatalf("Failed to call create hook: %s", err.Error())
+			}
+
+			t.Logf("Create hook response: %+v", createResponse)
+			if createResponse != nil && len(createResponse.MCPServers) > 0 {
+				t.Logf("Hook MCP servers: %+v", createResponse.MCPServers)
+			}
+		} else {
+			t.Fatal("Expected hookAgent to have Script/hook configured")
+		}
+
+		// Build LLM request with create hook response
+		_, options, err := hookAgent.BuildRequest(hookCtx, inputMessages, createResponse)
+		if err != nil {
+			t.Fatalf("Failed to build LLM request: %s", err.Error())
+		}
+
+		// Verify that tools are loaded
+		if options.Tools == nil {
+			t.Fatal("Expected tools to be loaded, got nil")
+		}
+
+		// Count MCP tools
+		mcpToolCount := 0
+		var toolNames []string
+		for _, toolMap := range options.Tools {
+			fn, ok := toolMap["function"].(map[string]interface{})
+			if !ok {
+				continue
+			}
+			name, ok := fn["name"].(string)
+			if ok {
+				toolNames = append(toolNames, name)
+				mcpToolCount++
+			}
+		}
+
+		t.Logf("Found %d MCP tools after hook override: %v", mcpToolCount, toolNames)
+
+		// Verify tool count (hook should override to only 1: ping)
+		if mcpToolCount != 1 {
+			t.Errorf("Expected 1 MCP tool (ping only), got %d: %v", mcpToolCount, toolNames)
+		}
+
+		// Verify only ping tool exists
+		hasEchoPing := false
+		hasEchoEcho := false
+		for _, name := range toolNames {
+			if name == "echo__ping" {
+				hasEchoPing = true
+			}
+			if name == "echo__echo" {
+				hasEchoEcho = true
+			}
+		}
+
+		if !hasEchoPing {
+			t.Error("Expected 'echo__ping' tool to be present")
+		}
+		if hasEchoEcho {
+			t.Error("Tool 'echo__echo' should be filtered out by hook override but was found")
+		}
+
+		t.Log("✓ Hook successfully overrode MCP servers configuration")
+	})
 }
 
 // Helper function to check if string contains substring

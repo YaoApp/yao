@@ -274,15 +274,14 @@ type Stack struct {
 // Response the response
 // 100% compatible with the OpenAI API
 type Response struct {
-	RequestID   string                `json:"request_id"`   // Request ID for the response
-	ContextID   string                `json:"context_id"`   // Context ID for the response
-	ChatID      string                `json:"chat_id"`      // Chat ID for the response
-	AssistantID string                `json:"assistant_id"` // Assistant ID for the response
-	Create      *HookCreateResponse   `json:"create,omitempty"`
-	MCP         *ResponseHookMCP      `json:"mcp,omitempty"`
-	Done        *ResponseHookDone     `json:"done,omitempty"`
-	Failback    *ResponseHookFailback `json:"failback,omitempty"`
-	Completion  *CompletionResponse   `json:"completion,omitempty"`
+	RequestID   string              `json:"request_id"`           // Request ID for the response
+	ContextID   string              `json:"context_id"`           // Context ID for the response
+	TraceID     string              `json:"trace_id"`             // Trace ID for the response
+	ChatID      string              `json:"chat_id"`              // Chat ID for the response
+	AssistantID string              `json:"assistant_id"`         // Assistant ID for the response
+	Create      *HookCreateResponse `json:"create,omitempty"`     // Create response from the create hook
+	Next        interface{}         `json:"next,omitempty"`       // Next response from the next hook
+	Completion  *CompletionResponse `json:"completion,omitempty"` // Completion response from the completion hook
 }
 
 // HookCreateResponse the response of the create hook
@@ -299,6 +298,9 @@ type HookCreateResponse struct {
 	MaxTokens           *int     `json:"max_tokens,omitempty"`
 	MaxCompletionTokens *int     `json:"max_completion_tokens,omitempty"`
 
+	// MCP configuration - allow hook to add/override MCP servers for this request
+	MCPServers []MCPServerConfig `json:"mcp_servers,omitempty"`
+
 	// Context adjustments - allow hook to modify context fields
 	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID
 	Connector   string                 `json:"connector,omitempty"`    // Override connector
@@ -308,8 +310,65 @@ type HookCreateResponse struct {
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`     // Override or merge metadata
 }
 
-// ResponseHookDone the response of the done hook
-type ResponseHookDone struct{}
+// NextHookPayload payload for the next hook
+type NextHookPayload struct {
+	Messages   []Message           `json:"messages,omitempty"`   // Messages to be sent to the assistant
+	Completion *CompletionResponse `json:"completion,omitempty"` // Completion response from the completion hook
+	Tools      []ToolCallResponse  `json:"tools,omitempty"`      // Tools results from the assistant
+	Error      string              `json:"error,omitempty"`      // Error message if failed
+}
+
+// ToolCallResponse the response of a tool call
+type ToolCallResponse struct {
+	ToolCallID string      `json:"toolcall_id"`
+	Server     string      `json:"server"`
+	Tool       string      `json:"tool"`
+	Arguments  interface{} `json:"arguments,omitempty"`
+	Result     interface{} `json:"result,omitempty"`
+	Error      string      `json:"error,omitempty"`
+}
+
+// NextHookResponse represents the response from Next hook
+type NextHookResponse struct {
+	// Delegate: if provided, delegate to another agent (recursive call)
+	Delegate *DelegateConfig `json:"delegate,omitempty"`
+
+	// Data: custom response data to return to user
+	// If both Delegate and Data are nil, use standard CompletionResponse
+	Data interface{} `json:"data,omitempty"`
+
+	// Metadata: for debugging and logging
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// DelegateConfig configuration for delegating to another agent
+type DelegateConfig struct {
+	AgentID  string    `json:"agent_id"` // Required: target agent ID
+	Messages []Message `json:"messages"` // Messages to send to target agent
+
+}
+
+// NextAction defines the action determined by Next hook response
+type NextAction string
+
+const (
+	// NextActionReturn returns data to user (standard or custom)
+	NextActionReturn NextAction = "return"
+
+	// NextActionDelegate delegates to another agent
+	NextActionDelegate NextAction = "delegate"
+)
+
+// Action returns the determined action based on NextHookResponse fields
+func (n *NextHookResponse) Action() NextAction {
+	if n.Delegate != nil {
+		return NextActionDelegate
+	}
+	return NextActionReturn
+}
+
+// ResponseHookNext the response of the next hook
+type ResponseHookNext interface{}
 
 // ResponseHookMCP the response of the mcp hook
 type ResponseHookMCP struct{}
@@ -466,4 +525,12 @@ type AudioConfig struct {
 // StreamOptions represents options for streaming responses
 type StreamOptions struct {
 	IncludeUsage bool `json:"include_usage,omitempty"` // If true, include usage statistics in the final chunk
+}
+
+// MCPServerConfig represents an MCP server configuration
+// This mirrors agent/store/types.MCPServerConfig to avoid import cycles
+type MCPServerConfig struct {
+	ServerID  string   `json:"server_id"`           // MCP server ID (required)
+	Tools     []string `json:"tools,omitempty"`     // Tool name filter (empty = all tools)
+	Resources []string `json:"resources,omitempty"` // Resource URI filter (empty = all resources)
 }

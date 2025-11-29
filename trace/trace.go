@@ -80,26 +80,27 @@ func getDriver(driver string, options ...any) (types.Driver, error) {
 // The date prefix enables directory-based storage organization (e.g., traces/20251118/)
 // safe: optional parameter, reserved for future safe mode implementation (collision detection)
 func GenTraceID(safe ...bool) string {
-	// TODO: Implement safe mode with collision detection when needed
+	// Generate trace ID with format: YYYYMMDD + 12-digit NanoID
+	// Total length: 20 characters (8 date + 12 random)
+	// Using NanoID for better collision resistance in concurrent scenarios
 
 	now := time.Now()
 	// Date prefix: YYYYMMDD (8 digits)
 	prefix := now.Format("20060102")
 
-	// Generate 12-digit unique suffix (timestamp in microseconds + random)
-	// Using timestamp ensures uniqueness within the same day
-	timestamp := fmt.Sprintf("%06d", now.Unix()%1000000) // 6 digits from timestamp
-
+	// Generate 12-character random suffix using NanoID with numeric alphabet
+	// This provides much better uniqueness than timestamp-based approach
 	const alphabet = "0123456789"
-	const length = 6
+	const length = 12
 
-	random, err := gonanoid.Generate(alphabet, length)
+	suffix, err := gonanoid.Generate(alphabet, length)
 	if err != nil {
-		// Fallback to nanoseconds if NanoID generation fails
-		random = fmt.Sprintf("%06d", now.Nanosecond()%1000000)
+		// Fallback: use nanosecond timestamp if NanoID fails
+		nanoTimestamp := now.UnixNano()
+		suffix = fmt.Sprintf("%012d", nanoTimestamp%1000000000000) // 12 digits
 	}
 
-	return prefix + timestamp + random
+	return prefix + suffix
 }
 
 // New creates a new trace manager with specified driver

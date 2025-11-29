@@ -11,6 +11,7 @@ import (
 	mcpTypes "github.com/yaoapp/gou/mcp/types"
 	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
+	storeTypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/trace/types"
 )
 
@@ -72,8 +73,26 @@ func ParseMCPToolName(formattedName string) (string, string, bool) {
 
 // buildMCPTools builds tool definitions and samples system prompt from MCP servers
 // Returns (tools, samplesPrompt, error)
-func (ast *Assistant) buildMCPTools(ctx *agentContext.Context) ([]MCPTool, string, error) {
-	if ast.MCP == nil || len(ast.MCP.Servers) == 0 {
+func (ast *Assistant) buildMCPTools(ctx *agentContext.Context, createResponse *agentContext.HookCreateResponse) ([]MCPTool, string, error) {
+	// Determine which MCP servers to use: hook's or assistant's (hook takes precedence)
+	var servers []storeTypes.MCPServerConfig
+
+	// If hook provides MCP servers, use those (override)
+	if createResponse != nil && len(createResponse.MCPServers) > 0 {
+		servers = make([]storeTypes.MCPServerConfig, len(createResponse.MCPServers))
+		for i, hookServer := range createResponse.MCPServers {
+			// Convert context.MCPServerConfig to storeTypes.MCPServerConfig
+			servers[i] = storeTypes.MCPServerConfig{
+				ServerID:  hookServer.ServerID,
+				Tools:     hookServer.Tools,
+				Resources: hookServer.Resources,
+			}
+		}
+	} else if ast.MCP != nil && len(ast.MCP.Servers) > 0 {
+		// Otherwise, use assistant's configured servers
+		servers = ast.MCP.Servers
+	} else {
+		// No servers configured
 		return nil, "", nil
 	}
 
@@ -88,7 +107,7 @@ func (ast *Assistant) buildMCPTools(ctx *agentContext.Context) ([]MCPTool, strin
 	hasSamples := false
 
 	// Process each MCP server in order
-	for _, serverConfig := range ast.MCP.Servers {
+	for _, serverConfig := range servers {
 		if len(allTools) >= MaxMCPTools {
 			log.Warn("[Assistant MCP] Reached maximum tool limit (%d), skipping remaining servers", MaxMCPTools)
 			break

@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/yao/agent/assistant/hook"
 	chatctx "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/message"
+	outputMessage "github.com/yaoapp/yao/agent/output/message"
 	store "github.com/yaoapp/yao/agent/store/types"
 	api "github.com/yaoapp/yao/openai"
 )
@@ -199,6 +200,18 @@ func (r *ToolCallResult) Server() string {
 func (r *ToolCallResult) Tool() string {
 	_, toolName, _ := ParseMCPToolName(r.Name)
 	return toolName
+}
+
+// NextProcessContext encapsulates all the context needed to process Next hook responses
+// This simplifies function signatures and makes it easier to add new fields in the future
+type NextProcessContext struct {
+	Context            *chatctx.Context            // Agent context
+	NextResponse       *chatctx.NextHookResponse   // Response from Next hook (already converted from JS)
+	CompletionResponse *chatctx.CompletionResponse // LLM completion response
+	FullMessages       []chatctx.Message           // Full conversation history
+	ToolCallResponses  []chatctx.ToolCallResponse  // Tool call results (if any)
+	StreamHandler      outputMessage.StreamFunc    // Stream handler for output
+	CreateResponse     *chatctx.HookCreateResponse // Create hook response
 }
 
 // ParsedContent extracts the actual tool return value from MCP ToolContent array
