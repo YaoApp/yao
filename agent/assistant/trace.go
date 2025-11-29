@@ -104,3 +104,21 @@ func (ast *Assistant) traceAgentFail(agentNode types.Node, err error) {
 
 	agentNode.Fail(err)
 }
+
+// traceLLMRetryRequest adds a LLM retry trace node to the trace
+func (ast *Assistant) traceLLMRetryRequest(ctx *context.Context, connID string, completionMessages []context.Message, completionOptions *context.CompletionOptions) {
+	trace, _ := ctx.Trace()
+	if trace == nil {
+		return
+	}
+
+	trace.Add(
+		map[string]any{"messages": completionMessages, "options": completionOptions},
+		types.TraceNodeOption{
+			Label:       fmt.Sprintf("LLM %s (Tool Retry)", connID),
+			Type:        "llm_retry",
+			Icon:        "refresh",
+			Description: fmt.Sprintf("LLM %s is retrying with tool call error feedback", connID),
+		},
+	)
+}

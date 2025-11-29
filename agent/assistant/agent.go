@@ -92,9 +92,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// LLM Call Stream ( Optional )
 	var completionResponse *context.CompletionResponse
+	var completionMessages []context.Message
+	var completionOptions *context.CompletionOptions
 	if ast.Prompts != nil || ast.MCP != nil {
 		// Build the LLM request first
-		completionMessages, completionOptions, err := ast.BuildRequest(ctx, inputMessages, createResponse)
+		completionMessages, completionOptions, err = ast.BuildRequest(ctx, inputMessages, createResponse)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
@@ -112,13 +114,97 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	}
 
 	// ================================================
-	// Execute tool calls
+	// Execute tool calls with retry
 	// ================================================
 	if completionResponse != nil && completionResponse.ToolCalls != nil {
 
-		fmt.Println("--- completionResponse ToolCalls --------------------------------")
+		// === Debug Tool Calls ===
+		fmt.Println("--- Debug Tool Calls --------------------------------")
 		utils.Dump(completionResponse.ToolCalls)
-		fmt.Println("--------------------------------")
+
+		// === End Debug Tool Calls ===
+
+		maxToolRetries := 3
+		currentMessages := completionMessages
+		currentResponse := completionResponse
+
+		for attempt := 0; attempt < maxToolRetries; attempt++ {
+
+			fmt.Println("attempt", attempt)
+			// Execute all tool calls
+			toolResults, hasErrors := ast.executeToolCalls(ctx, currentResponse.ToolCalls, attempt)
+			// If all successful, break out
+			if !hasErrors {
+				log.Trace("[AGENT] All tool calls succeeded (attempt %d)", attempt)
+				for _, result := range toolResults {
+					fmt.Println("--")
+					fmt.Printf("Result :%s %s %s\n", result.ToolCallID, result.ServerID(), result.ToolName())
+					res, err := result.ParsedContent()
+					if err != nil {
+						fmt.Println("Error: ", err)
+					}
+					utils.Dump(res)
+					fmt.Println("--")
+				}
+				fmt.Println("--------------------------------")
+				break
+			}
+
+			// Check if any errors are retryable (parameter/validation issues)
+			hasRetryableErrors := false
+			for _, result := range toolResults {
+				if result.Error != nil && result.IsRetryableError {
+					hasRetryableErrors = true
+					break
+				}
+			}
+
+			// If no retryable errors, don't retry (MCP internal issues)
+			if !hasRetryableErrors {
+				err := fmt.Errorf("tool calls failed with non-retryable errors (MCP internal issues)")
+				log.Error("[AGENT] %v", err)
+				ast.traceAgentFail(agentNode, err)
+				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+				return nil, err
+			}
+
+			// If it's the last attempt, return error
+			if attempt == maxToolRetries-1 {
+				err := fmt.Errorf("tool calls failed after %d attempts", maxToolRetries)
+				log.Error("[AGENT] %v", err)
+				ast.traceAgentFail(agentNode, err)
+				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+				return nil, err
+			}
+
+			// Build retry messages with tool call results (including errors)
+			retryMessages := ast.buildToolRetryMessages(currentMessages, currentResponse, toolResults)
+
+			// Retry LLM call (streaming to keep user informed)
+			log.Trace("[AGENT] Retrying LLM for tool call correction (attempt %d/%d)", attempt+1, maxToolRetries-1)
+			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, agentNode, streamHandler)
+			if err != nil {
+				log.Error("[AGENT] LLM retry failed: %v", err)
+				ast.traceAgentFail(agentNode, err)
+				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+				return nil, err
+			}
+
+			// If LLM didn't return tool calls, it might have given up
+			if currentResponse.ToolCalls == nil {
+				err := fmt.Errorf("LLM did not return tool calls in retry attempt %d", attempt+1)
+				log.Error("[AGENT] %v", err)
+				ast.traceAgentFail(agentNode, err)
+				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+				return nil, err
+			}
+
+			// Update messages for next iteration
+			currentMessages = retryMessages
+		}
+
+		// Update completionResponse with the final successful response
+		completionResponse = currentResponse
 	}
 
 	// Request Done hook ( Optional )
@@ -402,4 +488,52 @@ func (ast *Assistant) initializeCapabilities(ctx *context.Context) error {
 	}
 
 	return nil
+}
+
+// buildToolRetryMessages builds messages for LLM retry with tool call results
+// Format follows OpenAI's tool call response pattern:
+// 1. Assistant message with tool calls
+// 2. Tool messages with results (one per tool call)
+// 3. System message explaining the retry
+func (ast *Assistant) buildToolRetryMessages(
+	previousMessages []context.Message,
+	completionResponse *context.CompletionResponse,
+	toolResults []ToolCallResult,
+) []context.Message {
+	retryMessages := make([]context.Message, 0, len(previousMessages)+len(toolResults)+2)
+
+	// Add all previous messages
+	retryMessages = append(retryMessages, previousMessages...)
+
+	// Add assistant message with tool calls
+	assistantMsg := context.Message{
+		Role:      context.RoleAssistant,
+		Content:   completionResponse.Content,
+		ToolCalls: completionResponse.ToolCalls,
+	}
+	retryMessages = append(retryMessages, assistantMsg)
+
+	// Add tool result messages (one per tool call)
+	for _, result := range toolResults {
+		toolMsg := context.Message{
+			Role:       context.RoleTool,
+			Content:    result.Content,
+			ToolCallID: &result.ToolCallID,
+		}
+		// Add tool name if available
+		if result.Name != "" {
+			name := result.Name
+			toolMsg.Name = &name
+		}
+		retryMessages = append(retryMessages, toolMsg)
+	}
+
+	// Add system message explaining the retry (optional, helps LLM understand context)
+	systemMsg := context.Message{
+		Role:    context.RoleSystem,
+		Content: i18n.Tr(ast.ID, "en", "assistant.agent.tool_retry_prompt"),
+	}
+	retryMessages = append(retryMessages, systemMsg)
+
+	return retryMessages
 }
