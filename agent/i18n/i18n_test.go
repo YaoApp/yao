@@ -961,14 +961,15 @@ func TestBuiltinMessages(t *testing.T) {
 
 	t.Run("English built-in messages", func(t *testing.T) {
 		// Test assistant messages
+		// Updated: label now only shows {{name}} without "Assistant" prefix
 		result := TranslateGlobal("en", "{{assistant.agent.stream.label}}")
-		expected := "Assistant {{name}}"
+		expected := "{{name}}"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, result)
 		}
 
 		result = TranslateGlobal("en", "{{assistant.agent.stream.description}}")
-		expected = "Assistant {{name}} is processing the request"
+		expected = "{{name}} is processing the request"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, result)
 		}
@@ -1002,14 +1003,15 @@ func TestBuiltinMessages(t *testing.T) {
 
 	t.Run("Chinese (zh-cn) built-in messages", func(t *testing.T) {
 		// Test assistant messages
+		// Updated: label now only shows {{name}} without "助手" prefix
 		result := TranslateGlobal("zh-cn", "{{assistant.agent.stream.label}}")
-		expected := "助手 {{name}}"
+		expected := "{{name}}"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, result)
 		}
 
 		result = TranslateGlobal("zh-cn", "{{assistant.agent.stream.description}}")
-		expected = "助手 {{name}} 正在处理请求"
+		expected = "{{name}} 正在处理请求"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, result)
 		}
@@ -1036,8 +1038,9 @@ func TestBuiltinMessages(t *testing.T) {
 	})
 
 	t.Run("Chinese (zh) short code", func(t *testing.T) {
+		// Updated: label now only shows {{name}} without "助手" prefix
 		result := TranslateGlobal("zh", "{{assistant.agent.stream.label}}")
-		expected := "助手 {{name}}"
+		expected := "{{name}}"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, result)
 		}
@@ -1244,7 +1247,8 @@ func TestTAlias(t *testing.T) {
 			t.Errorf("T and TranslateGlobal should return same result. T: %v, TranslateGlobal: %v", resultT, resultGlobal)
 		}
 
-		expected := "Assistant {{name}}"
+		// Updated: label now only shows {{name}} without "Assistant" prefix
+		expected := "{{name}}"
 		if resultT != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, resultT)
 		}
@@ -1267,17 +1271,18 @@ func TestTAlias(t *testing.T) {
 	})
 
 	t.Run("T with nested template (template in template value)", func(t *testing.T) {
-		// assistant.agent.stream.label = "Assistant {{name}}" (contains {{name}} template)
+		// assistant.agent.stream.label = "{{name}}" (contains {{name}} template)
+		// Updated: label now only shows {{name}} without prefix
 		// This tests if we can get the template string itself
 		result := T("en", "{{assistant.agent.stream.label}}")
-		expected := "Assistant {{name}}"
+		expected := "{{name}}"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%v'", expected, result)
 		}
 
 		// Verify Chinese version too
 		resultZh := T("zh-cn", "{{assistant.agent.stream.label}}")
-		expectedZh := "助手 {{name}}"
+		expectedZh := "{{name}}"
 		if resultZh != expectedZh {
 			t.Errorf("Expected '%s', got '%v'", expectedZh, resultZh)
 		}
