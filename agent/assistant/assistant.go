@@ -152,8 +152,22 @@ func (ast *Assistant) Clone() *Assistant {
 	if ast.MCP != nil {
 		clone.MCP = &store.MCPServers{}
 		if ast.MCP.Servers != nil {
-			clone.MCP.Servers = make([]string, len(ast.MCP.Servers))
-			copy(clone.MCP.Servers, ast.MCP.Servers)
+			clone.MCP.Servers = make([]store.MCPServerConfig, len(ast.MCP.Servers))
+			for i, server := range ast.MCP.Servers {
+				clone.MCP.Servers[i] = store.MCPServerConfig{
+					ServerID: server.ServerID,
+				}
+				// Deep copy Resources slice
+				if server.Resources != nil {
+					clone.MCP.Servers[i].Resources = make([]string, len(server.Resources))
+					copy(clone.MCP.Servers[i].Resources, server.Resources)
+				}
+				// Deep copy Tools slice
+				if server.Tools != nil {
+					clone.MCP.Servers[i].Tools = make([]string, len(server.Tools))
+					copy(clone.MCP.Servers[i].Tools, server.Tools)
+				}
+			}
 		}
 		if ast.MCP.Options != nil {
 			clone.MCP.Options = make(map[string]interface{})

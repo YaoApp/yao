@@ -2,6 +2,7 @@ package xun
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,10 +17,12 @@ import (
 
 func TestMain(m *testing.M) {
 	// Setup will be done in each test via test.Prepare
-	// Run tests and exit
 	test.Prepare(nil, config.Conf)
 	defer test.Clean()
-	m.Run()
+
+	// Run tests and exit with appropriate exit code
+	code := m.Run()
+	os.Exit(code)
 }
 
 // TestSaveAssistant tests creating and updating assistants
@@ -197,6 +200,137 @@ func TestSaveAssistant(t *testing.T) {
 		if len(retrieved.Tags) != 3 {
 			t.Errorf("Expected 3 tags, got %d", len(retrieved.Tags))
 		}
+	})
+
+	t.Run("SaveWithMCPServers", func(t *testing.T) {
+		// Test creating assistant with MCP servers directly
+		// This will test that:
+		// - server1 (no tools/resources) serializes as "server1"
+		// - server2 (with tools) serializes as {"server_id":"server2","tools":[...]}
+		// - server3 (with both) serializes as {"server_id":"server3","resources":[...],"tools":[...]}
+		assistant := &types.AssistantModel{
+			Name:      "MCP Save Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+			MCP: &types.MCPServers{
+				Servers: []types.MCPServerConfig{
+					{ServerID: "server1"},
+					{
+						ServerID: "server2",
+						Tools:    []string{"tool1", "tool2"},
+					},
+					{
+						ServerID:  "server3",
+						Resources: []string{"res1", "res2"},
+						Tools:     []string{"tool3", "tool4"},
+					},
+				},
+				Options: map[string]interface{}{
+					"timeout": 30,
+				},
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant with MCP: %v", err)
+		}
+
+		// Retrieve and verify MCP configuration
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.MCP == nil {
+			t.Fatal("Expected MCP to be set")
+		}
+
+		if len(retrieved.MCP.Servers) != 3 {
+			t.Errorf("Expected 3 MCP servers, got %d", len(retrieved.MCP.Servers))
+		}
+
+		// Verify server1 (simple format)
+		if retrieved.MCP.Servers[0].ServerID != "server1" {
+			t.Errorf("Expected server1, got '%s'", retrieved.MCP.Servers[0].ServerID)
+		}
+
+		// Verify server2 (with tools)
+		if retrieved.MCP.Servers[1].ServerID != "server2" {
+			t.Errorf("Expected server2, got '%s'", retrieved.MCP.Servers[1].ServerID)
+		}
+		if len(retrieved.MCP.Servers[1].Tools) != 2 {
+			t.Errorf("Expected 2 tools for server2, got %d", len(retrieved.MCP.Servers[1].Tools))
+		}
+
+		// Verify server3 (with resources and tools)
+		if retrieved.MCP.Servers[2].ServerID != "server3" {
+			t.Errorf("Expected server3, got '%s'", retrieved.MCP.Servers[2].ServerID)
+		}
+		if len(retrieved.MCP.Servers[2].Resources) != 2 {
+			t.Errorf("Expected 2 resources for server3, got %d", len(retrieved.MCP.Servers[2].Resources))
+		}
+		if len(retrieved.MCP.Servers[2].Tools) != 2 {
+			t.Errorf("Expected 2 tools for server3, got %d", len(retrieved.MCP.Servers[2].Tools))
+		}
+
+		// Verify options
+		if retrieved.MCP.Options == nil {
+			t.Error("Expected MCP options to be set")
+		}
+		if timeout, ok := retrieved.MCP.Options["timeout"].(float64); !ok || timeout != 30 {
+			t.Errorf("Expected timeout 30, got %v", retrieved.MCP.Options["timeout"])
+		}
+
+		t.Logf("Successfully verified MCP configuration for assistant %s", id)
+	})
+
+	t.Run("UpdateWithMCPServers", func(t *testing.T) {
+		// Create assistant without MCP
+		assistant := &types.AssistantModel{
+			Name:      "MCP Update Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update assistant with MCP
+		assistant.MCP = &types.MCPServers{
+			Servers: []types.MCPServerConfig{
+				{ServerID: "new-server1"},
+				{
+					ServerID: "new-server2",
+					Tools:    []string{"newtool1"},
+				},
+			},
+		}
+
+		_, err = store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to update assistant with MCP: %v", err)
+		}
+
+		// Retrieve and verify
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 2 {
+			t.Errorf("Expected 2 MCP servers, got %v", retrieved.MCP)
+		}
+
+		if retrieved.MCP.Servers[0].ServerID != "new-server1" {
+			t.Errorf("Expected new-server1, got '%s'", retrieved.MCP.Servers[0].ServerID)
+		}
+
+		t.Logf("Successfully updated and verified MCP for assistant %s", id)
 	})
 
 	t.Run("UsesConfiguration", func(t *testing.T) {
@@ -2071,6 +2205,95 @@ func TestUpdateAssistant(t *testing.T) {
 		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 2 {
 			t.Errorf("Expected 2 MCP servers, got %v", retrieved.MCP)
 		}
+		if retrieved.MCP.Servers[0].ServerID != "server1" {
+			t.Errorf("Expected first server 'server1', got '%s'", retrieved.MCP.Servers[0].ServerID)
+		}
+	})
+
+	t.Run("UpdateMCPWithToolsAndResources", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "MCP Advanced Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with MCP servers using advanced configuration
+		updates := map[string]interface{}{
+			"mcp": map[string]interface{}{
+				"servers": []interface{}{
+					"server1", // Simple format
+					map[string]interface{}{
+						"server2": []string{"tool1", "tool2"}, // Tools only
+					},
+					map[string]interface{}{
+						"server3": map[string]interface{}{
+							"resources": []string{"res1", "res2"},
+							"tools":     []string{"tool3", "tool4"},
+						},
+					},
+				},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update MCP: %v", err)
+		}
+
+		// Verify updates
+		retrieved, err := store.GetAssistant(id)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 3 {
+			t.Fatalf("Expected 3 MCP servers, got %d", len(retrieved.MCP.Servers))
+		}
+
+		// Verify server1 (simple format)
+		if retrieved.MCP.Servers[0].ServerID != "server1" {
+			t.Errorf("Expected server1, got '%s'", retrieved.MCP.Servers[0].ServerID)
+		}
+		if len(retrieved.MCP.Servers[0].Tools) != 0 {
+			t.Errorf("Expected no tools for server1, got %v", retrieved.MCP.Servers[0].Tools)
+		}
+
+		// Verify server2 (tools only)
+		if retrieved.MCP.Servers[1].ServerID != "server2" {
+			t.Errorf("Expected server2, got '%s'", retrieved.MCP.Servers[1].ServerID)
+		}
+		if len(retrieved.MCP.Servers[1].Tools) != 2 {
+			t.Errorf("Expected 2 tools for server2, got %d", len(retrieved.MCP.Servers[1].Tools))
+		}
+		if retrieved.MCP.Servers[1].Tools[0] != "tool1" {
+			t.Errorf("Expected tool1, got '%s'", retrieved.MCP.Servers[1].Tools[0])
+		}
+
+		// Verify server3 (full config)
+		if retrieved.MCP.Servers[2].ServerID != "server3" {
+			t.Errorf("Expected server3, got '%s'", retrieved.MCP.Servers[2].ServerID)
+		}
+		if len(retrieved.MCP.Servers[2].Resources) != 2 {
+			t.Errorf("Expected 2 resources for server3, got %d", len(retrieved.MCP.Servers[2].Resources))
+		}
+		if len(retrieved.MCP.Servers[2].Tools) != 2 {
+			t.Errorf("Expected 2 tools for server3, got %d", len(retrieved.MCP.Servers[2].Tools))
+		}
+		if retrieved.MCP.Servers[2].Resources[0] != "res1" {
+			t.Errorf("Expected res1, got '%s'", retrieved.MCP.Servers[2].Resources[0])
+		}
+		if retrieved.MCP.Servers[2].Tools[0] != "tool3" {
+			t.Errorf("Expected tool3, got '%s'", retrieved.MCP.Servers[2].Tools[0])
+		}
+
+		t.Logf("Successfully verified MCP advanced configuration for assistant %s", id)
 	})
 
 	t.Run("UpdateUses", func(t *testing.T) {

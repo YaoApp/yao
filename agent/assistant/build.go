@@ -9,14 +9,14 @@ import (
 
 // BuildRequest build the LLM request
 func (ast *Assistant) BuildRequest(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) ([]context.Message, *context.CompletionOptions, error) {
-	// Build final messages with proper priority
-	finalMessages, err := ast.buildMessages(ctx, messages, createResponse)
+	// Build completion options from createResponse and ctx (includes MCP tools)
+	options, mcpSamplesPrompt, err := ast.buildCompletionOptions(ctx, createResponse)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// Build completion options from createResponse and ctx
-	options, err := ast.buildCompletionOptions(ctx, createResponse)
+	// Build final messages with proper priority (includes MCP samples if available)
+	finalMessages, err := ast.buildMessages(ctx, messages, createResponse, mcpSamplesPrompt)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -25,9 +25,9 @@ func (ast *Assistant) BuildRequest(ctx *context.Context, messages []context.Mess
 }
 
 // buildMessages builds the final message list with proper priority
-// Priority: Prompts > createResponse.Messages > input messages
+// Priority: Prompts > MCP Samples > createResponse.Messages > input messages
 // If createResponse is nil or has no messages, use input messages
-func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) ([]context.Message, error) {
+func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, mcpSamplesPrompt string) ([]context.Message, error) {
 	var finalMessages []context.Message
 
 	// If createResponse is nil or has no messages, use input messages
@@ -36,6 +36,16 @@ func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Mes
 	} else {
 		// createResponse.Messages takes priority over input messages
 		finalMessages = createResponse.Messages
+	}
+
+	// Add MCP samples prompt as a system message (if available)
+	if mcpSamplesPrompt != "" {
+		mcpSamplesMsg := context.Message{
+			Role:    context.RoleSystem,
+			Content: mcpSamplesPrompt,
+		}
+		// Prepend MCP samples before other messages
+		finalMessages = append([]context.Message{mcpSamplesMsg}, finalMessages...)
 	}
 
 	// ⚠️ Just for testing, will remove later
@@ -64,12 +74,13 @@ func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Mes
 // buildCompletionOptions builds completion options from multiple sources
 // Priority (lowest to highest, later overrides earlier): ast > ctx > createResponse
 // The priority means: if createResponse has a value, use it; else use ctx; else use ast
-func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createResponse *context.HookCreateResponse) (*context.CompletionOptions, error) {
+// Returns (options, mcpSamplesPrompt, error)
+func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createResponse *context.HookCreateResponse) (*context.CompletionOptions, string, error) {
 	options := &context.CompletionOptions{}
 
 	// Layer 1 (base): Apply ast - Assistant configuration
 	if err := ast.applyAssistantOptions(options); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// Layer 2 (middle): Apply ctx - Context configuration (overrides ast)
@@ -80,7 +91,24 @@ func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createRespons
 		ast.applyCreateResponseOptions(options, createResponse)
 	}
 
-	return options, nil
+	// Add MCP tools if configured and get samples prompt
+	mcpSamplesPrompt, err := ast.applyMCPTools(ctx, options)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to apply MCP tools: %w", err)
+	}
+
+	// === Debug MCP Tools ===
+	fmt.Println("--- Debug MCP Tools after applyMCPTools ---------------")
+	fmt.Printf("options.Tools count: %d\n", len(options.Tools))
+	if len(options.Tools) > 0 {
+		for i, tool := range options.Tools {
+			fmt.Printf("Tool %d: %+v\n", i, tool)
+		}
+	}
+	fmt.Println("-------------------------------------------------------")
+	// === End Debug ===
+
+	return options, mcpSamplesPrompt, nil
 }
 
 // applyAssistantOptions applies options from ast.Options to CompletionOptions
@@ -329,4 +357,43 @@ func (ast *Assistant) getUses() *context.Uses {
 
 	// Priority 2: Global settings only
 	return globalUses
+}
+
+// applyMCPTools adds MCP tools to completion options and returns samples prompt
+// Returns (samplesPrompt, error)
+func (ast *Assistant) applyMCPTools(ctx *context.Context, options *context.CompletionOptions) (string, error) {
+
+	if ast.MCP == nil || len(ast.MCP.Servers) == 0 {
+		return "", nil
+	}
+
+	// Build MCP tools and get samples prompt
+	mcpTools, samplesPrompt, err := ast.buildMCPTools(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to build MCP tools: %w", err)
+	}
+
+	// Convert mcpTools to map format for CompletionOptions.Tools
+	if len(mcpTools) > 0 {
+		toolMaps := make([]map[string]interface{}, len(mcpTools))
+		for i, tool := range mcpTools {
+			toolMaps[i] = map[string]interface{}{
+				"type": "function",
+				"function": map[string]interface{}{
+					"name":        tool.Name,
+					"description": tool.Description,
+					"parameters":  tool.Parameters,
+				},
+			}
+		}
+
+		// Add MCP tools to existing tools (append to preserve existing tools)
+		if options.Tools == nil {
+			options.Tools = toolMaps
+		} else {
+			options.Tools = append(options.Tools, toolMaps...)
+		}
+	}
+
+	return samplesPrompt, nil
 }

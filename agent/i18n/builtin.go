@@ -12,8 +12,8 @@ func init() {
 		Locale: "en",
 		Messages: map[string]any{
 			// Assistant: agent.go Stream() function
-			"assistant.agent.stream.label":        "Assistant {{name}}",
-			"assistant.agent.stream.description":  "Assistant {{name}} is processing the request",
+			"assistant.agent.stream.label":        "{{name}}",
+			"assistant.agent.stream.description":  "{{name}} is processing the request",
 			"assistant.agent.stream.history":      "Get Chat History",
 			"assistant.agent.stream.capabilities": "Get Connector Capabilities",
 			"assistant.agent.stream.create_hook":  "Call Create Hook",
@@ -100,8 +100,8 @@ func init() {
 		Locale: "zh-cn",
 		Messages: map[string]any{
 			// Assistant: agent.go Stream() function
-			"assistant.agent.stream.label":        "助手 {{name}}",
-			"assistant.agent.stream.description":  "助手 {{name}} 正在处理请求",
+			"assistant.agent.stream.label":        "{{name}}",
+			"assistant.agent.stream.description":  "{{name}} 正在处理请求",
 			"assistant.agent.stream.history":      "获取聊天历史",
 			"assistant.agent.stream.capabilities": "获取连接器能力",
 			"assistant.agent.stream.create_hook":  "调用 Create Hook",
@@ -160,8 +160,8 @@ func init() {
 		Locale: "zh",
 		Messages: map[string]any{
 			// Assistant: agent.go Stream() function
-			"assistant.agent.stream.label":        "助手 {{name}}",
-			"assistant.agent.stream.description":  "助手 {{name}} 正在处理请求",
+			"assistant.agent.stream.label":        "{{name}}",
+			"assistant.agent.stream.description":  "{{name}} 正在处理请求",
 			"assistant.agent.stream.history":      "获取聊天历史",
 			"assistant.agent.stream.capabilities": "获取连接器能力",
 			"assistant.agent.stream.create_hook":  "调用 Create Hook",

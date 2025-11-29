@@ -63,17 +63,9 @@ func ToMCPServers(v interface{}) (*MCPServers, error) {
 	case MCPServers:
 		return &mcp, nil
 
-	case []string:
-		return &MCPServers{Servers: mcp}, nil
-
-	case []interface{}:
-		var servers []string
-		for _, item := range mcp {
-			servers = append(servers, cast.ToString(item))
-		}
-		return &MCPServers{Servers: servers}, nil
-
 	default:
+		// For any type (including []string, []interface{}, map[string]interface{}),
+		// marshal and unmarshal to MCPServers using custom UnmarshalJSON
 		raw, err := jsoniter.Marshal(mcp)
 		if err != nil {
 			return nil, fmt.Errorf("mcp format error: %s", err.Error())

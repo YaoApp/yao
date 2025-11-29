@@ -118,7 +118,7 @@ func TestToMCPServers(t *testing.T) {
 	})
 
 	t.Run("MCPServersPointer", func(t *testing.T) {
-		mcp := &MCPServers{Servers: []string{"server1", "server2"}}
+		mcp := &MCPServers{Servers: []MCPServerConfig{{ServerID: "server1"}, {ServerID: "server2"}}}
 		result, err := ToMCPServers(mcp)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
@@ -129,7 +129,7 @@ func TestToMCPServers(t *testing.T) {
 	})
 
 	t.Run("MCPServersValue", func(t *testing.T) {
-		mcp := MCPServers{Servers: []string{"server1", "server2"}}
+		mcp := MCPServers{Servers: []MCPServerConfig{{ServerID: "server1"}, {ServerID: "server2"}}}
 		result, err := ToMCPServers(mcp)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
@@ -139,37 +139,9 @@ func TestToMCPServers(t *testing.T) {
 		}
 	})
 
-	t.Run("StringSlice", func(t *testing.T) {
-		servers := []string{"server1", "server2", "server3"}
-		result, err := ToMCPServers(servers)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if len(result.Servers) != 3 {
-			t.Errorf("Expected 3 servers, got %d", len(result.Servers))
-		}
-		if result.Servers[0] != "server1" {
-			t.Errorf("Expected 'server1', got '%s'", result.Servers[0])
-		}
-	})
-
-	t.Run("InterfaceSlice", func(t *testing.T) {
-		servers := []interface{}{"server1", "server2", 456}
-		result, err := ToMCPServers(servers)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if len(result.Servers) != 3 {
-			t.Errorf("Expected 3 servers, got %d", len(result.Servers))
-		}
-		if result.Servers[2] != "456" {
-			t.Errorf("Expected '456', got '%s'", result.Servers[2])
-		}
-	})
-
 	t.Run("MapInput", func(t *testing.T) {
 		data := map[string]interface{}{
-			"servers": []string{"server1", "server2"},
+			"servers": []interface{}{"server1", "server2"},
 		}
 		result, err := ToMCPServers(data)
 		if err != nil {
@@ -177,6 +149,9 @@ func TestToMCPServers(t *testing.T) {
 		}
 		if len(result.Servers) != 2 {
 			t.Errorf("Expected 2 servers, got %d", len(result.Servers))
+		}
+		if result.Servers[0].ServerID != "server1" {
+			t.Errorf("Expected 'server1', got '%s'", result.Servers[0].ServerID)
 		}
 	})
 
