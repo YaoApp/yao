@@ -138,7 +138,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				log.Trace("[AGENT] All tool calls succeeded (attempt %d)", attempt)
 				for _, result := range toolResults {
 					fmt.Println("--")
-					fmt.Printf("Result :%s %s %s\n", result.ToolCallID, result.ServerID(), result.ToolName())
+					fmt.Printf("Result :%s %s %s\n", result.ToolCallID, result.Server(), result.Tool())
 					res, err := result.ParsedContent()
 					if err != nil {
 						fmt.Println("Error: ", err)

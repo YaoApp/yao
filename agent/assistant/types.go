@@ -187,16 +187,16 @@ type ToolCallResult struct {
 	// false: MCP internal errors that LLM cannot fix (e.g., "network error", "service unavailable")
 }
 
-// ServerID extracts the MCP server ID from the formatted tool name
+// Server extracts the MCP server ID from the formatted tool name
 // Example: "echo__ping" -> "echo"
-func (r *ToolCallResult) ServerID() string {
+func (r *ToolCallResult) Server() string {
 	serverID, _, _ := ParseMCPToolName(r.Name)
 	return serverID
 }
 
-// ToolName extracts the original tool name without server prefix
+// Tool extracts the original tool name without server prefix
 // Example: "echo__ping" -> "ping"
-func (r *ToolCallResult) ToolName() string {
+func (r *ToolCallResult) Tool() string {
 	_, toolName, _ := ParseMCPToolName(r.Name)
 	return toolName
 }
