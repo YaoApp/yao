@@ -92,7 +92,7 @@ func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createRespons
 	}
 
 	// Add MCP tools if configured and get samples prompt
-	mcpSamplesPrompt, err := ast.applyMCPTools(ctx, options)
+	mcpSamplesPrompt, err := ast.applyMCPTools(ctx, options, createResponse)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to apply MCP tools: %w", err)
 	}
@@ -361,14 +361,26 @@ func (ast *Assistant) getUses() *context.Uses {
 
 // applyMCPTools adds MCP tools to completion options and returns samples prompt
 // Returns (samplesPrompt, error)
-func (ast *Assistant) applyMCPTools(ctx *context.Context, options *context.CompletionOptions) (string, error) {
+func (ast *Assistant) applyMCPTools(ctx *context.Context, options *context.CompletionOptions, createResponse *context.HookCreateResponse) (string, error) {
 
-	if ast.MCP == nil || len(ast.MCP.Servers) == 0 {
-		return "", nil
+	// Priority 1: Check if hook provides MCP servers
+	if createResponse != nil && len(createResponse.MCPServers) > 0 {
+		return ast.buildAndApplyMCPTools(ctx, options, createResponse)
 	}
 
+	// Priority 2: Check if assistant has MCP config
+	if ast.MCP != nil && len(ast.MCP.Servers) > 0 {
+		return ast.buildAndApplyMCPTools(ctx, options, nil)
+	}
+
+	// No MCP config
+	return "", nil
+}
+
+// buildAndApplyMCPTools builds MCP tools and applies them to options
+func (ast *Assistant) buildAndApplyMCPTools(ctx *context.Context, options *context.CompletionOptions, createResponse *context.HookCreateResponse) (string, error) {
 	// Build MCP tools and get samples prompt
-	mcpTools, samplesPrompt, err := ast.buildMCPTools(ctx)
+	mcpTools, samplesPrompt, err := ast.buildMCPTools(ctx, createResponse)
 	if err != nil {
 		return "", fmt.Errorf("failed to build MCP tools: %w", err)
 	}

@@ -299,6 +299,9 @@ type HookCreateResponse struct {
 	MaxTokens           *int     `json:"max_tokens,omitempty"`
 	MaxCompletionTokens *int     `json:"max_completion_tokens,omitempty"`
 
+	// MCP configuration - allow hook to add/override MCP servers for this request
+	MCPServers []MCPServerConfig `json:"mcp_servers,omitempty"`
+
 	// Context adjustments - allow hook to modify context fields
 	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID
 	Connector   string                 `json:"connector,omitempty"`    // Override connector
@@ -466,4 +469,12 @@ type AudioConfig struct {
 // StreamOptions represents options for streaming responses
 type StreamOptions struct {
 	IncludeUsage bool `json:"include_usage,omitempty"` // If true, include usage statistics in the final chunk
+}
+
+// MCPServerConfig represents an MCP server configuration
+// This mirrors agent/store/types.MCPServerConfig to avoid import cycles
+type MCPServerConfig struct {
+	ServerID  string   `json:"server_id"`           // MCP server ID (required)
+	Tools     []string `json:"tools,omitempty"`     // Tool name filter (empty = all tools)
+	Resources []string `json:"resources,omitempty"` // Resource URI filter (empty = all resources)
 }
