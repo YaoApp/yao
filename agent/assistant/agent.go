@@ -32,6 +32,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		})
 	}
 
+	// ================================================
+	// Initialize
+	// ================================================
+
 	// Initialize stack and auto-handle completion/failure/restore
 	_, _, done := context.EnterStack(ctx, ast.ID, ctx.Referer)
 	defer done()
@@ -54,18 +58,18 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Initialize agent trace node
 	agentNode := ast.initAgentTraceNode(ctx, inputMessages)
 
-	// Full input messages with chat history
-	fullMessages, err := ast.WithHistory(ctx, inputMessages)
+	// ================================================
+	// Get Full Messages with chat history
+	// ================================================
+	fullMessages, err := ast.WithHistory(ctx, inputMessages, agentNode)
 	if err != nil {
-		ast.traceAgentFail(agentNode, err)
-		// Send error stream_end for root stack
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
 
-	// Log the chat history
-	ast.traceAgentHistory(ctx, agentNode, fullMessages)
-
+	// ================================================
+	//  Execute Create Hook
+	// ================================================
 	// Request Create hook ( Optional )
 	var createResponse *context.HookCreateResponse
 	if ast.Script != nil {
@@ -82,6 +86,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		ast.traceCreateHook(agentNode, createResponse)
 	}
 
+	// ================================================
+	// Execute LLM Call Stream
+	// ================================================
 	// LLM Call Stream ( Optional )
 	var completionResponse *context.CompletionResponse
 	if ast.Prompts != nil || ast.MCP != nil {
@@ -103,19 +110,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 	}
 
-	// Request MCP hook ( Optional )
-	var mcpResponse *context.ResponseHookMCP
-	if ast.MCP != nil {
-		_ = mcpResponse // mcpResponse is available for further processing
-
-		// MCP Execution Loop
+	// ================================================
+	// Execute tool calls
+	// ================================================
+	if completionResponse != nil && completionResponse.ToolCalls != nil {
 	}
 
 	// Request Done hook ( Optional )
 	var doneResponse *context.ResponseHookDone
 	if ast.Script != nil {
 		var err error
-		doneResponse, err = ast.Script.Done(ctx, fullMessages, completionResponse, mcpResponse)
+		doneResponse, err = ast.Script.Done(ctx, fullMessages, completionResponse, nil)
 		if err != nil {
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -269,11 +274,6 @@ func (ast *Assistant) Info(locale ...string) *message.AssistantInfo {
 		Avatar:      ast.Avatar,
 		Description: i18n.Tr(ast.ID, lc, ast.Description),
 	}
-}
-
-// WithHistory with the history messages
-func (ast *Assistant) WithHistory(ctx *context.Context, messages []context.Message) ([]context.Message, error) {
-	return messages, nil
 }
 
 // getStreamHandler returns the stream handler from the provided handlers or a default one

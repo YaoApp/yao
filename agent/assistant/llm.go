@@ -56,4 +56,3 @@ func (ast *Assistant) executeLLMStream(
 
 	return completionResponse, nil
 }
-

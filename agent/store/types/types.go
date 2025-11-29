@@ -1,6 +1,9 @@
 package types
 
 import (
+	"encoding/json"
+	"fmt"
+
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -99,9 +102,96 @@ type KnowledgeBase struct {
 }
 
 // MCPServers the MCP servers configuration
+// Supports multiple formats in the servers array:
+// - Simple string: "server_id"
+// - With tools: {"server_id": ["tool1", "tool2"]}
+// - With resources and tools: {"server_id": {"resources": [...], "tools": [...]}}
 type MCPServers struct {
-	Servers []string               `json:"servers,omitempty"` // MCP server IDs
+	Servers []MCPServerConfig      `json:"servers,omitempty"` // MCP server configurations
 	Options map[string]interface{} `json:"options,omitempty"` // Additional options for MCP servers
+}
+
+// MCPServerConfig represents a single MCP server configuration
+type MCPServerConfig struct {
+	ServerID  string   `json:"server_id,omitempty"` // MCP server ID
+	Resources []string `json:"resources,omitempty"` // Resources to use (optional)
+	Tools     []string `json:"tools,omitempty"`     // Tools to use (optional)
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for MCPServerConfig
+// Supports multiple input formats:
+// 1. Simple string: "server_id"
+// 2. Standard object: {"server_id": "server1", "resources": [...], "tools": [...]}
+// 3. Tools array: {"server_id": ["tool1", "tool2"]}
+// 4. Full config: {"server_id": {"resources": [...], "tools": [...]}}
+func (m *MCPServerConfig) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		m.ServerID = str
+		return nil
+	}
+
+	// Try to unmarshal as standard object with server_id field
+	type Alias MCPServerConfig
+	var stdObj Alias
+	if err := json.Unmarshal(data, &stdObj); err == nil && stdObj.ServerID != "" {
+		*m = MCPServerConfig(stdObj)
+		return nil
+	}
+
+	// Try to unmarshal as object with single key (alternative formats)
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return err
+	}
+
+	// Should have exactly one key (the server ID)
+	if len(obj) != 1 {
+		return fmt.Errorf("MCPServerConfig object must have exactly one key or server_id field")
+	}
+
+	// Get the server ID (the only key)
+	for serverID, value := range obj {
+		m.ServerID = serverID
+
+		// Try to unmarshal value as array of strings (format c: tools only)
+		var tools []string
+		if err := json.Unmarshal(value, &tools); err == nil {
+			m.Tools = tools
+			return nil
+		}
+
+		// Try to unmarshal as object with resources and tools (format b)
+		var detail struct {
+			Resources []string `json:"resources,omitempty"`
+			Tools     []string `json:"tools,omitempty"`
+		}
+		if err := json.Unmarshal(value, &detail); err == nil {
+			m.Resources = detail.Resources
+			m.Tools = detail.Tools
+			return nil
+		}
+
+		return fmt.Errorf("invalid format for server '%s'", serverID)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements custom JSON marshaling for MCPServerConfig
+// Serializes to different formats based on content:
+// 1. If only ServerID: "server_id"
+// 2. If has Resources or Tools: {"server_id": "...", "resources": [...], "tools": [...]}
+func (m MCPServerConfig) MarshalJSON() ([]byte, error) {
+	// If only ServerID, serialize as simple string
+	if len(m.Resources) == 0 && len(m.Tools) == 0 {
+		return json.Marshal(m.ServerID)
+	}
+
+	// Otherwise, use standard object format
+	type Alias MCPServerConfig
+	return json.Marshal(Alias(m))
 }
 
 // Workflow the workflow configuration
