@@ -7,6 +7,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -114,6 +115,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Execute tool calls
 	// ================================================
 	if completionResponse != nil && completionResponse.ToolCalls != nil {
+
+		fmt.Println("--- completionResponse ToolCalls --------------------------------")
+		utils.Dump(completionResponse.ToolCalls)
+		fmt.Println("--------------------------------")
 	}
 
 	// Request Done hook ( Optional )
