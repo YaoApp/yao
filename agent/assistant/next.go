@@ -1,0 +1,80 @@
+package assistant
+
+import (
+	"fmt"
+
+	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/output/message"
+)
+
+// processNextResponse processes the Next hook's response and handles agent delegation or custom data
+func (ast *Assistant) processNextResponse(npc *NextProcessContext) (interface{}, error) {
+	// If no Next hook response, return standard response
+	if npc.NextResponse == nil {
+		return ast.buildStandardResponse(npc), nil
+	}
+
+	// Handle Delegate: call another agent
+	if npc.NextResponse.Delegate != nil {
+		return ast.handleDelegation(npc.Context, npc.NextResponse.Delegate, npc.StreamHandler)
+	}
+
+	// Handle custom Data: return as-is wrapped in standard Response
+	if npc.NextResponse.Data != nil {
+		return &agentContext.Response{
+			ContextID:   npc.Context.ID,
+			RequestID:   npc.Context.RequestID(),
+			TraceID:     npc.Context.TraceID(),
+			ChatID:      npc.Context.ChatID,
+			AssistantID: ast.ID,
+			Create:      npc.CreateResponse,
+			Next:        npc.NextResponse.Data, // Put custom data in Next field
+			Completion:  npc.CompletionResponse,
+		}, nil
+	}
+
+	// No delegate or data, return standard response
+	return ast.buildStandardResponse(npc), nil
+}
+
+// handleDelegation handles calling another agent based on DelegateConfig
+func (ast *Assistant) handleDelegation(
+	ctx *agentContext.Context,
+	delegate *agentContext.DelegateConfig,
+	streamHandler func(message.StreamChunkType, []byte) int,
+) (interface{}, error) {
+	// Load the target assistant
+	targetAssistant, err := Get(delegate.AgentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load delegated assistant '%s': %w", delegate.AgentID, err)
+	}
+
+	// Create a new context for the delegated call
+	// Copy relevant fields from the parent context
+	delegatedCtx := &agentContext.Context{
+		Context:    ctx.Context,
+		Locale:     ctx.Locale,
+		Sid:        ctx.Sid,
+		Stack:      ctx.Stack, // Maintain the call stack
+		Authorized: ctx.Authorized,
+		Metadata:   ctx.Metadata,
+	}
+
+	// Call the delegated assistant with provided messages
+	// The delegated assistant's Stream method will handle the Next hook recursively
+	return targetAssistant.Stream(delegatedCtx, delegate.Messages, streamHandler)
+}
+
+// buildStandardResponse builds the standard agent response when no custom Next hook processing is needed
+func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) interface{} {
+	return &agentContext.Response{
+		ContextID:   npc.Context.ID,
+		RequestID:   npc.Context.RequestID(),
+		TraceID:     npc.Context.TraceID(),
+		ChatID:      npc.Context.ChatID,
+		AssistantID: ast.ID,
+		Create:      npc.CreateResponse,
+		Next:        npc.NextResponse,
+		Completion:  npc.CompletionResponse,
+	}
+}

@@ -7,7 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -16,7 +15,7 @@ import (
 
 // Stream stream the agent
 // handler is optional, if not provided, a default handler will be used
-func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, handler ...message.StreamFunc) (*context.Response, error) {
+func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, handler ...message.StreamFunc) (interface{}, error) {
 
 	log.Trace("[AGENT] Stream started: assistant=%s, contextID=%s", ast.ID, ctx.ID)
 	defer log.Trace("[AGENT] Stream ended: assistant=%s, contextID=%s", ast.ID, ctx.ID)
@@ -113,27 +112,13 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
-
-		// === Debug Completion Response ===
-		fmt.Println("--- Debug Completion Response ----------------------")
-		fmt.Printf("completionResponse: %+v\n", completionResponse)
-		if completionResponse != nil {
-			fmt.Printf("ToolCalls: %+v\n", completionResponse.ToolCalls)
-		}
-		fmt.Println("----------------------------------------------------")
-		// === End Debug ===
 	}
 
 	// ================================================
 	// Execute tool calls with retry
 	// ================================================
+	var toolCallResponses []context.ToolCallResponse = nil
 	if completionResponse != nil && completionResponse.ToolCalls != nil {
-
-		// === Debug Tool Calls ===
-		fmt.Println("--- Debug Tool Calls --------------------------------")
-		utils.Dump(completionResponse.ToolCalls)
-
-		// === End Debug Tool Calls ===
 
 		maxToolRetries := 3
 		currentMessages := completionMessages
@@ -141,23 +126,29 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 		for attempt := 0; attempt < maxToolRetries; attempt++ {
 
-			fmt.Println("attempt", attempt)
 			// Execute all tool calls
 			toolResults, hasErrors := ast.executeToolCalls(ctx, currentResponse.ToolCalls, attempt)
+
+			// Convert toolResults to toolCallResponses
+			toolCallResponses = make([]context.ToolCallResponse, len(toolResults))
+			for i, result := range toolResults {
+				parsedContent, _ := result.ParsedContent()
+				toolCallResponses[i] = context.ToolCallResponse{
+					ToolCallID: result.ToolCallID,
+					Server:     result.Server(),
+					Tool:       result.Tool(),
+					Arguments:  nil,
+					Result:     parsedContent,
+					Error:      "",
+				}
+				if result.Error != nil {
+					toolCallResponses[i].Error = result.Error.Error()
+				}
+			}
+
 			// If all successful, break out
 			if !hasErrors {
 				log.Trace("[AGENT] All tool calls succeeded (attempt %d)", attempt)
-				for _, result := range toolResults {
-					fmt.Println("--")
-					fmt.Printf("Result :%s %s %s\n", result.ToolCallID, result.Server(), result.Tool())
-					res, err := result.ParsedContent()
-					if err != nil {
-						fmt.Println("Error: ", err)
-					}
-					utils.Dump(res)
-					fmt.Println("--")
-				}
-				fmt.Println("--------------------------------")
 				break
 			}
 
@@ -218,23 +209,55 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		completionResponse = currentResponse
 	}
 
-	// Request Done hook ( Optional )
-	var doneResponse *context.ResponseHookDone
+	// ================================================
+	// Execute Next Hook and Process Response
+	// ================================================
+	var finalResponse interface{}
+	var nextResponse *context.NextHookResponse = nil
+
 	if ast.Script != nil {
 		var err error
-		doneResponse, err = ast.Script.Done(ctx, fullMessages, completionResponse, nil)
+		nextResponse, err = ast.Script.Next(ctx, &context.NextHookPayload{
+			Messages:   fullMessages,
+			Completion: completionResponse,
+			Tools:      toolCallResponses,
+		})
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
-			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
+
+		// Process Next hook response
+		finalResponse, err = ast.processNextResponse(&NextProcessContext{
+			Context:            ctx,
+			NextResponse:       nextResponse,
+			CompletionResponse: completionResponse,
+			FullMessages:       fullMessages,
+			ToolCallResponses:  toolCallResponses,
+			StreamHandler:      streamHandler,
+			CreateResponse:     createResponse,
+		})
+		if err != nil {
+			ast.traceAgentFail(agentNode, err)
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+			return nil, err
+		}
+	} else {
+		// No Next hook: use standard response
+		finalResponse = ast.buildStandardResponse(&NextProcessContext{
+			Context:            ctx,
+			NextResponse:       nil,
+			CompletionResponse: completionResponse,
+			FullMessages:       fullMessages,
+			ToolCallResponses:  toolCallResponses,
+			StreamHandler:      streamHandler,
+			CreateResponse:     createResponse,
+		})
 	}
 
-	_ = doneResponse // doneResponse is available for further processing
-
 	// Set the output of the agent node
-	ast.traceAgentOutput(agentNode, createResponse, doneResponse, completionResponse)
+	ast.traceAgentOutput(agentNode, createResponse, nextResponse, completionResponse)
 
 	// Only close output and send stream_end if this is the root call (entry point)
 	// Nested calls (from MCP, hooks, etc.) should not close the output or send stream_end
@@ -270,12 +293,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 	}
 
-	return &context.Response{
-		ContextID:   ctx.ID,
-		RequestID:   ctx.RequestID(),
-		ChatID:      ctx.ChatID,
-		AssistantID: ast.ID,
-		Create:      createResponse, Done: doneResponse, Completion: completionResponse}, nil
+	// Return finalResponse which could be:
+	// 1. Result from delegated agent call (already a Response)
+	// 2. Custom data from Next hook (wrapped in standard Response)
+	// 3. Standard response
+	return finalResponse, nil
 }
 
 // GetConnector get the connector object, capabilities, and error with priority: createResponse > ctx > ast
@@ -453,21 +475,15 @@ func (ast *Assistant) sendStreamEndOnError(ctx *context.Context, handler message
 // handleInterrupt handles the interrupt signal
 // This is called by the interrupt listener when a signal is received
 func (ast *Assistant) handleInterrupt(ctx *context.Context, signal *context.InterruptSignal) error {
-	fmt.Printf("=== Interrupt Received ===\n")
-	fmt.Printf("Assistant: %s\n", ast.ID)
-	fmt.Printf("Type: %s\n", signal.Type)
-	fmt.Printf("Messages: %d\n", len(signal.Messages))
-	fmt.Printf("Timestamp: %d\n", signal.Timestamp)
-
 	// Handle based on interrupt type
 	switch signal.Type {
 	case context.InterruptForce:
-		fmt.Println("Force interrupt: stopping current operations immediately...")
 		// Force interrupt: context is already cancelled in handleSignal
 		// LLM streaming will detect ctx.Interrupt.Context().Done() and stop
+		log.Trace("[AGENT] Force interrupt: stopping current operations immediately")
 
 	case context.InterruptGraceful:
-		fmt.Println("Graceful interrupt: will process after current step completes...")
+		log.Trace("[AGENT] Graceful interrupt: will process after current step completes")
 		// Graceful interrupt: let current operation complete
 		// The signal is stored in current/pending, can be checked at checkpoints
 	}

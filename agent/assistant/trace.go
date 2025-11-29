@@ -84,14 +84,14 @@ func (ast *Assistant) traceLLMComplete(ctx *context.Context, completionResponse 
 }
 
 // traceAgentOutput sets the output of the agent trace node
-func (ast *Assistant) traceAgentOutput(agentNode types.Node, createResponse *context.HookCreateResponse, doneResponse *context.ResponseHookDone, completionResponse *context.CompletionResponse) {
+func (ast *Assistant) traceAgentOutput(agentNode types.Node, createResponse *context.HookCreateResponse, nextResponse interface{}, completionResponse *context.CompletionResponse) {
 	if agentNode == nil {
 		return
 	}
 
 	output := context.Response{
 		Create:     createResponse,
-		Done:       doneResponse,
+		Next:       nextResponse,
 		Completion: completionResponse,
 	}
 
