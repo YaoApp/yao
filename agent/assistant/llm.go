@@ -1,6 +1,8 @@
 package assistant
 
 import (
+	"fmt"
+
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -17,6 +19,12 @@ func (ast *Assistant) executeLLMStream(
 	agentNode types.Node,
 	streamHandler message.StreamFunc,
 ) (*context.CompletionResponse, error) {
+
+	// === Debug LLM Stream Start ===
+	fmt.Println(">>> executeLLMStream: STARTING")
+	fmt.Printf(">>> Messages count: %d\n", len(completionMessages))
+	fmt.Printf(">>> Tools count: %d\n", len(completionOptions.Tools))
+	// === End Debug ===
 
 	// Get connector object (capabilities were already set above, before stream_start)
 	conn, capabilities, err := ast.GetConnector(ctx)
@@ -44,7 +52,21 @@ func (ast *Assistant) executeLLMStream(
 
 	// Call the LLM Completion Stream (streamHandler was set earlier)
 	log.Trace("[AGENT] Calling LLM Stream: assistant=%s", ast.ID)
+
+	// === Debug LLM Stream Call ===
+	fmt.Println(">>> executeLLMStream: CALLING llmInstance.Stream()")
+	// === End Debug ===
+
 	completionResponse, err := llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
+
+	// === Debug LLM Stream Return ===
+	fmt.Println(">>> executeLLMStream: llmInstance.Stream() RETURNED")
+	fmt.Printf(">>> err: %v\n", err)
+	if completionResponse != nil {
+		fmt.Printf(">>> ToolCalls: %d\n", len(completionResponse.ToolCalls))
+	}
+	// === End Debug ===
+
 	log.Trace("[AGENT] LLM Stream returned: assistant=%s, err=%v", ast.ID, err)
 	if err != nil {
 		log.Trace("[AGENT] Calling sendStreamEndOnError")

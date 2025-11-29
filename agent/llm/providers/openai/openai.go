@@ -213,7 +213,6 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 	}
 
 	maxRetries := 3
-	maxValidationRetries := 3
 	var lastErr error
 
 	// Get Go context for cancellation support
@@ -305,43 +304,14 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 			})
 		}
 
-		// Check if error is tool call validation failure
+		// Note: Tool call validation errors should not reach here anymore
+		// because we now pass through validation failures to Agent layer
+		// This check is kept for safety but should not trigger
 		if isToolCallValidationError(err) {
-			// Handle tool call validation retry with feedback to LLM
-			validationRetryMessages := currentMessages
-			for validationAttempt := 0; validationAttempt < maxValidationRetries; validationAttempt++ {
-				if trace != nil {
-					trace.Warn("Tool call validation failed", map[string]any{
-						"attempt":     validationAttempt + 1,
-						"max_retries": maxValidationRetries,
-						"error":       err.Error(),
-					})
-				}
-
-				// Add error feedback to conversation history
-				validationRetryMessages = append(validationRetryMessages, context.Message{
-					Role:    context.RoleSystem,
-					Content: fmt.Sprintf("Tool call validation error: %v. Please correct the tool call arguments to match the required schema.", err),
+			if trace != nil {
+				trace.Debug("Tool call validation error (unexpected, should be handled differently)", map[string]any{
+					"error": err.Error(),
 				})
-
-				// Retry with feedback
-				response, err = p.streamWithRetry(ctx, validationRetryMessages, options, handler)
-				if err == nil {
-					return response, nil
-				}
-
-				// Check if still validation error
-				if !isToolCallValidationError(err) {
-					// Different error type, break out of validation retry loop
-					lastErr = err
-					break
-				}
-				lastErr = err
-			}
-
-			// If we exhausted validation retries, return the error
-			if isToolCallValidationError(lastErr) {
-				return nil, fmt.Errorf("tool call validation failed after %d retries: %w", maxValidationRetries, lastErr)
 			}
 		}
 
@@ -803,12 +773,21 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		response.ToolCalls = toolCalls
 
 		// Validate tool call results if schema is provided
+		// Note: If validation fails, we log the error but DO NOT return error
+		// Instead, we let the response through so Agent layer can handle it
+		// Agent layer will re-validate and provide better error feedback to LLM
 		if err := p.validateToolCallResults(options, toolCalls); err != nil {
+			// Log validation error
+			if trace, _ := ctx.Trace(); trace != nil {
+				trace.Warn("Tool call validation failed at LLM layer, passing to Agent layer for handling", map[string]any{
+					"error": err.Error(),
+				})
+			}
 			// End current message
 			messageTracker.endMessage(handler)
 
-			// Tool call validation failed, need to retry with error feedback
-			return nil, fmt.Errorf("tool call validation failed: %w", err)
+			// Continue and return response (don't return error)
+			// Agent layer will handle validation and retry
 		}
 	}
 
@@ -829,7 +808,6 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 	}
 
 	maxRetries := 3
-	maxValidationRetries := 3
 	var lastErr error
 
 	// Get Go context for cancellation support
@@ -880,43 +858,14 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 		}
 		lastErr = err
 
-		// Check if error is tool call validation failure
+		// Note: Tool call validation errors should not reach here anymore
+		// because we now pass through validation failures to Agent layer
+		// This check is kept for safety but should not trigger
 		if isToolCallValidationError(err) {
-			// Handle tool call validation retry with feedback to LLM
-			validationRetryMessages := currentMessages
-			for validationAttempt := 0; validationAttempt < maxValidationRetries; validationAttempt++ {
-				if trace != nil {
-					trace.Warn("Tool call validation failed", map[string]any{
-						"attempt":     validationAttempt + 1,
-						"max_retries": maxValidationRetries,
-						"error":       err.Error(),
-					})
-				}
-
-				// Add error feedback to conversation history
-				validationRetryMessages = append(validationRetryMessages, context.Message{
-					Role:    context.RoleSystem,
-					Content: fmt.Sprintf("Tool call validation error: %v. Please correct the tool call arguments to match the required schema.", err),
+			if trace != nil {
+				trace.Debug("Tool call validation error in Post (unexpected, should be handled differently)", map[string]any{
+					"error": err.Error(),
 				})
-
-				// Retry with feedback
-				response, err = p.postWithRetry(ctx, validationRetryMessages, options)
-				if err == nil {
-					return response, nil
-				}
-
-				// Check if still validation error
-				if !isToolCallValidationError(err) {
-					// Different error type, break out of validation retry loop
-					lastErr = err
-					break
-				}
-				lastErr = err
-			}
-
-			// If we exhausted validation retries, return the error
-			if isToolCallValidationError(lastErr) {
-				return nil, fmt.Errorf("tool call validation failed after %d retries: %w", maxValidationRetries, lastErr)
 			}
 		}
 

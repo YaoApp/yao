@@ -207,19 +207,33 @@ func (ast *Assistant) executeToolCalls(ctx *agentContext.Context, toolCalls []ag
 		return nil, false
 	}
 
+	// === Debug ===
+	fmt.Printf(">>> executeToolCalls: START (attempt %d, toolCalls count: %d)\n", attempt, len(toolCalls))
+	// === End Debug ===
+
 	log.Trace("[Assistant MCP] Executing %d tool calls (attempt %d)", len(toolCalls), attempt)
 
 	// Single tool call
 	if len(toolCalls) == 1 {
-		return ast.executeSingleToolCall(ctx, toolCalls[0])
+		fmt.Println(">>> executeToolCalls: Calling executeSingleToolCall")
+		results, hasErrors := ast.executeSingleToolCall(ctx, toolCalls[0])
+		fmt.Printf(">>> executeToolCalls: executeSingleToolCall RETURNED (hasErrors: %v)\n", hasErrors)
+		return results, hasErrors
 	}
 
 	// Multiple tool calls - try parallel first
-	return ast.executeMultipleToolCallsParallel(ctx, toolCalls)
+	fmt.Println(">>> executeToolCalls: Calling executeMultipleToolCallsParallel")
+	results, hasErrors := ast.executeMultipleToolCallsParallel(ctx, toolCalls)
+	fmt.Printf(">>> executeToolCalls: executeMultipleToolCallsParallel RETURNED (hasErrors: %v)\n", hasErrors)
+	return results, hasErrors
 }
 
 // executeSingleToolCall executes a single tool call with trace logging
 func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall agentContext.ToolCall) ([]ToolCallResult, bool) {
+	// === Debug ===
+	fmt.Printf(">>> executeSingleToolCall: START (tool: %s)\n", toolCall.Function.Name)
+	// === End Debug ===
+
 	trace, _ := ctx.Trace()
 
 	// Use the agent context for cancellation and timeout control
@@ -234,6 +248,7 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 	}
 
 	// Parse tool name
+	fmt.Println(">>> executeSingleToolCall: Parsing tool name")
 	serverID, toolName, ok := ParseMCPToolName(toolCall.Function.Name)
 	if !ok {
 		result.Error = fmt.Errorf("invalid MCP tool name format: %s", toolCall.Function.Name)
@@ -319,22 +334,30 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 
 		// Validate arguments against tool schema if available
 		if toolSchema != nil {
+			fmt.Println(">>> executeSingleToolCall: Validating arguments against schema")
 			if err := gouJson.Validate(args, toolSchema); err != nil {
+				fmt.Printf(">>> executeSingleToolCall: Validation FAILED: %v\n", err)
 				result.Error = fmt.Errorf("argument validation failed: %w", err)
 				result.Content = result.Error.Error()
 				result.IsRetryableError = true // Validation error is retryable by LLM
 				log.Error("[Assistant MCP] %v", result.Error)
 				if toolNode != nil {
+					fmt.Println(">>> executeSingleToolCall: Failing toolNode due to validation error")
 					toolNode.Fail(result.Error)
+					fmt.Println(">>> executeSingleToolCall: toolNode.Fail() finished")
 				}
+				fmt.Println(">>> executeSingleToolCall: RETURNING with validation error")
 				return []ToolCallResult{result}, true
 			}
+			fmt.Println(">>> executeSingleToolCall: Validation PASSED")
 		}
 	}
 
 	// Call the tool
 	log.Trace("[Assistant MCP] Calling tool: %s (server: %s)", toolName, serverID)
+	fmt.Printf(">>> executeSingleToolCall: CALLING client.CallTool (tool: %s, server: %s)\n", toolName, serverID)
 	callResult, err := client.CallTool(mcpCtx, toolName, args)
+	fmt.Printf(">>> executeSingleToolCall: client.CallTool RETURNED (err: %v)\n", err)
 	if err != nil {
 		result.Error = fmt.Errorf("tool call failed: %w", err)
 		result.Content = result.Error.Error()
@@ -344,6 +367,7 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		if toolNode != nil {
 			toolNode.Fail(result.Error)
 		}
+		fmt.Println(">>> executeSingleToolCall: RETURNING with error")
 		return []ToolCallResult{result}, true
 	}
 
@@ -370,11 +394,14 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 	log.Trace("[Assistant MCP] Tool call succeeded: %s", toolName)
 
 	if toolNode != nil {
+		fmt.Println(">>> executeSingleToolCall: Completing toolNode")
 		toolNode.Complete(map[string]any{
 			"result": callResult,
 		})
+		fmt.Println(">>> executeSingleToolCall: toolNode.Complete() finished")
 	}
 
+	fmt.Println(">>> executeSingleToolCall: RETURNING success")
 	return []ToolCallResult{result}, false
 }
 
@@ -558,7 +585,16 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 	// Create parallel trace nodes
 	var toolNodes []types.Node
 	if trace != nil && len(parallelInputs) > 0 {
-		toolNodes, _ = trace.Parallel(parallelInputs)
+		fmt.Printf(">>> executeServerToolsParallelWithTrace: Creating %d parallel trace nodes\n", len(parallelInputs))
+		var err error
+		toolNodes, err = trace.Parallel(parallelInputs)
+		if err != nil {
+			fmt.Printf(">>> executeServerToolsParallelWithTrace: trace.Parallel() FAILED: %v\n", err)
+		} else {
+			fmt.Printf(">>> executeServerToolsParallelWithTrace: Created %d trace nodes\n", len(toolNodes))
+		}
+	} else {
+		fmt.Printf(">>> executeServerToolsParallelWithTrace: NOT creating trace nodes (trace: %v, inputs: %d)\n", trace != nil, len(parallelInputs))
 	}
 
 	// Call tools in parallel
@@ -617,9 +653,13 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 			} else {
 				// Success
 				if toolNode != nil {
+					fmt.Printf(">>> executeServerToolsParallelWithTrace: Completing toolNode %d\n", i)
 					toolNode.Complete(map[string]any{
 						"result": mcpResult.Content,
 					})
+					fmt.Printf(">>> executeServerToolsParallelWithTrace: toolNode %d completed\n", i)
+				} else {
+					fmt.Printf(">>> executeServerToolsParallelWithTrace: toolNode %d is nil!\n", i)
 				}
 			}
 		}

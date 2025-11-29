@@ -89,11 +89,13 @@ func (ast *Assistant) traceAgentOutput(agentNode types.Node, createResponse *con
 		return
 	}
 
-	agentNode.SetOutput(context.Response{
+	output := context.Response{
 		Create:     createResponse,
 		Done:       doneResponse,
 		Completion: completionResponse,
-	})
+	}
+
+	agentNode.Complete(output)
 }
 
 // traceAgentFail marks the agent trace node as failed

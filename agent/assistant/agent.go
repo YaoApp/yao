@@ -64,6 +64,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	fullMessages, err := ast.WithHistory(ctx, inputMessages, agentNode)
 	if err != nil {
+		ast.traceAgentFail(agentNode, err)
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
@@ -107,10 +108,20 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Execute the LLM streaming call
 		completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler)
 		if err != nil {
+			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
+
+		// === Debug Completion Response ===
+		fmt.Println("--- Debug Completion Response ----------------------")
+		fmt.Printf("completionResponse: %+v\n", completionResponse)
+		if completionResponse != nil {
+			fmt.Printf("ToolCalls: %+v\n", completionResponse.ToolCalls)
+		}
+		fmt.Println("----------------------------------------------------")
+		// === End Debug ===
 	}
 
 	// ================================================
@@ -213,6 +224,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		var err error
 		doneResponse, err = ast.Script.Done(ctx, fullMessages, completionResponse, nil)
 		if err != nil {
+			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
