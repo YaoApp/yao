@@ -10,9 +10,7 @@ import (
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
-	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
-	"github.com/yaoapp/yao/trace/types"
 )
 
 // Stream stream the agent
@@ -35,61 +33,38 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	}
 
 	// Initialize stack and auto-handle completion/failure/restore
-	_, traceID, done := context.EnterStack(ctx, ast.ID, ctx.Referer)
+	_, _, done := context.EnterStack(ctx, ast.ID, ctx.Referer)
 	defer done()
-
-	_ = traceID // traceID is available for trace logging
-
-	// Get connector and capabilities early (before sending stream_start)
-	// so that output adapters can use them when converting stream_start event
-	if ast.Prompts != nil || ast.MCP != nil {
-		_, capabilities, err := ast.GetConnector(ctx)
-		if err != nil {
-			streamHandler := ast.getStreamHandler(ctx, handler...)
-			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
-			return nil, err
-		}
-
-		// Set capabilities in context for output adapters to use
-		if capabilities != nil {
-			ctx.Capabilities = capabilities
-		}
-	}
 
 	// Determine stream handler
 	streamHandler := ast.getStreamHandler(ctx, handler...)
+
+	// Get connector and capabilities early (before sending stream_start)
+	// so that output adapters can use them when converting stream_start event
+	err = ast.initializeCapabilities(ctx)
+	if err != nil {
+		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+		return nil, err
+	}
 
 	// Send ChunkStreamStart only for root stack (agent-level stream start)
 	// Now ctx.Capabilities is set, so output adapters can use it
 	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
 
-	// Trace Add
-	trace, _ := ctx.Trace()
-	var agentNode types.Node = nil
-	if trace != nil {
-		agentNode, _ = trace.Add(inputMessages, types.TraceNodeOption{
-			Label:       i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.label"), // "Assistant {{name}}"
-			Type:        "agent",
-			Icon:        "assistant",
-			Description: i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.description"), // "Assistant {{name}} is processing the request"
-		})
-	}
+	// Initialize agent trace node
+	agentNode := ast.initAgentTraceNode(ctx, inputMessages)
 
 	// Full input messages with chat history
 	fullMessages, err := ast.WithHistory(ctx, inputMessages)
 	if err != nil {
-		if agentNode != nil {
-			agentNode.Fail(err)
-		}
+		ast.traceAgentFail(agentNode, err)
 		// Send error stream_end for root stack
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
 
 	// Log the chat history
-	if agentNode != nil {
-		agentNode.Info(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.history"), map[string]any{"messages": fullMessages}) // "Get Chat History"
-	}
+	ast.traceAgentHistory(ctx, agentNode, fullMessages)
 
 	// Request Create hook ( Optional )
 	var createResponse *context.HookCreateResponse
@@ -97,94 +72,34 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		var err error
 		createResponse, err = ast.Script.Create(ctx, fullMessages)
 		if err != nil {
-			if agentNode != nil {
-				agentNode.Fail(err)
-			}
+			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
 		// Log the create response
-		if agentNode != nil {
-			agentNode.Debug("Call Create Hook", map[string]any{"response": createResponse})
-		}
+		ast.traceCreateHook(agentNode, createResponse)
 	}
 
-	var completionOptions *context.CompletionOptions // default is nil
-
 	// LLM Call Stream ( Optional )
-	var completionMessages []context.Message
 	var completionResponse *context.CompletionResponse
 	if ast.Prompts != nil || ast.MCP != nil {
 		// Build the LLM request first
-		completionMessages, completionOptions, err = ast.BuildRequest(ctx, inputMessages, createResponse)
+		completionMessages, completionOptions, err := ast.BuildRequest(ctx, inputMessages, createResponse)
 		if err != nil {
-			if agentNode != nil {
-				agentNode.Fail(err)
-			}
+			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
-		// Get connector object (capabilities were already set above, before stream_start)
-		conn, capabilities, err := ast.GetConnector(ctx)
-		if err != nil {
-			if agentNode != nil {
-				agentNode.Fail(err)
-			}
-			// Send error stream_end for root stack
-			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
-			return nil, err
-		}
-
-		// Set capabilities in options if not already set
-		if completionOptions.Capabilities == nil && capabilities != nil {
-			completionOptions.Capabilities = capabilities
-		}
-
-		// Log the capabilities
-		if agentNode != nil {
-			agentNode.Debug("Get Connector Capabilities", map[string]any{"capabilities": capabilities})
-		}
-
-		// Trace Add
-		if trace != nil {
-			trace.Add(
-				map[string]any{"messages": completionMessages, "options": completionOptions},
-				types.TraceNodeOption{
-					Label:       fmt.Sprintf(i18n.Tr(ast.ID, ctx.Locale, "llm.openai.stream.label"), conn.ID()), // "LLM %s"
-					Type:        "llm",
-					Icon:        "psychology",
-					Description: fmt.Sprintf(i18n.Tr(ast.ID, ctx.Locale, "llm.openai.stream.description"), conn.ID()), // "LLM %s is processing the request"
-				},
-			)
-		}
-
-		// Create LLM instance with connector and options
-		llmInstance, err := llm.New(conn, completionOptions)
+		// Execute the LLM streaming call
+		completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler)
 		if err != nil {
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
-		}
-
-		// Call the LLM Completion Stream (streamHandler was set earlier)
-		log.Trace("[AGENT] Calling LLM Stream: assistant=%s", ast.ID)
-		completionResponse, err = llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
-		log.Trace("[AGENT] LLM Stream returned: assistant=%s, err=%v", ast.ID, err)
-		if err != nil {
-			// Send error stream_end for root stack
-			log.Trace("[AGENT] Calling sendStreamEndOnError")
-			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
-			log.Trace("[AGENT] sendStreamEndOnError returned")
-			return nil, err
-		}
-
-		// Mark LLM Request Complete
-		if trace != nil {
-			trace.Complete(completionResponse)
 		}
 	}
 
@@ -211,9 +126,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	_ = doneResponse // doneResponse is available for further processing
 
 	// Set the output of the agent node
-	if agentNode != nil {
-		agentNode.SetOutput(context.Response{Create: createResponse, Done: doneResponse, Completion: completionResponse})
-	}
+	ast.traceAgentOutput(agentNode, createResponse, doneResponse, completionResponse)
 
 	// Only close output and send stream_end if this is the root call (entry point)
 	// Nested calls (from MCP, hooks, etc.) should not close the output or send stream_end
@@ -461,6 +374,27 @@ func (ast *Assistant) handleInterrupt(ctx *context.Context, signal *context.Inte
 	// 2. For force: immediately stop and restart with new messages
 	// 3. Call Interrupted Hook if configured
 	// 4. Decide whether to continue, restart, or abort based on Hook response
+
+	return nil
+}
+
+// initializeCapabilities gets connector and capabilities, then sets them in context
+// This should be called early (before sending stream_start) so that output adapters
+// can use capabilities when converting stream_start event
+func (ast *Assistant) initializeCapabilities(ctx *context.Context) error {
+	if ast.Prompts == nil && ast.MCP == nil {
+		return nil
+	}
+
+	_, capabilities, err := ast.GetConnector(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Set capabilities in context for output adapters to use
+	if capabilities != nil {
+		ctx.Capabilities = capabilities
+	}
 
 	return nil
 }
