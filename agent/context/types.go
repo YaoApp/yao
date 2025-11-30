@@ -194,21 +194,31 @@ type Skip struct {
 	Trace   bool `json:"trace"`   // Skip trace logging
 }
 
+// MessageMetadata stores metadata for sent messages
+// Used to inherit BlockID and ThreadID in delta operations
+type MessageMetadata struct {
+	MessageID string // Message ID
+	BlockID   string // Block ID
+	ThreadID  string // Thread ID
+}
+
 // Context the context
 type Context struct {
 
 	// Context
 	context.Context
-	ID          string               `json:"id"`             // Context ID for external interrupt identification
-	Space       plan.Space           `json:"-"`              // Shared data space, it will be used to share data between the request and the call
-	Cache       store.Store          `json:"-"`              // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
-	Stack       *Stack               `json:"-"`              // Stack, current active stack of the request
-	Stacks      map[string]*Stack    `json:"-"`              // Stacks, all stacks in this request (for trace logging)
-	Writer      Writer               `json:"-"`              // Writer, it will be used to write response data to the client
-	Skip        *Skip                `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
-	trace       traceTypes.Manager   `json:"-"`              // Trace manager, lazy initialized on first access
-	output      *output.Output       `json:"-"`              // Output, it will be used to write response data to the client
-	IDGenerator *message.IDGenerator `json:"-"`              // ID generator for this context (chunk, message, block, thread IDs)
+	ID              string                      `json:"id"`             // Context ID for external interrupt identification
+	Space           plan.Space                  `json:"-"`              // Shared data space, it will be used to share data between the request and the call
+	Cache           store.Store                 `json:"-"`              // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Stack           *Stack                      `json:"-"`              // Stack, current active stack of the request
+	Stacks          map[string]*Stack           `json:"-"`              // Stacks, all stacks in this request (for trace logging)
+	Writer          Writer                      `json:"-"`              // Writer, it will be used to write response data to the client
+	Skip            *Skip                       `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
+	trace           traceTypes.Manager          `json:"-"`              // Trace manager, lazy initialized on first access
+	output          *output.Output              `json:"-"`              // Output, it will be used to write response data to the client
+	IDGenerator     *message.IDGenerator        `json:"-"`              // ID generator for this context (chunk, message, block, thread IDs)
+	messageMetadata map[string]*MessageMetadata `json:"-"`              // Message metadata cache for delta operations (inheriting BlockID/ThreadID)
+	metadataMu      sync.RWMutex                `json:"-"`              // Mutex for concurrent access to messageMetadata
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector

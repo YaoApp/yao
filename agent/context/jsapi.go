@@ -52,6 +52,14 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// Set methods
 	jsObject.Set("Send", ctx.sendMethod(v8ctx.Isolate()))
 	jsObject.Set("Replace", ctx.replaceMethod(v8ctx.Isolate()))
+	jsObject.Set("Append", ctx.appendMethod(v8ctx.Isolate()))
+	jsObject.Set("Merge", ctx.mergeMethod(v8ctx.Isolate()))
+	jsObject.Set("Set", ctx.setMethod(v8ctx.Isolate()))
+
+	// Set ID generator methods
+	jsObject.Set("MessageID", ctx.messageIDMethod(v8ctx.Isolate()))
+	jsObject.Set("BlockID", ctx.blockIDMethod(v8ctx.Isolate()))
+	jsObject.Set("ThreadID", ctx.threadIDMethod(v8ctx.Isolate()))
 
 	// Set MCP object
 	jsObject.Set("MCP", ctx.newMCPObject(v8ctx.Isolate()))
@@ -198,10 +206,11 @@ func (ctx *Context) createTraceObject(v8ctx *v8go.Context) *v8go.Value {
 	return traceObj
 }
 
-// sendMethod implements ctx.Send(message)
+// sendMethod implements ctx.Send(message, blockId?)
 // Usage: const messageId = ctx.Send({ type: "text", props: { content: "Hello" } })
 // Usage: const messageId = ctx.Send("Hello") // shorthand for text message
-// Automatically generates ID and flushes output
+// Usage: const messageId = ctx.Send("Hello", "B1") // specify block ID
+// Automatically generates MessageID and BlockID (if not specified), flushes output
 // Returns: message_id (string)
 func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
@@ -218,6 +227,12 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "invalid message: "+err.Error())
 		}
 
+		// Get optional blockId argument (second argument)
+		// Note: message object's block_id has higher priority
+		if len(args) >= 2 && args[1].IsString() && msg.BlockID == "" {
+			msg.BlockID = args[1].String()
+		}
+
 		// Generate unique MessageID if not provided
 		if msg.MessageID == "" {
 			if ctx.IDGenerator != nil {
@@ -227,7 +242,7 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			}
 		}
 
-		// Call ctx.Send
+		// Call ctx.Send (will auto-generate BlockID if still empty)
 		if err := ctx.Send(msg); err != nil {
 			return bridge.JsException(v8ctx, "Send failed: "+err.Error())
 		}
@@ -297,6 +312,268 @@ func (ctx *Context) replaceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
 		}
 		return returnID
+	})
+}
+
+// appendMethod implements ctx.Append(messageId, content, path?)
+// Usage: ctx.Append(messageId, "more text")  // append to default content path
+// Usage: ctx.Append(messageId, "more text", "props.content")  // append to specific path
+// Usage: ctx.Append(messageId, { type: "text", props: { content: "more text" } })
+// Usage: ctx.Append(messageId, { props: { content: "more text" } }, "props.data")  // append to custom path
+// Appends content to an existing message (delta append operation)
+// Automatically flushes output
+// Returns: message_id (string)
+func (ctx *Context) appendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		// Validate arguments
+		if len(args) < 2 {
+			return bridge.JsException(v8ctx, "Append requires messageId and content arguments")
+		}
+
+		// Get message ID (first argument)
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "messageId must be a string")
+		}
+		messageID := args[0].String()
+
+		// Parse content argument (second argument)
+		msg, err := parseMessage(v8ctx, args[1])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid content: "+err.Error())
+		}
+
+		// Get optional path argument (third argument)
+		deltaPath := ""
+		if len(args) >= 3 && args[2].IsString() {
+			deltaPath = args[2].String()
+		}
+
+		// Set message ID to the provided ID
+		msg.MessageID = messageID
+
+		// Set delta mode for append
+		msg.Delta = true
+		msg.DeltaAction = message.DeltaAppend
+		msg.DeltaPath = deltaPath // Empty path means append to default content, or specify custom path
+
+		// Call ctx.Send
+		if err := ctx.Send(msg); err != nil {
+			return bridge.JsException(v8ctx, "Append failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		// Return the message ID
+		returnID, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return returnID
+	})
+}
+
+// mergeMethod implements ctx.Merge(messageId, data, path?)
+// Usage: ctx.Merge(messageId, { key: "value" })  // merge to default object path
+// Usage: ctx.Merge(messageId, { status: "done" }, "props")  // merge to specific path
+// Usage: ctx.Merge(messageId, { props: { status: "done", progress: 100 } })
+// Merges data into an existing message object (delta merge operation)
+// Automatically flushes output
+// Returns: message_id (string)
+func (ctx *Context) mergeMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		// Validate arguments
+		if len(args) < 2 {
+			return bridge.JsException(v8ctx, "Merge requires messageId and data arguments")
+		}
+
+		// Get message ID (first argument)
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "messageId must be a string")
+		}
+		messageID := args[0].String()
+
+		// Parse data argument (second argument)
+		msg, err := parseMessage(v8ctx, args[1])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid data: "+err.Error())
+		}
+
+		// Get optional path argument (third argument)
+		deltaPath := ""
+		if len(args) >= 3 && args[2].IsString() {
+			deltaPath = args[2].String()
+		}
+
+		// Set message ID to the provided ID
+		msg.MessageID = messageID
+
+		// Set delta mode for merge
+		msg.Delta = true
+		msg.DeltaAction = message.DeltaMerge
+		msg.DeltaPath = deltaPath // Empty path means merge to default object, or specify custom path
+
+		// Call ctx.Send
+		if err := ctx.Send(msg); err != nil {
+			return bridge.JsException(v8ctx, "Merge failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		// Return the message ID
+		returnID, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return returnID
+	})
+}
+
+// setMethod implements ctx.Set(messageId, data, path)
+// Usage: ctx.Set(messageId, "value", "props.newField")  // set new field at specific path
+// Usage: ctx.Set(messageId, { newKey: "value" }, "props")  // set new fields in props
+// Sets a new field or value in an existing message (delta set operation)
+// Automatically flushes output
+// Returns: message_id (string)
+func (ctx *Context) setMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		// Validate arguments (path is required for Set operation)
+		if len(args) < 3 {
+			return bridge.JsException(v8ctx, "Set requires messageId, data, and path arguments")
+		}
+
+		// Get message ID (first argument)
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "messageId must be a string")
+		}
+		messageID := args[0].String()
+
+		// Parse data argument (second argument)
+		msg, err := parseMessage(v8ctx, args[1])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid data: "+err.Error())
+		}
+
+		// Get path argument (third argument - required)
+		if !args[2].IsString() {
+			return bridge.JsException(v8ctx, "path must be a string")
+		}
+		deltaPath := args[2].String()
+
+		if deltaPath == "" {
+			return bridge.JsException(v8ctx, "path cannot be empty for Set operation")
+		}
+
+		// Set message ID to the provided ID
+		msg.MessageID = messageID
+
+		// Set delta mode for set
+		msg.Delta = true
+		msg.DeltaAction = message.DeltaSet
+		msg.DeltaPath = deltaPath // Path is required for Set operation
+
+		// Call ctx.Send
+		if err := ctx.Send(msg); err != nil {
+			return bridge.JsException(v8ctx, "Set failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		// Return the message ID
+		returnID, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return returnID
+	})
+}
+
+// messageIDMethod implements ctx.MessageID()
+// Usage: const msgId = ctx.MessageID()  // Returns: "M1", "M2", "M3"...
+// Generates a unique message ID for manual message management
+// Returns: message_id (string)
+func (ctx *Context) messageIDMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+
+		var messageID string
+		if ctx.IDGenerator != nil {
+			messageID = ctx.IDGenerator.GenerateMessageID()
+		} else {
+			messageID = output.GenerateID()
+		}
+
+		// Return the generated ID
+		id, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to generate message ID: "+err.Error())
+		}
+		return id
+	})
+}
+
+// blockIDMethod implements ctx.BlockID()
+// Usage: const blockId = ctx.BlockID()  // Returns: "B1", "B2", "B3"...
+// Generates a unique block ID for grouping messages
+// Returns: block_id (string)
+func (ctx *Context) blockIDMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+
+		var blockID string
+		if ctx.IDGenerator != nil {
+			blockID = ctx.IDGenerator.GenerateBlockID()
+		} else {
+			blockID = output.GenerateID()
+		}
+
+		// Return the generated ID
+		id, err := v8go.NewValue(iso, blockID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to generate block ID: "+err.Error())
+		}
+		return id
+	})
+}
+
+// threadIDMethod implements ctx.ThreadID()
+// Usage: const threadId = ctx.ThreadID()  // Returns: "T1", "T2", "T3"...
+// Generates a unique thread ID for concurrent operations
+// Returns: thread_id (string)
+func (ctx *Context) threadIDMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+
+		var threadID string
+		if ctx.IDGenerator != nil {
+			threadID = ctx.IDGenerator.GenerateThreadID()
+		} else {
+			threadID = output.GenerateID()
+		}
+
+		// Return the generated ID
+		id, err := v8go.NewValue(iso, threadID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to generate thread ID: "+err.Error())
+		}
+		return id
 	})
 }
 

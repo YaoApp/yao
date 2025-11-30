@@ -375,3 +375,37 @@ func (ctx *Context) TraceID() string {
 	}
 	return ""
 }
+
+// recordMessageMetadata records metadata for a sent message
+// Used to inherit BlockID and ThreadID in subsequent delta operations
+func (ctx *Context) recordMessageMetadata(msg *message.Message) {
+	if msg.MessageID == "" {
+		return
+	}
+
+	ctx.metadataMu.Lock()
+	defer ctx.metadataMu.Unlock()
+
+	if ctx.messageMetadata == nil {
+		ctx.messageMetadata = make(map[string]*MessageMetadata)
+	}
+
+	ctx.messageMetadata[msg.MessageID] = &MessageMetadata{
+		MessageID: msg.MessageID,
+		BlockID:   msg.BlockID,
+		ThreadID:  msg.ThreadID,
+	}
+}
+
+// getMessageMetadata retrieves metadata for a message by ID
+// Returns nil if message metadata is not found
+func (ctx *Context) getMessageMetadata(messageID string) *MessageMetadata {
+	ctx.metadataMu.RLock()
+	defer ctx.metadataMu.RUnlock()
+
+	if ctx.messageMetadata == nil {
+		return nil
+	}
+
+	return ctx.messageMetadata[messageID]
+}

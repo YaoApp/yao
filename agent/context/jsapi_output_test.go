@@ -372,3 +372,404 @@ func TestJsValueSendChainedCalls(t *testing.T) {
 	}
 	assert.Equal(t, true, result["success"], "Chained Send calls should succeed")
 }
+
+// TestJsValueIDGenerators test ID generator methods
+func TestJsValueIDGenerators(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Test MessageID generator
+				const msgId1 = ctx.MessageID();
+				const msgId2 = ctx.MessageID();
+				
+				// Test BlockID generator
+				const blockId1 = ctx.BlockID();
+				const blockId2 = ctx.BlockID();
+				
+				// Test ThreadID generator
+				const threadId1 = ctx.ThreadID();
+				const threadId2 = ctx.ThreadID();
+				
+				// Verify IDs are strings and sequential
+				if (typeof msgId1 !== 'string' || typeof msgId2 !== 'string') {
+					throw new Error('MessageID should return string');
+				}
+				if (typeof blockId1 !== 'string' || typeof blockId2 !== 'string') {
+					throw new Error('BlockID should return string');
+				}
+				if (typeof threadId1 !== 'string' || typeof threadId2 !== 'string') {
+					throw new Error('ThreadID should return string');
+				}
+				
+				// Verify they follow the pattern (M1, M2, B1, B2, T1, T2)
+				if (!msgId1.startsWith('M') || !msgId2.startsWith('M')) {
+					throw new Error('MessageID should start with M');
+				}
+				if (!blockId1.startsWith('B') || !blockId2.startsWith('B')) {
+					throw new Error('BlockID should start with B');
+				}
+				if (!threadId1.startsWith('T') || !threadId2.startsWith('T')) {
+					throw new Error('ThreadID should start with T');
+				}
+				
+				return { 
+					success: true,
+					msgId1: msgId1,
+					msgId2: msgId2,
+					blockId1: blockId1,
+					blockId2: blockId2,
+					threadId1: threadId1,
+					threadId2: threadId2
+				};
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, true, result["success"], "ID generators should succeed")
+}
+
+// TestJsValueSendWithBlockID test Send with block_id parameter
+func TestJsValueSendWithBlockID(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Generate block ID manually
+				const blockId = ctx.BlockID();
+				
+				// Send multiple messages with same block ID
+				const msg1 = ctx.Send("Message 1", blockId);
+				const msg2 = ctx.Send("Message 2", blockId);
+				const msg3 = ctx.Send("Message 3", blockId);
+				
+				// Send message with block_id in object (higher priority)
+				const msg4 = ctx.Send({
+					type: "text",
+					props: { content: "Message 4" },
+					block_id: "B_custom"
+				}, blockId);  // blockId parameter should be ignored
+				
+				return { 
+					success: true,
+					msg1: msg1,
+					msg2: msg2,
+					msg3: msg3,
+					msg4: msg4,
+					blockId: blockId
+				};
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, true, result["success"], "Send with blockId should succeed")
+}
+
+// TestJsValueReplace test ctx.Replace method
+func TestJsValueReplace(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Send initial message
+				const msgId = ctx.Send("Initial content");
+				
+				// Replace with new content
+				ctx.Replace(msgId, "Updated content");
+				
+				// Replace with object
+				ctx.Replace(msgId, {
+					type: "text",
+					props: { content: "Final content" }
+				});
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, true, result["success"], "Replace should succeed")
+}
+
+// TestJsValueAppend test ctx.Append method
+func TestJsValueAppend(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Send initial message
+				const msgId = ctx.Send("Hello");
+				
+				// Append to default path
+				ctx.Append(msgId, " World");
+				ctx.Append(msgId, "!");
+				
+				// Append to specific path
+				const msgId2 = ctx.Send({
+					type: "data",
+					props: { content: "Line 1\n" }
+				});
+				ctx.Append(msgId2, "Line 2\n", "props.content");
+				ctx.Append(msgId2, "Line 3\n", "props.content");
+				
+				return { success: true, msgId: msgId, msgId2: msgId2 };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, true, result["success"], "Append should succeed")
+}
+
+// TestJsValueMerge test ctx.Merge method
+func TestJsValueMerge(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Send initial message with object
+				const msgId = ctx.Send({
+					type: "status",
+					props: {
+						status: "running",
+						progress: 0,
+						started: true
+					}
+				});
+				
+				// Merge updates (keeps other fields)
+				ctx.Merge(msgId, {
+					type: "status",
+					props: { progress: 50 }
+				}, "props");
+				ctx.Merge(msgId, {
+					type: "status",
+					props: { progress: 100, status: "completed" }
+				}, "props");
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "Merge should succeed")
+}
+
+// TestJsValueSet test ctx.Set method
+func TestJsValueSet(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Send initial message
+				const msgId = ctx.Send({
+					type: "result",
+					props: { content: "Initial" }
+				});
+				
+				// Set new fields
+				ctx.Set(msgId, {
+					type: "result",
+					props: { status: "success" }
+				}, "props.status");
+				ctx.Set(msgId, {
+					type: "result",
+					props: { timestamp: Date.now() }
+				}, "props.timestamp");
+				ctx.Set(msgId, {
+					type: "result",
+					props: { metadata: { duration: 1500 } }
+				}, "props.metadata");
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "Set should succeed")
+}
+
+// TestJsValueBlockIDInheritance test that delta operations inherit block_id
+func TestJsValueBlockIDInheritance(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     context.Background(),
+		Accept:      "standard",
+		Locale:      "en",
+		Writer:      newMockResponseWriter(),
+		IDGenerator: message.NewIDGenerator(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Send message with block_id
+				const blockId = ctx.BlockID();
+				const msgId = ctx.Send("Initial message", blockId);
+				
+				// Delta operations should inherit block_id automatically
+				ctx.Append(msgId, " appended");
+				ctx.Replace(msgId, "Replaced message");
+				ctx.Merge(msgId, {
+					type: "text",
+					props: { status: "done" }
+				}, "props");
+				ctx.Set(msgId, {
+					type: "text",
+					props: { state: "final" }
+				}, "props.state");
+				
+				return { success: true, msgId: msgId, blockId: blockId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "Delta operations should inherit block_id")
+}
