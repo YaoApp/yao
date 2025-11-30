@@ -61,6 +61,9 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	jsObject.Set("BlockID", ctx.blockIDMethod(v8ctx.Isolate()))
 	jsObject.Set("ThreadID", ctx.threadIDMethod(v8ctx.Isolate()))
 
+	// Lifecycle methods
+	jsObject.Set("EndBlock", ctx.endBlockMethod(v8ctx.Isolate()))
+
 	// Set MCP object
 	jsObject.Set("MCP", ctx.newMCPObject(v8ctx.Isolate()))
 
@@ -574,6 +577,40 @@ func (ctx *Context) threadIDMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "Failed to generate thread ID: "+err.Error())
 		}
 		return id
+	})
+}
+
+// endBlockMethod implements ctx.EndBlock(block_id)
+// Usage: ctx.EndBlock("B1")
+// Sends a block_end event for the specified block
+// Returns: undefined
+func (ctx *Context) endBlockMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		// Validate arguments
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "EndBlock requires block_id argument")
+		}
+
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "block_id must be a string")
+		}
+
+		blockID := args[0].String()
+
+		// Call ctx.EndBlock
+		if err := ctx.EndBlock(blockID); err != nil {
+			return bridge.JsException(v8ctx, "EndBlock failed: "+err.Error())
+		}
+
+		// Automatically flush after ending block
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		return v8go.Undefined(iso)
 	})
 }
 

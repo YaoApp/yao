@@ -3,6 +3,7 @@ package context
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
@@ -197,36 +198,72 @@ type Skip struct {
 // MessageMetadata stores metadata for sent messages
 // Used to inherit BlockID and ThreadID in delta operations
 type MessageMetadata struct {
-	MessageID string // Message ID
-	BlockID   string // Block ID
-	ThreadID  string // Thread ID
+	MessageID  string    // Message ID
+	BlockID    string    // Block ID
+	ThreadID   string    // Thread ID
+	Type       string    // Message type (text, thinking, etc.)
+	StartTime  time.Time // Message start time (for calculating duration)
+	ChunkCount int       // Number of chunks sent for this message
 }
 
-// messageMetadataStore provides thread-safe storage for message metadata
+// BlockMetadata stores metadata for output blocks
+type BlockMetadata struct {
+	BlockID      string    // Block ID
+	Type         string    // Block type (llm, mcp, agent, etc.)
+	StartTime    time.Time // Block start time
+	MessageCount int       // Number of messages in this block
+}
+
+// messageMetadataStore provides thread-safe storage for message and block metadata
 type messageMetadataStore struct {
-	data map[string]*MessageMetadata
-	mu   sync.RWMutex
+	messages map[string]*MessageMetadata // Message metadata by MessageID
+	blocks   map[string]*BlockMetadata   // Block metadata by BlockID
+	mu       sync.RWMutex
 }
 
 // newMessageMetadataStore creates a new message metadata store
 func newMessageMetadataStore() *messageMetadataStore {
 	return &messageMetadataStore{
-		data: make(map[string]*MessageMetadata),
+		messages: make(map[string]*MessageMetadata),
+		blocks:   make(map[string]*BlockMetadata),
 	}
 }
 
-// set stores metadata for a message (thread-safe)
-func (s *messageMetadataStore) set(messageID string, metadata *MessageMetadata) {
+// setMessage stores metadata for a message (thread-safe)
+func (s *messageMetadataStore) setMessage(messageID string, metadata *MessageMetadata) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.data[messageID] = metadata
+	s.messages[messageID] = metadata
 }
 
-// get retrieves metadata for a message (thread-safe)
-func (s *messageMetadataStore) get(messageID string) *MessageMetadata {
+// getMessage retrieves metadata for a message (thread-safe)
+func (s *messageMetadataStore) getMessage(messageID string) *MessageMetadata {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.data[messageID]
+	return s.messages[messageID]
+}
+
+// setBlock stores metadata for a block (thread-safe)
+func (s *messageMetadataStore) setBlock(blockID string, metadata *BlockMetadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blocks[blockID] = metadata
+}
+
+// getBlock retrieves metadata for a block (thread-safe)
+func (s *messageMetadataStore) getBlock(blockID string) *BlockMetadata {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blocks[blockID]
+}
+
+// updateBlock updates block metadata (thread-safe)
+func (s *messageMetadataStore) updateBlock(blockID string, update func(*BlockMetadata)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if block, exists := s.blocks[blockID]; exists {
+		update(block)
+	}
 }
 
 // Context the context

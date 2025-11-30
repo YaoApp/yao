@@ -384,10 +384,11 @@ func (ctx *Context) recordMessageMetadata(msg *message.Message) {
 		return
 	}
 
-	ctx.messageMetadata.set(msg.MessageID, &MessageMetadata{
+	ctx.messageMetadata.setMessage(msg.MessageID, &MessageMetadata{
 		MessageID: msg.MessageID,
 		BlockID:   msg.BlockID,
 		ThreadID:  msg.ThreadID,
+		Type:      msg.Type,
 	})
 }
 
@@ -397,5 +398,5 @@ func (ctx *Context) getMessageMetadata(messageID string) *MessageMetadata {
 	if ctx.messageMetadata == nil {
 		return nil
 	}
-	return ctx.messageMetadata.get(messageID)
+	return ctx.messageMetadata.getMessage(messageID)
 }
