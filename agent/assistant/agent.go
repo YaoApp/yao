@@ -256,8 +256,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		})
 	}
 
-	// Set the output of the agent node
-	ast.traceAgentOutput(agentNode, createResponse, nextResponse, completionResponse)
+	// Create completion node to report final output
+	ast.traceAgentCompletion(ctx, createResponse, nextResponse, completionResponse, finalResponse)
 
 	// Only close output and send stream_end if this is the root call (entry point)
 	// Nested calls (from MCP, hooks, etc.) should not close the output or send stream_end
