@@ -26,7 +26,6 @@ func TestJsValue(t *testing.T) {
 	cxt := &context.Context{
 		ChatID:      "ChatID-123456",
 		AssistantID: "AssistantID-1234",
-		Sid:         "Sid-1234",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
 	}
@@ -91,12 +90,10 @@ func TestJsValueConcurrent(t *testing.T) {
 			for j := 0; j < iterationsPerGoroutine; j++ {
 				chatID := fmt.Sprintf("ChatID-%d-%d", routineID, j)
 				assistantID := fmt.Sprintf("AssistantID-%d-%d", routineID, j)
-				sid := fmt.Sprintf("Sid-%d-%d", routineID, j)
 
 				cxt := &context.Context{
 					ChatID:      chatID,
 					AssistantID: assistantID,
-					Sid:         sid,
 					Context:     stdContext.Background(),
 					IDGenerator: message.NewIDGenerator(),
 				}
@@ -156,7 +153,6 @@ func TestJsValueRegistrationAndCleanup(t *testing.T) {
 		cxt := &context.Context{
 			ChatID:      fmt.Sprintf("ChatID-%d", i),
 			AssistantID: fmt.Sprintf("AssistantID-%d", i),
-			Sid:         fmt.Sprintf("Sid-%d", i),
 			Context:     stdContext.Background(),
 			IDGenerator: message.NewIDGenerator(),
 		}
@@ -336,12 +332,6 @@ func TestJsValueAllFields(t *testing.T) {
 	assert.True(t, ok, "constraints.extra should be an object")
 	assert.Equal(t, "engineering", extra["department"], "constraints.extra.department mismatch")
 	assert.Equal(t, "us-west", extra["region"], "constraints.extra.region mismatch")
-
-	// Verify deprecated fields are NOT exported
-	_, hasSid := result["sid"]
-	assert.False(t, hasSid, "sid (deprecated) should not be exported")
-	_, hasSilent := result["silent"]
-	assert.False(t, hasSilent, "silent (deprecated) should not be exported")
 
 	// Note: We can't directly check goMaps cleanup as it's in the bridge package
 }

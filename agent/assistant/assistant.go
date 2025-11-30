@@ -11,6 +11,62 @@ import (
 	sui "github.com/yaoapp/yao/sui/core"
 )
 
+// Get get the assistant by id
+func Get(id string) (*Assistant, error) {
+	return LoadStore(id)
+}
+
+// GetByConnector get the assistant by connector
+func GetByConnector(connector string, name string) (*Assistant, error) {
+	id := "connector:" + connector
+
+	assistant, exists := loaded.Get(id)
+	if exists {
+		return assistant, nil
+	}
+
+	data := map[string]interface{}{
+		"assistant_id": id,
+		"connector":    connector,
+		"description":  "Default assistant for " + connector,
+		"name":         name,
+		"type":         "assistant",
+	}
+
+	assistant, err := loadMap(data)
+	if err != nil {
+		return nil, err
+	}
+	loaded.Put(assistant)
+	return assistant, nil
+}
+
+// GetPlaceholder returns the placeholder of the assistant
+func (ast *Assistant) GetPlaceholder(locale string) *store.Placeholder {
+
+	prompts := []string{}
+	if ast.Placeholder.Prompts != nil {
+		prompts = i18n.Translate(ast.ID, locale, ast.Placeholder.Prompts).([]string)
+	}
+	title := i18n.Translate(ast.ID, locale, ast.Placeholder.Title).(string)
+	description := i18n.Translate(ast.ID, locale, ast.Placeholder.Description).(string)
+	return &store.Placeholder{
+		Title:       title,
+		Description: description,
+		Prompts:     prompts,
+	}
+}
+
+// GetName returns the name of the assistant
+func (ast *Assistant) GetName(locale string) string {
+	return i18n.Translate(ast.ID, locale, ast.Name).(string)
+}
+
+// GetDescription returns the description of the assistant
+func (ast *Assistant) GetDescription(locale string) string {
+	return i18n.Translate(ast.ID, locale, ast.Description).(string)
+}
+
 // Save save the assistant
 func (ast *Assistant) Save() error {
 	if storage == nil {

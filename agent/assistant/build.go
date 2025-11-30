@@ -97,17 +97,6 @@ func (ast *Assistant) buildCompletionOptions(ctx *context.Context, createRespons
 		return nil, "", fmt.Errorf("failed to apply MCP tools: %w", err)
 	}
 
-	// === Debug MCP Tools ===
-	fmt.Println("--- Debug MCP Tools after applyMCPTools ---------------")
-	fmt.Printf("options.Tools count: %d\n", len(options.Tools))
-	if len(options.Tools) > 0 {
-		for i, tool := range options.Tools {
-			fmt.Printf("Tool %d: %+v\n", i, tool)
-		}
-	}
-	fmt.Println("-------------------------------------------------------")
-	// === End Debug ===
-
 	return options, mcpSamplesPrompt, nil
 }
 

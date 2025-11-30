@@ -194,21 +194,63 @@ type Skip struct {
 	Trace   bool `json:"trace"`   // Skip trace logging
 }
 
+// MessageMetadata stores metadata for sent messages
+// Used to inherit BlockID and ThreadID in delta operations
+type MessageMetadata struct {
+	MessageID string // Message ID
+	BlockID   string // Block ID
+	ThreadID  string // Thread ID
+}
+
+// messageMetadataStore provides thread-safe storage for message metadata
+type messageMetadataStore struct {
+	data map[string]*MessageMetadata
+	mu   sync.RWMutex
+}
+
+// newMessageMetadataStore creates a new message metadata store
+func newMessageMetadataStore() *messageMetadataStore {
+	return &messageMetadataStore{
+		data: make(map[string]*MessageMetadata),
+	}
+}
+
+// set stores metadata for a message (thread-safe)
+func (s *messageMetadataStore) set(messageID string, metadata *MessageMetadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.data[messageID] = metadata
+}
+
+// get retrieves metadata for a message (thread-safe)
+func (s *messageMetadataStore) get(messageID string) *MessageMetadata {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.data[messageID]
+}
+
 // Context the context
 type Context struct {
 
 	// Context
 	context.Context
-	ID          string               `json:"id"`             // Context ID for external interrupt identification
-	Space       plan.Space           `json:"-"`              // Shared data space, it will be used to share data between the request and the call
-	Cache       store.Store          `json:"-"`              // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
-	Stack       *Stack               `json:"-"`              // Stack, current active stack of the request
-	Stacks      map[string]*Stack    `json:"-"`              // Stacks, all stacks in this request (for trace logging)
-	Writer      Writer               `json:"-"`              // Writer, it will be used to write response data to the client
-	Skip        *Skip                `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
-	trace       traceTypes.Manager   `json:"-"`              // Trace manager, lazy initialized on first access
-	output      *output.Output       `json:"-"`              // Output, it will be used to write response data to the client
-	IDGenerator *message.IDGenerator `json:"-"`              // ID generator for this context (chunk, message, block, thread IDs)
+
+	// External
+	ID          string               `json:"id"` // Context ID for external interrupt identification
+	Space       plan.Space           `json:"-"`  // Shared data space, it will be used to share data between the request and the call
+	Cache       store.Store          `json:"-"`  // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
+	Stack       *Stack               `json:"-"`  // Stack, current active stack of the request
+	Stacks      map[string]*Stack    `json:"-"`  // Stacks, all stacks in this request (for trace logging)
+	Writer      Writer               `json:"-"`  // Writer, it will be used to write response data to the client
+	IDGenerator *message.IDGenerator `json:"-"`  // ID generator for this context (chunk, message, block, thread IDs)
+
+	// Internal
+	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
+	output          *output.Output        `json:"-"` // Output, it will be used to write response data to the client
+	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
+
+	// Skip configuration (history, trace, etc.), nil means don't skip anything
+	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector
@@ -220,7 +262,6 @@ type Context struct {
 	Authorized  *types.AuthorizedInfo `json:"authorized,omitempty"`   // Authorized information
 	ChatID      string                `json:"chat_id,omitempty"`      // Chat ID, use to select chat
 	AssistantID string                `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
-	Sid         string                `json:"sid" yaml:"-"`           // Session ID (Deprecated, use Authorized instead)
 	Connector   string                `json:"connector,omitempty"`    // Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
 	Search      *bool                 `json:"search,omitempty"`       // Search mode, default is true
 
@@ -241,8 +282,6 @@ type Context struct {
 	// CUI Context information
 	Route    string                 `json:"route,omitempty"`    // The route of the request, it will be used to identify the route of the request
 	Metadata map[string]interface{} `json:"metadata,omitempty"` // The metadata of the request, it will be used to pass data to the page
-
-	Silent bool `json:"silent,omitempty"` // Silent mode (Deprecated, use Referer instead)
 }
 
 // Stack represents the call stack node for tracing agent-to-agent calls

@@ -1,0 +1,1073 @@
+# Context JavaScript API Documentation
+
+## Overview
+
+The Context JavaScript API provides a comprehensive interface for interacting with the Yao Agent system from JavaScript/TypeScript hooks (Create, Next, Done). The Context object exposes agent state, configuration, messaging capabilities, trace operations, and MCP (Model Context Protocol) integrations.
+
+## Context Object
+
+The Context object is automatically passed to hook functions and provides access to the agent's execution environment.
+
+### Basic Properties
+
+```typescript
+interface Context {
+  // Identifiers
+  chat_id: string; // Current chat session ID
+  assistant_id: string; // Assistant identifier
+
+  // Configuration
+  connector: string; // LLM connector name
+  search?: string; // Search engine configuration
+  locale: string; // User locale (e.g., "en", "zh-cn")
+  theme: string; // UI theme preference
+  accept: string; // Output format ("openai", "cui", etc.)
+  route: string; // Request route path
+  referer: string; // Request referer
+
+  // Retry Configuration
+  retry: boolean; // Whether retry is enabled
+  retry_times: number; // Number of retry attempts
+
+  // Client Information
+  client: {
+    type: string; // Client type
+    user_agent: string; // User agent string
+    ip: string; // Client IP address
+  };
+
+  // Dynamic Data
+  args?: any[]; // Additional arguments
+  metadata?: Record<string, any>; // Custom metadata
+  authorized?: Record<string, any>; // Authorization data
+}
+```
+
+## Methods
+
+### Send Messages
+
+#### `ctx.Send(message, blockId?): string`
+
+Sends a message to the client and automatically flushes the output.
+
+**Parameters:**
+
+- `message`: Message object or string
+- `blockId`: String (optional) - Block ID to send this message in. If omitted, no block ID is assigned.
+
+**Returns:**
+
+- `string`: The message ID (auto-generated if not provided in the message object)
+
+**Message Object Structure:**
+
+```typescript
+interface Message {
+  type: string; // Message type: "text", "tool", "image", etc.
+  props: Record<string, any>; // Message properties
+  message_id?: string; // Optional message ID (auto-generated if omitted)
+  block_id?: string; // Optional block ID (auto-generated if omitted, has priority over blockId parameter)
+  thread_id?: string; // Optional thread ID (auto-set from current Stack if omitted)
+}
+```
+
+**Examples:**
+
+```javascript
+// Send text message (object format) and capture message ID
+const message_id = ctx.Send({
+  type: "text",
+  props: { content: "Hello, World!" },
+});
+console.log("Sent message:", message_id);
+
+// Send text message (shorthand) - no block ID by default
+const text_id = ctx.Send("Hello, World!");
+
+// Send multiple messages in the same block (same bubble/card in UI)
+const block_id = ctx.BlockID(); // Generate block ID first
+const msg1 = ctx.Send("Step 1: Analyzing...", block_id);
+const msg2 = ctx.Send("Step 2: Processing...", block_id);
+const msg3 = ctx.Send("Step 3: Complete!", block_id);
+
+// Specify block_id in message object (highest priority)
+const msg4 = ctx.Send({
+  type: "text",
+  props: { content: "In specific block" },
+  block_id: "B2", // This takes priority over second parameter
+});
+
+// Send tool message with custom IDs
+const tool_id = ctx.Send({
+  type: "tool",
+  message_id: "custom-tool-msg-1",
+  block_id: "B_tools",
+  props: {
+    name: "calculator",
+    result: { sum: 42 },
+  },
+});
+
+// Send image message
+const image_id = ctx.Send({
+  type: "image",
+  props: {
+    url: "https://example.com/image.png",
+    alt: "Example Image",
+  },
+});
+```
+
+**Block Management:**
+
+```javascript
+// Scenario 1: Simple messages without block grouping (most common)
+function Next(ctx, payload) {
+  const { completion } = payload;
+
+  // Each message is independent
+  const loading_id = ctx.Send({
+    type: "loading",
+    props: { message: "Thinking..." }
+  });
+
+  // Process completion...
+  const result = completion.content;
+
+  // Replace loading with result
+  ctx.Replace(loading_id, {
+    type: "text",
+    props: { content: result }
+  });
+}
+
+// Scenario 2: Grouping messages in one block (special case)
+function Create(ctx, messages) {
+  // Generate a block ID for grouping
+  const block_id = ctx.BlockID(); // "B1"
+
+  ctx.Send("# Analysis Results", block_id);
+  ctx.Send("- Finding 1: ...", block_id);
+  ctx.Send("- Finding 2: ...", block_id);
+  ctx.Send("- Finding 3: ...", block_id);
+
+  // All messages appear in the same card/bubble in the UI
+}
+
+// Scenario 3: LLM response + follow-up card in same block
+function Next(ctx, payload) {
+  const { completion } = payload;
+  const block_id = ctx.BlockID();
+
+  // LLM response
+  ctx.Send({
+    type: "text",
+    props: { content: completion.content },
+    block_id: block_id
+  });
+
+  // Action card (grouped with LLM response)
+  ctx.Send({
+    type: "card",
+    props: {
+      title: "Related Actions",
+      actions: [...]
+    },
+    block_id: block_id
+  });
+}
+```
+
+**Notes:**
+
+- **Message ID** is automatically generated if not provided
+- **Block ID** is NOT auto-generated by default (remains empty unless manually specified)
+  - Most messages don't need a Block ID (each message is independent)
+  - Only specify Block ID in special cases (e.g., grouping LLM output with a follow-up card)
+  - **Block ID priority**: message.block_id > blockId parameter > empty
+- **Thread ID** is automatically set from Stack for non-root calls (nested agents)
+- Returns the message ID for reference in subsequent operations
+- Output is automatically flushed after sending
+- Throws exception on failure
+- Delta operations (Replace, Append, Merge, Set) automatically inherit block_id and thread_id from the original message
+
+#### `ctx.Replace(messageId, message): string`
+
+Replaces an existing message with new content. This is useful for updating progress messages or correcting previously sent information.
+
+**Parameters:**
+
+- `messageId`: String - The ID of the message to replace
+- `message`: Message object or string - The new message content
+
+**Returns:**
+
+- `string`: The message ID (same as the provided messageId)
+
+**Examples:**
+
+```javascript
+// Send initial message
+const msg_id = ctx.Send("Processing...");
+
+// Later, replace with updated content
+ctx.Replace(msg_id, "Processing complete!");
+
+// Replace with complex message
+ctx.Replace(msg_id, {
+  type: "text",
+  props: {
+    content: "Task finished",
+    status: "success",
+  },
+});
+
+// Replace with shorthand text
+ctx.Replace(msg_id, "Updated text content");
+```
+
+**Use Cases:**
+
+```javascript
+// Progress updates
+const progress_id = ctx.Send("Step 1/3: Starting...");
+// ... do work ...
+ctx.Replace(progress_id, "Step 2/3: Processing...");
+// ... do more work ...
+ctx.Replace(progress_id, "Step 3/3: Finalizing...");
+// ... finish ...
+ctx.Replace(progress_id, "Complete! ✓");
+
+// Error correction
+const msg_id = ctx.Send("Found 5 results");
+// Oops, counted wrong
+ctx.Replace(msg_id, "Found 8 results");
+```
+
+**Notes:**
+
+- The message must exist (must have been sent previously)
+- Replaces the entire message content, not just specific fields
+- Output is automatically flushed after replacing
+- Throws exception on failure
+
+#### `ctx.Append(messageId, content, path?): string`
+
+Appends content to an existing message. This is useful for streaming or incrementally building up message content.
+
+**Parameters:**
+
+- `messageId`: String - The ID of the message to append to
+- `content`: Message object or string - The content to append
+- `path`: String (optional) - The delta path to append to (e.g., "props.content", "props.data")
+
+**Returns:**
+
+- `string`: The message ID (same as the provided messageId)
+
+**Examples:**
+
+```javascript
+// Send initial message
+const msg_id = ctx.Send("Starting");
+
+// Append more text (default path)
+ctx.Append(msg_id, "... processing");
+ctx.Append(msg_id, "... done!");
+// Result: "Starting... processing... done!"
+
+// Append to specific path
+const data_id = ctx.Send({
+  type: "data",
+  props: {
+    content: "Item 1\n",
+    status: "loading",
+  },
+});
+
+ctx.Append(data_id, "Item 2\n", "props.content");
+ctx.Append(data_id, "Item 3\n", "props.content");
+// Result: props.content = "Item 1\nItem 2\nItem 3\n"
+
+// Shorthand text append
+ctx.Append(msg_id, " more text");
+```
+
+**Use Cases:**
+
+```javascript
+// Streaming text output
+const stream_id = ctx.Send("");
+ctx.Append(stream_id, "The");
+ctx.Append(stream_id, " quick");
+ctx.Append(stream_id, " brown");
+ctx.Append(stream_id, " fox");
+// Final: "The quick brown fox"
+
+// Building a list incrementally
+const list_id = ctx.Send({
+  type: "list",
+  props: { items: [] },
+});
+
+ctx.Append(list_id, { items: ["Item 1"] }, "props.items");
+ctx.Append(list_id, { items: ["Item 2"] }, "props.items");
+ctx.Append(list_id, { items: ["Item 3"] }, "props.items");
+
+// Progress logs
+const log_id = ctx.Send({
+  type: "log",
+  props: { content: "Starting process\n" },
+});
+ctx.Append(log_id, "Step 1 complete\n", "props.content");
+ctx.Append(log_id, "Step 2 complete\n", "props.content");
+ctx.Append(log_id, "All done!\n", "props.content");
+```
+
+**Notes:**
+
+- The message must exist (must have been sent previously)
+- Uses delta append operation (adds to existing content, doesn't replace)
+- If `path` is omitted, appends to the default content location
+- Output is automatically flushed after appending
+- Throws exception on failure
+- BlockID and ThreadID are inherited from the original message
+
+#### `ctx.Merge(messageId, data, path?): string`
+
+Merges data into an existing message object. This is useful for updating multiple fields in an object without replacing the entire object.
+
+**Parameters:**
+
+- `messageId`: String - The ID of the message to merge into
+- `data`: Object - The data to merge (should be an object)
+- `path`: String (optional) - The delta path to merge into (e.g., "props", "props.metadata")
+
+**Returns:**
+
+- `string`: The message ID (same as the provided messageId)
+
+**Examples:**
+
+```javascript
+// Send initial message with object data
+const msg_id = ctx.Send({
+  type: "status",
+  props: {
+    status: "running",
+    progress: 0,
+    started: true,
+  },
+});
+
+// Merge updates into props (adds/updates fields, keeps others unchanged)
+ctx.Merge(msg_id, { progress: 50 }, "props");
+// Result: props = { status: "running", progress: 50, started: true }
+
+ctx.Merge(msg_id, { progress: 100, status: "completed" }, "props");
+// Result: props = { status: "completed", progress: 100, started: true }
+
+// Merge into nested object
+ctx.Merge(
+  msg_id,
+  {
+    metadata: {
+      duration: 1500,
+      items_processed: 42,
+    },
+  },
+  "props"
+);
+// Result: props.metadata is added/merged
+```
+
+**Use Cases:**
+
+```javascript
+// Updating task progress
+const task_id = ctx.Send({
+  type: "task",
+  props: {
+    name: "Data Processing",
+    status: "pending",
+    progress: 0,
+  },
+});
+
+ctx.Merge(task_id, { status: "running" }, "props");
+ctx.Merge(task_id, { progress: 25 }, "props");
+ctx.Merge(task_id, { progress: 50 }, "props");
+ctx.Merge(task_id, { progress: 100, status: "completed" }, "props");
+
+// Building metadata incrementally
+const data_id = ctx.Send({
+  type: "data",
+  props: { content: "Result data" },
+});
+
+ctx.Merge(data_id, { metadata: { source: "api" } }, "props");
+ctx.Merge(data_id, { metadata: { timestamp: Date.now() } }, "props");
+// metadata fields are merged together
+```
+
+**Notes:**
+
+- The message must exist (must have been sent previously)
+- Uses delta merge operation (merges objects, doesn't replace)
+- Only works with object data (for merging key-value pairs)
+- Existing fields not in the merge data remain unchanged
+- If `path` is omitted, merges into the default object location
+- Output is automatically flushed after merging
+- Throws exception on failure
+- BlockID and ThreadID are inherited from the original message
+
+#### `ctx.Set(messageId, data, path): string`
+
+Sets a new field or value in an existing message. This is useful for adding new fields to a message structure.
+
+**Parameters:**
+
+- `messageId`: String - The ID of the message to set the field in
+- `data`: Any - The value to set
+- `path`: String (required) - The delta path where to set the value (e.g., "props.newField", "props.metadata.key")
+
+**Returns:**
+
+- `string`: The message ID (same as the provided messageId)
+
+**Examples:**
+
+```javascript
+// Send initial message
+const msg_id = ctx.Send({
+  type: "result",
+  props: {
+    content: "Initial content",
+  },
+});
+
+// Set a new field
+ctx.Set(msg_id, "success", "props.status");
+// Result: props.status = "success"
+
+// Set a nested object
+ctx.Set(msg_id, { duration: 1500, cached: true }, "props.metadata");
+// Result: props.metadata = { duration: 1500, cached: true }
+
+// Set array value
+ctx.Set(msg_id, ["tag1", "tag2", "tag3"], "props.tags");
+// Result: props.tags = ["tag1", "tag2", "tag3"]
+```
+
+**Use Cases:**
+
+```javascript
+// Adding computed metadata after initial send
+const result_id = ctx.Send({
+  type: "search_result",
+  props: { results: [...] }
+});
+
+ctx.Set(result_id, results.length, "props.count");
+ctx.Set(result_id, Date.now(), "props.timestamp");
+ctx.Set(result_id, "relevance", "props.sort_by");
+
+// Conditionally adding fields
+if (has_error) {
+  ctx.Set(msg_id, error_message, "props.error");
+  ctx.Set(msg_id, "error", "props.status");
+}
+
+// Building complex nested structures
+const doc_id = ctx.Send({
+  type: "document",
+  props: { title: "My Document" }
+});
+
+ctx.Set(doc_id, { author: "John", date: "2024" }, "props.metadata");
+ctx.Set(doc_id, ["draft", "reviewed"], "props.tags");
+ctx.Set(doc_id, 3, "props.version");
+```
+
+**Notes:**
+
+- The message must exist (must have been sent previously)
+- Uses delta set operation (creates/sets new fields)
+- The `path` parameter is **required** (must specify where to set the value)
+- Creates the path if it doesn't exist
+- Use for adding new fields or completely replacing a field's value
+- For updating existing object fields, consider using `Merge` instead
+- Output is automatically flushed after setting
+- Throws exception on failure
+- BlockID and ThreadID are inherited from the original message
+
+### ID Generators
+
+These methods generate unique IDs for manual message management. Useful when you need to specify IDs before sending messages or for advanced Block/Thread management.
+
+#### `ctx.MessageID(): string`
+
+Generates a unique message ID.
+
+**Returns:**
+
+- `string`: Message ID in format "M1", "M2", "M3"...
+
+**Example:**
+
+```javascript
+// Generate IDs manually
+const id_1 = ctx.MessageID(); // "M1"
+const id_2 = ctx.MessageID(); // "M2"
+
+// Use custom ID
+ctx.Send({
+  type: "text",
+  message_id: id_1,
+  props: { content: "Hello" },
+});
+```
+
+#### `ctx.BlockID(): string`
+
+Generates a unique block ID for grouping messages.
+
+**Returns:**
+
+- `string`: Block ID in format "B1", "B2", "B3"...
+
+**Example:**
+
+```javascript
+// Generate block ID for grouping messages
+const block_id = ctx.BlockID(); // "B1"
+
+// Send multiple messages in the same block
+ctx.Send("Step 1: Analyzing...", block_id);
+ctx.Send("Step 2: Processing...", block_id);
+ctx.Send("Step 3: Complete!", block_id);
+
+// All three messages appear in the same card/bubble in UI
+```
+
+**Use Cases:**
+
+```javascript
+// Scenario: LLM output + follow-up card in same block
+const block_id = ctx.BlockID();
+
+// LLM response
+const llm_result = Process("llms.chat", {...});
+ctx.Send({
+  type: "text",
+  props: { content: llm_result.content },
+  block_id: block_id,
+});
+
+// Follow-up action card (grouped with LLM output)
+ctx.Send({
+  type: "card",
+  props: {
+    title: "Related Actions",
+    actions: [...]
+  },
+  block_id: block_id,
+});
+```
+
+#### `ctx.ThreadID(): string`
+
+Generates a unique thread ID for concurrent operations.
+
+**Returns:**
+
+- `string`: Thread ID in format "T1", "T2", "T3"...
+
+**Example:**
+
+```javascript
+// For advanced parallel processing scenarios
+const thread_id = ctx.ThreadID(); // "T1"
+
+// Send messages in a specific thread
+ctx.Send({
+  type: "text",
+  props: { content: "Parallel task 1" },
+  thread_id: thread_id,
+});
+```
+
+**Notes:**
+
+- IDs are generated sequentially within each context
+- Each context has its own ID counter (starts from 1)
+- IDs are guaranteed to be unique within the same request/stream
+- ThreadID is usually auto-managed by Stack, manual generation is for advanced use cases
+
+### Resource Cleanup
+
+#### `ctx.Release()`
+
+Manually releases Context resources. This is optional as cleanup happens automatically via garbage collection.
+
+**Example:**
+
+```javascript
+try {
+  // Use context
+  ctx.Send("Processing...");
+} finally {
+  ctx.Release(); // Manual cleanup
+}
+```
+
+## Trace API
+
+The `ctx.Trace` object provides comprehensive tracing capabilities for debugging and monitoring agent execution.
+
+### Node Operations
+
+#### `ctx.Trace.Add(input, options)`
+
+Creates a new trace node (sequential step).
+
+**Parameters:**
+
+- `input`: Input data for the node
+- `options`: Node configuration object
+
+**Options Structure:**
+
+```typescript
+interface TraceNodeOption {
+  label: string; // Display label
+  type: string; // Node type identifier
+  icon: string; // Icon identifier
+  description: string; // Node description
+  metadata?: Record<string, any>; // Additional metadata
+}
+```
+
+**Example:**
+
+```javascript
+const search_node = ctx.Trace.Add(
+  { query: "What is AI?" },
+  {
+    label: "Search Query",
+    type: "search",
+    icon: "search",
+    description: "Searching for AI information",
+  }
+);
+```
+
+#### `ctx.Trace.Parallel(inputs)`
+
+Creates multiple parallel trace nodes for concurrent operations.
+
+**Parameters:**
+
+- `inputs`: Array of parallel input objects
+
+**Input Structure:**
+
+```typescript
+interface ParallelInput {
+  input: any; // Input data
+  option: TraceNodeOption; // Node configuration
+}
+```
+
+**Example:**
+
+```javascript
+const parallel_nodes = ctx.Trace.Parallel([
+  {
+    input: { url: "https://api1.com" },
+    option: {
+      label: "API Call 1",
+      type: "api",
+      icon: "cloud",
+      description: "Fetching from API 1",
+    },
+  },
+  {
+    input: { url: "https://api2.com" },
+    option: {
+      label: "API Call 2",
+      type: "api",
+      icon: "cloud",
+      description: "Fetching from API 2",
+    },
+  },
+]);
+```
+
+### Logging Methods
+
+Add log entries to the current trace node:
+
+```javascript
+// Information logs
+ctx.Trace.Info("Processing started", { step: 1 });
+
+// Debug logs
+ctx.Trace.Debug("Variable value", { value: 42 });
+
+// Warning logs
+ctx.Trace.Warn("Deprecated feature used", { feature: "old_api" });
+
+// Error logs
+ctx.Trace.Error("Operation failed", { error: "timeout" });
+```
+
+### Node Status Operations
+
+#### `node.SetOutput(output)`
+
+Sets the output data for a node.
+
+```javascript
+const search_node = ctx.Trace.Add({ query: "search" }, options);
+search_node.SetOutput({ results: [...] });
+```
+
+#### `node.SetMetadata(key, value)`
+
+Sets metadata for a node.
+
+```javascript
+search_node.SetMetadata("duration", 1500);
+search_node.SetMetadata("cache_hit", true);
+```
+
+#### `node.Complete(output?)`
+
+Marks a node as completed (optionally with output).
+
+```javascript
+search_node.Complete({ status: "success", data: [...] });
+```
+
+#### `node.Fail(error)`
+
+Marks a node as failed with an error.
+
+```javascript
+try {
+  // Operation
+} catch (error) {
+  search_node.Fail(error);
+}
+```
+
+### Query Operations
+
+#### `ctx.Trace.GetRootNode()`
+
+Returns the root node of the trace tree.
+
+```javascript
+const root_node = ctx.Trace.GetRootNode();
+console.log(root_node.id, root_node.label);
+```
+
+#### `ctx.Trace.GetNode(id)`
+
+Retrieves a specific node by ID.
+
+```javascript
+const target_node = ctx.Trace.GetNode("node-123");
+```
+
+#### `ctx.Trace.GetCurrentNodes()`
+
+Returns the current active nodes (may be multiple if in parallel state).
+
+```javascript
+const current_nodes = ctx.Trace.GetCurrentNodes();
+```
+
+### Memory Space Operations
+
+#### `ctx.Trace.CreateSpace(option)`
+
+Creates a memory space for storing key-value data.
+
+```javascript
+const memory_space = ctx.Trace.CreateSpace({
+  label: "Context Memory",
+  type: "context",
+  icon: "database",
+  description: "Stores conversation context",
+});
+```
+
+#### `ctx.Trace.GetSpace(id)`
+
+Retrieves a memory space by ID.
+
+```javascript
+const context_space = ctx.Trace.GetSpace("context");
+```
+
+#### `ctx.Trace.HasSpace(id)`
+
+Checks if a memory space exists.
+
+```javascript
+if (ctx.Trace.HasSpace("context")) {
+  // Space exists
+}
+```
+
+#### `ctx.Trace.DeleteSpace(id)`
+
+Deletes a memory space.
+
+```javascript
+ctx.Trace.DeleteSpace("temp_storage");
+```
+
+#### `ctx.Trace.ListSpaces()`
+
+Lists all memory spaces.
+
+```javascript
+const all_spaces = ctx.Trace.ListSpaces();
+all_spaces.forEach((space) => {
+  console.log(space.id, space.label);
+});
+```
+
+## MCP API
+
+The `ctx.MCP` object provides access to Model Context Protocol operations for interacting with external tools, resources, and prompts.
+
+### Resource Operations
+
+#### `ctx.MCP.ListResources(client)`
+
+Lists available resources from an MCP client.
+
+```javascript
+const fs_resources = ctx.MCP.ListResources("filesystem");
+```
+
+#### `ctx.MCP.ReadResource(client, uri)`
+
+Reads a specific resource.
+
+```javascript
+const file_content = ctx.MCP.ReadResource(
+  "filesystem",
+  "file:///path/to/file.txt"
+);
+```
+
+### Tool Operations
+
+#### `ctx.MCP.ListTools(client)`
+
+Lists available tools from an MCP client.
+
+```javascript
+const available_tools = ctx.MCP.ListTools("toolkit");
+```
+
+#### `ctx.MCP.CallTool(client, name, args)`
+
+Calls a single tool.
+
+```javascript
+const calc_result = ctx.MCP.CallTool("calculator", "add", {
+  a: 10,
+  b: 32,
+});
+```
+
+#### `ctx.MCP.CallTools(client, calls)`
+
+Calls multiple tools sequentially.
+
+```javascript
+const tool_results = ctx.MCP.CallTools("toolkit", [
+  { name: "tool1", args: { param: "value1" } },
+  { name: "tool2", args: { param: "value2" } },
+]);
+```
+
+#### `ctx.MCP.CallToolsParallel(client, calls)`
+
+Calls multiple tools in parallel.
+
+```javascript
+const parallel_results = ctx.MCP.CallToolsParallel("toolkit", [
+  { name: "api1", args: { endpoint: "/users" } },
+  { name: "api2", args: { endpoint: "/posts" } },
+]);
+```
+
+### Prompt Operations
+
+#### `ctx.MCP.ListPrompts(client)`
+
+Lists available prompts from an MCP client.
+
+```javascript
+const available_prompts = ctx.MCP.ListPrompts("prompt_library");
+```
+
+#### `ctx.MCP.GetPrompt(client, name, args?)`
+
+Retrieves a specific prompt.
+
+```javascript
+const review_prompt = ctx.MCP.GetPrompt("prompt_library", "code_review", {
+  language: "javascript",
+});
+```
+
+### Sample Operations
+
+#### `ctx.MCP.CreateSample(client, uri, sample)`
+
+Creates a sample for a resource.
+
+```javascript
+ctx.MCP.CreateSample("filesystem", "file:///examples", {
+  name: "example1",
+  content: "Sample content",
+});
+```
+
+## Complete Example
+
+Here's a comprehensive example using various Context API features:
+
+```javascript
+/**
+ * Next Hook - Process LLM response and enhance with tools
+ * @param {Context} ctx - Agent context
+ * @param {Object} payload - Hook payload
+ * @param {Array} payload.messages - Messages sent to the assistant
+ * @param {Object} payload.completion - Completion response from LLM
+ * @param {Array} payload.tools - Tool call results
+ * @param {string} payload.error - Error message if failed
+ */
+function Next(ctx, payload) {
+  try {
+    // Destructure payload
+    const { messages, completion, tools, error } = payload;
+
+    // Create trace node for custom processing
+    const process_node = ctx.Trace.Add(
+      { completion, tools },
+      {
+        label: "Custom Processing",
+        type: "custom",
+        icon: "settings",
+        description: "Enhancing response with external data",
+      }
+    );
+
+    // Log processing start
+    ctx.Trace.Info("Starting custom processing", {
+      tool_count: tools?.length || 0,
+    });
+
+    // Send progress message and capture message ID
+    const progress_id = ctx.Send("Searching for articles...");
+
+    // Call MCP tool for additional data
+    const search_results = ctx.MCP.CallTool("search_engine", "search", {
+      query: "latest AI news",
+      limit: 5,
+    });
+
+    // Update trace with results
+    process_node.SetMetadata("search_results_count", search_results.length);
+
+    // Update the progress message with results
+    ctx.Replace(
+      progress_id,
+      `Found ${search_results.length} relevant articles.`
+    );
+
+    // Log the message ID for tracking
+    ctx.Trace.Debug("Updated progress message", { message_id: progress_id });
+
+    // Process and format response
+    const enhanced_response = {
+      text: completion.content,
+      sources: search_results,
+      timestamp: Date.now(),
+    };
+
+    // Mark node as complete
+    process_node.Complete(enhanced_response);
+
+    // Return enhanced response
+    return {
+      data: enhanced_response,
+      metadata: { processed: true },
+    };
+  } catch (error) {
+    ctx.Trace.Error("Processing failed", { error: error.message });
+    throw error;
+  }
+}
+```
+
+## Best Practices
+
+1. **Error Handling**: Always wrap Context operations in try-catch blocks
+2. **Resource Cleanup**: Use try-finally pattern for manual cleanup if needed
+3. **Trace Organization**: Create meaningful trace nodes with descriptive labels
+4. **Logging Levels**: Use appropriate log levels (Debug for development, Info for progress, Error for failures)
+5. **Message IDs**: Let the system auto-generate message IDs unless you need specific tracking
+6. **Parallel Operations**: Use `Trace.Parallel()` for concurrent operations to maintain trace clarity
+7. **Memory Spaces**: Use memory spaces for persistent data across agent calls
+
+## Error Handling
+
+All Context methods throw exceptions on failure. Always handle errors appropriately:
+
+```javascript
+try {
+  ctx.Send(message);
+} catch (error) {
+  ctx.Trace.Error("Failed to send message", { error: error.message });
+  throw error;
+}
+```
+
+## TypeScript Support
+
+For TypeScript projects, the Context types are automatically inferred. You can also import explicit types:
+
+```typescript
+import { Context, Message, TraceNodeOption } from "@yaoapps/types";
+
+interface NextPayload {
+  messages: Message[];
+  completion: any;
+  tools: any[];
+  error?: string;
+}
+
+function Next(ctx: Context, payload: NextPayload): any {
+  // Your code with full type checking
+  const { messages, completion, tools, error } = payload;
+  // ...
+}
+```
+
+## See Also
+
+- [Agent Hooks Documentation](../hooks/README.md)
+- [MCP Protocol Specification](../mcp/README.md)
+- [Trace System Documentation](../../trace/README.md)
+- [Message Format Specification](../message/README.md)

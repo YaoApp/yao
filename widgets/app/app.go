@@ -17,7 +17,7 @@ import (
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	agent "github.com/yaoapp/yao/agent/api"
+	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
@@ -550,15 +550,16 @@ func processXgen(process *process.Process) interface{} {
 
 	// The default assistant
 	agentConfig := map[string]interface{}{}
-	if agent.Agent != nil {
+	agent := agent.GetAgent()
+	if agent != nil {
 
 		// Add Uses Settings
-		if agent.Agent.DSL != nil && agent.Agent.DSL.Uses != nil {
-			agentConfig["uses"] = agent.Agent.DSL.Uses
+		if agent.Uses != nil {
+			agentConfig["uses"] = agent.Uses
 		}
 
 		// Add Default Assistant Settings ( Will be removed later )
-		if ast, ok := agent.Agent.Assistant.(*assistant.Assistant); ok {
+		if ast, ok := agent.Assistant.(*assistant.Assistant); ok {
 			agentConfig["default"] = map[string]interface{}{
 				"assistant_id":         ast.ID,
 				"assistant_name":       ast.Name,

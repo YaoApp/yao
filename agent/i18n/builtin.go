@@ -12,14 +12,16 @@ func init() {
 		Locale: "en",
 		Messages: map[string]any{
 			// Assistant: agent.go Stream() function
-			"assistant.agent.stream.label":        "{{name}}",
-			"assistant.agent.stream.description":  "{{name}} is processing the request",
-			"assistant.agent.stream.history":      "Get Chat History",
-			"assistant.agent.stream.capabilities": "Get Connector Capabilities",
-			"assistant.agent.stream.create_hook":  "Call Create Hook",
-			"assistant.agent.stream.closing":      "Closing output (root call)",
-			"assistant.agent.stream.skipping":     "Skipping output close (nested call)",
-			"assistant.agent.stream.close_error":  "Failed to close output",
+			"assistant.agent.stream.label":           "{{name}}",
+			"assistant.agent.stream.description":     "{{name}} is processing the request",
+			"assistant.agent.stream.history":         "Get Chat History",
+			"assistant.agent.stream.capabilities":    "Get Connector Capabilities",
+			"assistant.agent.stream.create_hook":     "Call Create Hook",
+			"assistant.agent.stream.closing":         "Closing output (root call)",
+			"assistant.agent.stream.skipping":        "Skipping output close (nested call)",
+			"assistant.agent.stream.close_error":     "Failed to close output",
+			"assistant.agent.completion.label":       "Agent Completion",
+			"assistant.agent.completion.description": "Final output from assistant",
 
 			// LLM: providers/openai/openai.go Stream() function
 			"llm.openai.stream.label":        "LLM %s",
@@ -100,14 +102,16 @@ func init() {
 		Locale: "zh-cn",
 		Messages: map[string]any{
 			// Assistant: agent.go Stream() function
-			"assistant.agent.stream.label":        "{{name}}",
-			"assistant.agent.stream.description":  "{{name}} 正在处理请求",
-			"assistant.agent.stream.history":      "获取聊天历史",
-			"assistant.agent.stream.capabilities": "获取连接器能力",
-			"assistant.agent.stream.create_hook":  "调用 Create Hook",
-			"assistant.agent.stream.closing":      "关闭输出（根调用）",
-			"assistant.agent.stream.skipping":     "跳过输出关闭（嵌套调用）",
-			"assistant.agent.stream.close_error":  "关闭输出失败",
+			"assistant.agent.stream.label":           "{{name}}",
+			"assistant.agent.stream.description":     "{{name}} 正在处理请求",
+			"assistant.agent.stream.history":         "获取聊天历史",
+			"assistant.agent.stream.capabilities":    "获取连接器能力",
+			"assistant.agent.stream.create_hook":     "调用 Create Hook",
+			"assistant.agent.stream.closing":         "关闭输出（根调用）",
+			"assistant.agent.stream.skipping":        "跳过输出关闭（嵌套调用）",
+			"assistant.agent.stream.close_error":     "关闭输出失败",
+			"assistant.agent.completion.label":       "智能体完成",
+			"assistant.agent.completion.description": "智能体最终输出",
 
 			// LLM: providers/openai/openai.go Stream() function
 			"llm.openai.stream.label":        "LLM %s",
@@ -160,14 +164,16 @@ func init() {
 		Locale: "zh",
 		Messages: map[string]any{
 			// Assistant: agent.go Stream() function
-			"assistant.agent.stream.label":        "{{name}}",
-			"assistant.agent.stream.description":  "{{name}} 正在处理请求",
-			"assistant.agent.stream.history":      "获取聊天历史",
-			"assistant.agent.stream.capabilities": "获取连接器能力",
-			"assistant.agent.stream.create_hook":  "调用 Create Hook",
-			"assistant.agent.stream.closing":      "关闭输出（根调用）",
-			"assistant.agent.stream.skipping":     "跳过输出关闭（嵌套调用）",
-			"assistant.agent.stream.close_error":  "关闭输出失败",
+			"assistant.agent.stream.label":           "{{name}}",
+			"assistant.agent.stream.description":     "{{name}} 正在处理请求",
+			"assistant.agent.stream.history":         "获取聊天历史",
+			"assistant.agent.stream.capabilities":    "获取连接器能力",
+			"assistant.agent.stream.create_hook":     "调用 Create Hook",
+			"assistant.agent.stream.closing":         "关闭输出（根调用）",
+			"assistant.agent.stream.skipping":        "跳过输出关闭（嵌套调用）",
+			"assistant.agent.stream.close_error":     "关闭输出失败",
+			"assistant.agent.completion.label":       "智能体完成",
+			"assistant.agent.completion.description": "智能体最终输出",
 
 			// LLM: providers/openai/openai.go Stream() function
 			"llm.openai.stream.label":        "LLM %s",

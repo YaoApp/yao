@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/trace/types"
@@ -83,7 +84,43 @@ func (ast *Assistant) traceLLMComplete(ctx *context.Context, completionResponse 
 	trace.Complete(completionResponse)
 }
 
+// traceAgentCompletion creates a completion node to report the final output
+func (ast *Assistant) traceAgentCompletion(ctx *context.Context, createResponse *context.HookCreateResponse, nextResponse *context.NextHookResponse, completionResponse *context.CompletionResponse, finalResponse interface{}) {
+	trace, _ := ctx.Trace()
+	if trace == nil {
+		return
+	}
+
+	// Prepare the input data (the raw responses before processing)
+	input := map[string]interface{}{
+		"create":     createResponse,
+		"next":       nextResponse,
+		"completion": completionResponse,
+	}
+
+	// Create a dedicated completion node
+	completionNode, err := trace.Add(
+		input,
+		types.TraceNodeOption{
+			Label:       i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.completion.label"), // "Agent Completion"
+			Type:        "agent_completion",
+			Icon:        "check_circle",
+			Description: i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.completion.description"), // "Final output from assistant"
+		},
+	)
+	if err != nil {
+		log.Trace("[TRACE] Failed to create completion node: %v", err)
+		return
+	}
+
+	// Immediately mark it as complete with the final response
+	if completionNode != nil {
+		completionNode.Complete(finalResponse)
+	}
+}
+
 // traceAgentOutput sets the output of the agent trace node
+// Deprecated: Use traceAgentCompletion instead for better trace structure
 func (ast *Assistant) traceAgentOutput(agentNode types.Node, createResponse *context.HookCreateResponse, nextResponse interface{}, completionResponse *context.CompletionResponse) {
 	if agentNode == nil {
 		return

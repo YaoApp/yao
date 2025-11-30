@@ -6,18 +6,18 @@ import (
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
-	"github.com/yaoapp/kun/exception"
-	"github.com/yaoapp/yao/agent/api"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
-	mongoStore "github.com/yaoapp/yao/agent/store/mongo"
-	redisStore "github.com/yaoapp/yao/agent/store/redis"
+	storeMongo "github.com/yaoapp/yao/agent/store/mongo"
+	storeRedis "github.com/yaoapp/yao/agent/store/redis"
 	store "github.com/yaoapp/yao/agent/store/types"
-	xunStore "github.com/yaoapp/yao/agent/store/xun"
+	"github.com/yaoapp/yao/agent/store/xun"
 	"github.com/yaoapp/yao/agent/types"
 	"github.com/yaoapp/yao/config"
 )
+
+var agentDSL *types.DSL
 
 // Load load AIGC
 func Load(cfg config.Config) error {
@@ -59,8 +59,7 @@ func Load(cfg config.Config) error {
 		setting.Uses.Prompt = setting.Uses.Default
 	}
 
-	// Initialize Agent API
-	api.Agent = &api.API{DSL: &setting}
+	agentDSL = &setting
 
 	// Store Setting
 	err = initStore()
@@ -89,12 +88,9 @@ func Load(cfg config.Config) error {
 	return nil
 }
 
-// GetAgent returns the Agent instance
-func GetAgent() *api.API {
-	if api.Agent == nil {
-		exception.New("Agent is not initialized", 500).Throw()
-	}
-	return api.Agent
+// GetAgent returns the Agent settings
+func GetAgent() *types.DSL {
+	return agentDSL
 }
 
 // initGlobalI18n initialize the global i18n
@@ -126,7 +122,7 @@ func initModelCapabilities() error {
 		return err
 	}
 
-	api.Agent.DSL.Models = models
+	agentDSL.Models = models
 	return nil
 }
 
@@ -134,57 +130,52 @@ func initModelCapabilities() error {
 func initStore() error {
 
 	var err error
-	if api.Agent.DSL.StoreSetting.Connector == "default" || api.Agent.DSL.StoreSetting.Connector == "" {
-		api.Agent.DSL.Store, err = xunStore.NewXun(api.Agent.DSL.StoreSetting)
+	if agentDSL.StoreSetting.Connector == "default" || agentDSL.StoreSetting.Connector == "" {
+		agentDSL.Store, err = xun.NewXun(agentDSL.StoreSetting)
 		return err
 	}
 
 	// other connector
-	conn, err := connector.Select(api.Agent.DSL.StoreSetting.Connector)
+	conn, err := connector.Select(agentDSL.StoreSetting.Connector)
 	if err != nil {
 		return fmt.Errorf("load connectors error: %s", err.Error())
 	}
 
 	if conn.Is(connector.DATABASE) {
-		api.Agent.DSL.Store, err = xunStore.NewXun(api.Agent.DSL.StoreSetting)
+		agentDSL.Store, err = xun.NewXun(agentDSL.StoreSetting)
 		return err
 
 	} else if conn.Is(connector.REDIS) {
-		api.Agent.DSL.Store = redisStore.NewRedis()
+		agentDSL.Store = storeRedis.NewRedis()
 		return nil
 
 	} else if conn.Is(connector.MONGO) {
-		api.Agent.DSL.Store = mongoStore.NewMongo()
+		agentDSL.Store = storeMongo.NewMongo()
 		return nil
 	}
 
-	return fmt.Errorf("Agent store connector %s not support", api.Agent.DSL.StoreSetting.Connector)
+	return fmt.Errorf("Agent store connector %s not support", agentDSL.StoreSetting.Connector)
 }
 
 // initAssistant initialize the assistant
 func initAssistant() error {
 
 	// Set Storage
-	assistant.SetStorage(api.Agent.DSL.Store)
-
-	// Assistant Vision
-	if api.Agent.DSL.Vision != nil {
-		assistant.SetVision(api.Agent.DSL.Vision)
-	}
+	assistant.SetStorage(agentDSL.Store)
 
 	// Set global Uses configuration
-	if api.Agent.DSL.Uses != nil {
+	if agentDSL.Uses != nil {
 		globalUses := &context.Uses{
-			Vision: api.Agent.DSL.Uses.Vision,
-			Audio:  api.Agent.DSL.Uses.Audio,
-			Search: api.Agent.DSL.Uses.Search,
-			Fetch:  api.Agent.DSL.Uses.Fetch,
+			Vision: agentDSL.Uses.Vision,
+			Audio:  agentDSL.Uses.Audio,
+			Search: agentDSL.Uses.Search,
+			Fetch:  agentDSL.Uses.Fetch,
 		}
 		assistant.SetGlobalUses(globalUses)
 	}
 
-	if api.Agent.DSL.Models != nil {
-		assistant.SetModelCapabilities(api.Agent.DSL.Models)
+	if agentDSL.Models != nil {
+		assistant.SetModelCapabilities(agentDSL.Models)
 	}
 
 	// Load Built-in Assistants
@@ -199,14 +190,14 @@ func initAssistant() error {
 		return err
 	}
 
-	api.Agent.DSL.Assistant = defaultAssistant
+	agentDSL.Assistant = defaultAssistant
 	return nil
 }
 
 // defaultAssistant get the default assistant
 func defaultAssistant() (*assistant.Assistant, error) {
-	if api.Agent.DSL.Uses == nil || api.Agent.DSL.Uses.Default == "" {
+	if agentDSL.Uses == nil || agentDSL.Uses.Default == "" {
 		return nil, fmt.Errorf("default assistant not found")
 	}
-	return assistant.Get(api.Agent.DSL.Uses.Default)
+	return assistant.Get(agentDSL.Uses.Default)
 }

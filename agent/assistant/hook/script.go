@@ -12,7 +12,12 @@ func (s *Script) Execute(ctx *context.Context, method string, args ...interface{
 		return nil, nil
 	}
 
-	scriptCtx, err := s.NewContext(ctx.Sid, nil)
+	var sid = ""
+	if ctx.Authorized != nil {
+		sid = ctx.Authorized.SessionID
+	}
+
+	scriptCtx, err := s.NewContext(sid, nil)
 	if err != nil {
 		return nil, err
 	}
