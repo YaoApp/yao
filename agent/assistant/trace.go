@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/trace/types"
@@ -98,7 +99,7 @@ func (ast *Assistant) traceAgentCompletion(ctx *context.Context, createResponse 
 	}
 
 	// Create a dedicated completion node
-	completionNode, _ := trace.Add(
+	completionNode, err := trace.Add(
 		input,
 		types.TraceNodeOption{
 			Label:       i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.completion.label"), // "Agent Completion"
@@ -107,6 +108,10 @@ func (ast *Assistant) traceAgentCompletion(ctx *context.Context, createResponse 
 			Description: i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.completion.description"), // "Final output from assistant"
 		},
 	)
+	if err != nil {
+		log.Trace("[TRACE] Failed to create completion node: %v", err)
+		return
+	}
 
 	// Immediately mark it as complete with the final response
 	if completionNode != nil {

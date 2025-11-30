@@ -3,6 +3,7 @@ package context
 import (
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/output"
+	"github.com/yaoapp/yao/agent/output/message"
 	traceJsapi "github.com/yaoapp/yao/trace/jsapi"
 	"rogchap.com/v8go"
 )
@@ -50,6 +51,7 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 	// Set methods
 	jsObject.Set("Send", ctx.sendMethod(v8ctx.Isolate()))
+	jsObject.Set("Replace", ctx.replaceMethod(v8ctx.Isolate()))
 
 	// Set MCP object
 	jsObject.Set("MCP", ctx.newMCPObject(v8ctx.Isolate()))
@@ -134,17 +136,24 @@ func (ctx *Context) objectRelease(iso *v8go.Isolate, goValueID string) *v8go.Fun
 		// Get the context object (this)
 		thisObj, err := info.This().AsObject()
 		if err == nil {
-			// Release Trace object if it has __release method
-			if traceVal, err := thisObj.Get("Trace"); err == nil && !traceVal.IsNullOrUndefined() {
-				if traceObj, err := traceVal.AsObject(); err == nil {
-					if releaseFunc, err := traceObj.Get("__release"); err == nil && releaseFunc.IsFunction() {
-						// Call Trace.__release() to cleanup trace resources
-						if releaseFn, err := releaseFunc.AsFunction(); err == nil {
-							releaseFn.Call(traceObj.Value) // Ignore errors in cleanup
-						}
-					}
-				}
-			}
+			// NOTE: We do NOT automatically release Trace object here
+			//
+			// Rationale:
+			// 1. Each Hook execution creates a new V8 script context (scriptCtx)
+			// 2. The agent Context (ctx) is passed to the Hook as a parameter
+			// 3. When scriptCtx.Close() is called (via defer), V8 cleanup triggers ctx.__release()
+			// 4. If we release Trace here, it gets released after EVERY Hook execution
+			// 5. This causes "context canceled" errors in subsequent operations
+			//
+			// Trace lifecycle:
+			// - Trace is created when agent.Stream() starts (in Context.Trace())
+			// - Trace should persist across ALL Hook executions (Create, Next, Done)
+			// - Trace is released when agent Context.Release() is called (after agent.Stream() completes)
+			//
+			// Memory management:
+			// - If JS code explicitly calls trace.Release(), it will work (trace/jsapi/trace.go:traceGoRelease)
+			// - If not explicitly called, Context.Release() will clean it up (context/context.go:Release)
+			// - This is the correct lifecycle: one Context -> one Trace -> multiple Hook executions
 
 			// Release Context Go object from bridge registry
 			if thisObj.InternalFieldCount() > 0 {
@@ -190,9 +199,10 @@ func (ctx *Context) createTraceObject(v8ctx *v8go.Context) *v8go.Value {
 }
 
 // sendMethod implements ctx.Send(message)
-// Usage: ctx.Send({ type: "text", props: { content: "Hello" } })
-// Usage: ctx.Send("Hello") // shorthand for text message
+// Usage: const messageId = ctx.Send({ type: "text", props: { content: "Hello" } })
+// Usage: const messageId = ctx.Send("Hello") // shorthand for text message
 // Automatically generates ID and flushes output
+// Returns: message_id (string)
 func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
@@ -227,7 +237,66 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
 		}
 
-		return v8go.Undefined(iso)
+		// Return the message ID
+		messageID, err := v8go.NewValue(iso, msg.MessageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return messageID
+	})
+}
+
+// replaceMethod implements ctx.Replace(messageId, message)
+// Usage: ctx.Replace(messageId, { type: "text", props: { content: "Updated content" } })
+// Replaces the entire message content with the specified message_id
+// Automatically flushes output
+// Returns: message_id (string)
+func (ctx *Context) replaceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		// Validate arguments
+		if len(args) < 2 {
+			return bridge.JsException(v8ctx, "Replace requires messageId and message arguments")
+		}
+
+		// Get message ID (first argument)
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "messageId must be a string")
+		}
+		messageID := args[0].String()
+
+		// Parse message argument (second argument)
+		msg, err := parseMessage(v8ctx, args[1])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid message: "+err.Error())
+		}
+
+		// Set message ID to the provided ID
+		msg.MessageID = messageID
+
+		// Set delta mode for replacement
+		msg.Delta = true
+		msg.DeltaAction = message.DeltaReplace
+		msg.DeltaPath = "" // Empty path means replace entire message
+
+		// Call ctx.Send
+		if err := ctx.Send(msg); err != nil {
+			return bridge.JsException(v8ctx, "Replace failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		// Return the message ID
+		returnID, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return returnID
 	})
 }
 
