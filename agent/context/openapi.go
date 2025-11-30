@@ -9,9 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
-	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
 
@@ -45,30 +43,25 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	clientType := getClientType(userAgent)
 	clientIP := c.ClientIP()
 
-	// Create context with unique ID
-	ctx := &Context{
-		Context:     c.Request.Context(),
-		ID:          generateContextID(),
-		Space:       plan.NewMemorySharedSpace(),
-		Cache:       cache,
-		Writer:      c.Writer,
-		Authorized:  authInfo,
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      GetLocale(c, completionReq),
-		Theme:       GetTheme(c, completionReq),
-		Referer:     GetReferer(c, completionReq),
-		Accept:      GetAccept(c, completionReq),
-		Client: Client{
-			Type:      clientType,
-			UserAgent: userAgent,
-			IP:        clientIP,
-		},
-		Route:       GetRoute(c, completionReq),
-		Metadata:    GetMetadata(c, completionReq),
-		Skip:        GetSkip(c, completionReq),
-		IDGenerator: message.NewIDGenerator(), // Initialize context-scoped ID generator
+	// Create context with unique ID using New() to ensure proper initialization
+	ctx := New(c.Request.Context(), authInfo, chatID)
+
+	// Set additional fields
+	ctx.Cache = cache
+	ctx.Writer = c.Writer
+	ctx.AssistantID = assistantID
+	ctx.Locale = GetLocale(c, completionReq)
+	ctx.Theme = GetTheme(c, completionReq)
+	ctx.Referer = GetReferer(c, completionReq)
+	ctx.Accept = GetAccept(c, completionReq)
+	ctx.Client = Client{
+		Type:      clientType,
+		UserAgent: userAgent,
+		IP:        clientIP,
 	}
+	ctx.Route = GetRoute(c, completionReq)
+	ctx.Metadata = GetMetadata(c, completionReq)
+	ctx.Skip = GetSkip(c, completionReq)
 
 	// Initialize interrupt controller
 	ctx.Interrupt = NewInterruptController()

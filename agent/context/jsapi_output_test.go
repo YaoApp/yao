@@ -773,3 +773,56 @@ func TestJsValueBlockIDInheritance(t *testing.T) {
 	}
 	assert.Equal(t, true, result["success"], "Delta operations should inherit block_id")
 }
+
+// TestJsValueEndBlock tests the EndBlock method on Context
+func TestJsValueEndBlock(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Setup mock writer
+	mockWriter := newMockResponseWriter()
+
+	// Use New() to properly initialize messageMetadata
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	// Test EndBlock method
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Create a block and send messages
+				const block_id = ctx.BlockID(); // "B1"
+				
+				ctx.Send("Message 1", block_id);
+				ctx.Send("Message 2", block_id);
+				ctx.Send("Message 3", block_id);
+				
+				// End the block manually
+				ctx.EndBlock(block_id);
+				
+				return { success: true, block_id: block_id };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "EndBlock should work correctly")
+
+	// Verify that block_end event was sent
+	output := mockWriter.buffer.String()
+	assert.Contains(t, output, "block_end", "Output should contain block_end event")
+}

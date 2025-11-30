@@ -605,6 +605,111 @@ ctx.Send({
 - IDs are guaranteed to be unique within the same request/stream
 - ThreadID is usually auto-managed by Stack, manual generation is for advanced use cases
 
+### Lifecycle Management
+
+#### `ctx.EndBlock(block_id): void`
+
+Manually sends a `block_end` event for the specified block. Use this to explicitly mark the end of a block.
+
+**Parameters:**
+
+- `block_id`: String - The block ID to end
+
+**Returns:**
+
+- `void`
+
+**Example:**
+
+```javascript
+// Create a block for grouped messages
+const block_id = ctx.BlockID(); // "B1"
+
+// Send messages in the block
+ctx.Send("Analyzing data...", block_id);
+ctx.Send("Processing results...", block_id);
+ctx.Send("Complete!", block_id);
+
+// Manually end the block
+ctx.EndBlock(block_id);
+```
+
+**Block Lifecycle Events:**
+
+When you send messages with a `block_id`:
+
+1. **First message**: Automatically sends `block_start` event
+2. **Subsequent messages**: No additional block events
+3. **Manual end**: Call `ctx.EndBlock(block_id)` to send `block_end` event
+
+**block_end Event Format:**
+
+```json
+{
+  "type": "event",
+  "props": {
+    "event": "block_end",
+    "message": "Block ended",
+    "data": {
+      "block_id": "B1",
+      "timestamp": 1764483531624,
+      "duration_ms": 1523,
+      "message_count": 3,
+      "status": "completed"
+    }
+  }
+}
+```
+
+**Notes:**
+
+- `block_start` is sent automatically when the first message with a new `block_id` is sent
+- `block_end` must be called manually via `ctx.EndBlock()`
+- You can track multiple blocks simultaneously (each has independent lifecycle)
+- Automatically flushes output after sending the event
+
+**Use Cases:**
+
+```javascript
+// Use case 1: Progress reporting in a block
+function Create(ctx, messages) {
+  const block_id = ctx.BlockID();
+
+  ctx.Send("Step 1: Analyzing data...", block_id);
+  // ... analysis logic ...
+
+  ctx.Send("Step 2: Processing results...", block_id);
+  // ... processing logic ...
+
+  ctx.Send("Step 3: Complete!", block_id);
+
+  // Mark the block as complete
+  ctx.EndBlock(block_id);
+
+  return { messages };
+}
+
+// Use case 2: Multiple parallel blocks
+function Create(ctx, messages) {
+  const llm_block = ctx.BlockID(); // "B1"
+  const mcp_block = ctx.BlockID(); // "B2"
+
+  // LLM output block
+  ctx.Send("Thinking...", llm_block);
+  const response = callLLM();
+  ctx.Send(response, llm_block);
+  ctx.EndBlock(llm_block);
+
+  // MCP tool call block
+  ctx.Send("Fetching data...", mcp_block);
+  const data = ctx.MCP.CallTool("tool", "method", {});
+  ctx.Send(`Found ${data.length} results`, mcp_block);
+  ctx.EndBlock(mcp_block);
+
+  return { messages };
+}
+```
+
 ### Resource Cleanup
 
 #### `ctx.Release()`

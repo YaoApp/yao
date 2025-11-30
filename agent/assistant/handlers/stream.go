@@ -193,20 +193,37 @@ func (s *streamState) handleThinking(data []byte) int {
 
 // handleToolCall handles tool call chunks
 func (s *streamState) handleToolCall(data []byte) int {
-	// Tool calls are usually complete JSON objects
-	// Parse and send as tool_call message
+	if len(data) == 0 {
+		return 0
+	}
+
+	// Track current message type
+	s.currentType = message.TypeToolCall
+
+	// Append to buffer
+	s.buffer = append(s.buffer, data...)
+	s.chunkCount++
+	s.messageSeq++
+
+	// Send delta message
+	// - ChunkID: Unique chunk ID (C1, C2, C3...) for this fragment
+	// - MessageID: Same for all chunks of this logical message (frontend merges by message_id)
+	// - DeltaAction: "replace" for tool call raw data (each chunk contains complete state, not incremental)
 	msg := &message.Message{
-		ChunkID:   s.ctx.IDGenerator.GenerateChunkID(),
-		MessageID: s.ctx.IDGenerator.GenerateMessageID(), // Tool call is a new message
-		Type:      message.TypeToolCall,
-		Delta:     true,
+		ChunkID:     s.ctx.IDGenerator.GenerateChunkID(), // Unique chunk ID
+		MessageID:   s.currentGroupID,                    // Message ID for merging (all chunks share this)
+		Type:        message.TypeToolCall,
+		Delta:       true,
+		DeltaAction: "replace", // Replace entire raw field with latest state
 		Props: map[string]interface{}{
-			// TODO: Parse tool call data
-			"raw": string(data),
+			"raw": string(data), // Raw tool call JSON data
 		},
 	}
 
-	s.ctx.Send(msg)
+	if err := s.ctx.Send(msg); err != nil {
+		return 0
+	}
+
 	return 0 // Continue
 }
 
