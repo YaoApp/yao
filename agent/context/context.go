@@ -30,11 +30,12 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID, paylo
 
 	// Validate the client type
 	ctx := Context{
-		Context:     parent,
-		ID:          generateContextID(), // Generate unique ID for the context
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		IDGenerator: message.NewIDGenerator(), // Initialize ID generator for this context
+		Context:         parent,
+		ID:              generateContextID(), // Generate unique ID for the context
+		Space:           plan.NewMemorySharedSpace(),
+		ChatID:          chatID,
+		IDGenerator:     message.NewIDGenerator(),  // Initialize ID generator for this context
+		messageMetadata: newMessageMetadataStore(), // Initialize message metadata store
 	}
 
 	if payload == "" {
@@ -379,33 +380,22 @@ func (ctx *Context) TraceID() string {
 // recordMessageMetadata records metadata for a sent message
 // Used to inherit BlockID and ThreadID in subsequent delta operations
 func (ctx *Context) recordMessageMetadata(msg *message.Message) {
-	if msg.MessageID == "" {
+	if msg.MessageID == "" || ctx.messageMetadata == nil {
 		return
 	}
 
-	ctx.metadataMu.Lock()
-	defer ctx.metadataMu.Unlock()
-
-	if ctx.messageMetadata == nil {
-		ctx.messageMetadata = make(map[string]*MessageMetadata)
-	}
-
-	ctx.messageMetadata[msg.MessageID] = &MessageMetadata{
+	ctx.messageMetadata.set(msg.MessageID, &MessageMetadata{
 		MessageID: msg.MessageID,
 		BlockID:   msg.BlockID,
 		ThreadID:  msg.ThreadID,
-	}
+	})
 }
 
 // getMessageMetadata retrieves metadata for a message by ID
 // Returns nil if message metadata is not found
 func (ctx *Context) getMessageMetadata(messageID string) *MessageMetadata {
-	ctx.metadataMu.RLock()
-	defer ctx.metadataMu.RUnlock()
-
 	if ctx.messageMetadata == nil {
 		return nil
 	}
-
-	return ctx.messageMetadata[messageID]
+	return ctx.messageMetadata.get(messageID)
 }

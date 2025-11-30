@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
 	store "github.com/yaoapp/yao/agent/store/types"
-	"github.com/yaoapp/yao/agent/vision"
 )
 
 // DSL AI assistant
@@ -32,9 +31,9 @@ type DSL struct {
 	// Internal
 	// ===============================
 	// ID            string            `json:"-" yaml:"-"` // The id of the instance
-	Assistant     assistant.API     `json:"-" yaml:"-"` // The default assistant
-	Store         store.Store       `json:"-" yaml:"-"` // The store of the assistant
-	Vision        *vision.Vision    `json:"-" yaml:"-"`
+	Assistant assistant.API `json:"-" yaml:"-"` // The default assistant
+	Store     store.Store   `json:"-" yaml:"-"` // The store of the assistant
+	// Vision        *vision.Vision    `json:"-" yaml:"-"`
 	GuardHandlers []gin.HandlerFunc `json:"-" yaml:"-"`
 }
 

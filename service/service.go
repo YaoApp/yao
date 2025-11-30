@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/server/http"
-	agent "github.com/yaoapp/yao/agent/api"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
@@ -35,11 +34,6 @@ func Start(cfg config.Config) (*http.Server, error) {
 		Allows:  cfg.AllowFrom,
 		Timeout: 5 * time.Second,
 	})
-
-	// Agent API
-	if agent.Agent != nil {
-		agent.Agent.API(router, "/api/__yao/agent")
-	}
 
 	// OpenAPI Server
 	if openapi.Server != nil {

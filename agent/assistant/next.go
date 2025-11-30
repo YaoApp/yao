@@ -54,7 +54,6 @@ func (ast *Assistant) handleDelegation(
 	delegatedCtx := &agentContext.Context{
 		Context:    ctx.Context,
 		Locale:     ctx.Locale,
-		Sid:        ctx.Sid,
 		Stack:      ctx.Stack, // Maintain the call stack
 		Authorized: ctx.Authorized,
 		Metadata:   ctx.Metadata,

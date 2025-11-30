@@ -17,7 +17,6 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
-	agentvision "github.com/yaoapp/yao/agent/vision"
 	"github.com/yaoapp/yao/openai"
 	"github.com/yaoapp/yao/share"
 	"gopkg.in/yaml.v3"
@@ -28,7 +27,6 @@ var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var search interface{} = nil
 var modelCapabilities map[string]ModelCapabilities = map[string]ModelCapabilities{}
-var vision *agentvision.Vision = nil
 var defaultConnector string = ""   // default connector
 var globalUses *context.Uses = nil // global uses configuration from agent.yml
 
@@ -130,11 +128,6 @@ func LoadBuiltIn() error {
 // SetStorage set the storage
 func SetStorage(s store.Store) {
 	storage = s
-}
-
-// SetVision set the vision
-func SetVision(v *agentvision.Vision) {
-	vision = v
 }
 
 // SetModelCapabilities set the model capabilities configuration
@@ -710,7 +703,6 @@ func (ast *Assistant) initialize() error {
 			return err
 		}
 		defer scriptCtx.Close()
-		ast.initHook = scriptCtx.Global().Has("init")
 	}
 
 	return nil

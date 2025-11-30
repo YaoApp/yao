@@ -123,20 +123,22 @@ const image_id = ctx.Send({
 
 ```javascript
 // Scenario 1: Simple messages without block grouping (most common)
-function Next(ctx, response) {
+function Next(ctx, payload) {
+  const { completion } = payload;
+
   // Each message is independent
   const loading_id = ctx.Send({
     type: "loading",
     props: { message: "Thinking..." }
   });
 
-  // Call LLM...
-  const result = Process("llms.chat", {...});
+  // Process completion...
+  const result = completion.content;
 
   // Replace loading with result
   ctx.Replace(loading_id, {
     type: "text",
-    props: { content: result.content }
+    props: { content: result }
   });
 }
 
@@ -154,14 +156,14 @@ function Create(ctx, messages) {
 }
 
 // Scenario 3: LLM response + follow-up card in same block
-function Next(ctx, response) {
+function Next(ctx, payload) {
+  const { completion } = payload;
   const block_id = ctx.BlockID();
 
   // LLM response
-  const result = Process("llms.chat", {...});
   ctx.Send({
     type: "text",
-    props: { content: result.content },
+    props: { content: completion.content },
     block_id: block_id
   });
 
@@ -948,9 +950,18 @@ Here's a comprehensive example using various Context API features:
 ```javascript
 /**
  * Next Hook - Process LLM response and enhance with tools
+ * @param {Context} ctx - Agent context
+ * @param {Object} payload - Hook payload
+ * @param {Array} payload.messages - Messages sent to the assistant
+ * @param {Object} payload.completion - Completion response from LLM
+ * @param {Array} payload.tools - Tool call results
+ * @param {string} payload.error - Error message if failed
  */
-function Next(ctx, messages, completion, tools) {
+function Next(ctx, payload) {
   try {
+    // Destructure payload
+    const { messages, completion, tools, error } = payload;
+
     // Create trace node for custom processing
     const process_node = ctx.Trace.Add(
       { completion, tools },
@@ -1001,14 +1012,11 @@ function Next(ctx, messages, completion, tools) {
     // Return enhanced response
     return {
       data: enhanced_response,
-      done: true,
+      metadata: { processed: true },
     };
   } catch (error) {
     ctx.Trace.Error("Processing failed", { error: error.message });
     throw error;
-  } finally {
-    // Optional: Manual cleanup
-    ctx.Release();
   }
 }
 ```
@@ -1043,13 +1051,17 @@ For TypeScript projects, the Context types are automatically inferred. You can a
 ```typescript
 import { Context, Message, TraceNodeOption } from "@yaoapps/types";
 
-function Next(
-  ctx: Context,
-  messages: Message[],
-  completion: any,
-  tools: any[]
-): any {
+interface NextPayload {
+  messages: Message[];
+  completion: any;
+  tools: any[];
+  error?: string;
+}
+
+function Next(ctx: Context, payload: NextPayload): any {
   // Your code with full type checking
+  const { messages, completion, tools, error } = payload;
+  // ...
 }
 ```
 
