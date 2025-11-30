@@ -39,6 +39,15 @@ func (ctx *Context) Send(msg *message.Message) error {
 		}
 	}
 
+	// === Auto-generate ChunkID (always) ===
+	if msg.ChunkID == "" && !isEventMessage {
+		if ctx.IDGenerator != nil {
+			msg.ChunkID = ctx.IDGenerator.GenerateChunkID()
+		} else {
+			msg.ChunkID = message.GenerateNanoID()
+		}
+	}
+
 	// === Non-delta operations: New message logic ===
 	if !msg.Delta && !isEventMessage {
 		// Auto-set ThreadID for non-root Stack (nested agent calls)
