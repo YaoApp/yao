@@ -21,7 +21,7 @@ func TestMessageLifecycleEvents(t *testing.T) {
 	}
 
 	// Create context using New() to ensure proper initialization
-	ctx := context.New(stdContext.Background(), nil, "test-chat", "")
+	ctx := context.New(stdContext.Background(), nil, "test-chat")
 	ctx.Accept = context.AcceptWebCUI
 	ctx.Writer = mockWriter
 	ctx.AssistantID = "test-assistant"

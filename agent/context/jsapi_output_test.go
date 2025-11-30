@@ -784,8 +784,7 @@ func TestJsValueEndBlock(t *testing.T) {
 	mockWriter := newMockResponseWriter()
 
 	// Use New() to properly initialize messageMetadata
-	ctxValue := New(context.Background(), nil, "test-chat-id", "")
-	cxt := &ctxValue
+	cxt := New(context.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
 	cxt.Accept = AcceptWebCUI
 	cxt.Locale = "en"

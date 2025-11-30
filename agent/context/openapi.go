@@ -44,8 +44,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	clientIP := c.ClientIP()
 
 	// Create context with unique ID using New() to ensure proper initialization
-	ctxValue := New(c.Request.Context(), authInfo, chatID, "")
-	ctx := &ctxValue
+	ctx := New(c.Request.Context(), authInfo, chatID)
 
 	// Set additional fields
 	ctx.Cache = cache
