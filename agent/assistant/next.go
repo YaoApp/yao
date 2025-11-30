@@ -49,19 +49,13 @@ func (ast *Assistant) handleDelegation(
 		return nil, fmt.Errorf("failed to load delegated assistant '%s': %w", delegate.AgentID, err)
 	}
 
-	// Create a new context for the delegated call
-	// Copy relevant fields from the parent context
-	delegatedCtx := &agentContext.Context{
-		Context:    ctx.Context,
-		Locale:     ctx.Locale,
-		Stack:      ctx.Stack, // Maintain the call stack
-		Authorized: ctx.Authorized,
-		Metadata:   ctx.Metadata,
-	}
-
-	// Call the delegated assistant with provided messages
-	// The delegated assistant's Stream method will handle the Next hook recursively
-	return targetAssistant.Stream(delegatedCtx, delegate.Messages, streamHandler)
+	// Call the delegated assistant with the same context
+	// The delegated assistant's Stream method will:
+	// 1. Call EnterStack() to push itself onto the Stack (creating parent-child relationship)
+	// 2. Execute with the same Context (preserving ID, Space, Writer, etc.)
+	// 3. Call done() to pop from Stack when finished
+	// This ensures proper Stack tracing: parent assistant -> delegated assistant
+	return targetAssistant.Stream(ctx, delegate.Messages, streamHandler)
 }
 
 // buildStandardResponse builds the standard agent response when no custom Next hook processing is needed
