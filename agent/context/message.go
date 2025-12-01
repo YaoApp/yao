@@ -3,7 +3,60 @@ package context
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 )
+
+// messageMetadataStore provides thread-safe storage for message and block metadata
+type messageMetadataStore struct {
+	messages map[string]*MessageMetadata // Message metadata by MessageID
+	blocks   map[string]*BlockMetadata   // Block metadata by BlockID
+	mu       sync.RWMutex
+}
+
+// newMessageMetadataStore creates a new message metadata store
+func newMessageMetadataStore() *messageMetadataStore {
+	return &messageMetadataStore{
+		messages: make(map[string]*MessageMetadata),
+		blocks:   make(map[string]*BlockMetadata),
+	}
+}
+
+// setMessage stores metadata for a message (thread-safe)
+func (s *messageMetadataStore) setMessage(messageID string, metadata *MessageMetadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.messages[messageID] = metadata
+}
+
+// getMessage retrieves metadata for a message (thread-safe)
+func (s *messageMetadataStore) getMessage(messageID string) *MessageMetadata {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.messages[messageID]
+}
+
+// setBlock stores metadata for a block (thread-safe)
+func (s *messageMetadataStore) setBlock(blockID string, metadata *BlockMetadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blocks[blockID] = metadata
+}
+
+// getBlock retrieves metadata for a block (thread-safe)
+func (s *messageMetadataStore) getBlock(blockID string) *BlockMetadata {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.blocks[blockID]
+}
+
+// updateBlock updates block metadata (thread-safe)
+func (s *messageMetadataStore) updateBlock(blockID string, update func(*BlockMetadata)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if block, exists := s.blocks[blockID]; exists {
+		update(block)
+	}
+}
 
 // UnmarshalJSON custom unmarshaler for Message to handle Content field
 func (m *Message) UnmarshalJSON(data []byte) error {

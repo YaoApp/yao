@@ -200,24 +200,78 @@ func (s *streamState) handleToolCall(data []byte) int {
 	// Track current message type
 	s.currentType = message.TypeToolCall
 
-	// Append to buffer
+	// Append to buffer for message_end event
 	s.buffer = append(s.buffer, data...)
 	s.chunkCount++
 	s.messageSeq++
 
+	// Parse the tool call delta data (JSON array from OpenAI)
+	var toolCallArray []map[string]interface{}
+	if err := jsoniter.Unmarshal(data, &toolCallArray); err != nil {
+		// If parse fails, log and skip this chunk
+		return 0
+	}
+
+	// Extract tool call fields from delta
+	// OpenAI delta typically has one element, but we handle arrays safely
+	var props map[string]interface{}
+	var deltaAction string
+	var deltaPath string
+
+	if len(toolCallArray) == 1 {
+		// Single tool call - flatten to props root level
+		tc := toolCallArray[0]
+		props = map[string]interface{}{}
+
+		// Static fields (only in first chunk): use merge
+		if id, ok := tc["id"].(string); ok {
+			props["id"] = id
+		}
+		if typ, ok := tc["type"].(string); ok {
+			props["type"] = typ
+		}
+		if index, ok := tc["index"].(float64); ok {
+			props["index"] = int(index)
+		}
+		if fn, ok := tc["function"].(map[string]interface{}); ok {
+			if name, ok := fn["name"].(string); ok {
+				props["name"] = name
+			}
+			// Arguments field: use append
+			if args, ok := fn["arguments"].(string); ok {
+				props["arguments"] = args
+				// If this chunk has arguments, use append action for arguments field
+				deltaAction = "append"
+				deltaPath = "arguments"
+			}
+		}
+
+		// If no arguments in this chunk, use merge for other fields
+		if deltaAction == "" {
+			deltaAction = "merge"
+		}
+	} else {
+		// Multiple tool calls in delta (rare) - keep as array
+		props = map[string]interface{}{
+			"calls": toolCallArray,
+		}
+		deltaAction = "merge"
+	}
+
 	// Send delta message
 	// - ChunkID: Unique chunk ID (C1, C2, C3...) for this fragment
 	// - MessageID: Same for all chunks of this logical message (frontend merges by message_id)
-	// - DeltaAction: "replace" for tool call raw data (each chunk contains complete state, not incremental)
+	// - DeltaAction: "append" for arguments chunks, "merge" for id/type/name chunks
+	// - DeltaPath: "arguments" when appending arguments field
+	//   OpenAI sends: first chunk has id/type/name, subsequent chunks only have arguments fragments
 	msg := &message.Message{
 		ChunkID:     s.ctx.IDGenerator.GenerateChunkID(), // Unique chunk ID
 		MessageID:   s.currentGroupID,                    // Message ID for merging (all chunks share this)
 		Type:        message.TypeToolCall,
 		Delta:       true,
-		DeltaAction: "replace", // Replace entire raw field with latest state
-		Props: map[string]interface{}{
-			"raw": string(data), // Raw tool call JSON data
-		},
+		DeltaAction: deltaAction, // "append" for arguments, "merge" for static fields
+		DeltaPath:   deltaPath,   // "arguments" when appending
+		Props:       props,       // Flattened tool call fields
 	}
 
 	if err := s.ctx.Send(msg); err != nil {

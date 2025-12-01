@@ -587,6 +587,8 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 				}
 
 				// Notify handler of tool call progress
+				// Send the raw delta from OpenAI (as JSON bytes)
+				// Handler will convert to object for frontend merge
 				if handler != nil {
 					toolCallData, _ := jsoniter.Marshal(delta.ToolCalls)
 					handler(message.ChunkToolCall, toolCallData)
