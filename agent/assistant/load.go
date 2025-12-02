@@ -131,6 +131,11 @@ func SetStorage(s store.Store) {
 	storage = s
 }
 
+// GetStorage returns the storage (for testing purposes)
+func GetStorage() store.Store {
+	return storage
+}
+
 // SetModelCapabilities set the model capabilities configuration
 func SetModelCapabilities(capabilities map[string]gouOpenAI.Capabilities) {
 	modelCapabilities = capabilities
@@ -213,6 +218,15 @@ func LoadStore(id string) (*Assistant, error) {
 
 	// Create assistant from store model
 	assistant = &Assistant{AssistantModel: *storeModel}
+
+	// Load script from source field if present
+	if assistant.Source != "" {
+		script, err := loadSource(assistant.Source, assistant.ID)
+		if err != nil {
+			return nil, err
+		}
+		assistant.Script = script
+	}
 
 	// Initialize the assistant
 	err = assistant.initialize()
