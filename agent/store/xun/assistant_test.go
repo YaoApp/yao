@@ -2507,6 +2507,87 @@ func TestUpdateAssistant(t *testing.T) {
 		}
 	})
 
+	t.Run("UpdateModesAndDefaultMode", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "Modes Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with modes and default_mode
+		updates := map[string]interface{}{
+			"modes":        []string{"chat", "task", "analyze"},
+			"default_mode": "chat",
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update modes: %v", err)
+		}
+
+		// Verify updates - modes and default_mode are in default fields
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Modes == nil || len(retrieved.Modes) != 3 {
+			t.Errorf("Expected 3 modes, got %v", retrieved.Modes)
+		}
+		if retrieved.Modes[0] != "chat" {
+			t.Errorf("Expected first mode 'chat', got '%s'", retrieved.Modes[0])
+		}
+		if retrieved.DefaultMode != "chat" {
+			t.Errorf("Expected default_mode 'chat', got '%s'", retrieved.DefaultMode)
+		}
+	})
+
+	t.Run("UpdateModesOnly", func(t *testing.T) {
+		// Create assistant with default_mode
+		assistant := &types.AssistantModel{
+			Name:        "Modes Only Test",
+			Type:        "assistant",
+			Connector:   "openai",
+			Share:       "private",
+			DefaultMode: "task",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update only modes
+		updates := map[string]interface{}{
+			"modes": []string{"chat", "task"},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update modes: %v", err)
+		}
+
+		// Verify updates - default_mode should remain unchanged
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if len(retrieved.Modes) != 2 {
+			t.Errorf("Expected 2 modes, got %d", len(retrieved.Modes))
+		}
+		if retrieved.DefaultMode != "task" {
+			t.Errorf("Expected default_mode to remain 'task', got '%s'", retrieved.DefaultMode)
+		}
+	})
+
 	t.Run("UpdateMCPWithToolsAndResources", func(t *testing.T) {
 		// Create assistant
 		assistant := &types.AssistantModel{

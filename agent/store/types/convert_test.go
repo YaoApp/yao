@@ -533,18 +533,20 @@ func TestToAssistantModel(t *testing.T) {
 				"connectors": []string{"openai", "anthropic"},
 				"filters":    []string{"vision", "tool_calls"},
 			},
-			"path":        "/path/to/assistant",
-			"description": "Test description",
-			"share":       "team",
-			"built_in":    true,
-			"readonly":    false,
-			"public":      true,
-			"mentionable": true,
-			"automated":   false,
-			"sort":        100,
-			"created_at":  int64(1609459200),
-			"updated_at":  int64(1609459300),
-			"tags":        []string{"tag1", "tag2"},
+			"path":         "/path/to/assistant",
+			"description":  "Test description",
+			"share":        "team",
+			"built_in":     true,
+			"readonly":     false,
+			"public":       true,
+			"mentionable":  true,
+			"automated":    false,
+			"sort":         100,
+			"created_at":   int64(1609459200),
+			"updated_at":   int64(1609459300),
+			"tags":         []string{"tag1", "tag2"},
+			"modes":        []string{"chat", "task"},
+			"default_mode": "chat",
 			"options": map[string]interface{}{
 				"temperature": 0.7,
 			},
@@ -656,6 +658,15 @@ func TestToAssistantModel(t *testing.T) {
 		if len(result.Tags) != 2 {
 			t.Errorf("Expected 2 tags, got %d", len(result.Tags))
 		}
+		if len(result.Modes) != 2 {
+			t.Errorf("Expected 2 modes, got %d", len(result.Modes))
+		}
+		if result.Modes[0] != "chat" {
+			t.Errorf("Expected first mode 'chat', got '%s'", result.Modes[0])
+		}
+		if result.DefaultMode != "chat" {
+			t.Errorf("Expected default_mode 'chat', got '%s'", result.DefaultMode)
+		}
 		if result.Options == nil {
 			t.Error("Expected Options to be set")
 		}
@@ -729,6 +740,8 @@ func TestToAssistantModel(t *testing.T) {
 		data := map[string]interface{}{
 			"assistant_id": "test-id",
 			"tags":         nil,
+			"modes":        nil,
+			"default_mode": "",
 			"options":      nil,
 			"prompts":      nil,
 			"kb":           nil,
@@ -750,6 +763,12 @@ func TestToAssistantModel(t *testing.T) {
 		// All nil fields should remain nil
 		if result.Tags != nil {
 			t.Error("Expected Tags to be nil")
+		}
+		if result.Modes != nil {
+			t.Error("Expected Modes to be nil")
+		}
+		if result.DefaultMode != "" {
+			t.Error("Expected DefaultMode to be empty")
 		}
 		if result.Options != nil {
 			t.Error("Expected Options to be nil")

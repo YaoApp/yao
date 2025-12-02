@@ -26,6 +26,8 @@ var AssistantAllowedFields = map[string]bool{
 	"mcp":                    true,
 	"source":                 true,
 	"tags":                   true,
+	"modes":                  true,
+	"default_mode":           true,
 	"readonly":               true,
 	"public":                 true,
 	"share":                  true,
@@ -50,7 +52,9 @@ var AssistantDefaultFields = []string{
 	"avatar",
 	"connector",
 	"description",
-	"tags", // Tags for categorization (lightweight)
+	"tags",         // Tags for categorization (lightweight)
+	"modes",        // Supported modes (lightweight)
+	"default_mode", // Default mode (lightweight)
 	"sort",
 	"built_in",
 	"readonly",
@@ -93,6 +97,8 @@ var AssistantFullFields = []string{
 	"mcp",
 	"source",
 	"tags",
+	"modes",
+	"default_mode",
 	"readonly",
 	"public",
 	"share",

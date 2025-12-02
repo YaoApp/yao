@@ -176,6 +176,21 @@
       "nullable": true
     },
     {
+      "name": "modes",
+      "type": "json",
+      "label": "Modes",
+      "comment": "Supported modes (e.g., chat, task), null means all modes are supported",
+      "nullable": true
+    },
+    {
+      "name": "default_mode",
+      "type": "string",
+      "label": "Default Mode",
+      "comment": "Default mode for the assistant",
+      "length": 50,
+      "nullable": true
+    },
+    {
       "name": "readonly",
       "type": "boolean",
       "label": "Readonly",

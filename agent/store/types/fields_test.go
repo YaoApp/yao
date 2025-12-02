@@ -129,6 +129,8 @@ func TestAssistantAllowedFields(t *testing.T) {
 			"uses",
 			"connector_options",
 			"source",
+			"modes",
+			"default_mode",
 		}
 		for _, field := range complexFields {
 			if !AssistantAllowedFields[field] {
@@ -147,6 +149,8 @@ func TestAssistantDefaultFields(t *testing.T) {
 			"kb",               // Knowledge base is essential for assistant functionality
 			"db",               // Database is essential for assistant functionality
 			"mcp",              // MCP servers are essential for assistant functionality
+			"modes",            // Supported modes are essential for mode filtering
+			"default_mode",     // Default mode is essential for mode selection
 			"__yao_created_by", // Permission fields are essential for access control
 			"__yao_updated_by",
 			"__yao_team_id",
@@ -167,7 +171,7 @@ func TestAssistantDefaultFields(t *testing.T) {
 
 	t.Run("DoesNotContainSensitiveFields", func(t *testing.T) {
 		// Default fields should not include complex/large fields by default
-		// Note: kb, db, mcp, and tags are lightweight and included in defaults
+		// Note: kb, db, mcp, tags, modes, and default_mode are lightweight and included in defaults
 		sensitiveFields := []string{
 			"options",
 			"prompts",
@@ -237,6 +241,8 @@ func TestAssistantFullFields(t *testing.T) {
 			"uses",
 			"connector_options",
 			"source",
+			"modes",
+			"default_mode",
 		}
 
 		fullFieldsMap := make(map[string]bool)

@@ -263,6 +263,8 @@ type AssistantModel struct {
 	Sort                 int                    `json:"sort,omitempty"`                   // Assistant Sort
 	Description          string                 `json:"description,omitempty"`            // Assistant Description
 	Tags                 []string               `json:"tags,omitempty"`                   // Assistant Tags
+	Modes                []string               `json:"modes,omitempty"`                  // Supported modes (e.g., ["task", "chat"]), null means all modes are supported
+	DefaultMode          string                 `json:"default_mode,omitempty"`           // Default mode, can be empty
 	Readonly             bool                   `json:"readonly,omitempty"`               // Whether this assistant is readonly
 	Public               bool                   `json:"public,omitempty"`                 // Whether this assistant is shared across all teams in the platform
 	Share                string                 `json:"share,omitempty"`                  // Assistant sharing scope (private/team)

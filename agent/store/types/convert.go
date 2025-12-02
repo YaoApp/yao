@@ -302,6 +302,22 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		}
 	}
 
+	// Modes (string array)
+	if modes, ok := data["modes"]; ok && modes != nil {
+		raw, err := jsoniter.Marshal(modes)
+		if err == nil {
+			var m []string
+			if err := jsoniter.Unmarshal(raw, &m); err == nil {
+				model.Modes = m
+			}
+		}
+	}
+
+	// DefaultMode (string)
+	if defaultMode, ok := data["default_mode"].(string); ok {
+		model.DefaultMode = defaultMode
+	}
+
 	// Options (map)
 	if options, ok := data["options"].(map[string]interface{}); ok {
 		model.Options = options

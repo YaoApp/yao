@@ -86,6 +86,8 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"mcp":                    ast.MCP,
 		"workflow":               ast.Workflow,
 		"tags":                   ast.Tags,
+		"modes":                  ast.Modes,
+		"default_mode":           ast.DefaultMode,
 		"mentionable":            ast.Mentionable,
 		"automated":              ast.Automated,
 		"placeholder":            ast.Placeholder,
@@ -168,6 +170,15 @@ func (ast *Assistant) Clone() *Assistant {
 		clone.Tags = make([]string, len(ast.Tags))
 		copy(clone.Tags, ast.Tags)
 	}
+
+	// Deep copy modes
+	if ast.Modes != nil {
+		clone.Modes = make([]string, len(ast.Modes))
+		copy(clone.Modes, ast.Modes)
+	}
+
+	// Copy default_mode (simple string)
+	clone.DefaultMode = ast.DefaultMode
 
 	// Deep copy KB
 	if ast.KB != nil {
@@ -362,6 +373,12 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 	}
 	if v, ok := data["tags"].([]string); ok {
 		ast.Tags = v
+	}
+	if v, ok := data["modes"].([]string); ok {
+		ast.Modes = v
+	}
+	if v, ok := data["default_mode"].(string); ok {
+		ast.DefaultMode = v
 	}
 	if v, ok := data["options"].(map[string]interface{}); ok {
 		ast.Options = v
