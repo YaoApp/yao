@@ -22,8 +22,9 @@ type DSL struct {
 	// Internal
 	// ===============================
 	// ID            string            `json:"-" yaml:"-"` // The id of the instance
-	Assistant assistant.API `json:"-" yaml:"-"` // The default assistant
-	Store     store.Store   `json:"-" yaml:"-"` // The store of the assistant
+	Assistant     assistant.API  `json:"-" yaml:"-"` // The default assistant
+	Store         store.Store    `json:"-" yaml:"-"` // The store of the assistant
+	GlobalPrompts []store.Prompt `json:"-" yaml:"-"` // Global prompts loaded from agent/prompts.yml
 }
 
 // Uses the default assistant settings

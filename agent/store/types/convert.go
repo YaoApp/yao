@@ -291,6 +291,9 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		}
 	}
 
+	// DisableGlobalPrompts
+	model.DisableGlobalPrompts = getBoolValue(data, "disable_global_prompts")
+
 	// ConnectorOptions
 	if connectorOptions, ok := data["connector_options"]; ok && connectorOptions != nil {
 		raw, err := jsoniter.Marshal(connectorOptions)

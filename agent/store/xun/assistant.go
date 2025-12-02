@@ -59,6 +59,7 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 	data["public"] = assistant.Public
 	data["mentionable"] = assistant.Mentionable
 	data["automated"] = assistant.Automated
+	data["disable_global_prompts"] = assistant.DisableGlobalPrompts
 
 	// Set timestamps
 	now := time.Now().UnixNano()
@@ -502,27 +503,28 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 
 	// Convert map to types.AssistantModel
 	model := &types.AssistantModel{
-		ID:           getString(data, "assistant_id"),
-		Type:         getString(data, "type"),
-		Name:         getString(data, "name"),
-		Avatar:       getString(data, "avatar"),
-		Connector:    getString(data, "connector"),
-		Path:         getString(data, "path"),
-		Source:       getString(data, "source"),
-		BuiltIn:      getBool(data, "built_in"),
-		Sort:         getInt(data, "sort"),
-		Description:  getString(data, "description"),
-		Readonly:     getBool(data, "readonly"),
-		Public:       getBool(data, "public"),
-		Share:        getString(data, "share"),
-		Mentionable:  getBool(data, "mentionable"),
-		Automated:    getBool(data, "automated"),
-		CreatedAt:    getInt64(data, "created_at"),
-		UpdatedAt:    getInt64(data, "updated_at"),
-		YaoCreatedBy: getString(data, "__yao_created_by"),
-		YaoUpdatedBy: getString(data, "__yao_updated_by"),
-		YaoTeamID:    getString(data, "__yao_team_id"),
-		YaoTenantID:  getString(data, "__yao_tenant_id"),
+		ID:                   getString(data, "assistant_id"),
+		Type:                 getString(data, "type"),
+		Name:                 getString(data, "name"),
+		Avatar:               getString(data, "avatar"),
+		Connector:            getString(data, "connector"),
+		Path:                 getString(data, "path"),
+		Source:               getString(data, "source"),
+		BuiltIn:              getBool(data, "built_in"),
+		Sort:                 getInt(data, "sort"),
+		Description:          getString(data, "description"),
+		Readonly:             getBool(data, "readonly"),
+		Public:               getBool(data, "public"),
+		Share:                getString(data, "share"),
+		Mentionable:          getBool(data, "mentionable"),
+		Automated:            getBool(data, "automated"),
+		DisableGlobalPrompts: getBool(data, "disable_global_prompts"),
+		CreatedAt:            getInt64(data, "created_at"),
+		UpdatedAt:            getInt64(data, "updated_at"),
+		YaoCreatedBy:         getString(data, "__yao_created_by"),
+		YaoUpdatedBy:         getString(data, "__yao_updated_by"),
+		YaoTeamID:            getString(data, "__yao_team_id"),
+		YaoTenantID:          getString(data, "__yao_tenant_id"),
 	}
 
 	// Handle Tags

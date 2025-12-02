@@ -38,6 +38,7 @@ func TestLoadPath(t *testing.T) {
 		assert.True(t, assistant.Readonly)
 		assert.True(t, assistant.Mentionable)
 		assert.False(t, assistant.Automated)
+		assert.True(t, assistant.DisableGlobalPrompts)
 
 		// Share field
 		assert.Equal(t, "team", assistant.Share)

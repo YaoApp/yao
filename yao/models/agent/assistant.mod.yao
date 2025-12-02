@@ -126,6 +126,14 @@
       "nullable": true
     },
     {
+      "name": "disable_global_prompts",
+      "type": "boolean",
+      "label": "Disable Global Prompts",
+      "comment": "Whether to disable global prompts for this assistant",
+      "default": false,
+      "index": true
+    },
+    {
       "name": "workflow",
       "type": "json",
       "label": "Workflow",

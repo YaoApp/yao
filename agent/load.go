@@ -80,6 +80,12 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Initialize Global Prompts
+	err = initGlobalPrompts()
+	if err != nil {
+		return err
+	}
+
 	// Initialize Assistant
 	err = initAssistant()
 	if err != nil {
@@ -102,6 +108,25 @@ func initGlobalI18n() error {
 	}
 	i18n.Locales["__global__"] = locales.Flatten()
 	return nil
+}
+
+// initGlobalPrompts initialize the global prompts from agent/prompts.yml
+func initGlobalPrompts() error {
+	prompts, _, err := store.LoadGlobalPrompts()
+	if err != nil {
+		return err
+	}
+	agentDSL.GlobalPrompts = prompts
+	return nil
+}
+
+// GetGlobalPrompts returns the global prompts
+// ctx: context variables for parsing $CTX.* variables
+func GetGlobalPrompts(ctx map[string]string) []store.Prompt {
+	if agentDSL == nil || len(agentDSL.GlobalPrompts) == 0 {
+		return nil
+	}
+	return store.Prompts(agentDSL.GlobalPrompts).Parse(ctx)
 }
 
 // initModelCapabilities initialize the model capabilities configuration

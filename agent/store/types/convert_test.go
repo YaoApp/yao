@@ -459,7 +459,8 @@ func TestToAssistantModel(t *testing.T) {
 					{"role": "system", "content": "You are a task assistant"},
 				},
 			},
-			"source": "function hook() { return 'test'; }",
+			"disable_global_prompts": true,
+			"source":                 "function hook() { return 'test'; }",
 			"kb": map[string]interface{}{
 				"collections": []string{"col1"},
 			},
@@ -574,6 +575,9 @@ func TestToAssistantModel(t *testing.T) {
 			} else if len(taskPrompts) != 1 {
 				t.Errorf("Expected 1 task prompt, got %d", len(taskPrompts))
 			}
+		}
+		if !result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be true")
 		}
 		if result.KB == nil {
 			t.Error("Expected KB to be set")
@@ -813,7 +817,8 @@ function beforeChat(context) {
 					{"role": "system", "content": "Chat mode"},
 				},
 			},
-			"source": "function test() {}",
+			"disable_global_prompts": true,
+			"source":                 "function test() {}",
 		}
 
 		result, err := ToAssistantModel(data)
@@ -827,6 +832,9 @@ function beforeChat(context) {
 		if result.PromptPresets == nil {
 			t.Error("Expected PromptPresets to be set")
 		}
+		if !result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be true")
+		}
 		if result.Source == "" {
 			t.Error("Expected Source to be set")
 		}
@@ -834,9 +842,10 @@ function beforeChat(context) {
 
 	t.Run("NilNewFields", func(t *testing.T) {
 		data := map[string]interface{}{
-			"connector_options": nil,
-			"prompt_presets":    nil,
-			"source":            nil,
+			"connector_options":      nil,
+			"prompt_presets":         nil,
+			"disable_global_prompts": nil,
+			"source":                 nil,
 		}
 
 		result, err := ToAssistantModel(data)
@@ -850,8 +859,61 @@ function beforeChat(context) {
 		if result.PromptPresets != nil {
 			t.Error("Expected PromptPresets to be nil")
 		}
+		if result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be false")
+		}
 		if result.Source != "" {
 			t.Error("Expected Source to be empty")
+		}
+	})
+
+	t.Run("DisableGlobalPrompts", func(t *testing.T) {
+		// Test with true
+		data := map[string]interface{}{
+			"disable_global_prompts": true,
+		}
+		result, err := ToAssistantModel(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if !result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be true")
+		}
+
+		// Test with false
+		data = map[string]interface{}{
+			"disable_global_prompts": false,
+		}
+		result, err = ToAssistantModel(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be false")
+		}
+
+		// Test with int 1
+		data = map[string]interface{}{
+			"disable_global_prompts": 1,
+		}
+		result, err = ToAssistantModel(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if !result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be true for int 1")
+		}
+
+		// Test with string "true"
+		data = map[string]interface{}{
+			"disable_global_prompts": "true",
+		}
+		result, err = ToAssistantModel(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if !result.DisableGlobalPrompts {
+			t.Error("Expected DisableGlobalPrompts to be true for string 'true'")
 		}
 	})
 }

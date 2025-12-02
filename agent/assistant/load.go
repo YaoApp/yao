@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -271,7 +270,7 @@ func LoadPath(path string) (*Assistant, error) {
 	// prompts (default prompts from prompts.yml)
 	promptsfile := filepath.Join(path, "prompts.yml")
 	if has, _ := app.Exists(promptsfile); has {
-		prompts, ts, err := loadPrompts(promptsfile, path)
+		prompts, ts, err := store.LoadPrompts(promptsfile, path)
 		if err != nil {
 			return nil, err
 		}
@@ -283,7 +282,7 @@ func LoadPath(path string) (*Assistant, error) {
 	// prompt_presets (from prompts directory, key is filename without extension)
 	promptsDir := filepath.Join(path, "prompts")
 	if has, _ := app.Exists(promptsDir); has {
-		presets, ts, err := loadPromptPresets(promptsDir, path)
+		presets, ts, err := store.LoadPromptPresets(promptsDir, path)
 		if err != nil {
 			return nil, err
 		}
@@ -395,6 +394,11 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// Automated
 	if v, ok := data["automated"].(bool); ok {
 		assistant.Automated = v
+	}
+
+	// DisableGlobalPrompts
+	if v, ok := data["disable_global_prompts"].(bool); ok {
+		assistant.DisableGlobalPrompts = v
 	}
 
 	// Readonly
@@ -649,119 +653,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	return assistant, nil
-}
-
-func loadPrompts(file string, root string) (string, int64, error) {
-
-	app, err := fs.Get("app")
-	if err != nil {
-		return "", 0, err
-	}
-
-	ts, err := app.ModTime(file)
-	if err != nil {
-		return "", 0, err
-	}
-
-	prompts, err := app.ReadFile(file)
-	if err != nil {
-		return "", 0, err
-	}
-
-	// Replace @assets/xxx references with file content
-	re := regexp.MustCompile(`@assets/([^\s]+\.(md|yml|yaml|json|txt))`)
-	prompts = re.ReplaceAllFunc(prompts, func(s []byte) []byte {
-		asset := re.FindStringSubmatch(string(s))[1]
-		assetFile := filepath.Join(root, "assets", asset)
-		assetContent, err := app.ReadFile(assetFile)
-		if err != nil {
-			return []byte("")
-		}
-		// Add proper YAML formatting for content
-		lines := strings.Split(string(assetContent), "\n")
-		formattedContent := "|\n"
-		for _, line := range lines {
-			formattedContent += "    " + line + "\n"
-		}
-		return []byte(formattedContent)
-	})
-
-	return string(prompts), ts.UnixNano(), nil
-}
-
-// loadPromptPresets loads prompt presets from the prompts directory
-// Supports multi-level directories, key is path with "/" replaced by "."
-// e.g., prompts/chat/default.yml -> "chat.default"
-func loadPromptPresets(dir string, root string) (map[string][]store.Prompt, int64, error) {
-	app, err := fs.Get("app")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// Read directory recursively - returns full paths relative to app root
-	files, err := app.ReadDir(dir, true)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	presets := make(map[string][]store.Prompt)
-	var latestTs int64
-
-	for _, file := range files {
-		// Only process .yml/.yaml files
-		if !strings.HasSuffix(file, ".yml") && !strings.HasSuffix(file, ".yaml") {
-			continue
-		}
-
-		// file is already full path relative to app root (e.g., /assistants/tests/fullfields/prompts/chat/friendly.yml)
-		ts, err := app.ModTime(file)
-		if err != nil {
-			return nil, 0, err
-		}
-		if ts.UnixNano() > latestTs {
-			latestTs = ts.UnixNano()
-		}
-
-		// Read file content directly
-		content, err := app.ReadFile(file)
-		if err != nil {
-			return nil, 0, err
-		}
-
-		// Replace @assets/xxx references with file content
-		re := regexp.MustCompile(`@assets/([^\s]+\.(md|yml|yaml|json|txt))`)
-		content = re.ReplaceAllFunc(content, func(s []byte) []byte {
-			asset := re.FindStringSubmatch(string(s))[1]
-			assetFile := filepath.Join(root, "assets", asset)
-			assetContent, err := app.ReadFile(assetFile)
-			if err != nil {
-				return []byte("")
-			}
-			// Add proper YAML formatting for content
-			lines := strings.Split(string(assetContent), "\n")
-			formattedContent := "|\n"
-			for _, line := range lines {
-				formattedContent += "    " + line + "\n"
-			}
-			return []byte(formattedContent)
-		})
-
-		// Parse prompts
-		var prompts []store.Prompt
-		err = yaml.Unmarshal(content, &prompts)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to parse prompt preset %s: %w", file, err)
-		}
-
-		// Build key: get relative path from dir, remove extension and replace "/" with "."
-		// e.g., "/assistants/tests/fullfields/prompts/chat/friendly.yml" -> "chat.friendly"
-		relPath := strings.TrimPrefix(file, dir+"/")
-		key := strings.TrimSuffix(relPath, filepath.Ext(relPath))
-		key = strings.ReplaceAll(key, "/", ".")
-		presets[key] = prompts
-	}
-
-	return presets, latestTs, nil
 }
 
 func loadScript(file string, root string) (*hook.Script, int64, error) {
