@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/agent/output"
@@ -238,7 +239,7 @@ type Context struct {
 	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
 
 	// Model capabilities (set by assistant, used by output adapters)
-	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector
+	Capabilities *openai.Capabilities `json:"-"` // Model capabilities for the current connector
 
 	// Interrupt control (all interrupt-related logic is encapsulated in InterruptController)
 	Interrupt *InterruptController `json:"-"` // Interrupt controller for handling user interrupts during streaming

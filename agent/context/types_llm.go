@@ -1,6 +1,9 @@
 package context
 
-import "github.com/yaoapp/yao/agent/output/message"
+import (
+	"github.com/yaoapp/gou/connector/openai"
+	"github.com/yaoapp/yao/agent/output/message"
+)
 
 // Uses represents the wrapper configurations for assistant
 // Used to specify which assistant or MCP server to use for vision, audio, search, and fetch operations
@@ -28,17 +31,13 @@ const (
 	VisionFormatDefault VisionFormat = "default"
 )
 
-// ModelCapabilities defines the capabilities of a language model
-// Used by LLM to select appropriate provider and validate requests
-type ModelCapabilities message.ModelCapabilities
-
 // GetVisionSupport returns whether vision is supported and the format
-func (m *ModelCapabilities) GetVisionSupport() (bool, VisionFormat) {
-	if m == nil || m.Vision == nil {
+func GetVisionSupport(cap *openai.Capabilities) (bool, VisionFormat) {
+	if cap == nil || cap.Vision == nil {
 		return false, VisionFormatNone
 	}
 
-	switch v := m.Vision.(type) {
+	switch v := cap.Vision.(type) {
 	case bool:
 		// Legacy bool format
 		return v, VisionFormatDefault
@@ -65,7 +64,7 @@ func (m *ModelCapabilities) GetVisionSupport() (bool, VisionFormat) {
 type CompletionOptions struct {
 	// Model capabilities (used by LLM to select appropriate provider)
 	// nil means capabilities are not specified/checked
-	Capabilities *ModelCapabilities `json:"capabilities,omitempty"`
+	Capabilities *openai.Capabilities `json:"capabilities,omitempty"`
 
 	// User-specified tools for vision, audio, search, and fetch processing
 	Uses *Uses `json:"uses,omitempty"`

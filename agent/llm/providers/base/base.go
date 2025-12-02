@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/context"
 )
 
@@ -11,11 +12,11 @@ import (
 // Provides common functionality for all LLM providers
 type Provider struct {
 	Connector    connector.Connector
-	Capabilities *context.ModelCapabilities
+	Capabilities *openai.Capabilities
 }
 
 // NewProvider create a new base provider
-func NewProvider(conn connector.Connector, capabilities *context.ModelCapabilities) *Provider {
+func NewProvider(conn connector.Connector, capabilities *openai.Capabilities) *Provider {
 	return &Provider{
 		Connector:    conn,
 		Capabilities: capabilities,
@@ -74,33 +75,33 @@ func (p *Provider) SupportsVision() bool {
 	if p.Capabilities == nil {
 		return false
 	}
-	supported, _ := p.Capabilities.GetVisionSupport()
+	supported, _ := context.GetVisionSupport(p.Capabilities)
 	return supported
 }
 
 // SupportsAudio check if this provider supports audio
 func (p *Provider) SupportsAudio() bool {
-	return p.Capabilities != nil && p.Capabilities.Audio != nil && *p.Capabilities.Audio
+	return p.Capabilities != nil && p.Capabilities.Audio
 }
 
 // SupportsTools check if this provider supports tool calls
 func (p *Provider) SupportsTools() bool {
-	return p.Capabilities != nil && p.Capabilities.ToolCalls != nil && *p.Capabilities.ToolCalls
+	return p.Capabilities != nil && p.Capabilities.ToolCalls
 }
 
 // SupportsStreaming check if this provider supports streaming
 func (p *Provider) SupportsStreaming() bool {
-	return p.Capabilities != nil && p.Capabilities.Streaming != nil && *p.Capabilities.Streaming
+	return p.Capabilities != nil && p.Capabilities.Streaming
 }
 
 // SupportsJSON check if this provider supports JSON mode
 func (p *Provider) SupportsJSON() bool {
-	return p.Capabilities != nil && p.Capabilities.JSON != nil && *p.Capabilities.JSON
+	return p.Capabilities != nil && p.Capabilities.JSON
 }
 
 // SupportsReasoning check if this provider supports reasoning mode
 func (p *Provider) SupportsReasoning() bool {
-	return p.Capabilities != nil && p.Capabilities.Reasoning != nil && *p.Capabilities.Reasoning
+	return p.Capabilities != nil && p.Capabilities.Reasoning
 }
 
 // GetConnectorSetting gets a setting value from the connector

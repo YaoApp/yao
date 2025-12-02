@@ -3,6 +3,7 @@ package message
 import (
 	"net/http"
 
+	"github.com/yaoapp/gou/connector/openai"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
@@ -12,21 +13,8 @@ type Options struct {
 	Accept       string
 	Writer       http.ResponseWriter
 	Trace        traceTypes.Manager
-	Capabilities *ModelCapabilities
+	Capabilities *openai.Capabilities
 	Locale       string
-}
-
-// ModelCapabilities defines the capabilities of a language model
-// Used by LLM to select appropriate provider and validate requests
-type ModelCapabilities struct {
-	Vision                interface{} `json:"vision,omitempty"`                 // Supports vision/image input: bool or VisionFormat string ("openai", "claude"/"base64", "default")
-	ToolCalls             *bool       `json:"tool_calls,omitempty"`             // Supports tool/function calling
-	Audio                 *bool       `json:"audio,omitempty"`                  // Supports audio input/output
-	Reasoning             *bool       `json:"reasoning,omitempty"`              // Supports reasoning/thinking mode (o1, DeepSeek R1)
-	Streaming             *bool       `json:"streaming,omitempty"`              // Supports streaming responses
-	JSON                  *bool       `json:"json,omitempty"`                   // Supports JSON mode
-	Multimodal            *bool       `json:"multimodal,omitempty"`             // Supports multimodal input (text + images + audio)
-	TemperatureAdjustable *bool       `json:"temperature_adjustable,omitempty"` // Supports temperature adjustment (reasoning models typically don't)
 }
 
 // Message represents a universal message structure (DSL)

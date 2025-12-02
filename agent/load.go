@@ -6,6 +6,7 @@ import (
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
+	gouOpenAI "github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -116,7 +117,7 @@ func initModelCapabilities() error {
 		return err
 	}
 
-	var models map[string]assistant.ModelCapabilities = map[string]assistant.ModelCapabilities{}
+	var models map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
 	err = application.Parse("models.yml", bytes, &models)
 	if err != nil {
 		return err

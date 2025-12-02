@@ -8,6 +8,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
+	gouOpenAI "github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/http"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
@@ -142,7 +143,7 @@ func buildAPIURL(host, endpoint string) string {
 }
 
 // New create a new OpenAI provider with capability adapters
-func New(conn connector.Connector, capabilities *context.ModelCapabilities) *Provider {
+func New(conn connector.Connector, capabilities *gouOpenAI.Capabilities) *Provider {
 	return &Provider{
 		Provider: base.NewProvider(conn, capabilities),
 		adapters: buildAdapters(capabilities),
@@ -150,7 +151,7 @@ func New(conn connector.Connector, capabilities *context.ModelCapabilities) *Pro
 }
 
 // buildAdapters builds capability adapters based on model capabilities
-func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter {
+func buildAdapters(cap *gouOpenAI.Capabilities) []adapters.CapabilityAdapter {
 	if cap == nil {
 		return []adapters.CapabilityAdapter{}
 	}
@@ -158,12 +159,10 @@ func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter 
 	result := make([]adapters.CapabilityAdapter, 0)
 
 	// Tool call adapter
-	if cap.ToolCalls != nil {
-		result = append(result, adapters.NewToolCallAdapter(*cap.ToolCalls))
-	}
+	result = append(result, adapters.NewToolCallAdapter(cap.ToolCalls))
 
 	// Vision adapter
-	visionSupport, visionFormat := cap.GetVisionSupport()
+	visionSupport, visionFormat := context.GetVisionSupport(cap)
 	if visionSupport {
 		result = append(result, adapters.NewVisionAdapter(true, visionFormat))
 	} else if cap.Vision != nil {
@@ -172,31 +171,27 @@ func buildAdapters(cap *context.ModelCapabilities) []adapters.CapabilityAdapter 
 	}
 
 	// Audio adapter
-	if cap.Audio != nil {
-		result = append(result, adapters.NewAudioAdapter(*cap.Audio))
-	}
+	result = append(result, adapters.NewAudioAdapter(cap.Audio))
 
 	// Reasoning adapter (always add to handle reasoning_effort and temperature parameters)
 	// Even if the model doesn't support reasoning, we need the adapter to strip reasoning_effort
-	if cap.Reasoning != nil {
-		if *cap.Reasoning {
-			// Detect reasoning format based on capabilities
-			format := detectReasoningFormat(cap)
-			result = append(result, adapters.NewReasoningAdapter(format, cap))
-		} else {
-			// Model doesn't support reasoning, use None format to strip reasoning parameters
-			result = append(result, adapters.NewReasoningAdapter(adapters.ReasoningFormatNone, cap))
-		}
+	if cap.Reasoning {
+		// Detect reasoning format based on capabilities
+		format := detectReasoningFormat(cap)
+		result = append(result, adapters.NewReasoningAdapter(format, cap))
+	} else {
+		// Model doesn't support reasoning, use None format to strip reasoning parameters
+		result = append(result, adapters.NewReasoningAdapter(adapters.ReasoningFormatNone, cap))
 	}
 
 	return result
 }
 
 // detectReasoningFormat detects the reasoning format based on capabilities
-func detectReasoningFormat(cap *context.ModelCapabilities) adapters.ReasoningFormat {
+func detectReasoningFormat(cap *gouOpenAI.Capabilities) adapters.ReasoningFormat {
 	// TODO: Implement better detection logic
 	// For now, default to OpenAI o1 format if reasoning is supported
-	if cap.Reasoning != nil && *cap.Reasoning {
+	if cap.Reasoning {
 		return adapters.ReasoningFormatOpenAI
 	}
 	return adapters.ReasoningFormatNone

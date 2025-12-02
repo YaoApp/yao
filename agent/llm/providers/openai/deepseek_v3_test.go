@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -24,16 +25,14 @@ func TestDeepSeekV3StreamBasic(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &trueVal,
-			Reasoning:  &falseVal, // V3 doesn't support reasoning
-			ToolCalls:  &trueVal,  // V3 supports tool calls
-			Vision:     &falseVal,
-			Audio:      &falseVal,
-			Multimodal: &falseVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  true,
+			Reasoning:  false, // V3 doesn't support reasoning
+			ToolCalls:  true,  // V3 supports tool calls
+			Vision:     false,
+			Audio:      false,
+			Multimodal: false,
 		},
 	}
 
@@ -135,15 +134,13 @@ func TestDeepSeekV3PostBasic(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning:  &falseVal,
-			ToolCalls:  &trueVal,
-			Vision:     &falseVal,
-			Audio:      &falseVal,
-			Multimodal: &falseVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning:  false,
+			ToolCalls:  true,
+			Vision:     false,
+			Audio:      false,
+			Multimodal: false,
 		},
 	}
 
@@ -226,12 +223,10 @@ func TestDeepSeekV3WithToolCalls(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &falseVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: false,
+			ToolCalls: true,
 		},
 	}
 
@@ -318,13 +313,11 @@ func TestDeepSeekV3NoReasoningEffort(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	effort := "high"
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &falseVal, // V3 doesn't support reasoning
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: false, // V3 doesn't support reasoning
+			ToolCalls: true,
 		},
 		ReasoningEffort: &effort, // Should be ignored by adapter
 	}

@@ -11,6 +11,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/application"
+	gouOpenAI "github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/fs"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/assistant/hook"
@@ -26,7 +27,7 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var search interface{} = nil
-var modelCapabilities map[string]ModelCapabilities = map[string]ModelCapabilities{}
+var modelCapabilities map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
 var defaultConnector string = ""   // default connector
 var globalUses *context.Uses = nil // global uses configuration from agent.yml
 
@@ -131,7 +132,7 @@ func SetStorage(s store.Store) {
 }
 
 // SetModelCapabilities set the model capabilities configuration
-func SetModelCapabilities(capabilities map[string]ModelCapabilities) {
+func SetModelCapabilities(capabilities map[string]gouOpenAI.Capabilities) {
 	modelCapabilities = capabilities
 }
 

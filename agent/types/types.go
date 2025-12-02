@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/assistant"
 	store "github.com/yaoapp/yao/agent/store/types"
 )
@@ -16,7 +17,7 @@ type DSL struct {
 
 	// Global External Settings - model capabilities, tools, etc.
 	// ===============================
-	Models map[string]assistant.ModelCapabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
+	Models map[string]openai.Capabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
 
 	// Internal
 	// ===============================

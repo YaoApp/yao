@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -48,7 +49,7 @@ func (ast *Assistant) traceCreateHook(agentNode types.Node, createResponse *cont
 }
 
 // traceConnectorCapabilities logs the connector capabilities to the agent trace node
-func (ast *Assistant) traceConnectorCapabilities(agentNode types.Node, capabilities *context.ModelCapabilities) {
+func (ast *Assistant) traceConnectorCapabilities(agentNode types.Node, capabilities *openai.Capabilities) {
 	if agentNode == nil {
 		return
 	}

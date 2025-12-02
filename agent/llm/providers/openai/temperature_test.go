@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -23,11 +24,10 @@ func TestTemperatureGPT5AutoReset(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	invalidTemp := 0.7 // GPT-5 doesn't support this
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: true,
 		},
 		Temperature: &invalidTemp, // Should be reset to 1.0
 	}
@@ -73,11 +73,10 @@ func TestTemperatureDeepSeekR1AutoReset(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	invalidTemp := 0.5 // DeepSeek R1 doesn't support this
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: true,
 		},
 		Temperature: &invalidTemp, // Should be reset to 1.0
 	}
@@ -126,13 +125,11 @@ func TestTemperatureGPT4oPreserved(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	customTemp := 0.3 // GPT-4o should preserve this
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &falseVal, // Not a reasoning model
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: false, // Not a reasoning model
+			ToolCalls: true,
 		},
 		Temperature: &customTemp, // Should be preserved
 	}
@@ -178,13 +175,11 @@ func TestTemperatureDeepSeekV3Preserved(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	customTemp := 0.8 // DeepSeek V3 should preserve this
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &falseVal, // Not a reasoning model
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: false, // Not a reasoning model
+			ToolCalls: true,
 		},
 		Temperature: &customTemp, // Should be preserved
 	}
@@ -230,11 +225,10 @@ func TestTemperatureGPT5Default(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	defaultTemp := 1.0 // GPT-5's valid temperature
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: true,
 		},
 		Temperature: &defaultTemp, // Should work fine
 	}
@@ -293,16 +287,14 @@ func TestTemperatureNoTemperatureProvided(t *testing.T) {
 				t.Fatalf("Failed to select connector: %v", err)
 			}
 
-			trueVal := true
-			falseVal := false
 			options := &context.CompletionOptions{
-				Capabilities: &context.ModelCapabilities{
-					Reasoning: &falseVal,
-					ToolCalls: &trueVal,
+				Capabilities: &openai.Capabilities{
+					Reasoning: false,
+					ToolCalls: true,
 				},
 			}
 			if tc.reasoning {
-				options.Capabilities.Reasoning = &trueVal
+				options.Capabilities.Reasoning = true
 			}
 			// Temperature not set - should use API default
 

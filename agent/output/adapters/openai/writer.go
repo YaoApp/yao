@@ -22,9 +22,10 @@ type Writer struct {
 func NewWriter(options message.Options) (*Writer, error) {
 	// Get model capabilities from context (set by assistant)
 	var capabilities *ModelCapabilities
-	if options.Capabilities != nil && options.Capabilities.Reasoning != nil {
+	if options.Capabilities != nil && options.Capabilities.Reasoning {
+		v := true
 		capabilities = &ModelCapabilities{
-			Reasoning: options.Capabilities.Reasoning,
+			Reasoning: &v,
 		}
 	}
 

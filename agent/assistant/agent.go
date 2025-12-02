@@ -6,6 +6,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
@@ -303,7 +304,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 // GetConnector get the connector object, capabilities, and error with priority: createResponse > ctx > ast
 // Note: createResponse.Connector is already applied to ctx.Connector by applyContextAdjustments in create.go
 // Returns: (connector, capabilities, error)
-func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *context.ModelCapabilities, error) {
+func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *openai.Capabilities, error) {
 	// Determine connector ID with priority
 	connectorID := ast.Connector
 	if ctx.Connector != "" {
@@ -328,62 +329,27 @@ func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *
 }
 
 // getConnectorCapabilities get the capabilities of a connector from settings
-func (ast *Assistant) getConnectorCapabilities(connectorID string) *context.ModelCapabilities {
-	// Initialize with default capabilities (all disabled)
-	falseVal := false
-	capabilities := &context.ModelCapabilities{
-		Vision:    falseVal,
-		ToolCalls: &falseVal,
-		Audio:     &falseVal,
-		Reasoning: &falseVal,
-		Streaming: &falseVal,
-	}
-
+func (ast *Assistant) getConnectorCapabilities(connectorID string) *openai.Capabilities {
 	// Get model capabilities from global configuration
 	modelCaps, exists := modelCapabilities[connectorID]
 	if !exists {
 		// Return default capabilities if model not found in configuration
-		return capabilities
+		falseVal := false
+		return &openai.Capabilities{
+			Vision:                falseVal,
+			ToolCalls:             false,
+			Audio:                 false,
+			Reasoning:             false,
+			Streaming:             false,
+			JSON:                  false,
+			Multimodal:            false,
+			TemperatureAdjustable: true, // Default to true for non-reasoning models
+		}
 	}
 
-	// Update capabilities based on model configuration
-	// Vision can be bool or string (VisionFormat)
-	if modelCaps.Vision != nil {
-		capabilities.Vision = modelCaps.Vision
-	}
-
-	// Handle both Tools (deprecated) and ToolCalls
-	if modelCaps.ToolCalls || modelCaps.Tools {
-		v := true
-		capabilities.ToolCalls = &v
-	}
-
-	if modelCaps.Audio {
-		v := true
-		capabilities.Audio = &v
-	}
-
-	if modelCaps.Reasoning {
-		v := true
-		capabilities.Reasoning = &v
-	}
-
-	if modelCaps.Streaming {
-		v := true
-		capabilities.Streaming = &v
-	}
-
-	if modelCaps.JSON {
-		v := true
-		capabilities.JSON = &v
-	}
-
-	if modelCaps.Multimodal {
-		v := true
-		capabilities.Multimodal = &v
-	}
-
-	return capabilities
+	// Return capabilities directly
+	// Note: TemperatureAdjustable is automatically set in connector.Setting() based on Reasoning flag
+	return &modelCaps
 }
 
 // Info get the assistant information
