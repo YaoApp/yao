@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/assistant"
 	store "github.com/yaoapp/yao/agent/store/types"
 )
@@ -16,13 +17,14 @@ type DSL struct {
 
 	// Global External Settings - model capabilities, tools, etc.
 	// ===============================
-	Models map[string]assistant.ModelCapabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
+	Models map[string]openai.Capabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
 
 	// Internal
 	// ===============================
 	// ID            string            `json:"-" yaml:"-"` // The id of the instance
-	Assistant assistant.API `json:"-" yaml:"-"` // The default assistant
-	Store     store.Store   `json:"-" yaml:"-"` // The store of the assistant
+	Assistant     assistant.API  `json:"-" yaml:"-"` // The default assistant
+	Store         store.Store    `json:"-" yaml:"-"` // The store of the assistant
+	GlobalPrompts []store.Prompt `json:"-" yaml:"-"` // Global prompts loaded from agent/prompts.yml
 }
 
 // Uses the default assistant settings

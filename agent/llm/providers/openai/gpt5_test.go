@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -24,14 +25,13 @@ func TestGPT5StreamBasic(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &trueVal,
-			Reasoning:  &trueVal, // GPT-5 supports reasoning
-			ToolCalls:  &trueVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  true,
+			Reasoning:  true, // GPT-5 supports reasoning
+			ToolCalls:  true,
+			Vision:     true,
+			Multimodal: true,
 		},
 	}
 
@@ -105,11 +105,10 @@ func TestGPT5ReasoningEffort(t *testing.T) {
 
 	for _, effort := range effortLevels {
 		t.Run("effort_"+effort, func(t *testing.T) {
-			trueVal := true
 			options := &context.CompletionOptions{
-				Capabilities: &context.ModelCapabilities{
-					Reasoning: &trueVal,
-					ToolCalls: &trueVal,
+				Capabilities: &openai.Capabilities{
+					Reasoning: true,
+					ToolCalls: true,
 				},
 				ReasoningEffort: &effort,
 			}
@@ -172,11 +171,10 @@ func TestGPT5PostWithToolCalls(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -259,12 +257,11 @@ func TestGPT5Vision(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning:  &trueVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning:  true,
+			Vision:     true,
+			Multimodal: true,
 		},
 	}
 
@@ -331,13 +328,11 @@ func TestGPT5ReasoningEffortWithGPT4o(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	effort := "high"
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning: &falseVal, // GPT-4o doesn't support reasoning
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning: false, // GPT-4o doesn't support reasoning
+			ToolCalls: true,
 		},
 		ReasoningEffort: &effort, // Should be ignored by adapter
 	}

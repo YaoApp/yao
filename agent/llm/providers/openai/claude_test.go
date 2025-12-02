@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -60,15 +61,13 @@ func TestClaudeSonnet4StreamBasic(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &trueVal,
-			Reasoning:  &falseVal, // Claude Sonnet 4 (non-thinking) doesn't expose reasoning
-			ToolCalls:  &trueVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  true,
+			Reasoning:  false, // Claude Sonnet 4 (non-thinking) doesn't expose reasoning
+			ToolCalls:  true,
+			Vision:     "claude", // Claude requires base64 format
+			Multimodal: true,
 		},
 	}
 
@@ -140,15 +139,13 @@ func TestClaudeSonnet4PostBasic(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &falseVal,
-			Reasoning:  &falseVal,
-			ToolCalls:  &trueVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  false,
+			Reasoning:  false,
+			ToolCalls:  true,
+			Vision:     "claude", // Claude requires base64 format
+			Multimodal: true,
 		},
 	}
 
@@ -206,15 +203,13 @@ func TestClaudeSonnet4WithToolCalls(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &falseVal,
-			Reasoning:  &falseVal,
-			ToolCalls:  &trueVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  false,
+			Reasoning:  false,
+			ToolCalls:  true,
+			Vision:     "claude", // Claude requires base64 format
+			Multimodal: true,
 		},
 	}
 
@@ -244,8 +239,8 @@ func TestClaudeSonnet4WithToolCalls(t *testing.T) {
 	options.Tools = []map[string]interface{}{simpleTool}
 	options.ToolChoice = "auto"
 
-	// Set lower max_tokens for faster response
-	maxTokens := 50
+	// Set enough tokens for tool call response
+	maxTokens := 150
 	options.MaxTokens = &maxTokens
 
 	llmInstance, err := llm.New(conn, options)
@@ -256,7 +251,7 @@ func TestClaudeSonnet4WithToolCalls(t *testing.T) {
 	messages := []context.Message{
 		{
 			Role:    context.RoleUser,
-			Content: "Call get_info with query='A' and count=1",
+			Content: "Please use the get_info function to retrieve information. Pass 'A' as the query parameter and 1 as the count parameter.",
 		},
 	}
 
@@ -299,15 +294,13 @@ func TestClaudeSonnet4Vision(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &falseVal,
-			Reasoning:  &falseVal,
-			ToolCalls:  &trueVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  false,
+			Reasoning:  false,
+			ToolCalls:  true,
+			Vision:     "claude", // Claude requires base64 format
+			Multimodal: true,
 		},
 	}
 
@@ -376,15 +369,13 @@ func TestClaudeSonnet4ThinkingStream(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &trueVal,
-			Reasoning:  &trueVal, // Claude Thinking mode exposes reasoning
-			ToolCalls:  &falseVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  true,
+			Reasoning:  true, // Claude Thinking mode exposes reasoning
+			ToolCalls:  false,
+			Vision:     "claude", // Claude requires base64 format
+			Multimodal: true,
 		},
 	}
 
@@ -456,15 +447,13 @@ func TestClaudeSonnet4ThinkingPost(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &falseVal,
-			Reasoning:  &trueVal,
-			ToolCalls:  &falseVal,
-			Vision:     &trueVal,
-			Multimodal: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  false,
+			Reasoning:  true,
+			ToolCalls:  false,
+			Vision:     "claude", // Claude requires base64 format
+			Multimodal: true,
 		},
 	}
 
@@ -550,14 +539,12 @@ func TestClaudeTemperatureHandling(t *testing.T) {
 				t.Fatalf("Failed to select connector: %v", err)
 			}
 
-			trueVal := true
-			falseVal := false
 			options := &context.CompletionOptions{
-				Capabilities: &context.ModelCapabilities{
-					Streaming: &falseVal,
-					Reasoning: &tt.reasoning,
-					ToolCalls: &trueVal,
-					Vision:    &trueVal,
+				Capabilities: &openai.Capabilities{
+					Streaming: false,
+					Reasoning: tt.reasoning,
+					ToolCalls: true,
+					Vision:    true,
 				},
 			}
 

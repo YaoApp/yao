@@ -35,7 +35,7 @@ type AdapterConfig struct {
 	Locale string
 }
 
-// ModelCapabilities is a simplified version of context.ModelCapabilities
+// ModelCapabilities is a simplified version of openai.Capabilities
 // We use a local type to avoid circular dependencies
 type ModelCapabilities struct {
 	Reasoning *bool // Supports reasoning/thinking mode (o1, DeepSeek R1)

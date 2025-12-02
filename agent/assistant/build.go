@@ -3,8 +3,10 @@ package assistant
 import (
 	"fmt"
 
+	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/json"
 	"github.com/yaoapp/yao/agent/context"
+	store "github.com/yaoapp/yao/agent/store/types"
 )
 
 // BuildRequest build the LLM request
@@ -48,27 +50,215 @@ func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Mes
 		finalMessages = append([]context.Message{mcpSamplesMsg}, finalMessages...)
 	}
 
-	// ⚠️ Just for testing, will remove later
-	// If we have prompts, prepend them to the beginning
-	if len(ast.Prompts) > 0 {
-		promptMessages := make([]context.Message, 0, len(ast.Prompts))
-		for _, prompt := range ast.Prompts {
-			msg := context.Message{
-				Role:    context.MessageRole(prompt.Role),
-				Content: prompt.Content,
-			}
-			// Add name if provided
-			if prompt.Name != "" {
-				name := prompt.Name
-				msg.Name = &name
-			}
-			promptMessages = append(promptMessages, msg)
-		}
-		// Prepend prompt messages to the beginning
+	// Build and prepend system prompts (global + assistant prompts)
+	promptMessages := ast.buildSystemPrompts(ctx, createResponse)
+	if len(promptMessages) > 0 {
 		finalMessages = append(promptMessages, finalMessages...)
 	}
 
 	return finalMessages, nil
+}
+
+// buildSystemPrompts builds system prompt messages from global prompts and assistant prompts
+// Order: Global prompts (if not disabled) -> Assistant prompts (or preset)
+// Variables are parsed with context information
+//
+// Priority for prompt preset selection:
+//  1. createResponse.PromptPreset (highest)
+//  2. ctx.Metadata["__prompt_preset"]
+//  3. ast.Prompts (default)
+//
+// Priority for disable global prompts:
+//  1. createResponse.DisableGlobalPrompts (highest)
+//  2. ctx.Metadata["__disable_global_prompts"]
+//  3. ast.DisableGlobalPrompts (default)
+func (ast *Assistant) buildSystemPrompts(ctx *context.Context, createResponse *context.HookCreateResponse) []context.Message {
+	// Build context variables from ctx and ast
+	ctxVars := ast.buildContextVariables(ctx)
+
+	// Determine if global prompts should be disabled
+	disableGlobal := ast.shouldDisableGlobalPrompts(ctx, createResponse)
+
+	// Get assistant prompts (default or preset)
+	assistantPrompts := ast.getAssistantPrompts(ctx, createResponse)
+
+	var allPrompts []store.Prompt
+
+	// 1. Add global prompts (if not disabled)
+	if !disableGlobal && len(globalPrompts) > 0 {
+		// Parse global prompts with context variables
+		parsedGlobal := store.Prompts(globalPrompts).Parse(ctxVars)
+		allPrompts = append(allPrompts, parsedGlobal...)
+	}
+
+	// 2. Add assistant prompts (default or preset)
+	if len(assistantPrompts) > 0 {
+		// Parse assistant prompts with context variables
+		parsedAssistant := store.Prompts(assistantPrompts).Parse(ctxVars)
+		allPrompts = append(allPrompts, parsedAssistant...)
+	}
+
+	// Convert to context.Message slice
+	if len(allPrompts) == 0 {
+		return nil
+	}
+
+	messages := make([]context.Message, 0, len(allPrompts))
+	for _, prompt := range allPrompts {
+		msg := context.Message{
+			Role:    context.MessageRole(prompt.Role),
+			Content: prompt.Content,
+		}
+		if prompt.Name != "" {
+			name := prompt.Name
+			msg.Name = &name
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages
+}
+
+// shouldDisableGlobalPrompts determines if global prompts should be disabled
+// Priority: createResponse > ctx.Metadata > ast.DisableGlobalPrompts
+func (ast *Assistant) shouldDisableGlobalPrompts(ctx *context.Context, createResponse *context.HookCreateResponse) bool {
+	// Priority 1: Hook response (highest)
+	if createResponse != nil && createResponse.DisableGlobalPrompts != nil {
+		return *createResponse.DisableGlobalPrompts
+	}
+
+	// Priority 2: ctx.Metadata["__disable_global_prompts"]
+	if ctx != nil && ctx.Metadata != nil {
+		if disable, ok := ctx.Metadata["__disable_global_prompts"].(bool); ok {
+			return disable
+		}
+	}
+
+	// Priority 3: Assistant configuration (default)
+	return ast.DisableGlobalPrompts
+}
+
+// getAssistantPrompts returns the assistant prompts based on preset selection
+// Priority: createResponse.PromptPreset > ctx.Metadata["__prompt_preset"] > ast.Prompts
+func (ast *Assistant) getAssistantPrompts(ctx *context.Context, createResponse *context.HookCreateResponse) []store.Prompt {
+	// Get preset key
+	presetKey := ast.getPromptPresetKey(ctx, createResponse)
+
+	// If preset key is specified and exists, use it
+	if presetKey != "" && ast.PromptPresets != nil {
+		if presets, ok := ast.PromptPresets[presetKey]; ok && len(presets) > 0 {
+			return presets
+		}
+	}
+
+	// Fallback to default prompts
+	return ast.Prompts
+}
+
+// getPromptPresetKey returns the prompt preset key
+// Priority: createResponse.PromptPreset > ctx.Metadata["__prompt_preset"]
+func (ast *Assistant) getPromptPresetKey(ctx *context.Context, createResponse *context.HookCreateResponse) string {
+	// Priority 1: Hook response (highest)
+	if createResponse != nil && createResponse.PromptPreset != "" {
+		return createResponse.PromptPreset
+	}
+
+	// Priority 2: ctx.Metadata["__prompt_preset"]
+	if ctx != nil && ctx.Metadata != nil {
+		if preset, ok := ctx.Metadata["__prompt_preset"].(string); ok && preset != "" {
+			return preset
+		}
+	}
+
+	// No preset specified
+	return ""
+}
+
+// buildContextVariables extracts context variables from Context and Assistant for prompt parsing
+func (ast *Assistant) buildContextVariables(ctx *context.Context) map[string]string {
+	vars := make(map[string]string)
+
+	// Get locale from ctx (default to empty)
+	locale := ""
+	if ctx != nil && ctx.Locale != "" {
+		locale = ctx.Locale
+	}
+
+	// Assistant info (with locale support)
+	if ast != nil {
+		if ast.ID != "" {
+			vars["ASSISTANT_ID"] = ast.ID
+		}
+		// Use localized name and description
+		name := ast.GetName(locale)
+		if name != "" {
+			vars["ASSISTANT_NAME"] = name
+		}
+		description := ast.GetDescription(locale)
+		if description != "" {
+			vars["ASSISTANT_DESCRIPTION"] = description
+		}
+		if ast.Type != "" {
+			vars["ASSISTANT_TYPE"] = ast.Type
+		}
+	}
+
+	if ctx == nil {
+		return vars
+	}
+
+	// Basic context info
+	if ctx.ChatID != "" {
+		vars["CHAT_ID"] = ctx.ChatID
+	}
+	if ctx.Locale != "" {
+		vars["LOCALE"] = ctx.Locale
+	}
+	if ctx.Theme != "" {
+		vars["THEME"] = ctx.Theme
+	}
+	if ctx.Route != "" {
+		vars["ROUTE"] = ctx.Route
+	}
+	if ctx.Referer != "" {
+		vars["REFERER"] = ctx.Referer
+	}
+
+	// Client info (only non-sensitive fields)
+	if ctx.Client.Type != "" {
+		vars["CLIENT_TYPE"] = ctx.Client.Type
+	}
+
+	// Authorized info (only internal IDs, no PII)
+	// Note: USER_SUBJECT and CLIENT_IP are excluded for privacy/GDPR compliance
+	if ctx.Authorized != nil {
+		if ctx.Authorized.UserID != "" {
+			vars["USER_ID"] = ctx.Authorized.UserID
+		}
+		if ctx.Authorized.TeamID != "" {
+			vars["TEAM_ID"] = ctx.Authorized.TeamID
+		}
+		if ctx.Authorized.TenantID != "" {
+			vars["TENANT_ID"] = ctx.Authorized.TenantID
+		}
+	}
+
+	// Metadata - custom variables from ctx.Metadata
+	// All metadata keys are exposed as $CTX.{KEY}
+	// Supports string, int, uint, float, bool types
+	if ctx.Metadata != nil {
+		for key, value := range ctx.Metadata {
+			if value == nil {
+				continue
+			}
+			strVal := cast.ToString(value)
+			if strVal != "" {
+				vars[key] = strVal
+			}
+		}
+	}
+
+	return vars
 }
 
 // buildCompletionOptions builds completion options from multiple sources

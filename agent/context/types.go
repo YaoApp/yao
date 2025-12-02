@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/agent/output"
@@ -238,7 +239,7 @@ type Context struct {
 	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
 
 	// Model capabilities (set by assistant, used by output adapters)
-	Capabilities *ModelCapabilities `json:"-"` // Model capabilities for the current connector
+	Capabilities *openai.Capabilities `json:"-"` // Model capabilities for the current connector
 
 	// Interrupt control (all interrupt-related logic is encapsulated in InterruptController)
 	Interrupt *InterruptController `json:"-"` // Interrupt controller for handling user interrupts during streaming
@@ -324,6 +325,10 @@ type HookCreateResponse struct {
 
 	// MCP configuration - allow hook to add/override MCP servers for this request
 	MCPServers []MCPServerConfig `json:"mcp_servers,omitempty"`
+
+	// Prompt configuration
+	PromptPreset         string `json:"prompt_preset,omitempty"`          // Select prompt preset (e.g., "chat.friendly", "task.analysis")
+	DisableGlobalPrompts *bool  `json:"disable_global_prompts,omitempty"` // Temporarily disable global prompts for this request
 
 	// Context adjustments - allow hook to modify context fields
 	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID

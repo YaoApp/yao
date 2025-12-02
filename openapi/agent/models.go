@@ -130,6 +130,17 @@ func GetModelDetails(c *gin.Context) {
 		return
 	}
 
+	// For model API, we only need minimal fields: assistant_id, name, connector, created_at, and permission fields
+	modelFields := []string{
+		"assistant_id",
+		"name",
+		"connector",
+		"created_at",
+		"built_in",
+		"__yao_team_id",
+		"__yao_created_by",
+	}
+
 	// Parse locale (optional - for assistant name translation)
 	// Priority: 1. Query parameter "locale", 2. Header "Accept-Language", 3. Metadata
 	locale := context.GetLocale(c, nil)
@@ -138,9 +149,9 @@ func GetModelDetails(c *gin.Context) {
 	var err error
 
 	if locale != "" {
-		assistant, err = agentInstance.Store.GetAssistant(assistantID, locale)
+		assistant, err = agentInstance.Store.GetAssistant(assistantID, modelFields, locale)
 	} else {
-		assistant, err = agentInstance.Store.GetAssistant(assistantID)
+		assistant, err = agentInstance.Store.GetAssistant(assistantID, modelFields)
 	}
 
 	if err != nil {

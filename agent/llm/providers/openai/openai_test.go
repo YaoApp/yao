@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -29,11 +30,10 @@ func TestOpenAIStreamBasic(t *testing.T) {
 	}
 
 	// Create LLM instance with capabilities
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -117,10 +117,9 @@ func TestOpenAIPostBasic(t *testing.T) {
 	}
 
 	// Create LLM instance
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			ToolCalls: true,
 		},
 	}
 
@@ -192,11 +191,10 @@ func TestOpenAIStreamWithToolCalls(t *testing.T) {
 	}
 
 	// Create LLM instance with tool call capabilities
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -307,10 +305,9 @@ func TestOpenAIPostWithToolCalls(t *testing.T) {
 	}
 
 	// Create LLM instance with tool call capabilities
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			ToolCalls: true,
 		},
 	}
 
@@ -424,11 +421,10 @@ func TestOpenAIStreamWithInvalidToolCall(t *testing.T) {
 	}
 
 	// Create LLM instance
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -523,11 +519,10 @@ func TestOpenAIStreamRetry(t *testing.T) {
 	}
 
 	// Create LLM instance
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal, // Need this to select OpenAI provider
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true, // Need this to select OpenAI provider
 		},
 	}
 
@@ -582,11 +577,10 @@ func TestOpenAIStreamChunkTypes(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -649,11 +643,10 @@ func TestOpenAIStreamErrorCallback(t *testing.T) {
 		t.Fatalf("Failed to create test connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -711,11 +704,10 @@ func TestOpenAIToolCallValidationRetry(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 		Tools: []map[string]interface{}{
 			{
@@ -815,11 +807,10 @@ func TestOpenAIJSONMode(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 		ResponseFormat: &context.ResponseFormat{
 			Type: context.ResponseFormatJSON,
@@ -902,10 +893,9 @@ func TestOpenAIJSONModePost(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			ToolCalls: true,
 		},
 		ResponseFormat: &context.ResponseFormat{
 			Type: context.ResponseFormatJSON,
@@ -973,8 +963,6 @@ func TestOpenAIJSONSchema(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-
 	// Define a strict JSON schema
 	// Note: For OpenAI strict mode, 'required' must include ALL properties
 	schema := map[string]interface{}{
@@ -1009,9 +997,9 @@ func TestOpenAIJSONSchema(t *testing.T) {
 	}
 
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 		ResponseFormat: &context.ResponseFormat{
 			Type: context.ResponseFormatJSONSchema,
@@ -1019,7 +1007,7 @@ func TestOpenAIJSONSchema(t *testing.T) {
 				Name:        "user_info",
 				Description: "User information schema",
 				Schema:      schema,
-				Strict:      &trueVal,
+				Strict:      func() *bool { v := true; return &v }(),
 			},
 		},
 	}
@@ -1121,8 +1109,6 @@ func TestOpenAIJSONSchemaPost(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-
 	// Simple schema for testing
 	// Note: For OpenAI strict mode, 'required' must include ALL properties
 	schema := map[string]interface{}{
@@ -1144,8 +1130,8 @@ func TestOpenAIJSONSchemaPost(t *testing.T) {
 	}
 
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			ToolCalls: true,
 		},
 		ResponseFormat: &context.ResponseFormat{
 			Type: context.ResponseFormatJSONSchema,
@@ -1153,7 +1139,7 @@ func TestOpenAIJSONSchemaPost(t *testing.T) {
 				Name:        "api_response",
 				Description: "API response format",
 				Schema:      schema,
-				Strict:      &trueVal,
+				Strict:      func() *bool { v := true; return &v }(),
 			},
 		},
 	}
@@ -1263,11 +1249,10 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -1369,11 +1354,10 @@ func TestOpenAIStreamContextCancellation(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal,
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true,
 		},
 	}
 
@@ -1443,13 +1427,12 @@ func TestOpenAIStreamWithTemperature(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
 	temperature := 0.7 // Moderate temperature
 
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming: &trueVal,
-			ToolCalls: &trueVal, // Need this to select OpenAI provider
+		Capabilities: &openai.Capabilities{
+			Streaming: true,
+			ToolCalls: true, // Need this to select OpenAI provider
 		},
 		Temperature: &temperature,
 	}

@@ -91,8 +91,10 @@ type Store interface {
 
 	// GetAssistant retrieves a single assistant by ID
 	// assistantID: Assistant ID
+	// fields: List of fields to select, empty/nil means default fields (AssistantDefaultFields)
+	// locale: Optional locale for i18n translations
 	// Returns: Assistant information and potential error
-	GetAssistant(assistantID string, locale ...string) (*AssistantModel, error)
+	GetAssistant(assistantID string, fields []string, locale ...string) (*AssistantModel, error)
 
 	// DeleteAssistants deletes assistants based on filter conditions
 	// filter: Filter conditions

@@ -58,6 +58,13 @@
       "nullable": false
     },
     {
+      "name": "connector_options",
+      "type": "json",
+      "label": "Connector Options",
+      "comment": "Connector selection options: optional flag, available connectors list, and capability filters",
+      "nullable": true
+    },
+    {
       "name": "description",
       "type": "string",
       "label": "Description",
@@ -108,8 +115,23 @@
       "name": "prompts",
       "type": "json",
       "label": "Prompts",
-      "comment": "Assistant prompts",
+      "comment": "Assistant default prompts",
       "nullable": true
+    },
+    {
+      "name": "prompt_presets",
+      "type": "json",
+      "label": "Prompt Presets",
+      "comment": "Prompt presets organized by mode (e.g., chat, task, etc.)",
+      "nullable": true
+    },
+    {
+      "name": "disable_global_prompts",
+      "type": "boolean",
+      "label": "Disable Global Prompts",
+      "comment": "Whether to disable global prompts for this assistant",
+      "default": false,
+      "index": true
     },
     {
       "name": "workflow",
@@ -133,10 +155,10 @@
       "nullable": true
     },
     {
-      "name": "tools",
-      "type": "json",
-      "label": "Tools",
-      "comment": "Assistant tools",
+      "name": "source",
+      "type": "text",
+      "label": "Source",
+      "comment": "Hook script source code",
       "nullable": true
     },
     {

@@ -3,6 +3,7 @@ package context
 import (
 	"time"
 
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
 )
@@ -290,18 +291,10 @@ func (ctx *Context) getOutput() (*output.Output, error) {
 		Accept:  string(ctx.Accept),
 	}
 
-	// Convert ModelCapabilities to message.ModelCapabilities
+	// Set ModelCapabilities (now using openai.Capabilities directly)
 	if ctx.Capabilities != nil {
-		options.Capabilities = &message.ModelCapabilities{
-			Vision:                ctx.Capabilities.Vision,
-			ToolCalls:             ctx.Capabilities.ToolCalls,
-			Audio:                 ctx.Capabilities.Audio,
-			Reasoning:             ctx.Capabilities.Reasoning,
-			Streaming:             ctx.Capabilities.Streaming,
-			JSON:                  ctx.Capabilities.JSON,
-			Multimodal:            ctx.Capabilities.Multimodal,
-			TemperatureAdjustable: ctx.Capabilities.TemperatureAdjustable,
-		}
+		caps := openai.Capabilities(*ctx.Capabilities)
+		options.Capabilities = &caps
 	}
 
 	var err error

@@ -40,19 +40,6 @@ type Assistant struct {
 	// toolCalls    bool        // Whether this assistant supports tool_calls
 }
 
-// ModelCapabilities defines the capabilities of a language model
-// This configuration is loaded from agent/models.yml
-type ModelCapabilities struct {
-	Vision     interface{} `json:"vision,omitempty" yaml:"vision,omitempty"`         // Supports vision/image input: bool or VisionFormat string ("openai", "claude"/"base64", "default")
-	Tools      bool        `json:"tools,omitempty" yaml:"tools,omitempty"`           // Supports tool/function calling (deprecated, use ToolCalls)
-	ToolCalls  bool        `json:"tool_calls,omitempty" yaml:"tool_calls,omitempty"` // Supports tool/function calling
-	Audio      bool        `json:"audio,omitempty" yaml:"audio,omitempty"`           // Supports audio input/output
-	Reasoning  bool        `json:"reasoning,omitempty" yaml:"reasoning,omitempty"`   // Supports reasoning/thinking mode (o1, DeepSeek R1)
-	Streaming  bool        `json:"streaming,omitempty" yaml:"streaming,omitempty"`   // Supports streaming responses
-	JSON       bool        `json:"json,omitempty" yaml:"json,omitempty"`             // Supports JSON mode
-	Multimodal bool        `json:"multimodal,omitempty" yaml:"multimodal,omitempty"` // Supports multimodal input
-}
-
 // VisionCapableModels list of LLM models that support vision capabilities
 var VisionCapableModels = map[string]bool{
 	// OpenAI Models

@@ -76,7 +76,8 @@ func (m *Mongo) GetAssistants(filter types.AssistantFilter, locale ...string) (*
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (m *Mongo) GetAssistant(assistantID string, locale ...string) (*types.AssistantModel, error) {
+// fields: Optional list of fields to retrieve. If empty, a default set of fields will be returned.
+func (m *Mongo) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
 	return nil, nil
 }
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
@@ -14,31 +13,6 @@ import (
 // Get get the assistant by id
 func Get(id string) (*Assistant, error) {
 	return LoadStore(id)
-}
-
-// GetByConnector get the assistant by connector
-func GetByConnector(connector string, name string) (*Assistant, error) {
-	id := "connector:" + connector
-
-	assistant, exists := loaded.Get(id)
-	if exists {
-		return assistant, nil
-	}
-
-	data := map[string]interface{}{
-		"assistant_id": id,
-		"connector":    connector,
-		"description":  "Default assistant for " + connector,
-		"name":         name,
-		"type":         "assistant",
-	}
-
-	assistant, err := loadMap(data)
-	if err != nil {
-		return nil, err
-	}
-	loaded.Put(assistant)
-	return assistant, nil
 }
 
 // GetPlaceholder returns the placeholder of the assistant
@@ -89,31 +63,34 @@ func (ast *Assistant) Map() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"assistant_id": ast.ID,
-		"type":         ast.Type,
-		"name":         ast.Name,
-		"readonly":     ast.Readonly,
-		"public":       ast.Public,
-		"share":        ast.Share,
-		"avatar":       ast.Avatar,
-		"connector":    ast.Connector,
-		"path":         ast.Path,
-		"built_in":     ast.BuiltIn,
-		"sort":         ast.Sort,
-		"description":  ast.Description,
-		"options":      ast.Options,
-		"prompts":      ast.Prompts,
-		"kb":           ast.KB,
-		"mcp":          ast.MCP,
-		"tools":        ast.Tools,
-		"workflow":     ast.Workflow,
-		"tags":         ast.Tags,
-		"mentionable":  ast.Mentionable,
-		"automated":    ast.Automated,
-		"placeholder":  ast.Placeholder,
-		"locales":      ast.Locales,
-		"created_at":   store.ToMySQLTime(ast.CreatedAt),
-		"updated_at":   store.ToMySQLTime(ast.UpdatedAt),
+		"assistant_id":           ast.ID,
+		"type":                   ast.Type,
+		"name":                   ast.Name,
+		"readonly":               ast.Readonly,
+		"public":                 ast.Public,
+		"share":                  ast.Share,
+		"avatar":                 ast.Avatar,
+		"connector":              ast.Connector,
+		"connector_options":      ast.ConnectorOptions,
+		"path":                   ast.Path,
+		"built_in":               ast.BuiltIn,
+		"sort":                   ast.Sort,
+		"description":            ast.Description,
+		"options":                ast.Options,
+		"prompts":                ast.Prompts,
+		"prompt_presets":         ast.PromptPresets,
+		"disable_global_prompts": ast.DisableGlobalPrompts,
+		"source":                 ast.Source,
+		"kb":                     ast.KB,
+		"mcp":                    ast.MCP,
+		"workflow":               ast.Workflow,
+		"tags":                   ast.Tags,
+		"mentionable":            ast.Mentionable,
+		"automated":              ast.Automated,
+		"placeholder":            ast.Placeholder,
+		"locales":                ast.Locales,
+		"created_at":             store.ToMySQLTime(ast.CreatedAt),
+		"updated_at":             store.ToMySQLTime(ast.UpdatedAt),
 	}
 }
 
@@ -161,22 +138,24 @@ func (ast *Assistant) Clone() *Assistant {
 
 	clone := &Assistant{
 		AssistantModel: store.AssistantModel{
-			ID:          ast.ID,
-			Type:        ast.Type,
-			Name:        ast.Name,
-			Avatar:      ast.Avatar,
-			Connector:   ast.Connector,
-			Path:        ast.Path,
-			BuiltIn:     ast.BuiltIn,
-			Sort:        ast.Sort,
-			Description: ast.Description,
-			Readonly:    ast.Readonly,
-			Public:      ast.Public,
-			Share:       ast.Share,
-			Mentionable: ast.Mentionable,
-			Automated:   ast.Automated,
-			CreatedAt:   ast.CreatedAt,
-			UpdatedAt:   ast.UpdatedAt,
+			ID:                   ast.ID,
+			Type:                 ast.Type,
+			Name:                 ast.Name,
+			Avatar:               ast.Avatar,
+			Connector:            ast.Connector,
+			Path:                 ast.Path,
+			BuiltIn:              ast.BuiltIn,
+			Sort:                 ast.Sort,
+			Description:          ast.Description,
+			Readonly:             ast.Readonly,
+			Public:               ast.Public,
+			Share:                ast.Share,
+			Mentionable:          ast.Mentionable,
+			Automated:            ast.Automated,
+			DisableGlobalPrompts: ast.DisableGlobalPrompts,
+			Source:               ast.Source,
+			CreatedAt:            ast.CreatedAt,
+			UpdatedAt:            ast.UpdatedAt,
 		},
 		Search: ast.Search,
 		Script: ast.Script,
@@ -247,17 +226,28 @@ func (ast *Assistant) Clone() *Assistant {
 		copy(clone.Prompts, ast.Prompts)
 	}
 
-	// Deep copy tools
-	if ast.Tools != nil {
-		clone.Tools = &store.ToolCalls{}
-		if ast.Tools.Tools != nil {
-			clone.Tools.Tools = make([]store.Tool, len(ast.Tools.Tools))
-			copy(clone.Tools.Tools, ast.Tools.Tools)
+	// Deep copy prompt presets
+	if ast.PromptPresets != nil {
+		clone.PromptPresets = make(map[string][]store.Prompt)
+		for k, v := range ast.PromptPresets {
+			prompts := make([]store.Prompt, len(v))
+			copy(prompts, v)
+			clone.PromptPresets[k] = prompts
 		}
+	}
 
-		if ast.Tools.Prompts != nil {
-			clone.Tools.Prompts = make([]store.Prompt, len(ast.Tools.Prompts))
-			copy(clone.Tools.Prompts, ast.Tools.Prompts)
+	// Deep copy connector options
+	if ast.ConnectorOptions != nil {
+		clone.ConnectorOptions = &store.ConnectorOptions{
+			Optional: ast.ConnectorOptions.Optional,
+		}
+		if ast.ConnectorOptions.Connectors != nil {
+			clone.ConnectorOptions.Connectors = make([]string, len(ast.ConnectorOptions.Connectors))
+			copy(clone.ConnectorOptions.Connectors, ast.ConnectorOptions.Connectors)
+		}
+		if ast.ConnectorOptions.Filters != nil {
+			clone.ConnectorOptions.Filters = make([]store.ModelCapability, len(ast.ConnectorOptions.Filters))
+			copy(clone.ConnectorOptions.Filters, ast.ConnectorOptions.Filters)
 		}
 	}
 
@@ -328,29 +318,7 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 		ast.Connector = v
 	}
 
-	if v, has := data["tools"]; has {
-		switch tools := v.(type) {
-		case []store.Tool:
-			ast.Tools = &store.ToolCalls{
-				Tools:   tools,
-				Prompts: ast.Prompts,
-			}
-
-		case *store.ToolCalls:
-			ast.Tools = tools
-
-		default:
-			raw, err := jsoniter.Marshal(tools)
-			if err != nil {
-				return err
-			}
-			ast.Tools = &store.ToolCalls{}
-			err = jsoniter.Unmarshal(raw, &ast.Tools)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	// Note: tools field is deprecated, now handled by MCP
 
 	if v, ok := data["type"].(string); ok {
 		ast.Type = v
@@ -363,6 +331,9 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 	}
 	if v, ok := data["automated"].(bool); ok {
 		ast.Automated = v
+	}
+	if v, ok := data["disable_global_prompts"].(bool); ok {
+		ast.DisableGlobalPrompts = v
 	}
 	if v, ok := data["readonly"].(bool); ok {
 		ast.Readonly = v
@@ -378,6 +349,27 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 	}
 	if v, ok := data["options"].(map[string]interface{}); ok {
 		ast.Options = v
+	}
+	if v, ok := data["source"].(string); ok {
+		ast.Source = v
+	}
+
+	// ConnectorOptions
+	if v, has := data["connector_options"]; has {
+		connOpts, err := store.ToConnectorOptions(v)
+		if err != nil {
+			return err
+		}
+		ast.ConnectorOptions = connOpts
+	}
+
+	// PromptPresets
+	if v, has := data["prompt_presets"]; has {
+		presets, err := store.ToPromptPresets(v)
+		if err != nil {
+			return err
+		}
+		ast.PromptPresets = presets
 	}
 
 	// KB

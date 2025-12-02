@@ -1,435 +1,502 @@
 package assistant
 
-// func prepare(t *testing.T) {
-// 	test.Prepare(t, config.Conf)
-// }
+import (
+	"testing"
 
-// func TestLoad_LoadPath(t *testing.T) {
-// 	prepare(t)
-// 	defer test.Clean()
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	store "github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/test"
+)
 
-// 	assistant, err := LoadPath("/assistants/modi")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+func prepare(t *testing.T) {
+	test.Prepare(t, config.Conf)
+}
 
-// 	// Validate basic properties
-// 	assert.NotNil(t, assistant)
-// 	assert.Equal(t, "modi", assistant.ID)
-// 	assert.Equal(t, "Modi", assistant.Name)
-// 	assert.Equal(t, "https://api.dicebear.com/7.x/bottts/svg?seed=Modi", assistant.Avatar)
-// 	assert.Equal(t, "deepseek", assistant.Connector)
-// 	assert.NotNil(t, assistant.Prompts)
-// 	assert.NotNil(t, assistant.Script)
+// TestLoadPath tests loading assistant from path
+func TestLoadPath(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
 
-// 	// Test non-existent assistant
-// 	_, err = LoadPath("/assistants/non-existent")
-// 	assert.Error(t, err)
-// }
+	t.Run("LoadFullFieldsAssistant", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// func TestLoad_LoadStore(t *testing.T) {
-// 	prepare(t)
-// 	defer test.Clean()
+		// Basic fields
+		assert.Equal(t, "tests.fullfields", assistant.ID)
+		assert.Equal(t, "Full Fields Test Assistant", assistant.Name)
+		assert.Equal(t, "assistant", assistant.Type)
+		assert.Equal(t, "/api/__yao/app/icons/app.png", assistant.Avatar)
+		assert.Equal(t, "gpt-4o", assistant.Connector)
+		assert.Equal(t, "/assistants/tests/fullfields", assistant.Path)
+		assert.Equal(t, "Test assistant with all available fields for unit testing", assistant.Description)
 
-// 	// Test with nil storage
-// 	_, err := LoadStore("test-id")
-// 	assert.Error(t, err)
-// 	assert.Contains(t, err.Error(), "storage is not set")
+		// Boolean fields
+		assert.True(t, assistant.Public)
+		assert.True(t, assistant.Readonly)
+		assert.True(t, assistant.Mentionable)
+		assert.False(t, assistant.Automated)
+		assert.True(t, assistant.DisableGlobalPrompts)
 
-// 	// Setup mock storage
-// 	mockStore := &mockStore{
-// 		data: map[string]map[string]interface{}{
-// 			"test-id": {
-// 				"assistant_id": "test-id",
-// 				"name":         "Test Assistant",
-// 				"avatar":       "test-avatar",
-// 				"connector":    "gpt-3_5-turbo",
-// 			},
-// 		},
-// 	}
-// 	SetStorage(mockStore)
-// 	defer SetStorage(nil)
+		// Share field
+		assert.Equal(t, "team", assistant.Share)
 
-// 	// Test loading from store
-// 	assistant, err := LoadStore("test-id")
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, assistant)
-// 	assert.Equal(t, "test-id", assistant.ID)
-// 	assert.Equal(t, "Test Assistant", assistant.Name)
-// 	assert.Equal(t, "test-avatar", assistant.Avatar)
-// 	assert.Equal(t, "gpt-3_5-turbo", assistant.Connector)
+		// Sort field
+		assert.Equal(t, 100, assistant.Sort)
 
-// 	// Test cache functionality
-// 	assistant2, err := LoadStore("test-id")
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, assistant, assistant2) // Should be the same instance from cache
+		// Tags
+		assert.NotNil(t, assistant.Tags)
+		assert.Contains(t, assistant.Tags, "Test")
+		assert.Contains(t, assistant.Tags, "Development")
+		assert.Contains(t, assistant.Tags, "FullFields")
 
-// 	// Test non-existent assistant
-// 	_, err = LoadStore("non-existent")
-// 	assert.Error(t, err)
-// }
+		// Options
+		assert.NotNil(t, assistant.Options)
+		assert.Equal(t, 0.7, assistant.Options["temperature"])
+		assert.Equal(t, float64(2000), assistant.Options["max_tokens"])
 
-// func TestLoad_Cache(t *testing.T) {
-// 	prepare(t)
-// 	defer test.Clean()
+		// Prompts (default prompts from prompts.yml)
+		assert.NotNil(t, assistant.Prompts)
+		assert.GreaterOrEqual(t, len(assistant.Prompts), 1)
+		assert.Equal(t, "system", assistant.Prompts[0].Role)
 
-// 	// Clear any existing cache first
-// 	ClearCache()
+		// Script (from src/index.ts)
+		assert.NotNil(t, assistant.Script)
+	})
 
-// 	// Test cache operations
-// 	SetCache(2) // Set small cache size for testing
-// 	assert.Equal(t, 2, loaded.capacity, "Cache capacity should be 2")
+	t.Run("LoadConnectorOptions", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// 	// Create test assistants
-// 	assistant1 := &Assistant{ID: "id1", Name: "Assistant 1"}
-// 	assistant2 := &Assistant{ID: "id2", Name: "Assistant 2"}
-// 	assistant3 := &Assistant{ID: "id3", Name: "Assistant 3"}
+		// ConnectorOptions
+		assert.NotNil(t, assistant.ConnectorOptions)
+		assert.True(t, assistant.ConnectorOptions.Optional)
+		assert.NotNil(t, assistant.ConnectorOptions.Connectors)
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o")
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o-mini")
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "deepseek")
+		assert.NotNil(t, assistant.ConnectorOptions.Filters)
+		assert.Len(t, assistant.ConnectorOptions.Filters, 2)
+	})
 
-// 	// Test Put and Get
-// 	loaded.Put(assistant1)
-// 	assert.Equal(t, 1, loaded.Len(), "Cache should have 1 item")
+	t.Run("LoadPromptPresets", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// 	loaded.Put(assistant2)
-// 	assert.Equal(t, 2, loaded.Len(), "Cache should have 2 items")
+		// PromptPresets (from prompts directory)
+		assert.NotNil(t, assistant.PromptPresets)
 
-// 	// Test cache hit
-// 	cached, exists := loaded.Get("id1")
-// 	assert.True(t, exists)
-// 	assert.Equal(t, assistant1, cached)
+		// Top-level presets: chat.yml -> "chat", task.yml -> "task"
+		chatPreset, hasChat := assistant.PromptPresets["chat"]
+		assert.True(t, hasChat, "Should have 'chat' preset")
+		assert.NotEmpty(t, chatPreset)
 
-// 	// Test cache eviction (LRU)
-// 	// At this point: assistant1 is most recently used (due to Get), then assistant2
-// 	loaded.Put(assistant3) // This should evict assistant2 since it's least recently used
-// 	assert.Equal(t, 2, loaded.Len(), "Cache should still have 2 items")
-// 	_, exists = loaded.Get("id2")
-// 	assert.False(t, exists, "assistant2 should have been evicted (least recently used)")
-// 	_, exists = loaded.Get("id1")
-// 	assert.True(t, exists, "assistant1 should still be in cache (was accessed recently)")
-// 	_, exists = loaded.Get("id3")
-// 	assert.True(t, exists, "assistant3 should be in cache (most recently added)")
+		taskPreset, hasTask := assistant.PromptPresets["task"]
+		assert.True(t, hasTask, "Should have 'task' preset")
+		assert.NotEmpty(t, taskPreset)
 
-// 	// Test clear cache
-// 	ClearCache()
-// 	assert.Nil(t, loaded)
+		// Nested presets: chat/friendly.yml -> "chat.friendly"
+		friendlyPreset, hasFriendly := assistant.PromptPresets["chat.friendly"]
+		assert.True(t, hasFriendly, "Should have 'chat.friendly' preset")
+		assert.NotEmpty(t, friendlyPreset)
 
-// 	// Test setting new cache capacity
-// 	SetCache(100)
-// 	assert.NotNil(t, loaded)
-// }
+		professionalPreset, hasProfessional := assistant.PromptPresets["chat.professional"]
+		assert.True(t, hasProfessional, "Should have 'chat.professional' preset")
+		assert.NotEmpty(t, professionalPreset)
 
-// func TestLoad_Validate(t *testing.T) {
-// 	tests := []struct {
-// 		name    string
-// 		ast     *Assistant
-// 		wantErr bool
-// 	}{
-// 		{
-// 			name: "valid assistant",
-// 			ast: &Assistant{
-// 				ID:        "test-id",
-// 				Name:      "Test Assistant",
-// 				Connector: "test-connector",
-// 			},
-// 			wantErr: false,
-// 		},
-// 		{
-// 			name: "missing id",
-// 			ast: &Assistant{
-// 				Name:      "Test Assistant",
-// 				Connector: "test-connector",
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "missing name",
-// 			ast: &Assistant{
-// 				ID:        "test-id",
-// 				Connector: "test-connector",
-// 			},
-// 			wantErr: true,
-// 		},
-// 		{
-// 			name: "missing connector",
-// 			ast: &Assistant{
-// 				ID:   "test-id",
-// 				Name: "Test Assistant",
-// 			},
-// 			wantErr: true,
-// 		},
-// 	}
+		// task/analysis.yml -> "task.analysis"
+		analysisPreset, hasAnalysis := assistant.PromptPresets["task.analysis"]
+		assert.True(t, hasAnalysis, "Should have 'task.analysis' preset")
+		assert.NotEmpty(t, analysisPreset)
+	})
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			err := tt.ast.Validate()
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("Assistant.Validate() error = %v, wantErr %v", err, tt.wantErr)
-// 			}
-// 		})
-// 	}
-// }
+	t.Run("LoadKnowledgeBase", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// func TestLoad_Clone(t *testing.T) {
-// 	// Create a test assistant with all fields populated
-// 	original := &Assistant{
-// 		ID:          "test-id",
-// 		Type:        "test-type",
-// 		Name:        "Test Assistant",
-// 		Avatar:      "test-avatar",
-// 		Connector:   "test-connector",
-// 		Path:        "test-path",
-// 		BuiltIn:     true,
-// 		Sort:        1,
-// 		Description: "test description",
-// 		Tags:        []string{"tag1", "tag2"},
-// 		Readonly:    true,
-// 		Mentionable: true,
-// 		Automated:   true,
-// 		Options:     map[string]interface{}{"key": "value"},
-// 		Prompts:     []Prompt{{Role: "system", Content: "test"}},
-// 		Workflow:    map[string]interface{}{"step": "test"},
-// 	}
+		// KB
+		assert.NotNil(t, assistant.KB)
+		assert.NotNil(t, assistant.KB.Collections)
+		assert.Contains(t, assistant.KB.Collections, "test-collection")
+		assert.NotNil(t, assistant.KB.Options)
+		assert.Equal(t, float64(5), assistant.KB.Options["top_k"])
+	})
 
-// 	// Clone the assistant
-// 	clone := original.Clone()
+	t.Run("LoadMCPServers", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// 	// Verify all fields are correctly cloned
-// 	assert.Equal(t, original.ID, clone.ID)
-// 	assert.Equal(t, original.Type, clone.Type)
-// 	assert.Equal(t, original.Name, clone.Name)
-// 	assert.Equal(t, original.Avatar, clone.Avatar)
-// 	assert.Equal(t, original.Connector, clone.Connector)
-// 	assert.Equal(t, original.Path, clone.Path)
-// 	assert.Equal(t, original.BuiltIn, clone.BuiltIn)
-// 	assert.Equal(t, original.Sort, clone.Sort)
-// 	assert.Equal(t, original.Description, clone.Description)
-// 	assert.Equal(t, original.Tags, clone.Tags)
-// 	assert.Equal(t, original.Readonly, clone.Readonly)
-// 	assert.Equal(t, original.Mentionable, clone.Mentionable)
-// 	assert.Equal(t, original.Automated, clone.Automated)
-// 	assert.Equal(t, original.Options, clone.Options)
-// 	assert.Equal(t, original.Prompts, clone.Prompts)
-// 	assert.Equal(t, original.Workflow, clone.Workflow)
+		// MCP
+		assert.NotNil(t, assistant.MCP)
+		assert.NotNil(t, assistant.MCP.Servers)
+		assert.Len(t, assistant.MCP.Servers, 1)
+		assert.Equal(t, "echo", assistant.MCP.Servers[0].ServerID)
+		assert.Contains(t, assistant.MCP.Servers[0].Tools, "ping")
+		assert.Contains(t, assistant.MCP.Servers[0].Tools, "echo")
+	})
 
-// 	// Verify deep copy by modifying original
-// 	original.Tags[0] = "modified"
-// 	original.Options["key"] = "modified"
-// 	original.Workflow["step"] = "modified"
-// 	assert.NotEqual(t, original.Tags[0], clone.Tags[0])
-// 	assert.NotEqual(t, original.Options["key"], clone.Options["key"])
-// 	assert.NotEqual(t, original.Workflow["step"], clone.Workflow["step"])
+	t.Run("LoadWorkflow", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// 	// Test nil case
-// 	var nilAssistant *Assistant
-// 	assert.Nil(t, nilAssistant.Clone())
-// }
+		// Workflow
+		assert.NotNil(t, assistant.Workflow)
+		assert.NotNil(t, assistant.Workflow.Workflows)
+		assert.Contains(t, assistant.Workflow.Workflows, "test-workflow")
+		assert.NotNil(t, assistant.Workflow.Options)
+		assert.Equal(t, float64(10), assistant.Workflow.Options["max_steps"])
+	})
 
-// func TestLoad_Update(t *testing.T) {
-// 	// Create a test assistant
-// 	ast := &Assistant{
-// 		ID:        "test-id",
-// 		Name:      "Original Name",
-// 		Connector: "original-connector",
-// 	}
+	t.Run("LoadPlaceholder", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// 	// Test updating various fields
-// 	updates := map[string]interface{}{
-// 		"name":        "Updated Name",
-// 		"avatar":      "updated-avatar",
-// 		"description": "Updated description",
-// 		"connector":   "updated-connector",
-// 		"type":        "updated-type",
-// 		"sort":        2,
-// 		"mentionable": true,
-// 		"automated":   true,
-// 		"tags":        []string{"new-tag"},
-// 		"options":     map[string]interface{}{"new": "value"},
-// 	}
+		// Placeholder
+		assert.NotNil(t, assistant.Placeholder)
+		assert.Equal(t, "Full Fields Test", assistant.Placeholder.Title)
+		assert.Equal(t, "Test assistant with complete field coverage", assistant.Placeholder.Description)
+		assert.NotNil(t, assistant.Placeholder.Prompts)
+		assert.Len(t, assistant.Placeholder.Prompts, 3)
+	})
 
-// 	err := ast.Update(updates)
-// 	assert.NoError(t, err)
+	t.Run("LoadLocales", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
 
-// 	// Verify updates
-// 	assert.Equal(t, "Updated Name", ast.Name)
-// 	assert.Equal(t, "updated-avatar", ast.Avatar)
-// 	assert.Equal(t, "Updated description", ast.Description)
-// 	assert.Equal(t, "updated-connector", ast.Connector)
-// 	assert.Equal(t, "updated-type", ast.Type)
-// 	assert.Equal(t, 2, ast.Sort)
-// 	assert.True(t, ast.Mentionable)
-// 	assert.True(t, ast.Automated)
-// 	assert.Equal(t, []string{"new-tag"}, ast.Tags)
-// 	assert.Equal(t, map[string]interface{}{"new": "value"}, ast.Options)
+		// Locales
+		assert.NotNil(t, assistant.Locales)
 
-// 	// Test nil assistant
-// 	var nilAssistant *Assistant
-// 	err = nilAssistant.Update(updates)
-// 	assert.Error(t, err)
+		enLocale, hasEn := assistant.Locales["en-us"]
+		assert.True(t, hasEn, "Should have en-us locale")
+		assert.NotNil(t, enLocale)
 
-// 	// Test invalid update that would make the assistant invalid
-// 	invalidUpdates := map[string]interface{}{
-// 		"name": "",
-// 	}
-// 	err = ast.Update(invalidUpdates)
-// 	assert.Error(t, err)
-// }
+		zhLocale, hasZh := assistant.Locales["zh-cn"]
+		assert.True(t, hasZh, "Should have zh-cn locale")
+		assert.NotNil(t, zhLocale)
+	})
 
-// func TestLoadBuiltIn(t *testing.T) {
-// 	prepare(t)
-// 	defer test.Clean()
+	t.Run("LoadNonExistentAssistant", func(t *testing.T) {
+		_, err := LoadPath("/assistants/non-existent")
+		assert.Error(t, err)
+	})
+}
 
-// 	// Clear any existing cache and storage
-// 	ClearCache()
-// 	SetStorage(nil)
+// TestLoadPathMCPTest tests loading the MCP test assistant
+func TestLoadPathMCPTest(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
 
-// 	// Create a mock store to verify built-in assistants are saved
-// 	mockStore := &mockStore{
-// 		data: make(map[string]map[string]interface{}),
-// 	}
-// 	SetStorage(mockStore)
-// 	SetCache(100)
+	assistant, err := LoadPath("/assistants/tests/mcptest")
+	require.NoError(t, err)
+	require.NotNil(t, assistant)
 
-// 	// Test loading built-in assistants
-// 	err := LoadBuiltIn()
-// 	assert.NoError(t, err)
+	assert.Equal(t, "tests.mcptest", assistant.ID)
+	assert.Equal(t, "MCP Test Assistant", assistant.Name)
+	assert.Equal(t, "gpt-4o", assistant.Connector)
 
-// 	// Verify Modi assistant was loaded
-// 	assistant, exists := loaded.Get("modi")
-// 	assert.True(t, exists, "Modi assistant should be loaded in cache")
-// 	if exists {
-// 		assert.Equal(t, "modi", assistant.ID)
-// 		assert.Equal(t, "Modi", assistant.Name)
-// 		assert.Equal(t, "deepseek", assistant.Connector)
-// 		assert.True(t, assistant.BuiltIn)
-// 		assert.True(t, assistant.Readonly)
-// 		assert.NotNil(t, assistant.Prompts)
-// 		assert.NotNil(t, assistant.Script)
-// 	}
+	// MCP configuration
+	assert.NotNil(t, assistant.MCP)
+	assert.Len(t, assistant.MCP.Servers, 1)
+	assert.Equal(t, "echo", assistant.MCP.Servers[0].ServerID)
 
-// }
+	// Locales
+	assert.NotNil(t, assistant.Locales)
+	assert.Contains(t, assistant.Locales, "en-us")
+	assert.Contains(t, assistant.Locales, "zh-cn")
+}
 
-// // mockStore implements store.Store interface for testing
-// type mockStore struct {
-// 	data map[string]map[string]interface{}
-// }
+// TestLoadPathBuildRequest tests loading the build request test assistant
+func TestLoadPathBuildRequest(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
 
-// func (m *mockStore) GetAssistant(id string, locale ...string) (map[string]interface{}, error) {
-// 	if data, ok := m.data[id]; ok {
-// 		return data, nil
-// 	}
-// 	return nil, fmt.Errorf("assistant not found: %s", id)
-// }
+	assistant, err := LoadPath("/assistants/tests/buildrequest")
+	require.NoError(t, err)
+	require.NotNil(t, assistant)
 
-// // Add other required interface methods with empty implementations
-// func (m *mockStore) GetThread(id string) (map[string]interface{}, error)  { return nil, nil }
-// func (m *mockStore) GetMessage(id string) (map[string]interface{}, error) { return nil, nil }
-// func (m *mockStore) GetFile(id string) (map[string]interface{}, error)    { return nil, nil }
-// func (m *mockStore) CreateAssistant(data map[string]interface{}) (map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) CreateThread(data map[string]interface{}) (map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) CreateMessage(data map[string]interface{}) (map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) CreateFile(data map[string]interface{}) (map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) UpdateAssistant(id string, data map[string]interface{}) error { return nil }
-// func (m *mockStore) UpdateThread(id string, data map[string]interface{}) error    { return nil }
-// func (m *mockStore) UpdateMessage(id string, data map[string]interface{}) error   { return nil }
-// func (m *mockStore) UpdateFile(id string, data map[string]interface{}) error      { return nil }
-// func (m *mockStore) DeleteAssistant(id string) error                              { return nil }
-// func (m *mockStore) DeleteThread(id string) error                                 { return nil }
-// func (m *mockStore) DeleteMessage(id string) error                                { return nil }
-// func (m *mockStore) DeleteFile(id string) error                                   { return nil }
-// func (m *mockStore) ListAssistants(query map[string]interface{}) ([]map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) ListThreads(query map[string]interface{}) ([]map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) ListMessages(query map[string]interface{}) ([]map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) ListFiles(query map[string]interface{}) ([]map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) DeleteAllChats(id string) error            { return nil }
-// func (m *mockStore) DeleteChat(id string, chatID string) error { return nil }
-// func (m *mockStore) GetAssistants(filter store.AssistantFilter, locale ...string) (*store.AssistantResponse, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) GetChat(id string, chatID string, locale ...string) (*store.ChatInfo, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) GetChatWithFilter(id string, chatID string, filter store.ChatFilter, locale ...string) (*store.ChatInfo, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) GetChats(id string, filter store.ChatFilter, locale ...string) (*store.ChatGroupResponse, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) GetHistory(id string, chatID string, locale ...string) ([]map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) GetHistoryWithFilter(id string, chatID string, filter store.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) SaveAssistant(assistant map[string]interface{}) (interface{}, error) {
-// 	return nil, nil
-// }
-// func (m *mockStore) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
-// 	return nil
-// }
-// func (m *mockStore) UpdateChatTitle(sid string, cid string, title string) error   { return nil }
-// func (m *mockStore) DeleteAssistants(filter store.AssistantFilter) (int64, error) { return 0, nil }
-// func (m *mockStore) GetAssistantTags(locale ...string) ([]store.Tag, error) {
-// 	return []store.Tag{}, nil
-// }
+	assert.Equal(t, "tests.buildrequest", assistant.ID)
+	assert.Equal(t, "Build Request Test", assistant.Name)
 
-// // Attachment related methods
-// func (m *mockStore) SaveAttachment(attachment map[string]interface{}) (interface{}, error) {
-// 	return attachment["file_id"], nil
-// }
+	// Script should be loaded
+	assert.NotNil(t, assistant.Script)
 
-// func (m *mockStore) DeleteAttachment(fileID string) error {
-// 	return nil
-// }
+	// Options
+	assert.NotNil(t, assistant.Options)
+	assert.Equal(t, 0.5, assistant.Options["temperature"])
+}
 
-// func (m *mockStore) GetAttachments(filter store.AttachmentFilter, locale ...string) (*store.AttachmentResponse, error) {
-// 	return &store.AttachmentResponse{}, nil
-// }
+// TestCache tests the assistant cache functionality
+func TestCache(t *testing.T) {
+	// Clear any existing cache
+	ClearCache()
 
-// func (m *mockStore) GetAttachment(fileID string, locale ...string) (map[string]interface{}, error) {
-// 	return nil, nil
-// }
+	// Set small cache for testing
+	SetCache(3)
+	assert.NotNil(t, loaded)
 
-// func (m *mockStore) DeleteAttachments(filter store.AttachmentFilter) (int64, error) {
-// 	return 0, nil
-// }
+	// Create test assistants
+	ast1 := &Assistant{AssistantModel: store.AssistantModel{ID: "id1", Name: "Assistant 1"}}
+	ast2 := &Assistant{AssistantModel: store.AssistantModel{ID: "id2", Name: "Assistant 2"}}
+	ast3 := &Assistant{AssistantModel: store.AssistantModel{ID: "id3", Name: "Assistant 3"}}
+	ast4 := &Assistant{AssistantModel: store.AssistantModel{ID: "id4", Name: "Assistant 4"}}
 
-// // Knowledge related methods
-// func (m *mockStore) SaveKnowledge(knowledge map[string]interface{}) (interface{}, error) {
-// 	return knowledge["collection_id"], nil
-// }
+	t.Run("PutAndGet", func(t *testing.T) {
+		loaded.Put(ast1)
+		assert.Equal(t, 1, loaded.Len())
 
-// func (m *mockStore) DeleteKnowledge(collectionID string) error {
-// 	return nil
-// }
+		cached, exists := loaded.Get("id1")
+		assert.True(t, exists)
+		assert.Equal(t, ast1, cached)
+	})
 
-// func (m *mockStore) GetKnowledges(filter store.KnowledgeFilter, locale ...string) (*store.KnowledgeResponse, error) {
-// 	return &store.KnowledgeResponse{}, nil
-// }
+	t.Run("CacheEviction", func(t *testing.T) {
+		loaded.Put(ast2)
+		loaded.Put(ast3)
+		assert.Equal(t, 3, loaded.Len())
 
-// func (m *mockStore) GetKnowledge(collectionID string, locale ...string) (map[string]interface{}, error) {
-// 	return nil, nil
-// }
+		// Access ast1 to make it recently used
+		loaded.Get("id1")
 
-// func (m *mockStore) DeleteKnowledges(filter store.KnowledgeFilter) (int64, error) {
-// 	return 0, nil
-// }
+		// Add ast4, should evict ast2 (least recently used)
+		loaded.Put(ast4)
+		assert.Equal(t, 3, loaded.Len())
 
-// // Close closes the store and releases any resources
-// func (m *mockStore) Close() error {
-// 	return nil
-// }
+		_, exists := loaded.Get("id2")
+		assert.False(t, exists, "ast2 should be evicted")
+
+		_, exists = loaded.Get("id1")
+		assert.True(t, exists, "ast1 should still exist")
+
+		_, exists = loaded.Get("id4")
+		assert.True(t, exists, "ast4 should exist")
+	})
+
+	t.Run("ClearCache", func(t *testing.T) {
+		ClearCache()
+		assert.Nil(t, loaded)
+	})
+
+	t.Run("SetCacheAfterClear", func(t *testing.T) {
+		SetCache(100)
+		assert.NotNil(t, loaded)
+	})
+}
+
+// TestClone tests the assistant Clone method
+func TestClone(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
+
+	t.Run("CloneFullFieldsAssistant", func(t *testing.T) {
+		original, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+
+		clone := original.Clone()
+		require.NotNil(t, clone)
+
+		// Basic fields should be equal
+		assert.Equal(t, original.ID, clone.ID)
+		assert.Equal(t, original.Name, clone.Name)
+		assert.Equal(t, original.Type, clone.Type)
+		assert.Equal(t, original.Connector, clone.Connector)
+		assert.Equal(t, original.Description, clone.Description)
+
+		// Verify deep copy - modifying original should not affect clone
+		if len(original.Tags) > 0 {
+			originalTag := original.Tags[0]
+			original.Tags[0] = "modified"
+			assert.NotEqual(t, original.Tags[0], clone.Tags[0])
+			original.Tags[0] = originalTag // restore
+		}
+
+		if original.Options != nil {
+			original.Options["test_key"] = "test_value"
+			_, exists := clone.Options["test_key"]
+			assert.False(t, exists, "Clone should not have modified key")
+			delete(original.Options, "test_key") // cleanup
+		}
+	})
+
+	t.Run("CloneNil", func(t *testing.T) {
+		var nilAssistant *Assistant
+		assert.Nil(t, nilAssistant.Clone())
+	})
+}
+
+// TestUpdate tests the assistant Update method
+func TestUpdate(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
+
+	t.Run("UpdateBasicFields", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+
+		updates := map[string]interface{}{
+			"name":        "Updated Name",
+			"description": "Updated description",
+			"tags":        []string{"updated", "tags"},
+		}
+
+		err = assistant.Update(updates)
+		require.NoError(t, err)
+
+		assert.Equal(t, "Updated Name", assistant.Name)
+		assert.Equal(t, "Updated description", assistant.Description)
+		assert.Equal(t, []string{"updated", "tags"}, assistant.Tags)
+	})
+
+	t.Run("UpdateConnectorOptions", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+
+		updates := map[string]interface{}{
+			"connector_options": map[string]interface{}{
+				"optional":   false,
+				"connectors": []string{"new-connector"},
+			},
+		}
+
+		err = assistant.Update(updates)
+		require.NoError(t, err)
+
+		assert.NotNil(t, assistant.ConnectorOptions)
+		assert.False(t, assistant.ConnectorOptions.Optional)
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "new-connector")
+	})
+
+	t.Run("UpdatePromptPresets", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+
+		updates := map[string]interface{}{
+			"prompt_presets": map[string]interface{}{
+				"custom": []map[string]interface{}{
+					{"role": "system", "content": "Custom preset"},
+				},
+			},
+		}
+
+		err = assistant.Update(updates)
+		require.NoError(t, err)
+
+		assert.NotNil(t, assistant.PromptPresets)
+		customPreset, exists := assistant.PromptPresets["custom"]
+		assert.True(t, exists)
+		assert.Len(t, customPreset, 1)
+	})
+
+	t.Run("UpdateSource", func(t *testing.T) {
+		assistant, err := LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+
+		updates := map[string]interface{}{
+			"source": "function Create(ctx, messages) { return { messages: messages }; }",
+		}
+
+		err = assistant.Update(updates)
+		require.NoError(t, err)
+
+		assert.Equal(t, "function Create(ctx, messages) { return { messages: messages }; }", assistant.Source)
+	})
+
+	t.Run("UpdateNilAssistant", func(t *testing.T) {
+		var nilAssistant *Assistant
+		err := nilAssistant.Update(map[string]interface{}{"name": "test"})
+		assert.Error(t, err)
+	})
+}
+
+// TestMap tests the assistant Map method
+func TestMap(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
+
+	assistant, err := LoadPath("/assistants/tests/fullfields")
+	require.NoError(t, err)
+
+	m := assistant.Map()
+	require.NotNil(t, m)
+
+	// Check all fields are present
+	assert.Equal(t, assistant.ID, m["assistant_id"])
+	assert.Equal(t, assistant.Name, m["name"])
+	assert.Equal(t, assistant.Type, m["type"])
+	assert.Equal(t, assistant.Connector, m["connector"])
+	assert.Equal(t, assistant.Description, m["description"])
+	assert.Equal(t, assistant.Path, m["path"])
+	assert.Equal(t, assistant.Tags, m["tags"])
+	assert.Equal(t, assistant.Options, m["options"])
+	assert.Equal(t, assistant.Prompts, m["prompts"])
+	assert.Equal(t, assistant.KB, m["kb"])
+	assert.Equal(t, assistant.MCP, m["mcp"])
+	assert.Equal(t, assistant.Workflow, m["workflow"])
+	assert.Equal(t, assistant.Placeholder, m["placeholder"])
+	assert.Equal(t, assistant.Locales, m["locales"])
+
+	// New fields
+	assert.Equal(t, assistant.ConnectorOptions, m["connector_options"])
+	assert.Equal(t, assistant.PromptPresets, m["prompt_presets"])
+	assert.Equal(t, assistant.Source, m["source"])
+}
+
+// TestValidate tests the assistant Validate method
+func TestValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		ast     *Assistant
+		wantErr bool
+	}{
+		{
+			name: "ValidAssistant",
+			ast: &Assistant{
+				AssistantModel: store.AssistantModel{
+					ID:        "test-id",
+					Name:      "Test Assistant",
+					Connector: "gpt-4o",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "MissingID",
+			ast: &Assistant{
+				AssistantModel: store.AssistantModel{
+					Name:      "Test Assistant",
+					Connector: "gpt-4o",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "MissingName",
+			ast: &Assistant{
+				AssistantModel: store.AssistantModel{
+					ID:        "test-id",
+					Connector: "gpt-4o",
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.ast.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

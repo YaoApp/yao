@@ -7,6 +7,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
@@ -28,16 +29,14 @@ func TestDeepSeekR1StreamBasic(t *testing.T) {
 	}
 
 	// Create LLM instance with capabilities
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &trueVal,
-			Reasoning:  &trueVal,  // DeepSeek R1 supports reasoning
-			ToolCalls:  &falseVal, // R1 doesn't support native tool calls
-			Vision:     &falseVal,
-			Audio:      &falseVal,
-			Multimodal: &falseVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  true,
+			Reasoning:  true,  // DeepSeek R1 supports reasoning
+			ToolCalls:  false, // R1 doesn't support native tool calls
+			Vision:     false,
+			Audio:      false,
+			Multimodal: false,
 		},
 	}
 
@@ -207,15 +206,13 @@ func TestDeepSeekR1PostBasic(t *testing.T) {
 	}
 
 	// Create LLM instance
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Reasoning:  &trueVal,
-			ToolCalls:  &falseVal,
-			Vision:     &falseVal,
-			Audio:      &falseVal,
-			Multimodal: &falseVal,
+		Capabilities: &openai.Capabilities{
+			Reasoning:  true,
+			ToolCalls:  false,
+			Vision:     false,
+			Audio:      false,
+			Multimodal: false,
 		},
 	}
 
@@ -295,16 +292,14 @@ func TestDeepSeekR1LogicPuzzle(t *testing.T) {
 		t.Fatalf("Failed to select connector: %v", err)
 	}
 
-	trueVal := true
-	falseVal := false
 	options := &context.CompletionOptions{
-		Capabilities: &context.ModelCapabilities{
-			Streaming:  &trueVal,
-			Reasoning:  &trueVal,
-			ToolCalls:  &falseVal,
-			Vision:     &falseVal,
-			Audio:      &falseVal,
-			Multimodal: &falseVal,
+		Capabilities: &openai.Capabilities{
+			Streaming:  true,
+			Reasoning:  true,
+			ToolCalls:  false,
+			Vision:     false,
+			Audio:      false,
+			Multimodal: false,
 		},
 	}
 

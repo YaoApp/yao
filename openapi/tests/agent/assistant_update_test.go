@@ -620,62 +620,7 @@ func TestUpdateAssistant(t *testing.T) {
 		t.Logf("Successfully updated assistant mcp settings: %s", assistantID)
 	})
 
-	t.Run("UpdateAssistantTools", func(t *testing.T) {
-		// Create a test assistant
-		assistantID := createTestAssistant("Tools Update Test")
-		defer func() {
-			deleteReq, _ := http.NewRequest("DELETE", serverURL+baseURL+"/agent/assistants/"+assistantID, nil)
-			deleteReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
-			resp, _ := http.DefaultClient.Do(deleteReq)
-			if resp != nil {
-				resp.Body.Close()
-			}
-		}()
-
-		// Update tools
-		updateData := map[string]interface{}{
-			"tools": []map[string]interface{}{
-				{
-					"name":        "web_search",
-					"description": "Search the web for information",
-					"parameters": map[string]interface{}{
-						"query": map[string]interface{}{
-							"type":        "string",
-							"description": "Search query",
-							"required":    true,
-						},
-					},
-				},
-				{
-					"name":        "calculator",
-					"description": "Perform calculations",
-					"parameters": map[string]interface{}{
-						"expression": map[string]interface{}{
-							"type":        "string",
-							"description": "Mathematical expression",
-							"required":    true,
-						},
-					},
-				},
-			},
-		}
-
-		jsonData, err := json.Marshal(updateData)
-		assert.NoError(t, err)
-
-		req, err := http.NewRequest("PUT", serverURL+baseURL+"/agent/assistants/"+assistantID, bytes.NewBuffer(jsonData))
-		assert.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := http.DefaultClient.Do(req)
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
-		defer resp.Body.Close()
-
-		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully update tools")
-		t.Logf("Successfully updated assistant tools: %s", assistantID)
-	})
+	// Note: UpdateAssistantTools test removed - tools field is deprecated and replaced by MCP
 
 	t.Run("UpdateAssistantWorkflow", func(t *testing.T) {
 		// Create a test assistant
@@ -776,12 +721,7 @@ func TestUpdateAssistant(t *testing.T) {
 					},
 				},
 			},
-			"tools": []map[string]interface{}{
-				{
-					"name":        "updated_tool",
-					"description": "Updated tool description",
-				},
-			},
+			// Note: tools field removed - now handled by MCP
 			"kb": map[string]interface{}{
 				"collections": []string{"updated-collection"},
 				"enabled":     true,

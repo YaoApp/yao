@@ -6,6 +6,7 @@ import (
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
+	gouOpenAI "github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -79,6 +80,12 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Initialize Global Prompts
+	err = initGlobalPrompts()
+	if err != nil {
+		return err
+	}
+
 	// Initialize Assistant
 	err = initAssistant()
 	if err != nil {
@@ -103,6 +110,25 @@ func initGlobalI18n() error {
 	return nil
 }
 
+// initGlobalPrompts initialize the global prompts from agent/prompts.yml
+func initGlobalPrompts() error {
+	prompts, _, err := store.LoadGlobalPrompts()
+	if err != nil {
+		return err
+	}
+	agentDSL.GlobalPrompts = prompts
+	return nil
+}
+
+// GetGlobalPrompts returns the global prompts
+// ctx: context variables for parsing $CTX.* variables
+func GetGlobalPrompts(ctx map[string]string) []store.Prompt {
+	if agentDSL == nil || len(agentDSL.GlobalPrompts) == 0 {
+		return nil
+	}
+	return store.Prompts(agentDSL.GlobalPrompts).Parse(ctx)
+}
+
 // initModelCapabilities initialize the model capabilities configuration
 func initModelCapabilities() error {
 	path := filepath.Join("agent", "models.yml")
@@ -116,7 +142,7 @@ func initModelCapabilities() error {
 		return err
 	}
 
-	var models map[string]assistant.ModelCapabilities = map[string]assistant.ModelCapabilities{}
+	var models map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
 	err = application.Parse("models.yml", bytes, &models)
 	if err != nil {
 		return err
@@ -172,6 +198,11 @@ func initAssistant() error {
 			Fetch:  agentDSL.Uses.Fetch,
 		}
 		assistant.SetGlobalUses(globalUses)
+	}
+
+	// Set global prompts
+	if len(agentDSL.GlobalPrompts) > 0 {
+		assistant.SetGlobalPrompts(agentDSL.GlobalPrompts)
 	}
 
 	if agentDSL.Models != nil {

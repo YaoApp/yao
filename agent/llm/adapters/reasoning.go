@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/context"
 )
 
@@ -28,7 +29,7 @@ type ReasoningAdapter struct {
 
 // NewReasoningAdapter creates a new reasoning adapter
 // If cap.TemperatureAdjustable is provided, it overrides the default behavior
-func NewReasoningAdapter(format ReasoningFormat, cap *context.ModelCapabilities) *ReasoningAdapter {
+func NewReasoningAdapter(format ReasoningFormat, cap *openai.Capabilities) *ReasoningAdapter {
 	supportsEffort := false
 	supportsTemperature := true
 
@@ -49,8 +50,8 @@ func NewReasoningAdapter(format ReasoningFormat, cap *context.ModelCapabilities)
 	}
 
 	// Override with explicit capability if provided
-	if cap != nil && cap.TemperatureAdjustable != nil {
-		supportsTemperature = *cap.TemperatureAdjustable
+	if cap != nil {
+		supportsTemperature = cap.TemperatureAdjustable
 	}
 
 	return &ReasoningAdapter{

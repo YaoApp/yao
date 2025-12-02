@@ -6,6 +6,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
@@ -303,7 +304,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 // GetConnector get the connector object, capabilities, and error with priority: createResponse > ctx > ast
 // Note: createResponse.Connector is already applied to ctx.Connector by applyContextAdjustments in create.go
 // Returns: (connector, capabilities, error)
-func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *context.ModelCapabilities, error) {
+func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *openai.Capabilities, error) {
 	// Determine connector ID with priority
 	connectorID := ast.Connector
 	if ctx.Connector != "" {
@@ -322,68 +323,56 @@ func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *
 	}
 
 	// Get connector capabilities from settings
-	capabilities := ast.getConnectorCapabilities(connectorID)
+	capabilities := ast.getConnectorCapabilities(conn)
 
 	return conn, capabilities, nil
 }
 
 // getConnectorCapabilities get the capabilities of a connector from settings
-func (ast *Assistant) getConnectorCapabilities(connectorID string) *context.ModelCapabilities {
-	// Initialize with default capabilities (all disabled)
-	falseVal := false
-	capabilities := &context.ModelCapabilities{
-		Vision:    falseVal,
-		ToolCalls: &falseVal,
-		Audio:     &falseVal,
-		Reasoning: &falseVal,
-		Streaming: &falseVal,
+// Priority: 1. modelCapabilities mapping, 2. connector's Setting()["capabilities"]
+func (ast *Assistant) getConnectorCapabilities(conn connector.Connector) *openai.Capabilities {
+	if conn == nil {
+		return &openai.Capabilities{
+			Vision:                false,
+			ToolCalls:             false,
+			Audio:                 false,
+			Reasoning:             false,
+			Streaming:             false,
+			JSON:                  false,
+			Multimodal:            false,
+			TemperatureAdjustable: true,
+		}
 	}
 
-	// Get model capabilities from global configuration
-	modelCaps, exists := modelCapabilities[connectorID]
-	if !exists {
-		// Return default capabilities if model not found in configuration
-		return capabilities
+	// Get connector ID
+	connectorID := conn.ID()
+
+	// Priority 1: Check global modelCapabilities mapping
+	if modelCaps, exists := modelCapabilities[connectorID]; exists {
+		return &modelCaps
 	}
 
-	// Update capabilities based on model configuration
-	// Vision can be bool or string (VisionFormat)
-	if modelCaps.Vision != nil {
-		capabilities.Vision = modelCaps.Vision
+	// Priority 2: Get capabilities from connector's Setting() method
+	// Modern connectors (post-upgrade) provide default capabilities via Setting()
+	settings := conn.Setting()
+	if caps, ok := settings["capabilities"]; ok {
+		if capabilities, ok := caps.(*openai.Capabilities); ok {
+			return capabilities
+		}
 	}
 
-	// Handle both Tools (deprecated) and ToolCalls
-	if modelCaps.ToolCalls || modelCaps.Tools {
-		v := true
-		capabilities.ToolCalls = &v
+	// Fallback: Return minimal default capabilities
+	// This should rarely happen with upgraded connectors
+	return &openai.Capabilities{
+		Vision:                false,
+		ToolCalls:             false,
+		Audio:                 false,
+		Reasoning:             false,
+		Streaming:             false,
+		JSON:                  false,
+		Multimodal:            false,
+		TemperatureAdjustable: true, // Default to true for non-reasoning models
 	}
-
-	if modelCaps.Audio {
-		v := true
-		capabilities.Audio = &v
-	}
-
-	if modelCaps.Reasoning {
-		v := true
-		capabilities.Reasoning = &v
-	}
-
-	if modelCaps.Streaming {
-		v := true
-		capabilities.Streaming = &v
-	}
-
-	if modelCaps.JSON {
-		v := true
-		capabilities.JSON = &v
-	}
-
-	if modelCaps.Multimodal {
-		v := true
-		capabilities.Multimodal = &v
-	}
-
-	return capabilities
 }
 
 // Info get the assistant information

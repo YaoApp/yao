@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/application"
+	gouOpenAI "github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/fs"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/assistant/hook"
@@ -26,9 +26,10 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var search interface{} = nil
-var modelCapabilities map[string]ModelCapabilities = map[string]ModelCapabilities{}
-var defaultConnector string = ""   // default connector
-var globalUses *context.Uses = nil // global uses configuration from agent.yml
+var modelCapabilities map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
+var defaultConnector string = ""       // default connector
+var globalUses *context.Uses = nil     // global uses configuration from agent.yml
+var globalPrompts []store.Prompt = nil // global prompts from agent/prompts.yml
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -130,8 +131,13 @@ func SetStorage(s store.Store) {
 	storage = s
 }
 
+// GetStorage returns the storage (for testing purposes)
+func GetStorage() store.Store {
+	return storage
+}
+
 // SetModelCapabilities set the model capabilities configuration
-func SetModelCapabilities(capabilities map[string]ModelCapabilities) {
+func SetModelCapabilities(capabilities map[string]gouOpenAI.Capabilities) {
 	modelCapabilities = capabilities
 }
 
@@ -143,6 +149,20 @@ func SetConnector(c string) {
 // SetGlobalUses set the global uses configuration
 func SetGlobalUses(uses *context.Uses) {
 	globalUses = uses
+}
+
+// SetGlobalPrompts set the global prompts from agent/prompts.yml
+func SetGlobalPrompts(prompts []store.Prompt) {
+	globalPrompts = prompts
+}
+
+// GetGlobalPrompts returns the global prompts with variables parsed
+// ctx: context variables for parsing $CTX.* variables
+func GetGlobalPrompts(ctx map[string]string) []store.Prompt {
+	if len(globalPrompts) == 0 {
+		return nil
+	}
+	return store.Prompts(globalPrompts).Parse(ctx)
 }
 
 // SetCache set the cache
@@ -180,7 +200,8 @@ func LoadStore(id string) (*Assistant, error) {
 		return nil, fmt.Errorf("storage is not set")
 	}
 
-	storeModel, err := storage.GetAssistant(id)
+	// Request all fields when loading assistant from store
+	storeModel, err := storage.GetAssistant(id, store.AssistantFullFields)
 	if err != nil {
 		return nil, err
 	}
@@ -197,6 +218,15 @@ func LoadStore(id string) (*Assistant, error) {
 
 	// Create assistant from store model
 	assistant = &Assistant{AssistantModel: *storeModel}
+
+	// Load script from source field if present
+	if assistant.Source != "" {
+		script, err := loadSource(assistant.Source, assistant.ID)
+		if err != nil {
+			return nil, err
+		}
+		assistant.Script = script
+	}
 
 	// Initialize the assistant
 	err = assistant.initialize()
@@ -266,16 +296,29 @@ func LoadPath(path string) (*Assistant, error) {
 
 	updatedAt := int64(0)
 
-	// prompts
+	// prompts (default prompts from prompts.yml)
 	promptsfile := filepath.Join(path, "prompts.yml")
 	if has, _ := app.Exists(promptsfile); has {
-		prompts, ts, err := loadPrompts(promptsfile, path)
+		prompts, ts, err := store.LoadPrompts(promptsfile, path)
 		if err != nil {
 			return nil, err
 		}
 		data["prompts"] = prompts
 		data["updated_at"] = ts
 		updatedAt = ts
+	}
+
+	// prompt_presets (from prompts directory, key is filename without extension)
+	promptsDir := filepath.Join(path, "prompts")
+	if has, _ := app.Exists(promptsDir); has {
+		presets, ts, err := store.LoadPromptPresets(promptsDir, path)
+		if err != nil {
+			return nil, err
+		}
+		if len(presets) > 0 {
+			data["prompt_presets"] = presets
+			updatedAt = max(updatedAt, ts)
+		}
 	}
 
 	// load script
@@ -382,6 +425,11 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Automated = v
 	}
 
+	// DisableGlobalPrompts
+	if v, ok := data["disable_global_prompts"].(bool); ok {
+		assistant.DisableGlobalPrompts = v
+	}
+
 	// Readonly
 	if v, ok := data["readonly"].(bool); ok {
 		assistant.Readonly = v
@@ -415,6 +463,15 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// connector
 	if connector, ok := data["connector"].(string); ok {
 		assistant.Connector = connector
+	}
+
+	// connector_options
+	if connOpts, has := data["connector_options"]; has {
+		opts, err := store.ToConnectorOptions(connOpts)
+		if err != nil {
+			return nil, err
+		}
+		assistant.ConnectorOptions = opts
 	}
 
 	// tags
@@ -508,32 +565,24 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		}
 	}
 
-	// tools
-	if tools, has := data["tools"]; has {
-		switch vv := tools.(type) {
-		case []store.Tool:
-			assistant.Tools = &store.ToolCalls{
-				Tools:   vv,
-				Prompts: assistant.Prompts,
-			}
-
-		case store.ToolCalls:
-			assistant.Tools = &vv
-
-		default:
-			raw, err := jsoniter.Marshal(tools)
-			if err != nil {
-				return nil, fmt.Errorf("tools format error %s", err.Error())
-			}
-
-			var tools store.ToolCalls
-			err = jsoniter.Unmarshal(raw, &tools)
-			if err != nil {
-				return nil, fmt.Errorf("tools format error %s", err.Error())
-			}
-			assistant.Tools = &tools
+	// prompt_presets
+	if presets, has := data["prompt_presets"]; has {
+		promptPresets, err := store.ToPromptPresets(presets)
+		if err != nil {
+			return nil, err
 		}
+		assistant.PromptPresets = promptPresets
 	}
+
+	// source (hook script code) - store the source code
+	if source, ok := data["source"].(string); ok {
+		assistant.Source = source
+	}
+
+	// tools - deprecated, now handled by MCP
+	// if tools, has := data["tools"]; has {
+	// 	... removed ...
+	// }
 
 	// kb
 	if kb, has := data["kb"]; has {
@@ -562,7 +611,29 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Workflow = wf
 	}
 
-	// script
+	// uses (wrapper configurations for vision, audio, etc.)
+	if uses, has := data["uses"]; has {
+		switch v := uses.(type) {
+		case *context.Uses:
+			assistant.Uses = v
+		case context.Uses:
+			assistant.Uses = &v
+		default:
+			raw, err := jsoniter.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			var usesConfig context.Uses
+			err = jsoniter.Unmarshal(raw, &usesConfig)
+			if err != nil {
+				return nil, err
+			}
+			assistant.Uses = &usesConfig
+		}
+	}
+
+	// script loading priority: script field > source field
+	// If script field exists, use it; otherwise try source field
 	if data["script"] != nil {
 		switch v := data["script"].(type) {
 		case string:
@@ -577,6 +648,13 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		case *v8.Script:
 			assistant.Script = &hook.Script{Script: v}
 		}
+	} else if assistant.Source != "" {
+		// Load from source field if script is not provided
+		script, err := loadSource(assistant.Source, assistant.ID)
+		if err != nil {
+			return nil, err
+		}
+		assistant.Script = script
 	}
 
 	// created_at
@@ -604,43 +682,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	return assistant, nil
-}
-
-func loadPrompts(file string, root string) (string, int64, error) {
-
-	app, err := fs.Get("app")
-	if err != nil {
-		return "", 0, err
-	}
-
-	ts, err := app.ModTime(file)
-	if err != nil {
-		return "", 0, err
-	}
-
-	prompts, err := app.ReadFile(file)
-	if err != nil {
-		return "", 0, err
-	}
-
-	re := regexp.MustCompile(`@assets/([^\s]+\.(md|yml|yaml|json|txt))`)
-	prompts = re.ReplaceAllFunc(prompts, func(s []byte) []byte {
-		asset := re.FindStringSubmatch(string(s))[1]
-		assetFile := filepath.Join(root, "assets", asset)
-		assetContent, err := app.ReadFile(assetFile)
-		if err != nil {
-			return []byte("")
-		}
-		// Add proper YAML formatting for content
-		lines := strings.Split(string(assetContent), "\n")
-		formattedContent := "|\n"
-		for _, line := range lines {
-			formattedContent += "    " + line + "\n"
-		}
-		return []byte(formattedContent)
-	})
-
-	return string(prompts), ts.UnixNano(), nil
 }
 
 func loadScript(file string, root string) (*hook.Script, int64, error) {
