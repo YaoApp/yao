@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
@@ -105,7 +104,6 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"prompts":      ast.Prompts,
 		"kb":           ast.KB,
 		"mcp":          ast.MCP,
-		"tools":        ast.Tools,
 		"workflow":     ast.Workflow,
 		"tags":         ast.Tags,
 		"mentionable":  ast.Mentionable,
@@ -247,20 +245,6 @@ func (ast *Assistant) Clone() *Assistant {
 		copy(clone.Prompts, ast.Prompts)
 	}
 
-	// Deep copy tools
-	if ast.Tools != nil {
-		clone.Tools = &store.ToolCalls{}
-		if ast.Tools.Tools != nil {
-			clone.Tools.Tools = make([]store.Tool, len(ast.Tools.Tools))
-			copy(clone.Tools.Tools, ast.Tools.Tools)
-		}
-
-		if ast.Tools.Prompts != nil {
-			clone.Tools.Prompts = make([]store.Prompt, len(ast.Tools.Prompts))
-			copy(clone.Tools.Prompts, ast.Tools.Prompts)
-		}
-	}
-
 	// Deep copy workflow
 	if ast.Workflow != nil {
 		clone.Workflow = &store.Workflow{}
@@ -328,29 +312,7 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 		ast.Connector = v
 	}
 
-	if v, has := data["tools"]; has {
-		switch tools := v.(type) {
-		case []store.Tool:
-			ast.Tools = &store.ToolCalls{
-				Tools:   tools,
-				Prompts: ast.Prompts,
-			}
-
-		case *store.ToolCalls:
-			ast.Tools = tools
-
-		default:
-			raw, err := jsoniter.Marshal(tools)
-			if err != nil {
-				return err
-			}
-			ast.Tools = &store.ToolCalls{}
-			err = jsoniter.Unmarshal(raw, &ast.Tools)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	// Note: tools field is deprecated, now handled by MCP
 
 	if v, ok := data["type"].(string); ok {
 		ast.Type = v

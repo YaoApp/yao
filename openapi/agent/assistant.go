@@ -192,6 +192,17 @@ func GetAssistant(c *gin.Context) {
 		return
 	}
 
+	// Parse select fields (optional - if not provided, returns default fields)
+	// Query parameter: ?select=field1,field2,field3
+	var fields []string
+	if selectParam := c.Query("select"); selectParam != "" {
+		fields = strings.Split(selectParam, ",")
+		// Trim whitespace from each field
+		for i, field := range fields {
+			fields[i] = strings.TrimSpace(field)
+		}
+	}
+
 	// Parse locale (optional - if not provided, returns raw data without i18n translation)
 	// This is useful for form editing scenarios where you need the original values
 	var assistant *agenttypes.AssistantModel
@@ -200,10 +211,10 @@ func GetAssistant(c *gin.Context) {
 	if loc := c.Query("locale"); loc != "" {
 		// If locale is specified, get assistant with translation
 		locale := strings.ToLower(strings.TrimSpace(loc))
-		assistant, err = agentInstance.Store.GetAssistant(assistantID, locale)
+		assistant, err = agentInstance.Store.GetAssistant(assistantID, fields, locale)
 	} else {
 		// If no locale specified, get raw data without translation
-		assistant, err = agentInstance.Store.GetAssistant(assistantID)
+		assistant, err = agentInstance.Store.GetAssistant(assistantID, fields)
 	}
 	if err != nil {
 		log.Error("Failed to get assistant %s: %v", assistantID, err)
@@ -521,8 +532,8 @@ func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistantID string
 		return false, fmt.Errorf("agent store not initialized")
 	}
 
-	// Get assistant from store
-	assistant, err := agentInstance.Store.GetAssistant(assistantID)
+	// Get assistant from store - only need default fields for permission check
+	assistant, err := agentInstance.Store.GetAssistant(assistantID, nil)
 	if err != nil {
 		return false, fmt.Errorf("assistant not found: %s", assistantID)
 	}

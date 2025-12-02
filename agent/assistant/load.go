@@ -181,7 +181,8 @@ func LoadStore(id string) (*Assistant, error) {
 		return nil, fmt.Errorf("storage is not set")
 	}
 
-	storeModel, err := storage.GetAssistant(id)
+	// Request all fields when loading assistant from store
+	storeModel, err := storage.GetAssistant(id, store.AssistantFullFields)
 	if err != nil {
 		return nil, err
 	}
@@ -509,32 +510,10 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		}
 	}
 
-	// tools
-	if tools, has := data["tools"]; has {
-		switch vv := tools.(type) {
-		case []store.Tool:
-			assistant.Tools = &store.ToolCalls{
-				Tools:   vv,
-				Prompts: assistant.Prompts,
-			}
-
-		case store.ToolCalls:
-			assistant.Tools = &vv
-
-		default:
-			raw, err := jsoniter.Marshal(tools)
-			if err != nil {
-				return nil, fmt.Errorf("tools format error %s", err.Error())
-			}
-
-			var tools store.ToolCalls
-			err = jsoniter.Unmarshal(raw, &tools)
-			if err != nil {
-				return nil, fmt.Errorf("tools format error %s", err.Error())
-			}
-			assistant.Tools = &tools
-		}
-	}
+	// tools - deprecated, now handled by MCP
+	// if tools, has := data["tools"]; has {
+	// 	... removed ...
+	// }
 
 	// kb
 	if kb, has := data["kb"]; has {

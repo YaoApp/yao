@@ -217,6 +217,9 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 	if path, ok := data["path"].(string); ok {
 		model.Path = path
 	}
+	if source, ok := data["source"].(string); ok {
+		model.Source = source
+	}
 	if description, ok := data["description"].(string); ok {
 		model.Description = description
 	}
@@ -277,6 +280,28 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		}
 	}
 
+	// PromptPresets
+	if promptPresets, ok := data["prompt_presets"]; ok && promptPresets != nil {
+		raw, err := jsoniter.Marshal(promptPresets)
+		if err == nil {
+			var pp map[string][]Prompt
+			if err := jsoniter.Unmarshal(raw, &pp); err == nil {
+				model.PromptPresets = pp
+			}
+		}
+	}
+
+	// ConnectorOptions
+	if connectorOptions, ok := data["connector_options"]; ok && connectorOptions != nil {
+		raw, err := jsoniter.Marshal(connectorOptions)
+		if err == nil {
+			var co ConnectorOptions
+			if err := jsoniter.Unmarshal(raw, &co); err == nil {
+				model.ConnectorOptions = &co
+			}
+		}
+	}
+
 	// KB
 	if kb, ok := data["kb"]; ok && kb != nil {
 		kbConverted, err := ToKnowledgeBase(kb)
@@ -298,17 +323,6 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		wf, err := ToWorkflow(workflow)
 		if err == nil {
 			model.Workflow = wf
-		}
-	}
-
-	// Tools
-	if tools, ok := data["tools"]; ok && tools != nil {
-		raw, err := jsoniter.Marshal(tools)
-		if err == nil {
-			var tc ToolCalls
-			if err := jsoniter.Unmarshal(raw, &tc); err == nil {
-				model.Tools = &tc
-			}
 		}
 	}
 
