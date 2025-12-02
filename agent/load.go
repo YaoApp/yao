@@ -200,6 +200,11 @@ func initAssistant() error {
 		assistant.SetGlobalUses(globalUses)
 	}
 
+	// Set global prompts
+	if len(agentDSL.GlobalPrompts) > 0 {
+		assistant.SetGlobalPrompts(agentDSL.GlobalPrompts)
+	}
+
 	if agentDSL.Models != nil {
 		assistant.SetModelCapabilities(agentDSL.Models)
 	}

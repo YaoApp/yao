@@ -27,8 +27,9 @@ var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var search interface{} = nil
 var modelCapabilities map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
-var defaultConnector string = ""   // default connector
-var globalUses *context.Uses = nil // global uses configuration from agent.yml
+var defaultConnector string = ""       // default connector
+var globalUses *context.Uses = nil     // global uses configuration from agent.yml
+var globalPrompts []store.Prompt = nil // global prompts from agent/prompts.yml
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -143,6 +144,20 @@ func SetConnector(c string) {
 // SetGlobalUses set the global uses configuration
 func SetGlobalUses(uses *context.Uses) {
 	globalUses = uses
+}
+
+// SetGlobalPrompts set the global prompts from agent/prompts.yml
+func SetGlobalPrompts(prompts []store.Prompt) {
+	globalPrompts = prompts
+}
+
+// GetGlobalPrompts returns the global prompts with variables parsed
+// ctx: context variables for parsing $CTX.* variables
+func GetGlobalPrompts(ctx map[string]string) []store.Prompt {
+	if len(globalPrompts) == 0 {
+		return nil
+	}
+	return store.Prompts(globalPrompts).Parse(ctx)
 }
 
 // SetCache set the cache

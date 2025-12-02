@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -169,5 +170,39 @@ func TestGlobalPromptsContent(t *testing.T) {
 				strings.Contains(content, "$ENV.") ||
 				strings.Contains(content, "$CTX."),
 			"Raw prompts should contain variable placeholders")
+	})
+}
+
+func TestAssistantGlobalPrompts(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
+
+	t.Run("AssistantModuleReceivesGlobalPrompts", func(t *testing.T) {
+		// Verify assistant module has global prompts
+		prompts := assistant.GetGlobalPrompts(nil)
+		require.NotNil(t, prompts)
+		require.Greater(t, len(prompts), 0)
+
+		// Should be parsed (no $SYS.* variables)
+		content := prompts[0].Content
+		assert.NotContains(t, content, "$SYS.DATETIME")
+	})
+
+	t.Run("AssistantModuleParsesWithContext", func(t *testing.T) {
+		ctx := map[string]string{
+			"USER_ID": "assistant-test-user",
+			"LOCALE":  "en-US",
+		}
+
+		prompts := assistant.GetGlobalPrompts(ctx)
+		require.NotNil(t, prompts)
+
+		// $SYS.* should be replaced
+		content := prompts[0].Content
+		assert.NotContains(t, content, "$SYS.")
+
+		// Should contain current time info
+		now := time.Now()
+		assert.Contains(t, content, now.Format("2006-01-02"))
 	})
 }
