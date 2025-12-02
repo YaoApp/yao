@@ -51,7 +51,7 @@ func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Mes
 	}
 
 	// Build and prepend system prompts (global + assistant prompts)
-	promptMessages := ast.buildSystemPrompts(ctx)
+	promptMessages := ast.buildSystemPrompts(ctx, createResponse)
 	if len(promptMessages) > 0 {
 		finalMessages = append(promptMessages, finalMessages...)
 	}
@@ -60,25 +60,41 @@ func (ast *Assistant) buildMessages(ctx *context.Context, messages []context.Mes
 }
 
 // buildSystemPrompts builds system prompt messages from global prompts and assistant prompts
-// Order: Global prompts (if not disabled) -> Assistant prompts
+// Order: Global prompts (if not disabled) -> Assistant prompts (or preset)
 // Variables are parsed with context information
-func (ast *Assistant) buildSystemPrompts(ctx *context.Context) []context.Message {
+//
+// Priority for prompt preset selection:
+//  1. createResponse.PromptPreset (highest)
+//  2. ctx.Metadata["__prompt_preset"]
+//  3. ast.Prompts (default)
+//
+// Priority for disable global prompts:
+//  1. createResponse.DisableGlobalPrompts (highest)
+//  2. ctx.Metadata["__disable_global_prompts"]
+//  3. ast.DisableGlobalPrompts (default)
+func (ast *Assistant) buildSystemPrompts(ctx *context.Context, createResponse *context.HookCreateResponse) []context.Message {
 	// Build context variables from ctx and ast
 	ctxVars := ast.buildContextVariables(ctx)
+
+	// Determine if global prompts should be disabled
+	disableGlobal := ast.shouldDisableGlobalPrompts(ctx, createResponse)
+
+	// Get assistant prompts (default or preset)
+	assistantPrompts := ast.getAssistantPrompts(ctx, createResponse)
 
 	var allPrompts []store.Prompt
 
 	// 1. Add global prompts (if not disabled)
-	if !ast.DisableGlobalPrompts && len(globalPrompts) > 0 {
+	if !disableGlobal && len(globalPrompts) > 0 {
 		// Parse global prompts with context variables
 		parsedGlobal := store.Prompts(globalPrompts).Parse(ctxVars)
 		allPrompts = append(allPrompts, parsedGlobal...)
 	}
 
-	// 2. Add assistant prompts
-	if len(ast.Prompts) > 0 {
+	// 2. Add assistant prompts (default or preset)
+	if len(assistantPrompts) > 0 {
 		// Parse assistant prompts with context variables
-		parsedAssistant := store.Prompts(ast.Prompts).Parse(ctxVars)
+		parsedAssistant := store.Prompts(assistantPrompts).Parse(ctxVars)
 		allPrompts = append(allPrompts, parsedAssistant...)
 	}
 
@@ -101,6 +117,61 @@ func (ast *Assistant) buildSystemPrompts(ctx *context.Context) []context.Message
 	}
 
 	return messages
+}
+
+// shouldDisableGlobalPrompts determines if global prompts should be disabled
+// Priority: createResponse > ctx.Metadata > ast.DisableGlobalPrompts
+func (ast *Assistant) shouldDisableGlobalPrompts(ctx *context.Context, createResponse *context.HookCreateResponse) bool {
+	// Priority 1: Hook response (highest)
+	if createResponse != nil && createResponse.DisableGlobalPrompts != nil {
+		return *createResponse.DisableGlobalPrompts
+	}
+
+	// Priority 2: ctx.Metadata["__disable_global_prompts"]
+	if ctx != nil && ctx.Metadata != nil {
+		if disable, ok := ctx.Metadata["__disable_global_prompts"].(bool); ok {
+			return disable
+		}
+	}
+
+	// Priority 3: Assistant configuration (default)
+	return ast.DisableGlobalPrompts
+}
+
+// getAssistantPrompts returns the assistant prompts based on preset selection
+// Priority: createResponse.PromptPreset > ctx.Metadata["__prompt_preset"] > ast.Prompts
+func (ast *Assistant) getAssistantPrompts(ctx *context.Context, createResponse *context.HookCreateResponse) []store.Prompt {
+	// Get preset key
+	presetKey := ast.getPromptPresetKey(ctx, createResponse)
+
+	// If preset key is specified and exists, use it
+	if presetKey != "" && ast.PromptPresets != nil {
+		if presets, ok := ast.PromptPresets[presetKey]; ok && len(presets) > 0 {
+			return presets
+		}
+	}
+
+	// Fallback to default prompts
+	return ast.Prompts
+}
+
+// getPromptPresetKey returns the prompt preset key
+// Priority: createResponse.PromptPreset > ctx.Metadata["__prompt_preset"]
+func (ast *Assistant) getPromptPresetKey(ctx *context.Context, createResponse *context.HookCreateResponse) string {
+	// Priority 1: Hook response (highest)
+	if createResponse != nil && createResponse.PromptPreset != "" {
+		return createResponse.PromptPreset
+	}
+
+	// Priority 2: ctx.Metadata["__prompt_preset"]
+	if ctx != nil && ctx.Metadata != nil {
+		if preset, ok := ctx.Metadata["__prompt_preset"].(string); ok && preset != "" {
+			return preset
+		}
+	}
+
+	// No preset specified
+	return ""
 }
 
 // buildContextVariables extracts context variables from Context and Assistant for prompt parsing

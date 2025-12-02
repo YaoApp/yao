@@ -326,6 +326,10 @@ type HookCreateResponse struct {
 	// MCP configuration - allow hook to add/override MCP servers for this request
 	MCPServers []MCPServerConfig `json:"mcp_servers,omitempty"`
 
+	// Prompt configuration
+	PromptPreset         string `json:"prompt_preset,omitempty"`          // Select prompt preset (e.g., "chat.friendly", "task.analysis")
+	DisableGlobalPrompts *bool  `json:"disable_global_prompts,omitempty"` // Temporarily disable global prompts for this request
+
 	// Context adjustments - allow hook to modify context fields
 	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID
 	Connector   string                 `json:"connector,omitempty"`    // Override connector
