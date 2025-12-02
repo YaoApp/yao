@@ -22,9 +22,12 @@ var AssistantAllowedFields = map[string]bool{
 	"disable_global_prompts": true,
 	"workflow":               true,
 	"kb":                     true,
+	"db":                     true,
 	"mcp":                    true,
 	"source":                 true,
 	"tags":                   true,
+	"modes":                  true,
+	"default_mode":           true,
 	"readonly":               true,
 	"public":                 true,
 	"share":                  true,
@@ -49,7 +52,9 @@ var AssistantDefaultFields = []string{
 	"avatar",
 	"connector",
 	"description",
-	"tags", // Tags for categorization (lightweight)
+	"tags",         // Tags for categorization (lightweight)
+	"modes",        // Supported modes (lightweight)
+	"default_mode", // Default mode (lightweight)
 	"sort",
 	"built_in",
 	"readonly",
@@ -58,6 +63,7 @@ var AssistantDefaultFields = []string{
 	"automated",
 	"mentionable",
 	"kb",  // Knowledge base configuration (lightweight)
+	"db",  // Database configuration (lightweight)
 	"mcp", // MCP servers configuration (lightweight)
 	"created_at",
 	"updated_at",
@@ -87,9 +93,12 @@ var AssistantFullFields = []string{
 	"disable_global_prompts",
 	"workflow",
 	"kb",
+	"db",
 	"mcp",
 	"source",
 	"tags",
+	"modes",
+	"default_mode",
 	"readonly",
 	"public",
 	"share",

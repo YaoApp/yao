@@ -156,12 +156,28 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 		data["tags"] = jsonStr
 	}
 
+	if assistant.Modes != nil {
+		jsonStr, err := jsoniter.MarshalToString(assistant.Modes)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal modes: %w", err)
+		}
+		data["modes"] = jsonStr
+	}
+
+	// DefaultMode is a simple string field
+	if assistant.DefaultMode != "" {
+		data["default_mode"] = assistant.DefaultMode
+	} else {
+		data["default_mode"] = nil
+	}
+
 	// Handle interface{} fields - they should already be in the correct format
 	jsonFields := map[string]interface{}{
 		"prompts":           assistant.Prompts,
 		"prompt_presets":    assistant.PromptPresets,
 		"connector_options": assistant.ConnectorOptions,
 		"kb":                assistant.KB,
+		"db":                assistant.DB,
 		"mcp":               assistant.MCP,
 		"workflow":          assistant.Workflow,
 		"placeholder":       assistant.Placeholder,
@@ -225,14 +241,14 @@ func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interfac
 	data := make(map[string]interface{})
 
 	// List of fields that need JSON marshaling
-	jsonFields := []string{"options", "tags", "prompts", "prompt_presets", "connector_options", "kb", "mcp", "workflow", "placeholder", "locales", "uses"}
+	jsonFields := []string{"options", "tags", "modes", "prompts", "prompt_presets", "connector_options", "kb", "db", "mcp", "workflow", "placeholder", "locales", "uses"}
 	jsonFieldSet := make(map[string]bool)
 	for _, field := range jsonFields {
 		jsonFieldSet[field] = true
 	}
 
 	// List of nullable string fields
-	nullableStringFields := []string{"name", "avatar", "description", "path", "source", "__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id"}
+	nullableStringFields := []string{"name", "avatar", "description", "path", "source", "default_mode", "__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id"}
 	nullableFieldSet := make(map[string]bool)
 	for _, field := range nullableStringFields {
 		nullableFieldSet[field] = true
@@ -498,7 +514,7 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "mcp", "placeholder", "locales", "uses"}
+	jsonFields := []string{"tags", "modes", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "db", "mcp", "placeholder", "locales", "uses"}
 	conv.parseJSONFields(data, jsonFields)
 
 	// Convert map to types.AssistantModel
@@ -513,6 +529,7 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 		BuiltIn:              getBool(data, "built_in"),
 		Sort:                 getInt(data, "sort"),
 		Description:          getString(data, "description"),
+		DefaultMode:          getString(data, "default_mode"),
 		Readonly:             getBool(data, "readonly"),
 		Public:               getBool(data, "public"),
 		Share:                getString(data, "share"),
@@ -533,6 +550,16 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 		for i, tag := range tags {
 			if s, ok := tag.(string); ok {
 				model.Tags[i] = s
+			}
+		}
+	}
+
+	// Handle Modes
+	if modes, ok := data["modes"].([]interface{}); ok {
+		model.Modes = make([]string, len(modes))
+		for i, mode := range modes {
+			if s, ok := mode.(string); ok {
+				model.Modes[i] = s
 			}
 		}
 	}
@@ -578,6 +605,13 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 		kbConverted, err := types.ToKnowledgeBase(kb)
 		if err == nil {
 			model.KB = kbConverted
+		}
+	}
+
+	if db, has := data["db"]; has && db != nil {
+		dbConverted, err := types.ToDatabase(db)
+		if err == nil {
+			model.DB = dbConverted
 		}
 	}
 

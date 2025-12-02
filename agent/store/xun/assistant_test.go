@@ -2398,6 +2398,196 @@ func TestUpdateAssistant(t *testing.T) {
 		}
 	})
 
+	t.Run("UpdateKBDBAndMCP", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "KB DB MCP Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update KB, DB and MCP
+		updates := map[string]interface{}{
+			"kb": map[string]interface{}{
+				"collections": []string{"collection1", "collection2"},
+			},
+			"db": map[string]interface{}{
+				"models": []string{"model1", "model2"},
+			},
+			"mcp": map[string]interface{}{
+				"servers": []string{"server1", "server2"},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update KB, DB and MCP: %v", err)
+		}
+
+		// Verify updates - KB, DB and MCP are in default fields
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.KB == nil || len(retrieved.KB.Collections) != 2 {
+			t.Errorf("Expected 2 KB collections, got %v", retrieved.KB)
+		}
+		if retrieved.DB == nil || len(retrieved.DB.Models) != 2 {
+			t.Errorf("Expected 2 DB models, got %v", retrieved.DB)
+		}
+		if retrieved.DB.Models[0] != "model1" {
+			t.Errorf("Expected first model 'model1', got '%s'", retrieved.DB.Models[0])
+		}
+		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 2 {
+			t.Errorf("Expected 2 MCP servers, got %v", retrieved.MCP)
+		}
+		if retrieved.MCP.Servers[0].ServerID != "server1" {
+			t.Errorf("Expected first server 'server1', got '%s'", retrieved.MCP.Servers[0].ServerID)
+		}
+	})
+
+	t.Run("UpdateDBWithOptions", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "DB Advanced Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with DB using advanced configuration
+		updates := map[string]interface{}{
+			"db": map[string]interface{}{
+				"models": []string{"user", "product", "order"},
+				"options": map[string]interface{}{
+					"limit":  100,
+					"offset": 0,
+				},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update DB: %v", err)
+		}
+
+		// Verify updates - DB is in default fields
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.DB == nil {
+			t.Fatal("Expected DB to be set")
+		}
+		if len(retrieved.DB.Models) != 3 {
+			t.Errorf("Expected 3 DB models, got %d", len(retrieved.DB.Models))
+		}
+		if retrieved.DB.Models[0] != "user" {
+			t.Errorf("Expected first model 'user', got '%s'", retrieved.DB.Models[0])
+		}
+		if retrieved.DB.Options == nil {
+			t.Error("Expected DB options to be set")
+		} else {
+			if limit, ok := retrieved.DB.Options["limit"].(float64); !ok || limit != 100 {
+				t.Errorf("Expected DB limit 100, got %v", retrieved.DB.Options["limit"])
+			}
+		}
+	})
+
+	t.Run("UpdateModesAndDefaultMode", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "Modes Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with modes and default_mode
+		updates := map[string]interface{}{
+			"modes":        []string{"chat", "task", "analyze"},
+			"default_mode": "chat",
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update modes: %v", err)
+		}
+
+		// Verify updates - modes and default_mode are in default fields
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Modes == nil || len(retrieved.Modes) != 3 {
+			t.Errorf("Expected 3 modes, got %v", retrieved.Modes)
+		}
+		if retrieved.Modes[0] != "chat" {
+			t.Errorf("Expected first mode 'chat', got '%s'", retrieved.Modes[0])
+		}
+		if retrieved.DefaultMode != "chat" {
+			t.Errorf("Expected default_mode 'chat', got '%s'", retrieved.DefaultMode)
+		}
+	})
+
+	t.Run("UpdateModesOnly", func(t *testing.T) {
+		// Create assistant with default_mode
+		assistant := &types.AssistantModel{
+			Name:        "Modes Only Test",
+			Type:        "assistant",
+			Connector:   "openai",
+			Share:       "private",
+			DefaultMode: "task",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update only modes
+		updates := map[string]interface{}{
+			"modes": []string{"chat", "task"},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update modes: %v", err)
+		}
+
+		// Verify updates - default_mode should remain unchanged
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if len(retrieved.Modes) != 2 {
+			t.Errorf("Expected 2 modes, got %d", len(retrieved.Modes))
+		}
+		if retrieved.DefaultMode != "task" {
+			t.Errorf("Expected default_mode to remain 'task', got '%s'", retrieved.DefaultMode)
+		}
+	})
+
 	t.Run("UpdateMCPWithToolsAndResources", func(t *testing.T) {
 		// Create assistant
 		assistant := &types.AssistantModel{

@@ -101,6 +101,12 @@ type KnowledgeBase struct {
 	Options     map[string]interface{} `json:"options,omitempty"`     // Additional options for knowledge base
 }
 
+// Database the database configuration
+type Database struct {
+	Models  []string               `json:"models,omitempty"`  // Database models
+	Options map[string]interface{} `json:"options,omitempty"` // Additional options for database
+}
+
 // MCPServers the MCP servers configuration
 // Supports multiple formats in the servers array:
 // - Simple string: "server_id"
@@ -257,6 +263,8 @@ type AssistantModel struct {
 	Sort                 int                    `json:"sort,omitempty"`                   // Assistant Sort
 	Description          string                 `json:"description,omitempty"`            // Assistant Description
 	Tags                 []string               `json:"tags,omitempty"`                   // Assistant Tags
+	Modes                []string               `json:"modes,omitempty"`                  // Supported modes (e.g., ["task", "chat"]), null means all modes are supported
+	DefaultMode          string                 `json:"default_mode,omitempty"`           // Default mode, can be empty
 	Readonly             bool                   `json:"readonly,omitempty"`               // Whether this assistant is readonly
 	Public               bool                   `json:"public,omitempty"`                 // Whether this assistant is shared across all teams in the platform
 	Share                string                 `json:"share,omitempty"`                  // Assistant sharing scope (private/team)
@@ -267,6 +275,7 @@ type AssistantModel struct {
 	PromptPresets        map[string][]Prompt    `json:"prompt_presets,omitempty"`         // Prompt presets organized by mode (e.g., "chat", "task", etc.)
 	DisableGlobalPrompts bool                   `json:"disable_global_prompts,omitempty"` // Whether to disable global prompts, default is false
 	KB                   *KnowledgeBase         `json:"kb,omitempty"`                     // Knowledge base configuration
+	DB                   *Database              `json:"db,omitempty"`                     // Database configuration
 	MCP                  *MCPServers            `json:"mcp,omitempty"`                    // MCP servers configuration
 	Workflow             *Workflow              `json:"workflow,omitempty"`               // Workflow configuration
 	Placeholder          *Placeholder           `json:"placeholder,omitempty"`            // Assistant Placeholder

@@ -50,6 +50,44 @@ func ToKnowledgeBase(v interface{}) (*KnowledgeBase, error) {
 	}
 }
 
+// ToDatabase converts various types to Database
+func ToDatabase(v interface{}) (*Database, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch db := v.(type) {
+	case *Database:
+		return db, nil
+
+	case Database:
+		return &db, nil
+
+	case []string:
+		return &Database{Models: db}, nil
+
+	case []interface{}:
+		var models []string
+		for _, item := range db {
+			models = append(models, cast.ToString(item))
+		}
+		return &Database{Models: models}, nil
+
+	default:
+		raw, err := jsoniter.Marshal(db)
+		if err != nil {
+			return nil, fmt.Errorf("db format error: %s", err.Error())
+		}
+
+		var database Database
+		err = jsoniter.Unmarshal(raw, &database)
+		if err != nil {
+			return nil, fmt.Errorf("db format error: %s", err.Error())
+		}
+		return &database, nil
+	}
+}
+
 // ToMCPServers converts various types to MCPServers
 func ToMCPServers(v interface{}) (*MCPServers, error) {
 	if v == nil {
@@ -264,6 +302,22 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		}
 	}
 
+	// Modes (string array)
+	if modes, ok := data["modes"]; ok && modes != nil {
+		raw, err := jsoniter.Marshal(modes)
+		if err == nil {
+			var m []string
+			if err := jsoniter.Unmarshal(raw, &m); err == nil {
+				model.Modes = m
+			}
+		}
+	}
+
+	// DefaultMode (string)
+	if defaultMode, ok := data["default_mode"].(string); ok {
+		model.DefaultMode = defaultMode
+	}
+
 	// Options (map)
 	if options, ok := data["options"].(map[string]interface{}); ok {
 		model.Options = options
@@ -310,6 +364,14 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		kbConverted, err := ToKnowledgeBase(kb)
 		if err == nil {
 			model.KB = kbConverted
+		}
+	}
+
+	// DB
+	if db, ok := data["db"]; ok && db != nil {
+		dbConverted, err := ToDatabase(db)
+		if err == nil {
+			model.DB = dbConverted
 		}
 	}
 

@@ -148,6 +148,13 @@
       "nullable": true
     },
     {
+      "name": "db",
+      "type": "json",
+      "label": "Database",
+      "comment": "Assistant database models",
+      "nullable": true
+    },
+    {
       "name": "mcp",
       "type": "json",
       "label": "MCP Servers",
@@ -166,6 +173,21 @@
       "type": "json",
       "label": "Tags",
       "comment": "Assistant tags",
+      "nullable": true
+    },
+    {
+      "name": "modes",
+      "type": "json",
+      "label": "Modes",
+      "comment": "Supported modes (e.g., chat, task), null means all modes are supported",
+      "nullable": true
+    },
+    {
+      "name": "default_mode",
+      "type": "string",
+      "label": "Default Mode",
+      "comment": "Default mode for the assistant",
+      "length": 50,
       "nullable": true
     },
     {
