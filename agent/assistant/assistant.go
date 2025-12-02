@@ -15,31 +15,6 @@ func Get(id string) (*Assistant, error) {
 	return LoadStore(id)
 }
 
-// GetByConnector get the assistant by connector
-func GetByConnector(connector string, name string) (*Assistant, error) {
-	id := "connector:" + connector
-
-	assistant, exists := loaded.Get(id)
-	if exists {
-		return assistant, nil
-	}
-
-	data := map[string]interface{}{
-		"assistant_id": id,
-		"connector":    connector,
-		"description":  "Default assistant for " + connector,
-		"name":         name,
-		"type":         "assistant",
-	}
-
-	assistant, err := loadMap(data)
-	if err != nil {
-		return nil, err
-	}
-	loaded.Put(assistant)
-	return assistant, nil
-}
-
 // GetPlaceholder returns the placeholder of the assistant
 func (ast *Assistant) GetPlaceholder(locale string) *store.Placeholder {
 
@@ -88,30 +63,33 @@ func (ast *Assistant) Map() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"assistant_id": ast.ID,
-		"type":         ast.Type,
-		"name":         ast.Name,
-		"readonly":     ast.Readonly,
-		"public":       ast.Public,
-		"share":        ast.Share,
-		"avatar":       ast.Avatar,
-		"connector":    ast.Connector,
-		"path":         ast.Path,
-		"built_in":     ast.BuiltIn,
-		"sort":         ast.Sort,
-		"description":  ast.Description,
-		"options":      ast.Options,
-		"prompts":      ast.Prompts,
-		"kb":           ast.KB,
-		"mcp":          ast.MCP,
-		"workflow":     ast.Workflow,
-		"tags":         ast.Tags,
-		"mentionable":  ast.Mentionable,
-		"automated":    ast.Automated,
-		"placeholder":  ast.Placeholder,
-		"locales":      ast.Locales,
-		"created_at":   store.ToMySQLTime(ast.CreatedAt),
-		"updated_at":   store.ToMySQLTime(ast.UpdatedAt),
+		"assistant_id":      ast.ID,
+		"type":              ast.Type,
+		"name":              ast.Name,
+		"readonly":          ast.Readonly,
+		"public":            ast.Public,
+		"share":             ast.Share,
+		"avatar":            ast.Avatar,
+		"connector":         ast.Connector,
+		"connector_options": ast.ConnectorOptions,
+		"path":              ast.Path,
+		"built_in":          ast.BuiltIn,
+		"sort":              ast.Sort,
+		"description":       ast.Description,
+		"options":           ast.Options,
+		"prompts":           ast.Prompts,
+		"prompt_presets":    ast.PromptPresets,
+		"source":            ast.Source,
+		"kb":                ast.KB,
+		"mcp":               ast.MCP,
+		"workflow":          ast.Workflow,
+		"tags":              ast.Tags,
+		"mentionable":       ast.Mentionable,
+		"automated":         ast.Automated,
+		"placeholder":       ast.Placeholder,
+		"locales":           ast.Locales,
+		"created_at":        store.ToMySQLTime(ast.CreatedAt),
+		"updated_at":        store.ToMySQLTime(ast.UpdatedAt),
 	}
 }
 
@@ -173,6 +151,7 @@ func (ast *Assistant) Clone() *Assistant {
 			Share:       ast.Share,
 			Mentionable: ast.Mentionable,
 			Automated:   ast.Automated,
+			Source:      ast.Source,
 			CreatedAt:   ast.CreatedAt,
 			UpdatedAt:   ast.UpdatedAt,
 		},
@@ -243,6 +222,31 @@ func (ast *Assistant) Clone() *Assistant {
 	if ast.Prompts != nil {
 		clone.Prompts = make([]store.Prompt, len(ast.Prompts))
 		copy(clone.Prompts, ast.Prompts)
+	}
+
+	// Deep copy prompt presets
+	if ast.PromptPresets != nil {
+		clone.PromptPresets = make(map[string][]store.Prompt)
+		for k, v := range ast.PromptPresets {
+			prompts := make([]store.Prompt, len(v))
+			copy(prompts, v)
+			clone.PromptPresets[k] = prompts
+		}
+	}
+
+	// Deep copy connector options
+	if ast.ConnectorOptions != nil {
+		clone.ConnectorOptions = &store.ConnectorOptions{
+			Optional: ast.ConnectorOptions.Optional,
+		}
+		if ast.ConnectorOptions.Connectors != nil {
+			clone.ConnectorOptions.Connectors = make([]string, len(ast.ConnectorOptions.Connectors))
+			copy(clone.ConnectorOptions.Connectors, ast.ConnectorOptions.Connectors)
+		}
+		if ast.ConnectorOptions.Filters != nil {
+			clone.ConnectorOptions.Filters = make([]store.ModelCapability, len(ast.ConnectorOptions.Filters))
+			copy(clone.ConnectorOptions.Filters, ast.ConnectorOptions.Filters)
+		}
 	}
 
 	// Deep copy workflow
@@ -340,6 +344,27 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 	}
 	if v, ok := data["options"].(map[string]interface{}); ok {
 		ast.Options = v
+	}
+	if v, ok := data["source"].(string); ok {
+		ast.Source = v
+	}
+
+	// ConnectorOptions
+	if v, has := data["connector_options"]; has {
+		connOpts, err := store.ToConnectorOptions(v)
+		if err != nil {
+			return err
+		}
+		ast.ConnectorOptions = connOpts
+	}
+
+	// PromptPresets
+	if v, has := data["prompt_presets"]; has {
+		presets, err := store.ToPromptPresets(v)
+		if err != nil {
+			return err
+		}
+		ast.PromptPresets = presets
 	}
 
 	// KB

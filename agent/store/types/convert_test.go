@@ -1148,6 +1148,273 @@ func TestModelID(t *testing.T) {
 	})
 }
 
+// TestToConnectorOptions tests the ToConnectorOptions conversion function
+func TestToConnectorOptions(t *testing.T) {
+	t.Run("NilInput", func(t *testing.T) {
+		result, err := ToConnectorOptions(nil)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != nil {
+			t.Errorf("Expected nil result, got: %v", result)
+		}
+	})
+
+	t.Run("ConnectorOptionsPointer", func(t *testing.T) {
+		opts := &ConnectorOptions{
+			Optional:   true,
+			Connectors: []string{"openai", "anthropic"},
+			Filters:    []ModelCapability{CapVision, CapToolCalls},
+		}
+		result, err := ToConnectorOptions(opts)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != opts {
+			t.Errorf("Expected same pointer")
+		}
+	})
+
+	t.Run("ConnectorOptionsValue", func(t *testing.T) {
+		opts := ConnectorOptions{
+			Optional:   true,
+			Connectors: []string{"openai", "anthropic"},
+			Filters:    []ModelCapability{CapVision, CapToolCalls},
+		}
+		result, err := ToConnectorOptions(opts)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if !result.Optional {
+			t.Error("Expected Optional to be true")
+		}
+		if len(result.Connectors) != 2 {
+			t.Errorf("Expected 2 connectors, got %d", len(result.Connectors))
+		}
+		if len(result.Filters) != 2 {
+			t.Errorf("Expected 2 filters, got %d", len(result.Filters))
+		}
+	})
+
+	t.Run("MapInput", func(t *testing.T) {
+		data := map[string]interface{}{
+			"optional":   true,
+			"connectors": []string{"openai", "anthropic", "azure"},
+			"filters":    []string{"vision", "tool_calls", "audio"},
+		}
+		result, err := ToConnectorOptions(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if !result.Optional {
+			t.Error("Expected Optional to be true")
+		}
+		if len(result.Connectors) != 3 {
+			t.Errorf("Expected 3 connectors, got %d", len(result.Connectors))
+		}
+		if len(result.Filters) != 3 {
+			t.Errorf("Expected 3 filters, got %d", len(result.Filters))
+		}
+	})
+
+	t.Run("MapInputOptionalOnly", func(t *testing.T) {
+		data := map[string]interface{}{
+			"optional": true,
+		}
+		result, err := ToConnectorOptions(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if !result.Optional {
+			t.Error("Expected Optional to be true")
+		}
+		if result.Connectors != nil {
+			t.Error("Expected Connectors to be nil")
+		}
+		if result.Filters != nil {
+			t.Error("Expected Filters to be nil")
+		}
+	})
+
+	t.Run("InvalidInput", func(t *testing.T) {
+		// Test with data that can't be marshaled
+		invalidData := make(chan int)
+		_, err := ToConnectorOptions(invalidData)
+		if err == nil {
+			t.Error("Expected error for invalid input")
+		}
+	})
+
+	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
+		// Test with data that marshals but can't unmarshal to ConnectorOptions
+		data := map[string]interface{}{
+			"invalid_field": "should cause unmarshal to fail gracefully",
+		}
+		result, err := ToConnectorOptions(data)
+		// Should not error, just return empty ConnectorOptions
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result == nil {
+			t.Error("Expected non-nil result")
+		}
+	})
+}
+
+// TestToPromptPresets tests the ToPromptPresets conversion function
+func TestToPromptPresets(t *testing.T) {
+	t.Run("NilInput", func(t *testing.T) {
+		result, err := ToPromptPresets(nil)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != nil {
+			t.Errorf("Expected nil result, got: %v", result)
+		}
+	})
+
+	t.Run("MapStringPromptSlice", func(t *testing.T) {
+		presets := map[string][]Prompt{
+			"chat": {
+				{Role: "system", Content: "You are a chat assistant"},
+			},
+			"task": {
+				{Role: "system", Content: "You are a task assistant"},
+			},
+		}
+		result, err := ToPromptPresets(presets)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 2 {
+			t.Errorf("Expected 2 presets, got %d", len(result))
+		}
+		if len(result["chat"]) != 1 {
+			t.Errorf("Expected 1 chat prompt, got %d", len(result["chat"]))
+		}
+		if len(result["task"]) != 1 {
+			t.Errorf("Expected 1 task prompt, got %d", len(result["task"]))
+		}
+	})
+
+	t.Run("MapInput", func(t *testing.T) {
+		data := map[string]interface{}{
+			"chat": []interface{}{
+				map[string]interface{}{"role": "system", "content": "Chat mode system prompt"},
+				map[string]interface{}{"role": "user", "content": "Example user message"},
+			},
+			"task": []interface{}{
+				map[string]interface{}{"role": "system", "content": "Task mode system prompt"},
+			},
+			"analyze": []interface{}{
+				map[string]interface{}{"role": "system", "content": "Analyze mode system prompt"},
+			},
+		}
+		result, err := ToPromptPresets(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("Expected 3 presets, got %d", len(result))
+		}
+		if len(result["chat"]) != 2 {
+			t.Errorf("Expected 2 chat prompts, got %d", len(result["chat"]))
+		}
+		if len(result["task"]) != 1 {
+			t.Errorf("Expected 1 task prompt, got %d", len(result["task"]))
+		}
+		if len(result["analyze"]) != 1 {
+			t.Errorf("Expected 1 analyze prompt, got %d", len(result["analyze"]))
+		}
+	})
+
+	t.Run("EmptyMap", func(t *testing.T) {
+		data := map[string]interface{}{}
+		result, err := ToPromptPresets(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result == nil {
+			t.Error("Expected non-nil result")
+		}
+		if len(result) != 0 {
+			t.Errorf("Expected empty map, got %d entries", len(result))
+		}
+	})
+
+	t.Run("SinglePreset", func(t *testing.T) {
+		data := map[string]interface{}{
+			"default": []interface{}{
+				map[string]interface{}{"role": "system", "content": "Default prompt"},
+			},
+		}
+		result, err := ToPromptPresets(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 1 {
+			t.Errorf("Expected 1 preset, got %d", len(result))
+		}
+		if _, ok := result["default"]; !ok {
+			t.Error("Expected 'default' key in result")
+		}
+	})
+
+	t.Run("InvalidInput", func(t *testing.T) {
+		// Test with data that can't be marshaled
+		invalidData := make(chan int)
+		_, err := ToPromptPresets(invalidData)
+		if err == nil {
+			t.Error("Expected error for invalid input")
+		}
+	})
+
+	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
+		// Test with data that marshals but can't unmarshal to map[string][]Prompt
+		// This is a string that can be marshaled but won't unmarshal to the expected type
+		data := "not a map"
+		_, err := ToPromptPresets(data)
+		if err == nil {
+			t.Error("Expected error for invalid JSON unmarshal")
+		}
+	})
+
+	t.Run("PromptWithAllFields", func(t *testing.T) {
+		data := map[string]interface{}{
+			"advanced": []interface{}{
+				map[string]interface{}{
+					"role":    "system",
+					"content": "Advanced system prompt",
+					"name":    "system-prompt",
+				},
+				map[string]interface{}{
+					"role":    "user",
+					"content": "User example",
+					"name":    "user-example",
+				},
+				map[string]interface{}{
+					"role":    "assistant",
+					"content": "Assistant response",
+					"name":    "assistant-response",
+				},
+			},
+		}
+		result, err := ToPromptPresets(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result["advanced"]) != 3 {
+			t.Errorf("Expected 3 prompts in advanced, got %d", len(result["advanced"]))
+		}
+		if result["advanced"][0].Role != "system" {
+			t.Errorf("Expected role 'system', got '%s'", result["advanced"][0].Role)
+		}
+		if result["advanced"][0].Content != "Advanced system prompt" {
+			t.Errorf("Expected content 'Advanced system prompt', got '%s'", result["advanced"][0].Content)
+		}
+	})
+}
+
 // TestParseModelID tests the ParseModelID function
 func TestParseModelID(t *testing.T) {
 	t.Run("ValidModelID", func(t *testing.T) {

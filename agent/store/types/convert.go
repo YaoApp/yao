@@ -462,3 +462,56 @@ func ParseModelID(modelID string) string {
 	}
 	return parts[len(parts)-1]
 }
+
+// ToConnectorOptions converts various types to ConnectorOptions
+func ToConnectorOptions(v interface{}) (*ConnectorOptions, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch opts := v.(type) {
+	case *ConnectorOptions:
+		return opts, nil
+
+	case ConnectorOptions:
+		return &opts, nil
+
+	default:
+		raw, err := jsoniter.Marshal(opts)
+		if err != nil {
+			return nil, fmt.Errorf("connector_options format error: %s", err.Error())
+		}
+
+		var connOpts ConnectorOptions
+		err = jsoniter.Unmarshal(raw, &connOpts)
+		if err != nil {
+			return nil, fmt.Errorf("connector_options format error: %s", err.Error())
+		}
+		return &connOpts, nil
+	}
+}
+
+// ToPromptPresets converts various types to map[string][]Prompt
+func ToPromptPresets(v interface{}) (map[string][]Prompt, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch presets := v.(type) {
+	case map[string][]Prompt:
+		return presets, nil
+
+	default:
+		raw, err := jsoniter.Marshal(presets)
+		if err != nil {
+			return nil, fmt.Errorf("prompt_presets format error: %s", err.Error())
+		}
+
+		var result map[string][]Prompt
+		err = jsoniter.Unmarshal(raw, &result)
+		if err != nil {
+			return nil, fmt.Errorf("prompt_presets format error: %s", err.Error())
+		}
+		return result, nil
+	}
+}
