@@ -22,6 +22,7 @@ var AssistantAllowedFields = map[string]bool{
 	"disable_global_prompts": true,
 	"workflow":               true,
 	"kb":                     true,
+	"db":                     true,
 	"mcp":                    true,
 	"source":                 true,
 	"tags":                   true,
@@ -58,6 +59,7 @@ var AssistantDefaultFields = []string{
 	"automated",
 	"mentionable",
 	"kb",  // Knowledge base configuration (lightweight)
+	"db",  // Database configuration (lightweight)
 	"mcp", // MCP servers configuration (lightweight)
 	"created_at",
 	"updated_at",
@@ -87,6 +89,7 @@ var AssistantFullFields = []string{
 	"disable_global_prompts",
 	"workflow",
 	"kb",
+	"db",
 	"mcp",
 	"source",
 	"tags",

@@ -5,6 +5,106 @@ import (
 	"time"
 )
 
+// TestToDatabase tests the ToDatabase conversion function
+func TestToDatabase(t *testing.T) {
+	t.Run("NilInput", func(t *testing.T) {
+		result, err := ToDatabase(nil)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != nil {
+			t.Errorf("Expected nil result, got: %v", result)
+		}
+	})
+
+	t.Run("DatabasePointer", func(t *testing.T) {
+		db := &Database{Models: []string{"model1", "model2"}}
+		result, err := ToDatabase(db)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != db {
+			t.Errorf("Expected same pointer")
+		}
+	})
+
+	t.Run("DatabaseValue", func(t *testing.T) {
+		db := Database{Models: []string{"model1", "model2"}}
+		result, err := ToDatabase(db)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result.Models) != 2 {
+			t.Errorf("Expected 2 models, got %d", len(result.Models))
+		}
+	})
+
+	t.Run("StringSlice", func(t *testing.T) {
+		models := []string{"model1", "model2", "model3"}
+		result, err := ToDatabase(models)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result.Models) != 3 {
+			t.Errorf("Expected 3 models, got %d", len(result.Models))
+		}
+		if result.Models[0] != "model1" {
+			t.Errorf("Expected 'model1', got '%s'", result.Models[0])
+		}
+	})
+
+	t.Run("InterfaceSlice", func(t *testing.T) {
+		models := []interface{}{"model1", "model2", 123}
+		result, err := ToDatabase(models)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result.Models) != 3 {
+			t.Errorf("Expected 3 models, got %d", len(result.Models))
+		}
+		if result.Models[2] != "123" {
+			t.Errorf("Expected '123', got '%s'", result.Models[2])
+		}
+	})
+
+	t.Run("MapInput", func(t *testing.T) {
+		data := map[string]interface{}{
+			"models": []string{"model1", "model2"},
+		}
+		result, err := ToDatabase(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result.Models) != 2 {
+			t.Errorf("Expected 2 models, got %d", len(result.Models))
+		}
+	})
+
+	t.Run("InvalidInput", func(t *testing.T) {
+		// Test with data that can't be marshaled
+		invalidData := make(chan int)
+		_, err := ToDatabase(invalidData)
+		if err == nil {
+			t.Error("Expected error for invalid input")
+		}
+	})
+
+	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
+		// Test with data that marshals but can't unmarshal to Database
+		data := map[string]interface{}{
+			"invalid_field": "should cause unmarshal to fail gracefully",
+		}
+		result, err := ToDatabase(data)
+		// Should not error, just return empty Database
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result == nil {
+			t.Error("Expected non-nil result")
+		}
+	})
+}
+
 // TestToKnowledgeBase tests the ToKnowledgeBase conversion function
 func TestToKnowledgeBase(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
@@ -464,6 +564,9 @@ func TestToAssistantModel(t *testing.T) {
 			"kb": map[string]interface{}{
 				"collections": []string{"col1"},
 			},
+			"db": map[string]interface{}{
+				"models": []string{"model1"},
+			},
 			"mcp": map[string]interface{}{
 				"servers": []string{"server1"},
 			},
@@ -582,6 +685,9 @@ func TestToAssistantModel(t *testing.T) {
 		if result.KB == nil {
 			t.Error("Expected KB to be set")
 		}
+		if result.DB == nil {
+			t.Error("Expected DB to be set")
+		}
 		if result.MCP == nil {
 			t.Error("Expected MCP to be set")
 		}
@@ -626,6 +732,7 @@ func TestToAssistantModel(t *testing.T) {
 			"options":      nil,
 			"prompts":      nil,
 			"kb":           nil,
+			"db":           nil,
 			"mcp":          nil,
 			"workflow":     nil,
 			"placeholder":  nil,

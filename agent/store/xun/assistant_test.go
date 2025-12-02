@@ -2398,6 +2398,115 @@ func TestUpdateAssistant(t *testing.T) {
 		}
 	})
 
+	t.Run("UpdateKBDBAndMCP", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "KB DB MCP Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update KB, DB and MCP
+		updates := map[string]interface{}{
+			"kb": map[string]interface{}{
+				"collections": []string{"collection1", "collection2"},
+			},
+			"db": map[string]interface{}{
+				"models": []string{"model1", "model2"},
+			},
+			"mcp": map[string]interface{}{
+				"servers": []string{"server1", "server2"},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update KB, DB and MCP: %v", err)
+		}
+
+		// Verify updates - KB, DB and MCP are in default fields
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.KB == nil || len(retrieved.KB.Collections) != 2 {
+			t.Errorf("Expected 2 KB collections, got %v", retrieved.KB)
+		}
+		if retrieved.DB == nil || len(retrieved.DB.Models) != 2 {
+			t.Errorf("Expected 2 DB models, got %v", retrieved.DB)
+		}
+		if retrieved.DB.Models[0] != "model1" {
+			t.Errorf("Expected first model 'model1', got '%s'", retrieved.DB.Models[0])
+		}
+		if retrieved.MCP == nil || len(retrieved.MCP.Servers) != 2 {
+			t.Errorf("Expected 2 MCP servers, got %v", retrieved.MCP)
+		}
+		if retrieved.MCP.Servers[0].ServerID != "server1" {
+			t.Errorf("Expected first server 'server1', got '%s'", retrieved.MCP.Servers[0].ServerID)
+		}
+	})
+
+	t.Run("UpdateDBWithOptions", func(t *testing.T) {
+		// Create assistant
+		assistant := &types.AssistantModel{
+			Name:      "DB Advanced Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with DB using advanced configuration
+		updates := map[string]interface{}{
+			"db": map[string]interface{}{
+				"models": []string{"user", "product", "order"},
+				"options": map[string]interface{}{
+					"limit":  100,
+					"offset": 0,
+				},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update DB: %v", err)
+		}
+
+		// Verify updates - DB is in default fields
+		retrieved, err := store.GetAssistant(id, nil)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.DB == nil {
+			t.Fatal("Expected DB to be set")
+		}
+		if len(retrieved.DB.Models) != 3 {
+			t.Errorf("Expected 3 DB models, got %d", len(retrieved.DB.Models))
+		}
+		if retrieved.DB.Models[0] != "user" {
+			t.Errorf("Expected first model 'user', got '%s'", retrieved.DB.Models[0])
+		}
+		if retrieved.DB.Options == nil {
+			t.Error("Expected DB options to be set")
+		} else {
+			if limit, ok := retrieved.DB.Options["limit"].(float64); !ok || limit != 100 {
+				t.Errorf("Expected DB limit 100, got %v", retrieved.DB.Options["limit"])
+			}
+		}
+	})
+
 	t.Run("UpdateMCPWithToolsAndResources", func(t *testing.T) {
 		// Create assistant
 		assistant := &types.AssistantModel{

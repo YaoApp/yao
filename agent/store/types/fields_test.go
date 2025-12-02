@@ -122,6 +122,7 @@ func TestAssistantAllowedFields(t *testing.T) {
 			"disable_global_prompts",
 			"workflow",
 			"kb",
+			"db",
 			"mcp",
 			"placeholder",
 			"locales",
@@ -144,6 +145,7 @@ func TestAssistantDefaultFields(t *testing.T) {
 			"name",
 			"type",
 			"kb",               // Knowledge base is essential for assistant functionality
+			"db",               // Database is essential for assistant functionality
 			"mcp",              // MCP servers are essential for assistant functionality
 			"__yao_created_by", // Permission fields are essential for access control
 			"__yao_updated_by",
@@ -165,7 +167,7 @@ func TestAssistantDefaultFields(t *testing.T) {
 
 	t.Run("DoesNotContainSensitiveFields", func(t *testing.T) {
 		// Default fields should not include complex/large fields by default
-		// Note: kb, mcp, and tags are lightweight and included in defaults
+		// Note: kb, db, mcp, and tags are lightweight and included in defaults
 		sensitiveFields := []string{
 			"options",
 			"prompts",
@@ -228,6 +230,7 @@ func TestAssistantFullFields(t *testing.T) {
 			"disable_global_prompts",
 			"workflow",
 			"kb",
+			"db",
 			"mcp",
 			"placeholder",
 			"locales",

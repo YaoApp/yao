@@ -162,6 +162,7 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 		"prompt_presets":    assistant.PromptPresets,
 		"connector_options": assistant.ConnectorOptions,
 		"kb":                assistant.KB,
+		"db":                assistant.DB,
 		"mcp":               assistant.MCP,
 		"workflow":          assistant.Workflow,
 		"placeholder":       assistant.Placeholder,
@@ -225,7 +226,7 @@ func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interfac
 	data := make(map[string]interface{})
 
 	// List of fields that need JSON marshaling
-	jsonFields := []string{"options", "tags", "prompts", "prompt_presets", "connector_options", "kb", "mcp", "workflow", "placeholder", "locales", "uses"}
+	jsonFields := []string{"options", "tags", "prompts", "prompt_presets", "connector_options", "kb", "db", "mcp", "workflow", "placeholder", "locales", "uses"}
 	jsonFieldSet := make(map[string]bool)
 	for _, field := range jsonFields {
 		jsonFieldSet[field] = true
@@ -498,7 +499,7 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "mcp", "placeholder", "locales", "uses"}
+	jsonFields := []string{"tags", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "db", "mcp", "placeholder", "locales", "uses"}
 	conv.parseJSONFields(data, jsonFields)
 
 	// Convert map to types.AssistantModel
@@ -578,6 +579,13 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 		kbConverted, err := types.ToKnowledgeBase(kb)
 		if err == nil {
 			model.KB = kbConverted
+		}
+	}
+
+	if db, has := data["db"]; has && db != nil {
+		dbConverted, err := types.ToDatabase(db)
+		if err == nil {
+			model.DB = dbConverted
 		}
 	}
 

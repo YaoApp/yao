@@ -148,6 +148,13 @@
       "nullable": true
     },
     {
+      "name": "db",
+      "type": "json",
+      "label": "Database",
+      "comment": "Assistant database models",
+      "nullable": true
+    },
+    {
       "name": "mcp",
       "type": "json",
       "label": "MCP Servers",

@@ -82,6 +82,7 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"disable_global_prompts": ast.DisableGlobalPrompts,
 		"source":                 ast.Source,
 		"kb":                     ast.KB,
+		"db":                     ast.DB,
 		"mcp":                    ast.MCP,
 		"workflow":               ast.Workflow,
 		"tags":                   ast.Tags,
@@ -179,6 +180,21 @@ func (ast *Assistant) Clone() *Assistant {
 			clone.KB.Options = make(map[string]interface{})
 			for k, v := range ast.KB.Options {
 				clone.KB.Options[k] = v
+			}
+		}
+	}
+
+	// Deep copy DB
+	if ast.DB != nil {
+		clone.DB = &store.Database{}
+		if ast.DB.Models != nil {
+			clone.DB.Models = make([]string, len(ast.DB.Models))
+			copy(clone.DB.Models, ast.DB.Models)
+		}
+		if ast.DB.Options != nil {
+			clone.DB.Options = make(map[string]interface{})
+			for k, v := range ast.DB.Options {
+				clone.DB.Options[k] = v
 			}
 		}
 	}
@@ -379,6 +395,15 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 			return err
 		}
 		ast.KB = kb
+	}
+
+	// DB
+	if v, has := data["db"]; has {
+		db, err := store.ToDatabase(v)
+		if err != nil {
+			return err
+		}
+		ast.DB = db
 	}
 
 	// MCP
