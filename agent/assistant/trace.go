@@ -84,6 +84,16 @@ func (ast *Assistant) traceLLMComplete(ctx *context.Context, completionResponse 
 	trace.Complete(completionResponse)
 }
 
+// traceLLMFail marks the LLM request as failed in the trace
+func (ast *Assistant) traceLLMFail(ctx *context.Context, err error) {
+	trace, _ := ctx.Trace()
+	if trace == nil {
+		return
+	}
+
+	trace.Fail(err)
+}
+
 // traceAgentCompletion creates a completion node to report the final output
 func (ast *Assistant) traceAgentCompletion(ctx *context.Context, createResponse *context.HookCreateResponse, nextResponse *context.NextHookResponse, completionResponse *context.CompletionResponse, finalResponse interface{}) {
 	trace, _ := ctx.Trace()

@@ -47,6 +47,8 @@ func (ast *Assistant) executeLLMStream(
 	// Create LLM instance with connector and options
 	llmInstance, err := llm.New(conn, completionOptions)
 	if err != nil {
+		// Mark LLM Request as failed in trace
+		ast.traceLLMFail(ctx, err)
 		return nil, err
 	}
 
@@ -70,6 +72,8 @@ func (ast *Assistant) executeLLMStream(
 	log.Trace("[AGENT] LLM Stream returned: assistant=%s, err=%v", ast.ID, err)
 	if err != nil {
 		log.Trace("[AGENT] Calling sendStreamEndOnError")
+		// Mark LLM Request as failed in trace
+		ast.traceLLMFail(ctx, err)
 		return nil, err
 	}
 
@@ -108,6 +112,8 @@ func (ast *Assistant) executeLLMForToolRetry(
 	// Create LLM instance with connector and options
 	llmInstance, err := llm.New(conn, completionOptions)
 	if err != nil {
+		// Mark LLM Retry Request as failed in trace
+		ast.traceLLMFail(ctx, err)
 		return nil, err
 	}
 
@@ -116,6 +122,8 @@ func (ast *Assistant) executeLLMForToolRetry(
 	completionResponse, err := llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
 	log.Trace("[AGENT] LLM tool retry stream returned: assistant=%s, err=%v", ast.ID, err)
 	if err != nil {
+		// Mark LLM Retry Request as failed in trace
+		ast.traceLLMFail(ctx, err)
 		return nil, err
 	}
 
