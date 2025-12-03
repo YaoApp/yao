@@ -425,6 +425,20 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Automated = v
 	}
 
+	// modes
+	if v, has := data["modes"]; has {
+		modes, err := store.ToModes(v)
+		if err != nil {
+			return nil, err
+		}
+		assistant.Modes = modes
+	}
+
+	// default_mode
+	if v, ok := data["default_mode"].(string); ok {
+		assistant.DefaultMode = v
+	}
+
 	// DisableGlobalPrompts
 	if v, ok := data["disable_global_prompts"].(bool); ok {
 		assistant.DisableGlobalPrompts = v
@@ -591,6 +605,15 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			return nil, err
 		}
 		assistant.KB = knowledgeBase
+	}
+
+	// db
+	if db, has := data["db"]; has {
+		database, err := store.ToDatabase(db)
+		if err != nil {
+			return nil, err
+		}
+		assistant.DB = database
 	}
 
 	// mcp

@@ -556,6 +556,42 @@ func ToConnectorOptions(v interface{}) (*ConnectorOptions, error) {
 	}
 }
 
+// ToModes converts various types to []string for modes
+func ToModes(v interface{}) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch modes := v.(type) {
+	case []string:
+		return modes, nil
+
+	case []interface{}:
+		var result []string
+		for _, item := range modes {
+			result = append(result, cast.ToString(item))
+		}
+		return result, nil
+
+	case string:
+		// Single string becomes a slice with one element
+		return []string{modes}, nil
+
+	default:
+		raw, err := jsoniter.Marshal(modes)
+		if err != nil {
+			return nil, fmt.Errorf("modes format error: %s", err.Error())
+		}
+
+		var result []string
+		err = jsoniter.Unmarshal(raw, &result)
+		if err != nil {
+			return nil, fmt.Errorf("modes format error: %s", err.Error())
+		}
+		return result, nil
+	}
+}
+
 // ToPromptPresets converts various types to map[string][]Prompt
 func ToPromptPresets(v interface{}) (map[string][]Prompt, error) {
 	if v == nil {

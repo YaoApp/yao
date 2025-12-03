@@ -73,7 +73,8 @@ func TestLoadPath(t *testing.T) {
 
 		// ConnectorOptions
 		assert.NotNil(t, assistant.ConnectorOptions)
-		assert.True(t, assistant.ConnectorOptions.Optional)
+		assert.NotNil(t, assistant.ConnectorOptions.Optional)
+		assert.True(t, *assistant.ConnectorOptions.Optional)
 		assert.NotNil(t, assistant.ConnectorOptions.Connectors)
 		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o")
 		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o-mini")
@@ -370,7 +371,8 @@ func TestUpdate(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.NotNil(t, assistant.ConnectorOptions)
-		assert.False(t, assistant.ConnectorOptions.Optional)
+		assert.NotNil(t, assistant.ConnectorOptions.Optional)
+		assert.False(t, *assistant.ConnectorOptions.Optional)
 		assert.Contains(t, assistant.ConnectorOptions.Connectors, "new-connector")
 	})
 

@@ -609,7 +609,7 @@ func TestToAssistantModel(t *testing.T) {
 		if result.ConnectorOptions == nil {
 			t.Error("Expected ConnectorOptions to be set")
 		} else {
-			if !result.ConnectorOptions.Optional {
+			if result.ConnectorOptions.Optional == nil || !*result.ConnectorOptions.Optional {
 				t.Error("Expected ConnectorOptions.Optional to be true")
 			}
 			if len(result.ConnectorOptions.Connectors) != 2 {
@@ -849,7 +849,7 @@ func TestToAssistantModelNewFields(t *testing.T) {
 			t.Fatal("Expected ConnectorOptions to be set")
 		}
 
-		if !result.ConnectorOptions.Optional {
+		if result.ConnectorOptions.Optional == nil || !*result.ConnectorOptions.Optional {
 			t.Error("Expected Optional to be true")
 		}
 
@@ -1349,8 +1349,9 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 
 	t.Run("ConnectorOptionsPointer", func(t *testing.T) {
+		optionalTrue := true
 		opts := &ConnectorOptions{
-			Optional:   true,
+			Optional:   &optionalTrue,
 			Connectors: []string{"openai", "anthropic"},
 			Filters:    []ModelCapability{CapVision, CapToolCalls},
 		}
@@ -1364,8 +1365,9 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 
 	t.Run("ConnectorOptionsValue", func(t *testing.T) {
+		optionalTrue := true
 		opts := ConnectorOptions{
-			Optional:   true,
+			Optional:   &optionalTrue,
 			Connectors: []string{"openai", "anthropic"},
 			Filters:    []ModelCapability{CapVision, CapToolCalls},
 		}
@@ -1373,7 +1375,7 @@ func TestToConnectorOptions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if !result.Optional {
+		if result.Optional == nil || !*result.Optional {
 			t.Error("Expected Optional to be true")
 		}
 		if len(result.Connectors) != 2 {
@@ -1394,7 +1396,7 @@ func TestToConnectorOptions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if !result.Optional {
+		if result.Optional == nil || !*result.Optional {
 			t.Error("Expected Optional to be true")
 		}
 		if len(result.Connectors) != 3 {
@@ -1413,7 +1415,7 @@ func TestToConnectorOptions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if !result.Optional {
+		if result.Optional == nil || !*result.Optional {
 			t.Error("Expected Optional to be true")
 		}
 		if result.Connectors != nil {
@@ -1421,6 +1423,42 @@ func TestToConnectorOptions(t *testing.T) {
 		}
 		if result.Filters != nil {
 			t.Error("Expected Filters to be nil")
+		}
+	})
+
+	t.Run("MapInputOptionalFalse", func(t *testing.T) {
+		data := map[string]interface{}{
+			"optional":   false,
+			"connectors": []string{"openai"},
+			"filters":    []string{"vision"},
+		}
+		result, err := ToConnectorOptions(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result.Optional == nil {
+			t.Error("Expected Optional to be set")
+		} else if *result.Optional {
+			t.Error("Expected Optional to be false")
+		}
+		if len(result.Connectors) != 1 {
+			t.Errorf("Expected 1 connector, got %d", len(result.Connectors))
+		}
+	})
+
+	t.Run("MapInputOptionalNil", func(t *testing.T) {
+		data := map[string]interface{}{
+			"connectors": []string{"openai"},
+		}
+		result, err := ToConnectorOptions(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result.Optional != nil {
+			t.Errorf("Expected Optional to be nil (not set), got: %v", *result.Optional)
+		}
+		if len(result.Connectors) != 1 {
+			t.Errorf("Expected 1 connector, got %d", len(result.Connectors))
 		}
 	})
 
@@ -1445,6 +1483,125 @@ func TestToConnectorOptions(t *testing.T) {
 		}
 		if result == nil {
 			t.Error("Expected non-nil result")
+		}
+	})
+}
+
+// TestToModes tests the ToModes conversion function
+func TestToModes(t *testing.T) {
+	t.Run("NilInput", func(t *testing.T) {
+		result, err := ToModes(nil)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != nil {
+			t.Errorf("Expected nil result, got: %v", result)
+		}
+	})
+
+	t.Run("StringSlice", func(t *testing.T) {
+		modes := []string{"chat", "task", "analyze"}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("Expected 3 modes, got %d", len(result))
+		}
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+		if result[1] != "task" {
+			t.Errorf("Expected 'task', got '%s'", result[1])
+		}
+		if result[2] != "analyze" {
+			t.Errorf("Expected 'analyze', got '%s'", result[2])
+		}
+	})
+
+	t.Run("InterfaceSlice", func(t *testing.T) {
+		modes := []interface{}{"chat", "task", 123}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("Expected 3 modes, got %d", len(result))
+		}
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+		if result[2] != "123" {
+			t.Errorf("Expected '123', got '%s'", result[2])
+		}
+	})
+
+	t.Run("SingleString", func(t *testing.T) {
+		mode := "chat"
+		result, err := ToModes(mode)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 1 {
+			t.Errorf("Expected 1 mode, got %d", len(result))
+		}
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+	})
+
+	t.Run("EmptySlice", func(t *testing.T) {
+		modes := []string{}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 0 {
+			t.Errorf("Expected 0 modes, got %d", len(result))
+		}
+	})
+
+	t.Run("InvalidInput", func(t *testing.T) {
+		// Test with data that can't be marshaled
+		invalidData := make(chan int)
+		_, err := ToModes(invalidData)
+		if err == nil {
+			t.Error("Expected error for invalid input")
+		}
+	})
+
+	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
+		// Test with data that marshals but can't unmarshal to []string
+		data := map[string]interface{}{
+			"invalid": "structure",
+		}
+		_, err := ToModes(data)
+		if err == nil {
+			t.Error("Expected error for invalid unmarshal")
+		}
+	})
+
+	t.Run("MixedTypes", func(t *testing.T) {
+		modes := []interface{}{"chat", 456, "task", true}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 4 {
+			t.Errorf("Expected 4 modes, got %d", len(result))
+		}
+		// cast.ToString should convert all to strings
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+		if result[1] != "456" {
+			t.Errorf("Expected '456', got '%s'", result[1])
+		}
+		if result[2] != "task" {
+			t.Errorf("Expected 'task', got '%s'", result[2])
+		}
+		if result[3] != "true" {
+			t.Errorf("Expected 'true', got '%s'", result[3])
 		}
 	})
 }

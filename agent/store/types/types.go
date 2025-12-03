@@ -245,7 +245,7 @@ const (
 // ConnectorOptions the connector selection options
 // Allows defining optional connector selection with filtering capabilities
 type ConnectorOptions struct {
-	Optional   bool              `json:"optional,omitempty"`   // Whether connector is optional for user selection
+	Optional   *bool             `json:"optional"`             // Whether connector is optional for user selection (nil=default, false=hidden, true=shown)
 	Connectors []string          `json:"connectors,omitempty"` // List of available connectors, empty means all connectors are available
 	Filters    []ModelCapability `json:"filters,omitempty"`    // Filter by model capabilities, conditions can be stacked
 }
