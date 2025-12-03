@@ -49,9 +49,11 @@ type FileManager interface {
 	LocalPath(ctx context.Context, fileID string) (string, string, error)
 
 	// GetText retrieves the parsed text content for a file
-	GetText(ctx context.Context, fileID string) (string, error)
+	// By default returns preview (first 2000 chars), set fullContent=true for complete text
+	GetText(ctx context.Context, fileID string, fullContent ...bool) (string, error)
 
 	// SaveText saves the parsed text content for a file
+	// Automatically saves both full content and preview
 	SaveText(ctx context.Context, fileID string, text string) error
 }
 

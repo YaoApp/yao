@@ -723,6 +723,16 @@ func (manager Manager) List(ctx context.Context, option ListOption) (*ListResult
 		for _, field := range option.Select {
 			queryParam.Select = append(queryParam.Select, field)
 		}
+	} else {
+		// Default: exclude the 'content' field (which may contain large text data)
+		// Only include it if explicitly requested in Select
+		queryParam.Select = []interface{}{
+			"id", "file_id", "uploader", "content_type", "name", "url", "description",
+			"type", "user_path", "path", "groups", "gzip", "bytes", "status",
+			"progress", "error", "preset", "public", "share",
+			"created_at", "updated_at", "deleted_at",
+			"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
+		}
 	}
 
 	// Add filters
@@ -1324,12 +1334,24 @@ func (manager Manager) getStoragePathFromDatabase(ctx context.Context, fileID st
 }
 
 // GetText retrieves the parsed text content for a file by its ID
-// Returns the text content stored in the 'content' field of the attachment
-func (manager Manager) GetText(ctx context.Context, fileID string) (string, error) {
+// By default, returns the preview (first 2000 characters) from 'content_preview' field
+// Set fullContent to true to retrieve the complete text from 'content' field
+func (manager Manager) GetText(ctx context.Context, fileID string, fullContent ...bool) (string, error) {
 	m := model.Select("__yao.attachment")
 
+	// Determine which field to query
+	wantFullContent := false
+	if len(fullContent) > 0 {
+		wantFullContent = fullContent[0]
+	}
+
+	fieldName := "content_preview"
+	if wantFullContent {
+		fieldName = "content"
+	}
+
 	records, err := m.Get(model.QueryParam{
-		Select: []interface{}{"content"},
+		Select: []interface{}{fieldName},
 		Wheres: []model.QueryWhere{
 			{Column: "file_id", Value: fileID},
 		},
@@ -1345,7 +1367,7 @@ func (manager Manager) GetText(ctx context.Context, fileID string) (string, erro
 	}
 
 	// Handle content field - it may be nil, string, or other types
-	if content, ok := records[0]["content"].(string); ok {
+	if content, ok := records[0][fieldName].(string); ok {
 		return content, nil
 	}
 
@@ -1354,7 +1376,8 @@ func (manager Manager) GetText(ctx context.Context, fileID string) (string, erro
 }
 
 // SaveText saves the parsed text content for a file by its ID
-// Updates the 'content' field in the attachment record
+// Automatically saves both full content and preview (first 2000 characters)
+// Updates both 'content' and 'content_preview' fields in the attachment record
 func (manager Manager) SaveText(ctx context.Context, fileID string, text string) error {
 	m := model.Select("__yao.attachment")
 
@@ -1375,9 +1398,17 @@ func (manager Manager) SaveText(ctx context.Context, fileID string, text string)
 		return fmt.Errorf("file not found: %s", fileID)
 	}
 
-	// Update the content field
+	// Create preview: first 2000 characters (or runes for proper UTF-8 handling)
+	preview := text
+	const maxPreviewLength = 2000
+	if len([]rune(text)) > maxPreviewLength {
+		preview = string([]rune(text)[:maxPreviewLength])
+	}
+
+	// Update both content and content_preview fields
 	updateData := map[string]interface{}{
-		"content": text,
+		"content":         text,
+		"content_preview": preview,
 	}
 
 	_, err = m.UpdateWhere(model.QueryParam{
