@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
@@ -50,6 +51,22 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	ctx.Cache = cache
 	ctx.Writer = c.Writer
 	ctx.AssistantID = assistantID
+
+	// Try to extract custom connector from model field
+	// If model is a valid connector ID, set it to ctx.Connector
+	// Otherwise, keep the standard OpenAI-compatible behavior (model as assistant ID)
+	if completionReq != nil && completionReq.Model != "" {
+		// Check if model is a valid connector (not containing "-yao_" which indicates assistant ID format)
+		if !strings.Contains(completionReq.Model, "-yao_") {
+			// Try to validate if it's a real connector
+			if _, err := connector.Select(completionReq.Model); err == nil {
+				// It's a valid connector, use it
+				ctx.Connector = completionReq.Model
+			}
+			// If not a valid connector, ignore it (keep ctx.Connector empty to use assistant's default)
+		}
+	}
+
 	ctx.Locale = GetLocale(c, completionReq)
 	ctx.Theme = GetTheme(c, completionReq)
 	ctx.Referer = GetReferer(c, completionReq)
