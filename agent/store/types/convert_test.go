@@ -1449,6 +1449,125 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 }
 
+// TestToModes tests the ToModes conversion function
+func TestToModes(t *testing.T) {
+	t.Run("NilInput", func(t *testing.T) {
+		result, err := ToModes(nil)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result != nil {
+			t.Errorf("Expected nil result, got: %v", result)
+		}
+	})
+
+	t.Run("StringSlice", func(t *testing.T) {
+		modes := []string{"chat", "task", "analyze"}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("Expected 3 modes, got %d", len(result))
+		}
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+		if result[1] != "task" {
+			t.Errorf("Expected 'task', got '%s'", result[1])
+		}
+		if result[2] != "analyze" {
+			t.Errorf("Expected 'analyze', got '%s'", result[2])
+		}
+	})
+
+	t.Run("InterfaceSlice", func(t *testing.T) {
+		modes := []interface{}{"chat", "task", 123}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 3 {
+			t.Errorf("Expected 3 modes, got %d", len(result))
+		}
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+		if result[2] != "123" {
+			t.Errorf("Expected '123', got '%s'", result[2])
+		}
+	})
+
+	t.Run("SingleString", func(t *testing.T) {
+		mode := "chat"
+		result, err := ToModes(mode)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 1 {
+			t.Errorf("Expected 1 mode, got %d", len(result))
+		}
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+	})
+
+	t.Run("EmptySlice", func(t *testing.T) {
+		modes := []string{}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 0 {
+			t.Errorf("Expected 0 modes, got %d", len(result))
+		}
+	})
+
+	t.Run("InvalidInput", func(t *testing.T) {
+		// Test with data that can't be marshaled
+		invalidData := make(chan int)
+		_, err := ToModes(invalidData)
+		if err == nil {
+			t.Error("Expected error for invalid input")
+		}
+	})
+
+	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
+		// Test with data that marshals but can't unmarshal to []string
+		data := map[string]interface{}{
+			"invalid": "structure",
+		}
+		_, err := ToModes(data)
+		if err == nil {
+			t.Error("Expected error for invalid unmarshal")
+		}
+	})
+
+	t.Run("MixedTypes", func(t *testing.T) {
+		modes := []interface{}{"chat", 456, "task", true}
+		result, err := ToModes(modes)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if len(result) != 4 {
+			t.Errorf("Expected 4 modes, got %d", len(result))
+		}
+		// cast.ToString should convert all to strings
+		if result[0] != "chat" {
+			t.Errorf("Expected 'chat', got '%s'", result[0])
+		}
+		if result[1] != "456" {
+			t.Errorf("Expected '456', got '%s'", result[1])
+		}
+		if result[2] != "task" {
+			t.Errorf("Expected 'task', got '%s'", result[2])
+		}
+		if result[3] != "true" {
+			t.Errorf("Expected 'true', got '%s'", result[3])
+		}
+	})
+}
+
 // TestToPromptPresets tests the ToPromptPresets conversion function
 func TestToPromptPresets(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
