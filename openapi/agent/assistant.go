@@ -512,6 +512,110 @@ func UpdateAssistant(c *gin.Context) {
 	})
 }
 
+// GetAssistantInfo retrieves essential assistant information for InputArea component
+// Returns only the fields needed for UI display: id, name, avatar, description, connector, connector_options, modes, default_mode
+func GetAssistantInfo(c *gin.Context) {
+
+	// Get authorized information
+	authInfo := authorized.GetInfo(c)
+
+	// Get Agent instance from global variable
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Agent store not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	// Get assistant ID from URL parameter
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "assistant_id is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	// Parse locale (optional - defaults to "en-us")
+	locale := "en-us"
+	if loc := c.Query("locale"); loc != "" {
+		locale = strings.ToLower(strings.TrimSpace(loc))
+	}
+
+	// Define fields needed for InputArea
+	infoFields := []string{
+		"assistant_id",
+		"name",
+		"avatar",
+		"description",
+		"connector",
+		"connector_options",
+		"modes",
+		"default_mode",
+	}
+
+	// Get assistant with specific fields and locale
+	assistant, err := agentInstance.Store.GetAssistant(assistantID, infoFields, locale)
+	if err != nil {
+		log.Error("Failed to get assistant info %s: %v", assistantID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Assistant not found: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	// Check read permission (same as GetAssistant)
+	hasPermission, err := checkAssistantPermission(authInfo, assistantID, true)
+	if err != nil {
+		log.Error("Failed to check permission for assistant %s: %v", assistantID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to check permission: " + err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to access this assistant",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	// Build response with only the required fields
+	infoResponse := map[string]interface{}{
+		"assistant_id": assistant.ID,
+		"name":         assistant.Name,
+		"avatar":       assistant.Avatar,
+		"description":  assistant.Description,
+		"connector":    assistant.Connector,
+	}
+
+	// Add optional fields if they exist
+	if assistant.ConnectorOptions != nil {
+		infoResponse["connector_options"] = assistant.ConnectorOptions
+	}
+	if len(assistant.Modes) > 0 {
+		infoResponse["modes"] = assistant.Modes
+	}
+	if assistant.DefaultMode != "" {
+		infoResponse["default_mode"] = assistant.DefaultMode
+	}
+
+	// Return the result with standard response format
+	response.RespondWithSuccess(c, response.StatusOK, infoResponse)
+}
+
 // checkAssistantPermission checks if the user has permission to access the assistant
 // Similar logic to checkCollectionPermission in openapi/kb/collection.go
 // readable: true for read permission, false for write permission

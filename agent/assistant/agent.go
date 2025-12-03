@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
@@ -323,56 +324,10 @@ func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *
 	}
 
 	// Get connector capabilities from settings
-	capabilities := ast.getConnectorCapabilities(conn)
+	// Uses unified capability getter: 1. User-defined models.yml, 2. connector's Setting()["capabilities"], 3. default
+	capabilities := llm.GetCapabilitiesFromConn(conn, modelCapabilities)
 
 	return conn, capabilities, nil
-}
-
-// getConnectorCapabilities get the capabilities of a connector from settings
-// Priority: 1. modelCapabilities mapping, 2. connector's Setting()["capabilities"]
-func (ast *Assistant) getConnectorCapabilities(conn connector.Connector) *openai.Capabilities {
-	if conn == nil {
-		return &openai.Capabilities{
-			Vision:                false,
-			ToolCalls:             false,
-			Audio:                 false,
-			Reasoning:             false,
-			Streaming:             false,
-			JSON:                  false,
-			Multimodal:            false,
-			TemperatureAdjustable: true,
-		}
-	}
-
-	// Get connector ID
-	connectorID := conn.ID()
-
-	// Priority 1: Check global modelCapabilities mapping
-	if modelCaps, exists := modelCapabilities[connectorID]; exists {
-		return &modelCaps
-	}
-
-	// Priority 2: Get capabilities from connector's Setting() method
-	// Modern connectors (post-upgrade) provide default capabilities via Setting()
-	settings := conn.Setting()
-	if caps, ok := settings["capabilities"]; ok {
-		if capabilities, ok := caps.(*openai.Capabilities); ok {
-			return capabilities
-		}
-	}
-
-	// Fallback: Return minimal default capabilities
-	// This should rarely happen with upgraded connectors
-	return &openai.Capabilities{
-		Vision:                false,
-		ToolCalls:             false,
-		Audio:                 false,
-		Reasoning:             false,
-		Streaming:             false,
-		JSON:                  false,
-		Multimodal:            false,
-		TemperatureAdjustable: true, // Default to true for non-reasoning models
-	}
 }
 
 // Info get the assistant information
