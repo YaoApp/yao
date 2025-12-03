@@ -454,13 +454,14 @@ func TestSaveAssistant(t *testing.T) {
 
 	t.Run("ConnectorOptions", func(t *testing.T) {
 		// Test assistant with connector options
+		optionalTrue := true
 		assistant := &types.AssistantModel{
 			Name:      "Connector Options Test",
 			Type:      "assistant",
 			Connector: "openai",
 			Share:     "private",
 			ConnectorOptions: &types.ConnectorOptions{
-				Optional:   true,
+				Optional:   &optionalTrue,
 				Connectors: []string{"openai", "anthropic"},
 				Filters:    []types.ModelCapability{types.CapVision, types.CapToolCalls},
 			},
@@ -481,7 +482,7 @@ func TestSaveAssistant(t *testing.T) {
 			t.Fatal("Expected connector options to be set")
 		}
 
-		if !retrieved.ConnectorOptions.Optional {
+		if retrieved.ConnectorOptions.Optional == nil || !*retrieved.ConnectorOptions.Optional {
 			t.Error("Expected optional to be true")
 		}
 
@@ -596,13 +597,14 @@ func TestSaveAssistant(t *testing.T) {
 
 	t.Run("AllNewFieldsTogether", func(t *testing.T) {
 		// Test assistant with all new fields together
+		optionalFalse := false
 		assistant := &types.AssistantModel{
 			Name:      "All New Fields Test",
 			Type:      "assistant",
 			Connector: "openai",
 			Share:     "private",
 			ConnectorOptions: &types.ConnectorOptions{
-				Optional:   false,
+				Optional:   &optionalFalse,
 				Connectors: []string{"openai"},
 				Filters:    []types.ModelCapability{types.CapVision},
 			},

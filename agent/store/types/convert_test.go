@@ -609,7 +609,7 @@ func TestToAssistantModel(t *testing.T) {
 		if result.ConnectorOptions == nil {
 			t.Error("Expected ConnectorOptions to be set")
 		} else {
-			if !result.ConnectorOptions.Optional {
+			if result.ConnectorOptions.Optional == nil || !*result.ConnectorOptions.Optional {
 				t.Error("Expected ConnectorOptions.Optional to be true")
 			}
 			if len(result.ConnectorOptions.Connectors) != 2 {
@@ -849,7 +849,7 @@ func TestToAssistantModelNewFields(t *testing.T) {
 			t.Fatal("Expected ConnectorOptions to be set")
 		}
 
-		if !result.ConnectorOptions.Optional {
+		if result.ConnectorOptions.Optional == nil || !*result.ConnectorOptions.Optional {
 			t.Error("Expected Optional to be true")
 		}
 
@@ -1349,8 +1349,9 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 
 	t.Run("ConnectorOptionsPointer", func(t *testing.T) {
+		optionalTrue := true
 		opts := &ConnectorOptions{
-			Optional:   true,
+			Optional:   &optionalTrue,
 			Connectors: []string{"openai", "anthropic"},
 			Filters:    []ModelCapability{CapVision, CapToolCalls},
 		}
@@ -1364,8 +1365,9 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 
 	t.Run("ConnectorOptionsValue", func(t *testing.T) {
+		optionalTrue := true
 		opts := ConnectorOptions{
-			Optional:   true,
+			Optional:   &optionalTrue,
 			Connectors: []string{"openai", "anthropic"},
 			Filters:    []ModelCapability{CapVision, CapToolCalls},
 		}
@@ -1373,7 +1375,7 @@ func TestToConnectorOptions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if !result.Optional {
+		if result.Optional == nil || !*result.Optional {
 			t.Error("Expected Optional to be true")
 		}
 		if len(result.Connectors) != 2 {
@@ -1394,7 +1396,7 @@ func TestToConnectorOptions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if !result.Optional {
+		if result.Optional == nil || !*result.Optional {
 			t.Error("Expected Optional to be true")
 		}
 		if len(result.Connectors) != 3 {
@@ -1413,7 +1415,7 @@ func TestToConnectorOptions(t *testing.T) {
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
-		if !result.Optional {
+		if result.Optional == nil || !*result.Optional {
 			t.Error("Expected Optional to be true")
 		}
 		if result.Connectors != nil {
@@ -1421,6 +1423,42 @@ func TestToConnectorOptions(t *testing.T) {
 		}
 		if result.Filters != nil {
 			t.Error("Expected Filters to be nil")
+		}
+	})
+
+	t.Run("MapInputOptionalFalse", func(t *testing.T) {
+		data := map[string]interface{}{
+			"optional":   false,
+			"connectors": []string{"openai"},
+			"filters":    []string{"vision"},
+		}
+		result, err := ToConnectorOptions(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result.Optional == nil {
+			t.Error("Expected Optional to be set")
+		} else if *result.Optional {
+			t.Error("Expected Optional to be false")
+		}
+		if len(result.Connectors) != 1 {
+			t.Errorf("Expected 1 connector, got %d", len(result.Connectors))
+		}
+	})
+
+	t.Run("MapInputOptionalNil", func(t *testing.T) {
+		data := map[string]interface{}{
+			"connectors": []string{"openai"},
+		}
+		result, err := ToConnectorOptions(data)
+		if err != nil {
+			t.Errorf("Expected no error, got: %v", err)
+		}
+		if result.Optional != nil {
+			t.Errorf("Expected Optional to be nil (not set), got: %v", *result.Optional)
+		}
+		if len(result.Connectors) != 1 {
+			t.Errorf("Expected 1 connector, got %d", len(result.Connectors))
 		}
 	})
 
