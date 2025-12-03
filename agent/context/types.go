@@ -464,6 +464,8 @@ const (
 	ContentText       ContentPartType = "text"        // Text content
 	ContentImageURL   ContentPartType = "image_url"   // Image URL content (Vision)
 	ContentInputAudio ContentPartType = "input_audio" // Input audio content (Audio)
+	ContentFile       ContentPartType = "file"        // File attachment (documents, etc.)
+	ContentData       ContentPartType = "data"        // Generic data content (base64, binary, etc.)
 )
 
 // ContentPart represents a part of the message content (for multimodal messages)
@@ -473,6 +475,8 @@ type ContentPart struct {
 	Text       string          `json:"text,omitempty"`        // For type="text": the text content
 	ImageURL   *ImageURL       `json:"image_url,omitempty"`   // For type="image_url": the image URL
 	InputAudio *InputAudio     `json:"input_audio,omitempty"` // For type="input_audio": the input audio data
+	File       *FileAttachment `json:"file,omitempty"`        // For type="file": file attachment
+	Data       *DataContent    `json:"data,omitempty"`        // For type="data": generic data content
 }
 
 // ImageDetailLevel represents the detail level for image processing
@@ -495,6 +499,41 @@ type ImageURL struct {
 type InputAudio struct {
 	Data   string `json:"data"`   // Required: Base64 encoded audio data
 	Format string `json:"format"` // Required: Audio format (e.g., "wav", "mp3")
+}
+
+// FileAttachment represents a file attachment in the message content
+// Compatible with frontend InputArea format: { type: 'file', file: { url, filename } }
+type FileAttachment struct {
+	URL      string `json:"url"`                // Required: URL of the file (http:// or __uploader://fileid wrapper)
+	Filename string `json:"filename,omitempty"` // Optional: original filename
+}
+
+// DataSourceType represents the type of data source
+type DataSourceType string
+
+// Data source type constants
+const (
+	DataSourceModel        DataSourceType = "model"         // Data model
+	DataSourceKBCollection DataSourceType = "kb_collection" // Knowledge base collection
+	DataSourceKBDocument   DataSourceType = "kb_document"   // Knowledge base document/file
+	DataSourceTable        DataSourceType = "table"         // Database table
+	DataSourceAPI          DataSourceType = "api"           // API endpoint
+	DataSourceMCPResource  DataSourceType = "mcp_resource"  // MCP (Model Context Protocol) resource
+)
+
+// DataSource represents a single data source reference
+type DataSource struct {
+	Type     DataSourceType         `json:"type"`               // Required: type of data source
+	Name     string                 `json:"name"`               // Required: name/identifier of the data source
+	ID       string                 `json:"id,omitempty"`       // Optional: specific ID (e.g., document ID, record ID)
+	Filters  map[string]interface{} `json:"filters,omitempty"`  // Optional: filters to apply
+	Metadata map[string]interface{} `json:"metadata,omitempty"` // Optional: additional metadata
+}
+
+// DataContent represents data source references in the message
+// Used to reference data models, knowledge base collections, KB documents, etc.
+type DataContent struct {
+	Sources []DataSource `json:"sources"` // Required: array of data source references
 }
 
 // ToolCallType represents the type of tool call

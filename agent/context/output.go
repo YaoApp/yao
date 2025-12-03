@@ -23,6 +23,24 @@ func (ctx *Context) Send(msg *message.Message) error {
 	// Skip lifecycle events for event-type messages (prevent recursion)
 	isEventMessage := msg.Type == message.TypeEvent
 
+	// === Handle message_start event: record metadata for future delta chunks ===
+	if isEventMessage && msg.Props != nil {
+		if event, ok := msg.Props["event"].(string); ok && event == message.EventMessageStart {
+			if data, ok := msg.Props["data"].(message.EventMessageStartData); ok {
+				// Record metadata from message_start event
+				if data.MessageID != "" && ctx.messageMetadata != nil {
+					ctx.messageMetadata.setMessage(data.MessageID, &MessageMetadata{
+						MessageID:  data.MessageID,
+						ThreadID:   data.ThreadID,
+						Type:       data.Type,
+						StartTime:  time.Now(),
+						ChunkCount: 0, // Will be incremented by delta chunks
+					})
+				}
+			}
+		}
+	}
+
 	// === Delta operations: Auto-inherit and update metadata ===
 	if msg.Delta && msg.MessageID != "" && ctx.messageMetadata != nil {
 		if metadata := ctx.getMessageMetadata(msg.MessageID); metadata != nil {
@@ -103,6 +121,7 @@ func (ctx *Context) Send(msg *message.Message) error {
 			MessageID: msg.MessageID,
 			Type:      msg.Type,
 			Timestamp: time.Now().UnixMilli(),
+			ThreadID:  msg.ThreadID, // Include ThreadID for concurrent stream identification
 		}
 		messageStartEvent := output.NewEventMessage(message.EventMessageStart, "Message started", messageStartData)
 		if err := ctx.sendRaw(messageStartEvent); err != nil {
@@ -147,6 +166,7 @@ func (ctx *Context) Send(msg *message.Message) error {
 				MessageID:  msg.MessageID,
 				Type:       msg.Type,
 				Timestamp:  time.Now().UnixMilli(),
+				ThreadID:   metadata.ThreadID, // Include ThreadID for concurrent stream identification
 				DurationMs: durationMs,
 				ChunkCount: metadata.ChunkCount,
 				Status:     "completed",
@@ -191,6 +211,7 @@ func (ctx *Context) EndMessage(messageID string, content interface{}) error {
 		MessageID:  messageID,
 		Type:       metadata.Type,
 		Timestamp:  time.Now().UnixMilli(),
+		ThreadID:   metadata.ThreadID, // Include ThreadID for concurrent stream identification
 		DurationMs: durationMs,
 		ChunkCount: metadata.ChunkCount,
 		Status:     "completed",

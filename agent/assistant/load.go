@@ -751,15 +751,6 @@ func (ast *Assistant) initialize() error {
 	}
 	ast.openai = api
 
-	// Check if the assistant supports vision
-	model := api.Model()
-	if v, ok := ast.Options["model"].(string); ok {
-		model = strings.TrimLeft(v, "moapi:")
-	}
-	if _, ok := VisionCapableModels[model]; ok {
-		ast.vision = true
-	}
-
 	// Check if the assistant has an init hook
 	if ast.Script != nil {
 		scriptCtx, err := ast.Script.NewContext("", nil)

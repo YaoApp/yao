@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -41,6 +42,13 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Initialize stack and auto-handle completion/failure/restore
 	_, _, done := context.EnterStack(ctx, ast.ID, ctx.Referer)
 	defer done()
+
+	fmt.Println("--- Stack debug ---")
+	if ctx.Stack != nil {
+		fmt.Println(ctx.Stack.IsRoot())
+		utils.Dump(ctx.Stack)
+	}
+	fmt.Println("------ end stack debug ------")
 
 	// Determine stream handler
 	streamHandler := ast.getStreamHandler(ctx, handler...)
@@ -102,6 +110,14 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+			return nil, err
+		}
+
+		// Build content - convert extended types (file, data) to standard LLM types (text, image_url, input_audio)
+		completionMessages, err = ast.BuildContent(ctx, completionMessages, completionOptions)
+		if err != nil {
+			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
