@@ -1477,3 +1477,158 @@ func TestManagerLocalPath_ValidationFlow(t *testing.T) {
 		t.Logf("Warning: Failed to delete test file: %v", err)
 	}
 }
+
+func TestGetTextAndSaveText(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	manager, err := RegisterDefault("test-text-content")
+	if err != nil {
+		t.Fatalf("Failed to register manager: %v", err)
+	}
+
+	// Upload a test file
+	content := "This is a test file for text content storage"
+	reader := strings.NewReader(content)
+
+	fileHeader := &FileHeader{
+		FileHeader: &multipart.FileHeader{
+			Filename: "test-text.txt",
+			Size:     int64(len(content)),
+			Header:   make(map[string][]string),
+		},
+	}
+	fileHeader.Header.Set("Content-Type", "text/plain")
+
+	option := UploadOption{
+		Groups:           []string{"test"},
+		OriginalFilename: "test-text.txt",
+	}
+
+	file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+	if err != nil {
+		t.Fatalf("Failed to upload file: %v", err)
+	}
+
+	// Test 1: GetText on file without saved text (should return empty)
+	t.Run("GetTextEmpty", func(t *testing.T) {
+		text, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get text: %v", err)
+		}
+
+		if text != "" {
+			t.Errorf("Expected empty text, got: %s", text)
+		}
+	})
+
+	// Test 2: SaveText and verify
+	t.Run("SaveTextAndVerify", func(t *testing.T) {
+		parsedText := "This is the parsed text content from the file. It could be extracted from PDF, Word, or image OCR."
+
+		err := manager.SaveText(context.Background(), file.ID, parsedText)
+		if err != nil {
+			t.Fatalf("Failed to save text: %v", err)
+		}
+
+		// Retrieve the saved text
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get saved text: %v", err)
+		}
+
+		if retrievedText != parsedText {
+			t.Errorf("Text mismatch. Expected: %s, Got: %s", parsedText, retrievedText)
+		}
+
+		t.Logf("Successfully saved and retrieved text content (%d characters)", len(retrievedText))
+	})
+
+	// Test 3: Update existing text
+	t.Run("UpdateText", func(t *testing.T) {
+		updatedText := "This is the updated parsed text content with additional information."
+
+		err := manager.SaveText(context.Background(), file.ID, updatedText)
+		if err != nil {
+			t.Fatalf("Failed to update text: %v", err)
+		}
+
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get updated text: %v", err)
+		}
+
+		if retrievedText != updatedText {
+			t.Errorf("Updated text mismatch. Expected: %s, Got: %s", updatedText, retrievedText)
+		}
+	})
+
+	// Test 4: Save long text content (simulating large document parsing)
+	t.Run("SaveLongText", func(t *testing.T) {
+		// Generate a large text content (10KB)
+		longText := strings.Repeat("This is a long text content that simulates parsing from a large document like PDF or Word. ", 100)
+
+		err := manager.SaveText(context.Background(), file.ID, longText)
+		if err != nil {
+			t.Fatalf("Failed to save long text: %v", err)
+		}
+
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get long text: %v", err)
+		}
+
+		if retrievedText != longText {
+			t.Errorf("Long text mismatch. Expected length: %d, Got: %d", len(longText), len(retrievedText))
+		}
+
+		t.Logf("Successfully saved and retrieved long text content (%d characters)", len(retrievedText))
+	})
+
+	// Test 5: GetText with non-existent file ID
+	t.Run("GetTextNonExistent", func(t *testing.T) {
+		_, err := manager.GetText(context.Background(), "non-existent-id")
+		if err == nil {
+			t.Error("Expected error for non-existent file ID")
+		}
+
+		if !strings.Contains(err.Error(), "file not found") {
+			t.Errorf("Expected 'file not found' error, got: %s", err.Error())
+		}
+	})
+
+	// Test 6: SaveText with non-existent file ID
+	t.Run("SaveTextNonExistent", func(t *testing.T) {
+		err := manager.SaveText(context.Background(), "non-existent-id", "some text")
+		if err == nil {
+			t.Error("Expected error for non-existent file ID")
+		}
+
+		if !strings.Contains(err.Error(), "file not found") {
+			t.Errorf("Expected 'file not found' error, got: %s", err.Error())
+		}
+	})
+
+	// Test 7: Save empty text (clear content)
+	t.Run("SaveEmptyText", func(t *testing.T) {
+		err := manager.SaveText(context.Background(), file.ID, "")
+		if err != nil {
+			t.Fatalf("Failed to save empty text: %v", err)
+		}
+
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get empty text: %v", err)
+		}
+
+		if retrievedText != "" {
+			t.Errorf("Expected empty text, got: %s", retrievedText)
+		}
+	})
+
+	// Clean up
+	err = manager.Delete(context.Background(), file.ID)
+	if err != nil {
+		t.Logf("Warning: Failed to delete test file: %v", err)
+	}
+}

@@ -1322,3 +1322,73 @@ func (manager Manager) getStoragePathFromDatabase(ctx context.Context, fileID st
 
 	return "", fmt.Errorf("invalid storage path for file ID: %s", fileID)
 }
+
+// GetText retrieves the parsed text content for a file by its ID
+// Returns the text content stored in the 'content' field of the attachment
+func (manager Manager) GetText(ctx context.Context, fileID string) (string, error) {
+	m := model.Select("__yao.attachment")
+
+	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{"content"},
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: fileID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to query text content: %w", err)
+	}
+
+	if len(records) == 0 {
+		return "", fmt.Errorf("file not found: %s", fileID)
+	}
+
+	// Handle content field - it may be nil, string, or other types
+	if content, ok := records[0]["content"].(string); ok {
+		return content, nil
+	}
+
+	// If content is nil or not a string, return empty string
+	return "", nil
+}
+
+// SaveText saves the parsed text content for a file by its ID
+// Updates the 'content' field in the attachment record
+func (manager Manager) SaveText(ctx context.Context, fileID string, text string) error {
+	m := model.Select("__yao.attachment")
+
+	// Check if record exists first
+	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{"file_id"},
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: fileID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to check file existence: %w", err)
+	}
+
+	if len(records) == 0 {
+		return fmt.Errorf("file not found: %s", fileID)
+	}
+
+	// Update the content field
+	updateData := map[string]interface{}{
+		"content": text,
+	}
+
+	_, err = m.UpdateWhere(model.QueryParam{
+		Wheres: []model.QueryWhere{
+			{Column: "file_id", Value: fileID},
+		},
+	}, updateData)
+
+	if err != nil {
+		return fmt.Errorf("failed to save text content: %w", err)
+	}
+
+	return nil
+}

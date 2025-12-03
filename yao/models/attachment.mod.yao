@@ -46,6 +46,13 @@
       "index": true
     },
     {
+      "name": "content",
+      "type": "longText",
+      "label": "Content",
+      "comment": "Parsed text content from image, pdf, word and other file types",
+      "nullable": true
+    },
+    {
       "name": "name",
       "type": "string",
       "label": "Name",

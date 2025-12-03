@@ -659,6 +659,103 @@ case "upload_failed":
 }
 ```
 
+## Text Content Storage
+
+The attachment package supports storing parsed text content extracted from files (e.g., from PDFs, Word documents, or image OCR). This is useful for building search indexes or providing text-based previews.
+
+### Saving Parsed Text Content
+
+Use `SaveText` to store the extracted text content for a file:
+
+```go
+// Upload a PDF file
+file, err := manager.Upload(ctx, fileHeader, reader, option)
+if err != nil {
+    return err
+}
+
+// Extract text from the PDF (using your preferred library)
+parsedText := extractTextFromPDF(file.ID)
+
+// Save the parsed text to the attachment record
+err = manager.SaveText(ctx, file.ID, parsedText)
+if err != nil {
+    return fmt.Errorf("failed to save text content: %w", err)
+}
+```
+
+### Retrieving Parsed Text Content
+
+Use `GetText` to retrieve the stored text content:
+
+```go
+// Get the parsed text content
+text, err := manager.GetText(ctx, file.ID)
+if err != nil {
+    return fmt.Errorf("failed to get text content: %w", err)
+}
+
+if text == "" {
+    fmt.Println("No text content available for this file")
+} else {
+    fmt.Printf("Text content (%d characters): %s\n", len(text), text)
+}
+```
+
+### Example: Complete Text Processing Workflow
+
+```go
+// 1. Upload file
+file, err := manager.Upload(ctx, fileHeader, reader, option)
+if err != nil {
+    return err
+}
+
+// 2. Process file based on content type
+var parsedText string
+switch {
+case strings.HasPrefix(file.ContentType, "image/"):
+    // Use OCR to extract text from image
+    parsedText, err = performOCR(file.ID)
+    
+case file.ContentType == "application/pdf":
+    // Extract text from PDF
+    parsedText, err = extractPDFText(file.ID)
+    
+case strings.Contains(file.ContentType, "wordprocessingml"):
+    // Extract text from Word document
+    parsedText, err = extractWordText(file.ID)
+}
+
+if err != nil {
+    return fmt.Errorf("failed to extract text: %w", err)
+}
+
+// 3. Save the extracted text
+if parsedText != "" {
+    err = manager.SaveText(ctx, file.ID, parsedText)
+    if err != nil {
+        return fmt.Errorf("failed to save text: %w", err)
+    }
+}
+
+// 4. Later, retrieve the text for search or display
+savedText, err := manager.GetText(ctx, file.ID)
+if err != nil {
+    return err
+}
+
+fmt.Printf("Retrieved text: %s\n", savedText)
+```
+
+### Text Content Features
+
+- **Storage**: Text content is stored in the `content` field (longText type) of the attachment record
+- **Size**: Supports very large text content (up to 4GB with longText type)
+- **Update**: Text content can be updated at any time using `SaveText`
+- **Clear**: Set text to empty string to clear the content
+- **Retrieval**: Returns empty string if no text content has been saved
+
 #### `RegisterDefault(name string) (*Manager, error)`
 
 Registers a default attachment manager with sensible defaults for common file types.
