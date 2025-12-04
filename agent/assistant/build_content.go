@@ -11,9 +11,9 @@ import (
 // (file, data) to standard LLM-compatible types (text, image_url, input_audio)
 //
 // This should be called after BuildRequest and before executing LLM call
-func (ast *Assistant) BuildContent(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) ([]context.Message, error) {
+func (ast *Assistant) BuildContent(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, opts *context.Options) ([]context.Message, error) {
 	// Get connector and capabilities
-	_, capabilities, err := ast.GetConnector(ctx)
+	_, capabilities, err := ast.GetConnector(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connector: %w", err)
 	}

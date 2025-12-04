@@ -58,6 +58,9 @@ func OptionsFromMap(m map[string]interface{}) *Options {
 		if trace, ok := skipMap["trace"].(bool); ok {
 			skip.Trace = trace
 		}
+		if output, ok := skipMap["output"].(bool); ok {
+			skip.Output = output
+		}
 		opts.Skip = skip
 	}
 	if disableGlobalPrompts, ok := m["disable_global_prompts"].(bool); ok {

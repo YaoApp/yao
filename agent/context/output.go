@@ -297,16 +297,33 @@ func (ctx *Context) sendRaw(msg *message.Message) error {
 	return out.Send(msg)
 }
 
+// getWriter gets the effective Writer for the current context
+// Priority: Skip.Output > Stack.Options.Writer > ctx.Writer
+func (ctx *Context) getWriter() Writer {
+	// Check if output is explicitly skipped (for internal A2A calls)
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Skip != nil && ctx.Stack.Options.Skip.Output {
+		return nil // Explicitly disable output
+	}
+
+	// Check if current Stack has a Writer override
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Writer != nil {
+		return ctx.Stack.Options.Writer
+	}
+
+	return ctx.Writer
+}
+
 // getOutput gets the output writer for the context
 func (ctx *Context) getOutput() (*output.Output, error) {
-	if ctx.output != nil {
-		return ctx.output, nil
+	// Check if current Stack has cached output
+	if ctx.Stack != nil && ctx.Stack.output != nil {
+		return ctx.Stack.output, nil
 	}
 
 	trace, _ := ctx.Trace()
 	var options message.Options = message.Options{
 		BaseURL: "/",
-		Writer:  ctx.Writer,
+		Writer:  ctx.getWriter(), // Use getWriter() to resolve Writer priority
 		Trace:   trace,
 		Locale:  ctx.Locale,
 		Accept:  string(ctx.Accept),
@@ -318,10 +335,15 @@ func (ctx *Context) getOutput() (*output.Output, error) {
 		options.Capabilities = &caps
 	}
 
-	var err error
-	ctx.output, err = output.NewOutput(options)
+	out, err := output.NewOutput(options)
 	if err != nil {
 		return nil, err
 	}
-	return ctx.output, nil
+
+	// Cache to current Stack (each Stack has its own output with its own Writer)
+	if ctx.Stack != nil {
+		ctx.Stack.output = out
+	}
+
+	return out, nil
 }

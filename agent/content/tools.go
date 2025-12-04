@@ -36,8 +36,8 @@ func CallAgent(ctx *agentContext.Context, agentID string, message agentContext.M
 	messages := []agentContext.Message{message}
 
 	// Note: Connector is now in Options (call-level parameter), not Context
-	// For A2A calls, we use an empty Connector to let the agent use its default
-	opts := &agentContext.Options{Skip: &agentContext.Skip{History: true}, Writer: nil} // Skip history and output to the caller
+	// For A2A calls, skip history and output (we only need the response data)
+	opts := &agentContext.Options{Skip: &agentContext.Skip{History: true, Output: true}} // Skip history and output
 	response, err := agent.Stream(ctx, messages, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to call agent %s: %w", agentID, err)

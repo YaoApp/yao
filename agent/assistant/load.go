@@ -531,7 +531,38 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// locales
 	if locales, ok := data["locales"].(i18n.Map); ok {
 		assistant.Locales = locales
-		i18n.Locales[id] = locales.FlattenWithGlobal()
+		flattened := locales.FlattenWithGlobal()
+
+		// Auto-inject assistant name and description into all locales
+		// so that {{name}} and {{description}} templates can be resolved
+		for locale, i18nObj := range flattened {
+			if i18nObj.Messages == nil {
+				i18nObj.Messages = make(map[string]any)
+			}
+			// Add name and description if not already present
+			if _, exists := i18nObj.Messages["name"]; !exists && assistant.Name != "" {
+				i18nObj.Messages["name"] = assistant.Name
+			}
+			if _, exists := i18nObj.Messages["description"]; !exists && assistant.Description != "" {
+				i18nObj.Messages["description"] = assistant.Description
+			}
+			flattened[locale] = i18nObj
+		}
+
+		i18n.Locales[id] = flattened
+	} else {
+		// No locales defined, create default with name and description
+		if assistant.Name != "" || assistant.Description != "" {
+			defaultLocales := make(map[string]i18n.I18n)
+			defaultLocales["en"] = i18n.I18n{
+				Locale: "en",
+				Messages: map[string]any{
+					"name":        assistant.Name,
+					"description": assistant.Description,
+				},
+			}
+			i18n.Locales[id] = defaultLocales
+		}
 	}
 
 	// Search options

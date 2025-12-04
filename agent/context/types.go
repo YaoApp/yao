@@ -194,6 +194,7 @@ type AssistantInfo struct {
 type Skip struct {
 	History bool `json:"history"` // Skip saving chat history (for internal calls like title/prompt generation)
 	Trace   bool `json:"trace"`   // Skip trace logging
+	Output  bool `json:"output"`  // Skip output to client (for internal A2A calls that only need response data)
 }
 
 // MessageMetadata stores metadata for sent messages
@@ -232,7 +233,6 @@ type Context struct {
 
 	// Internal
 	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
-	output          *output.Output        `json:"-"` // Output, it will be used to write response data to the client
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
 
 	// Model capabilities (set by assistant, used by output adapters)
@@ -312,6 +312,9 @@ type Stack struct {
 
 	// Metrics
 	DurationMs *int64 `json:"duration_ms,omitempty"` // Duration in milliseconds (calculated when completed)
+
+	// Runtime cache (not serialized)
+	output *output.Output `json:"-"` // Cached output instance for this stack
 }
 
 // Response the response

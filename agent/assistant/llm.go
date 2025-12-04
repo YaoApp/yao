@@ -18,6 +18,7 @@ func (ast *Assistant) executeLLMStream(
 	completionOptions *context.CompletionOptions,
 	agentNode types.Node,
 	streamHandler message.StreamFunc,
+	opts *context.Options,
 ) (*context.CompletionResponse, error) {
 
 	// === Debug LLM Stream Start ===
@@ -27,7 +28,7 @@ func (ast *Assistant) executeLLMStream(
 	// === End Debug ===
 
 	// Get connector object (capabilities were already set above, before stream_start)
-	conn, capabilities, err := ast.GetConnector(ctx)
+	conn, capabilities, err := ast.GetConnector(ctx, opts)
 	if err != nil {
 		ast.traceAgentFail(agentNode, err)
 		return nil, err
@@ -92,10 +93,11 @@ func (ast *Assistant) executeLLMForToolRetry(
 	completionOptions *context.CompletionOptions,
 	agentNode types.Node,
 	streamHandler message.StreamFunc,
+	opts *context.Options,
 ) (*context.CompletionResponse, error) {
 
 	// Get connector object
-	conn, capabilities, err := ast.GetConnector(ctx)
+	conn, capabilities, err := ast.GetConnector(ctx, opts)
 	if err != nil {
 		ast.traceAgentFail(agentNode, err)
 		return nil, err

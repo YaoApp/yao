@@ -21,7 +21,7 @@ func init() {
 			"assistant.agent.stream.skipping":        "Skipping output close (nested call)",
 			"assistant.agent.stream.close_error":     "Failed to close output",
 			"assistant.agent.completion.label":       "Agent Completion",
-			"assistant.agent.completion.description": "Final output from assistant",
+			"assistant.agent.completion.description": "Final output from {{name}}",
 
 			// LLM: providers/openai/openai.go Stream() function
 			"llm.openai.stream.label":        "LLM %s",
@@ -111,7 +111,7 @@ func init() {
 			"assistant.agent.stream.skipping":        "跳过输出关闭（嵌套调用）",
 			"assistant.agent.stream.close_error":     "关闭输出失败",
 			"assistant.agent.completion.label":       "智能体完成",
-			"assistant.agent.completion.description": "智能体最终输出",
+			"assistant.agent.completion.description": "{{name}} 最终输出",
 
 			// LLM: providers/openai/openai.go Stream() function
 			"llm.openai.stream.label":        "LLM %s",
@@ -173,7 +173,7 @@ func init() {
 			"assistant.agent.stream.skipping":        "跳过输出关闭（嵌套调用）",
 			"assistant.agent.stream.close_error":     "关闭输出失败",
 			"assistant.agent.completion.label":       "智能体完成",
-			"assistant.agent.completion.description": "智能体最终输出",
+			"assistant.agent.completion.description": "{{name}} 最终输出",
 
 			// LLM: providers/openai/openai.go Stream() function
 			"llm.openai.stream.label":        "LLM %s",

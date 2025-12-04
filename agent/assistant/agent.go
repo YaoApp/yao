@@ -51,13 +51,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	_, _, done := context.EnterStack(ctx, ast.ID, opts)
 	defer done()
 
-	fmt.Println("--- Stack debug ---")
-	if ctx.Stack != nil {
-		fmt.Println(ctx.Stack.IsRoot())
-		utils.Dump(ctx.Stack)
-	}
-	fmt.Println("------ end stack debug ------")
-
 	// Determine stream handler
 	streamHandler := ast.getStreamHandler(ctx, opts)
 
@@ -123,7 +116,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 
 		// Build content - convert extended types (file, data) to standard LLM types (text, image_url, input_audio)
-		completionMessages, err = ast.BuildContent(ctx, completionMessages, completionOptions)
+		completionMessages, err = ast.BuildContent(ctx, completionMessages, completionOptions, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -131,7 +124,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 
 		// Execute the LLM streaming call
-		completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler)
+		completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
@@ -210,7 +203,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 			// Retry LLM call (streaming to keep user informed)
 			log.Trace("[AGENT] Retrying LLM for tool call correction (attempt %d/%d)", attempt+1, maxToolRetries-1)
-			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, agentNode, streamHandler)
+			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, agentNode, streamHandler, opts)
 			if err != nil {
 				log.Error("[AGENT] LLM retry failed: %v", err)
 				ast.traceAgentFail(agentNode, err)
@@ -478,6 +471,10 @@ func (ast *Assistant) initializeCapabilities(ctx *context.Context, opts *context
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("--- initializeCapabilities debug ---")
+	utils.Dump(capabilities)
+	fmt.Println("--- end initializeCapabilities debug ---")
 
 	// Set capabilities in context for output adapters to use
 	if capabilities != nil {
