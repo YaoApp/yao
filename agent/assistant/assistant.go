@@ -5,10 +5,33 @@ import (
 	"path"
 
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/yao/agent/content"
+	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
 	sui "github.com/yaoapp/yao/sui/core"
 )
+
+func init() {
+	// Initialize AgentGetterFunc to allow content package to call agents
+	content.AgentGetterFunc = func(agentID string) (content.AgentCaller, error) {
+		ast, err := Get(agentID)
+		if err != nil {
+			return nil, err
+		}
+		// Return a wrapper that implements AgentCaller interface
+		return &agentCallerWrapper{ast: ast}, nil
+	}
+}
+
+// agentCallerWrapper wraps Assistant to implement AgentCaller interface
+type agentCallerWrapper struct {
+	ast *Assistant
+}
+
+func (w *agentCallerWrapper) Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (interface{}, error) {
+	return w.ast.Stream(ctx, messages, options...)
+}
 
 // Get get the assistant by id
 func Get(id string) (*Assistant, error) {

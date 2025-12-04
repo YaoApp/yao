@@ -40,31 +40,6 @@ type Assistant struct {
 	// toolCalls    bool        // Whether this assistant supports tool_calls
 }
 
-// VisionCapableModels list of LLM models that support vision capabilities
-var VisionCapableModels = map[string]bool{
-	// OpenAI Models
-	"gpt-4-vision-preview": true,
-	"gpt-4v":               true, // Alias for gpt-4-vision-preview
-
-	// Anthropic Models
-	"claude-3-opus":   true, // Most capable Claude model
-	"claude-3-sonnet": true, // Balanced Claude model
-	"claude-3-haiku":  true, // Fast and efficient Claude model
-
-	// Google Models
-	"gemini-pro-vision": true,
-
-	// Open Source Models
-	"llava-13b": true,
-	"cogvlm":    true,
-	"qwen-vl":   true,
-	"yi-vl":     true,
-
-	// Custom Models
-	"gpt-4o":      true, // Custom OpenAI compatible model
-	"gpt-4o-mini": true, // Custom OpenAI compatible model - mini version
-}
-
 // MCPTool represents a simplified MCP tool for building LLM requests
 // This is an internal representation used when collecting tools from MCP servers
 // and preparing them for the LLM's tool calling interface

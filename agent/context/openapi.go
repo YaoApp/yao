@@ -9,26 +9,27 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
 
 // GetCompletionRequest parse completion request and create context from openapi request
-// Returns: *CompletionRequest, *Context, error
-func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest, *Context, error) {
+// Returns: *CompletionRequest, *Context, *Options, error
+func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest, *Context, *Options, error) {
 	// Get authorized information
 	authInfo := authorized.GetInfo(c)
 
 	// Parse completion request from payload or query first
 	completionReq, err := parseCompletionRequestData(c)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse completion request: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to parse completion request: %w", err)
 	}
 
 	// Extract assistant ID using completionReq (can extract from model field)
 	assistantID, err := GetAssistantID(c, completionReq)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get assistant ID: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get assistant ID: %w", err)
 	}
 
 	// Extract chat ID (may generate from messages if not provided)
@@ -46,7 +47,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	// Create context with unique ID using New() to ensure proper initialization
 	ctx := New(c.Request.Context(), authInfo, chatID)
 
-	// Set additional fields
+	// Set context fields (session-level state)
 	ctx.Cache = cache
 	ctx.Writer = c.Writer
 	ctx.AssistantID = assistantID
@@ -61,14 +62,34 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	}
 	ctx.Route = GetRoute(c, completionReq)
 	ctx.Metadata = GetMetadata(c, completionReq)
-	ctx.Skip = GetSkip(c, completionReq)
+
+	// Create Options (call-level parameters)
+	opts := &Options{
+		Context: c.Request.Context(),
+		Skip:    GetSkip(c, completionReq),
+	}
+
+	// Try to extract custom connector from model field
+	// If model is a valid connector ID, set it to opts.Connector
+	// Otherwise, keep the standard OpenAI-compatible behavior (model as assistant ID)
+	if completionReq != nil && completionReq.Model != "" {
+		// Check if model is a valid connector (not containing "-yao_" which indicates assistant ID format)
+		if !strings.Contains(completionReq.Model, "-yao_") {
+			// Try to validate if it's a real connector
+			if _, err := connector.Select(completionReq.Model); err == nil {
+				// It's a valid connector, use it
+				opts.Connector = completionReq.Model
+			}
+			// If not a valid connector, ignore it (keep opts.Connector empty to use assistant's default)
+		}
+	}
 
 	// Initialize interrupt controller
 	ctx.Interrupt = NewInterruptController()
 
 	// Register context to global registry first (required for interrupt handler callback)
 	if err := Register(ctx); err != nil {
-		return nil, nil, fmt.Errorf("failed to register context: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to register context: %w", err)
 	}
 
 	// Start interrupt listener after registration
@@ -76,7 +97,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	// HTTP context cancellation is handled by LLM/Agent layers naturally
 	ctx.Interrupt.Start(ctx.ID)
 
-	return completionReq, ctx, nil
+	return completionReq, ctx, opts, nil
 }
 
 // getClientType parses the client type from User-Agent header

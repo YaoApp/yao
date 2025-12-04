@@ -107,6 +107,11 @@ func (s *streamState) handleMessageStart(data []byte) int {
 		startData.MessageID = messageID
 	}
 
+	// Auto-set ThreadID from Stack for nested agent calls
+	if startData.ThreadID == "" && s.ctx.Stack != nil && !s.ctx.Stack.IsRoot() {
+		startData.ThreadID = s.ctx.Stack.ID
+	}
+
 	// Initialize message state with the correct message ID
 	s.inGroup = true
 	s.currentGroupID = messageID
@@ -312,11 +317,18 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		msgType = message.TypeText // Fallback to text if type not set
 	}
 
+	// Get ThreadID from Stack for nested agent calls
+	var threadID string
+	if s.ctx.Stack != nil && !s.ctx.Stack.IsRoot() {
+		threadID = s.ctx.Stack.ID
+	}
+
 	// Build EventMessageEndData with complete content
 	endData := message.EventMessageEndData{
 		MessageID:  s.currentGroupID, // Use the message ID
 		Type:       msgType,
 		Timestamp:  time.Now().UnixMilli(),
+		ThreadID:   threadID, // Include ThreadID for concurrent stream identification
 		DurationMs: durationMs,
 		ChunkCount: s.chunkCount,
 		Status:     "completed",

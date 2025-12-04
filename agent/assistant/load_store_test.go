@@ -180,7 +180,6 @@ func newStoreTestContext(chatID, assistantID string) *context.Context {
 		Context:     stdContext.Background(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{
@@ -269,7 +268,7 @@ function Create(ctx: any, messages: any[]): any {
 	ctx := newStoreTestContext("test-chat-id", assistantID)
 	messages := []context.Message{{Role: "user", Content: "Hello"}}
 
-	res, err := loaded.Script.Create(ctx, messages)
+	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "Create hook should execute without error")
 	require.NotNil(t, res, "Create hook should return a response")
 
@@ -576,7 +575,7 @@ function Create(ctx: any, messages: any[]): any {
 	ctx := newStoreTestContext("test-chat-all-fields", assistantID)
 	messages := []context.Message{{Role: "user", Content: "Test message"}}
 
-	res, err := loaded.Script.Create(ctx, messages)
+	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "Create hook should execute without error")
 	require.NotNil(t, res, "Create hook should return a response")
 
@@ -691,7 +690,7 @@ function Create(ctx: CreateContext, messages: Message[]): CreateResponse | null 
 		{Role: "user", Content: "How are you?"},
 	}
 
-	res, err := loaded.Script.Create(ctx, messages)
+	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "TypeScript Create hook should execute without error")
 	require.NotNil(t, res, "Create hook should return a response")
 
@@ -759,7 +758,7 @@ function Create(ctx: any, messages: any[]): any {
 	ctx := newStoreTestContext("null-test-chat", assistantID)
 	messages := []context.Message{{Role: "user", Content: "Hello"}}
 
-	res, err := loaded.Script.Create(ctx, messages)
+	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "Hook returning null should not error")
 	assert.Nil(t, res, "Hook returning null should return nil response")
 }
@@ -832,7 +831,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("preset-test-1", assistantID)
 		messages := []context.Message{{Role: "user", Content: "Be friendly please"}}
 
-		res, err := loaded.Script.Create(ctx, messages)
+		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, "friendly", res.PromptPreset)
@@ -843,7 +842,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("preset-test-2", assistantID)
 		messages := []context.Message{{Role: "user", Content: "Be professional"}}
 
-		res, err := loaded.Script.Create(ctx, messages)
+		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, "professional", res.PromptPreset)
@@ -854,7 +853,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("preset-test-3", assistantID)
 		messages := []context.Message{{Role: "user", Content: "Hello"}}
 
-		res, err := loaded.Script.Create(ctx, messages)
+		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		assert.Nil(t, res)
 	})
@@ -916,7 +915,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("disable-test-1", assistantID)
 		messages := []context.Message{{Role: "user", Content: "disable_global prompts"}}
 
-		res, err := loaded.Script.Create(ctx, messages)
+		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.NotNil(t, res.DisableGlobalPrompts)
@@ -928,7 +927,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("disable-test-2", assistantID)
 		messages := []context.Message{{Role: "user", Content: "enable_global prompts"}}
 
-		res, err := loaded.Script.Create(ctx, messages)
+		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.NotNil(t, res.DisableGlobalPrompts)

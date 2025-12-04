@@ -194,6 +194,7 @@ type AssistantInfo struct {
 type Skip struct {
 	History bool `json:"history"` // Skip saving chat history (for internal calls like title/prompt generation)
 	Trace   bool `json:"trace"`   // Skip trace logging
+	Output  bool `json:"output"`  // Skip output to client (for internal A2A calls that only need response data)
 }
 
 // MessageMetadata stores metadata for sent messages
@@ -232,11 +233,7 @@ type Context struct {
 
 	// Internal
 	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
-	output          *output.Output        `json:"-"` // Output, it will be used to write response data to the client
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
-
-	// Skip configuration (history, trace, etc.), nil means don't skip anything
-	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *openai.Capabilities `json:"-"` // Model capabilities for the current connector
@@ -248,13 +245,6 @@ type Context struct {
 	Authorized  *types.AuthorizedInfo `json:"authorized,omitempty"`   // Authorized information
 	ChatID      string                `json:"chat_id,omitempty"`      // Chat ID, use to select chat
 	AssistantID string                `json:"assistant_id,omitempty"` // Assistant ID, use to select assistant
-	Connector   string                `json:"connector,omitempty"`    // Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
-	Search      *bool                 `json:"search,omitempty"`       // Search mode, default is true
-
-	// Arguments for call
-	Args       []interface{} `json:"args,omitempty"`        // Arguments for call, it will be used to pass data to the call
-	Retry      bool          `json:"retry,omitempty"`       // Retry mode
-	RetryTimes uint8         `json:"retry_times,omitempty"` // Retry times
 
 	// Locale information
 	Locale string `json:"locale,omitempty"` // Locale
@@ -270,12 +260,40 @@ type Context struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"` // The metadata of the request, it will be used to pass data to the page
 }
 
+// Options represents the options for the context
+type Options struct {
+
+	// Original context, override the default context
+	Context context.Context `json:"-"` // Context, it will be used to pass the context to the call
+
+	// Writer, use to write response data to the client (override the default writer)
+	Writer Writer `json:"writer,omitempty"` // Writer, use to write response data to the client
+
+	// Skip configuration (history, trace, etc.), nil means don't skip anything
+	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
+
+	// Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
+	Connector string `json:"connector,omitempty"` // Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
+
+	// Disable global prompts, default is false
+	DisableGlobalPrompts bool `json:"disable_global_prompts,omitempty"` // Temporarily disable global prompts for this request
+
+	// Search mode, default is true
+	Search *bool `json:"search,omitempty"` // Search mode, default is true
+
+	// Agent mode, use to select the mode of the request, default is "chat"
+	Mode string `json:"mode,omitempty"` // Agent mode, use to select the mode of the request, default is "chat"
+}
+
 // Stack represents the call stack node for tracing agent-to-agent calls
 // Uses a flat structure to avoid circular references and memory overhead
 type Stack struct {
 	// Identity
 	ID      string `json:"id"`       // Unique stack node ID, used to identify this specific call
 	TraceID string `json:"trace_id"` // Shared trace ID for entire call tree, inherited from root
+
+	// Options
+	Options *Options `json:"options,omitempty"` // Options for the call
 
 	// Call context
 	AssistantID string `json:"assistant_id"`      // Assistant handling this call
@@ -294,6 +312,9 @@ type Stack struct {
 
 	// Metrics
 	DurationMs *int64 `json:"duration_ms,omitempty"` // Duration in milliseconds (calculated when completed)
+
+	// Runtime cache (not serialized)
+	output *output.Output `json:"-"` // Cached output instance for this stack
 }
 
 // Response the response
@@ -331,12 +352,11 @@ type HookCreateResponse struct {
 	DisableGlobalPrompts *bool  `json:"disable_global_prompts,omitempty"` // Temporarily disable global prompts for this request
 
 	// Context adjustments - allow hook to modify context fields
-	AssistantID string                 `json:"assistant_id,omitempty"` // Override assistant ID
-	Connector   string                 `json:"connector,omitempty"`    // Override connector
-	Locale      string                 `json:"locale,omitempty"`       // Override locale
-	Theme       string                 `json:"theme,omitempty"`        // Override theme
-	Route       string                 `json:"route,omitempty"`        // Override route
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`     // Override or merge metadata
+	Connector string                 `json:"connector,omitempty"` // Override connector (call-level)
+	Locale    string                 `json:"locale,omitempty"`    // Override locale (session-level)
+	Theme     string                 `json:"theme,omitempty"`     // Override theme (session-level)
+	Route     string                 `json:"route,omitempty"`     // Override route (session-level)
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // Override or merge metadata (session-level)
 }
 
 // NextHookPayload payload for the next hook
@@ -372,9 +392,9 @@ type NextHookResponse struct {
 
 // DelegateConfig configuration for delegating to another agent
 type DelegateConfig struct {
-	AgentID  string    `json:"agent_id"` // Required: target agent ID
-	Messages []Message `json:"messages"` // Messages to send to target agent
-
+	AgentID  string                 `json:"agent_id"`          // Required: target agent ID
+	Messages []Message              `json:"messages"`          // Messages to send to target agent
+	Options  map[string]interface{} `json:"options,omitempty"` // Optional: call-level options for delegation
 }
 
 // NextAction defines the action determined by Next hook response
@@ -464,6 +484,8 @@ const (
 	ContentText       ContentPartType = "text"        // Text content
 	ContentImageURL   ContentPartType = "image_url"   // Image URL content (Vision)
 	ContentInputAudio ContentPartType = "input_audio" // Input audio content (Audio)
+	ContentFile       ContentPartType = "file"        // File attachment (documents, etc.)
+	ContentData       ContentPartType = "data"        // Generic data content (base64, binary, etc.)
 )
 
 // ContentPart represents a part of the message content (for multimodal messages)
@@ -473,6 +495,8 @@ type ContentPart struct {
 	Text       string          `json:"text,omitempty"`        // For type="text": the text content
 	ImageURL   *ImageURL       `json:"image_url,omitempty"`   // For type="image_url": the image URL
 	InputAudio *InputAudio     `json:"input_audio,omitempty"` // For type="input_audio": the input audio data
+	File       *FileAttachment `json:"file,omitempty"`        // For type="file": file attachment
+	Data       *DataContent    `json:"data,omitempty"`        // For type="data": generic data content
 }
 
 // ImageDetailLevel represents the detail level for image processing
@@ -495,6 +519,41 @@ type ImageURL struct {
 type InputAudio struct {
 	Data   string `json:"data"`   // Required: Base64 encoded audio data
 	Format string `json:"format"` // Required: Audio format (e.g., "wav", "mp3")
+}
+
+// FileAttachment represents a file attachment in the message content
+// Compatible with frontend InputArea format: { type: 'file', file: { url, filename } }
+type FileAttachment struct {
+	URL      string `json:"url"`                // Required: URL of the file (http:// or __uploader://fileid wrapper)
+	Filename string `json:"filename,omitempty"` // Optional: original filename
+}
+
+// DataSourceType represents the type of data source
+type DataSourceType string
+
+// Data source type constants
+const (
+	DataSourceModel        DataSourceType = "model"         // Data model
+	DataSourceKBCollection DataSourceType = "kb_collection" // Knowledge base collection
+	DataSourceKBDocument   DataSourceType = "kb_document"   // Knowledge base document/file
+	DataSourceTable        DataSourceType = "table"         // Database table
+	DataSourceAPI          DataSourceType = "api"           // API endpoint
+	DataSourceMCPResource  DataSourceType = "mcp_resource"  // MCP (Model Context Protocol) resource
+)
+
+// DataSource represents a single data source reference
+type DataSource struct {
+	Type     DataSourceType         `json:"type"`               // Required: type of data source
+	Name     string                 `json:"name"`               // Required: name/identifier of the data source
+	ID       string                 `json:"id,omitempty"`       // Optional: specific ID (e.g., document ID, record ID)
+	Filters  map[string]interface{} `json:"filters,omitempty"`  // Optional: filters to apply
+	Metadata map[string]interface{} `json:"metadata,omitempty"` // Optional: additional metadata
+}
+
+// DataContent represents data source references in the message
+// Used to reference data models, knowledge base collections, KB documents, etc.
+type DataContent struct {
+	Sources []DataSource `json:"sources"` // Required: array of data source references
 }
 
 // ToolCallType represents the type of tool call

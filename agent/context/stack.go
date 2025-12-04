@@ -9,7 +9,7 @@ import (
 )
 
 // NewStack creates a new root stack with the given trace ID and assistant ID
-func NewStack(traceID, assistantID, referer string) *Stack {
+func NewStack(traceID, assistantID, referer string, opts *Options) *Stack {
 	if traceID == "" {
 		traceID = uuid.New().String()
 	}
@@ -25,13 +25,14 @@ func NewStack(traceID, assistantID, referer string) *Stack {
 		Depth:       0,
 		ParentID:    "",
 		Path:        []string{stackID},
+		Options:     opts,
 		CreatedAt:   now,
 		Status:      StackStatusRunning,
 	}
 }
 
 // NewChildStack creates a child stack from the current stack
-func (s *Stack) NewChildStack(assistantID, referer string) *Stack {
+func (s *Stack) NewChildStack(assistantID, referer string, opts *Options) *Stack {
 	stackID := uuid.New().String()
 	now := time.Now().UnixMilli()
 
@@ -48,6 +49,7 @@ func (s *Stack) NewChildStack(assistantID, referer string) *Stack {
 		Depth:       s.Depth + 1,
 		ParentID:    s.ID,
 		Path:        path,
+		Options:     opts,
 		CreatedAt:   now,
 		Status:      StackStatusRunning,
 	}
@@ -134,6 +136,7 @@ func (s *Stack) Clone() *Stack {
 		Depth:       s.Depth,
 		ParentID:    s.ParentID,
 		Path:        make([]string, len(s.Path)),
+		Options:     s.Options, // Shallow copy of Options pointer
 		CreatedAt:   s.CreatedAt,
 		Status:      s.Status,
 		Error:       s.Error,
@@ -165,13 +168,16 @@ func (s *Stack) Clone() *Stack {
 //
 // Usage:
 //
-//	stack, traceID, done := context.EnterStack(ctx, assistantID, referer)
+//	stack, traceID, done := context.EnterStack(ctx, assistantID, opts)
 //	defer done()
 //	// ... your code here ...
-func EnterStack(ctx *Context, assistantID, referer string) (*Stack, string, func()) {
+func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, string, func()) {
 	var stack *Stack
 	var parentStack *Stack
 	var traceID string
+
+	// Get referer from ctx (request source)
+	referer := ctx.Referer
 
 	// Initialize Stacks map if not exists
 	if ctx.Stacks == nil {
@@ -182,14 +188,14 @@ func EnterStack(ctx *Context, assistantID, referer string) (*Stack, string, func
 		// Create root stack for this assistant call (entry point)
 		// Generate a new trace ID for root
 		traceID = trace.GenTraceID()
-		stack = NewStack(traceID, assistantID, referer)
+		stack = NewStack(traceID, assistantID, referer, opts)
 		ctx.Stack = stack
 	} else {
 		// Create child stack for nested agent call
 		// Inherit trace ID from parent
 		parentStack = ctx.Stack
 		traceID = parentStack.TraceID
-		stack = ctx.Stack.NewChildStack(assistantID, referer)
+		stack = ctx.Stack.NewChildStack(assistantID, referer, opts)
 		ctx.Stack = stack
 	}
 

@@ -211,7 +211,11 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 	var lastErr error
 
 	// Get Go context for cancellation support
+	// Read from Stack.Options if available (call-level override)
 	goCtx := ctx.Context
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Context != nil {
+		goCtx = ctx.Stack.Options.Context
+	}
 	if goCtx == nil {
 		goCtx = gocontext.Background()
 	}
@@ -808,7 +812,11 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 	var lastErr error
 
 	// Get Go context for cancellation support
+	// Read from Stack.Options if available (call-level override)
 	goCtx := ctx.Context
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Context != nil {
+		goCtx = ctx.Stack.Options.Context
+	}
 	if goCtx == nil {
 		goCtx = gocontext.Background()
 	}

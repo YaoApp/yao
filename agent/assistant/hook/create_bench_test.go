@@ -34,7 +34,7 @@ func BenchmarkSimpleStandardMode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ctx := newBenchContext("bench-simple-standard", "tests.create")
-		_, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.Script.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		if err != nil {
@@ -61,7 +61,7 @@ func BenchmarkSimplePerformanceMode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ctx := newBenchContext("bench-simple-performance", "tests.create")
-		_, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.Script.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		if err != nil {
@@ -95,7 +95,7 @@ func BenchmarkBusinessStandardMode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		scenario := scenarios[i%len(scenarios)]
 		ctx := newBenchContext("bench-business-standard", "tests.create")
-		_, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.Script.Create(ctx, []context.Message{
 			{Role: "user", Content: scenario.content},
 		})
 		if err != nil {
@@ -125,7 +125,7 @@ func BenchmarkBusinessPerformanceMode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		scenario := scenarios[i%len(scenarios)]
 		ctx := newBenchContext("bench-business-performance", "tests.create")
-		_, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.Script.Create(ctx, []context.Message{
 			{Role: "user", Content: scenario.content},
 		})
 		if err != nil {
@@ -159,7 +159,7 @@ func BenchmarkConcurrentSimpleStandardMode(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			ctx := newBenchContext("bench-concurrent-simple-standard", "tests.create")
-			_, err := agent.Script.Create(ctx, []context.Message{
+			_, _, err := agent.Script.Create(ctx, []context.Message{
 				{Role: "user", Content: "Hello"},
 			})
 			if err != nil {
@@ -191,7 +191,7 @@ func BenchmarkConcurrentSimplePerformanceMode(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			ctx := newBenchContext("bench-concurrent-simple", "tests.create")
-			_, err := agent.Script.Create(ctx, []context.Message{
+			_, _, err := agent.Script.Create(ctx, []context.Message{
 				{Role: "user", Content: "Hello"},
 			})
 			if err != nil {
@@ -226,7 +226,7 @@ func BenchmarkConcurrentBusinessStandardMode(b *testing.B) {
 		for pb.Next() {
 			scenario := scenarios[i%len(scenarios)]
 			ctx := newBenchContext("bench-concurrent-business-standard", "tests.create")
-			_, err := agent.Script.Create(ctx, []context.Message{
+			_, _, err := agent.Script.Create(ctx, []context.Message{
 				{Role: "user", Content: scenario.content},
 			})
 			if err != nil {
@@ -261,7 +261,7 @@ func BenchmarkConcurrentBusinessPerformanceMode(b *testing.B) {
 		for pb.Next() {
 			scenario := scenarios[i%len(scenarios)]
 			ctx := newBenchContext("bench-concurrent-business", "tests.create")
-			_, err := agent.Script.Create(ctx, []context.Message{
+			_, _, err := agent.Script.Create(ctx, []context.Message{
 				{Role: "user", Content: scenario.content},
 			})
 			if err != nil {
@@ -301,7 +301,6 @@ func newBenchContext(chatID, assistantID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{

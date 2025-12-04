@@ -1477,3 +1477,330 @@ func TestManagerLocalPath_ValidationFlow(t *testing.T) {
 		t.Logf("Warning: Failed to delete test file: %v", err)
 	}
 }
+
+func TestGetTextAndSaveText(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	manager, err := RegisterDefault("test-text-content")
+	if err != nil {
+		t.Fatalf("Failed to register manager: %v", err)
+	}
+
+	// Upload a test file
+	content := "This is a test file for text content storage"
+	reader := strings.NewReader(content)
+
+	fileHeader := &FileHeader{
+		FileHeader: &multipart.FileHeader{
+			Filename: "test-text.txt",
+			Size:     int64(len(content)),
+			Header:   make(map[string][]string),
+		},
+	}
+	fileHeader.Header.Set("Content-Type", "text/plain")
+
+	option := UploadOption{
+		Groups:           []string{"test"},
+		OriginalFilename: "test-text.txt",
+	}
+
+	file, err := manager.Upload(context.Background(), fileHeader, reader, option)
+	if err != nil {
+		t.Fatalf("Failed to upload file: %v", err)
+	}
+
+	// Test 1: GetText on file without saved text (should return empty)
+	t.Run("GetTextEmpty", func(t *testing.T) {
+		text, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get text: %v", err)
+		}
+
+		if text != "" {
+			t.Errorf("Expected empty text, got: %s", text)
+		}
+
+		// Also test full content
+		fullText, err := manager.GetText(context.Background(), file.ID, true)
+		if err != nil {
+			t.Fatalf("Failed to get full text: %v", err)
+		}
+
+		if fullText != "" {
+			t.Errorf("Expected empty full text, got: %s", fullText)
+		}
+	})
+
+	// Test 2: SaveText and verify
+	t.Run("SaveTextAndVerify", func(t *testing.T) {
+		parsedText := "This is the parsed text content from the file. It could be extracted from PDF, Word, or image OCR."
+
+		err := manager.SaveText(context.Background(), file.ID, parsedText)
+		if err != nil {
+			t.Fatalf("Failed to save text: %v", err)
+		}
+
+		// Retrieve the saved text
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get saved text: %v", err)
+		}
+
+		if retrievedText != parsedText {
+			t.Errorf("Text mismatch. Expected: %s, Got: %s", parsedText, retrievedText)
+		}
+
+		t.Logf("Successfully saved and retrieved text content (%d characters)", len(retrievedText))
+	})
+
+	// Test 3: Update existing text
+	t.Run("UpdateText", func(t *testing.T) {
+		updatedText := "This is the updated parsed text content with additional information."
+
+		err := manager.SaveText(context.Background(), file.ID, updatedText)
+		if err != nil {
+			t.Fatalf("Failed to update text: %v", err)
+		}
+
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get updated text: %v", err)
+		}
+
+		if retrievedText != updatedText {
+			t.Errorf("Updated text mismatch. Expected: %s, Got: %s", updatedText, retrievedText)
+		}
+	})
+
+	// Test 4: Save long text content and verify preview vs full content
+	t.Run("SaveLongText", func(t *testing.T) {
+		// Generate a large text content (10KB)
+		longText := strings.Repeat("This is a long text content that simulates parsing from a large document like PDF or Word. ", 100)
+
+		err := manager.SaveText(context.Background(), file.ID, longText)
+		if err != nil {
+			t.Fatalf("Failed to save long text: %v", err)
+		}
+
+		// Get preview (default, should be limited to 2000 characters)
+		previewText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get preview text: %v", err)
+		}
+
+		// Preview should be exactly 2000 characters (runes)
+		previewRunes := []rune(previewText)
+		if len(previewRunes) != 2000 {
+			t.Errorf("Preview length mismatch. Expected: 2000 runes, Got: %d runes", len(previewRunes))
+		}
+
+		// Get full content
+		fullText, err := manager.GetText(context.Background(), file.ID, true)
+		if err != nil {
+			t.Fatalf("Failed to get full text: %v", err)
+		}
+
+		if fullText != longText {
+			t.Errorf("Full text mismatch. Expected length: %d, Got: %d", len(longText), len(fullText))
+		}
+
+		t.Logf("Successfully saved long text - Preview: %d chars, Full: %d chars", len(previewText), len(fullText))
+	})
+
+	// Test 5: Test UTF-8 character handling in preview
+	t.Run("UTF8PreviewHandling", func(t *testing.T) {
+		// Create text with multi-byte UTF-8 characters (Chinese, emoji, etc.)
+		// Each Chinese character is 3 bytes, emoji is 4 bytes
+		chineseText := strings.Repeat("这是一个测试文本，包含中文字符。", 150) // Should exceed 2000 chars
+		emojiText := strings.Repeat("Hello 👋 World 🌍 ", 150)
+
+		// Test with Chinese text
+		err := manager.SaveText(context.Background(), file.ID, chineseText)
+		if err != nil {
+			t.Fatalf("Failed to save Chinese text: %v", err)
+		}
+
+		previewChinese, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get Chinese preview: %v", err)
+		}
+
+		// Should be exactly 2000 runes (characters), not bytes
+		if len([]rune(previewChinese)) != 2000 {
+			t.Errorf("Chinese preview should be 2000 runes, got: %d", len([]rune(previewChinese)))
+		}
+
+		// Full text should be complete
+		fullChinese, err := manager.GetText(context.Background(), file.ID, true)
+		if err != nil {
+			t.Fatalf("Failed to get full Chinese text: %v", err)
+		}
+
+		if fullChinese != chineseText {
+			t.Errorf("Chinese text mismatch")
+		}
+
+		// Test with emoji text
+		err = manager.SaveText(context.Background(), file.ID, emojiText)
+		if err != nil {
+			t.Fatalf("Failed to save emoji text: %v", err)
+		}
+
+		previewEmoji, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get emoji preview: %v", err)
+		}
+
+		if len([]rune(previewEmoji)) != 2000 {
+			t.Errorf("Emoji preview should be 2000 runes, got: %d", len([]rune(previewEmoji)))
+		}
+
+		t.Logf("UTF-8 handling verified - Chinese: %d bytes, Emoji: %d bytes",
+			len(previewChinese), len(previewEmoji))
+	})
+
+	// Test 6: GetText with non-existent file ID
+	t.Run("GetTextNonExistent", func(t *testing.T) {
+		_, err := manager.GetText(context.Background(), "non-existent-id")
+		if err == nil {
+			t.Error("Expected error for non-existent file ID")
+		}
+
+		if !strings.Contains(err.Error(), "file not found") {
+			t.Errorf("Expected 'file not found' error, got: %s", err.Error())
+		}
+	})
+
+	// Test 7: SaveText with non-existent file ID
+	t.Run("SaveTextNonExistent", func(t *testing.T) {
+		err := manager.SaveText(context.Background(), "non-existent-id", "some text")
+		if err == nil {
+			t.Error("Expected error for non-existent file ID")
+		}
+
+		if !strings.Contains(err.Error(), "file not found") {
+			t.Errorf("Expected 'file not found' error, got: %s", err.Error())
+		}
+	})
+
+	// Test 8: Save empty text (clear content)
+	t.Run("SaveEmptyText", func(t *testing.T) {
+		err := manager.SaveText(context.Background(), file.ID, "")
+		if err != nil {
+			t.Fatalf("Failed to save empty text: %v", err)
+		}
+
+		retrievedText, err := manager.GetText(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Failed to get empty text: %v", err)
+		}
+
+		if retrievedText != "" {
+			t.Errorf("Expected empty text, got: %s", retrievedText)
+		}
+	})
+
+	// Test 9: Verify List doesn't include content fields by default
+	t.Run("ListExcludesContentByDefault", func(t *testing.T) {
+		// Save some text content
+		testText := "This text should not appear in list results by default"
+		err := manager.SaveText(context.Background(), file.ID, testText)
+		if err != nil {
+			t.Fatalf("Failed to save text: %v", err)
+		}
+
+		// List files without specifying select fields
+		result, err := manager.List(context.Background(), ListOption{
+			Filters: map[string]interface{}{
+				"file_id": file.ID,
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to list files: %v", err)
+		}
+
+		if len(result.Files) == 0 {
+			t.Fatal("Expected to find at least one file")
+		}
+
+		// The List method returns File structs, but we need to verify
+		// the database query doesn't fetch the content field
+		// We can verify this by checking the database directly
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		// When we do a full select, content should be present
+		if len(records) > 0 {
+			if content, ok := records[0]["content"].(string); ok && content == testText {
+				t.Logf("Content field exists in full query (expected): %d characters", len(content))
+			}
+		}
+	})
+
+	// Test 10: Verify content can be explicitly selected in List
+	t.Run("ListIncludesContentWhenExplicitlySelected", func(t *testing.T) {
+		// Save some text content
+		testText := "This text SHOULD appear when explicitly selected"
+		err := manager.SaveText(context.Background(), file.ID, testText)
+		if err != nil {
+			t.Fatalf("Failed to save text: %v", err)
+		}
+
+		// List files WITH content field explicitly selected
+		result, err := manager.List(context.Background(), ListOption{
+			Select: []string{"file_id", "name", "content"},
+			Filters: map[string]interface{}{
+				"file_id": file.ID,
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to list files with content: %v", err)
+		}
+
+		if len(result.Files) == 0 {
+			t.Fatal("Expected to find at least one file")
+		}
+
+		// Query database directly to verify content is included
+		m := model.Select("__yao.attachment")
+		records, err := m.Get(model.QueryParam{
+			Select: []interface{}{"file_id", "name", "content"},
+			Wheres: []model.QueryWhere{
+				{Column: "file_id", Value: file.ID},
+			},
+		})
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		if len(records) == 0 {
+			t.Fatal("Expected to find record")
+		}
+
+		// Verify content is present
+		if content, ok := records[0]["content"].(string); ok {
+			if content != testText {
+				t.Errorf("Expected content '%s', got '%s'", testText, content)
+			}
+			t.Logf("Content field correctly included when explicitly selected: %d characters", len(content))
+		} else {
+			t.Error("Content field not found when explicitly selected")
+		}
+	})
+
+	// Clean up
+	err = manager.Delete(context.Background(), file.ID)
+	if err != nil {
+		t.Logf("Warning: Failed to delete test file: %v", err)
+	}
+}

@@ -318,6 +318,7 @@ type EventMessageStartData struct {
 	MessageID string                 `json:"message_id"`          // Message ID (M1, M2, M3...)
 	Type      string                 `json:"type"`                // Message type: "text" | "thinking" | "tool_call" | "refusal"
 	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when message started
+	ThreadID  string                 `json:"thread_id,omitempty"` // Thread ID (optional; for concurrent streams)
 	ToolCall  *EventToolCallInfo     `json:"tool_call,omitempty"` // Tool call metadata (if type is "tool_call")
 	Extra     map[string]interface{} `json:"extra,omitempty"`     // Additional metadata (for custom providers or future extensions)
 }
@@ -329,6 +330,7 @@ type EventMessageEndData struct {
 	MessageID  string                 `json:"message_id"`          // Message ID (M1, M2, M3...)
 	Type       string                 `json:"type"`                // Message type (same as in message_start)
 	Timestamp  int64                  `json:"timestamp"`           // Unix timestamp when message ended
+	ThreadID   string                 `json:"thread_id,omitempty"` // Thread ID (optional; for concurrent streams)
 	DurationMs int64                  `json:"duration_ms"`         // Duration of this message in milliseconds
 	ChunkCount int                    `json:"chunk_count"`         // Number of data chunks in this message
 	Status     string                 `json:"status"`              // "completed" | "partial" | "error"

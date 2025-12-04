@@ -851,7 +851,7 @@ func TestGetCompletionRequest_WriterInitialized(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 
-	completionReq, ctx, err := GetCompletionRequest(c, cache)
+	completionReq, ctx, opts, err := GetCompletionRequest(c, cache)
 	if err != nil {
 		t.Fatalf("Failed to get completion request: %v", err)
 	}
@@ -865,6 +865,11 @@ func TestGetCompletionRequest_WriterInitialized(t *testing.T) {
 	// Check that Writer is the same as gin context writer
 	if ctx.Writer != c.Writer {
 		t.Error("Expected ctx.Writer to be the same as gin context writer")
+	}
+
+	// Check that Options is initialized
+	if opts == nil {
+		t.Error("Expected opts to be initialized, got nil")
 	}
 
 	// Check other fields
@@ -914,11 +919,16 @@ func TestGetCompletionRequest_ChatIDFallback(t *testing.T) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
 
-	_, ctx, err := GetCompletionRequest(c, cache)
+	_, ctx, opts, err := GetCompletionRequest(c, cache)
 	if err != nil {
 		t.Fatalf("Failed to get completion request: %v", err)
 	}
 	defer ctx.Release()
+
+	// Check that Options is initialized
+	if opts == nil {
+		t.Error("Expected opts to be initialized, got nil")
+	}
 
 	// ChatID should be generated (not empty)
 	if ctx.ChatID == "" {

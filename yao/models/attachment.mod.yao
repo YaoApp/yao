@@ -46,6 +46,20 @@
       "index": true
     },
     {
+      "name": "content",
+      "type": "longText",
+      "label": "Content",
+      "comment": "Full parsed text content from image, pdf, word and other file types",
+      "nullable": true
+    },
+    {
+      "name": "content_preview",
+      "type": "text",
+      "label": "Content Preview",
+      "comment": "Preview of parsed text content (first 2000 characters)",
+      "nullable": true
+    },
+    {
       "name": "name",
       "type": "string",
       "label": "Name",

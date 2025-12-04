@@ -38,7 +38,8 @@ func TestStressContextCreationAndRelease(t *testing.T) {
 		}
 
 		// Initialize stack and trace
-		stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+		cxt.Referer = context.RefererAPI
+		stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 		cxt.Stack = stack
 
 		_, err := v8.Call(v8.CallOptions{}, `
@@ -111,10 +112,11 @@ func TestStressTraceOperations(t *testing.T) {
 			AssistantID: "test-assistant",
 			Context:     stdContext.Background(),
 			IDGenerator: message.NewIDGenerator(),
+			Referer:     context.RefererAPI,
 		}
 
 		// Initialize stack and trace
-		stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+		stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 		cxt.Stack = stack
 		_, err := v8.Call(v8.CallOptions{}, fmt.Sprintf(`
 			function test(ctx) {
@@ -188,9 +190,10 @@ func TestStressMCPOperations(t *testing.T) {
 		AssistantID: "test-assistant",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	startMemory := getMemStats()
@@ -271,9 +274,10 @@ func TestStressConcurrentContexts(t *testing.T) {
 					AssistantID: "test-assistant",
 					Context:     stdContext.Background(),
 					IDGenerator: message.NewIDGenerator(),
+					Referer:     context.RefererAPI,
 				}
 
-				stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+				stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 				cxt.Stack = stack
 
 				_, err := v8.Call(v8.CallOptions{}, `
@@ -421,9 +425,10 @@ func TestStressReleasePatterns(t *testing.T) {
 				AssistantID: "test-assistant",
 				Context:     stdContext.Background(),
 				IDGenerator: message.NewIDGenerator(),
+				Referer:     context.RefererAPI,
 			}
 
-			stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+			stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 			cxt.Stack = stack
 
 			_, err := v8.Call(v8.CallOptions{}, `
@@ -459,9 +464,10 @@ func TestStressReleasePatterns(t *testing.T) {
 				AssistantID: "test-assistant",
 				Context:     stdContext.Background(),
 				IDGenerator: message.NewIDGenerator(),
+				Referer:     context.RefererAPI,
 			}
 
-			stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+			stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 			cxt.Stack = stack
 
 			_, err := v8.Call(v8.CallOptions{}, `
@@ -499,9 +505,10 @@ func TestStressReleasePatterns(t *testing.T) {
 				AssistantID: "test-assistant",
 				Context:     stdContext.Background(),
 				IDGenerator: message.NewIDGenerator(),
+				Referer:     context.RefererAPI,
 			}
 
-			stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+			stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 			cxt.Stack = stack
 
 			_, err := v8.Call(v8.CallOptions{}, `
@@ -544,9 +551,10 @@ func TestStressLongRunningTrace(t *testing.T) {
 		AssistantID: "test-assistant",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	startMemory := getMemStats()

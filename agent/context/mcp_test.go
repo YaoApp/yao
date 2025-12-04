@@ -20,10 +20,11 @@ func newTestMCPContext() *context.Context {
 		ChatID:      "test-chat",
 		AssistantID: "test-assistant",
 		Locale:      "en",
+		Referer:     context.RefererAPI,
 	}
 
 	// Initialize stack and trace
-	stack, traceID, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, traceID, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 	_ = traceID // traceID is set in stack
 

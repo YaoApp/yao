@@ -22,10 +22,11 @@ func TestContextRelease(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
 	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -75,10 +76,11 @@ func TestTraceRelease(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
 	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -137,10 +139,11 @@ func TestContextReleaseWithTrace(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
 	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -185,10 +188,11 @@ func TestTryFinallyPattern(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
 	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -287,10 +291,11 @@ func TestTryFinallyPatternWithError(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Context:     stdContext.Background(),
 		IDGenerator: message.NewIDGenerator(),
+		Referer:     context.RefererAPI,
 	}
 
 	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
 	cxt.Stack = stack
 
 	_, err := v8.Call(v8.CallOptions{}, `

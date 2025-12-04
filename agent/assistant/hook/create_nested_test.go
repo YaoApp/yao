@@ -29,7 +29,7 @@ func TestNestedScriptCall(t *testing.T) {
 
 	// Call with deep_nested_call scenario
 	// This will: hook -> scripts.tests.create.NestedCall -> GetRoles -> model
-	res, err := agent.Script.Create(ctx, []context.Message{
+	res, _, err := agent.Script.Create(ctx, []context.Message{
 		{Role: "user", Content: "deep_nested_call"},
 	})
 
@@ -86,7 +86,7 @@ func TestNestedScriptCallConcurrent(t *testing.T) {
 			for j := 0; j < iterations; j++ {
 				ctx := newTestContext("test-concurrent", "tests.create")
 
-				_, err := agent.Script.Create(ctx, []context.Message{
+				_, _, err := agent.Script.Create(ctx, []context.Message{
 					{Role: "user", Content: "deep_nested_call"},
 				})
 

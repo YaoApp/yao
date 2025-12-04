@@ -25,7 +25,7 @@ func GinCreateCompletions(c *gin.Context) {
 		return
 	}
 
-	completionReq, ctx, err := context.GetCompletionRequest(c, cache)
+	completionReq, ctx, opts, err := context.GetCompletionRequest(c, cache)
 	if err != nil {
 		fmt.Println("-----------------------------------------------")
 		fmt.Println("Error: ", err.Error())
@@ -61,7 +61,7 @@ func GinCreateCompletions(c *gin.Context) {
 	// Stream the completion (uses default handler which sends to ctx.Writer)
 	// The Stream method will automatically close the writer and send [DONE] marker
 	log.Trace("[HTTP] Calling ast.Stream()")
-	_, err = ast.Stream(ctx, completionReq.Messages)
+	_, err = ast.Stream(ctx, completionReq.Messages, opts)
 	log.Trace("[HTTP] ast.Stream() returned, err=%v", err)
 	if err != nil {
 		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{

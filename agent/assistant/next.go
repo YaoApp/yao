@@ -55,7 +55,10 @@ func (ast *Assistant) handleDelegation(
 	// 2. Execute with the same Context (preserving ID, Space, Writer, etc.)
 	// 3. Call done() to pop from Stack when finished
 	// This ensures proper Stack tracing: parent assistant -> delegated assistant
-	return targetAssistant.Stream(ctx, delegate.Messages, streamHandler)
+
+	// Convert options map from delegate config to Options struct
+	delegateOpts := agentContext.OptionsFromMap(delegate.Options)
+	return targetAssistant.Stream(ctx, delegate.Messages, delegateOpts)
 }
 
 // buildStandardResponse builds the standard agent response when no custom Next hook processing is needed

@@ -659,6 +659,134 @@ case "upload_failed":
 }
 ```
 
+## Text Content Storage
+
+The attachment package supports storing parsed text content extracted from files (e.g., from PDFs, Word documents, or image OCR). This is useful for building search indexes or providing text-based previews.
+
+The system automatically maintains two versions of the text content:
+- **Full content** (`content`): Complete text, stored as longText (up to 4GB)
+- **Preview** (`content_preview`): First 2000 characters, stored as text for quick access
+
+### Saving Parsed Text Content
+
+Use `SaveText` to store the extracted text content. It automatically saves both full content and preview:
+
+```go
+// Upload a PDF file
+file, err := manager.Upload(ctx, fileHeader, reader, option)
+if err != nil {
+    return err
+}
+
+// Extract text from the PDF (using your preferred library)
+parsedText := extractTextFromPDF(file.ID)
+
+// Save the parsed text (automatically saves both full and preview)
+err = manager.SaveText(ctx, file.ID, parsedText)
+if err != nil {
+    return fmt.Errorf("failed to save text content: %w", err)
+}
+```
+
+### Retrieving Parsed Text Content
+
+Use `GetText` to retrieve text content. By default, it returns the preview for better performance:
+
+```go
+// Get preview (first 2000 characters) - Fast, suitable for UI display
+preview, err := manager.GetText(ctx, file.ID)
+if err != nil {
+    return fmt.Errorf("failed to get preview: %w", err)
+}
+
+if preview == "" {
+    fmt.Println("No text content available for this file")
+} else {
+    fmt.Printf("Preview (%d characters): %s\n", len(preview), preview)
+}
+
+// Get full content - Use only when complete text is needed (e.g., for indexing)
+fullText, err := manager.GetText(ctx, file.ID, true)
+if err != nil {
+    return fmt.Errorf("failed to get full text: %w", err)
+}
+
+fmt.Printf("Full content (%d characters)\n", len(fullText))
+```
+
+### Performance Optimization
+
+The text content fields are optimized for different use cases:
+
+| Field | Size Limit | Use Case | Performance |
+|-------|------------|----------|-------------|
+| `content_preview` | 2000 chars | Quick preview, UI display, snippets | ⚡ Very Fast |
+| `content` | 4GB | Full text search, complete content | 🐌 Slow for large files |
+
+**Best Practices:**
+1. Use preview by default: `GetText(ctx, fileID)`
+2. Only request full content when necessary: `GetText(ctx, fileID, true)`
+3. Both fields are excluded from `List()` by default for optimal performance
+4. Preview uses character (rune) count, not bytes, for proper UTF-8 handling
+
+### Example: Complete Text Processing Workflow
+
+```go
+// 1. Upload file
+file, err := manager.Upload(ctx, fileHeader, reader, option)
+if err != nil {
+    return err
+}
+
+// 2. Process file based on content type
+var parsedText string
+switch {
+case strings.HasPrefix(file.ContentType, "image/"):
+    // Use OCR to extract text from image
+    parsedText, err = performOCR(file.ID)
+    
+case file.ContentType == "application/pdf":
+    // Extract text from PDF
+    parsedText, err = extractPDFText(file.ID)
+    
+case strings.Contains(file.ContentType, "wordprocessingml"):
+    // Extract text from Word document
+    parsedText, err = extractWordText(file.ID)
+}
+
+if err != nil {
+    return fmt.Errorf("failed to extract text: %w", err)
+}
+
+// 3. Save the extracted text
+if parsedText != "" {
+    err = manager.SaveText(ctx, file.ID, parsedText)
+    if err != nil {
+        return fmt.Errorf("failed to save text: %w", err)
+    }
+}
+
+// 4. Later, retrieve the text for search or display
+savedText, err := manager.GetText(ctx, file.ID)
+if err != nil {
+    return err
+}
+
+fmt.Printf("Retrieved text: %s\n", savedText)
+```
+
+### Text Content Features
+
+- **Dual Storage**: Automatically maintains both full content and preview (2000 chars)
+- **Size Limits**: 
+  - Preview: 2000 characters (text type)
+  - Full content: Up to 4GB (longText type)
+- **Smart Retrieval**: Returns preview by default, full content on demand
+- **Update**: Text content can be updated at any time using `SaveText`
+- **Clear**: Set text to empty string to clear both fields
+- **UTF-8 Safe**: Preview uses character (rune) count, not bytes, ensuring proper multi-byte character handling
+- **Performance**: Both `content` and `content_preview` fields are excluded by default in `List()` and `Info()` operations to avoid loading text data. Use `GetText()` to explicitly retrieve text content when needed
+
 #### `RegisterDefault(name string) (*Manager, error)`
 
 Registers a default attachment manager with sensible defaults for common file types.

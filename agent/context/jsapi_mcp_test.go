@@ -22,8 +22,9 @@ func TestMCPListResources(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -66,8 +67,9 @@ func TestMCPReadResource(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -108,8 +110,9 @@ func TestMCPListTools(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -154,8 +157,9 @@ func TestMCPCallTool(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -196,8 +200,9 @@ func TestMCPCallTools(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -243,8 +248,9 @@ func TestMCPCallToolsParallel(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -290,8 +296,9 @@ func TestMCPListPrompts(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -334,8 +341,9 @@ func TestMCPGetPrompt(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -376,8 +384,9 @@ func TestMCPListSamples(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -418,8 +427,9 @@ func TestMCPGetSample(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -462,8 +472,9 @@ func TestMCPJsApiWithTrace(t *testing.T) {
 		AssistantID: "test-assistant-id",
 		Locale:      "en",
 		Context:     stdContext.Background(),
+		Referer:     context.RefererAPI,
 	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", context.RefererAPI)
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	ctx.Stack = stack
 
 	res, err := v8.Call(v8.CallOptions{}, `
