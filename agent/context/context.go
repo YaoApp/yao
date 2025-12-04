@@ -259,23 +259,6 @@ func (ctx *Context) Map() map[string]interface{} {
 	if ctx.AssistantID != "" {
 		data["assistant_id"] = ctx.AssistantID
 	}
-	if ctx.Connector != "" {
-		data["connector"] = ctx.Connector
-	}
-	if ctx.Search != nil {
-		data["search"] = *ctx.Search
-	}
-
-	// Arguments for call
-	if len(ctx.Args) > 0 {
-		data["args"] = ctx.Args
-	}
-	if ctx.Retry {
-		data["retry"] = ctx.Retry
-	}
-	if ctx.RetryTimes > 0 {
-		data["retry_times"] = ctx.RetryTimes
-	}
 
 	// Locale information
 	if ctx.Locale != "" {

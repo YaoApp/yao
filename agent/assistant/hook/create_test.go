@@ -19,7 +19,6 @@ func newTestContext(chatID, assistantID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{
@@ -74,7 +73,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 1: Return null (should get nil response)
 	t.Run("ReturnNull", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_null"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_null"}})
 		if err != nil {
 			t.Fatalf("Failed to create with null return: %s", err.Error())
 		}
@@ -85,7 +84,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 2: Return undefined (should get nil response)
 	t.Run("ReturnUndefined", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_undefined"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_undefined"}})
 		if err != nil {
 			t.Fatalf("Failed to create with undefined return: %s", err.Error())
 		}
@@ -96,7 +95,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 3: Return empty object (should get empty HookCreateResponse)
 	t.Run("ReturnEmpty", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_empty"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_empty"}})
 		if err != nil {
 			t.Fatalf("Failed to create with empty return: %s", err.Error())
 		}
@@ -110,7 +109,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 4: Return full response with all fields
 	t.Run("ReturnFull", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_full"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_full"}})
 		if err != nil {
 			t.Fatalf("Failed to create with full return: %s", err.Error())
 		}
@@ -166,7 +165,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 5: Return partial response
 	t.Run("ReturnPartial", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_partial"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_partial"}})
 		if err != nil {
 			t.Fatalf("Failed to create with partial return: %s", err.Error())
 		}
@@ -197,7 +196,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 6: Process call - calls models.__yao.role.Get and adds to messages
 	t.Run("ReturnProcess", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_process"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "return_process"}})
 		if err != nil {
 			t.Fatalf("Failed to create with process return: %s", err.Error())
 		}
@@ -225,7 +224,7 @@ func TestCreate(t *testing.T) {
 	// Test scenario 7: Default response
 	t.Run("ReturnDefault", func(t *testing.T) {
 		testContent := "Hello, how are you?"
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: testContent}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: testContent}})
 		if err != nil {
 			t.Fatalf("Failed to create with default return: %s", err.Error())
 		}
@@ -252,7 +251,7 @@ func TestCreate(t *testing.T) {
 
 	// Test scenario 8: Verify context fields - validates all context fields in JavaScript
 	t.Run("VerifyContext", func(t *testing.T) {
-		res, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "verify_context"}})
+		res, _, err := agent.Script.Create(ctx, []context.Message{{Role: "user", Content: "verify_context"}})
 		if err != nil {
 			t.Fatalf("Failed to create with verify_context: %s", err.Error())
 		}
@@ -304,7 +303,7 @@ func TestCreate(t *testing.T) {
 		adjustCtx := newTestContext("chat-test-adjust", "tests.create")
 
 		// Call the hook which should adjust context fields
-		res, err := agent.Script.Create(adjustCtx, []context.Message{{Role: "user", Content: "adjust_context"}})
+		res, _, err := agent.Script.Create(adjustCtx, []context.Message{{Role: "user", Content: "adjust_context"}})
 		if err != nil {
 			t.Fatalf("Failed to create with adjust_context: %s", err.Error())
 		}
@@ -313,9 +312,7 @@ func TestCreate(t *testing.T) {
 		}
 
 		// Verify the response contains adjusted fields
-		if res.AssistantID != "adjusted.assistant" {
-			t.Errorf("Expected adjusted assistant_id 'adjusted.assistant', got: %s", res.AssistantID)
-		}
+		// Note: AssistantID cannot be overridden by hooks, removed from HookCreateResponse
 		if res.Connector != "adjusted-connector" {
 			t.Errorf("Expected adjusted connector 'adjusted-connector', got: %s", res.Connector)
 		}
@@ -338,12 +335,8 @@ func TestCreate(t *testing.T) {
 		}
 
 		// Verify context fields were actually updated
-		if adjustCtx.AssistantID != "adjusted.assistant" {
-			t.Errorf("Context assistant_id not updated. Expected 'adjusted.assistant', got: %s", adjustCtx.AssistantID)
-		}
-		if adjustCtx.Connector != "adjusted-connector" {
-			t.Errorf("Context connector not updated. Expected 'adjusted-connector', got: %s", adjustCtx.Connector)
-		}
+		// Note: AssistantID is immutable and cannot be overridden
+		// Note: Connector is now in Options, not in Context
 		if adjustCtx.Locale != "zh-cn" {
 			t.Errorf("Context locale not updated. Expected 'zh-cn', got: %s", adjustCtx.Locale)
 		}

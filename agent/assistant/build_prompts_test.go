@@ -650,7 +650,7 @@ func TestPromptPresetAssistant(t *testing.T) {
 		}
 
 		// Call Create hook
-		createResponse, err := ast.Script.Create(ctx, messages)
+		createResponse, _, err := ast.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, createResponse)
 		assert.Equal(t, "mode.friendly", createResponse.PromptPreset)
@@ -681,7 +681,7 @@ func TestPromptPresetAssistant(t *testing.T) {
 		}
 
 		// Call Create hook
-		createResponse, err := ast.Script.Create(ctx, messages)
+		createResponse, _, err := ast.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, createResponse)
 		assert.Equal(t, "mode.professional", createResponse.PromptPreset)
@@ -718,7 +718,7 @@ func TestPromptPresetAssistant(t *testing.T) {
 		}
 
 		// Call Create hook
-		createResponse, err := ast.Script.Create(ctx, messages)
+		createResponse, _, err := ast.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, createResponse)
 		require.NotNil(t, createResponse.DisableGlobalPrompts)
@@ -753,7 +753,7 @@ func TestPromptPresetAssistant(t *testing.T) {
 		}
 
 		// Call Create hook
-		createResponse, err := ast.Script.Create(ctx, messages)
+		createResponse, _, err := ast.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, createResponse)
 		assert.Equal(t, "mode.friendly", createResponse.PromptPreset)
@@ -788,7 +788,7 @@ func TestPromptPresetAssistant(t *testing.T) {
 		}
 
 		// Call Create hook
-		createResponse, err := ast.Script.Create(ctx, messages)
+		createResponse, _, err := ast.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, createResponse)
 		assert.Equal(t, "non.existent.preset", createResponse.PromptPreset)
@@ -819,7 +819,7 @@ func TestPromptPresetAssistant(t *testing.T) {
 		}
 
 		// Call Create hook - should return nil
-		createResponse, err := ast.Script.Create(ctx, messages)
+		createResponse, _, err := ast.Script.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		assert.Nil(t, createResponse)
 

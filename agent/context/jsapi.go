@@ -36,13 +36,6 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// Set primitive fields in template
 	jsObject.Set("chat_id", ctx.ChatID)
 	jsObject.Set("assistant_id", ctx.AssistantID)
-	jsObject.Set("connector", ctx.Connector)
-	if ctx.Search != nil {
-		jsObject.Set("search", *ctx.Search)
-	}
-
-	jsObject.Set("retry", ctx.Retry)
-	jsObject.Set("retry_times", uint32(ctx.RetryTimes))
 	jsObject.Set("locale", ctx.Locale)
 	jsObject.Set("theme", ctx.Theme)
 	jsObject.Set("referer", ctx.Referer)
@@ -97,15 +90,6 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	}
 
 	// Set complex objects (maps, arrays) after instance creation using bridge
-	// Args array
-	if ctx.Args != nil {
-		argsVal, err := bridge.JsValue(v8ctx, ctx.Args)
-		if err == nil {
-			obj.Set("args", argsVal)
-			argsVal.Release() // Release Go-side Persistent handle, V8 internal reference remains
-		}
-	}
-
 	// Client object
 	clientData := map[string]interface{}{
 		"type":       ctx.Client.Type,

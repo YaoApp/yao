@@ -22,7 +22,6 @@ func newClaudeTestContext(chatID, connectorID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: "test-assistant",
-		Connector:   connectorID,
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{

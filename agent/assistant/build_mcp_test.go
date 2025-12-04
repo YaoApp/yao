@@ -215,7 +215,7 @@ func TestBuildRequest_MCP(t *testing.T) {
 		// Call create hook to get createResponse
 		var createResponse *context.HookCreateResponse
 		if hookAgent.Script != nil {
-			createResponse, err = hookAgent.Script.Create(hookCtx, inputMessages)
+			createResponse, _, err = hookAgent.Script.Create(hookCtx, inputMessages, &context.Options{})
 			if err != nil {
 				t.Fatalf("Failed to call create hook: %s", err.Error())
 			}

@@ -22,7 +22,6 @@ func newTestContextWithInterrupt(chatID, assistantID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{

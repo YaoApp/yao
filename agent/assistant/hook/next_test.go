@@ -20,7 +20,6 @@ func newTestContextForNext(chatID, assistantID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{
@@ -86,7 +85,7 @@ func TestNext(t *testing.T) {
 			Error: "",
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook with null return: %s", err.Error())
 		}
@@ -106,7 +105,7 @@ func TestNext(t *testing.T) {
 			},
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook with undefined return: %s", err.Error())
 		}
@@ -126,7 +125,7 @@ func TestNext(t *testing.T) {
 			},
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook with empty return: %s", err.Error())
 		}
@@ -152,7 +151,7 @@ func TestNext(t *testing.T) {
 			},
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook with custom data: %s", err.Error())
 		}
@@ -199,7 +198,7 @@ func TestNext(t *testing.T) {
 			},
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook: %s", err.Error())
 		}
@@ -245,7 +244,7 @@ func TestNext(t *testing.T) {
 			},
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook with delegate: %s", err.Error())
 		}
@@ -307,7 +306,7 @@ func TestNext(t *testing.T) {
 			Error: "",
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook: %s", err.Error())
 		}
@@ -366,7 +365,7 @@ func TestNext(t *testing.T) {
 			},
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook: %s", err.Error())
 		}
@@ -410,7 +409,7 @@ func TestNext(t *testing.T) {
 			Error: "Tool execution failed: timeout",
 		}
 
-		res, err := agent.Script.Next(ctx, payload)
+		res, _, err := agent.Script.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Failed to execute Next hook: %s", err.Error())
 		}

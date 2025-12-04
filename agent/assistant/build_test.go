@@ -18,7 +18,6 @@ func newTestContext(chatID, assistantID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{
@@ -64,7 +63,7 @@ func TestBuildRequest(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "no_override"}}
 
 		// Call Create hook
-		createResponse, err := agent.Script.Create(ctx, inputMessages)
+		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}
@@ -112,7 +111,7 @@ func TestBuildRequest(t *testing.T) {
 	t.Run("OverrideTemperature", func(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "override_temperature"}}
 
-		createResponse, err := agent.Script.Create(ctx, inputMessages)
+		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}
@@ -143,7 +142,7 @@ func TestBuildRequest(t *testing.T) {
 	t.Run("OverrideAll", func(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "override_all"}}
 
-		createResponse, err := agent.Script.Create(ctx, inputMessages)
+		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}
@@ -196,7 +195,7 @@ func TestBuildRequest(t *testing.T) {
 	t.Run("OverrideRouteMetadata", func(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "override_route_metadata"}}
 
-		createResponse, err := agent.Script.Create(ctx, inputMessages)
+		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}

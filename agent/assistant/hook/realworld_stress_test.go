@@ -42,7 +42,7 @@ func TestRealWorldSimpleScenario(t *testing.T) {
 		{Role: "user", Content: "simple"},
 	}
 
-	response, err := agent.Script.Create(ctx, messages)
+	response, _, err := agent.Script.Create(ctx, messages)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			{Role: "user", Content: "mcp_health"},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Create failed: %v", err)
 		}
@@ -117,7 +117,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			{Role: "user", Content: "mcp_tools"},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Create failed: %v", err)
 		}
@@ -162,7 +162,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 		ctx := newRealWorldContext("test-full-workflow", "tests.realworld")
 
 		// Initialize stack for trace
-		stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
+		stack, _, done := context.EnterStack(ctx, "tests.realworld", &context.Options{})
 		defer done()
 		ctx.Stack = stack
 
@@ -170,7 +170,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			{Role: "user", Content: "full_workflow"},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Create failed: %v", err)
 		}
@@ -237,7 +237,7 @@ func TestRealWorldTraceIntensive(t *testing.T) {
 	}
 
 	ctx := newRealWorldContext("test-trace-intensive", "tests.realworld")
-	stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
+	stack, _, done := context.EnterStack(ctx, "tests.realworld", &context.Options{})
 	defer done()
 	ctx.Stack = stack
 
@@ -245,7 +245,7 @@ func TestRealWorldTraceIntensive(t *testing.T) {
 		{Role: "user", Content: "trace_intensive"},
 	}
 
-	response, err := agent.Script.Create(ctx, messages)
+	response, _, err := agent.Script.Create(ctx, messages)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestRealWorldStressSimple(t *testing.T) {
 			{Role: "user", Content: "simple"},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}
@@ -338,14 +338,14 @@ func TestRealWorldStressMCP(t *testing.T) {
 		ctx := newRealWorldContext(fmt.Sprintf("stress-mcp-%d", i), "tests.realworld")
 
 		// Initialize stack for trace
-		stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
+		stack, _, done := context.EnterStack(ctx, "tests.realworld", &context.Options{})
 		ctx.Stack = stack
 
 		messages := []context.Message{
 			{Role: "user", Content: scenario},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d (%s) failed: %v", i, scenario, err)
 		}
@@ -427,14 +427,14 @@ func TestRealWorldStressFullWorkflow(t *testing.T) {
 		ctx := newRealWorldContext(fmt.Sprintf("stress-workflow-%d", i), "tests.realworld")
 
 		// Initialize stack for trace
-		stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
+		stack, _, done := context.EnterStack(ctx, "tests.realworld", &context.Options{})
 		ctx.Stack = stack
 
 		messages := []context.Message{
 			{Role: "user", Content: "full_workflow"},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}
@@ -531,14 +531,14 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 				)
 
 				// Initialize stack for trace
-				stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
+				stack, _, done := context.EnterStack(ctx, "tests.realworld", &context.Options{})
 				ctx.Stack = stack
 
 				messages := []context.Message{
 					{Role: "user", Content: scenario},
 				}
 
-				response, err := agent.Script.Create(ctx, messages)
+				response, _, err := agent.Script.Create(ctx, messages)
 				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d (%s): %v", goroutineID, i, scenario, err)
 					done()
@@ -658,14 +658,14 @@ func TestRealWorldStressResourceHeavy(t *testing.T) {
 		ctx := newRealWorldContext(fmt.Sprintf("stress-heavy-%d", i), "tests.realworld")
 
 		// Initialize stack for trace
-		stack, _, done := context.EnterStack(ctx, "tests.realworld", context.RefererAPI)
+		stack, _, done := context.EnterStack(ctx, "tests.realworld", &context.Options{})
 		ctx.Stack = stack
 
 		messages := []context.Message{
 			{Role: "user", Content: "resource_heavy"},
 		}
 
-		response, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.Script.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}
@@ -726,7 +726,6 @@ func newRealWorldContext(chatID, assistantID string) *context.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      chatID,
 		AssistantID: assistantID,
-		Connector:   "gpt-4o",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: context.Client{

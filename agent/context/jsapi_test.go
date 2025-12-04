@@ -219,15 +219,9 @@ func TestJsValueAllFields(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	searchTrue := true
 	cxt := &context.Context{
 		ChatID:      "test-chat-id",
 		AssistantID: "test-assistant-id",
-		Connector:   "test-connector",
-		Search:      &searchTrue,
-		Args:        []interface{}{"arg1", "arg2", 123},
-		Retry:       true,
-		RetryTimes:  3,
 		Locale:      "zh-cn",
 		Theme:       "dark",
 		Context:     stdContext.Background(),
@@ -279,20 +273,11 @@ func TestJsValueAllFields(t *testing.T) {
 	// Verify all fields
 	assert.Equal(t, "test-chat-id", result["chat_id"], "chat_id mismatch")
 	assert.Equal(t, "test-assistant-id", result["assistant_id"], "assistant_id mismatch")
-	assert.Equal(t, "test-connector", result["connector"], "connector mismatch")
-	assert.Equal(t, true, result["search"], "search mismatch")
-	assert.Equal(t, true, result["retry"], "retry mismatch")
-	assert.Equal(t, float64(3), result["retry_times"], "retry_times mismatch")
 	assert.Equal(t, "zh-cn", result["locale"], "locale mismatch")
 	assert.Equal(t, "dark", result["theme"], "theme mismatch")
 	assert.Equal(t, "api", result["referer"], "referer mismatch")
 	assert.Equal(t, "cui-web", result["accept"], "accept mismatch")
 	assert.Equal(t, "/dashboard/home", result["route"], "route mismatch")
-
-	// Verify args array
-	args, ok := result["args"].([]interface{})
-	assert.True(t, ok, "args should be an array")
-	assert.Equal(t, 3, len(args), "args length mismatch")
 
 	// Verify client object
 	client, ok := result["client"].(map[string]interface{})
@@ -372,21 +357,6 @@ func testAllFieldsFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	}
 	if val, ok := getField("assistant_id"); ok {
 		result["assistant_id"] = val
-	}
-	if val, ok := getField("connector"); ok {
-		result["connector"] = val
-	}
-	if val, ok := getField("search"); ok {
-		result["search"] = val
-	}
-	if val, ok := getField("args"); ok {
-		result["args"] = val
-	}
-	if val, ok := getField("retry"); ok {
-		result["retry"] = val
-	}
-	if val, ok := getField("retry_times"); ok {
-		result["retry_times"] = val
 	}
 	if val, ok := getField("locale"); ok {
 		result["locale"] = val

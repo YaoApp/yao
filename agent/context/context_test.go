@@ -179,7 +179,7 @@ func TestGetCompletionRequest(t *testing.T) {
 			c.Request = req
 
 			// Call GetCompletionRequest
-			completionReq, ctx, err := GetCompletionRequest(c, cache)
+			completionReq, ctx, opts, err := GetCompletionRequest(c, cache)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -189,6 +189,7 @@ func TestGetCompletionRequest(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, completionReq)
 			assert.NotNil(t, ctx)
+			assert.NotNil(t, opts)
 
 			// Verify CompletionRequest
 			assert.Equal(t, tt.expectedModel, completionReq.Model)

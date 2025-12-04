@@ -32,7 +32,6 @@ func newTestContext(capabilities *openai.Capabilities) *agentContext.Context {
 		Space:       plan.NewMemorySharedSpace(),
 		ChatID:      "test-chat",
 		AssistantID: "test-assistant",
-		Connector:   "openai",
 		Locale:      "en-us",
 		Theme:       "light",
 		Client: agentContext.Client{

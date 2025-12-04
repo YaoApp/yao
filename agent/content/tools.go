@@ -13,7 +13,7 @@ import (
 
 // AgentCaller interface for calling agents (to avoid circular dependency)
 type AgentCaller interface {
-	Stream(ctx *agentContext.Context, messages []agentContext.Message) (interface{}, error)
+	Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (interface{}, error)
 }
 
 // AgentGetterFunc is a function type that gets an agent by ID
@@ -35,12 +35,10 @@ func CallAgent(ctx *agentContext.Context, agentID string, message agentContext.M
 	// Call the agent with the message
 	messages := []agentContext.Message{message}
 
-	connectorBackup := ctx.Connector
-	ctx.Connector = ""
-	defer func() {
-		ctx.Connector = connectorBackup
-	}()
-	response, err := agent.Stream(ctx, messages)
+	// Note: Connector is now in Options (call-level parameter), not Context
+	// For A2A calls, we use an empty Connector to let the agent use its default
+	opts := &agentContext.Options{Skip: &agentContext.Skip{History: true}, Writer: nil} // Skip history and output to the caller
+	response, err := agent.Stream(ctx, messages, opts)
 	if err != nil {
 		return "", fmt.Errorf("failed to call agent %s: %w", agentID, err)
 	}

@@ -9,53 +9,57 @@ import (
 )
 
 // Create create a new assistant
-func (s *Script) Create(ctx *context.Context, messages []context.Message) (*context.HookCreateResponse, error) {
-	res, err := s.Execute(ctx, "Create", messages)
+// opts is optional - if provided, will be adjusted based on hook response
+func (s *Script) Create(ctx *context.Context, messages []context.Message, opts ...*context.Options) (*context.HookCreateResponse, *context.Options, error) {
+	// Get or create options
+	var options *context.Options
+	if len(opts) > 0 && opts[0] != nil {
+		options = opts[0]
+	} else {
+		options = &context.Options{}
+	}
+
+	// Execute hook with ctx, messages, and options (convert options to map for JS)
+	optionsMap := options.ToMap()
+	res, err := s.Execute(ctx, "Create", messages, optionsMap)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	response, err := s.getHookCreateResponse(res)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// Apply context adjustments from the response back to the context
+	// Apply adjustments from the response
 	if response != nil {
 		s.applyContextAdjustments(ctx, response)
+		s.applyOptionsAdjustments(options, response)
 	}
 
-	return response, nil
+	return response, options, nil
 }
 
-// applyContextAdjustments applies context field overrides from the hook response back to the context
+// applyContextAdjustments applies session-level field overrides from the hook response back to the context
 func (s *Script) applyContextAdjustments(ctx *context.Context, response *context.HookCreateResponse) {
-	// Override assistant ID if provided
-	if response.AssistantID != "" {
-		ctx.AssistantID = response.AssistantID
-	}
+	// Note: AssistantID cannot be overridden - it's set at initialization and immutable
 
-	// Override connector if provided
-	if response.Connector != "" {
-		ctx.Connector = response.Connector
-	}
-
-	// Override locale if provided
+	// Override locale if provided (session-level)
 	if response.Locale != "" {
 		ctx.Locale = response.Locale
 	}
 
-	// Override theme if provided
+	// Override theme if provided (session-level)
 	if response.Theme != "" {
 		ctx.Theme = response.Theme
 	}
 
-	// Override route if provided
+	// Override route if provided (session-level)
 	if response.Route != "" {
 		ctx.Route = response.Route
 	}
 
-	// Merge or override metadata if provided
+	// Merge or override metadata if provided (session-level)
 	if len(response.Metadata) > 0 {
 		if ctx.Metadata == nil {
 			ctx.Metadata = make(map[string]interface{})
@@ -64,6 +68,14 @@ func (s *Script) applyContextAdjustments(ctx *context.Context, response *context
 		for key, value := range response.Metadata {
 			ctx.Metadata[key] = value
 		}
+	}
+}
+
+// applyOptionsAdjustments applies call-level field overrides from the hook response to options
+func (s *Script) applyOptionsAdjustments(opts *context.Options, response *context.HookCreateResponse) {
+	// Override connector if provided (call-level parameter)
+	if response.Connector != "" {
+		opts.Connector = response.Connector
 	}
 }
 

@@ -29,8 +29,8 @@ type agentCallerWrapper struct {
 	ast *Assistant
 }
 
-func (w *agentCallerWrapper) Stream(ctx *agentContext.Context, messages []agentContext.Message) (interface{}, error) {
-	return w.ast.Stream(ctx, messages)
+func (w *agentCallerWrapper) Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (interface{}, error) {
+	return w.ast.Stream(ctx, messages, options...)
 }
 
 // Get get the assistant by id

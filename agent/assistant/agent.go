@@ -18,7 +18,7 @@ import (
 
 // Stream stream the agent
 // handler is optional, if not provided, a default handler will be used
-func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, handler ...message.StreamFunc) (interface{}, error) {
+func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, options ...*context.Options) (interface{}, error) {
 
 	log.Trace("[AGENT] Stream started: assistant=%s, contextID=%s", ast.ID, ctx.ID)
 	defer log.Trace("[AGENT] Stream ended: assistant=%s, contextID=%s", ast.ID, ctx.ID)
@@ -39,8 +39,16 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Initialize
 	// ================================================
 
+	// Get or create options
+	var opts *context.Options
+	if len(options) > 0 && options[0] != nil {
+		opts = options[0]
+	} else {
+		opts = &context.Options{}
+	}
+
 	// Initialize stack and auto-handle completion/failure/restore
-	_, _, done := context.EnterStack(ctx, ast.ID, ctx.Referer)
+	_, _, done := context.EnterStack(ctx, ast.ID, opts)
 	defer done()
 
 	fmt.Println("--- Stack debug ---")
@@ -51,11 +59,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	fmt.Println("------ end stack debug ------")
 
 	// Determine stream handler
-	streamHandler := ast.getStreamHandler(ctx, handler...)
+	streamHandler := ast.getStreamHandler(ctx, opts)
 
 	// Get connector and capabilities early (before sending stream_start)
 	// so that output adapters can use them when converting stream_start event
-	err = ast.initializeCapabilities(ctx)
+	err = ast.initializeCapabilities(ctx, opts)
 	if err != nil {
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
@@ -85,7 +93,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var createResponse *context.HookCreateResponse
 	if ast.Script != nil {
 		var err error
-		createResponse, err = ast.Script.Create(ctx, fullMessages)
+		createResponse, opts, err = ast.Script.Create(ctx, fullMessages, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
@@ -235,11 +243,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	if ast.Script != nil {
 		var err error
-		nextResponse, err = ast.Script.Next(ctx, &context.NextHookPayload{
+		nextResponse, opts, err = ast.Script.Next(ctx, &context.NextHookPayload{
 			Messages:   fullMessages,
 			Completion: completionResponse,
 			Tools:      toolCallResponses,
-		})
+		}, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -318,14 +326,14 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	return finalResponse, nil
 }
 
-// GetConnector get the connector object, capabilities, and error with priority: createResponse > ctx > ast
-// Note: createResponse.Connector is already applied to ctx.Connector by applyContextAdjustments in create.go
+// GetConnector get the connector object, capabilities, and error with priority: opts.Connector > ast.Connector
+// Note: opts.Connector may be set by Create hook's applyOptionsAdjustments
 // Returns: (connector, capabilities, error)
-func (ast *Assistant) GetConnector(ctx *context.Context) (connector.Connector, *openai.Capabilities, error) {
-	// Determine connector ID with priority
+func (ast *Assistant) GetConnector(ctx *context.Context, opts ...*context.Options) (connector.Connector, *openai.Capabilities, error) {
+	// Determine connector ID with priority: opts.Connector > ast.Connector
 	connectorID := ast.Connector
-	if ctx.Connector != "" {
-		connectorID = ctx.Connector
+	if len(opts) > 0 && opts[0] != nil && opts[0].Connector != "" {
+		connectorID = opts[0].Connector
 	}
 
 	// If empty, return error
@@ -361,10 +369,11 @@ func (ast *Assistant) Info(locale ...string) *message.AssistantInfo {
 	}
 }
 
-// getStreamHandler returns the stream handler from the provided handlers or a default one
-func (ast *Assistant) getStreamHandler(ctx *context.Context, handler ...message.StreamFunc) message.StreamFunc {
-	if len(handler) > 0 && handler[0] != nil {
-		return handler[0]
+// getStreamHandler returns the stream handler from options or a default one
+func (ast *Assistant) getStreamHandler(ctx *context.Context, opts ...*context.Options) message.StreamFunc {
+	// Check if handler is provided in options
+	if len(opts) > 0 && opts[0] != nil && opts[0].Writer != nil {
+		return handlers.DefaultStreamHandler(ctx)
 	}
 	return handlers.DefaultStreamHandler(ctx)
 }
@@ -460,12 +469,12 @@ func (ast *Assistant) handleInterrupt(ctx *context.Context, signal *context.Inte
 // initializeCapabilities gets connector and capabilities, then sets them in context
 // This should be called early (before sending stream_start) so that output adapters
 // can use capabilities when converting stream_start event
-func (ast *Assistant) initializeCapabilities(ctx *context.Context) error {
+func (ast *Assistant) initializeCapabilities(ctx *context.Context, opts *context.Options) error {
 	if ast.Prompts == nil && ast.MCP == nil {
 		return nil
 	}
 
-	_, capabilities, err := ast.GetConnector(ctx)
+	_, capabilities, err := ast.GetConnector(ctx, opts)
 	if err != nil {
 		return err
 	}
