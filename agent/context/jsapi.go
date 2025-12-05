@@ -113,21 +113,20 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 		metadataVal.Release() // Release Go-side Persistent handle, V8 internal reference remains
 	}
 
-	// Authorized object - set individual fields to ensure proper structure
-	var authorizedData map[string]interface{}
+	// Authorized object - pass the complete structure
 	if ctx.Authorized != nil {
-		authorizedData = map[string]interface{}{
-			"user_id":   ctx.Authorized.UserID,
-			"tenant_id": ctx.Authorized.TenantID,
-			"client_id": ctx.Authorized.ClientID,
+		authorizedVal, err := bridge.JsValue(v8ctx, ctx.Authorized)
+		if err == nil {
+			obj.Set("authorized", authorizedVal)
+			authorizedVal.Release() // Release Go-side Persistent handle, V8 internal reference remains
 		}
 	} else {
-		authorizedData = map[string]interface{}{}
-	}
-	authorizedVal, err := bridge.JsValue(v8ctx, authorizedData)
-	if err == nil {
-		obj.Set("authorized", authorizedVal)
-		authorizedVal.Release() // Release Go-side Persistent handle, V8 internal reference remains
+		// Set to empty object when nil
+		emptyObj, err := bridge.JsValue(v8ctx, map[string]interface{}{})
+		if err == nil {
+			obj.Set("authorized", emptyObj)
+			emptyObj.Release()
+		}
 	}
 
 	return instance.Value, nil
