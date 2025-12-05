@@ -372,10 +372,12 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		}
 	}
 
-	// Call the tool
+	// Call the tool with agent context as extra argument
 	log.Trace("[Assistant MCP] Calling tool: %s (server: %s)", toolName, serverID)
 	fmt.Printf(">>> executeSingleToolCall: CALLING client.CallTool (tool: %s, server: %s)\n", toolName, serverID)
-	callResult, err := client.CallTool(mcpCtx, toolName, args)
+
+	// Pass agent context as extra argument (only used for Process transport)
+	callResult, err := client.CallTool(mcpCtx, toolName, args, ctx)
 	fmt.Printf(">>> executeSingleToolCall: client.CallTool RETURNED (err: %v)\n", err)
 	if err != nil {
 		result.Error = fmt.Errorf("tool call failed: %w", err)
@@ -468,14 +470,14 @@ func (ast *Assistant) executeMultipleToolCallsParallel(ctx *agentContext.Context
 
 		// Try parallel execution
 		serverResults, serverHasErrors := ast.executeServerToolsParallelWithTrace(
-			mcpCtx, trace, client, serverID, calls,
+			mcpCtx, ctx, trace, client, serverID, calls,
 		)
 
 		// If parallel execution failed with retryable error, try sequential
 		if serverHasErrors && ast.shouldRetrySequential(serverResults) {
 			log.Warn("[Assistant MCP] Parallel execution had parameter errors for server '%s', retrying sequentially", serverID)
 			serverResults, serverHasErrors = ast.executeServerToolsSequentialWithTrace(
-				mcpCtx, trace, client, serverID, calls,
+				mcpCtx, ctx, trace, client, serverID, calls,
 			)
 		}
 
@@ -558,7 +560,7 @@ func (ast *Assistant) shouldRetrySequential(results []ToolCallResult) bool {
 }
 
 // executeServerToolsParallelWithTrace executes tools for a single server in parallel with trace
-func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context, trace types.Manager, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
+func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context, ctx *agentContext.Context, trace types.Manager, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
 	// Prepare parallel trace inputs
 	var parallelInputs []types.TraceParallelInput
 	mcpCalls := make([]mcpTypes.ToolCall, 0, len(toolCalls))
@@ -616,9 +618,11 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 		fmt.Printf(">>> executeServerToolsParallelWithTrace: NOT creating trace nodes (trace: %v, inputs: %d)\n", trace != nil, len(parallelInputs))
 	}
 
-	// Call tools in parallel
+	// Call tools in parallel with agent context as extra argument
 	log.Trace("[Assistant MCP] Calling %d tools in parallel on server '%s'", len(mcpCalls), serverID)
-	mcpResponse, err := client.CallToolsParallel(mcpCtx, mcpCalls)
+
+	// Pass agent context as extra argument (only used for Process transport)
+	mcpResponse, err := client.CallToolsParallel(mcpCtx, mcpCalls, ctx)
 	if err != nil {
 		log.Error("[Assistant MCP] Parallel call failed: %v", err)
 		// Mark all trace nodes as failed
@@ -690,7 +694,7 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 }
 
 // executeServerToolsSequentialWithTrace executes tools for a single server sequentially with trace
-func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Context, trace types.Manager, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
+func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Context, ctx *agentContext.Context, trace types.Manager, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
 	results := make([]ToolCallResult, 0, len(toolCalls))
 	hasErrors := false
 
@@ -800,9 +804,9 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 			}
 		}
 
-		// Call single tool
+		// Call single tool with agent context as extra argument
 		log.Trace("[Assistant MCP] Calling tool: %s", toolName)
-		mcpResult, err := client.CallTool(mcpCtx, toolName, args)
+		mcpResult, err := client.CallTool(mcpCtx, toolName, args, ctx)
 
 		result := ToolCallResult{
 			ToolCallID: tc.ID,
