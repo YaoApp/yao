@@ -135,7 +135,7 @@ func loadAssistantMCPs() []error {
 
 			log.Trace("Loading MCP client %s from file %s", clientID, mcpFile)
 
-			_, err := mcp.LoadClient(mcpFile, clientID)
+			_, err := mcp.LoadClientWithType(mcpFile, clientID, "agent")
 			if err != nil {
 				log.Error("Failed to load MCP client %s from assistant %s: %s", clientID, assistantID, err.Error())
 				errs = append(errs, fmt.Errorf("failed to load MCP client %s: %w", clientID, err))
