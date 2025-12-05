@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -77,11 +78,30 @@ var startCmd = &cobra.Command{
 			config.Development()
 		}
 
+		startTime := time.Now()
+
 		// load the application engine
-		loadWarnings, err := engine.Load(config.Conf, engine.LoadOption{Action: "start"})
+		var progressCallback func(string, string)
+		if config.Conf.Mode == "development" {
+			fmt.Println(color.CyanString("Loading application engine..."))
+			progressCallback = func(name string, duration string) {
+				fmt.Printf("  %s %s %s\n", color.GreenString("✓"), name, color.GreenString("(%s)", duration))
+			}
+		}
+
+		loadWarnings, err := engine.Load(config.Conf, engine.LoadOption{
+			Action: "start",
+		}, progressCallback)
 		if err != nil {
 			fmt.Println(color.RedString(L("Load: %s"), err.Error()))
 			os.Exit(1)
+		}
+
+		loadDuration := time.Since(startTime)
+		if config.Conf.Mode == "development" {
+			fmt.Printf("\n%s Engine loaded successfully in %s\n\n",
+				color.GreenString("✓"),
+				color.CyanString("%v", loadDuration))
 		}
 
 		port := fmt.Sprintf(":%d", config.Conf.Port)

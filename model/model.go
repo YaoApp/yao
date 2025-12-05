@@ -50,8 +50,8 @@ func Load(cfg config.Config) error {
 	model.WithCrypt([]byte(fmt.Sprintf(`{"key":"%s"}`, cfg.DB.AESKey)), "AES")
 	model.WithCrypt([]byte(`{}`), "PASSWORD")
 
-	// Load system models
-	err := loadSystemModels()
+	// Load system models (without migrate)
+	systemModels, err := loadSystemModels()
 	if err != nil {
 		return err
 	}
@@ -76,12 +76,26 @@ func Load(cfg config.Config) error {
 		return fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 
-	// Load models from assistants
-	errsAssistants := loadAssistantModels()
+	// Load models from assistants (without migrate)
+	assistantModels, errsAssistants := loadAssistantModels()
 	if len(errsAssistants) > 0 {
 		for _, err := range errsAssistants {
 			log.Error("Load assistant models error: %s", err.Error())
 		}
+	}
+
+	// Batch migrate all system and assistant models
+	allModels := make(map[string]*model.Model)
+	for id, mod := range systemModels {
+		allModels[id] = mod
+	}
+	for id, mod := range assistantModels {
+		allModels[id] = mod
+	}
+
+	err = BatchMigrate(allModels)
+	if err != nil {
+		return err
 	}
 
 	// Load database models ( ignore error)
@@ -94,19 +108,21 @@ func Load(cfg config.Config) error {
 	return err
 }
 
-// LoadSystemModels load system models
-func loadSystemModels() error {
+// LoadSystemModels load system models (without migration)
+func loadSystemModels() (map[string]*model.Model, error) {
+	models := make(map[string]*model.Model)
+
 	for id, path := range systemModels {
 		content, err := data.Read(path)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Parse model
 		var data map[string]interface{}
 		err = application.Parse(path, content, &data)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Set prefix
@@ -116,38 +132,34 @@ func loadSystemModels() error {
 				content, err = jsoniter.Marshal(data)
 				if err != nil {
 					log.Error("failed to marshal model data: %v", err)
-					return fmt.Errorf("failed to marshal model data: %v", err)
+					return nil, fmt.Errorf("failed to marshal model data: %v", err)
 				}
 			}
 		}
 
-		// Load Model
+		// Load Model (just parse, no migration)
 		mod, err := model.LoadSource(content, id, filepath.Join("__system", path))
 		if err != nil {
 			log.Error("load system model %s error: %s", id, err.Error())
-			return err
+			return nil, err
 		}
 
-		// Auto migrate
-		err = mod.Migrate(false, model.WithDonotInsertValues(true))
-		if err != nil {
-			log.Error("migrate system model %s error: %s", id, err.Error())
-			return err
-		}
+		models[id] = mod
 	}
 
-	return nil
+	return models, nil
 }
 
-// loadAssistantModels load models from assistants directory
-func loadAssistantModels() []error {
+// loadAssistantModels load models from assistants directory (without migration)
+func loadAssistantModels() (map[string]*model.Model, []error) {
+	models := make(map[string]*model.Model)
 	var errs []error = []error{}
 
 	// Check if assistants directory exists
 	exists, err := application.App.Exists("assistants")
 	if err != nil || !exists {
 		log.Trace("Assistants directory not found or not accessible")
-		return errs
+		return models, errs
 	}
 
 	log.Trace("Loading models from assistants directory...")
@@ -247,7 +259,7 @@ func loadAssistantModels() []error {
 				}
 			}
 
-			// Load model with modified content
+			// Load model with modified content (just parse, no migration)
 			mod, err := model.LoadSource(content, modelID, modelFile)
 			if err != nil {
 				log.Error("Failed to load model %s from assistant %s: %s", modelID, assistantID, err.Error())
@@ -255,15 +267,8 @@ func loadAssistantModels() []error {
 				return nil // Continue loading other models
 			}
 
-			// Auto migrate the model (like system models)
-			err = mod.Migrate(false, model.WithDonotInsertValues(true))
-			if err != nil {
-				log.Error("Failed to migrate model %s from assistant %s: %s", modelID, assistantID, err.Error())
-				errs = append(errs, fmt.Errorf("failed to migrate model %s: %w", modelID, err))
-				return nil
-			}
-
-			log.Info("Loaded and migrated model: %s", modelID)
+			models[modelID] = mod
+			log.Trace("Loaded model: %s", modelID)
 			return nil
 		}, exts...)
 
@@ -278,7 +283,7 @@ func loadAssistantModels() []error {
 		errs = append(errs, fmt.Errorf("failed to walk assistants directory: %w", err))
 	}
 
-	return errs
+	return models, errs
 }
 
 // LoadDatabaseModels load database models
