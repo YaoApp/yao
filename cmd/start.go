@@ -514,11 +514,18 @@ func printMCPs(silent bool) {
 		return
 	}
 
-	// Separate agent MCPs from standard MCPs
+	// Separate agent MCPs from standard MCPs by Type field
 	agentClients := []string{}
 	standardClients := []string{}
 	for _, clientID := range clients {
-		if len(clientID) >= 7 && clientID[:7] == "agents." {
+		client, err := mcp.Select(clientID)
+		if err != nil {
+			standardClients = append(standardClients, clientID)
+			continue
+		}
+
+		info := client.Info()
+		if info != nil && info.Type == "agent" {
 			agentClients = append(agentClients, clientID)
 		} else {
 			standardClients = append(standardClients, clientID)
@@ -533,20 +540,38 @@ func printMCPs(silent bool) {
 		fmt.Println(color.WhiteString("\n%s (%d)", "Standard MCPs", len(standardClients)))
 		fmt.Println(color.WhiteString("--------------------------"))
 		for _, clientID := range standardClients {
-			mapping, err := mcp.GetClientMapping(clientID)
+			client, err := mcp.Select(clientID)
 			if err != nil {
 				fmt.Print(color.CyanString("[MCP] %s", clientID))
 				fmt.Print(color.WhiteString("\tloaded\n"))
 				continue
 			}
 
-			toolsCount := 0
-			if mapping.Tools != nil {
-				toolsCount = len(mapping.Tools)
+			info := client.Info()
+			transport := "unknown"
+			label := clientID
+			if info != nil {
+				if info.Transport != "" {
+					transport = string(info.Transport)
+				}
+				if info.Label != "" {
+					label = info.Label
+				}
 			}
 
-			fmt.Print(color.CyanString("[MCP] %s", clientID))
-			fmt.Print(color.WhiteString("\ttools: %d\n", toolsCount))
+			fmt.Print(color.CyanString("[MCP] %s", label))
+			fmt.Print(color.WhiteString("\t%s\tid: %s", transport, clientID))
+
+			// Only show tools count for process transport
+			if transport == "process" {
+				toolsCount := 0
+				mapping, err := mcp.GetClientMapping(clientID)
+				if err == nil && mapping.Tools != nil {
+					toolsCount = len(mapping.Tools)
+				}
+				fmt.Print(color.WhiteString("\ttools: %d", toolsCount))
+			}
+			fmt.Print("\n")
 		}
 	}
 
@@ -554,20 +579,38 @@ func printMCPs(silent bool) {
 		fmt.Println(color.WhiteString("\n%s (%d)", "Agent MCPs", len(agentClients)))
 		fmt.Println(color.WhiteString("--------------------------"))
 		for _, clientID := range agentClients {
-			mapping, err := mcp.GetClientMapping(clientID)
+			client, err := mcp.Select(clientID)
 			if err != nil {
 				fmt.Print(color.CyanString("[MCP] %s", clientID))
 				fmt.Print(color.WhiteString("\tloaded\n"))
 				continue
 			}
 
-			toolsCount := 0
-			if mapping.Tools != nil {
-				toolsCount = len(mapping.Tools)
+			info := client.Info()
+			transport := "unknown"
+			label := clientID
+			if info != nil {
+				if info.Transport != "" {
+					transport = string(info.Transport)
+				}
+				if info.Label != "" {
+					label = info.Label
+				}
 			}
 
-			fmt.Print(color.CyanString("[MCP] %s", clientID))
-			fmt.Print(color.WhiteString("\ttools: %d\n", toolsCount))
+			fmt.Print(color.CyanString("[MCP] %s", label))
+			fmt.Print(color.WhiteString("\t%s\tid: %s", transport, clientID))
+
+			// Only show tools count for process transport
+			if transport == "process" {
+				toolsCount := 0
+				mapping, err := mcp.GetClientMapping(clientID)
+				if err == nil && mapping.Tools != nil {
+					toolsCount = len(mapping.Tools)
+				}
+				fmt.Print(color.WhiteString("\ttools: %d", toolsCount))
+			}
+			fmt.Print("\n")
 		}
 	}
 }
