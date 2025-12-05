@@ -84,9 +84,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Request Create hook ( Optional )
 	var createResponse *context.HookCreateResponse
-	if ast.Script != nil {
+	if ast.HookScript != nil {
 		var err error
-		createResponse, opts, err = ast.Script.Create(ctx, fullMessages, opts)
+		createResponse, opts, err = ast.HookScript.Create(ctx, fullMessages, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
@@ -234,9 +234,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var finalResponse interface{}
 	var nextResponse *context.NextHookResponse = nil
 
-	if ast.Script != nil {
+	if ast.HookScript != nil {
 		var err error
-		nextResponse, opts, err = ast.Script.Next(ctx, &context.NextHookPayload{
+		nextResponse, opts, err = ast.HookScript.Next(ctx, &context.NextHookPayload{
 			Messages:   fullMessages,
 			Completion: completionResponse,
 			Tools:      toolCallResponses,

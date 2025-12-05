@@ -183,9 +183,9 @@ func (ast *Assistant) Clone() *Assistant {
 			CreatedAt:            ast.CreatedAt,
 			UpdatedAt:            ast.UpdatedAt,
 		},
-		Search: ast.Search,
-		Script: ast.Script,
-		openai: ast.openai,
+		Search:     ast.Search,
+		HookScript: ast.HookScript,
+		openai:     ast.openai,
 	}
 
 	// Deep copy tags

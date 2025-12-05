@@ -225,7 +225,7 @@ func LoadStore(id string) (*Assistant, error) {
 		if err != nil {
 			return nil, err
 		}
-		assistant.Script = script
+		assistant.HookScript = script
 	}
 
 	// Initialize the assistant
@@ -696,11 +696,11 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			if err != nil {
 				return nil, err
 			}
-			assistant.Script = &hook.Script{Script: script}
+			assistant.HookScript = &hook.Script{Script: script}
 		case *hook.Script:
-			assistant.Script = v
+			assistant.HookScript = v
 		case *v8.Script:
-			assistant.Script = &hook.Script{Script: v}
+			assistant.HookScript = &hook.Script{Script: v}
 		}
 	} else if assistant.Source != "" {
 		// Load from source field if script is not provided
@@ -708,7 +708,7 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		if err != nil {
 			return nil, err
 		}
-		assistant.Script = script
+		assistant.HookScript = script
 	}
 
 	// created_at
@@ -783,8 +783,8 @@ func (ast *Assistant) initialize() error {
 	ast.openai = api
 
 	// Check if the assistant has an init hook
-	if ast.Script != nil {
-		scriptCtx, err := ast.Script.NewContext("", nil)
+	if ast.HookScript != nil {
+		scriptCtx, err := ast.HookScript.NewContext("", nil)
 		if err != nil {
 			return err
 		}

@@ -29,8 +29,8 @@ type SearchOption struct {
 // Assistant the assistant
 type Assistant struct {
 	store.AssistantModel
-	Search *SearchOption `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
-	Script *hook.Script  `json:"-" yaml:"-"`                               // Assistant Script
+	Search     *SearchOption `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
+	HookScript *hook.Script  `json:"-" yaml:"-"`                               // Hook Script
 
 	// Internal
 	// ===============================

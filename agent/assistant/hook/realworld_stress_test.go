@@ -42,7 +42,7 @@ func TestRealWorldSimpleScenario(t *testing.T) {
 		{Role: "user", Content: "simple"},
 	}
 
-	response, _, err := agent.Script.Create(ctx, messages)
+	response, _, err := agent.HookScript.Create(ctx, messages)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			{Role: "user", Content: "mcp_health"},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Create failed: %v", err)
 		}
@@ -117,7 +117,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			{Role: "user", Content: "mcp_tools"},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Create failed: %v", err)
 		}
@@ -170,7 +170,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 			{Role: "user", Content: "full_workflow"},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Create failed: %v", err)
 		}
@@ -245,7 +245,7 @@ func TestRealWorldTraceIntensive(t *testing.T) {
 		{Role: "user", Content: "trace_intensive"},
 	}
 
-	response, _, err := agent.Script.Create(ctx, messages)
+	response, _, err := agent.HookScript.Create(ctx, messages)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestRealWorldStressSimple(t *testing.T) {
 			{Role: "user", Content: "simple"},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}
@@ -345,7 +345,7 @@ func TestRealWorldStressMCP(t *testing.T) {
 			{Role: "user", Content: scenario},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d (%s) failed: %v", i, scenario, err)
 		}
@@ -434,7 +434,7 @@ func TestRealWorldStressFullWorkflow(t *testing.T) {
 			{Role: "user", Content: "full_workflow"},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}
@@ -538,7 +538,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 					{Role: "user", Content: scenario},
 				}
 
-				response, _, err := agent.Script.Create(ctx, messages)
+				response, _, err := agent.HookScript.Create(ctx, messages)
 				if err != nil {
 					errors <- fmt.Errorf("goroutine %d iteration %d (%s): %v", goroutineID, i, scenario, err)
 					done()
@@ -665,7 +665,7 @@ func TestRealWorldStressResourceHeavy(t *testing.T) {
 			{Role: "user", Content: "resource_heavy"},
 		}
 
-		response, _, err := agent.Script.Create(ctx, messages)
+		response, _, err := agent.HookScript.Create(ctx, messages)
 		if err != nil {
 			t.Fatalf("Iteration %d failed: %v", i, err)
 		}

@@ -29,14 +29,14 @@ func TestMemoryLeakStandardMode(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
 	// Warm up - execute a few times to stabilize memory
 	for i := 0; i < 10; i++ {
 		ctx := newMemTestContext("warmup", "tests.create")
-		_, _, _ = agent.Script.Create(ctx, []context.Message{
+		_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		ctx.Release()
@@ -52,7 +52,7 @@ func TestMemoryLeakStandardMode(t *testing.T) {
 	iterations := 1000
 	for i := 0; i < iterations; i++ {
 		ctx := newMemTestContext("mem-test-standard", "tests.create")
-		_, _, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		if err != nil {
@@ -117,14 +117,14 @@ func TestMemoryLeakPerformanceMode(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
 	// Warm up - execute a few times to stabilize memory and fill isolate pool
 	for i := 0; i < 20; i++ {
 		ctx := newMemTestContext("warmup", "tests.create")
-		_, _, _ = agent.Script.Create(ctx, []context.Message{
+		_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		ctx.Release()
@@ -140,7 +140,7 @@ func TestMemoryLeakPerformanceMode(t *testing.T) {
 	iterations := 1000
 	for i := 0; i < iterations; i++ {
 		ctx := newMemTestContext("mem-test-performance", "tests.create")
-		_, _, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		if err != nil {
@@ -202,7 +202,7 @@ func TestMemoryLeakBusinessScenarios(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
@@ -221,7 +221,7 @@ func TestMemoryLeakBusinessScenarios(t *testing.T) {
 	// Warm up
 	for i := 0; i < 10; i++ {
 		ctx := newMemTestContext("warmup", "tests.create")
-		_, _, _ = agent.Script.Create(ctx, []context.Message{
+		_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "return_full"},
 		})
 		ctx.Release()
@@ -240,7 +240,7 @@ func TestMemoryLeakBusinessScenarios(t *testing.T) {
 			iterations := 200
 			for i := 0; i < iterations; i++ {
 				ctx := newMemTestContext("mem-test-business", "tests.create")
-				_, _, err := agent.Script.Create(ctx, []context.Message{
+				_, _, err := agent.HookScript.Create(ctx, []context.Message{
 					{Role: "user", Content: scenario.content},
 				})
 				if err != nil {
@@ -291,14 +291,14 @@ func TestMemoryLeakConcurrent(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
 	// Warm up
 	for i := 0; i < 20; i++ {
 		ctx := newMemTestContext("warmup", "tests.create")
-		_, _, _ = agent.Script.Create(ctx, []context.Message{
+		_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		ctx.Release()
@@ -321,7 +321,7 @@ func TestMemoryLeakConcurrent(t *testing.T) {
 			defer func() { done <- true }()
 			for i := 0; i < iterPerGoroutine; i++ {
 				ctx := newMemTestContext("mem-test-concurrent", "tests.create")
-				_, _, err := agent.Script.Create(ctx, []context.Message{
+				_, _, err := agent.HookScript.Create(ctx, []context.Message{
 					{Role: "user", Content: "Hello"},
 				})
 				if err != nil {
@@ -376,14 +376,14 @@ func TestMemoryLeakNestedCalls(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
 	// Warm up
 	for i := 0; i < 10; i++ {
 		ctx := newMemTestContext("warmup", "tests.create")
-		_, _, _ = agent.Script.Create(ctx, []context.Message{
+		_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "nested_script_call"},
 		})
 		ctx.Release()
@@ -400,7 +400,7 @@ func TestMemoryLeakNestedCalls(t *testing.T) {
 	iterations := 200
 	for i := 0; i < iterations; i++ {
 		ctx := newMemTestContext("mem-test-nested", "tests.create")
-		_, _, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "deep_nested_call"},
 		})
 		if err != nil {
@@ -452,14 +452,14 @@ func TestMemoryLeakNestedConcurrent(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
 	// Warm up
 	for i := 0; i < 20; i++ {
 		ctx := newMemTestContext("warmup", "tests.create")
-		_, _, _ = agent.Script.Create(ctx, []context.Message{
+		_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "nested_script_call"},
 		})
 		ctx.Release()
@@ -482,7 +482,7 @@ func TestMemoryLeakNestedConcurrent(t *testing.T) {
 			defer func() { done <- true }()
 			for i := 0; i < iterPerGoroutine; i++ {
 				ctx := newMemTestContext("mem-test-nested-concurrent", "tests.create")
-				_, _, err := agent.Script.Create(ctx, []context.Message{
+				_, _, err := agent.HookScript.Create(ctx, []context.Message{
 					{Role: "user", Content: "deep_nested_call"},
 				})
 				if err != nil {
@@ -538,7 +538,7 @@ func TestIsolateDisposal(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
@@ -549,7 +549,7 @@ func TestIsolateDisposal(t *testing.T) {
 	iterations := 100
 	for i := 0; i < iterations; i++ {
 		ctx := newMemTestContext("disposal-test", "tests.create")
-		_, _, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		if err != nil {
