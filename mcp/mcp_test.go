@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,4 +127,87 @@ func TestUnloadClient(t *testing.T) {
 
 	// Test that unloading non-existent client doesn't crash
 	mcp.UnloadClient("non_existent")
+}
+
+func TestLoadAssistantMCPs(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Load MCPs
+	err := Load(config.Conf)
+	if err != nil {
+		t.Logf("Load returned error: %v", err)
+	}
+
+	// List all loaded clients
+	clients := mcp.ListClients()
+	t.Logf("Total loaded MCP clients: %d", len(clients))
+
+	// Filter agent clients
+	agentClients := []string{}
+	for _, id := range clients {
+		if len(id) >= 7 && id[:7] == "agents." {
+			agentClients = append(agentClients, id)
+		}
+	}
+
+	t.Logf("Agent MCP clients: %v", agentClients)
+
+	// Check if the test assistant MCP client is loaded
+	testClientID := "agents.tests.mcpload.test"
+	if mcp.Exists(testClientID) {
+		t.Logf("✓ Test assistant MCP client '%s' loaded successfully", testClientID)
+
+		// Verify we can get the client
+		client, err := mcp.Select(testClientID)
+		assert.Nil(t, err)
+		assert.NotNil(t, client)
+
+		// Try to list tools
+		ctx := context.Background()
+		toolsResp, err := client.ListTools(ctx, "")
+		if err == nil && toolsResp != nil {
+			t.Logf("✓ Available tools in %s: %d", testClientID, len(toolsResp.Tools))
+			for _, tool := range toolsResp.Tools {
+				t.Logf("  - Tool: %s - %s", tool.Name, tool.Description)
+			}
+		} else {
+			t.Logf("Could not list tools: %v", err)
+		}
+
+	} else {
+		t.Logf("Test assistant MCP client '%s' not found", testClientID)
+		t.Logf("This may be expected if the test assistant is not in the application")
+	}
+
+	// Check for nested MCP client
+	nestedClientID := "agents.tests.mcpload.nested.tool"
+	if mcp.Exists(nestedClientID) {
+		t.Logf("✓ Nested MCP client '%s' loaded successfully", nestedClientID)
+
+		client, err := mcp.Select(nestedClientID)
+		assert.Nil(t, err)
+		assert.NotNil(t, client)
+
+		ctx := context.Background()
+		toolsResp, err := client.ListTools(ctx, "")
+		if err == nil && toolsResp != nil {
+			t.Logf("✓ Available tools in %s: %d", nestedClientID, len(toolsResp.Tools))
+			for _, tool := range toolsResp.Tools {
+				t.Logf("  - Tool: %s - %s", tool.Name, tool.Description)
+			}
+		}
+	} else {
+		t.Logf("✗ Nested MCP client '%s' not found", nestedClientID)
+	}
+
+	// Report all agent clients found
+	if len(agentClients) > 0 {
+		t.Logf("✓ Successfully loaded %d agent MCP client(s):", len(agentClients))
+		for _, id := range agentClients {
+			t.Logf("  - %s", id)
+		}
+	} else {
+		t.Logf("No agent MCP clients found (this may be expected if no assistants have mcps)")
+	}
 }

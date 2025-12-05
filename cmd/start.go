@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/mcp"
 	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/schedule"
 	"github.com/yaoapp/gou/server/http"
@@ -143,6 +144,7 @@ var startCmd = &cobra.Command{
 			printSchedules(false)
 			printConnectors(false)
 			printStores(false)
+			printMCPs(false)
 			// printStudio(false, host)
 
 		}
@@ -230,6 +232,7 @@ var startCmd = &cobra.Command{
 			printSchedules(true)
 			printConnectors(true)
 			printStores(true)
+			printMCPs(true)
 		}
 
 		// Print the warnings
@@ -494,6 +497,77 @@ func printApis(silent bool) {
 				colorMehtod("GET"),
 				color.WhiteString(filepath.Join("/websocket", name)),
 				"\tprocess:", upgrader.Process)
+		}
+	}
+}
+
+func printMCPs(silent bool) {
+	clients := mcp.ListClients()
+	if len(clients) == 0 {
+		return
+	}
+
+	if silent {
+		for _, clientID := range clients {
+			log.Info("[MCP] %s loaded", clientID)
+		}
+		return
+	}
+
+	// Separate agent MCPs from standard MCPs
+	agentClients := []string{}
+	standardClients := []string{}
+	for _, clientID := range clients {
+		if len(clientID) >= 7 && clientID[:7] == "agents." {
+			agentClients = append(agentClients, clientID)
+		} else {
+			standardClients = append(standardClients, clientID)
+		}
+	}
+
+	fmt.Println(color.WhiteString("\n---------------------------------"))
+	fmt.Println(color.WhiteString(L("MCP Clients List (%d)"), len(clients)))
+	fmt.Println(color.WhiteString("---------------------------------"))
+
+	if len(standardClients) > 0 {
+		fmt.Println(color.WhiteString("\n%s (%d)", "Standard MCPs", len(standardClients)))
+		fmt.Println(color.WhiteString("--------------------------"))
+		for _, clientID := range standardClients {
+			mapping, err := mcp.GetClientMapping(clientID)
+			if err != nil {
+				fmt.Print(color.CyanString("[MCP] %s", clientID))
+				fmt.Print(color.WhiteString("\tloaded\n"))
+				continue
+			}
+
+			toolsCount := 0
+			if mapping.Tools != nil {
+				toolsCount = len(mapping.Tools)
+			}
+
+			fmt.Print(color.CyanString("[MCP] %s", clientID))
+			fmt.Print(color.WhiteString("\ttools: %d\n", toolsCount))
+		}
+	}
+
+	if len(agentClients) > 0 {
+		fmt.Println(color.WhiteString("\n%s (%d)", "Agent MCPs", len(agentClients)))
+		fmt.Println(color.WhiteString("--------------------------"))
+		for _, clientID := range agentClients {
+			mapping, err := mcp.GetClientMapping(clientID)
+			if err != nil {
+				fmt.Print(color.CyanString("[MCP] %s", clientID))
+				fmt.Print(color.WhiteString("\tloaded\n"))
+				continue
+			}
+
+			toolsCount := 0
+			if mapping.Tools != nil {
+				toolsCount = len(mapping.Tools)
+			}
+
+			fmt.Print(color.CyanString("[MCP] %s", clientID))
+			fmt.Print(color.WhiteString("\ttools: %d\n", toolsCount))
 		}
 	}
 }
