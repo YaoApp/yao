@@ -463,3 +463,159 @@ func TestJsValueTrace(t *testing.T) {
 	assert.NotEmpty(t, result["node_id"], "node_id should not be empty")
 	assert.Equal(t, true, result["success"], "operation should succeed")
 }
+
+// TestJsValueAuthorizedAndMetadata test the authorized and metadata fields
+func TestJsValueAuthorizedAndMetadata(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &context.Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     stdContext.Background(),
+		IDGenerator: message.NewIDGenerator(),
+		Authorized: &types.AuthorizedInfo{
+			UserID:   "user-123",
+			TenantID: "tenant-456",
+			ClientID: "client-789",
+		},
+		Metadata: map[string]interface{}{
+			"request_id": "req-001",
+			"source":     "api",
+			"version":    "1.0.0",
+		},
+	}
+
+	v8.RegisterFunction("testAuthorizedMetadata", testAuthorizedMetadataEmbed)
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(cxt) {
+			return testAuthorizedMetadata(cxt)
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	// Verify authorized object
+	authorized, ok := result["authorized"].(map[string]interface{})
+	assert.True(t, ok, "authorized should be an object")
+	assert.Equal(t, "user-123", authorized["user_id"], "authorized.user_id mismatch")
+	assert.Equal(t, "tenant-456", authorized["tenant_id"], "authorized.tenant_id mismatch")
+	assert.Equal(t, "client-789", authorized["client_id"], "authorized.client_id mismatch")
+
+	// Verify metadata object
+	metadata, ok := result["metadata"].(map[string]interface{})
+	assert.True(t, ok, "metadata should be an object")
+	assert.Equal(t, "req-001", metadata["request_id"], "metadata.request_id mismatch")
+	assert.Equal(t, "api", metadata["source"], "metadata.source mismatch")
+	assert.Equal(t, "1.0.0", metadata["version"], "metadata.version mismatch")
+}
+
+func testAuthorizedMetadataEmbed(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, testAuthorizedMetadataFunction)
+}
+
+func testAuthorizedMetadataFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	var args = info.Args()
+	if len(args) < 1 {
+		return bridge.JsException(info.Context(), "Missing parameters")
+	}
+
+	ctx, err := args[0].AsObject()
+	if err != nil {
+		return bridge.JsException(info.Context(), err)
+	}
+
+	// Extract authorized and metadata fields
+	result := map[string]interface{}{}
+
+	// Get authorized
+	authorizedVal, err := ctx.Get("authorized")
+	if err != nil {
+		return bridge.JsException(info.Context(), err)
+	}
+	if !authorizedVal.IsUndefined() && !authorizedVal.IsNull() {
+		authorized, err := bridge.GoValue(authorizedVal, info.Context())
+		if err != nil {
+			return bridge.JsException(info.Context(), err)
+		}
+		result["authorized"] = authorized
+	}
+
+	// Get metadata
+	metadataVal, err := ctx.Get("metadata")
+	if err != nil {
+		return bridge.JsException(info.Context(), err)
+	}
+	if !metadataVal.IsUndefined() && !metadataVal.IsNull() {
+		metadata, err := bridge.GoValue(metadataVal, info.Context())
+		if err != nil {
+			return bridge.JsException(info.Context(), err)
+		}
+		result["metadata"] = metadata
+	}
+
+	jsVal, err := bridge.JsValue(info.Context(), result)
+	if err != nil {
+		return bridge.JsException(info.Context(), err)
+	}
+	return jsVal
+}
+
+// TestJsValueAuthorizedNil test when authorized is nil
+func TestJsValueAuthorizedNil(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	cxt := &context.Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Context:     stdContext.Background(),
+		IDGenerator: message.NewIDGenerator(),
+		Authorized:  nil, // Explicitly nil
+		Metadata:    nil, // Explicitly nil (should be empty object)
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(cxt) {
+			// Debug: check the actual values
+			const authorized = cxt.authorized;
+			const metadata = cxt.metadata;
+			
+			return {
+				authorized_type: typeof authorized,
+				authorized_is_null: authorized === null,
+				authorized_is_undefined: authorized === undefined,
+				metadata_type: typeof metadata,
+				metadata_is_object: typeof metadata === 'object' && metadata !== null,
+				metadata_is_empty: metadata && Object.keys(metadata).length === 0,
+				has_authorized: 'authorized' in cxt,
+				has_metadata: 'metadata' in cxt
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	// Verify authorized exists and is an empty object when nil
+	assert.Equal(t, true, result["has_authorized"], "authorized property should exist")
+	assert.Equal(t, "object", result["authorized_type"], "authorized should be an object")
+	assert.Equal(t, true, result["metadata_is_object"], "authorized should be an object (not null)")
+
+	// Verify metadata is an empty object when not set
+	assert.Equal(t, true, result["has_metadata"], "metadata property should exist")
+	assert.Equal(t, "object", result["metadata_type"], "metadata should be an object")
+	assert.Equal(t, true, result["metadata_is_object"], "metadata should be an object")
+	assert.Equal(t, true, result["metadata_is_empty"], "metadata should be empty object when not set")
+}

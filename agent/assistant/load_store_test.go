@@ -92,7 +92,7 @@ function Create(ctx, messages) {
 	assert.Contains(t, loaded.Tags, "Source")
 
 	// Verify script was compiled from source
-	assert.NotNil(t, loaded.Script, "Script should be compiled from Source field")
+	assert.NotNil(t, loaded.HookScript, "HookScript should be compiled from Source field")
 
 	// Verify source is stored
 	assert.NotEmpty(t, loaded.Source)
@@ -170,7 +170,7 @@ func TestLoadStoreWithoutSource(t *testing.T) {
 	assert.Contains(t, loaded.Tags, "NoSource")
 
 	// Verify script is nil (no source)
-	assert.Nil(t, loaded.Script, "Script should be nil when no Source field")
+	assert.Nil(t, loaded.HookScript, "HookScript should be nil when no Source field")
 	assert.Empty(t, loaded.Source)
 }
 
@@ -259,16 +259,16 @@ function Create(ctx: any, messages: any[]): any {
 	loaded, err := assistant.Get(assistantID)
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
-	require.NotNil(t, loaded.Script, "Script should be compiled from Source")
+	require.NotNil(t, loaded.HookScript, "HookScript should be compiled from Source")
 
 	// Verify the script object exists and is usable
-	assert.NotNil(t, loaded.Script.Script)
+	assert.NotNil(t, loaded.HookScript.Script)
 
 	// Execute the Create hook
 	ctx := newStoreTestContext("test-chat-id", assistantID)
 	messages := []context.Message{{Role: "user", Content: "Hello"}}
 
-	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+	res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "Create hook should execute without error")
 	require.NotNil(t, res, "Create hook should return a response")
 
@@ -568,14 +568,14 @@ function Create(ctx: any, messages: any[]): any {
 	assert.Len(t, loaded.Placeholder.Prompts, 2)
 
 	// Script from source
-	assert.NotNil(t, loaded.Script)
+	assert.NotNil(t, loaded.HookScript)
 	assert.NotEmpty(t, loaded.Source)
 
 	// Execute the Create hook to verify it works
 	ctx := newStoreTestContext("test-chat-all-fields", assistantID)
 	messages := []context.Message{{Role: "user", Content: "Test message"}}
 
-	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+	res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "Create hook should execute without error")
 	require.NotNil(t, res, "Create hook should return a response")
 
@@ -680,7 +680,7 @@ function Create(ctx: CreateContext, messages: Message[]): CreateResponse | null 
 	loaded, err := assistant.Get(assistantID)
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
-	require.NotNil(t, loaded.Script, "Script should be compiled from TypeScript Source")
+	require.NotNil(t, loaded.HookScript, "HookScript should be compiled from TypeScript Source")
 
 	// Execute the Create hook
 	ctx := newStoreTestContext("ts-test-chat", assistantID)
@@ -690,7 +690,7 @@ function Create(ctx: CreateContext, messages: Message[]): CreateResponse | null 
 		{Role: "user", Content: "How are you?"},
 	}
 
-	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+	res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "TypeScript Create hook should execute without error")
 	require.NotNil(t, res, "Create hook should return a response")
 
@@ -753,12 +753,12 @@ function Create(ctx: any, messages: any[]): any {
 	loaded, err := assistant.Get(assistantID)
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
-	require.NotNil(t, loaded.Script)
+	require.NotNil(t, loaded.HookScript)
 
 	ctx := newStoreTestContext("null-test-chat", assistantID)
 	messages := []context.Message{{Role: "user", Content: "Hello"}}
 
-	res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+	res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 	require.NoError(t, err, "Hook returning null should not error")
 	assert.Nil(t, res, "Hook returning null should return nil response")
 }
@@ -824,14 +824,14 @@ function Create(ctx: any, messages: any[]): any {
 	loaded, err := assistant.Get(assistantID)
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
-	require.NotNil(t, loaded.Script)
+	require.NotNil(t, loaded.HookScript)
 
 	// Test friendly preset selection
 	t.Run("SelectFriendlyPreset", func(t *testing.T) {
 		ctx := newStoreTestContext("preset-test-1", assistantID)
 		messages := []context.Message{{Role: "user", Content: "Be friendly please"}}
 
-		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+		res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, "friendly", res.PromptPreset)
@@ -842,7 +842,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("preset-test-2", assistantID)
 		messages := []context.Message{{Role: "user", Content: "Be professional"}}
 
-		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+		res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		assert.Equal(t, "professional", res.PromptPreset)
@@ -853,7 +853,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("preset-test-3", assistantID)
 		messages := []context.Message{{Role: "user", Content: "Hello"}}
 
-		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+		res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		assert.Nil(t, res)
 	})
@@ -908,14 +908,14 @@ function Create(ctx: any, messages: any[]): any {
 	loaded, err := assistant.Get(assistantID)
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
-	require.NotNil(t, loaded.Script)
+	require.NotNil(t, loaded.HookScript)
 
 	// Test disable global prompts
 	t.Run("DisableGlobalPrompts", func(t *testing.T) {
 		ctx := newStoreTestContext("disable-test-1", assistantID)
 		messages := []context.Message{{Role: "user", Content: "disable_global prompts"}}
 
-		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+		res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.NotNil(t, res.DisableGlobalPrompts)
@@ -927,7 +927,7 @@ function Create(ctx: any, messages: any[]): any {
 		ctx := newStoreTestContext("disable-test-2", assistantID)
 		messages := []context.Message{{Role: "user", Content: "enable_global prompts"}}
 
-		res, _, err := loaded.Script.Create(ctx, messages, &context.Options{})
+		res, _, err := loaded.HookScript.Create(ctx, messages, &context.Options{})
 		require.NoError(t, err)
 		require.NotNil(t, res)
 		require.NotNil(t, res.DisableGlobalPrompts)

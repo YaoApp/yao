@@ -52,7 +52,7 @@ func TestBuildRequest(t *testing.T) {
 		t.Fatalf("Failed to get tests.buildrequest assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("The tests.buildrequest assistant has no script")
 	}
 
@@ -63,7 +63,7 @@ func TestBuildRequest(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "no_override"}}
 
 		// Call Create hook
-		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
+		createResponse, _, err := agent.HookScript.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}
@@ -111,7 +111,7 @@ func TestBuildRequest(t *testing.T) {
 	t.Run("OverrideTemperature", func(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "override_temperature"}}
 
-		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
+		createResponse, _, err := agent.HookScript.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}
@@ -142,7 +142,7 @@ func TestBuildRequest(t *testing.T) {
 	t.Run("OverrideAll", func(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "override_all"}}
 
-		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
+		createResponse, _, err := agent.HookScript.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}
@@ -195,7 +195,7 @@ func TestBuildRequest(t *testing.T) {
 	t.Run("OverrideRouteMetadata", func(t *testing.T) {
 		inputMessages := []context.Message{{Role: "user", Content: "override_route_metadata"}}
 
-		createResponse, _, err := agent.Script.Create(ctx, inputMessages, &context.Options{})
+		createResponse, _, err := agent.HookScript.Create(ctx, inputMessages, &context.Options{})
 		if err != nil {
 			t.Fatalf("Failed to call Create hook: %s", err.Error())
 		}

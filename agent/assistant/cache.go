@@ -75,6 +75,13 @@ func (c *Cache) Remove(id string) {
 	defer c.mu.Unlock()
 
 	if element, exists := c.items[id]; exists {
+		item := element.Value.(*cacheItem)
+
+		// Unregister scripts before removing from cache
+		if item.value != nil && len(item.value.Scripts) > 0 {
+			item.value.UnregisterScripts()
+		}
+
 		c.list.Remove(element)
 		delete(c.items, id)
 	}
@@ -87,10 +94,31 @@ func (c *Cache) Len() int {
 	return c.list.Len()
 }
 
+// All returns all assistants in the cache
+func (c *Cache) All() []*Assistant {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	assistants := make([]*Assistant, 0, c.list.Len())
+	for element := c.list.Front(); element != nil; element = element.Next() {
+		item := element.Value.(*cacheItem)
+		assistants = append(assistants, item.value)
+	}
+	return assistants
+}
+
 // Clear removes all items from the cache
 func (c *Cache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Unregister all scripts before clearing cache
+	for element := c.list.Front(); element != nil; element = element.Next() {
+		item := element.Value.(*cacheItem)
+		if item.value != nil && len(item.value.Scripts) > 0 {
+			item.value.UnregisterScripts()
+		}
+	}
 
 	c.list.Init()
 	c.items = make(map[string]*list.Element)
@@ -99,7 +127,14 @@ func (c *Cache) Clear() {
 // removeOldest removes the least recently used item from the cache
 func (c *Cache) removeOldest() {
 	if element := c.list.Back(); element != nil {
+		item := element.Value.(*cacheItem)
+
+		// Unregister scripts before removing from cache
+		if item.value != nil && len(item.value.Scripts) > 0 {
+			item.value.UnregisterScripts()
+		}
+
 		c.list.Remove(element)
-		delete(c.items, element.Value.(*cacheItem).key)
+		delete(c.items, item.key)
 	}
 }

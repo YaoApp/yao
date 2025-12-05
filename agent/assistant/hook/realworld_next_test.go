@@ -75,7 +75,7 @@ func TestRealWorldNextStandard(t *testing.T) {
 		Error:      "",
 	}
 
-	response, _, err := agent.Script.Next(ctx, payload)
+	response, _, err := agent.HookScript.Next(ctx, payload)
 	if err != nil {
 		t.Fatalf("Next hook failed: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestRealWorldNextCustomData(t *testing.T) {
 		Error:      "",
 	}
 
-	response, _, err := agent.Script.Next(ctx, payload)
+	response, _, err := agent.HookScript.Next(ctx, payload)
 	if err != nil {
 		t.Fatalf("Next hook failed: %v", err)
 	}
@@ -164,7 +164,7 @@ func TestRealWorldNextDelegate(t *testing.T) {
 		Error:      "",
 	}
 
-	response, _, err := agent.Script.Next(ctx, payload)
+	response, _, err := agent.HookScript.Next(ctx, payload)
 	if err != nil {
 		t.Fatalf("Next hook failed: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestRealWorldNextProcessTools(t *testing.T) {
 		Error:      "",
 	}
 
-	response, _, err := agent.Script.Next(ctx, payload)
+	response, _, err := agent.HookScript.Next(ctx, payload)
 	if err != nil {
 		t.Fatalf("Next hook failed: %v", err)
 	}
@@ -279,7 +279,7 @@ func TestRealWorldNextErrorRecovery(t *testing.T) {
 		Error:      "System error: Database connection timeout",
 	}
 
-	response, _, err := agent.Script.Next(ctx, payload)
+	response, _, err := agent.HookScript.Next(ctx, payload)
 	if err != nil {
 		t.Fatalf("Next hook failed: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestRealWorldNextConditional(t *testing.T) {
 			Error:      "",
 		}
 
-		response, _, err := agent.Script.Next(ctx, payload)
+		response, _, err := agent.HookScript.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Next hook failed: %v", err)
 		}
@@ -361,7 +361,7 @@ func TestRealWorldNextConditional(t *testing.T) {
 			Error:      "",
 		}
 
-		response, _, err := agent.Script.Next(ctx, payload)
+		response, _, err := agent.HookScript.Next(ctx, payload)
 		if err != nil {
 			t.Fatalf("Next hook failed: %v", err)
 		}
@@ -405,7 +405,7 @@ func TestRealWorldNextDefault(t *testing.T) {
 		Error:      "",
 	}
 
-	response, _, err := agent.Script.Next(ctx, payload)
+	response, _, err := agent.HookScript.Next(ctx, payload)
 	if err != nil {
 		t.Fatalf("Next hook failed: %v", err)
 	}

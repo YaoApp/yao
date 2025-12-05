@@ -2,6 +2,7 @@ package assistant
 
 import (
 	jsoniter "github.com/json-iterator/go"
+	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/assistant/hook"
 	chatctx "github.com/yaoapp/yao/agent/context"
 
@@ -26,11 +27,17 @@ type SearchOption struct {
 	Knowledge *bool `json:"knowledge,omitempty" yaml:"knowledge,omitempty"`   // Whether to search the knowledge
 }
 
+// Script the script scripts except hook script
+type Script struct {
+	*v8.Script
+}
+
 // Assistant the assistant
 type Assistant struct {
 	store.AssistantModel
-	Search *SearchOption `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
-	Script *hook.Script  `json:"-" yaml:"-"`                               // Assistant Script
+	Search     *SearchOption      `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
+	HookScript *hook.Script       `json:"-" yaml:"-"`                               // Hook Script (index.ts)
+	Scripts    map[string]*Script `json:"-" yaml:"-"`                               // Other scripts
 
 	// Internal
 	// ===============================

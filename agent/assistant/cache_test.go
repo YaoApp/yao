@@ -1,146 +1,253 @@
-package assistant
+package assistant_test
 
-// func TestCache_Basic(t *testing.T) {
-// 	cache := NewCache(2)
+import (
+	"sync"
+	"testing"
 
-// 	// Test empty cache
-// 	if cache.Len() != 0 {
-// 		t.Errorf("Expected empty cache, got length %d", cache.Len())
-// 	}
+	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/agent/assistant"
+	"github.com/yaoapp/yao/agent/testutils"
+)
 
-// 	// Test adding items
-// 	assistant1 := &Assistant{ID: "1", Name: "Test1"}
-// 	assistant2 := &Assistant{ID: "2", Name: "Test2"}
+func TestCacheBasic(t *testing.T) {
+	cache := assistant.NewCache(2)
 
-// 	cache.Put(assistant1)
-// 	cache.Put(assistant2)
+	// Test empty cache
+	assert.Equal(t, 0, cache.Len(), "Expected empty cache")
 
-// 	if cache.Len() != 2 {
-// 		t.Errorf("Expected cache length 2, got %d", cache.Len())
-// 	}
+	// Create test assistants
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
-// 	// Test getting items
-// 	if a, exists := cache.Get("1"); !exists || a.ID != "1" {
-// 		t.Error("Failed to get assistant1")
-// 	}
+	ast1, err := assistant.Get("tests.mcpload")
+	assert.NoError(t, err)
 
-// 	if a, exists := cache.Get("2"); !exists || a.ID != "2" {
-// 		t.Error("Failed to get assistant2")
-// 	}
-// }
+	ast2, err := assistant.Get("tests.create")
+	assert.NoError(t, err)
 
-// func TestCache_LRU(t *testing.T) {
-// 	cache := NewCache(2)
+	// Test adding items
+	cache.Put(ast1)
+	cache.Put(ast2)
 
-// 	assistant1 := &Assistant{ID: "1", Name: "Test1"}
-// 	assistant2 := &Assistant{ID: "2", Name: "Test2"}
-// 	assistant3 := &Assistant{ID: "3", Name: "Test3"}
+	assert.Equal(t, 2, cache.Len(), "Expected cache length 2")
 
-// 	// Add first two items
-// 	cache.Put(assistant1)
-// 	cache.Put(assistant2)
+	// Test getting items
+	cached1, exists := cache.Get("tests.mcpload")
+	assert.True(t, exists, "Should find tests.mcpload")
+	assert.Equal(t, "tests.mcpload", cached1.ID)
 
-// 	// Access assistant1 to make it most recently used
-// 	cache.Get("1")
+	cached2, exists := cache.Get("tests.create")
+	assert.True(t, exists, "Should find tests.create")
+	assert.Equal(t, "tests.create", cached2.ID)
+}
 
-// 	// Add third item, should evict assistant2
-// 	cache.Put(assistant3)
+func TestCacheLRU(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
-// 	// Check assistant2 was evicted
-// 	if _, exists := cache.Get("2"); exists {
-// 		t.Error("Assistant2 should have been evicted")
-// 	}
+	cache := assistant.NewCache(2)
 
-// 	// Check assistant1 and assistant3 are still present
-// 	if _, exists := cache.Get("1"); !exists {
-// 		t.Error("Assistant1 should still be in cache")
-// 	}
-// 	if _, exists := cache.Get("3"); !exists {
-// 		t.Error("Assistant3 should be in cache")
-// 	}
-// }
+	ast1, _ := assistant.Get("tests.mcpload")
+	ast2, _ := assistant.Get("tests.create")
+	ast3, _ := assistant.Get("tests.next")
 
-// func TestCache_Remove(t *testing.T) {
-// 	cache := NewCache(2)
+	// Add first two items
+	cache.Put(ast1)
+	cache.Put(ast2)
 
-// 	assistant1 := &Assistant{ID: "1", Name: "Test1"}
-// 	cache.Put(assistant1)
+	// Access ast1 to make it most recently used
+	cache.Get("tests.mcpload")
 
-// 	// Test remove existing item
-// 	cache.Remove("1")
-// 	if cache.Len() != 0 {
-// 		t.Error("Cache should be empty after removing item")
-// 	}
+	// Add third item, should evict ast2
+	cache.Put(ast3)
 
-// 	// Test remove non-existing item
-// 	cache.Remove("nonexistent")
-// 	if cache.Len() != 0 {
-// 		t.Error("Cache length should not change when removing non-existent item")
-// 	}
-// }
+	// Check ast2 was evicted
+	_, exists := cache.Get("tests.create")
+	assert.False(t, exists, "tests.create should have been evicted")
 
-// func TestCache_Clear(t *testing.T) {
-// 	cache := NewCache(2)
+	// Check ast1 and ast3 are still present
+	_, exists = cache.Get("tests.mcpload")
+	assert.True(t, exists, "tests.mcpload should still be in cache")
 
-// 	assistant1 := &Assistant{ID: "1", Name: "Test1"}
-// 	assistant2 := &Assistant{ID: "2", Name: "Test2"}
+	_, exists = cache.Get("tests.next")
+	assert.True(t, exists, "tests.next should be in cache")
+}
 
-// 	cache.Put(assistant1)
-// 	cache.Put(assistant2)
+func TestCacheRemove(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
-// 	cache.Clear()
-// 	if cache.Len() != 0 {
-// 		t.Error("Cache should be empty after clear")
-// 	}
-// }
+	cache := assistant.NewCache(2)
 
-// func TestCache_Concurrent(t *testing.T) {
-// 	cache := NewCache(100)
-// 	var wg sync.WaitGroup
-// 	workers := 10
-// 	iterations := 100
+	ast1, _ := assistant.Get("tests.mcpload")
+	cache.Put(ast1)
 
-// 	// Concurrent writes
-// 	for i := 0; i < workers; i++ {
-// 		wg.Add(1)
-// 		go func(workerID int) {
-// 			defer wg.Done()
-// 			for j := 0; j < iterations; j++ {
-// 				assistant := &Assistant{
-// 					ID:   string(rune('A' + workerID)),
-// 					Name: "Test",
-// 				}
-// 				cache.Put(assistant)
-// 			}
-// 		}(i)
-// 	}
+	// Verify scripts are registered
+	_, exists := process.Handlers["agents.tests.mcpload.tools"]
+	assert.True(t, exists, "Handler should be registered before removal")
 
-// 	// Concurrent reads
-// 	for i := 0; i < workers; i++ {
-// 		wg.Add(1)
-// 		go func(workerID int) {
-// 			defer wg.Done()
-// 			for j := 0; j < iterations; j++ {
-// 				cache.Get(string(rune('A' + workerID)))
-// 			}
-// 		}(i)
-// 	}
+	// Test remove existing item
+	cache.Remove("tests.mcpload")
+	assert.Equal(t, 0, cache.Len(), "Cache should be empty after removing item")
 
-// 	wg.Wait()
-// }
+	// Verify scripts are unregistered
+	_, exists = process.Handlers["agents.tests.mcpload.tools"]
+	assert.False(t, exists, "Handler should be unregistered after removal")
 
-// func TestCache_NilInput(t *testing.T) {
-// 	cache := NewCache(2)
+	// Test remove non-existing item (should not panic)
+	cache.Remove("nonexistent")
+	assert.Equal(t, 0, cache.Len(), "Cache length should not change")
+}
 
-// 	// Test putting nil assistant
-// 	cache.Put(nil)
-// 	if cache.Len() != 0 {
-// 		t.Error("Cache should not store nil assistant")
-// 	}
+func TestCacheClear(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
-// 	// Test putting assistant with empty ID
-// 	cache.Put(&Assistant{ID: "", Name: "Test"})
-// 	if cache.Len() != 0 {
-// 		t.Error("Cache should not store assistant with empty ID")
-// 	}
-// }
+	cache := assistant.NewCache(3)
+
+	ast1, _ := assistant.Get("tests.mcpload")
+	ast2, _ := assistant.Get("tests.create")
+	ast3, _ := assistant.Get("tests.next")
+
+	cache.Put(ast1)
+	cache.Put(ast2)
+	cache.Put(ast3)
+
+	assert.Equal(t, 3, cache.Len(), "Cache should have 3 items")
+
+	// Verify scripts are registered
+	_, exists := process.Handlers["agents.tests.mcpload.tools"]
+	assert.True(t, exists, "Handler should be registered before clear")
+
+	// Clear cache
+	cache.Clear()
+	assert.Equal(t, 0, cache.Len(), "Cache should be empty after clear")
+
+	// Verify all scripts are unregistered
+	_, exists = process.Handlers["agents.tests.mcpload.tools"]
+	assert.False(t, exists, "Handler should be unregistered after clear")
+}
+
+func TestCacheLRUEviction(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cache := assistant.NewCache(2)
+
+	ast1, _ := assistant.Get("tests.mcpload")
+	ast2, _ := assistant.Get("tests.create")
+	ast3, _ := assistant.Get("tests.next")
+
+	cache.Put(ast1)
+	cache.Put(ast2)
+
+	// Verify both are registered
+	_, exists1 := process.Handlers["agents.tests.mcpload.tools"]
+	assert.True(t, exists1, "Handler 1 should be registered")
+
+	// Add third item to trigger LRU eviction of oldest (ast1)
+	cache.Put(ast3)
+
+	// Verify ast1's handler was unregistered due to eviction
+	_, exists := process.Handlers["agents.tests.mcpload.tools"]
+	assert.False(t, exists, "Handler should be unregistered after LRU eviction")
+
+	// Verify ast2 and ast3 are still in cache
+	_, exists = cache.Get("tests.create")
+	assert.True(t, exists, "tests.create should still be in cache")
+
+	_, exists = cache.Get("tests.next")
+	assert.True(t, exists, "tests.next should be in cache")
+}
+
+func TestCacheConcurrent(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cache := assistant.NewCache(10)
+	var wg sync.WaitGroup
+	workers := 5
+	iterations := 20
+
+	// Load some assistants for concurrent testing
+	assistants := []string{
+		"tests.mcpload",
+		"tests.create",
+		"tests.next",
+	}
+
+	// Concurrent writes
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				astID := assistants[j%len(assistants)]
+				ast, _ := assistant.Get(astID)
+				if ast != nil {
+					cache.Put(ast)
+				}
+			}
+		}(i)
+	}
+
+	// Concurrent reads
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for j := 0; j < iterations; j++ {
+				astID := assistants[j%len(assistants)]
+				cache.Get(astID)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify cache is in valid state
+	assert.True(t, cache.Len() >= 0, "Cache should have valid length")
+	assert.True(t, cache.Len() <= 10, "Cache should not exceed capacity")
+}
+
+func TestCacheNilInput(t *testing.T) {
+	cache := assistant.NewCache(2)
+
+	// Test putting nil assistant
+	cache.Put(nil)
+	assert.Equal(t, 0, cache.Len(), "Cache should not store nil assistant")
+
+	// Test putting assistant with empty ID
+	emptyAST := &assistant.Assistant{}
+	cache.Put(emptyAST)
+	assert.Equal(t, 0, cache.Len(), "Cache should not store assistant with empty ID")
+}
+
+func TestCacheAll(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cache := assistant.NewCache(5)
+
+	ast1, _ := assistant.Get("tests.mcpload")
+	ast2, _ := assistant.Get("tests.create")
+	ast3, _ := assistant.Get("tests.next")
+
+	cache.Put(ast1)
+	cache.Put(ast2)
+	cache.Put(ast3)
+
+	all := cache.All()
+	assert.Equal(t, 3, len(all), "All() should return 3 assistants")
+
+	// Verify all expected assistants are present
+	ids := make(map[string]bool)
+	for _, ast := range all {
+		ids[ast.ID] = true
+	}
+
+	assert.True(t, ids["tests.mcpload"], "Should contain tests.mcpload")
+	assert.True(t, ids["tests.create"], "Should contain tests.create")
+	assert.True(t, ids["tests.next"], "Should contain tests.next")
+}

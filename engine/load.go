@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/yaoapp/gou/application"
@@ -70,10 +71,28 @@ type Warning struct {
 	Error  error
 }
 
+// loadStep wraps a loading function with timing and progress reporting
+func loadStep(name string, loadFunc func() error, callback func(string, string)) error {
+	start := time.Now()
+	err := loadFunc()
+	duration := time.Since(start)
+
+	if callback != nil {
+		callback(name, duration.String())
+	}
+
+	return err
+}
+
 // Load application engine
-func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error) {
+func Load(cfg config.Config, options LoadOption, progressCallback ...func(string, string)) (warnings []Warning, err error) {
 
 	defer func() { err = exception.Catch(recover()) }()
+
+	var callback func(string, string)
+	if len(progressCallback) > 0 {
+		callback = progressCallback[0]
+	}
 	exception.Mode = cfg.Mode
 
 	// SET XGEN_BASE
@@ -86,116 +105,133 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 	os.Setenv("XGEN_BASE", adminRoot)
 
 	// load the application
-	err = loadApp(cfg.AppSource)
+	err = loadStep("Load Application", func() error {
+		return loadApp(cfg.AppSource)
+	}, callback)
 	if err != nil {
 		printErr(cfg.Mode, "Load Application", err)
 		warnings = append(warnings, Warning{Widget: "Load Application", Error: err})
 	}
 
 	// Make Database connections
-	err = share.DBConnect(cfg.DB)
+	err = loadStep("DB", func() error {
+		return share.DBConnect(cfg.DB)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "DB", err)
 		warnings = append(warnings, Warning{Widget: "DB", Error: err})
 	}
 
 	// Load Certs
-	err = cert.Load(cfg)
+	err = loadStep("Cert", func() error {
+		return cert.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Cert", err)
 		warnings = append(warnings, Warning{Widget: "Cert", Error: err})
 	}
 
 	// Load Connectors
-	err = connector.Load(cfg)
+	err = loadStep("Connector", func() error {
+		return connector.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Connector", err)
 		warnings = append(warnings, Warning{Widget: "Connector", Error: err})
 	}
 
 	// Load FileSystem
-	err = fs.Load(cfg)
+	err = loadStep("FileSystem", func() error {
+		return fs.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "FileSystem", err)
 		warnings = append(warnings, Warning{Widget: "FileSystem", Error: err})
 	}
 
 	// Load i18n
-	err = i18n.Load(cfg)
+	err = loadStep("i18n", func() error {
+		return i18n.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "i18n", err)
 		warnings = append(warnings, Warning{Widget: "i18n", Error: err})
 	}
 
 	// start v8 runtime
-	err = runtime.Start(cfg)
+	err = loadStep("Runtime", func() error {
+		return runtime.Start(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Runtime", err)
 		warnings = append(warnings, Warning{Widget: "Runtime", Error: err})
 	}
 
 	// Load Query Engine
-	err = query.Load(cfg)
+	err = loadStep("Query Engine", func() error {
+		return query.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Query Engine", err)
 		warnings = append(warnings, Warning{Widget: "Query Engine", Error: err})
 	}
 
 	// Load Scripts
-	err = script.Load(cfg)
+	err = loadStep("Script", func() error {
+		return script.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Script", err)
 		warnings = append(warnings, Warning{Widget: "Script", Error: err})
 	}
 
 	// Load Models
-	err = model.Load(cfg)
+	err = loadStep("Model", func() error {
+		return model.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Model", err)
 		warnings = append(warnings, Warning{Widget: "Model", Error: err})
 	}
 
 	// Load Data flows
-	err = flow.Load(cfg)
+	err = loadStep("Flow", func() error {
+		return flow.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Flow", err)
 		warnings = append(warnings, Warning{Widget: "Flow", Error: err})
 	}
 
 	// Load Stores
-	err = store.Load(cfg)
+	err = loadStep("Store", func() error {
+		return store.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Store", err)
 		warnings = append(warnings, Warning{Widget: "Store", Error: err})
 	}
 
 	// Load Uploaders
-	err = attachment.Load(cfg)
+	err = loadStep("Uploader", func() error {
+		return attachment.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Uploader", err)
 		warnings = append(warnings, Warning{Widget: "Uploader", Error: err})
 	}
 
 	// Load Messengers
-	err = messenger.Load(cfg)
+	err = loadStep("Messenger", func() error {
+		return messenger.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Messenger", err)
 		warnings = append(warnings, Warning{Widget: "Messenger", Error: err})
 	}
 
 	// Load Plugins
-	err = plugin.Load(cfg)
+	err = loadStep("Plugin", func() error {
+		return plugin.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Plugin", err)
 		warnings = append(warnings, Warning{Widget: "Plugin", Error: err})
 	}
 
 	// Load WASM Application (experimental)
 
 	// Load build-in widgets (table / form / chart / ...)
-	err = widgets.Load(cfg)
+	err = loadStep("Widgets", func() error {
+		return widgets.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Widgets", err)
 		warnings = append(warnings, Warning{Widget: "Widgets", Error: err})
 	}
 
@@ -207,100 +243,115 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 	// }
 
 	// Load Apis
-	err = api.Load(cfg) // 加载业务接口 API
+	err = loadStep("API", func() error {
+		return api.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "API", err)
 		warnings = append(warnings, Warning{Widget: "API", Error: err})
 	}
 
 	// Load Sockets
-	err = socket.Load(cfg) // Load sockets
+	err = loadStep("Socket", func() error {
+		return socket.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Socket", err)
 		warnings = append(warnings, Warning{Widget: "Socket", Error: err})
 	}
 
 	// Load websockets (client mode)
-	err = websocket.Load(cfg)
+	err = loadStep("WebSocket", func() error {
+		return websocket.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "WebSocket", err)
 		warnings = append(warnings, Warning{Widget: "WebSocket", Error: err})
 	}
 
 	// Load tasks
-	err = task.Load(cfg)
+	err = loadStep("Task", func() error {
+		return task.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Task", err)
 		warnings = append(warnings, Warning{Widget: "Task", Error: err})
 	}
 
 	// Load schedules
-	err = schedule.Load(cfg)
+	err = loadStep("Schedule", func() error {
+		return schedule.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Schedule", err)
 		warnings = append(warnings, Warning{Widget: "Schedule", Error: err})
 	}
 
 	// Load AIGC
-	err = aigc.Load(cfg)
+	err = loadStep("AIGC", func() error {
+		return aigc.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "AIGC", err)
 		warnings = append(warnings, Warning{Widget: "AIGC", Error: err})
 	}
 
 	// Load Custom Widget
-	err = widget.Load(cfg)
+	err = loadStep("Widget", func() error {
+		return widget.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Widget", err)
 		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
 	}
 
 	// Load Custom Widget Instances
-	err = widget.LoadInstances()
+	err = loadStep("Widget Instances", func() error {
+		return widget.LoadInstances()
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Widget", err)
 		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
 	}
 
 	// Load SUI
-	err = sui.Load(cfg)
+	err = loadStep("SUI", func() error {
+		return sui.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "SUI", err)
 		warnings = append(warnings, Warning{Widget: "SUI", Error: err})
 	}
 
 	// Load Moapi
-	err = moapi.Load(cfg)
+	err = loadStep("Moapi", func() error {
+		return moapi.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Moapi", err)
 		warnings = append(warnings, Warning{Widget: "Moapi", Error: err})
 	}
 
 	// Load Pipe
-	err = pipe.Load(cfg)
+	err = loadStep("Pipe", func() error {
+		return pipe.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Pipe", err)
 		warnings = append(warnings, Warning{Widget: "Pipe", Error: err})
 	}
 
 	// Load MCP Clients
-	err = mcp.Load(cfg)
+	err = loadStep("MCP", func() error {
+		return mcp.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "MCP", err)
 		warnings = append(warnings, Warning{Widget: "MCP", Error: err})
 	}
 
 	// Load Knowledge Base
-	_, err = kb.Load(cfg)
+	err = loadStep("Knowledge Base", func() error {
+		_, err := kb.Load(cfg)
+		return err
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Knowledge Base", err)
 		warnings = append(warnings, Warning{Widget: "Knowledge Base", Error: err})
 	}
 
 	// Load Agent
-	err = agent.Load(cfg)
+	err = loadStep("Agent", func() error {
+		return agent.Load(cfg)
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "Agent", err)
 		warnings = append(warnings, Warning{Widget: "Agent", Error: err})
 	}
 
@@ -313,22 +364,24 @@ func Load(cfg config.Config, options LoadOption) (warnings []Warning, err error)
 	}
 
 	// Load OpenAPI
-	_, err = openapi.Load(cfg)
+	err = loadStep("OpenAPI", func() error {
+		_, err := openapi.Load(cfg)
+		return err
+	}, callback)
 	if err != nil {
-		// printErr(cfg.Mode, "OpenAPI", err)
 		warnings = append(warnings, Warning{Widget: "OpenAPI", Error: err})
 	}
 
 	// Execute AfterLoad Process if exists
 	if share.App.AfterLoad != "" && !options.IgnoredAfterLoad {
-		p, err := process.Of(share.App.AfterLoad, options)
-		if err != nil {
-			printErr(cfg.Mode, "AfterLoad", err)
-			warnings = append(warnings, Warning{Widget: "AfterLoad", Error: err})
-			return warnings, err
-		}
-
-		_, err = p.Exec()
+		err = loadStep("AfterLoad", func() error {
+			p, err := process.Of(share.App.AfterLoad, options)
+			if err != nil {
+				return err
+			}
+			_, err = p.Exec()
+			return err
+		}, callback)
 		if err != nil {
 			printErr(cfg.Mode, "AfterLoad", err)
 			warnings = append(warnings, Warning{Widget: "AfterLoad", Error: err})

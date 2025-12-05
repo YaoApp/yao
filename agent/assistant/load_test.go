@@ -63,7 +63,7 @@ func TestLoadPath(t *testing.T) {
 		assert.Equal(t, "system", assistant.Prompts[0].Role)
 
 		// Script (from src/index.ts)
-		assert.NotNil(t, assistant.Script)
+		assert.NotNil(t, assistant.HookScript)
 	})
 
 	t.Run("LoadConnectorOptions", func(t *testing.T) {
@@ -227,8 +227,8 @@ func TestLoadPathBuildRequest(t *testing.T) {
 	assert.Equal(t, "tests.buildrequest", assistant.ID)
 	assert.Equal(t, "Build Request Test", assistant.Name)
 
-	// Script should be loaded
-	assert.NotNil(t, assistant.Script)
+	// HookScript should be loaded
+	assert.NotNil(t, assistant.HookScript)
 
 	// Options
 	assert.NotNil(t, assistant.Options)

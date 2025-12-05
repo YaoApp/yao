@@ -27,7 +27,7 @@ func TestGoroutineLeakDetailed(t *testing.T) {
 		t.Fatalf("Failed to get assistant: %s", err.Error())
 	}
 
-	if agent.Script == nil {
+	if agent.HookScript == nil {
 		t.Fatalf("Assistant has no script")
 	}
 
@@ -48,7 +48,7 @@ func TestGoroutineLeakDetailed(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		ctx := newLeakTestContext(fmt.Sprintf("leak-test-%d", i), "tests.create")
 
-		_, _, err := agent.Script.Create(ctx, []context.Message{
+		_, _, err := agent.HookScript.Create(ctx, []context.Message{
 			{Role: "user", Content: "Hello"},
 		})
 		if err != nil {
@@ -126,7 +126,7 @@ func TestGoroutineLeakByComponent(t *testing.T) {
 
 		for i := 0; i < 10; i++ {
 			ctx := newLeakTestContext(fmt.Sprintf("test-%d", i), "tests.create")
-			_, _, _ = agent.Script.Create(ctx, []context.Message{
+			_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 				{Role: "user", Content: "Hello"},
 			})
 			ctx.Release()
@@ -184,7 +184,7 @@ func TestGoroutineLeakWithoutRelease(t *testing.T) {
 
 		for i := 0; i < 10; i++ {
 			ctx := newLeakTestContext(fmt.Sprintf("no-release-%d", i), "tests.create")
-			_, _, _ = agent.Script.Create(ctx, []context.Message{
+			_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 				{Role: "user", Content: "Hello"},
 			})
 			// Intentionally NOT calling ctx.Release()
@@ -205,7 +205,7 @@ func TestGoroutineLeakWithoutRelease(t *testing.T) {
 
 		for i := 0; i < 10; i++ {
 			ctx := newLeakTestContext(fmt.Sprintf("with-release-%d", i), "tests.create")
-			_, _, _ = agent.Script.Create(ctx, []context.Message{
+			_, _, _ = agent.HookScript.Create(ctx, []context.Message{
 				{Role: "user", Content: "Hello"},
 			})
 			ctx.Release() // WITH Release
