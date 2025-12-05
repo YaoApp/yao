@@ -730,44 +730,12 @@ func (ast *Assistant) initialize() error {
 	}
 	ast.openai = api
 
-	// Check if the assistant has an init hook
-	if ast.HookScript != nil {
-		scriptCtx, err := ast.HookScript.NewContext("", nil)
-		if err != nil {
-			return err
+	// Register scripts as process handlers
+	if len(ast.Scripts) > 0 {
+		if err := ast.RegisterScripts(); err != nil {
+			return fmt.Errorf("failed to register scripts: %w", err)
 		}
-		defer scriptCtx.Close()
 	}
 
 	return nil
-}
-
-func loadTools(file string) (*store.ToolCalls, int64, error) {
-
-	app, err := fs.Get("app")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	content, err := app.ReadFile(file)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	ts, err := app.ModTime(file)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	if len(content) == 0 {
-		return &store.ToolCalls{Tools: []store.Tool{}, Prompts: []store.Prompt{}}, ts.UnixNano(), nil
-	}
-
-	var tools store.ToolCalls
-	err = application.Parse(file, content, &tools)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return &tools, ts.UnixNano(), nil
 }

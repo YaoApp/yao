@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -8,12 +9,33 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent/assistant/hook"
 )
 
 // scriptsMutex protects concurrent v8.Load calls and Scripts map access
 var scriptsMutex sync.Mutex
+
+// Execute execute the script
+func (s *Script) Execute(ctx context.Context, method string, args ...interface{}) (interface{}, error) {
+	if s == nil || s.Script == nil {
+		return nil, nil
+	}
+
+	scriptCtx, err := s.NewContext("", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer scriptCtx.Close()
+
+	// Call the method with provided arguments as-is
+	result, err := scriptCtx.CallWith(ctx, method, args...)
+
+	// Return error as-is (including "not defined" errors)
+	return result, err
+}
 
 // LoadScripts loads all scripts from a src directory path
 // It scans for .ts and .js files (excluding index.ts which is the hook script)
@@ -288,4 +310,61 @@ func loadScriptsField(scriptsData interface{}) (map[string]*Script, error) {
 	}
 
 	return nil, nil
+}
+
+// RegisterScripts registers all scripts as process handlers
+// Handler naming: agents.<assistantID>.<scriptID>
+func (ast *Assistant) RegisterScripts() error {
+	if len(ast.Scripts) == 0 {
+		return nil
+	}
+
+	assistantID := ast.ID
+	handlers := make(map[string]process.Handler)
+
+	for scriptID, script := range ast.Scripts {
+		// Create handler for this script
+		handlers[scriptID] = makeScriptHandler(script)
+	}
+
+	// Register the handler group dynamically
+	groupName := fmt.Sprintf("agents.%s", assistantID)
+	process.RegisterDynamicGroup(groupName, handlers)
+
+	return nil
+}
+
+// UnregisterScripts unregisters all scripts from process handlers
+func (ast *Assistant) UnregisterScripts() error {
+	if len(ast.Scripts) == 0 {
+		return nil
+	}
+
+	assistantID := ast.ID
+
+	for scriptID := range ast.Scripts {
+		handlerID := fmt.Sprintf("agents.%s.%s", strings.ToLower(assistantID), strings.ToLower(scriptID))
+		delete(process.Handlers, handlerID)
+	}
+
+	return nil
+}
+
+// makeScriptHandler creates a process handler for a script
+func makeScriptHandler(script *Script) process.Handler {
+	return func(p *process.Process) interface{} {
+		// Extract method name from process
+		method := p.Method
+
+		// Get arguments from process
+		args := p.Args
+
+		// Execute the script
+		result, err := script.Execute(p.Context, method, args...)
+		if err != nil {
+			exception.New(err.Error(), 500).Throw()
+		}
+
+		return result
+	}
 }
