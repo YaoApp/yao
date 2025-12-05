@@ -76,6 +76,14 @@ func Load(cfg config.Config) error {
 		return fmt.Errorf("%s", strings.Join(messages, ";\n"))
 	}
 
+	// Load models from assistants
+	errsAssistants := loadAssistantModels()
+	if len(errsAssistants) > 0 {
+		for _, err := range errsAssistants {
+			log.Error("Load assistant models error: %s", err.Error())
+		}
+	}
+
 	// Load database models ( ignore error)
 	errs := loadDatabaseModels()
 	if len(errs) > 0 {
@@ -129,6 +137,148 @@ func loadSystemModels() error {
 	}
 
 	return nil
+}
+
+// loadAssistantModels load models from assistants directory
+func loadAssistantModels() []error {
+	var errs []error = []error{}
+
+	// Check if assistants directory exists
+	exists, err := application.App.Exists("assistants")
+	if err != nil || !exists {
+		log.Trace("Assistants directory not found or not accessible")
+		return errs
+	}
+
+	log.Trace("Loading models from assistants directory...")
+
+	// Track processed assistants to avoid duplicates
+	processedAssistants := make(map[string]bool)
+
+	// Walk through assistants directory to find all valid assistants with models
+	err = application.App.Walk("assistants", func(root, file string, isdir bool) error {
+		if !isdir {
+			return nil
+		}
+
+		// Check if this is a valid assistant directory (has package.yao)
+		pkgFile := filepath.Join(root, file, "package.yao")
+		pkgExists, _ := application.App.Exists(pkgFile)
+		if !pkgExists {
+			return nil
+		}
+
+		// Extract assistant ID from path
+		assistantID := strings.TrimPrefix(file, "/")
+		assistantID = strings.ReplaceAll(assistantID, "/", ".")
+
+		// Skip if already processed
+		if processedAssistants[assistantID] {
+			return nil
+		}
+		processedAssistants[assistantID] = true
+
+		log.Trace("Found assistant: %s", assistantID)
+
+		// Check if the assistant has a models directory
+		modelsDir := filepath.Join(root, file, "models")
+		modelsDirExists, _ := application.App.Exists(modelsDir)
+		if !modelsDirExists {
+			log.Trace("Assistant %s has no models directory", assistantID)
+			return nil
+		}
+
+		log.Trace("Loading models from assistant %s", assistantID)
+
+		// Load models from the assistant's models directory
+		exts := []string{"*.mod.yao", "*.mod.json", "*.mod.jsonc"}
+		err := application.App.Walk(modelsDir, func(modelRoot, modelFile string, modelIsDir bool) error {
+			if modelIsDir {
+				return nil
+			}
+
+			// Generate model ID with agents.<assistantID>./ prefix
+			// Support nested paths: "models/foo/bar.mod.yao" -> "foo.bar"
+			relPath := strings.TrimPrefix(modelFile, modelsDir+"/")
+			relPath = strings.TrimPrefix(relPath, "/")
+			relPath = strings.TrimSuffix(relPath, ".mod.yao")
+			relPath = strings.TrimSuffix(relPath, ".mod.json")
+			relPath = strings.TrimSuffix(relPath, ".mod.jsonc")
+			modelName := strings.ReplaceAll(relPath, "/", ".")
+			modelID := fmt.Sprintf("agents.%s.%s", assistantID, modelName)
+
+			log.Trace("Loading model %s from file %s", modelID, modelFile)
+
+			// Read and modify model to add table prefix
+			content, err := application.App.Read(modelFile)
+			if err != nil {
+				log.Error("Failed to read model file %s: %s", modelFile, err.Error())
+				errs = append(errs, fmt.Errorf("failed to read model %s: %w", modelID, err))
+				return nil
+			}
+
+			// Parse model
+			var modelData map[string]interface{}
+			err = application.Parse(modelFile, content, &modelData)
+			if err != nil {
+				log.Error("Failed to parse model %s: %s", modelID, err.Error())
+				errs = append(errs, fmt.Errorf("failed to parse model %s: %w", modelID, err))
+				return nil
+			}
+
+			// Set table name prefix: agents_<assistantID>_
+			// Convert dots to underscores: tests.mcpload -> agents_tests_mcpload_
+			if table, ok := modelData["table"].(map[string]interface{}); ok {
+				if tableName, ok := table["name"].(string); ok {
+					// Generate prefix from assistant ID
+					prefix := "agents_" + strings.ReplaceAll(assistantID, ".", "_") + "_"
+
+					// Remove any existing prefix if present
+					tableName = strings.TrimPrefix(tableName, "agents_mcpload_")
+					tableName = strings.TrimPrefix(tableName, prefix)
+
+					table["name"] = prefix + tableName
+					content, err = jsoniter.Marshal(modelData)
+					if err != nil {
+						log.Error("Failed to marshal model data for %s: %v", modelID, err)
+						errs = append(errs, fmt.Errorf("failed to marshal model %s: %w", modelID, err))
+						return nil
+					}
+				}
+			}
+
+			// Load model with modified content
+			mod, err := model.LoadSource(content, modelID, modelFile)
+			if err != nil {
+				log.Error("Failed to load model %s from assistant %s: %s", modelID, assistantID, err.Error())
+				errs = append(errs, fmt.Errorf("failed to load model %s: %w", modelID, err))
+				return nil // Continue loading other models
+			}
+
+			// Auto migrate the model (like system models)
+			err = mod.Migrate(false, model.WithDonotInsertValues(true))
+			if err != nil {
+				log.Error("Failed to migrate model %s from assistant %s: %s", modelID, assistantID, err.Error())
+				errs = append(errs, fmt.Errorf("failed to migrate model %s: %w", modelID, err))
+				return nil
+			}
+
+			log.Info("Loaded and migrated model: %s", modelID)
+			return nil
+		}, exts...)
+
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to walk models in assistant %s: %w", assistantID, err))
+		}
+
+		return nil
+	}, "")
+
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to walk assistants directory: %w", err))
+	}
+
+	return errs
 }
 
 // LoadDatabaseModels load database models
