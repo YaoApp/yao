@@ -5,20 +5,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/application"
 	gouOpenAI "github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/gou/fs"
-	v8 "github.com/yaoapp/gou/runtime/v8"
-	"github.com/yaoapp/yao/agent/assistant/hook"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/openai"
-	"github.com/yaoapp/yao/share"
 	"gopkg.in/yaml.v3"
 )
 
@@ -321,27 +317,29 @@ func LoadPath(path string) (*Assistant, error) {
 		}
 	}
 
-	// load script
-	scriptfile := filepath.Join(path, "src", "index.ts")
-	if has, _ := app.Exists(scriptfile); has {
-		script, ts, err := loadScript(scriptfile, path)
+	// load scripts (hook script and other scripts) from src directory
+	srcDir := filepath.Join(path, "src")
+	if has, _ := app.Exists(srcDir); has {
+		hookScript, scripts, err := LoadScripts(srcDir)
 		if err != nil {
 			return nil, err
 		}
-		data["script"] = script
-		data["updated_at"] = max(updatedAt, ts)
-	}
 
-	// load tools, deprecated, use mcp instead
-	// toolsfile := filepath.Join(path, "tools.yao")
-	// if has, _ := app.Exists(toolsfile); has {
-	// 	tools, ts, err := loadTools(toolsfile)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	data["tools"] = tools
-	// 	updatedAt = max(updatedAt, ts)
-	// }
+		// Set hook script and update timestamp
+		if hookScript != nil {
+			data["script"] = hookScript
+			// Get timestamp from index.ts if exists
+			scriptfile := filepath.Join(srcDir, "index.ts")
+			if ts, err := app.ModTime(scriptfile); err == nil {
+				data["updated_at"] = max(updatedAt, ts.UnixNano())
+			}
+		}
+
+		// Set other scripts
+		if len(scripts) > 0 {
+			data["scripts"] = scripts
+		}
+	}
 
 	// i18ns
 	locales, err := i18n.GetLocales(path)
@@ -624,11 +622,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Source = source
 	}
 
-	// tools - deprecated, now handled by MCP
-	// if tools, has := data["tools"]; has {
-	// 	... removed ...
-	// }
-
 	// kb
 	if kb, has := data["kb"]; has {
 		knowledgeBase, err := store.ToKnowledgeBase(kb)
@@ -686,30 +679,13 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		}
 	}
 
-	// script loading priority: script field > source field
-	// If script field exists, use it; otherwise try source field
-	if data["script"] != nil {
-		switch v := data["script"].(type) {
-		case string:
-			file := fmt.Sprintf("assistants/%s/src/index.ts", assistant.ID)
-			script, err := loadScriptSource(v, file)
-			if err != nil {
-				return nil, err
-			}
-			assistant.HookScript = &hook.Script{Script: script}
-		case *hook.Script:
-			assistant.HookScript = v
-		case *v8.Script:
-			assistant.HookScript = &hook.Script{Script: v}
-		}
-	} else if assistant.Source != "" {
-		// Load from source field if script is not provided
-		script, err := loadSource(assistant.Source, assistant.ID)
-		if err != nil {
-			return nil, err
-		}
-		assistant.HookScript = script
+	// Load scripts (hook script and other scripts)
+	hookScript, scripts, scriptErr := LoadScriptsFromData(data, assistant.ID)
+	if scriptErr != nil {
+		return nil, scriptErr
 	}
+	assistant.HookScript = hookScript
+	assistant.Scripts = scripts
 
 	// created_at
 	if v, has := data["created_at"]; has {
@@ -736,34 +712,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	return assistant, nil
-}
-
-func loadScript(file string, root string) (*hook.Script, int64, error) {
-
-	app, err := fs.Get("app")
-	if err != nil {
-		return nil, 0, err
-	}
-
-	ts, err := app.ModTime(file)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	script, err := v8.Load(file, share.ID(root, file))
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return &hook.Script{Script: script}, ts.UnixNano(), nil
-}
-
-func loadScriptSource(source string, file string) (*v8.Script, error) {
-	script, err := v8.MakeScript([]byte(source), file, 5*time.Second, true)
-	if err != nil {
-		return nil, err
-	}
-	return script, nil
 }
 
 // Init init the assistant
