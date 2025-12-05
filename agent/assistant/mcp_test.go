@@ -302,9 +302,24 @@ func TestMCPToolContextPassing(t *testing.T) {
 	assert.NotEmpty(t, assistantID, "assistant_id should have a value")
 	assert.Equal(t, "test-assistant-mcptest", assistantID, "assistant_id should match")
 
+	// Verify authorized information
+	authorizedData, ok := contextData["authorized"].(map[string]interface{})
+	assert.True(t, ok, "Context should have authorized field")
+	assert.NotNil(t, authorizedData, "Authorized data should not be nil")
+
+	userID, ok := authorizedData["user_id"].(string)
+	assert.True(t, ok, "Authorized should have user_id field")
+	assert.Equal(t, "test-user-123", userID, "User ID should match")
+
+	tenantID, ok := authorizedData["tenant_id"].(string)
+	assert.True(t, ok, "Authorized should have tenant_id field")
+	assert.Equal(t, "test-tenant-456", tenantID, "Tenant ID should match")
+
 	t.Logf("✓ Context successfully passed to MCP tool")
 	t.Logf("  - ChatID: %s", chatID)
 	t.Logf("  - AssistantID: %s", assistantID)
+	t.Logf("  - UserID: %s", userID)
+	t.Logf("  - TenantID: %s", tenantID)
 }
 
 // TestMCPToolContextPassingParallel tests that agent context is correctly passed in parallel calls
@@ -371,6 +386,13 @@ func TestMCPToolContextPassingParallel(t *testing.T) {
 		chatID, ok := contextData["chat_id"].(string)
 		assert.True(t, ok, "Context %d should have chat_id field", i)
 		assert.Equal(t, "parallel-chat-789", chatID, "Chat ID in result %d should match", i)
+
+		// Verify authorized information in parallel call
+		authorizedData, ok := contextData["authorized"].(map[string]interface{})
+		assert.True(t, ok, "Context %d should have authorized field", i)
+		if userID, ok := authorizedData["user_id"].(string); ok {
+			assert.Equal(t, "parallel-user-123", userID, "User ID in result %d should match", i)
+		}
 
 		t.Logf("✓ Result %d successfully received context", i)
 	}
