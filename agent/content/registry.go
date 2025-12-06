@@ -37,11 +37,11 @@ func (r *Registry) GetHandler(contentType string, fileType FileType) Handler {
 }
 
 // Handle processes content using the appropriate handler
-func (r *Registry) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+func (r *Registry) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	handler := r.GetHandler(info.ContentType, info.FileType)
 	if handler == nil {
 		return nil, fmt.Errorf("no handler found for content type: %s, file type: %s", info.ContentType, info.FileType)
 	}
 
-	return handler.Handle(ctx, info, capabilities, uses)
+	return handler.Handle(ctx, info, capabilities, uses, forceUses)
 }

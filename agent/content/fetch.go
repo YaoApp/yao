@@ -69,9 +69,14 @@ func (f *DefaultFetcher) fetchUploader(ctx *agentContext.Context, wrapper string
 
 	// 5. Return Info with data
 	return &Info{
-		Data:        data,
-		ContentType: file.ContentType,
-		FileType:    DetectFileType(file.ContentType, file.Filename),
+		Data:         data,
+		ContentType:  file.ContentType,
+		Filename:     file.Filename,
+		FileType:     DetectFileType(file.ContentType, file.Filename),
+		URL:          wrapper,
+		Source:       SourceUploader,
+		UploaderName: uploaderName,
+		FileID:       fileID,
 	}, nil
 }
 

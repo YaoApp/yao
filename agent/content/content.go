@@ -51,7 +51,12 @@ import (
 //   - MUST convert to type="text"
 //
 // Return: Messages with only standard LLM-compatible content types (text, image_url, input_audio)
-func Vision(ctx *agentContext.Context, capabilities *openai.Capabilities, messages []agentContext.Message, uses *agentContext.Uses) ([]agentContext.Message, error) {
+func Vision(ctx *agentContext.Context, capabilities *openai.Capabilities, messages []agentContext.Message, uses *agentContext.Uses, forceUses ...bool) ([]agentContext.Message, error) {
+	// Determine if we should force using Uses tools even when model has native capabilities
+	shouldForceUses := false
+	if len(forceUses) > 0 {
+		shouldForceUses = forceUses[0]
+	}
 	// Initialize handlers and fetcher
 	registry := NewRegistry()
 	fetcher := NewFetcher()
@@ -64,7 +69,7 @@ func Vision(ctx *agentContext.Context, capabilities *openai.Capabilities, messag
 	processedMessages := make([]agentContext.Message, 0, len(messages))
 
 	for _, msg := range messages {
-		processedMsg, err := processMessage(ctx, &msg, capabilities, uses, registry, fetcher, processedFiles)
+		processedMsg, err := processMessage(ctx, &msg, capabilities, uses, shouldForceUses, registry, fetcher, processedFiles)
 		if err != nil {
 			// Log error but continue processing other messages
 			// TODO: Add proper logging
@@ -84,6 +89,7 @@ func processMessage(
 	msg *agentContext.Message,
 	capabilities *openai.Capabilities,
 	uses *agentContext.Uses,
+	forceUses bool,
 	registry *Registry,
 	fetcher Fetcher,
 	processedFiles map[string]string,
@@ -99,10 +105,13 @@ func processMessage(
 		return *msg, nil
 	}
 
+	// Note: File information will be collected and stored in Space by CallAgentWithFileInfo
+	// when calling vision agents, using the agent ID as namespace prefix
+
 	// Process each content part
 	processedParts := make([]agentContext.ContentPart, 0, len(parts))
 	for _, part := range parts {
-		processedPart, err := processContentPart(ctx, &part, capabilities, uses, registry, fetcher, processedFiles)
+		processedPart, err := processContentPart(ctx, &part, capabilities, uses, forceUses, registry, fetcher, processedFiles)
 		if err != nil {
 			// Log error and handle gracefully
 			fmt.Printf("Warning: failed to process content part: %v\n", err)
@@ -154,6 +163,7 @@ func processContentPart(
 	part *agentContext.ContentPart,
 	capabilities *openai.Capabilities,
 	uses *agentContext.Uses,
+	forceUses bool,
 	registry *Registry,
 	fetcher Fetcher,
 	processedFiles map[string]string,
@@ -168,7 +178,7 @@ func processContentPart(
 
 	case agentContext.ContentImageURL:
 		// Image URL - check if it needs processing
-		return processImageURLContent(ctx, part, capabilities, uses, registry, fetcher, processedFiles)
+		return processImageURLContent(ctx, part, capabilities, uses, forceUses, registry, fetcher, processedFiles)
 
 	case agentContext.ContentInputAudio:
 		// Audio - check if it needs processing
@@ -178,7 +188,7 @@ func processContentPart(
 	// 2. Handle extended types - MUST convert to standard types
 	switch part.Type {
 	case agentContext.ContentFile:
-		return processFileContent(ctx, part, capabilities, uses, registry, fetcher, processedFiles)
+		return processFileContent(ctx, part, capabilities, uses, forceUses, registry, fetcher, processedFiles)
 
 	case agentContext.ContentData:
 		return processDataContent(ctx, part)
@@ -195,6 +205,7 @@ func processFileContent(
 	part *agentContext.ContentPart,
 	capabilities *openai.Capabilities,
 	uses *agentContext.Uses,
+	forceUses bool,
 	registry *Registry,
 	fetcher Fetcher,
 	processedFiles map[string]string,
@@ -230,13 +241,18 @@ func processFileContent(
 		return nil, fmt.Errorf("failed to fetch content: %w", err)
 	}
 
+	// Set filename from part if not already set
+	if info.Filename == "" && part.File.Filename != "" {
+		info.Filename = part.File.Filename
+	}
+
 	// Detect file type if not already set
 	if info.FileType == FileTypeUnknown {
 		info.FileType = DetectFileType(info.ContentType, part.File.Filename)
 	}
 
 	// Process with appropriate handler
-	result, err := registry.Handle(ctx, info, capabilities, uses)
+	result, err := registry.Handle(ctx, info, capabilities, uses, forceUses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to handle content: %w", err)
 	}
@@ -259,6 +275,7 @@ func processImageURLContent(
 	part *agentContext.ContentPart,
 	capabilities *openai.Capabilities,
 	uses *agentContext.Uses,
+	forceUses bool,
 	registry *Registry,
 	fetcher Fetcher,
 	processedFiles map[string]string,
@@ -305,7 +322,7 @@ func processImageURLContent(
 	info.FileType = FileTypeImage
 
 	// Process with image handler
-	result, err := registry.Handle(ctx, info, capabilities, uses)
+	result, err := registry.Handle(ctx, info, capabilities, uses, forceUses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to handle image: %w", err)
 	}

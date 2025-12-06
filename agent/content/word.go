@@ -20,7 +20,7 @@ func (h *WordHandler) CanHandle(contentType string, fileType FileType) bool {
 }
 
 // Handle processes Word document content
-func (h *WordHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+func (h *WordHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	// TODO: Implement Word document handling
 	// 1. Extract text from .docx or .doc file
 	// 2. Preserve formatting information if needed

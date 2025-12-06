@@ -49,7 +49,7 @@ func (h *TextHandler) CanHandle(contentType string, fileType FileType) bool {
 }
 
 // Handle processes text content
-func (h *TextHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+func (h *TextHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	if len(info.Data) == 0 {
 		return nil, fmt.Errorf("no data to process")
 	}

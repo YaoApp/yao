@@ -18,9 +18,10 @@ func (h *ImageHandler) CanHandle(contentType string, fileType FileType) bool {
 
 // Handle processes image content
 // Logic:
-// 1. If model supports vision -> convert to base64 or image_url format
-// 2. If model doesn't support vision -> use agent/MCP specified in uses.Vision
-func (h *ImageHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+// 1. If forceUses is true and uses.Vision is specified -> use vision tool regardless of model capability
+// 2. If model supports vision and forceUses is false -> convert to base64 or image_url format
+// 3. If model doesn't support vision -> use agent/MCP specified in uses.Vision
+func (h *ImageHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	if len(info.Data) == 0 {
 		return nil, fmt.Errorf("no image data to process")
 	}
@@ -31,6 +32,17 @@ func (h *ImageHandler) Handle(ctx *agentContext.Context, info *Info, capabilitie
 
 	// Check if model supports vision
 	supportsVision, visionFormat := agentContext.GetVisionSupport(capabilities)
+
+	// If forceUses is true and uses.Vision is specified, use vision tool regardless of model capability
+	if forceUses && uses != nil && uses.Vision != "" {
+		text, err := h.handleWithVisionAgent(ctx, info, uses.Vision)
+		if err != nil {
+			return nil, fmt.Errorf("failed to handle image with vision agent/MCP (forced): %w", err)
+		}
+		return &Result{
+			Text: text,
+		}, nil
+	}
 
 	if supportsVision {
 		// Model supports vision - return as image_url ContentPart
@@ -133,7 +145,7 @@ func (h *ImageHandler) callVisionAgent(ctx *agentContext.Context, agentID string
 		Content: []agentContext.ContentPart{
 			{
 				Type: agentContext.ContentText,
-				Text: "Please describe this image in detail.",
+				Text: "Please analyze this image.",
 			},
 			{
 				Type: agentContext.ContentImageURL,
@@ -145,7 +157,10 @@ func (h *ImageHandler) callVisionAgent(ctx *agentContext.Context, agentID string
 		},
 	}
 
-	return CallAgent(ctx, agentID, message)
+	// Call agent with file metadata in context
+	// File info (filename, file_id, etc.) will be available in ctx.Metadata["file_info"]
+	// This allows hooks (especially Next hook) to access and format file information
+	return CallAgentWithFileInfo(ctx, agentID, message, info)
 }
 
 // callMCPVisionTool calls an MCP vision tool to describe the image

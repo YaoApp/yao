@@ -104,7 +104,7 @@ func TestImageHandler_Handle_WithVisionSupport(t *testing.T) {
 		Data:        pngData,
 	}
 
-	result, err := handler.Handle(ctx, info, capabilities, nil)
+	result, err := handler.Handle(ctx, info, capabilities, nil, false)
 	if err != nil {
 		t.Fatalf("Handle() error = %v", err)
 	}
@@ -160,7 +160,7 @@ func TestImageHandler_Handle_WithoutVisionSupport(t *testing.T) {
 	}
 
 	// Should return error because no vision support and no tool
-	_, err := handler.Handle(ctx, info, capabilities, nil)
+	_, err := handler.Handle(ctx, info, capabilities, nil, false)
 	if err == nil {
 		t.Error("Expected error when no vision support and no tool specified")
 	}
@@ -185,7 +185,7 @@ func TestImageHandler_Handle_EmptyData(t *testing.T) {
 		Data:        []byte{}, // Empty data
 	}
 
-	_, err := handler.Handle(ctx, info, capabilities, nil)
+	_, err := handler.Handle(ctx, info, capabilities, nil, false)
 	if err == nil {
 		t.Error("Expected error for empty image data")
 	}

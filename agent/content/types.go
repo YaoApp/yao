@@ -55,6 +55,7 @@ type Info struct {
 	FileType    FileType // Type of the file
 	ContentType string   // MIME content type
 	URL         string   // Original URL or file ID
+	Filename    string   // Original filename (if available)
 	Data        []byte   // File data (if already fetched)
 
 	// For uploader wrapper

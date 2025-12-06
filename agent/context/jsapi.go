@@ -60,6 +60,8 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// Set MCP object
 	jsObject.Set("MCP", ctx.newMCPObject(v8ctx.Isolate()))
 
+	// Note: Space object will be set after instance creation (requires v8ctx)
+
 	// Create instance
 	instance, err := jsObject.NewInstance(v8ctx)
 	if err != nil {
@@ -127,6 +129,13 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 			obj.Set("authorized", emptyObj)
 			emptyObj.Release()
 		}
+	}
+
+	// Space object - create a JavaScript object with Get/Set/Delete methods
+	if ctx.Space != nil {
+		spaceObj := ctx.createSpaceObject(v8ctx)
+		obj.Set("space", spaceObj)
+		spaceObj.Release()
 	}
 
 	return instance.Value, nil
@@ -605,6 +614,121 @@ func (ctx *Context) endBlockMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 
 		return v8go.Undefined(iso)
 	})
+}
+
+// createSpaceObject creates a Space object for JavaScript access
+// Space is a shared data space for passing data between requests and calls
+func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
+	iso := v8ctx.Isolate()
+	spaceObj, _ := v8ctx.RunScript("({})", "space-init")
+	obj, _ := spaceObj.AsObject()
+
+	// Get method: space.Get(key)
+	getFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if ctx.Space == nil {
+			return v8go.Null(iso)
+		}
+
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "Get requires a key argument")
+		}
+
+		key := info.Args()[0].String()
+		value, err := ctx.Space.Get(key)
+		if err != nil {
+			return v8go.Null(iso)
+		}
+
+		jsValue, err := bridge.JsValue(info.Context(), value)
+		if err != nil {
+			return v8go.Null(iso)
+		}
+
+		return jsValue
+	})
+	getFuncVal := getFunc.GetFunction(v8ctx)
+	obj.Set("Get", getFuncVal.Value)
+
+	// Set method: space.Set(key, value)
+	setFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if ctx.Space == nil {
+			return bridge.JsException(info.Context(), "Space is not available")
+		}
+
+		if len(info.Args()) < 2 {
+			return bridge.JsException(info.Context(), "Set requires key and value arguments")
+		}
+
+		key := info.Args()[0].String()
+		value, err := bridge.GoValue(info.Args()[1], info.Context())
+		if err != nil {
+			return bridge.JsException(info.Context(), "Failed to convert value: "+err.Error())
+		}
+
+		if err := ctx.Space.Set(key, value); err != nil {
+			return bridge.JsException(info.Context(), "Failed to set value: "+err.Error())
+		}
+
+		return v8go.Undefined(iso)
+	})
+	setFuncVal := setFunc.GetFunction(v8ctx)
+	obj.Set("Set", setFuncVal.Value)
+
+	// Delete method: space.Delete(key)
+	delFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if ctx.Space == nil {
+			return bridge.JsException(info.Context(), "Space is not available")
+		}
+
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "Delete requires a key argument")
+		}
+
+		key := info.Args()[0].String()
+		if err := ctx.Space.Delete(key); err != nil {
+			return bridge.JsException(info.Context(), "Failed to delete key: "+err.Error())
+		}
+
+		return v8go.Undefined(iso)
+	})
+	delFuncVal := delFunc.GetFunction(v8ctx)
+	obj.Set("Delete", delFuncVal.Value)
+
+	// GetDel method: space.GetDel(key) - Get value and delete immediately
+	// Convenient for one-time use data (e.g., file metadata passed between agents)
+	getDelFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if ctx.Space == nil {
+			return v8go.Null(iso)
+		}
+
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "GetDel requires a key argument")
+		}
+
+		key := info.Args()[0].String()
+
+		// Get value first
+		value, err := ctx.Space.Get(key)
+		if err != nil {
+			return v8go.Null(iso)
+		}
+
+		// Delete immediately after getting
+		// Ignore delete errors (key might not exist)
+		ctx.Space.Delete(key)
+
+		// Convert to JavaScript value
+		jsValue, err := bridge.JsValue(info.Context(), value)
+		if err != nil {
+			return v8go.Null(iso)
+		}
+
+		return jsValue
+	})
+	getDelFuncVal := getDelFunc.GetFunction(v8ctx)
+	obj.Set("GetDel", getDelFuncVal.Value)
+
+	return spaceObj
 }
 
 // sendGroupMethod implements ctx.SendGroup(group)

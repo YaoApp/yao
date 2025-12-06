@@ -8,7 +8,6 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/utils"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -471,10 +470,6 @@ func (ast *Assistant) initializeCapabilities(ctx *context.Context, opts *context
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("--- initializeCapabilities debug ---")
-	utils.Dump(capabilities)
-	fmt.Println("--- end initializeCapabilities debug ---")
 
 	// Set capabilities in context for output adapters to use
 	if capabilities != nil {

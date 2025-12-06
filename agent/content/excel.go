@@ -21,7 +21,7 @@ func (h *ExcelHandler) CanHandle(contentType string, fileType FileType) bool {
 }
 
 // Handle processes Excel spreadsheet content
-func (h *ExcelHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+func (h *ExcelHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	// TODO: Implement Excel handling
 	// 1. Extract data from .xlsx or .xls file
 	// 2. Convert to text format (e.g., CSV-like or structured text)
