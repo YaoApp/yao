@@ -20,7 +20,7 @@ func (h *AudioHandler) CanHandle(contentType string, fileType FileType) bool {
 // Logic similar to image:
 // 1. If model supports audio input -> convert to base64 format
 // 2. If model doesn't support audio -> use agent/MCP specified in uses.Audio
-func (h *AudioHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+func (h *AudioHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	// TODO: Implement audio handling
 	// 1. Check model audio capabilities
 	// 2. If supported:

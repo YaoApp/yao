@@ -500,9 +500,39 @@ func (ast *Assistant) applyCreateResponseOptions(options *context.CompletionOpti
 			}
 		}
 	}
+
+	// Uses configuration (merge with existing)
+	// createResponse.Uses has highest priority and overrides existing Uses
+	if createResponse.Uses != nil {
+		if options.Uses == nil {
+			options.Uses = createResponse.Uses
+		} else {
+			// Merge: createResponse.Uses overrides existing (only non-empty fields)
+			if createResponse.Uses.Vision != "" {
+				options.Uses.Vision = createResponse.Uses.Vision
+			}
+			if createResponse.Uses.Audio != "" {
+				options.Uses.Audio = createResponse.Uses.Audio
+			}
+			if createResponse.Uses.Search != "" {
+				options.Uses.Search = createResponse.Uses.Search
+			}
+			if createResponse.Uses.Fetch != "" {
+				options.Uses.Fetch = createResponse.Uses.Fetch
+			}
+		}
+	}
+
+	// ForceUses configuration
+	// If hook specifies ForceUses, it takes priority
+	if createResponse.ForceUses != nil {
+		options.ForceUses = *createResponse.ForceUses
+	}
 }
 
 // getUses get the Uses configuration with priority: assistant.Uses > global settings
+// Note: createResponse.Uses (applied in applyCreateResponseOptions) has even higher priority
+// Final priority order: createResponse.Uses > assistant.Uses > global settings
 func (ast *Assistant) getUses() *context.Uses {
 	// Priority 1: Assistant-specific Uses configuration
 	if ast.Uses != nil {

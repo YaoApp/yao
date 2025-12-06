@@ -352,4 +352,130 @@ func TestCreate(t *testing.T) {
 
 		t.Log("✓ Context fields successfully adjusted by hook")
 	})
+
+	// Test scenario 10: Adjust uses configuration - tests that uses can be modified by the hook
+	t.Run("AdjustUses", func(t *testing.T) {
+		// Create a fresh context for this test
+		usesCtx := newTestContext("chat-test-uses", "tests.create")
+
+		// Call the hook which should adjust uses configuration
+		res, _, err := agent.HookScript.Create(usesCtx, []context.Message{{Role: "user", Content: "adjust_uses"}})
+		if err != nil {
+			t.Fatalf("Failed to create with adjust_uses: %s", err.Error())
+		}
+		if res == nil {
+			t.Fatalf("Expected non-nil response, got nil")
+		}
+
+		// Verify the response contains uses configuration
+		if res.Uses == nil {
+			t.Fatalf("Expected uses configuration, got nil")
+		}
+
+		// Verify each uses field
+		if res.Uses.Vision != "mcp:vision-server" {
+			t.Errorf("Expected vision 'mcp:vision-server', got: %s", res.Uses.Vision)
+		}
+		if res.Uses.Audio != "mcp:audio-server" {
+			t.Errorf("Expected audio 'mcp:audio-server', got: %s", res.Uses.Audio)
+		}
+		if res.Uses.Search != "agent" {
+			t.Errorf("Expected search 'agent', got: %s", res.Uses.Search)
+		}
+		if res.Uses.Fetch != "mcp:fetch-server" {
+			t.Errorf("Expected fetch 'mcp:fetch-server', got: %s", res.Uses.Fetch)
+		}
+
+		// Verify metadata
+		if res.Metadata == nil {
+			t.Fatalf("Expected metadata, got nil")
+		}
+		if usesAdjusted, ok := res.Metadata["uses_adjusted"].(bool); !ok || !usesAdjusted {
+			t.Errorf("Expected metadata['uses_adjusted'] = true, got: %v", res.Metadata["uses_adjusted"])
+		}
+
+		// Now test that BuildRequest properly applies the uses configuration
+		inputMessages := []context.Message{{Role: "user", Content: "test uses"}}
+		_, options, err := agent.BuildRequest(usesCtx, inputMessages, res)
+		if err != nil {
+			t.Fatalf("Failed to build request: %s", err.Error())
+		}
+
+		// Verify that options.Uses has the values from createResponse
+		if options.Uses == nil {
+			t.Fatalf("Expected options.Uses to be set, got nil")
+		}
+		if options.Uses.Vision != "mcp:vision-server" {
+			t.Errorf("Expected options.Uses.Vision 'mcp:vision-server', got: %s", options.Uses.Vision)
+		}
+		if options.Uses.Audio != "mcp:audio-server" {
+			t.Errorf("Expected options.Uses.Audio 'mcp:audio-server', got: %s", options.Uses.Audio)
+		}
+		if options.Uses.Search != "agent" {
+			t.Errorf("Expected options.Uses.Search 'agent', got: %s", options.Uses.Search)
+		}
+		if options.Uses.Fetch != "mcp:fetch-server" {
+			t.Errorf("Expected options.Uses.Fetch 'mcp:fetch-server', got: %s", options.Uses.Fetch)
+		}
+
+		t.Log("✓ Uses configuration successfully adjusted by hook and applied to options")
+	})
+
+	// Test scenario 11: Adjust uses configuration with force_uses flag
+	t.Run("AdjustUsesForce", func(t *testing.T) {
+		// Create a fresh context for this test
+		usesCtx := newTestContext("chat-test-uses-force", "tests.create")
+
+		// Call the hook which should adjust uses configuration and set force_uses
+		res, _, err := agent.HookScript.Create(usesCtx, []context.Message{{Role: "user", Content: "adjust_uses_force"}})
+		if err != nil {
+			t.Fatalf("Failed to create with adjust_uses_force: %s", err.Error())
+		}
+		if res == nil {
+			t.Fatalf("Expected non-nil response, got nil")
+		}
+
+		// Verify the response contains uses configuration
+		if res.Uses == nil {
+			t.Fatalf("Expected uses configuration, got nil")
+		}
+
+		// Verify uses fields
+		if res.Uses.Vision != "tests.vision-helper" {
+			t.Errorf("Expected vision 'tests.vision-helper', got: %s", res.Uses.Vision)
+		}
+		if res.Uses.Audio != "mcp:audio-server" {
+			t.Errorf("Expected audio 'mcp:audio-server', got: %s", res.Uses.Audio)
+		}
+
+		// Verify force_uses flag
+		if res.ForceUses == nil {
+			t.Fatalf("Expected force_uses to be set, got nil")
+		}
+		if !*res.ForceUses {
+			t.Errorf("Expected force_uses to be true, got: %v", *res.ForceUses)
+		}
+
+		// Verify metadata
+		if res.Metadata == nil {
+			t.Fatalf("Expected metadata, got nil")
+		}
+		if usesForced, ok := res.Metadata["uses_forced"].(bool); !ok || !usesForced {
+			t.Errorf("Expected metadata['uses_forced'] = true, got: %v", res.Metadata["uses_forced"])
+		}
+
+		// Now test that BuildRequest properly applies the force_uses flag
+		inputMessages := []context.Message{{Role: "user", Content: "test force uses"}}
+		_, options, err := agent.BuildRequest(usesCtx, inputMessages, res)
+		if err != nil {
+			t.Fatalf("Failed to build request: %s", err.Error())
+		}
+
+		// Verify that options.ForceUses is true
+		if !options.ForceUses {
+			t.Errorf("Expected options.ForceUses to be true, got: %v", options.ForceUses)
+		}
+
+		t.Log("✓ Uses configuration with force_uses flag successfully adjusted by hook and applied to options")
+	})
 }

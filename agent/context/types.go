@@ -357,6 +357,12 @@ type HookCreateResponse struct {
 	Theme     string                 `json:"theme,omitempty"`     // Override theme (session-level)
 	Route     string                 `json:"route,omitempty"`     // Override route (session-level)
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // Override or merge metadata (session-level)
+
+	// Uses configuration - allow hook to override wrapper configurations
+	Uses *Uses `json:"uses,omitempty"` // Override wrapper configurations for vision, audio, search, and fetch
+
+	// ForceUses controls whether to force using Uses tools even when model has native capabilities
+	ForceUses *bool `json:"force_uses,omitempty"` // Force using Uses tools regardless of model capabilities
 }
 
 // NextHookPayload payload for the next hook

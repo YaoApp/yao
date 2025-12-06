@@ -15,7 +15,8 @@ type Handler interface {
 	// ctx: agent context (passed from Vision function)
 	// capabilities: model capabilities (for vision/audio support detection)
 	// uses: configuration for external tools (agents/MCP servers)
-	Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error)
+	// forceUses: if true, force using Uses tools even when model has native capabilities
+	Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error)
 }
 
 // Fetcher defines the interface for fetching content from different sources

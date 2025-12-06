@@ -12,6 +12,12 @@ import (
 //
 // This should be called after BuildRequest and before executing LLM call
 func (ast *Assistant) BuildContent(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, opts *context.Options) ([]context.Message, error) {
+	// Set AssistantID in context for file info tracking in Space
+	// This ensures hooks can access file information using the correct namespace
+	if ctx.AssistantID == "" {
+		ctx.AssistantID = ast.ID
+	}
+
 	// Get connector and capabilities
 	_, capabilities, err := ast.GetConnector(ctx, opts)
 	if err != nil {
@@ -21,8 +27,11 @@ func (ast *Assistant) BuildContent(ctx *context.Context, messages []context.Mess
 	// Get Uses configuration from options (already merged in BuildRequest)
 	uses := options.Uses
 
+	// Get ForceUses configuration from options
+	forceUses := options.ForceUses
+
 	// Process content through Vision function
-	processedMessages, err := content.Vision(ctx, capabilities, messages, uses)
+	processedMessages, err := content.Vision(ctx, capabilities, messages, uses, forceUses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to process content: %w", err)
 	}

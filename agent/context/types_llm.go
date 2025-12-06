@@ -69,6 +69,12 @@ type CompletionOptions struct {
 	// User-specified tools for vision, audio, search, and fetch processing
 	Uses *Uses `json:"uses,omitempty"`
 
+	// ForceUses controls whether to force using Uses tools even when model has native capabilities
+	// When true: Always use tools specified in Uses, ignore model's native multimodal capabilities
+	// When false (default): Use model's native capabilities if available, fallback to Uses tools
+	// This is useful when you want consistent behavior across different models or prefer specific tools
+	ForceUses bool `json:"force_uses,omitempty"`
+
 	// Audio configuration (for models that support audio output)
 	Audio *AudioConfig `json:"audio,omitempty"`
 

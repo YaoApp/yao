@@ -23,7 +23,7 @@ func (h *PDFHandler) CanHandle(contentType string, fileType FileType) bool {
 // 1. Check if uses.Vision is specified and supports PDF
 // 2. If yes, use vision tool to handle PDF (images + text)
 // 3. If no, extract text directly from PDF
-func (h *PDFHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses) (*Result, error) {
+func (h *PDFHandler) Handle(ctx *agentContext.Context, info *Info, capabilities *openai.Capabilities, uses *agentContext.Uses, forceUses bool) (*Result, error) {
 	// TODO: Implement PDF handling
 	// 1. Check if vision tool supports PDF
 	// 2. If yes:
