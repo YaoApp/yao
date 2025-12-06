@@ -694,6 +694,40 @@ func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
 	delFuncVal := delFunc.GetFunction(v8ctx)
 	obj.Set("Delete", delFuncVal.Value)
 
+	// GetDel method: space.GetDel(key) - Get value and delete immediately
+	// Convenient for one-time use data (e.g., file metadata passed between agents)
+	getDelFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if ctx.Space == nil {
+			return v8go.Null(iso)
+		}
+
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "GetDel requires a key argument")
+		}
+
+		key := info.Args()[0].String()
+
+		// Get value first
+		value, err := ctx.Space.Get(key)
+		if err != nil {
+			return v8go.Null(iso)
+		}
+
+		// Delete immediately after getting
+		// Ignore delete errors (key might not exist)
+		ctx.Space.Delete(key)
+
+		// Convert to JavaScript value
+		jsValue, err := bridge.JsValue(info.Context(), value)
+		if err != nil {
+			return v8go.Null(iso)
+		}
+
+		return jsValue
+	})
+	getDelFuncVal := getDelFunc.GetFunction(v8ctx)
+	obj.Set("GetDel", getDelFuncVal.Value)
+
 	return spaceObj
 }
 

@@ -570,3 +570,248 @@ func TestSpaceErrorHandling(t *testing.T) {
 
 	assert.Equal(t, true, result["success"], "Should catch Delete error")
 }
+
+// TestSpaceGetDel tests ctx.space.GetDel method
+func TestSpaceGetDel(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	ctx := &context.Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Locale:      "en",
+		Context:     stdContext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Set a one-time use value
+				ctx.space.Set("one_time_token", "secret_token_12345");
+				
+				// Verify it exists before GetDel
+				const before = ctx.space.Get("one_time_token");
+				if (before !== "secret_token_12345") throw new Error("Value not set");
+				
+				// Use GetDel - should get value and delete automatically
+				const value = ctx.space.GetDel("one_time_token");
+				
+				// Verify value was retrieved
+				if (value !== "secret_token_12345") throw new Error("GetDel returned wrong value");
+				
+				// Verify key was deleted
+				const after = ctx.space.Get("one_time_token");
+				if (after !== null && after !== undefined) throw new Error("Key should be deleted after GetDel");
+				
+				return { 
+					success: true,
+					value: value,
+					is_deleted: after === null || after === undefined
+				};
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, ctx)
+
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	if !result["success"].(bool) {
+		t.Fatalf("Test failed: %v", result["error"])
+	}
+
+	assert.Equal(t, true, result["success"], "GetDel should succeed")
+	assert.Equal(t, "secret_token_12345", result["value"], "GetDel should return correct value")
+	assert.Equal(t, true, result["is_deleted"], "Key should be deleted after GetDel")
+}
+
+// TestSpaceGetDelNonExistentKey tests GetDel on non-existent key
+func TestSpaceGetDelNonExistentKey(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	ctx := &context.Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Locale:      "en",
+		Context:     stdContext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// GetDel on non-existent key should return null/undefined
+				const value = ctx.space.GetDel("non_existent_key");
+				
+				return { 
+					success: true,
+					value: value,
+					is_null: value === null || value === undefined
+				};
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, ctx)
+
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	assert.Equal(t, true, result["success"], "GetDel on non-existent key should not throw")
+	assert.Equal(t, true, result["is_null"], "GetDel on non-existent key should return null")
+}
+
+// TestSpaceGetDelComplexData tests GetDel with complex data structures
+func TestSpaceGetDelComplexData(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	ctx := &context.Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Locale:      "en",
+		Context:     stdContext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Set complex file info data (like voucher assistant use case)
+				const filesInfo = [
+					{
+						file_id: "file123",
+						filename: "invoice.pdf",
+						content_type: "application/pdf",
+						file_type: "pdf",
+						source: "uploader",
+						uploader_name: "__yao.attachment"
+					},
+					{
+						file_id: "file456",
+						filename: "receipt.png",
+						content_type: "image/png",
+						file_type: "image",
+						source: "uploader",
+						uploader_name: "__yao.attachment"
+					}
+				];
+				
+				ctx.space.Set("workers.voucher:files_info", filesInfo);
+				
+				// Use GetDel to retrieve and clean up
+				const retrieved = ctx.space.GetDel("workers.voucher:files_info");
+				
+				// Verify data integrity
+				if (!Array.isArray(retrieved)) throw new Error("Should be array");
+				if (retrieved.length !== 2) throw new Error("Length mismatch");
+				if (retrieved[0].file_id !== "file123") throw new Error("First file_id mismatch");
+				if (retrieved[1].filename !== "receipt.png") throw new Error("Second filename mismatch");
+				
+				// Verify it's deleted
+				const after = ctx.space.Get("workers.voucher:files_info");
+				if (after !== null && after !== undefined) throw new Error("Should be deleted");
+				
+				return { 
+					success: true,
+					files_count: retrieved.length,
+					first_file_id: retrieved[0].file_id,
+					is_deleted: after === null || after === undefined
+				};
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, ctx)
+
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	if !result["success"].(bool) {
+		t.Fatalf("Test failed: %v", result["error"])
+	}
+
+	assert.Equal(t, true, result["success"], "GetDel with complex data should succeed")
+	assert.Equal(t, float64(2), result["files_count"], "Should have 2 files")
+	assert.Equal(t, "file123", result["first_file_id"], "File ID should match")
+	assert.Equal(t, true, result["is_deleted"], "Should be deleted after GetDel")
+}
+
+// TestSpaceGetDelMultipleCalls tests that GetDel only works once
+func TestSpaceGetDelMultipleCalls(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	ctx := &context.Context{
+		ChatID:      "test-chat-id",
+		AssistantID: "test-assistant-id",
+		Locale:      "en",
+		Context:     stdContext.Background(),
+		Space:       plan.NewMemorySharedSpace(),
+	}
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Set a value
+				ctx.space.Set("single_use", "use_me_once");
+				
+				// First GetDel should work
+				const first = ctx.space.GetDel("single_use");
+				if (first !== "use_me_once") throw new Error("First GetDel failed");
+				
+				// Second GetDel should return null (already deleted)
+				const second = ctx.space.GetDel("single_use");
+				if (second !== null && second !== undefined) throw new Error("Second GetDel should return null");
+				
+				// Third GetDel should also return null
+				const third = ctx.space.GetDel("single_use");
+				if (third !== null && third !== undefined) throw new Error("Third GetDel should return null");
+				
+				return { 
+					success: true,
+					first: first,
+					second_is_null: second === null || second === undefined,
+					third_is_null: third === null || third === undefined
+				};
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, ctx)
+
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+
+	if !result["success"].(bool) {
+		t.Fatalf("Test failed: %v", result["error"])
+	}
+
+	assert.Equal(t, true, result["success"], "Multiple GetDel calls should work correctly")
+	assert.Equal(t, "use_me_once", result["first"], "First GetDel should return value")
+	assert.Equal(t, true, result["second_is_null"], "Second GetDel should return null")
+	assert.Equal(t, true, result["third_is_null"], "Third GetDel should return null")
+}
