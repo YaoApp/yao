@@ -284,135 +284,128 @@ type QuotaKey struct {
 
 ## Middleware Design
 
-### Request Flow
+### Modular Middleware Architecture
+
+Each middleware is independent and can be composed based on business needs.
 
 ```
-Request arrives
-    │
-    ├── 1. Generate request_id (uuid or nanoid)
-    │
-    ├── 2. Set request_id in context and response header
-    │       c.Set("request_id", requestID)
-    │       c.Header("X-Request-ID", requestID)
-    │
-    ├── 3. Get auth info from context (set by OAuth Guard)
-    │       authInfo := authorized.GetInfo(c)
-    │
-    ├── 4. Detect service type from endpoint
-    │       service := detectService(c.FullPath())
-    │
-    ├── 5. Create request record (async)
-    │       status = "running"
-    │
-    ├── 6. Check rate limits
-    │       if exceeded → return 429, update status = "failed"
-    │
-    ├── 7. Execute handler
-    │       c.Next()
-    │
-    └── 8. Update request record (async)
-            status = "completed" or "failed"
-            duration_ms = time.Since(start)
-            status_code = c.Writer.Status()
+┌─────────────────────────────────────────────────────────────┐
+│                    Available Middlewares                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │  RequestID  │  │  RateLimit  │  │    Quota    │         │
+│  │  (Basic)    │  │  (Protect)  │  │  (Billing)  │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│                                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Metrics   │  │   Archive   │  │   Billing   │         │
+│  │  (Monitor)  │  │   (Audit)   │  │  (Charge)   │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Implementation
+### Middleware List
+
+| Middleware  | File            | Purpose                          | Dependencies       |
+| ----------- | --------------- | -------------------------------- | ------------------ |
+| `RequestID` | `request_id.go` | Generate and track request ID    | None               |
+| `RateLimit` | `ratelimit.go`  | Request frequency limiting       | KV, RequestID      |
+| `Quota`     | `quota.go`      | Token quota enforcement          | KV, RequestID      |
+| `Metrics`   | `metrics.go`    | Request duration, status metrics | RequestID          |
+| `Archive`   | `archive.go`    | Persist request to SQL           | SQL, RequestID     |
+| `Billing`   | `billing.go`    | Token usage tracking & charging  | KV, SQL, RequestID |
+
+### Usage Examples
+
+#### Example 1: Full Protection (Agent API)
 
 ```go
+// Agent API needs all protections
+agent := api.Group("/chat")
+agent.Use(
+    request.RequestID(),           // Generate request_id
+    request.RateLimit(kv, config), // Rate limiting
+    request.Quota(kv, config),     // Token quota
+    request.Metrics(),             // Duration tracking
+    request.Archive(sql),          // Audit logging
+    request.Billing(kv, sql),      // Token billing
+)
+agent.POST("/completions", handler.ChatCompletions)
+```
+
+#### Example 2: Light Protection (File API)
+
+```go
+// File API only needs basic tracking
+file := api.Group("/file")
+file.Use(
+    request.RequestID(),           // Generate request_id
+    request.RateLimit(kv, config), // Rate limiting
+    request.Metrics(),             // Duration tracking
+)
+file.POST("/upload", handler.Upload)
+```
+
+#### Example 3: Internal API (No Billing)
+
+```go
+// Internal API skips billing
+internal := api.Group("/internal")
+internal.Use(
+    request.RequestID(),           // Generate request_id
+    request.Metrics(),             // Duration tracking
+    request.Archive(sql),          // Audit logging only
+)
+internal.GET("/health", handler.Health)
+```
+
+#### Example 4: Public API (Rate Limit Only)
+
+```go
+// Public endpoints only need rate limiting
+public := api.Group("/public")
+public.Use(
+    request.RequestID(),           // Generate request_id
+    request.RateLimit(kv, config), // Rate limiting by IP
+)
+public.GET("/models", handler.ListModels)
+```
+
+---
+
+### Middleware Implementations
+
+#### 1. RequestID Middleware (Base)
+
+```go
+// request_id.go
 package request
 
-import (
-    "time"
-    "github.com/gin-gonic/gin"
-    "github.com/yaoapp/yao/openapi/oauth/authorized"
-)
-
-// Middleware creates the request tracking middleware
-func Middleware(kv KVStore, sql SQLStore) gin.HandlerFunc {
+// RequestID generates and sets request ID
+func RequestID() gin.HandlerFunc {
     return func(c *gin.Context) {
-        startTime := time.Now()
-
-        // 1. Generate request ID
         requestID := generateRequestID()
         c.Set("request_id", requestID)
         c.Header("X-Request-ID", requestID)
 
-        // 2. Get auth info
-        authInfo := authorized.GetInfo(c)
+        // Also set start time for metrics
+        c.Set("request_start_time", time.Now())
 
-        // 3. Detect service and resource
+        // Detect and set service info
         service := detectService(c.FullPath())
-        resourceID := extractResourceID(c, service)
+        c.Set("request_service", service)
+        c.Set("request_resource_id", extractResourceID(c, service))
 
-        // 4. KV: Check rate limits (synchronous, must be fast)
-        if err := checkRateLimit(kv, authInfo, service, c.ClientIP()); err != nil {
-            c.AbortWithStatusJSON(429, gin.H{
-                "error":   "rate_limit_exceeded",
-                "message": err.Error(),
-            })
-            return
-        }
-
-        // 5. KV: Check quota (synchronous)
-        if err := checkQuota(kv, authInfo); err != nil {
-            c.AbortWithStatusJSON(429, gin.H{
-                "error":   "quota_exceeded",
-                "message": err.Error(),
-            })
-            return
-        }
-
-        // 6. KV: Record request status
-        reqStatus := &RequestStatus{
-            RequestID:  requestID,
-            UserID:     authInfo.UserID,
-            TeamID:     authInfo.TeamID,
-            Service:    service,
-            ResourceID: resourceID,
-            Status:     "running",
-            CreatedAt:  startTime,
-        }
-        kv.SetRequestStatus(requestID, reqStatus, time.Hour)
-
-        // 7. Execute handler
         c.Next()
-
-        // 8. KV: Update request status
-        reqStatus.Status = "completed"
-        reqStatus.CompletedAt = time.Now()
-        reqStatus.DurationMs = time.Since(startTime).Milliseconds()
-        if errMsg := getErrorFromContext(c); errMsg != "" {
-            reqStatus.Status = "failed"
-            reqStatus.Error = errMsg
-        }
-        kv.SetRequestStatus(requestID, reqStatus, time.Hour)
-
-        // 9. Async: Archive to SQL
-        go func() {
-            sql.Archive(&Request{
-                RequestID:   requestID,
-                UserID:      authInfo.UserID,
-                TeamID:      authInfo.TeamID,
-                SessionID:   authInfo.SessionID,
-                Endpoint:    c.FullPath(),
-                Method:      c.Request.Method,
-                Service:     service,
-                ResourceID:  resourceID,
-                Status:      reqStatus.Status,
-                StatusCode:  c.Writer.Status(),
-                Referer:     c.GetHeader("X-Yao-Referer"),
-                ClientType:  getClientType(c.GetHeader("User-Agent")),
-                ClientIP:    c.ClientIP(),
-                DurationMs:  reqStatus.DurationMs,
-                Error:       reqStatus.Error,
-                CreatedAt:   startTime,
-                CompletedAt: &reqStatus.CompletedAt,
-            })
-        }()
     }
 }
 
-// detectService determines the service type from endpoint
+func generateRequestID() string {
+    return fmt.Sprintf("req_%s", nanoid.New())
+}
+
 func detectService(endpoint string) string {
     switch {
     case strings.HasPrefix(endpoint, "/api/chat"):
@@ -434,6 +427,256 @@ func detectService(endpoint string) string {
     default:
         return ServiceOther
     }
+}
+```
+
+#### 2. RateLimit Middleware
+
+```go
+// ratelimit.go
+package request
+
+// RateLimit enforces request frequency limits
+func RateLimit(kv KVStore, config *RateLimitConfig) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        if config == nil || !config.Enabled {
+            c.Next()
+            return
+        }
+
+        authInfo := authorized.GetInfo(c)
+        service := c.GetString("request_service")
+
+        // Check user rate limit
+        userKey := fmt.Sprintf("ratelimit:user:%s:%s", authInfo.UserID, service)
+        userCount, _ := kv.Incr(userKey, 60*time.Second)
+        if userCount > int64(config.GetUserLimit(service)) {
+            c.AbortWithStatusJSON(429, gin.H{
+                "error":   "rate_limit_exceeded",
+                "message": fmt.Sprintf("User rate limit exceeded: %d requests per minute", config.GetUserLimit(service)),
+                "retry_after": 60,
+            })
+            return
+        }
+
+        // Check team rate limit
+        if authInfo.TeamID != "" {
+            teamKey := fmt.Sprintf("ratelimit:team:%s:%s", authInfo.TeamID, service)
+            teamCount, _ := kv.Incr(teamKey, 60*time.Second)
+            if teamCount > int64(config.GetTeamLimit(service)) {
+                c.AbortWithStatusJSON(429, gin.H{
+                    "error":   "rate_limit_exceeded",
+                    "message": "Team rate limit exceeded",
+                    "retry_after": 60,
+                })
+                return
+            }
+        }
+
+        // Check IP rate limit
+        ipKey := fmt.Sprintf("ratelimit:ip:%s", c.ClientIP())
+        ipCount, _ := kv.Incr(ipKey, 60*time.Second)
+        if ipCount > int64(config.GetIPLimit()) {
+            c.AbortWithStatusJSON(429, gin.H{
+                "error":   "rate_limit_exceeded",
+                "message": "IP rate limit exceeded",
+                "retry_after": 60,
+            })
+            return
+        }
+
+        c.Next()
+    }
+}
+```
+
+#### 3. Quota Middleware
+
+```go
+// quota.go
+package request
+
+// Quota enforces token quota limits
+func Quota(kv KVStore, config *QuotaConfig) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        if config == nil || !config.Enabled {
+            c.Next()
+            return
+        }
+
+        authInfo := authorized.GetInfo(c)
+
+        // Check user daily quota
+        userQuotaKey := fmt.Sprintf("quota:user:%s:daily", authInfo.UserID)
+        remaining, exists := kv.Get(userQuotaKey)
+
+        if !exists {
+            // Initialize quota for the day
+            limit := config.GetUserDailyLimit(authInfo.UserID)
+            kv.Set(userQuotaKey, limit, 24*time.Hour)
+            remaining = limit
+        }
+
+        if remaining <= 0 {
+            c.AbortWithStatusJSON(429, gin.H{
+                "error":   "quota_exceeded",
+                "message": "Daily token quota exceeded",
+                "reset_at": getNextDayStart(),
+            })
+            return
+        }
+
+        // Check team monthly quota
+        if authInfo.TeamID != "" {
+            teamQuotaKey := fmt.Sprintf("quota:team:%s:monthly", authInfo.TeamID)
+            teamRemaining, exists := kv.Get(teamQuotaKey)
+
+            if !exists {
+                limit := config.GetTeamMonthlyLimit(authInfo.TeamID)
+                kv.Set(teamQuotaKey, limit, 30*24*time.Hour)
+                teamRemaining = limit
+            }
+
+            if teamRemaining <= 0 {
+                c.AbortWithStatusJSON(429, gin.H{
+                    "error":   "quota_exceeded",
+                    "message": "Team monthly token quota exceeded",
+                    "reset_at": getNextMonthStart(),
+                })
+                return
+            }
+        }
+
+        c.Next()
+    }
+}
+```
+
+#### 4. Metrics Middleware
+
+```go
+// metrics.go
+package request
+
+// Metrics tracks request duration and status
+func Metrics() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        startTime := c.GetTime("request_start_time")
+        if startTime.IsZero() {
+            startTime = time.Now()
+        }
+
+        c.Next()
+
+        // Calculate duration
+        duration := time.Since(startTime)
+        c.Set("request_duration_ms", duration.Milliseconds())
+
+        // Determine status
+        status := "completed"
+        if c.Writer.Status() >= 400 {
+            status = "failed"
+        }
+        c.Set("request_status", status)
+
+        // TODO: Export to Prometheus/metrics system
+        // metrics.RequestDuration.WithLabelValues(service, status).Observe(duration.Seconds())
+        // metrics.RequestTotal.WithLabelValues(service, status).Inc()
+    }
+}
+```
+
+#### 5. Archive Middleware
+
+```go
+// archive.go
+package request
+
+// Archive persists request to SQL for audit
+func Archive(sql SQLStore) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Next()
+
+        // Get request info from context
+        requestID := c.GetString("request_id")
+        if requestID == "" {
+            return
+        }
+
+        authInfo := authorized.GetInfo(c)
+        startTime := c.GetTime("request_start_time")
+        durationMs := c.GetInt64("request_duration_ms")
+        status := c.GetString("request_status")
+        if status == "" {
+            status = "completed"
+        }
+
+        completedAt := time.Now()
+
+        // Async archive to SQL
+        go func() {
+            sql.Archive(&Request{
+                RequestID:   requestID,
+                UserID:      authInfo.UserID,
+                TeamID:      authInfo.TeamID,
+                SessionID:   authInfo.SessionID,
+                Endpoint:    c.FullPath(),
+                Method:      c.Request.Method,
+                Service:     c.GetString("request_service"),
+                ResourceID:  c.GetString("request_resource_id"),
+                Status:      status,
+                StatusCode:  c.Writer.Status(),
+                Referer:     c.GetHeader("X-Yao-Referer"),
+                ClientType:  getClientType(c.GetHeader("User-Agent")),
+                ClientIP:    c.ClientIP(),
+                DurationMs:  durationMs,
+                Error:       c.GetString("request_error"),
+                CreatedAt:   startTime,
+                CompletedAt: &completedAt,
+            })
+        }()
+    }
+}
+```
+
+#### 6. Billing Middleware
+
+```go
+// billing.go
+package request
+
+// Billing tracks token usage (called by services after completion)
+func Billing(kv KVStore, sql SQLStore) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        c.Next()
+
+        // Token usage is updated by services via UpdateTokenUsage()
+        // This middleware just ensures the billing context is available
+        c.Set("billing_kv", kv)
+        c.Set("billing_sql", sql)
+    }
+}
+
+// UpdateTokenUsage is called by services after completion
+func UpdateTokenUsage(c *gin.Context, input, output int) error {
+    kv, ok := c.Get("billing_kv")
+    if !ok {
+        return nil // Billing not enabled
+    }
+
+    sql, _ := c.Get("billing_sql")
+    requestID := c.GetString("request_id")
+    authInfo := authorized.GetInfo(c)
+
+    return updateTokenUsageInternal(
+        kv.(KVStore),
+        sql.(SQLStore),
+        requestID,
+        authInfo.UserID,
+        authInfo.TeamID,
+        input,
+        output,
+    )
 }
 ```
 
@@ -769,7 +1012,76 @@ type DailyUsage struct {
 
 ## Integration with Services
 
-### Agent Service
+### Route Registration Example
+
+```go
+// openapi/openapi.go
+func (s *OpenAPI) RegisterRoutes(r *gin.Engine) {
+    api := r.Group("/api")
+
+    // 1. OAuth Guard (authentication) - for all routes
+    api.Use(oauth.Guard)
+
+    // 2. Register different route groups with different middleware combinations
+    s.registerAgentRoutes(api)
+    s.registerKBRoutes(api)
+    s.registerLLMRoutes(api)
+    s.registerFileRoutes(api)
+    s.registerPublicRoutes(api)
+}
+
+func (s *OpenAPI) registerAgentRoutes(api *gin.RouterGroup) {
+    // Agent API: Full protection + billing
+    agent := api.Group("/chat")
+    agent.Use(
+        request.RequestID(),
+        request.RateLimit(s.kv, s.rateLimitConfig),
+        request.Quota(s.kv, s.quotaConfig),
+        request.Metrics(),
+        request.Archive(s.sql),
+        request.Billing(s.kv, s.sql),
+    )
+    agent.POST("/completions", s.handler.ChatCompletions)
+}
+
+func (s *OpenAPI) registerKBRoutes(api *gin.RouterGroup) {
+    // KB API: Rate limit + archive (no token billing)
+    kb := api.Group("/kb")
+    kb.Use(
+        request.RequestID(),
+        request.RateLimit(s.kv, s.rateLimitConfig),
+        request.Metrics(),
+        request.Archive(s.sql),
+    )
+    kb.POST("/search", s.handler.KBSearch)
+    kb.POST("/upload", s.handler.KBUpload)
+}
+
+func (s *OpenAPI) registerFileRoutes(api *gin.RouterGroup) {
+    // File API: Light protection
+    file := api.Group("/file")
+    file.Use(
+        request.RequestID(),
+        request.RateLimit(s.kv, s.rateLimitConfig),
+        request.Metrics(),
+    )
+    file.POST("/upload", s.handler.FileUpload)
+    file.GET("/download/:id", s.handler.FileDownload)
+}
+
+func (s *OpenAPI) registerPublicRoutes(api *gin.RouterGroup) {
+    // Public API: Rate limit only (no auth required)
+    public := api.Group("/public")
+    public.Use(
+        request.RequestID(),
+        request.RateLimit(s.kv, s.rateLimitConfig), // IP-based only
+    )
+    public.GET("/models", s.handler.ListModels)
+    public.GET("/health", s.handler.Health)
+}
+```
+
+### Agent Service Integration
 
 ```go
 // agent/context/openapi.go
@@ -780,6 +1092,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
     // Create context with request ID
     ctx := New(c.Request.Context(), authInfo, chatID)
     ctx.RequestID = requestID  // Use global request_id
+    ctx.GinContext = c         // Keep gin context for billing
 
     // ...
 }
@@ -787,10 +1100,10 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 // agent/assistant/agent.go
 func (ast *Assistant) Stream(ctx, inputMessages, options) {
     defer func() {
-        // Update token usage in global request record
-        if ctx.RequestID != "" && completionResponse != nil && completionResponse.Usage != nil {
+        // Update token usage via billing middleware
+        if ctx.GinContext != nil && completionResponse != nil && completionResponse.Usage != nil {
             request.UpdateTokenUsage(
-                ctx.RequestID,
+                ctx.GinContext,
                 completionResponse.Usage.PromptTokens,
                 completionResponse.Usage.CompletionTokens,
             )
@@ -801,74 +1114,59 @@ func (ast *Assistant) Stream(ctx, inputMessages, options) {
 }
 ```
 
-### KB Service
+### LLM Service Integration
 
 ```go
-// kb/api/search.go
-func (api *API) Search(c *gin.Context) {
-    requestID := c.GetString("request_id")
+// llm/api/completion.go
+func (api *API) Completion(c *gin.Context) {
+    // ... execute LLM call ...
 
-    // Perform search...
-
-    // Update metadata if needed
-    if requestID != "" {
-        request.UpdateMetadata(requestID, map[string]interface{}{
-            "results_count": len(results),
-            "collection_id": collectionID,
-        })
+    // Update token usage
+    if response.Usage != nil {
+        request.UpdateTokenUsage(c, response.Usage.PromptTokens, response.Usage.CompletionTokens)
     }
-}
-```
-
-### Middleware Registration
-
-```go
-// openapi/openapi.go
-func (s *OpenAPI) RegisterRoutes(r *gin.Engine) {
-    api := r.Group("/api")
-
-    // 1. OAuth Guard (authentication)
-    api.Use(oauth.Guard)
-
-    // 2. Request Middleware (tracking, rate limiting)
-    api.Use(request.Middleware(requestStore))
-
-    // 3. Service routes
-    s.registerAgentRoutes(api)
-    s.registerKBRoutes(api)
-    s.registerLLMRoutes(api)
-    // ...
 }
 ```
 
 ## Summary
 
-### Components
+### Middleware Components
 
-| Component    | Location                        | Responsibility               |
-| ------------ | ------------------------------- | ---------------------------- |
-| KV Store     | `openapi/request/kv.go`         | Real-time: rate limit, quota |
-| SQL Store    | `openapi/request/sql.go`        | Archive: billing, audit      |
-| Middleware   | `openapi/request/middleware.go` | Track requests, orchestrate  |
-| Rate Limiter | `openapi/request/ratelimit.go`  | Enforce rate limits          |
-| Types        | `openapi/request/types.go`      | Data structures              |
+| Middleware  | File            | Purpose                  | Storage  |
+| ----------- | --------------- | ------------------------ | -------- |
+| `RequestID` | `request_id.go` | Generate request ID      | -        |
+| `RateLimit` | `ratelimit.go`  | Frequency limiting       | KV       |
+| `Quota`     | `quota.go`      | Token quota enforcement  | KV       |
+| `Metrics`   | `metrics.go`    | Duration/status tracking | -        |
+| `Archive`   | `archive.go`    | Persist to SQL           | SQL      |
+| `Billing`   | `billing.go`    | Token usage tracking     | KV + SQL |
 
-### Storage Comparison
+### Storage Components
 
-| Operation        | KV (Redis)     | SQL (Archive) |
-| ---------------- | -------------- | ------------- |
-| Rate limit check | ✅ Synchronous | ❌ Not used   |
-| Quota check      | ✅ Synchronous | ❌ Not used   |
-| Request status   | ✅ Synchronous | ❌ Not used   |
-| Token update     | ✅ Synchronous | ✅ Async      |
-| Billing report   | ❌ Not used    | ✅ Query      |
-| Audit log        | ❌ Not used    | ✅ Query      |
+| Component | File       | Purpose                      |
+| --------- | ---------- | ---------------------------- |
+| KV Store  | `kv.go`    | Real-time: rate limit, quota |
+| SQL Store | `sql.go`   | Archive: billing, audit      |
+| Types     | `types.go` | Data structures              |
+
+### Middleware Combinations by Use Case
+
+| Use Case     | RequestID | RateLimit | Quota | Metrics | Archive | Billing |
+| ------------ | --------- | --------- | ----- | ------- | ------- | ------- |
+| Agent API    | ✅        | ✅        | ✅    | ✅      | ✅      | ✅      |
+| LLM API      | ✅        | ✅        | ✅    | ✅      | ✅      | ✅      |
+| KB API       | ✅        | ✅        | ❌    | ✅      | ✅      | ❌      |
+| File API     | ✅        | ✅        | ❌    | ✅      | ❌      | ❌      |
+| Public API   | ✅        | ✅        | ❌    | ❌      | ❌      | ❌      |
+| Internal API | ✅        | ❌        | ❌    | ✅      | ✅      | ❌      |
 
 ### Key Points
 
-1. **Two-layer storage**: KV for real-time, SQL for archive
-2. **KV operations are synchronous**: Rate limit and quota checks must be fast
-3. **SQL writes are async**: Archive happens in background goroutine
-4. **Services update tokens via `request_id`**: Updates both KV and SQL
-5. **KV data has TTL**: Auto-expires to prevent memory bloat
-6. **SQL data is permanent**: For billing and compliance
+1. **Modular design**: Each middleware is independent and composable
+2. **Business-driven composition**: Routes choose which middleware to use
+3. **Two-layer storage**: KV for real-time, SQL for archive
+4. **KV operations are synchronous**: Rate limit and quota checks must be fast
+5. **SQL writes are async**: Archive happens in background goroutine
+6. **Services update tokens via gin context**: `request.UpdateTokenUsage(c, input, output)`
+7. **KV data has TTL**: Auto-expires to prevent memory bloat
+8. **SQL data is permanent**: For billing and compliance

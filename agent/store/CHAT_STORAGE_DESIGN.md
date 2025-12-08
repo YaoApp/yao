@@ -39,14 +39,14 @@ The chat storage system is designed to:
 
 The Agent storage focuses on **chat content and execution state**, while request tracking (billing, rate limiting, auditing) is handled globally by the OpenAPI layer:
 
-| Concern            | Module            | Table                |
-| ------------------ | ----------------- | -------------------- |
-| Request tracking   | `openapi/request` | `openapi_request`    |
-| Billing (tokens)   | `openapi/request` | `openapi_request`    |
-| Rate limiting      | `openapi/request` | -                    |
-| Chat conversations | `agent/store`     | `agent_conversation` |
-| Chat messages      | `agent/store`     | `agent_message`      |
-| Execution steps    | `agent/store`     | `agent_step`         |
+| Concern          | Module            | Table             |
+| ---------------- | ----------------- | ----------------- |
+| Request tracking | `openapi/request` | `openapi_request` |
+| Billing (tokens) | `openapi/request` | `openapi_request` |
+| Rate limiting    | `openapi/request` | -                 |
+| Chat sessions    | `agent/store`     | `agent_chat`      |
+| Chat messages    | `agent/store`     | `agent_message`   |
+| Execution steps  | `agent/store`     | `agent_step`      |
 
 The `request_id` from OpenAPI middleware is passed to Agent and stored in messages/steps for correlation.
 
@@ -58,7 +58,7 @@ The `request_id` from OpenAPI middleware is passed to Agent and stored in messag
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌─────────────────┐                                        │
-│  │  Conversation   │  Metadata: title, assistant, user      │
+│  │      Chat       │  Metadata: title, assistant, user      │
 │  └────────┬────────┘                                        │
 │           │                                                  │
 │           │ 1:N                                              │
@@ -78,35 +78,60 @@ The `request_id` from OpenAPI middleware is passed to Agent and stored in messag
 
 ## Data Models
 
-### 1. Conversation Table
+### 1. Chat Table
 
-Stores conversation metadata and session information.
+Stores chat metadata and session information.
 
-**Table Name:** `agent_conversation`
+**Table Name:** `agent_chat`
 
-| Column            | Type        | Nullable | Index  | Description                         |
-| ----------------- | ----------- | -------- | ------ | ----------------------------------- |
-| `id`              | ID          | No       | PK     | Auto-increment primary key          |
-| `conversation_id` | string(64)  | No       | Unique | Unique conversation identifier      |
-| `title`           | string(500) | Yes      | -      | Conversation title                  |
-| `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID             |
-| `user_id`         | string(200) | No       | Yes    | Owner user ID                       |
-| `team_id`         | string(200) | Yes      | Yes    | Team ID for access control          |
-| `mode`            | string(50)  | No       | -      | Conversation mode (default: "chat") |
-| `status`          | enum        | No       | Yes    | Status: `active`, `archived`        |
-| `last_message_at` | timestamp   | Yes      | Yes    | Timestamp of last message           |
-| `metadata`        | json        | Yes      | -      | Additional metadata                 |
-| `created_at`      | timestamp   | No       | Yes    | Creation timestamp                  |
-| `updated_at`      | timestamp   | No       | -      | Last update timestamp               |
+| Column            | Type        | Nullable | Index  | Description                      |
+| ----------------- | ----------- | -------- | ------ | -------------------------------- |
+| `id`              | ID          | No       | PK     | Auto-increment primary key       |
+| `chat_id`         | string(64)  | No       | Unique | Unique chat identifier           |
+| `title`           | string(500) | Yes      | -      | Chat title                       |
+| `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID          |
+| `mode`            | string(50)  | No       | -      | Chat mode (default: "chat")      |
+| `status`          | enum        | No       | Yes    | Status: `active`, `archived`     |
+| `preset`          | boolean     | No       | -      | Whether this is a preset chat    |
+| `public`          | boolean     | No       | -      | Whether shared across all teams  |
+| `share`           | enum        | No       | Yes    | Sharing scope: `private`, `team` |
+| `sort`            | integer     | No       | -      | Sort order for display           |
+| `last_message_at` | timestamp   | Yes      | Yes    | Timestamp of last message        |
+| `metadata`        | json        | Yes      | -      | Additional metadata              |
+| `created_at`      | timestamp   | No       | Yes    | Creation timestamp               |
+| `updated_at`      | timestamp   | No       | -      | Last update timestamp            |
+
+**Model Options:**
+
+```json
+{
+  "option": {
+    "soft_deletes": true,
+    "permission": true,
+    "timestamps": true
+  }
+}
+```
+
+**Note:** `permission: true` enables Yao's built-in permission management, which automatically adds the following fields:
+
+| Field              | Type        | Description                    |
+| ------------------ | ----------- | ------------------------------ |
+| `__yao_created_by` | string(200) | User ID who created the record |
+| `__yao_updated_by` | string(200) | User ID who last updated       |
+| `__yao_team_id`    | string(200) | Team ID for team-level access  |
+| `__yao_tenant_id`  | string(200) | Tenant ID for multi-tenancy    |
+
+These fields are automatically managed by the framework and used for access control filtering.
 
 **Indexes:**
 
-| Name                 | Columns             | Type  |
-| -------------------- | ------------------- | ----- |
-| `idx_conv_user`      | `user_id`, `status` | index |
-| `idx_conv_team`      | `team_id`, `status` | index |
-| `idx_conv_assistant` | `assistant_id`      | index |
-| `idx_conv_last_msg`  | `last_message_at`   | index |
+| Name                 | Columns           | Type  |
+| -------------------- | ----------------- | ----- |
+| `idx_chat_assistant` | `assistant_id`    | index |
+| `idx_chat_status`    | `status`          | index |
+| `idx_chat_share`     | `share`           | index |
+| `idx_chat_last_msg`  | `last_message_at` | index |
 
 ### 2. Message Table
 
@@ -114,31 +139,31 @@ Stores user-visible messages (both user input and assistant responses).
 
 **Table Name:** `agent_message`
 
-| Column            | Type        | Nullable | Index  | Description                               |
-| ----------------- | ----------- | -------- | ------ | ----------------------------------------- |
-| `id`              | ID          | No       | PK     | Auto-increment primary key                |
-| `message_id`      | string(64)  | No       | Unique | Unique message identifier                 |
-| `conversation_id` | string(64)  | No       | Yes    | Parent conversation ID                    |
-| `request_id`      | string(64)  | Yes      | Yes    | Request ID for grouping                   |
-| `role`            | enum        | No       | Yes    | Role: `user`, `assistant`                 |
-| `type`            | string(50)  | No       | -      | Message type (text, image, loading, etc.) |
-| `props`           | json        | No       | -      | Message properties (content, url, etc.)   |
-| `block_id`        | string(64)  | Yes      | Yes    | Block grouping ID                         |
-| `thread_id`       | string(64)  | Yes      | Yes    | Thread grouping ID                        |
-| `assistant_id`    | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
-| `sequence`        | integer     | No       | Yes    | Message order within conversation         |
-| `metadata`        | json        | Yes      | -      | Additional metadata                       |
-| `created_at`      | timestamp   | No       | Yes    | Creation timestamp                        |
-| `updated_at`      | timestamp   | No       | -      | Last update timestamp                     |
+| Column         | Type        | Nullable | Index  | Description                               |
+| -------------- | ----------- | -------- | ------ | ----------------------------------------- |
+| `id`           | ID          | No       | PK     | Auto-increment primary key                |
+| `message_id`   | string(64)  | No       | Unique | Unique message identifier                 |
+| `chat_id`      | string(64)  | No       | Yes    | Parent chat ID                            |
+| `request_id`   | string(64)  | Yes      | Yes    | Request ID for grouping                   |
+| `role`         | enum        | No       | Yes    | Role: `user`, `assistant`                 |
+| `type`         | string(50)  | No       | -      | Message type (text, image, loading, etc.) |
+| `props`        | json        | No       | -      | Message properties (content, url, etc.)   |
+| `block_id`     | string(64)  | Yes      | Yes    | Block grouping ID                         |
+| `thread_id`    | string(64)  | Yes      | Yes    | Thread grouping ID                        |
+| `assistant_id` | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
+| `sequence`     | integer     | No       | Yes    | Message order within chat                 |
+| `metadata`     | json        | Yes      | -      | Additional metadata                       |
+| `created_at`   | timestamp   | No       | Yes    | Creation timestamp                        |
+| `updated_at`   | timestamp   | No       | -      | Last update timestamp                     |
 
 **Indexes:**
 
-| Name                | Columns                       | Type  |
-| ------------------- | ----------------------------- | ----- |
-| `idx_msg_conv_seq`  | `conversation_id`, `sequence` | index |
-| `idx_msg_request`   | `request_id`                  | index |
-| `idx_msg_block`     | `block_id`                    | index |
-| `idx_msg_assistant` | `assistant_id`                | index |
+| Name                | Columns               | Type  |
+| ------------------- | --------------------- | ----- |
+| `idx_msg_chat_seq`  | `chat_id`, `sequence` | index |
+| `idx_msg_request`   | `request_id`          | index |
+| `idx_msg_block`     | `block_id`            | index |
+| `idx_msg_assistant` | `assistant_id`        | index |
 
 **Message Types:**
 
@@ -161,7 +186,7 @@ Stores execution steps for resume/retry functionality.
 | ----------------- | ----------- | -------- | ------ | -------------------------------- |
 | `id`              | ID          | No       | PK     | Auto-increment primary key       |
 | `step_id`         | string(64)  | No       | Unique | Unique step identifier           |
-| `conversation_id` | string(64)  | No       | Yes    | Parent conversation ID           |
+| `chat_id`         | string(64)  | No       | Yes    | Parent chat ID                   |
 | `request_id`      | string(64)  | No       | Yes    | Request ID                       |
 | `assistant_id`    | string(200) | No       | Yes    | Assistant executing this step    |
 | `stack_id`        | string(64)  | No       | Yes    | Stack node ID for this execution |
@@ -171,11 +196,33 @@ Stores execution steps for resume/retry functionality.
 | `status`          | enum        | No       | Yes    | Step status                      |
 | `input`           | json        | Yes      | -      | Step input data                  |
 | `output`          | json        | Yes      | -      | Step output data                 |
+| `space_snapshot`  | json        | Yes      | -      | Space data snapshot for recovery |
 | `error`           | text        | Yes      | -      | Error message if failed          |
 | `sequence`        | integer     | No       | Yes    | Step order within request        |
 | `metadata`        | json        | Yes      | -      | Additional metadata              |
 | `created_at`      | timestamp   | No       | Yes    | Creation timestamp               |
 | `updated_at`      | timestamp   | No       | -      | Last update timestamp            |
+
+**Space Snapshot:**
+
+The `space_snapshot` field stores the shared data space (`ctx.Space`) at each step for recovery purposes.
+
+```typescript
+// Example: In Next hook, set data to Space before delegate
+ctx.space.Set("choose_prompt", "query");
+return {
+  delegate: { agent_id: "expense", messages: payload.messages },
+};
+```
+
+If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space` state:
+
+```json
+{
+  "choose_prompt": "query",
+  "user_preferences": { "currency": "USD" }
+}
+```
 
 **Step Types:**
 
@@ -202,7 +249,7 @@ Stores execution steps for resume/retry functionality.
 
 | Name                 | Columns                  | Type  |
 | -------------------- | ------------------------ | ----- |
-| `idx_step_conv`      | `conversation_id`        | index |
+| `idx_step_chat`      | `chat_id`                | index |
 | `idx_step_request`   | `request_id`, `sequence` | index |
 | `idx_step_status`    | `status`                 | index |
 | `idx_step_stack`     | `stack_id`               | index |
@@ -350,19 +397,26 @@ func (ast *Assistant) Stream(ctx, inputMessages, options) {
 
 // createStep creates a step with context information
 func createStep(ctx *Context, stepType, status string, input, output interface{}) *Step {
+    // Capture Space snapshot for recovery
+    var spaceSnapshot map[string]interface{}
+    if ctx.Space != nil {
+        spaceSnapshot = ctx.Space.Snapshot() // Get all key-value pairs
+    }
+
     return &Step{
-        StepID:         generateID(),
-        ConversationID: ctx.ChatID,       // ChatID = conversation_id
-        RequestID:      ctx.RequestID,    // From OpenAPI middleware
-        AssistantID:    ctx.AssistantID,
-        StackID:        ctx.Stack.ID,
-        StackParentID:  ctx.Stack.ParentID,
-        StackDepth:     ctx.Stack.Depth,
-        Type:           stepType,
-        Status:         status,
-        Input:          input,
-        Output:         output,
-        Sequence:       nextSequence(),
+        StepID:        generateID(),
+        ChatID:        ctx.ChatID,        // ChatID
+        RequestID:     ctx.RequestID,     // From OpenAPI middleware
+        AssistantID:   ctx.AssistantID,
+        StackID:       ctx.Stack.ID,
+        StackParentID: ctx.Stack.ParentID,
+        StackDepth:    ctx.Stack.Depth,
+        Type:          stepType,
+        Status:        status,
+        Input:         input,
+        Output:        output,
+        SpaceSnapshot: spaceSnapshot,     // Shared space data for recovery
+        Sequence:      nextSequence(),
     }
 }
 
@@ -373,88 +427,103 @@ func createStep(ctx *Context, stepType, status string, input, output interface{}
 ```go
 // ChatStore defines the chat storage interface
 type ChatStore interface {
-    // Conversation Management
-    CreateConversation(conv *Conversation) error
-    GetConversation(conversationID string) (*Conversation, error)
-    UpdateConversation(conversationID string, updates map[string]interface{}) error
-    DeleteConversation(conversationID string) error
-    ListConversations(filter ConversationFilter) (*ConversationList, error)
+    // Chat Management
+    CreateChat(chat *Chat) error
+    GetChat(chatID string) (*Chat, error)
+    UpdateChat(chatID string, updates map[string]interface{}) error
+    DeleteChat(chatID string) error
+    ListChats(filter ChatFilter) (*ChatList, error)
 
     // Message Management
-    SaveMessages(conversationID string, messages []*Message) error
-    GetMessages(conversationID string, filter MessageFilter) ([]*Message, error)
+    SaveMessages(chatID string, messages []*Message) error
+    GetMessages(chatID string, filter MessageFilter) ([]*Message, error)
     UpdateMessage(messageID string, updates map[string]interface{}) error
-    DeleteMessages(conversationID string, messageIDs []string) error
+    DeleteMessages(chatID string, messageIDs []string) error
 
     // Step Management
-    SaveStep(step *Step) error
+    SaveSteps(steps []*Step) error
     UpdateStep(stepID string, updates map[string]interface{}) error
     GetSteps(requestID string) ([]*Step, error)
-    GetLastIncompleteStep(conversationID string) (*Step, error)
+    GetLastIncompleteStep(chatID string) (*Step, error)
+    GetStepsByStackID(stackID string) ([]*Step, error)
+    GetStackPath(stackID string) ([]string, error) // Returns [root_stack_id, ..., current_stack_id]
+}
+
+// SpaceStore defines the interface for Space snapshot operations
+// Note: Space itself uses plan.Space interface, this is for persistence
+type SpaceStore interface {
+    // Snapshot returns all key-value pairs in the space
+    Snapshot() map[string]interface{}
+
+    // Restore sets multiple key-value pairs from a snapshot
+    Restore(data map[string]interface{}) error
 }
 ````
 
 ### Data Structures
 
 ```go
-// Conversation represents a chat conversation
-type Conversation struct {
-    ConversationID string                 `json:"conversation_id"`
-    Title          string                 `json:"title,omitempty"`
-    AssistantID    string                 `json:"assistant_id"`
-    UserID         string                 `json:"user_id"`
-    TeamID         string                 `json:"team_id,omitempty"`
-    Mode           string                 `json:"mode"`
-    Status         string                 `json:"status"`
-    LastMessageAt  *time.Time             `json:"last_message_at,omitempty"`
-    Metadata       map[string]interface{} `json:"metadata,omitempty"`
-    CreatedAt      time.Time              `json:"created_at"`
-    UpdatedAt      time.Time              `json:"updated_at"`
+// Chat represents a chat session
+type Chat struct {
+    ChatID        string                 `json:"chat_id"`
+    Title         string                 `json:"title,omitempty"`
+    AssistantID   string                 `json:"assistant_id"`
+    Mode          string                 `json:"mode"`
+    Status        string                 `json:"status"`
+    Preset        bool                   `json:"preset"`
+    Public        bool                   `json:"public"`
+    Share         string                 `json:"share"` // "private" or "team"
+    Sort          int                    `json:"sort"`
+    LastMessageAt *time.Time             `json:"last_message_at,omitempty"`
+    Metadata      map[string]interface{} `json:"metadata,omitempty"`
+    CreatedAt     time.Time              `json:"created_at"`
+    UpdatedAt     time.Time              `json:"updated_at"`
 }
 
 // Message represents a chat message
 type Message struct {
-    MessageID      string                 `json:"message_id"`
-    ConversationID string                 `json:"conversation_id"`
-    RequestID      string                 `json:"request_id,omitempty"`
-    Role           string                 `json:"role"`
-    Type           string                 `json:"type"`
-    Props          map[string]interface{} `json:"props"`
-    BlockID        string                 `json:"block_id,omitempty"`
-    ThreadID       string                 `json:"thread_id,omitempty"`
-    AssistantID    string                 `json:"assistant_id,omitempty"`
-    Sequence       int                    `json:"sequence"`
-    Metadata       map[string]interface{} `json:"metadata,omitempty"`
-    CreatedAt      time.Time              `json:"created_at"`
-    UpdatedAt      time.Time              `json:"updated_at"`
+    MessageID   string                 `json:"message_id"`
+    ChatID      string                 `json:"chat_id"`
+    RequestID   string                 `json:"request_id,omitempty"`
+    Role        string                 `json:"role"`
+    Type        string                 `json:"type"`
+    Props       map[string]interface{} `json:"props"`
+    BlockID     string                 `json:"block_id,omitempty"`
+    ThreadID    string                 `json:"thread_id,omitempty"`
+    AssistantID string                 `json:"assistant_id,omitempty"`
+    Sequence    int                    `json:"sequence"`
+    Metadata    map[string]interface{} `json:"metadata,omitempty"`
+    CreatedAt   time.Time              `json:"created_at"`
+    UpdatedAt   time.Time              `json:"updated_at"`
 }
 
 // Step represents an execution step
 type Step struct {
-    StepID         string                 `json:"step_id"`
-    ConversationID string                 `json:"conversation_id"`
-    RequestID      string                 `json:"request_id"`
-    AssistantID    string                 `json:"assistant_id"`
-    StackID        string                 `json:"stack_id"`
-    StackParentID  string                 `json:"stack_parent_id,omitempty"`
-    StackDepth     int                    `json:"stack_depth"`
-    Type           string                 `json:"type"`
-    Status         string                 `json:"status"`
-    Input          map[string]interface{} `json:"input,omitempty"`
-    Output         map[string]interface{} `json:"output,omitempty"`
-    Error          string                 `json:"error,omitempty"`
-    Sequence       int                    `json:"sequence"`
-    Metadata       map[string]interface{} `json:"metadata,omitempty"`
-    CreatedAt      time.Time              `json:"created_at"`
-    UpdatedAt      time.Time              `json:"updated_at"`
+    StepID        string                 `json:"step_id"`
+    ChatID        string                 `json:"chat_id"`
+    RequestID     string                 `json:"request_id"`
+    AssistantID   string                 `json:"assistant_id"`
+    StackID       string                 `json:"stack_id"`
+    StackParentID string                 `json:"stack_parent_id,omitempty"`
+    StackDepth    int                    `json:"stack_depth"`
+    Type          string                 `json:"type"`
+    Status        string                 `json:"status"`
+    Input         map[string]interface{} `json:"input,omitempty"`
+    Output        map[string]interface{} `json:"output,omitempty"`
+    SpaceSnapshot map[string]interface{} `json:"space_snapshot,omitempty"` // Shared space data for recovery
+    Error         string                 `json:"error,omitempty"`
+    Sequence      int                    `json:"sequence"`
+    Metadata      map[string]interface{} `json:"metadata,omitempty"`
+    CreatedAt     time.Time              `json:"created_at"`
+    UpdatedAt     time.Time              `json:"updated_at"`
 }
 ```
 
 ### Filter Structures
 
 ```go
-// ConversationFilter for listing conversations
-type ConversationFilter struct {
+// ChatFilter for listing chats
+type ChatFilter struct {
     UserID      string `json:"user_id,omitempty"`
     TeamID      string `json:"team_id,omitempty"`
     AssistantID string `json:"assistant_id,omitempty"`
@@ -473,13 +542,13 @@ type MessageFilter struct {
     Offset    int    `json:"offset,omitempty"`
 }
 
-// ConversationList paginated response
-type ConversationList struct {
-    Data      []*Conversation `json:"data"`
-    Page      int             `json:"page"`
-    PageSize  int             `json:"pagesize"`
-    PageCount int             `json:"pagecount"`
-    Total     int             `json:"total"`
+// ChatList paginated response
+type ChatList struct {
+    Data      []*Chat `json:"data"`
+    Page      int     `json:"page"`
+    PageSize  int     `json:"pagesize"`
+    PageCount int     `json:"pagecount"`
+    Total     int     `json:"total"`
 }
 ```
 
@@ -492,23 +561,23 @@ See [Write Strategy - Implementation](#implementation) for the complete flow wit
 ### 2. Load Chat History
 
 ```go
-// Get conversation list
-convs, _ := chatStore.ListConversations(ConversationFilter{
+// Get chat list
+chats, _ := chatStore.ListChats(ChatFilter{
     UserID:   "user123",
     Status:   "active",
     Page:     1,
     PageSize: 20,
 })
 
-// Get messages for a conversation
-messages, _ := chatStore.GetMessages("conv_123", MessageFilter{
+// Get messages for a chat
+messages, _ := chatStore.GetMessages("chat_123", MessageFilter{
     Limit: 100,
 })
 
 // Return to frontend
 return map[string]interface{}{
-    "conversation": conv,
-    "messages":     messages,
+    "chat":     chat,
+    "messages": messages,
 }
 ```
 
@@ -517,18 +586,25 @@ return map[string]interface{}{
 ```go
 func (ast *Assistant) Resume(ctx *Context) error {
     // 1. Find last incomplete step
-    step, _ := chatStore.GetLastIncompleteStep(ctx.ConversationID)
+    step, _ := chatStore.GetLastIncompleteStep(ctx.ChatID)
     if step == nil {
         return nil // Nothing to resume
     }
 
-    // 2. Check if this is an A2A nested call
+    // 2. Restore Space data from snapshot
+    if step.SpaceSnapshot != nil && ctx.Space != nil {
+        for key, value := range step.SpaceSnapshot {
+            ctx.Space.Set(key, value)
+        }
+    }
+
+    // 3. Check if this is an A2A nested call
     if step.StackDepth > 0 {
         // Need to rebuild the call stack
         return ast.ResumeNestedCall(ctx, step)
     }
 
-    // 3. Resume based on step type
+    // 4. Resume based on step type
     switch step.Type {
     case "llm":
         // Re-execute LLM call with saved input
@@ -542,6 +618,12 @@ func (ast *Assistant) Resume(ctx *Context) error {
     case "hook_next":
         // Re-execute hook
         return ast.executeHookNext(ctx, step.Input)
+
+    case "delegate":
+        // Resume delegated agent call
+        agentID := step.Input["agent_id"].(string)
+        messages := step.Input["messages"].([]Message)
+        return ast.delegateToAgent(ctx, agentID, messages)
     }
 
     return nil
@@ -590,22 +672,37 @@ When Assistant A delegates to Assistant B, the step records look like:
 Request: User asks "analyze this data and visualize it"
 
 Step Records:
-┌─────┬─────────────┬─────────────┬──────────┬────────────┬───────┬─────────────┐
-│ seq │ assistant   │ stack_id    │ parent   │ depth      │ type  │ status      │
-├─────┼─────────────┼─────────────┼──────────┼────────────┼───────┼─────────────┤
-│  1  │ analyzer    │ stk_001     │ null     │ 0          │ input │ completed   │
-│  2  │ analyzer    │ stk_001     │ null     │ 0          │ llm   │ completed   │
-│  3  │ analyzer    │ stk_001     │ null     │ 0          │ delegate │ running  │ ← delegating
-│  4  │ visualizer  │ stk_002     │ stk_001  │ 1          │ input │ completed   │
-│  5  │ visualizer  │ stk_002     │ stk_001  │ 1          │ llm   │ interrupted │ ← interrupted here
-└─────┴─────────────┴─────────────┴──────────┴────────────┴───────┴─────────────┘
+┌─────┬─────────────┬─────────────┬──────────┬───────┬───────┬─────────────┬─────────────────────────────┐
+│ seq │ assistant   │ stack_id    │ parent   │ depth │ type  │ status      │ space_snapshot              │
+├─────┼─────────────┼─────────────┼──────────┼───────┼───────┼─────────────┼─────────────────────────────┤
+│  1  │ analyzer    │ stk_001     │ null     │ 0     │ input │ completed   │ {}                          │
+│  2  │ analyzer    │ stk_001     │ null     │ 0     │ llm   │ completed   │ {}                          │
+│  3  │ analyzer    │ stk_001     │ null     │ 0     │ delegate │ running  │ {"choose_prompt": "query"}  │ ← Space data set before delegate
+│  4  │ visualizer  │ stk_002     │ stk_001  │ 1     │ input │ completed   │ {"choose_prompt": "query"}  │
+│  5  │ visualizer  │ stk_002     │ stk_001  │ 1     │ llm   │ interrupted │ {"choose_prompt": "query"}  │ ← interrupted here
+└─────┴─────────────┴─────────────┴──────────┴───────┴───────┴─────────────┴─────────────────────────────┘
 
 Resume Flow:
 1. Find step with status="interrupted" → step 5
-2. Check stack_depth=1 → nested call
-3. Get stack path: [stk_001, stk_002]
-4. Resume visualizer assistant with step 5's input
-5. When visualizer completes, update step 3 (delegate) to completed
+2. Restore Space from space_snapshot: {"choose_prompt": "query"}
+3. Check stack_depth=1 → nested call
+4. Get stack path: [stk_001, stk_002]
+5. Resume visualizer assistant with step 5's input
+6. When visualizer completes, update step 3 (delegate) to completed
+```
+
+**Space Snapshot Use Case (from expense assistant):**
+
+```typescript
+// In Next hook, before delegating to another agent
+ctx.space.Set("choose_prompt", "query");
+return {
+  delegate: { agent_id: "expense", messages: payload.messages },
+};
+
+// If interrupted during delegate, Resume will:
+// 1. Restore space_snapshot → ctx.space now has "choose_prompt": "query"
+// 2. The delegated agent's Create hook can read: ctx.space.GetDel("choose_prompt")
 ```
 
 ## Migration Notes
