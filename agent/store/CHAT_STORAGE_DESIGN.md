@@ -46,7 +46,7 @@ The Agent storage focuses on **chat content and execution state**, while request
 | Rate limiting    | `openapi/request` | -                 |
 | Chat sessions    | `agent/store`     | `agent_chat`      |
 | Chat messages    | `agent/store`     | `agent_message`   |
-| Execution steps  | `agent/store`     | `agent_step`      |
+| Resume/Retry     | `agent/store`     | `agent_resume`    |
 
 The `request_id` from OpenAPI middleware is passed to Agent and stored in messages/steps for correlation.
 
@@ -70,7 +70,8 @@ The `request_id` from OpenAPI middleware is passed to Agent and stored in messag
 │           │ N:N (via request_id)                            │
 │           ▼                                                  │
 │  ┌─────────────────┐                                        │
-│  │     Step        │  Execution: type, status, input/output │
+│  │     Resume      │  Recovery: type, status, input/output  │
+│  │  (only on fail) │  Only saved when interrupted/failed    │
 │  └─────────────────┘                                        │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -165,27 +166,122 @@ Stores user-visible messages (both user input and assistant responses).
 | `idx_msg_block`     | `block_id`            | index |
 | `idx_msg_assistant` | `assistant_id`        | index |
 
-**Message Types:**
+**Message Types (Built-in):**
 
-| Type      | Description       | Props Example                                     |
-| --------- | ----------------- | ------------------------------------------------- |
-| `text`    | Text message      | `{"content": "Hello world"}`                      |
-| `image`   | Image message     | `{"url": "...", "alt": "...", "caption": "..."}`  |
-| `loading` | Loading indicator | `{"message": "Processing...", "done": false}`     |
-| `error`   | Error message     | `{"message": "...", "code": "..."}`               |
-| `action`  | Action buttons    | `{"buttons": [...]}`                              |
-| `file`    | File attachment   | `{"url": "...", "filename": "...", "size": 1024}` |
+All built-in types defined in `agent/output/BUILTIN_TYPES.md` are stored. See that document for complete Props structures.
 
-### 3. Step Table
+| Type         | Description                      | Props Example                                                                               | Stored?     |
+| ------------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ----------- |
+| `user_input` | User input (frontend display)    | `{"content": "Hello", "role": "user", "name": "John"}`                                      | ✅ Yes      |
+| `text`       | Text/Markdown content            | `{"content": "Hello **world**!"}`                                                           | ✅ Yes      |
+| `thinking`   | Reasoning process (o1, DeepSeek) | `{"content": "Let me analyze..."}`                                                          | ✅ Yes      |
+| `loading`    | Loading/processing indicator     | `{"message": "Searching knowledge base..."}`                                                | ✅ Yes      |
+| `tool_call`  | LLM tool/function call           | `{"id": "call_abc123", "name": "get_weather", "arguments": "{\"location\":\"SF\"}"}`        | ✅ Yes      |
+| `error`      | Error message                    | `{"message": "Connection timeout", "code": "TIMEOUT", "details": "..."}`                    | ✅ Yes      |
+| `image`      | Image content                    | `{"url": "...", "alt": "...", "width": 200, "height": 200, "detail": "auto"}`               | ✅ Yes      |
+| `audio`      | Audio content                    | `{"url": "...", "format": "mp3", "duration": 120.5, "transcript": "...", "controls": true}` | ✅ Yes      |
+| `video`      | Video content                    | `{"url": "...", "format": "mp4", "thumbnail": "...", "width": 640, "height": 360}`          | ✅ Yes      |
+| `action`     | System action (CUI only)         | `{"name": "open_panel", "payload": {"panel_id": "user_profile"}}`                           | ✅ Yes      |
+| `event`      | Lifecycle event (CUI only)       | `{"event": "stream_start", "message": "...", "data": {...}}`                                | ⚠️ Optional |
 
-Stores execution steps for resume/retry functionality.
+**Note on `event` type:** Lifecycle events (`stream_start`, `stream_end`, etc.) are typically transient and may not need persistent storage. Consider storing only significant events or skipping entirely based on use case.
 
-**Table Name:** `agent_step`
+**Tool Call Storage:**
+
+Tool calls from LLM responses are stored as `tool_call` type messages. The raw tool call data is preserved in `props`:
+
+```json
+{
+  "message_id": "msg_001",
+  "chat_id": "chat_123",
+  "role": "assistant",
+  "type": "tool_call",
+  "props": {
+    "id": "call_abc123",
+    "name": "get_weather",
+    "arguments": "{\"location\": \"San Francisco\", \"unit\": \"celsius\"}"
+  },
+  "block_id": "B1",
+  "sequence": 5
+}
+```
+
+**Tool Result Storage:**
+
+Tool execution results can be stored as `text` type with metadata indicating it's a tool result:
+
+```json
+{
+  "message_id": "msg_002",
+  "chat_id": "chat_123",
+  "role": "assistant",
+  "type": "text",
+  "props": {
+    "content": "The weather in San Francisco is 18°C and sunny."
+  },
+  "metadata": {
+    "tool_call_id": "call_abc123",
+    "tool_name": "get_weather",
+    "is_tool_result": true
+  },
+  "block_id": "B1",
+  "sequence": 6
+}
+```
+
+**Custom Types:**
+
+Any type not in the built-in list is considered a custom type and stored with its original structure:
+
+```json
+{
+  "type": "chart",
+  "props": {
+    "chartType": "bar",
+    "data": [...],
+    "options": {...}
+  }
+}
+```
+
+**Multimodal User Input:**
+
+User input with multimodal content (text + images + files) is stored as `user_input` type:
+
+```json
+{
+  "message_id": "msg_000",
+  "chat_id": "chat_123",
+  "role": "user",
+  "type": "user_input",
+  "props": {
+    "content": [
+      { "type": "text", "text": "What's in this image?" },
+      {
+        "type": "image_url",
+        "image_url": {
+          "url": "https://example.com/photo.jpg",
+          "detail": "high"
+        }
+      }
+    ],
+    "role": "user",
+    "name": "John"
+  },
+  "sequence": 1
+}
+```
+
+### 3. Resume Table
+
+Stores execution state for resume/retry functionality. **Only written when request is interrupted or failed.**
+
+**Table Name:** `agent_resume`
 
 | Column            | Type        | Nullable | Index  | Description                      |
 | ----------------- | ----------- | -------- | ------ | -------------------------------- |
 | `id`              | ID          | No       | PK     | Auto-increment primary key       |
-| `step_id`         | string(64)  | No       | Unique | Unique step identifier           |
+| `resume_id`       | string(64)  | No       | Unique | Unique resume record identifier  |
 | `chat_id`         | string(64)  | No       | Yes    | Parent chat ID                   |
 | `request_id`      | string(64)  | No       | Yes    | Request ID                       |
 | `assistant_id`    | string(200) | No       | Yes    | Assistant executing this step    |
@@ -193,9 +289,9 @@ Stores execution steps for resume/retry functionality.
 | `stack_parent_id` | string(64)  | Yes      | Yes    | Parent stack ID (for A2A calls)  |
 | `stack_depth`     | integer     | No       | -      | Call depth (0=root, 1+=nested)   |
 | `type`            | enum        | No       | Yes    | Step type                        |
-| `status`          | enum        | No       | Yes    | Step status                      |
+| `status`          | enum        | No       | Yes    | Status: `interrupted`, `failed`  |
 | `input`           | json        | Yes      | -      | Step input data                  |
-| `output`          | json        | Yes      | -      | Step output data                 |
+| `output`          | json        | Yes      | -      | Step output data (partial)       |
 | `space_snapshot`  | json        | Yes      | -      | Space data snapshot for recovery |
 | `error`           | text        | Yes      | -      | Error message if failed          |
 | `sequence`        | integer     | No       | Yes    | Step order within request        |
@@ -224,7 +320,7 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 }
 ```
 
-**Step Types:**
+**Resume Step Types:**
 
 | Type          | Description           | Input                  | Output                                |
 | ------------- | --------------------- | ---------------------- | ------------------------------------- |
@@ -235,26 +331,23 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 | `hook_next`   | Next hook execution   | `{completion, tools}`  | `{data: ...}`                         |
 | `delegate`    | A2A delegation        | `{agent_id, messages}` | `{response: ...}`                     |
 
-**Step Status:**
+**Resume Status (only two values - table only stores failed/interrupted):**
 
-| Status        | Description           | Can Resume     |
-| ------------- | --------------------- | -------------- |
-| `pending`     | Not started           | Yes            |
-| `running`     | In progress           | Yes (restart)  |
-| `completed`   | Finished successfully | No             |
-| `failed`      | Failed with error     | Yes (retry)    |
-| `interrupted` | User interrupted      | Yes (continue) |
+| Status        | Description       | Action   |
+| ------------- | ----------------- | -------- |
+| `failed`      | Failed with error | Retry    |
+| `interrupted` | User interrupted  | Continue |
 
 **Indexes:**
 
-| Name                 | Columns                  | Type  |
-| -------------------- | ------------------------ | ----- |
-| `idx_step_chat`      | `chat_id`                | index |
-| `idx_step_request`   | `request_id`, `sequence` | index |
-| `idx_step_status`    | `status`                 | index |
-| `idx_step_stack`     | `stack_id`               | index |
-| `idx_step_parent`    | `stack_parent_id`        | index |
-| `idx_step_assistant` | `assistant_id`           | index |
+| Name                   | Columns                  | Type  |
+| ---------------------- | ------------------------ | ----- |
+| `idx_resume_chat`      | `chat_id`                | index |
+| `idx_resume_request`   | `request_id`, `sequence` | index |
+| `idx_resume_status`    | `status`                 | index |
+| `idx_resume_stack`     | `stack_id`               | index |
+| `idx_resume_parent`    | `stack_parent_id`        | index |
+| `idx_resume_assistant` | `assistant_id`           | index |
 
 ## Write Strategy
 
@@ -263,7 +356,7 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 All data is buffered in memory during execution and written to database only **twice**:
 
 1. **Write 1 (Entry)**: When `Stream()` starts - save user input message
-2. **Write 2 (Exit)**: When `Stream()` exits - batch save all assistant messages and steps
+2. **Write 2 (Exit)**: When `Stream()` exits - batch save messages (and steps only on error/interrupt)
 
 **Note**: Request tracking (status, tokens, duration) is handled by [OpenAPI Request Middleware](../../openapi/request/REQUEST_DESIGN.md).
 
@@ -280,20 +373,30 @@ Stream() Entry
     │   - Each step     → stepBuffer
     │
     └── 【Write 2】Save final state (via defer)
-        - Batch write all assistant messages
-        - Batch write all steps (with final status)
-        - Update token usage in openapi_request (via request_id)
+        │
+        ├── Always:
+        │   - Batch write all assistant messages
+        │   - Update token usage in openapi_request (via request_id)
+        │
+        └── Only on error/interrupt:
+            - Batch write all steps (for resume/retry)
 ```
 
 ### Write Points
 
-| Event            | Message Table        | Step Table                                |
-| ---------------- | -------------------- | ----------------------------------------- |
-| Stream entry     | Write 1 (user input) | -                                         |
-| During execution | Buffer in memory     | Buffer in memory                          |
-| **Stream exit**  | **Batch write all**  | **Batch write all (status=completed)**    |
-| On interrupt     | Batch write buffered | Batch write buffered (status=interrupted) |
-| On error         | Batch write buffered | Batch write buffered (status=failed)      |
+| Event            | Message Table        | Step Table                          | Token Usage |
+| ---------------- | -------------------- | ----------------------------------- | ----------- |
+| Stream entry     | Write 1 (user input) | -                                   | -           |
+| During execution | Buffer in memory     | Buffer in memory                    | -           |
+| **Completed**    | **Batch write all**  | **❌ Skip (no need to resume)**     | ✅ Update   |
+| On interrupt     | Batch write buffered | ✅ Batch write (status=interrupted) | ✅ Update   |
+| On error         | Batch write buffered | ✅ Batch write (status=failed)      | ✅ Update   |
+
+**Why skip Steps on success?**
+
+- Steps are only needed for resume/retry operations
+- If completed successfully, there's nothing to resume
+- Reduces database writes and keeps Step table clean
 
 ### Why Two Writes?
 
@@ -395,16 +498,22 @@ func (ast *Assistant) Stream(ctx, inputMessages, options) {
     // Messages are automatically buffered via ctx.Send()
 }
 
-// createStep creates a step with context information
-func createStep(ctx *Context, stepType, status string, input, output interface{}) *Step {
+// createResumeRecord creates a resume record with context information
+// Only called when request fails or is interrupted
+func createResumeRecord(ctx *Context, stepType, status string, input, output interface{}, err error) *Resume {
     // Capture Space snapshot for recovery
     var spaceSnapshot map[string]interface{}
     if ctx.Space != nil {
         spaceSnapshot = ctx.Space.Snapshot() // Get all key-value pairs
     }
 
-    return &Step{
-        StepID:        generateID(),
+    errorMsg := ""
+    if err != nil {
+        errorMsg = err.Error()
+    }
+
+    return &Resume{
+        ResumeID:      generateID(),
         ChatID:        ctx.ChatID,        // ChatID
         RequestID:     ctx.RequestID,     // From OpenAPI middleware
         AssistantID:   ctx.AssistantID,
@@ -412,10 +521,11 @@ func createStep(ctx *Context, stepType, status string, input, output interface{}
         StackParentID: ctx.Stack.ParentID,
         StackDepth:    ctx.Stack.Depth,
         Type:          stepType,
-        Status:        status,
+        Status:        status,            // "failed" or "interrupted"
         Input:         input,
         Output:        output,
         SpaceSnapshot: spaceSnapshot,     // Shared space data for recovery
+        Error:         errorMsg,
         Sequence:      nextSequence(),
     }
 }
@@ -440,13 +550,13 @@ type ChatStore interface {
     UpdateMessage(messageID string, updates map[string]interface{}) error
     DeleteMessages(chatID string, messageIDs []string) error
 
-    // Step Management
-    SaveSteps(steps []*Step) error
-    UpdateStep(stepID string, updates map[string]interface{}) error
-    GetSteps(requestID string) ([]*Step, error)
-    GetLastIncompleteStep(chatID string) (*Step, error)
-    GetStepsByStackID(stackID string) ([]*Step, error)
+    // Resume Management (only called on failure/interrupt)
+    SaveResume(records []*Resume) error
+    GetResume(chatID string) ([]*Resume, error)
+    GetLastResume(chatID string) (*Resume, error)
+    GetResumeByStackID(stackID string) ([]*Resume, error)
     GetStackPath(stackID string) ([]string, error) // Returns [root_stack_id, ..., current_stack_id]
+    DeleteResume(chatID string) error              // Clean up after successful resume
 }
 
 // SpaceStore defines the interface for Space snapshot operations
@@ -497,9 +607,9 @@ type Message struct {
     UpdatedAt   time.Time              `json:"updated_at"`
 }
 
-// Step represents an execution step
-type Step struct {
-    StepID        string                 `json:"step_id"`
+// Resume represents an execution state for recovery (only stored on failure/interrupt)
+type Resume struct {
+    ResumeID      string                 `json:"resume_id"`
     ChatID        string                 `json:"chat_id"`
     RequestID     string                 `json:"request_id"`
     AssistantID   string                 `json:"assistant_id"`
@@ -507,7 +617,7 @@ type Step struct {
     StackParentID string                 `json:"stack_parent_id,omitempty"`
     StackDepth    int                    `json:"stack_depth"`
     Type          string                 `json:"type"`
-    Status        string                 `json:"status"`
+    Status        string                 `json:"status"` // "failed" or "interrupted"
     Input         map[string]interface{} `json:"input,omitempty"`
     Output        map[string]interface{} `json:"output,omitempty"`
     SpaceSnapshot map[string]interface{} `json:"space_snapshot,omitempty"` // Shared space data for recovery
@@ -554,11 +664,244 @@ type ChatList struct {
 
 ## Usage Examples
 
-### 1. Normal Request Flow
+### 1. Complete Message Storage Example
 
-See [Write Strategy - Implementation](#implementation) for the complete flow with two-write strategy.
+A typical conversation with various message types stored in `agent_message`:
 
-### 2. Load Chat History
+```
+User: "What's the weather in SF? Also show me a chart."
+
+Timeline:
+1. User sends multimodal input
+2. Hook shows loading state
+3. LLM thinks and calls tool
+4. Tool returns result
+5. LLM generates text response
+6. Hook sends image chart
+```
+
+**Stored Messages:**
+
+```json
+[
+  // 1. User input (role=user, type=user_input)
+  {
+    "message_id": "msg_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "user",
+    "type": "user_input",
+    "props": {
+      "content": "What's the weather in SF? Also show me a chart.",
+      "role": "user"
+    },
+    "sequence": 1
+  },
+
+  // 2. Loading state from Create hook (role=assistant, type=loading)
+  {
+    "message_id": "msg_002",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "loading",
+    "props": {
+      "message": "Searching knowledge base..."
+    },
+    "block_id": "B1",
+    "assistant_id": "weather_assistant",
+    "sequence": 2
+  },
+
+  // 3. LLM thinking process (role=assistant, type=thinking)
+  {
+    "message_id": "msg_003",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "thinking",
+    "props": {
+      "content": "User wants weather info for San Francisco. I should use the get_weather tool..."
+    },
+    "block_id": "B2",
+    "assistant_id": "weather_assistant",
+    "sequence": 3
+  },
+
+  // 4. LLM tool call (role=assistant, type=tool_call)
+  {
+    "message_id": "msg_004",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "tool_call",
+    "props": {
+      "id": "call_weather_001",
+      "name": "get_weather",
+      "arguments": "{\"location\": \"San Francisco\", \"unit\": \"celsius\"}"
+    },
+    "block_id": "B2",
+    "assistant_id": "weather_assistant",
+    "sequence": 4
+  },
+
+  // 5. Tool result (role=assistant, type=text, with tool metadata)
+  {
+    "message_id": "msg_005",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": {
+      "content": "Weather data retrieved: 18°C, sunny, humidity 65%"
+    },
+    "block_id": "B2",
+    "metadata": {
+      "tool_call_id": "call_weather_001",
+      "tool_name": "get_weather",
+      "is_tool_result": true
+    },
+    "assistant_id": "weather_assistant",
+    "sequence": 5
+  },
+
+  // 6. LLM text response (role=assistant, type=text)
+  {
+    "message_id": "msg_006",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": {
+      "content": "The weather in San Francisco is currently **18°C** and sunny with 65% humidity. Perfect weather for outdoor activities!"
+    },
+    "block_id": "B2",
+    "assistant_id": "weather_assistant",
+    "sequence": 6
+  },
+
+  // 7. Chart image from Next hook (role=assistant, type=image)
+  {
+    "message_id": "msg_007",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "image",
+    "props": {
+      "url": "https://charts.example.com/weather_sf.png",
+      "alt": "San Francisco 7-day weather forecast",
+      "width": 800,
+      "height": 400
+    },
+    "block_id": "B3",
+    "assistant_id": "weather_assistant",
+    "sequence": 7
+  }
+]
+```
+
+**Streaming IDs (from `STREAMING.md`):**
+
+During streaming, messages include additional fields for real-time delivery:
+
+| Field        | Purpose                        | Stored? |
+| ------------ | ------------------------------ | ------- |
+| `chunk_id`   | Deduplication, ordering, debug | ❌ No   |
+| `message_id` | Delta merge target             | ✅ Yes  |
+| `block_id`   | UI block/section grouping      | ✅ Yes  |
+| `thread_id`  | Concurrent stream distinction  | ✅ Yes  |
+| `delta`      | Whether this is a delta chunk  | ❌ No   |
+| `delta_path` | Path for delta merge           | ❌ No   |
+
+**Note:** `chunk_id`, `delta`, and `delta_path` are transient streaming control fields and are NOT stored. Only the final merged content is persisted.
+
+### 2. Error Message Storage
+
+When errors occur, they are stored as `error` type:
+
+```json
+{
+  "message_id": "msg_err_001",
+  "chat_id": "chat_123",
+  "request_id": "req_abc",
+  "role": "assistant",
+  "type": "error",
+  "props": {
+    "message": "Failed to connect to weather service",
+    "code": "SERVICE_UNAVAILABLE",
+    "details": "Connection timeout after 30 seconds"
+  },
+  "block_id": "B2",
+  "assistant_id": "weather_assistant",
+  "sequence": 5
+}
+```
+
+### 3. Action Message Storage (CUI clients)
+
+System actions are stored but only processed by CUI clients:
+
+```json
+{
+  "message_id": "msg_action_001",
+  "chat_id": "chat_123",
+  "request_id": "req_abc",
+  "role": "assistant",
+  "type": "action",
+  "props": {
+    "name": "open_panel",
+    "payload": {
+      "panel_id": "weather_details",
+      "location": "San Francisco"
+    }
+  },
+  "block_id": "B2",
+  "assistant_id": "weather_assistant",
+  "sequence": 6
+}
+```
+
+### 4. Audio/Video Message Storage
+
+Multimedia content storage:
+
+```json
+// Audio message
+{
+  "message_id": "msg_audio_001",
+  "chat_id": "chat_123",
+  "role": "assistant",
+  "type": "audio",
+  "props": {
+    "url": "https://storage.example.com/audio/response.mp3",
+    "format": "mp3",
+    "duration": 45.5,
+    "transcript": "Here's the weather forecast for today...",
+    "controls": true
+  },
+  "sequence": 7
+}
+
+// Video message
+{
+  "message_id": "msg_video_001",
+  "chat_id": "chat_123",
+  "role": "assistant",
+  "type": "video",
+  "props": {
+    "url": "https://storage.example.com/video/weather_report.mp4",
+    "format": "mp4",
+    "thumbnail": "https://storage.example.com/video/weather_report_thumb.jpg",
+    "duration": 120.0,
+    "width": 1280,
+    "height": 720,
+    "controls": true
+  },
+  "sequence": 8
+}
+```
+
+### 5. Load Chat History
 
 ```go
 // Get chat list
@@ -581,56 +924,62 @@ return map[string]interface{}{
 }
 ```
 
-### 3. Resume from Interruption
+### 6. Resume from Interruption
 
 ```go
 func (ast *Assistant) Resume(ctx *Context) error {
-    // 1. Find last incomplete step
-    step, _ := chatStore.GetLastIncompleteStep(ctx.ChatID)
-    if step == nil {
+    // 1. Find last resume record
+    record, _ := chatStore.GetLastResume(ctx.ChatID)
+    if record == nil {
         return nil // Nothing to resume
     }
 
     // 2. Restore Space data from snapshot
-    if step.SpaceSnapshot != nil && ctx.Space != nil {
-        for key, value := range step.SpaceSnapshot {
+    if record.SpaceSnapshot != nil && ctx.Space != nil {
+        for key, value := range record.SpaceSnapshot {
             ctx.Space.Set(key, value)
         }
     }
 
     // 3. Check if this is an A2A nested call
-    if step.StackDepth > 0 {
+    if record.StackDepth > 0 {
         // Need to rebuild the call stack
-        return ast.ResumeNestedCall(ctx, step)
+        return ast.ResumeNestedCall(ctx, record)
     }
 
     // 4. Resume based on step type
-    switch step.Type {
+    var err error
+    switch record.Type {
     case "llm":
         // Re-execute LLM call with saved input
-        messages := step.Input["messages"].([]Message)
-        return ast.executeLLMStream(ctx, messages, ...)
+        messages := record.Input["messages"].([]Message)
+        err = ast.executeLLMStream(ctx, messages, ...)
 
     case "tool":
         // Retry tool call
-        return ast.retryToolCall(ctx, step)
+        err = ast.retryToolCall(ctx, record)
 
     case "hook_next":
         // Re-execute hook
-        return ast.executeHookNext(ctx, step.Input)
+        err = ast.executeHookNext(ctx, record.Input)
 
     case "delegate":
         // Resume delegated agent call
-        agentID := step.Input["agent_id"].(string)
-        messages := step.Input["messages"].([]Message)
-        return ast.delegateToAgent(ctx, agentID, messages)
+        agentID := record.Input["agent_id"].(string)
+        messages := record.Input["messages"].([]Message)
+        err = ast.delegateToAgent(ctx, agentID, messages)
     }
 
-    return nil
+    // 5. Clean up resume records on success
+    if err == nil {
+        chatStore.DeleteResume(ctx.ChatID)
+    }
+
+    return err
 }
 ```
 
-### 4. Resume A2A Nested Calls
+### 7. Resume A2A Nested Calls
 
 For agent-to-agent (A2A) recursive calls, the stack information is essential for proper recovery.
 
@@ -652,7 +1001,7 @@ func (ast *Assistant) ResumeNestedCall(ctx *Context, step *Step) error {
 }
 ```
 
-### 4. Handle Interruption
+### 8. Handle Interruption
 
 Interruption is handled automatically by the `defer` block in the two-write strategy. When `ctx.IsInterrupted()` returns true, the status is set to `interrupted` and all buffered data is saved.
 
@@ -703,32 +1052,6 @@ return {
 // If interrupted during delegate, Resume will:
 // 1. Restore space_snapshot → ctx.space now has "choose_prompt": "query"
 // 2. The delegated agent's Create hook can read: ctx.space.GetDel("choose_prompt")
-```
-
-## Migration Notes
-
-### From Old Schema
-
-The old `agent_history` and `agent_chat` tables are replaced by:
-
-| Old Table       | New Table            | Notes                                                  |
-| --------------- | -------------------- | ------------------------------------------------------ |
-| `agent_chat`    | `agent_conversation` | Similar structure, added `mode`, `metadata`            |
-| `agent_history` | `agent_message`      | Changed to store `type`/`props` instead of raw content |
-| -               | `agent_step`         | New table for execution tracking                       |
-
-### Data Migration
-
-```sql
--- Migrate conversations
-INSERT INTO agent_conversation (conversation_id, title, assistant_id, ...)
-SELECT chat_id, title, assistant_id, ...
-FROM agent_chat;
-
--- Migrate messages (simplified, actual migration needs content transformation)
-INSERT INTO agent_message (message_id, conversation_id, role, type, props, ...)
-SELECT id, chat_id, role, 'text', JSON_OBJECT('content', content), ...
-FROM agent_history;
 ```
 
 ## Related Documents
