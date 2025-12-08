@@ -73,11 +73,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
 
 	// Initialize chat, prepare kb collection (optional) etc.
-	err = ast.initializeConversation(ctx, inputMessages, opts)
-	if err != nil {
-		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
-		return nil, err
-	}
+	// Use async version to not block the main flow
+	ast.InitializeConversationAsync(ctx, opts)
 
 	// Initialize agent trace node
 	agentNode := ast.initAgentTraceNode(ctx, inputMessages)

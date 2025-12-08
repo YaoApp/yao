@@ -94,6 +94,10 @@ func init() {
 			"mcp.list_samples.description": "List samples for '%s' from MCP client '%s'",
 			"mcp.get_sample.label":         "MCP: Get Sample",
 			"mcp.get_sample.description":   "Get sample #%d for '%s' from MCP client '%s'",
+
+			// KB: Chat collection
+			"kb.chat.name":        "Chat Knowledge Base",
+			"kb.chat.description": "Auto-created knowledge base collection for chat sessions",
 		},
 	}
 
@@ -156,6 +160,10 @@ func init() {
 			"common.status.completed":  "已完成",
 			"common.status.failed":     "失败",
 			"common.status.retrying":   "重试中",
+
+			// KB: Chat collection
+			"kb.chat.name":        "聊天知识库",
+			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 		},
 	}
 
@@ -246,6 +254,10 @@ func init() {
 			"mcp.list_samples.description": "从 MCP 客户端 '%s' 列出 '%s' 的示例",
 			"mcp.get_sample.label":         "MCP: 获取示例",
 			"mcp.get_sample.description":   "从 MCP 客户端 '%s' 获取 '%s' 的第 %d 个示例",
+
+			// KB: Chat collection
+			"kb.chat.name":        "聊天知识库",
+			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 		},
 	}
 }

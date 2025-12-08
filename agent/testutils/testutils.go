@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -16,8 +17,14 @@ import (
 func Prepare(t *testing.T, opts ...interface{}) {
 	test.Prepare(t, config.Conf, opts...)
 
+	// Load KB (required for agent KB features)
+	_, err := kb.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Load agent
-	err := agent.Load(config.Conf)
+	err = agent.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

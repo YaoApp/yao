@@ -86,6 +86,12 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Initialize KB Configuration
+	err = initKBConfig()
+	if err != nil {
+		return err
+	}
+
 	// Initialize Assistant
 	err = initAssistant()
 	if err != nil {
@@ -209,6 +215,10 @@ func initAssistant() error {
 		assistant.SetModelCapabilities(agentDSL.Models)
 	}
 
+	if agentDSL.KB != nil {
+		assistant.SetGlobalKBSetting(agentDSL.KB)
+	}
+
 	// Load Built-in Assistants
 	err := assistant.LoadBuiltIn()
 	if err != nil {
@@ -222,6 +232,29 @@ func initAssistant() error {
 	}
 
 	agentDSL.Assistant = defaultAssistant
+	return nil
+}
+
+// initKBConfig initialize the knowledge base configuration from agent/kb.yml
+func initKBConfig() error {
+	path := filepath.Join("agent", "kb.yml")
+	if exists, _ := application.App.Exists(path); !exists {
+		return nil // KB config is optional
+	}
+
+	// Read the KB configuration
+	bytes, err := application.App.Read(path)
+	if err != nil {
+		return err
+	}
+
+	var kbSetting store.KBSetting
+	err = application.Parse("kb.yml", bytes, &kbSetting)
+	if err != nil {
+		return err
+	}
+
+	agentDSL.KB = &kbSetting
 	return nil
 }
 

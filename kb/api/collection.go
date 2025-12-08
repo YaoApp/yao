@@ -113,6 +113,71 @@ func (instance *KBInstance) CreateCollection(ctx context.Context, params *Create
 		return nil, fmt.Errorf("failed to save collection metadata: %w", err)
 	}
 
+	// Read back the database record to get auto-generated fields (created_at, updated_at)
+	dbRecord, err := instance.Config.FindCollection(params.ID, model.QueryParam{})
+	if err != nil {
+		// Rollback on error
+		rollbackErr := instance.Config.RemoveCollection(params.ID)
+		if rollbackErr != nil {
+			log.Error("Failed to rollback collection database record: %v", rollbackErr)
+		}
+		return nil, fmt.Errorf("failed to read created collection: %w", err)
+	}
+
+	// Add all database fields to metadata for GraphRag
+	// This ensures GraphRag metadata contains complete information for vector search filtering
+
+	// Timestamps
+	if createdAt, ok := dbRecord["created_at"]; ok {
+		metadata["created_at"] = createdAt
+		// If updated_at is not set, use created_at (for newly created records)
+		if updatedAt, ok := dbRecord["updated_at"]; ok && updatedAt != nil {
+			metadata["updated_at"] = updatedAt
+		} else {
+			metadata["updated_at"] = createdAt
+		}
+	}
+
+	// Auth scope fields (for permission-based vector search)
+	if createdBy, ok := dbRecord["__yao_created_by"]; ok && createdBy != nil {
+		metadata["__yao_created_by"] = createdBy
+	}
+	if teamID, ok := dbRecord["__yao_team_id"]; ok && teamID != nil {
+		metadata["__yao_team_id"] = teamID
+	}
+	if tenantID, ok := dbRecord["__yao_tenant_id"]; ok && tenantID != nil {
+		metadata["__yao_tenant_id"] = tenantID
+	}
+
+	// Collection ID (for consistency with OpenAPI created collections)
+	metadata["collection_id"] = params.ID
+
+	// Collection properties
+	if share, ok := dbRecord["share"]; ok && share != nil {
+		metadata["share"] = share
+	}
+	if preset, ok := dbRecord["preset"]; ok {
+		metadata["preset"] = preset
+	}
+	if public, ok := dbRecord["public"]; ok {
+		metadata["public"] = public
+	}
+	if sort, ok := dbRecord["sort"]; ok {
+		metadata["sort"] = sort
+	}
+	if status, ok := dbRecord["status"]; ok && status != nil {
+		metadata["status"] = status
+	}
+	if uid, ok := dbRecord["uid"]; ok {
+		metadata["uid"] = uid
+	}
+	if cover, ok := dbRecord["cover"]; ok {
+		metadata["cover"] = cover
+	}
+	if documentCount, ok := dbRecord["document_count"]; ok {
+		metadata["document_count"] = documentCount
+	}
+
 	collectionConfig := graphragtypes.CollectionConfig{
 		ID:       params.ID,
 		Metadata: metadata,
@@ -149,16 +214,22 @@ func (instance *KBInstance) RemoveCollection(ctx context.Context, collectionID s
 		return nil, fmt.Errorf("collection ID is required")
 	}
 
-	removed, err := instance.GraphRag.RemoveCollection(ctx, collectionID)
+	// Try to remove from GraphRag (vector/graph stores)
+	// Don't fail if collection doesn't exist there - we still want to clean up database
+	removed := false
+	graphRagErr := error(nil)
+
+	removedFromGraphRag, err := instance.GraphRag.RemoveCollection(ctx, collectionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to remove collection: %w", err)
+		// Log the error but continue to database cleanup
+		log.Warn("Failed to remove collection from GraphRag: %v (will continue with database cleanup)", err)
+		graphRagErr = err
+	} else {
+		removed = removedFromGraphRag
 	}
 
-	if !removed {
-		return nil, fmt.Errorf("collection not found or could not be removed")
-	}
-
-	// Remove collection and documents from database after successful GraphRag removal
+	// Always attempt to clean up database, even if GraphRag removal failed
+	// This ensures we can recover from inconsistent states
 	documentsRemoved := 0
 
 	// Count documents in this collection
@@ -167,22 +238,36 @@ func (instance *KBInstance) RemoveCollection(ctx context.Context, collectionID s
 	}
 
 	// Remove all documents belonging to this collection
+	dbCleanupSuccess := true
 	if err := instance.Config.RemoveDocumentsByCollectionID(collectionID); err != nil {
 		log.Error("Failed to remove documents from collection %s: %v", collectionID, err)
+		dbCleanupSuccess = false
 	} else {
 		log.Info("Removed %d documents from collection %s", documentsRemoved, collectionID)
 	}
 
-	// Remove the collection itself
+	// Remove the collection itself from database
 	if err := instance.Config.RemoveCollection(collectionID); err != nil {
 		log.Error("Failed to remove collection from database: %v", err)
+		dbCleanupSuccess = false
 	} else {
-		log.Info("Successfully removed collection %s and %d documents", collectionID, documentsRemoved)
+		log.Info("Successfully removed collection %s and %d documents from database", collectionID, documentsRemoved)
+	}
+
+	// Determine final result and error
+	// If both GraphRag and database cleanup failed, return error
+	if graphRagErr != nil && !dbCleanupSuccess {
+		return nil, fmt.Errorf("failed to remove collection: GraphRag error: %v", graphRagErr)
+	}
+
+	// If collection didn't exist in GraphRag but was cleaned from database, still consider it successful
+	if !removed && dbCleanupSuccess {
+		log.Info("Collection %s was not found in GraphRag but was cleaned from database", collectionID)
 	}
 
 	return &RemoveCollectionResult{
 		CollectionID:     collectionID,
-		Removed:          removed,
+		Removed:          removed || dbCleanupSuccess, // Consider successful if either succeeded
 		DocumentsRemoved: documentsRemoved,
 		Message:          "Collection removed successfully",
 	}, nil
